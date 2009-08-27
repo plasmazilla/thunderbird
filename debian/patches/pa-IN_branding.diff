@@ -1,0 +1,15 @@
+Author: Daniel Baumann <daniel@debian.org>
+Description:
+ Parts of the locales can not be customized through the &brandShortName; and
+ &brandFullName; entities, hence we have to replace Thunderbird with Icedove
+ manually.
+
+diff -Naur pa-IN.orig/chrome/locale/pa-IN/messenger/aboutDialog.dtd pa-IN/chrome/locale/pa-IN/messenger/aboutDialog.dtd
+--- pa-IN.orig/chrome/locale/pa-IN/messenger/aboutDialog.dtd	2005-06-19 08:58:10.000000000 +0000
++++ pa-IN/chrome/locale/pa-IN/messenger/aboutDialog.dtd	2008-02-02 17:00:59.000000000 +0000
+@@ -2,4 +2,4 @@
+ <!ENTITY credits                "ਮਾਣ">
+ <!ENTITY aboutLink              "&lt; &brandShortName; ਬਾਰੇ">
+ <!ENTITY aboutVersion           "ਵਰਜਨ">
+-<!ENTITY copyrightText          "&#169;1998-2004 ਸਹਿਯੋਗ। ਸਭ ਹੱਕ ਰਾਖਵੇਂ ਹਨ। ਮੌਜੀਲਾ ਥੰਡਰਬਰਡ ਤੇ ਥੰਡਰਬਰਡ ਲੋਗੋ ਮੌਜੀਲਾ ਫਾਊਨਡੇਸ਼ਨ ਕੋਲ ਰਾਖਵੇ ਹਨ।">
++<!ENTITY copyrightText          "&#169;1998-2007 Contributors. All Rights Reserved.">

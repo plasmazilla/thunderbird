@@ -1,0 +1,15 @@
+Author: Daniel Baumann <daniel@debian.org>
+Description:
+ Parts of the locales can not be customized through the &brandShortName; and
+ &brandFullName; entities, hence we have to replace Thunderbird with Icedove
+ manually.
+
+diff -Naur tr.orig/chrome/locale/tr/messenger/aboutDialog.dtd tr/chrome/locale/tr/messenger/aboutDialog.dtd
+--- tr.orig/chrome/locale/tr/messenger/aboutDialog.dtd	2006-09-07 12:21:02.000000000 +0000
++++ tr/chrome/locale/tr/messenger/aboutDialog.dtd	2008-02-02 17:07:47.000000000 +0000
+@@ -2,4 +2,4 @@
+ <!ENTITY credits                "Destekleyenler">
+ <!ENTITY aboutLink              "&lt;  &brandFullName; Hakkında">
+ <!ENTITY aboutVersion           "sürüm">
+-<!ENTITY copyrightText          "&#169;1998-2005 Çalışanlar ve katkıda bulunanlar. Mozilla Thunderbird logosu Mozilla Vakfı'nın resmi logosudur ve bütün hakları saklıdır.">
++<!ENTITY copyrightText          "&#169;1998-2007 Çalışanlar ve katkıda bulunanlar. ">

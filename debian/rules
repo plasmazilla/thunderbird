@@ -1,0 +1,92 @@
+#!/usr/bin/make -f
+
+SHELL := sh -e
+
+%:
+	dh ${@}
+
+override_dh_auto_clean:
+	dh_auto_clean
+
+	rm -rf build
+
+override_dh_auto_build:
+	cd $(CURDIR)/upstream; \
+	for XPI in *.xpi; \
+	do \
+		LOCALE=`basename $${XPI} .xpi`; \
+		mkdir -p $(CURDIR)/build/$${LOCALE}; \
+		unzip -o -q -d $(CURDIR)/build/$${LOCALE} $${XPI}; \
+		mkdir -p $(CURDIR)/build/$${LOCALE}; \
+		cd $(CURDIR)/build/$${LOCALE}; \
+		if [ -f chrome/$${LOCALE}.jar ]; \
+		then \
+			JAR=$${LOCALE}.jar; \
+		else \
+			JAR=`echo $${XPI} | sed --posix 's|-.*||'`.jar; \
+		fi; \
+		unzip -o -q -d chrome chrome/$${JAR}; \
+		rm -f chrome/$${JAR}; \
+		for PATCH in $(CURDIR)/debian/patches/$${LOCALE}_*.diff; \
+		do \
+			patch -Np1 -i $${PATCH}; \
+		done; \
+		sed -i  -e 's/brandShortName.*/brandShortName "Icedove">/' \
+			-e 's/brandFullName.*/brandFullName "Icedove">/' \
+			-e 's/vendorShortName.*/vendorShortName "Mozilla">/' \
+			chrome/locale/*/branding/brand.dtd; \
+		sed -i  -e 's/brandShortName.*/brandShortName=Icedove/' \
+			-e 's/brandFullName.*/brandFullName=Icedove/' \
+			-e 's/vendorShortName.*/vendorShortName=Mozilla/' \
+			chrome/locale/*/branding/brand.properties; \
+		cd chrome; zip -q -0r $${JAR} locale; \
+		rm -rf locale; cd $(CURDIR)/upstream; \
+		sed -i -e '/./,$$ !d; s/em:maxVersion>.*</em:maxVersion>2.0.99</' $(CURDIR)/build/$${LOCALE}/install.rdf; \
+	done
+
+override_dh_auto_install:
+	# locale
+	cd $(CURDIR)/build; \
+	for DIRECTORY in *; \
+	do \
+		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`/chrome; \
+		install -m 644 $${DIRECTORY}/chrome/*.jar $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`/chrome; \
+	done;
+
+	# install.rdf
+	cd $(CURDIR)/build; \
+	for DIRECTORY in *; \
+	do \
+		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		install -m 644 $${DIRECTORY}/install.rdf $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
+	done;
+
+	# chrome.manifest
+	cd $(CURDIR)/build; \
+	for DIRECTORY in *; \
+	do \
+		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		install -m 644 $${DIRECTORY}/chrome.manifest $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
+	done;
+
+	# uninstall
+	cd $(CURDIR)/build; \
+	for DIRECTORY in *; \
+	do \
+		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`/uninstall; \
+		cat $${DIRECTORY}/install.rdf | \
+			sed --posix '/<em:locale>/!d' | \
+			sed --posix "s/.*/register	global	locale	$${DIRECTORY}/" > \
+			$(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`/uninstall/Uninstall; \
+	done;
+
+	# debian settings
+	cd $(CURDIR)/build; \
+	for DIRECTORY in *; \
+	do \
+		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d; \
+		echo extension,`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'` > $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d/50$${DIRECTORY}-locale.ext; \
+	done;

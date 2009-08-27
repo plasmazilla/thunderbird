@@ -1,0 +1,241 @@
+icedove-l10n (1:2.0.0.22+debian-3) unstable; urgency=low
+
+  * Updating package to standards version 3.8.3.
+  * Removing vcs fields.
+  * Orphaning package.
+
+ -- Daniel Baumann <daniel@debian.org>  Thu, 27 Aug 2009 16:10:20 +0200
+
+icedove-l10n (1:2.0.0.22+debian-2) unstable; urgency=low
+
+  * Updating maintainer field.
+  * Updating vcs fields.
+  * Adding misc depends.
+  * Rewriting copyright file in machine-interpretable format.
+  * Minimizing rules file.
+  * Updating patch descriptions.
+
+ -- Daniel Baumann <daniel@debian.org>  Thu, 13 Aug 2009 13:09:02 +0200
+
+icedove-l10n (1:2.0.0.22+debian-1) unstable; urgency=low
+
+  * Using correct rfc-2822 date formats in changelog.
+  * Merging upstream version 2.0.0.22+debian.
+  * Updating depends to icedove to version 2.0.0.22.
+  * Updating section to localization.
+  * Updating stanards version to 3.8.2.
+
+ -- Daniel Baumann <daniel@debian.org>  Wed, 01 Jul 2009 11:35:49 -0300
+
+icedove-l10n (1:2.0.0.19+debian-1) unstable; urgency=low
+
+  * Replacing obsolete dh_clean -k with dh_prep.
+  * Merging upstream version 2.0.0.19+debian.
+  * Updating package to standards 3.8.1.
+  * Removing old conflicts, replaces, transitional packages.
+  * Updating depends to icedove to version 2.0.0.19.
+  * Ukrainian locales are official now.
+  * Updating year in copyright file.
+
+ -- Daniel Baumann <daniel@debian.org>  Sun, 05 Apr 2009 12:44:00 +0200
+
+icedove-l10n (1:2.0.0.17+debian-2) unstable; urgency=low
+
+  * Updating depends to icedove to version 2.0.0.17.
+
+ -- Daniel Baumann <daniel@debian.org>  Sun, 19 Oct 2008 08:57:00 +0200
+
+icedove-l10n (1:2.0.0.17+debian-1) unstable; urgency=low
+
+  * Updating vcs fields in control file.
+  * Merging upstream version 2.0.0.17+debian.
+
+ -- Daniel Baumann <daniel@debian.org>  Sat, 18 Oct 2008 18:46:00 +0200
+
+icedove-l10n (1:2.0.0.16+debian-1) unstable; urgency=low
+
+  * Updating depends to icedove to version 2.0.0.16.
+  * Reordering rules file.
+  * Adding vcs fields in control file.
+  * Upgrading package to standards 3.8.0.
+  * Upgrading package to debhelper 7.
+  * Merging upstream version 2.0.0.16+debian.
+
+ -- Daniel Baumann <daniel@debian.org>  Mon, 04 Aug 2008 15:29:00 +0200
+
+icedove-l10n (1:2.0.0.14+debian-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Daniel Baumann <daniel@debian.org>  Sat, 10 May 2008 22:55:00 +0200
+
+icedove-l10n (1:2.0.0.12+debian-1) unstable; urgency=low
+
+  * New upstream release:
+    - Adds Afrikaans localization.
+
+ -- Daniel Baumann <daniel@debian.org>  Sat, 26 Apr 2008 17:05:00 +0200
+
+icedove-l10n (1:2.0.0.9+debian3-2) unstable; urgency=low
+
+  * Removing Mozilla stuff away from about dialog.
+
+ -- Daniel Baumann <daniel@debian.org>  Sat, 02 Feb 2008 17:28:00 +0100
+
+icedove-l10n (1:2.0.0.9+debian3-1) unstable; urgency=low
+
+  * Including unofficial translation:
+    - uk.xpi from thunderbird-uk-2.0b.xpi.
+
+ -- Daniel Baumann <daniel@debian.org>  Tue, 22 Jan 2008 06:12:00 +0100
+
+icedove-l10n (1:2.0.0.9+debian2-1) unstable; urgency=low
+
+  * Including unofficial translation:
+    - gl-ES.xpi from Thunderbird_2_gl-ES.xpi.
+
+ -- Daniel Baumann <daniel@debian.org>  Sun, 20 Jan 2008 22:42:00 +0100
+
+icedove-l10n (1:2.0.0.9+debian-1) unstable; urgency=low
+
+  * New upstream release:
+    - Adds Hebrew localization.
+
+ -- Daniel Baumann <daniel@debian.org>  Sat, 29 Dec 2007 17:56:00 +0100
+
+icedove-l10n (1:2.0.0.6+debian-2) unstable; urgency=low
+
+  * Bumping to new policy.
+  * Using set -e for shell calls in rules.
+
+ -- Daniel Baumann <daniel@debian.org>  Thu, 27 Dec 2007 12:49:00 +0100
+
+icedove-l10n (1:2.0.0.6+debian-1) unstable; urgency=low
+
+  * Including unofficial translation:
+    - ne-NP.xpi from thunderbird-2.0.0.7pre.ne-NP.langpack.xpi.
+
+ -- Daniel Baumann <daniel@debian.org>  Fri, 16 Nov 2007 18:51:00 +0100
+
+icedove-l10n (1:2.0.0.6-4) unstable; urgency=low
+
+  * Fixed typo in package description (Closes: #451308).
+
+ -- Daniel Baumann <daniel@debian.org>  Wed, 14 Nov 2007 23:37:00 +0100
+
+icedove-l10n (1:2.0.0.6-3) unstable; urgency=low
+
+  * Fixed typo in package depends.
+
+ -- Daniel Baumann <daniel@debian.org>  Mon, 22 Oct 2007 06:50:00 +0200
+
+icedove-l10n (1:2.0.0.6-2) unstable; urgency=low
+
+  * Repackaged from scratch, using common naming scheme (Closes: #402442).
+  * Adding icedove-l10n-all meta-package (Closes: #408382).
+  * Setting vendor string to Mozilla rather than 'Icedove'.
+
+ -- Daniel Baumann <daniel@debian.org>  Wed, 17 Oct 2007 21:45:00 +0200
+
+icedove-locales (1:2.0.0.6-1) unstable; urgency=low
+
+  * New upstream release.
+  * Using tightened versioned depends on icedove to prevent the locales enter
+    testing before icedove.
+
+ -- Daniel Baumann <daniel@debian.org>  Wed, 17 Oct 2007 18:14:00 +0200
+
+icedove-locales (1:2.0.0.4-1) unstable; urgency=low
+
+  * Taking over unmaintained package.
+  * New upstream release (Closes: #436900):
+    - Adds Korean translation.
+  * Adding recommends to myspell dictionaries (Closes: #409376).
+
+ -- Daniel Baumann <daniel@debian.org>  Wed, 17 Oct 2007 13:03:00 +0200
+
+icedove-locales (1:2.0.0.0-1) unstable; urgency=low
+
+  * New upstream release for icedove/thunderbird 2.0.0.*,
+    closes: #426097.
+  * Removed locales which are not available for icedove/thunderbird
+    2.0.0.0; Gujarati, Hebrew and Korean; icedove-locale-gu,
+    icedove-locale-he, icedove-locale-ko.
+  * Added Belarusian, Norwegian nynorsk, Portuguese (Portugal) and
+    Chinese (Taiwan); icedove-locale-be, icedove-locale-nn,
+    icecove-locale-pt-pt, icedove-locale-zh-tw, closes: #427362.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Sun, 03 Jun 2007 15:08:45 +0200
+
+icedove-locales (1:1.5.0.9-1) unstable; urgency=low
+
+  * New upstream release for icedove/thunderbird 1.5.0.9.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Sun, 07 Jan 2007 19:36:28 +0200
+
+icedove-locales (1:1.5.0.8-1) unstable; urgency=low
+
+  * New upstream release for icedove/thunderbird 1.5.0.8.
+  * Replace usage of "&> /dev/null" by "> /dev/null 2>&1" in
+    debian/rules so that the package build process works even
+    if /bin/sh is no bash, closes: #394843.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Sun, 03 Dec 2006 17:49:26 +0200
+
+icedove-locales (1:1.5.0.7-1) unstable; urgency=low
+
+  * First release as "icedove-locales", a rename of the source package
+    "thunderbird-locales" and the binary packages it produces + extra
+    transitional packages.
+  * New upstream release for icedove/thunderbird 1.5.0.7. Closes: #388264.
+  * Added a transitional package for Czech,
+    mozilla-thunderbird-locale-cs.
+  * Added an Irish Gaelic package, icedove-locale-ga.
+  * Added Catalan packages, icedove-locale-ca
+    and mozilla-thunderbird-locale-ca.
+  * Added a Lithuanian package, icedove-locale-lt.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Tue, 10 Oct 2006 21:16:26 +0200
+
+thunderbird-locales (1:1.5.0.5-2) unstable; urgency=low
+
+  * Add MPL 1.1 to the copyright files in the thunderbird-locale-*
+    packages. Changed so that the documentation directories for
+    the transitional packages, /usr/share/doc/mozilla-thunderbird-locale-*,
+    are now symlinks to the corresponding directories in the real
+    packages, /usr/share/doc/thunderbird-locale-*. Closes #383437.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Thu, 17 Aug 2006 15:03:15 +0200
+
+thunderbird-locales (1:1.5.0.5-1) unstable; urgency=medium
+
+  * New upstream releases for thunderbird 1.5.0.5.
+  * Made the versioned dependencies on thunderbird in install.rdf and
+    debian/control consistent by loosening the dependency in
+    install.rdf and fixing the syntax in debian/control. Closes: #380397.
+  * Created and populated a Build-Depends field in debian/control to
+    satisfy chapter 7.6 of debian-policy.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Sun, 13 Aug 2006 18:57:55 +0200
+
+thunderbird-locales (1:1.5.0.4-1) unstable; urgency=low
+
+  * New upstream releases for thunderbird 1.5.0.4, closes: #374086.
+  * Close a bug that should have been closed by the previous
+    release, 1:1.5.0.2-1. Closes: #365713.
+  * Add a proper Replaces, Conflicts against the old package
+    mozilla-thunderbird-locale-cs for the Czech package
+    thunderbird-locale-cs, a transitional package will be added later.
+  * Fixed branding, closes: #311316.
+  * Updated to Standards-Version 3.7.2, no changes.
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Mon, 26 Jun 2006 23:39:27 +0200
+
+thunderbird-locales (1:1.5.0.2-1) unstable; urgency=low
+
+  * Initial release, (Closes: #353063).
+  * [asac@debian.org] - added proper Replaces, Conflicts for
+    those locale packages that do already exist in archive
+  * [asac@debian.org] - added epoch
+
+ -- Hans Ofverbeck <hans.ofverbeck@home.se>  Sun, 23 Apr 2006 19:31:54 +0100
