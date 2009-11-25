@@ -1,0 +1,27 @@
+---
+ mail/app/Makefile.in |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: mozilla/mail/app/Makefile.in
+===================================================================
+--- mozilla.orig/mail/app/Makefile.in
++++ mozilla/mail/app/Makefile.in
+@@ -45,17 +45,17 @@
+ AB_CD = $(MOZ_UI_LOCALE) 
+ 
+ GRE_MILESTONE = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build Milestone)
+ GRE_BUILDID = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build BuildID)
+ 
+ PLATFORM_LICENSE_FILE = $(MOZILLA_SRCDIR)/toolkit/content/license.html
+ MAIL_LICENSE_HTML_FILE = ../license.html
+ MAIL_LICENSE_TXT_FILE = $(topsrcdir)/mail/LICENSE.txt
+-MAIL_APP_LICENSE_FILE = $(srcdir)/app-license.html
++MAIL_APP_LICENSE_FILE = $(topsrcdir)/mail/app/app-license.html
+ 
+ DEFINES += \
+   -DTHUNDERBIRD_ICO=\"$(DIST)/branding/thunderbird.ico\" \
+   -DAB_CD=$(AB_CD) \
+   -DGRE_MILESTONE=$(GRE_MILESTONE) \
+   -DGRE_BUILDID=$(GRE_BUILDID) \
+   -DAPP_EULA_BLOCK=$(MAIL_APP_LICENSE_FILE) \
+    $(NULL)

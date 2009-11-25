@@ -1,0 +1,27 @@
+---
+ mail/installer/Makefile.in |    2 --
+ 1 file changed, 2 deletions(-)
+
+Index: mozilla/mail/installer/Makefile.in
+===================================================================
+--- mozilla.orig/mail/installer/Makefile.in
++++ mozilla/mail/installer/Makefile.in
+@@ -63,18 +63,16 @@
+ ifdef BUILD_STATIC_LIBS
+ ifeq (WINNT,$(OS_ARCH))
+ MOZ_PKG_MANIFEST_P = $(srcdir)/windows/packages-static
+ else
+ ifneq (,$(filter-out OS2 Darwin,$(OS_ARCH)))
+ MOZ_PKG_MANIFEST_P = $(srcdir)/unix/packages-static
+ endif
+ endif
+-else
+-$(error you need a "--enable-static --disable-shared" build to package a build)
+ endif
+ 
+ MOZ_NONLOCALIZED_PKG_LIST = \
+ 	xpcom \
+ 	mail \
+ 	newsblog \
+ 	offline \
+ 	$(NULL)

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Shredder 3 Mail/News
+Comment=Read/Write Mail/News with Mozilla Shredder 3
+GenericName=Mail Client
+Exec=thunderbird-3.0 %u
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=thunderbird-3.0
+Categories=Application;Network;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png
+StartupWMClass=Thunderbird-bin
+StartupNotify=true

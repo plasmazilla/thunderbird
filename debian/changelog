@@ -1,0 +1,59 @@
+icedove-3.0 (3.0~b3~hg20090713r3057-1~gbp253e4ab) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 14 Jul 2009 10:24:57 +0200
+
+icedove-3.0 (3.0~b3~hg20090713r3057-1~gbpefd0706) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 14 Jul 2009 10:24:50 +0200
+
+icedove-3.0 (3.0~b3~hg20090713r3057-1~gbpfeeee47) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 14 Jul 2009 10:11:10 +0200
+
+icedove-3.0 (3.0~b3~hg20090505r2552-1~gbp595a0b7) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 05 May 2009 18:03:25 +0200
+
+icedove-3.0 (3.0~b3~hg20090427r2499-1~gbpbeb7cd6) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Mon, 27 Apr 2009 20:05:51 +0200
+
+icedove-3.0 (3.0~b3~hg20090427r2499-1~gbp80a8829) sid; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Mon, 27 Apr 2009 19:56:09 +0200
+
+icedove-3.0 (3.0~b3~hg20090422r2448-1~gbpd4ee3b3) pkg-mozext; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Wed, 22 Apr 2009 09:14:54 +0200
+
+icedove-3.0 (3.0~b3~hg20090421r2441-1~gbp66d9bed) pkg-mozext; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 21 Apr 2009 19:35:09 +0200
+
+icedove-3.0 (3.0~b3~hg20090420r2424-1~gbp47b25b8) pkg-mozext; urgency=low
+
+  * New snapshot.
+
+ -- Guido Günther <agx@sigxcpu.org>  Mon, 20 Apr 2009 11:28:56 +0200
+
+icedove-3.0 (3.0~b3~hg20090418r2418+nobinonly-1~0~gbpa19783) pkg-mozext; urgency=low
+
+  * Initial release
+
+ -- Guido Günther <agx@sigxcpu.org>  Sun, 19 Apr 2009 13:44:33 +0200

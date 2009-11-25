@@ -1,0 +1,172 @@
+#!/usr/bin/make -f
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_BUILD_ARCH      ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+
+DEB_MOZ_NAME=icedove
+DEB_MOZ_VERSION=3.0
+DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)
+MOZ_APPLICATION=mail
+XUL_VERSION=1.9.1
+
+DEBIAN_VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: *\(.*\)$$/\1/ p')
+DEBIAN_UPSTREAM_VERSION := $(shell echo $(DEBIAN_VERSION) | sed 's/^\(.*\)-[^-]*$$/\1/')
+DEBIAN_REV_CODE := $(shell echo $(DEBIAN_VERSION) | sed 's/^.*-\([0-9]*\)[^-]*$$/0\1/ ; s/^.*\(..\)$$/\1/')
+
+ifeq ($(DEB_MOZ_NAME),icedove)
+  DEBIAN_DIST := org.debian
+  EXTRA_BRANDING_CONFIGURE_FLAGS = --with-branding=${MOZ_APPLICATION}/branding/$(DEB_MOZ_NAME)/
+  TB_ICON = $(DEB_SRCDIR)/mail/branding/icedove/content/icon64.png
+else
+  DEBIAN_DIST := com.ubuntu
+  TB_ICON = $(DEB_SRCDIR)/other-licenses/branding/thunderbird/content/icon64.png
+endif
+
+ifeq ($(XUL_VERSION),1.9.1)
+  TB_VERSION_FILE := version-191.txt
+else
+  TB_VERSION_FILE := version.txt
+endif
+
+DEBIAN_TB_DIR   = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 mozilla/$(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
+DEBIAN_XUL_DEV := $(wildcard /usr/lib/xulrunner-devel-1.9*)
+
+MOZCLIENT_PROJECTNAME   := $(DEB_MOZ_APPLICATION)
+MOZCLIENT_PROJECTDIR    := $(CURDIR)/debian/mozclient
+
+DEB_SRCDIR		:= mozilla
+# DEB_BUILDDIR		:= objdir-tb
+
+EXTRA_SYSTEM_CONFIGURE_FLAGS = $(NULL)
+
+USE_SYSTEM_XUL := 0
+
+ifeq (1,$(USE_SYSTEM_XUL))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-libxul-sdk=$(DEBIAN_XUL_DEV)
+endif
+
+USE_SYSTEM_CAIRO := $(shell pkg-config --exists 'cairo >= 1.5.8'; a=$$?; if test $$a != 1; then echo 1; fi)
+
+# for old cairo versions we cannot use system cairo
+ifeq (1,$(USE_SYSTEM_CAIRO))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-cairo
+else
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --disable-system-cairo
+endif
+
+# gutsy doesn't have the right system-nss/nspr
+USE_SYSTEM_NSPR := $(shell pkg-config --exists 'nspr >= 4.7.3'; a=$$?; if test $$a != 1; then echo 1; fi)
+ifeq (1,$(USE_SYSTEM_NSPR))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nspr
+endif
+
+USE_SYSTEM_NSS := $(shell pkg-config --exists 'nss >= 3.12.3'; a=$$?; if test $$a != 1; then echo 1; fi)
+ifeq (1,$(USE_SYSTEM_NSS))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nss
+endif
+
+USE_SYSTEM_HUNSPELL := $(shell pkg-config --exists 'hunspell >= 1.2'; a=$$?; if test $$a != 1; then echo 1; fi)
+ifeq (1,$(USE_SYSTEM_HUNSPELL))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-hunspell
+else
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --disable-system-hunspell
+endif
+
+DEB_AUTO_UPDATE_AUTOCONF=2.13
+
+ifneq (,$(wildcard *.tar.bz2)$(DEBIAN_MOZCLIENT_EMBEDDED))
+   DEB_TAR_SRCDIR := mozilla
+   MOZCLIENT_EMBEDDED = 1
+   DEBIAN_TB_DIR = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 build-tree/mozilla/$(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
+   include /usr/share/cdbs/1/rules/tarball.mk
+endif
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/rules/patchsys-quilt.mk
+include /usr/share/cdbs/1/class/autotools.mk
+include $(CURDIR)/debian/mozclient/$(DEB_MOZ_APPLICATION).mk
+include $(CURDIR)/debian/mozclient/compare.mk
+
+DEB_AUTO_UPDATE_DEBIAN_CONTROL=0
+
+DEB_MOZ_EXTENSIONS=default
+DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)-dbg
+
+CFLAGS = -g
+CXXFLAGS = -g
+
+# DEB_CONFIGURE_SCRIPT_ENV = \
+# 	MOZ_OBJDIR=@TOPSRCDIR@/$(DEB_BUILDDIR) \
+# 	$(NULL)
+
+DEB_CONFIGURE_USER_FLAGS= \
+	$(EXTRA_SYSTEM_CONFIGURE_FLAGS) \
+	--enable-application=$(MOZ_APPLICATION) \
+	--enable-extensions=$(DEB_MOZ_EXTENSIONS) \
+	--with-default-mozilla-five-home=$(DEBIAN_TB_DIR) \
+	--enable-startup-notification \
+	--with-user-appdir=.mozilla \
+	--with-system-jpeg=/usr \
+	--with-system-zlib=/usr \
+	--disable-javaxpcom \
+	--disable-crashreporter \
+	--disable-elf-dynstr-gc \
+	--disable-installer \
+	--disable-strip \
+	--disable-strip-libs \
+	--disable-install-strip \
+	--disable-tests \
+	--disable-mochitest \
+	--disable-updater \
+	--enable-optimize \
+	--enable-static \
+	--enable-static-mail \
+	--with-distribution-id=$(DEBIAN_DIST) \
+	$(EXTRA_BRANDING_CONFIGURE_FLAGS) \
+	$(NULL)
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	DEB_CONFIGURE_USER_FLAGS += \
+		--disable-optimize \
+		$(NULL)
+endif
+
+subst_files = \
+	debian/$(DEB_MOZ_APPLICATION).postinst \
+	debian/$(DEB_MOZ_APPLICATION).prerm \
+	debian/$(DEB_MOZ_APPLICATION)-gnome-support.install \
+	debian/$(DEB_MOZ_APPLICATION).install \
+	$(NULL)
+
+$(DEB_MOZ_APPLICATION)%: thunderbird-$(DEB_MOZ_VERSION)%.in
+	sed -e 's,@LIBDIR@,$(DEBIAN_TB_DIR),g' \
+	    -e 's,@DEB_MOZ_APPLICATION@,$(DEB_MOZ_APPLICATION),g' \
+	       < $< > $@
+
+pre-build:: $(subst_files)
+
+post-patches:: debian/stamp-autotools-files-moz
+debian/stamp-autotools-files-moz:
+	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/mozilla/configure ]; \
+	then cd $(DEB_SRCDIR)/mozilla && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
+	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/mozilla/js/src/configure ]; \
+	then cd $(DEB_SRCDIR)/mozilla/js/src && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
+	touch $@
+
+install/$(DEB_MOZ_APPLICATION)::
+	install -d -m 755 debian/tmp/usr/share/pixmaps
+	install -m 644 $(DEB_SRCDIR)/other-licenses/branding/thunderbird/content/icon64.png debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
+	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
+
+binary-install/$(DEB_MOZ_APPLICATION)::
+	touch debian/$(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)$(DEBIAN_TB_DIR)/.autoreg
+	dh_install debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png usr/share/pixmaps
+# FIXME: need to make sure the target binary is named icedove too:
+	dh_link $(DEBIAN_TB_DIR)/thunderbird usr/bin/$(DEB_MOZ_APPLICATION)
+
+binary-post-install/$(DEB_MOZ_APPLICATION):: compare
+
+clean::
+	rm -f debian/stamp-autotools-files-moz debian/stamp-icedove-branding

@@ -1,0 +1,40 @@
+---
+ mail/app/Makefile.in |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+Index: mozilla/mail/app/Makefile.in
+===================================================================
+--- mozilla.orig/mail/app/Makefile.in
++++ mozilla/mail/app/Makefile.in
+@@ -283,28 +283,28 @@
+ 
+ libs:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
+ 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
+ 
+ libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))
+ 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
+ 
+ install:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
+-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/chrome/icons/default
++	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(installdir)/chrome/icons/default
+ 
+ install:: $(addprefix $(DIST)/branding,$(BRANDED_ICON_FILES))
+-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/chrome/icons/default
++	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(installdir)/chrome/icons/default
+ endif
+ 
+ ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
+ libs::
+ 	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DIST)/bin/chrome/icons/default
+ 
+ install::
+-	$(SYSINSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DESTDIR)$(mozappdir)/chrome/icons/default
++	$(SYSINSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DESTDIR)$(installdir)/chrome/icons/default
+ endif
+ 
+ ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
+ thunderbird:: $(topsrcdir)/mozilla/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
+ 	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
+ 		-e "s|%MOZ_APP_DISPLAYNAME%|$(MOZ_APP_DISPLAYNAME)|" > $@
+ 	chmod +x $@
+ 

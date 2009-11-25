@@ -1,0 +1,83 @@
+---
+ config/autoconf.mk.in         |    8 ++++----
+ mail/app/application.ini      |    2 +-
+ mail/confvars.sh              |    2 +-
+ mozilla/build/unix/mozilla.in |   16 ++++++++++++++++
+ 4 files changed, 22 insertions(+), 6 deletions(-)
+
+Index: mozilla/config/autoconf.mk.in
+===================================================================
+--- mozilla.orig/config/autoconf.mk.in	2009-07-14 07:40:48.000000000 +0000
++++ mozilla/config/autoconf.mk.in	2009-07-14 16:53:43.000000000 +0000
+@@ -61,14 +61,14 @@
+ prefix		= @prefix@
+ exec_prefix	= @exec_prefix@
+ bindir		= @bindir@
+-includedir	= @includedir@/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
++includedir	= @includedir@/icedove-$(MOZ_APP_VERSION)
+ libdir		= @libdir@
+ datadir		= @datadir@
+ mandir		= @mandir@
+-idldir		= $(datadir)/idl/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
++idldir		= $(datadir)/idl/icedove-$(MOZ_APP_VERSION)
+ 
+-installdir	= $(libdir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
+-sdkdir		= $(libdir)/$(MOZ_APP_NAME)-devel-$(MOZ_APP_VERSION)
++installdir	= $(libdir)/icedove-$(MOZ_APP_VERSION)
++sdkdir		= $(libdir)/icedove-devel-$(MOZ_APP_VERSION)
+ 
+ MOZDEPTH	= $(DEPTH)/mozilla
+ DIST		= $(MOZDEPTH)/dist
+Index: mozilla/mail/confvars.sh
+===================================================================
+--- mozilla.orig/mail/confvars.sh	2009-07-14 07:40:48.000000000 +0000
++++ mozilla/mail/confvars.sh	2009-07-14 16:53:43.000000000 +0000
+@@ -36,7 +36,7 @@
+ #
+ # ***** END LICENSE BLOCK *****
+ 
+-MOZ_APP_NAME=thunderbird
++MOZ_APP_NAME=icedove-3.0
+ MOZ_UPDATER=1
+ MOZ_THUNDERBIRD=1
+ MOZ_NO_ACTIVEX_SUPPORT=1
+Index: mozilla/mail/app/application.ini
+===================================================================
+--- mozilla.orig/mail/app/application.ini	2009-07-14 07:40:48.000000000 +0000
++++ mozilla/mail/app/application.ini	2009-07-14 16:54:10.000000000 +0000
+@@ -37,7 +37,7 @@
+ 
+ #filter substitution
+ [App]
+-Name=Thunderbird
++Name=Icedove-3.0
+ Version=@APP_VERSION@
+ BuildID=@GRE_BUILDID@
+ #ifdef MOZ_SOURCE_REPO
+Index: mozilla/mozilla/build/unix/mozilla.in
+===================================================================
+--- mozilla.orig/mozilla/build/unix/mozilla.in	2009-07-14 07:53:00.000000000 +0000
++++ mozilla/mozilla/build/unix/mozilla.in	2009-07-14 16:53:43.000000000 +0000
+@@ -95,6 +95,22 @@
+   fi
+ fi
+ 
++# On 1st run, create a profile based on application.ini configuration
++# by importing an existing ~/.mozilla-thunderbird profile
++if [ -e "$moz_libdir/application.ini" ]; then
++  pfname=`grep ^Name $moz_libdir/application.ini | cut -d= -f2 | tr 'A-Z' 'a-z'`
++  if [ -f "$HOME/.$pfname" ]; then
++    # should never happen
++    mv $HOME/.$pfname $HOME/.$pfname.moved_out_by_mozilla_startup_script
++  fi
++  if [ "$HOME/.$pfname" != "$HOME/.mozilla-thunderbird" ] && \
++     [ ! -d "$HOME/.$pfname" ] && \
++     [   -d "$HOME/.mozilla-thunderbird" ] ; then
++    echo "*INFO* No $HOME/.$pfname detected. Create it from $HOME/.mozilla-thunderbird"
++    cp -a $HOME/.mozilla-thunderbird $HOME/.$pfname
++  fi
++fi
++
+ script_args=""
+ debugging=0
+ MOZILLA_BIN="${progbase}-bin"

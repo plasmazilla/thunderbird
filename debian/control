@@ -1,0 +1,84 @@
+Source: icedove-3.0
+Section: web
+Priority: optional
+Maintainer: Guido Günther <agx@sigxcpu.org>
+Build-Depends: bzip2,
+	debhelper (>= 5),
+	autoconf2.13,
+	autotools-dev,
+	quilt,
+	patchutils (>= 0.2.25),
+	cdbs (>= 0.4.27),
+	libx11-dev (>= 2:1.0),
+	libxt-dev,
+	libgtk2.0-dev (>= 2.12),
+	libglib2.0-dev (>= 2.12),
+	libstartup-notification0-dev,
+	zlib1g-dev (>= 1:1.2.3),
+	libbz2-dev,
+	liborbit2-dev,
+	libidl-dev (>= 0.8.0),
+	zip,
+	libxft-dev,
+	libfreetype6-dev,
+	libpng12-dev (>= 1.2.0),
+	libjpeg62-dev (>= 6b),
+	libxrender-dev,
+	libxinerama-dev,
+	libcairo2-dev (>= 1.5.8),
+	libpixman-1-dev,
+	libgnome2-dev (>= 2.16),
+	libgconf2-dev,
+	libgnomevfs2-dev (>= 1:2.16),
+	libgnomeui-dev (>= 2.16),
+	libdbus-1-dev (>= 1.0.0),
+	libdbus-glib-1-dev (>= 0.60),
+	libhal-dev (>= 0.5.8),
+	libasound2-dev,
+	sharutils,
+	m4,
+	libreadline5-dev | libreadline-dev,
+	libkrb5-dev,
+	binutils (>= 2.17) [mips mipsel],
+	libhunspell-dev (>= 1.2),
+	libnspr4-dev (>= 4.7.3),
+	libnss3-dev (>= 3.12.3),
+	docbook-to-man,
+Standards-Version: 3.8.0
+
+Package: icedove-3.0
+Architecture: any
+Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}
+Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary
+Suggests: icedove-3.0-gnome-support (= ${binary:Version}), latex-xft-fonts, libthai0
+Provides: mail-reader
+Section: mail
+Description: mail/news client with RSS and integrated spam filter support
+ Icedove 3.0 is a mail/news/RSS client.
+
+Package: icedove-3.0-gnome-support
+Architecture: any
+Section: mail
+Depends: ${shlibs:Depends}, icedove-3.0 (= ${binary:Version})
+Provides: gnome-www-browser
+Description: Support for Gnome in Icedove 3.0
+ This is an extension to Icedove that allows it to use protocol
+ handlers from GnomeVFS, such as smb or sftp, and other GNOME
+ integration features.
+
+Package: icedove-3.0-dev
+Architecture: any
+Section: mail
+Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version})
+Description: Development files for Icedove 3.0
+ This package contains the development headers, idl files and static libraries 
+ needed to develop applications using Icedove.
+
+Package: icedove-3.0-dbg
+Architecture: any
+Section: mail
+Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version})
+Description: Debug Symbols for Icedove
+ This package contains the debug symbols for icedove. Use these if you
+ debug icedove.
+
