@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<RDF:RDF xmlns:NC="http://home.netscape.com/NC-rdf#"
+         xmlns:RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <RDF:Description RDF:about="M:\Files\Google.htm"
+                   NC:Name="Google.htm">
+    <NC:URL RDF:resource="http://www.google.com/"/>
+    <NC:File RDF:resource="M:\Files\Google.htm"/>
+    <NC:DownloadState NC:parseType="Integer">-1</NC:DownloadState>
+  </RDF:Description>
+  <RDF:Seq RDF:about="NC:DownloadsRoot">
+    <RDF:li RDF:resource="M:\Files\Google.htm"/>
+  </RDF:Seq>
+</RDF:RDF>
+

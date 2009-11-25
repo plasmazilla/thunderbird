@@ -1,0 +1,28 @@
+#filter substitution
+sunbird.jar:
+% content sunbird %content/sunbird/
+% style chrome://global/content/customizeToolbar.xul chrome://sunbird/skin/calendar.css
+% style chrome://global/content/customizeToolbar.xul chrome://sunbird/skin/toolbar.css
+% style chrome://global/content/customizeToolbar.xul chrome://calendar/skin/calendar-event-dialog.css
+*   content/sunbird/aboutDialog.css                        (content/aboutDialog.css)
+    content/sunbird/aboutDialog.js                         (content/aboutDialog.js)
+*   content/sunbird/aboutDialog.xul                        (content/aboutDialog.xul)
+*   content/sunbird/applicationUtil.js                     (content/applicationUtil.js)
+*   content/sunbird/calendar.xul                           (content/calendar.xul)
+    content/sunbird/calendar-gotodate-dialog.xul           (content/calendar-gotodate-dialog.xul)
+    content/sunbird/calendar-offline.js                    (content/calendar-offline.js)
+    content/sunbird/credits.xhtml                          (content/credits.xhtml)
+*   content/sunbird/hiddenWindow.xul                       (content/hiddenWindow.xul)
+*   content/sunbird/hiddenWindow.js                        (content/hiddenWindow.js)
+% skin sunbird classic/1.0 %skin/sunbird/
+    skin/sunbird/calendar.css                              (themes/@THEME@/calendar.css)
+    skin/sunbird/toolbar.css                               (themes/@THEME@/toolbar.css)
+    skin/sunbird/offline-online.png                        (themes/@THEME@/offline-online.png)
+#ifdef MOZ_USE_GENERIC_BRANDING
+% content branding %content/branding/
+    content/branding/about.png                             (branding/about.png)
+    content/branding/aboutCredits.png                      (branding/aboutCredits.png)
+    content/branding/aboutFooter.png                       (branding/aboutFooter.png)
+    content/branding/icon64.png                            (branding/icon64.png)
+    content/branding/icon48.png                            (branding/icon48.png)
+#endif

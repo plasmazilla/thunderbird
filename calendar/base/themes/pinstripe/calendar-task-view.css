@@ -1,0 +1,150 @@
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Sun Microsystems code.
+ *
+ * The Initial Developer of the Original Code is Sun Microsystems.
+ * Portions created by the Initial Developer are Copyright (C) 2006
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Michael Buettner <michael.buettner@sun.com>
+ *   Philipp Kewisch <mozilla@kewis.ch>
+ *   Berend Cornelius <berend.cornelius@sun.com> 
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#calendar-task-details-container {
+    border-top: 1px solid ThreeDShadow;
+    border-left: 1px solid ThreeDShadow;
+    border-right: 0px;
+    border-bottom: 0px;
+    overflow: hidden;
+}
+
+#calendar-header-name-column {
+    width: 7em;
+}
+
+#calendar-task-details-grid,
+#other-actions-box {
+    padding: 0.5em;
+    -moz-padding-start: 0;
+}
+
+#calendar-task-details {
+    min-height: 6ex;
+}
+
+#task-addition-box {
+    border-left: 1px solid ThreeDShadow;
+    border-right: 0px;
+}
+
+#calendar-task-details-description {
+    -moz-appearance: none;
+    border: 0;
+    margin: 0;
+    font-family: serif;
+    font-size: 16px;
+}
+
+.task-details-name {
+    text-align: right;
+    color: #888a85; /* lower contrast */
+    background-color: transparent;
+    border: none;
+}
+
+#calendar-task-details-grid > rows > .item-date-row > .headline {
+    font-weight: normal;
+    color: #888a85; /* lower contrast */
+}
+
+#calendar-task-details-attachment,
+.task-details-value {
+    text-align: left;
+    background-color: transparent;
+    border: none;
+    color: black;
+}
+
+#calendar-task-tree {
+    min-height: 98px;
+    -moz-border-left-colors: ThreeDShadow ThreeDDarkShadow;
+    -moz-border-bottom-colors: ThreeDHighlight ThreeDLightShadow;
+    -moz-border-right-colors: ThreeDHighlight ThreeDLightShadow;
+    border-left: 1px solid;
+    border-right: 1px solid;
+    border-bottom: 1px solid;
+}
+
+#calendar-task-tree > .calendar-task-tree > treechildren::-moz-tree-cell {
+    border-right: 1px dotted #AAA;
+}
+
+#calendar-task-tree-detail {
+    border: 1px solid ThreeDShadow;
+    margin: 3px;
+}
+
+#view-task-edit-field {
+    margin: 5px;
+}
+
+.task-edit-field[readonly="true"] {
+    color: GrayText;
+}
+
+#calendar-task-details-title {
+    font-weight: bold;
+}
+
+#unifinder-task-edit-field {
+    margin: 3px;
+}
+
+#unifinder-todo-tree > .calendar-task-tree {
+    margin-bottom: 3px;
+}
+
+#calendar-delete-task-button {
+    -moz-box-orient: vertical;
+    list-style-image: url(chrome://messenger/skin/icons/folder-trash.png);
+}
+
+#calendar-add-task-button {
+    list-style-image: url(chrome://calendar/skin/toolbar-small.png);
+    -moz-image-region: rect(0px 384px 24px 360px);
+    -moz-margin-start: 5px;
+}
+
+#calendar-add-task-button[disabled="true"] {
+    -moz-image-region: rect(48px 384px 72px 360px);
+}
+
+#calendar-add-task-button > .toolbarbutton-text {
+    -moz-padding-start: 5px;
+}

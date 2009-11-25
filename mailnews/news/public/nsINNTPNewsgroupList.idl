@@ -1,0 +1,126 @@
+/* -*- Mode: IDL; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Joshua Cranmer <Pidgeot18@gmail.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#include "nsISupports.idl"
+
+interface nsIMsgNewsFolder;
+interface nsINntpUrl;
+interface nsIMsgWindow;
+
+/**
+ * A utility class for nsINNTPProtocol that handles the list of new headers.
+ */
+[scriptable, uuid(579aa17b-4c77-465d-8eb6-feaa927cb19c)]
+interface nsINNTPNewsgroupList : nsISupports {
+  
+  void initialize(in nsINntpUrl runningURL, in nsIMsgNewsFolder newsFolder);
+  
+  long getRangeOfArtsToDownload(in nsIMsgWindow aMsgWindow, in long first_message,
+                                in long last_message,
+                                in long maxextra,
+                                out long real_first_message,
+                                out long real_last_message);
+  
+  void addToKnownArticles(in long first_message, in long last_message);
+
+  /**
+   * Initializes the internal state to get the messages.
+   *
+   * This method should be called before sending the line
+   * <tt>XOVER @arg first_message-@arg last_message</tt> to the server.
+   *
+   * @param first_message  The first message of the download range.
+   * @param last_message   The last message of the download range.
+   */
+  void initXOVER(in long first_message, in long last_message);  
+  void processXOVERLINE(in string line, out unsigned long status);
+  void resetXOVER();
+  void finishXOVERLINE(in long status, out long newstatus);
+
+  /**
+   * Initalizes the state in preparation for a call to XHDR.
+   *
+   * @return               The next header to get, or an empty string if done.
+   */
+  ACString initXHDR();
+  /**
+   * Processes a line of the server's response to XHDR.
+   *
+   * It will calculate the message number and other information itself, so the
+   * unadulterated line itself should be sent.
+   *
+   * @param aLine          The line as sent from the server.
+   */
+  void processXHDRLine(in ACString aLine);
+
+  /**
+   * Initalizes the internal state to process a HEAD command.
+   *
+   * This method should be called before sending the line
+   * <tt>HEAD @arg aMessage</tt> to the server.
+   *
+   * @param aMessage       The message number that will be sent.
+   */
+  void initHEAD(in long aMessage);
+  /**
+   * Processes a line of the server's response to HEAD.
+   *
+   * This will not check for a quoted '.' at the beginning.
+   *
+   * @param aLine          The line the server sent.
+   */
+  void processHEADLine(in ACString aLine);
+  /**
+   * Manages the internal state if the call to HEAD failed.
+   *
+   * @param aMessage       The message key that caused the HEAD failure.
+   */
+  void HEADFailed(in long aMessage);
+
+  /**
+   * Calls the filters after all messages have been processed.
+   *
+   * This method also cleans out some internal state relating to the messages
+   * that have been processed, so it should always be called at the end of
+   * XOVER/XHDR/HEAD processing.
+   */
+  void callFilters();
+
+  attribute boolean getOldMessages;
+};
+

@@ -1,0 +1,362 @@
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is tabmail
+ * The Initial Developer of the Original Code is
+ *   Scott MacGregor <mscott@mozilla.org>.
+ * Portions created by the Initial Developer are Copyright (C) 2007
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+/* ::::: tabmail ::::: */
+
+.tabmail-tabs > .tabmail-tab:first-child > .tab-close-button {
+  visibility: collapse;
+}
+
+#messengerWindow:not([active="true"]) .tabmail-strip {
+  background-color: #e2e2e2;
+}
+
+#messengerWindow:not([active="true"]) .tabmail-tab {
+  color: #575757;
+}
+
+#messengerWindow:not([active="true"]) .tabmail-tab[selected="true"] {
+  background-color: -moz-mac-chrome-inactive;
+}
+
+.tab-icon-image {
+  width: 16px;
+  height: 16px;
+  list-style-image: url("chrome://global/skin/tree/item.png");
+  margin-top: 2px;
+}
+
+.tabmail-tab[busy] > .tab-image-middle > .tab-icon-image {
+  list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
+}
+
+.tabmail-tab[thinking] > .tab-image-middle > .tab-icon-image {
+  list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
+}
+
+.tabmail-tab:not(:hover):not([selected="true"]) > .tab-image-middle > .tab-icon-image {
+  opacity: .6;
+}
+
+.tabmail-tab[type="glodaSearch"] > .tab-image-middle > .tab-icon-image {
+  list-style-image: url("chrome://global/skin/icons/Search-glass.png");
+}
+
+.tab-text {
+  margin-top: 3px !important;
+  margin-bottom: 0 !important;
+  font: message-box;
+  font-weight: bold;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tabmail-tab {
+  -moz-appearance: none;
+  -moz-border-radius: 0 0 6px 6px;
+  color: #222;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  margin-bottom: 1px;
+  -moz-margin-end: 1px;
+  padding: 0 5px;
+  border-style: none solid solid;
+  border-width: 3px;
+  -moz-border-right-colors: rgba(0, 0, 0, .08) rgba(0, 0, 0, .17) rgba(180, 180, 180, .29);
+  -moz-border-bottom-colors: rgba(0, 0, 0, .08) rgba(0, 0, 0, .17) rgba(180, 180, 180, .29);
+  -moz-border-left-colors: rgba(0, 0, 0, .08) rgba(0, 0, 0, .17) rgba(180, 180, 180, .29);
+  -moz-background-clip: padding;
+  min-width: 1px !important;
+  text-align: center;
+  height: 24px;
+}
+
+.tabmail-tab:not([selected="true"]) {
+  background-image: url(chrome://messenger/skin/tabs/tab-bkgnd.png);
+}
+
+.tabmail-tab[selected="true"] {
+  -moz-user-focus: normal;
+  padding: 0 6px 1px;
+  border-width: 2px;
+  -moz-border-left-colors: rgba(0, 0, 0, .1) rgba(0, 0, 0, .2);
+  -moz-border-bottom-colors: rgba(0, 0, 0, .1) rgba(0, 0, 0, .2);
+  -moz-border-right-colors: rgba(0, 0, 0, .1) rgba(0, 0, 0, .2);
+  background-color: -moz-mac-chrome-active;
+}
+
+.tabmail-tab[selected="true"]:focus > .tab-text {
+  outline: 2px solid #4F8EC9;
+  outline-offset: -2px;
+  -moz-outline-radius: 3px;
+}
+
+.tabmail-tab[selected="true"],
+.tabmail-tab:hover {
+  color: #000000;
+}
+
+.tabmail-strip {
+  margin-top: -1px;
+  border-bottom: 1px solid #404040;
+  background-color: #9B9B9B;
+}
+
+.tabmail-tabs {
+  border: none;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  background: url("chrome://messenger/skin/tabs/tabbrowser-tabs-bkgnd.png") repeat-x;
+  height: 25px;
+  margin-bottom: 0;
+}
+
+.tabs-left {
+  display: -moz-box;
+  width: 3px;
+}
+
+.tabmail-tabs[overflow="true"] .tabs-left {
+  display: none;
+}
+
+tabmail > tabbox > tabpanels {
+  -moz-appearance: none !important;
+}
+
+
+/**
+ * Tab Drag and Drop
+ */
+
+.tab-drop-indicator-bar {
+  height: 10px;
+  margin-top: -10px;
+  position: relative;
+  /* set -moz-margin-start to -1/2 indicator width: */
+  -moz-margin-start: -4px;
+}
+
+.tab-drop-indicator {
+  height: 33px;
+  width: 10px;
+  margin-bottom: -24px;
+  position: relative;
+  background: url('chrome://messenger/skin/tabs/tabDragIndicator.png') 50% 40% no-repeat;
+}
+
+/**
+ * In-tab close button
+ */
+
+.tab-close-button > .toolbarbutton-icon {
+  -moz-margin-end: 0px !important;
+  margin-top: 1px;
+  padding: 0;
+}
+
+.tab-close-button {
+  list-style-image: url("chrome://global/skin/icons/closetab.png");
+  -moz-appearance: none;
+  border: none !important;
+  padding: 0;
+  margin: 1px 0 0;
+  background: none;
+  cursor: default;
+}
+
+.tab-close-button:hover,
+.tabmail-tab[selected="true"] > .tab-close-button:hover {
+  list-style-image: url("chrome://global/skin/icons/closetab-hover.png");
+}
+
+.tab-close-button:hover:active,
+.tabmail-tab[selected="true"] > .tab-close-button:hover:active {
+  list-style-image: url("chrome://global/skin/icons/closetab-active.png");
+}
+
+.tabmail-tab[selected="true"] > .tab-close-button {
+  /* Make this button focusable so clicking on it will not focus the tab while
+     it's getting closed */
+  -moz-user-focus: normal;
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-up,
+.tabmail-arrowscrollbox > .scrollbutton-down-stack > .scrollbutton-down[chromedir="rtl"] {
+  border: 0;
+  border-right: 2px solid;
+  -moz-border-right-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
+  list-style-image: url("chrome://messenger/skin/tabs/tab-arrow-start.png");
+  -moz-image-region: rect(0px, 7px, 11px, 0px);
+  padding: 0;
+  width: 16px;
+  margin: 0;
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-down-stack > .scrollbutton-down[chromedir="rtl"] {
+  -moz-border-end: none;
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-up:hover {
+  background-color: rgba(0,0,0,0.10);
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-up:hover:active {
+  background-color: rgba(0,0,0,0.20);
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-up[disabled="true"],
+.tabmail-arrowscrollbox > .scrollbutton-down-stack > .scrollbutton-down[disabled="true"][chromedir="rtl"] {
+  -moz-image-region: rect(0px, 28px, 11px, 21px);
+  background-color: transparent !important; 
+}
+
+.tabmail-arrowscrollbox .scrollbutton-down,
+.tabmail-arrowscrollbox > .scrollbutton-up[chromedir="rtl"] {
+  border-left: 2px solid;
+  -moz-border-left-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
+  list-style-image: url("chrome://messenger/skin/tabs/tab-arrow-end.png");
+  -moz-image-region: rect(0px, 44px, 11px, 37px);
+  -moz-padding-start: 2px;
+  -moz-padding-end: 0;
+  width: 16px;
+  margin: 0;
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-up[chromedir="rtl"] {
+  -moz-border-start: none;
+}
+
+.tabmail-arrowscrollbox .scrollbutton-down:hover {
+  background-color: rgba(0,0,0,0.10);
+}
+
+.tabmail-arrowscrollbox .scrollbutton-down:hover:active {
+  background-color: rgba(0,0,0,0.20);
+}
+
+.tabmail-arrowscrollbox > .scrollbutton-down-stack > .scrollbutton-down[disabled="true"],
+.tabmail-arrowscrollbox > .scrollbutton-up[disabled="true"][chromedir="rtl"] {
+  -moz-image-region: rect(0px, 23px, 11px, 16px);
+  background-color: transparent !important;
+}
+
+
+/**
+ * New Tab & All Tabs Buttons
+ */
+
+.tabs-alltabs-box {
+  margin: 0;
+}
+
+.tabs-newtab-button ,
+.tabs-alltabs-button {
+  -moz-border-start: 2px solid;
+  -moz-border-end: none;
+  -moz-border-left-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
+  -moz-border-right-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
+  margin: 0;
+  padding: 0 4px;
+}
+.tabs-newtab-button {
+  list-style-image: url(chrome://messenger/skin/tabs/newtab.png);
+}
+.tabs-alltabs-button {
+  padding-top: 2px;
+  list-style-image: url(chrome://messenger/skin/tabs/alltabs-box-bkgnd-icon.png);
+}
+.tabs-newtab-button:hover ,
+.tabs-alltabs-button:hover {
+  background-color: rgba(0,0,0,0.10);
+}
+.tabs-newtab-button:hover:active,
+.tabs-alltabs-button:hover:active,
+.tabs-alltabs-button[open="true"] {
+  background-color: rgba(0,0,0,0.20);
+}
+
+.tabs-newtab-button > .toolbarbutton-text ,
+.tabs-alltabs-button > .toolbarbutton-menu-dropmarker ,
+.tabs-alltabs-button > .toolbarbutton-text {
+  display: none;
+}
+
+.tabs-alltabs-button > .toolbarbutton-icon {
+  -moz-margin-end: 2px;
+}
+
+.tabs-alltabs-box-animate {
+  margin: 1px 0px 0px;
+  width: 25px;
+  background-image: url("chrome://messenger/skin/tabs/alltabs-box-overflow-bkgnd-animate.png");
+  background-repeat: no-repeat;
+  opacity: 0.0;
+}
+
+/**
+ * All Tabs Menupopup 
+ */
+
+.alltabs-item > .menu-iconic-left > .menu-iconic-icon {
+  list-style-image: url("chrome://global/skin/tree/item.png");
+}
+
+.alltabs-item[selected="true"] {
+  font-weight: bold;
+}
+
+.alltabs-item[busy] > .menu-iconic-left > .menu-iconic-icon {
+  list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
+}
+
+.tabs-closebutton {
+  -moz-padding-end: 4px;
+  list-style-image: url("chrome://global/skin/icons/closetab.png") !important;
+  list-style-image: none;
+  border: none;
+  -moz-box-align: stretch;
+}
+
+.tabs-closebutton:hover > .toolbarbutton-icon {
+  background-image: none !important;
+}
+
+.tabs-closebutton:hover:active {
+  list-style-image: url("chrome://global/skin/icons/closetab-active.png") !important;
+}
+
+tabpanels.plain {
+  background-color: #fff !important;
+}

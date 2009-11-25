@@ -1,0 +1,142 @@
+/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#include "nsrootidl.idl"
+#include "nsISupports.idl"
+#include "nsIMsgFolder.idl"
+#include "nsIMsgCopyServiceListener.idl"
+
+interface nsIMsgDBHdr;
+%{C++
+#include "nsITransactionManager.h"
+%}
+
+interface nsITransactionManager;
+interface nsIMsgWindow;
+interface nsIFile;
+interface nsIArray;
+
+[scriptable, uuid(f21e428b-73c5-4607-993b-d37325b33722)]
+interface nsIMsgCopyService : nsISupports {
+
+  /**
+   * Copies or moves existing messages from source folder to destination folder.
+   *
+   * @param srcFolder  Source folder of an operation.
+   * @param messages   The array of nsIMsgHdrs in source folder which will be moved/copied.
+   * @param dstFolder  Destination folder of operation.
+   * @param isMove     false for copy operation, true for move operation.
+   * @param listener   Listener which receive operation notifications
+   * @param msgWindow  Window for notification callbacks, can be null.
+   * @param allowUndo  Specifies if this operation will be done as an transaction
+   *                   that can be undone.
+   */
+  void CopyMessages(in nsIMsgFolder srcFolder,
+                    in nsIArray messages,
+                    in nsIMsgFolder dstFolder,
+                    in boolean isMove,
+                    in nsIMsgCopyServiceListener listener,
+                    in nsIMsgWindow msgWindow,
+                    in boolean allowUndo);
+
+  /**
+   * Copies or moves existing folders do destination folder.
+   *
+   * @param folders    The array of nsIMsgFolders which will be moved/copied.
+   * @param dstFolder  The destination folder of operation.
+   * @param isMove     false for copy operation, true for move operation.
+   * @param listener   Listener which receive operation notifications.
+   * @param msgWindow  Window for notification callbacks, can be null.
+   */
+  void CopyFolders(in nsIArray folders,
+                   in nsIMsgFolder dstFolder,
+                   in boolean isMove,
+                    in nsIMsgCopyServiceListener listener,
+                    in nsIMsgWindow msgWindow);
+
+  /**
+   * Copies message in rfc format from file to folder.
+   *
+   * @param aFile             A file which contains message in rfc format which
+   *                          will copied to destFolder.
+   * @param dstFolder         Destination folder where a message will be copied.
+   * @param msgToReplace      Header which identifies a message to use as a source
+   *                          of message properties, or null. For example, when
+   *                          deleting an attachment, the processed message is
+   *                          stored in a file, but the metadata should be copied
+   *                          from the original message. This method will NOT delete
+   *                          the original message.
+   * @param isDraftOrTemplate Specifies whether a message is a stored in draft
+   *                          folder or not. If is true listener should
+   *                          implement GetMessageId and return unique id for
+   *                          message in destination folder. This is important
+   *                          for IMAP servers which doesn't support uidplus.
+   *                          If destination folder contains message with the
+   *                          same message-id then it is possible that listener
+   *                          get wrong message key in callback
+   *                          nsIMsgCopyServiceListener::SetMessageKey.
+   * @param aMsgFlags         Message flags which will be set after message is
+   *                          copied
+   * @param aMsgKeywords      Keywords which will be set for newly copied
+   *                          message.
+   * @param listener          Listener which receive copy notifications.
+   * @param msgWindow         Window for notification callbacks, can be null.
+   */
+  void CopyFileMessage(in nsIFile aFile,
+                       in nsIMsgFolder dstFolder,
+                       in nsIMsgDBHdr msgToReplace,
+                       in boolean isDraftOrTemplate,
+                       in unsigned long aMsgFlags,
+                       in ACString aMsgKeywords,
+                       in nsIMsgCopyServiceListener listener,
+                       in nsIMsgWindow msgWindow);
+
+  /**
+   * Notify the message copy service that the destination folder has finished
+   * it's messages copying operation so that the copy service can continue
+   * copying the rest of the messages if there are more to copy with.
+   * aSupport and dstFolder uniquely identify a copy service request.
+   *
+   * @param aSupport   The originator of CopyMessages or CopyFileMessage; it can
+   *                   be either a nsIMsgFolder or a nsIFile
+   * @param dstFolder  The destination folder which performs the copy operation
+   * @param result     The result of the copy operation
+   */
+  void NotifyCompletion(in nsISupports aSupport,
+                        in nsIMsgFolder dstFolder,
+                        in nsresult result);
+};

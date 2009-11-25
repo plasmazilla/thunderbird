@@ -1,0 +1,372 @@
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is mozilla.org code.
+#
+# The Initial Developer of the Original Code is
+# Netscape Communications.
+# Portions created by the Initial Developer are Copyright (C) 2002
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#  Brian Ryner <bryner@brianryner.com>
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
+
+DEPTH		= ../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+AB_CD = $(MOZ_UI_LOCALE) 
+
+GRE_MILESTONE = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build Milestone)
+GRE_BUILDID = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build BuildID)
+
+DEFINES += \
+  -DTHUNDERBIRD_ICO=\"$(DIST)/branding/thunderbird.ico\" \
+  -DAB_CD=$(AB_CD) \
+  -DGRE_MILESTONE=$(GRE_MILESTONE) \
+  -DGRE_BUILDID=$(GRE_BUILDID) \
+   $(NULL)
+
+SOURCE_STAMP := $(shell cd $(topsrcdir) ; hg identify -i 2>/dev/null | cut -f1 -d' ')
+ifdef SOURCE_STAMP
+DEFINES += -DMOZ_SOURCE_STAMP="$(SOURCE_STAMP)"
+endif
+
+SOURCE_REPO := $(shell hg -R $(topsrcdir) showconfig paths.default 2>/dev/null | sed -e "s/^ssh:/http:/")
+ifdef SOURCE_REPO
+DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
+endif
+
+ifneq (,$(BUILD_OFFICIAL)$(MOZILLA_OFFICIAL))
+DEFINES += -DOFFICIAL_BUILD=1
+endif
+
+DIRS		= profile
+
+GARBAGE += \
+	$(FINAL_TARGET)/license.html \
+	$(NULL)
+
+PREF_JS_EXPORTS = \
+    $(srcdir)/profile/all-thunderbird.js \
+    $(srcdir)/profile/channel-prefs.js \
+    $(NULL)
+
+ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
+PROGRAM = thunderbird$(BIN_SUFFIX)
+else
+PROGRAM = thunderbird-bin$(BIN_SUFFIX)
+endif
+
+REQUIRES = \
+	xpcom \
+	string \
+	xulapp \
+	$(NULL)
+
+CPPSRCS = nsMailApp.cpp
+
+DIST_FILES = application.ini
+
+LOCAL_INCLUDES += -I$(MOZILLA_SRCDIR)/toolkit/xre
+
+ifdef BUILD_STATIC_LIBS
+ifdef _MSC_VER
+STATIC_COMPONENTS_LINKER_PATH = -LIBPATH:$(MOZDEPTH)/staticlib
+else
+STATIC_COMPONENTS_LINKER_PATH = -L$(MOZDEPTH)/staticlib
+endif
+LIBS += $(MOZDEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX)
+else
+ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+LIBS += $(DIST)/bin/XUL
+else
+EXTRA_DSO_LIBS += xul
+endif
+endif
+
+ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+TK_LIBS := -framework Cocoa $(TK_LIBS)
+ifdef BUILD_STATIC_LIBS
+TK_LIBS := -framework SystemConfiguration $(TK_LIBS)
+endif
+endif
+
+ifdef MOZ_ENABLE_LIBXUL
+APP_XPCOM_LIBS = $(XPCOM_GLUE_LDOPTS)
+else
+MOZILLA_INTERNAL_API = 1
+APP_XPCOM_LIBS = $(XPCOM_LIBS)
+endif
+
+LIBS += \
+	$(STATIC_COMPONENTS_LINKER_PATH) \
+	$(MOZ_JS_LIBS) \
+	$(EXTRA_DSO_LIBS) \
+	$(APP_XPCOM_LIBS) \
+	$(NSPR_LIBS) \
+	$(TK_LIBS) \
+	$(NULL)
+
+# Add explicit X11 dependency when building against X11 toolkits
+ifneq (,$(filter gtk gtk2 xlib,$(MOZ_WIDGET_TOOLKIT)))
+LIBS += $(XLDFLAGS) $(XLIBS)
+endif
+
+ifdef MOZ_JPROF
+LIBS += -ljprof
+endif
+
+ifdef MOZ_ENABLE_DBUS
+LIBS += $(MOZ_DBUS_GLIB_LIBS)
+endif
+
+
+ifndef MOZ_WINCONSOLE
+ifdef MOZ_DEBUG
+MOZ_WINCONSOLE = 1
+else
+MOZ_WINCONSOLE = 0
+endif
+endif
+
+# This switches $(INSTALL) to copy mode, like $(SYSINSTALL), so things that
+# shouldn't get 755 perms need $(IFLAGS1) for either way of calling nsinstall.
+NSDISTMODE = copy
+
+include $(topsrcdir)/config/config.mk
+
+ifdef _MSC_VER
+# Always enter a Windows program through wmain, whether or not we're
+# a console application.
+WIN32_EXE_LDFLAGS += -ENTRY:wmainCRTStartup
+endif
+
+ifdef BUILD_STATIC_LIBS
+include $(topsrcdir)/config/static-config.mk
+
+EXTRA_DEPS	+= \
+	$(STATIC_EXTRA_DEPS) \
+	$(NULL)
+DEFINES		+= $(STATIC_DEFINES)
+CPPSRCS		+= $(STATIC_CPPSRCS)
+EXTRA_DSO_LIBS	+= $(STATIC_EXTRA_DSO_LIBS)
+REQUIRES	+= $(STATIC_REQUIRES)
+EXTRA_LIBS	+= $(STATIC_EXTRA_LIBS)
+
+ifndef MOZILLA_1_9_1_BRANCH
+ifndef MOZILLA_1_9_2_BRANCH
+
+# OpenGL is required for MOZ_ENABLE_CANVAS3D (only set in m-c build system).
+ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+OS_LIBS += -framework OpenGL
+endif
+
+ifneq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
+OS_LIBS += opengl32.lib
+endif
+
+endif # MOZILLA_1_9_2_BRANCH
+endif # MOZILLA_1_9_1_BRANCH
+
+endif # BUILD_STATIC_LIBS
+
+ifeq ($(OS_ARCH),WINNT)
+OS_LIBS += $(call EXPAND_LIBNAME,comctl32 comdlg32 uuid shell32 ole32 oleaut32 version winspool)
+OS_LIBS += $(call EXPAND_LIBNAME,usp10 msimg32)
+RCINCLUDE = splash.rc
+ifndef GNU_CC
+RCFLAGS += -DMOZ_THUNDERBIRD -I$(srcdir)
+else
+RCFLAGS += -DMOZ_THUNDERBIRD --include-dir $(srcdir)
+endif
+ifdef BUILD_STATIC_LIBS
+RCFLAGS += -DMOZ_STATIC_BUILD
+endif
+endif
+
+ifeq ($(OS_ARCH),BeOS)
+ifdef BUILD_STATIC_LIBS
+OS_LIBS += -ltracker -lgame
+endif
+endif
+
+ifeq ($(OS_ARCH),OS2)
+RESFILE=splashos2.res
+RCFLAGS += -DMOZ_THUNDERBIRD
+ifdef BUILD_STATIC_LIBS
+RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include/widget
+endif
+ifdef DEBUG
+RCFLAGS += -DDEBUG
+endif
+RCFLAGS += -DTHUNDERBIRD_ICO=\"$(DIST)/branding/thunderbird.ico\"
+endif
+
+LIBS += $(JEMALLOC_LIBS)
+
+include $(topsrcdir)/config/rules.mk
+
+ifdef MOZILLA_OFFICIAL
+DEFINES += -DMOZILLA_OFFICIAL
+endif
+
+ifdef BUILD_STATIC_LIBS
+include $(topsrcdir)/config/static-rules.mk
+
+DEFINES	+= -DIMPL_XREAPI
+endif
+
+APP_UA_NAME = $(shell echo $(MOZ_APP_DISPLAYNAME) | sed -e's/[^A-Za-z]//g')
+DEFINES += -DAPP_VERSION="$(MOZ_APP_VERSION)" -DAPP_UA_NAME="$(APP_UA_NAME)"
+
+ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifdef BUILD_STATIC_LIBS
+LIBS	+= -lcups
+endif
+LIBS	+= -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework Carbon
+endif
+
+ifeq ($(OS_ARCH),WINNT)
+#
+# Control the default heap size.
+# This is the heap returned by GetProcessHeap().
+# As we use the CRT heap, the default size is too large and wastes VM.
+#
+# The default heap size is 1MB on Win32.
+# The heap will grow if need be.
+#
+# Set it to 256k.  See bug 127069.
+#
+ifndef GNU_CC
+LDFLAGS += /HEAP:0x40000
+endif
+endif
+
+$(PROGRAM): $(MOZDEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX)
+
+ifneq (,$(filter windows os2,$(MOZ_WIDGET_TOOLKIT)))
+ICON_SUFFIX=.ico
+
+DESKTOP_ICONS = \
+	abcardWindow \
+	addressbookWindow \
+	msgcomposeWindow \
+	$(NULL) 
+
+BRANDED_ICONS = \
+	messengerWindow \
+	$(NULL)
+
+
+DESKTOP_ICON_FILES = $(addsuffix $(ICON_SUFFIX), $(DESKTOP_ICONS) $(DESKTOP_ICONS_SMALL))
+BRANDED_ICON_FILES = $(addsuffix $(ICON_SUFFIX), $(BRANDED_ICONS) $(BRANDED_ICONS_SMALL))
+
+libs:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
+	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
+
+libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))
+	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
+
+install:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
+	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/chrome/icons/default
+
+install:: $(addprefix $(DIST)/branding,$(BRANDED_ICON_FILES))
+	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/chrome/icons/default
+endif
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
+libs::
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DIST)/bin/chrome/icons/default
+
+install::
+	$(SYSINSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DESTDIR)$(mozappdir)/chrome/icons/default
+endif
+
+ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
+thunderbird:: $(topsrcdir)/mozilla/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
+	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
+		-e "s|%MOZ_APP_DISPLAYNAME%|$(MOZ_APP_DISPLAYNAME)|" > $@
+	chmod +x $@
+
+libs:: thunderbird
+	$(INSTALL) $< $(DIST)/bin
+
+install:: thunderbird
+	$(SYSINSTALL) $< $(DESTDIR)$(bindir)
+
+GARBAGE += thunderbird
+GARBAGE += $(addprefix $(DIST)/bin/defaults/pref/, all.js all-thunderbird.js channel-prefs.js mailnews.js)
+endif
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),photon)
+LIBS += -lphexlib
+endif
+
+libs:: $(srcdir)/profile/prefs.js
+	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/defaults/profile
+
+ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+
+AB := $(firstword $(subst -, ,$(AB_CD)))
+
+APP_NAME = $(MOZ_APP_DISPLAYNAME)
+
+ifdef MOZ_DEBUG
+APP_NAME := $(APP_NAME)Debug
+endif
+
+libs:: $(PROGRAM)
+	mkdir -p $(DIST)/$(APP_NAME).app/Contents/MacOS
+	rsync -a --exclude CVS --exclude "*.in" $(srcdir)/macbuild/Contents $(DIST)/$(APP_NAME).app --exclude English.lproj
+	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Resources/$(AB).lproj
+	rsync -a --exclude CVS --exclude "*.in" $(srcdir)/macbuild/Contents/Resources/English.lproj/ $(DIST)/$(APP_NAME).app/Contents/Resources/$(AB).lproj
+	sed -e "s/%APP_VERSION%/$(MOZ_APP_VERSION)/" -e "s/%APP_NAME%/$(APP_NAME)/" $(srcdir)/macbuild/Contents/Info.plist.in > $(DIST)/$(APP_NAME).app/Contents/Info.plist
+	sed -e "s/%APP_VERSION%/$(MOZ_APP_VERSION)/" -e "s/%APP_NAME%/$(APP_NAME)/" $(srcdir)/macbuild/Contents/Resources/English.lproj/InfoPlist.strings.in | iconv -f UTF-8 -t UTF-16 > $(DIST)/$(APP_NAME).app/Contents/Resources/$(AB).lproj/InfoPlist.strings
+	rsync -a $(DIST)/bin/ $(DIST)/$(APP_NAME).app/Contents/MacOS
+	rm -f $(DIST)/$(APP_NAME).app/Contents/MacOS/$(PROGRAM)
+	rsync -aL $(PROGRAM) $(DIST)/$(APP_NAME).app/Contents/MacOS
+ifdef MOZILLA_1_9_1_BRANCH
+	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
+	rsync -a --copy-unsafe-links $(DIST)/package/PrintPDE.plugin $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
+endif
+	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Library/Spotlight
+	rsync -a --copy-unsafe-links $(DIST)/package/Thunderbird.mdimporter $(DIST)/$(APP_NAME).app/Contents/Library/Spotlight
+	cp -RL $(DIST)/branding/thunderbird.icns $(DIST)/$(APP_NAME).app/Contents/Resources/thunderbird.icns
+	printf APPLMOZM > $(DIST)/$(APP_NAME).app/Contents/PkgInfo
+#       remove CVS dirs from packaged app
+	find $(DIST)/$(APP_NAME).app -type d -name "CVS" -prune -exec rm -rf {} \;
+
+clean clobber::
+	rm -rf $(DIST)/$(APP_NAME).app
+endif
+
+# Note that anything you do to dist/ down here isn't going to make it into the
+# Mac build, since it's already been copied over to the .app, above.

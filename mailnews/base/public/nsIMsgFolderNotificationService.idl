@@ -1,0 +1,114 @@
+/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * The Mozilla Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 2007
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   David Bienvenu <bienvenu@mozilla.com>
+ *   Siddharth Agarwal <sid1337@gmail.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+#include "nsISupports.idl"
+
+interface nsIMsgDBHdr;
+interface nsIMsgFolder;
+interface nsIMsgFolderListener;
+interface nsIArray;
+
+typedef unsigned long msgFolderListenerFlag;
+
+[scriptable, uuid(45420c55-b460-4a61-bd67-7f763a69a46e)]
+interface nsIMsgFolderNotificationService : nsISupports {
+  /**
+   * @name Notification flags
+   * These flags determine which notifications will be sent.
+   * @{
+   */
+  /// nsIMsgFolderListener::msgAdded notification
+  const msgFolderListenerFlag msgAdded = 0x1;
+
+  /// nsIMsgFolderListener::msgsDeleted notification
+  const msgFolderListenerFlag msgsDeleted = 0x2;
+
+  /// nsIMsgFolderListener::msgsMoveCopyCompleted notification
+  const msgFolderListenerFlag msgsMoveCopyCompleted = 0x4;
+
+  /// nsIMsgFolderListener::msgsClassified notification
+  const msgFolderListenerFlag msgsClassified = 0x8;
+
+  /// nsIMsgFolderListener::folderAdded notification
+  const msgFolderListenerFlag folderAdded = 0x8000;
+
+  /// nsIMsgFolderListener::folderDeleted notification
+  const msgFolderListenerFlag folderDeleted = 0x1000;
+
+  /// nsIMsgFolderListener::folderMoveCopyCompleted notification
+  const msgFolderListenerFlag folderMoveCopyCompleted = 0x2000;
+
+  /// nsIMsgFolderListener::folderRenamed notification
+  const msgFolderListenerFlag folderRenamed = 0x4000;
+
+  /// nsIMsgFolderListener::itemEvent notification
+  const msgFolderListenerFlag itemEvent = 0x1000000;
+  /** @} */
+
+  readonly attribute boolean hasListeners;
+  void addListener(in nsIMsgFolderListener aListener,
+                   in msgFolderListenerFlag flags);
+  void removeListener(in nsIMsgFolderListener aListener);
+
+  // message-specific functions
+  // single message for added, array for delete/move/copy
+  void notifyMsgAdded(in nsIMsgDBHdr aMsg);
+  void notifyMsgsClassified(in nsIArray aMsgs,
+                            in boolean aJunkProcessed,
+                            in boolean aTraitProcessed);
+  void notifyMsgsDeleted(in nsIArray aMsgs);
+  void notifyMsgsMoveCopyCompleted(in boolean aMove, 
+                                   in nsIArray aSrcMsgs, 
+                                   in nsIMsgFolder aDestFolder,
+                                   in nsIArray aDestMsgs);
+
+  // folder specific functions
+  // single folders, all the time
+  void notifyFolderAdded(in nsIMsgFolder aFolder);
+  void notifyFolderDeleted(in nsIMsgFolder aFolder);
+  void notifyFolderMoveCopyCompleted(in boolean aMove,
+                                     in nsIMsgFolder aSrcFolder,
+                                     in nsIMsgFolder aDestFolder);
+  void notifyFolderRenamed(in nsIMsgFolder aOrigFolder,
+                           in nsIMsgFolder aNewFolder);
+
+  // extensibility hook
+  void notifyItemEvent(in nsISupports aItem,
+                       in ACString aEvent,
+                       in nsISupports aData);
+};

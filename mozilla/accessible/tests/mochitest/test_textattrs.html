@@ -1,0 +1,430 @@
+<html>
+
+<head>
+  <title>Text attributes tests</title>
+  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css" />
+
+  <script type="application/javascript"
+          src="chrome://mochikit/content/MochiKit/packed.js"></script>
+  <script type="application/javascript"
+          src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+
+  <script type="application/javascript"
+          src="chrome://mochikit/content/a11y/accessible/common.js"></script>
+  <script type="application/javascript"
+          src="chrome://mochikit/content/a11y/accessible/attributes.js"></script>
+  <script type="application/javascript"
+          src="chrome://mochikit/content/a11y/accessible/events.js"></script>
+
+  <script type="application/javascript">
+
+    const nsIDOMNSEditableElement =
+      Components.interfaces.nsIDOMNSEditableElement;
+
+    var gComputedStyle = null;
+
+    var gTextAttrChangedEventHandler = {
+      handleEvent: function gTextAttrChangedEventHandler_handleEvent(aEvent)
+      {
+        this.eventNumber++;
+      },
+
+      eventNumber: 0
+    };
+
+    function testSpellTextAttrs()
+    {
+      registerA11yEventListener(nsIAccessibleEvent.EVENT_TEXT_ATTRIBUTE_CHANGED,
+                                gTextAttrChangedEventHandler);
+
+      ID = "area8";
+  
+      var node = document.getElementById(ID);
+      node.setAttribute("value", "valid text inalid tixt");
+      node.focus();
+
+      var editor = node.QueryInterface(nsIDOMNSEditableElement).editor;
+      var spellchecker = editor.getInlineSpellChecker(true);
+      spellchecker.enableRealTimeSpell = true;
+
+      window.setTimeout(function()
+        {
+          gComputedStyle = document.defaultView.getComputedStyle(node, "");
+          var defAttrs = {
+            "font-style": gComputedStyle.fontStyle,
+            "font-size": (MAC) ? "8pt" : "10pt",
+            "background-color": gComputedStyle.backgroundColor,
+            "font-weight": gComputedStyle.fontWeight,
+            "color": gComputedStyle.color,
+            "font-family": gComputedStyle.fontFamily,
+            "text-position": gComputedStyle.verticalAlign
+          };
+          testDefaultTextAttrs(ID, defAttrs);
+
+          var attrs = { };
+          var misspelledAttrs = {
+            "invalid": "spelling"
+          };
+
+          testTextAttrs(ID, 0, attrs, 0, 11);
+          testTextAttrs(ID, 11, misspelledAttrs, 11, 17);
+          testTextAttrs(ID, 17, attrs, 17, 18);
+          testTextAttrs(ID, 18, misspelledAttrs, 18, 22);
+
+          is(gTextAttrChangedEventHandler.eventNumber, 2,
+             "Wrong count of 'text attribute changed' events for " + ID);
+
+          unregisterA11yEventListener(nsIAccessibleEvent.EVENT_TEXT_ATTRIBUTE_CHANGED,
+                                      gTextAttrChangedEventHandler);
+
+          SimpleTest.finish();
+        }, 0);
+    }
+
+    function doTest()
+    {
+      //////////////////////////////////////////////////////////////////////////
+      // area1
+      var ID = "area1";
+      var tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      var defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "10pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      var attrs = {};
+      testTextAttrs(ID, 0, attrs, 0, 7);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"font-weight": gComputedStyle.fontWeight};
+      testTextAttrs(ID, 7, attrs, 7, 11);
+
+      attrs = {};
+      testTextAttrs(ID, 12, attrs, 11, 18);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area2
+      ID = "area2";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "14pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      attrs = {};
+      testTextAttrs(ID, 0, attrs, 0, 7);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"font-weight": gComputedStyle.fontWeight};
+      testTextAttrs(ID, 7, attrs, 7, 12);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"font-style": gComputedStyle.fontStyle,
+               "font-weight": gComputedStyle.fontWeight};
+      testTextAttrs(ID, 13, attrs, 12, 19);
+
+      tempElem = tempElem.parentNode;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"font-weight": "401"};
+      testTextAttrs(ID, 20, attrs, 19, 23);
+
+      attrs = {};
+      testTextAttrs(ID, 24, attrs, 23, 30);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area3
+      ID = "area3";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "12pt",
+        "background-color": gComputedStyle.backgroundColor,
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 0, attrs, 0, 6);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 6, attrs, 6, 26);
+
+      tempElem = tempElem.parentNode;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 26, attrs, 26, 27);
+
+      tempElem = tempElem.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color,
+               "background-color": gComputedStyle.backgroundColor};
+      testTextAttrs(ID, 27, attrs, 27, 50);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area4
+      ID = "area4";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "12pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 0, attrs, 0, 16);
+
+      tempElem = tempElem.nextSibling.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 16, attrs, 16, 33);
+
+      tempElem = tempElem.parentNode;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 34, attrs, 33, 46);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area5
+      ID = "area5";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "12pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 0, attrs, 0, 5);
+
+      attrs = {};
+      testTextAttrs(ID, 7, attrs, 5, 8);
+
+      tempElem = tempElem.nextSibling.nextSibling.nextSibling.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 9, attrs, 8, 11);
+
+      attrs = {};
+      testTextAttrs(ID, 11, attrs, 11, 18);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area6 (CSS vertical-align property, bug 445938)
+      ID = "area6";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "12pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      attrs = {};
+      testTextAttrs(ID, 0, attrs, 0, 5);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"text-position": gComputedStyle.verticalAlign,
+               "font-size": "10pt"};
+      testTextAttrs(ID, 5, attrs, 5, 13);
+
+      attrs = {};
+      testTextAttrs(ID, 13, attrs, 13, 27);
+
+      tempElem = tempElem.nextSibling.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"text-position": gComputedStyle.verticalAlign};
+      testTextAttrs(ID, 27, attrs, 27, 35);
+
+      attrs = {};
+      testTextAttrs(ID, 35, attrs, 35, 39);
+
+      tempElem = tempElem.nextSibling.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"text-position": gComputedStyle.verticalAlign,
+               "font-size": "10pt"};
+      testTextAttrs(ID, 39, attrs, 39, 50);
+
+      attrs = {};
+      testTextAttrs(ID, 50, attrs, 50, 55);
+
+      tempElem = tempElem.nextSibling.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"text-position": gComputedStyle.verticalAlign};
+      testTextAttrs(ID, 55, attrs, 55, 64);
+
+      //////////////////////////////////////////////////////////////////////////
+      // area7
+      ID = "area7";
+      tempElem = document.getElementById(ID);
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      defAttrs = {
+        "font-style": gComputedStyle.fontStyle,
+        "font-size": "12pt",
+        "background-color": "rgb(255, 255, 255)",
+        "font-weight": gComputedStyle.fontWeight,
+        "color": gComputedStyle.color,
+        "font-family": gComputedStyle.fontFamily,
+        "text-position": gComputedStyle.verticalAlign
+      };
+
+      testDefaultTextAttrs(ID, defAttrs);
+
+      attrs = {"language": "ru"};
+      testTextAttrs(ID, 0, attrs, 0, 12);
+
+      attrs = {"language": "en"};
+      testTextAttrs(ID, 12, attrs, 12, 13);
+
+      tempElem = tempElem.firstChild.nextSibling.nextSibling.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"language" :"en",
+               "background-color": gComputedStyle.backgroundColor};
+      testTextAttrs(ID, 13, attrs, 13, 26);
+
+      attrs = {"language": "en" };
+      testTextAttrs(ID, 26, attrs, 26, 27);
+
+      attrs = {"language": "de"};
+      testTextAttrs(ID, 27, attrs, 27, 42);
+
+      attrs = {"language": "en"};
+      testTextAttrs(ID, 42, attrs, 42, 43);
+
+      attrs = {};
+      testTextAttrs(ID, 43, attrs, 43, 50);
+
+      tempElem = tempElem.nextSibling.nextSibling.nextSibling.nextSibling.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 50, attrs, 50, 57);
+
+      tempElem = tempElem.firstChild.nextSibling;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"font-weight": gComputedStyle.fontWeight,
+               "color": gComputedStyle.color};
+      testTextAttrs(ID, 57, attrs, 57, 61);
+
+      tempElem = tempElem.parentNode;
+      gComputedStyle = document.defaultView.getComputedStyle(tempElem, "");
+      attrs = {"color": gComputedStyle.color};
+      testTextAttrs(ID, 61, attrs, 61, 68);
+
+      //////////////////////////////////////////////////////////////////////////
+      // test spelling text attributes
+      testSpellTextAttrs(); // Will call SimpleTest.finish();
+    }
+
+    SimpleTest.waitForExplicitFinish();
+    addA11yLoadEvent(doTest);
+  </script>
+</head>
+<body style="font-size: 12pt">
+
+  <a target="_blank"
+     href="https://bugzilla.mozilla.org/show_bug.cgi?id=345759"
+     title="Implement text attributes">
+    Mozilla Bug 345759
+  </a>
+  <p id="display"></p>
+  <div id="content" style="display: none"></div>
+  <pre id="test">
+  </pre>
+
+  <p id="area1" style="font-size: smaller">Normal <b>Bold</b> Normal</p>
+  <p id="area2" style="font-size: 120%">Normal <b>Bold <i>Italic </i>Bold</b> Normal</p>
+  <p id="area3" style="background-color: blue;">
+    <span style="color: green; background-color: rgb(0, 0, 255)">
+      Green
+      <span style="color: red">but children are red</span>
+    </span><span style="color: green; background-color: rgb(255, 255, 0);">
+      Another green section.
+    </span>
+  </p>
+  <p id="area4">
+    <span style="color: green">
+      Green
+    </span><span style="color: green">
+      Green too
+      <span style="color: red">with red children</span>
+      Green again
+    </span>
+  </p>
+  <p id="area5">
+    <span style="color: green">Green</span>
+    <img src="moz.png" alt="image"/>
+    <span style="color: red">Red</span>Normal
+  </p>
+  <p id="area6">
+    This <sup>sentence</sup> has the word 
+    <span style="vertical-align:super;">sentence</span> in 
+    <sub>superscript</sub> and 
+    <span style="vertical-align:sub;">subscript</span>
+  </p>
+
+  <p lang="en" id="area7">
+    <span lang="ru">Привет</span>
+    <span style="background-color: blue">Blue BG color</span>
+    <span lang="de">Ich bin/Du bist</span>
+    <span lang="en">
+      Normal
+      <span style="color: magenta">Magenta<b>Bold</b>Magenta</span>
+    </span>
+  </p>
+
+  <input id="area8"/>
+
+  <p id="output"/>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is the SeaMonkey internet suite code.
+   -
+   - The Initial Developer of the Original Code is
+   - the SeaMonkey project at mozilla.org.
+   - Portions created by the Initial Developer are Copyright (C) 2008
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   Justin Wood <Callek@gmail.com>
+   -   Robert Kaiser <kairo@kairo.at>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the LGPL or the GPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://communicator/skin/downloads/downloadmanager.css" type="text/css"?>
+
+<?xul-overlay href="chrome://global/content/globalOverlay.xul"?>
+<?xul-overlay href="chrome://communicator/content/utilityOverlay.xul"?>
+
+<!DOCTYPE window SYSTEM "chrome://communicator/locale/downloads/progressDialog.dtd">
+
+<window id="dlProgressWindow"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        xmlns:html="http://www.w3.org/1999/xhtml"
+        onload="progressStartup();" onunload="progressShutdown();"
+        title="&progress.title;"
+        style="width:40em;">
+
+  <script type="application/javascript"
+          src="chrome://communicator/content/downloads/downloadmanager.js"/>
+  <script type="application/javascript"
+          src="chrome://communicator/content/downloads/progressDialog.js"/>
+
+  <stringbundleset id="stringbundleset">
+    <stringbundle id="dmBundle"
+                  src="chrome://communicator/locale/downloads/downloadmanager.properties"/>
+    <stringbundle id="tkdlBundle"
+                  src="chrome://global/locale/mozapps/downloads/downloads.properties"/>
+  </stringbundleset>
+
+  <commandset id="dlProgressCommands">
+    <commandset id="commandUpdate_DlProgress"
+                commandupdater="true"
+                events="focus,dlstate-change"
+                oncommandupdate="ProgressDlgController.onCommandUpdate();"/>
+
+    <commandset id="downloadCommands">
+      <command id="cmd_pause"
+               oncommand="goDoCommand('cmd_pause');"/>
+      <command id="cmd_resume"
+               oncommand="goDoCommand('cmd_resume');"/>
+      <command id="cmd_retry"
+               oncommand="goDoCommand('cmd_retry');"/>
+      <command id="cmd_cancel"
+               oncommand="goDoCommand('cmd_cancel');"/>
+      <command id="cmd_open"
+               oncommand="goDoCommand('cmd_open');"/>
+      <command id="cmd_show"
+               oncommand="goDoCommand('cmd_show');"/>
+      <command id="cmd_openReferrer"
+               oncommand="goDoCommand('cmd_openReferrer');"/>
+      <command id="cmd_copyLocation"
+               oncommand="goDoCommand('cmd_copyLocation');"/>
+      <command id="cmd_close" oncommand="window.close();"/>
+    </commandset>
+  </commandset>
+
+  <keyset>
+    <key key="&closeWindow.key;" modifiers="accel" command="cmd_close"/>
+    <key keycode="VK_ESCAPE"                       command="cmd_close"/>
+    <key key="."                 modifiers="meta"  command="cmd_close"/>
+  </keyset>
+
+  <popupset id="progressPopupset">
+    <popup id="fileContext">
+      <menuitem id="dlContext-open"
+                label="&cmd.open.label;"
+                accesskey="&cmd.open.accesskey;"
+                command="cmd_open"/>
+      <menuitem id="dlContext-show"
+                label="&cmd.show.label;"
+                accesskey="&cmd.show.accesskey;"
+                command="cmd_show"/>
+    </popup>
+    <popup id="sourceContext">
+      <menuitem id="dlContext-openReferrer"
+                label="&cmd.goToDownloadPage.label;"
+                accesskey="&cmd.goToDownloadPage.accesskey;"
+                command="cmd_openReferrer"/>
+      <menuitem id="dlContext-copyLocation"
+                label="&cmd.copyDownloadLink.label;"
+                accesskey="&cmd.copyDownloadLink.accesskey;"
+                command="cmd_copyLocation"/>
+    </popup>
+  </popupset>
+
+  <hbox>
+    <label id="fileName" crop="center" value=""
+           context="fileContext" popup="fileContext"
+           aria-haspopup="true"
+           style="-moz-user-focus: normal;"/>
+  </hbox>
+  <hbox>
+    <label id="fileSource" crop="center" value=""
+           context="sourceContext" popup="sourceContext"
+           aria-haspopup="true"
+           style="-moz-user-focus: normal;"/>
+  </hbox>
+  <hbox align="end">
+    <vbox flex="1">
+      <label id="dlSize" value=""/>
+      <label id="timeElapsed" value=""/>
+      <label id="dlStatus" flex="1" value=""/>
+    </vbox>
+    <button id="pauseButton" class="mini-button"
+            command="cmd_pause" tooltiptext="&cmd.pause.tooltip;"/>
+    <button id="resumeButton" class="mini-button"
+            command="cmd_resume" tooltiptext="&cmd.resume.tooltip;"/>
+    <button id="retryButton" class="mini-button"
+            command="cmd_retry" tooltiptext="&cmd.retry.tooltip;"/>
+    <button id="cancelButton" class="mini-button"
+            command="cmd_cancel" tooltiptext="&cmd.cancel.tooltip;"/>
+  </hbox>
+  <hbox id="progressBox">
+    <progressmeter id="progressMeter" mode="determined" flex="1"/>
+    <label id="progressText" value=""/>
+  </hbox>
+  <checkbox id="closeWhenDone"
+            label="&closeWhenDone.label;"
+            accesskey="&closeWhenDone.accesskey;"/>
+</window>

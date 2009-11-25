@@ -1,0 +1,124 @@
+/* -*- Mode: IDL; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ * ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Mozilla Communicator client code, released
+ * March 31, 1998.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998-1999
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *     Jeff Beckley <beckley@qualcomm.com>
+ *     Kent James <kent@caspia.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#include "nsISupports.idl"
+#include "nsMsgFilterCore.idl"
+
+interface nsIMsgFilterList;
+interface nsIMsgWindow;
+interface nsIMsgFilterCustomAction;
+interface nsISimpleEnumerator;
+interface nsILocalFile;
+interface nsIMsgFolder;
+interface nsISupportsArray;
+interface nsIMsgSearchCustomTerm;
+
+[scriptable, uuid(C1A5F1BB-4D6C-447a-B70F-A12BE767DC0A)]
+interface nsIMsgFilterService : nsISupports {
+
+    nsIMsgFilterList OpenFilterList(in nsILocalFile filterFile, in nsIMsgFolder rootFolder, in nsIMsgWindow msgWindow);
+    void CloseFilterList(in nsIMsgFilterList filterList);
+
+    void SaveFilterList(in nsIMsgFilterList filterList,
+                        in nsILocalFile filterFile);
+    
+    void CancelFilterList(in nsIMsgFilterList filterList);
+    nsIMsgFilterList getTempFilterList(in nsIMsgFolder aFolder);
+    void applyFiltersToFolders(in nsIMsgFilterList aFilterList, in nsISupportsArray aFolders, in nsIMsgWindow aMsgWindow);
+
+    /*
+     * Apply filters to a specific list of messages in a folder.
+     * @param  aFilterType  The type of filter to match against
+     * @param  aMsgHdrList  The list of message headers (nsIMsgDBHdr objects)
+     * @param  aFolder      The folder the messages belong to
+     * @param  aMsgWindow   A UI window for attaching progress/dialogs
+     */
+    void applyFilters(in nsMsgFilterTypeType aFilterType,
+                      in nsIArray aMsgHdrList,
+                      in nsIMsgFolder aFolder,
+                      in nsIMsgWindow aMsgWindow);
+
+    /**
+     * add a custom filter action
+     *
+     * @param  aAction   the custom action to add
+     */
+    void addCustomAction(in nsIMsgFilterCustomAction aAction);
+
+    /**
+     * get the list of custom actions
+     *
+     * @return   enumerator of nsIMsgFilterCustomAction objects
+     */
+    nsISimpleEnumerator getCustomActions();
+
+    /**
+     * lookup a custom action given its id
+     *
+     * @param  id  unique identifier for a particular custom action
+     *
+     * @return     the custom action, or null if not found
+     */
+    nsIMsgFilterCustomAction getCustomAction(in ACString id);
+
+    /**
+     * add a custom search term
+     *
+     * @param  aTerm   the custom term to add
+     */
+    void addCustomTerm(in nsIMsgSearchCustomTerm aTerm);
+
+    /**
+     * get the list of custom search terms
+     *
+     * @return   enumerator of nsIMsgSearchCustomTerm objects
+     */
+    nsISimpleEnumerator getCustomTerms();
+
+    /**
+     * lookup a custom search term given its id
+     *
+     * @param  id  unique identifier for a particular custom search term
+     *
+     * @return     the custom search term, or null if not found
+     */
+    nsIMsgSearchCustomTerm getCustomTerm(in ACString id);
+
+};

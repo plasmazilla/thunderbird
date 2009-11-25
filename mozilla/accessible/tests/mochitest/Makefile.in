@@ -1,0 +1,125 @@
+#
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is mozilla.org code.
+#
+# The Initial Developer of the Original Code is
+# Mozilla Foundation.
+# Portions created by the Initial Developer are Copyright (C) 2008
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#   Alexander Surkov <surkov.alexander@gmail.com> (original author)
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either of the GNU General Public License Version 2 or later (the "GPL"),
+# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
+
+DEPTH		= ../../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+relativesrcdir  = accessible
+
+include $(DEPTH)/config/autoconf.mk
+include $(topsrcdir)/config/rules.mk
+
+_TEST_FILES =\
+		letters.gif \
+		moz.png \
+		$(topsrcdir)/content/media/video/test/bug461281.ogg \
+		longdesc_src.html \
+		actions.js \
+		attributes.js \
+		common.js \
+		events.js \
+		layout.js \
+		value.js \
+		nsIAccessible_name.css \
+		nsIAccessible_name.js \
+		nsIAccessible_name.xbl \
+ 		nsIAccessible_selects.js \
+		nsIAccessible_states.js \
+		nsIAccessibleEditableText.js \
+  $(warning test_actions.xul temporarily disabled) \
+		test_actions_aria.html \
+		test_aria_activedescendant.html \
+		test_aria_role_article.html \
+		test_aria_role_equation.html \
+ 		test_aria_token_attrs.html \
+		$(warning test_bug368835.xul temporarily disabled) \
+		test_bug420863.html \
+		$(warning	test_childAtPoint.xul temporarily disabled) \
+		test_cssattrs.html \
+		test_descr.html \
+		test_elm_filectrl.html \
+	$(warning   test_elm_media.html temporarily disabled) \
+		test_elm_txtcntnr.html \
+		test_events_caretmove.html \
+		test_events_focus.xul \
+		test_events_mutation.html \
+		$(warning test_groupattrs.xul temporarily disabled) \
+	$(warning test_table_indexes.html temporarily disabled) \
+ 		test_nsHyperTextAcc_roles.html \
+		test_nsIAccessible_applicationAccessible.html \
+		test_nsIAccessible_name.html \
+		test_nsIAccessible_name_button.html \
+		test_nsIAccessible_name_link.html \
+		$(warning test_nsIAccessible_name.xul temporarily disabled) \
+ 		test_nsIAccessible_selects.html \
+		test_nsIAccessible_states.html \
+		test_nsIAccessible_focus.html \
+		test_nsIAccessibleDocument.html \
+		test_nsIAccessibleEditableText.html \
+		test_nsIAccessibleHyperLink.html \
+		$(warning test_nsIAccessibleHyperLink.xul temporarily disabled) \
+		test_nsIAccessibleHyperText.html \
+		test_nsIAccessibleImage.html \
+		test_nsIAccessibleTable_1.html \
+		test_nsIAccessibleTable_2.html \
+		test_nsIAccessibleTable_3.html \
+		test_nsIAccessibleTable_4.html \
+		$(warning test_nsIAccessibleTable_listboxes.xul temporarily disabled) \
+		test_nsIAccessNode_utils.html \
+		test_nsOuterDocAccessible.html \
+		test_objectattrs.html \
+		test_states_editablebody.html \
+		test_states_doc.html \
+		test_states_docarticle.html \
+		test_states_frames.html \
+		test_textattrs.html \
+		test_textboxes.html \
+		test_textboxes.xul \
+		test_value.xul \
+		testTextboxes.js \
+		test_bug429285.html \
+		test_bug434464.html \
+		z_states_frame.html \
+		z_states_framearticle.html \
+		z_states_framecheckbox.html \
+		z_states_frametextbox.html \
+		$(NULL)
+
+libs:: $(_TEST_FILES)
+	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/a11y/$(relativesrcdir)

@@ -1,0 +1,169 @@
+<?xml version="1.0"?>
+
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is mozilla.org code.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corporation.
+   - Portions created by the Initial Developer are Copyright (C) 2002
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   Ian Neal <iann_bugzilla@blueyonder.co.uk>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
+
+<!DOCTYPE overlay [
+<!ENTITY % prefPopupsDTD SYSTEM "chrome://communicator/locale/pref/pref-popups.dtd">
+%prefPopupsDTD;
+]>
+
+<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <prefpane id="popups_pane"
+            label="&pref.popups.title;"
+            script="chrome://communicator/content/pref/pref-popups.js">
+    <preferences id="popups_preferences">
+      <preference id="dom.disable_open_during_load"
+                  name="dom.disable_open_during_load"
+                  type="bool"
+                  onchange="SetButtons();"/>
+      <preference id="pref.advanced.popups.disable_button.view_popups"
+                  name="pref.advanced.popups.disable_button.view_popups"
+                  type="bool"/>
+      <preference id="privacy.popups.sound_enabled"
+                  name="privacy.popups.sound_enabled"
+                  type="bool"
+                  onchange="EnableSoundRadio(this.value);"/>
+      <preference id="privacy.popups.sound_type"
+                  name="privacy.popups.sound_type"
+                  type="int"
+                  onchange="EnableSoundUrl(this.value == 1);"/>
+      <preference id="privacy.popups.sound_url"
+                  name="privacy.popups.sound_url"
+                  type="string"
+                  onchange="EnableElementById('previewSound', true, false);"/>
+      <preference id="pref.advanced.popups.disable_button.select_sound"
+                  name="pref.advanced.popups.disable_button.select_sound"
+                  type="bool"/>
+      <preference id="pref.advanced.popups.disable_button.preview_sound"
+                  name="pref.advanced.popups.disable_button.preview_sound"
+                  type="bool"/>
+      <preference id="privacy.popups.statusbar_icon_enabled"
+                  name="privacy.popups.statusbar_icon_enabled"
+                  type="bool"/>
+      <preference id="privacy.popups.showBrowserMessage"
+                  name="privacy.popups.showBrowserMessage"
+                  type="bool"/>
+      <preference id="privacy.popups.prefill_whitelist"
+                  name="privacy.popups.prefill_whitelist"
+                  type="bool"/>
+      <preference id="privacy.popups.remove_blacklist"
+                  name="privacy.popups.remove_blacklist"
+                  type="bool"/>
+      <preference id="privacy.popups.default_whitelist"
+                  name="privacy.popups.default_whitelist"
+                  type="string"/>
+    </preferences>
+
+    <groupbox id="popupsArea">
+      <caption label="&pref.popups.caption;"/>
+
+      <hbox>      
+        <checkbox id="popupPolicy"
+                  label="&popupBlock.label;"
+                  accesskey="&popupBlock.accesskey;"
+                  preference="dom.disable_open_during_load"/>   
+        <spacer flex="1"/>
+        <button id="exceptionsButton"
+                label="&popupExceptions.label;"
+                accesskey="&popupExceptions.accesskey;"
+                preference="pref.advanced.popups.disable_button.view_popups"
+                oncommand="viewPopups('');"/>
+      </hbox>
+      <separator class="thin"/>
+      <description id="whenBlock">&whenBlock.description;</description>
+      <hbox>
+        <checkbox id="playSound"
+                  label="&playSound.label;"
+                  accesskey="&playSound.accesskey;"
+                  preference="privacy.popups.sound_enabled"/>
+      </hbox>
+      <hbox class="indent">
+        <radiogroup id="popupSoundType"
+                    preference="privacy.popups.sound_type"
+                    aria-labelledby="playSound">
+          <radio id="popupSystemSound"
+                 class="iconic"
+                 value="0"
+                 label="&systemSound.label;"
+                 accesskey="&systemSound.accesskey;"/>
+          <radio id="popupCustomSound"
+                 class="iconic"
+                 value="1"
+                 label="&customSound.label;"
+                 accesskey="&customSound.accesskey;"/>
+        </radiogroup>
+      </hbox>
+      <hbox class="indent">
+        <filefield id="playSoundUrl"
+                   flex="1"
+                   preference="privacy.popups.sound_url"
+                   preference-editable="true"
+                   onsyncfrompreference="return document.getElementById('popups_pane').ReadSoundLocation(this);"
+                   aria-labelledby="popupCustomSound"/>
+        <button id="selectSound"
+                label="&selectSound.label;"
+                accesskey="&selectSound.accesskey;"
+                preference="pref.advanced.popups.disable_button.select_sound"
+                filepickertitle="&selectSound.title;"
+                filepickerfilter="&selectSound.filter;"
+                oncommand="SelectSound();"/>
+        <button id="previewSound"
+                label="&previewSound.label;"
+                accesskey="&previewSound.accesskey;"
+                preference="pref.advanced.popups.disable_button.preview_sound"
+                oncommand="PreviewSound();"/>
+      </hbox>
+      <hbox>
+        <checkbox id="displayIcon"
+                  label="&displayIcon.label;"
+                  accesskey="&displayIcon.accesskey;"
+                  preference="privacy.popups.statusbar_icon_enabled"/>
+      </hbox>
+      <hbox>
+        <checkbox id="displayPopupsNotification"
+                  label="&displayNotification.label;"
+                  accesskey="&displayNotification.accesskey;"
+                  preference="privacy.popups.showBrowserMessage"/>
+      </hbox>
+      <separator class="thin"/>
+      <description>&popupNote.description;</description>
+    </groupbox>
+  </prefpane>
+</overlay>

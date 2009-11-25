@@ -1,0 +1,27 @@
+The source from this directory was copied from the liboggz git 
+source repository using the update.sh script. The only changes made
+were those applied by update.sh, which applies patches described
+below, and the addition/upate of Makefile.in files for the
+Mozilla build system.
+
+The git commit id used was 7df1eb from git://git.xiph.org/liboggz.git
+
+endian.patch is applied to fix bug 452698.
+
+The oggz_off_t.patch fixes a compile error on Solaris see bug 449754
+for details
+
+The wince.patch addresses the lack of posix file IO suppor on windows ce see bug 461844 for details.
+
+bounded_seek.patch is applied to fix bug 469408.
+
+key_frame_seek.patch fixes bug 463358.
+
+offset_next.patch fixes bug 495366.
+
+bug487519.patch: Fix for bug 487519.
+bug496063.patch: Fix for infinite loop during seek while shutting down.
+
+oggz_os2.patch: Bug 448918 - add OS/2 support (this patch should be
+                removed when OS/2 support is added upstream)
+

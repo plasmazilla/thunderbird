@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Calendar code.
+   -
+   - The Initial Developer of the Original Code is
+   - Berend Cornelius <berend.cornelius@sun.com>
+   - Portions created by the Initial Developer are Copyright (C) 2009
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the LGPL or the GPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<?xml-stylesheet href="chrome://calendar/skin/calendar-views.css" type="text/css"?>
+<?xml-stylesheet href="chrome://calendar/skin/widgets/calendar-widgets.css" type="text/css"?>
+<?xml-stylesheet href="chrome://calendar/content/widgets/calendar-widget-bindings.css" type="text/css"?>
+
+<!DOCTYPE overlay
+[
+    <!ENTITY % dtd1 SYSTEM "chrome://calendar/locale/calendar.dtd" > %dtd1;
+    <!ENTITY % dtd2 SYSTEM "chrome://global/locale/global.dtd" > %dtd2;
+]>
+
+
+<overlay id="calendar-views-overlay"
+         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <vbox id="calendar-view-box" context="calendar-view-context-menu">
+        <hbox id="calendar-nav-control">
+            <vbox flex="1">
+               <hbox flex="1" class="navigation-inner-box" align="end">
+                  <!-- If you are extending a view, add attributes to these
+                       nodes for your view. i.e if your view has the id
+                       "foobar-view", then you need to add the attribute
+                       tooltiptext-foobar="..." -->
+                  <toolbarbutton id="previous-view-button"
+                                 class="view-navigation-button"
+                                 chromedir="&locale.dir;"
+                                 type="prev"
+                                 tooltiptext-day="&calendar.navigation.prevday.tooltip;"
+                                 tooltiptext-week="&calendar.navigation.prevweek.tooltip;"
+                                 tooltiptext-multiweek="&calendar.navigation.prevweek.tooltip;"
+                                 tooltiptext-month="&calendar.navigation.prevmonth.tooltip;"
+                                 command="calendar_view_prev_command"/>
+                  <toolbarbutton id="today-view-button"
+                                 class="today-navigation-button"
+                                 label="&calendar.today.button.label;"
+                                 tooltiptext-all="&calendar.today.button.tooltip;"
+                                 command="calendar_view_today_command"/>
+                  <toolbarbutton id="next-view-button"
+                                 class="view-navigation-button"
+                                 chromedir="&locale.dir;"
+                                 type="next"
+                                 tooltiptext-day="&calendar.navigation.nextday.tooltip;"
+                                 tooltiptext-week="&calendar.navigation.nextweek.tooltip;"
+                                 tooltiptext-multiweek="&calendar.navigation.nextweek.tooltip;"
+                                 tooltiptext-month="&calendar.navigation.nextmonth.tooltip;"
+                                 command="calendar_view_next_command"/>
+                  <label id="intervalDescription"
+                                 class="view-header"
+                                 crop="end"
+                                 flex="1"
+                                 pack="start"/>
+                  <spacer flex="1"/>
+                  <label id="calendarWeek"
+                         class="view-header"
+                         type="end"
+                         crop="start"/>
+             </hbox>
+             <hbox flex="1" class="navigation-bottombox"/>
+         </vbox>
+         <vbox pack="end">
+             <tabs id="view-tabs"
+                   class="calview-tabs"
+                   setfocus="true">
+               <tab id="calendar-day-view-button"
+                    label="&calendar.day.button.label;"
+                    tooltiptext="&calendar.day.button.tooltip;"
+                    calview="day"
+                    observes="calendar_day-view_command"/>
+               <tab id="calendar-week-view-button"
+                    label="&calendar.week.button.label;"
+                    tooltiptext="&calendar.week.button.tooltip;"
+                    calview="week"
+                    observes="calendar_week-view_command"/>
+               <tab id="calendar-multiweek-view-button"
+                    label="&calendar.multiweek.button.label;"
+                    tooltiptext="&calendar.multiweek.button.tooltip;"
+                    calview="multiweek"
+                    observes="calendar_multiweek-view_command"/>
+               <tab id="calendar-month-view-button"
+                    label="&calendar.month.button.label;"
+                    tooltiptext="&calendar.month.button.tooltip;"
+                    calview="month"
+                    observes="calendar_month-view_command"/>
+             </tabs>
+           <box class="navigation-bottombox" type="end"/>
+         </vbox>
+         <vbox class="view-scrollbarspacer">
+           <scrollbar style="visibility:hidden;max-height:1px;height:1px" orient="vertical"/>
+         </vbox>
+       </hbox>
+       <deck flex="1"
+            id="view-deck"
+            persist="selectedIndex">
+        <!-- Note: the "id" attributes of the calendar panes **must** follow the
+             notation 'type + "-" + "view"', where "type" should refer to the
+             displayed time period as described in base/public/calICalendarView.idl -->
+        <calendar-day-view id="day-view" flex="1"
+                               context="calendar-view-context-menu"
+                               item-context="calendar-item-context-menu"/>
+        <calendar-week-view id="week-view" flex="1"
+                                context="calendar-view-context-menu"
+                                item-context="calendar-item-context-menu"/>
+        <calendar-multiweek-view id="multiweek-view" flex="1"
+                                 context="calendar-view-context-menu"
+                                 item-context="calendar-item-context-menu"/>
+        <calendar-month-view id="month-view" flex="1"
+                             context="calendar-view-context-menu"
+                             item-context="calendar-item-context-menu"/>
+      </deck>
+    </vbox>
+</overlay>

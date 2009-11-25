@@ -1,0 +1,156 @@
+<?xml version="1.0"?>
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+   Diego Biurrun   <diego@biurrun.de>
+   Manuel Reimer <Manuel.Reimer@gmx.de>
+
+ Alternatively, the contents of this file may be used under the terms of
+ either of the GNU General Public License Version 2 or later (the "GPL"),
+ or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
+
+<!DOCTYPE overlay [
+<!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
+%brandDTD;
+<!ENTITY % prefCacheDTD SYSTEM "chrome://communicator/locale/pref/pref-cache.dtd">
+%prefCacheDTD;
+]>
+
+<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <prefpane id="cache_pane"
+            label="&pref.cache.title;"
+            script="chrome://communicator/content/pref/pref-cache.js">
+
+    <preferences>
+      <preference id="browser.cache.disk.capacity"
+                  name="browser.cache.disk.capacity"
+                  type="int"/>
+      <preference id="pref.advanced.cache.disable_button.clear_disk"
+                  name="pref.advanced.cache.disable_button.clear_disk"
+                  type="bool"/>
+      <preference id="browser.cache.check_doc_frequency"
+                  name="browser.cache.check_doc_frequency"
+                  type="int"/>
+      <preference id="network.prefetch-next"
+                  name="network.prefetch-next"
+                  type="bool"/>
+      <preference id="browser.cache.disk.parent_directory"
+                  name="browser.cache.disk.parent_directory"
+                  type="file"/>
+    </preferences>
+
+    <groupbox>
+      <caption label="&pref.cache.caption;"/>
+
+      <description>&cachePara;</description>
+
+      <hbox align="center">
+        <label id="browserCacheDiskCacheBefore"
+               value="&diskCache.label;"
+               accesskey="&diskCache.accesskey;"
+               control="browserCacheDiskCache"/>
+        <textbox id="browserCacheDiskCache"
+                 size="5"
+                 type="number"
+                 aria-labelledby="browserCacheDiskCacheBefore browserCacheDiskCache browserCacheDiskCacheAfter"
+                 preference="browser.cache.disk.capacity"
+                 onsyncfrompreference="return document.getElementById('cache_pane').ReadCacheDiskCapacity();"
+                 onsynctopreference="return document.getElementById('cache_pane').WriteCacheDiskCapacity(this);"/>
+        <label id="browserCacheDiskCacheAfter"
+               value="&mbytes;"/>
+        <button label="&clearDiskCache.label;"
+                accesskey="&clearDiskCache.accesskey;"
+                oncommand="ClearDiskAndMemCache();"
+                id="clearDiskCache"
+                preference="pref.advanced.cache.disable_button.clear_disk"/>
+      </hbox>
+
+      <vbox>
+        <label value="&diskCacheFolder.label;"/>
+        <hbox align="center">
+          <filefield id="browserCacheDiskCacheFolder"
+                     flex="1"
+                     preference="browser.cache.disk.parent_directory"
+                     preference-editable="true"
+                     onsyncfrompreference="return document.getElementById('cache_pane').ReadCacheFolder(this);"/>
+          <button label="&chooseDiskCacheFolder.label;"
+                  accesskey="&chooseDiskCacheFolder.accesskey;"
+                  oncommand="CacheSelectFolder();"
+                  id="chooseDiskCacheFolder">
+            <observes element="browserCacheDiskCacheFolder"
+                      attribute="disabled"/>
+          </button>
+        </hbox>
+      </vbox>
+      <description>&diskCacheFolderExplanation;</description>
+
+      <separator class="thin"/>
+
+      <description>&docCache;</description>
+      <hbox align="start">
+        <radiogroup id="browserCacheCheckDocFrequency"
+                    orient="horizontal"
+                    preference="browser.cache.check_doc_frequency">
+          <vbox flex="1">
+            <radio value="1"
+                   label="&everyTimeRadio.label;"
+                   accesskey="&everyTimeRadio.accesskey;"/>
+            <radio value="3"
+                   label="&autoRadio.label;"
+                   accesskey="&autoRadio.accesskey;"/>
+          </vbox>
+          <vbox flex="1">
+            <radio value="0"
+                   label="&oncePsessionRadio.label;"
+                   accesskey="&oncePsessionRadio.accesskey;"/>
+            <radio value="2"
+                   label="&neverRadio.label;"
+                   accesskey="&neverRadio.accesskey;"/>
+          </vbox>
+        </radiogroup>
+      </hbox>
+
+    </groupbox>
+
+    <groupbox id="prefetch">
+      <caption id="prefetchLabel" label="&prefetchTitle.label;"/>
+      <vbox id="prefetchBox" align="start">
+        <checkbox id="enablePrefetch"
+                  label="&enablePrefetch.label;"
+                  accesskey="&enablePrefetch.accesskey;"
+                  preference="network.prefetch-next"/>
+      </vbox>
+    </groupbox>
+
+  </prefpane>
+</overlay>

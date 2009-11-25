@@ -1,0 +1,198 @@
+<?xml version="1.0"?>
+
+<!--
+
+ ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is mozilla.org Code.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-2001
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+   dianesun@netscape.com
+   stefan@borggraefe.com
+
+ Alternatively, the contents of this file may be used under the terms of
+ either of the GNU General Public License Version 2 or later (the "GPL"),
+ or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<?xml-stylesheet href="chrome://messenger/skin/accountManage.css" type="text/css"?>
+
+<!DOCTYPE page SYSTEM "chrome://messenger/locale/am-offline.dtd">
+
+<page xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      onload="parent.onPanelLoaded('am-offline.xul');">
+
+    <stringbundle id="bundle_prefs" src="chrome://messenger/locale/prefs.properties"/> 
+
+    <script type="application/x-javascript" src="chrome://messenger/content/AccountManager.js"/>
+    <script type="application/x-javascript" src="chrome://messenger/content/retention.js"/>
+    <script type="application/x-javascript" src="chrome://messenger/content/am-offline.js"/>
+
+    <label hidden="true" wsm_persist="true" id="server.type"/>  
+    <label id="imap.autoSyncMaxAgeDays" hidden="true"
+           wsm_persist="true" preftype="int"
+           prefstring="mail.server.%serverkey%.autosync_max_age_days"/>
+
+    <dialogheader id="headertitle"/>
+
+    <groupbox id="offline.titlebox" hidefor="movemail,pop3,none,rss">
+      <caption label="&syncGroupTitle.label;"/>
+
+    <checkbox hidefor="movemail,pop3,nntp,none" 
+              id="offline.folders" label="&allFoldersOffline.label;"
+              oncommand="toggleOffline()"
+              accesskey="&allFoldersOffline.accesskey;"/>
+
+    <separator class="thin" hidefor="movemail,pop3,nntp,none"/>
+
+    <hbox hidefor="movemail,pop3,nntp,none" align="right">
+        <button label="&offlineImapAdvancedOffline.label;" accesskey="&offlineImapAdvancedOffline.accesskey;"
+                oncommand="onClickSelect()" id="selectImapFoldersButton" class="selectForOfflineUseButton"/>
+    </hbox>
+
+    <hbox hidefor="movemail,pop3,imap,none" align="right">
+        <button label="&offlineSelectNntp.label;" accesskey="&offlineSelectNntp.accesskey;"
+                oncommand="onClickSelect()" id="selectNewsgroupsButton" class="selectForOfflineUseButton"/>
+    </hbox>
+
+    </groupbox>
+
+    <groupbox id="diskspace.titlebox">
+      <caption label="&diskspaceGroupTitle.label;" hidefor="movemail,pop3,none,rss"/>
+
+    <description hidefor="pop3,nntp,movemail,none,rss">&doNotDownloadImap.label;</description>
+    <description hidefor="pop3,imap,movemail,none,rss">&doNotDownloadNntp.label;</description>
+    <description hidefor="imap,nntp,none,rss">&doNotDownloadPop3Movemail.label;</description>
+
+    <!-- IMAP Autosync Preference -->
+    <radiogroup wsm_persist="true" hidefor="pop3,nntp,movemail,none,rss" id="autosyncSelect" class="indent">
+      <radio wsm_persist="true" id="useAutosync.AllMsg" value="0" accesskey="&allAutosync.accesskey;"
+             label="&allAutosync.label;" oncommand="onAutosyncChange();"/>
+      <hbox flex="1" align="center">
+        <radio wsm_persist="true" id="useAutosync.ByAge" accesskey="&ageAutosync.accesskey;" 
+               value="1" label="&ageAutosyncBefore.label;" oncommand="onAutosyncChange();"/>
+        <textbox id="autosyncValue" type="number" size="4" min="1"
+                 class="autosync" onchange="onAutosyncChange();"
+                 aria-labelledby="ageAutosyncBefore autosyncValue ageAutosyncMiddle autosyncInterval ageAutosyncAfter"/>
+        <label id="ageAutosyncMiddle" control="autosyncValue" value="&ageAutosyncMiddle.label;"/>
+        <menulist id="autosyncInterval" onselect="onAutosyncChange();">
+          <menupopup>
+            <menuitem label="&dayAgeInterval.label;" value="1"/>
+            <menuitem label="&weekAgeInterval.label;" value="7"/>
+            <menuitem label="&monthAgeInterval.label;" value="31"/>
+            <menuitem label="&yearAgeInterval.label;" value="365"/>
+          </menupopup>
+        </menulist>
+        <label id="ageAutosyncAfter" control="autosyncInterval" value="&ageAutosyncAfter.label;"/>
+      </hbox>
+    </radiogroup>
+
+    <hbox align="center" class="indent" hidefor="rss">
+        <checkbox hidefor="movemail,pop3,imap,none"
+                  id="nntp.notDownloadRead" wsm_persist="true"
+                  label="&nntpNotDownloadRead.label;"
+                  accesskey="&nntpNotDownloadRead.accesskey;"/>
+    </hbox>
+
+    <hbox align="center" class="indent" hidefor="none,rss">
+        <checkbox wsm_persist="true" id="offline.notDownload" hidefor="imap"
+                  label="&offlineNotDownload.label;"
+                  accesskey="&offlineNotDownload.accesskey;"
+                  oncommand="onCheckItem('offline.notDownloadMin', 'offline.notDownload');"/>
+        <checkbox wsm_persist="true" id="autosync.notDownload" hidefor="pop3,nntp,movemail"
+                  label="&autosyncNotDownload.label;"
+                  accesskey="&autosyncNotDownload.accesskey;"
+                  oncommand="onAutosyncNotDownload();"/>
+        <textbox wsm_persist="true" id="offline.notDownloadMin"
+                 type="number" min="1" increment="10" size="4" value="50"
+                 aria-labelledby="offline.notDownload offline.notDownloadMin kbLabel"/>
+        <label value="&kb.label;" control="offline.notDownloadMin" id="kbLabel"/>
+    </hbox>
+
+    <hbox align="center" class="indent" hidefor="movemail,pop3,imap,none,rss">
+        <checkbox wsm_persist="true" id="nntp.downloadMsg"
+                  label="&nntpDownloadMsg.label;"
+                  accesskey="&nntpDownloadMsg.accesskey;"
+                  oncommand="onCheckItem('nntp.downloadMsgMin', 'nntp.downloadMsg');"/>
+        <textbox wsm_persist="true" id="nntp.downloadMsgMin"
+                 type="number" min="1" size="2" value="30"
+                 aria-labelledby="nntp.downloadMsg nntp.downloadMsgMin daysOldLabel"/>
+        <label value="&daysOld.label;" control="nntp.downloadMsgMin"
+               id="daysOldLabel"/>
+    </hbox>
+
+    <vbox align="start">
+    <separator hidefor="none,rss"/>
+    <label id="retentionDescription" hidefor="imap,pop3" class="desc" control="retention.keepMsg">&retentionCleanup.label;</label>
+    <label id="retentionDescriptionImap" hidefor="movemail,pop3,nntp,none,rss" class="desc" control="retention.keepMsg">&retentionCleanupImap.label;</label>
+    <label id="retentionDescriptionPop" hidefor="movemail,imap,nntp,none,rss" class="desc" control="retention.keepMsg">&retentionCleanupPop.label;</label>
+
+    <radiogroup wsm_persist="true" hidefor="" id="retention.keepMsg" class="indent">
+        <radio wsm_persist="true" id="retention.keepAllMsg" value="1" accesskey="&retentionKeepAll.accesskey;"
+            label="&retentionKeepAll.label;" oncommand="onCheckKeepMsg();"/>
+        <hbox flex="1" align="center">
+            <radio wsm_persist="true" id="retention.keepNewMsg" accesskey="&retentionKeepRecent.accesskey;" 
+                value="3" label="&retentionKeepRecent.label;" oncommand="onCheckKeepMsg();"/>
+            <textbox wsm_persist="true" id="retention.keepNewMsgMin"
+                     type="number" min="1" increment="10" size="4" value="2000"
+                     aria-labelledby="retention.keepNewMsg retention.keepNewMsgMin newMsgLabel"/>
+            <label value="&message.label;" control="retention.keepNewMsgMin" id="newMsgLabel"/>
+        </hbox>
+        <hbox flex="1" align="center">
+            <radio wsm_persist="true" id="retention.keepOldMsg" accesskey="&retentionKeepMsg.accesskey;"
+                value="2" label="&retentionKeepMsg.label;" oncommand="onCheckKeepMsg();"/>
+            <textbox wsm_persist="true" id="retention.keepOldMsgMin"
+                     type="number" min="1" size="4" value="30"
+                     aria-labelledby="retention.keepOldMsg retention.keepOldMsgMin oldMsgLabel"/>
+            <label value="&daysOld.label;" control="retention.keepOldMsgMin" id="oldMsgLabel"/>
+        </hbox>
+    </radiogroup>
+
+    <hbox align="center" class="indent">
+      <vbox>
+        <checkbox id="retention.keepUnread" wsm_persist="true"
+                  label="&retentionKeepUnreadHidden.label;"
+                  class="keepUnreadOnly" hidden="true"
+                  checked="false"/>
+        <checkbox id="retention.applyToFlagged" wsm_persist="true"
+                  label="&retentionApplyToFlagged.label;" hidefor=""
+                  accesskey="&retentionApplyToFlagged.accesskey;"
+                  checked="true"/>
+      </vbox>
+    </hbox>
+    <hbox align="center" class="indent" hidefor="movemail,pop3,imap,none,rss">
+        <checkbox wsm_persist="true" id="nntp.removeBody" accesskey="&nntpRemoveMsgBody.accesskey;"
+                  label="&nntpRemoveMsgBody.label;" oncommand="onCheckItem('nntp.removeBodyMin','nntp.removeBody');"/>
+        <textbox wsm_persist="true" id="nntp.removeBodyMin" size="2" value="30"
+                 type="number" min="1"
+                 aria-labelledby="nntp.removeBody nntp.removeBodyMin daysOldMsg"/>
+        <label value="&daysOld.label;" control="nntp.removeBodyMin" id="daysOldMsg"/>
+    </hbox>
+    </vbox>
+    </groupbox>
+</page>

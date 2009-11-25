@@ -1,0 +1,637 @@
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Mozilla Communicator client code, released
+ * March 31, 1998.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998-1999
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+/* ===== messageHeader.css ==============================================
+  == Styles for the header toolbars of a mail message.
+  ======================================================================= */
+
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+/* ::::: for the entire area ::::: */
+.main-header-area {
+  color: rgb(46, 52, 54); /* Aluminium 6 */
+  background-color: rgb(238, 238, 236); /* Aluminium 1 */
+  border-bottom: 2px groove rgb(186,189,182); /* Aluminium 3 */
+  padding: 0.6ex;
+}
+
+/* ::::: msg header toolbars ::::: */
+#expandedHeaderView[show_header_mode="all"] {
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-height: 14em;
+}
+
+/* ::::: msg header buttons ::::: */
+.headerContainer
+{
+  min-width: 1px;
+}
+
+#header-view-toolbox {
+  -moz-padding-end: 6px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+#header-view-toolbar {
+  -moz-appearance: none;
+}
+
+#expandedHeaderRows > row,
+#expandedHeader2Rows > row {
+/* Ensure that the header names and values are aligned with each other. */
+  -moz-box-align: baseline;
+}
+
+#expandedHeadersTopBox {
+  /* Ensure that the space between the from row and the one after is
+     identical to the spacing between the subsequent header lines. */
+  -moz-box-align: end;
+}
+
+#otherActionsButton {
+  margin-bottom: 0.1em;
+  background: none;
+  font-weight: normal;
+  color: #41413F; /* higher contrast */
+  border: 1px solid transparent;
+  font-size: 100%;
+  padding-top: 0px;
+  -moz-box-shadow: none;
+}
+
+#otherActionsButton:hover {
+  color: black;
+  border: 1px solid rgb(145,145,145);
+  background-color: rgb(210,210,210);
+  -moz-box-shadow: 0px 4px 4px 0px rgb(255,255,255) inset;
+}
+
+
+.msgHeaderView-flat-button[type="menu"] > .button-box > .button-menu-dropmarker,
+.msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-dropmarker {
+  -moz-appearance: none !important;
+}
+
+.msgHeaderView-flat-button[type="menu"] > .button-box > .button-menu-dropmarker > .dropmarker-icon,
+.msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-dropmarker > .dropmarker-icon {
+  list-style-image: url("chrome://messenger/skin/icons/arrow-dn-grey.png");
+}
+
+.msgHeaderView-flat-button[type="menu"]:hover > .button-box > .button-menu-dropmarker > .dropmarker-icon,
+.msgHeaderView-flat-button[type="menu-button"]:hover > .button-menubutton-dropmarker > .dropmarker-icon {
+  list-style-image: url("chrome://messenger/skin/icons/arrow-dn-black.png");
+}
+
+/* ::::: expanded header pane ::::: */
+
+#expandedsubjectBox > .headerValue {
+  font-weight: bold;
+}
+
+/* ::::: edit message bar ::::: */
+
+#editMessageBox
+{
+  min-width: 1px;
+  -moz-border-radius-bottomleft: 0.2em;
+  -moz-border-radius-bottomright: 0.2em;
+}
+
+#editMessageDescription
+{
+  font-style: italic;
+  font-weight: bolder;
+}
+
+/* ::::: attachment view ::::: */
+
+#attachmentList
+{
+  margin: 0px;
+}
+
+/* XXX: Move all of the description attributes to the toolkit */
+
+description {
+  margin: 0;
+}
+
+descriptionitem
+{
+  padding: 0px;
+  margin: 1px;
+  text-decoration: underline;
+  color: blue;
+  border: none !important;
+}
+
+description[selectable="true"]:focus > descriptionitem[selected="true"][current="true"] 
+{
+  border: 1px solid #B8B8B8;
+  background-color: #C8C8C8;
+}
+
+descriptionitem[selected="true"] 
+{
+  border: 1px solid #B8B8B8;
+  background-color: #C8C8C8;
+}
+
+description[selectable="true"]:focus > descriptionitem[selected="true"] 
+{
+  border: 1px solid #B8B8B8;
+  background-color: #C8C8C8;
+}
+
+.descriptioncell-icon {
+}
+
+.attachmentBox 
+{
+  width: 15em;
+}
+
+#attachmentView[largeView="true"] .attachmentBox
+{
+  -moz-box-orient: vertical;
+}
+
+#attachmentView
+{
+  background-color: #E6E6E6;
+  border: 1px solid #C8C8C8;
+  -moz-border-radius: 7px;
+  margin: 0px 6px 6px;
+  padding: 4px;  
+  min-height: 30px;
+}
+
+#attachmentView[largeView="true"]
+{
+  min-height: 60px;
+}
+
+#attachmentView[attachmentOverflow="true"] {
+  overflow: auto;
+}
+
+#attachment-splitter {
+  min-height: 7px;
+  border-top: 1px solid #C8C8C8;
+  background-color: #E6E6E6;
+}
+
+/* ::::: msg header captions ::::: */
+
+#msgHeaderView {
+  font-size: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#dateLabel {
+  -moz-padding-end: 3px;
+  -moz-user-select: text;
+  -moz-user-focus: normal;
+  cursor: text;
+}
+
+#msgHeaderViewDeck {
+  margin: 0;
+  padding: 0;
+}
+
+
+
+.msgHeaderView-button {
+  -moz-appearance: none;
+  -moz-border-radius: 4px;
+  min-height: 0;
+  min-width: 0;
+  padding: 2px;
+  margin: 0px;
+  -moz-margin-start: 0.4em;
+  vertical-align: middle;
+  list-style-image: none; /* overrides the rule from primaryToolbar.css */
+  background-color: rgb(210,210,210);
+  border: 1px solid rgb(145,145,145);
+  -moz-box-shadow: 0px 20px 16px -10px rgb(255,255,255) inset, 0px 1px rgba(255,255,255, 0.4);
+}
+
+.msgHeaderView-button:active,
+.msgHeaderView-button[type="menu-button"][open] {
+  background-color: rgb(186,186,186);
+  -moz-box-shadow: 0px 4px 4px 0px rgb(140,140,140) inset;
+}
+
+.msgHeaderView-flat-button {
+  min-width: 1px;
+  -moz-appearance: none;
+  font-size: 90%;
+  color: black;
+  margin-top: 1px;
+  margin-bottom: 2px;
+  -moz-margin-start: 0px;
+  -moz-margin-end: 5px;
+  padding: 0 3px;
+  background-color: rgb(211,215,207);
+  border: 2px solid #C0C3C6;
+  -moz-border-radius: 4px;
+  -moz-border-top-colors: none;
+  -moz-border-right-colors: none;
+  -moz-border-bottom-colors: none;
+  -moz-border-left-colors: none;
+  min-height: 1ex;
+}
+
+.msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-button {
+  -moz-appearance: none;
+  background-color: rgb(211,215,207);
+  -moz-border-radius: 0px;
+  border: 0;
+  border-right: 2px solid transparent;
+  -moz-padding-end: 0.2em;
+  margin: 0;
+  -moz-border-top-colors: none;
+  -moz-border-right-colors: none;
+  -moz-border-bottom-colors: none;
+  -moz-border-left-colors: none;
+}
+
+.msgHeaderView-button > .toolbarbutton-text,
+.msgHeaderView-button[type="menu-button"] > .toolbarbutton-menubutton-button {
+  /* Needed to make the buttons at least the same height as the trash icon */
+  min-height: 16px;
+}
+
+.msgHeaderView-flat-button[type="menu-button"]:hover > .button-menubutton-button {
+  background-color: rgb(230,231,227);
+}
+
+.msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-button:hover {
+  border-right: 2px solid #B0B3B6;
+} 
+
+.msgHeaderView-flat-button[secondary="true"] {
+  background: none;
+}
+
+.msgHeaderView-button[disabled="true"] {
+  display: none;
+}
+
+toolbar[mode="text"] .msgHeaderView-button .toolbarbutton-text {
+  margin: 0;
+  padding: 0;
+}
+
+/* We want our icons to be on one side of the text rather than below them so we 
+ * need this rule to override the one from primaryToolbar.css
+ */
+toolbar[mode="full"] .msgHeaderView-button,
+toolbar[mode="full"] .msgHeaderView-button > .toolbarbutton-menubutton-button
+{
+  /* !important required for toolbarbutton-menubutton-button case */
+  -moz-box-orient: horizontal !important;
+}
+
+.hdrReplyButton {
+  list-style-image: url("chrome://messenger/skin/icons/symbolic-reply.png");
+}
+
+.hdrReplyListButton {
+  list-style-image: url("chrome://messenger/skin/icons/symbolic-replylist.png");
+}
+
+.hdrReplyAllButton {
+  list-style-image: url("chrome://messenger/skin/icons/symbolic-replyall.png");
+}
+
+.hdrReplyButton > .toolbarbutton-menubutton-button {
+  -moz-appearance: none;
+  padding: 0;
+  margin: 0;
+  -moz-padding-start: 0px;
+  -moz-padding-end: 0px;
+  -moz-margin-start: 0px;
+  -moz-margin-end: 0px;
+  min-width: 1em;
+  min-height: 1ex;
+}
+
+/* The default toolbarbutton CSS makes the dropmarker really tiny in icon mode;
+ * make the click target easier to hit.
+ */
+ .hdrReplyButton > .toolbarbutton-menubutton-dropmarker {
+  -moz-margin-start: 3px;
+  -moz-margin-end: 4px;
+}
+
+.hdrForwardButton {
+  list-style-image: url("chrome://messenger/skin/icons/symbolic-forward.png");
+}
+
+/* This icon isn't that meaningful, and we'd rather save horizontal space */
+toolbar:not([mode="full"]) > .hdrArchiveButton {
+  list-style-image: url("chrome://messenger/skin/icons/folder-archive.png");
+}
+
+.junkButton[disabled="true"] {
+  background: none;
+  opacity: 0;
+}
+
+/* This icon isn't that meaningful, and we'd rather save horizontal space */
+toolbar:not([mode="full"]) > .hdrJunkButton {
+  list-style-image: url("chrome://messenger/skin/icons/folder-junk.png");
+}
+
+.hdrTrashButton {
+  list-style-image: url("chrome://messenger/skin/icons/folder-trash.png");
+}
+
+.msgHeaderView-flat-button:hover {
+  background-color: rgb(230,231,227);
+  border: 2px solid #B0B3B6;
+}
+
+#msgHeaderView textbox {
+  color: inherit;
+}
+
+.headerName {
+  color: #888a85; /* lower contrast */
+  text-align: right;
+  background-color: transparent;
+  padding: 0px;
+  margin-top: 0;
+  -moz-margin-end: 0;
+}
+
+.headerValueBox {
+  overflow: visible;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.headerValue {
+  min-width: 50px;
+  white-space: normal;
+  color: black !important;
+  line-height: 1.5em;
+
+  -moz-appearance: none !important;
+
+  padding: .1em 0px !important;
+  margin: 0px !important;
+  margin-bottom: 3px !important;
+
+
+  /* 1px plus 2px of border-radius matches the 3px at the beginning of
+    .emailDisplayButton, making email address header values and plain text
+    headers line up. Not sure why this math isn't needed in other themes*/
+  -moz-margin-start: 1px !important;
+  border: none !important;
+  background-color: transparent;
+}
+
+.headerValue[containsEmail="true"] {
+  -moz-margin-start: 0px !important;
+}
+
+.headerValueBox[singleline="true"] > .headerValue[containsEmail="true"] {
+  white-space: nowrap;
+}
+
+.headerValueBox[singleline="true"] {
+  overflow: hidden;
+}
+
+.headerValueUrl {
+  cursor: pointer;
+  color: #0000FF;
+  text-decoration: underline;
+}
+
+.headerValueUrl:hover {
+  color: red;
+}
+
+.headerField {
+  color: inherit;
+}
+
+.moreIndicator {
+  font-weight: bold;
+  font-size: small;
+}
+
+.moreIndicator:hover {
+  text-decoration: underline;
+  color: darkred;
+}
+
+.tagvalue {
+  padding: 0 0.5ex;
+  -moz-margin-start: 0px;
+  background-image: url("chrome://messenger/skin/tagbg.png");
+  -moz-border-radius: 3px;
+  border-width: 0.5px;
+  border-style: outset;
+  text-shadow: 0 1px 0 rgba(238,238,236,0.4); /* Tango Alumninum 1 */
+  color: #111111;
+}
+
+/* ::::: msg header message ids ::::: */
+
+.messageIdDisplayButton {
+  margin: 0;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  -moz-padding-start: 0px !important;
+  -moz-padding-end: 10px !important;
+  background-color: transparent !important;
+  background: url("chrome://messenger/skin/icons/arrow-dn-grey.png") no-repeat center right;
+}
+
+.messageIdDisplayButton:hover {
+  cursor: pointer;
+  text-decoration: underline;
+  color: blue;
+  background: url("chrome://messenger/skin/icons/arrow-dn-black.png") no-repeat center right;
+}
+
+/* ::::: msg header email addresses ::::: */
+
+.emailDisplayButton {
+  margin: 0;
+  -moz-padding-start: 3px !important;
+  -moz-padding-end: 3px !important;
+  background-color: transparent;
+  -moz-border-radius: 2px;
+}
+
+.emailDisplayButton:hover {
+  cursor: pointer;
+  background-color: #fcaf3e; /* tango orange */
+}
+
+mail-emailaddress[selected="true"] .emailDisplayButton{
+  /* when an email address context menu is selected,
+    make sure that the email bubble stays displayed, and
+    tweak the bottom to blend in more w/ the menu */
+  cursor: pointer;
+  -moz-border-radius: 3px;
+  background-color: #fcaf3e; /* tango orange */
+  -moz-border-radius-bottomleft: 0;
+  -moz-border-radius-bottomright: 0;
+}
+
+/* this is for the comma in between email addresses */
+.emailSeparator {
+  -moz-margin-start: -6px; /* squeeze it inside the bubble, by the star */
+}
+
+/* Because there's no star for newsgroups like there is for email addresses,
+ * pushing it back the same number of pixels as emailSeparator causes
+ * the comma to be drawn on top of the text, which looks bad, so using
+ * a separate rule here.
+ */
+.newsgroupSeparator {
+  -moz-margin-start: -3px;
+}
+
+.emailDisplayButton:focus {
+  border: 1px dotted #fcaf3e; /* tango orange */
+}
+
+.emailStar:focus {
+  border: 1px dotted;
+}
+
+.emaillabel,
+.newsgrouplabel {
+  padding: 0px !important;  /* override <label> defaults */
+  margin: 0px !important;  /* override <label> defaults */
+  overflow: hidden;
+}
+
+.emailStar {
+  max-width: 1em;
+  max-height: 1em;
+  -moz-appearance: none;
+  -moz-box-orient: vertical;
+  -moz-margin-start: -1px !important;
+  padding: 0px;
+  margin: 0px 2px;
+  list-style-image: url("chrome://messenger/skin/starIcons.png");
+  -moz-image-region: rect(0px, 16px, 16px, 0px);
+}
+
+.emailStar:hover {
+  -moz-image-region: rect(0px, 32px, 16px, 16px);
+}
+
+.emailStar:hover:active {
+  -moz-image-region: rect(0px, 48px, 16px, 32px);
+}
+
+.emailStar[hascard="true"] {
+  -moz-image-region: rect(16px, 16px, 32px, 0px);
+}
+
+.emailStar:hover[hascard="true"] {
+  -moz-image-region: rect(16px, 32px, 32px, 16px);
+}
+
+.emailStar:hover:active[hascard="true"] {
+  -moz-image-region: rect(16px, 48px, 32px, 32px);
+}
+
+.emailPopup {
+  font-size: inherit;
+  max-height: 7px; /* the height of the image */
+  margin: 0.2em 2px 0px; /* 0.2em just to move it off the top of the text */
+  list-style-image: url("chrome://messenger/skin/icons/arrow-dn-7.png");
+}
+
+.emailPopup:hover {
+  list-style-image: url("chrome://messenger/skin/icons/arrow-dn-blue.png");
+}
+ 
+/* ::::: email address twisty ::::: */
+
+.addresstwisty {
+  -moz-padding-end: 0px;
+  padding-top: 4px;
+  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-right-dim.png");
+}
+
+.addresstwisty:hover {
+  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-right.png");
+}
+
+.addresstwisty[open] {
+  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-down-dim.png");
+}
+
+.addresstwisty[open]:hover {
+  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-down.png");
+}
+
+/* ::::: view expand and collapse twisties  ::::: */
+
+.expandHeaderViewButton {
+  list-style-image:url("chrome://messenger/skin/icons/twisty-open.gif");
+}
+
+/* ::::: collapsed view styles ::::: */
+
+mail-multi-emailHeaderField,
+mail-headerfield,
+mail-newsgroups-headerfield {
+  margin: 0;
+  padding: 0;
+  -moz-box-align: baseline;
+}
+
+mail-headerfield > .headerValue {
+  -moz-user-focus: normal;
+  -moz-user-select: text;
+}

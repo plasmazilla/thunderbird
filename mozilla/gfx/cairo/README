@@ -1,0 +1,61 @@
+Snapshots of cairo and glitz for mozilla usage.
+
+We only include the relevant parts of each release (generally, src/*.[ch]),
+as we have Makefile.in's that integrate into the Mozilla build system.  For
+documentation and similar, please see the official tarballs at
+http://www.cairographics.org/.
+
+VERSIONS:
+
+  cairo (1.8.2)
+  pixman (pixman-0.12.0-19-g95f2af9)
+
+***** NOTE FOR VISUAL C++ 6.0 *****
+
+VC6 is not supported.  Please upgrade to VC8.
+
+==== Patches ====
+
+Some specific things:
+
+max-font-size.patch: Clamp freetype font size to 1000 to avoid overflow issues
+
+win32-logical-font-scale.patch: set CAIRO_WIN32_LOGICAL_FONT_SCALE to 1
+
+nonfatal-assertions.patch: Make assertions non-fatal
+
+buggy-repeat.patch: Unconditionally turn on buggy-repeat handling to bandaid bug 413583.
+
+tmpfile_wince.patch: Make Windows CE use tmpfile() on windows mobile due to the lack of _open_osfhandle and no fs permissions.
+
+cairo-version-fixes.patch: fix up cairo-version.c/cairo-version.h for in-place builds
+
+win32-ddb-dib.patch: fix for bug 455513; not upstream yet pending feebdack
+
+qpainter-type.patch: add SURFACE_TYPE_QPAINTER to cairo.h
+
+ft-done-face.patch: bug 467874; only destroy FT_Faces created by cairo
+
+wince-fixes.patch: stubs out win32 functions we use but are not supported on win32.  Also implements ExtSelectClipRgn in terms of other functions available on wince.
+
+glyph-safety-margin.patch: Change the glyph dropping safety margin from 2em to 10em for bug 460023.  Upstream commit: 28a72648ba7abe02ebd4df7234424e333b85dc9c.
+
+win32-vertically-offset-glyph.patch: bug 454098; vertical positioning errors when drawing glyph runs including delta-y offsets on screen via GDI
+
+ignore-rank0.patch: bug 474886; Not redrawing the background when changing page on flickr
+
+win32-canvas-glyph-position.patch: bug 475092; horizontal positioning errors when drawing glyph runs with delta-y offsets to canvas through win32-font
+
+wince-fontconfig.patch: bug 462908; fixes required to compile for windows ce.  Also allows for building without fontconfig
+
+text-path-filling-threshold.patch: use path filling instead of platform glyph rasterization at a smaller size threshold of 256 device pixels, if the backend supports native filling (which we assume will be fast).
+
+zombie-face.patch: bug 486974; leak and possible crash with @font-face{src:url()}.  Upstream commit: 0238fe2cafea2e1ed19bb222117bd73ee6898d4d
+
+==== pixman patches ====
+
+endian.patch: include cairo-platform.h for endian macros
+
+==== disable printing patch ====
+
+disable-printing.patch:  allows us to use NS_PRINTING to disable printing.
