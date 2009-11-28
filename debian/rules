@@ -157,7 +157,6 @@ debian/stamp-autotools-files-moz:
 
 install/$(DEB_MOZ_APPLICATION)::
 	install -d -m 755 debian/tmp/usr/share/pixmaps
-	install -m 644 $(DEB_SRCDIR)/other-licenses/branding/thunderbird/content/icon64.png debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
 	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
 
 binary-install/$(DEB_MOZ_APPLICATION)::
