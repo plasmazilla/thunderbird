@@ -28,5 +28,6 @@ debian/stamp-icedove-branding:
 	for uue in `find $(BRANDING_DIR) -name '*.uu'`; do \
 		uudecode $$uue; rm $$uue; \
 	done
+	uudecode debian/preview.png.uu
 	touch $@
 
