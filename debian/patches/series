@@ -1,6 +1,5 @@
 fix_installdir.patch
 thunderbird-3-profile.patch
 no_dynamic_nss_softokn.patch
-fix_licence_file_preprocessor.patch
 bz466250_att349521_fix_ftbfs_with_cairo_fb.patch
 bzXXX_ftbfs_static_with_system_hunspell.patch

@@ -14,7 +14,6 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/thunderbird*
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/chrome
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/run-mozilla.sh
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/mozilla-xremote-client
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/license.html
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/removed-files
 
 # components: almost everything except gnome
