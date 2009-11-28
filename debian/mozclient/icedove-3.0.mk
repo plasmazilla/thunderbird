@@ -17,7 +17,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-BRANDING_DIR = build-tree/mozilla/mail/branding/icedove/
+BRANDING_DIR = mail/branding/icedove/
 
 MOZCLIENT_PROJECTNAME := icedove-3.0
 include debian/mozclient/thunderbird-3.0.mk

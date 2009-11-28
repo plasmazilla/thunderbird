@@ -31,13 +31,13 @@ else
   TB_VERSION_FILE := version.txt
 endif
 
-DEBIAN_TB_DIR   = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 mozilla/$(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
+DEBIAN_TB_DIR   = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 $(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
 DEBIAN_XUL_DEV := $(wildcard /usr/lib/xulrunner-devel-1.9*)
 
 MOZCLIENT_PROJECTNAME   := $(DEB_MOZ_APPLICATION)
 MOZCLIENT_PROJECTDIR    := $(CURDIR)/debian/mozclient
 
-DEB_SRCDIR		:= mozilla
+DEB_SRCDIR		:= .
 # DEB_BUILDDIR		:= objdir-tb
 
 EXTRA_SYSTEM_CONFIGURE_FLAGS = $(NULL)
