@@ -138,6 +138,7 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
 	debian/$(DEB_MOZ_APPLICATION)-gnome-support.install \
 	debian/$(DEB_MOZ_APPLICATION).install \
+	debian/$(DEB_MOZ_APPLICATION).links \
 	$(NULL)
 
 $(DEB_MOZ_APPLICATION)%: thunderbird-$(DEB_MOZ_VERSION)%.in

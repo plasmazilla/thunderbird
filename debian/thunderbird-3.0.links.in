@@ -1,0 +1,7 @@
+usr/share/@DEB_MOZ_APPLICATION@/chrome usr/lib/@DEB_MOZ_APPLICATION@/chrome
+usr/share/@DEB_MOZ_APPLICATION@/defaults usr/lib/@DEB_MOZ_APPLICATION@/defaults
+usr/share/@DEB_MOZ_APPLICATION@/greprefs usr/lib/@DEB_MOZ_APPLICATION@/greprefs
+usr/share/@DEB_MOZ_APPLICATION@/res usr/lib/@DEB_MOZ_APPLICATION@/res
+usr/share/@DEB_MOZ_APPLICATION@/isp usr/lib/@DEB_MOZ_APPLICATION@/isp
+
+/etc/@DEB_MOZ_APPLICATION@/profile /usr/share/@DEB_MOZ_APPLICATION@/defaults/profile
