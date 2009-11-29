@@ -68,13 +68,6 @@ ifeq (1,$(USE_SYSTEM_NSS))
    EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nss
 endif
 
-USE_SYSTEM_HUNSPELL := $(shell pkg-config --exists 'hunspell >= 1.2'; a=$$?; if test $$a != 1; then echo 1; fi)
-ifeq (1,$(USE_SYSTEM_HUNSPELL))
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-hunspell
-else
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --disable-system-hunspell
-endif
-
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
 ifneq (,$(wildcard *.tar.bz2)$(DEBIAN_MOZCLIENT_EMBEDDED))
