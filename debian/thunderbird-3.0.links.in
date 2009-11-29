@@ -5,3 +5,5 @@ usr/share/@DEB_MOZ_APPLICATION@/res usr/lib/@DEB_MOZ_APPLICATION@/res
 usr/share/@DEB_MOZ_APPLICATION@/isp usr/lib/@DEB_MOZ_APPLICATION@/isp
 
 /etc/@DEB_MOZ_APPLICATION@/profile /usr/share/@DEB_MOZ_APPLICATION@/defaults/profile
+
+/usr/share/myspell/dicts /usr/lib/@DEB_MOZ_APPLICATION@/dictionaries
