@@ -48,7 +48,7 @@ Standards-Version: 3.8.0
 
 Package: icedove-3.0
 Architecture: any
-Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}
+Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}, ${misc:Depends}
 Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary
 Suggests: icedove-3.0-gnome-support (= ${binary:Version}), latex-xft-fonts, libthai0
 Provides: mail-reader
@@ -59,7 +59,7 @@ Description: mail/news client with RSS and integrated spam filter support
 Package: icedove-3.0-gnome-support
 Architecture: any
 Section: mail
-Depends: ${shlibs:Depends}, icedove-3.0 (= ${binary:Version})
+Depends: ${shlibs:Depends}, icedove-3.0 (= ${binary:Version}), ${misc:Depends}
 Provides: gnome-www-browser
 Description: Support for Gnome in Icedove 3.0
  This is an extension to Icedove that allows it to use protocol
@@ -69,7 +69,7 @@ Description: Support for Gnome in Icedove 3.0
 Package: icedove-3.0-dev
 Architecture: any
 Section: devel
-Depends: xulrunner-dev
+Depends: xulrunner-dev, ${misc:Depends}
 Description: Development files for Icedove 3.0 (Transitional package)
  This package contains the development headers, idl files and static libraries
  needed to develop applications using Icedove. It is recommended that you use
@@ -78,7 +78,7 @@ Description: Development files for Icedove 3.0 (Transitional package)
 Package: icedove-3.0-dbg
 Architecture: any
 Section: mail
-Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version})
+Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version}), ${misc:Depends}
 Description: Debug Symbols for Icedove
  This package contains the debug symbols for icedove. Use these if you
  debug icedove.
