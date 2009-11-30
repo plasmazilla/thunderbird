@@ -77,9 +77,10 @@ Description: Development files for Icedove 3.0 (Transitional package)
 
 Package: icedove-3.0-dbg
 Architecture: any
-Section: mail
+Priority: extra
+Section: debug
 Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version}), ${misc:Depends}
 Description: Debug Symbols for Icedove
- This package contains the debug symbols for icedove. Use these if you
- debug icedove.
+ This package contains the debug symbols for icedove. Install this package if
+ you need to debug such a program or if you need a useful backtrace of a crash.
 
