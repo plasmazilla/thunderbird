@@ -68,11 +68,12 @@ Description: Support for Gnome in Icedove 3.0
 
 Package: icedove-3.0-dev
 Architecture: any
-Section: mail
-Depends: icedove-3.0 (= ${binary:Version}), icedove-3.0-gnome-support (= ${binary:Version})
-Description: Development files for Icedove 3.0
- This package contains the development headers, idl files and static libraries 
- needed to develop applications using Icedove.
+Section: devel
+Depends: xulrunner-dev
+Description: Development files for Icedove 3.0 (Transitional package)
+ This package contains the development headers, idl files and static libraries
+ needed to develop applications using Icedove. It is recommended that you use
+ xulrunner-dev instead.
 
 Package: icedove-3.0-dbg
 Architecture: any
