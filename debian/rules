@@ -103,6 +103,8 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-user-appdir=.mozilla \
 	--with-system-jpeg=/usr \
 	--with-system-zlib=/usr \
+	--with-system-bz2 \
+	--with-gssapi=/usr \
 	--disable-javaxpcom \
 	--disable-crashreporter \
 	--disable-elf-dynstr-gc \
@@ -116,6 +118,16 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-optimize \
 	--enable-static \
 	--enable-static-mail \
+	--enable-pango \
+	--enable-xft \
+	--enable-png \
+	--enable-xinerama \
+	--enable-svg \
+	--enable-svg-renderer=cairo \
+	--enable-gnomevfs \
+	--enable-gnomeui \
+	--enable-canvas \
+	--enable-crypto \
 	--with-distribution-id=$(DEBIAN_DIST) \
 	$(EXTRA_BRANDING_CONFIGURE_FLAGS) \
 	$(NULL)
