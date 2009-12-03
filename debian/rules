@@ -68,6 +68,11 @@ ifeq (1,$(USE_SYSTEM_NSS))
    EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nss
 endif
 
+USE_SYSTEM_SQLITE := $(shell pkg-config --exists 'sqlite3 >= 3.6.10'; a=$$?; if test $$a != 1; then echo 1; fi)
+ifeq (1,$(USE_SYSTEM_SQLITE))
+   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-sqlite
+endif
+
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
 ifneq (,$(wildcard *.tar.bz2)$(DEBIAN_MOZCLIENT_EMBEDDED))
