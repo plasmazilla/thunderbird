@@ -1,3 +1,26 @@
+icedove-3.0 (3.0~rc1-1) experimental; urgency=low
+
+  * New Upstream Version (RC1)
+  * [cce57db] ship extracted upstream tarball in orig file
+  * [ee7677f] remove obsolet licence fix
+  * [7051ca8] install TB_ICON only once
+  * [4f20bb1] add unbranded preview theme icon
+  * [0002285] install non-binary stuff in /usr/share and link it into
+    /usr/lib
+  * [c9ce50f] get right of system myspell
+  * [5c96edf] remove version check for hunspell in debian/rules
+  * [13b57a3] mark icedove-3.0-dev as transitional package for
+    xulrunner-dev
+  * [8ecaec9] all packages need ${misc:Depends} as depends, if we use
+    debhelper
+  * [fc0dd78] dbg package must have section debug and priority extra
+  * [3a00f22] enable more config options and add build depends (filched from
+    iceape 2.0)
+  * [fd8e3ca] build against system sqlite if available
+  * [81165e1] build with 'export BUILD_OFFICIAL=1'
+
+ -- Christoph Goehre <christoph.goehre@gmx.de>  Thu, 03 Dec 2009 10:16:46 +0100
+
 icedove-3.0 (3.0~b3~hg20090713r3057-1~gbp253e4ab) sid; urgency=low
 
   * New snapshot.
