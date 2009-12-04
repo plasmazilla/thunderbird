@@ -35,7 +35,7 @@ Build-Depends: bzip2,
 	patchutils (>= 0.2.25),
 	cdbs (>= 0.4.27),
 	sharutils
-Standards-Version: 3.8.0
+Standards-Version: 3.8.3
 
 Package: icedove-3.0
 Architecture: any
