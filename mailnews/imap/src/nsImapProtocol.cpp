@@ -1687,6 +1687,9 @@ PRBool nsImapProtocol::ProcessCurrentURL()
         else if (m_socketType == nsIMsgIncomingServer::tryTLS
             && (GetServerStateParser().GetCapabilityFlag() & kHasStartTLSCapability))
         {
+          ClearFlag(IMAP_CONNECTION_IS_OPEN);
+          TellThreadToDie();
+          SetConnectionStatus(-1);
           return RetryUrl();
         }
         logonFailed = !TryToLogon();
