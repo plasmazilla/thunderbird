@@ -1,3 +1,18 @@
+icedove-3.0 (3.0~rc2-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * New Upstream Version (RC2)
+    - fixes 494014, 516950, 531278, 531502 in Mozilla Bugzilla
+  * [fc3fa5c] Revert "mark icedove-3.0-dev as transitional package for
+    xulrunner-dev"
+
+  [ Guido Günther ]
+  * [51c1cca] Bump standards version
+  * [5e2a53c] Refer to versioned license
+  * [171f382] s/explicitely/explicitly/
+
+ -- Christoph Goehre <christoph.goehre@gmx.de>  Tue, 08 Dec 2009 18:46:28 +0100
+
 icedove-3.0 (3.0~rc1-1) experimental; urgency=low
 
   * New Upstream Version (RC1)
