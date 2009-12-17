@@ -1,3 +1,14 @@
+icedove (3.0~rc2-2) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * [5b7992b] rename source package to unversioned name
+  * [cde3507] change Maintainer back to asac, add Uploaders Guido and me
+  * [978c58d] disable icedove-3.0-dev package build for now until it is fixed
+    upstream
+  * Upstream is identical to 3.0 final
+
+ -- Guido Günther <agx@sigxcpu.org>  Thu, 17 Dec 2009 18:36:58 +0100
+
 icedove-3.0 (3.0~rc2-1) experimental; urgency=low
 
   [ Christoph Goehre ]
