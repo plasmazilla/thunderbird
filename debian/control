@@ -45,6 +45,8 @@ Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary
 Suggests: icedove-3.0-gnome-support (= ${binary:Version}), latex-xft-fonts, libthai0
 Provides: mail-reader
 Section: mail
+Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
+Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
 Description: mail/news client with RSS and integrated spam filter support
  Icedove 3.0 is a mail/news/RSS client.
 
