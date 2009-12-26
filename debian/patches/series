@@ -3,3 +3,4 @@ thunderbird-3-profile.patch
 no_dynamic_nss_softokn.patch
 bz466250_att349521_fix_ftbfs_with_cairo_fb.patch
 bzXXX_ftbfs_static_with_system_hunspell.patch
+dont_hardcode_anything_in_Makefile.in_files.patch
