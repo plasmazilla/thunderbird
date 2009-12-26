@@ -12,7 +12,7 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/greprefs usr/share/@DEB_MOZ_APPLICATIO
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/modules
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/isp usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/res usr/share/@DEB_MOZ_APPLICATION@
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/thunderbird*
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/@DEB_MOZ_APPLICATION@*
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/chrome usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/run-mozilla.sh
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/mozilla-xremote-client

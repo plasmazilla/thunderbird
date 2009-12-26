@@ -175,8 +175,7 @@ install/$(DEB_MOZ_APPLICATION)::
 binary-install/$(DEB_MOZ_APPLICATION)::
 	touch debian/$(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)$(DEBIAN_TB_DIR)/.autoreg
 	dh_install debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png usr/share/pixmaps
-# FIXME: need to make sure the target binary is named icedove too:
-	dh_link $(DEBIAN_TB_DIR)/thunderbird usr/bin/$(DEB_MOZ_APPLICATION)
+	dh_link $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
 
 binary-post-install/$(DEB_MOZ_APPLICATION):: compare
 
