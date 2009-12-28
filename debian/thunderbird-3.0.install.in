@@ -7,7 +7,7 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/defaults/autoconfig usr/share/@DEB_MOZ
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/defaults/pref usr/share/@DEB_MOZ_APPLICATION@/defaults
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/defaults/profile etc/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/defaults/messenger etc/@DEB_MOZ_APPLICATION@
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/extensions/\{972ce4c6-7e08-4474-a285-3208198ce6fd\}
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/extensions/\{972ce4c6-7e08-4474-a285-3208198ce6fd\} usr/share/@DEB_MOZ_APPLICATION@/extensions
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/greprefs usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/modules
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/isp usr/share/@DEB_MOZ_APPLICATION@
@@ -18,60 +18,60 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/run-mozilla.sh
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/mozilla-xremote-client
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/removed-files
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/newsblog.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSetDefaultMail.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsBadCertHandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/offlineStartup.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMailDefaultHandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/mdn-service.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/smime-service.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/FeedProcessor.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbLDAPAttributeMap.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsHelperAppDlg.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsDownloadManagerUI.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsProgressDialog.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsContentDispatchChooser.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsHandlerService.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsWebHandlerApp.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsPhishingProtectionApplication.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUrlClassifierListManager.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUrlClassifierLib.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsProxyAutoConfig.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAddonRepository.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsExtensionManager.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsBlocklistService.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUpdateService.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsURLFormatter.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/jsconsole-clhandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsTryToClose.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/pluginGlue.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/txEXSLTRegExFunctions.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsContentPrefService.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsDefaultCLH.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsFilePicker.js
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/newsblog.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSetDefaultMail.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsBadCertHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/offlineStartup.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMailDefaultHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/mdn-service.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/smime-service.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/FeedProcessor.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbLDAPAttributeMap.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsHelperAppDlg.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsDownloadManagerUI.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsProgressDialog.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsContentDispatchChooser.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsHandlerService.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsWebHandlerApp.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsPhishingProtectionApplication.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUrlClassifierListManager.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUrlClassifierLib.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsProxyAutoConfig.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAddonRepository.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsExtensionManager.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsBlocklistService.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsUpdateService.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsURLFormatter.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/jsconsole-clhandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsTryToClose.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/pluginGlue.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/txEXSLTRegExFunctions.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsContentPrefService.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsDefaultCLH.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsFilePicker.js usr/share/@DEB_MOZ_APPLICATION@/components
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/*.xpt
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/glautocomp.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/jsmimeemitter.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbAutoCompleteMyDomain.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbAutoCompleteSearch.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMsgTraitService.js
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/glautocomp.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/jsmimeemitter.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbAutoCompleteMyDomain.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsAbAutoCompleteSearch.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMsgTraitService.js usr/share/@DEB_MOZ_APPLICATION@/components
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/aboutRights.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivity.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivityManager.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivityManagerUI.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLDAPProtocolHandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginInfo.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginManager.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginManagerPrompter.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMailNewsCommandLineHandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSMTPProtocolHandler.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/steelApplication.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-Legacy.js
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-mozStorage.js
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/aboutRights.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivity.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivityManager.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsActivityManagerUI.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLDAPProtocolHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginInfo.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginManager.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsLoginManagerPrompter.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsMailNewsCommandLineHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSMTPProtocolHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/steelApplication.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-Legacy.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-mozStorage.js usr/share/@DEB_MOZ_APPLICATION@/components
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/NetworkGeolocationProvider.js
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/NetworkGeolocationProvider.js usr/share/@DEB_MOZ_APPLICATION@/components
 
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libdbusservice.so
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libimgicon.so
