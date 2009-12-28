@@ -18,7 +18,6 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/run-mozilla.sh
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/mozilla-xremote-client
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/removed-files
 
-# components: almost everything except gnome
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/newsblog.js
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSetDefaultMail.js
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsBadCertHandler.js
@@ -78,3 +77,4 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libdbusservice.so
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libimgicon.so
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libjsd.so
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libxpinstall.so
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/libmozgnome.so

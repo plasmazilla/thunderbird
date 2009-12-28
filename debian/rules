@@ -94,6 +94,8 @@ DEB_AUTO_UPDATE_DEBIAN_CONTROL=0
 DEB_MOZ_EXTENSIONS=default
 DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)-dbg
 
+DEB_DH_SHLIBDEPS_ARGS_ALL=-l $(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) -Xlibmozgnome -Xlibnkgnomevfs -Xlibdbusservice
+
 CFLAGS = -g
 CXXFLAGS = -g
 
@@ -148,7 +150,6 @@ endif
 subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).postinst \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
-	debian/$(DEB_MOZ_APPLICATION)-gnome-support.install \
 	debian/$(DEB_MOZ_APPLICATION).install \
 	debian/$(DEB_MOZ_APPLICATION).links \
 	$(NULL)
@@ -178,6 +179,9 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 	dh_link $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
 
 binary-post-install/$(DEB_MOZ_APPLICATION):: compare
+
+binary-predeb/$(DEB_MOZ_APPLICATION)::
+	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dRecommends -pmail debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib{dbusservice,mozgnome,nkgnomevfs}.so
 
 clean::
 	rm -f debian/stamp-autotools-files-moz debian/stamp-icedove-branding
