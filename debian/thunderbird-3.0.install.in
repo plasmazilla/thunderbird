@@ -70,6 +70,8 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/nsSMTPProtocolHandler.js us
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/steelApplication.js usr/share/@DEB_MOZ_APPLICATION@/components
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-Legacy.js usr/share/@DEB_MOZ_APPLICATION@/components
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/storage-mozStorage.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/mailContentHandler.js usr/share/@DEB_MOZ_APPLICATION@/components
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/msgAsyncPrompter.js usr/share/@DEB_MOZ_APPLICATION@/components
 
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@*/components/NetworkGeolocationProvider.js usr/share/@DEB_MOZ_APPLICATION@/components
 

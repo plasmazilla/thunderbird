@@ -58,4 +58,6 @@ usr/share/@DEB_MOZ_APPLICATION@/components/nsSMTPProtocolHandler.js usr/lib/@DEB
 usr/share/@DEB_MOZ_APPLICATION@/components/steelApplication.js usr/lib/@DEB_MOZ_APPLICATION@/components/steelApplication.js
 usr/share/@DEB_MOZ_APPLICATION@/components/storage-Legacy.js usr/lib/@DEB_MOZ_APPLICATION@/components/storage-Legacy.js
 usr/share/@DEB_MOZ_APPLICATION@/components/storage-mozStorage.js usr/lib/@DEB_MOZ_APPLICATION@/components/storage-mozStorage.js
+usr/share/@DEB_MOZ_APPLICATION@/components/mailContentHandler.js usr/lib/@DEB_MOZ_APPLICATION@/components/mailContentHandler.js
+usr/share/@DEB_MOZ_APPLICATION@/components/msgAsyncPrompter.js usr/lib/@DEB_MOZ_APPLICATION@/components/msgAsyncPrompter.js
 usr/share/@DEB_MOZ_APPLICATION@/components/NetworkGeolocationProvider.js usr/lib/@DEB_MOZ_APPLICATION@/components/NetworkGeolocationProvider.js
