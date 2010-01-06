@@ -1,0 +1,33 @@
+# gnome-default-mail-client: check for MOZ_APP_NAME instead for hardcoded 'thunderbird'
+# patch by Christoph Goehre <chris@sigxcpu.org> Wed, 06 Jan 2010 19:14:20 +0100
+---
+ mail/components/shell/Makefile.in                |    2 ++
+ mail/components/shell/nsMailGNOMEIntegration.cpp |    2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mail/components/shell/Makefile.in b/mail/components/shell/Makefile.in
+index f9f13d6..ef78ac1 100644
+--- a/mail/components/shell/Makefile.in
++++ b/mail/components/shell/Makefile.in
+@@ -44,6 +44,8 @@ include $(DEPTH)/config/autoconf.mk
+ 
+ DIRS = public
+ 
++DEFINES += -DMOZ_APP_NAME=\"$(MOZ_APP_NAME)\"
++
+ MODULE = shellservice
+ LIBRARY_NAME = shellservice_s
+ MODULE_NAME = nsMailShellModule
+diff --git a/mail/components/shell/nsMailGNOMEIntegration.cpp b/mail/components/shell/nsMailGNOMEIntegration.cpp
+index 0eb0377..8acbda2 100644
+--- a/mail/components/shell/nsMailGNOMEIntegration.cpp
++++ b/mail/components/shell/nsMailGNOMEIntegration.cpp
+@@ -94,7 +94,7 @@ nsMailGNOMEIntegration::Init()
+                               getter_AddRefs(appPath));
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+-  rv = appPath->AppendNative(NS_LITERAL_CSTRING("thunderbird"));
++  rv = appPath->AppendNative(NS_LITERAL_CSTRING(MOZ_APP_NAME));
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   rv = appPath->GetNativePath(mAppPath);
