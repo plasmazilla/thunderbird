@@ -47,6 +47,8 @@ Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}, ${misc:De
 Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary, ${mail:Recommends}
 Suggests: latex-xft-fonts, libthai0
 Provides: mail-reader
+Replaces: icedove-3.0-gnome-support (<< 3.0-1~)
+Conflicts: icedove-3.0-gnome-support (<< 3.0-1~)
 Section: mail
 Description: mail/news client with RSS and integrated spam filter support
  Icedove 3.0 is a mail/news/RSS client.
