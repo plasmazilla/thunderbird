@@ -1,7 +1,7 @@
 icedove for Debian - source package notes
------------------------------------------------------
+-----------------------------------------
 
-The upstream thunderbird tarball was repacked as followd:
+The upstream thunderbird tarball was repacked as follows:
 
   - use uscan to get the last thunderbird version from mozilla.org
   - extract bzip2 tarball (thunderbird-[version].source.tar.bz2)
