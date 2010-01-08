@@ -1,0 +1,2 @@
+version=3
+http://ftp.mozilla.org/pub/mozilla.org/thunderbird/releases/(\d\.[\d\.]+)/source/thunderbird-([\d\.]+).source\.tar\.bz2
