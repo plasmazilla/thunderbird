@@ -1,3 +1,35 @@
+icedove (3.0-1) experimental; urgency=low
+
+  * Final upstream version without any source code changes against RC2
+
+  [ Guido Günther ]
+  * [77d611e] Add Vcs-{Git,Browser}
+  * [ec7ddd6] Move VCS to where they belong
+
+  [ Christoph Goehre ]
+  * [524d1f5] don't hardcode $MOZ_APP_NAME in Makefile.in file
+  * [0407ff3] mailclient bin called now $DEB_MOZ_APPLICATION
+  * [e6040b5] merge icedove-3.0-gnome-support into icedove-3.0 package
+  * [07417e0] install default theme and components/*.js into
+    /usr/share/icedove-3.0
+  * [3d37478] add missed components files
+  * [f09cfad] add another preferences directory for applications:
+    preferences/syspref - thanks to Mike Hommey
+  * [d92e265] install debian config into /etc/icedove-3.0/pref and link
+    into defaults/syspref
+  * [18a886b] disable application update
+  * [76ea38a] let lockPref() in .js files work - thanks to Mike Hommey
+  * [e44133e] gnome-default-mail-client: check for MOZ_APP_NAME instead
+    for hardcoded 'thunderbird'
+  * [8573c8d] set DM-Upload-Allowed to yes
+  * [1c63920] install modules directory into /usr/share/icedove-3.0
+  * [3a85ac6] add gbp.conf for easier package build with
+    git-buildpackage
+  * [7feb54a] add watch file
+  * [e0a1624] document how to clean upstream source code
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 08 Jan 2010 10:42:09 +0100
+
 icedove (3.0~rc2-2) experimental; urgency=low
 
   [ Christoph Goehre ]
