@@ -1,3 +1,10 @@
+icedove (3.0-2) experimental; urgency=low
+
+  * [f07e702] Add Replaces for icedove-gnome-support
+  * [72e66e7] Fix typo
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 08 Jan 2010 16:05:10 +0100
+
 icedove (3.0-1) experimental; urgency=low
 
   * Final upstream version without any source code changes against RC2
