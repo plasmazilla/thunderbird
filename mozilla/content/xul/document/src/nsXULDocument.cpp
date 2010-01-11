@@ -1177,13 +1177,15 @@ nsXULDocument::AddForwardReference(nsForwardReference* aRef)
     return NS_OK;
 }
 
-
 nsresult
 nsXULDocument::ResolveForwardReferences()
 {
     if (mResolutionPhase == nsForwardReference::eDone)
         return NS_OK;
 
+    NS_ASSERTION(mResolutionPhase == nsForwardReference::eStart,
+                 "nested ResolveForwardReferences()");
+        
     // Resolve each outstanding 'forward' reference. We iterate
     // through the list of forward references until no more forward
     // references can be resolved. This annealing process is
@@ -1215,6 +1217,13 @@ nsXULDocument::ResolveForwardReferences()
                     case nsForwardReference::eResolve_Later:
                         // do nothing. we'll try again later
                         ;
+                    }
+
+                    if (mResolutionPhase == nsForwardReference::eStart) {
+                        // Resolve() loaded a dynamic overlay,
+                        // (see nsXULDocument::LoadOverlayInternal()).
+                        // Return for now, we will be called again.
+                        return NS_OK;
                     }
                 }
             }
@@ -2885,7 +2894,8 @@ nsXULDocument::ResumeWalk()
     // <html:script src="..." />) can be properly re-loaded if the
     // cached copy of the document becomes stale.
     nsresult rv;
-    nsCOMPtr<nsIURI> overlayURI = mCurrentPrototype->GetURI();
+    nsCOMPtr<nsIURI> overlayURI =
+        mCurrentPrototype ? mCurrentPrototype->GetURI() : nsnull;
 
     while (1) {
         // Begin (or resume) walking the current prototype.

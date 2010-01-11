@@ -1615,8 +1615,8 @@
               };
               setTimeout(_delayedUpdate, 0, this.tabContainer);
 
-              if (aNewTab && gURLBar)
-                gURLBar.focus();
+              if (aNewTab)
+                focusAndSelectUrlBar();
             }
 
             // We're going to remove the tab and the browser now.

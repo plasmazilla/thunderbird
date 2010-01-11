@@ -1288,7 +1288,8 @@ NS_IMETHODIMP nsWindow::SetSizeMode(PRInt32 aMode)
   // act on the request if the frame isn't already in the requested state
   if (aMode == nsSizeMode_Minimized) {
     if (!(ulStyle & WS_MINIMIZED))
-      WinSetWindowPos(hFrame, 0, 0, 0, 0, 0, SWP_MINIMIZE | SWP_DEACTIVATE);
+      WinSetWindowPos(hFrame, HWND_BOTTOM, 0, 0, 0, 0,
+                      SWP_MINIMIZE | SWP_ZORDER | SWP_DEACTIVATE);
   }
   else
     if (ulStyle & (WS_MAXIMIZED | WS_MINIMIZED))
@@ -2012,18 +2013,19 @@ NS_IMETHODIMP nsWindow::HideWindowChrome(PRBool aShouldHide)
   HWND hwndMinMax = NULLHANDLE;
   HWND hwndParent;
   ULONG ulStyle;
-  char className[19];
 
-  HWND hwnd = (HWND)GetNativeData(NS_NATIVE_WINDOW);
-  for ( ; hwnd != NULLHANDLE; hwnd = WinQueryWindow(hwnd, QW_PARENT)) {
-    ::WinQueryClassName(hwnd, 19, className);
-    if (strcmp(className, WC_FRAME_STRING) == 0)
-    {
-      hwndFrame = hwnd;
-      break;
-    }
+  // Make sure we're operating on the frame window.
+  nsWindow * top = static_cast<nsWindow*>(GetTopLevelWidget());
+  if (!top || !top->mFrameWnd) {
+    return NS_ERROR_FAILURE;
   }
+  hwndFrame = top->mFrameWnd;
 
+  // Restore maximized windows before putting them in fullscreen mode
+  // to avoid problems later if they're minimized & then restored.
+  if (WinQueryWindowULong(hwndFrame, QWL_STYLE) & WS_MAXIMIZED) {
+    WinSetWindowPos(hwndFrame, 0, 0, 0, 0, 0, SWP_RESTORE | SWP_NOREDRAW);
+  }
 
   if (aShouldHide) {
     hwndParent = HWND_OBJECT;
@@ -2043,8 +2045,8 @@ NS_IMETHODIMP nsWindow::HideWindowChrome(PRBool aShouldHide)
     WinSetParent(hwndMinMax, hwndParent, TRUE);
   if (aShouldHide) {
     ulStyle = (ULONG)WinQueryWindowULong(hwndFrame, QWL_STYLE);
-    WinSetWindowULong(hwndFrame, QWL_STYLE, ulStyle & ~FS_SIZEBORDER);
     WinSetProperty(hwndFrame, "ulStyle", (PVOID)ulStyle, 0);
+    WinSetWindowULong(hwndFrame, QWL_STYLE, ulStyle & ~FS_SIZEBORDER);
     WinSendMsg(hwndFrame, WM_UPDATEFRAME, 0, 0);
   } else {
     ulStyle = (ULONG)WinQueryProperty(hwndFrame, "ulStyle");

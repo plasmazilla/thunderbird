@@ -181,8 +181,10 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems, nsIProfileStartup* aStartup
     GetProfilePath(aStartup, mTargetProfile);
     if (!mTargetProfile) return NS_ERROR_FAILURE;
   }
-  if (!mSourceProfile)
+  if (!mSourceProfile) {
     GetSourceProfile(aProfile);
+    if (!mSourceProfile) return NS_ERROR_FAILURE;
+  }
 
   NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
 

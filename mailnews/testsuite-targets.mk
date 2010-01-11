@@ -11,14 +11,15 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is the Mozilla Browser code.
+# The Original Code is the MailNews Test Suite.
 #
 # The Initial Developer of the Original Code is
-# Benjamin Smedberg <benjamin@smedbergs.us>
-# Portions created by the Initial Developer are Copyright (C) 2004
+# Mozilla Messaging.
+# Portions created by the Initial Developer are Copyright (C) 2009
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
+#   Mark Banner <bugzilla@standard8.plus.com> (Initial Code)
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -34,15 +35,21 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH          = ../../../..
-topsrcdir      = @top_srcdir@
-srcdir         = @srcdir@
-VPATH          = @srcdir@
-relativesrcdir = other-licenses/branding/sunbird/locales
+APP_NAME := $(MOZ_APP_DISPLAYNAME)
 
-include $(DEPTH)/config/autoconf.mk
+ifdef MOZ_DEBUG
+APP_NAME := $(APP_NAME)Debug
+endif
 
-DEFINES += -DAB_CD=$(AB_CD) -DMOZ_DISTRIBUTION_ID_UNQUOTED=$(MOZ_DISTRIBUTION_ID)
+SYMBOLS_PATH := --symbols-path=$(DIST)/crashreporter-symbols
 
-include $(topsrcdir)/config/rules.mk
+ifdef MOZ_SUITE
+EXTRA_BLOAT_ARGS := -mail
+endif
 
+mailbloat:
+	$(PYTHON) -u $(topsrcdir)/mozilla/config/pythonpath.py \
+        -I$(DIST)/../build \
+        $(topsrcdir)/mailnews/test/performance/bloat/runtest.py \
+	--distdir=$(DIST) --bin=$(MOZ_APP_NAME) --brand=$(APP_NAME) \
+	$(SYMBOLS_PATH) $(EXTRA_BLOAT_ARGS)

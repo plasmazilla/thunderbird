@@ -70,6 +70,7 @@ _TEST_FILES = 	test_bug263683.html \
 		test_bug460532.html \
 		test_bug468167.html \
 		test_bug469613.xul \
+		test_bug469774.xul \
 		test_bug470212.html \
 		test_character_movement.html \
 		test_word_movement.html \

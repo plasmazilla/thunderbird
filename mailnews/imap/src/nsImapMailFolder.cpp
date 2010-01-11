@@ -404,9 +404,15 @@ nsresult nsImapMailFolder::AddSubfolderWithPath(nsAString& name, nsILocalFile *d
   uri.Append('/');
   AppendUTF16toUTF8(name, uri);
 
+  PRBool isServer;
+  rv = GetIsServer(&isServer);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRBool isInbox = isServer && name.LowerCaseEqualsLiteral("inbox");
+
   //will make sure mSubFolders does not have duplicates because of bogus msf files.
   nsCOMPtr <nsIMsgFolder> msgFolder;
-  rv = GetChildWithURI(uri, PR_FALSE/*deep*/, PR_FALSE /*case Insensitive*/, getter_AddRefs(msgFolder));
+  rv = GetChildWithURI(uri, PR_FALSE/*deep*/, isInbox /*case Insensitive*/, getter_AddRefs(msgFolder));
   if (NS_SUCCEEDED(rv) && msgFolder)
     return NS_MSG_FOLDER_EXISTS;
 
@@ -426,10 +432,6 @@ nsresult nsImapMailFolder::AddSubfolderWithPath(nsAString& name, nsILocalFile *d
   folder->SetParent(this);
   flags |= nsMsgFolderFlags::Mail;
 
-  PRBool isServer;
-  rv = GetIsServer(&isServer);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   PRInt32 pFlags;
   GetFlags ((PRUint32 *) &pFlags);
   PRBool isParentInbox = pFlags & nsMsgFolderFlags::Inbox;
@@ -439,7 +441,7 @@ nsresult nsImapMailFolder::AddSubfolderWithPath(nsAString& name, nsILocalFile *d
   NS_ENSURE_SUCCESS(rv, rv);
 
   //Only set these if these are top level children or parent is inbox
-  if (isServer && name.LowerCaseEqualsLiteral("inbox"))
+  if (isInbox)
     flags |= nsMsgFolderFlags::Inbox;
   else if (isServer || isParentInbox)
   {
@@ -454,8 +456,8 @@ nsresult nsImapMailFolder::AddSubfolderWithPath(nsAString& name, nsILocalFile *d
     }
   }
 
-  //special case: 
-  // Make the folder offline if it is newly created and offline_download pref is true 
+  //special case:
+  // Make the folder offline if it is newly created and offline_download pref is true.
   if (brandNew)
   {
     PRBool setNewFoldersForOffline = PR_FALSE;
@@ -2825,6 +2827,16 @@ NS_IMETHODIMP nsImapMailFolder::UpdateImapMailboxInfo(nsIImapProtocol* aProtocol
     mDatabase->DeleteMessages(&keysToDelete, nsnull);
     total = keysToDelete.Length();
   }
+  PRInt32 numUnreadFromServer;
+  aSpec->GetNumUnseenMessages(&numUnreadFromServer);
+  
+  PRBool partialUIDFetch;
+  flagState->GetPartialUIDFetch(&partialUIDFetch);
+  
+  // For partial UID fetches, we can only trust the numUnread from the server.
+  if (partialUIDFetch)
+    numNewUnread = numUnreadFromServer;
+    
   // If we are performing biff for this folder, tell the
   // stand-alone biff about the new high water mark
   if (m_performingBiff && numNewUnread)
@@ -2837,8 +2849,6 @@ NS_IMETHODIMP nsImapMailFolder::UpdateImapMailboxInfo(nsIImapProtocol* aProtocol
      SetNumNewMessages(numNewUnread);
   }
   SyncFlags(flagState);
-  PRInt32 numUnreadFromServer;
-  aSpec->GetNumUnseenMessages(&numUnreadFromServer);
   if (mDatabase && mNumUnreadMessages + keysToFetch.Length() > numUnreadFromServer)
     mDatabase->SyncCounts();
 
@@ -4685,15 +4695,10 @@ nsresult nsImapMailFolder::SyncFlags(nsIImapFlagAndUidState *flagState)
     if (NS_SUCCEEDED(dbHdr->GetMessageSize(&messageSize)))
       mFolderSize += messageSize;
 
-    if (flags & kImapMsgCustomKeywordFlag)
-    {
-      nsCString keywords;
-      if (NS_SUCCEEDED(flagState->GetCustomFlags(uidOfMessage, getter_Copies(keywords))))
-      {
-        if (!keywords.IsEmpty() && dbHdr && NS_SUCCEEDED(rv))
-          HandleCustomFlags(uidOfMessage, dbHdr, supportedUserFlags, keywords);
-      }
-    }
+    nsCString keywords;
+    if (NS_SUCCEEDED(flagState->GetCustomFlags(uidOfMessage, getter_Copies(keywords))))
+        HandleCustomFlags(uidOfMessage, dbHdr, supportedUserFlags, keywords);
+
     NotifyMessageFlagsFromHdr(dbHdr, uidOfMessage, flags);
   }
   if (oldFolderSize != mFolderSize)
@@ -4709,6 +4714,7 @@ nsresult nsImapMailFolder::NotifyMessageFlagsFromHdr(nsIMsgDBHdr *dbHdr, nsMsgKe
   mDatabase->MarkHdrReplied(dbHdr, (flags & kImapMsgAnsweredFlag) != 0, nsnull);
   mDatabase->MarkHdrMarked(dbHdr, (flags & kImapMsgFlaggedFlag) != 0, nsnull);
   mDatabase->MarkImapDeleted(msgKey, (flags & kImapMsgDeletedFlag) != 0, nsnull);
+  mDatabase->MarkForwarded(msgKey, (flags & kImapMsgForwardedFlag) != 0, nsnull);
   // this turns on labels, but it doesn't handle the case where the user
   // unlabels a message on one machine, and expects it to be unlabeled
   // on their other machines. If I turn that on, I'll be removing all the labels
@@ -5490,6 +5496,7 @@ NS_IMETHODIMP
 nsImapMailFolder::NotifySearchHit(nsIMsgMailNewsUrl * aUrl,
                                   const char* searchHitLine)
 {
+  NS_ENSURE_ARG_POINTER(aUrl);
   nsresult rv = GetDatabase();
   if (!mDatabase || NS_FAILED(rv))
     return rv;

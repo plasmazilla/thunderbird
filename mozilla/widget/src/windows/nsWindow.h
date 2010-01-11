@@ -496,7 +496,7 @@ protected:
   PRPackedBool  mIsShiftDown;
   PRPackedBool  mIsControlDown;
   PRPackedBool  mIsAltDown;
-  PRPackedBool  mIsDestroying;
+  PRPackedBool  mInDtor;
   PRPackedBool  mIsVisible;
   PRPackedBool  mIsInMouseCapture;
   PRPackedBool  mIsInMouseWheelProcessing;
