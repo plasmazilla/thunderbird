@@ -3294,6 +3294,26 @@ TraceRecorder::prepareTreeCall(Fragment* inner)
     }
 }
 
+static unsigned
+BuildGlobalTypeMapFromInnerTree(Queue<uint8>& typeMap, VMSideExit* inner)
+{
+#if defined DEBUG
+    unsigned initialSlots = typeMap.length();
+#endif
+    /* First, use the innermost exit's global typemap. */
+    typeMap.add(getGlobalTypeMap(inner), inner->numGlobalSlots);
+
+    /* Add missing global types from the innermost exit's tree. */
+    TreeInfo* innerTree = (TreeInfo*)inner->from->root->vmprivate;
+    unsigned slots = inner->numGlobalSlots;
+    if (slots < innerTree->nGlobalTypes()) {
+        typeMap.add(innerTree->globalTypeMap() + slots, innerTree->nGlobalTypes() - slots);
+        slots = innerTree->nGlobalTypes();
+    }
+    JS_ASSERT(typeMap.length() - initialSlots == slots);
+    return slots;
+}
+
 /* Record a call to an inner tree. */
 JS_REQUIRES_STACK void
 TraceRecorder::emitTreeCall(Fragment* inner, VMSideExit* exit)
@@ -3312,12 +3332,7 @@ TraceRecorder::emitTreeCall(Fragment* inner, VMSideExit* exit)
      */
     TypeMap fullMap;
     fullMap.add(getStackTypeMap(exit), exit->numStackSlots);
-    fullMap.add(getGlobalTypeMap(exit), exit->numGlobalSlots);
-    TreeInfo* innerTree = (TreeInfo*)exit->from->root->vmprivate;
-    if (exit->numGlobalSlots < innerTree->nGlobalTypes()) {
-        fullMap.add(innerTree->globalTypeMap() + exit->numGlobalSlots,
-                    innerTree->nGlobalTypes() - exit->numGlobalSlots);
-    }
+    BuildGlobalTypeMapFromInnerTree(fullMap, exit);
     import(ti, inner_sp_ins, exit->numStackSlots, fullMap.length() - exit->numStackSlots,
            exit->calldepth, fullMap.data());
 
@@ -3815,7 +3830,7 @@ js_SynthesizeFrame(JSContext* cx, const FrameInfo& fi)
 }
 
 static void
-SynthesizeSlowNativeFrame(JSContext *cx, VMSideExit *exit)
+SynthesizeSlowNativeFrame(InterpState& state, JSContext *cx, VMSideExit *exit)
 {
     void *mark;
     JSInlineFrame *ifp;
@@ -3836,9 +3851,9 @@ SynthesizeSlowNativeFrame(JSContext *cx, VMSideExit *exit)
     fp->script = NULL;
     fp->fun = GET_FUNCTION_PRIVATE(cx, fp->callee);
     // fp->thisp is really a jsval, so reinterpret_cast here, not JSVAL_TO_OBJECT.
-    fp->thisp = (JSObject *) cx->nativeVp[1];
-    fp->argc = cx->nativeVpLen - 2;
-    fp->argv = cx->nativeVp + 2;
+    fp->thisp = (JSObject *) state.nativeVp[1];
+    fp->argc = state.nativeVpLen - 2;
+    fp->argv = state.nativeVp + 2;
     fp->rval = JSVAL_VOID;
     fp->down = cx->fp;
     fp->annotation = NULL;
@@ -4123,34 +4138,9 @@ js_AttemptToExtendTree(JSContext* cx, VMSideExit* anchor, VMSideExit* exitedFrom
             fullMap.add(getStackTypeMap(e1), e1->numStackSlotsBelowCurrentFrame);
             fullMap.add(getStackTypeMap(e2), e2->numStackSlots);
             stackSlots = fullMap.length();
-            fullMap.add(getGlobalTypeMap(e2), e2->numGlobalSlots);
-            if (e2->numGlobalSlots < e1->numGlobalSlots) {
-                /* Watch out for an extremely rare case (bug 502714). The sequence of events is:
-                 * 
-                 * 1) Inner tree compiles not knowing about global X (which has type A).
-                 * 2) Inner tree learns about global X and specializes it to a different type
-                 *    (type B).
-                 * 3) Outer tree records inner tree with global X as type A, exiting as B.
-                 * 4) Outer tree now has a nesting guard with typeof(X)=B.
-                 * 5) Inner tree takes its original exit that does not know about X.
-                 * 
-                 * In this case, the nesting guard fails, and now it is illegal to use the nested
-                 * typemap entry for X. The correct entry is in the inner guard's TreeInfo,
-                 * analogous to the solution for bug 476653.
-                 */
-                TreeInfo* innerTree = (TreeInfo*)e2->from->root->vmprivate;
-                unsigned slots = e2->numGlobalSlots;
-                if (innerTree->nGlobalTypes() > slots) {
-                    unsigned addSlots = JS_MIN(innerTree->nGlobalTypes() - slots,
-                                               e1->numGlobalSlots - slots);
-                    fullMap.add(innerTree->globalTypeMap() + e2->numGlobalSlots, addSlots);
-                    slots += addSlots;
-                }
-                if (slots < e1->numGlobalSlots)
-                    fullMap.add(getGlobalTypeMap(e1) + slots, e1->numGlobalSlots - slots);
-                JS_ASSERT(slots == e1->numGlobalSlots);
-            }
-            ngslots = e1->numGlobalSlots;
+            ngslots = BuildGlobalTypeMapFromInnerTree(fullMap, e2);
+            JS_ASSERT(ngslots >= e1->numGlobalSlots); // inner tree must have all globals
+            JS_ASSERT(ngslots == fullMap.length() - stackSlots);
             typeMap = fullMap.data();
         }
         JS_ASSERT(ngslots >= anchor->numGlobalSlots);
@@ -4517,6 +4507,7 @@ js_ExecuteTree(JSContext* cx, Fragment* f, uintN& inlineCallCount,
     state->lastTreeExitGuard = NULL;
     state->lastTreeCallGuard = NULL;
     state->rpAtLastTreeCall = NULL;
+    state->nativeVp = NULL;
     state->builtinStatus = 0;
 
     /* Setup the native global frame. */
@@ -4579,6 +4570,9 @@ js_ExecuteTree(JSContext* cx, Fragment* f, uintN& inlineCallCount,
 #else
     rec = u.func(state, NULL);
 #endif
+
+    JS_ASSERT(!state->nativeVp);
+
     VMSideExit* lr = (VMSideExit*)rec->exit;
 
     AUDIT(traceTriggered);
@@ -4790,6 +4784,7 @@ LeaveTree(InterpState& state, VMSideExit* lr)
     uint8* globalTypeMap;
 
     /* Are there enough globals? This is the ideal fast path. */
+    Queue<uint8> typeMap(0);
     if (innermost->numGlobalSlots == ngslots) {
         globalTypeMap = getGlobalTypeMap(innermost);
     /* Otherwise, merge the typemap of the innermost entry and exit together.  This should always
@@ -4797,14 +4792,16 @@ LeaveTree(InterpState& state, VMSideExit* lr)
        Thus, whenever a new global type is lazily added into a tree, all dependent and linked
        trees are immediately specialized (see bug 476653). */
     } else {
-        TreeInfo* ti = (TreeInfo*)innermost->from->root->vmprivate;
-        JS_ASSERT(ti->nGlobalTypes() == ngslots);
-        JS_ASSERT(ti->nGlobalTypes() > innermost->numGlobalSlots);
-        globalTypeMap = (uint8*)alloca(ngslots * sizeof(uint8));
-        memcpy(globalTypeMap, getGlobalTypeMap(innermost), innermost->numGlobalSlots);
-        memcpy(globalTypeMap + innermost->numGlobalSlots,
-               ti->globalTypeMap() + innermost->numGlobalSlots,
-               ti->nGlobalTypes() - innermost->numGlobalSlots);
+        JS_ASSERT(((TreeInfo*)innermost->from->root->vmprivate)->nGlobalTypes() == ngslots);
+        JS_ASSERT(((TreeInfo*)innermost->from->root->vmprivate)->nGlobalTypes() >
+                  innermost->numGlobalSlots);
+        typeMap.ensure(ngslots);
+#ifdef DEBUG
+        unsigned check_ngslots =
+#endif
+        BuildGlobalTypeMapFromInnerTree(typeMap, innermost);
+        JS_ASSERT(check_ngslots == ngslots);
+        globalTypeMap = typeMap.data();
     }
 
     /* write back native stack frame */
@@ -4817,15 +4814,13 @@ LeaveTree(InterpState& state, VMSideExit* lr)
     JS_ASSERT(unsigned(slots) == innermost->numStackSlots);
 
     if (innermost->nativeCalleeWord)
-        SynthesizeSlowNativeFrame(cx, innermost);
+        SynthesizeSlowNativeFrame(state, cx, innermost);
 
     /* write back interned globals */
     double* global = (double*)(&state + 1);
     FlushNativeGlobalFrame(cx, ngslots, gslots, globalTypeMap, global);
     JS_ASSERT(*(uint64*)&global[STOBJ_NSLOTS(JS_GetGlobalForObject(cx, cx->fp->scopeChain))] ==
               0xdeadbeefdeadbeefLL);
-
-    cx->nativeVp = NULL;
 
 #ifdef DEBUG
     // Verify that our state restoration worked.
@@ -7626,7 +7621,7 @@ TraceRecorder::newArray(JSObject* ctor, uint32 argc, jsval* argv, jsval* rval)
 }
 
 JS_REQUIRES_STACK JSRecordingStatus
-TraceRecorder::emitNativeCall(JSTraceableNative* known, uintN argc, LIns* args[])
+TraceRecorder::emitNativeCall(JSTraceableNative* known, uintN argc, LIns* args[], bool rooted)
 {
     bool constructing = known->flags & JSTN_CONSTRUCTOR;
 
@@ -7650,6 +7645,11 @@ TraceRecorder::emitNativeCall(JSTraceableNative* known, uintN argc, LIns* args[]
     }
 
     LIns* res_ins = lir->insCall(known->builtin, args);
+
+    // Immediately unroot the vp as soon we return since we might deep bail next.
+    if (rooted)
+        lir->insStorei(INS_CONSTPTR(NULL), lirbuf->state, offsetof(InterpState, nativeVp));
+
     rval_ins = res_ins;
     switch (JSTN_ERRTYPE(known)) {
       case FAIL_NULL:
@@ -7783,7 +7783,7 @@ TraceRecorder::callTraceableNative(JSFunction* fun, uintN argc, bool constructin
 #if defined _DEBUG
         JS_ASSERT(args[0] != (LIns *)0xcdcdcdcd);
 #endif
-        return emitNativeCall(known, argc, args);
+        return emitNativeCall(known, argc, args, false);
 
 next_specialization:;
     } while ((known++)->flags & JSTN_MORE);
@@ -7816,9 +7816,7 @@ TraceRecorder::callNative(uintN argc, JSOp mode)
     uintN vplen = 2 + JS_MAX(argc, FUN_MINARGS(fun)) + fun->u.n.extra;
     if (!(fun->flags & JSFUN_FAST_NATIVE))
         vplen++;  // slow native return value slot
-    lir->insStorei(INS_CONST(vplen), cx_ins, offsetof(JSContext, nativeVpLen));
     LIns* invokevp_ins = lir->insAlloc(vplen * sizeof(jsval));
-    lir->insStorei(invokevp_ins, cx_ins, offsetof(JSContext, nativeVp));
 
     // vp[0] is the callee.
     lir->insStorei(INS_CONSTWORD(OBJECT_TO_JSVAL(funobj)), invokevp_ins, 0);
@@ -7944,15 +7942,17 @@ TraceRecorder::callNative(uintN argc, JSOp mode)
 
     generatedTraceableNative->prefix = generatedTraceableNative->argtypes = NULL;
 
+    // We only have to ensure that the values we wrote into the stack buffer
+    // are rooted if we actually make it to the call, so only set nativeVp and
+    // nativeVpLen immediately before emitting the call code. This way we avoid
+    // leaving trace with a bogus nativeVp because we fall off trace while unboxing
+    // values into the stack buffer.
+    lir->insStorei(INS_CONST(vplen), lirbuf->state, offsetof(InterpState, nativeVpLen));
+    lir->insStorei(invokevp_ins, lirbuf->state, offsetof(InterpState, nativeVp));
+
     // argc is the original argc here. It is used to calculate where to place
     // the return value.
-    JSRecordingStatus status;
-    if ((status = emitNativeCall(generatedTraceableNative, argc, args)) != JSRS_CONTINUE)
-        return status;
-
-    // Unroot the vp.
-    lir->insStorei(INS_CONSTPTR(NULL), cx_ins, offsetof(JSContext, nativeVp));
-    return JSRS_CONTINUE;
+    return emitNativeCall(generatedTraceableNative, argc, args, true);
 }
 
 JS_REQUIRES_STACK JSRecordingStatus

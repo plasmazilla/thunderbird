@@ -19,6 +19,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Siddharth Agarwal <sid.bugzilla@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,6 +39,8 @@ Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
 Components.utils.import("resource://gre/modules/folderUtils.jsm");
 
 const kDefaultMode = "smart";
+
+var nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
 
 /**
  * This file contains the controls and functions for the folder pane.
@@ -66,6 +69,8 @@ let gFolderTreeView = {
                             .getString("folderPaneHeader_smart");
     this.registerMode("smart", this._smartFoldersGenerator, smartName);
     this._mapItemAdded["smart"] = this._smartItemAdded;
+    this._mapGetParentOfFolder["smart"] = this._wrapSmartGetParentOfFolder;
+
     // the folder pane can be used for other trees which may not have these elements.
     if (document.getElementById("folderpane_splitter"))
       document.getElementById("folderpane_splitter").collapsed = false;
@@ -269,8 +274,13 @@ let gFolderTreeView = {
    * ancestors are collapsed.
    *
    * @param aFolder  the nsIMsgFolder to select
+   * @param [aForceSelect] Whether we should switch to the default mode to
+   *      select the folder in case we didn't find the folder in the current
+   *      view. Defaults to false.
+   * @returns true if the folder selection was successful, false if it failed
+   *     (probably because the folder isn't in the view at all)
    */
-  selectFolder: function ftv_selectFolder(aFolder) {
+  selectFolder: function ftv_selectFolder(aFolder, aForceSelect) {
     // "this" inside the nested function refers to the function...
     // Also note that openIfNot is recursive.
     let tree = this;
@@ -279,23 +289,43 @@ let gFolderTreeView = {
       if (index) {
         if (!tree._rowMap[index].open)
           tree._toggleRow(index, false);
-        return;
+        return true;
       }
 
       // not found, so open the parent
-      if (!aFolderToOpen.isServer && aFolderToOpen.parent)
-        openIfNot(aFolderToOpen.parent);
+      let parent = tree.getParentOfFolder(aFolderToOpen);
+      if (parent && openIfNot(parent)) {
+        // now our parent is open, so we can open ourselves
+        index = tree.getIndexOfFolder(aFolderToOpen);
+        if (index) {
+          tree._toggleRow(index, false);
+          return true;
+        }
+      }
 
-      // now our parent is open, so we can open ourselves
-      index = tree.getIndexOfFolder(aFolderToOpen);
-      if (index)
-        tree._toggleRow(index, false);
+      // No way we can find the folder now.
+      return false;
     }
-    if (!aFolder.isServer && aFolder.parent)
-      openIfNot(aFolder.parent);
+    let parent = tree.getParentOfFolder(aFolder);
+    if (parent)
+      openIfNot(parent);
+
     let folderIndex = tree.getIndexOfFolder(aFolder);
+    if (folderIndex == null) {
+      if (aForceSelect) {
+        // Switch to the default mode. The assumption here is that the default
+        // mode can display every folder
+        this.mode = kDefaultMode;
+        // We don't want to get stuck in an infinite recursion, so pass in false
+        return this.selectFolder(aFolder, false);
+      }
+
+      return false;
+    }
+
     this.selection.select(folderIndex);
     this._treeElement.treeBoxObject.ensureRowIsVisible(folderIndex);
+    return true;
   },
 
   /**
@@ -324,6 +354,35 @@ let gFolderTreeView = {
       return null;
     return this._rowMap[aIndex]._folder;
   },
+
+  /**
+   * Returns the parent of a folder in the current view. This may be, but is not
+   * necessarily, the actual parent of the folder (aFolder.parent). In
+   * particular, in the smart view, special folders are usually children of the
+   * smart folder of that kind.
+   *
+   * @param aFolder The folder to get the parent of.
+   * @returns The parent of the folder, or null if the parent wasn't found.
+   * @note This function does not guarantee that either the folder or its parent
+   *       is actually in the view.
+   */
+  getParentOfFolder: function ftv_getParentOfFolder(aFolder) {
+    if (this._mode in this._mapGetParentOfFolder)
+      return this._mapGetParentOfFolder[this._mode](aFolder);
+    return aFolder.parent;
+  },
+
+  /**
+   * Returns the |ftvItem| for an index in the current display. Intended for use
+   * by folder tree mode implementers.
+   *
+   * @param aIndex The index for which the ftvItem should be returned.
+   * @note If the index is out of bounds, this function returns null.
+   */
+  getFTVItemForIndex: function ftv_getFTVItemForIndex(aIndex) {
+    return this._rowMap[aIndex];
+  },
+
 
   /**
    * Returns an array of nsIMsgFolders corresponding to the current selection
@@ -682,6 +741,10 @@ let gFolderTreeView = {
 
   _toggleRow: function toggleRow(aIndex, aExpandServer)
   {
+    // In 3.0 getIndexOfFolder returns a string, not a number, so there's a very
+    // good chance we'll get passed in one. Convert it to a number
+    // first. getIndexOfFolder is fixed in later versions.
+    aIndex = Number(aIndex);
     // Ok, this is a bit tricky.
     this._rowMap[aIndex].open = !this._rowMap[aIndex].open;
     if (!this._rowMap[aIndex].open) {
@@ -1031,6 +1094,12 @@ let gFolderTreeView = {
   _mapItemAdded: {},
 
   /**
+   * For views where the folder of the parent isn't the actual parent, we
+   * consult the method stored in this dictionary.
+   */
+  _mapGetParentOfFolder: {},
+
+  /**
    * Completely discards the current tree and rebuilds it based on current
    * settings
    */
@@ -1339,6 +1408,102 @@ let gFolderTreeView = {
       return this.addFolder(aParentItem, aItem);
     }
   },
+
+  /**
+   * A list of [flag, name, isDeep] triples for smart folders. isDeep == false
+   * means that subfolders are displayed as subfolders of the account, not of
+   * the smart folder. This list is expected to be constant through a session.
+   */
+  _smartFlagNameList: [
+    [nsMsgFolderFlags.Inbox, "Inbox", false],
+    [nsMsgFolderFlags.Drafts, "Drafts", false],
+    [nsMsgFolderFlags.SentMail, "Sent", true],
+    [nsMsgFolderFlags.Trash, "Trash", true],
+    [nsMsgFolderFlags.Templates, "Templates", false],
+    [nsMsgFolderFlags.Archive, "Archives", true],
+    [nsMsgFolderFlags.Junk, "Junk", false],
+    [nsMsgFolderFlags.Queue, "Outbox", true]
+  ],
+
+  /**
+   * All the "shallow" flags above (isDeep set to false), bitwise ORed.
+   */
+  get _allShallowSmartFlags ftv_get_allShallowSmartFlags() {
+    delete this._allShallowSmartFlags;
+    return this._allShallowSmartFlags = this._smartFlagNameList.reduce(
+      function (res, [flag,, isDeep]) isDeep ? res : (res | flag), 0);
+  },
+
+  /**
+   * Returns a triple describing the smart folder if the given folder is a
+   * special folder, else returns null.
+   */
+  _getSmartFolderType: function ftv_getSmartFolderType(aFolder) {
+    for each (let [, type] in Iterator(this._smartFlagNameList)) {
+      if (aFolder.flags & type[0])
+        return type;
+    }
+    return null;
+  },
+
+  /**
+   * Wrapper around smartGetParentOfFolder below.
+   */
+  _wrapSmartGetParentOfFolder: function ftv_wrapSmartGetParentOfFolder(aFolder) {
+    return gFolderTreeView._smartGetParentOfFolder(aFolder);
+  },
+
+  /**
+   * Returns the parent of a folder in the smart folder view.
+   *
+   * - The smart mailboxes are all top-level, so there's no parent.
+   * - For one of the special folders, it is the smart folder of that kind
+   *   if we're showing it (this happens when there's more than one folder
+   *   of the kind). Otherwise it's a top-level folder, so there isn't a
+   *   parent.
+   * - For a child of a "shallow" special folder (see |_flagNameList| for
+   *   the definition), it is the account.
+   * - Otherwise it is simply the folder's actual parent.
+   */
+  _smartGetParentOfFolder: function ftv_smartGetParentOfFolder(aFolder) {
+    let acctMgr = Components.classes["@mozilla.org/messenger/account-manager;1"]
+                            .getService(Components.interfaces.nsIMsgAccountManager);
+    let smartServer;
+    try {
+      smartServer = acctMgr.FindServer("nobody", "smart mailboxes", "none");
+    }
+    catch (ex) {
+      // Not much we can do without the root
+      return null;
+    }
+
+    if (aFolder.server == smartServer) {
+      // This is a smart mailbox
+      return null;
+    }
+
+    let smartType = this._getSmartFolderType(aFolder);
+    if (smartType) {
+      // This is a special folder
+      let [, name,] = smartType;
+      let smartRoot = smartServer.rootFolder;
+      let smartFolder = smartRoot.getChildWithURI(smartRoot.URI + "/" + name,
+                                                  false, true);
+      if (smartFolder && this.getIndexOfFolder(smartFolder) != null)
+        return smartFolder;
+
+      return null;
+    }
+
+    let parent = aFolder.parent;
+    if (parent && parent.isSpecialFolder(this._allShallowSmartFlags, false)) {
+      // Child of a shallow special folder
+      return aFolder.server.rootFolder;
+    }
+
+    return parent;
+  },
+
   /**
    * This updates the rowmap and invalidates the right row(s) in the tree
    */

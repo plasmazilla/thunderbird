@@ -1679,15 +1679,15 @@ var gMsgEditorCreationObserver =
 function WizCallback()
 {
   // Just assume that we succeeded, and move forward.  Ideally, we'd notice
-  // if the wizard failed to setup a working account, but the APIs don't 
-  // make that easy... 
+  // if the wizard failed to setup a working account, but the APIs don't
+  // make that easy...
   ComposeStartup(false, null);
 }
 
 /**
  * Callback for verifyAccounts used to open new autoconfig wizard, rather than
  * the old-school account wizard, since that one no longer offers email account
- */ 
+ */
 function WizOpen(aWizCallback){
   // XXXdmose For the 3.0/1.9.1 branch, we'll just create a dummy window object
   // associated with no XUL window at all since that's the lowest risk change.
@@ -3526,10 +3526,10 @@ var envelopeDragObserver = {
   getSupportedFlavours: function ()
     {
       var flavourSet = new FlavourSet();
-      flavourSet.appendFlavour("text/x-moz-url");
       flavourSet.appendFlavour("text/x-moz-message");
       flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
       flavourSet.appendFlavour("text/x-moz-address");
+      flavourSet.appendFlavour("text/x-moz-url");
       return flavourSet;
     }
 };

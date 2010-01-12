@@ -812,6 +812,8 @@ static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsig
         /* share input and output locations to save having to keep the
          * locations in separate registers */
         uint32_t* output = (uint32_t*)input;
+
+        input[3] = 0; /* initialize the unused 4th element of the input array */
 	for (i = 0; i < length; i++) {
 		const float *clampMax = &clampMaxValue;
 

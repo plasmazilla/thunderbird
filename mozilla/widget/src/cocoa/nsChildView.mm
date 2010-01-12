@@ -2526,6 +2526,8 @@ NSEvent* gLastDragEvent = nil;
     mGestureState = eGestureState_None;
     mCumulativeMagnification = 0.0;
     mCumulativeRotation = 0.0;
+
+    [self setFocusRingType:NSFocusRingTypeNone];
   }
   
   // register for things we'll take from other applications
@@ -2982,22 +2984,6 @@ NSEvent* gLastDragEvent = nil;
 }
 
 
-// Needed to deal with the consequences of calling [NSCell
-// drawWithFrame:inView:] with a ChildView object as the inView parameter
-// (this can happen in nsNativeThemeCocoa.mm):  drawWithFrame:inView:
-// expects an NSControl as its inView parameter, and may call [NSControl
-// currentEditor] on it.  But since a ChildView object (like an NSView object)
-// isn't a control, it doesn't have a "current editor", or a currentEditor
-// method.  So calling currentEditor on it will trigger a Objective-C
-// "unrecognized selector" exception.  To prevent this, ChildView needs its
-// own currentEditor method.  Since a ChildView object never has a "current
-// editor", it should always return nil.
-- (NSText*)currentEditor
-{
-  return nil;
-}
-
-
 - (void)scrollRect:(NSRect)aRect by:(NSSize)offset
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -3108,8 +3094,9 @@ static const PRInt32 sShadowInvalidationInterval = 100;
 
   /* clip and build a region */
   nsCOMPtr<nsIRegion> rgn(do_CreateInstance(kRegionCID));
-  if (rgn)
-    rgn->Init();
+  if (!rgn)
+    return;
+  rgn->Init();
 
   // bounding box of the dirty area
   nsIntRect fullRect;
@@ -3123,16 +3110,32 @@ static const PRInt32 sShadowInvalidationInterval = 100;
       const NSRect& r = rects[i];
 
       // add to the region
-      if (rgn)
-        rgn->Union((PRInt32)r.origin.x, (PRInt32)r.origin.y, (PRInt32)r.size.width, (PRInt32)r.size.height);
-
-      // to the context for clipping
-      targetContext->Rectangle(gfxRect(r.origin.x, r.origin.y, r.size.width, r.size.height));
+      rgn->Union((PRInt32)r.origin.x, (PRInt32)r.origin.y, (PRInt32)r.size.width, (PRInt32)r.size.height);
     }
   } else {
     rgn->Union(aRect.origin.x, aRect.origin.y, aRect.size.width, aRect.size.height);
-    targetContext->Rectangle(gfxRect(aRect.origin.x, aRect.origin.y, aRect.size.width, aRect.size.height));
   }
+
+  // Subtract child view rectangles from the region
+  NSArray* subviews = [self subviews];
+  for (int i = 0; i < int([subviews count]); ++i) {
+    NSView* view = [subviews objectAtIndex:i];
+    if (![view isKindOfClass:[ChildView class]] || [view isHidden])
+      continue;
+    NSRect frame = [view frame];
+    rgn->Subtract(frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
+  }
+
+  nsRegionRectSet* rgnRects = nsnull;
+  rgn->GetRects(&rgnRects);
+  if (!rgnRects)
+    return;
+
+  for (PRUint32 i = 0; i < rgnRects->mNumRects; ++i) {
+    const nsRegionRect& r = rgnRects->mRects[i];
+    targetContext->Rectangle(gfxRect(r.x, r.y, r.width, r.height));
+  }
+  rgn->FreeRects(rgnRects);
   targetContext->Clip();
   
   nsPaintEvent paintEvent(PR_TRUE, NS_PAINT, mGeckoChild);

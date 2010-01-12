@@ -1788,20 +1788,22 @@ function loadOneOrMoreURIs(aURIString)
 }
 
 function focusAndSelectUrlBar() {
-  if (gURLBar && isElementVisible(gURLBar) && !gURLBar.readOnly) {
-    gURLBar.focus();
-    gURLBar.select();
-    return true;
+  if (gURLBar && !gURLBar.readOnly) {
+    if (window.fullScreen)
+      FullScreen.mouseoverToggle(true);
+    if (isElementVisible(gURLBar)) {
+      gURLBar.focus();
+      gURLBar.select();
+      return true;
+    }
   }
   return false;
 }
 
 function openLocation() {
-  if (window.fullScreen)
-    FullScreen.mouseoverToggle(true);
-
   if (focusAndSelectUrlBar())
     return;
+
 #ifdef XP_MACOSX
   if (window.location.href != getBrowserURL()) {
     var win = getTopWin();
@@ -1838,8 +1840,7 @@ function BrowserOpenTab()
     return;
   }
   gBrowser.loadOneTab("about:blank", null, null, null, false, false);
-  if (gURLBar)
-    gURLBar.focus();
+  focusAndSelectUrlBar();
 }
 
 /* Called from the openLocation dialog. This allows that dialog to instruct

@@ -489,9 +489,15 @@ PRBool nsActivePluginList::remove(nsActivePlugin * plugin)
 
         delete p; // plugin instance is destroyed here
 
-        if (pluginTag)
-          pluginTag->TryUnloadPlugin();
-        else
+        nsCOMPtr<nsIPrefBranch> pref(do_GetService(NS_PREFSERVICE_CONTRACTID));
+        if (pluginTag && pref) {
+          PRBool unloadPluginsASAP = PR_FALSE;
+          nsresult rv = pref->GetBoolPref("plugins.unloadASAP",
+                                          &unloadPluginsASAP);
+          if (NS_SUCCEEDED(rv) && unloadPluginsASAP) {
+            pluginTag->TryUnloadPlugin();
+          }
+        } else
           NS_ASSERTION(pluginTag, "pluginTag was not set, plugin not shutdown");
 
       }
@@ -1093,10 +1099,10 @@ void nsPluginTag::TryUnloadPlugin(PRBool aForceShutdown)
   // also, never unload an XPCOM plugin library
   if (mLibrary && mCanUnloadLibrary && !isXPCOM) {
     // NPAPI plugins can be unloaded now if they don't use XPConnect
-    if (!mXPConnected)
+    if (!mXPConnected) {
       // unload the plugin asynchronously by posting a PLEvent
       PostPluginUnloadEvent(mLibrary);
-    else {
+    } else {
       // add library to the unused library list to handle it later
       if (mPluginHost)
         mPluginHost->AddUnusedLibrary(mLibrary);
