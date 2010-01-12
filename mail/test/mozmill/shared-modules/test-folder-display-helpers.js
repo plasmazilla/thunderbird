@@ -756,6 +756,99 @@ function assert_row_visible(aViewIndex) {
 }
 
 /**
+ * Assert that the given folder mode is the current one.
+ */
+function assert_folder_mode(aMode) {
+  let actualMode = mc.folderTreeView.mode;
+  if (actualMode != aMode)
+    throw new Error("The folder mode should be " + aMode +
+                    ", but is actually " + actualMode);
+}
+
+/**
+ * Assert that the given folder is the child of the given parent in the folder
+ * tree view. aParent == null is equivalent to saying that the given folder
+ * should be a top-level folder.
+ */
+function assert_folder_child_in_view(aChild, aParent) {
+  let actualParent = mc.folderTreeView.getParentOfFolder(aChild);
+  if (actualParent != aParent)
+    throw new Error("Folder " + aChild.URI + " should be the child of " +
+                    (aParent && aParent.URI) +
+                    ", but is actually the child of " +
+                    (actualParent && actualParent.URI));
+      
+}
+
+/**
+ * Assert that the given folder is in the current folder mode and is visible.
+ *
+ * @returns The index of the folder, if it is visible.
+ */
+function assert_folder_visible(aFolder) {
+  let folderIndex = mc.folderTreeView.getIndexOfFolder(aFolder);
+  if (folderIndex == null)
+    throw new Error("Folder: " + aFolder.URI + " should be visible, but isn't");
+
+  return folderIndex;
+}
+
+/**
+ * Assert that the given folder is either not in the current folder mode at all,
+ * or is not currently visible.
+ */
+function assert_folder_not_visible(aFolder) {
+  let folderIndex = mc.folderTreeView.getIndexOfFolder(aFolder);
+  if (folderIndex != null)
+    throw new Error("Folder: " + aFolder.URI +
+                    " should not be visible, but is");
+}
+
+/**
+ * Collapse a folder if it has children. This will throw if the folder itself is
+ * not visible in the folder view.
+ */
+function collapse_folder(aFolder) {
+  let folderIndex = assert_folder_visible(aFolder);
+  let folderFTVItem = mc.folderTreeView.getFTVItemForIndex(folderIndex);
+  if (folderFTVItem.open)
+    mc.folderTreeView.toggleOpenState(folderIndex);
+}
+
+/**
+ * Expand a folder if it has children. This will throw if the folder itself is
+ * not visible in the folder view.
+ */
+function expand_folder(aFolder) {
+  let folderIndex = assert_folder_visible(aFolder);
+  let folderFTVItem = mc.folderTreeView.getFTVItemForIndex(folderIndex);
+  if (!folderFTVItem.open)
+    mc.folderTreeView.toggleOpenState(folderIndex);
+}
+
+/**
+ * Assert that a folder is currently visible and collapsed. This will throw if
+ * either of the two is untrue.
+ */
+function assert_folder_collapsed(aFolder) {
+  let folderIndex = assert_folder_visible(aFolder);
+  let folderFTVItem = mc.folderTreeView.getFTVItemForIndex(folderIndex);
+  if (folderFTVItem.open)
+    throw new Error("Folder: " + aFolder.URI + " should be collapsed, but isn't");
+}
+
+/**
+ * Assert that a folder is currently visible and expanded. This will throw if
+ * either of the two is untrue.
+ */
+function assert_folder_expanded(aFolder) {
+  let folderIndex = assert_folder_visible(aFolder);
+  let folderFTVItem = mc.folderTreeView.getFTVItemForIndex(folderIndex);
+  if (!folderFTVItem.open)
+    throw new Error("Folder: " + aFolder.URI + " should be expanded, but isn't");
+}
+
+/**
  * Clear the selection in the folder tree view.
  */
 function select_no_folders() {
@@ -845,6 +938,32 @@ function middle_click_on_folder(aFolder) {
 }
 
 /**
+ * Get a reference to the smart folder with the given name.
+ *
+ * @param aFolderName The name of the smart folder (e.g. "Inbox").
+ * @returns An nsIMsgFolder representing the smart folder with the given name.
+ */
+function get_smart_folder_named(aFolderName) {
+  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
+                  .getService(Ci.nsIMsgAccountManager);
+  let smartServer = acctMgr.FindServer("nobody", "smart mailboxes", "none");
+  return smartServer.rootFolder.getChildNamed(aFolderName);
+}
+
+/**
+ * Get a reference to the smart folder with the given name.
+ *
+ * @param aFolderName The name of the smart folder (e.g. "Inbox").
+ * @returns An nsIMsgFolder representing the smart folder with the given name.
+ */
+function get_smart_folder_named(aFolderName) {
+  let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
+                  .getService(Ci.nsIMsgAccountManager);
+  let smartServer = acctMgr.FindServer("nobody", "smart mailboxes", "none");
+  return smartServer.rootFolder.getChildNamed(aFolderName);
+}
+
+/**
  * Assuming the context popup is popped-up (via right_click_on_row), select
  *  the deletion option.  If the popup is not popped up, you are out of luck.
  */
@@ -886,6 +1005,31 @@ function press_delete(aController) {
                        "VK_DELETE", {});
   wait_for_folder_events();
 }
+
+/**
+ * Archive the selected messages, and wait for it to complete.
+ *
+ * @param aController The controller in whose context to do this, defaults to
+ *     |mc| if omitted.
+ */
+function archive_selected_messages(aController) {
+  if (aController === undefined)
+    aController = mc;
+  let expectedCount = aController.dbView.rowCount - aController.dbView.numSelected;
+  aController.keypress(null, "a", {});
+
+  // Wait for the view rowCount to decrease by the number of selected messages.
+  let messagesDeletedFromView = function() {
+    return aController.dbView.rowCount == expectedCount;
+  };
+  controller.waitForEval('subject()',
+                         NORMAL_TIMEOUT,
+                         FAST_INTERVAL, messagesDeletedFromView);
+  // the above may return immediately, meaning the event queue might not get a
+  //  chance.  give it a chance now.
+  aController.sleep(0);
+}
+
 
 /**
  * Pretend we are pressing the Enter key, triggering opening selected messages.
@@ -1745,6 +1889,16 @@ function assert_folders_selected_and_displayed() {
 let assert_no_folders_selected = assert_folders_selected_and_displayed;
 let assert_folder_selected_and_displayed =
     assert_folders_selected_and_displayed;
+
+/**
+ * Assert that there are the given number of rows (not including children of
+ * collapsed parents) in the folder tree view.
+ */
+function assert_folder_tree_view_row_count(aCount) {
+  if (mc.folderTreeView.rowCount != aCount)
+    throw new Error("The folder tree view's row count should be " + aCount +
+                    ", but is actually " + mc.folderTreeView.rowCount);
+}
 
 /**
  * Since indexOf does strict equality checking, we need this.

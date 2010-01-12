@@ -43,6 +43,7 @@
 
 #include "nsError.h"
 #include "nsMemory.h"
+#include "nsProxyRelease.h"
 #include "nsThreadUtils.h"
 #include "nsIClassInfoImpl.h"
 #include "nsIProgrammingLanguage.h"
@@ -83,6 +84,17 @@ namespace storage {
 class AsyncStatementFinalizer : public nsRunnable
 {
 public:
+  /**
+   * Constructor for the event.
+   *
+   * @param aStatement
+   *        The sqlite3_stmt to finalize on the background thread.
+   * @param aConnection
+   *        The Connection that aStatement was created on.  We hold a reference
+   *        to this to ensure that if we are the last reference to the
+   *        Connection, that we release it on the proper thread.  The release
+   *        call is proxied to the appropriate thread.
+   */
   AsyncStatementFinalizer(Statement *aStatement)
   : mStatement(aStatement)
   {
@@ -91,10 +103,12 @@ public:
   NS_IMETHOD Run()
   {
     (void)mStatement->cleanupAsyncStatement();
+    (void)::NS_ProxyRelease(mStatement->owningConnection()->threadOpenedOn,
+                            mStatement);
     return NS_OK;
   }
 private:
-  nsRefPtr<Statement> mStatement;
+  nsCOMPtr<Statement> mStatement;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

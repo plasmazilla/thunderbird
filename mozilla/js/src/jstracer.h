@@ -62,7 +62,10 @@ class Queue : public avmplus::GCObject {
     unsigned _len;
     unsigned _max;
 
+public:
     void ensure(unsigned size) {
+        if (!_max)
+            _max = 16;
         while (_max < size)
             _max <<= 1;
         _data = (T*)realloc(_data, _max * sizeof(T));
@@ -70,11 +73,14 @@ class Queue : public avmplus::GCObject {
         memset(&_data[_len], 0xcd, _max - _len);
 #endif
     }
-public:
+
     Queue(unsigned max = 16) {
         this->_max = max;
         this->_len = 0;
-        this->_data = (T*)malloc(max * sizeof(T));
+        if (max)
+            this->_data = (T*)malloc(max * sizeof(T));
+        else
+            this->_data = NULL;
     }
 
     ~Queue() {
@@ -411,15 +417,17 @@ struct InterpState
 #endif
     InterpState*   prev;
 
-    /*
-     * Used by _FAIL builtins; see jsbuiltins.h. The builtin sets the
-     * JSBUILTIN_BAILED bit if it bails off trace and the JSBUILTIN_ERROR bit
-     * if an error or exception occurred.
-     */
+    // Used by _FAIL builtins; see jsbuiltins.h. The builtin sets the
+    // JSBUILTIN_BAILED bit if it bails off trace and the JSBUILTIN_ERROR bit
+    // if an error or exception occurred.
     uint32         builtinStatus;
 
     // Used to communicate the location of the return value in case of a deep bail.
     double*        deepBailSp;
+
+    // Used when calling natives from trace to root the vp vector. */
+    uintN          nativeVpLen;
+    jsval         *nativeVp;
 };
 
 static JS_INLINE void
@@ -640,7 +648,7 @@ class TraceRecorder : public avmplus::GCObject {
     JS_REQUIRES_STACK JSRecordingStatus interpretedFunctionCall(jsval& fval, JSFunction* fun,
                                                                 uintN argc, bool constructing);
     JS_REQUIRES_STACK JSRecordingStatus emitNativeCall(JSTraceableNative* known, uintN argc,
-                                                       nanojit::LIns* args[]);
+                                                       nanojit::LIns* args[], bool rooted);
     JS_REQUIRES_STACK JSRecordingStatus callTraceableNative(JSFunction* fun, uintN argc,
                                                             bool constructing);
     JS_REQUIRES_STACK JSRecordingStatus callNative(uintN argc, JSOp mode);

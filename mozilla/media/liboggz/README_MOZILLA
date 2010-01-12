@@ -25,3 +25,6 @@ bug496063.patch: Fix for infinite loop during seek while shutting down.
 oggz_os2.patch: Bug 448918 - add OS/2 support (this patch should be
                 removed when OS/2 support is added upstream)
 
+bug516847.patch: Fix for bug 516847 (duplicate frame handling).
+bug504843.patch: Propogate read errors from oggz_read_sync().
+

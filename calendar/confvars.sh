@@ -37,7 +37,9 @@
 # ***** END LICENSE BLOCK *****
 
 MOZ_APP_NAME=sunbird
-MOZ_APP_DISPLAYNAME=Calendar
+# This sets the default for nightly branding, and may get overriden by options
+# in configure.in depending on the arguments passed.
+MOZ_BRANDING_DIRECTORY=$MOZ_BUILD_APP/sunbird/branding/nightly
 MOZ_UPDATER=1
 MOZ_SUNBIRD=1
 MOZ_CALENDAR=1
@@ -48,7 +50,6 @@ MOZ_NO_ACTIVEX_SUPPORT=1
 MOZ_ACTIVEX_SCRIPTING_SUPPORT=
 MOZ_INSTALLER=
 MOZ_MATHML=
-NECKO_DISK_CACHE=
 # MOZ_OJI is only required to be cleared for MOZILLA_1_9_1_BRANCH.
 # mozilla-central does not have this.
 MOZ_OJI=

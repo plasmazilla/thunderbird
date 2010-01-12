@@ -174,7 +174,9 @@ NS_IMETHODIMP nsImapFlagAndUidState::Reset(PRUint32 howManyLeft)
     fNumberOfMessagesAdded = fNumberDeleted = 0; // used space is still here
   if (m_customFlagsHash.IsInitialized())
     m_customFlagsHash.EnumerateRead(FreeCustomFlags, nsnull);
+  memset(fFlags, 0, sizeof(imapMessageFlagsType) * fNumberOfMessageSlotsAllocated);
   m_customFlagsHash.Clear();
+  memset(fUids.Elements(), fNumberOfMessageSlotsAllocated * sizeof(nsMsgKey), 0);
   fPartialUIDFetch = PR_TRUE;
   PR_CExitMonitor(this);
   return NS_OK;

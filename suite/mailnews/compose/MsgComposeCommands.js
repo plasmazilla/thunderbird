@@ -706,7 +706,7 @@ function MessageComposeOfflineStateChanged(goingOffline)
 {
   try {
     var sendButton = document.getElementById("button-send");
-    var sendNowMenuItem = document.getElementById("menu-item-send-now");
+    var sendNowMenuItem = document.getElementById("menu_sendNow");
 
     if (!gSavedSendNowKey) {
       gSavedSendNowKey = sendNowMenuItem.getAttribute('key');
@@ -3131,9 +3131,9 @@ var attachmentBucketObserver = {
   getSupportedFlavours: function ()
     {
       var flavourSet = new FlavourSet();
-      flavourSet.appendFlavour("text/x-moz-url");
       flavourSet.appendFlavour("text/x-moz-message");
       flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
+      flavourSet.appendFlavour("text/x-moz-url");
       return flavourSet;
     }
 };

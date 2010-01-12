@@ -1,16 +1,21 @@
 var tab1, tab2;
 
+function executeSoon(step) {
+  todo(false, "Using setTimeout(,0) instead of real executeSoon() otherwise this test breaks");
+  setTimeout(step, 0);
+}
+
 function test() {
   waitForExplicitFinish();
 
   tab1 = gBrowser.addTab();
   tab2 = gBrowser.addTab();
-  setTimeout(step1, 0);
+  executeSoon(step1);
 }
 
 function step1() {
   EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  setTimeout(step2, 0);
+  executeSoon(step2);
 }
 
 function step2()
@@ -19,7 +24,7 @@ function step2()
   isnot(document.activeElement, tab1, "mouse on tab not activeElement");
 
   EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  setTimeout(step3, 0);
+  executeSoon(step3);
 }
 
 function step3()
@@ -46,7 +51,7 @@ function step3()
   }
 
   EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  setTimeout(step4, 0);
+  executeSoon(step4);
 }
 
 function step4()
@@ -54,7 +59,7 @@ function step4()
   is(document.activeElement, tab1, "mouse on tab while focused still activeElement");
 
   EventUtils.synthesizeMouse(tab2, 9, 9, {});
-  setTimeout(step5, 0);
+  executeSoon(step5);
 }
 
 function step5()

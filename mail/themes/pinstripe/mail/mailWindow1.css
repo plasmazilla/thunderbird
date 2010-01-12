@@ -62,10 +62,6 @@ treechildren::-moz-tree-twisty {
 
 /* :::::::::::::::::::::::::::::::::::: */
 
-#mail-toolbox {
-
-}
-
 #folderPaneBox {
   border-right: 1px solid #8B8B8B;
   -moz-margin-end: -3px !important;
@@ -233,6 +229,14 @@ treechildren::-moz-tree-image(subjectCol, forwarded) {
 
 treechildren::-moz-tree-image(subjectCol, forwarded, selected) {
   list-style-image: url("chrome://messenger/skin/icons/symbol-forwarded-selected.png") !important;
+}
+
+treechildren::-moz-tree-image(subjectCol, replied, forwarded) {
+  list-style-image: url("chrome://messenger/skin/icons/symbol-replied-forwarded.png") !important;
+}
+
+treechildren::-moz-tree-image(subjectCol, replied, forwarded, selected) {
+  list-style-image: url("chrome://messenger/skin/icons/symbol-replied-forwarded-selected.png") !important;
 }
 
 /* ..... attachment column ..... */

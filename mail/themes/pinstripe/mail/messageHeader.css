@@ -635,3 +635,7 @@ mail-headerfield > .headerValue {
   -moz-user-focus: normal;
   -moz-user-select: text;
 }
+
+#expandedHeaderView[show_header_mode="all"] mail-headerfield > .headerValue {
+  word-wrap: break-word;
+}

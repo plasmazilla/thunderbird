@@ -90,8 +90,10 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems,
     GetProfilePath(aStartup, getter_AddRefs(mTargetProfile));
     if (!mTargetProfile) return NS_ERROR_FAILURE;
   }
-  if (!mSourceProfile)
+  if (!mSourceProfile) {
     GetSourceProfile(aProfile);
+    if (!mSourceProfile) return NS_ERROR_FAILURE;
+  }
 
   NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
 
@@ -301,10 +303,7 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("browser.sessionhistory.max_total_viewers",Int),
   MAKESAMETYPEPREFTRANSFORM("browser.startup.page",                    Int),
   MAKESAMETYPEPREFTRANSFORM("browser.throbber.url",                    String),
-  MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.bookmarks",   Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.go",          Bool),
-  MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.home",        Bool),
-  MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.print",       Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.search",      Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.triple_click_selects_paragraph",  Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.underline_anchors",               Bool),

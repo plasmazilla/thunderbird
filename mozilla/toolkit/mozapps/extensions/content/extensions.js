@@ -47,6 +47,7 @@ const nsIIOService           = Components.interfaces.nsIIOService;
 const nsIFileProtocolHandler = Components.interfaces.nsIFileProtocolHandler;
 const nsIURL                 = Components.interfaces.nsIURL;
 const nsIAppStartup          = Components.interfaces.nsIAppStartup;
+const nsIBlocklistService    = Components.interfaces.nsIBlocklistService;
 
 var gView             = null;
 var gExtensionManager = null;
@@ -876,6 +877,8 @@ function initPluginsDS()
 
 function rebuildPluginsDS()
 {
+  var blocklist = Components.classes["@mozilla.org/extensions/blocklist;1"]
+                            .getService(nsIBlocklistService);
   var phs = Components.classes["@mozilla.org/plugin/host;1"]
                       .getService(Components.interfaces.nsIPluginHost);
   var plugins = phs.getPluginTags({ });
@@ -911,18 +914,17 @@ function rebuildPluginsDS()
       if (/<A\s+HREF=[^>]*>/i.test(plugin.description))
         homepageURL = /<A\s+HREF=["']?([^>"'\s]*)/i.exec(plugin.description)[1];
 
-      gPlugins[name][desc] = { filename    : plugin.filename,
-                               version     : plugin.version,
-                               homepageURL : homepageURL,
-                               disabled    : plugin.disabled,
-                               blocklisted : plugin.blocklisted,
-                               plugins     : [] };
+      gPlugins[name][desc] = { filename       : plugin.filename,
+                               version        : plugin.version,
+                               homepageURL    : homepageURL,
+                               blocklistState : blocklist.getPluginBlocklistState(plugin),
+                               disabled       : plugin.disabled,
+                               blocklisted    : plugin.blocklisted,
+                               plugins        : [] };
     }
     gPlugins[name][desc].plugins.push(plugin);
   }
 
-  var blocklist = Components.classes["@mozilla.org/extensions/blocklist;1"]
-                            .getService(Components.interfaces.nsIBlocklistService);
   for (var pluginName in gPlugins) {
     for (var pluginDesc in gPlugins[pluginName]) {
       plugin = gPlugins[pluginName][pluginDesc];
@@ -958,8 +960,7 @@ function rebuildPluginsDS()
                         gRDF.GetResource(PREFIX_NS_EM + "blocklisted"),
                         gRDF.GetLiteral(plugin.blocklisted ? "true" : "false"),
                         true);
-      var softblocked = blocklist.getPluginBlocklistState(plugin) == 
-                        Components.interfaces.nsIBlocklistService.STATE_SOFTBLOCKED;
+      var softblocked = plugin.blocklistState == nsIBlocklistService.STATE_SOFTBLOCKED;
       gPluginsDS.Assert(pluginNode,
                         gRDF.GetResource(PREFIX_NS_EM + "blocklistedsoft"),
                         gRDF.GetLiteral(softblocked ? "true" : "false"),
