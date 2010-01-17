@@ -1,7 +1,7 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
-# Copyright (c) 2007-2009 Fabien Tassin <fta@sofaraway.org>
-# Description: Project Thunderbird 3.0
+# Copyright (c) 2009 Guido Guenther <agx@sigxcpu.org>
+# Description: Project Icedove 3.0
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -17,27 +17,17 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-MOZCLIENT_PROJECTNAME := thunderbird-3.0
+BRANDING_DIR = mail/branding/icedove/
 
--include /usr/share/mozilla-devscripts/mozclient.mk
+MOZCLIENT_PROJECTNAME := icedove
+include debian/mozclient/thunderbird.mk
 
-COMPARE_FILTER_PRE_IN := sed \
-	-e 's,foo,foo,' \
-	$(NULL)
+post-patches:: debian/stamp-icedove-branding
+debian/stamp-icedove-branding:
+	cp -af debian/icedove-branding $(BRANDING_DIR)
+	for uue in `find $(BRANDING_DIR) -name '*.uu'`; do \
+		uudecode $$uue; rm $$uue; \
+	done
+	uudecode debian/preview.png.uu
+	touch $@
 
-COMPARE_FILTER_PRE_OUT := sed \
-	-e 's,^usr/lib/thunderbird-3.0[^/]*/,,' \
-	-e 's,^usr/share/pixmaps/.*,,' \
-	$(NULL)
-
-COMPARE_FILTER_IN    := sed \
-	-e 's,foo,foo,' \
-	$(NULL)
-
-COMPARE_FILTER_OUT   := sed \
-	-e 's,^DEBIAN/.*,,' \
-	-e 's,^usr/lib/debug/.*,,' \
-	-e 's,^usr/share/doc/.*,,' \
-	-e 's,^usr/share/menu/.*,,' \
-	-e 's,^usr/share/applications/.*,,' \
-	$(NULL)

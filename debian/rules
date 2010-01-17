@@ -9,8 +9,7 @@ DEB_BUILD_ARCH      ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 export BUILD_OFFICIAL=1
 
 DEB_MOZ_NAME=icedove
-DEB_MOZ_VERSION=3.0
-DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)
+DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
 
@@ -33,7 +32,7 @@ else
   TB_VERSION_FILE := version.txt
 endif
 
-DEBIAN_TB_DIR   = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 $(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
+DEBIAN_TB_DIR   = /usr/lib/$(DEB_MOZ_NAME)
 DEBIAN_XUL_DEV := $(wildcard /usr/lib/xulrunner-devel-1.9*)
 
 MOZCLIENT_PROJECTNAME   := $(DEB_MOZ_APPLICATION)
@@ -92,7 +91,7 @@ include $(CURDIR)/debian/mozclient/compare.mk
 DEB_AUTO_UPDATE_DEBIAN_CONTROL=0
 
 DEB_MOZ_EXTENSIONS=default
-DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)-dbg
+DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-dbg
 
 DEB_DH_SHLIBDEPS_ARGS_ALL=-l $(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) -Xlibmozgnome -Xlibnkgnomevfs -Xlibdbusservice
 
@@ -154,7 +153,7 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).links \
 	$(NULL)
 
-$(DEB_MOZ_APPLICATION)%: thunderbird-$(DEB_MOZ_VERSION)%.in
+$(DEB_MOZ_APPLICATION)%: thunderbird%.in
 	sed -e 's,@LIBDIR@,$(DEBIAN_TB_DIR),g' \
 	    -e 's,@DEB_MOZ_APPLICATION@,$(DEB_MOZ_APPLICATION),g' \
 	       < $< > $@
@@ -174,9 +173,9 @@ install/$(DEB_MOZ_APPLICATION)::
 	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
 
 binary-install/$(DEB_MOZ_APPLICATION)::
-	touch debian/$(DEB_MOZ_NAME)-$(DEB_MOZ_VERSION)$(DEBIAN_TB_DIR)/.autoreg
-	dh_install debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png usr/share/pixmaps
-	dh_link $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
+	touch debian/$(DEB_MOZ_NAME)$(DEBIAN_TB_DIR)/.autoreg
+	dh_install -p$(DEB_MOZ_APPLICATION) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png usr/share/pixmaps
+	dh_link -p$(DEB_MOZ_APPLICATION) $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
 
 binary-post-install/$(DEB_MOZ_APPLICATION):: compare
 
