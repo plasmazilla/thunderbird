@@ -49,7 +49,7 @@ ifeq (1,$(USE_SYSTEM_XUL))
    EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-libxul-sdk=$(DEBIAN_XUL_DEV)
 endif
 
-USE_SYSTEM_CAIRO := $(shell pkg-config --exists 'cairo >= 1.5.8'; a=$$?; if test $$a != 1; then echo 1; fi)
+USE_SYSTEM_CAIRO := $(shell pkg-config --exists 'cairo >= 1.8.8'; a=$$?; if test $$a != 1; then echo 1; fi)
 
 # for old cairo versions we cannot use system cairo
 ifeq (1,$(USE_SYSTEM_CAIRO))
