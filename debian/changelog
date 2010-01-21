@@ -1,3 +1,18 @@
+icedove (3.0.1-1) experimental; urgency=low
+
+  * New Upstream Version
+  * [8a2f5dc] define default options for git-import-orig
+  * [ac65b1b] refresh debian patches
+  * [851c5dc] rename binary packages to icedove (without version number)
+  * [6e12d1b] adjust cairo version to 1.8.8
+  * [cd7cd6f] moving the old profile dir instead of copy
+  * [c342380] replace theme directory always by link to /usr/share if we
+    update to version 3
+  * [c88eaa7] expansion of lib{dbusservice,mozgnome,nkgnomevfs}.so didn't work
+    with dpkg-shlibdeps - lets use the '-e' switch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 21 Jan 2010 20:53:57 +0100
+
 icedove (3.0-2) experimental; urgency=low
 
   * [f07e702] Add Replaces for icedove-gnome-support
