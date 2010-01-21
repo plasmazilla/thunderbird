@@ -63,7 +63,7 @@ Index: mozilla/mozilla/build/unix/mozilla.in
  fi
  
 +# On 1st run, create a profile based on application.ini configuration
-+# by importing an existing ~/.mozilla-thunderbird profile
++# by moving an existing ~/.mozilla-thunderbird profile
 +if [ -e "$moz_libdir/application.ini" ]; then
 +  pfname=`grep ^Name $moz_libdir/application.ini | cut -d= -f2 | tr 'A-Z' 'a-z'`
 +  if [ -f "$HOME/.$pfname" ]; then
@@ -73,8 +73,8 @@ Index: mozilla/mozilla/build/unix/mozilla.in
 +  if [ "$HOME/.$pfname" != "$HOME/.mozilla-thunderbird" ] && \
 +     [ ! -d "$HOME/.$pfname" ] && \
 +     [   -d "$HOME/.mozilla-thunderbird" ] ; then
-+    echo "*INFO* No $HOME/.$pfname detected. Create it from $HOME/.mozilla-thunderbird"
-+    cp -a $HOME/.mozilla-thunderbird $HOME/.$pfname
++    echo "*INFO* No $HOME/.$pfname detected. Moving $HOME/.mozilla-thunderbird into this place"
++    mv $HOME/.mozilla-thunderbird $HOME/.$pfname
 +  fi
 +fi
 +
