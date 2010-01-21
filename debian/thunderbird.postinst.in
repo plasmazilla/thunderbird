@@ -3,6 +3,16 @@
 set -e
 
 LIBDIR=@LIBDIR@
+DEB_MOZ_APPLICATION=@DEB_MOZ_APPLICATION@
+
+symlink_dir() {
+    LNSOURCE=$1
+    DIR=$2
+    if [ ! -L $DIR ]; then
+        rmdir $DIR
+        ln -s $LNSOURCE $DIR
+    fi
+}
 
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] ; then
     touch $LIBDIR/.autoreg
@@ -12,6 +22,11 @@ fi
 if [ -f /usr/lib/thunderbird-3.0a1pre/.autoreg ] ; then
   rm -f /usr/lib/thunderbird-3.0a1pre/.autoreg
   rmdir /usr/lib/thunderbird-3.0a1pre
+fi
+
+if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "3.0.1-1"; then
+    symlink_dir "/usr/share/$DEB_MOZ_APPLICATION/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}" \
+                "/usr/lib/$DEB_MOZ_APPLICATION/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}"
 fi
 
 #DEBHELPER#
