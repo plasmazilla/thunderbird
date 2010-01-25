@@ -160,3 +160,1786 @@ icedove-3.0 (3.0~b3~hg20090418r2418+nobinonly-1~0~gbpa19783) pkg-mozext; urgency
   * Initial release
 
  -- Guido Günther <agx@sigxcpu.org>  Sun, 19 Apr 2009 13:44:33 +0200
+
+icedove (2.0.0.22-1.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * update /usr/lib/icedove/dictionaries symlink to point to
+    /usr/share/hunspell (closes: #549876)
+  * add $[shlibs:Depends} to iceape-dev 
+
+ -- Rene Engelhard <rene@debian.org>  Mon, 09 Nov 2009 17:11:50 +0100
+
+icedove (2.0.0.22-1) unstable; urgency=low
+
+  * New upstream security/stability update (v2.0.0.21/v2.0.0.22) (Closes: 535124)
+    * MFSA 2009-33: Crash viewing multipart/alternative message with text/enhanced part
+    * MFSA 2009-32 aka CVE-2009-1841: JavaScript chrome privilege escalation
+    * MFSA 2009-29 aka CVE-2009-1838: Arbitrary code execution using event listeners
+      attached to an element whose owner document is null
+    * MFSA 2009-27 aka CVE-2009-1836: SSL tampering via non-200 responses to proxy
+      CONNECT requests
+    * MFSA 2009-24 aka CVE-2009-1832+CVE-2009-1831: Crashes with evidence of memory
+      corruption (rv:1.9.0.11)
+    * MFSA 2009-17 aka CVE-2009-1307: Same-origin violations when Adobe Flash loaded
+      via view-source: scheme
+    * MFSA 2009-14 aka CVE-2009-1303+CVE-2009-1302: Crashes with evidence of memory
+      corruption (rv:1.9.0.9)
+    * MFSA 2009-15 aka CVE-2009-0652: URL spoofing with box drawing character
+    * MFSA 2009-10 aka CVE-2009-0040: Upgrade PNG library to fix memory safety hazards
+    * MFSA 2009-09 aka CVE-2009-0776: XML data theft via RDFXMLDataSource and cross-domain
+      redirect
+    * MFSA 2009-07 aka CVE-2009-0771,-0772,-0773,-0774: Crashes with evidence of memory
+      corruption (rv:1.9.0.7)
+    * MFSA 2009-01 aka CVE-2009-0352,CVE-2009-0353 Crashes with evidence of memory
+      corruption (rv:1.9.0.6)
+  * adjust patches to changed codebase
+    - update debian/patches/ubuntu-mail-app-xre-name
+
+ -- Alexander Sack <asac@debian.org>  Wed, 01 Jul 2009 12:18:03 +0200
+
+icedove (2.0.0.19-1) unstable; urgency=medium
+
+  * New upstream security/stability update (v.2.0.0.18/2.0.0.19) Closes: 505563
+    2.0.0.18:
+    * MFSA 2008-48 aka CVE-2008-5012 - Image stealing via canvas and HTTP
+      redirect
+    * MFSA 2008-50 aka CVE-2008-5014 - Crash and remote code execution via
+      __proto__ tampering
+    * MFSA 2008-52 aka CVE-2008-5017 - Crashes with evidence of memory
+      corruption (rv:1.9.0.4/1.8.1.18); Browser engine crash in "Firefox 2
+      and 3"
+    * MFSA 2008-52 aka CVE-2008-5018 - Crashes with evidence of memory
+      corruption (rv:1.9.0.4/1.8.1.18); JavaScript engine crash - "Firefox 2
+      and 3"
+    * MFSA 2008-55 aka CVE-2008-5021 - Crash and remote code execution in
+      nsFrameManager
+    * MFSA 2008-56 aka CVE-2008-5022 - nsXMLHttpRequest::NotifyEventListeners()
+      same-origin violation
+    * MFSA 2008-58 aka CVE-2008-5024 - Parsing error in E4X default namespace
+    * MFSA 2008-59 aka CVE-2008-4582 - Script access to .documentURI and
+      .textContent in mail
+    2.0.0.19:
+    * MFSA 2008-60 aka CVE-2008-5500 - Crashes with evidence of memory
+      corruption (rv:1.9.0.5/1.8.1.19); Layout engine crashes - Firefox 2 and 3
+    * MFSA 2008-61 aka CVE-2008-5503 - Information stealing via
+      loadBindingDocument
+    * MFSA 2008-64 aka CVE-2008-5506 - XMLHttpRequest 302 response disclosure
+    * MFSA 2008-65 aka CVE-2008-5507 - Cross-domain data theft via script
+      redirect error message
+    * MFSA 2008-66 aka CVE-2008-5508 - Errors parsing URLs with leading
+      whitespace and control characters
+    * MFSA 2008-67 aka CVE-2008-5510 - Escaped null characters ignored by CSS
+      parser
+  * apply Maintainers, Uploaders changes done in 2.0.0.17 upload to
+    debian/control
+    - update debian/control
+  * adjust/refresh patches to changed upstream code
+    - update debian/patches/moz-app-name-as-mail-binary-name
+    - update debian/patches/autoconf2.13-rerun
+
+ -- Alexander Sack <asac@debian.org>  Sat, 03 Jan 2009 16:27:42 +0100
+
+icedove (2.0.0.17-1) unstable; urgency=low
+
+  * New upstream security/stability update (v.2.0.0.17), Closes: #500721
+    * MFSA 2008-37 aka CVE-2008-0016 - UTF-8 URL stack buffer overflow
+    * MFSA 2008-38 aka CVE-2008-3835 - nsXMLDocument::OnChannelRedirect()
+      same-origin violation
+    * MFSA 2008-41 aka CVE-2008-4058, CVE-2008-4059, CVE-2008-4060 - Privilege
+      escalation via XPCnativeWrapper pollution
+    * MFSA 2008-42 aka CVE-2008-4061, CVE-2008-4062, CVE-2008-4063,
+      CVE-2008-4064 - Crashes with evidence of memory corruption
+      (rv:1.9.0.2/1.8.1.17)
+    * MFSA 2008-43 aka CVE-2008-4065, CVE-2008-4066 - BOM characters, low
+      surrogates stripped from JavaScript before execution
+    * MFSA 2008-44 aka CVE-2008-4067, CVE-2008-4068 - resource: traversal
+      vulnerabilities
+    * MFSA 2008-46 aka CVE-2008-4070 -  Heap overflow when canceling newsgroup
+      message
+
+  [ Michael Casadevall <sonicmctails@gmail.com> ]
+  * debian/control:
+    - Changed maintainer to Ubuntu Mozillateam
+    - Added Uploaders to the team
+    - Set DM-Upload-Allowed
+    - Bumped standards version to 3.8.0
+
+  [ Alexander Sack <asac@debian.org> ]
+  * Closes: #497491 - Icedove inappropriately sets file-/MIME-type
+    associations in .desktop database; we drop the Mime-Type= entry
+    from debian/icedove.desktop
+    - update debian/icedove.desktop
+
+ -- Michael Casadevall <sonicmctails@gmail.com>  Sat, 18 Oct 2008 09:07:20 -0400
+
+icedove (2.0.0.16-1) unstable; urgency=low
+
+  * New upstream security/stability update (v2.0.0.16) fixes:
+   * MFSA 2008-21 aka CVE-2008-2798 - Crashes with evidence of memory
+     corruption
+   * MFSA 2008-21 aka CVE-2008-2799 - Crashes with evidence of memory
+     corruption
+   * MFSA 2008-24 aka CVE-2008-2802 - Chrome script loading from fastload file
+   * MFSA 2008-25 aka CVE-2008-2803 - Arbitrary code execution in
+     mozIJSSubScriptLoader.loadSubScript()
+   * MFSA 2008-26 aka CVE-2008-0304 - (followup) Buffer length checks in MIME
+     processing
+   * MFSA 2008-29 aka CVE-2008-2807 - Faulty .properties file results in
+     uninitialized memory being used
+   * MFSA 2008-31 aka CVE-2008-2809 - Peer-trusted certs can use alt names to
+     spoof
+   * MFSA 2008-33 aka CVE-2008-2811 - Crash and remote code execution in block
+     reflow
+   * MFSA 2008-34 aka CVE-2008-2785 - Remote code execution by overflowing CSS
+     reference counter
+
+  * Closes: #483938 - add .desktop file translations (contributed by Timo
+    Jyrinki <timo.jyrinki@iki.fi>)
+    - update debian/icedove.desktop
+
+  (cherry pick rev77 from lp:~mozillateam/thunderbird/thunderbird.dev branch)
+  * drop patches applied upstream
+    - drop debian/patches/bz419350_attachment_306066.patch
+    - update debian/patches/series
+
+  (cherry pick rev78 from lp:~mozillateam/thunderbird/thunderbird.dev branch)
+  * adjust patches diverged upstream
+    - update debian/patches/ubuntu-look-and-feel-report-a-bug-menuitem
+
+  (cherry pick rev80 from lp:~mozillateam/thunderbird/thunderbird.dev branch)
+  * Closes: #489093 - add explicit -lfontconfig to linker flags used for gfx/ps
+    module to fix ftbfs in intrepid
+    - add debian/patches/bzXXX_ftbfs_fontconfig.patch
+    - update debian/patches/series
+
+ -- Alexander Sack <asac@canonical.com>  Thu, 24 Jul 2008 17:38:51 +0200
+
+icedove (2.0.0.14-1) unstable; urgency=medium
+
+  * Upstream stability/security release, fixes
+    + MFSA 2008-15 aka CVE-2008-1236 - Crashes with evidence of memory corruption
+      (rv:1.8.1.13) - browser engine
+    + MFSA 2008-15 aka CVE-2008-1237 - Crashes with evidence of memory corruption
+      (rv:1.8.1.13) - javascript engine
+    + MFSA 2008-14 aka CVE-2008-1233, CVE-2008-1234, CVE-2008-1235 - JavaScript
+      privilege escalation and arbitrary code execution
+  * update debian/remove.nonfree script to pull branding from bzr branch hosted
+    at https://code.edge.launchpad.net/~mozillateam/thunderbird/icedove-branding-2.0.0.x
+    - update debian/remove.nonfree
+  * fix fallback https handler by adding pref("network.protocol-handler.app.https",
+    "x-www-browser") to default system preference file. (Closes: #460954)
+    - update debian/icedove.js
+  * drop patches applied upstream:
+    - delete debian/patches/bz399589_fix_missing_symbol_with_new_nss.patch
+    - update debian/patches/series
+  * fix broken reply-to-list extension (Closes: #439369)
+    - add debian/patches/replytolist_2.x.patch
+    - update debian/patches/series
+  * fix ftbfs on ia64 (Closes: #477281)
+    - add debian/patches/bz419350_attachment_306066.patch
+    - update debian/patches/series
+  * drop forced use of gcc/g++ 4.2 and use default compiler again; in turn we
+    drop gcc-4.2 and g++-4.2 from Build-Depends
+    - update debian/control
+    - update debian/rules
+
+ -- Alexander Sack <asac@debian.org>  Fri, 09 May 2008 17:57:55 +0200
+
+icedove (2.0.0.12-1) unstable; urgency=low
+
+   * New Upstream stability/security release, fixes various advisories:
+     + CVE-2008-0416 aka MFSA 2008-13  Multiple XSS vulnerabilities from
+       character encoding
+     + CVE-2008-0304 aka MFSA 2008-12 Heap buffer overflow in external MIME
+       bodies
+     + CVE-2008-0418 aka MFSA 2008-05 Directory traversal via chrome: URI
+     + CVE-2008-0415 aka MFSA 2008-03 Privilege escalation, XSS, Remote Code
+       Execution
+     + CVE-2008-0412 and CVE-2008-0413 aka MFSA 2008-01 Crashes with evidence
+       of memory corruption (rv:1.8.1.12) - layout and javascript
+  * Fix severe problems for powerpc architecture, by reverting arch-detect
+    patch to introduce special behaviour only when FORCE_USE_HOST_OS is set in
+    environment. For now only s390 is special cased in rules - as thats the
+    architecture we introduced this patch for (Closes: #461981).
+    - update debian/rules
+    - debian/patches/arch-detect
+  * fix "FTBFS with libnss3-dev=3.12.0~beta2-1" by introducing symbols not
+    exported by new nss anymore. Reuse thunderbird patch from ubuntu.
+    (Closes: #470128)
+    - added debian/patches/bz399589_fix_missing_symbol_with_new_nss.patch
+    - update debian/patches/series
+  * add Vcs-Bzr: header to control pointing to the mozillateam packaging
+    branch https://code.launchpad.net/~mozillateam/thunderbird/icedove-2.0.0.x
+    - update debian/control
+  * introduce .autoreg feature and touch /usr/lib/icedove/.autoreg in
+    icedove-gnome-support.postinst and icedove-gnome-support.prerm iif that
+    file exists.
+    - update debian/rules
+    - added debian/icedove-gnome-support.postinst
+    - added debian/icedove-gnome-support.prerm
+  * Adjust multiple patches because of changed upstream code base
+    - update debian/patches/ubuntu-mail-app-xre-name
+    - update debian/patches/autoconf2.13-rerun
+
+ -- Alexander Sack <asac@debian.org>  Sat, 05 Apr 2008 23:05:11 +0200
+
+icedove (2.0.0.9-3) unstable; urgency=low
+
+  * drop network.protocol-handler.external.http setting as it caused
+    regressions (Closes: 459564)
+    - update debian/icedove.js
+
+ -- Alexander Sack <asac@debian.org>  Wed, 09 Jan 2008 18:56:28 +0100
+
+icedove (2.0.0.9-2) unstable; urgency=low
+
+  * pass host arch information to configure and trust the supplied architecture
+    information. Thanks to Bastian Blank. (Closes: 445959)
+    - update debian/rules
+    - add debian/patches/arch-detect
+    - update debian/patches/autoconf2.13-rerun
+    - update debian/patches/series
+  * use /usr/lib/icedove/icedove as gnome integration command used to update
+    gconf protocol handler. (Closes: 452919)
+    - add debian/patches/icedove_gnome_command
+    - update debian/patches/series
+  * prefer gnome registry to lookup protocol handler if we are in a gnome
+    session; in turn we enable x-www-browser as the http protocol by default
+    (Closes: 452882)
+    - add debian/patches/prefer_gnome_registry_in_gnome_session
+    - update debian/patches/series
+    - update debian/icedove.js
+
+ -- Alexander Sack <asac@debian.org>  Sun, 30 Dec 2007 20:21:26 +0100
+
+icedove (2.0.0.9-1) unstable; urgency=medium
+
+  * new upstream stability/security update (v2.0.0.9):
+    - MFSA 2007-36 aka CVE-2007-4841: "URIs with invalid %-encoding mishandled
+      by Windows"
+    - MFSA 2007-29 aka CVE-2007-5339: "Crashes with evidence of memory
+      corruption (rv:1.8.1.8) - browser engine"
+    - MFSA 2007-29 aka CVE-2007-5340: "Crashes with evidence of memory
+      corruption (rv:1.8.1.8) - javascript engine"
+  * adapt adapt patches to new upstream codebase:
+    - drop debian/patches/bz389801_deb443454_fix_gtk_theme_crashes.patch
+    - update debian/patches/68_mips_performance.dpatch
+    - update debian/patches/series
+    - update debian/patches/autoconf2.13-rerun
+  * fix ftbfs due to changed cairo pc Requires: (Closes: 453179)
+    - add debian/patches/bz344818_att264996.patch
+    - update debian/patches/autoconf2.13-rerun
+    - update debian/patches/series
+  * add copyright file (Closes: 453365)
+    - add debian/copyright
+  * quote some if test ! ... lines to fix preinst errors (Closes: 427336)
+    - update debian/icedove.preinst
+  * update icedove menu section - use "Applications/Network/Communication"
+    (Closes: 444903)
+    - update debian/icedove.menu
+  * don't try to install debian/tmp/usr/lib/icedove/defaults/isp as its not
+    shipped by make install anymore
+    - update debian/icedove.install
+
+ -- Alexander Sack <asac@ubuntu.com>  Fri, 28 Dec 2007 16:05:05 +0100
+
+icedove (2.0.0.6-1) unstable; urgency=low
+
+  * new upstream release 2.0.0.6-1 fixes various security issues
+   (Closes: #444010):
+    - MFSA 2007-18 aka CVE-2007-3734, CVE-2007-3735 - Crashes with evidence of
+      memory corruption (rv:1.8.1.5).
+    - MFSA 2007-23 aka CVE-2007-3670 - Remote code execution by launching
+      Firefox from Internet Explorer (doesn't apply to linux).
+    - MFSA 2007-26 aka CVE-2007-3844 - Privilege escalation through
+      chrome-loaded about:blank windows.
+    - MFSA 2007-27 aka # CVE-2007-3845 - Unescaped URIs passed to external
+      programs.
+  * debian/patches/debian/patches/credits-rebranding: refresh patch because of
+    code-base change in new upstream release.
+  * debian/patche/bz389801_deb443454_fix_gtk_theme_crashes.patch,series:
+       import fix for theme crashes from bugzilla (Closes: 443454).
+
+ -- Alexander Sack <asac@debian.org>  Mon, 08 Oct 2007 12:09:42 +0000
+
+icedove (2.0.0.4.dfsg1-2) unstable; urgency=low
+
+  * debian/patches/autoconf2.13-rerun: rerun to apply last commits
+    configure.in patch addition to configure.
+  * debian/patches/force-no-pragma-visibility-for-gcc-4.2_4.3,
+    debian/patches/series: don't use pragma for visibility as visibility
+    hints are not perfect yet in mozilla code base.
+  * debian/icedove.desktop: drop explicit .png extension from desktop icon name
+  * debian/icedove.desktop, debian/icedove.links, debian/icedove.menu: fix various
+    icon issues, by using /usr/share/icedove/icons/default.png instead of
+    mozicon128.png as source for standard icedove pixmaps link 
+    (Closes: #427076, #437064, #437090).
+  * debian/control, debian/rules: use gcc-4.2 and g++-4.2 on all archs; add gcc-4.2
+    and g++-4.2 to build-depends in control file.
+  * debian/icedove.links: provide usr/share/icedove/chrome/icons/default/messengerWindow16.png
+    as a link to usr/share/icedove/icons/mozicon16.png (Closes: #427723).
+  * debian/icedove.install, debian/icedove.links: install isp directories
+    /usr/share/icedove/isp and /usr/share/icedove/defaults/isp and link them to
+    pkglibdir accordingly (Closes: #428421).
+
+ -- Alexander Sack <asac@debian.org>  Mon, 27 Aug 2007 23:48:53 +0200
+
+icedove (2.0.0.4.dfsg1-1) unstable; urgency=low
+
+  * debian/remove.nonfree: update list of non-free/binary-only file from
+    latest iceape updates" debian/remove.nonfree; update orig
+    tarball accordingly. (Closes: 400340)
+  * debian/control[.in]: icedove package now provides mail-reader,
+    imap-client, news-reader instead of www-browser (Closes: 425167)
+
+ -- Alexander Sack <asac@ubuntu.com>  Tue, 19 Jun 2007 15:00:12 +0200
+
+icedove (2.0.0.4-1) unstable; urgency=low
+
+  * stability/security upstream release 2.0.0.4
+    - CVE-2007-2867 aka MFSA 2007-12 (l): Crashes with evidence of memory
+      corruption (rv:1.8.0.12/1.8.1.4) - layout engine
+    - CVE-2007-2868 aka MFSA 2007-12 (j): Crashes with evidence of memory
+      corruption (rv:1.8.0.12/1.8.1.4) - javascript engine
+    - CVE-2007-1558 aka MFSA 2007-15:  Security Vulnerability in APOP
+      Authentication
+  * debian/patches/gcc-workaround-visibility-hidden, debian/patches/series:
+    applied upstream -> dropped visibility workaround patch
+  * debian/patches/gnome-mime-handling: updated patch for bz273524 in
+    response to upstream landing of bz373955
+  * debian/patches/autoconf-regen: rerun autoconf accordingly
+  * debian/patches/82_prefs.dpatch|series: import default font fixes
+    from xulrunner 1.8.1.4-1 patchset (thanks to Mike Hommey
+    <glandium@debian.org>)
+  * debian/control[.in]: libnss3-dev build-depend is now versioned
+    (Closes: 429202)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 18 Jun 2007 16:50:34 +0200
+
+icedove (2.0.0.0-4) unstable; urgency=low
+
+  * One that fix them all release - maybe.
+  * fix symlinks for chrome/greprefs/defaults in .preinst
+    (Closes: 425390, 425438, 425476, 425479, 425550, 425552, 425559, 425564, 425672, 425727, 426019)
+  * debian/control[.in]: fix section -> s/web/mail/
+
+ -- Alexander Sack <asac@debian.org>  Fri, 1 Jun 2007 13:13:13 +0200
+
+icedove (2.0.0.0-3) unstable; urgency=low
+
+  * fixing links in preinst (Closes: 424963, 425061, 425223)
+    greprefs, chrome and defaults need to point to
+    /usr/share/icedove/*
+  * drop searchplugin link which even had a typo :)
+  * debian/icedove.menu: ship debian menu entry 
+    (Closes: 425224)
+
+ -- Alexander Sack <asac@debian.org>  Sat, 20 May 2007 16:48:00 +0200
+
+icedove (2.0.0.0-2) unstable; urgency=low
+
+  * adding icedove-dbg package
+
+ -- Alexander Sack <asac@debian.org>  Sat, 19 May 2007 17:33:00 +0200
+
+icedove (2.0.0.0-1) unstable; urgency=low
+
+  * icedovising
+  * add debian/remove.nonfree
+  * set upstream application fixed to 'thunderbird' in update-orig,
+    so you can just drop thunderbird tarball and produce new orig
+  * fix debian/control.in, drop transition packages. update debian/control
+    for these modifications.
+  * no autogen of configure and debian/control for release
+
+ -- Alexander Sack <asac@debian.org>  Thu, 17 May 2007 14:00:00 +0200
+
+thunderbird (1.99.rc1+2.0-1) feisty; urgency=low
+
+  * branch firefox-trunk package for 2.0 thunderbird package
+  * debian/control.in, debian/control: add transition packages:
+    mozilla-thunderbird, mozilla-thunderbird-dev; disable dom-inspector
+    package as there is nearly no hope that it ever will get maintained 
+    upstream again.
+  * debian/rules: remove inspector extension from configure; add excludes
+    to dh_install of thunderbird and thunderbird-dev package:
+    -
+     DEB_DH_INSTALL_ARGS_thunderbird := -Xgnome -Ximgicon -Xmozlibthai
+     DEB_DH_INSTALL_ARGS_thunderbird-dev := -Xnspr -Xnss
+
+ -- Alexander Sack <asac@ubuntu.com>  Wed, 18 Apr 2007 13:35:34 +0200
+
+icedove (1.5.0.10.dfsg1-3) unstable; urgency=low
+
+  * debian/icedove*.xpm updated to use correct icon
+    (Closes: 413976, 416476)
+  * debian/patches/25_gnome_helpers_with_params.dpatch:
+    Make helper applications with parameters work (bz#273524);
+    this is an improved version of bugzilla patch by Mike Hommey 
+    <glandium@debian.org>
+
+ -- Alexander Sack <asac@debian.org>  Wed, 28 Mar 2007 21:55:08 +0200
+
+icedove (1.5.0.10.dfsg1-2) unstable; urgency=low
+
+  * debian/tmpls-typeaheadfind/install.rdf: fix version depends of 
+    typeaheadfind (Closes: 413770)
+
+ -- Alexander Sack <asac@debian.org>  Wed, 7 Mar 2007 13:13:13 +0100
+
+icedove (1.5.0.10.dfsg1-1) unstable; urgency=low
+
+  * new upstream release fixing security issues:
+    - CVE-2007-0008, MFSA 2006-06: SSLv2 Client Integer Underflow
+      Vulnerability
+    - CVE-2007-0009, MFSA 2006-06: SSLv2 Server Stack Overflow
+      Vulnerability
+    - CVE-2007-0775, CVE-2007-0776, CVE-2007-0777, MFSA 2007-01:
+      Crashes with evidence of memory corruption
+  * 91_credits_icedove.dpatch: dump new xml entities from
+    credits dialog (Closes: 404984, 412423)
+  * 50_kbsd_nspr.dpatch, 50_kbsd.dpatch: adapt kbsd patches to apply to
+    latest upstream code-base
+
+  [ Christian Perrier <bubulle@debian.org>]
+
+  * Rewrite debconf templates to fit the current Developer's Reference
+    recommendations
+  * Correct the name of the debconf templates file in debian/po/POTFILES.in
+    Closes: #407220
+  * Debconf translations:
+    - Bulgarian added. Closes: #410627
+    - Basque updated. Closes: #410633
+    - German updated. Closes: #410672
+    - Catalan updated. Closes: #410676
+    - Spanish updated. Closes: #410709
+    - Galician updated. Closes: #410720, #407944
+    - Japanese updated. Closes: #410753
+    - Tamil added. Closes: #410892
+    - Portuguese updated. Closes: #409562
+    - Vietnamese updated.
+    - Malayalam added. Closes: #408109
+    - Russian updated. Closes: #411064, #405741
+    - Swedish. Closes: #410632
+    - Polish. Closes: #411302
+    - Fix typo in Italian translation. Closes: #363806
+    - Romanian. Closes: #411361
+    - Czech. Closes: #411409
+    - Danish. Closes: #411402
+    - Dutch. Closes: #411406
+    - Italian. Closes: #411452
+    - Brazilian Portuguese. Closes: #411538
+    - Korean. Closes: #411624, #411581
+    - Malayalam. Closes: #411647
+    - Finnish. Closes: #411765
+
+ -- Alexander Sack <asac@debian.org>  Fri, 23 Feb 2007 09:00:00 +0100
+
+icedove (1.5.0.10.dfsg1-1.1) unstable; urgency=low
+
+  * Non-maintainer upload to fix pending l10n issues.
+  * Debconf translations:
+    - Italian fixed. Closes: #363806
+    - Russian added. Closes: #405741
+    - Galician added. Closes: #407944
+    - Malayalam added. Closes: #408109
+    - Portuguese updated. Closes: #409562
+
+ -- Christian Perrier <bubulle@debian.org>  Tue,  6 Feb 2007 06:55:08 +0100
+
+icedove (1.5.0.9.dfsg1-1) unstable; urgency=high
+
+  * new upstream version, fixes various security issues:
+     - CVE-2006-6497 mfsa2006-68 layout engine
+     - CVE-2006-6498 mfsa2006-68 javascript engine
+     - CVE-2006-6499 mfsa2006-68 floating point
+     - CVE-2006-6500 mfsa2006-69
+     - CVE-2006-6501 mfsa2006-70
+     - CVE-2006-6502 mfsa2006-71
+     - CVE-2006-6503 mfsa2006-72
+     - CVE-2006-6504 mfsa2006-73
+     - CVE-2006-6505 mfsa2006-74
+     - CVE-2006-6506 mfsa2006-75
+     - CVE-2006-6507 mfsa2006-76
+  * landing icedove artwork contributed by Ricardo Fernández 
+    <unicko2000@yahoo.es>; svgs are in debian/branding. xpms and some
+    pngs are generated with rsvg-convert and convert -> adding 
+    build-depends to librsvg2-bin, imagemagick
+  * including es.po translation contributed by Felipe Caminos 
+    <felipem@gigared.com> (Closes: 402928)
+  * updateing pt_BR.po provided by André Luís Lopes 
+    <andrelop@debian.org> (Closes: 403827)
+  * adapting credits dialog and Icedove Motto in 91_credits_icedove.dpatch
+  * fix bad link in icedove manpage (icedove.sgml) (Closes: 398344)
+  * rebranding install.rdf of default theme for icedove in
+    91_rebranding_theme.dpatch (Closes: 393134)
+  * adapt README.Debian to new icedove directories and name
+  * clean old/not-needed files from debian/ directory:
+    theme.part.defaultclassic, mail-jar.mn, messenger_jar_includes.csv
+  * disabling patch: 99_bz360409_deb400383, which is applied
+    upstream now.
+
+ -- Alexander Sack <asac@debian.org>  Tue, 19 Dec 2006 12:00:00 +0100
+
+icedove (1.5.0.8.dfsg1-1) unstable; urgency=medium
+
+  * removing all currently known non-free and sourceless binaries
+    from source package by running the script included for 
+    reference in debian/remove.nonfree from the gnuzilla project
+    (Closes: 400340)
+  * added upstream approved quickfix for grave bug in 
+    debian/patches/99_bz360409_deb400383.dpatch (Closes: 400383)
+  * last chance kbsd upload ... reenabling kbsd patch with fix
+    by Petr Salinger <Petr.Salinger@seznam.cz> (Closes: 399692)
+  * remove missed non-free icons from
+    debian/fhunderbird-branding.tmpl/ : background.png.uu, disk.icns.uu
+
+ -- Alexander Sack <asac@debian.org>  Sun, 26 Nov 2006 19:00:00 +0100
+
+icedove (1.5.0.8-3) unstable; urgency=low
+
+  * disable kbsd patches in 00list because they appear to break
+    build on other platforms. In consequence, 399692 and 363865
+    will be reopened. Reenable 90_ppc64-build-fix (Closes: 400090)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 22 Nov 2006 15:10:00 +0100
+
+icedove (1.5.0.8-2) unstable; urgency=low
+
+  * fix mozilla.in for real (for transitional thunderbird link
+    (Closes: 393123, 398037)
+  * apply basque debconf translation (eu.po) for real
+    (Closes: 398468)
+  * included nl.po provided by Nick Niktaris <niktaris@knoppel.org>
+    renaming as icedove first (Closes: 378360)
+  * include greek translation in icedove.desktop provided by
+    Nick Niktaris <niktaris@knoppel.org> (Closes: 384359)
+  * include updated de.po translation provided by
+    Alwin Meschede <ameschede@gmx.de> (Closes: 399083)
+  * apply FTBFS on GNU/kFreeBSD porters patch provided by
+    Petr Salinger <Petr.Salinger@seznam.cz> (Closes: 399692),
+    which is claimed to provide a fix for ppc64 ftbfs too
+    (Closes: 363865)
+  * remove debug echo from icedove.preinst (Closes: 399723)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 21 Nov 2006 19:35:00 +0100
+
+icedove (1.5.0.8-1) unstable; urgency=medium
+
+  * new upstream version fixes various security issues
+  * added transition package: thunderbird-gnome-support
+    -> icedove-gnome-support as well as thunderbird-dbg
+    -> icedove-dbg (Closes: 393105)
+  * fix typo in postinst to fix browser integration scheme
+    recognition as selected by debconf (Closes: 393765, 398427)
+  * apply patch by  Ted Percival <ted@midg3t.net> to fix broken
+    transitional thunderbird symlink (Closes: 393123, 398037)
+  * apply patch by Andre Lehovich <andrel@yahoo.com> that fixes
+    icedove package description typos  (Closes: 398468)
+  * add basque debconf translation (eu.po) provided by Piarres 
+    Beobide <pi@beobide.net> (Closes: 398719)
+  * remove non-free rfc files from source tarball (Closes: 395095)
+
+ -- Alexander Sack <asac@debian.org>  Wed, 15 Nov 2006 18:00:00 +0100
+
+icedove (1.5.0.7-3) unstable; urgency=medium
+
+  * unbrand thunderbird mail -> Icedove Mail/News due
+    to trademark issues (Closes: 354622)
+
+ -- Alexander Sack <asac@debian.org>  Thu, 12 Oct 2006 13:00:00 +0100
+
+thunderbird (1.5.0.7-2) unstable; urgency=low
+
+  * go through new upload ... reenable thunderbird-dbg
+  * increase reference count for fontconfig charset
+    91_fontconfig_reference_increment_388739 (Closes: 388739)
+
+ -- Alexander Sack <asac@debian.org>  Wed, 27 Sep 2006 02:00:00 +0100
+
+thunderbird (1.5.0.7-1) unstable; urgency=high
+
+  * disabled new package to avoid queue new: thunderbird-dbg
+  * new upstream release fixes security issues:
+    + MFSA 2006-64 - CVE-2006-4571
+    + MFSA 2006-63 - CVE-2006-4570
+    + MFSA 2006-62 - CVE-2006-4569
+    + MFSA 2006-61 - CVE-2006-4568
+    + MFSA 2006-60 - CVE-2006-4340 (related to CVE-2006-4339)
+    + MFSA 2006-59 - CVE-2006-4253
+    + MFSA 2006-58 - CVE-2006-4567
+    + MFSA 2006-57 - CVE-2006-4565, CVE-2006-4566
+  * disable patch 90_gcc-extern-fix, because it has been pulled in upstream
+  * disable 91_271815.overthespot.v1.2, because applied upstream
+
+ -- Alexander Sack <asac@debian.org>  Fri, 15 Sep 2006 16:00:00 +0100
+
+thunderbird (1.5.0.5-2) unstable; urgency=low
+
+  * new package: thunderbird-dbg
+    + improve configure options
+    + enable svg
+    + use debian build options to determine optimization flags
+  * added build depends on libcairo-dev
+
+ -- Alexander Sack <asac@debian.org>  Sat, 12 Aug 2006 15:00:00 +0100
+
+thunderbird (1.5.0.5-1) unstable; urgency=high
+
+  * new upstream release fixes various security flaws:
+    + MFSA 2006-44, CVE-2006-3801
+    + MFSA 2006-46, CVE-2006-3113
+    + MFSA 2006-47, CVE-2006-3802
+    + MFSA 2006-48, CVE-2006-3803
+    + MFSA 2006-49, CVE-2006-3804
+    + MFSA 2006-50, CVE-2006-3805, CVE-2006-3806
+    + MFSA 2006-51, CVE-2006-3807
+    + MFSA 2006-52, CVE-2006-3808
+    + MFSA 2006-53, CVE-2006-3809
+    + MFSA 2006-54, CVE-2006-3810
+    + MFSA 2006-55, CVE-2006-3811
+  * including patch 91_271815.overthespot.v1.2.dpatch 
+    (Closes: 379936, 363814)
+  * improve manpage: Document -g, --debug options (Closes: 381096)
+  * update for ja.po, contributed by Kenshi Muto <kmuto@debian.org>
+    (Closes: 379946)
+  * update for pt.po, contributed by Rui Branco <ruipb@debianpt.org>
+    (Closes: 381444)
+  * Provide virtual package news-reader (Closes: 363834)
+  * Apply patch which introduces ReplyToList MessageType. This is 
+    the base to allow extensions that provide ReplyToList button to
+    get installed. Thanks to Armin Berres <trigger@space-based.de>
+    for pointing out this unintrusive patch. (Closes: 381273)
+  * fix README.Debian for firefox integration as well as example of
+    global pref.js (firefox.js.tmpl) (Closes: 363723)
+  * further improvements for README.Debian
+  * fix gnome integration program path in a hard-coded fashion
+    in 91_gnome_path_fix.dpatch (Closes: 365610)
+
+ -- Alexander Sack <asac@debian.org>  Sat, 12 Aug 2006 15:00:00 +0100
+
+thunderbird (1.5.0.4-3) unstable; urgency=critical
+
+  * fixing gcc-4.1 ftbfs (Closes: 377176)
+  * improved manpage by Bastian Kleineidam <calvin@debian.org>
+    documenting -safe-mode option (Closes: 370254)
+  * include *no xgot* patch for mips/mipsel contributed by
+    Thiemo Seufer <ths@networkno.de> (Closes: 374882)
+
+ -- Alexander Sack <asac@debian.org>  Thu, 13 Jul 2006 15:00:00 +0100
+
+thunderbird (1.5.0.4-2) unstable; urgency=critical
+
+  * fix version in install.rdf for inspector and
+    typeaheafind (Closes: 374382)
+  * (last one was a new upstream release fixing
+    various security issues (Closes: 373878, 373553)
+  * urgency=critical
+
+ -- Alexander Sack <asac@debian.org>  Mon, 19 Jun 2006 10:00:00 +0100
+
+thunderbird (1.5.0.4-1) unstable; urgency=low
+
+  * new upstream release fixing various security issues:
+      MFSA 2006-42, CVE-2006-2783: Web site XSS using BOM on UTF-8 pages
+      MFSA 2006-40, CVE-2006-2781: Double-free on malformed VCard
+      MFSA 2006-38, CVE-2006-2778: Buffer overflow in crypto.signText()
+      MFSA 2006-37, CVE-2006-2776: Remote compromise via content-defined 
+            setter on object prototypes
+      MFSA 2006-35, CVE-2006-2775: Privilege escalation through XUL persist
+      MFSA 2006-33, CVE-2006-2786: HTTP response smuggling
+      MFSA 2006-32, CVE-2006-2779, CVE-2006-2780: Fixes for crashes with 
+            potential memory corruption
+      MFSA 2006-31, CVE-2006-2787: EvalInSandbox escape (Proxy Autoconfig,
+            Greasemonkey)
+  * build depends:
+    + xorg-dev -> libx11-dev, libxt-dev, libxinerama-dev,
+      libxft-dev, libfreetype6-dev, libxrender-dev
+    + removed binutils, coreutils and po-debconf
+  * enable xinerama in debian/rules
+  * fixed lintian errors:
+    + do not depend on xorg dev meta package
+    + debhelper depend is now versioned
+    + changed package description(s) to not start with 'thunderbird'
+
+ -- Alexander Sack <asac@debian.org>  Tue, 23 May 2006 15:00:00 +0100
+
+thunderbird (1.5.0.2-3) unstable; urgency=low
+
+  * patch-robbery from firefox package:
+    + removed old mips and arm patches
+    + added 50_arch_arm_fix
+    + added 50_arch_alpha_fix
+    + added 50_arch_m68k_fix
+    + added 50_arch_mips_Makefile_fix
+    + added 50_arch_mips_fix (Closes: 357755)
+    + added 50_arch_parisc_Makefile_fix
+    + added 50_arch_parisc_fix 
+  * included install.rdf for default theme in extensions dir
+    (Closes: 363956)
+  * removed chrome.d locales.d extensions.d from var/lib/thunderbird
+
+ -- Alexander Sack <asac@debian.org>  Tue, 16 May 2006 19:45:00 +0100
+
+thunderbird (1.5.0.2-2) unstable; urgency=critical
+
+  * debian/thunderbird.sgml. Greatly improved manpage for thunderbird,
+    thanks to Sam Morris <sam@robots.org.uk> for contributing this 
+    (Closes: 361069)
+  * add missing build depend to sharutils to fix ftbfs (Closes: 365539)
+  * fix gnome-support package removing gnome dependencies from
+    pure thunderbird package.
+  * set urgency to critical which I forgot to set properly 
+    for the last upload
+
+ -- Alexander Sack <asac@debian.org>  Sat, 29 Apr 2006 14:00:00 +0100
+
+thunderbird (1.5.0.2-1) unstable; urgency=low
+
+  * removed enable xprint in order to build after X11R7 transition.
+  * removed xprint recommends from control file.
+  * 91_fontsfix_359763.dpatch: fix for 'thunderbird shows text illegibly'
+    for some encodings. (Closes: 359763)
+  * myspell is now depends (Closes: 357623)
+  * (re-)including 10_mips_optimization_patch
+  * debian/patches/90_ppc64-build-fix.dpatch: patch for 
+    'FTBFS (ppc64)', thanks to Andreas Jochens <aj@andaco.de> 
+    for adding the final patch to the report. (Closes: 361036)
+  * Thanks to Bastian Kleineidam <calvin@debian.org> for
+    contributing:
+    * Standards version 3.6.2.1
+    * Use debhelper v5 with debian/compat
+    * Remove unneeded thunderbird.conffiles now that debhelper v5 is used
+    * Remove CVS directories in debian/
+    * Fix debian/changelog syntax errors, and convert to UTF-8
+    * Fix bashism in debian/thunderbird.postrm, using 2> instead of &>.
+    * Add ${misc:Depends} to thunderbird* dependencies, fixing a missing
+      dependency on debconf
+    * Move db_input commands from postinst into a separate thunderbird.config
+      file.
+  * distinct gnome-support package added. adds a good bunch 
+    of gnome build depends to allow module linking against
+    gnome libs.
+  * added new fhunderbird-branding in debian/fhunderbird-branding.tmpl
+    (Closes: 358198)
+  * use only one profile directory in configure 
+    (Closes: 358378)
+  * Various security issues are fixed in this release. Namely:
+    CVE-2006-1741 CVE-2006-1742 CVE-2006-1737 CVE-2006-1738
+    CVE-2006-1739 CVE-2006-1740 CVE-2006-1736 CVE-2006-1735
+    CVE-2006-1734 CVE-2006-1733 CVE-2006-1732 CVE-2006-0749
+    CVE-2006-1731 CVE-2006-1724 CVE-2006-0884 CVE-2006-1730
+    CVE-2006-1729 CVE-2006-1728 CVE-2006-1727 CVE-2006-1045
+    CVE-2006-0748 CVE-2006-1726 CVE-2006-1725 CVE-2005-2353
+    CVE-2006-1529 CVE-2006-1530 CVE-2006-1531 CVE-2006-1723
+    CVE-2006-0292/CVE-2006-0293 (Closes: 349242)
+    CVE-2006-0294 CVE-2006-0295 CVE-2006-0296 CVE-2006-0297
+    CVE-2006-0298 CVE-2006-0299
+    
+ -- Alexander Sack <asac@debian.org>  Thu, 20 Mar 2006 21:00:00 +0100
+
+thunderbird (1.5-4) unstable; urgency=low
+
+  * great package renaming release: mozilla-thunderbird -> thunderbird
+  * removed not maintained and not needed update-mozilla-thunderbird 
+    facilities. Extensions/locales etc. don't need to call this anymore
+    in order to install themselves globally.
+  * added  -fno-strict-aliasing -fno-unsigned-char as parameters to build
+  * patch: 10_visibility_hidden_patch.dpatch - by Adam Conrad
+  * new upstream version fixes various bugs 
+    (Closes: 288601, 291912, 295662)
+  * included new fr.po translation by Mohammed Adnène Trojette
+    <adn+deb@diwi.org> (Closes: 323367)
+  * included new cs.po translation by Jan Outrata
+    <outrataj@upcase.inf.upol.cz> (Closes: 321736, 335354)
+  * included new pt.po translation by Traduz! <traduz@debianpt.org>
+    (Closes: 348440)
+  * included new da.po translation by Claus Hindsgaul <claus_h@image.dk>
+    (Closes: 350687)
+  * added intl.locale.matchOS, true to debian/global-config.js instead
+    of hacking startup script
+    
+ -- Alexander Sack <asac@debian.org>  Tue, 28 Feb 2006 15:00:00 +0100
+
+mozilla-thunderbird (1.5-2) experimental; urgency=low
+
+  * reenable patch 20_mailnews_mime_makefile_in.dpatch
+    to export proper headers to -dev package for enigmail
+  * last upload with old package name
+    
+ -- Alexander Sack <asac@debian.org>  Thu, 12 Jan 2006 15:00:00 +0100
+
+mozilla-thunderbird (1.5-1) experimental; urgency=low
+
+  * experimental upload of 1.5 (Closes: 348007)
+  * major package housekeeping
+    + removed extension template pieces
+    + bye -offline extension release - this is now completely 
+      integrated in thunderbird default install
+    + disable all patches ... but those that are obviously
+      needed - please shout if you got struck by a regression 
+      due to this :).
+    + use upstream startup script in the hope that they
+      did fix it!
+    + branding removed again. Keep it white labeled - for
+      now.
+    
+ -- Alexander Sack <asac@debian.org>  Thu, 12 Jan 2006 15:00:00 +0100
+
+mozilla-thunderbird (1.0.7-3) unstable; urgency=high
+
+  * apply backported patch for amd64 (Closes: 332481,332484)
+    Thanks to Martin Sarsale <martin@malditainternet.com>
+    for testing and preparing the patch
+    + debian/patches/91_gcc4_imgLoader.fix.dpatch
+  * updated vietnam translation contributed by  Clytie Siddall
+    <clytie@riverland.net.au> (Closes: 324224)
+  * added swedish translation contributed by  Daniel Nylander
+    <yeager@lidkoping.net> (Closes: 331606)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 17 Oct 2005 23:30:00 +0100
+
+mozilla-thunderbird (1.0.7-2) unstable; urgency=high
+
+  * still high to indicate that security bugs have not been
+    fixed in etch.
+  * apply debian/patches/90_xptcinvoke_arm.dpatch to fix ftbfs on
+    arm/sid
+
+ -- Alexander Sack <asac@debian.org>  Mon, 10 Oct 2005 19:00:00 +0100
+
+mozilla-thunderbird (1.0.7-1) unstable; urgency=high
+  * MFSA-2005-57: IDN heap overrun
+    Summary: Tom Ferris reported a Firefox crash when processing a domain
+             name consisting solely of soft-hyphen characters.
+    Closes: -
+    CVE-Ids: CAN-2005-2871
+    Bugzilla: 307259    
+    Issues addressed:
+      + CAN-2005-2871 - IDN heap overrun
+  * MFSA-2005-58: Accumulated vendor advisory for multiple vulnerabilities
+    Summary: Fixes for multiple vulnerabilities with an overall severity
+             of "critical" have been released in Mozilla Firefox 1.0.7 and
+             the Mozilla Suite 1.7.12
+    Closes: -
+    CVE-Ids: CAN-2005-2701 CAN-2005-2702 CAN-2005-2703 CAN-2005-2704
+             CAN-2005-2705 CAN-2005-2706 CAN-2005-2707
+    Bugzilla: 300936 296134 297078 302263 299518 303213 304754 306261
+              306804 291178 300853 301180 302100    
+    Issues addressed:
+      + CAN-2005-2701 - Heap overrun in XBM image processing
+      + CAN-2005-2702 - Crash on "zero-width non-joiner" sequence
+      + CAN-2005-2703 - XMLHttpRequest header spoofing
+      + CAN-2005-2704 - Object spoofing using XBL <implements>
+      + CAN-2005-2705 - JavaScript integer overflow
+      + CAN-2005-2706 - Privilege escalation using about: scheme
+      + CAN-2005-2707 - Chrome window spoofing
+      + Regression fixes
+  * MFSA-2005-59: Command-line handling on Linux allows shell execution
+    -> was addressed in 1.0.6-4 already. Reverting upstream changes
+        to mozilla/mail/mozilla.in by copying debian/mozilla.in_1.0.6 over
+        to allow our patches to still apply. debian/patches/01_old_mozilla.in.dpatch
+
+ -- Alexander Sack <asac@debian.org>  Sat, 1 Oct 2005 17:00:00 +0100
+
+mozilla-thunderbird (1.0.6-4) unstable; urgency=high
+
+  * now using bash to overcome possible security flaws of
+    our thunderbird start script (mozilla-thunderbird). Patch
+    by  Florian Weimer <fw@deneb.enyo.de> 
+    debian/mfsa_2005-59.debian.patch (Closes: 329664, 329667)
+  * added patch 50_ftbfs_alpha+arm+ia64_325536_fix.dpatch
+    to build on alpha, arm, and ia64 that now uses 
+    __attribute__((used)) instead of ((unused)) by
+    Steve Langasek <vorlon@debian.org>
+    (Closes: 325536)
+  * fix debsums error reported by Y Giridhar Appaji Nag
+    <debian@appaji.net>. Now removing files in postrm.
+    Further moved /usr/lib/mozilla-thunderbird/chrome/chrome.rdf
+    to the /var/... adding a link to the new location. 
+    (Closes: 292475)
+  * added depends for system libs: mng, png, jpeg to not build with
+    unmaintained image included libs.
+  * modified 21_mozilla_in-patch.dpatch to recognize -mail as a -compose
+    alias. This makes thunderbird work well with current gnome default
+    mailto: command for thunderbird. Thanks to Sam Morris <sam@robots.org.uk>
+    for the workaround patch (Closes: 330168)
+  * still work left: fix window.open(); overlay problem. 
+    added rejar-chrome.sh <jarbasename> util script below debian. It
+    rejars .jar files by extracting paths given in
+    <jarbasename>_jar_includes.csv from the <jarbasename>.jar zip file 
+    and zipping only those files to a new jar file again. Anyway, still
+    broken, thus disabled for this build.
+    (See: 306522)
+ 
+ -- Alexander Sack <asac@debian.org>  Mon, 23 Sep 2005 17:00:00 +0100
+
+mozilla-thunderbird (1.0.6-3) unstable; urgency=low
+
+  * remove gcc-3.4 from amd64 build ... this time for sure
+    (Closes: 320723)
+  * remove special optimization flags for other archs too
+
+ -- Alexander Sack <asac@debian.org>  Mon, 2 Aug 2005 17:00:00 +0100
+
+mozilla-thunderbird (1.0.6-2) unstable; urgency=low
+
+  * remove gcc-3.4 from amd64 build (Closes: 320723)
+  * added arabic po translation by Mohammed AdnÃ¨ne Trojette
+    <adn+deb@diwi.org> (Closes: 320771)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 1 Aug 2005 17:00:00 +0100
+
+mozilla-thunderbird (1.0.6-1) unstable; urgency=high
+
+  * GCC/G++ 4.0 API transition upload.
+  * include 90_new_freetype_fix.dpatch to fix new freetype API 
+      (Closes: 301481, 301481) - consumed from mozilla-firefox packages ... 
+      thx to Eric Dorland <eric@debian.org>
+  * include 90_gcc4_fix.dpatch
+  * fixes multiple security bugs (Closes: 318728)
+      CAN-2005-2270: Code execution through shared function objects
+      CAN-2005-2269: XHTML node spoofing
+      CAN-2005-2266: Same origin violation: frame calling top.focus()
+      CAN-2005-2265: Possible exploitable crash in InstallVersion.compareTo()
+      CAN-2005-2261: XML scripts ran even when Javascript disabled
+      CAN-2005-1532: Privilege escalation via non-DOM property overrides
+      CAN-2005-1160: Privilege escalation via DOM property overrides
+      CAN-2005-1159: Missing Install object instance checks
+      CAN-2005-0989: Javascript "lambda" replace exposes memory contents
+  * fix gdk_property_get problem that might cause a segfault (Closes: 317937)
+      patch by Loic Minier <lool@dooz.org>
+      debian/patches/gdk_property_get.dpatch
+  * fix CAN-2005-2353: insecure tmp file usage in run-mozilla.sh (Closes: 306893)
+      debian/patches/20_run-mozilla_sh_306893_fix.dpatch
+  * include german de.po translation (Closes: 318747)
+      by Alwin Meschede <ameschede@gmx.de>
+  * fixed whitespace in mozilla-thunderbird.templates (Closes: 308961)
+      hint by Clytie Siddall <clytie@riverland.net.au>
+  * apply fix for seamonkey migration crash (Closes: 285728)
+      90_mail_components_miration_src_nsSeamonkeyProfileMigrator_cpp 
+  * fix 'find' in update-mozilla-thunderbird-chrome (Closes: 315588)
+      patch by Michael Spang <mspang@twcny.rr.com>
+
+ -- Alexander Sack <asac@debian.org>  Thu, 21 Jul 2005 21:00:00 +0100
+
+mozilla-thunderbird (1.0.2-3) unstable; urgency=high
+
+  * last maybe sarge upload with urgency high, contains only
+    translations (po files + gnome .desktop file lines)
+     + cs translation by Jan Outrata <outrataj@upcase.inf.upol.cz>
+       (Closes: 309023)
+     + fi translation by Matti Pöllä <mpo@iki.fi>
+       (Closes: 303805)
+     + ja translation by Kenshi Muto <kmuto@debian.org>
+       (Closes: 307005)
+     + pt_BR translation by Andre Luis Lopes <andrelop@debian.org>
+       (Closes: 304261)
+     + vi translation by Clytie Siddall <clytie@riverland.net.au>
+       (Closes: 308959)
+     + added missed translation entries in gnome .desktop files 
+       for it, ko, pl 
+
+ -- Alexander Sack <asac@debian.org>  Thu, 02 Jun 2005 22:00:00 +0100
+
+mozilla-thunderbird (1.0.2-2) unstable; urgency=low
+
+  * fixed TYPO in 71_extensionManagerAutoReRegister.dpatch,
+    probably causing #302218 (Closes: 302218)
+  * extended patch 71_extensionManagerAutoReRegister.dpatch,
+    now checking components.ini timestamp instead of
+    compreg.dat timestamp. removing components.ini compreg.dat
+    and XUL.mfasl if global Extensions.rdf file is newer then
+    components.ini. Probably helping to fix #302218 too.
+  * renamed xprt-xprintorg recommends to xprint (Closes: 300975)
+  * (re-)enabled pref extension (Closes: 302130)
+
+ -- Alexander Sack <asac@debian.org>  Thu, 31 Mar 2005 07:00:00 +0100
+
+mozilla-thunderbird (1.0.2-1) unstable; urgency=medium
+  * new upstream version  (Closes: 301542) fixes some 
+    security issues according to upstream
+    (http://www.mozilla.org/projects/security/known-vulnerabilities.html)
+    1.0.2 fixes the following security related issues.
+  
+     MFSA 2005-30  GIF heap overflow parsing Netscape extension 2
+     MFSA 2005-25 Image drag and drop executable spoofing
+     MFSA 2005-21 Overwrite arbitrary files downloading .lnk twice
+     MFSA 2005-18 Memory overwrite in string library
+     MFSA 2005-17 Install source spoofing with user:pass@host
+     MFSA 2005-15 Heap overflow possible in UTF8 to Unicode conversion
+
+ -- Alexander Sack <asac@debian.org>  Sun, 27 Mar 2005 16:00:00 +0100
+
+mozilla-thunderbird (1.0-4) unstable; urgency=low
+
+  * removed not needed build-deps: csh
+  * included debconf (and gnome .desktop file) translations for 
+    various languages: (Closes: 292072, 294622, 291477, 292507)
+     + debian/po/fr.po (Mohammed Adnène TROJETTE <adn+deb@diwi.org>, 
+       Aurelien Jarno <aurel32@debian.org>)
+     + debian/po/nl.po (Luk Claes <luk.claes@ugent.be>)
+     + debian/po/ca.po (Jordi Mallach <jordi@debian.org>)
+     + debian/po/ko.po (Yooseong Yang <yooseong@debian.org>)
+     + debian/po/it.po (Vittorio Palmisano <redclay@email.it>)
+     + debian/po/pl.po (Robert Luberda <robert@debian.org>)
+  * fixed startscript problem
+    - updated 21_mozilla_in-patch.dpatch - thanks to 
+    Kevin B. McCarty <kmccarty@Princeton.EDU>
+  * moved code of component debCleanComp.js to
+    nsExtensionManager, so it can automatically restart the 
+    application if needed.
+    This should again lower the probabilty that
+    some upgrade, downgrade of thunderbird or extensions
+    breaks the chrome or component registry in your profile
+    dir.
+
+ -- Alexander Sack <asac@debian.org>  Sun, 13 Mar 2005 13:00:00 +0100
+
+mozilla-thunderbird (1.0-3) unstable; urgency=low
+
+  * first upload to official archive for tbird 1.0
+    (first since 0.9-6)
+  * finally I decided to upload this package to unstable,
+    though there is a debian-legal discussion going on
+    about the mozilla trademark. Since it might take some
+    time until a solution is found, I decided to upload
+    as usual.
+  * started to debrand the app to 'Debian Thunderbird'
+
+ -- Alexander Sack <asac@debian.org>  Sun, 16 Jan 2005 14:00:00 +0100
+
+mozilla-thunderbird (1.0-2) unstable; urgency=low
+
+  * Uninstall file and dummy-empty-file must not be empty
+  * Included latest patch for extension manager
+  * Included Jaap Haitsma icons (Closes: 257640)
+  * fixed regression compared to 0.9-6 official package
+    that had problems to build because empty files where
+    not included in diff.gz
+
+ -- Alexander Sack <asac@debian.org>  Fri, 10 Dec 2004 23:00:00 +0100
+ 
+mozilla-thunderbird (1.0-1) unstable; urgency=low
+
+  * new upstream release - 1.0 (Closes: 284560)
+  * includes new icons as default theme
+  * changed start.html page to not use the mozilla partical
+    in the package naming. This app is now officially called 
+    'Debian Thunderbird'
+  * removed -O from sparch arch (See: 284532)
+  * README.Debian improved
+  * adapted new manpage inspired by Ralf Katz <ralph.katz@rcn.com>
+       
+ -- Alexander Sack <asac@debian.org>  Tue, 08 Dec 2004 12:00:00 +0100
+
+mozilla-thunderbird (0.9-7) unstable; urgency=low
+
+  * added debconf capability to define what browser
+    integration is wanted
+    -> added /etc/mozilla-thunderbird/auto-config.js
+    to store automatically generated configs by debconf
+       
+ -- Alexander Sack <asac@debian.org>  Thu, 24 Nov 2004 12:00:00 +0100
+
+mozilla-thunderbird (0.9-6) unstable; urgency=low
+
+  * fixed bug in preinst script by strictly testing
+    the existance of files before invoking mv 
+    operations (Closes: 282186)
+  * fixed stupid upgrade bug in preinst script.
+    ls uses now -d to produce no garbage when
+    used as source for moving. This closes
+    a bug reported against enigmail, but is a
+    bug of the thunderbird package. This release
+    fixes it (Closes: 282505)
+  * still missing reply for current grave bug 
+    282506. I think this is due to the initial
+    upgrade problems. Those problem should not
+    occur anymore with the fixes of this packages
+    upgrade mechanism (Closes: 282506)
+       
+ -- Alexander Sack <asac@debian.org>  Thu, 24 Nov 2004 12:00:00 +0100
+
+mozilla-thunderbird (0.9-5) unstable; urgency=low
+
+  * added patch by Kevin B. McCarty <kmccarty@Princeton.EDU>
+    adds In-Reply-To mailto: link capability (Closes: 268055)
+  * late verification of bug fixed by preview package:
+      fixes: message editor steals keyboard focus (Closes: 274313)
+      
+ -- Alexander Sack <asac@debian.org>  Thu, 18 Nov 2004 12:00:00 +0100
+
+mozilla-thunderbird (0.9-4) unstable; urgency=low
+
+  * fixed upgrade bug - when /usr/lib/mozilla-thunderbird/extensions
+    is a link, remove it and create a directory for it! After that
+    move all extensions from /var/lib/mozilla-thunderbird/extensions
+    to the new folder.
+  * added example firefox-config.js.tmpl to use the new wrapper 
+    script. This config should only be used if you are in a non
+    gconf capable window environment, e.g. pure openbox, etc.
+    See the README.Debian for further details on howto integrate
+    thunderbird properly.
+  * added uninstall and extension directory for default theme 
+    extension. This should make it possible to remove the package
+    cleanly.
+  * Bug#280254: mozilla-thunderbird: Please package 
+        thunderbird 0.9 (Closes: 280076)
+  * patch by Kevin McCarty <kmccarty@Princeton.EDU>, fixes
+        Subject munging if thunderbird is running (Closes: 263971)
+  * fixed: typo in welcome message for preview pane (Closes: 278690)
+  * thx to bug submitters that verified the fix of the following
+    bugs in my preview package at people.debian.org:
+     +  Bug#277304: mozilla-thunderbird: thunderbird dies silently on 
+           some mails (Closes: 277304)
+     +  no sound when new mail arrives (Closes: 274044)
+     +  Focus Problem when a filter is selected (Closes: 272157)
+     +  "Get Mail" button fails intermittently on additional accounts
+        (Closes: 280482)
+  * added patch to fix /tmp/ file permissions during processing of
+    imap directory (Closes: 280363)
+  * cleaning up compreg.dat on Extensions.rdf change, so after 
+    restart all troubles with this issue are gone (Closes: 273213)
+  * Already since 0.9-1, but I forgot to mention:
+      + set default smtp server option should work now
+          (Closes: 274177)
+      + with view filter: unread on, newly read messages are
+        not removed from the message list anymore (Closes: 275708)
+  * other bugs resolved by upstream:
+      + problems while threads refresh (Closes: 239203)
+      + Shortcuts conflict with ISO 14755 (Closes: 246916)
+
+ -- Alexander Sack <asac@debian.org>  Mon, 15 Nov 2004 22:45:00 +0100
+
+mozilla-thunderbird (0.9-3) unstable; urgency=low
+
+  * rm -f /usr/lib/mozilla-thunderbird/extensions
+    in postinst if it is a link! After that move 
+    stuff from /var/lib/mozilla-thunderbird/extensions
+    to /usr/lib/mozilla-thunderbird/extensions.
+    The rest will be done by update-mozilla-thunderbird-chrome
+
+ -- Alexander Sack <asac@debian.org>  Thu, 11 Nov 2004 22:45:00 +0100
+
+mozilla-thunderbird (0.9-2) unstable; urgency=low
+
+  * fixed bad bug in mozilla-thunderbird.install,
+  	that removed the fulls extensions dir
+  * fixed broken upgrade problem due to 
+  	mozilla-thunderbird-inspector that tried to 
+        install resource files under /usr/lib/.../res,
+        but that is a link. Now storing under /usr/share/
+
+ -- Alexander Sack <asac@debian.org>  Wed, 10 Nov 2004 22:00:00 +0100
+
+mozilla-thunderbird (0.9-1) unstable; urgency=low
+  
+  * new upstream version (0.9)
+  * include patch amd64:
+  	by Frederik Schueler <fs@lowpingbastards.de>
+        -> use gcc-3.4,g++3.4 (Closes: 261365)
+  * pasting issues partially fixed (See: 279656)
+  * Local Folders needed, cannot be deleted anymore
+  	(Closes: 226253)
+  * including great patch of Mike Hommey <mh@glandium.org>
+    who brought the final fix for the extension manager
+    problems; changed update-mozilla-thunderbird-chrome
+    according to the new -register capability
+
+ -- Alexander Sack <asac@debian.org>  Wed, 10 Nov 2004 20:00:00 +0100
+
+mozilla-thunderbird (0.8-3) unstable; urgency=medium
+  
+  * respin for new binutils version (Closes: 273354)
+  * removing essential and build-essential build 
+    dependencies to: base-files, libc6-dev
+  * update-mozilla-thunderbird-chrome: output of find(s)
+    to /dev/null (Closes: 267661)
+  * included mozilla-thunderbird-compose script in docs 
+    section
+
+ -- Alexander Sack <asac@debian.org>  Sat, 26 Sep 2004 13:00:00 +0100
+
+mozilla-thunderbird (0.8-2) unstable; urgency=medium
+
+  * include good build_id during build fixes
+    upgrade problems
+      (Closes: 272175, 272182)
+  * fixed some startup-script regressions. Remote
+    commands are almost ready by upstream. Only 
+    -compose argument is interpreted in a debian
+    specific way. Of course, locale settings
+    are still debian specific too.
+  * improved changelog to list important notes
+    for upgrading to 0.8
+  * 10_mips_optimization_patch.dpatch: 
+      thiemo seufers mips(el) workaround
+      removing CFLAGS="$CFLAGS -Wa,-xgot" and
+      CXXFLAGS="$CXXFLAGS -Wa,-xgot" and adding
+      inline when DEBUG is true (Closes: 272162).
+
+ -- Alexander Sack <asac@debian.org>  Sat, 18 Sep 2004 21:00:00 +0100
+
+mozilla-thunderbird (0.8-1) unstable; urgency=medium
+  
+  * new upstream version 0.8
+  * fixes various security issues in sarge and sid
+       (Closes: 263752)
+  * hacked a tiny patch for nsExtensionManager.js.in bug that
+    lets thunderbird (and firefox) loop on startup if 
+    launched with non-root account.
+
+ -- Alexander Sack <asac@debian.org>  Fri, 17 Sep 2004 10:00:00 +0100
+
+mozilla-thunderbird (0.7.3-6) unstable; urgency=high
+
+  * still fixes the security bug in sarge (see #263752) 
+    ... thus urgency=high
+  * applied 50_mozilla-thunderbird-xpcom-xptcall-mips.dpatch
+    provided by Thiemo Seufer <ica2_ts@csv.ica.uni-stuttgart.de>
+    (Closes: 267017)
+  * removed <boll@debian.org> as Uploader as he expressed
+    that he has no more time to co-maintaining this package.
+    Thanks for your work!
+
+ -- Alexander Sack <asac@debian.org>  Sun, 12 Sep 2004 17:30:00 +0100
+
+mozilla-thunderbird (0.7.3-5) unstable; urgency=high
+
+  * ping tbird to find a running instance instead of searching
+    for lock file that could still be there after a crash (redone)
+    (Closes: 267144)
+  * still fixes the security bug in sarge ... thus urgency=high
+
+ -- Alexander Sack <asac@debian.org>  Thu, 21 Aug 2004 14:00:00 +0100
+
+mozilla-thunderbird (0.7.3-4) unstable; urgency=high
+
+  * ping tbird to find a running instance instead of searching
+    for lock file that could still be there after a crash
+    (Closes: 267144)
+  * still fixes the security bug in sarge ... thus urgency=high
+
+ -- Alexander Sack <asac@debian.org>  Thu, 21 Aug 2004 14:00:00 +0100
+
+mozilla-thunderbird (0.7.3-3) unstable; urgency=high
+
+  * extended patch for mips: 50_xpcom_xptcall_xptcstubs_asm_mips_s
+    (Closes: 266851)
+  * still fixes the security bug in sarge ... thus urgency=high
+
+ -- Alexander Sack <asac@debian.org>  Thu, 19 Aug 2004 17:00:00 +0100
+
+mozilla-thunderbird (0.7.3-2) unstable; urgency=high
+
+  * included patch for mips: 50_xpcom_xptcall_xptcstubs_asm_mips_s
+  * made global-config.js more up to date (Closes: 261815)
+  * recommend myspell-en-us | myspell-dictionary (Closes: 265272)
+  * enigmail is now suggested and not recommended anymore
+  * still fixes the security bug in sarge ... thus urgency=high
+
+ -- Alexander Sack <asac@debian.org>  Wed, 18 Aug 2004 16:00:00 +0100
+
+mozilla-thunderbird (0.7.3-1) unstable; urgency=high
+
+  * new upstream release 0.7.3 - fixes security issues
+    (Closes: 263752)
+  * changed maintainer email to debian address
+  * removing /var/lib/mozilla-thunderbird dir on purge 
+    (Closes: 260212).
+  * reverting gcc-3.2 and g++-3.2 for hppa architecture to back to 
+    default gcc/g++ compiler
+  * fixed package description of mozilla-thunderbird-inspector and
+    mozilla-thunderbird-offline (Closes: 260374, 260376)
+  * plain mozilla-thunderbird now opens Inbox window to front
+    instead of profile manager when already running (Closes: 259476)
+
+ -- Alexander Sack <asac@debian.org>  Wed, 04 Aug 2004 20:00:00 +0100
+
+mozilla-thunderbird (0.7.1-3) unstable; urgency=low
+
+  * updated README.Debian to be more specific
+    on the lost profile workaround!
+  * added 10_profile_migration.dpatch to fix
+    profile migration issues (Closes: 258741, 258747)
+  * updated .desktop file Comment (Closes: 257596)
+  * trying gcc-3.2 and g++-3.2 for hppa architecture
+
+ -- Alexander Sack <asac@jwsdot.com>  Tue, 13 Jul 2004 11:00:00 +0100
+
+mozilla-thunderbird (0.7.1-2) unstable; urgency=low
+
+  * added 10_profile_migration.dpatch to fix
+    profile migration issues (Closes: 258741, 258747)
+  * updated .desktop file Comment (Closes: 257596)
+  * trying gcc-3.2 and g++-3.2 for alpha and amd64 
+    architecture
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Jul 2004 11:00:00 +0100
+
+mozilla-thunderbird (0.7.1-1) unstable; urgency=low
+  
+  * new upstream source 0.7.1 (Closes: 257320, 256843)
+  * fixed broken theme ID 
+  * include extension descriptions and set them
+    to locked
+  * fixed typo in branding patch ( Hompage ->Homepage )
+  * included movemail for handling local mail (Closes: 219893)
+  * provides new mozilla-thunderbird-dev
+  * does not build enigmail anymore. enigmail has got its
+    own source package for now. Hopefully this package will
+    build soon against mozilla-mailnews and mozilla-thunderbird,
+    so only one package is needed for both.
+  * update-mozilla-thunderbird-chrome: LD_LIBRARY_PATH bug fixed 
+    (Closes: 254144)
+  * verified that -compose mailto:email@host.com works (Closes: 252261)
+  * include upgrade info in README.debian. Documented
+    new global-config.js file in README.debian too (Closes: 253315)
+  * crash on corrupt bmp fixed by upstream (Closes: 248857)
+  * added Provides: mail-reader, imap-client (Closes: 257199)
+  * renamed menu entry to 'Thunderbird Mail' (Closes: 257596)
+ 
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 5 Jul 2004 11:00:00 +0100
+
+mozilla-thunderbird (0.7.1-0.0.asac1) unstable; urgency=low
+  
+  * new upstream source 0.7.1
+  * fixed broken theme ID 
+  * include extension descriptions and set them
+    to locked
+  * fixed typo in branding patch ( Hompage ->Homepage )
+  * included movemail for handling local mail
+ 
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 1 Jul 2004 11:00:00 +0100
+
+mozilla-thunderbird (0.7-0.0.asac1) unstable; urgency=low
+  
+  * new upstream source 0.7
+  * provides new mozilla-thunderbird-dev
+  * does not build enigmail anymore. enigmail has got its
+    own source package for now. Hopefully this package will
+    build soon against mozilla-mailnews and mozilla-thunderbird,
+    so only one package is needed for both.
+  * update-mozilla-thunderbird-chrome: LD_LIBRARY_PATH bug fixed 
+    (Closes: 254144)
+  * verified that -compose mailto:email@host.com works (Closes: 252261)
+  * include upgrade info in README.debian (Closes: 253315)
+  * crash on corrupt bmp fixed by upstream (Closes: 248857)
+ 
+ -- Alexander Sack <asac@jwsdot.com>  Wed, 23 Jun 2004 11:00:00 +0100
+
+mozilla-thunderbird (0.6-asac1) unstable; urgency=low
+  
+  * new binary package for development files 
+    mozilla-thunderbird-dev
+  * mozilla-thunderbird now Provides: mail-reader and imap-client
+ 
+ -- Alexander Sack <asac@jwsdot.com>  Tue, 08 Jun 2004 15:00:00 +0100
+
+mozilla-thunderbird (0.6-3) unstable; urgency=low
+  
+  * added libx11-dev, libxp-dev, libxt-dev to Build-Depends
+  * removed xlibs-dev from Build-Depends
+  * fixed typo in starting screen (Closes: 249850)
+  * removed duplicate readme file (Closes: 247162)
+  * added readme file upgrade note to remove the
+    chrome.rdf in the users profile directory after
+    upgrade.
+ 
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 03 Jun 2004 00:20:00 +0100
+
+mozilla-thunderbird (0.6-2) unstable; urgency=low
+
+  * Fix missing build-dep on xlibs-dev, causing FTBFS errors 
+    (closes: Bug#251166)
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Fri, 28 May 2004 11:02:07 +0000
+
+mozilla-thunderbird (0.6-1) unstable; urgency=low
+  * accumulated changelog: 0.6-0.1rc1 + 0.6-0.1rc2
+  * repackaged upstream source tarball to not-include 
+    non-free icons of the trademarked new branding
+  * changed menu icon size to 32x32
+  * added suggestions for mozilla-thunderbird-typeaheadfind
+    mozilla-thunderbird-offline and mozilla-thunderbird-inspector
+  * new upstream version: 0.6
+  * MAP users can now benefit from support for the IMAP IDLE command
+    which allows the mail server to push notifications such as new 
+    mail arriving as soon as it arrives (Closes: 232544)
+  * Thunderbird supports server wide news filters that apply to all 
+    news groups on a server
+  * Mail filters can now mark messages as junk
+  * Offline support is now available as an extension package
+    (Closes: 231920)
+  * Command line parsing problems fixed (Closes: 232342)
+  * Find broken in view source is fixed (Closes: 232580)
+  * Alerts and crash when deleting multiple nested 
+    folders inside the trash folder is fixed (Closes: 237705, 244414)
+  * shift-c selects all as read (Closes: 245039)
+  * menu hint changed to mail (Closes: 246211)
+  * Alt-A selects all messages (Closes: 229518)
+  * typeahead find extension added as extra package 
+    (Closes: 232562)
+  * suggesting mozilla-firefox now (Closes: 240708, 234918)
+  * changed mozilla-thunderbird.xpm to envelope with flames
+    (Closes: 243028)
+  * new enigmail upstream version included (0.86.6),
+    (Closes: 235553)
+  * now bulding with -O2 on all platforms, but ia64, arm,
+    sparc, alpha, powerpc
+  * global enigmail config file now in 
+     /etc/mozilla-thunderbird/pref/enigmail.js
+  * new binary targets: 
+     mozilla-thunderbird-inspector,
+     mozilla-thunderbird-offline, 
+     mozilla-thunderbird-typeaheadfind
+  * restructured conffiles: now a single global config
+    file exists: /etc/mozilla-thunderbird/global-config.js, 
+    which may be used by admins to make their 
+    preconfigurations.
+    Old config files in /etc/mozilla-thunderbird/pref 
+    will be reserved till next --purge
+
+ -- Alexander Sack <asac@jwsdot.com>  Sat, 08 May 2004 08:45:00 +0100
+
+mozilla-thunderbird (0.5+.040427-1) unstable; urgency=low
+
+  * new snapshot of 040427
+  * added build depend: libgnomevfs2-dev
+  * increased debian policy standard version to 3.6.1
+
+ -- Alexander Sack <asac@jwsdot.com>  Tue, 27 Apr 2004 12:45:00 +0100
+
+mozilla-thunderbird (0.5+.040418-1) unstable; urgency=low
+
+  * new snapshot of 040418
+  * changed desktop icon to envelope with flames (Closes: 243028)
+
+ -- Alexander Sack <asac@jwsdot.com>  Sun, 18 Apr 2004 12:45:00 +0100
+
+mozilla-thunderbird (0.5+.040412-1) unstable; urgency=low
+
+  * new snapshot of 040412
+  * Updated enigmail to 0.83.6 
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Apr 2004 01:37:00 +0100
+
+mozilla-thunderbird (0.5+.040330-1) unstable; urgency=low
+
+  * new snapshot of 040320
+  * Updated enigmail to 0.83.5 (Closes: 235553)
+
+ -- Alexander Sack <asac@jwsdot.com>  Tue, 30 Mar 2004 17:30:20 +0100
+
+mozilla-thunderbird (0.5-4) unstable; urgency=low
+
+  * reenabled hppa patch, which apparently led to FTBFS on hppa
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 04 Mar 2004 21:30:20 +0100
+
+mozilla-thunderbird (0.5-3) unstable; urgency=medium
+
+  * preinst added to allow clean upgrade path to this
+      (Closes: 234118, Closes: 234267)
+  * added prerm script to allow a clean remove of package
+
+ -- Alexander Sack <asac@jwsdot.com>  Sun, 29 Feb 2004 10:30:20 +0100
+
+mozilla-thunderbird (0.5-2) unstable; urgency=low
+
+  * new source package layout!! Now using orig.tar.gz with diff.gz 
+    (Closes: 232055)
+  * moved arch-indep chrome stuff to /usr/share/mozilla-thunderbird/chrome
+  * moved images to /usr/share/mozilla-thunderbird/res 
+      /usr/share/mozilla-thunderbird/icons 
+      /usr/share/mozilla-thunderbird/chrome/icons
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 19 Feb 2004 19:30:20 +0100
+
+mozilla-thunderbird (0.5-1.1) unstable; urgency=low
+
+  * new source package layout!! Now using orig.tar.gz with diff.gz
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 11 Feb 2003 19:30:20 +0100
+
+mozilla-thunderbird (0.5-1) unstable; urgency=low
+
+  * Aggregated changes since 0.4-1:
+  * new upstream release 0.5 included
+  * added xprt-xprintorg to Recommends (Closes: 226626)
+  * upgraded enigmail to 0.83.2 (Closes: 228678)
+      + includes a workaround for mozilla bug
+          leading to a crash in rare situations 
+          (fixed in 0.82.6)
+  * improved package structure. Sources now are included as original archives
+        & are extracted to build-dir. (Closes: 225033)
+  * Minor wording changes in package description, pointed out by
+      Mark Stevenson.
+  * New debianization of appearance (branding)
+  * added switches for pref.js config entries for 
+    individual doubleclick timeout & drag threshold 
+    settings in gtk2 (Closes: 229146)
+  
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 09 Feb 2003 19:30:20 +0100
+
+mozilla-thunderbird (0.5-0.1) unstable; urgency=low
+
+  * preview of thunderbird-0.5 rc2
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 07 Feb 2003 19:30:20 +0100
+
+mozilla-thunderbird (0.4-1.6) unstable; urgency=low
+
+  * added basic gtk settings as mozilla prefs:
+    + widget.gtk2.dnd.threshold - treshold in pixel before a drag starts
+    + widget.gtk2.double_click_timeout - 
+      maximum time in milliseconds between two clicks 
+      to become recognized as double-click e.g. to get 
+      rid of unexpected folder moves, etc.
+  * upgraded enigmail to 0.83.2
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 05 Feb 2003 10:30:20 +0100
+
+mozilla-thunderbird (0.4-1.5) unstable; urgency=low
+
+  * added xprt-xprintorg to Recommends
+  * upgraded enigmail to 0.83.1
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 04 Feb 2003 10:30:20 +0100
+
+mozilla-thunderbird (0.4-1.4) unstable; urgency=low
+
+  * improved package structure. Sources now are included as original archives
+    & are extracted to build-dir. (Closes: 225033)
+  * late checkin. Already uploaded to mentors
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 27 Jan 2003 10:30:20 +0100
+
+mozilla-thunderbird (0.4-1.31) unstable; urgency=low
+
+  * Minor wording changes in package description, pointed out by
+    Mark Stevenson.
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Wed, 14 Jan 2004 12:46:23 +0000
+
+mozilla-thunderbird (0.4-1.3) unstable; urgency=low
+
+  * further debinized branding. updated 10_debian-branding patch
+  * do not use MOZILLA_FIVE_HOME. Always set the MOZILLA_FIVE_HOME 
+    correctly. -> This is not anymore mozilla suite, so it is obsolete.
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 06 Jan 2003 10:30:20 +0100
+
+mozilla-thunderbird (0.4-1.2) unstable; urgency=low
+
+  * updated enigmail to 0.82.6 - includes a workaround for mozilla bug
+    leading to a crash.
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 30 Dec 2003 20:30:20 +0100
+
+mozilla-thunderbird (0.4-1.1) unstable; urgency=low
+
+  * switched to .orig.tgz file approach
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Dec 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.4-1) unstable; urgency=low
+
+  * version for first debian official upload of 0.4
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Dec 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.4-0.3) unstable; urgency=low
+
+  * updated latest enigmail source to version 0.82.5
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Dec 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.4-0.2) unstable; urgency=low
+
+  * added locale support: default locale is en-US
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 12 Dec 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.4-0.1) unstable; urgency=low
+
+  * upgraded official 0.4 release
+  * browser integration works on gnome/kde
+  * new mozilla-theme
+  * latest engimail included
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 10 Nov 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.3-7) unstable; urgency=low
+
+  * added patches for hppa & alpha, arm & mips specfic stuff. took the patches from 
+    the debian mozilla package
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 10 Nov 2003 00:30:20 +0100
+
+mozilla-thunderbird (0.3-6) unstable; urgency=low
+
+  * added patch to switch from ex to sed which certainly won't 
+    have terminal problems
+  * added .desktop file for menu integration in gnome, kde, etc.
+
+ -- Alexander Sack <asac@jwsdot.com>  Sun,  2 Nov 2003 22:23:40 +0100
+
+
+mozilla-thunderbird (0.3-5) unstable; urgency=low
+
+  * Alexander Sack:
+    - added build depend nvi.
+  * Soeren Boll Overgaard
+    - added dependency on gnupg for enigmail.
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 29 Oct 2003 21:00:59 +0200
+
+mozilla-thunderbird (0.3-4) unstable; urgency=low
+
+  * Soeren Boll Overgaard:
+    - Improve wording in long descriptions.
+    - Fix dependency problem of the enigmail-package.
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Tue, 28 Oct 2003 17:08:55 +0100
+
+mozilla-thunderbird (0.3-3) unstable; urgency=low
+
+  * Build-depend on m4
+  * Actually do something in binary-arch
+  * asac: Applied Patch for myspell issue (closes: Bug#217555)
+  * fixed mozilla-thunderbird.sgml according to docbook DTD (closes: Bug#217708)
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Sun, 26 Oct 2003 23:24:25 +0100
+
+mozilla-thunderbird (0.3-2) unstable; urgency=low
+
+  * Build-depend on dpatch.
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Sun, 26 Oct 2003 13:26:31 +0100
+
+mozilla-thunderbird (0.3-1) unstable; urgency=low
+
+   * Make my name look right in Uploaders.
+   * Change version to one suited to Debian.
+   * Update standards version to 3.6.1 (No changes).
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Sun, 26 Oct 2003 09:38:24 +0000
+
+mozilla-thunderbird (0.3-0.3) unstable; urgency=low
+
+  * readded forgotten patch hunks
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 24 Oct 2003 09:00:59 +0200
+
+mozilla-thunderbird (0.3-0.2) unstable; urgency=low
+
+  * New upstream release 
+  * latest patches of mozilla-thunderbird-0.2-3 are included
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 21 Oct 2003 20:55:59 +0200
+
+mozilla-thunderbird (0.2-3) unstable; urgency=low
+
+  * fixed sudo bug (closes: Bug#216469)
+  * repackaging because of enigmail build exception
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed, 15 Oct 2003 17:56:59 +0200
+
+mozilla-thunderbird (0.2-2) unstable; urgency=low
+
+  * Don't limit archs to i386.
+
+ -- Soeren Boll Overgaard <boll@debian.org>  Sat, 18 Oct 2003 10:27:05 +0000
+
+mozilla-thunderbird (0.2-1) unstable; urgency=low
+
+  * restarted versioning for official debian upload
+  * Uploaded by S. Boll Overgaard <boll@debian.org>
+    - Closes thunderbird ITP (closes: Bug#196504)
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed, 15 Oct 2003 17:56:59 +0200
+
+mozilla-thunderbird (0.3-0.1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 16 Oct 2003 10:51:59 +0200
+
+mozilla-thunderbird (0.2asac-5) unstable; urgency=low
+
+  * some more lintian cleaning of source package
+  * added boll@debian.org as co-maintainer
+  * reduction of build depends redundancy
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed, 15 Oct 2003 17:56:50 +0000
+
+mozilla-thunderbird (0.2asac-4) unstable; urgency=low
+
+  * minimized build-depends & removed version constraints from build-deps to ease backporting
+  * added lintian override
+  * added long description for enigmail
+  * adjusted preference directory to $HOME/.mozilla-thunderbird
+
+ -- Alexander Sack <asac@jwsdot.com>  Mon, 13 Oct 2003 20:53:45 +0000
+
+mozilla-thunderbird (0.2asac-3) unstable; urgency=low
+
+  * needed to get the the source archive up again :( 
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu,  9 Oct 2003 18:51:01 +0200
+
+mozilla-thunderbird (0.2asac-2) unstable; urgency=high
+
+  * fixed the build procedure for enigmail binary package
+
+ -- Alexander Sack <asac@jwsdot.com>  Tue,  7 Oct 2003 23:04:01 +0200
+
+mozilla-thunderbird (0.2asac-1) unstable; urgency=low
+
+  * New upstream release
+  * added binary package mozilla-thunderbird-enigmail
+  * now update-chrome enabled
+  * startup hooks (currently for enigmail) allowed in
+    /var/lib/mozilla-thunderbird/startup-hooks.d
+
+ -- Alexander Sack <asac@jwsdot.com>  Fri,  3 Oct 2003 22:16:05 +0200
+
+mozilla-thunderbird (0.2-5) unstable; urgency=low
+
+  * changed menu entry image to gif image of size 32x32 -> lintian --check
+    tested
+  * added manual pages for mozilla-thunderbird & thunderbird
+  * remove mozilla-thunderbird-config from binary package
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu,  2 Oct 2003 02:30:44 +0200
+
+mozilla-thunderbird (0.2-4) unstable; urgency=low
+
+  * fixed conflict with snapshot build 
+
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed,  1 Oct 2003 16:50:33 +0200
+
+mozilla-thunderbird (0.2-3) unstable; urgency=low
+
+  * apply quickfix for bug #212604 (bugzilla.mozilla.org)
+    -> firebird ist remote startable even if thunderbird is 
+       running
+  * added basic man pages
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed,  1 Oct 2003 12:21:04 +0200
+
+mozilla-thunderbird (0.2-2) unstable; urgency=low
+
+  * corrected menu entry command to thunderbird 
+
+ -- Alexander Sack <asac@jwsdot.com>  Thu, 25 Sep 2003 12:00:36 +0200
+
+mozilla-thunderbird (0.2-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Alexander Sack <asac@jwsdot.com>  Wed, 24 Sep 2003 18:55:50 +0200
