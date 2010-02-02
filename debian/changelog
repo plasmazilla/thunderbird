@@ -1,3 +1,18 @@
+icedove (3.0.1-2) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [7ea7367] Explicitly pass build and host type to configure (Closes:
+    #546011) - thanks to Sven Joachim <svenjoac@gmx.de> for the patch
+  * [7fca9e1] Add back icedove changelog of earlier versions
+
+  [ Christoph Goehre ]
+  * [72b78cc] Support both - and _ separators in dictionary names - patch from
+    Reed Loden
+  * [9a96759] fix branding in migration wizard and the addon manager (Closes:
+    #565559)- patch from Edward J.  Shornock
+
+ -- Christoph Goehre <christoph.goehre@gmx.de>  Tue, 02 Feb 2010 20:32:24 +0100
+
 icedove (3.0.1-1) experimental; urgency=low
 
   * New Upstream Version
