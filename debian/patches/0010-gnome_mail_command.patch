@@ -1,9 +1,13 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Wed, 27 Jan 2010 19:07:15 +0100
+Subject: [PATCH] gnome_mail_command
+
 # gnome-default-mail-client: check for MOZ_APP_NAME instead for hardcoded 'thunderbird'
 # patch by Christoph Goehre <chris@sigxcpu.org> Wed, 06 Jan 2010 19:14:20 +0100
 ---
  mail/components/shell/Makefile.in                |    2 ++
  mail/components/shell/nsMailGNOMEIntegration.cpp |    2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ 2 files changed, 3 insertions(+), 1 deletions(-)
 
 diff --git a/mail/components/shell/Makefile.in b/mail/components/shell/Makefile.in
 index f9f13d6..ef78ac1 100644
@@ -31,3 +35,4 @@ index 0eb0377..8acbda2 100644
    NS_ENSURE_SUCCESS(rv, rv);
  
    rv = appPath->GetNativePath(mAppPath);
+-- 

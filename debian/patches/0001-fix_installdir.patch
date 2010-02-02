@@ -1,17 +1,16 @@
+From: Alexander Sack <asac@debian.org>
+Date: Wed, 27 Jan 2010 19:05:18 +0100
+Subject: [PATCH] fix_installdir
+
 ---
  mail/app/Makefile.in |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
-Index: mozilla/mail/app/Makefile.in
-===================================================================
---- mozilla.orig/mail/app/Makefile.in
-+++ mozilla/mail/app/Makefile.in
-@@ -283,28 +283,28 @@
- 
- libs:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
- 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
- 
- libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))
+diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
+index 589d463..c6c2b50 100644
+--- a/mail/app/Makefile.in
++++ b/mail/app/Makefile.in
+@@ -296,10 +296,10 @@ libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))
  	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
  
  install:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
@@ -24,7 +23,7 @@ Index: mozilla/mail/app/Makefile.in
  endif
  
  ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
- libs::
+@@ -307,7 +307,7 @@ libs::
  	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DIST)/bin/chrome/icons/default
  
  install::
@@ -33,8 +32,4 @@ Index: mozilla/mail/app/Makefile.in
  endif
  
  ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
- thunderbird:: $(topsrcdir)/mozilla/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
- 	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
- 		-e "s|%MOZ_APP_DISPLAYNAME%|$(MOZ_APP_DISPLAYNAME)|" > $@
- 	chmod +x $@
- 
+-- 

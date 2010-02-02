@@ -1,7 +1,6 @@
-From 09678761b4cacd6855cd11c56374adae880cfb1a Mon Sep 17 00:00:00 2001
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 21 Jun 2008 03:09:21 +0200
-Subject: Add another preferences directory for applications: preferences/syspref
+Subject: [PATCH] Add another preferences directory for applications: preferences/syspref
 
 This can be used to symlink to /etc/ice*/pref.
 ---
@@ -29,5 +28,3 @@ index fd9411f..8f64aa4 100644
      rv = NS_NewArrayEnumerator(aResult, directories);
    }
 -- 
-1.6.5.4
-

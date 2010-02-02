@@ -1,3 +1,7 @@
+From: Alexander Sack <asac@debian.org>
+Date: Wed, 27 Jan 2010 19:06:37 +0100
+Subject: [PATCH] bz466250_att349521_fix_ftbfs_with_cairo_fb
+
 #
 # Ubuntu: none
 # Upstream: https://bugzilla.mozilla.org/show_bug.cgi?id=466250
@@ -7,12 +11,12 @@
 #
 ---
  mozilla/gfx/thebes/src/gfxASurface.cpp |    4 ++++
- 1 file changed, 4 insertions(+)
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-Index: mozilla/mozilla/gfx/thebes/src/gfxASurface.cpp
-===================================================================
---- mozilla.orig/mozilla/gfx/thebes/src/gfxASurface.cpp	2010-01-12 11:10:49.000000000 +0000
-+++ mozilla/mozilla/gfx/thebes/src/gfxASurface.cpp	2010-01-12 13:25:18.000000000 +0000
+diff --git a/mozilla/gfx/thebes/src/gfxASurface.cpp b/mozilla/gfx/thebes/src/gfxASurface.cpp
+index 9eeb0ff..f278b15 100644
+--- a/mozilla/gfx/thebes/src/gfxASurface.cpp
++++ b/mozilla/gfx/thebes/src/gfxASurface.cpp
 @@ -56,8 +56,10 @@
  #endif
  
@@ -24,7 +28,7 @@ Index: mozilla/mozilla/gfx/thebes/src/gfxASurface.cpp
  
  #ifdef CAIRO_HAS_QPAINTER_SURFACE
  #include "gfxQPainterSurface.h"
-@@ -172,10 +174,12 @@
+@@ -172,10 +174,12 @@ gfxASurface::Wrap (cairo_surface_t *csurf)
      }
  #endif
  #ifdef MOZ_DFB
@@ -37,3 +41,4 @@ Index: mozilla/mozilla/gfx/thebes/src/gfxASurface.cpp
  #ifdef CAIRO_HAS_QPAINTER_SURFACE
      else if (stype == CAIRO_SURFACE_TYPE_QPAINTER) {
          result = new gfxQPainterSurface(csurf);
+-- 

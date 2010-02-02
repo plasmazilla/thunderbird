@@ -1,17 +1,20 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Wed, 27 Jan 2010 19:07:09 +0100
+Subject: [PATCH] dont_hardcode_anything_in_Makefile.in_files
+
 # Don't hardcode anything in Makefile.in files
 # With hardcoded names, it's verry hard to build a unbranded mailclient like
 # icedove.
 # patch by Christoph Goehre <chris@sigxcpu.org> Sat, 26 Dec 2009 11:42:50 +0100
-
 ---
  mail/app/Makefile.in |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ 1 files changed, 6 insertions(+), 6 deletions(-)
 
-Index: icedove-3.0-for-upload/mail/app/Makefile.in
-===================================================================
---- icedove-3.0-for-upload.orig/mail/app/Makefile.in	2009-12-23 17:48:32.000000000 +0100
-+++ icedove-3.0-for-upload/mail/app/Makefile.in	2009-12-23 17:54:51.000000000 +0100
-@@ -80,9 +80,9 @@
+diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
+index 19db58c..ed53c62 100644
+--- a/mail/app/Makefile.in
++++ b/mail/app/Makefile.in
+@@ -80,9 +80,9 @@ PREF_JS_EXPORTS = \
      $(NULL)
  
  ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
@@ -23,7 +26,7 @@ Index: icedove-3.0-for-upload/mail/app/Makefile.in
  endif
  
  REQUIRES = \
-@@ -312,18 +312,18 @@
+@@ -312,18 +312,18 @@ install::
  endif
  
  ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
@@ -46,3 +49,4 @@ Index: icedove-3.0-for-upload/mail/app/Makefile.in
  GARBAGE += $(addprefix $(DIST)/bin/defaults/pref/, all.js all-thunderbird.js channel-prefs.js mailnews.js)
  endif
  
+-- 

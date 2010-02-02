@@ -1,0 +1,21 @@
+From: Alexander Sack <asac@debian.org>
+Date: Wed, 27 Jan 2010 19:07:00 +0100
+Subject: [PATCH] bzXXX_ftbfs_static_with_system_hunspell
+
+---
+ mail/app/Makefile.in |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
+index c6c2b50..19db58c 100644
+--- a/mail/app/Makefile.in
++++ b/mail/app/Makefile.in
+@@ -133,6 +133,7 @@ LIBS += \
+ 	$(APP_XPCOM_LIBS) \
+ 	$(NSPR_LIBS) \
+ 	$(TK_LIBS) \
++	$(MOZ_HUNSPELL_LIBS) \
+ 	$(NULL)
+ 
+ # Add explicit X11 dependency when building against X11 toolkits
+-- 

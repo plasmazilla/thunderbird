@@ -1,7 +1,6 @@
-From 987401848f38cb49e90834bcac827fd8b792e6db Mon Sep 17 00:00:00 2001
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 21 Jun 2008 02:48:46 +0200
-Subject: Allow .js preference files to set locked prefs with lockPref()
+Subject: [PATCH] Allow .js preference files to set locked prefs with lockPref()
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=440908
 ---
@@ -114,5 +113,3 @@ index b2f9102..ba79742 100644
  
  /**
 -- 
-1.6.5.4
-
