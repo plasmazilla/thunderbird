@@ -1,13 +1,13 @@
 [Desktop Entry]
 Encoding=UTF-8
-Name=Shredder Mail/News
-Comment=Read/Write Mail/News with Mozilla Shredder
+Name=@DEB_MOZ_NAME_FIRST_UPPER@ Mail/News
+Comment=Read/Write Mail/News with @DEB_MOZ_NAME_FIRST_UPPER@
 GenericName=Mail Client
-Exec=thunderbird %u
+Exec=@DEB_MOZ_APPLICATION@ %u
 Terminal=false
 X-MultipleArgs=false
 Type=Application
-Icon=thunderbird
+Icon=@DEB_MOZ_APPLICATION@
 Categories=Application;Network;
 MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png
 StartupWMClass=Thunderbird-bin
