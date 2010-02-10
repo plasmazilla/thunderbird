@@ -21,9 +21,11 @@ ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
   EXTRA_BRANDING_CONFIGURE_FLAGS = --with-branding=${MOZ_APPLICATION}/branding/$(DEB_MOZ_NAME)/
   TB_ICON = $(DEB_SRCDIR)/mail/branding/icedove/content/icon64.png
+  DEB_MOZ_NAME_FIRST_UPPER=Icedove
 else
   DEBIAN_DIST := com.ubuntu
   TB_ICON = $(DEB_SRCDIR)/other-licenses/branding/thunderbird/content/icon64.png
+  DEB_MOZ_NAME_FIRST_UPPER=Thunderbird
 endif
 
 ifeq ($(XUL_VERSION),1.9.1)
@@ -153,11 +155,13 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
 	debian/$(DEB_MOZ_APPLICATION).install \
 	debian/$(DEB_MOZ_APPLICATION).links \
+	debian/$(DEB_MOZ_APPLICATION).menu \
 	$(NULL)
 
 $(DEB_MOZ_APPLICATION)%: thunderbird%.in
 	sed -e 's,@LIBDIR@,$(DEBIAN_TB_DIR),g' \
 	    -e 's,@DEB_MOZ_APPLICATION@,$(DEB_MOZ_APPLICATION),g' \
+		-e 's,@DEB_MOZ_NAME_FIRST_UPPER@,$(DEB_MOZ_NAME_FIRST_UPPER),g' \
 	       < $< > $@
 
 pre-build:: $(subst_files)
