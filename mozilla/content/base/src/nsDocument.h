@@ -582,7 +582,8 @@ class nsDocument : public nsIDocument,
                    public nsIRadioGroupContainer,
                    public nsIDOMNodeSelector,
                    public nsIApplicationCacheContainer,
-                   public nsStubMutationObserver
+                   public nsStubMutationObserver,
+                   public nsIDocument_MOZILLA_1_9_2_BRANCH
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -1007,6 +1008,9 @@ public:
   void MaybeInitializeFinalizeFrameLoaders();
 
   void MaybeEndOutermostXBLUpdate();
+
+  virtual nsISupports* GetCurrentContentSink();
+
 protected:
 
   void RegisterNamedItems(nsIContent *aContent);

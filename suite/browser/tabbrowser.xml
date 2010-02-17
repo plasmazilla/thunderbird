@@ -1187,7 +1187,7 @@
 
             var t = this.referenceTab.cloneNode(true);
 
-            var blank = (aURI == "about:blank");
+            var blank = !aURI || aURI == "about:blank";
 
             if (!blank)
               t.setAttribute("label", aURI);

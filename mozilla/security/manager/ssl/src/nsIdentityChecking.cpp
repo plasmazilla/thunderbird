@@ -406,6 +406,17 @@ static struct nsMyTrustedEVInfo myTrustedEVInfos[] = {
     nsnull
   },
   {
+    // CN=Buypass Class 3 CA 1,O=Buypass AS-983163327,C=NO
+    "2.16.578.1.26.1.3.3",
+    "Buypass Class 3 CA 1", // for real entries use a string like "Sample INVALID EV OID"
+    SEC_OID_UNKNOWN,
+    "61:57:3a:11:df:0e:d8:7e:d5:92:65:22:ea:d0:56:d7:44:b3:23:71",
+    "MEsxCzAJBgNVBAYTAk5PMR0wGwYDVQQKDBRCdXlwYXNzIEFTLTk4MzE2MzMyNzEd"
+    "MBsGA1UEAwwUQnV5cGFzcyBDbGFzcyAzIENBIDE=",
+    "Ag==",
+    nsnull
+  },
+  {
     // OU=Sample Certification Authority,O=\"Sample, Inc.\",C=US
     "0.0.0.0",
     0, // for real entries use a string like "Sample INVALID EV OID"

@@ -44,7 +44,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="@MOZ_LANGPACK_EID@"
                em:name="@MOZ_LANG_TITLE@ Language Pack"
-               em:version="@MOZ_APP_VERSION@"
+#expand                em:version="2.0__VERSION_SUFFIX__"
                em:type="8"
                em:creator="@MOZ_LANGPACK_CREATOR@">
 #ifdef MOZ_LANGPACK_CONTRIBUTORS
@@ -54,8 +54,8 @@
     <em:targetApplication>
       <Description>
         <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
-        <em:minVersion>@MOZ_APP_VERSION@</em:minVersion>
-        <em:maxVersion>@MOZ_APP_VERSION@</em:maxVersion>
+        <em:minVersion>2.0</em:minVersion>
+        <em:maxVersion>2.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

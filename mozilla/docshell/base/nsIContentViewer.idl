@@ -109,3 +109,28 @@ interface nsIContentViewer : nsISupports
    */
   readonly attribute nsISHEntry historyEntry;
 };
+
+[scriptable, uuid(35f0bcf6-e5cb-4b41-bceb-810247b919ac)]
+interface nsIContentViewer_MOZILLA_1_9_1_BRANCH : nsISupports
+{
+  /**
+   * Checks if the document wants to prevent unloading by firing beforeunload on
+   * the document, and if it does, prompts the user. The result is returned.
+   *
+   * @param aCallerClosesWindow indicates that the current caller will close the
+   *        window. If the method returns true, all subsequent calls will be
+   *        ignored.
+   */
+  boolean permitUnloadAndCloseWindow();
+
+  /**
+   * Works in tandem with permitUnload, if the caller decides not to close the
+   * window it indicated it will, it is the caller's responsibility to reset
+   * that with this method.
+   *
+   * @Note this method is only meant to be called on documents for which the
+   *  caller has indicated that it will close the window. If that is not the case
+   *  the behavior of this method is undefined.
+   */
+  void resetCloseWindow();
+};

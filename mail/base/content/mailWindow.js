@@ -147,7 +147,11 @@ function InitMsgWindow()
   Components.classes["@mozilla.org/messenger/services/session;1"]
             .getService(Components.interfaces.nsIMsgMailSession)
             .AddMsgWindow(msgWindow);
-  document.getElementById("messagepane").docShell.allowAuth = false;
+  let messagepane = document.getElementById("messagepane");
+  messagepane.docShell.allowAuth = false;
+  messagepane.docShell
+             .QueryInterface(Components.interfaces.nsIDocShell_MOZILLA_1_9_1_dns)
+             .allowDNSPrefetch = false;
   msgWindow.rootDocShell.allowAuth = true;
   msgWindow.rootDocShell.appType = Components.interfaces.nsIDocShell.APP_TYPE_MAIL;
   // Ensure we don't load xul error pages into the main window

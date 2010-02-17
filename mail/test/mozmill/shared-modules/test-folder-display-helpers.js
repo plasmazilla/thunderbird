@@ -80,6 +80,8 @@ const DO_NOT_EXPORT = {
   MailUtils: true, MailViewManager: true,
   // internal setup functions
   setupModule: true, setupAccountStuff: true,
+  // we export this separately
+  teardownImporter: true,
   // internal setup flags
   initialized: false,
   // other libraries we use
@@ -90,14 +92,13 @@ const DO_NOT_EXPORT = {
 const EXPORT_VIA_GETTER_SETTER = {
   // These should be getters and setters instead of direct property accesses so
   // that setting them reflects across scopes.
-  mainController: true, mc: true,
+  mc: true,
 };
 
 var Application = Cc["@mozilla.org/steel/application;1"]
                     .getService(Ci.steelIApplication);
 
-var mainController = null;
-/** convenience shorthand for the mainController. */
+/** The controller for the main 3-pane window. */
 var mc;
 /** the index of the current 'other' tab */
 var otherTab;
@@ -167,7 +168,7 @@ function setupModule() {
   // use window-helper's augment_controller method to get our extra good stuff
   //  we need.
   windowHelper = collector.getModule('window-helpers');
-  mc = mainController = windowHelper.wait_for_existing_window("mail:3pane");
+  mc = windowHelper.wait_for_existing_window("mail:3pane");
   windowHelper.augment_controller(mc);
 
   setupAccountStuff();
@@ -197,10 +198,80 @@ function installInto(module) {
       module[key] = value;
     }
   }
+
+  // Export the teardown helper
+  let customTeardown = null;
+  // Mozmill uses __teardownModule__ to store what it thinks is the
+  // teardownModule function. Unfortunately, all this is figured out when the
+  // file is loaded, and we're evaluated much too late for that, so overwrite
+  // it.
+  if ("__teardownModule__" in module)
+    customTeardown = module.__teardownModule__;
+  module.__teardownModule__ = teardownImporter(customTeardown);
 }
 
 function setupAccountStuff() {
   inboxFolder = testHelperModule.configure_message_injection({mode: "local"});
+}
+
+/**
+ * This returns a function that cleans up state in case any tests have failed,
+ * so that the chain of failures isn't propagated to the rest of the suite. We
+ * attempt to guarantee that after the teardown is executed:
+ * - exactly one 3-pane window is open, and its controller is assigned to |mc|
+ * - there are no other windows open
+ * - the 3-pane window has exactly one tab open -- the main 3-pane tab
+ * - the folder mode is set to All Folders
+ *
+ * @param [customTeardown] A custom teardown function, if it's already been
+ *     defined in a particular module. This will always be executed before any
+ *     cleanup we perform.
+ */
+function teardownImporter(customTeardown) {
+  let teardownModule = function teardownModule() {
+    if (customTeardown)
+      customTeardown();
+
+    // - If there are no 3-pane windows open, open one.
+    let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"]
+                           .getService(Ci.nsIWindowMediator);
+    let mail3PaneWindow = windowMediator.getMostRecentWindow("mail:3pane");
+    if (!mail3PaneWindow) {
+      windowHelper.plan_for_new_window("mail:3pane");
+      let windowWatcher = Cc["@mozilla.org/embedcomp/window-watcher;1"]
+                            .getService(Ci.nsIWindowWatcher);
+      windowWatcher.openWindow(null,
+          "chrome://messenger/content/", "",
+          "all,chrome,dialog=no,status,toolbar", args);
+      mc = windowHelper.wait_for_new_window("mail:3pane");
+    }
+    else {
+      // - We might have a window open, but not be assigned to mc -- so if
+      //   mc.window.closed is true, look for a window to assign to mc.
+      if (!mc || mc.window.closed)
+        mc = windowHelper.wait_for_existing_window("mail:3pane");
+    }
+
+    // Run through all open windows, closing any that aren't assigned to mc.
+    let enumerator = windowMediator.getEnumerator(null);
+    while (enumerator.hasMoreElements()) {
+      let win = enumerator.getNext();
+      if (win != mc.window)
+        win.close();
+    }
+
+    // At this point we should have exactly one window open.
+    // - Close all tabs other than the first one.
+    mc.tabmail.closeOtherTabs(mc.tabmail.tabInfo[0]);
+
+    // - Set the mode to All Folders.
+    if (mc.folderTreeView.mode != "all")
+      mc.folderTreeView.mode = "all";
+  };
+  // Another internal mozmill thing, again figured out too early for it to have
+  // a chance.
+  teardownModule.__name__ = "teardownModule";
+  return teardownModule;
 }
 
 /*
@@ -309,7 +380,13 @@ function be_in_folder(aFolder) {
 }
 
 /**
- * Create a new tab displaying a folder, making that tab the current tab.
+ * Create a new tab displaying a folder, making that tab the current tab. This
+ * does not wait for message completion, because it doesn't know whether a
+ * message display will be triggered. If you know that a message display will be
+ * triggered, you should follow this up with
+ * |wait_for_message_display_completion(mc, true)|. If you know that a blank
+ * pane should be displayed, you should follow this up with
+ * |wait_for_blank_content_pane()| instead.
  *
  * @return The tab info of the current tab (a more persistent identifier for
  *     tabs than the index, which will change as tabs open/close).
@@ -407,7 +484,7 @@ function display_message_in_folder_tab(aMsgHdr, aExpectNew3Pane) {
     windowHelper.plan_for_new_window("mail:3pane");
   MailUtils.displayMessageInFolderTab(aMsgHdr);
   if (aExpectNew3Pane)
-    mc = mainController = windowHelper.wait_for_new_window("mail:3pane");
+    mc = windowHelper.wait_for_new_window("mail:3pane");
 
   wait_for_message_display_completion(mc, true);
 
@@ -556,6 +633,7 @@ function select_none(aController) {
   }
   controller.sleep('subject()',
                    NORMAL_TIMEOUT, FAST_INTERVAL, noMessageChecker);
+  wait_for_blank_content_pane(aController);
 }
 
 /**
@@ -777,7 +855,7 @@ function assert_folder_child_in_view(aChild, aParent) {
                     (aParent && aParent.URI) +
                     ", but is actually the child of " +
                     (actualParent && actualParent.URI));
-      
+
 }
 
 /**
@@ -1070,17 +1148,54 @@ function wait_for_all_messages_to_load(aController) {
 }
 
 /**
- * If  a message is in the process of loading, let it finish.  Otherwise we get
- *  horrible assertions like so:
+ * Call this before triggering a message display that you are going to wait for
+ *  using |wait_for_message_display_completion| where you are passing true for
+ *  the aLoadDemanded argument.  This ensures that if a message is already
+ *  displayed for the given controller that state is sufficiently cleaned up
+ *  so it doesn't trick us into thinking that there is no need to wait.
+ *
+ * @param [aController] optional controller, defaulting to |mc|.
+ */
+function plan_for_message_display(aController) {
+  if (aController === undefined)
+    aController = mc;
+  aController.messageDisplay.messageLoaded = false;
+}
+
+/**
+ * If a message is in the process of loading, let it finish; optionally, be sure
+ *  to wait for a load to happen (assuming |plan_for_message_display| is used.)
+ *
+ * This method is used defensively by a lot of other code in this file that is
+ *  realy not sure whether there might be a load in progress or not.  So by
+ *  default we only do something if there is obviously a message display in
+ *  progress.  Since some events may end up getting deferred due to script
+ *  blockers or the like, it is possible the event that triggers the display
+ *  may not have happened by the time you call this.  In that case, you should
+ *
+ *  1) pass true for aLoadDemanded, and
+ *  2) invoke |plan_for_message_display|
+ *
+ *  before triggering the event that will induce a message display.  Note that:
+ *  - You cannot do #2 if you are opening a new message window and can assume
+ *    that this will be the first message ever displayed in the window. This is
+ *    fine, because messageLoaded is initially false.
+ *  - You should not do #2 if you are opening a new folder or message tab. That
+ *    is because you'll affect the old tab's message display instead of the new
+ *    tab's display. Again, this is fine, because a new message display will be
+ *    created for the new tab, and messageLoaded will initially be false for it.
+ *
+ * If we didn't use this method defensively, we would get horrible assertions
+ *  like so:
  * ###!!! ASSERTION: Overwriting an existing document channel!
  *
- * @param aController optional controller, defaulting to |mc|.
- * @param aLoadDemanded optional indication that we expect and demand that a
- *     message be loaded.  If you call us before the message loading is
- *     initiated, you will need to pass true for this so that we don't see
- *     that a load hasn't started and assume none is required.  Defaults to
- *     false.  This relies on aController.messageDisplay.messageLoaded to
- *     be reliable; make sure it is false when entering this function.
+ *
+ * @param [aController] optional controller, defaulting to |mc|.
+ * @param [aLoadDemanded=false] Should we require that we wait for a message to
+ *     be loaded?  You should use this in conjunction with
+ *     |plan_for_message_display| as per the documentation above.  If you do
+ *     not pass true and there is no message load in process, this method will
+ *     return immediately.
  */
 function wait_for_message_display_completion(aController, aLoadDemanded) {
   if (aController === undefined)
@@ -1100,8 +1215,10 @@ function wait_for_message_display_completion(aController, aLoadDemanded) {
   //  for us.
   let isLoadedChecker = function() {
     // If a load is demanded, first require that MessageDisplayWidget think
-    //  that the message is loaded.  Because the notification is imperfect,
-    //  this will strictly happen before the URL finishes running.
+    //  that the message is loaded.  Because the notification that sets the flag
+    //  happens when the message reader code gets told about the last attachment,
+    //  this will actually happen before the URL is finished running.  Luckily
+    //  we have the code below to try and deal with that.
     if (aLoadDemanded && !aController.messageDisplay.messageLoaded)
       return false;
 
@@ -1218,7 +1335,7 @@ function wait_for_folder_events() {
  *
  * @param aSynSets Either a single SyntheticMessageSet or a list of them.
  * @param aController Optional controller, which we get the folderDisplay
- *     property from.  If omitted, we use the mc (mainController).
+ *     property from.  If omitted, we use mc.
  */
 function assert_messages_in_view(aSynSets, aController) {
   if (aController === undefined)

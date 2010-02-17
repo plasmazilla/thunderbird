@@ -867,8 +867,10 @@ function IsReplyAllEnabled()
     addresses += currentHeaderData.bcc.headerValue;
 
   // Check to see if my email address is in the list of addresses.
-  let myEmail = getIdentityForHeader(msgHdr).email.toLowerCase();
-  let imInAddresses = addresses.toLowerCase().indexOf(myEmail) != -1;
+  let myEmail = getIdentityForHeader(msgHdr).email;
+  // We aren't guaranteed to have an email address, so guard against that.
+  let imInAddresses = myEmail && (addresses.toLowerCase().indexOf(
+                                    myEmail.toLowerCase()) != -1);
 
   // Now, let's get the number of unique addresses.
   let hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"]
@@ -1256,17 +1258,10 @@ function MsgNewMessage(event)
 
 function MsgReplyMessage(event)
 {
-  var loadedFolder = gFolderDisplay.displayedFolder;
-  if (loadedFolder)
-  {
-    var server = loadedFolder.server;
-    if(server && server.type == "nntp")
-    {
-      MsgReplyGroup(event);
-      return;
-    }
-  }
-  MsgReplySender(event);
+  if (gFolderDisplay.selectedMessageIsNews)
+    MsgReplyGroup(event);
+  else
+    MsgReplySender(event);
 }
 
 function MsgReplySender(event)

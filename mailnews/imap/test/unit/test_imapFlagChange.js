@@ -131,15 +131,12 @@ function run_test()
   prefBranch.setBoolPref("mail.biff.show_tray_icon", false);
   prefBranch.setBoolPref("mail.biff.animate_dock_icon", false);
 
-  let inbox = gIMAPDaemon.getMailbox("INBOX");
-
   // build up a diverse list of messages
   let messages = [];
   let gMessageGenerator = new MessageGenerator();
   messages = messages.concat(gMessageGenerator.makeMessage());
   gSynthMessage = messages[0];
 
-  let dataUri = 'data:text/plain,' + gSynthMessage.toMessageString();
   let ioService = Cc["@mozilla.org/network/io-service;1"]
                   .getService(Ci.nsIIOService);
   let msgURI =

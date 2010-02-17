@@ -3967,7 +3967,11 @@ void nsImapProtocol::ProcessMailboxUpdate(PRBool handlePossibleUndo)
     }
   }
   else if (!DeathSignalReceived())
+  {
     GetServerStateParser().ResetFlagInfo(0);
+    // the flag state is empty, but not partial.
+    m_flagState->SetPartialUIDFetch(PR_FALSE);
+  }
 
   if (!DeathSignalReceived())
   {

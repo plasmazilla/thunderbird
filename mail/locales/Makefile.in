@@ -72,10 +72,14 @@ core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURD
 ZIP_IN ?= $(_ABS_DIST)/$(PACKAGE)
 WIN32_INSTALLER_IN ?= $(_ABS_DIST)/$(PKG_INST_PATH)$(PKG_INST_BASENAME).exe
 
+VERSION_SUFFIX = $(shell hg -R $(LOCALE_SRCDIR)/.. parent --template=".{rev}" 2> /dev/null)
+
+
 DEFINES += \
 	-DAB_CD=$(AB_CD) \
 	-DMOZ_LANGPACK_EID=langpack-$(AB_CD)@thunderbird.mozilla.org \
 	-DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
+	-DVERSION_SUFFIX=$(VERSION_SUFFIX) \
 	-DLOCALE_SRCDIR=$(LOCALE_SRCDIR) \
 	-DPKG_BASENAME="$(PKG_BASENAME)" \
 	-DPKG_INST_BASENAME="$(PKG_INST_BASENAME)" \

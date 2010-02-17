@@ -3281,7 +3281,7 @@ nsGenericElement::doInsertChildAt(nsIContent* aKid, PRUint32 aIndex,
 
     if (nsContentUtils::HasMutationListeners(aKid,
           NS_EVENT_BITS_MUTATION_NODEINSERTED, container)) {
-      mozAutoRemovableBlockerRemover blockerRemover;
+      mozAutoRemovableBlockerRemover blockerRemover(container->GetOwnerDoc());
       
       nsMutationEvent mutation(PR_TRUE, NS_MUTATION_NODEINSERTED);
       mutation.mRelatedNode = do_QueryInterface(container);
@@ -3351,7 +3351,7 @@ nsGenericElement::doRemoveChildAt(PRUint32 aIndex, PRBool aNotify,
   if (aNotify &&
       nsContentUtils::HasMutationListeners(aKid,
         NS_EVENT_BITS_MUTATION_NODEREMOVED, container)) {
-    mozAutoRemovableBlockerRemover blockerRemover;
+    mozAutoRemovableBlockerRemover blockerRemover(container->GetOwnerDoc());
 
     nsMutationEvent mutation(PR_TRUE, NS_MUTATION_NODEREMOVED);
     mutation.mRelatedNode = do_QueryInterface(container);
@@ -4356,7 +4356,7 @@ nsGenericElement::SetAttrAndNotify(PRInt32 aNamespaceID,
   }
 
   if (aFireMutation) {
-    mozAutoRemovableBlockerRemover blockerRemover;
+    mozAutoRemovableBlockerRemover blockerRemover(GetOwnerDoc());
     
     nsMutationEvent mutation(PR_TRUE, NS_MUTATION_ATTRMODIFIED);
 
@@ -4611,7 +4611,7 @@ nsGenericElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (hasMutationListeners) {
-    mozAutoRemovableBlockerRemover blockerRemover;
+    mozAutoRemovableBlockerRemover blockerRemover(GetOwnerDoc());
 
     nsCOMPtr<nsIDOMEventTarget> node =
       do_QueryInterface(static_cast<nsIContent *>(this));
