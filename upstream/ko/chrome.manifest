@@ -1,0 +1,23 @@
+locale messenger-mapi ko jar:chrome/ko.jar!/locale/ko/messenger-mapi/
+locale messenger-smime ko jar:chrome/ko.jar!/locale/ko/messenger-smime/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale mozldap ko jar:chrome/ko.jar!/locale/ko/mozldap/
+locale messenger-newsblog ko jar:chrome/ko.jar!/locale/ko/messenger-newsblog/
+locale communicator ko jar:chrome/ko.jar!/locale/ko/communicator/
+locale pippki ko jar:chrome/ko.jar!/locale/ko/pippki/
+locale necko ko jar:chrome/ko.jar!/locale/ko/necko/
+locale places ko jar:chrome/ko.jar!/locale/ko/places/
+locale global-region ko jar:chrome/ko.jar!/locale/ko/global-region/
+locale branding ko jar:chrome/ko.jar!/locale/ko/branding/
+locale pipnss ko jar:chrome/ko.jar!/locale/ko/pipnss/
+locale editor ko jar:chrome/ko.jar!/locale/ko/editor/
+locale autoconfig ko jar:chrome/ko.jar!/locale/ko/autoconfig/
+locale alerts ko jar:chrome/ko.jar!/locale/ko/alerts/
+locale global-platform ko jar:chrome/ko.jar!/locale/ko/global-platform/
+locale cookie ko jar:chrome/ko.jar!/locale/ko/cookie/
+locale messenger ko jar:chrome/ko.jar!/locale/ko/messenger/
+locale global ko jar:chrome/ko.jar!/locale/ko/global/
+locale passwordmgr ko jar:chrome/ko.jar!/locale/ko/passwordmgr/
+locale mozapps ko jar:chrome/ko.jar!/locale/ko/mozapps/
+locale messenger-region ko jar:chrome/ko.jar!/locale/ko/messenger-region/

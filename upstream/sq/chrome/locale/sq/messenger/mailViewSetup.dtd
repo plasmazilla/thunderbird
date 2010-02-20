@@ -1,0 +1,6 @@
+<!--LOCALIZATION NOTE msgViewPickerOverlay.dtd UI for showing various views on a folder -->
+
+<!ENTITY mailViewSetupTitle.label "Rregullime Shfaqjeje Mesazhesh">
+<!ENTITY mailViewHeading.label "Emër shfaqjeje mesazhesh:">
+<!ENTITY mailViewHeading.accesskey "E">
+<!ENTITY searchTermCaption.label "Kur përzgjidhet kjo shfaqje, shfaq vetëm mesazhe që përputhen me:">

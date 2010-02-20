@@ -1,0 +1,20 @@
+<!ENTITY aboutDialog.title      "Acerca de &brandFullName;">
+
+<!ENTITY aboutButton.label      "&lt; Atrás">
+<!ENTITY aboutButton.accesskey  "A">
+<!ENTITY aboutVersion           "versión">
+<!ENTITY copyrightText          "&#169;1998-2008 Colaboradores. Todos os dereitos reservados. Os logotipos de Mozilla Thunderbird e de 
+                                 Thunderbird son marcas rexistradas da Fundación Mozilla.  Todos os dereitos  
+                                 reservados.">
+<!ENTITY aboutMenu.label        "Acerca de">
+<!ENTITY aboutMenu.accesskey    "r">
+<!ENTITY aboutCredits.label     "Créditos">
+<!ENTITY aboutCredits.accesskey "C">
+<!ENTITY aboutRights.label      "Os seus dereitos">
+<!ENTITY aboutRights.accesskey  "d">
+<!ENTITY aboutContributors.label "Colaboradores">
+<!ENTITY aboutContributors.accesskey "C">
+<!ENTITY aboutLicense.label      "Licenza">
+<!ENTITY aboutLicense.accesskey  "L">
+
+<!ENTITY cmdCloseMac.commandKey "w">

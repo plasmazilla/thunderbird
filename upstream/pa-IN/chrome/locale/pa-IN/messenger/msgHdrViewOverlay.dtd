@@ -1,0 +1,121 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "ਵੱਲ ">
+<!ENTITY fromField2.label "ਵਲੋਂ ">
+<!ENTITY senderField2.label "ਭੇਜਣਵਾਲਾ ">
+<!ENTITY organizationField2.label "ਸੰਗਠਨ ">
+<!ENTITY replyToField2.label "ਜਵਾਬ ">
+
+<!ENTITY subjectField2.label "ਵਿਸ਼ਾ ">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "cc ">
+<!ENTITY bccField2.label "bcc ">
+<!ENTITY newsgroupsField2.label "ਨਿਊਜ਼ਗਰੁੱਪ ">
+<!ENTITY followupToField2.label "followup-to ">
+<!ENTITY tagsHdr2.label "ਟੈਗ ">
+<!ENTITY dateField2.label "ਮਿਤੀ ">
+<!ENTITY userAgentField2.label "ਯੂਜ਼ਰ-ਏਜੰਟ ">
+<!ENTITY referencesField2.label "ਰੈਫਰੈਂਸ ">
+<!ENTITY messageIdField2.label "ਸੁਨੇਹਾ-id ">
+<!ENTITY inReplyToField2.label "ਇਸ ਦੇ ਜਵਾਬ 'ਚ ">
+<!ENTITY originalWebsite2.label "ਵੈੱਬਸਾਈਟ ">
+
+<!ENTITY editMessageDescription.label "ਇਹ ਡਰਾਫਟ ਸੁਨੇਹਾ ਹੈ">
+<!ENTITY editMessageButton.label "ਸੋਧ…">
+<!ENTITY hdrArchiveButton.label "ਆਕਾਇਵ">
+<!ENTITY hdrArchiveButton.tooltip "ਇਹ ਸੁਨੇਹਾ ਆਕਾਇਵ">
+<!ENTITY hdrReplyButton.label "ਜਵਾਬ">
+<!ENTITY hdrReplyButton.tooltip "ਇਹ ਸੁਨੇਹੇ ਲਈ ਜਵਾਬ">
+<!ENTITY hdrReplyAllButton.label "ਸਭ ਨੂੰ ਜਵਾਬ">
+<!ENTITY hdrReplyAllButton.tooltip "ਭੇਜਣ ਵਾਲੇ ਅਤੇ ਸਭ ਪ੍ਰਾਪਤ ਕਰਨ ਵਾਲਿਆਂ ਨੂੰ ਜਵਾਬ">
+<!ENTITY hdrReplyListButton.label "ਲਿਸਟ ਨੂੰ ਜਵਾਬ">
+<!ENTITY hdrReplyListButton.tooltip "ਮੇਲਿੰਗ ਲਿਸਟ ਨੂੰ ਜਵਾਬ">
+<!ENTITY hdrForwardButton.label "ਅੱਗੇ ਭੇਜੋ">
+<!ENTITY hdrForwardButton.tooltip "ਇਹ ਸੁਨੇਹਾ ਅੱਗੇ ਭੇਜੋ">
+<!ENTITY hdrJunkButton.label "ਜੰਕ">
+<!ENTITY hdrJunkButton.tooltip "ਇਹ ਸੁਨੇਹਾ ਜੰਕ ਨਿਸ਼ਾਨਬੱਧ ਕਰੋ">
+<!ENTITY hdrTrashButton.label "ਹਟਾਓ">
+<!ENTITY hdrTrashButton.tooltip "ਇਹ ਸੁਨੇਹਾ ਹਟਾਓ">
+
+<!ENTITY hdrViewToolbarShowFull.label "ਆਈਕਾਨ ਅਤੇ ਟੈਕਸਟ ਵੇਖੋ">
+<!ENTITY hdrViewToolbarShowFull.accesskey "a">
+<!ENTITY hdrViewToolbarShowIcons.label "ਕੇਵਲ ਆਈਕਾਨ ਵੇਖੋ">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "I">
+<!ENTITY hdrViewToolbarShowText.label "ਕੇਵਲ ਟੈਕਸਟ ਵੇਖੋ">
+<!ENTITY hdrViewToolbarShowText.accesskey "T">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "ਭੇਜਣ ਵਾਲੇ ਨੂੰ ਜਵਾਬ ਹਮੇਸ਼ਾ ਵੇਖੋ">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
+
+<!ENTITY otherActionsButton.label "ਹੋਰ ਐਕਸ਼ਨ">
+<!ENTITY otherActionsShowConversation.label "ਗੱਲਬਾਤ ਦੇ ਰੂਪ ਵਿੱਚ ਵੇਖੋ">
+<!ENTITY otherActionsShowConversation.accesskey "c">
+<!ENTITY otherActionsOpenInNewWindow.label "ਨਵੀਂ ਵਿੰਡੋ ਵਿੱਚ ਖੋਲ੍ਹੋ">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "w">
+<!ENTITY otherActionsOpenInNewTab.label "ਨਵੀਂ ਟੈਬ ਵਿੱਚ ਖੋਲ੍ਹੋ">
+<!ENTITY otherActionsOpenInNewTab.accesskey "t">
+<!ENTITY markAsReadMenuItem.label "ਪੜ੍ਹੇ ਵਜੋਂ ਨਿਸ਼ਾਨਬੱਧ">
+<!ENTITY markAsReadMenuItem.accesskey "r">
+<!ENTITY markAsUnreadMenuItem.label "ਨਾ-ਪੜ੍ਹੇ ਵਜੋਂ ਨਿਸ਼ਾਨਬੱਧ">
+<!ENTITY markAsUnreadMenuItem.accesskey "r">
+<!ENTITY saveAsMenuItem.label "…ਵਾਂਗ ਸੰਭਾਲੋ">
+<!ENTITY saveAsMenuItem.accesskey "s">
+<!ENTITY viewSourceMenuItem.label "ਸਰੋਤ ਵੇਖੋ">
+<!ENTITY viewSourceMenuItem.accesskey "v">
+<!ENTITY otherActionsPrint.label "…ਪਰਿੰਟ ਕਰੋ">
+<!ENTITY otherActionsPrint.accesskey "p">
+
+<!ENTITY openAttachmentCmd.label    "ਖੋਲ੍ਹੋ">
+<!ENTITY openAttachmentCmd.accesskey    "O">
+<!ENTITY saveAsAttachmentCmd.label    "…ਵਜੋਂ ਸੰਭਾਲੋ">
+<!ENTITY saveAsAttachmentCmd.accesskey    "A">
+<!ENTITY detachAttachmentCmd.label    "…ਅੱਡ ਕਰੋ">
+<!ENTITY deleteAttachmentCmd.label    "ਹਟਾਓ">
+<!ENTITY saveAllAttachmentsCmd.label    "…ਸਭ ਸੰਭਾਲੋ">
+<!ENTITY saveAllAttachmentsCmd.accesskey    "S">
+<!ENTITY detachAllAttachmentsCmd.label    "…ਸਭ ਅੱਡ ਕਰੋ">
+<!ENTITY detachAllAttachmentsCmd.accesskey    "D">
+<!ENTITY deleteAllAttachmentsCmd.label    "…ਸਭ ਹਟਾਓ">
+<!ENTITY deleteAllAttachmentsCmd.accesskey    "E">
+
+<!ENTITY copyLinkCmd.label        "ਲਿੰਕ ਟਿਕਾਣਾ ਕਾਪੀ ਕਰੋ">
+<!ENTITY copyLinkCmd.accesskey    "C">
+
+<!ENTITY CopyMessageId.label "ਸੁਨੇਹਾ-ID ਕਾਪੀ ਕਰੋ">
+<!ENTITY OpenMessageForMsgId.label "ID ਲਈ ਸੁਨੇਹਾ ਖੋਲ੍ਹੋ">
+<!ENTITY OpenBrowserWithMsgId.label "ਸੁਨੇਹਾ-ID ਨਾਲ ਬਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ">
+

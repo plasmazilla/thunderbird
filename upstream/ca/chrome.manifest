@@ -1,0 +1,23 @@
+locale necko ca jar:chrome/ca.jar!/locale/ca/necko/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale communicator ca jar:chrome/ca.jar!/locale/ca/communicator/
+locale messenger-mapi ca jar:chrome/ca.jar!/locale/ca/messenger-mapi/
+locale global ca jar:chrome/ca.jar!/locale/ca/global/
+locale mozldap ca jar:chrome/ca.jar!/locale/ca/mozldap/
+locale pipnss ca jar:chrome/ca.jar!/locale/ca/pipnss/
+locale messenger ca jar:chrome/ca.jar!/locale/ca/messenger/
+locale messenger-newsblog ca jar:chrome/ca.jar!/locale/ca/messenger-newsblog/
+locale passwordmgr ca jar:chrome/ca.jar!/locale/ca/passwordmgr/
+locale branding ca jar:chrome/ca.jar!/locale/ca/branding/
+locale cookie ca jar:chrome/ca.jar!/locale/ca/cookie/
+locale alerts ca jar:chrome/ca.jar!/locale/ca/alerts/
+locale places ca jar:chrome/ca.jar!/locale/ca/places/
+locale messenger-smime ca jar:chrome/ca.jar!/locale/ca/messenger-smime/
+locale global-platform ca jar:chrome/ca.jar!/locale/ca/global-platform/
+locale mozapps ca jar:chrome/ca.jar!/locale/ca/mozapps/
+locale global-region ca jar:chrome/ca.jar!/locale/ca/global-region/
+locale editor ca jar:chrome/ca.jar!/locale/ca/editor/
+locale pippki ca jar:chrome/ca.jar!/locale/ca/pippki/
+locale messenger-region ca jar:chrome/ca.jar!/locale/ca/messenger-region/
+locale autoconfig ca jar:chrome/ca.jar!/locale/ca/autoconfig/

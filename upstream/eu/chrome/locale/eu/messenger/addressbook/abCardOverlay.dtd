@@ -1,0 +1,176 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY Contact.tab "Kontaktua">
+<!ENTITY Contact.accesskey "K">
+<!ENTITY Name.box "Izena">
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+
+
+<!ENTITY NameField1.id "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id "PhoneticLastName">
+
+<!ENTITY NameField1.label "Izena:">
+<!ENTITY NameField1.accesskey "I">
+<!ENTITY NameField2.label "Abizena:">
+<!ENTITY NameField2.accesskey "A">
+<!ENTITY PhoneticField1.label "Fonetikoa:">
+<!ENTITY PhoneticField2.label "Fonetikoa:">
+<!ENTITY DisplayName.label "Erakutsi:">
+<!ENTITY DisplayName.accesskey "s">
+<!ENTITY NickName.label "Ezizena:">
+<!ENTITY NickName.accesskey "E">
+
+<!ENTITY PrimaryEmail.label "Helb. elektronikoa:">
+<!ENTITY PrimaryEmail.accesskey "H">
+<!ENTITY SecondEmail.label "Helb. elektroniko gehigarria:">
+<!ENTITY SecondEmail.accesskey "H">
+<!ENTITY PreferMailFormat.label "Nahiago ditu formatu honetako mezuak:">
+<!ENTITY PreferMailFormat.accesskey "f">
+<!ENTITY PlainText.label "Testu hutsa">
+<!ENTITY HTML.label "HTML">
+<!ENTITY Unknown.label "Ezezaguna">
+<!ENTITY ScreenName.label "Pantailako izena:">
+<!ENTITY ScreenName.accesskey "P">
+
+<!ENTITY allowRemoteContent1.label "Onartu urruneko edukia.">
+<!ENTITY allowRemoteContent1.accesskey "u">
+<!ENTITY allowRemoteContent1.tooltip "HTML erabiliaz posible da urruneko jatorridun 
+edukia txertatzea. Mezu hori irekitzean 
+kanpoko jatorriari konexio bat sortuko da. Honek 
+mezua irakurtzeko aukera ematen du. Kutxa hau 
+hautatzean kontaktu honen mezuetan urruneko 
+jatorri horien txertatzea onartuko da.">
+
+<!ENTITY WorkPhone.label "Lana:">
+<!ENTITY WorkPhone.accesskey "L">
+<!ENTITY HomePhone.label "Etxea:">
+<!ENTITY HomePhone.accesskey "E">
+<!ENTITY FaxNumber.label "Faxa:">
+<!ENTITY FaxNumber.accesskey "x">
+<!ENTITY PagerNumber.label "Bilagailua:">
+<!ENTITY PagerNumber.accesskey "B">
+<!ENTITY CellularNumber.label "Mugikorra:">
+<!ENTITY CellularNumber.accesskey "M">
+
+<!ENTITY Home.tab "Pribatua">
+<!ENTITY Home.accesskey "P">
+<!ENTITY HomeAddress.label "Helbidea:">
+<!ENTITY HomeAddress.accesskey "d">
+<!ENTITY HomeAddress2.label "">
+<!ENTITY HomeAddress2.accesskey "">
+<!ENTITY HomeCity.label "Hiria:">
+<!ENTITY HomeCity.accesskey "H">
+<!ENTITY HomeState.label "Estatua/Probintzia:">
+<!ENTITY HomeState.accesskey "s">
+<!ENTITY HomeZipCode.label "ZIP/Posta Kodea:">
+<!ENTITY HomeZipCode.accesskey "Z">
+<!ENTITY HomeCountry.label "Herrialdea:">
+<!ENTITY HomeCountry.accesskey "i">
+<!ENTITY HomeWebPage.label "Webgunea:">
+<!ENTITY HomeWebPage.accesskey "W">
+<!ENTITY Birthday.label "Jaiotze-data:">
+<!ENTITY Birthday.accesskey "J">
+<!ENTITY In.label "">
+<!ENTITY Year.emptytext "Urtea">
+<!ENTITY Or.value "edo">
+<!ENTITY Age.emptytext "Adina">
+<!ENTITY YearsOld.label "">
+
+<!ENTITY Work.tab "Lana">
+<!ENTITY Work.accesskey "L">
+<!ENTITY JobTitle.label "Titulua:">
+<!ENTITY JobTitle.accesskey "u">
+<!ENTITY Department.label "Saila:">
+<!ENTITY Department.accesskey "S">
+<!ENTITY Company.label "Erakundea:">
+<!ENTITY Company.accesskey "E">
+<!ENTITY WorkAddress.label "Helbidea:">
+<!ENTITY WorkAddress.accesskey "d">
+<!ENTITY WorkAddress2.label "">
+<!ENTITY WorkAddress2.accesskey "">
+<!ENTITY WorkCity.label "Hiria:">
+<!ENTITY WorkCity.accesskey "H">
+<!ENTITY WorkState.label "Estatua/Probintzia:">
+<!ENTITY WorkState.accesskey "s">
+<!ENTITY WorkZipCode.label "ZIP/Posta Kodea:">
+<!ENTITY WorkZipCode.accesskey "Z">
+<!ENTITY WorkCountry.label "Herrialdea:">
+<!ENTITY WorkCountry.accesskey "i">
+<!ENTITY WorkWebPage.label "Webgunea:">
+<!ENTITY WorkWebPage.accesskey "W">
+
+<!ENTITY Other.tab "Bestelakoak">
+<!ENTITY Other.accesskey "B">
+<!ENTITY Custom1.label "1 pertsonalizatua:">
+<!ENTITY Custom1.accesskey "1">
+<!ENTITY Custom2.label "2 pertsonalizatua:">
+<!ENTITY Custom2.accesskey "2">
+<!ENTITY Custom3.label "3 pertsonalizatua:">
+<!ENTITY Custom3.accesskey "3">
+<!ENTITY Custom4.label "4 pertsonalizatua:">
+<!ENTITY Custom4.accesskey "4">
+<!ENTITY Notes.label "Oharrak:">
+<!ENTITY Notes.accesskey "O">
+
+<!ENTITY Photo.tab "Argazkia">
+<!ENTITY Photo.accesskey "A">
+<!ENTITY PhotoDesc.label "Aukeratu hauetako bat:">
+<!ENTITY GenericPhoto.label "Argazki arrunta">
+<!ENTITY GenericPhoto.accesskey "z">
+<!ENTITY DefaultPhoto.label "Lehenetsia">
+<!ENTITY PhotoFile.label "Ordenagailu honetan">
+<!ENTITY PhotoFile.accesskey "n">
+<!ENTITY BrowsePhoto.label "Arakatu">
+<!ENTITY BrowsePhoto.accesskey "r">
+<!ENTITY PhotoURL.label "Webean">
+<!ENTITY PhotoURL.accesskey "b">
+<!ENTITY PhotoURL.emptytext "Itsatsi edo idatzi argazkiaren web helbidea">
+<!ENTITY UpdatePhoto.label "Eguneratu">
+<!ENTITY UpdatePhoto.accesskey "E">

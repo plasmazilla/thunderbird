@@ -1,0 +1,23 @@
+locale editor zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/editor/
+locale messenger zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/messenger/
+locale messenger-newsblog zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/messenger-newsblog/
+locale pipnss zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/pipnss/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale mozapps zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/mozapps/
+locale autoconfig zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/autoconfig/
+locale places zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/places/
+locale necko zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/necko/
+locale cookie zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/cookie/
+locale branding zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/branding/
+locale alerts zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/alerts/
+locale passwordmgr zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/passwordmgr/
+locale messenger-smime zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/messenger-smime/
+locale global-region zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/global-region/
+locale pippki zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/pippki/
+locale messenger-mapi zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/messenger-mapi/
+locale global-platform zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/global-platform/
+locale messenger-region zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/messenger-region/
+locale communicator zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/communicator/
+locale mozldap zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/mozldap/
+locale global zh-TW jar:chrome/zh-TW.jar!/locale/zh-TW/global/

@@ -1,0 +1,20 @@
+<!ENTITY accountTitle.label "Accountinstellingen">
+
+<!ENTITY biffStart.label "Op nieuwe artikelen controleren na elke">
+<!ENTITY biffStart.accesskey "c">
+<!ENTITY biffEnd.label "minuten">
+
+<!ENTITY loginAtStartup.label "Op nieuwe artikelen controleren bij opstarten">
+<!ENTITY loginAtStartup.accesskey "o">
+
+<!ENTITY useQuickMode.label "Standaard de artikelsamenvatting weergeven i.p.v. de webpagina laden">
+<!ENTITY useQuickMode.accesskey "S">
+
+<!ENTITY manageSubscriptions.label "Abonnementen beheren…">
+<!ENTITY manageSubscriptions.accesskey "b">
+
+<!-- entities from rss.rdf -->
+<!ENTITY feeds.accountName "Blogs &amp; nieuwsfeeds">
+<!ENTITY feeds.wizardShortName "Feeds">
+<!ENTITY feeds.wizardLongName "Blogs &amp; nieuwsfeeds">
+<!ENTITY feeds.wizardLongName.accesskey "f">

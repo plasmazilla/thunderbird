@@ -1,0 +1,23 @@
+locale messenger-smime es-AR jar:chrome/es-AR.jar!/locale/es-AR/messenger-smime/
+locale communicator es-AR jar:chrome/es-AR.jar!/locale/es-AR/communicator/
+locale branding es-AR jar:chrome/es-AR.jar!/locale/es-AR/branding/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale editor es-AR jar:chrome/es-AR.jar!/locale/es-AR/editor/
+locale global es-AR jar:chrome/es-AR.jar!/locale/es-AR/global/
+locale pipnss es-AR jar:chrome/es-AR.jar!/locale/es-AR/pipnss/
+locale autoconfig es-AR jar:chrome/es-AR.jar!/locale/es-AR/autoconfig/
+locale mozapps es-AR jar:chrome/es-AR.jar!/locale/es-AR/mozapps/
+locale messenger-newsblog es-AR jar:chrome/es-AR.jar!/locale/es-AR/messenger-newsblog/
+locale messenger-mapi es-AR jar:chrome/es-AR.jar!/locale/es-AR/messenger-mapi/
+locale messenger es-AR jar:chrome/es-AR.jar!/locale/es-AR/messenger/
+locale global-region es-AR jar:chrome/es-AR.jar!/locale/es-AR/global-region/
+locale global-platform es-AR jar:chrome/es-AR.jar!/locale/es-AR/global-platform/
+locale messenger-region es-AR jar:chrome/es-AR.jar!/locale/es-AR/messenger-region/
+locale places es-AR jar:chrome/es-AR.jar!/locale/es-AR/places/
+locale cookie es-AR jar:chrome/es-AR.jar!/locale/es-AR/cookie/
+locale mozldap es-AR jar:chrome/es-AR.jar!/locale/es-AR/mozldap/
+locale pippki es-AR jar:chrome/es-AR.jar!/locale/es-AR/pippki/
+locale necko es-AR jar:chrome/es-AR.jar!/locale/es-AR/necko/
+locale passwordmgr es-AR jar:chrome/es-AR.jar!/locale/es-AR/passwordmgr/
+locale alerts es-AR jar:chrome/es-AR.jar!/locale/es-AR/alerts/

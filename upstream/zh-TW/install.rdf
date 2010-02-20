@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!--
+
+-->
+
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description about="urn:mozilla:install-manifest"
+               em:id="langpack-zh-TW@thunderbird.mozilla.org"
+               em:name="Traditional Chinese (zh-TW) Language Pack"
+               em:version="3.0.1"
+               em:type="8"
+               em:creator="Hung-Te Lin (piaip)">
+    <em:contributor>Hung-Te Lin</em:contributor> <em:contributor>Wei-Lun Sun(josesun)</em:contributor> <em:contributor>Wei-Chen Lai(abev66)</em:contributor>
+    <em:targetApplication>
+      <Description>
+        <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
+        <em:minVersion>3.0.1</em:minVersion>
+        <em:maxVersion>3.0.1</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+  </Description>
+</RDF>

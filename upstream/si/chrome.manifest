@@ -1,0 +1,23 @@
+locale messenger-mapi si jar:chrome/si.jar!/locale/si/messenger-mapi/
+locale mozldap si jar:chrome/si.jar!/locale/si/mozldap/
+locale necko si jar:chrome/si.jar!/locale/si/necko/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale places si jar:chrome/si.jar!/locale/si/places/
+locale global-platform si jar:chrome/si.jar!/locale/si/global-platform/
+locale messenger si jar:chrome/si.jar!/locale/si/messenger/
+locale editor si jar:chrome/si.jar!/locale/si/editor/
+locale cookie si jar:chrome/si.jar!/locale/si/cookie/
+locale messenger-region si jar:chrome/si.jar!/locale/si/messenger-region/
+locale mozapps si jar:chrome/si.jar!/locale/si/mozapps/
+locale alerts si jar:chrome/si.jar!/locale/si/alerts/
+locale pippki si jar:chrome/si.jar!/locale/si/pippki/
+locale autoconfig si jar:chrome/si.jar!/locale/si/autoconfig/
+locale passwordmgr si jar:chrome/si.jar!/locale/si/passwordmgr/
+locale messenger-smime si jar:chrome/si.jar!/locale/si/messenger-smime/
+locale branding si jar:chrome/si.jar!/locale/si/branding/
+locale pipnss si jar:chrome/si.jar!/locale/si/pipnss/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale global-region si jar:chrome/si.jar!/locale/si/global-region/
+locale communicator si jar:chrome/si.jar!/locale/si/communicator/
+locale messenger-newsblog si jar:chrome/si.jar!/locale/si/messenger-newsblog/
+locale global si jar:chrome/si.jar!/locale/si/global/

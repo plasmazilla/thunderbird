@@ -1,0 +1,12 @@
+<!ENTITY dialog.title "টুলবার স্বনির্ধারণ">
+<!ENTITY dialog.style "width: 635px; height: 400px;">
+<!ENTITY instructions.description "টুলবারে টেনে এনে ফেলে বা টুলবার থেকে টেনে বের করে আপনি উপাদান যোগ বা অপসারণ করতে পারেন।">
+<!ENTITY show.label "প্রদর্শন:">
+<!ENTITY iconsAndText.label "আইকন ও লেখা">
+<!ENTITY icons.label "আইকন">
+<!ENTITY text.label "লেখা">
+<!ENTITY useSmallIcons.label "ক্ষুদ্র আইকন ব্যবহার">
+<!ENTITY restoreDefaultSet.label "ডিফল্ট পুনরায় স্থাপন">
+<!ENTITY addNewToolbar.label "নতুন টুলবার যোগ">
+<!ENTITY saveChanges.label "সম্পন্ন">
+<!ENTITY undoChanges.label "পরিবর্তন বাতিল">

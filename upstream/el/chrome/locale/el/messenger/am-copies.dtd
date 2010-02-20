@@ -1,0 +1,37 @@
+<!-- extracted from am-copies.xul -->
+
+<!ENTITY copyAndFolderTitle.label "Αντίγραφα και φάκελοι">
+<!ENTITY sendingPrefix.label "Κατά την αποστολή των μηνυμάτων να γίνεται αυτόματα:">
+<!ENTITY fccMailFolder.label "Τοποθέτηση αντιγράφου σε:">
+<!ENTITY fccMailFolder.accesskey "ν">
+<!ENTITY fccReplyFollowsParent.label "Τοποθέτηση απαντήσεων στον ίδιο φάκελο όπου είναι το αρχικό μήνυμα">
+<!ENTITY fccReplyFollowsParent.accesskey "θ">
+<!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
+<!ENTITY bccAddress.label "Bcc σε άλλη διεύθυνση">
+<!ENTITY bccAddress.accesskey "θ">
+<!ENTITY saveMessageDlg.label "Προβολή διαλόγου επιβεβαίωσης κατά την αποθήκευση μηνυμάτων">
+<!ENTITY saveMessageDlg.accesskey "β">
+<!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY sentFolderOn.label "φάκελο &quot;Απεσταλμένα&quot; στο:">
+<!-- LOCALIZATION NOTE (archivesFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY archivesFolderOn.label "φάκελο &quot;Αρχείο&quot; στο:">
+<!ENTITY archivesFolderOn.accesskey "χ">
+<!ENTITY archiveInOtherFolder.label "άλλο:">
+<!ENTITY archiveInOtherFolder.accesskey "λ">
+<!ENTITY sentFolderOn.accesskey "ε">
+<!ENTITY sentInOtherFolder.label "Άλλο:">
+<!ENTITY sentInOtherFolder.accesskey "λ">
+<!-- LOCALIZATION NOTE (draftsFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY draftsFolderOn.label "φάκελο &quot;Προσχέδια&quot; στο:">
+<!ENTITY draftsFolderOn.accesskey "σ">
+<!ENTITY draftInOtherFolder.label "άλλο:">
+<!ENTITY draftInOtherFolder.accesskey "λ">
+<!-- LOCALIZATION NOTE (templatesFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY templatesFolderOn.label "φάκελο &quot;Πρότυπα&quot; στο:">
+<!ENTITY templatesFolderOn.accesskey "κ">
+<!ENTITY templateInOtherFolder.label "άλλο:">
+<!ENTITY templateInOtherFolder.accesskey "ο">
+<!ENTITY specialFoldersTitle.label "Προσχέδια και πρότυπα">
+<!ENTITY keepDrafts.label "Αποθήκευση πρόχειρων μηνυμάτων σε:">
+<!ENTITY keepArchives.label "Αποθήκευση αρχείου μηνυμάτων σε:">
+<!ENTITY keepTempltes.label "Αποθήκευση προτύπων μηνυμάτων σε:">

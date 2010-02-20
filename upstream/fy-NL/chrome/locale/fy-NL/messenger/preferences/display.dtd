@@ -1,0 +1,46 @@
+<!ENTITY itemFormatting.label             "Opmaak">
+<!ENTITY itemTags.label                   "Labels">
+
+<!ENTITY style.label                      "Styl:">
+<!ENTITY style.accesskey                  "S">
+<!ENTITY regularStyle.label               "Normaal">
+<!ENTITY bold.label                       "Fet">
+<!ENTITY italic.label                     "Skreef">
+<!ENTITY boldItalic.label                 "Fet en skreef">
+<!ENTITY size.label                       "Grutte:">
+<!ENTITY size.accesskey                   "G">
+<!ENTITY regularSize.label                "Normaal">
+<!ENTITY bigger.label                     "Grutter">
+<!ENTITY smaller.label                    "Lytser">
+<!ENTITY color.label                      "Kleur:">
+<!ENTITY color.accesskey                  "K">
+<!ENTITY displayWidth.label               "Platte-tekstberjochten">
+<!ENTITY displayText.label                "Sitearre tekst yn platte-tekstberjochten werjaan as:">
+<!ENTITY colors.label                     "Kleuren">
+<!ENTITY overrideColors.label             "By it werjaan fan berjochten de folgjende kleuren brûke:">
+<!ENTITY textColor.label                  "Tekstkleur:">
+<!ENTITY textColor.accesskey              "T">
+<!ENTITY backgroundColor.label            "Achtergrûnkleur:">
+<!ENTITY backgroundColor.accesskey        "A">
+
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+<!ENTITY convertEmoticons.label           "Glimkes werjaan as ôfbylding">
+<!ENTITY convertEmoticons.accesskey       "m">
+
+<!-- labels -->
+<!ENTITY displayTagsText.label            "Labels kinne brûkt wurde foar it kategorisearjen fan jo berjochten.">
+<!ENTITY addTagButton.label               "Tafoegje">
+<!ENTITY addTagButton.accesskey           "o">
+<!ENTITY editTagButton.label              "Bewurkje">
+<!ENTITY editTagButton.accesskey          "w">
+<!ENTITY removeTagButton.label            "Fuortsmite">
+<!ENTITY removeTagButton.accesskey        "s">
+
+<!-- Fonts -->
+<!ENTITY fontsAndColors.label    "Lettertypen">
+<!ENTITY defaultFont.label       "Standertlettertype:">
+<!ENTITY defaultFont.accesskey   "S">
+<!ENTITY defaultSize.label       "Grutte:">
+<!ENTITY defaultSize.accesskey   "G">
+<!ENTITY fontOptions.label       "Avansearre…">
+<!ENTITY fontOptions.accesskey   "s">

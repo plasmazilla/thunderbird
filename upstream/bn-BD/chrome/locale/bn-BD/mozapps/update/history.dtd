@@ -1,0 +1,12 @@
+
+<!ENTITY history.title "হালনাগাদ ইতিহাস">
+<!ENTITY history.intro "নিম্নলিখিত আপডেটগুলি ইনস্টল করা হয়েছে:">
+<!ENTITY closebutton.label "বন্ধ">
+                                     
+<!ENTITY noupdates.label "কোনো আপডেট এখন পর্যন্ত ইনস্টল করা হয়নি">
+
+<!ENTITY name.header "আপডেটের নাম">
+<!ENTITY date.header "ইনস্টল করার তারিখ">
+<!ENTITY type.header "ধরণ">
+<!ENTITY state.header "অবস্থা">
+

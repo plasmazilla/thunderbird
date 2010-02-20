@@ -1,0 +1,46 @@
+<!ENTITY itemFormatting.label "Formatering">
+<!ENTITY itemTags.label "Merkers">
+
+<!ENTITY style.label "Styl:">
+<!ENTITY style.accesskey "y">
+<!ENTITY regularStyle.label "Gewoon">
+<!ENTITY bold.label "Vet">
+<!ENTITY italic.label "Skuins">
+<!ENTITY boldItalic.label "Vet skuinsdruk">
+<!ENTITY size.label "Grootte:">
+<!ENTITY size.accesskey "G">
+<!ENTITY regularSize.label "Gewoon">
+<!ENTITY bigger.label "Groter">
+<!ENTITY smaller.label "Kleiner">
+<!ENTITY color.label "Kleur:">
+<!ENTITY color.accesskey "K">
+<!ENTITY displayWidth.label "Skoonteks-boodskappe">
+<!ENTITY displayText.label "Wanneer aangehaalde teks in skoonteks boodskappe gewys word:">
+<!ENTITY colors.label "Kleure">
+<!ENTITY overrideColors.label "Wanneer boodskappe vertoon word, gebruik die volgende kleur:">
+<!ENTITY textColor.label "Tekskleur:">
+<!ENTITY textColor.accesskey "T">
+<!ENTITY backgroundColor.label "Agtergrondkleur:">
+<!ENTITY backgroundColor.accesskey "A">
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+
+<!ENTITY convertEmoticons.label "Wys emotikons as grafika">
+<!ENTITY convertEmoticons.accesskey "W">
+<!-- labels -->
+
+<!ENTITY displayTagsText.label "Merkers kan gebruik word om u boodskappe te kategoriseer en te prioritiseer.">
+<!ENTITY addTagButton.label "Voeg by">
+<!ENTITY addTagButton.accesskey "V">
+<!ENTITY editTagButton.label "Redigeer">
+<!ENTITY editTagButton.accesskey "e">
+<!ENTITY removeTagButton.label "Skrap">
+<!ENTITY removeTagButton.accesskey "S">
+<!-- Fonts -->
+
+<!ENTITY fontsAndColors.label "Fonte">
+<!ENTITY defaultFont.label "Verstekfont:">
+<!ENTITY defaultFont.accesskey "V">
+<!ENTITY defaultSize.label "Grootte:">
+<!ENTITY defaultSize.accesskey "G">
+<!ENTITY fontOptions.accesskey "G">
+<!ENTITY fontOptions.label "Gevorderd…">

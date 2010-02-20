@@ -1,0 +1,59 @@
+<!ENTITY itemJunk.label          "Junk">
+<!ENTITY itemPhishing.label      "Betrugsversuche">
+<!ENTITY itemPasswords.label     "Passwörter">
+<!ENTITY itemAntiVirus.label     "Anti-Virus">
+<!ENTITY itemCookies.label       "Webinhalte">
+
+<!-- Junk Mail Controls -->
+<!ENTITY junkMail.intro "Die folgenden Einstellungen gelten für alle Konten. In den Konten-Einstellungen können zusätzlich für jedes Konto getrennte Einstellungen vorgenommen werden.">
+<!ENTITY manualMark.label "Wenn Nachrichten manuell als Junk markiert werden:">
+<!ENTITY manualMark.accesskey "W">
+<!ENTITY manualMarkModeMove.label "Verschiebe diese in den für Junk bestimmten Ordner des Kontos">
+<!ENTITY manualMarkModeMove.accesskey "V">
+<!ENTITY manualMarkModeDelete.label "Lösche diese Nachrichten">
+<!ENTITY manualMarkModeDelete.accesskey "L">
+<!ENTITY markAsReadOnSpam.label "Junk als gelesen markieren">
+<!ENTITY markAsReadOnSpam.accesskey "J">
+<!ENTITY enableJunkLogging.label "Junk-Protokoll aktivieren">
+<!ENTITY enableJunkLogging.accesskey "u">
+<!ENTITY openJunkLog.label "Protokoll anzeigen…">
+<!ENTITY openJunkLog.accesskey "P">
+<!ENTITY resetTrainingData.label "Trainingsdaten löschen">
+<!ENTITY resetTrainingData.accesskey "T">
+
+<!-- Phishing Detector -->
+<!ENTITY phishingDetector1.intro  "&brandShortName; kann vor möglichen Betrugsversuchen (Phishing) warnen, indem Nachrichten auf bekannte Techniken untersucht werden, die zu Betrugsversuchen genutzt werden. Es kann jedoch auch zu unberechtigten Verdachten kommen, da die verdächtigen Techniken teilweise auch ohne betrügerische Absichten genutzt werden.">
+<!ENTITY enablePhishingDetector1.label    "Nachrichten auf Betrugsversuche (Phishing) untersuchen">
+<!ENTITY enablePhishingDetector1.accesskey  "N">
+<!ENTITY useDownloadedList.label "Eine herunterladbare Liste möglicher Betrugsversuche verwenden">
+<!ENTITY useDownloadedList.accesskey "E">
+
+<!-- Passwords -->
+<!ENTITY savedPasswords.intro           "&brandShortName; kann die Passwörter aller Ihrer Konten speichern.">
+<!ENTITY useMasterPassword.label        "Master-Passwort verwenden">
+<!ENTITY useMasterPassword.accesskey    "M">
+<!ENTITY masterPassword.intro           "Ein Master-Passwort schützt alle gespeicherten Passwörter, Sie müssen es aber einmal pro Sitzung eingeben.">
+<!ENTITY changeMasterPassword.label     "Master-Password ändern…">
+<!ENTITY changeMasterPassword.accesskey "a">
+<!ENTITY savedPasswords.label           "Gespeicherte Passwörter…">
+<!ENTITY savedPasswords.accesskey       "G">
+
+<!-- Anti Virus -->
+<!ENTITY antiVirus.intro      "&brandShortName; kann es Anti-Virus-Software ermöglichen, eingehende Nachrichten zu überprüfen und eventuell in Quarantäne zu stellen (oder zu löschen), bevor diese im Posteingang gespeichert werden. Dies kann bei POP-Konten vor Datenverlust schützen, benötigt aber mehr Zeit.">
+<!ENTITY antiVirus.label      "Anti-Virus-Software ermöglichen, eingehende Nachrichten unter Quarantäne zu stellen">
+<!ENTITY antiVirus.accesskey  "A">
+
+<!-- Cookies -->
+<!ENTITY cookies.intro                  "&brandShortName; ermöglicht Regeln zur Festlegung, welche Blogs, Nachrichten-Feeds und sonstige Websites Cookies speichern dürfen.">
+<!ENTITY acceptCookies.label            "Cookies von Webseiten akzeptieren">
+<!ENTITY acceptCookies.accesskey        "c">
+<!ENTITY keepUntil.label                "Behalten, bis:">
+<!ENTITY keepUntil.accesskey            "B">
+<!ENTITY expire.label                   "sie nicht mehr gültig sind">
+<!ENTITY close.label                    "&brandShortName; geschlossen wird">
+<!ENTITY askEachTime.label              "jedes Mal nachfragen">
+<!ENTITY cookieExceptions.label         "Ausnahmen…">
+<!ENTITY cookieExceptions.accesskey     "A">
+<!ENTITY showCookies.label              "Cookies anzeigen…">
+<!ENTITY showCookies.accesskey          "o">
+

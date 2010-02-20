@@ -1,0 +1,99 @@
+<!ENTITY autoconfigWizard.title          "Ρύθμιση λογαριασμού αλληλογραφίας">
+
+
+<!ENTITY accountInformation.label        "Πληροφορίες λογαριασμού">
+
+
+<!ENTITY noEncryption.label              "Κανένα">
+<!ENTITY starttls.label                  "STARTTLS">
+<!ENTITY sslTls.label                    "SSL/TLS">
+
+<!ENTITY imap.label                      "IMAP">
+<!ENTITY pop.label                       "POP">
+<!ENTITY smtp.label                      "SMTP">
+
+<!ENTITY manualSetup.label               "Χειροκίνητη ρύθμιση…">
+<!ENTITY manualSetup.accesskey           "Χ">
+
+<!ENTITY username2.label                 "Όνομα χρήστη:">
+
+<!ENTITY email.label                     "Διεύθυνση Email:">
+<!ENTITY email.accesskey                 "l">
+<!ENTITY email.emptytext                 "email@example.com">
+
+<!ENTITY incoming.label                  "Εισερχομένων:">
+<!ENTITY outgoing.label                  "Εξερχομένων:">
+
+<!ENTITY name.label                      "Το όνομα σας:">
+<!ENTITY name.accesskey                  "ν">
+<!ENTITY name.emptytext                  "Όνομα - Επίθετο">
+<!ENTITY name.text                       "Το όνομα σας, όπως θα εμφανίζεται σε τρίτους">
+<!ENTITY password.label                  "Κωδικός:">
+<!ENTITY password.accesskey              "δ">
+<!ENTITY password.emptytext              "Κωδικός">
+<!ENTITY password.text                   "Προαιρετικός, θα χρησιμοποιηθεί μόνο για την επαλήθευση του ονόματος χρήστη">
+
+<!ENTITY startOver.label                 "Ρύθμιση ξανά">
+<!ENTITY startOver.accesskey             "ξ">
+
+
+
+<!-- LOCALIZATION NOTE (createAndEditSettings.label): This label is a link
+     which will create the account and take the user to the account
+     configuration screen. -->
+
+<!ENTITY cancel.label                    "Ακύρωση">
+<!ENTITY cancel.accesskey                "κ">
+<!ENTITY continue.label                  "Συνέχεια">
+<!ENTITY continue.accesskey              "ν">
+
+
+<!ENTITY stop.label                      "Διακοπή">
+<!ENTITY stop.accesskey                  "κ">
+<!-- LOCALIZATION NOTE (retest.label): This is the text that is
+     displayed on the button which will re-guess the account configuration,
+     taking into account the settings the user has changed. -->
+<!ENTITY retest.label                    "Επανέλεγχος ρύθμισης">
+<!ENTITY retest.accesskey                "π">
+<!ENTITY edit.label                      "Επεξεργασία">
+<!ENTITY edit.accesskey                  "Ε">
+
+<!ENTITY rememberPassword.label          "Απομνημόνευση κωδικού">
+<!ENTITY rememberPassword.accesskey      "μ">
+
+<!ENTITY warning.label                   "Προειδοποίηση!">
+<!ENTITY incomingSettings.label          "Ρυθμίσεις εισερχομένων:">
+<!ENTITY outgoingSettings.label          "Ρυθμίσεις εξερχομένων:">
+
+<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY createAccount.label             "Δημιουργία λογαριασμού">
+<!ENTITY createAccount.accesskey         "Δ">
+<!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
+     the incoming or outgoing servers, then the page that pops up will have
+     this text in a button to take you back to the previous page to change
+     the settings and try again. -->
+<!ENTITY changeSettings.label            "Αλλαγή ρυθμίσεων">
+<!ENTITY changeSettings.accesskey        "ρ">
+
+<!ENTITY contactYourProvider.description "Ο &brandShortName; μπορεί να σας επιτρέψει να κάνετε λήψη της αλληλογραφίας σας με αυτές τις ρυθμίσεις. Όμως, θα πρέπει να επικοινωνήσετε με τον διαχειριστή του συστήματος σας ή με τον πάροχο της ηλεκτρονικής αλληλογραφίας σας για αυτές τις μη ασφαλείς ρυθμίσεις. Δείτε το Thunderbird FAQ για περισσότερες πληροφορίες.">
+
+<!ENTITY insecureServer.tooltip.title    "Προειδοποίηση! Αυτός είναι ένας μη ασφαλής διακομιστής.">
+<!ENTITY insecureServer.tooltip.details  "Κάντε κλικ στον κύκλο για περισσότερες λεπτομέρειες.">
+
+
+<!ENTITY insecureSelfSigned.description  "Ο διακομιστής χρησιμοποιεί ένα πιστοποιητικό που δεν είναι έμπιστο, και δεν έτσι δεν είναι δυνατόν να είστε σίγουροι ότι κάποιος δεν παρεμβάλλετε στην επικοινωνία του &brandShortName; και του διακομιστή. Ο &brandShortName;θα σας επιτρέψει να κάνετε λήψη της αλληλογραφίας σας, αλλά θα πρέπει να ρυθμίσετε τον διακομιστή σας  να χρησιμοποιεί ασφαλή σύνδεση.">
+<!ENTITY secureServer.description        "Συγχαρητήρια! Αυτός είναι ένας ασφαλής διακομιστής.">
+<!ENTITY insecureUnencrypted.description "Το μήνυμα σας και η πιστοποίηση σας στέλνονται χωρίς κρυπτογράφηση και έτσι είναι εύκολο να διαβαστούν από τρίτους. Ο &brandShortName; θα σας επιτρέψει να κάνετε λήψη της αλληλογραφίας σας, αλλά θα πρέπει να ρυθμίσετε τον διακομιστή σας  να χρησιμοποιεί ασφαλή σύνδεση.">
+
+
+<!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
+     warning on the outgoing server, then the user will need to check a
+     checkbox beside this text before continuing. -->
+<!ENTITY confirmWarning.label            "Καταλαβαίνω τους κινδύνους.">
+<!ENTITY confirmWarning.accesskey        "λ">
+<!ENTITY technicaldetails.label          "Τεχνικές λεπτομέρειες">
+
+
+

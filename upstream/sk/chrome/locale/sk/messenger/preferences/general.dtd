@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "Úvodná stránka &brandShortName;u">
+<!ENTITY enableStartPage.label            "Pri štarte &brandShortName;u zobraziť stránku v oblasti správy">
+<!ENTITY enableStartPage.accesskey        "z">
+<!ENTITY location.label                   "Adresa:">
+<!ENTITY location1.accesskey              "A">
+<!ENTITY useDefault.label                 "Obnoviť predvolenú">
+<!ENTITY useDefault.accesskey             "d">
+
+<!ENTITY bounceSystemDockIcon.label       "Animovať ikonu v doku">
+<!ENTITY bounceSystemDockIcon.accesskey   "m">
+
+<!ENTITY newMessagesArrive.label          "Pri prijatí novej správy">
+<!ENTITY playSound.label                  "Prehrať zvuk">
+<!ENTITY playSound1.accesskey             "h">
+<!ENTITY showAnimatedAlert.label          "Zobraziť upozornenie">
+<!ENTITY showAnimatedAlert.accesskey      "b">
+<!ENTITY customizeMailAlert.label         "Prispôsobiť…">
+<!ENTITY customizeMailAlert.accesskey     "o">
+
+<!ENTITY play.label                       "Ukážka">
+<!ENTITY play.accesskey                   "U">
+<!ENTITY systemsound.label                "Predvolený systémový zvuk pre novú správu">
+<!ENTITY systemsoundMac.label             "Systémové zvukové upozornenie">
+<!ENTITY systemsoundMac.accesskey         "S">
+<!ENTITY systemsound.accesskey            "S">
+<!ENTITY customsound.label                "Použiť nasledovný zvukový súbor">
+<!ENTITY customsound.accesskey            "n">
+<!ENTITY browse.label                     "Prehľadávať…">
+<!ENTITY browse.accesskey                 "P">
+
+<!ENTITY addonsMgr.label                  "Doplnky">
+<!ENTITY manageAddonsDescWin.label        "Zmeniť nastavenia nainštalovaných doplnkov">
+<!ENTITY manageAddonsDescUnix2.label      "Zmeniť predvoľby nainštalovaných doplnkov">
+<!ENTITY manageAddons.label               "Spravovať doplnky…">
+<!ENTITY manageAddons.accesskey           "r">

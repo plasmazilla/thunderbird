@@ -1,0 +1,99 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Communicator.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corp.
+   - Portions created by the Initial Developer are Copyright (C) 2000
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   David Bienvenu <bienvenu@netscape.com>
+   -   Mohan Bhamidipati <mohanb@netscape.com>
+   -   Lorenzo Colitti   <lorenzo@colitti.com>
+   -   Stefan Borggraefe <Stefan.Borggraefe@gmx.de>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either of the GNU General Public License Version 2 or later (the "GPL"),
+   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY folderProps.windowtitle.label           "Eigenskippen">
+
+<!ENTITY generalInfo.label                       "Algemiene ynformaasje">
+<!ENTITY folderCharsetTab.label                  "Standert tekenset:">
+<!ENTITY folderCharsetTab.accesskey              "e">
+<!ENTITY folderCharsetOverride.label             "Standert tapasse op alle berjochten yn de map (de yn berjochten opjûne tekenset en autodeteksje wurde negearre)">
+<!ENTITY folderCharsetOverride.accesskey         "t">
+<!ENTITY folderRebuildSummaryFile.label          "Yndeks fernije">
+<!ENTITY folderRebuildSummaryFile.accesskey      "f">
+<!ENTITY folderRebuildSummaryFileTip.label       "Gearfettingsbestân fernije">      
+
+<!ENTITY retention.label "Behâldbelied">
+<!ENTITY retentionUseAccount.label  "Brûk myn accountynstellings">
+<!ENTITY retentionUseAccount.accesskey "r">
+<!ENTITY daysOld.label "dagen">
+<!ENTITY message.label "">
+<!ENTITY retentionCleanup.label "Om skiifromte frij te meitsjen, kinne âlde berjochten foargoed fuortsmiten wurde">
+<!ENTITY retentionCleanupImap.label "Om skiifromte frij te meitsjen, kinne âlde berjochten permanint fuortsmiten wurde, sawol lokale kopyen as de orizjinele op de tsjinner.">
+<!ENTITY retentionCleanupPop.label "Om skiifromte frij te meitsjen, kinne âlde berjochten permanint fuortsmiten wurde, ynklusyf orizjinelen op de tsjinner.">
+<!ENTITY retentionDeleteMsg.label "Berjochten fuortsmite dy't âlder binne as">
+<!ENTITY retentionDeleteMsg.accesskey "o">
+<!ENTITY retentionKeepAll.label "Gjin berjochten fuortsmite">
+<!ENTITY retentionKeepAll.accesskey "n">
+<!ENTITY retentionKeepRecent.label "Alle fuortsmite, útsein de lêste">
+<!ENTITY retentionKeepRecent.accesskey "a">
+<!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
+<!ENTITY retentionKeepUnreadHidden.label "Lêzen berjochten altyd fuortsmite (negearret leeftydsynstellings)">
+<!ENTITY retentionApplyToFlagged.label "Berjochten mei stjer altyd bewarje">
+<!ENTITY retentionApplyToFlagged.accesskey "e">
+
+<!ENTITY folderSynchronizationTab.label          "Syngronisaasje">
+<!ENTITY folderCheckForNewMessages.label         "Dizze map op nije berjochten kontrolearje">
+<!ENTITY folderCheckForNewMessages.accesskey     "k">
+
+<!ENTITY offlineFolder.check.label               "Dizze map foar gebrûk sûnder ferbining selektearje">
+<!ENTITY offlineFolder.check.accesskey           "s">
+<!ENTITY offlineFolder.button.label              "No ynlade">
+<!ENTITY offlineFolder.button.accesskey          "d">
+
+<!ENTITY selectofflineNewsgroup.check.label      "Dizze nijsgroep foar gebrûk sûnder ferbining selektearje">
+<!ENTITY selectofflineNewsgroup.check.accesskey  "f">
+<!ENTITY offlineNewsgroup.button.label           "No ynlade">
+<!ENTITY offlineNewsgroup.button.accesskey       "d">
+
+<!ENTITY folderProps.name.label                  "Namme:">
+<!ENTITY folderProps.name.accesskey              "m">
+<!ENTITY folderProps.location.label              "Lokaasje:">
+<!ENTITY folderProps.location.accesskey          "L">
+
+<!ENTITY folderSharingTab.label                  "Diele">
+<!ENTITY privileges.button.label                 "Privileezjes…">
+<!ENTITY privileges.button.accesskey             "P">
+<!ENTITY permissionsDesc.label                   "Jo hawwe de folgjende foegen:">
+<!ENTITY folderType.label                        "Maptype:">
+
+<!ENTITY folderQuotaTab.label                    "Kwota">
+<!ENTITY folderQuotaRoot.label                   "Kwota root:">
+<!ENTITY folderQuotaUsage.label                  "Gebrûk">
+<!ENTITY folderQuotaStatus.label                 "Steat:">

@@ -1,0 +1,41 @@
+
+<!-- LOCALIZATION NOTE (alwaysCheckDefault.height):
+  There's some sort of bug which makes wrapping checkboxes not properly reflow,
+  causing the bottom border of the groupbox to be cut off; set this
+  appropriately if your localization causes this checkbox to wrap.
+-->
+
+<!ENTITY messengerStartPage.label         "&brandShortName; ආරම්භක පිටුව">
+<!ENTITY enableStartPage.label            "&brandShortName; දියත් කිරීමේදී, ආරම්භක පිටුව ලිපි පෙදෙසේ (message area) පෙන්වන්න">
+<!ENTITY enableStartPage.accesskey        "W">
+<!ENTITY location.label                   "ස්ථානය:">
+<!ENTITY location1.accesskey               "o">
+<!ENTITY useDefault.label                 "පෙරනිමි නැවත පිහිටුවන්න">
+<!ENTITY useDefault.accesskey             "R">
+
+<!ENTITY bounceSystemDockIcon.label       "Animate the dock icon">
+<!ENTITY bounceSystemDockIcon.accesskey   "i">
+
+<!ENTITY newMessagesArrive.label          "නව ලිපි ලැබීමේදී:">
+<!ENTITY playSound.label                  "නාදයක් වාදනය කරන්න">
+<!ENTITY playSound1.accesskey              "d">
+<!ENTITY showAnimatedAlert.label          "සංඥාවක් කරන්න">
+<!ENTITY showAnimatedAlert.accesskey      "S">
+<!ENTITY customizeMailAlert.label         "රිසිකරණය...">
+<!ENTITY customizeMailAlert.accesskey     "C">
+
+<!ENTITY play.label                       "වාදනය කරන්න">
+<!ENTITY play.accesskey                   "P">
+<!ENTITY systemsound.label                "නව ලිපි සඳහා පෙරනිමි පද්ධති නාදය">
+<!ENTITY systemsoundMac.label             "පද්ධති සංඥා නාදය">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "පහත නාද ගොනුව භාවිතා කරන්න">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "පිරික්සන්න...">
+<!ENTITY browse.accesskey                 "B">
+<!ENTITY addonsMgr.label                  "ඇඩෝන">
+<!ENTITY manageAddonsDescWin.label        "ඔබගේ ඇඩෝන සඳහා වරණ වෙනස් කරන්න">
+<!ENTITY manageAddonsDescUnix2.label      "ඔබගේ ඇඩෝන සඳහා මනාපයන්  වෙනස් කරන්න">
+<!ENTITY manageAddons.label               "ඇඩෝන කළමණාකරණය…">
+<!ENTITY manageAddons.accesskey           "M">

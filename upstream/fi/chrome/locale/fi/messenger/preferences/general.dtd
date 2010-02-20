@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label          "&brandShortName;in aloitussivu">
+<!ENTITY enableStartPage.label             "Näytä aloitussivuna viestikentässä &brandShortName;in käynnistyessä:">
+<!ENTITY enableStartPage.accesskey         "N">
+<!ENTITY location.label                    "Osoite:">
+<!ENTITY location1.accesskey                "O">
+<!ENTITY useDefault.label                  "Palauta oletusasetus">
+<!ENTITY useDefault.accesskey              "P">
+
+<!ENTITY bounceSystemDockIcon.label        "Animoi pikakäynnistysvalikon kuvake">
+<!ENTITY bounceSystemDockIcon.accesskey    "m">
+
+<!ENTITY newMessagesArrive.label           "Uuden viestin saapuessa:">
+<!ENTITY playSound.label                   "Soita äänimerkki">
+<!ENTITY playSound1.accesskey               "o">
+<!ENTITY showAnimatedAlert.label           "Näytä hälytys">
+<!ENTITY showAnimatedAlert.accesskey       "ä">
+<!ENTITY customizeMailAlert.label         "Muokkaa…">
+<!ENTITY customizeMailAlert.accesskey     "M">
+
+<!ENTITY play.label                       "Toista">
+<!ENTITY play.accesskey                   "T">
+<!ENTITY systemsound.label                "Järjestelmän oletusäänimerkki uudelle sähköpostille">
+<!ENTITY systemsoundMac.label             "Järjestelmän huomioäänimerkki">
+<!ENTITY systemsoundMac.accesskey         "J">
+<!ENTITY systemsound.accesskey            "J">
+<!ENTITY customsound.label                "Käytä seuraavaa äänitiedostoa">
+<!ENTITY customsound.accesskey            "K">
+<!ENTITY browse.label                     "Selaa…">
+<!ENTITY browse.accesskey                 "S">
+
+<!ENTITY addonsMgr.label                  "Lisäosat">
+<!ENTITY manageAddonsDescWin.label        "Muokkaa lisäosia ja lisäosien asetuksia">
+<!ENTITY manageAddonsDescUnix2.label      "Muokkaa lisäosia ja lisäosien asetuksia">
+<!ENTITY manageAddons.label               "Hallinnoi lisäosia…">
+<!ENTITY manageAddons.accesskey           "M">

@@ -1,0 +1,23 @@
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale cookie fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/cookie/
+locale mozldap fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/mozldap/
+locale messenger-newsblog fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/messenger-newsblog/
+locale passwordmgr fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/passwordmgr/
+locale global fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/global/
+locale mozapps fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/mozapps/
+locale global-region fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/global-region/
+locale places fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/places/
+locale messenger-smime fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/messenger-smime/
+locale autoconfig fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/autoconfig/
+locale necko fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/necko/
+locale messenger-mapi fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/messenger-mapi/
+locale pippki fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/pippki/
+locale messenger fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/messenger/
+locale editor fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/editor/
+locale global-platform fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/global-platform/
+locale messenger-region fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/messenger-region/
+locale branding fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/branding/
+locale pipnss fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/pipnss/
+locale alerts fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/alerts/
+locale communicator fy-NL jar:chrome/fy-NL.jar!/locale/fy-NL/communicator/

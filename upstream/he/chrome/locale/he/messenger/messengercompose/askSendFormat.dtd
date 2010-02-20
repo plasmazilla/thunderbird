@@ -1,0 +1,16 @@
+<!ENTITY windowTitle.label "שאלת דואר HTML">
+
+<!ENTITY recipient.label "חלק מהנמענים לא נרשמו ככאלה היכולים לקבל דואר HTML.">
+
+
+<!ENTITY question.label "האם ברצונך להסב את ההודעה לטקסט פשוט או לשלוח אותה בעיצוב HTML בכל מקרה?">
+<!ENTITY plainTextAndHtml.label "שלח בטקסט פשוט וגם HTML">
+<!ENTITY plainTextAndHtml.accesskey "ט">
+<!ENTITY plainTextOnly.label "שלח בטקסט פשוט בלבד">
+<!ENTITY plainTextOnly.accesskey "פ">
+<!ENTITY htmlOnly.label "שלח ב־HTML בלבד">
+<!ENTITY htmlOnly.accesskey "H">
+
+<!ENTITY send.label "שלח">
+<!ENTITY send.accesskey "ש">
+

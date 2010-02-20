@@ -1,0 +1,21 @@
+<!ENTITY accountTitle.label "Tilin asetukset">
+
+<!ENTITY biffStart.label  "Hae uusia artikkeleita">
+<!ENTITY biffStart.accesskey  "H">
+<!ENTITY biffEnd.label  "minuutin välein">
+
+<!ENTITY loginAtStartup.label  "Hae uusia artikkeleita ohjelman käynnistyessä">
+<!ENTITY loginAtStartup.accesskey  "a">
+
+<!ENTITY useQuickMode.label  "Älä lataa artikkelin www-sivua, vaan näytä vain yhteenveto">
+<!ENTITY useQuickMode.accesskey  "Ä">
+
+<!ENTITY manageSubscriptions.label  "Muokkaa tilauksia…">
+<!ENTITY manageSubscriptions.accesskey  "M">
+
+<!-- entities from rss.rdf -->
+<!ENTITY feeds.accountName "Uutiset ja blogit">
+<!ENTITY feeds.wizardShortName "Syötteet">
+<!ENTITY feeds.wizardLongName "Uutis- ja blogisyötteet">
+<!ENTITY feeds.wizardLongName.accesskey "U">
+

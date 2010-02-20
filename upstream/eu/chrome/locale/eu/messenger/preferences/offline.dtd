@@ -1,0 +1,24 @@
+<!ENTITY offlineDialog.title "Lineaz kanpoko ezarpenak">
+
+<!ENTITY textStartUp "Abiaraztean:">
+<!ENTITY radioRememberPrevState.label "Gogoratu aurreko lineako egoera">
+<!ENTITY radioRememberPrevState.accesskey "r">
+<!ENTITY radioAskMe.label "Galdetu niri abiaraztean lineako egoeragatik">
+<!ENTITY radioAskMe.accesskey "u">
+<!ENTITY radioAlwaysOnline.label "Abiarazi linean beti">
+<!ENTITY radioAlwaysOnline.accesskey "l">
+
+<!ENTITY textGoingOnline "Bidali bidali gabeko mezuak linean jartzean?">
+<!ENTITY radioAutoSend.label "Bai">
+<!ENTITY radioAutoSend.accesskey "B">
+<!ENTITY radioNotSend.label "Ez">
+<!ENTITY radioNotSend.accesskey "E">
+<!ENTITY radioAskUnsent.label "Galdetu niri">
+<!ENTITY radioAskUnsent.accesskey "d">
+<!ENTITY textGoingOffline "Deskargatu mezuak lineaz kanpo erabiltzeko lineaz kanpo jartzean?">
+<!ENTITY radioAutoDownload.label "Bai">
+<!ENTITY radioAutoDownload.accesskey "a">
+<!ENTITY radioNotDownload.label "Ez">
+<!ENTITY radioNotDownload.accesskey "z">
+<!ENTITY radioAskDownload.label "Galdetu niri">
+<!ENTITY radioAskDownload.accesskey "G">

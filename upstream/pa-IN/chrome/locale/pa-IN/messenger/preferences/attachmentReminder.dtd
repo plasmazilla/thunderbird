@@ -1,0 +1,8 @@
+<!ENTITY attachmentReminderDialog.title   "ਅਟੈਚਮੈਂਟ ਰੀਮਾਈਡਰ ਸ਼ਬਦ">
+<!ENTITY attachKeywordText.label          "&brandShortName; ਤੁਹਾਨੂੰ ਯਾਦ ਕਰਵਾਏਗਾ, ਜੇ ਤੁਸੀਂ ਅਟੈਚ ਕਰਨਾ ਭੁੱਲ ਗਏ ਹੋਵੇ, ਜਦੋਂ ਕਿ ਈਮੇਲ ਸੁਨੇਹੇ ਵਿੱਚ ਇਹ ਸ਼ਬਦ ਵਰਤੇ ਗਏ ਹੋਣ।">
+<!ENTITY addKeywordButton.label           "ਸ਼ਾਮਲ">
+<!ENTITY addKeywordButton.accesskey       "A">
+<!ENTITY editKeywordButton.label          "ਸੋਧ">
+<!ENTITY editKeywordButton.accesskey      "E">
+<!ENTITY removeKeywordButton.label        "ਹਟਾਓ">
+<!ENTITY removeKeywordButton.accesskey    "D">

@@ -1,0 +1,8 @@
+<!ENTITY viewLog.title "Iragazkien loga">
+<!ENTITY viewLogInfo.text "Iragazkien loga kontu honetan erabili diren iragazkien jarduera gordetzen duen fitxategia da. Behean gai dezakezu aukera hau.">
+<!ENTITY clearLog.label "Garbitu loga">
+<!ENTITY clearLog.accesskey "G">
+<!ENTITY enableLog.label "Gaitu iragazkien loga">
+<!ENTITY enableLog.accesskey "a">
+<!ENTITY closeLog.label "Itxi">
+<!ENTITY closeLog.accesskey "t">

@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "&brandShortName; საწყისი გვერდი">
+<!ENTITY enableStartPage.label            "&brandShortName; სეანსის დაწყებისას საწყისი გვერდის წერილების არეში ჩვენება">
+<!ENTITY enableStartPage.accesskey        "W">
+<!ENTITY location.label                   "მისამართი:">
+<!ENTITY location1.accesskey               "o">
+<!ENTITY useDefault.label                 "ნაგულისხმების აღდგენა">
+<!ENTITY useDefault.accesskey             "R">
+
+<!ENTITY bounceSystemDockIcon.label       "პიქტოგრამის ანიმაცია">
+<!ENTITY bounceSystemDockIcon.accesskey   "i">
+
+<!ENTITY newMessagesArrive.label          "ახალი წერილის შემოსვლისას:">
+<!ENTITY playSound.label                  "გახმოვანება">
+<!ENTITY playSound1.accesskey              "d">
+<!ENTITY showAnimatedAlert.label          "გაფრთხილების ჩვენება">
+<!ENTITY showAnimatedAlert.accesskey      "S">
+<!ENTITY customizeMailAlert.label         "მორგება…">
+<!ENTITY customizeMailAlert.accesskey     "C">
+
+<!ENTITY play.label                       "გახმოვანება">
+<!ENTITY play.accesskey                   "P">
+<!ENTITY systemsound.label                "ახალი წერილის ნაგულისხმები სისტემური გახმოვანება">
+<!ENTITY systemsoundMac.label             "სისტემური სიგნალი">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "შემდეგი ხმოვანი ფაილის გამოყენება">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "ნუსხა…">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY addonsMgr.label                  "მოდულები">
+<!ENTITY manageAddonsDescWin.label        "პარამეტრების შეცვლა თქვენი მოდულებისთვის">
+<!ENTITY manageAddonsDescUnix2.label      "პარამეტრების შეცვლა თქვენი მოდულებისთვის">
+<!ENTITY manageAddons.label               "მოდულების მართვა…">
+<!ENTITY manageAddons.accesskey           "M">

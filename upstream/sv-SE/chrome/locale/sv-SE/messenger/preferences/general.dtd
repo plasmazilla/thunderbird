@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "Startsida">
+<!ENTITY enableStartPage.label            "Visa startsidan i förhandsgranskningen när &brandShortName; startar">
+<!ENTITY enableStartPage.accesskey        "ö">
+<!ENTITY location.label                   "Adress:">
+<!ENTITY location1.accesskey              "A">
+<!ENTITY useDefault.label                 "Återställ standard">
+<!ENTITY useDefault.accesskey             "Å">
+
+<!ENTITY bounceSystemDockIcon.label       "Animera dock-ikonen">
+<!ENTITY bounceSystemDockIcon.accesskey   "m">
+
+<!ENTITY newMessagesArrive.label          "När ny e-post kommer:">
+<!ENTITY playSound.label                  "Spela upp ett ljud">
+<!ENTITY playSound1.accesskey             "u">
+<!ENTITY showAnimatedAlert.label          "Visa en meddelanderuta">
+<!ENTITY showAnimatedAlert.accesskey      "V">
+<!ENTITY customizeMailAlert.label         "Anpassa…">
+<!ENTITY customizeMailAlert.accesskey     "n">
+
+<!ENTITY play.label                       "Spela upp">
+<!ENTITY play.accesskey                   "e">
+<!ENTITY systemsound.label                "Systemets standardljud">
+<!ENTITY systemsoundMac.label             "Systemets standardljud">
+<!ENTITY systemsoundMac.accesskey         "S">
+<!ENTITY systemsound.accesskey            "S">
+<!ENTITY customsound.label                "Använd följande ljudfil">
+<!ENTITY customsound.accesskey            "d">
+<!ENTITY browse.label                     "Bläddra…">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY addonsMgr.label               "Tillägg">
+<!ENTITY manageAddonsDescWin.label     "Ändra inställningar för dina tillägg">
+<!ENTITY manageAddonsDescUnix2.label   "Ändra inställningar för dina tillägg">
+<!ENTITY manageAddons.label            "Hantera tillägg…">
+<!ENTITY manageAddons.accesskey        "H">

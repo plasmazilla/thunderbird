@@ -1,0 +1,23 @@
+locale messenger-smime he jar:chrome/he.jar!/locale/he/messenger-smime/
+locale global-platform he jar:chrome/he.jar!/locale/he/global-platform/
+locale editor he jar:chrome/he.jar!/locale/he/editor/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale pippki he jar:chrome/he.jar!/locale/he/pippki/
+locale messenger he jar:chrome/he.jar!/locale/he/messenger/
+locale cookie he jar:chrome/he.jar!/locale/he/cookie/
+locale messenger-mapi he jar:chrome/he.jar!/locale/he/messenger-mapi/
+locale branding he jar:chrome/he.jar!/locale/he/branding/
+locale communicator he jar:chrome/he.jar!/locale/he/communicator/
+locale necko he jar:chrome/he.jar!/locale/he/necko/
+locale passwordmgr he jar:chrome/he.jar!/locale/he/passwordmgr/
+locale places he jar:chrome/he.jar!/locale/he/places/
+locale pipnss he jar:chrome/he.jar!/locale/he/pipnss/
+locale global-region he jar:chrome/he.jar!/locale/he/global-region/
+locale autoconfig he jar:chrome/he.jar!/locale/he/autoconfig/
+locale global he jar:chrome/he.jar!/locale/he/global/
+locale mozldap he jar:chrome/he.jar!/locale/he/mozldap/
+locale alerts he jar:chrome/he.jar!/locale/he/alerts/
+locale messenger-region he jar:chrome/he.jar!/locale/he/messenger-region/
+locale mozapps he jar:chrome/he.jar!/locale/he/mozapps/
+locale messenger-newsblog he jar:chrome/he.jar!/locale/he/messenger-newsblog/

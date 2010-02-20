@@ -1,0 +1,48 @@
+<!ENTITY fileMenu.label "File">
+<!ENTITY fileMenu.accesskey "F">
+<!ENTITY newMenu.label "Nuovo">
+<!ENTITY newMenu.accesskey "N">
+<!ENTITY editMenu.label "Modifica">
+<!ENTITY editMenu.accesskey "m">
+<!ENTITY undoCmd.label "Annulla">
+<!ENTITY undoCmd.key "Z">
+<!ENTITY undoCmd.accesskey "A">
+<!ENTITY redoCmd.label "Ripeti">
+<!ENTITY redoCmd.key "Y">
+<!ENTITY redoCmd.accesskey "R">
+<!ENTITY cutCmd.label "Taglia">
+<!ENTITY cutCmd.key "X">
+<!ENTITY cutCmd.accesskey "T">
+<!ENTITY copyCmd.label "Copia">
+<!ENTITY copyCmd.key "C">
+<!ENTITY copyCmd.accesskey "C">
+<!ENTITY pasteCmd.label "Incolla">
+<!ENTITY pasteCmd.key "V">
+<!ENTITY pasteCmd.accesskey "i">
+<!ENTITY deleteCmd.label "Elimina">
+<!ENTITY deleteCmd.accesskey "E">
+<!ENTITY selectAllCmd.label "Seleziona tutto">
+<!ENTITY selectAllCmd.key "A">
+<!ENTITY selectAllCmd.accesskey "S">
+<!ENTITY preferencesCmd.label "Opzioni…">
+<!ENTITY preferencesCmd.accesskey "O">
+<!ENTITY preferencesCmdUnix.label "Preferenze">
+<!ENTITY preferencesCmdUnix.accesskey "p">
+<!ENTITY viewMenu.label "Visualizza">
+<!ENTITY viewMenu.accesskey "V">
+<!ENTITY viewToolbarsMenu.label "Barre degli strumenti">
+<!ENTITY viewToolbarsMenu.accesskey "S">
+<!ENTITY showTaskbarCmd.label "Barra di stato">
+<!ENTITY showTaskbarCmd.accesskey "B">
+<!ENTITY proxy.label "Configurazione proxy…">
+<!ENTITY proxy.accesskey "C">
+<!ENTITY closeCmd.label "Chiudi">
+<!ENTITY closeCmd.key "W">
+<!ENTITY closeCmd.accesskey "h">
+<!ENTITY quitApplicationCmd.label "Esci">
+<!ENTITY quitApplicationCmd.key "Q">
+<!ENTITY quitApplicationCmd.accesskey "E">
+<!ENTITY quitApplicationCmdUnix.label "Esci">
+<!ENTITY quitApplicationCmdUnix.accesskey "E">
+<!ENTITY quitApplicationCmdMac.label "Esci da &brandShortName;">
+<!ENTITY quitApplicationCmdMac.accesskey "C">

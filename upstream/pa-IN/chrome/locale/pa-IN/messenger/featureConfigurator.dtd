@@ -1,0 +1,114 @@
+<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the
+Migration Assistant page. It should match featureConfiguratorCmd.label in
+baseMenuOverlay.dtd -->
+<!ENTITY featureConfigurator.title "ਮਾਈਗਰੇਟ ਸਹਾਇਕ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+<!ENTITY featureConfigurator.heading "ਥੰਡਰਬਰਡ ੩ ਫੀਚਰ, ਜਿਸ ਬਾਰੇ ਜਾਣਨਾ ਬਹੁਤ ਵਧੀਆ ਰਹੇਗਾ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
+is important: we tried for a tone that promotes the new features (which we
+believe are good and worth users learning about), but also emphasizing that we
+think it's important to preserve user choice. -->
+<!ENTITY featureConfigurator.para1 "ਥੰਡਰਬਰਡ ੩ ਵਿੱਚ ਬਹੁਤ ਹੀ ਤਾਕਤਵਰ ਨਵੇਂ ਫੀਚਰ ਹਨ, ਜਿੰਨ੍ਹਾਂ ਉੱਤੇ ਸਾਨੂੰ ਮਾਣ ਹੈ ਅਤੇ ਉਮੀਦ ਹੈ ਕਿ ਬਹੁਤੇ ਲੋਕ ਪਸੰਦ ਕਰਨਗੇ। ਲੋਕਾਂ ਦੀ ਪਸੰਦ ਅਤੇ ਲੋੜਾਂ ਅੱਡ ਅੱਡ ਹੁੰਦੀਆਂ ਨੇ, ਅਸੀਂ ਥੰਡਰਬਰਡ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨਾ ਅਤੇ ਕਸਟਮਾਈਜ਼ ਕਰਨਾ ਸੌਖਾ ਬਣਾਇਆ ਹੈ।">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
+that this page is active (the buttons change the UI), and that they can get
+back to it if they change their mind later.-->
+<!ENTITY featureConfigurator.para2 "ਇਹ ਨਵੀਂ ਸੈਟਿੰਗ ਦੀ ਸੰਰਚਨਾ ਲਈ ਇਹ ਪੇਜ਼ ਵਰਤੋਂ। ਤੁਸੀਂ ਬਾਅਦ ਵਿੱਚ ਵੀ ਮੱਦਦ ਮੇਨੂ ਵਿੱਚ ਮਾਈਗਰੇਸ਼ਨ ਸਹਾਇਕ ਨੂੰ ਖੋਲ ਸਕਦੇ ਹੋ।">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.imap.heading): Heading for the
+IMAP synchronization feature. The words should probably echo the word used
+in the per-account dialog.-->
+<!ENTITY featureConfigurator.imap.heading "IMAP ਸੁਨੇਹੇ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
+
+<!ENTITY featureConfigurator.imap.status.all "All of your IMAP folders are set to &quot;synchronize&quot;.">
+
+<!ENTITY featureConfigurator.imap.status.none "None of your IMAP folders are set to &quot;synchronize&quot;.">
+
+<!ENTITY featureConfigurator.imap.status.some "Some of your IMAP folders are set to &quot;synchronize&quot;.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.benefits.label): The heading here
+is intended to explain why we've implemented this and picked it as a default.-->
+<!ENTITY featureConfigurator.benefits.label "ਫਾਇਦੇ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.alternative.label): The heading here
+is intended to explain why it might not be the right default for some users.-->
+<!ENTITY featureConfigurator.alternative.label "ਬਦਲ">
+
+<!ENTITY featureConfigurator.syncBenefits.para "Lets you read your mail when you're not connected to the internet, and lets you find messages based on the words they contain, not just the subjects and names.">
+<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird will download all your mail onto this computer. Turn it off if you're low on disk space, or you have to pay for network traffic.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
+lower case is intentional, but may be overriden if that doesn't make sense
+because of a specific language context.-->
+<!ENTITY featureConfigurator.syncAll.button "ਸਭ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.syncNone.button): The choice of
+lower case is intentional, but may be overriden if that doesn't make sense
+because of a specific language context.-->
+<!ENTITY featureConfigurator.syncNone.button "ਕੋਈ ਵੀ ਸੈਕਰੋਨਾਈਜ਼ ਨਾ ਕਰੋ">
+
+<!ENTITY featureConfigurator.advancedUsers.label "ਮਾਹਰ ਯੂਜ਼ਰ:">
+<!ENTITY featureConfigurator.advancedUsers.para "ਤੁਸੀਂ ਹਰ ਅਕਾਊਂਟ ਅਤੇ ਹਰ ਫੋਲਡਰ ਲਈ ਵੀ ਕਸਟਮਾਈਜ਼ ਕਰ ਸਕਦੇ ਹੋ:">
+
+<!ENTITY featureConfigurator.toolbar.heading "ਨਵੀਂ ਟੂਲਬਾਰ">
+<!ENTITY featureConfigurator.toolbar.new.status "ਨਵੀਂ ਟੂਲਬਾਰ ਦੀ ਵਰਤੋਂ ਕਰਕੇ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original.status): The
+word 'original' is chosen deliberately to be neutral, vs. 'old' which in
+English at least had a negative connotation.-->
+<!ENTITY featureConfigurator.toolbar.original.status "ਅਸਲੀ ਟੂਲਬਾਰ ਦੀ ਵਰਤੋਂ।">
+
+<!ENTITY featureConfigurator.toolbarBenefits.para "ਸਾਫ਼ ਇੰਟਰਫੇਸ, ਜੋ ਕਿ ਪਿਛਲੇ ਡਿਫਾਲਟ ਦੀ ਬਜਾਏ ਵੱੱਧ ਥਾਂ ਦਿੰਦਾ ਹੈ, ਜਿਸ ਨਾਲ ਖੋਜ ਟੈਕਸਟ ਬਾਕਸ ਲਈ ਹੋਰ ਥਾਂ ਹੈ, ਨਾਲ ਹੀ ਨਾਲ ਐਡ-ਆਨ ਲਈ ਵੀ।">
+<!ENTITY featureConfigurator.toolbarAlternative.para "If you like the old toolbar configuration better, you don't want to re-customize it, or you don't use the message pane in your layout.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.useOriginalToolbar.button): The
+choice of lower case is intentional, but may be overriden if that doesn't make
+sense because of a specific language context.-->
+<!ENTITY featureConfigurator.useOriginalToolbar.button "ਅਸਲੀ ਟੂਲਬਾਰ ਵਰਤੋਂ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.useNewToolbar.button): The
+choice of lower case is intentional, but may be overriden if that doesn't make
+sense because of a specific language context.-->
+<!ENTITY featureConfigurator.useNewToolbar.button "ਨਵੀਂ ਟੂਲਬਾਰ ਵਰਤੋਂ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.heading): The
+words here should echo the name of the mode shown in the folder pane.-->
+<!ENTITY featureConfigurator.smartFolders.heading "ਸਮਾਰਟ ਫੋਲਡਰ ਮੋਡ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.smart.status): This
+shows that the current mode in the folder pane is the Smart Folders mode.-->
+<!ENTITY featureConfigurator.smartFolders.smart.status "&quot;smart folders&quot; ਮੋਡ ਦੀ ਵਰਤੋਂ।">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.all.status): This
+shows that the current mode in the folder pane is not the Smart Folders mode.-->
+<!ENTITY featureConfigurator.smartFolders.all.status "&quot;smart folders&quot; ਮੋਡ ਦੀ ਵਰਤੋਂ ਨਾ ਕਰਕੇ">
+
+<!ENTITY featureConfigurator.smartFolderBenefits.para "ਕਈ ਅਕਾਊਂਟ ਰੱਖਣ ਵਾਲੇ ਯੂਜ਼ਰਾਂ ਲਈ ਇਹ ਝਲਕ ਫੋਲਡਰਾਂ ਨੂੰ ਇਨ-ਬਾਕਸ ਵਿੱਚ ਇੱਕਠੇ ਵੇਖਾਉਂਦਾ ਹੈ, ਇਸ ਨਾਲ ਤੁਸੀਂ ਆਪਣੇ ਸਭ ਮੇਲਾਂ ਲਈ ਝਲਕ ਇੱਕਠੀ ਵੇਖ ਸਕਦੇ ਹੋ।">
+<!ENTITY featureConfigurator.smartFolderAlternative.para "If you like splitting information across accounts then you'll prefer the &quot;All Folders&quot; mode.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.useSmartFolders.button): The
+choice of lower case is intentional, but may be overriden if that doesn't make
+sense because of a specific language context.-->
+<!ENTITY featureConfigurator.useSmartFolders.button "&quot;smart folders&quot; ਮੋਡ ਵਰਤੋਂ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.useAllFolders.button): The
+choice of lower case is intentional, but may be overriden if that doesn't make
+sense because of a specific language context.-->
+<!ENTITY featureConfigurator.useAllFolders.button "&quot;ਸਭ ਫੋਲਡਰ (all folders)&quot; ਮੋਡ ਵਰਤੋਂ">
+
+<!ENTITY featureConfigurator.collapsedHeaders.heading "ਹੈੱਡਰ ਸਮੇਟੇ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
+of the paragraph before the beginning of the link to the AMO search page.-->
+<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 has improved the detailed message header view, including buttons for message-related actions. There are alternative designs available as ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
+the link to the AMO search page.-->
+<!ENTITY featureConfigurator.headerParaLinkName "ਐਡ-ਆਨ">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.headerParaAfterLink): The part of
+the paragraph after the link to the AMO search page.-->
+<!ENTITY featureConfigurator.headerParaAfterLink ".">
+

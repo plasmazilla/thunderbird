@@ -1,0 +1,20 @@
+<!ENTITY junkSettings.label "නිසරු ලිපි සැකසම්">
+<!ENTITY trainingWarning.label "සබල කර ඇත්නම්, නිසරු ලිපි මෙවලම් තීරුවේ බොත්තම භාවිතයෙන් නිසරු ලිපි හඳුනාගැනීම සඳහා &brandShortName; පුහුණු කළ යුතුය. මේ සඳහා ඔබ විසින් නිසරු හා නිසරු නොවන ලිපි හඳුනාගත යුතුය.">
+<!ENTITY level.label "මෙම ගිණුමේ අනුවර්තක (adaptive) නිසරු ලිපි පාලක සබල කරන්න">
+<!ENTITY level.accesskey "E">
+
+<!ENTITY move.label "නව නිසරු ලිපි මෙතනට ගෙනයන්න:">
+<!ENTITY move.accesskey "M">
+<!ENTITY junkFolderOn.label "මේ මත ඇති &quot;නිසරු ලිපි&quot; ෆෝල්ඩරයට:">
+<!ENTITY junkFolderOn.accesskey "J">
+<!ENTITY otherFolder.label "වෙනත්:">
+<!ENTITY otherFolder.accesskey "O">
+<!ENTITY purge1.label "දින ">
+<!ENTITY purge1.accesskey "u">
+<!ENTITY purge2.label " කට වඩා පැරණි නිසරු ලිපි ස්වයංක්‍රීයවම මකා දමන්න">
+
+<!ENTITY whitelist.label "එවන්නා මෙතුළ සිටී නම් ලිපි නිසරු සේ සළකුණු නොකරන්න: ">
+<!ENTITY whitelist.accesskey "D">
+
+<!ENTITY ispHeaders.label "මෙමඟින් සකසන ලද නිසරු ලිපි ශීර්ෂයන් පිළිගන්න: ">
+<!ENTITY ispHeaders.accesskey "T">

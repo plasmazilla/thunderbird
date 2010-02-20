@@ -1,0 +1,65 @@
+<!ENTITY securitySettings.label "Impostazioni di sicurezza">
+<!ENTITY serverSettings.label "Impostazioni server">
+<!ENTITY serverType.label "Tipo di server:">
+<!ENTITY serverName.label "Nome server:">
+<!ENTITY serverName.accesskey "N">
+<!ENTITY userName.label "Nome utente:">
+<!ENTITY userName.accesskey "N">
+<!ENTITY port.label "Porta:">
+<!ENTITY port.accesskey "P">
+<!ENTITY serverPortDefault.label "Predefinito:">
+<!ENTITY biffStart.label "Controlla nuovi messaggi ogni ">
+<!ENTITY biffStart.accesskey "i">
+<!ENTITY biffEnd.label "minuti">
+<!ENTITY connectionSecurity.label "Sicurezza della connessione:">
+<!ENTITY connectionSecurity.accesskey "d">
+<!ENTITY connectionSecurityType-0.label "Nessuno">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, se disponibile">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY useSecAuth.label "Utilizza autenticazione cifrata">
+<!ENTITY useSecAuth.accesskey "z">
+<!ENTITY leaveOnServer.label "Lascia i messaggi sul server">
+<!ENTITY leaveOnServer.accesskey "g">
+<!ENTITY headersOnly.label "Preleva soltanto le intestazioni">
+<!ENTITY headersOnly.accesskey "r">
+<!ENTITY deleteByAgeFromServer.label "non più di">
+<!ENTITY deleteByAgeFromServer.accesskey "p">
+<!ENTITY daysEnd.label "giorni">
+<!ENTITY deleteOnServer2.label "finché non vengono eliminati">
+<!ENTITY deleteOnServer2.accesskey "h">
+<!ENTITY downloadOnBiff.label "Scarica automaticamente nuovi messaggi">
+<!ENTITY downloadOnBiff.accesskey "m">
+<!ENTITY username.label "Nome di accesso">
+<!ENTITY deleteMessagePrefix.label "Quando si elimina un messaggio:">
+<!ENTITY modelMoveToTrash.label "Spostalo in questa cartella:">
+<!ENTITY modelMoveToTrash.accesskey "o">
+<!ENTITY modelMarkDeleted.label "Marcalo eliminato">
+<!ENTITY modelMarkDeleted.accesskey "e">
+<!ENTITY modelDeleteImmediately.label "Rimuovilo immediatamente">
+<!ENTITY modelDeleteImmediately.accesskey "R">
+<!ENTITY expungeOnExit.label "All'uscita pulisci la Posta in arrivo (&quot;Expunge&quot;)">
+<!ENTITY expungeOnExit.accesskey "E">
+<!ENTITY emptyTrashOnExit.label "Svuota cestino all'uscita">
+<!ENTITY emptyTrashOnExit.accesskey "u">
+<!ENTITY loginAtStartup.label "Controlla nuovi messaggi all'avvio">
+<!ENTITY loginAtStartup.accesskey "C">
+<!ENTITY maxMessagesStart.label "Chiedi prima di scaricare più di">
+<!ENTITY maxMessagesStart.accesskey "m">
+<!ENTITY maxMessagesEnd.label "messaggi">
+<!ENTITY alwaysAuthenticate.label "Chiedi sempre l'autenticazione alla connessione a questo server">
+<!ENTITY alwaysAuthenticate.accesskey "h">
+<!ENTITY newsrcFilePath.label "File newsrc:">
+<!ENTITY localPath.label "Cartella locale:">
+<!ENTITY abbreviate.label "Mostra nome del gruppo di discussione nel pannello della posta così:">
+<!ENTITY abbreviateOn.label "Nomi completi (Per esempio, 'netscape.public.mozilla.mail-news')">
+<!ENTITY abbreviateOff.label "Nomi abbreviati (Per esempio, 'n.p.m.mail-news')">
+<!ENTITY advancedButton.label "Avanzate…">
+<!ENTITY advancedButton.accesskey "v">
+<!ENTITY serverDefaultCharset.label "Codifica carattere predefinita:">
+<!ENTITY localFolderPicker.label "Scegliere la cartella locale">
+<!ENTITY browseFolder.label "Sfoglia…">
+<!ENTITY browseFolder.accesskey "S">
+<!ENTITY newsrcPicker.label "Seleziona il file newsrc">
+<!ENTITY browseNewsrc.label "Sfoglia…">
+<!ENTITY browseNewsrc.accesskey "o">

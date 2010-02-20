@@ -1,0 +1,5 @@
+<!--null-->
+<!ENTITY nameColumn.label "Nama">
+<!ENTITY unreadColumn.label "Belum Dibaca">
+<!ENTITY totalColumn.label "Total">
+<!ENTITY folderSizeColumn.label "Ukuran">

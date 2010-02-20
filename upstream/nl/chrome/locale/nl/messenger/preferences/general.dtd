@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "&brandShortName;-startpagina">
+<!ENTITY enableStartPage.label            "Wanneer &brandShortName; start, de startpagina in het berichtgedeelte tonen">
+<!ENTITY enableStartPage.accesskey        "W">
+<!ENTITY location.label                   "Locatie:">
+<!ENTITY location1.accesskey              "L">
+<!ENTITY useDefault.label                 "Standaardinstelling herstellen">
+<!ENTITY useDefault.accesskey             "S">
+
+<!ENTITY bounceSystemDockIcon.label       "Het systeemvakpictogram animeren">
+<!ENTITY bounceSystemDockIcon.accesskey   "i">
+
+<!ENTITY newMessagesArrive.label          "Als nieuwe berichten arriveren:">
+<!ENTITY playSound.label                  "Een geluid afspelen">
+<!ENTITY playSound1.accesskey             "u">
+<!ENTITY showAnimatedAlert.label          "Een melding tonen">
+<!ENTITY showAnimatedAlert.accesskey      "t">
+<!ENTITY customizeMailAlert.label         "Aanpassen…">
+<!ENTITY customizeMailAlert.accesskey     "A">
+
+<!ENTITY play.label                       "Afspelen">
+<!ENTITY play.accesskey                   "f">
+<!ENTITY systemsound.label                "Standaard systeemgeluid voor nieuwe e-mail">
+<!ENTITY systemsoundMac.label             "Systeemalarmgeluid">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "Het volgende geluidsbestand gebruiken">
+<!ENTITY customsound.accesskey            "v">
+<!ENTITY browse.label                     "Bladeren…">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY addonsMgr.label                  "Add-ons">
+<!ENTITY manageAddonsDescWin.label        "Opties van uw add-ons aanpassen">
+<!ENTITY manageAddonsDescUnix2.label      "Voorkeuren van uw add-ons aanpassen">
+<!ENTITY manageAddons.label               "Add-ons beheren…">
+<!ENTITY manageAddons.accesskey           "e">

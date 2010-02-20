@@ -1,0 +1,98 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Communicator.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corp.
+   - Portions created by the Initial Developer are Copyright (C) 2000
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   David Bienvenu <bienvenu@netscape.com>
+   -   Mohan Bhamidipati <mohanb@netscape.com>
+   -   Lorenzo Colitti   <lorenzo@colitti.com>
+   -   Stefan Borggraefe <Stefan.Borggraefe@gmx.de>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either of the GNU General Public License Version 2 or later (the "GPL"),
+   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY folderProps.windowtitle.label           "ලක්ෂණ">
+<!ENTITY generalInfo.label                       "සාමාන්‍ය තොරතුරු">
+<!ENTITY folderCharsetTab.label                  "පෙරනිමි (Default) අකුරු කේතනයන්:">
+<!ENTITY folderCharsetTab.accesskey              "E">
+<!ENTITY folderCharsetOverride.label             "Apply default to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
+<!ENTITY folderCharsetOverride.accesskey         "A">
+<!ENTITY folderRebuildSummaryFile.label          "සූචිය (Index) යළි ගොඩනඟන්න">
+<!ENTITY folderRebuildSummaryFile.accesskey      "R">
+<!ENTITY folderRebuildSummaryFileTip.label       "සාරාංශ (Summary) ගොනුව යළි ගොඩනඟන්න">
+
+<!ENTITY retention.label "තබාගැනීමේ පිළිවෙත">
+<!ENTITY retentionUseAccount.label  "මගේ ගිණූම් සැකසුම් භාවිතා කරන්න">
+<!ENTITY retentionUseAccount.accesskey "U">
+<!ENTITY daysOld.label "දිනකට වඩා පැරණි ලිපි">
+<!ENTITY message.label "ලිපි">
+<!ENTITY retentionCleanup.label "ඩිස්කයේ ඉඩ ලබා ගැනීමට, පැරණි ලිපි ස්ථිරව මැකිය හැකිය">
+<!ENTITY retentionCleanupImap.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, සමීප පිටපත්(local copies)  සහ  සේවාදායකයේ මුල් ලිපි (originals on the remote server)යන ආකාර දෙකේම පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය.">
+<!ENTITY retentionCleanupPop.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, සේවාදායකයේ මුල් ලිපි (originals on the remote server) ඇතුළු පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය.">
+<!ENTITY retentionDeleteMsg.label "මීට වැඩි ලිපි මකා දමන්න">
+<!ENTITY retentionDeleteMsg.accesskey "m">
+ <!ENTITY retentionKeepAll.label "කිසිඳු ලිපියක් මකන්න එපා">
+<!ENTITY retentionKeepAll.accesskey "A">
+<!ENTITY retentionKeepRecent.label "මෙම ආසන්නතම ලිපිය හැර සියල්ල මකන්න">
+<!ENTITY retentionKeepRecent.accesskey "l">
+<!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
+<!ENTITY retentionKeepUnreadHidden.label "යවූ ලිපි සෑමවිටම මකන්න (කාළ සැකසුම් නොසලකන්න)">
+<!ENTITY retentionApplyToFlagged.label "තරුයෙදූ ලිපි සෑමවිටම තබාගන්න">
+<!ENTITY retentionApplyToFlagged.accesskey "e">
+
+<!ENTITY folderSynchronizationTab.label          "සම්මුහුර්තකරණය (Synchronization)">
+<!ENTITY folderCheckForNewMessages.label         "නව ලිපි සඳහා මෙම ෆෝල්ඩරය පරීක්ෂා කරන්න">
+<!ENTITY folderCheckForNewMessages.accesskey     "C">
+
+<!ENTITY offlineFolder.check.label               "අසම්බන්ධිතව භාවිතාව සඳහා මෙම ෆෝල්ඩරය තෝරන්න">
+<!ENTITY offlineFolder.check.accesskey           "S">
+<!ENTITY offlineFolder.button.label              "දැන් බාගත කරන්න">
+<!ENTITY offlineFolder.button.accesskey          "D">
+
+<!ENTITY selectofflineNewsgroup.check.label      "අසම්බන්ධිතව භාවිතාව සඳහා මෙම පුවත්සමූහය තෝරන්න">
+<!ENTITY selectofflineNewsgroup.check.accesskey  "o">
+<!ENTITY offlineNewsgroup.button.label           "දැන් බාගත කරන්න">
+<!ENTITY offlineNewsgroup.button.accesskey       "D">
+
+<!ENTITY folderProps.name.label                  "නම:">
+<!ENTITY folderProps.name.accesskey              "N">
+<!ENTITY folderProps.location.label              "ස්ථානය:">
+<!ENTITY folderProps.location.accesskey          "L">
+
+<!ENTITY folderSharingTab.label                  "බෙදාගැනීම">
+<!ENTITY privileges.button.label                 "වරප්‍රසාදයන්...">
+<!ENTITY privileges.button.accesskey             "P">
+<!ENTITY permissionsDesc.label                   "ඔබට පහත අවසරයන් ඇත:">
+<!ENTITY folderType.label                        "ෆෝල්ඩර ආකාරය:">
+
+<!ENTITY folderQuotaTab.label                    "Quota">
+<!ENTITY folderQuotaRoot.label                   "Quota Root:">
+<!ENTITY folderQuotaUsage.label                  "භාවිතාව:">
+<!ENTITY folderQuotaStatus.label                 "තත්ත්වය:">

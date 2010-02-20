@@ -1,0 +1,23 @@
+locale pipnss ka jar:chrome/ka.jar!/locale/ka/pipnss/
+locale messenger-newsblog ka jar:chrome/ka.jar!/locale/ka/messenger-newsblog/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale pippki ka jar:chrome/ka.jar!/locale/ka/pippki/
+locale global-region ka jar:chrome/ka.jar!/locale/ka/global-region/
+locale branding ka jar:chrome/ka.jar!/locale/ka/branding/
+locale cookie ka jar:chrome/ka.jar!/locale/ka/cookie/
+locale autoconfig ka jar:chrome/ka.jar!/locale/ka/autoconfig/
+locale messenger-mapi ka jar:chrome/ka.jar!/locale/ka/messenger-mapi/
+locale mozapps ka jar:chrome/ka.jar!/locale/ka/mozapps/
+locale global ka jar:chrome/ka.jar!/locale/ka/global/
+locale passwordmgr ka jar:chrome/ka.jar!/locale/ka/passwordmgr/
+locale messenger-region ka jar:chrome/ka.jar!/locale/ka/messenger-region/
+locale alerts ka jar:chrome/ka.jar!/locale/ka/alerts/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale mozldap ka jar:chrome/ka.jar!/locale/ka/mozldap/
+locale global-platform ka jar:chrome/ka.jar!/locale/ka/global-platform/
+locale places ka jar:chrome/ka.jar!/locale/ka/places/
+locale necko ka jar:chrome/ka.jar!/locale/ka/necko/
+locale editor ka jar:chrome/ka.jar!/locale/ka/editor/
+locale messenger ka jar:chrome/ka.jar!/locale/ka/messenger/
+locale messenger-smime ka jar:chrome/ka.jar!/locale/ka/messenger-smime/
+locale communicator ka jar:chrome/ka.jar!/locale/ka/communicator/

@@ -1,0 +1,22 @@
+<!-- extracted from EdReplace.xul -->
+
+<!ENTITY replaceDialog.title "Gjej dhe Zëvendëso">
+<!ENTITY findField.label "Gjej tekst:">
+<!ENTITY findField.accesskey "g">
+<!ENTITY replaceField.label "Zëvendësoje me:">
+<!ENTITY replaceField.accesskey "m">
+<!ENTITY caseSensitiveCheckbox.label "Saktësisht siç është shkruajtur">
+<!ENTITY caseSensitiveCheckbox.accesskey "S">
+<!ENTITY wrapCheckbox.label "Mbështille përreth">
+<!ENTITY wrapCheckbox.accesskey "b">
+<!ENTITY backwardsCheckbox.label "Kërko mbrapsht">
+<!ENTITY backwardsCheckbox.accesskey "K">
+<!ENTITY findNextButton.label "Gjej Pasuesen">
+<!ENTITY findNextButton.accesskey "p">
+<!ENTITY replaceButton.label "Zëvendësoje">
+<!ENTITY replaceButton.accesskey "Z">
+<!ENTITY replaceAndFindButton.label "Zëvendëso dhe Gjej">
+<!ENTITY replaceAndFindButton.accesskey "d">
+<!ENTITY replaceAllButton.label "Zëvendësoji të Tëra">
+<!ENTITY replaceAllButton.accesskey "t">
+<!ENTITY closeButton.label "Mbylle">

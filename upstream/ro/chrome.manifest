@@ -1,0 +1,23 @@
+locale branding ro jar:chrome/ro.jar!/locale/ro/branding/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale alerts ro jar:chrome/ro.jar!/locale/ro/alerts/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale messenger-smime ro jar:chrome/ro.jar!/locale/ro/messenger-smime/
+locale passwordmgr ro jar:chrome/ro.jar!/locale/ro/passwordmgr/
+locale autoconfig ro jar:chrome/ro.jar!/locale/ro/autoconfig/
+locale messenger ro jar:chrome/ro.jar!/locale/ro/messenger/
+locale mozapps ro jar:chrome/ro.jar!/locale/ro/mozapps/
+locale messenger-region ro jar:chrome/ro.jar!/locale/ro/messenger-region/
+locale messenger-mapi ro jar:chrome/ro.jar!/locale/ro/messenger-mapi/
+locale communicator ro jar:chrome/ro.jar!/locale/ro/communicator/
+locale messenger-newsblog ro jar:chrome/ro.jar!/locale/ro/messenger-newsblog/
+locale necko ro jar:chrome/ro.jar!/locale/ro/necko/
+locale pippki ro jar:chrome/ro.jar!/locale/ro/pippki/
+locale editor ro jar:chrome/ro.jar!/locale/ro/editor/
+locale global ro jar:chrome/ro.jar!/locale/ro/global/
+locale mozldap ro jar:chrome/ro.jar!/locale/ro/mozldap/
+locale cookie ro jar:chrome/ro.jar!/locale/ro/cookie/
+locale places ro jar:chrome/ro.jar!/locale/ro/places/
+locale pipnss ro jar:chrome/ro.jar!/locale/ro/pipnss/
+locale global-region ro jar:chrome/ro.jar!/locale/ro/global-region/
+locale global-platform ro jar:chrome/ro.jar!/locale/ro/global-platform/

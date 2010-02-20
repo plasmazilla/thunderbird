@@ -1,0 +1,19 @@
+<!ENTITY aboutDialog.title      "&brandFullName; პროგრამის შესახებ">
+<!ENTITY aboutButton.label      "&lt; უკან">
+<!ENTITY aboutButton.accesskey  "B">
+<!ENTITY aboutVersion           "ვერსია">
+<!ENTITY copyrightText          "&#169;1998-2009 პროგრამის ავტორები. ყველა უფლება დაცულია. Mozilla Thunderbird და 
+                                 Thunderbird ლოგოები Mozilla-ს ფონდის სავაჭრო ნიშნებია.  ყველა უფლება 
+                                 დაცულია.">
+<!ENTITY aboutMenu.label        "პროგრამის შესახებ">
+<!ENTITY aboutMenu.accesskey    "A">
+<!ENTITY aboutCredits.label     "მადლობები">
+<!ENTITY aboutCredits.accesskey "C">
+<!ENTITY aboutRights.label      "თქვენი უფლებები">
+<!ENTITY aboutRights.accesskey  "R">
+<!ENTITY aboutContributors.label "თანაავტორები">
+<!ENTITY aboutContributors.accesskey "o">
+<!ENTITY aboutLicense.label      "ლიცენზია">
+<!ENTITY aboutLicense.accesskey  "L">
+
+<!ENTITY cmdCloseMac.commandKey "w">

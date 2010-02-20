@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label  "Strona startowa programu &brandShortName;">
+<!ENTITY enableStartPage.label     "Po uruchomieniu programu wyświetlaj poniższą stronę startową w oknie wiadomości:">
+<!ENTITY enableStartPage.accesskey "P">
+<!ENTITY location.label            "Adres:">
+<!ENTITY location1.accesskey       "A">
+<!ENTITY useDefault.label          "Przywróć domyślną">
+<!ENTITY useDefault.accesskey      "d">
+
+<!ENTITY bounceSystemDockIcon.label     "Włącz animacje dla ikony w doku">
+<!ENTITY bounceSystemDockIcon.accesskey "c">
+
+<!ENTITY newMessagesArrive.label      "Po odebraniu nowej wiadomości:">
+<!ENTITY playSound.label              "odtwarzaj dźwięk">
+<!ENTITY playSound1.accesskey         "o">
+<!ENTITY showAnimatedAlert.label      "wyświetlaj informację">
+<!ENTITY showAnimatedAlert.accesskey  "w">
+<!ENTITY customizeMailAlert.label     "Dostosuj…">
+<!ENTITY customizeMailAlert.accesskey "s">
+
+<!ENTITY play.label                "Odtwórz">
+<!ENTITY play.accesskey            "r">
+<!ENTITY systemsound.label         "domyślny systemowy dźwięk powiadomienia o nowej poczcie">
+<!ENTITY systemsoundMac.label      "systemowy dźwięk powiadomienia">
+<!ENTITY systemsoundMac.accesskey  "m">
+<!ENTITY systemsound.accesskey     "m">
+<!ENTITY customsound.label         "użyj pliku">
+<!ENTITY customsound.accesskey     "u">
+<!ENTITY browse.label              "Przeglądaj…">
+<!ENTITY browse.accesskey          "g">
+
+<!ENTITY addonsMgr.label             "Dodatki">
+<!ENTITY manageAddonsDescWin.label   "Zmień opcje zainstalowanych dodatków">
+<!ENTITY manageAddonsDescUnix2.label "Zmień preferencje zainstalowanych dodatków">
+<!ENTITY manageAddons.label          "Zarządzaj dodatkami…">
+<!ENTITY manageAddons.accesskey      "Z">

@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "Page de démarrage de &brandShortName;">
+<!ENTITY enableStartPage.label            "Afficher la page de démarrage au lancement de &brandShortName;">
+<!ENTITY enableStartPage.accesskey        "A">
+<!ENTITY location.label                   "Adresse :">
+<!ENTITY location1.accesskey              "d">
+<!ENTITY useDefault.label                 "Réinitialiser">
+<!ENTITY useDefault.accesskey             "i">
+
+<!ENTITY bounceSystemDockIcon.label       "Animer l'icône du dock">
+<!ENTITY bounceSystemDockIcon.accesskey   "n">
+
+<!ENTITY newMessagesArrive.label          "Quand un nouveau message arrive :">
+<!ENTITY playSound.label                  "Jouer un son">
+<!ENTITY playSound1.accesskey             "J">
+<!ENTITY showAnimatedAlert.label          "Afficher un avertissement">
+<!ENTITY showAnimatedAlert.accesskey      "A">
+<!ENTITY customizeMailAlert.label         "Personnaliser…">
+<!ENTITY customizeMailAlert.accesskey     "P">
+
+<!ENTITY play.label                       "Jouer le son">
+<!ENTITY play.accesskey                   "o">
+<!ENTITY systemsound.label                "Son système pour « nouveau message »">
+<!ENTITY systemsoundMac.label             "Son d'alerte système">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "Utiliser le fichier son suivant :">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "Parcourir…">
+<!ENTITY browse.accesskey                 "r">
+
+<!ENTITY addonsMgr.label                  "Modules complémentaires">
+<!ENTITY manageAddonsDescWin.label        "Modifier les options pour vos modules">
+<!ENTITY manageAddonsDescUnix2.label      "Modifier les préférences pour vos modules">
+<!ENTITY manageAddons.label               "Gérer les modules complémentaires…">
+<!ENTITY manageAddons.accesskey           "G">

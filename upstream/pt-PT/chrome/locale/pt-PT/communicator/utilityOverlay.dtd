@@ -1,0 +1,59 @@
+<!-- these things need to move into utilityOverlay.xul -->
+
+<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
+
+<!ENTITY fileMenu.label "Ficheiro">
+<!ENTITY fileMenu.accesskey "f">
+<!ENTITY newMenu.label "Novo">
+<!ENTITY newMenu.accesskey "N">
+
+<!ENTITY editMenu.label "Editar">
+<!ENTITY editMenu.accesskey "e">
+<!ENTITY undoCmd.label "Anular">
+<!ENTITY undoCmd.key "z">
+<!ENTITY undoCmd.accesskey "u">
+<!ENTITY redoCmd.label "Refazer">
+<!ENTITY redoCmd.key "y">
+<!ENTITY redoCmd.accesskey "r">
+<!ENTITY cutCmd.label "Cortar">
+<!ENTITY cutCmd.key "x">
+<!ENTITY cutCmd.accesskey "t">
+<!ENTITY copyCmd.label "Copiar">
+<!ENTITY copyCmd.key "c">
+<!ENTITY copyCmd.accesskey "c">
+<!ENTITY pasteCmd.label "Colar">
+<!ENTITY pasteCmd.key "v">
+<!ENTITY pasteCmd.accesskey "o">
+<!ENTITY deleteCmd.label "Eliminar">
+<!ENTITY deleteCmd.accesskey "l">
+<!ENTITY selectAllCmd.label "Seleccionar tudo">
+<!ENTITY selectAllCmd.key "a">
+<!ENTITY selectAllCmd.accesskey "s">
+<!ENTITY preferencesCmd.label "Opções...">
+<!ENTITY preferencesCmd.accesskey "O">
+<!ENTITY preferencesCmdUnix.label "Preferências">
+<!ENTITY preferencesCmdUnix.accesskey "p">
+
+<!ENTITY viewMenu.label "Ver">
+<!ENTITY viewMenu.accesskey "v">
+<!ENTITY viewToolbarsMenu.label "Barras de Ferramentas">
+<!ENTITY viewToolbarsMenu.accesskey "B">
+<!ENTITY showTaskbarCmd.label "Barra de Estado">
+<!ENTITY showTaskbarCmd.accesskey "S">
+
+<!ENTITY proxy.label "Configuração de proxy...">
+<!ENTITY proxy.accesskey "X">
+
+<!ENTITY closeCmd.label "Fechar">
+<!ENTITY closeCmd.key "w">
+<!ENTITY closeCmd.accesskey "f">
+
+<!ENTITY quitApplicationCmd.label "Sair">
+<!ENTITY quitApplicationCmd.key "q">
+<!ENTITY quitApplicationCmd.accesskey "s">
+
+<!ENTITY quitApplicationCmdUnix.label "Sair">
+<!ENTITY quitApplicationCmdUnix.accesskey "s">
+
+<!ENTITY quitApplicationCmdMac.label "Sair do &brandShortName;">
+<!ENTITY quitApplicationCmdMac.accesskey "a">

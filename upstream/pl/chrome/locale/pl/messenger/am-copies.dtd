@@ -1,0 +1,30 @@
+<!ENTITY copyAndFolderTitle.label        "Kopie i foldery">
+<!ENTITY sendingPrefix.label             "Wysyłając wiadomości automatycznie: ">
+<!ENTITY fccMailFolder.label             "umieszczaj ich kopie w:">
+<!ENTITY fccMailFolder.accesskey         "i">
+<!ENTITY fccReplyFollowsParent.label     "umieszczaj odpowiedzi w folderze wiadomości, na którą odpowiada użytkownik">
+<!ENTITY fccReplyFollowsParent.accesskey "o">
+<!ENTITY bccAddress.label                "wysyłaj ukrytą kopię do:">
+<!ENTITY bccAddress.accesskey            "k">
+<!ENTITY saveMessageDlg.label            "Wyświetlaj okno dialogowe potwierdzające zapisywanie wiadomości">
+<!ENTITY saveMessageDlg.accesskey        "W">
+<!ENTITY sentFolderOn.label              "folderze Wysłane konta:">
+<!ENTITY sentFolderOn.accesskey          "y">
+<!ENTITY sentInOtherFolder.label         "folderze:">
+<!ENTITY sentInOtherFolder.accesskey     "l">
+<!ENTITY draftsFolderOn.label            "folderze Szkice konta:">
+<!ENTITY draftsFolderOn.accesskey        "S">
+<!ENTITY draftInOtherFolder.label        "folderze:">
+<!ENTITY draftInOtherFolder.accesskey    "f">
+<!ENTITY archivesFolderOn.label          "folderze Archiwum konta:">
+<!ENTITY archivesFolderOn.accesskey      "A">
+<!ENTITY archiveInOtherFolder.label      "folderze:">
+<!ENTITY archiveInOtherFolder.accesskey  "d">
+<!ENTITY templatesFolderOn.label         "folderze Szablony konta:">
+<!ENTITY templatesFolderOn.accesskey     "z">
+<!ENTITY templateInOtherFolder.label     "innym folderze:">
+<!ENTITY templateInOtherFolder.accesskey "n">
+<!ENTITY specialFoldersTitle.label       "Szkice, archiwum i szablony">
+<!ENTITY keepDrafts.label                "Szkice wiadomości przechowuj w:">
+<!ENTITY keepArchives.label              "Archiwum wiadomości przechowuj w:">
+<!ENTITY keepTempltes.label              "Szablony wiadomości przechowuj w:">

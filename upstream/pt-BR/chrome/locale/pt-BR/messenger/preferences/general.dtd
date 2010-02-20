@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "Página inicial do &brandShortName;">
+<!ENTITY enableStartPage.label            "Ao iniciar o &brandShortName;, abrir esta página no painel de mensagens:">
+<!ENTITY enableStartPage.accesskey        "A">
+<!ENTITY location.label                   "Endereço:">
+<!ENTITY location1.accesskey               "E">
+<!ENTITY useDefault.label                 "Restaurar o padrão">
+<!ENTITY useDefault.accesskey             "R">
+
+<!ENTITY bounceSystemDockIcon.label       "Animar ícone do dock">
+<!ENTITY bounceSystemDockIcon.accesskey   "i">
+
+<!ENTITY newMessagesArrive.label          "Ao chegarem novas mensagens">
+<!ENTITY playSound.label                  "Tocar um som">
+<!ENTITY playSound1.accesskey              "c">
+<!ENTITY showAnimatedAlert.label          "Mostrar um alerta">
+<!ENTITY showAnimatedAlert.accesskey      "M">
+<!ENTITY customizeMailAlert.label         "Personalizar…">
+<!ENTITY customizeMailAlert.accesskey     "z">
+
+<!ENTITY play.label                       "Testar">
+<!ENTITY play.accesskey                   "T">
+<!ENTITY systemsound.label                "Som padrão do sistema para novas mensagens">
+<!ENTITY systemsoundMac.label             "Som de alerta do sistema">
+<!ENTITY systemsoundMac.accesskey         "S">
+<!ENTITY systemsound.accesskey            "S">
+<!ENTITY customsound.label                "Usar este arquivo de som:">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "Procurar…">
+<!ENTITY browse.accesskey                 "P">
+
+<!ENTITY addonsMgr.label                  "Complementos">
+<!ENTITY manageAddonsDescWin.label        "Modifique as opções dos complementos.">
+<!ENTITY manageAddonsDescUnix2.label      "Modifique as preferências dos complementos.">
+<!ENTITY manageAddons.label               "Gerenciador de complementos…">
+<!ENTITY manageAddons.accesskey           "G">

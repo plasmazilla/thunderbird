@@ -1,0 +1,7 @@
+<!ENTITY newMessageCmd2.key "N">
+<!ENTITY newMessageCmd.key "M">
+<!ENTITY newMessageCmd.label "Meddelelse">
+<!ENTITY newMessageCmd.accesskey "M">
+
+<!ENTITY  newContactCmd.label             "Kontakt…">
+<!ENTITY  newContactCmd.accesskey         "K">

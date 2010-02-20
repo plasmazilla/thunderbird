@@ -1,0 +1,18 @@
+<!ENTITY accountTitle.label "Stillingar notanda">
+<!ENTITY biffStart.label "Leita að nýjum greinum á hverjum ">
+<!ENTITY biffStart.accesskey "L">
+<!ENTITY biffEnd.label "mínútur">
+<!ENTITY loginAtStartup.label "Leita að nýjum greinum í ræsingu">
+ 
+<!ENTITY loginAtStartup.accesskey "e">
+<!ENTITY useQuickMode.label "Sjálfgefið sýna bara yfirlit greinar í staðinn fyrir að hlaða inn vefsíðunni">
+ 
+<!ENTITY useQuickMode.accesskey "S">
+<!ENTITY manageSubscriptions.label "Stilla áskriftir…">
+ 
+<!ENTITY manageSubscriptions.accesskey "S">
+<!-- entities from rss.rdf -->
+<!ENTITY feeds.accountName "Blogg &amp; Fréttastraumar">
+<!ENTITY feeds.wizardShortName "Straumar">
+<!ENTITY feeds.wizardLongName "Blogg &amp; Fréttastraumar">
+<!ENTITY feeds.wizardLongName.accesskey "F">

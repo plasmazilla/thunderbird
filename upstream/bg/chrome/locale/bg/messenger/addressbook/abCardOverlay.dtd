@@ -1,0 +1,174 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY Contact.tab "Контакт">
+<!ENTITY Contact.accesskey "К">
+<!ENTITY Name.box "Име">
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+
+
+<!ENTITY NameField1.id "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id "PhoneticLastName">
+
+<!ENTITY NameField1.label "Лично:">
+<!ENTITY NameField1.accesskey "Л">
+<!ENTITY NameField2.label "Фамилно:">
+<!ENTITY NameField2.accesskey "Ф">
+<!ENTITY PhoneticField1.label "Фонетично:">
+<!ENTITY PhoneticField2.label "Фонетично:">
+<!ENTITY DisplayName.label "Ще се изобразява:">
+<!ENTITY DisplayName.accesskey "Щ">
+<!ENTITY NickName.label "Псевдоним:">
+<!ENTITY NickName.accesskey "П">
+
+<!ENTITY PrimaryEmail.label "Е-поща">
+<!ENTITY PrimaryEmail.accesskey "Е">
+<!ENTITY SecondEmail.label "Допълнителна е-поща">
+<!ENTITY SecondEmail.accesskey "л">
+<!ENTITY PreferMailFormat.label "Предпочитан формат на получените писма:">
+<!ENTITY PreferMailFormat.accesskey "у">
+<!ENTITY PlainText.label "Обикновен текст">
+<!ENTITY HTML.label "HTML">
+<!ENTITY Unknown.label "Неизвестен">
+<!ENTITY ScreenName.label "Изобразено име:">
+<!ENTITY ScreenName.accesskey "И">
+
+<!ENTITY allowRemoteContent1.label "Допускане нелокално съдържание.">
+<!ENTITY allowRemoteContent1.accesskey "л">
+<!ENTITY allowRemoteContent1.tooltip "В писмата с HTML формат е възможно да 
+се вграждат изображения от отдалечени източници. Отварянето на такова писмо 
+ще създаде връзка към този външен източник. Това би позволило проследяването дали писмото е било прочетено. Отмятайки тази опция, вие ще разрешите зареждането 
+на вградените изображения в писмата с HTML формат от този контакт.">
+
+<!ENTITY WorkPhone.label "Служебен:">
+<!ENTITY WorkPhone.accesskey "С">
+<!ENTITY HomePhone.label "Домашен:">
+<!ENTITY HomePhone.accesskey "ш">
+<!ENTITY FaxNumber.label "Факс:">
+<!ENTITY FaxNumber.accesskey "а">
+<!ENTITY PagerNumber.label "Пейджър:">
+<!ENTITY PagerNumber.accesskey "й">
+<!ENTITY CellularNumber.label "Мобилен телефон:">
+<!ENTITY CellularNumber.accesskey "М">
+
+<!ENTITY Home.tab "Лични">
+<!ENTITY Home.accesskey "Л">
+<!ENTITY HomeAddress.label "Адрес:">
+<!ENTITY HomeAddress.accesskey "А">
+<!ENTITY HomeAddress2.label "">
+<!ENTITY HomeAddress2.accesskey "">
+<!ENTITY HomeCity.label "Град:">
+<!ENTITY HomeCity.accesskey "Г">
+<!ENTITY HomeState.label "Област/Община">
+<!ENTITY HomeState.accesskey "О">
+<!ENTITY HomeZipCode.label "ZIP/Пощенски код:">
+<!ENTITY HomeZipCode.accesskey "щ">
+<!ENTITY HomeCountry.label "Държава:">
+<!ENTITY HomeCountry.accesskey "Д">
+<!ENTITY HomeWebPage.label "Уеб страница:">
+<!ENTITY HomeWebPage.accesskey "У">
+<!ENTITY Birthday.label "Рожден ден:">
+<!ENTITY Birthday.accesskey "Р">
+<!ENTITY In.label "">
+<!ENTITY Year.emptytext "Година">
+<!ENTITY Or.value "или">
+<!ENTITY Age.emptytext "Възраст">
+<!ENTITY YearsOld.label "">
+
+<!ENTITY Work.tab "Служебен">
+<!ENTITY Work.accesskey "С">
+<!ENTITY JobTitle.label "Заглавие:">
+<!ENTITY JobTitle.accesskey "а">
+<!ENTITY Department.label "Отдел:">
+<!ENTITY Department.accesskey "т">
+<!ENTITY Company.label "Организация:">
+<!ENTITY Company.accesskey "ц">
+<!ENTITY WorkAddress.label "Адрес:">
+<!ENTITY WorkAddress.accesskey "е">
+<!ENTITY WorkAddress2.label "">
+<!ENTITY WorkAddress2.accesskey "">
+<!ENTITY WorkCity.label "Град:">
+<!ENTITY WorkCity.accesskey "д">
+<!ENTITY WorkState.label "Област/Община">
+<!ENTITY WorkState.accesskey "О">
+<!ENTITY WorkZipCode.label "ZIP/Пощенски код:">
+<!ENTITY WorkZipCode.accesskey "щ">
+<!ENTITY WorkCountry.label "Държава:">
+<!ENTITY WorkCountry.accesskey "ж">
+<!ENTITY WorkWebPage.label "Уеб страница:">
+<!ENTITY WorkWebPage.accesskey "У">
+
+<!ENTITY Other.tab "Други">
+<!ENTITY Other.accesskey "г">
+<!ENTITY Custom1.label "Друго 1:">
+<!ENTITY Custom1.accesskey "1">
+<!ENTITY Custom2.label "Друго 2:">
+<!ENTITY Custom2.accesskey "2">
+<!ENTITY Custom3.label "Друго 3:">
+<!ENTITY Custom3.accesskey "3">
+<!ENTITY Custom4.label "Друго 4:">
+<!ENTITY Custom4.accesskey "4">
+<!ENTITY Notes.label "Бележки:">
+<!ENTITY Notes.accesskey "Б">
+
+<!ENTITY Photo.tab "Снимка">
+<!ENTITY Photo.accesskey "н">
+<!ENTITY PhotoDesc.label "Изберете една от следните:">
+<!ENTITY GenericPhoto.label "Обща снимка">
+<!ENTITY GenericPhoto.accesskey "О">
+<!ENTITY DefaultPhoto.label "По подразбиране">
+<!ENTITY PhotoFile.label "От този компютър">
+<!ENTITY PhotoFile.accesskey "т">
+<!ENTITY BrowsePhoto.label "Избор">
+<!ENTITY BrowsePhoto.accesskey "з">
+<!ENTITY PhotoURL.label "От интернет">
+<!ENTITY PhotoURL.accesskey "и">
+<!ENTITY PhotoURL.emptytext "Поставете или напишете интернет адреса на снимката">
+<!ENTITY UpdatePhoto.label "Обновяване">
+<!ENTITY UpdatePhoto.accesskey "б">

@@ -1,0 +1,12 @@
+<!ENTITY  prefWindow.titleWin     "Mundësi">
+<!ENTITY  prefWindow.titleGNOME   "Parapëlqime &brandShortName;-i">
+<!ENTITY  prefWindow.styleWindows "width: 60em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 60em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 60em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title       "Të përgjithshme">
+<!ENTITY paneDisplay.title        "Paraqitje">
+<!ENTITY paneComposition.title    "Hartim">
+<!ENTITY paneAttachments.title    "Bashkangjitje">
+<!ENTITY paneAdvanced.title       "Të mëtejshme">
+<!ENTITY paneSecurity.title       "Siguri">

@@ -1,0 +1,7 @@
+<!ENTITY identityDialog.style "width: 67ch;">
+<!ENTITY identityTitle.label  "Käyttäjätiedon asetukset">
+<!ENTITY identityListDesc.label  "Aseta käyttäjätiedot:">
+
+<!ENTITY settingsTab.label        "Asetukset">
+<!ENTITY copiesFoldersTab.label  "Kopiot ja kansiot">
+<!ENTITY addressingTab.label     "Kirjoittaminen ja osoitteet">

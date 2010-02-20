@@ -1,0 +1,22 @@
+<!-- extracted from AccountManager.xul -->
+<!ENTITY accountManagerTitle.label "Configuración de cuenta">
+
+<!ENTITY accountActionsButton.label "Acciones de cuenta">
+<!ENTITY accountActionsButton.accesskey "A">
+<!ENTITY addMailAccountButton.label "Añadir cuenta de correo…">
+<!ENTITY addMailAccountButton.accesskey "A">
+<!ENTITY addOtherAccountButton.label "Añadir otra cuenta…">
+<!ENTITY addOtherAccountButton.accesskey "O">
+<!ENTITY setDefaultButton.label "Definir como predeterminada">
+<!ENTITY setDefaultButton.accesskey "f">
+<!ENTITY removeButton.label "Eliminar cuenta">
+<!ENTITY removeButton.accesskey "r">
+<!-- AccountManager.xul -->
+<!-- LOCALIZATION NOTE : this is part of an inline-style attribute on the account
+     setting dialog, which specifies the width and height in em units of the dialog.
+     Localizers ONLY can increase these widths if they are having difficulty getting
+     panel content to fit. 1em = the width of the letter 'm' in the selected font.
+     XUL/FE DEVELOPERS: DO NOT MODIFY THIS VALUE. It represents the correct size of
+     this window for en-US. -->
+<!ENTITY accountManager.size "width: 67em; height: 48em;">
+<!ENTITY accountTree.width "width: 17em;">

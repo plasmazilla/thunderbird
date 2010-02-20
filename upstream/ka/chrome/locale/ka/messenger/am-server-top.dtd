@@ -1,0 +1,78 @@
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY securitySettings.label "უსაფრთხოების პარამეტრები">
+<!ENTITY serverSettings.label "სერვერის პარამეტრები">
+<!ENTITY serverType.label "სერვერის ტიპი:">
+<!ENTITY serverName.label "სერვერის სახელი:">
+<!ENTITY serverName.accesskey "S">
+<!ENTITY userName.label "სახელი:">
+<!ENTITY userName.accesskey "N">
+<!ENTITY port.label "პორტი:">
+<!ENTITY port.accesskey "P">
+<!ENTITY serverPortDefault.label "ძირითადი:">
+<!-- LOCALIZATION NOTE (biffStart.label) : translate below 2 line with grammer dependency
+        For example, in Japanese cases:
+                biffStart.label "every"
+                biffEnd.label   "minutes for new messages Check"
+-->
+<!ENTITY biffStart.label "ახალი წერილის შემოწმება ყოველ ">
+<!ENTITY biffStart.accesskey "y">
+<!ENTITY biffEnd.label "წუთში">
+<!ENTITY connectionSecurity.label " კავშირის უსაფრთხოება:">
+<!ENTITY connectionSecurity.accesskey "u">
+<!ENTITY connectionSecurityType-0.label "არა">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, თუ მისაწვდომია">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY useSecAuth.label "უსაფრთხო აუთენტიფიკაციის გამოყენება">
+<!ENTITY useSecAuth.accesskey "i">
+<!ENTITY leaveOnServer.label "წერილების დატოვება სერვერზე">
+<!ENTITY leaveOnServer.accesskey "g">
+<!ENTITY headersOnly.label "მხოლოდ თავსართების კითხვა">
+<!ENTITY headersOnly.accesskey "e">
+<!ENTITY deleteByAgeFromServer.label "არა უმეტეს">
+<!ENTITY deleteByAgeFromServer.accesskey "o">
+<!ENTITY daysEnd.label "დღისა">
+<!ENTITY deleteOnServer2.label "წაშლამდე ან 'შემოსული'-დან გადმოტანამდე">
+<!ENTITY deleteOnServer2.accesskey "d">
+<!ENTITY downloadOnBiff.label "ახალი წერილების ავტომატურად ჩატვირთვა">
+<!ENTITY downloadOnBiff.accesskey "m">
+<!ENTITY username.label "თქვენი სახელი">
+<!ENTITY deleteMessagePrefix.label "წერილის წაშლისას:">
+<!ENTITY modelMoveToTrash.label "გადატანა დასტაში ამ დასტაში">
+<!ENTITY modelMoveToTrash.accesskey "o">
+<!ENTITY modelMarkDeleted.label "მონიშვნა წაშლილად">
+<!ENTITY modelMarkDeleted.accesskey "k">
+<!ENTITY modelDeleteImmediately.label "მყისვე ამოშლა">
+<!ENTITY modelDeleteImmediately.accesskey "d">
+<!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
+<!ENTITY expungeOnExit.label "&quot;შემოსული&quot; დასტის გაწმენდა გასვლისას">
+<!ENTITY expungeOnExit.accesskey "E">
+<!ENTITY emptyTrashOnExit.label "&quot;ურნის გასუფთავება&quot; გასვლისას">
+<!ENTITY emptyTrashOnExit.accesskey "x">
+<!ENTITY loginAtStartup.label "ახალი წერილის შემოწმება დაწყებისას"> 
+<!ENTITY loginAtStartup.accesskey "C">
+<!-- LOCALIZATION NOTE (maxMessagesStart.label) : translate below 2 lines with grammar dependency 
+    maxMessengerStart.label will be followed by maxMessagesEnd.label with the number
+	 of messages between them
+-->
+<!ENTITY maxMessagesStart.label "დამეკითხე სანამ გადმოვწერ">
+<!ENTITY maxMessagesStart.accesskey "m">
+<!-- LOCALIZATION NOTE (maxMessagesEnd.label) : see note for maxMessagesStart.label -->
+<!ENTITY maxMessagesEnd.label "-ზე მეტ წერილს">
+<!ENTITY alwaysAuthenticate.label "ამ სერვერთან დაკავშირებისას აუთენტიფიცირების ყოველთვის მოთხოვნა">
+<!ENTITY alwaysAuthenticate.accesskey "w">
+<!ENTITY newsrcFilePath.label "ჯგუფების ფაილი:">
+<!ENTITY localPath.label "ადგილობრივი დასტა:">
+<!ENTITY abbreviate.label "წერილების დასტების პანელში ჯგუფების სახელებს ჩვენების წესის მითითება:">
+<!ENTITY abbreviateOn.label "სრული სახით (მაგალითად, 'netscape.public.mozilla.mail-news')">
+<!ENTITY abbreviateOff.label "შემოკლებულად (მაგალითად, 'n.p.m.mail-news')">
+<!ENTITY advancedButton.label "დეტალები…">
+<!ENTITY advancedButton.accesskey "v">
+<!ENTITY serverDefaultCharset.label "ნაგულისხმები კოდირება:">
+<!ENTITY localFolderPicker.label "ადგილობრივი დასტის არჩევა">
+<!ENTITY browseFolder.label "ნუსხა…">
+<!ENTITY browseFolder.accesskey "B">
+<!ENTITY newsrcPicker.label "ჯგუფების ფაილის არჩევა">
+<!ENTITY browseNewsrc.label "ნუსხა…">
+<!ENTITY browseNewsrc.accesskey "e">

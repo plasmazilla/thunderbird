@@ -1,0 +1,14 @@
+<!ENTITY accountTitle.label "Configuración de cuenta">
+<!ENTITY biffStart.label "Buscar mensajes nuevos cada ">
+<!ENTITY biffStart.accesskey "B">
+<!ENTITY biffEnd.label "minutos">
+<!ENTITY loginAtStartup.label "Comprobar si hay mensajes nuevos al iniciar">
+<!ENTITY loginAtStartup.accesskey "C">
+<!ENTITY useQuickMode.label "Mostrar de forma predeterminada el resumen de artículos en vez de cargar la página web">
+<!ENTITY useQuickMode.accesskey "M">
+<!ENTITY manageSubscriptions.label "Administrar suscripciones…">
+<!ENTITY manageSubscriptions.accesskey "A">
+<!ENTITY feeds.accountName "Canales de Blogs y Noticias">
+<!ENTITY feeds.wizardShortName "Canales">
+<!ENTITY feeds.wizardLongName "Canales de Blogs y Noticias">
+<!ENTITY feeds.wizardLongName.accesskey "N">

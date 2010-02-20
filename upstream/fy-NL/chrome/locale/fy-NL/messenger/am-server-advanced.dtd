@@ -1,0 +1,31 @@
+<!ENTITY serverAdvanced.label "Avansearre accountynstellings">
+<!-- LOCALIZATION NOTE (serverDirectory.label): DONT_TRANSLATE "IMAP" -->
+<!ENTITY serverDirectory.accesskey "m">
+<!ENTITY serverDirectory.label "IMAP-tsjinnermap">
+<!ENTITY usingSubscription.accesskey "t">
+<!ENTITY usingSubscription.label "Allinnich oanmelde mappen toane">
+<!ENTITY dualUseFolders.accesskey "a">
+<!ENTITY dualUseFolders.label "Tsjinner stipet mappen mei submappen en berjochten">
+<!ENTITY useIdle.accesskey "I">
+<!ENTITY useIdle.label "IDLE-commando brûke as de tsjinner it stipet">
+<!ENTITY maximumConnectionsNumber.accesskey "M">
+<!ENTITY maximumConnectionsNumber.label "Maksimumoantal tsjinnerferbinings yn de buffer">
+<!-- LOCALIZATION NOTE (namespaceDesc.label): DONT_TRANSLATE "IMAP" -->
+<!ENTITY namespaceDesc.label "Dizze ynstellings omskriuwe de namespaces op jo IMAP-tsjinner">
+<!ENTITY personalNamespace.accesskey "e">
+<!ENTITY personalNamespace.label "Persoanlike namespace:">
+<!ENTITY publicNamespace.accesskey "u">
+<!ENTITY publicNamespace.label "Publyk (dield):">
+<!ENTITY otherUsersNamespace.accesskey "b">
+<!ENTITY otherUsersNamespace.label "Oare brûkers:">
+<!ENTITY overrideNamespaces.accesskey "T">
+<!ENTITY overrideNamespaces.label "Tsjinner tastean om dizze namespaces te negearjen">
+<!ENTITY pop3Desc.label "By it ynladen fan e-mail fan dizze POP3-tsjinner, de folgjende map foar nije e-mail brûke:">
+<!ENTITY globalInbox.accesskey "G">
+<!ENTITY globalInbox.label "Globaal Postfek YN (ûnder Lokale mappen)">
+<!ENTITY accountDirectory.accesskey "P">
+<!ENTITY accountDirectory.label "Postfek YN fan dizze tsjinneraccount">
+<!ENTITY deferToServer.accesskey "r">
+<!ENTITY deferToServer.label "Postfek YN fan in oar account">
+<!ENTITY deferGetNewMail.accesskey "b">
+<!ENTITY deferGetNewMail.label "Dizze tsjinner by it opheljen fan nije berjochten belûke">

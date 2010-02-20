@@ -1,0 +1,18 @@
+<!-- Subscription Dialog -->
+<!ENTITY feedSubscriptions.label "ਫੀਡ ਮੈਂਬਰੀ">
+<!ENTITY subscriptionDesc.label "ਸੂਚਨਾ: ਫੀਡ ਲਈ ਫੋਲਡਰ ਹਟਾਉਣ ਜਾਂ ਬਦਲਣ ਨਾਲ ਪਹਿਲਾਂ ਡਾਊਨਲੋਡ ਕੀਤੇ ਫੋਲਡਰਾਂ ਉੱਤੇ ਕੋਈ ਅਸਰ ਨਹੀਂ ਪੈਂਦਾ ਹੈ।">
+<!ENTITY feedTitle.label "ਟਾਈਟਲ:">
+<!ENTITY location.label  "ਟਿਕਾਣਾ:">
+
+<!ENTITY button.addFeed.label       "ਸ਼ਾਮਿਲ">
+<!ENTITY button.addFeed.accesskey   "A">
+<!ENTITY button.editFeed.label      "ਸੋਧ">
+<!ENTITY button.editFeed.accesskey  "E">
+<!ENTITY button.removeFeed.label "ਹਟਾਓ">
+<!ENTITY button.removeFeed.accesskey   "R">
+<!ENTITY button.importOPML.label "ਇੰਪੋਰਟ">
+<!ENTITY button.importOPML.accesskey   "I">
+<!ENTITY button.exportOPML.label "ਐਕਸਪੋਰਟ">
+<!ENTITY button.exportOPML.accesskey   "X">
+ 
+<!ENTITY cmd.close.commandKey             "w">
