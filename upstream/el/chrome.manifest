@@ -1,0 +1,23 @@
+locale global-region el jar:chrome/el.jar!/locale/el/global-region/
+locale messenger-region el jar:chrome/el.jar!/locale/el/messenger-region/
+locale messenger-newsblog el jar:chrome/el.jar!/locale/el/messenger-newsblog/
+locale pipnss el jar:chrome/el.jar!/locale/el/pipnss/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale necko el jar:chrome/el.jar!/locale/el/necko/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale mozldap el jar:chrome/el.jar!/locale/el/mozldap/
+locale global el jar:chrome/el.jar!/locale/el/global/
+locale autoconfig el jar:chrome/el.jar!/locale/el/autoconfig/
+locale messenger el jar:chrome/el.jar!/locale/el/messenger/
+locale messenger-mapi el jar:chrome/el.jar!/locale/el/messenger-mapi/
+locale global-platform el jar:chrome/el.jar!/locale/el/global-platform/
+locale alerts el jar:chrome/el.jar!/locale/el/alerts/
+locale mozapps el jar:chrome/el.jar!/locale/el/mozapps/
+locale messenger-smime el jar:chrome/el.jar!/locale/el/messenger-smime/
+locale passwordmgr el jar:chrome/el.jar!/locale/el/passwordmgr/
+locale places el jar:chrome/el.jar!/locale/el/places/
+locale editor el jar:chrome/el.jar!/locale/el/editor/
+locale communicator el jar:chrome/el.jar!/locale/el/communicator/
+locale pippki el jar:chrome/el.jar!/locale/el/pippki/
+locale cookie el jar:chrome/el.jar!/locale/el/cookie/
+locale branding el jar:chrome/el.jar!/locale/el/branding/

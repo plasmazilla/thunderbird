@@ -1,0 +1,23 @@
+locale messenger-mapi nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/messenger-mapi/
+locale global nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/global/
+locale necko nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/necko/
+locale pipnss nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/pipnss/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale cookie nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/cookie/
+locale communicator nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/communicator/
+locale passwordmgr nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/passwordmgr/
+locale alerts nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/alerts/
+locale mozapps nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/mozapps/
+locale mozldap nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/mozldap/
+locale messenger-newsblog nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/messenger-newsblog/
+locale editor nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/editor/
+locale messenger nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/messenger/
+locale places nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/places/
+locale messenger-region nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/messenger-region/
+locale pippki nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/pippki/
+locale autoconfig nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/autoconfig/
+locale global-platform nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/global-platform/
+locale global-region nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/global-region/
+locale branding nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/branding/
+locale messenger-smime nn-NO jar:chrome/nn-NO.jar!/locale/nn-NO/messenger-smime/

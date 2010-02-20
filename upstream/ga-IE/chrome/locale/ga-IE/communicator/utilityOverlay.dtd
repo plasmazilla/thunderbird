@@ -1,0 +1,59 @@
+<!-- these things need to move into utilityOverlay.xul -->
+<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
+
+
+<!ENTITY fileMenu.label "Comhad">
+<!ENTITY fileMenu.accesskey "c">
+<!ENTITY newMenu.label "Nua">
+<!ENTITY newMenu.accesskey "N">
+
+<!ENTITY editMenu.label "Eagar">
+<!ENTITY editMenu.accesskey "e">
+<!ENTITY undoCmd.label "Cealaigh">
+<!ENTITY undoCmd.key "Z">
+<!ENTITY undoCmd.accesskey "l">
+<!ENTITY redoCmd.label "Athfheidhmigh">
+<!ENTITY redoCmd.key "Y">
+<!ENTITY redoCmd.accesskey "f">
+<!ENTITY cutCmd.label "Gearr">
+<!ENTITY cutCmd.key "X">
+<!ENTITY cutCmd.accesskey "g">
+<!ENTITY copyCmd.label "Cóipeáil">
+<!ENTITY copyCmd.key "C">
+<!ENTITY copyCmd.accesskey "c">
+<!ENTITY pasteCmd.label "Greamaigh">
+<!ENTITY pasteCmd.key "V">
+<!ENTITY pasteCmd.accesskey "r">
+<!ENTITY deleteCmd.label "Scrios">
+<!ENTITY deleteCmd.accesskey "s">
+<!ENTITY selectAllCmd.label "Roghnaigh Uile">
+<!ENTITY selectAllCmd.key "W">
+<!ENTITY selectAllCmd.accesskey "u">
+<!ENTITY preferencesCmd.label "Roghanna…">
+<!ENTITY preferencesCmd.accesskey "R">
+<!ENTITY preferencesCmdUnix.label "Sainroghanna">
+<!ENTITY preferencesCmdUnix.accesskey "n">
+
+<!ENTITY viewMenu.label "Amharc">
+<!ENTITY viewMenu.accesskey "a">
+<!ENTITY viewToolbarsMenu.label "Barraí Uirlisí">
+<!ENTITY viewToolbarsMenu.accesskey "U">
+<!ENTITY showTaskbarCmd.label "Barra Stádais">
+<!ENTITY showTaskbarCmd.accesskey "s">
+
+<!ENTITY proxy.label "Cumraíocht an tSeachfhreastalaí…">
+<!ENTITY proxy.accesskey "C">
+
+<!ENTITY closeCmd.label "Dún">
+<!ENTITY closeCmd.key "W">
+<!ENTITY closeCmd.accesskey "d">
+
+<!ENTITY quitApplicationCmd.label "Scoir">
+<!ENTITY quitApplicationCmd.key "Q">
+<!ENTITY quitApplicationCmd.accesskey "s">
+
+<!ENTITY quitApplicationCmdUnix.label "Scoir">
+<!ENTITY quitApplicationCmdUnix.accesskey "s">
+
+<!ENTITY quitApplicationCmdMac.label "Scoir &brandShortName;">
+<!ENTITY quitApplicationCmdMac.accesskey "s">

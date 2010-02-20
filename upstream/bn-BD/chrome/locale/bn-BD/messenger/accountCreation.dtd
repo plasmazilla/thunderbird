@@ -1,0 +1,75 @@
+<!ENTITY autoconfigWizard.title "মেইল একাউন্ট সেটআপ">
+<!ENTITY name.label "আপনার নাম (n):">
+<!ENTITY name.accesskey "n">
+<!ENTITY name.emptytext "প্রথম নাম">
+<!ENTITY name.text "আপনার নাম, যেভাবে অন্যের নিকট প্রদর্শিত হবে">
+<!ENTITY email.label "ইমেইল ঠিকানা (l):">
+<!ENTITY email.accesskey "l">
+<!ENTITY email.emptytext "email@example.com">
+<!ENTITY password.label "পাসওয়ার্ড (P):">
+<!ENTITY password.accesskey "P">
+<!ENTITY password.emptytext "পাসওয়ার্ড">
+<!ENTITY password.text "ঐচ্ছিক, শুধুমাত্র ব্যবহারকারী নাম বৈধকরণের জন্য ব্যবহৃত হবে">
+
+<!ENTITY accountInformation.label "একাউন্ট সম্পর্কিত তথ্য">
+<!ENTITY username2.label "ব্যবহারকারী নাম:">
+<!ENTITY incoming.label "ইনকামিং:">
+<!ENTITY outgoing.label "আউটগোয়িং:">
+<!ENTITY noEncryption.label "কোনটি নয়">
+<!ENTITY starttls.label "STARTTLS">
+<!ENTITY sslTls.label "SSL/TLS">
+
+<!ENTITY imap.label "IMAP">
+<!ENTITY pop.label "POP">
+<!ENTITY smtp.label "SMTP">
+
+<!ENTITY manualSetup.label "ম্যানুয়াল সেটআপ... (S)">
+<!ENTITY manualSetup.accesskey "S">
+<!ENTITY cancel.label "বাতিল (a)">
+<!ENTITY cancel.accesskey "a">
+<!ENTITY continue.label "বহাল (C)">
+<!ENTITY continue.accesskey "C">
+<!ENTITY startOver.label "শুরু করুন (o)">
+<!ENTITY startOver.accesskey "o">
+<!ENTITY stop.label "বন্ধ করুন (S)">
+<!ENTITY stop.accesskey "S">
+<!-- LOCALIZATION NOTE (retest.label): This is the text that is
+     displayed on the button which will re-guess the account configuration,
+     taking into account the settings the user has changed. -->
+<!ENTITY retest.label "কনফিগারেশন পুনঃপরীক্ষণ (R)">
+<!ENTITY retest.accesskey "R">
+<!ENTITY edit.label "সম্পাদনা (E)">
+<!ENTITY edit.accesskey "E">
+
+<!ENTITY rememberPassword.label "পাসওয়ার্ড স্মরণ করুন (m)">
+<!ENTITY rememberPassword.accesskey "m">
+
+<!ENTITY warning.label "সতর্ক বার্তা!">
+<!ENTITY incomingSettings.label "ইনকামিং সেটিং:">
+<!ENTITY outgoingSettings.label "আউটগোয়িং সেটিং:">
+<!ENTITY technicaldetails.label "কারিগরী বর্ণনা">
+<!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
+     warning on the outgoing server, then the user will need to check a
+     checkbox beside this text before continuing. -->
+<!ENTITY confirmWarning.label "আমি ঝুঁকি সম্পর্কে অবহিত আছি (u)।">
+<!ENTITY confirmWarning.accesskey "u">
+<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY createAccount.label "একাউন্ট তৈরি করুন (C)">
+<!ENTITY createAccount.accesskey "C">
+<!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
+     the incoming or outgoing servers, then the page that pops up will have
+     this text in a button to take you back to the previous page to change
+     the settings and try again. -->
+<!ENTITY changeSettings.label "সেটিং পরিবর্তন করুন (S)">
+<!ENTITY changeSettings.accesskey "S">
+
+<!ENTITY contactYourProvider.description "&brandShortName; সরবরাহকৃত সার্ভার ব্যবহার করে আপনার মেইল পেতে অনুমোদন দিতে পারে। যদিও, আপনার অ্যাডমিনিস্ট্রেটর এবং মেইল সরবারাহকারীর সাথে এই অনুপযোগী সংযোগ সম্পর্কে যোগাযোগ করা উচিত। আরও তথ্যের জন্য Thunderbird FAQ দেখুন।">
+
+<!ENTITY insecureServer.tooltip.title "সতর্ক বার্তা! এটি একটি ঝুঁকিপূর্ণ সার্ভার।">
+<!ENTITY insecureServer.tooltip.details "আরও তথ্যের জন্য একটি বৃত্তে ক্লিক করুন।">
+
+<!ENTITY insecureUnencrypted.description "আপনার মেইল এবং বৈধতা যাচাই এনক্রিপ্ট করা ব্যতিত প্রেরিত হয় , ফলে আপনার পাসওয়ার্ড (এবং আপনার বার্তা) সহজেই অন্য ব্যক্তির মাধ্যমে প্রস্তুত করা যায়। &brandShortName; আপনার মেইল পেতে সাহায্য করে, কিন্তু আপনার উচিত নিরাপদ সংযোগ সহ সার্ভার কনফিগার করতে ইমেইল সরবরাহকারীর সাথে যোগাযোগ করা।">
+<!ENTITY insecureSelfSigned.description "সার্ভারটি একটি সার্টিফিকেট ব্যবহার করে থাকে যা আপনার বিশ্বস্ত নয়, ফলে আপনি নিশ্চিত নন যে কেউ brandShortName এবং সার্ভার এর মধ্যে ট্রাফিক ইন্টারসেপ্ট করছে না। &brandShortName; আপনার মেইল পেতে সাহায্য করে, কিন্তু আপনার উচিত বিশ্বস্ত ট্রাফিক সহ সার্ভার কনফিগার করতে ইমেইল সরবরাহকারীর সাথে যোগাযোগ করা।">
+<!ENTITY secureServer.description "অভিবাদন! এটি একটি নিরাপদ সার্ভার।">

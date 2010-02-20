@@ -1,0 +1,11 @@
+<!ENTITY windowTitle.label "HTML-meddelelses spørgsmål">
+<!ENTITY recipient.label "Nogle af modtagerne er ikke opført som i stand til at læse HTML-mail">
+<!ENTITY question.label "Skal meddelelsen konverteres til ren tekst eller sendes som HTML alligevel?">
+<!ENTITY plainTextAndHtml.label "Send både som ren tekst og HTML">
+<!ENTITY plainTextAndHtml.accesskey "b">
+<!ENTITY plainTextOnly.label "Send kun som ren tekst">
+<!ENTITY plainTextOnly.accesskey "t">
+<!ENTITY htmlOnly.label "Send kun som HTML">
+<!ENTITY htmlOnly.accesskey "H">
+<!ENTITY send.label "Send">
+<!ENTITY send.accesskey "S">

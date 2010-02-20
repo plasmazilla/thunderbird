@@ -1,0 +1,23 @@
+locale necko sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/necko/
+locale pipnss sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/pipnss/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/alerts/
+locale mozapps sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/mozapps/
+locale places sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/places/
+locale cookie sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/cookie/
+locale global-region sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/global-region/
+locale global-platform sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/global-platform/
+locale autoconfig sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/autoconfig/
+locale messenger-region sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/messenger-region/
+locale mozldap sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/mozldap/
+locale global sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/global/
+locale messenger-smime sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/messenger-smime/
+locale messenger-mapi sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/messenger-mapi/
+locale passwordmgr sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/passwordmgr/
+locale editor sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/editor/
+locale communicator sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/communicator/
+locale messenger sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/messenger/
+locale messenger-newsblog sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/messenger-newsblog/
+locale pippki sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/pippki/
+locale branding sv-SE jar:chrome/sv-SE.jar!/locale/sv-SE/branding/

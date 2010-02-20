@@ -1,0 +1,20 @@
+<!ENTITY accountTitle.label "Postafiók beállításai">
+
+<!ENTITY biffStart.label "Új cikkek ellenőrzése ">
+<!ENTITY biffStart.accesskey "k">
+<!ENTITY biffEnd.label "percenként">
+
+<!ENTITY loginAtStartup.label "Új cikkek keresése indításkor"> 
+<!ENTITY loginAtStartup.accesskey "e">
+
+<!ENTITY useQuickMode.label "A cikk összefoglalójának megjelenítése a weboldal letöltése helyett"> 
+<!ENTITY useQuickMode.accesskey "A">
+
+<!ENTITY manageSubscriptions.label "Feliratkozások kezelése..."> 
+<!ENTITY manageSubscriptions.accesskey "F">
+
+<!-- entities from rss.rdf -->
+<!ENTITY feeds.accountName "Blogok és hírforrások">
+<!ENTITY feeds.wizardShortName "Hírforrások">
+<!ENTITY feeds.wizardLongName "Blogok és hírforrások">
+<!ENTITY feeds.wizardLongName.accesskey "B">

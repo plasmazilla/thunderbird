@@ -1,0 +1,7 @@
+<!ENTITY identityDialog.style "width: 67ch;">
+<!ENTITY identityTitle.label "Rregullime Identiteti">
+<!ENTITY identityListDesc.label "Formësoni rregullimet për këtë identitet:">
+
+<!ENTITY settingsTab.label       "Rregullime">
+<!ENTITY copiesFoldersTab.label "Kopje &amp; Dosje">
+<!ENTITY addressingTab.label    "Hartim &amp; Adresim">

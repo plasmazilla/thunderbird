@@ -1,0 +1,7 @@
+<!ENTITY identityDialog.style "width: 69ch;">
+<!ENTITY identityTitle.label "Definições de identidade">
+<!ENTITY identityListDesc.label "Configure as definições para esta identidade:">
+
+<!ENTITY settingsTab.label "Definições">
+<!ENTITY copiesFoldersTab.label "Cópias e Pastas">
+<!ENTITY addressingTab.label "Endereçamento e Composição">

@@ -1,0 +1,4 @@
+<!ENTITY nameColumn.label   "Emër"> 
+<!ENTITY unreadColumn.label "Të palexuar"> 
+<!ENTITY totalColumn.label "Gjithsej"> 
+<!ENTITY folderSizeColumn.label "Madhësi"> 

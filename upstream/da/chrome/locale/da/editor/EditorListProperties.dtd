@@ -1,0 +1,13 @@
+<!ENTITY windowTitle.label "Egenskaber for liste">
+<!ENTITY ListType.label "Listetype">
+<!ENTITY bulletStyle.label "Listemarkørstil:">
+<!ENTITY startingNumber.label "Start med:">
+<!ENTITY startingNumber.accessKey "S">
+<!ENTITY none.value "Ingen">
+<!ENTITY bulletList.value "Uordnet (Unummereret) liste">
+<!ENTITY numberList.value "Ordnet liste">
+<!ENTITY definitionList.value "Definitionsliste">
+<!ENTITY changeEntireListRadio.label "Ændr hele listen:">
+<!ENTITY changeEntireListRadio.accessKey "C">
+<!ENTITY changeSelectedRadio.label "Ændr kun markerede elementer">
+<!ENTITY changeSelectedRadio.accessKey "I">

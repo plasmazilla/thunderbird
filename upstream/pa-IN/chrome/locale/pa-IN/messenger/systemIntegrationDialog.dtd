@@ -1,0 +1,12 @@
+<!ENTITY systemIntegration.title  "ਸਿਸਟਮ ਐਂਟੀਗਰੇਸ਼ਨ">
+<!ENTITY defaultClient.intro  "&brandShortName; ਨੂੰ ਡਿਫਾਲਟ ਕਲਾਇਟ ਵਜੋਂ ਵਰਤੋਂ:">
+
+<!ENTITY email.label "ਈਮੇਲ">
+<!ENTITY newsgroups.label "ਨਿਊਜ਼ਗਰੁੱਪ">
+<!ENTITY feeds.label "ਫੀਡ">
+
+<!ENTITY checkOnStartup.label "ਜਦੋਂ ਵੀ &brandShortName; ਵੀ ਸ਼ੁਰੂ ਹੋਵੇ ਤਾਂ ਹਮੇਸ਼ਾ ਇਹ ਚੈੱਕ ਕਰੋ">
+<!ENTITY checkOnStartup.accesskey "A">
+
+<!ENTITY searchIntegration.label "ਸੁਨੇਹੇ ਖੋਜ ਲਈ &searchIntegration.engineName; ਐਂਟੀਗਰੇਟ">
+<!ENTITY searchIntegration.accesskey "S">

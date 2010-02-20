@@ -1,0 +1,23 @@
+locale mozapps pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/mozapps/
+locale cookie pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/cookie/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale global pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/global/
+locale places pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/places/
+locale necko pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/necko/
+locale messenger-mapi pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/messenger-mapi/
+locale messenger-newsblog pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/messenger-newsblog/
+locale mozldap pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/mozldap/
+locale global-platform pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/global-platform/
+locale pipnss pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/pipnss/
+locale autoconfig pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/autoconfig/
+locale passwordmgr pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/passwordmgr/
+locale branding pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/branding/
+locale global-region pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/global-region/
+locale messenger pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/messenger/
+locale pippki pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/pippki/
+locale editor pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/editor/
+locale messenger-region pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/messenger-region/
+locale messenger-smime pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/messenger-smime/
+locale alerts pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/alerts/
+locale communicator pa-IN jar:chrome/pa-IN.jar!/locale/pa-IN/communicator/

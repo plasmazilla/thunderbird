@@ -1,0 +1,90 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Editor Smiley Overlay.
+   -
+   - The Initial Developer of the Original Code is
+   - Neil Rashbrook.
+   - Portions created by the Initial Developer are Copyright (C) 2003
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -    Neil Rashbrook <neil@parkwaycc.co.uk>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the LGPL or the GPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!-- Smiley Menu items -->
+<!ENTITY insertSmiley.label "Smiley">
+<!ENTITY insertSmiley.accesskey "S">
+
+<!ENTITY smiley1Cmd.label "Glimke">
+<!ENTITY smiley1Cmd.accesskey "G">
+<!ENTITY smiley1Cmd.tooltip "Foegje in glimlaitsjend gesicht yn">
+<!ENTITY smiley2Cmd.label "Tryst">
+<!ENTITY smiley2Cmd.accesskey "T">
+<!ENTITY smiley2Cmd.tooltip "Foegje in tryst gesicht yn">
+<!ENTITY smiley3Cmd.label "Knypeach">
+<!ENTITY smiley3Cmd.accesskey "n">
+<!ENTITY smiley3Cmd.tooltip "Foegje in knypeagjend gesicht yn">
+<!ENTITY smiley4Cmd.label "Tonge útstekke">
+<!ENTITY smiley4Cmd.accesskey "ú">
+<!ENTITY smiley4Cmd.tooltip "Foegje in gesicht mei útstutsen tonge yn">
+<!ENTITY smiley5Cmd.label "Laits">
+<!ENTITY smiley5Cmd.accesskey "L">
+<!ENTITY smiley5Cmd.tooltip "Foegje in laitsjend gesicht yn">
+<!ENTITY smiley6Cmd.label "Reade holle">
+<!ENTITY smiley6Cmd.accesskey "B">
+<!ENTITY smiley6Cmd.tooltip "Foegje in reade holle yn">
+<!ENTITY smiley7Cmd.label "Twifel">
+<!ENTITY smiley7Cmd.accesskey "T">
+<!ENTITY smiley7Cmd.tooltip "Foegje in twifeljend gesicht yn">
+<!ENTITY smiley8Cmd.label "Ferbaasd">
+<!ENTITY smiley8Cmd.accesskey "b">
+<!ENTITY smiley8Cmd.tooltip "Foegje in ferbaasd gesicht yn">
+<!ENTITY smiley9Cmd.label "Tút">
+<!ENTITY smiley9Cmd.accesskey "t">
+<!ENTITY smiley9Cmd.tooltip "Foegje in tútgesicht yn">
+<!ENTITY smiley10Cmd.label "Skreau">
+<!ENTITY smiley10Cmd.accesskey "S">
+<!ENTITY smiley10Cmd.tooltip "Foegje in skreauwend gesicht yn">
+<!ENTITY smiley11Cmd.label "Cool">
+<!ENTITY smiley11Cmd.accesskey "C">
+<!ENTITY smiley11Cmd.tooltip "Foegje in cool gesicht yn">
+<!ENTITY smiley12Cmd.label "Habsucht">
+<!ENTITY smiley12Cmd.accesskey "H">
+<!ENTITY smiley12Cmd.tooltip "Foegje in habsuchtich gesicht yn">
+<!ENTITY smiley13Cmd.label "Mûle fol tosken">
+<!ENTITY smiley13Cmd.accesskey "M">
+<!ENTITY smiley13Cmd.tooltip "Foegje in gesicht mei de mûle fol tosken yn">
+<!ENTITY smiley14Cmd.label "Unskuld">
+<!ENTITY smiley14Cmd.accesskey "U">
+<!ENTITY smiley14Cmd.tooltip "Foegje in ûnskuldich gesicht yn">
+<!ENTITY smiley15Cmd.label "Triennen">
+<!ENTITY smiley15Cmd.accesskey "r">
+<!ENTITY smiley15Cmd.tooltip "Foegje in gûlend gesicht yn">
+<!ENTITY smiley16Cmd.label "Ik sis neat">
+<!ENTITY smiley16Cmd.accesskey "p">
+<!ENTITY smiley16Cmd.tooltip "Foegje in gesicht dat neat seit yn">
+<!ENTITY SmileButton.tooltip "Foegje in smiley yn">

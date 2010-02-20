@@ -1,0 +1,31 @@
+<!ENTITY dialog.title                 "ਭੇਜਣ ਚੋਣਾਂ">
+<!ENTITY sendMail.title               "ਟੈਕਸਟ ਫਾਰਮੈਟ">
+<!ENTITY sendMaildesc.label           "ਜਦੋਂ HTML ਫਾਰਮੈਟ ਵਿੱਚ ਸੁਨੇਹੇ ਭੇਜੇ ਜਾ ਰਹੇ ਹੋ ਅਤੇ ਇੱਕ ਜਾਂ ਵੱਧ ਪ੍ਰਾਪਤ ਕਰਤਾ HTML ਨਾ ਲੈਣ ਵਾਲਾ ਹੋਵੇ ਤਾਂ:">
+<!ENTITY askMe.label                  "ਮੈਨੂੰ ਪੁੱਛੋ ਕਿ ਕੀ ਕਰਨਾ ਹੈ">
+<!ENTITY askMe.accesskey              "k">
+<!ENTITY convertPlain.label           "ਸੁਨੇਹੇ ਨੂੰ ਪਲੇਨ ਟੈਕਸਟ ਵਿੱਚ ਬਦਲੋ">
+<!ENTITY convertPlain.accesskey       "C">
+<!ENTITY sendHTML.label               "ਕਿਵੇਂ ਵੀ HTML ਵਿੱਚ ਸੁਨੇਹਾ ਹੀ ਭੇਜੋ">
+<!ENTITY sendHTML.accesskey           "S">
+<!ENTITY sendBoth.label               "ਪਲੇਨ ਟੈਕਸਟ ਅਤੇ HTML ਦੋਵਾਂ ਵਿੱਚ ਹੀ ਸੁਨੇਹਾ ਭੇਜੋ">
+<!ENTITY sendBoth.accesskey           "e">
+<!ENTITY override.label               "ਨੋਟ: ਪ੍ਰਾਪਤਕਰਤਾ ਲਈ ਟੈਕਸਟ ਫਾਰਮੈਟ ਦੇਣ ਲਈ ਐਡਰੈਸ ਬੁੱਕ ਵਰਤੋਂ।">
+
+<!ENTITY domaindesc.label             "ਜਦੋਂ ਤੁਸੀਂ ਹੇਠ ਦਿੱਤੇ ਡੋਮੇਨ ਨਾਂ ਵਿੱਚ ਕਿਸੇ ਵੀ ਐਡਰੈੱਸ ਨੂੰ ਸੁਨੇਹਾ ਭੇਜੋ ਤਾਂ &brandShortName; ਆਟੋਮੈਟਿਕ ਹੀ ਠੀਕ ਫਾਰਮੈਟ ਵਿੱਚ ਸੁਨੇਹਾ ਭੇਜੇ">
+<!ENTITY HTMLTab.label                "HTML ਡੋਮੇਨ">
+<!ENTITY HTMLTab.accesskey            "H">
+<!ENTITY PlainTextTab.label           "ਪਲੇਨ ਟੈਕਸਟ ਡੋਮੇਨ">
+<!ENTITY PlainTextTab.accesskey       "P">
+<!ENTITY AddHtmlDomain.label          "ਸ਼ਾਮਲ…">
+<!ENTITY AddHtmlDomain.accesskey      "A">
+<!ENTITY AddPlainText.label           "ਸ਼ਾਮਲ…">
+<!ENTITY AddPlainText.accesskey       "A">
+<!ENTITY DeleteHtmlDomain.label       "ਹਟਾਓ">
+<!ENTITY DeleteHtmlDomain.accesskey   "D">
+<!ENTITY DeletePlainText.label        "ਹਟਾਓ">
+<!ENTITY DeletePlainText.accesskey    "D">
+
+<!ENTITY add.htmltitle                "HTML ਡੋਮੇਨ ਨਾਂ ਸ਼ਾਮਲ">
+<!ENTITY add.htmldomain               "HTML ਡੋਮੇਨ ਨਾਂ:">
+<!ENTITY add.plaintexttitle           "ਪਲੇਨ ਟੈਕਸਟ ਡੋਮੇਨ ਨਾਂ ਸ਼ਾਮਲ">
+<!ENTITY add.plaintextdomain          "ਪਲੇਨ ਟੈਕਸਟ ਡੋਮੇਨ ਨਾਂ:">

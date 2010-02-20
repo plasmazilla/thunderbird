@@ -1,0 +1,23 @@
+locale autoconfig hu jar:chrome/hu.jar!/locale/hu/autoconfig/
+locale pippki hu jar:chrome/hu.jar!/locale/hu/pippki/
+locale necko hu jar:chrome/hu.jar!/locale/hu/necko/
+locale cookie hu jar:chrome/hu.jar!/locale/hu/cookie/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale messenger-smime hu jar:chrome/hu.jar!/locale/hu/messenger-smime/
+locale alerts hu jar:chrome/hu.jar!/locale/hu/alerts/
+locale passwordmgr hu jar:chrome/hu.jar!/locale/hu/passwordmgr/
+locale branding hu jar:chrome/hu.jar!/locale/hu/branding/
+locale global hu jar:chrome/hu.jar!/locale/hu/global/
+locale messenger hu jar:chrome/hu.jar!/locale/hu/messenger/
+locale pipnss hu jar:chrome/hu.jar!/locale/hu/pipnss/
+locale communicator hu jar:chrome/hu.jar!/locale/hu/communicator/
+locale mozldap hu jar:chrome/hu.jar!/locale/hu/mozldap/
+locale messenger-newsblog hu jar:chrome/hu.jar!/locale/hu/messenger-newsblog/
+locale messenger-region hu jar:chrome/hu.jar!/locale/hu/messenger-region/
+locale mozapps hu jar:chrome/hu.jar!/locale/hu/mozapps/
+locale editor hu jar:chrome/hu.jar!/locale/hu/editor/
+locale places hu jar:chrome/hu.jar!/locale/hu/places/
+locale messenger-mapi hu jar:chrome/hu.jar!/locale/hu/messenger-mapi/
+locale global-platform hu jar:chrome/hu.jar!/locale/hu/global-platform/
+locale global-region hu jar:chrome/hu.jar!/locale/hu/global-region/

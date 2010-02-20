@@ -1,0 +1,16 @@
+<!--LOCALIZATION NOTE msgCompSMIMEOverlay.dtd UI for s/mime hooks in message composition -->
+
+<!ENTITY menu_securityEncryptRequire.label "ამ წერილის დაშიფვრა">
+<!ENTITY menu_securityEncryptRequire.accesskey "E">
+
+<!ENTITY menu_securitySign.label "ამ წერილის ციფრული ხელმოწერა">
+<!ENTITY menu_securitySign.accesskey "M">
+
+<!ENTITY menu_securityStatus.label "წერილის უსაფრთხოების ჩვენება">
+<!ENTITY menu_securityStatus.accesskey "I">
+
+<!ENTITY securityButton.label "უსაფრთხოება">
+<!ENTITY securityButton.tooltip "უსაფრთხოების პარამეტრების ჩვენება ან შეცვლა">
+
+<!ENTITY menu_viewSecurityStatus.label "წერილის უსაფრთხოების მონაცემები">
+<!ENTITY menu_viewSecurityStatus.accesskey "I">

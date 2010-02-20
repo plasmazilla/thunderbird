@@ -1,0 +1,7 @@
+<!ENTITY  newMessageCmd2.key              "n">
+<!ENTITY  newMessageCmd.key               "m">
+<!ENTITY  newMessageCmd.label             "Mensagem">
+<!ENTITY  newMessageCmd.accesskey         "M">
+ 
+<!ENTITY  newContactCmd.label             "Contato de catálogo de endereços…">
+<!ENTITY  newContactCmd.accesskey         "C">

@@ -1,0 +1,37 @@
+<!ENTITY  connectionsDialog.title       "Ferbiningsynstellings">
+<!ENTITY  window.width                  "41em">
+
+<!ENTITY  proxyTitle.label              "Proxy’s foar tagong ta it ynternet konfigurearje">
+<!ENTITY  noProxyTypeRadio.label        "Gjin proxy">
+<!ENTITY  noProxyTypeRadio.accesskey    "y">
+<!ENTITY  systemTypeRadio.label         "Systeem proxy-ynstellings brûke">
+<!ENTITY  systemTypeRadio.accesskey     "k">
+<!ENTITY  WPADTypeRadio.label           "Proxy-ynstellings foar dit netwurk automatysk detektearje">
+<!ENTITY  WPADTypeRadio.accesskey       "w">
+<!ENTITY  manualTypeRadio.label         "Hânmjittige proxykonfiguraasje:">
+<!ENTITY  manualTypeRadio.accesskey     "m">
+<!ENTITY  autoTypeRadio.label           "URL foar automatyske proxykonfiguraasje:">
+<!ENTITY  autoTypeRadio.accesskey       "a">
+<!ENTITY  reload.label                  "Op 'e nij lade">
+<!ENTITY  reload.accesskey              "l">
+<!ENTITY  http.label                    "HTTP-proxy:">
+<!ENTITY  http.accesskey                "H">
+<!ENTITY  ssl.label                     "SSL-proxy:">
+<!ENTITY  ssl.accesskey                 "S">
+<!ENTITY  socks.label                   "SOCKS-host:">
+<!ENTITY  socks.accesskey               "C">
+<!ENTITY  socks4.label                  "SOCKS v4">
+<!ENTITY  socks4.accesskey              "K">
+<!ENTITY  socks5.label                  "SOCKS v5">
+<!ENTITY  socks5.accesskey              "v">
+<!ENTITY  HTTPport.label                "Poarte:">
+<!ENTITY  HTTPport.accesskey            "P">
+<!ENTITY  SSLport.label                 "Poarte:">
+<!ENTITY  SSLport.accesskey             "o">
+<!ENTITY  SOCKSport.label               "Poarte:">
+<!ENTITY  SOCKSport.accesskey           "t">
+<!ENTITY  noproxy.label                 "Gjin proxy foar:">
+<!ENTITY  noproxy.accesskey             "n">
+<!ENTITY  noproxyExplain.label          "Foarbyld: .mozilla.org, .net.nz, 192.168.1.0/24">
+<!ENTITY  shareproxy.label              "Dizze proxytsjinner foar alle protokollen brûke">
+<!ENTITY  shareproxy.accesskey          "x">

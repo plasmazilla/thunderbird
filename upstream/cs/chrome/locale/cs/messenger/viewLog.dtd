@@ -1,0 +1,8 @@
+<!ENTITY viewLog.title "Žurnál filtrů">
+<!ENTITY viewLogInfo.text "Žurnál filtrů dokumentuje, které filtry byly spuštěny. Žurnálování můžete povolit zaškrtnutím volby níže.">
+<!ENTITY clearLog.label "Smazat žurnál">
+<!ENTITY clearLog.accesskey "m">
+<!ENTITY enableLog.label "Povolit žurnál filtrů">
+<!ENTITY enableLog.accesskey "P">
+<!ENTITY closeLog.label "Zavřít">
+<!ENTITY closeLog.accesskey "z">

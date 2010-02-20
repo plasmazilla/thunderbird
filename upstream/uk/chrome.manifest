@@ -1,0 +1,23 @@
+locale global uk jar:chrome/uk.jar!/locale/uk/global/
+locale alerts uk jar:chrome/uk.jar!/locale/uk/alerts/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale communicator uk jar:chrome/uk.jar!/locale/uk/communicator/
+locale places uk jar:chrome/uk.jar!/locale/uk/places/
+locale messenger-mapi uk jar:chrome/uk.jar!/locale/uk/messenger-mapi/
+locale pippki uk jar:chrome/uk.jar!/locale/uk/pippki/
+locale global-platform uk jar:chrome/uk.jar!/locale/uk/global-platform/
+locale editor uk jar:chrome/uk.jar!/locale/uk/editor/
+locale messenger uk jar:chrome/uk.jar!/locale/uk/messenger/
+locale messenger-newsblog uk jar:chrome/uk.jar!/locale/uk/messenger-newsblog/
+locale necko uk jar:chrome/uk.jar!/locale/uk/necko/
+locale mozldap uk jar:chrome/uk.jar!/locale/uk/mozldap/
+locale branding uk jar:chrome/uk.jar!/locale/uk/branding/
+locale mozapps uk jar:chrome/uk.jar!/locale/uk/mozapps/
+locale pipnss uk jar:chrome/uk.jar!/locale/uk/pipnss/
+locale passwordmgr uk jar:chrome/uk.jar!/locale/uk/passwordmgr/
+locale autoconfig uk jar:chrome/uk.jar!/locale/uk/autoconfig/
+locale messenger-region uk jar:chrome/uk.jar!/locale/uk/messenger-region/
+locale messenger-smime uk jar:chrome/uk.jar!/locale/uk/messenger-smime/
+locale cookie uk jar:chrome/uk.jar!/locale/uk/cookie/
+locale global-region uk jar:chrome/uk.jar!/locale/uk/global-region/

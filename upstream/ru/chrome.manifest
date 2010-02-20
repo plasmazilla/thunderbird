@@ -1,0 +1,23 @@
+locale places ru jar:chrome/ru.jar!/locale/ru/places/
+locale global-region ru jar:chrome/ru.jar!/locale/ru/global-region/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale mozldap ru jar:chrome/ru.jar!/locale/ru/mozldap/
+locale editor ru jar:chrome/ru.jar!/locale/ru/editor/
+locale autoconfig ru jar:chrome/ru.jar!/locale/ru/autoconfig/
+locale messenger-newsblog ru jar:chrome/ru.jar!/locale/ru/messenger-newsblog/
+locale messenger-mapi ru jar:chrome/ru.jar!/locale/ru/messenger-mapi/
+locale messenger-smime ru jar:chrome/ru.jar!/locale/ru/messenger-smime/
+locale mozapps ru jar:chrome/ru.jar!/locale/ru/mozapps/
+locale messenger ru jar:chrome/ru.jar!/locale/ru/messenger/
+locale cookie ru jar:chrome/ru.jar!/locale/ru/cookie/
+locale pippki ru jar:chrome/ru.jar!/locale/ru/pippki/
+locale passwordmgr ru jar:chrome/ru.jar!/locale/ru/passwordmgr/
+locale necko ru jar:chrome/ru.jar!/locale/ru/necko/
+locale pipnss ru jar:chrome/ru.jar!/locale/ru/pipnss/
+locale branding ru jar:chrome/ru.jar!/locale/ru/branding/
+locale global ru jar:chrome/ru.jar!/locale/ru/global/
+locale alerts ru jar:chrome/ru.jar!/locale/ru/alerts/
+locale messenger-region ru jar:chrome/ru.jar!/locale/ru/messenger-region/
+locale global-platform ru jar:chrome/ru.jar!/locale/ru/global-platform/
+locale communicator ru jar:chrome/ru.jar!/locale/ru/communicator/

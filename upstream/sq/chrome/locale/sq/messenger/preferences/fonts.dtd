@@ -1,0 +1,76 @@
+<!ENTITY  fontsAndEncodingsDialog.title           "Shkronja &amp; Kodime">
+<!ENTITY  window.width                            "39em">
+<!ENTITY  window.macWidth                         "43em">
+<!ENTITY  window.unixWidth                        "41em">
+
+<!ENTITY  language.label                          "Shkronja për:">
+<!ENTITY  language.accesskey                      "S">
+
+<!ENTITY  proportional.label                      "Proportional:">
+<!ENTITY  proportional.accesskey                  "P">
+
+<!ENTITY  serif.label                             "Serif:">
+<!ENTITY  serif.accesskey                         "e">
+<!ENTITY  sans-serif.label                        "Sans-serif:">
+<!ENTITY  sans-serif.accesskey                    "n">
+<!ENTITY  monospace.label                         "Monospace:">
+<!ENTITY  monospace.accesskey                     "o">
+<!ENTITY  font.langGroup.latin1                   "Perëndimore">
+<!ENTITY  font.langGroup.latin2                   "Europiane Qendrore">
+<!ENTITY  font.langGroup.japanese                 "Japoneze">
+<!ENTITY  font.langGroup.trad-chinese             "Kineze Tradicionale (Taivan)">
+<!ENTITY  font.langGroup.simpl-chinese            "Kineze Të thjeshtuara">
+<!ENTITY  font.langGroup.trad-chinese-hk          "Kineze Tradicionale (Hong Kong)">
+<!ENTITY  font.langGroup.korean                   "Koreane">
+<!ENTITY  font.langGroup.cyrillic                 "Cirilike">
+<!ENTITY  font.langGroup.baltic                   "Baltike">
+<!ENTITY  font.langGroup.el                       "Greke">
+<!ENTITY  font.langGroup.turkish                  "Turke">
+<!ENTITY  font.langGroup.unicode                  "Gjuhë të Tjera">
+<!ENTITY  font.langGroup.user-def                 "Përcaktuar nga Përdoruesi">
+<!ENTITY  font.langGroup.thai                     "Tailandeze">
+<!ENTITY  font.langGroup.hebrew                   "Hibru">
+<!ENTITY  font.langGroup.arabic                   "Arabike">
+<!ENTITY  font.langGroup.devanagari               "Devanagari">
+<!ENTITY  font.langGroup.tamil                    "Tamileze">
+<!ENTITY  font.langGroup.armenian                 "Armeniane">
+<!ENTITY  font.langGroup.bengali                  "Bengaliane">
+<!ENTITY  font.langGroup.canadian                 "Unified Canadian Syllabary">
+<!ENTITY  font.langGroup.ethiopic                 "Etiopike">
+<!ENTITY  font.langGroup.georgian                 "Gjeorgjiane">
+<!ENTITY  font.langGroup.gujarati                 "Gujarati">
+<!ENTITY  font.langGroup.gurmukhi                 "Gurmukhi">
+<!ENTITY  font.langGroup.khmer                    "Khmere">
+<!ENTITY  font.langGroup.malayalam                "Malajalameze">
+
+<!-- Minimum font size -->
+<!ENTITY minSize.label                            "Madhësi më e vogël shkronjash:">
+<!ENTITY minSize.accesskey                        "v">
+<!ENTITY minSize.none                             "Asnjë">
+
+<!-- default font type -->
+<!ENTITY  useDefaultFontSerif.label               "Serif">
+<!ENTITY  useDefaultFontSansSerif.label           "Sans Serif">
+<!ENTITY  useDocumentFonts.label                  "Lejoju mesazheve të përdorin shkronja të tjera">
+<!ENTITY  useDocumentFonts.accesskey              "L">
+<!ENTITY  proportionalSize.accesskey              "d">
+
+ 
+<!-- Language settings -->
+<!ENTITY sendDefaultCharset.label         "Postë Ikëse:">
+<!ENTITY sendDefaultCharset.accesskey     "i">
+<!ENTITY languagesTitle1.label		"Kodim Shkronjash">
+<!ENTITY composingDescription.label       "Caktoni kodim parazgjedhje shkronjash për dërgim dhe marrje poste">
+
+<!ENTITY viewDefaultCharsetList.label     "Postë Ardhëse:">
+<!ENTITY viewDefaultCharsetList.accesskey	"a">
+
+<!ENTITY replyInDefaultCharset2.label     "Kur mundet, përdor në përgjigje kodim parazgjedhje shkronjash">
+<!ENTITY replyInDefaultCharset2.accesskey "K">
+
+<!ENTITY  fixedWidth.accesskey                    "f">
+<!ENTITY  fontControl.label                       "Kontroll Shkronjash">
+<!ENTITY  sizeMono.accesskey                      "h">
+<!ENTITY  size.label                              "Madhësi:">
+<!ENTITY  useFixedWidthForPlainText.label         "Përdor shkronja me gjerësi fikse për mesazhe tekst të thjeshtë">
+

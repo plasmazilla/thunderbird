@@ -1,0 +1,7 @@
+<!ENTITY identityDialog.style "width:67ch;">
+<!ENTITY identityTitle.label "Propriedades da identidade">
+<!ENTITY identityListDesc.label "Configurar as opções desta identidade:">
+
+<!ENTITY settingsTab.label       "Geral">
+<!ENTITY copiesFoldersTab.label "Cópias e pastas">
+<!ENTITY addressingTab.label    "Editar e endereçar">

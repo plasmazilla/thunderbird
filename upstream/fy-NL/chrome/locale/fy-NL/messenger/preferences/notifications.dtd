@@ -1,0 +1,10 @@
+<!ENTITY notificationsDialog2.title       "Warskôging by nije e-mail oanpasse">
+<!ENTITY window.width                     "34em">
+
+<!ENTITY alertCustomization.intro         "Kies hokker fjilden toand wurde yn de warskôgingsnotifikaasje:">
+<!ENTITY previewText.label                "Foarbyldwerjeftetekst">
+<!ENTITY previewText.accesskey            "F">
+<!ENTITY subject.label                    "Underwerp">
+<!ENTITY subject.accesskey                "U">
+<!ENTITY sender.label                     "Ofstjoerder">
+<!ENTITY sender.accesskey                 "O">

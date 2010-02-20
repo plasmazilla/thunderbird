@@ -1,0 +1,58 @@
+<!ENTITY itemJunk.label "Nevyžádaná pošta">
+<!ENTITY itemPhishing.label "Podvodná pošta">
+<!ENTITY itemPasswords.label "Uložená hesla">
+<!ENTITY itemAntiVirus.label "Antivir">
+<!ENTITY itemCookies.label "Webový obsah">
+
+<!-- Junk Mail Controls -->
+<!ENTITY junkMail.intro "Další nastavení nevyžádané pošty lze provést v dialogu Nastavení účtu.">
+<!ENTITY manualMark.label "Pokud ručně označím zprávy jako nevyžádané:">
+<!ENTITY manualMark.accesskey "r">
+<!ENTITY manualMarkModeMove.label "Přesunout je do složky &quot;Nevyžádaná&quot;">
+<!ENTITY manualMarkModeMove.accesskey "n">
+<!ENTITY manualMarkModeDelete.label "Smazat">
+<!ENTITY manualMarkModeDelete.accesskey "S">
+<!ENTITY markAsReadOnSpam.label "Označit zprávy rozpoznané jako nevyžádaná pošta jako přečtené">
+<!ENTITY markAsReadOnSpam.accesskey "O">
+<!ENTITY enableJunkLogging.label "Povolit žurnál nevyžádané pošty">
+<!ENTITY enableJunkLogging.accesskey "P">
+<!ENTITY openJunkLog.label "Zobrazit žurnál">
+<!ENTITY openJunkLog.accesskey "Z">
+<!ENTITY resetTrainingData.label "Vymazat naučená pravidla">
+<!ENTITY resetTrainingData.accesskey "V">
+
+<!-- Phishing Detector -->
+<!ENTITY phishingDetector1.intro "&brandShortName; může analyzovat zprávy na podvodnou poštu pomocí odhalování technik používaných na vaše oklamání.">
+<!ENTITY enablePhishingDetector1.label "Upozornit, pokud čtená zpráva je podezřelá na podvodnou poštu">
+<!ENTITY enablePhishingDetector1.accesskey "U">
+<!ENTITY useDownloadedList.label "Použít stažený seznam zpráv podezřelých na podvodnou poštu">
+<!ENTITY useDownloadedList.accesskey "P">
+
+<!-- Passwords -->
+<!ENTITY savedPasswords.intro "Aplikace &brandShortName; si může pamatovat vaše přihlašovací údaje pro jednotlivé účty, takže je nebudete muset znovu zadávat.">
+<!ENTITY useMasterPassword.label "Použít hlavní heslo">
+<!ENTITY useMasterPassword.accesskey "h">
+<!ENTITY masterPassword.intro "Hlavní heslo, je-li nastaveno, chrání všechna vaše ostatní hesla. Jeho vložení je ale vyžadováno jednou během relace.">
+<!ENTITY changeMasterPassword.label "Změnit hlavní heslo…">
+<!ENTITY changeMasterPassword.accesskey "m">
+<!ENTITY savedPasswords.label "Zobrazit hesla…">
+<!ENTITY savedPasswords.accesskey "h">
+
+<!-- Anti Virus -->
+<!ENTITY antiVirus.intro "Aplikace &brandShortName; může antivirovým programům umožnit analyzování zpráv příchozí pošty na výskyt virů ještě dříve, než jsou tyto zprávy uloženy do složek pošty.">
+<!ENTITY antiVirus.label "Povolit antivirovým klientům prohlížet jednotlivé příchozí zprávy">
+<!ENTITY antiVirus.accesskey "P">
+
+<!-- Cookies -->
+<!ENTITY cookies.intro "&brandShortName; vám umožní nastavit, které kanály blogů a novinek, či další webové stránky v poště mohou nastavovat cookies.">
+<!ENTITY acceptCookies.label "Povolit serverům nastavovat cookies">
+<!ENTITY acceptCookies.accesskey "c">
+<!ENTITY keepUntil.label "Ponechat do:">
+<!ENTITY keepUntil.accesskey "P">
+<!ENTITY expire.label "konce doby platnosti">
+<!ENTITY close.label "ukončení aplikace &brandShortName;">
+<!ENTITY askEachTime.label "vždy se dotázat">
+<!ENTITY cookieExceptions.label "Výjimky…">
+<!ENTITY cookieExceptions.accesskey "k">
+<!ENTITY showCookies.label "Správce cookies…">
+<!ENTITY showCookies.accesskey "S">

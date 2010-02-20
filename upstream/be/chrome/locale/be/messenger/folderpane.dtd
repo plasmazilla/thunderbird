@@ -1,0 +1,5 @@
+<!--null-->
+<!ENTITY nameColumn.label "Назва">
+<!ENTITY unreadColumn.label "Непрачытаных">
+<!ENTITY totalColumn.label "Усяго">
+<!ENTITY folderSizeColumn.label "Памер">

@@ -1,0 +1,4 @@
+<!-- New Tag Dialog -->
+<!ENTITY newTagDialog.title "Yeni etiket">
+<!ENTITY name.label "Etiket:">
+<!ENTITY name.accesskey "t">

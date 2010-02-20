@@ -1,0 +1,23 @@
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale necko pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/necko/
+locale branding pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/branding/
+locale messenger-region pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/messenger-region/
+locale communicator pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/communicator/
+locale cookie pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/cookie/
+locale mozapps pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/mozapps/
+locale passwordmgr pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/passwordmgr/
+locale places pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/places/
+locale autoconfig pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/autoconfig/
+locale messenger-mapi pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/messenger-mapi/
+locale messenger pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/messenger/
+locale pippki pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/pippki/
+locale global-region pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/global-region/
+locale messenger-newsblog pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/messenger-newsblog/
+locale global-platform pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/global-platform/
+locale pipnss pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/pipnss/
+locale global pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/global/
+locale mozldap pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/mozldap/
+locale editor pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/editor/
+locale messenger-smime pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/messenger-smime/
+locale alerts pt-BR jar:chrome/pt-BR.jar!/locale/pt-BR/alerts/

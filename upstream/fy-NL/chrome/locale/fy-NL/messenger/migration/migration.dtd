@@ -1,0 +1,31 @@
+
+<!ENTITY migrationWizard.title "Ymportearassistint">
+
+<!ENTITY importFromWin.label "Opsjes, accountynstellings, adresboek, filters en oare gegevens ymportearje út:">
+<!ENTITY importFromNonWin.label "Foarkarren, accountynstellings, adresboek en oare gegevens ymportearje út:">
+
+<!ENTITY importFromNothing.label "Neat ymportearje">
+<!ENTITY importFromNothing.accesskey "t">
+<!ENTITY importFromSeamonkey2.label "Netscape 6, 7, Mozilla 1.x of SeaMonkey">
+<!ENTITY importFromSeamonkey2.accesskey "S">
+<!ENTITY importFromNetscape4.label "Netscape 4.x">
+<!ENTITY importFromNetscape4.accesskey "4">
+<!ENTITY importFromOExpress.label "Outlook Express">
+<!ENTITY importFromOExpress.accesskey "u">
+<!ENTITY importFromOutlook.label "Outlook">
+<!ENTITY importFromOutlook.accesskey "O">
+<!ENTITY importFromEudora.label "Eudora">
+<!ENTITY importFromEudora.accesskey "E">
+
+<!ENTITY importSource.title "Ynstellings en e-mailmappen ymportearje">
+<!ENTITY importItems.title "Te ymportearjen items">
+<!ENTITY importItems.label "Selektearje de te ymportearjen items:">
+
+<!ENTITY migrating.title "Dwaande mei ymportearjen…">
+<!ENTITY migrating.label "De folgjende items wurde op dit stuit ymportearre…">
+
+<!ENTITY selectProfile.title "Profyl selektearje">
+<!ENTITY selectProfile.label "De folgjende profilen binne beskikber om út te ymportearjen:">
+
+<!ENTITY done.title "Ymportearjen foltôge">
+<!ENTITY done.label "De folgjende items binne súksesfol ymportearre:">

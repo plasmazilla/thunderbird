@@ -1,0 +1,18 @@
+<!ENTITY addressbookPicker.label "Helbide-liburua:">
+<!ENTITY addressbookPicker.accesskey "H">
+<!ENTITY searchInput.label "Bilatu hau:">
+<!ENTITY searchInput.accesskey "B">
+<!ENTITY SearchNameOrEmail.label "Izena edo e-posta">
+
+<!ENTITY deleteAddrBookCard.label "Ezabatu">
+<!ENTITY addrBookCardProperties.label "Propietateak">
+<!ENTITY addtoToFieldMenu.label "Gehitu Nori eremura">
+<!ENTITY addtoCcFieldMenu.label "Gehitu Cc eremura">
+<!ENTITY addtoBccFieldMenu.label "Gehitu Bcc eremura">
+
+<!ENTITY toButton.label "Gehitu Nori eremura:">
+<!ENTITY toButton.accesskey "N">
+<!ENTITY ccButton.label "Gehitu Cc eremura:">
+<!ENTITY ccButton.accesskey "C">
+<!ENTITY bccButton.label "Gehitu Bcc eremura:">
+<!ENTITY bccButton.accesskey "B">

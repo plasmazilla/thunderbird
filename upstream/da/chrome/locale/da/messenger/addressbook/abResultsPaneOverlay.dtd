@@ -1,0 +1,32 @@
+<!ENTITY GeneratedName.label "Navn">
+<!ENTITY GeneratedName.accesskey "N">
+<!ENTITY PrimaryEmail.label "Mail">
+<!ENTITY PrimaryEmail.accesskey "E">
+<!ENTITY Company.label "Organisation">
+<!ENTITY Company.accesskey "F">
+<!ENTITY _PhoneticName.label "Fonetisk navn">
+<!ENTITY _PhoneticName.accesskey "o">
+<!ENTITY NickName.label "Alias">
+<!ENTITY NickName.accesskey "K">
+<!ENTITY SecondEmail.label "Yderligere mail">
+<!ENTITY SecondEmail.accesskey "Y">
+<!ENTITY Department.label "Afdeling">
+<!ENTITY Department.accesskey "A">
+<!ENTITY JobTitle.label "Titel">
+<!ENTITY JobTitle.accesskey "T">
+<!ENTITY CellularNumber.label "Mobil">
+<!ENTITY CellularNumber.accesskey "M">
+<!ENTITY PagerNumber.label "Personsøger">
+<!ENTITY PagerNumber.accesskey "P">
+<!ENTITY FaxNumber.label "Fax">
+<!ENTITY FaxNumber.accesskey "x">
+<!ENTITY HomePhone.label "Hjemmetelefon">
+<!ENTITY HomePhone.accesskey "H">
+<!ENTITY WorkPhone.label "Arbejdstelefon">
+<!ENTITY WorkPhone.accesskey "A">
+<!ENTITY ScreenName.label "Skærmnavn">
+<!ENTITY ScreenName.accesskey "æ">
+<!ENTITY sortAscending.label "Stigende">
+<!ENTITY sortAscending.accesskey "S">
+<!ENTITY sortDescending.label "Faldende">
+<!ENTITY sortDescending.accesskey "F">

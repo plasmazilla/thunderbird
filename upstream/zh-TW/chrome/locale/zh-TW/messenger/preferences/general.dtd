@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "&brandShortName; 開始畫面">
+<!ENTITY enableStartPage.label            "當啟動 &brandShortName; 時，在郵件區顯示開始畫面">
+<!ENTITY enableStartPage.accesskey        "W">
+<!ENTITY location.label                   "位置:">
+<!ENTITY location1.accesskey               "o">
+<!ENTITY useDefault.label                 "回復預設值">
+<!ENTITY useDefault.accesskey             "R">
+
+<!ENTITY bounceSystemDockIcon.label       "動態 Dock 圖示">
+<!ENTITY bounceSystemDockIcon.accesskey   "i">
+
+<!ENTITY newMessagesArrive.label          "當有新郵件時:">
+<!ENTITY playSound.label                  "播放音效">
+<!ENTITY playSound1.accesskey              "d">
+<!ENTITY showAnimatedAlert.label          "顯示警告視窗">
+<!ENTITY showAnimatedAlert.accesskey      "S">
+<!ENTITY customizeMailAlert.label         "自訂…">
+<!ENTITY customizeMailAlert.accesskey     "C">
+
+<!ENTITY play.label                       "播放">
+<!ENTITY play.accesskey                   "P">
+<!ENTITY systemsound.label                "系統預設音效">
+<!ENTITY systemsoundMac.label             "系統提示聲">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "使用下列音效檔案">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "瀏覽…">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY addonsMgr.label                  "附加元件">
+<!ENTITY manageAddonsDescWin.label        "修改已安裝附加元件的選項">
+<!ENTITY manageAddonsDescUnix2.label      "修改已安裝附加元件的偏好設定">
+<!ENTITY manageAddons.label               "管理附加元件…">
+<!ENTITY manageAddons.accesskey           "M">

@@ -1,0 +1,108 @@
+<!ENTITY itemGeneral.label       "Algemeen">
+<!ENTITY itemDisplay.label       "Lezen &amp; weergave">
+<!ENTITY itemUpdate.label        "Update">
+<!ENTITY itemNetworking.label    "Netwerk &amp; schijfruimte">
+<!ENTITY itemCertificates.label  "Certificaten">
+
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Globaal zoeken en indexer activeren">
+<!ENTITY enableGlodaSearch.accesskey   "G">
+<!ENTITY systemIntegration.label       "Systeemintegratie">
+<!ENTITY alwaysCheckDefault.label      "Altijd tijdens het opstarten controleren of &brandShortName; de standaard e-mailclient is">
+<!ENTITY alwaysCheckDefault.accesskey  "A">
+<!ENTITY searchIntegration.label       "&searchIntegration.engineName; toestaan om berichten te doorzoeken">
+<!ENTITY searchIntegration.accesskey   "t">
+<!ENTITY checkNow.label                "Nu controleren">
+<!ENTITY checkNow.accesskey            "N">
+<!ENTITY configEditDesc.label          "Uitgebreide configuratie">
+<!ENTITY configEdit.label              "Configuratie-editor…">
+<!ENTITY configEdit.accesskey          "C">
+<!ENTITY returnReceiptsInfo.label      "Bepalen hoe &brandShortName; omgaat met leesbevestigingen">
+<!ENTITY showReturnReceipts.label      "Leesbevestigingen…">
+<!ENTITY showReturnReceipts.accesskey  "L">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption               "Lezen">
+<!ENTITY display.caption               "Weergave">
+<!ENTITY showCondensedAddresses.label  "Van personen in mijn adresboek alleen weergavenaam tonen">
+<!ENTITY showCondensedAddresses.accesskey "V">
+
+<!ENTITY autoMarkAsRead.label             "Berichten automatisch als gelezen markeren">
+<!ENTITY autoMarkAsRead.accesskey         "B">
+<!ENTITY markAsReadNoDelay.label          "Direct zichtbaar">
+<!ENTITY markAsReadNoDelay.accesskey      "D">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label            "Na">
+<!ENTITY markAsReadDelay.accesskey        "N">
+<!ENTITY secondsLabel.label               "seconden weergeven">
+<!ENTITY openMsgIn.label               "Nieuwe berichten openen in:">
+<!ENTITY openMsgInNewTab.label         "Een nieuw tabblad">
+<!ENTITY openMsgInNewTab.accesskey     "t">
+<!ENTITY reuseExpRadio0.label          "Een nieuw berichtvenster">
+<!ENTITY reuseExpRadio0.accesskey      "i">
+<!ENTITY reuseExpRadio1.label          "Een bestaand berichtvenster">
+<!ENTITY reuseExpRadio1.accesskey      "e">
+<!ENTITY closeMsgWindowOnDelete.label  "Bericht sluiten bij verwijderen">
+<!ENTITY closeMsgWindowOnDelete.accesskey "s">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "Automatisch controleren op updates voor:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey      "T">
+<!ENTITY enableAddonsUpdate.label       "Geïnstalleerde add-ons">
+<!ENTITY enableAddonsUpdate.accesskey   "G">
+<!ENTITY whenUpdatesFound.label         "Als er updates voor &brandShortName; worden gevonden:">
+<!ENTITY modeAskMe.label                "Mij vragen wat ik wil doen">
+<!ENTITY modeAskMe.accesskey            "M">
+<!ENTITY modeAutomatic.label            "Automatisch de update downloaden en installeren">
+<!ENTITY modeAutomatic.accesskey        "A">
+<!ENTITY modeAutoAddonWarn.label        "Mij waarschuwen als dit een van mijn add-ons zal uitschakelen">
+<!ENTITY modeAutoAddonWarn.accesskey    "w">
+<!ENTITY showUpdates.label              "Updategeschiedenis tonen">
+<!ENTITY showUpdates.accesskey          "U">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "Instellingen…">
+<!ENTITY showSettings.accesskey        "I">
+<!ENTITY proxiesConfigure.label        "Configureren hoe &brandShortName; verbinding maakt met het internet">
+<!ENTITY connectionsInfo.caption       "Verbinding">
+<!ENTITY offlineInfo.caption           "Offline">
+<!ENTITY offlineInfo.label             "Offline-instellingen configureren">
+<!ENTITY showOffline.label             "Offline…">
+<!ENTITY showOffline.accesskey         "O">
+
+<!ENTITY Diskspace "Schijfruimte">
+<!ENTITY offlineCompact.label "Mappen comprimeren als het meer bespaart dan">
+<!ENTITY offlineCompact.accesskey "M">
+<!ENTITY kb.label "KB">
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "Tot">
+<!ENTITY useCacheBefore.accesskey        "T">
+<!ENTITY useCacheAfter.label             "MB ruimte gebruiken voor de buffer">
+<!ENTITY clearCacheNow.label             "Nu wissen">
+<!ENTITY clearCacheNow.accesskey         "w">
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "Wanneer een server om mijn persoonlijke certificaat vraagt:">
+<!ENTITY certs.auto                      "Er automatisch een selecteren">
+<!ENTITY certs.auto.accesskey            "a">
+<!ENTITY certs.ask                       "Mij elke keer vragen">
+<!ENTITY certs.ask.accesskey             "e">
+
+<!ENTITY viewCertificates.label         "Certificaten bekijken">
+<!ENTITY viewCertificates.accesskey     "C">
+<!ENTITY viewCRLs.label                 "Intrekkingslijsten">
+<!ENTITY viewCRLs.accesskey             "I">
+<!ENTITY validation.label               "Validatie">
+<!ENTITY validation.accesskey           "V">
+<!ENTITY viewSecurityDevices.label      "Beveiligingsapparaten">
+<!ENTITY viewSecurityDevices.accesskey  "B">

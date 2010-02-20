@@ -1,0 +1,20 @@
+<!ENTITY emailSectionHdr.label        "Pošta">
+<!ENTITY readMsgsLink.label           "Čítať novú poštu">
+<!ENTITY composeMsgLink.label         "Napísať novú správu">
+
+<!ENTITY newsSectionHdr.label         "Diskusné skupiny">
+<!ENTITY subscribeNewsLink.label      "Správa odoberania diskusných skupín">
+
+<!ENTITY accountsSectionHdr.label     "Účty">
+<!ENTITY subscribeImapFolders.label   "Správa odoberania priečinkov">
+<!ENTITY settingsLink.label           "Zobraziť nastavenia tohto účtu">
+<!ENTITY newAcctLink.label            "Vytvoriť nový účet">
+
+<!ENTITY advFeaturesSectionHdr.label  "Pokročilé funkcie">
+<!ENTITY searchMsgsLink.label         "Vyhľadávanie v správach">
+<!ENTITY filtersLink.label            "Správa filtrov správ">
+<!ENTITY junkSettings.label           "Nastavenie rozpoznávania nevyžiadanej pošty">
+<!ENTITY offlineLink.label            "Nastavenie režimu offline">
+
+<!ENTITY feedsSectionHdr.label        "Informačné kanály">
+<!ENTITY subscribeFeeds.label         "Správa odoberania">

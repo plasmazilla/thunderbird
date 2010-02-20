@@ -1,0 +1,4 @@
+<!-- New Tag Dialog -->
+<!ENTITY newTagDialog.title      "Krijoni Etiketë të Re">
+<!ENTITY name.label              "Emër Etikete:">
+<!ENTITY name.accesskey          "E">

@@ -1,0 +1,75 @@
+<!-- for SearchDialog.xul -->
+<!ENTITY searchHeading.label "חפש הודעות בתוך:">
+<!ENTITY searchHeading.accesskey "ח">
+<!ENTITY searchSubfolders.label "חפש בתת־תיקיות">
+<!ENTITY searchSubfolders.accesskey "ת">
+<!ENTITY searchOnServer.label        "הרץ חיפוש בשרת">
+<!ENTITY searchOnServer.accesskey    "ש">
+<!ENTITY resetButton.label "נקה">
+<!ENTITY resetButton.accesskey "נ">
+<!ENTITY openButton.label "פתח">
+<!ENTITY openButton.accesskey "פ">
+<!ENTITY deleteButton.label "מחק">
+<!ENTITY deleteButton.accesskey "מ">
+<!ENTITY searchDialogTitle.label "חפש בהודעות">
+<!ENTITY results.label "תוצאות">
+<!ENTITY fileHereMenu.label "תייק כאן">
+<!ENTITY fileHereMenu.accesskey "כ">
+<!ENTITY fileButton.label "תייק">
+<!ENTITY fileButton.accesskey "ת">
+<!ENTITY closeCmd.key "W">
+<!ENTITY openInFolder.label          "פתח בתיקיה">
+<!ENTITY openInFolder.accesskey      "ת">
+<!ENTITY saveAsVFButton.label "שמור כתיקיית חיפוש">
+<!ENTITY saveAsVFButton.accesskey "ת">
+
+<!-- for ABSearchDialog.xul -->
+<!ENTITY abSearchHeading.label       "חפש בתוך:">
+<!ENTITY abSearchHeading.accesskey   "ב">
+<!ENTITY propertiesButton.label      "מאפיינים">
+<!ENTITY propertiesButton.accesskey  "מ">
+<!ENTITY composeButton.label         "כתוב הודעה">
+<!ENTITY composeButton.accesskey     "כ">
+<!ENTITY abSearchDialogTitle.label   "חיפוש מתקדם בפנקס כתובות">
+
+<!-- Thread Pane -->
+<!ENTITY threadColumn.label "נושא דיון">
+
+<!ENTITY recipientColumn.label "נמען">
+<!ENTITY subjectColumn.label "נושא">
+<!ENTITY dateColumn.label "תאריך">
+<!ENTITY priorityColumn.label "עדיפות">
+<!ENTITY tagsColumn.label "תגיות">
+<!ENTITY accountColumn.label "חשבון">
+<!ENTITY statusColumn.label "מצב">
+<!ENTITY sizeColumn.label "גודל">
+<!ENTITY junkStatusColumn.label "מצב דואר זבל">
+
+<!ENTITY unreadColumn.label "לא נקראו">
+<!ENTITY totalColumn.label "סה״כ">
+<!ENTITY readColumn.label "שנקראו">
+<!ENTITY starredColumn.label "מסומן בכוכבית">
+<!ENTITY locationColumn.label "מיקום">
+<!ENTITY idColumn.label "סדר קבלה">
+<!ENTITY columnChooser.tooltip "לחץ לבחירת עמודות לתצוגה">
+<!ENTITY threadColumn.tooltip "לחץ להצגת נושאי דיון">
+
+<!ENTITY recipientColumn.tooltip "לחץ למיון לפי נמען">
+<!ENTITY subjectColumn.tooltip "לחץ למיון לפי נושא">
+<!ENTITY dateColumn.tooltip "לחץ למיון לפי תאריך">
+<!ENTITY priorityColumn.tooltip "לחץ למיון לפי עדיפות">
+<!ENTITY tagsColumn.tooltip "לחץ למיון לפי תגיות">
+<!ENTITY accountColumn.tooltip "לחץ למיון לפי חשבון">
+<!ENTITY statusColumn.tooltip "לחץ למיון לפי מצב">
+<!ENTITY sizeColumn.tooltip "לחץ למיון לפי גודל">
+<!ENTITY junkStatusColumn.tooltip "לחץ למיון לפי מצב זבל">
+<!ENTITY unreadColumn.tooltip "מספר הודעות שלא נקראו בנושא דיון">
+<!ENTITY totalColumn.tooltip "מספר כל ההודעות בנושא דיון">
+<!ENTITY readColumn.tooltip "לחץ למיון לפי הודעות שנקראו">
+<!ENTITY starredColumn.tooltip "לחץ למיון לפי כוכבית">
+<!ENTITY locationColumn.tooltip "לחץ למיון לפי מיקום">
+<!ENTITY idColumn.tooltip "לחץ למיון לפי סדר הקבלה">
+<!ENTITY fromColumn.label "שולח">
+<!ENTITY fromColumn.tooltip "לחץ למיון לפי שולח">
+<!ENTITY receivedColumn.label "התקבלה">
+<!ENTITY receivedColumn.tooltip "לחץ למיון לפי תאריך קבלה">

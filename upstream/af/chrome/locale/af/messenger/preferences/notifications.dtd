@@ -1,0 +1,11 @@
+<!ENTITY notificationsDialog2.title "Doelmaak nuwepos-klank">
+<!ENTITY window.width "30em">
+
+<!ENTITY alertCustomization.intro "Kies watter velde in die kennisgewing gewys moet word:">
+<!ENTITY previewText.label "Boodskap-voorskouteks">
+<!ENTITY previewText.accesskey "B">
+<!ENTITY subject.label "Onderwerpreël">
+<!ENTITY subject.accesskey "O">
+<!ENTITY sender.label "Afsender">
+<!ENTITY sender.accesskey "e">
+

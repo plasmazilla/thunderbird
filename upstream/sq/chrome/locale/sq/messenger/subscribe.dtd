@@ -1,0 +1,18 @@
+<!ENTITY subscribeDialog.title        "Pajtohuni">
+<!ENTITY subscribeButton.label        "Pajtomë">
+<!ENTITY subscribeButton.accesskey    "P">
+<!ENTITY unsubscribeButton.label      "Çpajtomë">
+<!ENTITY unsubscribeButton.accesskey  "Ç">
+<!ENTITY newGroupsTab.label           "Grupe të Rinj">
+<!ENTITY newGroupsTab.accesskey       "G">
+<!ENTITY refreshButton.label          "Freskoje">
+<!ENTITY refreshButton.accesskey      "F">
+<!ENTITY stopButton.label             "Ndal">
+<!ENTITY stopButton.accesskey         "N">
+<!ENTITY server.label                 "Llogari:">
+<!ENTITY server.accesskey             "L">
+<!ENTITY subscribedHeader.label       "Pajtohuni">
+<!-- commenting out until bug 38906 is fixed 
+<!ENTITY messagesHeader.label         "Mesazhe"> -->
+<!ENTITY namefield.label              "Shfaq elementë që përmbajnë:">
+<!ENTITY namefield.accesskey          "S">

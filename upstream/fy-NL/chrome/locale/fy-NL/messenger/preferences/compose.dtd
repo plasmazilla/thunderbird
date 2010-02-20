@@ -1,0 +1,57 @@
+<!ENTITY itemGeneral.label                   "Algemien">
+<!ENTITY itemAutoComplete.label              "Adressearing">
+<!ENTITY itemSpellCheck.label                "Stavering">
+
+<!ENTITY forwardMsg.label                     "Berjochten trochstjoere:">
+<!ENTITY forwardMsg.accesskey                 "t">
+<!ENTITY inline.label                         "Yn it berjocht">
+<!ENTITY asAttachment.label                   "As bylage">
+<!ENTITY addExtension.label                   "Ekstinsje oan bestânsnamme tafoegje">
+<!ENTITY addExtension.accesskey               "t">
+
+<!ENTITY htmlComposeHeader.label              "HTML">
+<!ENTITY font.label                           "Lettertype:">
+<!ENTITY font.accesskey                       "L">
+<!ENTITY size.label                           "Grutte:">
+<!ENTITY size.accesskey                       "G">
+<!ENTITY fontColor.label                      "Tekstkleur:">
+<!ENTITY fontColor.accesskey                  "k">
+<!ENTITY bgColor.label                        "Achtergrûnkleur:">
+<!ENTITY bgColor.accesskey                    "A">
+<!ENTITY restoreHTMLDefaults.label            "Standertwearden tebeksette">
+<!ENTITY restoreHTMLDefaults.accesskey        "S">
+
+<!ENTITY spellCheck.label                     "Stavering kontrolearje foar it ferstjoeren">
+<!ENTITY spellCheck.accesskey                 "k">
+<!ENTITY spellCheckInline.label               "Stavering kontrolearje ûnder it typen">
+<!ENTITY spellCheckInline1.accesskey          "n">
+<!ENTITY languagePopup.label                  "Taal:">
+<!ENTITY languagePopup.accessKey              "T">
+<!ENTITY downloadDictionaries.label           "Mear wurdboeken ynlade">
+
+<!ENTITY warnOnSendAccelKey.label             "Befestiging freegje by gebrûk fan fluchtoets om berjochten te ferstjoeren">
+<!ENTITY warnOnSendAccelKey.accesskey         "B">
+<!ENTITY autoSave.label                       "Elke">
+<!ENTITY autoSave.accesskey                   "E">
+<!ENTITY autoSaveEnd.label                    "minuten automatysk bewarje">
+
+<!ENTITY emailCollectionPicker.label           "E-mailadressen fan útgeande berjochten automatysk tafoegje oan myn:">
+<!ENTITY emailCollectionPicker.accesskey       "t">
+<!ENTITY addressingTitle.label                 "Automatyske adresoanfolling">
+<!ENTITY autocompleteText.label                "By it adressearjen fan berjochten, nei oerienkomsten sykje yn:">
+<!ENTITY addressingEnable.label                "Lokale adresboeken">
+<!ENTITY addressingEnable.accesskey            "r">
+<!ENTITY directories.label                     "Directorytsjinner:">
+<!ENTITY directories.accesskey                 "y">
+<!ENTITY directoriesNone.label                 "Gjin">
+<!ENTITY editDirectories.label                 "Directorys bewurkje…">
+<!ENTITY editDirectories.accesskey             "w">
+
+<!ENTITY sendOptionsDescription.label          "Tekstopmaakgedrach konfigurearje">
+<!ENTITY sendOptions.label                     "Ferstjoeropsjes…">
+<!ENTITY sendOptions.accesskey                 "F">
+
+<!ENTITY attachmentReminder.label              "Kontrolearje op fergetten bylagen">
+<!ENTITY attachmentReminder.accesskey          "f">
+<!ENTITY attachmentReminderOptions.label       "Kaaiwurden…">
+<!ENTITY attachmentReminderOptions.accesskey   "K">

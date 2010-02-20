@@ -1,0 +1,108 @@
+<!ENTITY itemGeneral.label       "Generale">
+<!ENTITY itemDisplay.label       "Citire și afișare">
+<!ENTITY itemUpdate.label        "Actualizare">
+<!ENTITY itemNetworking.label    "Rețea și spațiu pe disc">
+<!ENTITY itemCertificates.label  "Certificate">
+
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Activează căutarea globală și indexarea">
+<!ENTITY enableGlodaSearch.accesskey   "i">
+<!ENTITY systemIntegration.label       "Integrare cu sistemul">
+<!ENTITY alwaysCheckDefault.label      "Verifică întotdeauna la pornire dacă &brandShortName; este clientul implicit de email">
+<!ENTITY alwaysCheckDefault.accesskey  "l">
+<!ENTITY searchIntegration.label       "Permite &searchIntegration.engineName; căutarea în mesaje">
+<!ENTITY searchIntegration.accesskey   "P">
+<!ENTITY checkNow.label                "Verifică acum…">
+<!ENTITY checkNow.accesskey            "V">
+<!ENTITY configEditDesc.label          "Configurare avansată">
+<!ENTITY configEdit.label              "Editor de configurație…">
+<!ENTITY configEdit.accesskey          "g">
+<!ENTITY returnReceiptsInfo.label      "Configurați gestionarea confirmărilor de primire">
+<!ENTITY showReturnReceipts.label      "Confirmări de primire…">
+<!ENTITY showReturnReceipts.accesskey  "r">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption               "Citire">
+<!ENTITY display.caption               "Afișare">
+<!ENTITY showCondensedAddresses.label  "Arată numai numele pentru cei din agenda mea de contacte">
+<!ENTITY showCondensedAddresses.accesskey "d">
+
+<!ENTITY autoMarkAsRead.label          "Marchează automat mesajele ca citite">
+<!ENTITY autoMarkAsRead.accesskey      "a">
+<!ENTITY markAsReadNoDelay.label       "Imediat la afișare">
+<!ENTITY markAsReadNoDelay.accesskey   "d">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label         "După ce sunt afișate">
+<!ENTITY markAsReadDelay.accesskey     "e">
+<!ENTITY secondsLabel.label            "secunde">
+<!ENTITY openMsgIn.label               "Deschide mesajele în:">
+<!ENTITY openMsgInNewTab.label         "O filă nouă">
+<!ENTITY openMsgInNewTab.accesskey     "O">
+<!ENTITY reuseExpRadio0.label          "O fereastră de mesaj nouă">
+<!ENTITY reuseExpRadio0.accesskey      "O">
+<!ENTITY reuseExpRadio1.label          "O fereastră de mesaj existentă">
+<!ENTITY reuseExpRadio1.accesskey      "x">
+<!ENTITY closeMsgWindowOnDelete.label  "Închide fereastra cu mesajul după ștergere">
+<!ENTITY closeMsgWindowOnDelete.accesskey "c">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "Caută automat actualizări pentru:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey      "h">
+<!ENTITY enableAddonsUpdate.label       "Suplimente instalate">
+<!ENTITY enableAddonsUpdate.accesskey   "t">
+<!ENTITY whenUpdatesFound.label         "Când sunt găsite actualizări pentru Thundebird,">
+<!ENTITY modeAskMe.label                "Întreabă-mă ce vreau să fac">
+<!ENTITY modeAskMe.accesskey            "n">
+<!ENTITY modeAutomatic.label            "Descarcă și instalează actualizarea automat">
+<!ENTITY modeAutomatic.accesskey        "m">
+<!ENTITY modeAutoAddonWarn.label        "Avertizează-mă dacă asta va duce la dezactivarea unora dintre suplimentele mele">
+<!ENTITY modeAutoAddonWarn.accesskey    "-">
+<!ENTITY showUpdates.label              "Arată istoricul actualizărilor">
+<!ENTITY showUpdates.accesskey          "A">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "Setări…">
+<!ENTITY showSettings.accesskey        "S">
+<!ENTITY proxiesConfigure.label        "Configurați cum se conectează &brandShortName; la Internet">
+<!ENTITY connectionsInfo.caption       "Conexiune">
+<!ENTITY offlineInfo.caption           "Deconectat">
+<!ENTITY offlineInfo.label             "Configurează preferințele pentru modul deconectat">
+<!ENTITY showOffline.label             "Offline...">
+<!ENTITY showOffline.accesskey         "O">
+
+<!ENTITY Diskspace "Spațiu pe disc">
+<!ENTITY offlineCompact.label "Compactează dosarele dacă asta economisește peste">
+<!ENTITY offlineCompact.accesskey "C">
+<!ENTITY kb.label "KO">
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "Folosește până la">
+<!ENTITY useCacheBefore.accesskey        "F">
+<!ENTITY useCacheAfter.label             "MO de spațiu pentru cache">
+<!ENTITY clearCacheNow.label             "Curăță acum">
+<!ENTITY clearCacheNow.accesskey         "C">
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "Când un server cere certificatul meu personal:">
+<!ENTITY certs.auto                      "Selectează automat unul">
+<!ENTITY certs.auto.accesskey            "m">
+<!ENTITY certs.ask                       "Întreabă-mă de fiecare dată">
+<!ENTITY certs.ask.accesskey             "a">
+
+<!ENTITY viewCertificates.label         "Vizualizare certificate">
+<!ENTITY viewCertificates.accesskey     "a">
+<!ENTITY viewCRLs.label                 "Liste de revocare">
+<!ENTITY viewCRLs.accesskey             "e">
+<!ENTITY validation.label               "Validare">
+<!ENTITY validation.accesskey           "d">
+<!ENTITY viewSecurityDevices.label      "Dispozitive de securitate">
+<!ENTITY viewSecurityDevices.accesskey  "u">

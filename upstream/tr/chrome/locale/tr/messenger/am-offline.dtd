@@ -1,0 +1,54 @@
+<!ENTITY doNotDownloadPop3Movemail.label "Yer sıkıntısı çekmemek için indirilmeyenler:">
+<!ENTITY doNotDownloadNntp.label "Yer sıkıntısı çekmemek için çevrim dışı kullanımı için indirilmeyenler:">
+<!ENTITY doNotDownloadImap.label "Disk alanından tasarruf etmek için sunucudaki iletilerin indirilmesi ve çevrim dışı için yerel kopyalarının bulundurması boyut veya yaş ile sınırlandırılabilir.">
+<!ENTITY allFoldersOffline.label "Hesaba ait iletileri bu bilgisayarda tut">
+<!ENTITY allFoldersOffline.accesskey "H">
+<!ENTITY offlineNotDownload.label "İleti">
+<!ENTITY offlineNotDownload.accesskey "t">
+<!ENTITY autosyncNotDownload.label "İleti">
+<!ENTITY autosyncNotDownload.accesskey "t">
+<!ENTITY kb.label "KB den büyük ise indirme">
+<!ENTITY daysOld.label "günden eski ise sil">
+<!ENTITY message.label "ileti dışındakileri sil">
+<!ENTITY nntpNotDownloadRead.label "Okunmuş iletiler">
+<!ENTITY nntpNotDownloadRead.accesskey "l">
+<!ENTITY nntpDownloadMsg.label "İleti">
+<!ENTITY nntpDownloadMsg.accesskey "i">
+<!ENTITY retentionCleanup.label "Boş yer kazanmak için eski iletireri düzenli aralıklar ile silebilirsiniz.">
+<!ENTITY retentionCleanupImap.label "Disk alanı kazanmak için sunucudaki eski özgün iletiler ve yerel kopyaları tamamen silinebilir.">
+<!ENTITY retentionCleanupPop.label "Disk alanı kazanmak için sunucudaki eski özgün iletiler tamamen silinebilir.">
+<!ENTITY retentionKeepMsg.label "İleti">
+<!ENTITY retentionKeepMsg.accesskey "t">
+<!ENTITY retentionKeepAll.label "Hiçbir iletiyi silme">
+<!ENTITY retentionKeepAll.accesskey "H">
+<!ENTITY retentionKeepRecent.label "Son">
+<!ENTITY retentionKeepRecent.accesskey "S">
+<!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
+<!ENTITY retentionKeepUnreadHidden.label "Okunmuş iletileri sil (zaman ayarlarını gözardı et)">
+<!ENTITY retentionApplyToFlagged.label "Yıldızlı iletileri hiçbir zaman silme">
+<!ENTITY retentionApplyToFlagged.accesskey "Y">
+<!ENTITY nntpRemoveMsgBody.label "İleti gövdesi">
+<!ENTITY nntpRemoveMsgBody.accesskey "ö">
+<!ENTITY offlineSelectNntp.label "Çevrim dışı kullanım için haber grubu seçin…">
+<!ENTITY offlineSelectNntp.accesskey "s">
+<!ENTITY offlineImapAdvancedOffline.label "Gelişmiş…">
+<!ENTITY offlineImapAdvancedOffline.accesskey "G">
+<!ENTITY syncGroupTitle.label "İleti eşzamanlaması">
+<!ENTITY diskspaceGroupTitle.label "Disk alanı">
+<!-- LOCALIZATION NOTE: (ageAutosyncBefore.label, ageAutosyncMiddle.label, ageAutosyncAfter.label):
+  The entities ageAutosyncBefore.label, ageAutosyncMiddle.label, and ageAutosyncAfter.label appear
+  on a single line within the scope of useAutosync.ByAge as follows:
+
+  &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
+-->
+
+<!ENTITY allAutosync.label "Tarihini gözardı ederek tüm iletileri eşzamanla">
+<!ENTITY allAutosync.accesskey "T">
+<!ENTITY ageAutosyncBefore.label "Son">
+<!ENTITY ageAutosync.accesskey "o">
+<!ENTITY ageAutosyncMiddle.label "">
+<!ENTITY dayAgeInterval.label "günü">
+<!ENTITY weekAgeInterval.label "haftayı">
+<!ENTITY monthAgeInterval.label "ayı">
+<!ENTITY yearAgeInterval.label "yılı">
+<!ENTITY ageAutosyncAfter.label "eşzamanla">

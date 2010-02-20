@@ -1,0 +1,24 @@
+<!ENTITY offlineDialog.title              "Ustawienia trybu offline">
+
+<!ENTITY textStartUp                      "Przy uruchamianiu:">
+<!ENTITY radioRememberPrevState.label     "Powracaj do poprzedniego stanu online">
+<!ENTITY radioRememberPrevState.accesskey "P">
+<!ENTITY radioAskMe.label                 "Pytaj o przejście do trybu online">
+<!ENTITY radioAskMe.accesskey             "o">
+<!ENTITY radioAlwaysOnline.label          "Zawsze zaczynaj w trybie online">
+<!ENTITY radioAlwaysOnline.accesskey      "Z">
+
+<!ENTITY textGoingOnline                  "Czy wysyłać niewysłane wiadomości przy przechodzeniu do trybu online?">
+<!ENTITY radioAutoSend.label              "Tak">
+<!ENTITY radioAutoSend.accesskey          "T">
+<!ENTITY radioNotSend.label               "Nie">
+<!ENTITY radioNotSend.accesskey           "N">
+<!ENTITY radioAskUnsent.label             "Zapytaj">
+<!ENTITY radioAskUnsent.accesskey         "j">
+<!ENTITY textGoingOffline                 "Czy pobierać wiadomości do wykorzystania w trybie offline przed przchodzeniem do niego?">
+<!ENTITY radioAutoDownload.label          "Tak">
+<!ENTITY radioAutoDownload.accesskey      "k">
+<!ENTITY radioNotDownload.label           "Nie">
+<!ENTITY radioNotDownload.accesskey       "e">
+<!ENTITY radioAskDownload.label           "Zapytaj">
+<!ENTITY radioAskDownload.accesskey       "y">

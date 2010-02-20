@@ -1,0 +1,23 @@
+locale passwordmgr bg jar:chrome/bg.jar!/locale/bg/passwordmgr/
+locale mozapps bg jar:chrome/bg.jar!/locale/bg/mozapps/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts bg jar:chrome/bg.jar!/locale/bg/alerts/
+locale autoconfig bg jar:chrome/bg.jar!/locale/bg/autoconfig/
+locale cookie bg jar:chrome/bg.jar!/locale/bg/cookie/
+locale communicator bg jar:chrome/bg.jar!/locale/bg/communicator/
+locale pipnss bg jar:chrome/bg.jar!/locale/bg/pipnss/
+locale editor bg jar:chrome/bg.jar!/locale/bg/editor/
+locale mozldap bg jar:chrome/bg.jar!/locale/bg/mozldap/
+locale global-platform bg jar:chrome/bg.jar!/locale/bg/global-platform/
+locale global bg jar:chrome/bg.jar!/locale/bg/global/
+locale messenger-newsblog bg jar:chrome/bg.jar!/locale/bg/messenger-newsblog/
+locale messenger-smime bg jar:chrome/bg.jar!/locale/bg/messenger-smime/
+locale places bg jar:chrome/bg.jar!/locale/bg/places/
+locale messenger-mapi bg jar:chrome/bg.jar!/locale/bg/messenger-mapi/
+locale messenger-region bg jar:chrome/bg.jar!/locale/bg/messenger-region/
+locale pippki bg jar:chrome/bg.jar!/locale/bg/pippki/
+locale global-region bg jar:chrome/bg.jar!/locale/bg/global-region/
+locale necko bg jar:chrome/bg.jar!/locale/bg/necko/
+locale messenger bg jar:chrome/bg.jar!/locale/bg/messenger/
+locale branding bg jar:chrome/bg.jar!/locale/bg/branding/

@@ -1,0 +1,39 @@
+<!ENTITY itemFormatting.label "Форматирование">
+<!ENTITY itemTags.label "Метки">
+<!ENTITY style.label "Стиль:">
+<!ENTITY style.accesskey "и">
+<!ENTITY regularStyle.label "Обычный">
+<!ENTITY bold.label "Полужирный">
+<!ENTITY italic.label "Курсив">
+<!ENTITY boldItalic.label "Полужирный курсив">
+<!ENTITY size.label "Размер:">
+<!ENTITY size.accesskey "з">
+<!ENTITY regularSize.label "Обычный">
+<!ENTITY bigger.label "Больше">
+<!ENTITY smaller.label "Меньше">
+<!ENTITY color.label "Цвет:">
+<!ENTITY color.accesskey "в">
+<!ENTITY displayWidth.label "Простые текстовые сообщения">
+<!ENTITY displayText.label "При отображении цитат в простых текстовых сообщениях:">
+<!ENTITY colors.label "Цвета">
+<!ENTITY overrideColors.label "При отображении сообщений использовать следующие цвета:">
+<!ENTITY textColor.label "Цвет текста:">
+<!ENTITY textColor.accesskey "т">
+<!ENTITY backgroundColor.label "Цвет фона:">
+<!ENTITY backgroundColor.accesskey "ф">
+<!ENTITY convertEmoticons.label "Отображать смайлики как графику">
+<!ENTITY convertEmoticons.accesskey "м">
+<!ENTITY displayTagsText.label "Метки могут быть использованы для классификации и изменения приоритета сообщений.">
+<!ENTITY addTagButton.label "Добавить">
+<!ENTITY addTagButton.accesskey "б">
+<!ENTITY editTagButton.label "Редактировать">
+<!ENTITY editTagButton.accesskey "е">
+<!ENTITY removeTagButton.label "Удалить">
+<!ENTITY removeTagButton.accesskey "д">
+<!ENTITY fontsAndColors.label "Шрифты">
+<!ENTITY defaultFont.label "Шрифт по умолчанию:">
+<!ENTITY defaultFont.accesskey "ф">
+<!ENTITY defaultSize.label "Размер:">
+<!ENTITY defaultSize.accesskey "м">
+<!ENTITY fontOptions.accesskey "п">
+<!ENTITY fontOptions.label "Дополнительно…">

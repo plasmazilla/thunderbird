@@ -1,0 +1,16 @@
+<!ENTITY editContactPanelDeleteContact.label "Διαγραφή">
+<!ENTITY editContactPanelDeleteContact.accesskey "Δ">
+
+
+<!ENTITY editContactName.label "Όνομα:">
+<!ENTITY editContactName.accesskey "ν">
+
+<!ENTITY editContactEmail.label "Email:">
+<!ENTITY editContactEmail.accesskey "E">
+
+<!ENTITY editContactPanelCancel.label "Ακύρωση">
+<!ENTITY editContactPanelCancel.accesskey "κ">
+
+<!ENTITY editContactPanelDone.label "Ολοκληρώθηκε">
+<!ENTITY editContactPanelDone.accesskey "Ο">
+

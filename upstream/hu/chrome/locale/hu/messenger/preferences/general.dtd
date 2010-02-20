@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "&brandShortName; kezdőoldal">
+<!ENTITY enableStartPage.label            "Kezdőoldal betöltése az üzenetek helyére a &brandShortName; indításakor">
+<!ENTITY enableStartPage.accesskey        "K">
+<!ENTITY location.label                   "Hely:">
+<!ENTITY location1.accesskey               "H">
+<!ENTITY useDefault.label                 "Alaphelyzet">
+<!ENTITY useDefault.accesskey             "A">
+
+<!ENTITY bounceSystemDockIcon.label       "Dokkikon animálása">
+<!ENTITY bounceSystemDockIcon.accesskey   "D">
+
+<!ENTITY newMessagesArrive.label          "Új üzenet érkezésekor:">
+<!ENTITY playSound.label                  "Hangjelzés">
+<!ENTITY playSound1.accesskey              "H">
+<!ENTITY showAnimatedAlert.label          "Figyelmeztető ablak">
+<!ENTITY showAnimatedAlert.accesskey      "F">
+<!ENTITY customizeMailAlert.label         "Testreszabás...">
+<!ENTITY customizeMailAlert.accesskey     "T">
+
+<!ENTITY play.label                       "Lejátszás">
+<!ENTITY play.accesskey                   "L">
+<!ENTITY systemsound.label                "Alapértelmezett rendszerhang az új üzenethez">
+<!ENTITY systemsoundMac.label             "Figyelmeztető rendszerhang">
+<!ENTITY systemsoundMac.accesskey         "F">
+<!ENTITY systemsound.accesskey            "r">
+<!ENTITY customsound.label                "A következő hangfájl használata">
+<!ENTITY customsound.accesskey            "h">
+<!ENTITY browse.label                     "Tallózás...">
+<!ENTITY browse.accesskey                 "T">
+
+<!ENTITY addonsMgr.label                  "Kiegészítők">
+<!ENTITY manageAddonsDescWin.label        "Kiegészítők beállítása">
+<!ENTITY manageAddonsDescUnix2.label      "Kiegészítők beállítása">
+<!ENTITY manageAddons.label               "Kiegészítők kezelése...">
+<!ENTITY manageAddons.accesskey           "K">

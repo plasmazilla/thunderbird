@@ -1,0 +1,13 @@
+﻿<!ENTITY credit.title "&brandFullName; நன்றிகள்">
+<!ENTITY brandMotto "Thunderbirds போக தயார்!">
+<!ENTITY credit.thanks "விசேட நன்றிகளை பெறுபவர்கள்">
+<!-- localization credits look like this: -->
+<!--
+<!ENTITY credit.translation
+  "<h3>Translators</h3><ul><li>Kengatharaiyer Sarveswaran</li><li>Mohamed Nimshath</li><li>Kavitha Logan</li><li>Balanithy Murugaiah</li><li>Mohamed Rila</li></ul>">
+-->
+
+<!ENTITY credit.translation "<h3>Translators</h3><ul><li>Kengatharaiyer Sarveswaran</li><li>Mohamed Nimshath</li><li>Kavitha Logan</li><li>Balanithy Murugaiah</li><li>Mohamed Rila</li></ul>">
+
+<!ENTITY credit.memory "நினைவுகளுடன்">
+<!ENTITY credit.poweredByGecko "Powered by Gecko&trade;">

@@ -1,0 +1,23 @@
+locale global-platform ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/global-platform/
+locale messenger-smime ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/messenger-smime/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale pipnss ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/pipnss/
+locale pippki ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/pippki/
+locale messenger-newsblog ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/messenger-newsblog/
+locale messenger-mapi ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/messenger-mapi/
+locale global ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/global/
+locale communicator ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/communicator/
+locale passwordmgr ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/passwordmgr/
+locale mozapps ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/mozapps/
+locale alerts ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/alerts/
+locale branding ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/branding/
+locale cookie ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/cookie/
+locale editor ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/editor/
+locale messenger ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/messenger/
+locale necko ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/necko/
+locale messenger-region ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/messenger-region/
+locale mozldap ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/mozldap/
+locale places ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/places/
+locale autoconfig ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/autoconfig/
+locale global-region ga-IE jar:chrome/ga-IE.jar!/locale/ga-IE/global-region/

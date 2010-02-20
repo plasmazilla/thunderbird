@@ -1,0 +1,13 @@
+<!ENTITY accountManagerTitle.label "Kontoindstillinger">
+<!ENTITY accountActionsButton.label "Kontohåndtering">
+<!ENTITY accountActionsButton.accesskey "K">
+<!ENTITY addMailAccountButton.label "Tilføj mailkonto…">
+<!ENTITY addMailAccountButton.accesskey "T">
+<!ENTITY addOtherAccountButton.label "Tilføj anden konto…">
+<!ENTITY addOtherAccountButton.accesskey "A">
+<!ENTITY setDefaultButton.label "Vælg som standard">
+<!ENTITY setDefaultButton.accesskey "s">
+<!ENTITY removeButton.label "Fjern konto">
+<!ENTITY removeButton.accesskey "R">
+<!ENTITY accountManager.size "width: 60em; height: 50em;">
+<!ENTITY accountTree.width "width: 17em;">

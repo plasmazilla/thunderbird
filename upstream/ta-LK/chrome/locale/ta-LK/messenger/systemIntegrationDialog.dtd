@@ -1,0 +1,12 @@
+<!ENTITY systemIntegration.title  "தொகுதி ஒன்றிணைப்பு">
+<!ENTITY defaultClient.intro  ": இற்கான பொதுஇருப்பு சேவைப்பயனராக &brandShortName;ஐப் பயன்படுத்தவும்">
+
+<!ENTITY email.label "மின்னஞ்சல்">
+<!ENTITY newsgroups.label "Newsgroups">
+<!ENTITY feeds.label "ஊட்டுகள்">
+
+<!ENTITY checkOnStartup.label "&brandShortName;ஐ ஆரம்பிக்கும் பொழுது இந்தச் சரிபார்த்தலைச் செயற்படுத்துங்கள்">
+<!ENTITY checkOnStartup.accesskey "A">
+
+<!ENTITY searchIntegration.label "&searchIntegration.engineName; தகவல்களினைத் தேடுவதற்கு அனுமதியுங்கள்">
+<!ENTITY searchIntegration.accesskey "S">

@@ -1,0 +1,31 @@
+<!ENTITY dialog.title                 "Ferstjoeropsjes">
+<!ENTITY sendMail.title               "Tekstopmaak">
+<!ENTITY sendMaildesc.label           "As in berjocht yn HTML-opmaak ferstjoerd wurdt en fan ien of mear ûntfangers is net bekend oft se HTML ûntfange kinne:">
+<!ENTITY askMe.label                  "My freegje wat te dwaan">
+<!ENTITY askMe.accesskey              "f">
+<!ENTITY convertPlain.label           "Berjocht konvertearje nei platte tekst">
+<!ENTITY convertPlain.accesskey       "k">
+<!ENTITY sendHTML.label               "Berjocht dochs as HTML ferstjoere">
+<!ENTITY sendHTML.accesskey           "H">
+<!ENTITY sendBoth.label               "Berjocht as platte tekst en HTML ferstjoere">
+<!ENTITY sendBoth.accesskey           "e">
+<!ENTITY override.label               "Noat: brûk it adresboek om winske tekstopmaak foar ûntfangers te spesifisearjen.">
+
+<!ENTITY domaindesc.label             "As jo in berjocht stjoere nei in adres mei ien fan de ûndersteande domeinnammen, sil &brandShortName; it berjocht automatysk yn de goede opmaak ferstjoere.">
+<!ENTITY HTMLTab.label                "HTML-domeinen">
+<!ENTITY HTMLTab.accesskey            "H">
+<!ENTITY PlainTextTab.label           "Platte-tekstdomeinen">
+<!ENTITY PlainTextTab.accesskey       "P">
+<!ENTITY AddHtmlDomain.label          "Tafoegje…">
+<!ENTITY AddHtmlDomain.accesskey      "T">
+<!ENTITY AddPlainText.label           "Tafoegje…">
+<!ENTITY AddPlainText.accesskey       "f">
+<!ENTITY DeleteHtmlDomain.label       "Fuortsmite">
+<!ENTITY DeleteHtmlDomain.accesskey   "F">
+<!ENTITY DeletePlainText.label        "Fuortsmite">
+<!ENTITY DeletePlainText.accesskey    "s">
+
+<!ENTITY add.htmltitle                "In HTML-domeinnamme tafoegje">
+<!ENTITY add.htmldomain               "HTML-domeinnamme:">
+<!ENTITY add.plaintexttitle           "In platte-tekstdomeinnamme tafoegje">
+<!ENTITY add.plaintextdomain          "Platte-tekstdomeinnamme:">

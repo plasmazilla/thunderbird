@@ -1,0 +1,76 @@
+<!ENTITY  fontsAndEncodingsDialog.title           "ਫੋਂਟ ਤੇ ਇੰਕੋਡਿੰਗ">
+<!ENTITY  window.width                            "39em">
+<!ENTITY  window.macWidth                         "43em">
+<!ENTITY  window.unixWidth                        "41em">
+
+<!ENTITY  language.label                          "ਇਸ ਲਈ ਫੋਂਟ:">
+<!ENTITY  language.accesskey                      "t">
+
+<!ENTITY  size.label                              "Size:">
+<!ENTITY  proportionalSize.accesskey              "e">
+<!ENTITY  sizeMono.accesskey                      "i">
+
+<!ENTITY  proportional.label                      "ਅਨੁਪਾਤੀ:">
+<!ENTITY  proportional.accesskey                  "P">
+
+<!ENTITY  serif.label                             "Serif:">
+<!ENTITY  serif.accesskey                         "s">
+<!ENTITY  sans-serif.label                        "Sans-serif:">
+<!ENTITY  sans-serif.accesskey                    "n">
+<!ENTITY  monospace.label                         "Monospace:">
+<!ENTITY  monospace.accesskey                     "m">
+
+<!ENTITY  font.langGroup.latin1                   "ਪੱਛਮੀ">
+<!ENTITY  font.langGroup.latin2                   "ਕੇਂਦਰੀ ਯੂਰਪੀ">
+<!ENTITY  font.langGroup.japanese                 "ਜਾਪਾਨੀ">
+<!ENTITY  font.langGroup.trad-chinese             "ਪੁਰਾਤਨ ਚੀਨੀ (ਤਾਈਵਾਨ)">
+<!ENTITY  font.langGroup.simpl-chinese            "ਸਧਾਰਨ ਚੀਨੀ">
+<!ENTITY  font.langGroup.trad-chinese-hk          "ਪੁਰਾਤਨ ਚੀਨੀ (ਹਾਂਗਕਾਂਗ)">
+<!ENTITY  font.langGroup.korean                   "ਕੋਰੀਆਈ">
+<!ENTITY  font.langGroup.cyrillic                 "ਸਿਰਲਿਕ">
+<!ENTITY  font.langGroup.baltic                   "ਬਾਲਟਿਕ">
+<!ENTITY  font.langGroup.el                       "ਗਰੀਕ">
+<!ENTITY  font.langGroup.turkish                  "ਤੁਰਕ">
+<!ENTITY  font.langGroup.unicode                  "ਹੋਰ ਭਾਸ਼ਾਵਾਂ">
+<!ENTITY  font.langGroup.user-def                 "ਯੂਜ਼ਰ ਵਲੋਂ ਦਿੱਤੀ">
+<!ENTITY  font.langGroup.thai                     "ਥਾਈ">
+<!ENTITY  font.langGroup.hebrew                   "ਹੈਬਰਿਊ">
+<!ENTITY  font.langGroup.arabic                   "ਅਰਬੀ">
+<!ENTITY  font.langGroup.devanagari               "ਦੇਵਨਾਗਰੀ">
+<!ENTITY  font.langGroup.tamil                    "ਤਾਮਿਲ">
+<!ENTITY  font.langGroup.armenian                 "ਅਰਮੀਨੀਆਈ">
+<!ENTITY  font.langGroup.bengali                  "ਬੰਗਾਲੀ">
+<!ENTITY  font.langGroup.canadian                 "ਯੂਨੀਫਾਈਡ ਕੈਨੇਡੀਆਈ ਸਲੇਬਰੀ">
+<!ENTITY  font.langGroup.ethiopic                 "ਇਥੋਪੀਆਈ">
+<!ENTITY  font.langGroup.georgian                 "ਜਾਰਜੀਆਈ">
+<!ENTITY  font.langGroup.gujarati                 "ਗੁਜਰਾਤੀ">
+<!ENTITY  font.langGroup.gurmukhi                 "ਗੁਰਮੁਖੀ">
+<!ENTITY  font.langGroup.khmer                    "ਖਮੀਰ">
+<!ENTITY  font.langGroup.malayalam                "ਮਲਿਆਲਮ">
+
+<!-- Minimum font size -->
+<!ENTITY minSize.label                            "ਘੱਟੋ-ਘੱਟ ਫੋਂਟ ਸਾਈਜ਼:">
+<!ENTITY minSize.accesskey                        "z">
+<!ENTITY minSize.none                             "ਕੋਈ ਨਹੀਂ">
+
+<!-- default font type -->
+<!ENTITY  useDefaultFontSerif.label               "Serif">
+<!ENTITY  useDefaultFontSansSerif.label           "Sans Serif">
+
+<!-- fonts in message -->
+<!ENTITY  fontControl.label                       "ਫੋਂਟ ਕੰਟਰੋਲ">
+<!ENTITY  useFixedWidthForPlainText.label         "ਪਲੇਨ ਟੈਕਸਟ ਸੁਨੇਹਿਆਂ ਲਈ ਸਥਿਰ ਚੌੜਾਈ ਫੋਂਟ ਵਰਤੋਂ">
+<!ENTITY  fixedWidth.accesskey                    "x">
+<!ENTITY  useDocumentFonts.label                  "ਸੁਨੇਹਿਆਂ ਨੂੰ ਹੋਰ ਫੋਂਟ ਵਰਤਣ ਦੀ ਇਜ਼ਾਜ਼ਤ ਦਿਓ">
+<!ENTITY  useDocumentFonts.accesskey              "o">
+
+<!-- Language settings -->
+<!ENTITY sendDefaultCharset.label         "ਜਾ ਰਹੀ ਮੇਲ:">
+<!ENTITY sendDefaultCharset.accesskey     "u">
+<!ENTITY languagesTitle1.label            "ਅੱਖਰ ਇੰਕੋਡਿੰਗ">
+<!ENTITY composingDescription.label       "ਭੇਜੇ ਜਾਣ ਵਾਲੇ ਅਤੇ ਆਉਣ ਵਾਲੇ ਪੱਤਰਾਂ ਲਈ ਡਿਫਾਲਟ ਅੱਖਰ ਇੰਕੋਡਿੰਗ ਸੈੱਟ ਕਰੋ">
+
+<!ENTITY viewDefaultCharsetList.label     "ਆਉਣ ਵਾਲੀ ਮੇਲ:">
+<!ENTITY viewDefaultCharsetList.accesskey  "I">
+<!ENTITY replyInDefaultCharset2.label     "ਜਦੋਂ ਵੀ ਸੰਭਵ ਹੋਵੇ, ਜਵਾਬ ਵਿੱਚ ਡਿਫਾਲਟ ਅੱਖਰ ਇੰਕੋਡਿੰਗ ਵਰਤੋਂ">
+<!ENTITY replyInDefaultCharset2.accesskey "h">

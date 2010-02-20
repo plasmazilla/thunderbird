@@ -1,0 +1,23 @@
+locale pipnss sq jar:chrome/sq.jar!/locale/sq/pipnss/
+locale necko sq jar:chrome/sq.jar!/locale/sq/necko/
+locale messenger-newsblog sq jar:chrome/sq.jar!/locale/sq/messenger-newsblog/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale global-platform sq jar:chrome/sq.jar!/locale/sq/global-platform/
+locale global sq jar:chrome/sq.jar!/locale/sq/global/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale editor sq jar:chrome/sq.jar!/locale/sq/editor/
+locale alerts sq jar:chrome/sq.jar!/locale/sq/alerts/
+locale messenger-smime sq jar:chrome/sq.jar!/locale/sq/messenger-smime/
+locale cookie sq jar:chrome/sq.jar!/locale/sq/cookie/
+locale mozldap sq jar:chrome/sq.jar!/locale/sq/mozldap/
+locale autoconfig sq jar:chrome/sq.jar!/locale/sq/autoconfig/
+locale messenger sq jar:chrome/sq.jar!/locale/sq/messenger/
+locale messenger-region sq jar:chrome/sq.jar!/locale/sq/messenger-region/
+locale mozapps sq jar:chrome/sq.jar!/locale/sq/mozapps/
+locale branding sq jar:chrome/sq.jar!/locale/sq/branding/
+locale pippki sq jar:chrome/sq.jar!/locale/sq/pippki/
+locale global-region sq jar:chrome/sq.jar!/locale/sq/global-region/
+locale places sq jar:chrome/sq.jar!/locale/sq/places/
+locale passwordmgr sq jar:chrome/sq.jar!/locale/sq/passwordmgr/
+locale communicator sq jar:chrome/sq.jar!/locale/sq/communicator/
+locale messenger-mapi sq jar:chrome/sq.jar!/locale/sq/messenger-mapi/

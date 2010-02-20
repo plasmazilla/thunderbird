@@ -1,0 +1,19 @@
+<!ENTITY typeColumn.label "Eduki mota">
+<!ENTITY typeColumn.accesskey "t">
+
+<!ENTITY actionColumn2.label "Ekintza">
+<!ENTITY actionColumn2.accesskey "a">
+
+<!ENTITY focusSearch1.key "f">
+<!ENTITY focusSearch2.key "k">
+
+<!ENTITY filter.emptytext "Bilatu">
+
+<!ENTITY saveTo.label "Gorde fitxategiak hemen:">
+<!ENTITY saveTo.accesskey "G">
+<!ENTITY alwaysAsk.label "Galdetu beti non gorde fitxategiak">
+<!ENTITY alwaysAsk.accesskey "b">
+<!ENTITY chooseFolderWin.label "Arakatu…">
+<!ENTITY chooseFolderWin.accesskey "A">
+<!ENTITY chooseFolderMac.label "Hautatu…">
+<!ENTITY chooseFolderMac.accesskey "H">

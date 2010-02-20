@@ -1,0 +1,20 @@
+<!ENTITY accountTitle.label "Hesap ayarları">
+
+<!ENTITY biffStart.label "Abonelikleri denetleme sıklığı ">
+<!ENTITY biffStart.accesskey "k">
+<!ENTITY biffEnd.label "dakika">
+
+<!ENTITY loginAtStartup.label "Başlangıçta yeni öğeleri yükle">
+<!ENTITY loginAtStartup.accesskey "k">
+
+<!ENTITY useQuickMode.label "Her öğenin tamamını yüklemektense özetini göster">
+<!ENTITY useQuickMode.accesskey "H">
+
+<!ENTITY manageSubscriptions.label "Aboneliklerini denetle…">
+<!ENTITY manageSubscriptions.accesskey "A">
+<!-- entities from rss.rdf -->
+
+<!ENTITY feeds.accountName "Günlükler ve canlı yer imleri">
+<!ENTITY feeds.wizardShortName "Canlı yer imleri">
+<!ENTITY feeds.wizardLongName "Günlükler ve canlı yer imleri">
+<!ENTITY feeds.wizardLongName.accesskey "G">
