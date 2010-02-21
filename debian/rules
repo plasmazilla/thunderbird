@@ -8,7 +8,14 @@ SHELL := sh -e
 override_dh_auto_clean:
 	dh_auto_clean
 
-	rm -rf build
+	cd $(CURDIR)/upstream; \
+	for XPI in *; \
+	do \
+		LOCALE=`basename $${XPI}`; \
+		cd $(CURDIR)/upstream/$${LOCALE}/chrome; \
+		rm $${LOCALE}.jar; \
+		cd $(CURDIR)/upstream; \
+	done
 
 override_dh_auto_build:
 	cd $(CURDIR)/upstream; \
