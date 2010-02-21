@@ -3,7 +3,7 @@
 SHELL := sh -e
 
 %:
-	dh ${@}
+	dh ${@} --with quilt
 
 override_dh_auto_clean:
 	dh_auto_clean
@@ -12,36 +12,12 @@ override_dh_auto_clean:
 
 override_dh_auto_build:
 	cd $(CURDIR)/upstream; \
-	for XPI in *.xpi; \
+	for XPI in *; \
 	do \
-		LOCALE=`basename $${XPI} .xpi`; \
-		mkdir -p $(CURDIR)/build/$${LOCALE}; \
-		unzip -o -q -d $(CURDIR)/build/$${LOCALE} $${XPI}; \
-		mkdir -p $(CURDIR)/build/$${LOCALE}; \
-		cd $(CURDIR)/build/$${LOCALE}; \
-		if [ -f chrome/$${LOCALE}.jar ]; \
-		then \
-			JAR=$${LOCALE}.jar; \
-		else \
-			JAR=`echo $${XPI} | sed --posix 's|-.*||'`.jar; \
-		fi; \
-		unzip -o -q -d chrome chrome/$${JAR}; \
-		rm -f chrome/$${JAR}; \
-		for PATCH in $(CURDIR)/debian/patches/$${LOCALE}_*.diff; \
-		do \
-			patch -Np1 -i $${PATCH}; \
-		done; \
-		sed -i  -e 's/brandShortName.*/brandShortName "Icedove">/' \
-			-e 's/brandFullName.*/brandFullName "Icedove">/' \
-			-e 's/vendorShortName.*/vendorShortName "Mozilla">/' \
-			chrome/locale/*/branding/brand.dtd; \
-		sed -i  -e 's/brandShortName.*/brandShortName=Icedove/' \
-			-e 's/brandFullName.*/brandFullName=Icedove/' \
-			-e 's/vendorShortName.*/vendorShortName=Mozilla/' \
-			chrome/locale/*/branding/brand.properties; \
-		cd chrome; zip -q -0r $${JAR} locale; \
-		rm -rf locale; cd $(CURDIR)/upstream; \
-		sed -i -e '/./,$$ !d; s/em:maxVersion>.*</em:maxVersion>2.0.99</' $(CURDIR)/build/$${LOCALE}/install.rdf; \
+		LOCALE=`basename $${XPI}`; \
+		cd $(CURDIR)/upstream/$${LOCALE}/chrome; \
+		zip -q -0r $${LOCALE}.jar locale; \
+		cd $(CURDIR)/upstream; \
 	done
 
 override_dh_auto_install:
