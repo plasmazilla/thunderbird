@@ -22,7 +22,7 @@ override_dh_auto_build:
 
 override_dh_auto_install:
 	# locale
-	cd $(CURDIR)/build; \
+	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
 		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
@@ -31,7 +31,7 @@ override_dh_auto_install:
 	done;
 
 	# install.rdf
-	cd $(CURDIR)/build; \
+	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
 		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
@@ -39,7 +39,7 @@ override_dh_auto_install:
 	done;
 
 	# chrome.manifest
-	cd $(CURDIR)/build; \
+	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
 		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
@@ -47,7 +47,7 @@ override_dh_auto_install:
 	done;
 
 	# uninstall
-	cd $(CURDIR)/build; \
+	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
 		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
@@ -59,7 +59,7 @@ override_dh_auto_install:
 	done;
 
 	# debian settings
-	cd $(CURDIR)/build; \
+	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
 		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
