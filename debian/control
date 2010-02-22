@@ -24,7 +24,7 @@ Depends:
  icedove-l10n-pt-pt, icedove-l10n-ro, icedove-l10n-ru, icedove-l10n-ro,
  icedove-l10n-sk, icedove-l10n-sl, icedove-l10n-sq, icedove-l10n-sr,
  icedove-l10n-sv-se, icedove-l10n-ta-lk, icedove-l10n-tr, icedove-l10n-uk,
- icedove-l10n-vi, icedove-l10n-zh-cn, icedove-l10n-zh-tw, icedove-l10n-gl-es,
+ icedove-l10n-vi, icedove-l10n-zh-cn, icedove-l10n-zh-tw, icedove-l10n-gl,
  icedove-l10n-ne-np
 Description: All language packages for Icedove (meta)
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -237,6 +237,17 @@ Description: Irish (Ireland) language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Irish (Ireland).
+
+Package: icedove-l10n-gl
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Recommends: myspell-gl
+Description: Galician language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Galician.
 
 Package: icedove-l10n-he
 Architecture: all
@@ -563,16 +574,6 @@ Description: Chinese (Taiwan) language package for Icedove
  This package contains the localization of Icedove in Chinese (Taiwan).
 
 # Unofficial translations
-
-Package: icedove-l10n-gl-es
-Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
-Description: Galician language package for Icedove
- Icedove is an unbranded Thunderbird mail client suitable for free distribution.
- The goal of Thunderbird is to produce a cross platform stand-alone mail
- application using the XUL user interface language.
- .
- This package contains the localization of Icedove in Galician.
 
 Package: icedove-l10n-ne-np
 Architecture: all
