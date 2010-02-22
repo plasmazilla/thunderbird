@@ -1,0 +1,32 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 12:13:46 +0100
+Subject: [PATCH] rebrand bn-BD language pack
+
+---
+ .../bn-BD/chrome/locale/bn-BD/branding/brand.dtd   |    6 +++---
+ .../chrome/locale/bn-BD/branding/brand.properties  |    6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.dtd b/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.dtd
+index 39de1a1..911f8fa 100644
+--- a/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.dtd
++++ b/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY brandShortName "থান্ডারবার্ড">
+-<!ENTITY brandFullName "মজিলা থান্ডারবার্ড">
+-<!ENTITY vendorShortName "মজিলা">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
+diff --git a/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.properties b/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.properties
+index 8ce4c4e..44bf191 100644
+--- a/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.properties
++++ b/upstream/bn-BD/chrome/locale/bn-BD/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=থান্ডারবার্ড
+-brandFullName=মজিলা থান্ডারবার্ড
+-vendorShortName=মজিলা
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+-- 

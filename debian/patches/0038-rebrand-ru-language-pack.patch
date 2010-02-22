@@ -1,0 +1,89 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 16:50:52 +0100
+Subject: [PATCH] rebrand ru language pack
+
+---
+ upstream/ru/chrome/locale/ru/branding/brand.dtd    |    4 ++--
+ .../ru/chrome/locale/ru/branding/brand.properties  |    4 ++--
+ .../ru/chrome/locale/ru/messenger/aboutDialog.dtd  |    2 +-
+ .../chrome/locale/ru/messenger/accountCreation.dtd |    2 +-
+ .../locale/ru/messenger/featureConfigurator.dtd    |    8 ++++----
+ 5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/upstream/ru/chrome/locale/ru/branding/brand.dtd b/upstream/ru/chrome/locale/ru/branding/brand.dtd
+index b0f582a..911f8fa 100644
+--- a/upstream/ru/chrome/locale/ru/branding/brand.dtd
++++ b/upstream/ru/chrome/locale/ru/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+diff --git a/upstream/ru/chrome/locale/ru/branding/brand.properties b/upstream/ru/chrome/locale/ru/branding/brand.properties
+index c27e6cb..841d695 100644
+--- a/upstream/ru/chrome/locale/ru/branding/brand.properties
++++ b/upstream/ru/chrome/locale/ru/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
++brandShortName = Icedove
++brandFullName = Icedove
+ vendorShortName = Mozilla
+diff --git a/upstream/ru/chrome/locale/ru/messenger/aboutDialog.dtd b/upstream/ru/chrome/locale/ru/messenger/aboutDialog.dtd
+index 2498c41..87e4265 100644
+--- a/upstream/ru/chrome/locale/ru/messenger/aboutDialog.dtd
++++ b/upstream/ru/chrome/locale/ru/messenger/aboutDialog.dtd
+@@ -2,7 +2,7 @@
+ <!ENTITY aboutButton.label "&lt; Назад">
+ <!ENTITY aboutButton.accesskey "з">
+ <!ENTITY aboutVersion "версия">
+-<!ENTITY copyrightText "©1998–2009 Участники проекта. Все права защищены. Mozilla Thunderbird и его логотипы являются торговыми марками Mozilla Foundation. Все права защищены.">
++<!ENTITY copyrightText "©1998–2009 Участники проекта. Все права защищены.">
+ <!ENTITY aboutMenu.label "О программе">
+ <!ENTITY aboutMenu.accesskey "п">
+ <!ENTITY aboutCredits.label "Авторы">
+diff --git a/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd b/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
+index a1e744a..5df8d8f 100644
+--- a/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
++++ b/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
+@@ -46,7 +46,7 @@
+ <!ENTITY createAccount.accesskey "з">
+ <!ENTITY changeSettings.label "Изменить настройки">
+ <!ENTITY changeSettings.accesskey "м">
+-<!ENTITY contactYourProvider.description "Вы можете забирать свою почту с помощью &brandShortName;, используя предоставленные конфигурации. Тем не менее вам следует связаться с вашим администратором или провайдером электронной почты касательно негодных настроек этих соединений. Для получения более подробной информации обратитесь к Thunderbird FAQ.">
++<!ENTITY contactYourProvider.description "Вы можете забирать свою почту с помощью &brandShortName;, используя предоставленные конфигурации. Тем не менее вам следует связаться с вашим администратором или провайдером электронной почты касательно негодных настроек этих соединений. Для получения более подробной информации обратитесь к Icedove FAQ.">
+ <!ENTITY insecureServer.tooltip.title "Предупреждение! Это незащищённый сервер.">
+ <!ENTITY insecureServer.tooltip.details "Для получения подробностей щёлкните по кружку.">
+ <!ENTITY insecureUnencrypted.description "Ваши письма и данные аутентификации будут отправляться в незашифрованном виде, так что ваш пароль (и ваши сообщения) могут быть легко прочтены другими людьми. &brandShortName; позволит вам работать с вашей почтой, но мы настоятельно советуем вам попросить своего провайдера электронной почты настроить почтовый сервер на работу по защищённому соединению.">
+diff --git a/upstream/ru/chrome/locale/ru/messenger/featureConfigurator.dtd b/upstream/ru/chrome/locale/ru/messenger/featureConfigurator.dtd
+index 6116b82..bf7e28e 100644
+--- a/upstream/ru/chrome/locale/ru/messenger/featureConfigurator.dtd
++++ b/upstream/ru/chrome/locale/ru/messenger/featureConfigurator.dtd
+@@ -1,6 +1,6 @@
+ <!ENTITY featureConfigurator.title "Помощник в миграции">
+-<!ENTITY featureConfigurator.heading "Функции Thunderbird 3, о которых стоит знать">
+-<!ENTITY featureConfigurator.para1 "Thunderbird 3 включает в себя новые возможности, которыми мы гордимся, и которые, как мы думаем, понравятся большинству людей. Тем не менее, у каждого свои вкусы и потребности, поэтому мы облегчили для вас настройку Thunderbird.">
++<!ENTITY featureConfigurator.heading "Функции Icedove 3, о которых стоит знать">
++<!ENTITY featureConfigurator.para1 "Icedove 3 включает в себя новые возможности, которыми мы гордимся, и которые, как мы думаем, понравятся большинству людей. Тем не менее, у каждого свои вкусы и потребности, поэтому мы облегчили для вас настройку Icedove.">
+ <!ENTITY featureConfigurator.para2 "Для конфигурации новых параметров используйте эту страницу. Вы всегда можете вызвать Помощника в миграции из меню Справка.">
+ <!ENTITY featureConfigurator.imap.heading "Синхронизация IMAP сообщений">
+ <!ENTITY featureConfigurator.imap.status.all "Все ваши папки IMAP настроены на &quot;синхронизацию&quot;.">
+@@ -9,7 +9,7 @@
+ <!ENTITY featureConfigurator.benefits.label "Преимущества">
+ <!ENTITY featureConfigurator.alternative.label "Альтернатива">
+ <!ENTITY featureConfigurator.syncBenefits.para "Позволяет вам читать вашу почту, когда вы не подсоединены к Интернету и позволяет вам искать сообщения по содержащимся в них словам, а не только по темам и именам.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird будет загружать всю вашу почту на этот компьютер. Отключите это, если у вас мало места на диске или помегабайтная оплата трафика.">
++<!ENTITY featureConfigurator.syncAlternative.para "Icedove будет загружать всю вашу почту на этот компьютер. Отключите это, если у вас мало места на диске или помегабайтная оплата трафика.">
+ <!ENTITY featureConfigurator.syncAll.button "синхронизировать всё">
+ <!ENTITY featureConfigurator.syncNone.button "не синхронизировать ничего">
+ <!ENTITY featureConfigurator.advancedUsers.label "Продвинутые пользователи:">
+@@ -29,6 +29,6 @@
+ <!ENTITY featureConfigurator.useSmartFolders.button "использовать режим &quot;умных папок&quot;">
+ <!ENTITY featureConfigurator.useAllFolders.button "использовать режим &quot;все папки&quot;">
+ <!ENTITY featureConfigurator.collapsedHeaders.heading "Свёрнутые заголовки">
+-<!ENTITY featureConfigurator.headerParaBeforeLink "В Thunderbird 3 был улучшен дизайн подробного заголовка сообщения, а также добавлены кнопки для обработки сообщения. Альтернативные дизайны доступны в виде ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "В Icedove 3 был улучшен дизайн подробного заголовка сообщения, а также добавлены кнопки для обработки сообщения. Альтернативные дизайны доступны в виде ">
+ <!ENTITY featureConfigurator.headerParaLinkName "дополнений">
+ <!ENTITY featureConfigurator.headerParaAfterLink ".">
+-- 

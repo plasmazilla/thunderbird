@@ -1,0 +1,113 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 12:18:02 +0100
+Subject: [PATCH] rebrand el language pack
+
+---
+ upstream/el/chrome/locale/el/branding/brand.dtd    |    4 ++--
+ .../el/chrome/locale/el/branding/brand.properties  |    4 ++--
+ .../el/chrome/locale/el/messenger/aboutDialog.dtd  |    4 +---
+ .../chrome/locale/el/messenger/accountCreation.dtd |    2 +-
+ upstream/el/chrome/locale/el/messenger/credits.dtd |    2 +-
+ .../locale/el/messenger/featureConfigurator.dtd    |    8 ++++----
+ 6 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/upstream/el/chrome/locale/el/branding/brand.dtd b/upstream/el/chrome/locale/el/branding/brand.dtd
+index f604385..6d9fea0 100644
+--- a/upstream/el/chrome/locale/el/branding/brand.dtd
++++ b/upstream/el/chrome/locale/el/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+ 
+diff --git a/upstream/el/chrome/locale/el/branding/brand.properties b/upstream/el/chrome/locale/el/branding/brand.properties
+index 459e67a..8a22312 100644
+--- a/upstream/el/chrome/locale/el/branding/brand.properties
++++ b/upstream/el/chrome/locale/el/branding/brand.properties
+@@ -1,4 +1,4 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+ 
+diff --git a/upstream/el/chrome/locale/el/messenger/aboutDialog.dtd b/upstream/el/chrome/locale/el/messenger/aboutDialog.dtd
+index 1f6436b..5122c63 100644
+--- a/upstream/el/chrome/locale/el/messenger/aboutDialog.dtd
++++ b/upstream/el/chrome/locale/el/messenger/aboutDialog.dtd
+@@ -6,9 +6,7 @@
+ 
+ <!ENTITY aboutDialog.title "Περί &brandFullName;">
+ <!ENTITY aboutVersion "έκδοση">
+-<!ENTITY copyrightText "&#169;1998-2008 Contributors. All Rights Reserved. Mozilla Thunderbird and the 
+-Thunderbird logos are trademarks of the Mozilla Foundation.  All rights 
+-reserved.">
++<!ENTITY copyrightText "&#169;1998-2008 Contributors. All Rights Reserved.">
+ 
+ <!ENTITY cmdCloseMac.commandKey "w">
+ 
+diff --git a/upstream/el/chrome/locale/el/messenger/accountCreation.dtd b/upstream/el/chrome/locale/el/messenger/accountCreation.dtd
+index d2587de..670ea98 100644
+--- a/upstream/el/chrome/locale/el/messenger/accountCreation.dtd
++++ b/upstream/el/chrome/locale/el/messenger/accountCreation.dtd
+@@ -77,7 +77,7 @@
+ <!ENTITY changeSettings.label            "Αλλαγή ρυθμίσεων">
+ <!ENTITY changeSettings.accesskey        "ρ">
+ 
+-<!ENTITY contactYourProvider.description "Ο &brandShortName; μπορεί να σας επιτρέψει να κάνετε λήψη της αλληλογραφίας σας με αυτές τις ρυθμίσεις. Όμως, θα πρέπει να επικοινωνήσετε με τον διαχειριστή του συστήματος σας ή με τον πάροχο της ηλεκτρονικής αλληλογραφίας σας για αυτές τις μη ασφαλείς ρυθμίσεις. Δείτε το Thunderbird FAQ για περισσότερες πληροφορίες.">
++<!ENTITY contactYourProvider.description "Ο &brandShortName; μπορεί να σας επιτρέψει να κάνετε λήψη της αλληλογραφίας σας με αυτές τις ρυθμίσεις. Όμως, θα πρέπει να επικοινωνήσετε με τον διαχειριστή του συστήματος σας ή με τον πάροχο της ηλεκτρονικής αλληλογραφίας σας για αυτές τις μη ασφαλείς ρυθμίσεις. Δείτε το Icedove FAQ για περισσότερες πληροφορίες.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Προειδοποίηση! Αυτός είναι ένας μη ασφαλής διακομιστής.">
+ <!ENTITY insecureServer.tooltip.details  "Κάντε κλικ στον κύκλο για περισσότερες λεπτομέρειες.">
+diff --git a/upstream/el/chrome/locale/el/messenger/credits.dtd b/upstream/el/chrome/locale/el/messenger/credits.dtd
+index 64e0277..42f63dd 100644
+--- a/upstream/el/chrome/locale/el/messenger/credits.dtd
++++ b/upstream/el/chrome/locale/el/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "Μνεία &brandFullName;">
+-<!ENTITY brandMotto "Thunderbirds Are Go!">
++<!ENTITY brandMotto "Icedove Are Go!">
+ 
+ <!ENTITY credit.thanks "Special Thanks To">
+ <!-- localization credits look like this: -->
+diff --git a/upstream/el/chrome/locale/el/messenger/featureConfigurator.dtd b/upstream/el/chrome/locale/el/messenger/featureConfigurator.dtd
+index 4bc4da2..37c13df 100644
+--- a/upstream/el/chrome/locale/el/messenger/featureConfigurator.dtd
++++ b/upstream/el/chrome/locale/el/messenger/featureConfigurator.dtd
+@@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
+ <!ENTITY featureConfigurator.title "Βοηθός εισαγωγής">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+-<!ENTITY featureConfigurator.heading "Λειτουργίες του Thunderbird 3 που αξίζει να γνωρίζετε">
++<!ENTITY featureConfigurator.heading "Λειτουργίες του Icedove 3 που αξίζει να γνωρίζετε">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
+ is important: we tried for a tone that promotes the new features (which we
+ believe are good and worth users learning about), but also emphasizing that we
+ think it's important to preserve user choice. -->
+-<!ENTITY featureConfigurator.para1 "Ο Thunderbird 3 ενσωματώνει νέες πανίσχυρες λειτουργίες, για τις οποίες είμαστε περήφανοι και είμαστε βέβαιοι ότι θα τις αγαπήσετε. Μιας και όμως οι ανάγκες και οι προτιμήσεις κάθε χρήστη διαφέρουν, κάναμε πιο εύκολη την προσαρμογή και τον έλεγχο του Thunderbird.">
++<!ENTITY featureConfigurator.para1 "Ο Icedove 3 ενσωματώνει νέες πανίσχυρες λειτουργίες, για τις οποίες είμαστε περήφανοι και είμαστε βέβαιοι ότι θα τις αγαπήσετε. Μιας και όμως οι ανάγκες και οι προτιμήσεις κάθε χρήστη διαφέρουν, κάναμε πιο εύκολη την προσαρμογή και τον έλεγχο του Icedove.">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
+ that this page is active (the buttons change the UI), and that they can get
+@@ -37,7 +37,7 @@ is intended to explain why it might not be the right default for some users.-->
+ <!ENTITY featureConfigurator.alternative.label "Μειονεκτήματα">
+ 
+ <!ENTITY featureConfigurator.syncBenefits.para "Σας επιτρέπει να διαβάζετε την αλληλογραφίας σας ενώ εργάζεστε χωρίς σύνδεση, και να κάνετε αναζητήσεις στο κύριο σώμα  του μηνύματος και όχι μόνο σε θέματα και ονόματα.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Ο Thunderbird θα κάνει λήψη όλων των μηνυμάτων στον υπολογιστή σας. Απενεργοποιήστε αυτή την λειτουργία αν δεν έχετε χώρο στο δίσκο ή πληρώνετε την σύνδεση σας με ογκοχρέωση.">
++<!ENTITY featureConfigurator.syncAlternative.para "Ο Icedove θα κάνει λήψη όλων των μηνυμάτων στον υπολογιστή σας. Απενεργοποιήστε αυτή την λειτουργία αν δεν έχετε χώρο στο δίσκο ή πληρώνετε την σύνδεση σας με ογκοχρέωση.">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
+ lower case is intentional, but may be overriden if that doesn't make sense
+@@ -102,7 +102,7 @@ sense because of a specific language context.-->
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
+ of the paragraph before the beginning of the link to the AMO search page.-->
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Ο Thunderbird 3 έχει βελτιώσει την λεπτομερή προβολή κεφαλίδων, μαζί και με τα κουμπιά σχετικών ενεργειών. Υπάρχουν φυσικά διαθέσιμα  και εναλλακτικά σχέδια όπως ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Ο Icedove 3 έχει βελτιώσει την λεπτομερή προβολή κεφαλίδων, μαζί και με τα κουμπιά σχετικών ενεργειών. Υπάρχουν φυσικά διαθέσιμα  και εναλλακτικά σχέδια όπως ">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
+ the link to the AMO search page.-->
+-- 

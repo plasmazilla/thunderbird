@@ -1,0 +1,102 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:33:57 +0100
+Subject: [PATCH] rebrand ja language pack
+
+---
+ upstream/ja/chrome/locale/ja/branding/brand.dtd    |    6 +++---
+ .../ja/chrome/locale/ja/branding/brand.properties  |    6 +++---
+ .../ja/chrome/locale/ja/messenger/aboutDialog.dtd  |    2 +-
+ .../chrome/locale/ja/messenger/accountCreation.dtd |    2 +-
+ upstream/ja/chrome/locale/ja/messenger/credits.dtd |    2 +-
+ .../locale/ja/messenger/featureConfigurator.dtd    |    6 +++---
+ 6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/upstream/ja/chrome/locale/ja/branding/brand.dtd b/upstream/ja/chrome/locale/ja/branding/brand.dtd
+index 39b57e5..64e36c2 100644
+--- a/upstream/ja/chrome/locale/ja/branding/brand.dtd
++++ b/upstream/ja/chrome/locale/ja/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
++<!ENTITY  vendorShortName       "Mozilla">
+diff --git a/upstream/ja/chrome/locale/ja/branding/brand.properties b/upstream/ja/chrome/locale/ja/branding/brand.properties
+index 6fbb426..219496c 100644
+--- a/upstream/ja/chrome/locale/ja/branding/brand.properties
++++ b/upstream/ja/chrome/locale/ja/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName	= Thunderbird
+-brandFullName	= Mozilla Thunderbird
+-vendorShortName	= Mozilla Thunderbird
++brandShortName	= Icedove
++brandFullName	= Icedove
++vendorShortName	= Mozilla
+diff --git a/upstream/ja/chrome/locale/ja/messenger/aboutDialog.dtd b/upstream/ja/chrome/locale/ja/messenger/aboutDialog.dtd
+index 8d37aeb..24e43d8 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/aboutDialog.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/aboutDialog.dtd
+@@ -2,7 +2,7 @@
+ <!ENTITY aboutButton.label		"&lt; 戻る">
+ <!ENTITY aboutButton.accesskey		"B">
+ <!ENTITY aboutVersion			"バージョン">
+-<!ENTITY copyrightText			"&#169;1998-2010 Contributors. All Rights Reserved. Mozilla Thunderbird および Thunderbird ロゴは 米国 Mozilla Foundation の米国およびその他の国における商標または登録商標です。All rights reserved.">
++<!ENTITY copyrightText			"&#169;1998-2010 Contributors. All Rights Reserved.">
+ <!ENTITY aboutMenu.label		"参照">
+ <!ENTITY aboutMenu.accesskey		"A">
+ <!ENTITY aboutCredits.label		"クレジット">
+diff --git a/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd b/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
+index 6609367..cb791cd 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
+@@ -65,7 +65,7 @@
+ <!ENTITY changeSettings.label		"設定変更">
+ <!ENTITY changeSettings.accesskey	"S">
+ 
+-<!ENTITY contactYourProvider.description	"提供された設定を使用して &brandShortName; であなたのメールを受信することができます。ただし、これらの接続が不適当でないか、サーバの管理者またはメールプロバイダと連絡をとってください。詳しい情報は Thunderbird FAQ をご覧ください。">
++<!ENTITY contactYourProvider.description	"提供された設定を使用して &brandShortName; であなたのメールを受信することができます。ただし、これらの接続が不適当でないか、サーバの管理者またはメールプロバイダと連絡をとってください。詳しい情報は Icedove FAQ をご覧ください。">
+ 
+ <!ENTITY insecureServer.tooltip.title		"警告！ このサーバは安全ではありません。">
+ <!ENTITY insecureServer.tooltip.details		"詳細は丸印をクリックしてください。">
+diff --git a/upstream/ja/chrome/locale/ja/messenger/credits.dtd b/upstream/ja/chrome/locale/ja/messenger/credits.dtd
+index 7dec5ee..18cbd6c 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/credits.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; Credits">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Special Thanks To">
+ 
+ <!-- localization credits look like this: -->
+diff --git a/upstream/ja/chrome/locale/ja/messenger/featureConfigurator.dtd b/upstream/ja/chrome/locale/ja/messenger/featureConfigurator.dtd
+index aae3426..4aab5cf 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/featureConfigurator.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/featureConfigurator.dtd
+@@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
+ <!ENTITY featureConfigurator.title "設定変更ガイド">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+-<!ENTITY featureConfigurator.heading "Thunderbird 3 に追加されたおすすめの新機能">
++<!ENTITY featureConfigurator.heading "Icedove 3 に追加されたおすすめの新機能">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
+ is important: we tried for a tone that promotes the new features (which we
+ believe are good and worth users learning about), but also emphasizing that we
+ think it's important to preserve user choice. -->
+-<!ENTITY featureConfigurator.para1 "Thunderbird 3 には、誇るべきパワフルな新機能が含まれています。多くの人々がこれらを気に入ることでしょう。誰でも新機能を試せるように、Thunderbird を簡単にカスタマイズできるようにしました。">
++<!ENTITY featureConfigurator.para1 "Icedove 3 には、誇るべきパワフルな新機能が含まれています。多くの人々がこれらを気に入ることでしょう。誰でも新機能を試せるように、Icedove を簡単にカスタマイズできるようにしました。">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
+ that this page is active (the buttons change the UI), and that they can get
+@@ -102,7 +102,7 @@ sense because of a specific language context.-->
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
+ of the paragraph before the beginning of the link to the AMO search page.-->
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 はメッセージヘッダの表示が改善されています。ヘッダ部にボタンが追加され、メッセージに関する操作が行えるようになりました。ヘッダのデザインを変更するには">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 はメッセージヘッダの表示が改善されています。ヘッダ部にボタンが追加され、メッセージに関する操作が行えるようになりました。ヘッダのデザインを変更するには">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
+ the link to the AMO search page.-->
+-- 

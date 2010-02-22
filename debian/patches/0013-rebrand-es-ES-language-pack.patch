@@ -1,0 +1,104 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 12:50:47 +0100
+Subject: [PATCH] rebrand es-ES language pack
+
+---
+ .../es-ES/chrome/locale/es-ES/branding/brand.dtd   |    4 ++--
+ .../chrome/locale/es-ES/branding/brand.properties  |    6 +++---
+ .../chrome/locale/es-ES/messenger/aboutDialog.dtd  |    4 +---
+ .../locale/es-ES/messenger/accountCreation.dtd     |    2 +-
+ .../chrome/locale/es-ES/messenger/credits.dtd      |    2 +-
+ .../locale/es-ES/messenger/featureConfigurator.dtd |    8 ++++----
+ 6 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/upstream/es-ES/chrome/locale/es-ES/branding/brand.dtd b/upstream/es-ES/chrome/locale/es-ES/branding/brand.dtd
+index b0f582a..911f8fa 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/branding/brand.dtd
++++ b/upstream/es-ES/chrome/locale/es-ES/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+diff --git a/upstream/es-ES/chrome/locale/es-ES/branding/brand.properties b/upstream/es-ES/chrome/locale/es-ES/branding/brand.properties
+index c27e6cb..44bf191 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/branding/brand.properties
++++ b/upstream/es-ES/chrome/locale/es-ES/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
+-vendorShortName = Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/es-ES/chrome/locale/es-ES/messenger/aboutDialog.dtd b/upstream/es-ES/chrome/locale/es-ES/messenger/aboutDialog.dtd
+index 482dc04..699caa1 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/messenger/aboutDialog.dtd
++++ b/upstream/es-ES/chrome/locale/es-ES/messenger/aboutDialog.dtd
+@@ -2,9 +2,7 @@
+ <!ENTITY aboutButton.label "&lt; Atrás">
+ <!ENTITY aboutButton.accesskey "A">
+ <!ENTITY aboutVersion "versión">
+-<!ENTITY copyrightText "©1998-2009 Colaboradores. Todos los derechos reservados. Mozilla Thunderbird y los logos
+-                                 de Thunderbird son marcas comerciales de la Fundación Mozilla.
+-                                 Todos los derechos reservados.">
++<!ENTITY copyrightText "©1998-2009 Colaboradores. Todos los derechos reservados.">
+ <!ENTITY aboutMenu.label "Acerca de">
+ <!ENTITY aboutMenu.accesskey "d">
+ <!ENTITY aboutCredits.label "Créditos">
+diff --git a/upstream/es-ES/chrome/locale/es-ES/messenger/accountCreation.dtd b/upstream/es-ES/chrome/locale/es-ES/messenger/accountCreation.dtd
+index 242de03..b799c8a 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/messenger/accountCreation.dtd
++++ b/upstream/es-ES/chrome/locale/es-ES/messenger/accountCreation.dtd
+@@ -46,7 +46,7 @@
+ <!ENTITY createAccount.accesskey "u">
+ <!ENTITY changeSettings.label "Cambiar configuración">
+ <!ENTITY changeSettings.accesskey "b">
+-<!ENTITY contactYourProvider.description "&brandShortName; le puede permitir recuperar su correo usando la configuración proporcionada. Sin embargo, debería contactar con su administrador o proveedor de correo electrónico en relación a estas conexiones inadecuadas. Vea la FAQ de Thunderbird para más información.">
++<!ENTITY contactYourProvider.description "&brandShortName; le puede permitir recuperar su correo usando la configuración proporcionada. Sin embargo, debería contactar con su administrador o proveedor de correo electrónico en relación a estas conexiones inadecuadas. Vea la FAQ de Icedove para más información.">
+ <!ENTITY insecureServer.tooltip.title "¡Advertencia! Este servidor es inseguro.">
+ <!ENTITY insecureServer.tooltip.details "Pulse en el círculo para más detalles.">
+ <!ENTITY insecureUnencrypted.description "Sus credenciales y correo se envían sin cifrar, por lo que su contraseña (y su mensaje) pueden ser leídos fácilmente por otras personas. &brandShortName; le permitirá acceder a su correo, pero debería contactar con su proveedor de correo electrónico para configurar el servidor con una conexión segura.">
+diff --git a/upstream/es-ES/chrome/locale/es-ES/messenger/credits.dtd b/upstream/es-ES/chrome/locale/es-ES/messenger/credits.dtd
+index b08752b..94e0b49 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/messenger/credits.dtd
++++ b/upstream/es-ES/chrome/locale/es-ES/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "Créditos de &brandFullName;">
+-<!ENTITY brandMotto "¡Los Thunderbirds despegan!">
++<!ENTITY brandMotto "¡Los Icedove despegan!">
+ <!ENTITY credit.thanks "Agradecimiento especial a">
+ <!ENTITY credit.translation "<h3>Traducción</h3>
+ <ul><li>Proyecto NAVE</li></ul>">
+diff --git a/upstream/es-ES/chrome/locale/es-ES/messenger/featureConfigurator.dtd b/upstream/es-ES/chrome/locale/es-ES/messenger/featureConfigurator.dtd
+index e348dfa..fe4afa9 100644
+--- a/upstream/es-ES/chrome/locale/es-ES/messenger/featureConfigurator.dtd
++++ b/upstream/es-ES/chrome/locale/es-ES/messenger/featureConfigurator.dtd
+@@ -1,6 +1,6 @@
+ <!ENTITY featureConfigurator.title "Asistente de migración">
+-<!ENTITY featureConfigurator.heading "Características de Thunderbird 3 que merece la pena conocer">
+-<!ENTITY featureConfigurator.para1 "Thunderbird 3 incluye nuevas y potentes características de las que estamos orgullosos, y pensamos que la mayoría de la gente las apreciará. Los gustos y necesidades de la gente varían, así que hemos hecho fácil controlar y personalizar Thunderbird.">
++<!ENTITY featureConfigurator.heading "Características de Icedove 3 que merece la pena conocer">
++<!ENTITY featureConfigurator.para1 "Icedove 3 incluye nuevas y potentes características de las que estamos orgullosos, y pensamos que la mayoría de la gente las apreciará. Los gustos y necesidades de la gente varían, así que hemos hecho fácil controlar y personalizar Icedove.">
+ <!ENTITY featureConfigurator.para2 "Use esta página para configurar estas nuevas opciones. Siempre puede volver al asistente de migración desde el menú Ayuda.">
+ <!ENTITY featureConfigurator.imap.heading "Sincronizar mensajes IMAP">
+ <!ENTITY featureConfigurator.imap.status.all "Todas sus carpetas IMAP están configuradas para &quot;sincronizarse&quot;.">
+@@ -9,7 +9,7 @@
+ <!ENTITY featureConfigurator.benefits.label "Beneficios">
+ <!ENTITY featureConfigurator.alternative.label "Alternativa">
+ <!ENTITY featureConfigurator.syncBenefits.para "Le permite leer su correo cuando no está conectado a Internet, y le permite encontrar los mensajes basándose en las palabras que contiene, no sólo en sus asuntos y nombres.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird descargará todo su correo en este ordenador. Desactívelo si tiene poco espacio en disco, o si tiene que pagar por el tráfico de red.">
++<!ENTITY featureConfigurator.syncAlternative.para "Icedove descargará todo su correo en este ordenador. Desactívelo si tiene poco espacio en disco, o si tiene que pagar por el tráfico de red.">
+ <!ENTITY featureConfigurator.syncAll.button "sincronizar todo">
+ <!ENTITY featureConfigurator.syncNone.button "no sincronizar ninguna">
+ <!ENTITY featureConfigurator.advancedUsers.label "Usuarios avanzados:">
+@@ -29,6 +29,6 @@
+ <!ENTITY featureConfigurator.useSmartFolders.button "usar el modo &quot;carpetas inteligentes&quot;">
+ <!ENTITY featureConfigurator.useAllFolders.button "usar el modo &quot;todas las carpetas&quot;">
+ <!ENTITY featureConfigurator.collapsedHeaders.heading "Encabezados contraídos">
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 ha mejorado la vista detallada de encabezado de mensaje, incluyendo botones para operaciones relacionadas con el mensaje. Hay diseños alternativos disponibles como ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 ha mejorado la vista detallada de encabezado de mensaje, incluyendo botones para operaciones relacionadas con el mensaje. Hay diseños alternativos disponibles como ">
+ <!ENTITY featureConfigurator.headerParaLinkName "complementos">
+ <!ENTITY featureConfigurator.headerParaAfterLink ".">
+-- 

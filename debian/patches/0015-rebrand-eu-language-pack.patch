@@ -1,0 +1,99 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 12:59:15 +0100
+Subject: [PATCH] rebrand eu language pack
+
+---
+ upstream/eu/chrome/locale/eu/branding/brand.dtd    |    4 ++--
+ .../eu/chrome/locale/eu/branding/brand.properties  |    4 ++--
+ .../eu/chrome/locale/eu/messenger/aboutDialog.dtd  |    4 +---
+ .../chrome/locale/eu/messenger/accountCreation.dtd |    2 +-
+ .../locale/eu/messenger/featureConfigurator.dtd    |    8 ++++----
+ 5 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/upstream/eu/chrome/locale/eu/branding/brand.dtd b/upstream/eu/chrome/locale/eu/branding/brand.dtd
+index b0f582a..911f8fa 100644
+--- a/upstream/eu/chrome/locale/eu/branding/brand.dtd
++++ b/upstream/eu/chrome/locale/eu/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+diff --git a/upstream/eu/chrome/locale/eu/branding/brand.properties b/upstream/eu/chrome/locale/eu/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/eu/chrome/locale/eu/branding/brand.properties
++++ b/upstream/eu/chrome/locale/eu/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/eu/chrome/locale/eu/messenger/aboutDialog.dtd b/upstream/eu/chrome/locale/eu/messenger/aboutDialog.dtd
+index 6189aef..301a21f 100644
+--- a/upstream/eu/chrome/locale/eu/messenger/aboutDialog.dtd
++++ b/upstream/eu/chrome/locale/eu/messenger/aboutDialog.dtd
+@@ -2,9 +2,7 @@
+ <!ENTITY aboutButton.label "&lt; Atzera">
+ <!ENTITY aboutButton.accesskey "A">
+ <!ENTITY aboutVersion "bertsioa">
+-<!ENTITY copyrightText "&#169;1998-2009 Contributors. All Rights Reserved. Mozilla Thunderbird and the 
+-Thunderbird logos are trademarks of the Mozilla Foundation.  All rights 
+-reserved.">
++<!ENTITY copyrightText "&#169;1998-2009 Contributors. All Rights Reserved.">
+ <!ENTITY aboutMenu.label "Honi buruz">
+ <!ENTITY aboutMenu.accesskey "o">
+ <!ENTITY aboutCredits.label "Kredituak">
+diff --git a/upstream/eu/chrome/locale/eu/messenger/accountCreation.dtd b/upstream/eu/chrome/locale/eu/messenger/accountCreation.dtd
+index 5ef86bb..5efdaf3 100644
+--- a/upstream/eu/chrome/locale/eu/messenger/accountCreation.dtd
++++ b/upstream/eu/chrome/locale/eu/messenger/accountCreation.dtd
+@@ -65,7 +65,7 @@
+ <!ENTITY changeSettings.label "Aldatu ezarpenak">
+ <!ENTITY changeSettings.accesskey "z">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName;(e)k dakartzan konfigurazioekin zure posta eskura dezakezu. Halere, konexio desegokiak horiek direla-eta, zure sistemaren kudeatzailearekin jarri behar zenuke harremanetan. Ikusi Thunderbirden FAQa argibide gehiagorako.">
++<!ENTITY contactYourProvider.description "&brandShortName;(e)k dakartzan konfigurazioekin zure posta eskura dezakezu. Halere, konexio desegokiak horiek direla-eta, zure sistemaren kudeatzailearekin jarri behar zenuke harremanetan. Ikusi Icedove FAQa argibide gehiagorako.">
+ 
+ <!ENTITY insecureServer.tooltip.title "Abisua! Zerbitzari hau ez da segurua.">
+ <!ENTITY insecureServer.tooltip.details "Egin klik zirkuluan xehetasun gehiagorako.">
+diff --git a/upstream/eu/chrome/locale/eu/messenger/featureConfigurator.dtd b/upstream/eu/chrome/locale/eu/messenger/featureConfigurator.dtd
+index c1068fd..c1a2b35 100644
+--- a/upstream/eu/chrome/locale/eu/messenger/featureConfigurator.dtd
++++ b/upstream/eu/chrome/locale/eu/messenger/featureConfigurator.dtd
+@@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
+ <!ENTITY featureConfigurator.title "Migraziorako morroia">
+ <!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+ 
+-<!ENTITY featureConfigurator.heading "Jakitea merezi duten Thunderbird 3ren ezaugarriak">
++<!ENTITY featureConfigurator.heading "Jakitea merezi duten Icedove 3ren ezaugarriak">
+ <!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
+ is important: we tried for a tone that promotes the new features (which we
+ believe are good and worth users learning about), but also emphasizing that we
+ think it's important to preserve user choice. -->
+ 
+-<!ENTITY featureConfigurator.para1 "Harro gauden ezaugarri berri eta potenteak ditu Thunderbird 3k eta pentsatzen dugu gehienen gustokoa izango direla. Jendearen gustu eta beharrak ezberdinak direnez, Thunderbird kontrolatu eta pertsonalizatzea erraztu dugu.">
++<!ENTITY featureConfigurator.para1 "Harro gauden ezaugarri berri eta potenteak ditu Icedove 3k eta pentsatzen dugu gehienen gustokoa izango direla. Jendearen gustu eta beharrak ezberdinak direnez, Icedove kontrolatu eta pertsonalizatzea erraztu dugu.">
+ <!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
+ that this page is active (the buttons change the UI), and that they can get
+ back to it if they change their mind later.-->
+@@ -37,7 +37,7 @@ is intended to explain why it might not be the right default for some users.-->
+ <!ENTITY featureConfigurator.alternative.label "Alternatiba">
+ 
+ <!ENTITY featureConfigurator.syncBenefits.para "Internetera konektatu gabe zaudenean posta irakurtzeko aukera ematen dizu eta mezuak dauzkaten hitzen arabera bila ditzakezu, ez gai edo izenen arabera soilik.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbirdek zure posta guztia ordenagailu honetan deskargatuko du. Desgaitu ezazu diskoko leku gutxi baduzu edo sareko trafikoarengatik ordaindu behar baduzu.">
++<!ENTITY featureConfigurator.syncAlternative.para "Icedove zure posta guztia ordenagailu honetan deskargatuko du. Desgaitu ezazu diskoko leku gutxi baduzu edo sareko trafikoarengatik ordaindu behar baduzu.">
+ <!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
+ lower case is intentional, but may be overriden if that doesn't make sense
+ because of a specific language context.-->
+@@ -102,7 +102,7 @@ sense because of a specific language context.-->
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
+ of the paragraph before the beginning of the link to the AMO search page.-->
+ 
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3k xehetutako mezu-goiburuen ikuspegia hobetu du eta mezuekin erlazionatutako ekintzen botoiak daude. Diseinu alternatiboak ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3k xehetutako mezu-goiburuen ikuspegia hobetu du eta mezuekin erlazionatutako ekintzen botoiak daude. Diseinu alternatiboak ">
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
+ the link to the AMO search page.-->
+ 
+-- 

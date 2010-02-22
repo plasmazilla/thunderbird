@@ -1,0 +1,128 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 12:43:48 +0100
+Subject: [PATCH] rebrand es-AR language pack
+
+---
+ .../es-AR/chrome/locale/es-AR/branding/brand.dtd   |    4 ++--
+ .../chrome/locale/es-AR/branding/brand.properties  |    4 ++--
+ .../chrome/locale/es-AR/messenger/aboutDialog.dtd  |    4 +---
+ .../locale/es-AR/messenger/accountCreation.dtd     |    2 +-
+ .../chrome/locale/es-AR/messenger/credits.dtd      |    2 +-
+ .../locale/es-AR/messenger/featureConfigurator.dtd |    8 ++++----
+ .../chrome/locale/es-AR/messenger/junkMailInfo.dtd |    6 +++---
+ 7 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/upstream/es-AR/chrome/locale/es-AR/branding/brand.dtd b/upstream/es-AR/chrome/locale/es-AR/branding/brand.dtd
+index 6a0aa25..feb25ae 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/branding/brand.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+ 
+diff --git a/upstream/es-AR/chrome/locale/es-AR/branding/brand.properties b/upstream/es-AR/chrome/locale/es-AR/branding/brand.properties
+index e20eab8..09e6402 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/branding/brand.properties
++++ b/upstream/es-AR/chrome/locale/es-AR/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/es-AR/chrome/locale/es-AR/messenger/aboutDialog.dtd b/upstream/es-AR/chrome/locale/es-AR/messenger/aboutDialog.dtd
+index 1994b02..6dbc5c1 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/messenger/aboutDialog.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/messenger/aboutDialog.dtd
+@@ -2,9 +2,7 @@
+ <!ENTITY aboutButton.label      "&lt; Atrás">
+ <!ENTITY aboutButton.accesskey  "t">
+ <!ENTITY aboutVersion "versión">
+-<!ENTITY copyrightText "&#169;1998-2009 Contribuyentes. Todos los derechos reservados. Mozilla Thunderbird y los logos
+-                                 de Thunderbird son marcas comerciales de Mozilla Foundation.  Todos
+-                                 los derechos reservados.">
++<!ENTITY copyrightText "&#169;1998-2009 Contribuyentes. Todos los derechos reservados.">
+ <!ENTITY aboutMenu.label        "Acerca">
+ <!ENTITY aboutMenu.accesskey    "A">
+ <!ENTITY aboutCredits.label     "Créditos">
+diff --git a/upstream/es-AR/chrome/locale/es-AR/messenger/accountCreation.dtd b/upstream/es-AR/chrome/locale/es-AR/messenger/accountCreation.dtd
+index 870dc41..ede3cf4 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/messenger/accountCreation.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/messenger/accountCreation.dtd
+@@ -65,7 +65,7 @@
+ <!ENTITY changeSettings.label            "Cambiar configuración">
+ <!ENTITY changeSettings.accesskey        "m">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; le permite obtener su correo usando la configuarción provista. Sin embargo, debería contacta a su administrador o proveedor de correo acerca de estas conexiones improper. Vea las FAQ de Thunderbird para más información.">
++<!ENTITY contactYourProvider.description "&brandShortName; le permite obtener su correo usando la configuarción provista. Sin embargo, debería contacta a su administrador o proveedor de correo acerca de estas conexiones improper. Vea las FAQ de Icedove para más información.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "¡Advertencia! Éste es un servidor inseguro.">
+ <!ENTITY insecureServer.tooltip.details  "Click circle for more details.">
+diff --git a/upstream/es-AR/chrome/locale/es-AR/messenger/credits.dtd b/upstream/es-AR/chrome/locale/es-AR/messenger/credits.dtd
+index 6a3ff0a..8db610d 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/messenger/credits.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; Credits">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Agradecimentos especiales a">
+ 
+ <!-- localization credits look like this: -->
+diff --git a/upstream/es-AR/chrome/locale/es-AR/messenger/featureConfigurator.dtd b/upstream/es-AR/chrome/locale/es-AR/messenger/featureConfigurator.dtd
+index 32c250b..171a48f 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/messenger/featureConfigurator.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/messenger/featureConfigurator.dtd
+@@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
+ <!ENTITY featureConfigurator.title "Asistente de migración">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+-<!ENTITY featureConfigurator.heading "Características de Thunderbird 3 que merecen conocerse">
++<!ENTITY featureConfigurator.heading "Características de Icedove 3 que merecen conocerse">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
+ is important: we tried for a tone that promotes the new features (which we
+ believe are good and worth users learning about), but also emphasizing that we
+ think it's important to preserve user choice. -->
+-<!ENTITY featureConfigurator.para1 "Thunderbird 3 incluye nuevas características poderosas de las que estamos orgullos y pensamos que muchos amarán. Los gustos y necesidades de las personas varían, así que hicimos fácil el control y la personalización de Thunderbird.">
++<!ENTITY featureConfigurator.para1 "Icedove 3 incluye nuevas características poderosas de las que estamos orgullos y pensamos que muchos amarán. Los gustos y necesidades de las personas varían, así que hicimos fácil el control y la personalización de Icedove.">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
+ that this page is active (the buttons change the UI), and that they can get
+@@ -37,7 +37,7 @@ is intended to explain why it might not be the right default for some users.-->
+ <!ENTITY featureConfigurator.alternative.label "Alternativa">
+ 
+ <!ENTITY featureConfigurator.syncBenefits.para "Permite leer su correo cuando no esté conectado a Internet y le permite buscar mensajes basado en las palabras que contienen, no solamente los asuntos y nombres.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird descargará todo su correo en esta computadora. Desactívelo si tiene poco espacio en disco o si paga por tráfico de red.">
++<!ENTITY featureConfigurator.syncAlternative.para "Icedove descargará todo su correo en esta computadora. Desactívelo si tiene poco espacio en disco o si paga por tráfico de red.">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
+ lower case is intentional, but may be overriden if that doesn't make sense
+@@ -102,7 +102,7 @@ sense because of a specific language context.-->
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
+ of the paragraph before the beginning of the link to the AMO search page.-->
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 ha mejorado la vista de detalle de encabezados, incluyendo botones para acciones relacionadas con el mensaje. Hay diseños alternativos disponibles en ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 ha mejorado la vista de detalle de encabezados, incluyendo botones para acciones relacionadas con el mensaje. Hay diseños alternativos disponibles en ">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
+ the link to the AMO search page.-->
+diff --git a/upstream/es-AR/chrome/locale/es-AR/messenger/junkMailInfo.dtd b/upstream/es-AR/chrome/locale/es-AR/messenger/junkMailInfo.dtd
+index 368b78f..5115821 100644
+--- a/upstream/es-AR/chrome/locale/es-AR/messenger/junkMailInfo.dtd
++++ b/upstream/es-AR/chrome/locale/es-AR/messenger/junkMailInfo.dtd
+@@ -1,7 +1,7 @@
+ <!ENTITY window.title "Sobre el correo basura">
+ <!ENTITY window.width "450">
+-<!ENTITY info1a.label "Thunderbird detecta automáticamente los mensajes entrantes que parecen ser correo basura (o &quot;spam&quot;). Los mensajes que Thunderbird identifica así mostrarán un icono de basura">
++<!ENTITY info1a.label "Icedove detecta automáticamente los mensajes entrantes que parecen ser correo basura (o &quot;spam&quot;). Los mensajes que Icedove identifica así mostrarán un icono de basura">
+ <!ENTITY info1b.label ".">
+-<!ENTITY info2.label "Al principio, debe enseñar a Thunderbird a identificar el correo basura usando el botón Basura de la barra de herramientas para marcar o desmarcar mensajes como basura.">
+-<!ENTITY info3.label "Una vez que Thunderbird identifique correctamente el correo basura, puede usar los controles de correo basura para trasladar automáticamente el correo basura entrante a la carpeta de correo basura (Junk).">
++<!ENTITY info2.label "Al principio, debe enseñar a Icedove a identificar el correo basura usando el botón Basura de la barra de herramientas para marcar o desmarcar mensajes como basura.">
++<!ENTITY info3.label "Una vez que Icedove identifique correctamente el correo basura, puede usar los controles de correo basura para trasladar automáticamente el correo basura entrante a la carpeta de correo basura (Junk).">
+ <!ENTITY info4.label "Para más información, pulse Ayuda.">
+-- 

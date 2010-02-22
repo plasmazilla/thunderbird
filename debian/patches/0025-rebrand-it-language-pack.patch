@@ -1,0 +1,106 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:30:35 +0100
+Subject: [PATCH] rebrand it language pack
+
+---
+ upstream/it/chrome/locale/it/branding/brand.dtd    |    6 +++---
+ .../it/chrome/locale/it/branding/brand.properties  |    6 +++---
+ .../it/chrome/locale/it/messenger/aboutDialog.dtd  |    4 +---
+ .../chrome/locale/it/messenger/accountCreation.dtd |    2 +-
+ upstream/it/chrome/locale/it/messenger/credits.dtd |    2 +-
+ .../locale/it/messenger/featureConfigurator.dtd    |    8 ++++----
+ 6 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/upstream/it/chrome/locale/it/branding/brand.dtd b/upstream/it/chrome/locale/it/branding/brand.dtd
+index 39b57e5..64e36c2 100644
+--- a/upstream/it/chrome/locale/it/branding/brand.dtd
++++ b/upstream/it/chrome/locale/it/branding/brand.dtd
+@@ -1,3 +1,3 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
++<!ENTITY  vendorShortName       "Mozilla">
+diff --git a/upstream/it/chrome/locale/it/branding/brand.properties b/upstream/it/chrome/locale/it/branding/brand.properties
+index df6b6fe..8a22312 100644
+--- a/upstream/it/chrome/locale/it/branding/brand.properties
++++ b/upstream/it/chrome/locale/it/branding/brand.properties
+@@ -1,4 +1,4 @@
+-brandShortName=Mozilla Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+ 
+diff --git a/upstream/it/chrome/locale/it/messenger/aboutDialog.dtd b/upstream/it/chrome/locale/it/messenger/aboutDialog.dtd
+index a7d1e0d..6d998da 100644
+--- a/upstream/it/chrome/locale/it/messenger/aboutDialog.dtd
++++ b/upstream/it/chrome/locale/it/messenger/aboutDialog.dtd
+@@ -2,9 +2,7 @@
+ <!ENTITY aboutButton.label "&lt; Indietro">
+ <!ENTITY aboutButton.accesskey "I">
+ <!ENTITY aboutVersion "versione">
+-<!ENTITY copyrightText "©1998-2009 dei collaboratori. Tutti i diritti riservati. Mozilla Thunderbird ed i
+-   loghi di Thunderbird sono marchi registrati della Mozilla Foundation.
+-	Tutti i diritti sono riservati.">
++<!ENTITY copyrightText "©1998-2009 dei collaboratori. Tutti i diritti riservati.">
+ <!ENTITY aboutMenu.label "Informazioni su">
+ <!ENTITY aboutMenu.accesskey "n">
+ <!ENTITY aboutCredits.label "Riconoscimenti">
+diff --git a/upstream/it/chrome/locale/it/messenger/accountCreation.dtd b/upstream/it/chrome/locale/it/messenger/accountCreation.dtd
+index 29980ca..c237ed7 100644
+--- a/upstream/it/chrome/locale/it/messenger/accountCreation.dtd
++++ b/upstream/it/chrome/locale/it/messenger/accountCreation.dtd
+@@ -46,7 +46,7 @@
+ <!ENTITY createAccount.accesskey "C">
+ <!ENTITY changeSettings.label "Cambia impostazioni">
+ <!ENTITY changeSettings.accesskey "M">
+-<!ENTITY contactYourProvider.description "&brandShortName; scaricherà la posta utilizzando questa configurazione. Tuttavia si consiglia di contattare l'amministratore o il fornitore della casella di posta per informarlo di questo collegamento non appropriato. Leggere le FAQ di Thunderbird per maggiori informazioni.">
++<!ENTITY contactYourProvider.description "&brandShortName; scaricherà la posta utilizzando questa configurazione. Tuttavia si consiglia di contattare l'amministratore o il fornitore della casella di posta per informarlo di questo collegamento non appropriato. Leggere le FAQ di Icedove per maggiori informazioni.">
+ <!ENTITY insecureServer.tooltip.title "Attenzione, questo è un server non sicuro.">
+ <!ENTITY insecureServer.tooltip.details "Clic sul cerchio per maggiori informazioni.">
+ <!ENTITY insecureUnencrypted.description "La posta e le informazioni di autenticazione vengono trasmesse senza cifratura, pertanto le password e i messaggi possono essere facilmente letti da altre persone. &brandShortName; consentirà la lettura della posta ma si consiglia di contattare il provider per configurare il server con un collegamento sicuro.">
+diff --git a/upstream/it/chrome/locale/it/messenger/credits.dtd b/upstream/it/chrome/locale/it/messenger/credits.dtd
+index 49be229..58b47fa 100644
+--- a/upstream/it/chrome/locale/it/messenger/credits.dtd
++++ b/upstream/it/chrome/locale/it/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "Riconoscimenti &brandFullName;">
+-<!ENTITY brandMotto "Thunderbird si è alzato in volo!">
++<!ENTITY brandMotto "Icedove si è alzato in volo!">
+ <!ENTITY credit.thanks "Ringraziamenti a ">
+ <!ENTITY credit.translation "<h3>Traduzione italiana:</h3>
+ <ul><li>Roberto Principiano</li></ul>
+diff --git a/upstream/it/chrome/locale/it/messenger/featureConfigurator.dtd b/upstream/it/chrome/locale/it/messenger/featureConfigurator.dtd
+index 1e5b602..3ae277a 100644
+--- a/upstream/it/chrome/locale/it/messenger/featureConfigurator.dtd
++++ b/upstream/it/chrome/locale/it/messenger/featureConfigurator.dtd
+@@ -1,6 +1,6 @@
+ <!ENTITY featureConfigurator.title "Migrazione guidata">
+-<!ENTITY featureConfigurator.heading "Le caratteristiche di Thunderbird 3 da conoscere">
+-<!ENTITY featureConfigurator.para1 "Thunderbird 3 introduce nuove potenti funzioni di cui andiamo particolarmente fieri e siamo convinti che molte persone sapranno apprezzarle. Dal momento che ogni utente ha le proprie necessità e le proprie preferenze, abbiamo comunque reso Thunderbird semplice da controllare e personalizzare.">
++<!ENTITY featureConfigurator.heading "Le caratteristiche di Icedove 3 da conoscere">
++<!ENTITY featureConfigurator.para1 "Icedove 3 introduce nuove potenti funzioni di cui andiamo particolarmente fieri e siamo convinti che molte persone sapranno apprezzarle. Dal momento che ogni utente ha le proprie necessità e le proprie preferenze, abbiamo comunque reso Icedove semplice da controllare e personalizzare.">
+ <!ENTITY featureConfigurator.para2 "È possibile utilizzare questa pagina per configurare le nuove impostazioni. La Migrazione guidata può essere richiamata in qualunque istante utilizzando il menu Aiuto.">
+ <!ENTITY featureConfigurator.imap.heading "Sincronizzazione messaggi IMAP">
+ <!ENTITY featureConfigurator.imap.status.all "Tutte le cartelle IMAP sono impostate per la &quot;sincronizzazione&quot;.">
+@@ -9,7 +9,7 @@
+ <!ENTITY featureConfigurator.benefits.label "Vantaggi">
+ <!ENTITY featureConfigurator.alternative.label "Alternative">
+ <!ENTITY featureConfigurator.syncBenefits.para "Consente di leggere i messaggi in assenza di una connessione a Internet e permette di cercare all'interno del messaggio completo, non solo nell'oggetto o nei contatti.">
+-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird scaricherà tutta la posta sul computer in uso. È possibile disattivare questa funzione per risparmiare spazio su disco o ridurre il consumo di banda.">
++<!ENTITY featureConfigurator.syncAlternative.para "Icedove scaricherà tutta la posta sul computer in uso. È possibile disattivare questa funzione per risparmiare spazio su disco o ridurre il consumo di banda.">
+ <!ENTITY featureConfigurator.syncAll.button "Sincronizza tutto">
+ <!ENTITY featureConfigurator.syncNone.button "Non sincronizzare nulla">
+ <!ENTITY featureConfigurator.advancedUsers.label "Utenti esperti:">
+@@ -29,6 +29,6 @@
+ <!ENTITY featureConfigurator.useSmartFolders.button "Attiva la visualizzazione &quot;Cartelle smart&quot;">
+ <!ENTITY featureConfigurator.useAllFolders.button "Attiva la visualizzazione &quot;Tutte le cartelle&quot;">
+ <!ENTITY featureConfigurator.collapsedHeaders.heading "Intestazioni raggruppate">
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 migliora la modalità di visualizzazione delle intestazioni, fornendo pulsanti per effettuare le operazioni più comuni sui messaggi. Sono comunque disponibili delle soluzioni alternative attraverso i ">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 migliora la modalità di visualizzazione delle intestazioni, fornendo pulsanti per effettuare le operazioni più comuni sui messaggi. Sono comunque disponibili delle soluzioni alternative attraverso i ">
+ <!ENTITY featureConfigurator.headerParaLinkName "componenti aggiuntivi">
+ <!ENTITY featureConfigurator.headerParaAfterLink ".">
+-- 
