@@ -13,7 +13,7 @@ override_dh_auto_clean:
 	do \
 		LOCALE=`basename $${XPI}`; \
 		cd $(CURDIR)/upstream/$${LOCALE}/chrome; \
-		rm $${LOCALE}.jar; \
+		rm -f $${LOCALE}.jar; \
 		cd $(CURDIR)/upstream; \
 	done
 
