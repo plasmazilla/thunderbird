@@ -1,3 +1,27 @@
+icedove-l10n (1:3.0.1-1) experimental; urgency=low
+
+  * New upstream release and New maintainer (Closes: #543928)
+  * debian/rules:
+    - [c3ccb27] work on extracted xpi files and use quilt to patch
+    - [cc75e6c] build jar files now in upstream dir
+    - [7769f6a] remove jar files in clean target
+    - [1b72384] force 'rm' in clean target
+  * debian/control:
+    - [4f39342] icedove-l10n-* packages are for icedove >= 3.0
+    - [3a65fc3] add VCS tags
+    - [56a461a] enable DM-Upload-Allowed
+    - [0ea7ec7] remove unavailable language packs
+  * [2e1b2b6] new languages ar bn-bd et fy-nl gl id is ka ro si sq sr ta-lk vi
+  * [08f6723] Galician is now a official supported language
+  * [89bc4e4] remove extra copyright notice for removed language packs
+  * [974dd3a] rebuild patch directory from patch-queue branch
+  * [8431bcc] add script to download upstream xpi files
+  * [b4df744] update Standards-Version and debhelper build depends to make
+    lintian happy
+  * [cbd0a56] document patch system (quilt)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 22 Feb 2010 21:13:50 +0100
+
 icedove-l10n (1:2.0.0.22+debian-3) unstable; urgency=low
 
   * Updating package to standards version 3.8.3.
