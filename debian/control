@@ -5,6 +5,8 @@ Maintainer: Christoph Goehre <chris@sigxcpu.org>
 Build-Depends: debhelper (>= 7)
 Build-Depends-Indep: unzip, zip
 Standards-Version: 3.8.3
+Vcs-Git: git://git.debian.org/pkg-mozilla/icedove-l10n.git
+Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove-l10n.git;a=summary
 
 Package: icedove-l10n-all
 Architecture: all
