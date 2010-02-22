@@ -2,9 +2,9 @@ Source: icedove-l10n
 Section: localization
 Priority: optional
 Maintainer: Christoph Goehre <chris@sigxcpu.org>
-Build-Depends: debhelper (>= 7)
+Build-Depends: debhelper (>= 7.0.50~)
 Build-Depends-Indep: unzip, zip
-Standards-Version: 3.8.3
+Standards-Version: 3.8.4
 DM-Upload-Allowed: yes
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove-l10n.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove-l10n.git;a=summary
