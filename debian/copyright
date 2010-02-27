@@ -11,6 +11,9 @@ main one, developed by the Mozilla Project, is thunderbird.
 The contents of the debian directory are licensed like the bulk of
 thunderbird, tri-licensed under the GPL/LGPL/MPL.
 
+The SVG files in the debian/logo directory are
+Copyright 2006-2007 Ricardo Fernández Fuentes
+
 Other works include gzip, bzip2, sqlite, libjpeg, libpng, cairo, and others.
 Please see the sections following the copyright statements for thunderbird for
 these.
