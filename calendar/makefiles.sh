@@ -46,6 +46,7 @@ if [ "$COMM_BUILD" ]; then
     calendar/sunbird/base/Makefile
     calendar/sunbird/locales/Makefile
     $MOZ_BRANDING_DIRECTORY/Makefile
+    $MOZ_BRANDING_DIRECTORY/locales/Makefile
     "
 
    . ${srcdir}/calendar/shared_makefiles.sh

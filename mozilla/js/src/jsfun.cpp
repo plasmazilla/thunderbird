@@ -759,7 +759,7 @@ JSClass js_ArgumentsClass = {
     JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_HAS_RESERVED_SLOTS(1) |
     JSCLASS_MARK_IS_TRACE | JSCLASS_HAS_CACHED_PROTO(JSProto_Object),
     JS_PropertyStub,    args_delProperty,
-    args_getProperty,   args_setProperty,
+    JS_PropertyStub,    JS_PropertyStub,
     args_enumerate,     (JSResolveOp) args_resolve,
     JS_ConvertStub,     JS_FinalizeStub,
     NULL,               NULL,

@@ -414,6 +414,32 @@ nsScriptSecurityManager::GetCxSubjectPrincipalAndFrame(JSContext *cx, JSStackFra
     return principal;
 }
 
+NS_IMETHODIMP
+nsScriptSecurityManager::PushContextPrincipal(JSContext *cx,
+                                              JSStackFrame *fp,
+                                              nsIPrincipal *principal)
+{
+    ContextPrincipal *cp = new ContextPrincipal(mContextPrincipals, cx, fp,
+                                                principal);
+    if (!cp)
+        return NS_ERROR_OUT_OF_MEMORY;
+
+    mContextPrincipals = cp;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsScriptSecurityManager::PopContextPrincipal(JSContext *cx)
+{
+    NS_ASSERTION(mContextPrincipals->mCx == cx, "Mismatched push/pop");
+
+    ContextPrincipal *next = mContextPrincipals->mNext;
+    delete mContextPrincipals;
+    mContextPrincipals = next;
+
+    return NS_OK;
+}
+
 ////////////////////
 // Policy Storage //
 ////////////////////
@@ -489,12 +515,13 @@ DeleteDomainEntry(nsHashKey *aKey, void *aData, void* closure)
 ////////////////////////////////////
 // Methods implementing ISupports //
 ////////////////////////////////////
-NS_IMPL_ISUPPORTS5(nsScriptSecurityManager,
+NS_IMPL_ISUPPORTS6(nsScriptSecurityManager,
                    nsIScriptSecurityManager,
                    nsIXPCSecurityManager,
                    nsIPrefSecurityCheck,
                    nsIChannelEventSink,
-                   nsIObserver)
+                   nsIObserver,
+                   nsIScriptSecurityManager_1_9_2)
 
 ///////////////////////////////////////////////////
 // Methods implementing nsIScriptSecurityManager //
@@ -806,7 +833,7 @@ nsScriptSecurityManager::CheckPropertyAccessImpl(PRUint32 aAction,
             }
         }
     }
-    rv = CheckXPCPermissions(aObj, aJSObject, subjectPrincipal,
+    rv = CheckXPCPermissions(cx, aObj, aJSObject, subjectPrincipal,
                              objectSecurityLevel);
 #ifdef DEBUG_CAPS_CheckPropertyAccessImpl
     if(NS_SUCCEEDED(rv))
@@ -2159,7 +2186,6 @@ nsScriptSecurityManager::GetFunctionObjectPrincipal(JSContext *cx,
     return GetScriptPrincipal(cx, script, rv);
 }
 
-// static
 nsIPrincipal*
 nsScriptSecurityManager::GetFramePrincipal(JSContext *cx,
                                            JSStackFrame *fp,
@@ -2189,22 +2215,36 @@ nsScriptSecurityManager::GetFramePrincipal(JSContext *cx,
     return result;
 }
 
-// static
 nsIPrincipal*
 nsScriptSecurityManager::GetPrincipalAndFrame(JSContext *cx,
                                               JSStackFrame **frameResult,
                                               nsresult* rv)
 {
-    NS_PRECONDITION(rv, "Null out param");    
+    NS_PRECONDITION(rv, "Null out param");
     //-- If there's no principal on the stack, look at the global object
     //   and return the innermost frame for annotations.
     *rv = NS_OK;
+
     if (cx)
     {
-        // Get principals from innermost frame of JavaScript or Java.
+        JSStackFrame *target = nsnull;
+        nsIPrincipal *targetPrincipal = nsnull;
+        for (ContextPrincipal *cp = mContextPrincipals; cp; cp = cp->mNext)
+        {
+            if (cp->mCx == cx)
+            {
+                target = cp->mFp;
+                targetPrincipal = cp->mPrincipal;
+                break;
+            }
+        }
+
+        // Get principals from innermost JavaScript frame.
         JSStackFrame *fp = nsnull; // tell JS_FrameIterator to start at innermost
         for (fp = JS_FrameIterator(cx, &fp); fp; fp = JS_FrameIterator(cx, &fp))
         {
+            if (fp == target)
+                break;
             nsIPrincipal* result = GetFramePrincipal(cx, fp, rv);
             if (result)
             {
@@ -2212,6 +2252,25 @@ nsScriptSecurityManager::GetPrincipalAndFrame(JSContext *cx,
                 *frameResult = fp;
                 return result;
             }
+        }
+
+        // If targetPrincipal is non-null, then it means that someone wants to
+        // clamp the principals on this context to this principal. Note that
+        // fp might not equal target here (fp might be null) because someone
+        // could have set aside the frame chain in the meantime.
+        if (targetPrincipal)
+        {
+            if (fp && fp == target)
+            {
+                *frameResult = fp;
+            }
+            else
+            {
+                JSStackFrame *inner = nsnull;
+                *frameResult = JS_FrameIterator(cx, &inner);
+            }
+
+            return targetPrincipal;
         }
 
         nsIScriptContext *scriptContext = GetScriptContext(cx);
@@ -2240,7 +2299,6 @@ nsScriptSecurityManager::GetPrincipalAndFrame(JSContext *cx,
     return nsnull;
 }
 
-// static
 nsIPrincipal*
 nsScriptSecurityManager::GetSubjectPrincipal(JSContext *cx,
                                              nsresult* rv)
@@ -2895,7 +2953,7 @@ nsScriptSecurityManager::CanCreateWrapper(JSContext *cx,
     if (checkedComponent)
         checkedComponent->CanCreateWrapper((nsIID *)&aIID, getter_Copies(objectSecurityLevel));
 
-    nsresult rv = CheckXPCPermissions(aObj, nsnull, nsnull, objectSecurityLevel);
+    nsresult rv = CheckXPCPermissions(cx, aObj, nsnull, nsnull, objectSecurityLevel);
     if (NS_FAILED(rv))
     {
         //-- Access denied, report an error
@@ -3006,7 +3064,7 @@ nsScriptSecurityManager::CanCreateInstance(JSContext *cx,
     nsCRT::free(cidStr);
 #endif
 
-    nsresult rv = CheckXPCPermissions(nsnull, nsnull, nsnull, nsnull);
+    nsresult rv = CheckXPCPermissions(nsnull, nsnull, nsnull, nsnull, nsnull);
     if (NS_FAILED(rv))
 #ifdef XPC_IDISPATCH_SUPPORT
     {
@@ -3043,7 +3101,7 @@ nsScriptSecurityManager::CanGetService(JSContext *cx,
     nsCRT::free(cidStr);
 #endif
 
-    nsresult rv = CheckXPCPermissions(nsnull, nsnull, nsnull, nsnull);
+    nsresult rv = CheckXPCPermissions(nsnull, nsnull, nsnull, nsnull, nsnull);
     if (NS_FAILED(rv))
     {
         //-- Access denied, report an error
@@ -3082,7 +3140,8 @@ nsScriptSecurityManager::CanAccess(PRUint32 aAction,
 }
 
 nsresult
-nsScriptSecurityManager::CheckXPCPermissions(nsISupports* aObj, JSObject* aJSObject,
+nsScriptSecurityManager::CheckXPCPermissions(JSContext* cx,
+                                             nsISupports* aObj, JSObject* aJSObject,
                                              nsIPrincipal* aSubjectPrincipal,
                                              const char* aObjectSecurityLevel)
 {
@@ -3096,20 +3155,40 @@ nsScriptSecurityManager::CheckXPCPermissions(nsISupports* aObj, JSObject* aJSObj
     {
         if (PL_strcasecmp(aObjectSecurityLevel, "allAccess") == 0)
             return NS_OK;
-        if (aSubjectPrincipal && aJSObject &&
-            PL_strcasecmp(aObjectSecurityLevel, "sameOrigin") == 0)
+        if (cx && PL_strcasecmp(aObjectSecurityLevel, "sameOrigin") == 0)
         {
-            nsIPrincipal* objectPrincipal = doGetObjectPrincipal(aJSObject);
-
-            // Only do anything if we have both a subject and object
-            // principal.
-            if (objectPrincipal)
+            nsresult rv;
+            if (!aJSObject)
             {
-                PRBool subsumes;
-                nsresult rv = aSubjectPrincipal->Subsumes(objectPrincipal, &subsumes);
+                nsCOMPtr<nsIXPConnectWrappedJS> xpcwrappedjs =
+                    do_QueryInterface(aObj);
+                if (xpcwrappedjs)
+                {
+                    rv = xpcwrappedjs->GetJSObject(&aJSObject);
+                    NS_ENSURE_SUCCESS(rv, rv);
+                }
+            }
+
+            if (!aSubjectPrincipal)
+            {
+                // No subject principal passed in. Compute it.
+                aSubjectPrincipal = GetSubjectPrincipal(cx, &rv);
                 NS_ENSURE_SUCCESS(rv, rv);
-                if (subsumes)
-                    return NS_OK;
+            }
+            if (aSubjectPrincipal && aJSObject)
+            {
+                nsIPrincipal* objectPrincipal = doGetObjectPrincipal(aJSObject);
+
+                // Only do anything if we have both a subject and object
+                // principal.
+                if (objectPrincipal)
+                {
+                    PRBool subsumes;
+                    rv = aSubjectPrincipal->Subsumes(objectPrincipal, &subsumes);
+                    NS_ENSURE_SUCCESS(rv, rv);
+                    if (subsumes)
+                        return NS_OK;
+                }
             }
         }
         else if (PL_strcasecmp(aObjectSecurityLevel, "noAccess") != 0)
@@ -3234,6 +3313,7 @@ nsScriptSecurityManager::nsScriptSecurityManager(void)
     : mOriginToPolicyMap(nsnull),
       mDefaultPolicy(nsnull),
       mCapabilities(nsnull),
+      mContextPrincipals(nsnull),
       mIsJavaScriptEnabled(PR_FALSE),
       mIsWritingPrefs(PR_FALSE),
       mPolicyPrefsChanged(PR_TRUE)
@@ -3316,6 +3396,7 @@ jsval nsScriptSecurityManager::sEnabledID   = JSVAL_VOID;
 
 nsScriptSecurityManager::~nsScriptSecurityManager(void)
 {
+    NS_ASSERTION(!mContextPrincipals, "Leaking mContextPrincipals");
     delete mOriginToPolicyMap;
     if(mDefaultPolicy)
         mDefaultPolicy->Drop();

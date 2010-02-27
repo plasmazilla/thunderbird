@@ -48,6 +48,7 @@ components/airbag.xpt
 components/@DLL_PREFIX@bookmark@DLL_SUFFIX@
 components/bookmarks.xpt
 components/chatzilla-service.js
+components/contentSecurityPolicy.js
 components/crashreporter.xpt
 components/crypto-SDR.js
 components/downloadmanager.xpt
@@ -59,10 +60,12 @@ components/nsCloseAllWindows.js
 components/nsDictionary.js
 components/nsDownloadProgressListener.js
 components/nsFormAutoComplete.js
+components/nsINIProcessor.js
 components/nsInterfaceInfoToIDL.js
 components/nsKillAll.js
 components/nsLDAPPrefsService.js
 components/nsPlacesAutoComplete.js
+components/nsPlacesExpiration.js
 components/nsResetPref.js
 components/nsScriptableIO.js
 components/nsSetDefaultBrowser.js

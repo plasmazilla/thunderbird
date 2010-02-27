@@ -321,7 +321,7 @@ SessionStoreService.prototype = {
       this._restoreLastWindow = true;
       break;
     case "quit-application":
-      if (aData == "restart")
+      if (aData == "restart" && !this._isSwitchingProfile())
         this._prefBranch.setBoolPref("sessionstore.resume_session_once", true);
       this._loadState = STATE_QUITTING; // just to be sure
       this._uninit();
@@ -2406,6 +2406,16 @@ SessionStoreService.prototype = {
   _doResumeSession: function sss_doResumeSession() {
     return this._prefBranch.getIntPref("startup.page") == 3 ||
       this._prefBranch.getBoolPref("sessionstore.resume_session_once");
+  },
+
+  /**
+   * Are we restarting to switch profile.
+   * @returns bool
+   */
+  _isSwitchingProfile: function sss_isSwitchingProfile() {
+    var env = Components.classes["@mozilla.org/process/environment;1"]
+                        .getService(Components.interfaces.nsIEnvironment);
+    return env.exists("XRE_PROFILE_NAME");
   },
 
   /**

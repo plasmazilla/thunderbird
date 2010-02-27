@@ -247,6 +247,29 @@ nsXPCWrappedJSClass::CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
     jsid funid;
     jsval fun;
 
+    // Don't call the actual function on a content object. We'll determine
+    // whether or not a content object is capable of implementing the
+    // interface (i.e. whether the interface is scriptable) and most content
+    // objects don't have QI implementations anyway. Also see bug 503926.
+    if(XPCPerThreadData::IsMainThread(ccx) &&
+       !STOBJ_IS_SYSTEM(JS_GetGlobalForObject(ccx, jsobj)))
+    {
+        nsCOMPtr<nsIPrincipal> objprin;
+        nsIScriptSecurityManager *ssm = XPCWrapper::GetSecurityManager();
+        if(ssm)
+        {
+            nsresult rv = ssm->GetObjectPrincipal(ccx, jsobj, getter_AddRefs(objprin));
+            NS_ENSURE_SUCCESS(rv, nsnull);
+
+            PRBool isSystem;
+            rv = ssm->IsSystemPrincipal(objprin, &isSystem);
+            NS_ENSURE_SUCCESS(rv, nsnull);
+
+            if(!isSystem)
+                return nsnull;
+        }
+    }
+
     // check upfront for the existence of the function property
     funid = mRuntime->GetStringID(XPCJSRuntime::IDX_QUERY_INTERFACE);
     if(!JS_GetPropertyById(cx, jsobj, funid, &fun) || JSVAL_IS_PRIMITIVE(fun))
@@ -1298,6 +1321,8 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16 methodIndex,
     XPCContext* xpcc;
     JSContext* cx;
     JSObject* thisObj;
+    JSBool popPrincipal = JS_FALSE;
+    nsIScriptSecurityManager_1_9_2* ssm = nsnull;
 
     // Make sure not to set the callee on ccx until after we've gone through
     // the whole nsIXPCFunctionThisTranslator bit.  That code uses ccx to
@@ -1623,8 +1648,6 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16 methodIndex,
             *sp++ = val;
     }
 
-
-
     readyToDoTheCall = JS_TRUE;
 
 pre_call_clean_up:
@@ -1686,6 +1709,31 @@ pre_call_clean_up:
 
     JS_ClearPendingException(cx);
 
+    if(XPCPerThreadData::IsMainThread(ccx))
+    {
+        ssm = XPCWrapper::GetSecurityManager();
+        if(ssm)
+        {
+            nsCOMPtr<nsIPrincipal> objPrincipal;
+            ssm->GetObjectPrincipal(ccx, obj, getter_AddRefs(objPrincipal));
+            if(objPrincipal)
+            {
+                JSStackFrame* fp = nsnull;
+                nsresult rv =
+                    ssm->PushContextPrincipal(ccx, JS_FrameIterator(ccx, &fp),
+                                              objPrincipal);
+                if(NS_FAILED(rv))
+                {
+                    JS_ReportOutOfMemory(ccx);
+                    retval = NS_ERROR_OUT_OF_MEMORY;
+                    goto done;
+                }
+
+                popPrincipal = JS_TRUE;
+            }
+        }
+    }
+
     if(XPT_MD_IS_GETTER(info->flags))
         success = JS_GetProperty(cx, obj, name, &result);
     else if(XPT_MD_IS_SETTER(info->flags))
@@ -1722,7 +1770,10 @@ pre_call_clean_up:
         }
     }
 
-    if (!success)
+    if(popPrincipal)
+        ssm->PopContextPrincipal(ccx);
+
+    if(!success)
     {
         PRBool forceReport;
         if(NS_FAILED(mInfo->IsFunction(&forceReport)))

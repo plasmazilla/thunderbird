@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include <dlfcn.h>
+
 #include "nsMenuX.h"
 #include "nsMenuItemX.h"
 #include "nsMenuUtilsX.h"
@@ -94,6 +96,12 @@ nsMenuX::nsMenuX()
                                 @selector(nsMenuX_NSMenu_addItem:toTable:), PR_TRUE);
       nsToolkit::SwizzleMethods([NSMenu class], @selector(_removeItem:fromTable:),
                                 @selector(nsMenuX_NSMenu_removeItem:fromTable:), PR_TRUE);
+      // On SnowLeopard the Shortcut framework (which contains the
+      // SCTGRLIndex class) is loaded on demand, whenever the user first opens
+      // a menu (which normally hasn't happened yet).  So we need to load it
+      // here explicitly.
+      if (nsToolkit::OnSnowLeopardOrLater())
+        dlopen("/System/Library/PrivateFrameworks/Shortcut.framework/Shortcut", RTLD_LAZY);
       Class SCTGRLIndexClass = ::NSClassFromString(@"SCTGRLIndex");
       nsToolkit::SwizzleMethods(SCTGRLIndexClass, @selector(indexMenuBarDynamically),
                                 @selector(nsMenuX_SCTGRLIndex_indexMenuBarDynamically));

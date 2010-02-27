@@ -443,7 +443,8 @@ void XPCJSRuntime::UnrootContextGlobals()
     {
         NS_ASSERTION(!JS_HAS_OPTION(acx, JSOPTION_UNROOTED_GLOBAL),
                      "unrooted global should be set only during CC");
-        if(nsXPConnect::GetXPConnect()->GetRequestDepth(acx) == 0)
+        if(XPCPerThreadData::IsMainThread(acx) &&
+           nsXPConnect::GetXPConnect()->GetRequestDepth(acx) == 0)
         {
             JS_ClearNewbornRoots(acx);
             if(acx->globalObject)
@@ -1110,11 +1111,13 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
         xpc_InstallJSDebuggerKeywordHandler(mJSRuntime);
 #endif
 
-    AutoLockJSGC lock(mJSRuntime);
+    if (mWatchdogWakeup) {
+        AutoLockJSGC lock(mJSRuntime);
 
-    mWatchdogThread = PR_CreateThread(PR_USER_THREAD, WatchdogMain, this,
-                                      PR_PRIORITY_NORMAL, PR_LOCAL_THREAD,
-                                      PR_UNJOINABLE_THREAD, 0);
+        mWatchdogThread = PR_CreateThread(PR_USER_THREAD, WatchdogMain, this,
+                                          PR_PRIORITY_NORMAL, PR_LOCAL_THREAD,
+                                          PR_UNJOINABLE_THREAD, 0);
+    }
 }
 
 // static

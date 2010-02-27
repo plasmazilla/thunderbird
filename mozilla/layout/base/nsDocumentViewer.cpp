@@ -299,7 +299,8 @@ class DocumentViewerImpl : public nsIDocumentViewer,
                            public nsIContentViewerEdit,
                            public nsIContentViewerFile,
                            public nsIMarkupDocumentViewer,
-                           public nsIDocumentViewerPrint
+                           public nsIDocumentViewerPrint,
+                           public nsIContentViewer_MOZILLA_1_9_1_BRANCH
 
 #ifdef NS_PRINTING
                            , public nsIWebBrowserPrint
@@ -334,6 +335,9 @@ public:
 
   // nsIMarkupDocumentViewer
   NS_DECL_NSIMARKUPDOCUMENTVIEWER
+
+  // nsIContentViewer_MOZILLA_1_9_1_BRANCH interface...
+  NS_DECL_NSICONTENTVIEWER_MOZILLA_1_9_1_BRANCH
 
 #ifdef NS_PRINTING
   // nsIWebBrowserPrint
@@ -395,6 +399,8 @@ private:
   nsresult FireClipboardEvent(PRUint32 msg, PRBool* aPreventDefault);
 
   void DestroyPresShell();
+
+  NS_HIDDEN_(nsresult) PermitUnloadInternal(PRBool aCallerClosesWindow, PRBool *aPermitUnload);
 
 #ifdef NS_PRINTING
   // Called when the DocViewer is notified that the state
@@ -483,6 +489,7 @@ protected:
   nsCString mPrevDocCharacterSet;
   
   PRPackedBool mIsPageMode;
+  PRPackedBool mCallerIsClosingWindow;
 
 };
 
@@ -514,6 +521,7 @@ void DocumentViewerImpl::PrepareToStartLoad()
   mStopped          = PR_FALSE;
   mLoaded           = PR_FALSE;
   mDeferredWindowClose = PR_FALSE;
+  mCallerIsClosingWindow = PR_FALSE;
 
 #ifdef NS_PRINTING
   mPrintIsPending        = PR_FALSE;
@@ -554,6 +562,7 @@ NS_IMPL_RELEASE(DocumentViewerImpl)
 
 NS_INTERFACE_MAP_BEGIN(DocumentViewerImpl)
     NS_INTERFACE_MAP_ENTRY(nsIContentViewer)
+    NS_INTERFACE_MAP_ENTRY(nsIContentViewer_MOZILLA_1_9_1_BRANCH)
     NS_INTERFACE_MAP_ENTRY(nsIDocumentViewer)
     NS_INTERFACE_MAP_ENTRY(nsIMarkupDocumentViewer)
     NS_INTERFACE_MAP_ENTRY(nsIContentViewerFile)
@@ -825,6 +834,11 @@ DocumentViewerImpl::InitInternal(nsIWidget* aParentWidget,
                                  PRBool aInPrintPreview,
                                  PRBool aNeedMakeCX /*= PR_TRUE*/)
 {
+  // We don't want any scripts to run here. That can cause flushing,
+  // which can cause reentry into initialization of this document viewer,
+  // which would be disastrous.
+  nsAutoScriptBlocker blockScripts;
+
   mParentWidget = aParentWidget; // not ref counted
 
   nsresult rv = NS_OK;
@@ -1060,12 +1074,12 @@ DocumentViewerImpl::LoadComplete(nsresult aStatus)
   return rv;
 }
 
-NS_IMETHODIMP
-DocumentViewerImpl::PermitUnload(PRBool *aPermitUnload)
+nsresult
+DocumentViewerImpl::PermitUnloadInternal(PRBool aCallerClosesWindow, PRBool *aPermitUnload)
 {
   *aPermitUnload = PR_TRUE;
 
-  if (!mDocument || mInPermitUnload) {
+  if (!mDocument || mInPermitUnload || mCallerIsClosingWindow) {
     return NS_OK;
   }
 
@@ -1160,15 +1174,70 @@ DocumentViewerImpl::PermitUnload(PRBool *aPermitUnload)
 
       if (docShell) {
         nsCOMPtr<nsIContentViewer> cv;
-      docShell->GetContentViewer(getter_AddRefs(cv));
+        docShell->GetContentViewer(getter_AddRefs(cv));
 
-      if (cv) {
-        cv->PermitUnload(aPermitUnload);
+        if (cv) {
+          if (aCallerClosesWindow) {
+            nsCOMPtr<nsIContentViewer_MOZILLA_1_9_1_BRANCH> cv191 = do_QueryInterface(cv);
+            if (cv191) {
+              cv191->PermitUnloadAndCloseWindow(aPermitUnload);
+            }
+          }
+          else {
+            cv->PermitUnload(aPermitUnload);
+          }
         }
       }
     }
   }
 
+  if (aCallerClosesWindow && *aPermitUnload)
+    mCallerIsClosingWindow = PR_TRUE;
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+DocumentViewerImpl::PermitUnload(PRBool *aPermitUnload)
+{
+  return PermitUnloadInternal(PR_FALSE, aPermitUnload);
+}
+
+NS_IMETHODIMP
+DocumentViewerImpl::PermitUnloadAndCloseWindow(PRBool *aPermitUnload)
+{
+  return PermitUnloadInternal(PR_TRUE, aPermitUnload);
+}
+
+NS_IMETHODIMP
+DocumentViewerImpl::ResetCloseWindow()
+{
+  mCallerIsClosingWindow = PR_FALSE;
+
+  nsCOMPtr<nsIDocShellTreeNode> docShellNode(do_QueryReferent(mContainer));
+  if (docShellNode) {
+    PRInt32 childCount;
+    docShellNode->GetChildCount(&childCount);
+
+    for (PRInt32 i = 0; i < childCount; ++i) {
+      nsCOMPtr<nsIDocShellTreeItem> item;
+      docShellNode->GetChildAt(i, getter_AddRefs(item));
+
+      nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(item));
+
+      if (docShell) {
+        nsCOMPtr<nsIContentViewer> cv;
+        docShell->GetContentViewer(getter_AddRefs(cv));
+
+        if (cv) {
+          nsCOMPtr<nsIContentViewer_MOZILLA_1_9_1_BRANCH> cv191 = do_QueryInterface(cv);
+          if (cv191) {
+            cv191->ResetCloseWindow();
+          }
+        }
+      }
+    }
+  }
   return NS_OK;
 }
 

@@ -421,6 +421,12 @@ PRBool nsToolkit::OnLeopardOrLater()
 }
 
 
+PRBool nsToolkit::OnSnowLeopardOrLater()
+{
+    return (OSXVersion() >= MAC_OS_X_VERSION_10_6_HEX) ? PR_TRUE : PR_FALSE;
+}
+
+
 // An alternative to [NSObject poseAsClass:] that isn't deprecated on OS X
 // Leopard and is available to 64-bit binaries on Leopard and above.  Based on
 // ideas and code from http://www.cocoadev.com/index.pl?MethodSwizzling.

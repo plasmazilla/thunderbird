@@ -427,18 +427,26 @@ nsresult nsMsgDBView::FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount)
   nsresult rv = aHdr->GetAccountKey(getter_Copies(accountKey));
 
   // Cache the account manager?
-  nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv,rv);
-  nsCOMPtr <nsIMsgAccount> account;
+  nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIMsgAccount> account;
+  nsCOMPtr<nsIMsgIncomingServer> server;
   if (!accountKey.IsEmpty())
     rv = accountManager->GetAccount(accountKey, getter_AddRefs(account));
+    
   if (account)
   {
-    nsCOMPtr <nsIMsgIncomingServer> server;
     account->GetIncomingServer(getter_AddRefs(server));
-    if (server)
-      server->GetPrettyName(aAccount);
   }
+  else
+  {
+    nsCOMPtr<nsIMsgFolder> folder;
+    aHdr->GetFolder(getter_AddRefs(folder));
+    if (folder)
+     folder->GetServer(getter_AddRefs(server));
+  }
+  if (server)
+    server->GetPrettyName(aAccount);
   else
     CopyASCIItoUTF16(accountKey, aAccount);
   return NS_OK;
@@ -6771,8 +6779,8 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
         // If the tree selection is goofy (eg adjacent or overlapping ranges),
         // complain about it, but don't try and cope.  Just live with the fact
         // that one of the deleted messages is going to end up selected.
-        NS_WARN_IF_FALSE(endFirstRange == startRange, 
-                        "goofy tree selection state: two ranges are adjacent!");
+        NS_WARN_IF_FALSE(endFirstRange != startRange, 
+                         "goofy tree selection state: two ranges are adjacent!");
       }
       *msgToSelectAfterDelete = PR_MIN(*msgToSelectAfterDelete, startRange);
     }
@@ -6933,6 +6941,17 @@ PRBool nsMsgDBView::OfflineMsgSelected(nsMsgViewIndex * indices, PRInt32 numIndi
 
   for (nsMsgViewIndex index = 0; index < (nsMsgViewIndex) numIndices; index++)
   {
+    // For cross-folder saved searches, we need to check if any message
+    // is in a local folder.
+    if (!m_folder)
+    {
+      nsCOMPtr<nsIMsgFolder> folder;
+      GetFolderForViewIndex(indices[index], getter_AddRefs(folder));
+      nsCOMPtr <nsIMsgLocalMailFolder> localFolder = do_QueryInterface(folder);
+      if (localFolder)
+        return PR_TRUE;
+    }
+
     PRUint32 flags = m_flags[indices[index]];
     if ((flags & nsMsgMessageFlags::Offline))
       return PR_TRUE;
