@@ -88,6 +88,18 @@ rm -fv ./suite/branding/icons/os2/seamonkey.ico
 rm -fv ./suite/branding/icons/windows/main-window.ico
 rm -fv ./suite/branding/icons/windows/seamonkey.ico
 rm -fv ./suite/themes/classic/preview.png
+rm -fv ./mozilla/toolkit/components/places/tests/unit/expected-favicon-big32.jpg.png
+rm -fv ./mozilla/toolkit/components/places/tests/unit/expected-favicon-big64.png.png
+rm -fv ./mozilla/toolkit/components/places/tests/unit/favicon-big32.jpg
+rm -fv ./mozilla/toolkit/components/places/tests/unit/favicon-big64.png
+rm -fv ./mozilla/modules/libpr0n/test/unit/image1.png
+rm -fv ./mozilla/modules/libpr0n/test/unit/image1png16x16.jpg
+rm -fv ./mozilla/modules/libpr0n/test/unit/image1png64x64.jpg
+rm -fv ./mozilla/modules/libpr0n/test/unit/image2.jpg
+rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg16x16.png
+rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg16x16-win.png
+rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg32x32.png
+rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg32x32-win.png
 
 # remove the throbbers as they are branded
 rm -fv ./suite/themes/classic/communicator/brand/throbber-anim.png
