@@ -1,0 +1,69 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Mon, 11 Jan 2010 11:01:36 +0100
+Subject: [PATCH] Avoid creating the updates directory when update service is disabled
+
+---
+ .../mozapps/update/src/nsUpdateService.js.in       |   42 ++++++++++----------
+ 1 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/mozilla/toolkit/mozapps/update/src/nsUpdateService.js.in b/mozilla/toolkit/mozapps/update/src/nsUpdateService.js.in
+index d8dc8de..d6d9704 100644
+--- a/mozilla/toolkit/mozapps/update/src/nsUpdateService.js.in
++++ b/mozilla/toolkit/mozapps/update/src/nsUpdateService.js.in
+@@ -1657,6 +1657,27 @@ UpdateService.prototype = {
+     if (gCanUpdate !== null)
+       return gCanUpdate;
+ 
++    // If the administrator has locked the app update functionality
++    // OFF - this is not just a user setting, so disable the manual
++    // UI too.
++    var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true);
++    if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED)) {
++      LOG("UpdateService", "canUpdate - unable to update, disabled by pref");
++      return gCanUpdate = false;
++    }
++
++    // If we don't know the binary platform we're updating, we can't update.
++    if (!gABI) {
++      LOG("UpdateService", "canUpdate - unable tp update, unknown ABI");
++      return gCanUpdate = false;
++    }
++
++    // If we don't know the OS version we're updating, we can't update.
++    if (!gOSVersion) {
++      LOG("UpdateService", "canUpdate unable to update, unknown OS version");
++      return gCanUpdate = false;
++    }
++
+     try {
+       var appDirFile = getUpdateFile([FILE_PERMS_TEST]);
+       LOG("UpdateService", "canUpdate - testing " + appDirFile.path);
+@@ -1754,27 +1775,6 @@ UpdateService.prototype = {
+       // No write privileges to install directory
+       return gCanUpdate = false;
+     }
+-    // If the administrator has locked the app update functionality
+-    // OFF - this is not just a user setting, so disable the manual
+-    // UI too.
+-    var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true);
+-    if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED)) {
+-      LOG("UpdateService", "canUpdate - unable to update, disabled by pref");
+-      return gCanUpdate = false;
+-    }
+-
+-    // If we don't know the binary platform we're updating, we can't update.
+-    if (!gABI) {
+-      LOG("UpdateService", "canUpdate - unable tp update, unknown ABI");
+-      return gCanUpdate = false;
+-    }
+-
+-    // If we don't know the OS version we're updating, we can't update.
+-    if (!gOSVersion) {
+-      LOG("UpdateService", "canUpdate unable to update, unknown OS version");
+-      return gCanUpdate = false;
+-    }
+-
+     LOG("UpdateService", "canUpdate - able to update");
+     return gCanUpdate = true;
+   },
+-- 

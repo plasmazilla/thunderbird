@@ -1,0 +1,105 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 22 Jan 2010 16:24:59 +0100
+Subject: [PATCH] Don't remove build/automationutils.py on make clean
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=525047
+---
+ mozilla/build/Makefile.in                |    2 +-
+ mozilla/build/automation-build.mk        |    7 +------
+ mozilla/build/automation.py.in           |    4 ++--
+ mozilla/build/pgo/Makefile.in            |    2 +-
+ mozilla/layout/tools/reftest/Makefile.in |    2 +-
+ mozilla/testing/mochitest/Makefile.in    |    2 +-
+ 6 files changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
+index a08952b..5247126 100644
+--- a/mozilla/build/Makefile.in
++++ b/mozilla/build/Makefile.in
+@@ -74,7 +74,7 @@ _LEAKTEST_DIR = $(DEPTH)/_leaktest
+ 
+ _LEAKTEST_FILES =    \
+ 		automation.py \
+-		$(CURDIR)/automationutils.py \
++		automationutils.py \
+ 		leaktest.py \
+ 		bloatcycle.html \
+ 		$(topsrcdir)/build/pgo/server-locations.txt \
+diff --git a/mozilla/build/automation-build.mk b/mozilla/build/automation-build.mk
+index 59eed66..7bfa5a4 100644
+--- a/mozilla/build/automation-build.mk
++++ b/mozilla/build/automation-build.mk
+@@ -70,11 +70,6 @@ else
+ AUTOMATION_PPARGS += -DIS_DEBUG_BUILD=0
+ endif
+ 
+-$(CURDIR)/automationutils.py: $(MOZILLA_DIR)/build/automationutils.py
+-	$(INSTALL) $< .
+-
+-automation.py: $(MOZILLA_DIR)/build/automation.py.in $(MOZILLA_DIR)/build/automation-build.mk $(CURDIR)/automationutils.py
++automation.py: $(MOZILLA_DIR)/build/automation.py.in $(MOZILLA_DIR)/build/automation-build.mk
+ 	$(PYTHON) $(MOZILLA_DIR)/config/Preprocessor.py \
+ 	$(AUTOMATION_PPARGS) $(DEFINES) $(ACDEFINES) $< > $@
+-
+-GARBAGE += automation.py $(CURDIR)/automationutils.py
+diff --git a/mozilla/build/automation.py.in b/mozilla/build/automation.py.in
+index 0134333..dbedd3a 100644
+--- a/mozilla/build/automation.py.in
++++ b/mozilla/build/automation.py.in
+@@ -49,14 +49,14 @@ import subprocess
+ import sys
+ import threading
+ 
+-from automationutils import checkForCrashes
+-
+ """
+ Runs the browser from a script, and provides useful utilities
+ for setting up the browser environment.
+ """
+ 
+ SCRIPT_DIR = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
++sys.path.insert(0, SCRIPT_DIR);
++from automationutils import checkForCrashes
+ 
+ __all__ = [
+            "UNIXISH",
+diff --git a/mozilla/build/pgo/Makefile.in b/mozilla/build/pgo/Makefile.in
+index 3253e78..ba24186 100755
+--- a/mozilla/build/pgo/Makefile.in
++++ b/mozilla/build/pgo/Makefile.in
+@@ -54,7 +54,7 @@ include $(topsrcdir)/build/automation-build.mk
+ 
+ _PGO_FILES = 	\
+ 		automation.py \
+-		$(CURDIR)/automationutils.py \
++		$(topsrcdir)/build/automationutils.py \
+ 		profileserver.py \
+ 		genpgocert.py \
+ 		index.html \
+diff --git a/mozilla/layout/tools/reftest/Makefile.in b/mozilla/layout/tools/reftest/Makefile.in
+index bbd70f0..c01e671 100644
+--- a/mozilla/layout/tools/reftest/Makefile.in
++++ b/mozilla/layout/tools/reftest/Makefile.in
+@@ -79,7 +79,7 @@ endif
+ _HARNESS_FILES = \
+   $(srcdir)/runreftest.py \
+   automation.py \
+-  $(CURDIR)/automationutils.py \
++  $(topsrcdir)/build/automationutils.py \
+   $(NULL)
+ 
+ $(_DEST_DIR):
+diff --git a/mozilla/testing/mochitest/Makefile.in b/mozilla/testing/mochitest/Makefile.in
+index a780d2c..5158c73 100644
+--- a/mozilla/testing/mochitest/Makefile.in
++++ b/mozilla/testing/mochitest/Makefile.in
+@@ -60,7 +60,7 @@ include $(topsrcdir)/build/automation-build.mk
+ _SERV_FILES = 	\
+ 		runtests.py \
+ 		automation.py \
+-		$(CURDIR)/automationutils.py \
++		$(topsrcdir)/build/automationutils.py \
+ 		gen_template.pl \
+ 		server.js \
+ 		harness-a11y.xul \
+-- 

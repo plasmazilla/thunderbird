@@ -1,0 +1,23 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sun, 14 Feb 2010 15:01:30 +0100
+Subject: [PATCH] Don't show the SVG output option in the print dialog
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=546093
+---
+ mozilla/widget/src/gtk2/nsPrintDialogGTK.cpp |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/widget/src/gtk2/nsPrintDialogGTK.cpp b/mozilla/widget/src/gtk2/nsPrintDialogGTK.cpp
+index d31957c..25d5e15 100644
+--- a/mozilla/widget/src/gtk2/nsPrintDialogGTK.cpp
++++ b/mozilla/widget/src/gtk2/nsPrintDialogGTK.cpp
+@@ -237,6 +237,8 @@ nsPrintDialogWidgetGTK::nsPrintDialogWidgetGTK(nsIDOMWindow *aParent, nsIPrintSe
+                       | GTK_PRINT_CAPABILITY_COLLATE
+                       | GTK_PRINT_CAPABILITY_REVERSE
+                       | GTK_PRINT_CAPABILITY_SCALE
++                      | GTK_PRINT_CAPABILITY_GENERATE_PDF
++                      | GTK_PRINT_CAPABILITY_GENERATE_PS
+                     )
+                   );
+ 
+-- 

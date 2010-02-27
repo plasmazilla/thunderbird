@@ -1,0 +1,37 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sat, 13 Feb 2010 09:57:31 +0100
+Subject: [PATCH] Fixes for misaligned accesses on ARM in uconv
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=544512
+---
+ mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp |    2 +-
+ mozilla/intl/uconv/ucvlatin/nsUTF32ToUnicode.cpp  |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
+index 4c6dba1..9314c2b 100644
+--- a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
+@@ -112,7 +112,7 @@ UTF16ConvertToUnicode(PRUint8& aState, PRUint8& aOddByte,
+     if (dest == destEnd)
+       goto error;
+ 
+-#ifndef __sparc__
++#if !defined(__sparc__) && !defined(__arm__)
+     u = *(const PRUnichar*)src;
+ #else
+     memcpy(&u, src, 2);
+diff --git a/mozilla/intl/uconv/ucvlatin/nsUTF32ToUnicode.cpp b/mozilla/intl/uconv/ucvlatin/nsUTF32ToUnicode.cpp
+index 79ac7f2..c1f97e7 100644
+--- a/mozilla/intl/uconv/ucvlatin/nsUTF32ToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvlatin/nsUTF32ToUnicode.cpp
+@@ -46,7 +46,7 @@
+ //----------------------------------------------------------------------
+ // static functions and macro definition common to nsUTF32(BE|LE)ToUnicode
+ 
+-#ifdef IS_BIG_ENDIAN
++#if defined(IS_BIG_ENDIAN) || defined(__arm__)
+ #define LE_STRING_TO_UCS4(s)                                       \
+         (PRUint8(*(s)) | (PRUint8(*((s) + 1)) << 8) |              \
+          (PRUint8(*((s) + 2)) << 16) | (PRUint8(*((s) + 3)) << 24))
+-- 

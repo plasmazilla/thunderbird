@@ -1,0 +1,2042 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 27 Feb 2010 16:28:09 +0100
+Subject: [PATCH] Work around FTBFS on mips by disabling TLS support
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=528687
+---
+ mozilla/configure    |  497 +++++++++++++++++++++++++-------------------------
+ mozilla/configure.in |    9 +-
+ 2 files changed, 260 insertions(+), 246 deletions(-)
+
+diff --git a/mozilla/configure b/mozilla/configure
+index 8690ca3..c870658 100755
+--- a/mozilla/configure
++++ b/mozilla/configure
+@@ -11983,10 +11983,17 @@ fi
+ 
+ echo "$ac_t""$ac_cv_thread_keyword" 1>&6
+ if test "$ac_cv_thread_keyword" = yes; then
+-  cat >> confdefs.h <<\EOF
++  case "${target_cpu}" in
++    mips*)
++      :
++      ;;
++    *)
++      cat >> confdefs.h <<\EOF
+ #define HAVE_THREAD_TLS_KEYWORD 1
+ EOF
+ 
++      ;;
++  esac
+ fi
+ 
+ ac_ext=c
+@@ -11999,19 +12006,19 @@ cross_compiling=$ac_cv_prog_cc_cross
+ 
+ 
+ echo $ac_n "checking for LC_MESSAGES""... $ac_c" 1>&6
+-echo "configure:12003: checking for LC_MESSAGES" >&5
++echo "configure:12010: checking for LC_MESSAGES" >&5
+ if eval "test \"`echo '$''{'ac_cv_i18n_lc_messages'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 12008 "configure"
++#line 12015 "configure"
+ #include "confdefs.h"
+ #include <locale.h>
+ int main() {
+ int category = LC_MESSAGES;
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12015: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:12022: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   ac_cv_i18n_lc_messages=yes
+ else
+@@ -12140,7 +12147,7 @@ fi
+ 	# Extract the first word of "nspr-config", so it can be a program name with args.
+ set dummy nspr-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:12144: checking for $ac_word" >&5
++echo "configure:12151: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_NSPR_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -12175,7 +12182,7 @@ fi
+ 
+ 	min_nspr_version=4.8.0
+ 	echo $ac_n "checking for NSPR - version >= $min_nspr_version""... $ac_c" 1>&6
+-echo "configure:12179: checking for NSPR - version >= $min_nspr_version" >&5
++echo "configure:12186: checking for NSPR - version >= $min_nspr_version" >&5
+ 
+ 	no_nspr=""
+ 	if test "$NSPR_CONFIG" = "no"; then
+@@ -12226,7 +12233,7 @@ if test -n "$MOZ_NATIVE_NSPR"; then
+     _SAVE_CFLAGS=$CFLAGS
+     CFLAGS="$CFLAGS $NSPR_CFLAGS"
+     cat > conftest.$ac_ext <<EOF
+-#line 12230 "configure"
++#line 12237 "configure"
+ #include "confdefs.h"
+ #include "prlog.h"
+ int main() {
+@@ -12235,7 +12242,7 @@ int main() {
+                  #endif
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12239: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:12246: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   MOZ_NATIVE_NSPR=1
+ else
+@@ -12314,7 +12321,7 @@ fi
+ 	# Extract the first word of "nss-config", so it can be a program name with args.
+ set dummy nss-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:12318: checking for $ac_word" >&5
++echo "configure:12325: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_NSS_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -12349,7 +12356,7 @@ fi
+ 
+ 	min_nss_version=3.12.0
+ 	echo $ac_n "checking for NSS - version >= $min_nss_version""... $ac_c" 1>&6
+-echo "configure:12353: checking for NSS - version >= $min_nss_version" >&5
++echo "configure:12360: checking for NSS - version >= $min_nss_version" >&5
+ 
+ 	no_nss=""
+ 	if test "$NSS_CONFIG" = "no"; then
+@@ -12438,7 +12445,7 @@ if test -z "$JPEG_DIR" -o "$JPEG_DIR" = no; then
+     SYSTEM_JPEG=
+ else
+     echo $ac_n "checking for jpeg_destroy_compress in -ljpeg""... $ac_c" 1>&6
+-echo "configure:12442: checking for jpeg_destroy_compress in -ljpeg" >&5
++echo "configure:12449: checking for jpeg_destroy_compress in -ljpeg" >&5
+ ac_lib_var=`echo jpeg'_'jpeg_destroy_compress | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -12446,7 +12453,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-ljpeg $JPEG_LIBS $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 12450 "configure"
++#line 12457 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -12457,7 +12464,7 @@ int main() {
+ jpeg_destroy_compress()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12461: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:12468: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -12483,7 +12490,7 @@ fi
+ if test "$SYSTEM_JPEG" = 1; then
+     LIBS="$JPEG_LIBS $LIBS"
+     cat > conftest.$ac_ext <<EOF
+-#line 12487 "configure"
++#line 12494 "configure"
+ #include "confdefs.h"
+  #include <stdio.h>
+                      #include <sys/types.h>
+@@ -12494,7 +12501,7 @@ int main() {
+                      #endif 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12498: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:12505: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   SYSTEM_JPEG=1
+ else
+@@ -12532,7 +12539,7 @@ if test -z "$ZLIB_DIR" -o "$ZLIB_DIR" = no; then
+     SYSTEM_ZLIB=
+ else
+     echo $ac_n "checking for gzread in -lz""... $ac_c" 1>&6
+-echo "configure:12536: checking for gzread in -lz" >&5
++echo "configure:12543: checking for gzread in -lz" >&5
+ ac_lib_var=`echo z'_'gzread | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -12540,7 +12547,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lz $ZLIB_LIBS $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 12544 "configure"
++#line 12551 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -12551,7 +12558,7 @@ int main() {
+ gzread()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12555: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:12562: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -12576,7 +12583,7 @@ fi
+ if test "$SYSTEM_ZLIB" = 1; then
+     LIBS="$ZLIB_LIBS $LIBS"
+     cat > conftest.$ac_ext <<EOF
+-#line 12580 "configure"
++#line 12587 "configure"
+ #include "confdefs.h"
+  #include <stdio.h>
+                      #include <string.h>
+@@ -12587,7 +12594,7 @@ int main() {
+                      #endif 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12591: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:12598: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   SYSTEM_ZLIB=1
+ else
+@@ -12625,7 +12632,7 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
+     SYSTEM_BZ2=
+ else
+     echo $ac_n "checking for BZ2_bzread in -lbz2""... $ac_c" 1>&6
+-echo "configure:12629: checking for BZ2_bzread in -lbz2" >&5
++echo "configure:12636: checking for BZ2_bzread in -lbz2" >&5
+ ac_lib_var=`echo bz2'_'BZ2_bzread | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -12633,7 +12640,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lbz2 $BZ2_LIBS $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 12637 "configure"
++#line 12644 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -12644,7 +12651,7 @@ int main() {
+ BZ2_bzread()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12648: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:12655: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -12696,7 +12703,7 @@ if test -z "$PNG_DIR" -o "$PNG_DIR" = no; then
+ else
+     _SAVE_PNG_LIBS=$PNG_LIBS
+     echo $ac_n "checking for png_get_valid in -lpng""... $ac_c" 1>&6
+-echo "configure:12700: checking for png_get_valid in -lpng" >&5
++echo "configure:12707: checking for png_get_valid in -lpng" >&5
+ ac_lib_var=`echo png'_'png_get_valid | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -12704,7 +12711,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lpng $PNG_LIBS $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 12708 "configure"
++#line 12715 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -12715,7 +12722,7 @@ int main() {
+ png_get_valid()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12719: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:12726: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -12737,7 +12744,7 @@ else
+ fi
+ 
+     echo $ac_n "checking for png_get_acTL in -lpng""... $ac_c" 1>&6
+-echo "configure:12741: checking for png_get_acTL in -lpng" >&5
++echo "configure:12748: checking for png_get_acTL in -lpng" >&5
+ ac_lib_var=`echo png'_'png_get_acTL | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -12745,7 +12752,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lpng $_SAVE_PNG_LIBS $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 12749 "configure"
++#line 12756 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -12756,7 +12763,7 @@ int main() {
+ png_get_acTL()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12760: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:12767: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -12788,7 +12795,7 @@ fi
+ if test "$SYSTEM_PNG" = 1; then
+     LIBS="$PNG_LIBS $LIBS"
+     cat > conftest.$ac_ext <<EOF
+-#line 12792 "configure"
++#line 12799 "configure"
+ #include "confdefs.h"
+  #include <stdio.h>
+                      #include <sys/types.h>
+@@ -12802,7 +12809,7 @@ int main() {
+                      #endif 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:12806: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:12813: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   SYSTEM_PNG=1
+ else
+@@ -12844,7 +12851,7 @@ if test -n "$SYSTEM_HUNSPELL"; then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:12848: checking for $ac_word" >&5
++echo "configure:12855: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -12888,19 +12895,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for hunspell""... $ac_c" 1>&6
+-echo "configure:12892: checking for hunspell" >&5
++echo "configure:12899: checking for hunspell" >&5
+ 
+         if $PKG_CONFIG --exists "hunspell" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_HUNSPELL_CFLAGS""... $ac_c" 1>&6
+-echo "configure:12899: checking MOZ_HUNSPELL_CFLAGS" >&5
++echo "configure:12906: checking MOZ_HUNSPELL_CFLAGS" >&5
+             MOZ_HUNSPELL_CFLAGS=`$PKG_CONFIG --cflags "hunspell"`
+             echo "$ac_t""$MOZ_HUNSPELL_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_HUNSPELL_LIBS""... $ac_c" 1>&6
+-echo "configure:12904: checking MOZ_HUNSPELL_LIBS" >&5
++echo "configure:12911: checking MOZ_HUNSPELL_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_HUNSPELL_LIBS="`$PKG_CONFIG --libs \"hunspell\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_HUNSPELL_LIBS" 1>&6
+@@ -13240,7 +13247,7 @@ fi
+ # Allow the application to influence configure with a confvars.sh script.
+ 
+ echo $ac_n "checking if app-specific confvars.sh exists""... $ac_c" 1>&6
+-echo "configure:13244: checking if app-specific confvars.sh exists" >&5
++echo "configure:13251: checking if app-specific confvars.sh exists" >&5
+ if test -f "${srcdir}/${MOZ_BUILD_APP}/confvars.sh" ; then
+   echo "$ac_t""${srcdir}/${MOZ_BUILD_APP}/confvars.sh" 1>&6
+   . "${srcdir}/${MOZ_BUILD_APP}/confvars.sh"
+@@ -13493,7 +13500,7 @@ if test "$COMPILE_ENVIRONMENT"; then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:13497: checking for $ac_word" >&5
++echo "configure:13504: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -13537,19 +13544,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for directfb >= 1.1.0""... $ac_c" 1>&6
+-echo "configure:13541: checking for directfb >= 1.1.0" >&5
++echo "configure:13548: checking for directfb >= 1.1.0" >&5
+ 
+         if $PKG_CONFIG --exists "directfb >= 1.1.0" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_DFB_CFLAGS""... $ac_c" 1>&6
+-echo "configure:13548: checking MOZ_DFB_CFLAGS" >&5
++echo "configure:13555: checking MOZ_DFB_CFLAGS" >&5
+             MOZ_DFB_CFLAGS=`$PKG_CONFIG --cflags "directfb >= 1.1.0"`
+             echo "$ac_t""$MOZ_DFB_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_DFB_LIBS""... $ac_c" 1>&6
+-echo "configure:13553: checking MOZ_DFB_LIBS" >&5
++echo "configure:13560: checking MOZ_DFB_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_DFB_LIBS="`$PKG_CONFIG --libs \"directfb >= 1.1.0\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_DFB_LIBS" 1>&6
+@@ -13587,7 +13594,7 @@ echo "configure:13553: checking MOZ_DFB_LIBS" >&5
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:13591: checking for $ac_word" >&5
++echo "configure:13598: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -13631,19 +13638,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES""... $ac_c" 1>&6
+-echo "configure:13635: checking for gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES" >&5
++echo "configure:13642: checking for gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES" >&5
+ 
+         if $PKG_CONFIG --exists "gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_GTK2_CFLAGS""... $ac_c" 1>&6
+-echo "configure:13642: checking MOZ_GTK2_CFLAGS" >&5
++echo "configure:13649: checking MOZ_GTK2_CFLAGS" >&5
+             MOZ_GTK2_CFLAGS=`$PKG_CONFIG --cflags "gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES"`
+             echo "$ac_t""$MOZ_GTK2_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_GTK2_LIBS""... $ac_c" 1>&6
+-echo "configure:13647: checking MOZ_GTK2_LIBS" >&5
++echo "configure:13654: checking MOZ_GTK2_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_GTK2_LIBS="`$PKG_CONFIG --libs \"gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 gobject-2.0 $GDK_PACKAGES\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_GTK2_LIBS" 1>&6
+@@ -13703,7 +13710,7 @@ fi
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:13707: checking for $ac_word" >&5
++echo "configure:13714: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -13747,19 +13754,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION""... $ac_c" 1>&6
+-echo "configure:13751: checking for libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION" >&5
++echo "configure:13758: checking for libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_STARTUP_NOTIFICATION_CFLAGS""... $ac_c" 1>&6
+-echo "configure:13758: checking MOZ_STARTUP_NOTIFICATION_CFLAGS" >&5
++echo "configure:13765: checking MOZ_STARTUP_NOTIFICATION_CFLAGS" >&5
+             MOZ_STARTUP_NOTIFICATION_CFLAGS=`$PKG_CONFIG --cflags "libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION"`
+             echo "$ac_t""$MOZ_STARTUP_NOTIFICATION_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_STARTUP_NOTIFICATION_LIBS""... $ac_c" 1>&6
+-echo "configure:13763: checking MOZ_STARTUP_NOTIFICATION_LIBS" >&5
++echo "configure:13770: checking MOZ_STARTUP_NOTIFICATION_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_STARTUP_NOTIFICATION_LIBS="`$PKG_CONFIG --libs \"libstartup-notification-1.0 >= $STARTUP_NOTIFICATION_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_STARTUP_NOTIFICATION_LIBS" 1>&6
+@@ -13817,7 +13824,7 @@ then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:13821: checking for $ac_word" >&5
++echo "configure:13828: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -13861,19 +13868,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for QtGui QtNetwork QtUiTools QtCore""... $ac_c" 1>&6
+-echo "configure:13865: checking for QtGui QtNetwork QtUiTools QtCore" >&5
++echo "configure:13872: checking for QtGui QtNetwork QtUiTools QtCore" >&5
+ 
+         if $PKG_CONFIG --exists "QtGui QtNetwork QtUiTools QtCore" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_QT_CFLAGS""... $ac_c" 1>&6
+-echo "configure:13872: checking MOZ_QT_CFLAGS" >&5
++echo "configure:13879: checking MOZ_QT_CFLAGS" >&5
+             MOZ_QT_CFLAGS=`$PKG_CONFIG --cflags "QtGui QtNetwork QtUiTools QtCore"`
+             echo "$ac_t""$MOZ_QT_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_QT_LIBS""... $ac_c" 1>&6
+-echo "configure:13877: checking MOZ_QT_LIBS" >&5
++echo "configure:13884: checking MOZ_QT_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_QT_LIBS="`$PKG_CONFIG --libs \"QtGui QtNetwork QtUiTools QtCore\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_QT_LIBS" 1>&6
+@@ -13934,7 +13941,7 @@ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:13938: checking for $ac_word" >&5
++echo "configure:13945: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_prog_HOST_MOC'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14085,7 +14092,7 @@ then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14089: checking for $ac_word" >&5
++echo "configure:14096: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14129,19 +14136,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for pango >= $PANGO_VERSION""... $ac_c" 1>&6
+-echo "configure:14133: checking for pango >= $PANGO_VERSION" >&5
++echo "configure:14140: checking for pango >= $PANGO_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "pango >= $PANGO_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking _PANGOCHK_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14140: checking _PANGOCHK_CFLAGS" >&5
++echo "configure:14147: checking _PANGOCHK_CFLAGS" >&5
+             _PANGOCHK_CFLAGS=`$PKG_CONFIG --cflags "pango >= $PANGO_VERSION"`
+             echo "$ac_t""$_PANGOCHK_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking _PANGOCHK_LIBS""... $ac_c" 1>&6
+-echo "configure:14145: checking _PANGOCHK_LIBS" >&5
++echo "configure:14152: checking _PANGOCHK_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             _PANGOCHK_LIBS="`$PKG_CONFIG --libs \"pango >= $PANGO_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$_PANGOCHK_LIBS" 1>&6
+@@ -14179,7 +14186,7 @@ echo "configure:14145: checking _PANGOCHK_LIBS" >&5
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14183: checking for $ac_word" >&5
++echo "configure:14190: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14223,19 +14230,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION""... $ac_c" 1>&6
+-echo "configure:14227: checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" >&5
++echo "configure:14234: checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_PANGO_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14234: checking MOZ_PANGO_CFLAGS" >&5
++echo "configure:14241: checking MOZ_PANGO_CFLAGS" >&5
+             MOZ_PANGO_CFLAGS=`$PKG_CONFIG --cflags "pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION"`
+             echo "$ac_t""$MOZ_PANGO_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_PANGO_LIBS""... $ac_c" 1>&6
+-echo "configure:14239: checking MOZ_PANGO_LIBS" >&5
++echo "configure:14246: checking MOZ_PANGO_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_PANGO_LIBS="`$PKG_CONFIG --libs \"pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_PANGO_LIBS" 1>&6
+@@ -14277,7 +14284,7 @@ EOF
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14281: checking for $ac_word" >&5
++echo "configure:14288: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14321,19 +14328,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION""... $ac_c" 1>&6
+-echo "configure:14325: checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" >&5
++echo "configure:14332: checking for pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_PANGO_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14332: checking MOZ_PANGO_CFLAGS" >&5
++echo "configure:14339: checking MOZ_PANGO_CFLAGS" >&5
+             MOZ_PANGO_CFLAGS=`$PKG_CONFIG --cflags "pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION"`
+             echo "$ac_t""$MOZ_PANGO_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_PANGO_LIBS""... $ac_c" 1>&6
+-echo "configure:14337: checking MOZ_PANGO_LIBS" >&5
++echo "configure:14344: checking MOZ_PANGO_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_PANGO_LIBS="`$PKG_CONFIG --libs \"pango >= $PANGO_VERSION pangoft2 >= $PANGO_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_PANGO_LIBS" 1>&6
+@@ -14371,7 +14378,7 @@ echo "configure:14337: checking MOZ_PANGO_LIBS" >&5
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14375: checking for $ac_word" >&5
++echo "configure:14382: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14415,19 +14422,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for freetype2 > 6.1.0 fontconfig""... $ac_c" 1>&6
+-echo "configure:14419: checking for freetype2 > 6.1.0 fontconfig" >&5
++echo "configure:14426: checking for freetype2 > 6.1.0 fontconfig" >&5
+ 
+         if $PKG_CONFIG --exists "freetype2 > 6.1.0 fontconfig" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking FT2_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14426: checking FT2_CFLAGS" >&5
++echo "configure:14433: checking FT2_CFLAGS" >&5
+             FT2_CFLAGS=`$PKG_CONFIG --cflags "freetype2 > 6.1.0 fontconfig"`
+             echo "$ac_t""$FT2_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking FT2_LIBS""... $ac_c" 1>&6
+-echo "configure:14431: checking FT2_LIBS" >&5
++echo "configure:14438: checking FT2_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             FT2_LIBS="`$PKG_CONFIG --libs \"freetype2 > 6.1.0 fontconfig\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$FT2_LIBS" 1>&6
+@@ -14505,7 +14512,7 @@ fi
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14509: checking for $ac_word" >&5
++echo "configure:14516: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14549,19 +14556,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION""... $ac_c" 1>&6
+-echo "configure:14553: checking for gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION" >&5
++echo "configure:14560: checking for gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_GNOMEVFS_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14560: checking MOZ_GNOMEVFS_CFLAGS" >&5
++echo "configure:14567: checking MOZ_GNOMEVFS_CFLAGS" >&5
+             MOZ_GNOMEVFS_CFLAGS=`$PKG_CONFIG --cflags "gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION"`
+             echo "$ac_t""$MOZ_GNOMEVFS_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_GNOMEVFS_LIBS""... $ac_c" 1>&6
+-echo "configure:14565: checking MOZ_GNOMEVFS_LIBS" >&5
++echo "configure:14572: checking MOZ_GNOMEVFS_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_GNOMEVFS_LIBS="`$PKG_CONFIG --libs \"gnome-vfs-2.0 >= $GNOMEVFS_VERSION gnome-vfs-module-2.0 >= $GNOMEVFS_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_GNOMEVFS_LIBS" 1>&6
+@@ -14612,7 +14619,7 @@ echo "configure:14565: checking MOZ_GNOMEVFS_LIBS" >&5
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14616: checking for $ac_word" >&5
++echo "configure:14623: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14656,19 +14663,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for gconf-2.0 >= $GCONF_VERSION""... $ac_c" 1>&6
+-echo "configure:14660: checking for gconf-2.0 >= $GCONF_VERSION" >&5
++echo "configure:14667: checking for gconf-2.0 >= $GCONF_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "gconf-2.0 >= $GCONF_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_GCONF_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14667: checking MOZ_GCONF_CFLAGS" >&5
++echo "configure:14674: checking MOZ_GCONF_CFLAGS" >&5
+             MOZ_GCONF_CFLAGS=`$PKG_CONFIG --cflags "gconf-2.0 >= $GCONF_VERSION"`
+             echo "$ac_t""$MOZ_GCONF_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_GCONF_LIBS""... $ac_c" 1>&6
+-echo "configure:14672: checking MOZ_GCONF_LIBS" >&5
++echo "configure:14679: checking MOZ_GCONF_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_GCONF_LIBS="`$PKG_CONFIG --libs \"gconf-2.0 >= $GCONF_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_GCONF_LIBS" 1>&6
+@@ -14723,7 +14730,7 @@ EOF
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14727: checking for $ac_word" >&5
++echo "configure:14734: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14767,19 +14774,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libgnome-2.0 >= $LIBGNOME_VERSION""... $ac_c" 1>&6
+-echo "configure:14771: checking for libgnome-2.0 >= $LIBGNOME_VERSION" >&5
++echo "configure:14778: checking for libgnome-2.0 >= $LIBGNOME_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "libgnome-2.0 >= $LIBGNOME_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_LIBGNOME_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14778: checking MOZ_LIBGNOME_CFLAGS" >&5
++echo "configure:14785: checking MOZ_LIBGNOME_CFLAGS" >&5
+             MOZ_LIBGNOME_CFLAGS=`$PKG_CONFIG --cflags "libgnome-2.0 >= $LIBGNOME_VERSION"`
+             echo "$ac_t""$MOZ_LIBGNOME_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_LIBGNOME_LIBS""... $ac_c" 1>&6
+-echo "configure:14783: checking MOZ_LIBGNOME_LIBS" >&5
++echo "configure:14790: checking MOZ_LIBGNOME_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_LIBGNOME_LIBS="`$PKG_CONFIG --libs \"libgnome-2.0 >= $LIBGNOME_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_LIBGNOME_LIBS" 1>&6
+@@ -14857,7 +14864,7 @@ fi
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14861: checking for $ac_word" >&5
++echo "configure:14868: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -14901,19 +14908,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libgnomeui-2.0 >= $GNOMEUI_VERSION""... $ac_c" 1>&6
+-echo "configure:14905: checking for libgnomeui-2.0 >= $GNOMEUI_VERSION" >&5
++echo "configure:14912: checking for libgnomeui-2.0 >= $GNOMEUI_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "libgnomeui-2.0 >= $GNOMEUI_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_GNOMEUI_CFLAGS""... $ac_c" 1>&6
+-echo "configure:14912: checking MOZ_GNOMEUI_CFLAGS" >&5
++echo "configure:14919: checking MOZ_GNOMEUI_CFLAGS" >&5
+             MOZ_GNOMEUI_CFLAGS=`$PKG_CONFIG --cflags "libgnomeui-2.0 >= $GNOMEUI_VERSION"`
+             echo "$ac_t""$MOZ_GNOMEUI_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_GNOMEUI_LIBS""... $ac_c" 1>&6
+-echo "configure:14917: checking MOZ_GNOMEUI_LIBS" >&5
++echo "configure:14924: checking MOZ_GNOMEUI_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_GNOMEUI_LIBS="`$PKG_CONFIG --libs \"libgnomeui-2.0 >= $GNOMEUI_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_GNOMEUI_LIBS" 1>&6
+@@ -14990,7 +14997,7 @@ fi
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:14994: checking for $ac_word" >&5
++echo "configure:15001: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15034,19 +15041,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for dbus-glib-1 >= $DBUS_VERSION""... $ac_c" 1>&6
+-echo "configure:15038: checking for dbus-glib-1 >= $DBUS_VERSION" >&5
++echo "configure:15045: checking for dbus-glib-1 >= $DBUS_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "dbus-glib-1 >= $DBUS_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_DBUS_GLIB_CFLAGS""... $ac_c" 1>&6
+-echo "configure:15045: checking MOZ_DBUS_GLIB_CFLAGS" >&5
++echo "configure:15052: checking MOZ_DBUS_GLIB_CFLAGS" >&5
+             MOZ_DBUS_GLIB_CFLAGS=`$PKG_CONFIG --cflags "dbus-glib-1 >= $DBUS_VERSION"`
+             echo "$ac_t""$MOZ_DBUS_GLIB_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_DBUS_GLIB_LIBS""... $ac_c" 1>&6
+-echo "configure:15050: checking MOZ_DBUS_GLIB_LIBS" >&5
++echo "configure:15057: checking MOZ_DBUS_GLIB_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_DBUS_GLIB_LIBS="`$PKG_CONFIG --libs \"dbus-glib-1 >= $DBUS_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_DBUS_GLIB_LIBS" 1>&6
+@@ -15393,7 +15400,7 @@ EOF
+     MOZ_MEDIA=1
+ 
+         echo $ac_n "checking __attribute__ ((aligned ())) support""... $ac_c" 1>&6
+-echo "configure:15397: checking __attribute__ ((aligned ())) support" >&5
++echo "configure:15404: checking __attribute__ ((aligned ())) support" >&5
+ if eval "test \"`echo '$''{'ac_cv_c_attribute_aligned'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15403,14 +15410,14 @@ else
+          for ac_cv_c_attr_align_try in 64 32 16 8; do
+            echo "trying $ac_cv_c_attr_align_try"
+            cat > conftest.$ac_ext <<EOF
+-#line 15407 "configure"
++#line 15414 "configure"
+ #include "confdefs.h"
+ 
+ int main() {
+ static char c __attribute__ ((aligned(${ac_cv_c_attr_align_try}))) = 0; return c;
+ ; return 0; }
+ EOF
+-if { (eval echo configure:15414: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:15421: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   ac_cv_c_attribute_aligned="${ac_cv_c_attr_align_try}"
+ else
+@@ -15483,7 +15490,7 @@ if test -n "$MOZ_SYDNEYAUDIO"; then
+    case "$target_os" in
+ linux*)
+       echo $ac_n "checking for snd_pcm_open in -lasound""... $ac_c" 1>&6
+-echo "configure:15487: checking for snd_pcm_open in -lasound" >&5
++echo "configure:15494: checking for snd_pcm_open in -lasound" >&5
+ ac_lib_var=`echo asound'_'snd_pcm_open | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -15491,7 +15498,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lasound  $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 15495 "configure"
++#line 15502 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -15502,7 +15509,7 @@ int main() {
+ snd_pcm_open()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:15506: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:15513: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -15674,7 +15681,7 @@ if test -n "${MOZ_JAVAXPCOM}"; then
+   # Extract the first word of "java", so it can be a program name with args.
+ set dummy java; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:15678: checking for $ac_word" >&5
++echo "configure:15685: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_JAVA'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15710,7 +15717,7 @@ fi
+   # Extract the first word of "javac", so it can be a program name with args.
+ set dummy javac; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:15714: checking for $ac_word" >&5
++echo "configure:15721: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_JAVAC'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15746,7 +15753,7 @@ fi
+   # Extract the first word of "jar", so it can be a program name with args.
+ set dummy jar; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:15750: checking for $ac_word" >&5
++echo "configure:15757: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_JAR'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15820,7 +15827,7 @@ EOF
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:15824: checking for $ac_word" >&5
++echo "configure:15831: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -15864,19 +15871,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for gthread-2.0""... $ac_c" 1>&6
+-echo "configure:15868: checking for gthread-2.0" >&5
++echo "configure:15875: checking for gthread-2.0" >&5
+ 
+         if $PKG_CONFIG --exists "gthread-2.0" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_GTHREAD_CFLAGS""... $ac_c" 1>&6
+-echo "configure:15875: checking MOZ_GTHREAD_CFLAGS" >&5
++echo "configure:15882: checking MOZ_GTHREAD_CFLAGS" >&5
+             MOZ_GTHREAD_CFLAGS=`$PKG_CONFIG --cflags "gthread-2.0"`
+             echo "$ac_t""$MOZ_GTHREAD_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_GTHREAD_LIBS""... $ac_c" 1>&6
+-echo "configure:15880: checking MOZ_GTHREAD_LIBS" >&5
++echo "configure:15887: checking MOZ_GTHREAD_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_GTHREAD_LIBS="`$PKG_CONFIG --libs \"gthread-2.0\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_GTHREAD_LIBS" 1>&6
+@@ -15912,17 +15919,17 @@ echo "configure:15880: checking MOZ_GTHREAD_LIBS" >&5
+ do
+ ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
+ echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
+-echo "configure:15916: checking for $ac_hdr" >&5
++echo "configure:15923: checking for $ac_hdr" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 15921 "configure"
++#line 15928 "configure"
+ #include "confdefs.h"
+ #include <$ac_hdr>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:15926: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:15933: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -16252,7 +16259,7 @@ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16256: checking for $ac_word" >&5
++echo "configure:16263: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_MAKENSIS'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16297,7 +16304,7 @@ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16301: checking for $ac_word" >&5
++echo "configure:16308: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_HOST_ICONV'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16345,13 +16352,13 @@ fi
+ 
+ 
+ echo $ac_n "checking for tar archiver""... $ac_c" 1>&6
+-echo "configure:16349: checking for tar archiver" >&5
++echo "configure:16356: checking for tar archiver" >&5
+ for ac_prog in gnutar gtar tar
+ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16355: checking for $ac_word" >&5
++echo "configure:16362: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_prog_TAR'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16388,13 +16395,13 @@ echo "$ac_t""$TAR" 1>&6
+ 
+ 
+ echo $ac_n "checking for wget""... $ac_c" 1>&6
+-echo "configure:16392: checking for wget" >&5
++echo "configure:16399: checking for wget" >&5
+ for ac_prog in wget
+ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16398: checking for $ac_word" >&5
++echo "configure:16405: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_prog_WGET'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16446,13 +16453,13 @@ case "$target_os" in
+     msvc*|mks*|cygwin*|mingw*|wince*)
+         if test -n "$MOZ_UPDATER"; then
+             echo $ac_n "checking for iconv""... $ac_c" 1>&6
+-echo "configure:16450: checking for iconv" >&5
++echo "configure:16457: checking for iconv" >&5
+             for ac_prog in $HOST_ICONV "iconv"
+ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16456: checking for $ac_word" >&5
++echo "configure:16463: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_prog_HOST_ICONV'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16796,7 +16803,7 @@ else
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16800: checking for $ac_word" >&5
++echo "configure:16807: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -16840,19 +16847,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for sqlite3 >= $SQLITE_VERSION""... $ac_c" 1>&6
+-echo "configure:16844: checking for sqlite3 >= $SQLITE_VERSION" >&5
++echo "configure:16851: checking for sqlite3 >= $SQLITE_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "sqlite3 >= $SQLITE_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking SQLITE_CFLAGS""... $ac_c" 1>&6
+-echo "configure:16851: checking SQLITE_CFLAGS" >&5
++echo "configure:16858: checking SQLITE_CFLAGS" >&5
+             SQLITE_CFLAGS=`$PKG_CONFIG --cflags "sqlite3 >= $SQLITE_VERSION"`
+             echo "$ac_t""$SQLITE_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking SQLITE_LIBS""... $ac_c" 1>&6
+-echo "configure:16856: checking SQLITE_LIBS" >&5
++echo "configure:16863: checking SQLITE_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             SQLITE_LIBS="`$PKG_CONFIG --libs \"sqlite3 >= $SQLITE_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$SQLITE_LIBS" 1>&6
+@@ -16990,7 +16997,7 @@ succeeded=no
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:16994: checking for $ac_word" >&5
++echo "configure:17001: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -17034,19 +17041,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libhildonmime""... $ac_c" 1>&6
+-echo "configure:17038: checking for libhildonmime" >&5
++echo "configure:17045: checking for libhildonmime" >&5
+ 
+         if $PKG_CONFIG --exists "libhildonmime" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking LIBHILDONMIME_CFLAGS""... $ac_c" 1>&6
+-echo "configure:17045: checking LIBHILDONMIME_CFLAGS" >&5
++echo "configure:17052: checking LIBHILDONMIME_CFLAGS" >&5
+             LIBHILDONMIME_CFLAGS=`$PKG_CONFIG --cflags "libhildonmime"`
+             echo "$ac_t""$LIBHILDONMIME_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking LIBHILDONMIME_LIBS""... $ac_c" 1>&6
+-echo "configure:17050: checking LIBHILDONMIME_LIBS" >&5
++echo "configure:17057: checking LIBHILDONMIME_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             LIBHILDONMIME_LIBS="`$PKG_CONFIG --libs \"libhildonmime\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$LIBHILDONMIME_LIBS" 1>&6
+@@ -17090,7 +17097,7 @@ succeeded=no
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:17094: checking for $ac_word" >&5
++echo "configure:17101: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -17134,19 +17141,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libosso""... $ac_c" 1>&6
+-echo "configure:17138: checking for libosso" >&5
++echo "configure:17145: checking for libosso" >&5
+ 
+         if $PKG_CONFIG --exists "libosso" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking LIBOSSO_CFLAGS""... $ac_c" 1>&6
+-echo "configure:17145: checking LIBOSSO_CFLAGS" >&5
++echo "configure:17152: checking LIBOSSO_CFLAGS" >&5
+             LIBOSSO_CFLAGS=`$PKG_CONFIG --cflags "libosso"`
+             echo "$ac_t""$LIBOSSO_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking LIBOSSO_LIBS""... $ac_c" 1>&6
+-echo "configure:17150: checking LIBOSSO_LIBS" >&5
++echo "configure:17157: checking LIBOSSO_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             LIBOSSO_LIBS="`$PKG_CONFIG --libs \"libosso\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$LIBOSSO_LIBS" 1>&6
+@@ -17195,7 +17202,7 @@ succeeded=no
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:17199: checking for $ac_word" >&5
++echo "configure:17206: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -17239,19 +17246,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for liblocation gpsbt""... $ac_c" 1>&6
+-echo "configure:17243: checking for liblocation gpsbt" >&5
++echo "configure:17250: checking for liblocation gpsbt" >&5
+ 
+         if $PKG_CONFIG --exists "liblocation gpsbt" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking MOZ_LOCATION_CFLAGS""... $ac_c" 1>&6
+-echo "configure:17250: checking MOZ_LOCATION_CFLAGS" >&5
++echo "configure:17257: checking MOZ_LOCATION_CFLAGS" >&5
+             MOZ_LOCATION_CFLAGS=`$PKG_CONFIG --cflags "liblocation gpsbt"`
+             echo "$ac_t""$MOZ_LOCATION_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking MOZ_LOCATION_LIBS""... $ac_c" 1>&6
+-echo "configure:17255: checking MOZ_LOCATION_LIBS" >&5
++echo "configure:17262: checking MOZ_LOCATION_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             MOZ_LOCATION_LIBS="`$PKG_CONFIG --libs \"liblocation gpsbt\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$MOZ_LOCATION_LIBS" 1>&6
+@@ -17352,18 +17359,18 @@ MOZ_DEBUG_DISABLE_DEFS="-DNDEBUG -DTRIMMED"
+ 
+ if test -n "$MOZ_DEBUG"; then
+     echo $ac_n "checking for valid debug flags""... $ac_c" 1>&6
+-echo "configure:17356: checking for valid debug flags" >&5
++echo "configure:17363: checking for valid debug flags" >&5
+     _SAVE_CFLAGS=$CFLAGS
+     CFLAGS="$CFLAGS $MOZ_DEBUG_FLAGS"
+     cat > conftest.$ac_ext <<EOF
+-#line 17360 "configure"
++#line 17367 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
+ int main() {
+ printf("Hello World\n");
+ ; return 0; }
+ EOF
+-if { (eval echo configure:17367: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:17374: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   _results=yes
+ else
+@@ -17426,18 +17433,18 @@ fi
+ if test "$COMPILE_ENVIRONMENT"; then
+ if test -n "$MOZ_OPTIMIZE"; then
+     echo $ac_n "checking for valid optimization flags""... $ac_c" 1>&6
+-echo "configure:17430: checking for valid optimization flags" >&5
++echo "configure:17437: checking for valid optimization flags" >&5
+     _SAVE_CFLAGS=$CFLAGS
+     CFLAGS="$CFLAGS $MOZ_OPTIMIZE_FLAGS"
+     cat > conftest.$ac_ext <<EOF
+-#line 17434 "configure"
++#line 17441 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
+ int main() {
+ printf("Hello World\n");
+ ; return 0; }
+ EOF
+-if { (eval echo configure:17441: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:17448: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   _results=yes
+ else
+@@ -17607,7 +17614,7 @@ EOF
+     fi
+   else
+     echo $ac_n "checking size of int *""... $ac_c" 1>&6
+-echo "configure:17611: checking size of int *" >&5
++echo "configure:17618: checking size of int *" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_int_p'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -17615,7 +17622,7 @@ else
+   ac_cv_sizeof_int_p=4
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 17619 "configure"
++#line 17626 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
+ #include <sys/types.h>
+@@ -17627,7 +17634,7 @@ main()
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:17631: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:17638: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_int_p=`cat conftestval`
+ else
+@@ -17806,17 +17813,17 @@ fi
+ if test -n "$MOZ_VALGRIND"; then
+     ac_safe=`echo "valgrind/valgrind.h" | sed 'y%./+-%__p_%'`
+ echo $ac_n "checking for valgrind/valgrind.h""... $ac_c" 1>&6
+-echo "configure:17810: checking for valgrind/valgrind.h" >&5
++echo "configure:17817: checking for valgrind/valgrind.h" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 17815 "configure"
++#line 17822 "configure"
+ #include "confdefs.h"
+ #include <valgrind/valgrind.h>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:17820: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:17827: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -17858,7 +17865,7 @@ fi
+ 
+ if test -n "$_ENABLE_EFENCE"; then
+     echo $ac_n "checking for malloc in -lefence""... $ac_c" 1>&6
+-echo "configure:17862: checking for malloc in -lefence" >&5
++echo "configure:17869: checking for malloc in -lefence" >&5
+ ac_lib_var=`echo efence'_'malloc | sed 'y%./+-%__p_%'`
+ if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+@@ -17866,7 +17873,7 @@ else
+   ac_save_LIBS="$LIBS"
+ LIBS="-lefence  $LIBS"
+ cat > conftest.$ac_ext <<EOF
+-#line 17870 "configure"
++#line 17877 "configure"
+ #include "confdefs.h"
+ /* Override any gcc2 internal prototype to avoid an error.  */
+ /* We use char because int might match the return type of a gcc2
+@@ -17877,7 +17884,7 @@ int main() {
+ malloc()
+ ; return 0; }
+ EOF
+-if { (eval echo configure:17881: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:17888: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_lib_$ac_lib_var=yes"
+ else
+@@ -18068,12 +18075,12 @@ cross_compiling=$ac_cv_prog_cxx_cross
+     for ac_func in __builtin_vec_new __builtin_vec_delete __builtin_new __builtin_delete __pure_virtual
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:18072: checking for $ac_func" >&5
++echo "configure:18079: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18077 "configure"
++#line 18084 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -18099,7 +18106,7 @@ $ac_func();
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18103: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:18110: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -18305,12 +18312,12 @@ cross_compiling=$ac_cv_prog_cxx_cross
+     for ac_func in __cxa_demangle
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:18309: checking for $ac_func" >&5
++echo "configure:18316: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18314 "configure"
++#line 18321 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -18336,7 +18343,7 @@ $ac_func();
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18340: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:18347: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -18384,17 +18391,17 @@ fi
+ if test "$HAVE_GCC3_ABI" && test -z "$SKIP_LIBRARY_CHECKS"; then
+     ac_safe=`echo "unwind.h" | sed 'y%./+-%__p_%'`
+ echo $ac_n "checking for unwind.h""... $ac_c" 1>&6
+-echo "configure:18388: checking for unwind.h" >&5
++echo "configure:18395: checking for unwind.h" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18393 "configure"
++#line 18400 "configure"
+ #include "confdefs.h"
+ #include <unwind.h>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:18398: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:18405: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -18413,12 +18420,12 @@ if eval "test \"`echo '$ac_cv_header_'$ac_safe`\" = yes"; then
+   for ac_func in _Unwind_Backtrace
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:18417: checking for $ac_func" >&5
++echo "configure:18424: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18422 "configure"
++#line 18429 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -18441,7 +18448,7 @@ $ac_func();
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18445: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:18452: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -18563,7 +18570,7 @@ if test -z "$SKIP_COMPILER_CHECKS"; then
+ # Compiler Options
+ 
+ echo $ac_n "checking for gcc -pipe support""... $ac_c" 1>&6
+-echo "configure:18567: checking for gcc -pipe support" >&5
++echo "configure:18574: checking for gcc -pipe support" >&5
+ if test -n "$GNU_CC" && test -n "$GNU_CXX" && test -n "$GNU_AS"; then
+     echo '#include <stdio.h>' > dummy-hello.c
+     echo 'int main() { printf("Hello World\n"); exit(0); }' >> dummy-hello.c
+@@ -18578,14 +18585,14 @@ if test -n "$GNU_CC" && test -n "$GNU_CXX" && test -n "$GNU_AS"; then
+         _SAVE_CFLAGS=$CFLAGS
+         CFLAGS="$CFLAGS -pipe"
+         cat > conftest.$ac_ext <<EOF
+-#line 18582 "configure"
++#line 18589 "configure"
+ #include "confdefs.h"
+  #include <stdio.h> 
+ int main() {
+ printf("Hello World\n");
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18589: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18596: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   _res_gcc_pipe="yes"
+ else
+@@ -18627,16 +18634,16 @@ if test "$_IGNORE_LONG_LONG_WARNINGS"; then
+      _SAVE_CFLAGS="$CFLAGS"
+      CFLAGS="$CFLAGS ${_COMPILER_PREFIX}-Wno-long-long"
+      echo $ac_n "checking whether compiler supports -Wno-long-long""... $ac_c" 1>&6
+-echo "configure:18631: checking whether compiler supports -Wno-long-long" >&5
++echo "configure:18638: checking whether compiler supports -Wno-long-long" >&5
+      cat > conftest.$ac_ext <<EOF
+-#line 18633 "configure"
++#line 18640 "configure"
+ #include "confdefs.h"
+ 
+ int main() {
+ return(0);
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18640: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18647: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+    _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} ${_COMPILER_PREFIX}-Wno-long-long"
+ 	  _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-Wno-long-long"
+@@ -18672,16 +18679,16 @@ _SAVE_CFLAGS="$CFLAGS"
+ CFLAGS="$CFLAGS -fprofile-generate"
+ 
+ echo $ac_n "checking whether C compiler supports -fprofile-generate""... $ac_c" 1>&6
+-echo "configure:18676: checking whether C compiler supports -fprofile-generate" >&5
++echo "configure:18683: checking whether C compiler supports -fprofile-generate" >&5
+ cat > conftest.$ac_ext <<EOF
+-#line 18678 "configure"
++#line 18685 "configure"
+ #include "confdefs.h"
+ 
+ int main() {
+ return 0;
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18685: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18692: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+    PROFILE_GEN_CFLAGS="-fprofile-generate"
+                  result="yes" 
+@@ -18701,16 +18708,16 @@ if test $result = "yes"; then
+ else
+   CFLAGS="$_SAVE_CFLAGS -fprofile-arcs"
+   echo $ac_n "checking whether C compiler supports -fprofile-arcs""... $ac_c" 1>&6
+-echo "configure:18705: checking whether C compiler supports -fprofile-arcs" >&5
++echo "configure:18712: checking whether C compiler supports -fprofile-arcs" >&5
+   cat > conftest.$ac_ext <<EOF
+-#line 18707 "configure"
++#line 18714 "configure"
+ #include "confdefs.h"
+ 
+ int main() {
+ return 0;
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18714: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18721: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+    PROFILE_GEN_CFLAGS="-fprofile-arcs"
+                    result="yes" 
+@@ -18780,16 +18787,16 @@ if test "$_PEDANTIC"; then
+     _SAVE_CXXFLAGS=$CXXFLAGS
+     CXXFLAGS="$CXXFLAGS ${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-pedantic"
+     echo $ac_n "checking whether C++ compiler has -pedantic long long bug""... $ac_c" 1>&6
+-echo "configure:18784: checking whether C++ compiler has -pedantic long long bug" >&5
++echo "configure:18791: checking whether C++ compiler has -pedantic long long bug" >&5
+     cat > conftest.$ac_ext <<EOF
+-#line 18786 "configure"
++#line 18793 "configure"
+ #include "confdefs.h"
+ $configure_static_assert_macros
+ int main() {
+ CONFIGURE_STATIC_ASSERT(sizeof(long long) == 8)
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18793: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18800: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   result="no"
+ else
+@@ -18814,12 +18821,12 @@ rm -f conftest*
+ fi
+ 
+ echo $ac_n "checking for correct temporary object destruction order""... $ac_c" 1>&6
+-echo "configure:18818: checking for correct temporary object destruction order" >&5
++echo "configure:18825: checking for correct temporary object destruction order" >&5
+ if test "$cross_compiling" = yes; then
+   result="maybe"
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18823 "configure"
++#line 18830 "configure"
+ #include "confdefs.h"
+ #ifdef __cplusplus
+ extern "C" void exit(int);
+@@ -18842,7 +18849,7 @@ extern "C" void exit(int);
+              }
+              
+ EOF
+-if { (eval echo configure:18846: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:18853: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   result="yes"
+ else
+@@ -18863,12 +18870,12 @@ fi
+ _SAVE_CXXFLAGS=$CXXFLAGS
+ CXXFLAGS="$CXXFLAGS ${_WARNINGS_CXXFLAGS}"
+ echo $ac_n "checking for correct overload resolution with const and templates""... $ac_c" 1>&6
+-echo "configure:18867: checking for correct overload resolution with const and templates" >&5
++echo "configure:18874: checking for correct overload resolution with const and templates" >&5
+ if eval "test \"`echo '$''{'ac_nscap_nonconst_opeq_bug'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 18872 "configure"
++#line 18879 "configure"
+ #include "confdefs.h"
+ 
+                       template <class T>
+@@ -18898,7 +18905,7 @@ int main() {
+                     
+ ; return 0; }
+ EOF
+-if { (eval echo configure:18902: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:18909: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   ac_nscap_nonconst_opeq_bug="no"
+ else
+@@ -19182,7 +19189,7 @@ then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:19186: checking for $ac_word" >&5
++echo "configure:19193: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -19226,19 +19233,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0""... $ac_c" 1>&6
+-echo "configure:19230: checking for libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0" >&5
++echo "configure:19237: checking for libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0" >&5
+ 
+         if $PKG_CONFIG --exists "libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking LIBIDL_CFLAGS""... $ac_c" 1>&6
+-echo "configure:19237: checking LIBIDL_CFLAGS" >&5
++echo "configure:19244: checking LIBIDL_CFLAGS" >&5
+             LIBIDL_CFLAGS=`$PKG_CONFIG --cflags "libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0"`
+             echo "$ac_t""$LIBIDL_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking LIBIDL_LIBS""... $ac_c" 1>&6
+-echo "configure:19242: checking LIBIDL_LIBS" >&5
++echo "configure:19249: checking LIBIDL_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             LIBIDL_LIBS="`$PKG_CONFIG --libs \"libIDL-2.0 >= 0.8.0 glib-2.0 gobject-2.0\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$LIBIDL_LIBS" 1>&6
+@@ -19362,7 +19369,7 @@ fi
+   # Extract the first word of "glib-config", so it can be a program name with args.
+ set dummy glib-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:19366: checking for $ac_word" >&5
++echo "configure:19373: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_GLIB_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -19397,7 +19404,7 @@ fi
+ 
+   min_glib_version=1.2.0
+   echo $ac_n "checking for GLIB - version >= $min_glib_version""... $ac_c" 1>&6
+-echo "configure:19401: checking for GLIB - version >= $min_glib_version" >&5
++echo "configure:19408: checking for GLIB - version >= $min_glib_version" >&5
+   no_glib=""
+   if test "$GLIB_CONFIG" = "no" ; then
+     no_glib=yes
+@@ -19420,7 +19427,7 @@ echo "configure:19401: checking for GLIB - version >= $min_glib_version" >&5
+   echo $ac_n "cross compiling; assumed OK... $ac_c"
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 19424 "configure"
++#line 19431 "configure"
+ #include "confdefs.h"
+ 
+ #include <glib.h>
+@@ -19496,7 +19503,7 @@ main ()
+ }
+ 
+ EOF
+-if { (eval echo configure:19500: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:19507: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   :
+ else
+@@ -19530,7 +19537,7 @@ fi
+           CFLAGS="$CFLAGS $GLIB_CFLAGS"
+           LIBS="$LIBS $GLIB_LIBS"
+           cat > conftest.$ac_ext <<EOF
+-#line 19534 "configure"
++#line 19541 "configure"
+ #include "confdefs.h"
+ 
+ #include <glib.h>
+@@ -19540,7 +19547,7 @@ int main() {
+  return ((glib_major_version) || (glib_minor_version) || (glib_micro_version)); 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:19544: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:19551: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+    echo "*** The test program compiled, but did not run. This usually means"
+           echo "*** that the run-time linker is not finding GLIB or finding the wrong"
+@@ -19584,7 +19591,7 @@ rm -f conftest*
+   # Extract the first word of "libIDL-config", so it can be a program name with args.
+ set dummy libIDL-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:19588: checking for $ac_word" >&5
++echo "configure:19595: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_LIBIDL_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -19619,7 +19626,7 @@ fi
+ 
+   min_libIDL_version=$LIBIDL_VERSION
+   echo $ac_n "checking for libIDL - version >= $min_libIDL_version""... $ac_c" 1>&6
+-echo "configure:19623: checking for libIDL - version >= $min_libIDL_version" >&5
++echo "configure:19630: checking for libIDL - version >= $min_libIDL_version" >&5
+   no_libIDL=""
+   if test "$LIBIDL_CONFIG" = "no" ; then
+     no_libIDL=yes
+@@ -19646,7 +19653,7 @@ echo "configure:19623: checking for libIDL - version >= $min_libIDL_version" >&5
+   echo $ac_n "cross compiling; assumed OK... $ac_c"
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 19650 "configure"
++#line 19657 "configure"
+ #include "confdefs.h"
+ 
+ #include <stdio.h>
+@@ -19732,7 +19739,7 @@ main ()
+ }
+ 
+ EOF
+-if { (eval echo configure:19736: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:19743: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   :
+ else
+@@ -19766,7 +19773,7 @@ fi
+           CFLAGS="$CFLAGS $LIBIDL_CFLAGS"
+           LIBS="$LIBS $LIBIDL_LIBS"
+           cat > conftest.$ac_ext <<EOF
+-#line 19770 "configure"
++#line 19777 "configure"
+ #include "confdefs.h"
+ 
+ #include <stdio.h>
+@@ -19777,7 +19784,7 @@ int main() {
+  return IDL_get_libver_string ? 1 : 0; 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:19781: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:19788: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+    echo "*** The test program compiled, but did not run. This usually means"
+           echo "*** that the run-time linker is not finding libIDL or finding the wrong"
+@@ -19817,7 +19824,7 @@ rm -f conftest*
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:19821: checking for $ac_word" >&5
++echo "configure:19828: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -19861,19 +19868,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for libIDL-2.0 >= 0.8.0""... $ac_c" 1>&6
+-echo "configure:19865: checking for libIDL-2.0 >= 0.8.0" >&5
++echo "configure:19872: checking for libIDL-2.0 >= 0.8.0" >&5
+ 
+         if $PKG_CONFIG --exists "libIDL-2.0 >= 0.8.0" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking LIBIDL_CFLAGS""... $ac_c" 1>&6
+-echo "configure:19872: checking LIBIDL_CFLAGS" >&5
++echo "configure:19879: checking LIBIDL_CFLAGS" >&5
+             LIBIDL_CFLAGS=`$PKG_CONFIG --cflags "libIDL-2.0 >= 0.8.0"`
+             echo "$ac_t""$LIBIDL_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking LIBIDL_LIBS""... $ac_c" 1>&6
+-echo "configure:19877: checking LIBIDL_LIBS" >&5
++echo "configure:19884: checking LIBIDL_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             LIBIDL_LIBS="`$PKG_CONFIG --libs \"libIDL-2.0 >= 0.8.0\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$LIBIDL_LIBS" 1>&6
+@@ -19910,7 +19917,7 @@ do
+ # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:19914: checking for $ac_word" >&5
++echo "configure:19921: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_ORBIT_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -19947,7 +19954,7 @@ done
+ 
+         if test -n "$ORBIT_CONFIG"; then
+             echo $ac_n "checking for ORBit libIDL usability""... $ac_c" 1>&6
+-echo "configure:19951: checking for ORBit libIDL usability" >&5
++echo "configure:19958: checking for ORBit libIDL usability" >&5
+         	_ORBIT_CFLAGS=`${ORBIT_CONFIG} client --cflags`
+     	    _ORBIT_LIBS=`${ORBIT_CONFIG} client --libs`
+             _ORBIT_INC_PATH=`${PERL} -e '{ for $f (@ARGV) { print "$f " if ($f =~ m/^-I/); } }' -- ${_ORBIT_CFLAGS}`
+@@ -19964,7 +19971,7 @@ echo "configure:19951: checking for ORBit libIDL usability" >&5
+                 result="maybe" 
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 19968 "configure"
++#line 19975 "configure"
+ #include "confdefs.h"
+ 
+ #include <stdlib.h>
+@@ -19979,7 +19986,7 @@ int main() {
+ }
+             
+ EOF
+-if { (eval echo configure:19983: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:19990: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   _LIBIDL_FOUND=1
+                 result="yes"
+@@ -20035,7 +20042,7 @@ if test -z "${GLIB_CFLAGS}" || test -z "${GLIB_LIBS}" ; then
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:20039: checking for $ac_word" >&5
++echo "configure:20046: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -20079,19 +20086,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for glib-2.0 >= 1.3.7 gobject-2.0""... $ac_c" 1>&6
+-echo "configure:20083: checking for glib-2.0 >= 1.3.7 gobject-2.0" >&5
++echo "configure:20090: checking for glib-2.0 >= 1.3.7 gobject-2.0" >&5
+ 
+         if $PKG_CONFIG --exists "glib-2.0 >= 1.3.7 gobject-2.0" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking GLIB_CFLAGS""... $ac_c" 1>&6
+-echo "configure:20090: checking GLIB_CFLAGS" >&5
++echo "configure:20097: checking GLIB_CFLAGS" >&5
+             GLIB_CFLAGS=`$PKG_CONFIG --cflags "glib-2.0 >= 1.3.7 gobject-2.0"`
+             echo "$ac_t""$GLIB_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking GLIB_LIBS""... $ac_c" 1>&6
+-echo "configure:20095: checking GLIB_LIBS" >&5
++echo "configure:20102: checking GLIB_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             GLIB_LIBS="`$PKG_CONFIG --libs \"glib-2.0 >= 1.3.7 gobject-2.0\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$GLIB_LIBS" 1>&6
+@@ -20176,7 +20183,7 @@ fi
+   # Extract the first word of "glib-config", so it can be a program name with args.
+ set dummy glib-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:20180: checking for $ac_word" >&5
++echo "configure:20187: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_GLIB_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -20211,7 +20218,7 @@ fi
+ 
+   min_glib_version=${GLIB_VERSION}
+   echo $ac_n "checking for GLIB - version >= $min_glib_version""... $ac_c" 1>&6
+-echo "configure:20215: checking for GLIB - version >= $min_glib_version" >&5
++echo "configure:20222: checking for GLIB - version >= $min_glib_version" >&5
+   no_glib=""
+   if test "$GLIB_CONFIG" = "no" ; then
+     no_glib=yes
+@@ -20234,7 +20241,7 @@ echo "configure:20215: checking for GLIB - version >= $min_glib_version" >&5
+   echo $ac_n "cross compiling; assumed OK... $ac_c"
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20238 "configure"
++#line 20245 "configure"
+ #include "confdefs.h"
+ 
+ #include <glib.h>
+@@ -20310,7 +20317,7 @@ main ()
+ }
+ 
+ EOF
+-if { (eval echo configure:20314: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:20321: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   :
+ else
+@@ -20344,7 +20351,7 @@ fi
+           CFLAGS="$CFLAGS $GLIB_CFLAGS"
+           LIBS="$LIBS $GLIB_LIBS"
+           cat > conftest.$ac_ext <<EOF
+-#line 20348 "configure"
++#line 20355 "configure"
+ #include "confdefs.h"
+ 
+ #include <glib.h>
+@@ -20354,7 +20361,7 @@ int main() {
+  return ((glib_major_version) || (glib_minor_version) || (glib_micro_version)); 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:20358: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:20365: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+    echo "*** The test program compiled, but did not run. This usually means"
+           echo "*** that the run-time linker is not finding GLIB or finding the wrong"
+@@ -20434,19 +20441,19 @@ mk_add_options MOZ_CO_MODULE=mozilla/other-licenses/libart_lgpl" 1>&2; exit 1; }
+   # The Ultrix 4.2 mips builtin alloca declared by alloca.h only works
+ # for constant arguments.  Useless!
+ echo $ac_n "checking for working alloca.h""... $ac_c" 1>&6
+-echo "configure:20438: checking for working alloca.h" >&5
++echo "configure:20445: checking for working alloca.h" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_alloca_h'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20443 "configure"
++#line 20450 "configure"
+ #include "confdefs.h"
+ #include <alloca.h>
+ int main() {
+ char *p = alloca(2 * sizeof(int));
+ ; return 0; }
+ EOF
+-if { (eval echo configure:20450: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:20457: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   ac_cv_header_alloca_h=yes
+ else
+@@ -20467,12 +20474,12 @@ EOF
+ fi
+ 
+ echo $ac_n "checking for alloca""... $ac_c" 1>&6
+-echo "configure:20471: checking for alloca" >&5
++echo "configure:20478: checking for alloca" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_alloca_works'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20476 "configure"
++#line 20483 "configure"
+ #include "confdefs.h"
+ 
+ #ifdef __GNUC__
+@@ -20500,7 +20507,7 @@ int main() {
+ char *p = (char *) alloca(1);
+ ; return 0; }
+ EOF
+-if { (eval echo configure:20504: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:20511: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   ac_cv_func_alloca_works=yes
+ else
+@@ -20532,12 +20539,12 @@ EOF
+ 
+ 
+ echo $ac_n "checking whether alloca needs Cray hooks""... $ac_c" 1>&6
+-echo "configure:20536: checking whether alloca needs Cray hooks" >&5
++echo "configure:20543: checking whether alloca needs Cray hooks" >&5
+ if eval "test \"`echo '$''{'ac_cv_os_cray'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20541 "configure"
++#line 20548 "configure"
+ #include "confdefs.h"
+ #if defined(CRAY) && ! defined(CRAY2)
+ webecray
+@@ -20562,12 +20569,12 @@ echo "$ac_t""$ac_cv_os_cray" 1>&6
+ if test $ac_cv_os_cray = yes; then
+ for ac_func in _getb67 GETB67 getb67; do
+   echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:20566: checking for $ac_func" >&5
++echo "configure:20573: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20571 "configure"
++#line 20578 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -20590,7 +20597,7 @@ $ac_func();
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:20594: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:20601: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -20617,7 +20624,7 @@ done
+ fi
+ 
+ echo $ac_n "checking stack direction for C alloca""... $ac_c" 1>&6
+-echo "configure:20621: checking stack direction for C alloca" >&5
++echo "configure:20628: checking stack direction for C alloca" >&5
+ if eval "test \"`echo '$''{'ac_cv_c_stack_direction'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -20625,7 +20632,7 @@ else
+   ac_cv_c_stack_direction=0
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20629 "configure"
++#line 20636 "configure"
+ #include "confdefs.h"
+ find_stack_direction ()
+ {
+@@ -20644,7 +20651,7 @@ main ()
+   exit (find_stack_direction() < 0);
+ }
+ EOF
+-if { (eval echo configure:20648: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:20655: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_c_stack_direction=1
+ else
+@@ -20691,17 +20698,17 @@ for ac_hdr in stdint.h inttypes.h sys/int_types.h
+ do
+ ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
+ echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
+-echo "configure:20695: checking for $ac_hdr" >&5
++echo "configure:20702: checking for $ac_hdr" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 20700 "configure"
++#line 20707 "configure"
+ #include "confdefs.h"
+ #include <$ac_hdr>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:20705: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:20712: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -20783,7 +20790,7 @@ EOF
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:20787: checking for $ac_word" >&5
++echo "configure:20794: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -20827,19 +20834,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for fontconfig freetype2""... $ac_c" 1>&6
+-echo "configure:20831: checking for fontconfig freetype2" >&5
++echo "configure:20838: checking for fontconfig freetype2" >&5
+ 
+         if $PKG_CONFIG --exists "fontconfig freetype2" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking CAIRO_FT_CFLAGS""... $ac_c" 1>&6
+-echo "configure:20838: checking CAIRO_FT_CFLAGS" >&5
++echo "configure:20845: checking CAIRO_FT_CFLAGS" >&5
+             CAIRO_FT_CFLAGS=`$PKG_CONFIG --cflags "fontconfig freetype2"`
+             echo "$ac_t""$CAIRO_FT_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking CAIRO_FT_LIBS""... $ac_c" 1>&6
+-echo "configure:20843: checking CAIRO_FT_LIBS" >&5
++echo "configure:20850: checking CAIRO_FT_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             CAIRO_FT_LIBS="`$PKG_CONFIG --libs \"fontconfig freetype2\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$CAIRO_FT_LIBS" 1>&6
+@@ -20922,7 +20929,7 @@ else
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:20926: checking for $ac_word" >&5
++echo "configure:20933: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -20966,19 +20973,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for cairo >= $CAIRO_VERSION freetype2 fontconfig""... $ac_c" 1>&6
+-echo "configure:20970: checking for cairo >= $CAIRO_VERSION freetype2 fontconfig" >&5
++echo "configure:20977: checking for cairo >= $CAIRO_VERSION freetype2 fontconfig" >&5
+ 
+         if $PKG_CONFIG --exists "cairo >= $CAIRO_VERSION freetype2 fontconfig" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking CAIRO_CFLAGS""... $ac_c" 1>&6
+-echo "configure:20977: checking CAIRO_CFLAGS" >&5
++echo "configure:20984: checking CAIRO_CFLAGS" >&5
+             CAIRO_CFLAGS=`$PKG_CONFIG --cflags "cairo >= $CAIRO_VERSION freetype2 fontconfig"`
+             echo "$ac_t""$CAIRO_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking CAIRO_LIBS""... $ac_c" 1>&6
+-echo "configure:20982: checking CAIRO_LIBS" >&5
++echo "configure:20989: checking CAIRO_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             CAIRO_LIBS="`$PKG_CONFIG --libs \"cairo >= $CAIRO_VERSION freetype2 fontconfig\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$CAIRO_LIBS" 1>&6
+@@ -21016,7 +21023,7 @@ echo "configure:20982: checking CAIRO_LIBS" >&5
+     # Extract the first word of "pkg-config", so it can be a program name with args.
+ set dummy pkg-config; ac_word=$2
+ echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
+-echo "configure:21020: checking for $ac_word" >&5
++echo "configure:21027: checking for $ac_word" >&5
+ if eval "test \"`echo '$''{'ac_cv_path_PKG_CONFIG'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -21060,19 +21067,19 @@ fi
+      PKG_CONFIG_MIN_VERSION=0.9.0
+      if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+         echo $ac_n "checking for cairo-xlib-xrender >= $CAIRO_VERSION""... $ac_c" 1>&6
+-echo "configure:21064: checking for cairo-xlib-xrender >= $CAIRO_VERSION" >&5
++echo "configure:21071: checking for cairo-xlib-xrender >= $CAIRO_VERSION" >&5
+ 
+         if $PKG_CONFIG --exists "cairo-xlib-xrender >= $CAIRO_VERSION" ; then
+             echo "$ac_t""yes" 1>&6
+             succeeded=yes
+ 
+             echo $ac_n "checking CAIRO_XRENDER_CFLAGS""... $ac_c" 1>&6
+-echo "configure:21071: checking CAIRO_XRENDER_CFLAGS" >&5
++echo "configure:21078: checking CAIRO_XRENDER_CFLAGS" >&5
+             CAIRO_XRENDER_CFLAGS=`$PKG_CONFIG --cflags "cairo-xlib-xrender >= $CAIRO_VERSION"`
+             echo "$ac_t""$CAIRO_XRENDER_CFLAGS" 1>&6
+ 
+             echo $ac_n "checking CAIRO_XRENDER_LIBS""... $ac_c" 1>&6
+-echo "configure:21076: checking CAIRO_XRENDER_LIBS" >&5
++echo "configure:21083: checking CAIRO_XRENDER_LIBS" >&5
+             ## Remove evil flags like -Wl,--export-dynamic
+             CAIRO_XRENDER_LIBS="`$PKG_CONFIG --libs \"cairo-xlib-xrender >= $CAIRO_VERSION\" |sed s/-Wl,--export-dynamic//g`"
+             echo "$ac_t""$CAIRO_XRENDER_LIBS" 1>&6
+@@ -21302,17 +21309,17 @@ if test "$NECKO_WIFI"; then
+   if test "$OS_ARCH" = "Linux"; then
+     ac_safe=`echo "iwlib.h" | sed 'y%./+-%__p_%'`
+ echo $ac_n "checking for iwlib.h""... $ac_c" 1>&6
+-echo "configure:21306: checking for iwlib.h" >&5
++echo "configure:21313: checking for iwlib.h" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 21311 "configure"
++#line 21318 "configure"
+ #include "confdefs.h"
+ #include <iwlib.h>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:21316: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:21323: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -21706,7 +21713,7 @@ if test "$MOZ_X11"; then
+                 _SAVE_CFLAGS=$CFLAGS
+     CFLAGS="$CFLAGS $XCFLAGS"
+     cat > conftest.$ac_ext <<EOF
+-#line 21710 "configure"
++#line 21717 "configure"
+ #include "confdefs.h"
+ 
+         #include <stdio.h>
+@@ -21724,7 +21731,7 @@ int main() {
+     
+ ; return 0; }
+ EOF
+-if { (eval echo configure:21728: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:21735: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   :
+ else
+   echo "configure: failed program was:" >&5
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index 1490c59..febc668 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -4009,7 +4009,14 @@ AC_CACHE_CHECK(for __thread keyword for TLS variables,
+                             ac_cv_thread_keyword=yes,
+                             ac_cv_thread_keyword=no)])
+ if test "$ac_cv_thread_keyword" = yes; then
+-  AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
++  case "${target_cpu}" in
++    mips*)
++      :
++      ;;
++    *)
++      AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
++      ;;
++  esac
+ fi
+ 
+ dnl End of C++ language/feature checks
+-- 

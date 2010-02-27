@@ -11,7 +11,7 @@ Subject: [PATCH] dont_hardcode_anything_in_Makefile.in_files
  1 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
-index 19db58c..ed53c62 100644
+index 48037ee..c832dd1 100644
 --- a/mail/app/Makefile.in
 +++ b/mail/app/Makefile.in
 @@ -80,9 +80,9 @@ PREF_JS_EXPORTS = \
@@ -26,7 +26,7 @@ index 19db58c..ed53c62 100644
  endif
  
  REQUIRES = \
-@@ -312,18 +312,18 @@ install::
+@@ -318,18 +318,18 @@ install::
  endif
  
  ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))

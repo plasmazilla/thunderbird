@@ -1,0 +1,30 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Sat, 8 Dec 2007 17:34:10 +0100
+Subject: [PATCH] Increase stability and performance on mips
+
+http://bugs.debian.org/374389
+---
+ mozilla/config/rules.mk |    9 ---------
+ 1 files changed, 0 insertions(+), 9 deletions(-)
+
+diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
+index e66e66e..82e7c23 100644
+--- a/mozilla/config/rules.mk
++++ b/mozilla/config/rules.mk
+@@ -607,15 +607,6 @@ endif
+ endif
+ endif
+ 
+-ifeq ($(OS_ARCH),Linux)
+-ifneq (,$(filter mips mipsel,$(OS_TEST)))
+-ifeq ($(MODULE),layout)
+-OS_CFLAGS += -Wa,-xgot
+-OS_CXXFLAGS += -Wa,-xgot
+-endif
+-endif
+-endif
+-
+ #
+ # HP-UXBeOS specific section: for COMPONENTS only, add -Bsymbolic flag
+ # which uses internal symbols first
+-- 

@@ -1,0 +1,23 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Thu, 3 Apr 2008 20:48:05 +0200
+Subject: [PATCH] Fix for hppa build
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=486681
+---
+ .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+index 1b3ec98..b1a8829 100644
+--- a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
++++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+@@ -222,7 +222,7 @@ endif
+ # Linux/HPPA/gcc
+ #
+ ifeq ($(OS_ARCH),Linux)
+-ifneq (,$(filter hppa2.0 hppa1.1,$(OS_TEST)))
++ifneq (,$(filter hppa hppa2.0 hppa1.1,$(OS_TEST)))
+ ifndef GNU_CXX
+ $(error Unknown C++ compiler, xptcall assembly will probably be incorrect.)
+ else
+-- 

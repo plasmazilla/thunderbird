@@ -1,0 +1,24 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Sun, 2 Nov 2008 17:56:24 +0100
+Subject: [PATCH] Disable optimization on alpha for the url-classifier component
+
+The use of this component leads to crashes when built with optimizations.
+---
+ .../components/url-classifier/src/Makefile.in      |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/toolkit/components/url-classifier/src/Makefile.in b/mozilla/toolkit/components/url-classifier/src/Makefile.in
+index 9171867..7619487 100644
+--- a/mozilla/toolkit/components/url-classifier/src/Makefile.in
++++ b/mozilla/toolkit/components/url-classifier/src/Makefile.in
+@@ -41,5 +41,9 @@ EXTRA_PP_COMPONENTS = nsUrlClassifierLib.js \
+                       nsUrlClassifierListManager.js \
+                       $(NULL)
+ 
++ifeq ($(OS_TEST),alpha)
++MOZ_OPTIMIZE_FLAGS := -O0
++endif
++
+ include $(topsrcdir)/config/rules.mk
+ 
+-- 
