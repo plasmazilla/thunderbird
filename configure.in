@@ -128,7 +128,7 @@ dnl Set the minimum version of toolkit libs used by mozilla
 dnl ========================================================
 GLIB_VERSION=1.2.0
 PERL_VERSION=5.006
-CAIRO_VERSION=1.6.0
+CAIRO_VERSION=1.8.8
 PANGO_VERSION=1.14.0
 GTK2_VERSION=2.10.0
 MAKE_VERSION=3.78
@@ -140,7 +140,7 @@ GCONF_VERSION=1.2.1
 LIBGNOME_VERSION=2.0
 STARTUP_NOTIFICATION_VERSION=0.8
 DBUS_VERSION=0.60
-SQLITE_VERSION=3.6.10
+SQLITE_VERSION=3.6.16.1
 
 MSMANIFEST_TOOL=
 
@@ -4465,6 +4465,7 @@ MOZ_HELP_VIEWER=
 MOZ_SPELLCHECK=1
 MOZ_STATIC_MAIL_BUILD=
 MOZ_STORAGE=1
+MOZ_SVG=1
 MOZ_TIMELINE=
 MOZ_UI_LOCALE=en-US
 MOZ_UNIVERSALCHARDET=1
@@ -4541,6 +4542,7 @@ basic)
   MOZ_PREF_EXTENSIONS=
   MOZ_PROFILELOCKING=
   MOZ_SPELLCHECK=
+  MOZ_SVG=
   MOZ_UNIVERSALCHARDET=
   MOZ_UPDATER=
   MOZ_USE_NATIVE_UCONV=
@@ -4578,6 +4580,7 @@ minimal)
   MOZ_SPELLCHECK=
   MOZ_STORAGE=1
   MOZ_PLACES=
+  MOZ_SVG=
   MOZ_UNIVERSALCHARDET=
   MOZ_UPDATER=
   MOZ_USE_NATIVE_UCONV=1
@@ -5422,6 +5425,18 @@ MOZ_ARG_DISABLE_BOOL(universalchardet,
                           Disable universal encoding detection],
   MOZ_UNIVERSALCHARDET=,
   MOZ_UNIVERSALCHARDET=1 )
+
+dnl ========================================================
+dnl SVG
+dnl ========================================================
+
+MOZ_ARG_DISABLE_BOOL(svg,
+[  --disable-svg            Disable SVG support (NB: unsupported option in comm-central)],
+    MOZ_SVG=,
+    MOZ_SVG=1 )
+if test -z "$MOZ_SVG"; then
+  AC_MSG_ERROR([comm-central does not support disabling SVG.])
+fi
 
 dnl ========================================================
 dnl Build Freetype in the tree

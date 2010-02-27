@@ -49,7 +49,6 @@ var elementslib = {};
 Components.utils.import('resource://mozmill/modules/elementslib.js', elementslib);
 
 var windowHelper;
-var mainController = null;
 var mc;
 
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
@@ -59,7 +58,7 @@ var whatsUrl = url + "whatsnew.html";
 
 var setupModule = function (module) {
   windowHelper = collector.getModule('window-helpers');
-  mc = mainController = windowHelper.wait_for_existing_window("mail:3pane");
+  mc = windowHelper.wait_for_existing_window("mail:3pane");
   windowHelper.installInto(module);
   windowHelper.augment_controller(mc);
 };
@@ -75,14 +74,14 @@ function test_content_tab_open() {
 
   mc.click(new elementslib.Elem(mc.menus.helpMenu.whatsNew));
 
-  controller.sleep(0);
-  // XXX When bug 508999 is fixed, remove the sleep and use the waitForEval
-  // instead.
-  // controller.waitForEval("subject.busy == false", 1000, 100, newTab);
-  controller.sleep(400);
+  mc.waitForEval("subject.childNodes.length == " + (preCount + 1), 1000, 100,
+                 mc.tabmail.tabContainer);
 
   if (mc.tabmail.tabContainer.childNodes.length != preCount + 1)
     throw new Error("The content tab didn't open");
+
+  mc.waitForEval("subject.busy == false", 3000, 100,
+                 mc.tabmail.selectedTab);
 
   if (mc.tabmail.selectedTab.title != "What's New Content Test")
     throw new Error("The content tab has an incorrect title");

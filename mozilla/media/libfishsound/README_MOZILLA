@@ -13,3 +13,5 @@ endian.patch is applied to fix Bug 45269.
 
 bug487519.patch: Fixes for bug487519
 
+bug520500.patch: Don't reject files with vorbis comments with name or
+                 values of length 0.

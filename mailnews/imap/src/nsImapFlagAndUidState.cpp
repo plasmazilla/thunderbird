@@ -176,7 +176,7 @@ NS_IMETHODIMP nsImapFlagAndUidState::Reset(PRUint32 howManyLeft)
     m_customFlagsHash.EnumerateRead(FreeCustomFlags, nsnull);
   memset(fFlags, 0, sizeof(imapMessageFlagsType) * fNumberOfMessageSlotsAllocated);
   m_customFlagsHash.Clear();
-  memset(fUids.Elements(), fNumberOfMessageSlotsAllocated * sizeof(nsMsgKey), 0);
+  memset(fUids.Elements(), 0, fNumberOfMessageSlotsAllocated * sizeof(nsMsgKey));
   fPartialUIDFetch = PR_TRUE;
   PR_CExitMonitor(this);
   return NS_OK;

@@ -172,18 +172,13 @@ ifndef RELEASE_LIBS_DEST
 RELEASE_LIBS_DEST	= $(RELEASE_LIB_DIR)
 endif
 
+define MAKE_IN_DIR
+	$(MAKE) -C $(dir) $@
+
+endef # do not remove the blank line!
+
 ifdef DIRS
-LOOP_OVER_DIRS		=					\
-	@for d in $(DIRS); do					\
-		if test -d $$d; then				\
-			set -e;					\
-			echo "cd $$d; $(MAKE) $@";		\
-			$(MAKE) -C $$d $@;			\
-			set +e;					\
-		else						\
-			echo "Skipping non-directory $$d...";	\
-		fi;						\
-	done
+LOOP_OVER_DIRS = $(foreach dir,$(DIRS),$(MAKE_IN_DIR))
 endif
 
 ################################################################################
@@ -387,9 +382,8 @@ NEED_ABSOLUTE_PATH = 1
 endif
 
 ifdef NEED_ABSOLUTE_PATH
-PWD := $(shell pwd)
 # The quotes allow absolute paths to contain spaces.
-pr_abspath = "$(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(PWD)/$(1)))"
+pr_abspath = "$(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURDIR)/$(1)))"
 endif
 
 $(OBJDIR)/%.$(OBJ_SUFFIX): %.cpp

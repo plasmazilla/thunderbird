@@ -41,3 +41,4 @@ cp $1/src/libfishsound/debug.h ./src/libfishsound/debug.h
 cp $1/AUTHORS ./AUTHORS
 patch -p3 <endian.patch
 patch -p3 <bug487519.patch
+patch -p3 <bug520500.patch

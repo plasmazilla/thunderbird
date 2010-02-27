@@ -327,15 +327,25 @@ public:
     if (mWorker->SetGlobalForContext(cx)) {
       RunQueue(cx);
 
+      // Code in XPConnect assumes that the context's global object won't be
+      // replaced outside of a request.
+      JSAutoRequest ar(cx);
+
       // Remove the global object from the context so that it might be garbage
       // collected.
       JS_SetGlobalObject(cx, NULL);
       JS_SetContextPrivate(cx, NULL);
     }
     else {
-      // This is usually due to a parse error in the worker script...
-      JS_SetGlobalObject(cx, NULL);
-      JS_SetContextPrivate(cx, NULL);
+      {
+        // Code in XPConnect assumes that the context's global object won't be
+        // replaced outside of a request.
+        JSAutoRequest ar(cx);
+
+        // This is usually due to a parse error in the worker script...
+        JS_SetGlobalObject(cx, NULL);
+        JS_SetContextPrivate(cx, NULL);
+      }
 
       nsAutoMonitor mon(gDOMThreadService->mMonitor);
       gDOMThreadService->WorkerComplete(this);
