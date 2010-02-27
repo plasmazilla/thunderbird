@@ -12,3 +12,5 @@ Categories=Application;Network;
 MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png
 StartupWMClass=Thunderbird-bin
 StartupNotify=true
+Name[sv]=E-postklienten @DEB_MOZ_NAME_FIRST_UPPER@
+Comment[sv]=Läs och skriv e-post
