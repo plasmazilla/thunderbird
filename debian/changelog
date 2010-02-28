@@ -1,3 +1,33 @@
+icedove (3.0.2-1) experimental; urgency=low
+
+  * New Upstream Version fixes:
+    - MFSA 2010-01 aka CVE-2010-0159: Crashes with evidence of memory
+      corruption (rv:1.9.1.8/ 1.9.0.18)
+    - MFSA 2010-03 aka CVE-2009-1571: Use-after-free crash in HTML parser
+  * [1fd705f] install menu file (Closes: #569166)
+  * [8df3f99] generate desktop files at build process
+  * [5b0bb84] add icedove branding logos
+  * [1ef1c10] copyright explanation of icedove artwork (Closes: #406849)
+  * [6cdc0b0] remove forgotten firefox branding icons (Closes: #567917)
+  * [cec6a38] swedish translation for desktop file (Closes: #420050)
+  * [0256328] readd translation for desktop file
+  * [20311f4] rebuild patches (most patches from Mike Hommey)
+    - fix FTBFS on kFreeBSD, hppa, mips
+    - stability patched for mips, alpha, sparc, ppc and arm
+    - really cleanup build directory on 'make clean/distclean'
+    - allow intl.locale.matchOS to be modified in user profile
+  * [0098f90] write manpage for icedove (Closes: #425490, #487493)
+  * [fbccfaa] no longer suggest libthai0 (Closes: #524436)
+  * [26d3e39] change suggests from transitional package latex-xft-fonts
+    to ttf-lyx (Closes: #539535)
+  * [e24801a] improve desktop file (remove deprecated items and
+    warnings/errors)
+  * [68885c4] bump up standards version to 3.8.4
+  * [df39ede] use xpm icon in menu file to calm lintian
+  * [8303887] adjust sqlite version to new upstream dependency
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 28 Feb 2010 18:19:13 +0100
+
 icedove (3.0.1-2) experimental; urgency=low
 
   [ Guido Günther ]
