@@ -20,7 +20,7 @@ DEBIAN_REV_CODE := $(shell echo $(DEBIAN_VERSION) | sed 's/^.*-\([0-9]*\)[^-]*$$
 ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
   EXTRA_BRANDING_CONFIGURE_FLAGS = --with-branding=${MOZ_APPLICATION}/branding/$(DEB_MOZ_NAME)/
-  TB_ICON = $(DEB_SRCDIR)/mail/branding/icedove/content/icon64.png
+  TB_ICON = debian/icedove.xpm
   DEB_MOZ_NAME_FIRST_UPPER=Icedove
 else
   DEBIAN_DIST := com.ubuntu
@@ -177,11 +177,11 @@ debian/stamp-autotools-files-moz:
 
 install/$(DEB_MOZ_APPLICATION)::
 	install -d -m 755 debian/tmp/usr/share/pixmaps
-	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png
+	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm
 
 binary-install/$(DEB_MOZ_APPLICATION)::
 	touch debian/$(DEB_MOZ_NAME)$(DEBIAN_TB_DIR)/.autoreg
-	dh_install -p$(DEB_MOZ_APPLICATION) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).png usr/share/pixmaps
+	dh_install -p$(DEB_MOZ_APPLICATION) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm usr/share/pixmaps
 	dh_link -p$(DEB_MOZ_APPLICATION) $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
 
 binary-post-install/$(DEB_MOZ_APPLICATION):: compare
