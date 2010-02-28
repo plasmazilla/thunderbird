@@ -1,5 +1,4 @@
 [Desktop Entry]
-Encoding=UTF-8
 Name=@DEB_MOZ_NAME_FIRST_UPPER@ Mail/News
 Comment=Read/Write Mail/News with @DEB_MOZ_NAME_FIRST_UPPER@
 GenericName=Mail Client
@@ -8,8 +7,8 @@ Terminal=false
 X-MultipleArgs=false
 Type=Application
 Icon=@DEB_MOZ_APPLICATION@
-Categories=Application;Network;
-MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png
+Categories=Network;Email;News;GTK;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;
 StartupWMClass=Thunderbird-bin
 StartupNotify=true
 Name[ca]=Client de correu @DEB_MOZ_NAME_FIRST_UPPER@
