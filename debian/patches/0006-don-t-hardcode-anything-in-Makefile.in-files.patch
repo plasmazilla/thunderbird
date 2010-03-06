@@ -1,11 +1,8 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Wed, 27 Jan 2010 19:07:09 +0100
-Subject: [PATCH] dont_hardcode_anything_in_Makefile.in_files
+Subject: [PATCH] don't hardcode anything in Makefile.in files
 
-# Don't hardcode anything in Makefile.in files
-# With hardcoded names, it's verry hard to build a unbranded mailclient like
-# icedove.
-# patch by Christoph Goehre <chris@sigxcpu.org> Sat, 26 Dec 2009 11:42:50 +0100
+https://bugzilla.mozilla.org/show_bug.cgi?id=550506
 ---
  mail/app/Makefile.in |   12 ++++++------
  1 files changed, 6 insertions(+), 6 deletions(-)
