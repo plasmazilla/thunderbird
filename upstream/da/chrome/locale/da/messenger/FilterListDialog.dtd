@@ -20,7 +20,7 @@
 <!ENTITY runFilters.accesskey "K">
 <!ENTITY stopFilters.label "Stop">
 <!ENTITY stopFilters.accesskey "S">
-<!ENTITY folderPickerPrefix.label "Kør de valgte filtre på:">
+<!ENTITY folderPickerPrefix.label "Kør det markerede filter på:">
 <!ENTITY folderPickerPrefix.accesskey "i">
 <!ENTITY choosethis.label "vælg denne mappe">
 <!ENTITY choosethisnewsserver.label "vælg denne nyhedsserver">

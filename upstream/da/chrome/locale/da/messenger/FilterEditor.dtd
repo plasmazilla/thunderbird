@@ -33,4 +33,4 @@
 <!ENTITY contextManual.label "Manuel start">
 <!ENTITY contextBoth.label "Mailhentning og manuel start">
 <!ENTITY contextPostPlugin.label "Mailhentning (efter klassifikation)">
-<!ENTITY contextPostPluginBoth.label "Mailhentning (efter klassifikation) eller Manuel start">
+<!ENTITY contextPostPluginBoth.label "Mailhentning (efter klassifikation) og Manuel start">

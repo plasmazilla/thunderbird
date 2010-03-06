@@ -1,7 +1,7 @@
 <!ENTITY itemGeneral.label "Almennt">
-<!ENTITY itemDisplay.label "Lesa &amp; Skoða">
+<!ENTITY itemDisplay.label "Lesa og skoða">
 <!ENTITY itemUpdate.label "Uppfærslur">
-<!ENTITY itemNetworking.label "Netkerfi &amp; Diskpláss">
+<!ENTITY itemNetworking.label "Netkerfi og diskpláss">
 <!ENTITY itemCertificates.label "Skilríki">
 <!-- General Settings -->
 
@@ -53,7 +53,7 @@
 <!ENTITY whenUpdatesFound.label "Þegar uppfærslur fyrir &brandShortName; finnast,">
 <!ENTITY modeAskMe.label "Spyrja hvað á að gera">
 <!ENTITY modeAskMe.accesskey "S">
-<!ENTITY modeAutomatic.label "Hlaða niður sjálfkrafa og setja upp uppfærsluna">
+<!ENTITY modeAutomatic.label "Hlaða niður sjálfkrafa og setja inn uppfærsluna">
 <!ENTITY modeAutomatic.accesskey "H">
 <!ENTITY modeAutoAddonWarn.label "Vara við ef uppfærslan gerir einhverja viðbót óvirka">
 <!ENTITY modeAutoAddonWarn.accesskey "V">

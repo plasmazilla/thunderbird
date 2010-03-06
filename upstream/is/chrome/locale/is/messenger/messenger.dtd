@@ -1,4 +1,4 @@
-<!ENTITY messengerWindow.title "Póstur &amp; fréttahópar">
+<!ENTITY messengerWindow.title "Póstur og fréttahópar">
 <!ENTITY titledefault.label "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!-- File Menu -->
@@ -338,7 +338,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY createFilter.label "Búa til síu út frá pósti…">
 <!ENTITY createFilter.accesskey "u">
 <!ENTITY moveMsgToMenu.label "Færa í">
-<!ENTITY moveMsgToMenu.accesskey "F">
+<!ENTITY moveMsgToMenu.accesskey "æ">
 <!ENTITY moveCopyMsgRecentMenu.label "Nýlegt">
 <!ENTITY moveCopyMsgRecentMenu.accesskey "N">
 <!ENTITY copyMessageLocation.label "Afrita staðsetningu pósts">
@@ -414,7 +414,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Verkfæri">
 <!ENTITY tasksMenu.accesskey "V">
-<!ENTITY messengerCmd.label "Póstur &amp; fréttahópar">
+<!ENTITY messengerCmd.label "Póstur og fréttahópar">
 <!ENTITY messengerCmd.accesskey "P">
 <!ENTITY addressBookCmd.label "Nafnaskrá">
 <!ENTITY addressBookCmd.accesskey "N">

@@ -7,7 +7,7 @@
 <!ENTITY title.accessKey "T">
 <!ENTITY title.tooltip "HTML-attributten &quot;title&quot; der vises som et værktøjstip">
 <!ENTITY altText.label "Alternativ tekst:">
-<!ENTITY altText.accessKey "A">
+<!ENTITY altText.accessKey "e">
 <!ENTITY altTextEditField.tooltip "Skriv den tekst der skal skrives på billedets plads">
 <!ENTITY noAltText.label "Brug ikke alternativ tekst">
 <!ENTITY noAltText.accessKey "B">

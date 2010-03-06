@@ -157,8 +157,8 @@ hvort pósturinn sé lesinn. Ef þú hakar við þetta leyfirðu svoleiðis efni
 <!ENTITY DefaultPhoto.label "Sjálfgefið">
 <!ENTITY PhotoFile.label "Á þessari tölvu">
 <!ENTITY PhotoFile.accesskey "þ">
-<!ENTITY BrowsePhoto.label "Skoða">
-<!ENTITY BrowsePhoto.accesskey "S">
+<!ENTITY BrowsePhoto.label "Velja">
+<!ENTITY BrowsePhoto.accesskey "e">
 <!ENTITY PhotoURL.label "Á vefnum">
 <!ENTITY PhotoURL.accesskey "v">
 <!ENTITY PhotoURL.emptytext "Límdu eða sláðu inn vefslóð fyrir mynd">

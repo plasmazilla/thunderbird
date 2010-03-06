@@ -89,11 +89,11 @@
 <!ENTITY menu_ShowNameAs.label "Sýna nafn sem">
 <!ENTITY menu_ShowNameAs.accesskey "n">
  
-<!ENTITY firstLastCmd.label "Fyrsta, Seinasta">
+<!ENTITY firstLastCmd.label "Fornafn, eftirnafn">
 <!ENTITY firstLastCmd.accesskey "F">
  
-<!ENTITY lastFirstCmd.label "Seinasta, Fyrst">
-<!ENTITY lastFirstCmd.accesskey "S">
+<!ENTITY lastFirstCmd.label "Eftirnafn, fornafn">
+<!ENTITY lastFirstCmd.accesskey "E">
 <!ENTITY displayNameCmd.label "Birtingarnafn">
 <!ENTITY displayNameCmd.accesskey "B">
 <!ENTITY sortMenu.label "Raða eftir">
@@ -101,7 +101,7 @@
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Verkfæri">
 <!ENTITY tasksMenu.accesskey "V">
-<!ENTITY messengerCmd.label "Póstur &amp; fréttahópar">
+<!ENTITY messengerCmd.label "Póstur og fréttahópar">
 <!ENTITY messengerCmd.accesskey "P">
 <!ENTITY messengerCmd.commandkey "1">
 <!ENTITY searchAddressesCmd.label "Leita í nöfnum…">

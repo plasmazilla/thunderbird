@@ -614,7 +614,7 @@
 <!ENTITY remoteContentMessage2.label "Per proteggere la tua privacy &brandShortName; ha bloccato i contenuti remoti.">
 <!ENTITY loadRemoteContentButton3.label "Mostra contenuti remoti">
 <!ENTITY phishingBarMessage2.label "Questo messaggio potrebbe essere una frode.">
-<!ENTITY removePhishingBarButton1.label "Ignorare gli avvisi">
+<!ENTITY removePhishingBarButton1.label "Ignorare l'avviso">
 <!ENTITY reportPhishingError1.label "Questo messaggio non sembra essere una frode.">
 <!ENTITY more.label "altri">
 <!ENTITY quickSearchCmd.key "k">

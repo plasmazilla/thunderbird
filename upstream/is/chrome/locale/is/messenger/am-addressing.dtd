@@ -1,6 +1,6 @@
 <!-- extracted from am-addressing.xul -->
 
-<!ENTITY addressing.label "Samsetning &amp; Póstföng">
+<!ENTITY addressing.label "Samsetning og póstföng">
 <!ENTITY addressingGroupTitle.label "Póstföng">
 <!ENTITY addressingText.label "Þegar póstföngum er flett upp:">
 <!-- LOCALIZATION NOTE (override.label) : do not translate "LDAP" in below line -->

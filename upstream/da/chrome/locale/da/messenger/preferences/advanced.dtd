@@ -1,7 +1,7 @@
 <!ENTITY itemGeneral.label "Generelt">
-<!ENTITY itemDisplay.label "Læsning &amp; Visning">
+<!ENTITY itemDisplay.label "Læsning &amp; visning">
 <!ENTITY itemUpdate.label "Opdater">
-<!ENTITY itemNetworking.label    "Netværk &amp; Diskplads">
+<!ENTITY itemNetworking.label    "Netværk &amp; diskplads">
 <!ENTITY itemCertificates.label  "Certifikater">
 
 <!-- General Settings -->
@@ -96,7 +96,7 @@
 <!ENTITY certs.auto                      "Vælg et automatisk">
 <!ENTITY certs.auto.accesskey            "a">
 <!ENTITY certs.ask                       "Spørg mig hver gang">
-<!ENTITY certs.ask.accesskey             "S">
+<!ENTITY certs.ask.accesskey             "ø">
 
 <!ENTITY viewCertificates.label         "Vis certifikater">
 <!ENTITY viewCertificates.accesskey     "c">

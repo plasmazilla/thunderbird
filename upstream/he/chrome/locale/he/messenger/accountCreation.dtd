@@ -3,7 +3,7 @@
 <!ENTITY name.accesskey                  "ש">
 <!ENTITY name.emptytext                  "שם_פרטי שם_משפחה">
 <!ENTITY name.text                       "השם שלך, כפי שיוצג לאחרים">
-<!ENTITY email.label                     "כתובת דואר אלקטרוני::">
+<!ENTITY email.label                     "כתובת דוא״ל:">
 <!ENTITY email.accesskey                 "ד">
 <!ENTITY email.emptytext                 "email@example.com">
 <!ENTITY password.label                  "סיסמה:">

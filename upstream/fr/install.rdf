@@ -8,15 +8,15 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-fr@thunderbird.mozilla.org"
                em:name="Français Language Pack"
-               em:version="3.0.1"
+               em:version="3.0.985"
                em:type="8"
                em:creator="L'équipe FrenchMozilla">
     <em:contributor>Frédéric Chateaux</em:contributor><em:contributor>Cédric Corazza</em:contributor><em:contributor>Philippe Dessante</em:contributor><em:contributor>Benoît Leseul</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>3.0.1</em:minVersion>
-        <em:maxVersion>3.0.1</em:maxVersion>
+        <em:minVersion>3.0</em:minVersion>
+        <em:maxVersion>3.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

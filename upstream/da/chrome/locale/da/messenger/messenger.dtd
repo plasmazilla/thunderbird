@@ -150,7 +150,7 @@
 <!ENTITY sortByDateCmd.accesskey "D">
 <!ENTITY sortByReceivedCmd.label "Modtaget">
 <!ENTITY sortByReceivedCmd.accesskey "t">
-<!ENTITY sortByStarCmd.label "Stjerne">
+<!ENTITY sortByStarCmd.label "Stjernemarkering">
 <!ENTITY sortByStarCmd.accesskey "j">
 <!ENTITY sortByAttachmentsCmd.label "Vedhæftede filer">
 <!ENTITY sortByAttachmentsCmd.accesskey "V">
@@ -172,7 +172,7 @@
 <!ENTITY sortByRecipientCmd.accesskey "M">
 <!ENTITY sortByUnreadCmd.label "Læst">
 <!ENTITY sortByUnreadCmd.accesskey "æ">
-<!ENTITY sortByOrderReceivedCmd.label "Modtagelsestidspunkt">
+<!ENTITY sortByOrderReceivedCmd.label "Modtagelsesorden">
 <!ENTITY sortByOrderReceivedCmd.accesskey "o">
 <!ENTITY sortAscending.label "Stigende">
 <!ENTITY sortAscending.accesskey "S">
@@ -487,7 +487,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addressBookButton.label "Adressebog">
 <!ENTITY glodaSearch.title "Global søg">
 <!ENTITY searchItem.title "Hurtig søg">
-<!ENTITY mailViewsToolbarItem.title "Meddelelses kriterier">
+<!ENTITY mailViewsToolbarItem.title "Meddelelsesvisning">
 <!ENTITY folderLocationToolbarItem.title "Mappeplacering">
 <!ENTITY tagButton.label "Mærkat">
 <!ENTITY compactButton.label "Optimer">
@@ -635,7 +635,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextArchive.label "Arkiver">
 <!ENTITY contextArchive.accesskey "r">
 <!ENTITY contextReplySender.label "Svar kun afsenderen">
-<!ENTITY contextReplySender.accesskey "n">
+<!ENTITY contextReplySender.accesskey "e">
 <!ENTITY contextReplyNewsgroup.label "Svar til nyhedsgruppen">
 <!ENTITY contextReplyNewsgroup.accesskey "y">
 <!ENTITY contextReplyAll.label "Svar til alle">
@@ -684,7 +684,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY reportPhishingError1.label "Denne meddelelse ser ikke ud til at være mailsvindel.">
 
 <!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "mere">
+<!ENTITY more.label "flere">
 
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key "k">

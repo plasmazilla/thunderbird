@@ -114,7 +114,7 @@
 <!ENTITY checkSpellingCmd2.label "Yfirfara stafsetningu">
 <!ENTITY checkSpellingCmd2.accesskey "Y">
 <!ENTITY checkSpellingCmd2.key "p">
-<!ENTITY validateCmd.label "Staðfesta HTML">
+<!ENTITY validateCmd.label "Sannreyna HTML">
 <!ENTITY validateCmd.accesskey "S">
 <!-- Insert menu items -->
 <!ENTITY insertMenu.label "Setja inn">
@@ -424,7 +424,7 @@
 <!ENTITY outdentToolbarCmd.tooltip "Minnka inndrátt (hliðra vinstri)">
 <!ENTITY indentToolbarCmd.tooltip "Auka inndrátt (hliðra hægri)">
 <!ENTITY AlignPopupButton.tooltip "Veldu textajöfnun">
-<!ENTITY InsertPopupButton.tooltip "Setja inn hlekk, markstiklu, mynd, lárétta línu eða töflu">
+<!ENTITY InsertPopupButton.tooltip "Setja inn tengil, markstiklu, mynd, lárétta línu eða töflu">
 <!ENTITY alignLeftButton.tooltip "Vinstristilla texta">
 <!ENTITY alignCenterButton.tooltip "Miðja texta">
 <!ENTITY alignRightButton.tooltip "Hægristilla texta">
