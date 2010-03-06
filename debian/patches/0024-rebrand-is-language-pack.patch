@@ -32,17 +32,17 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/is/chrome/locale/is/messenger/aboutDialog.dtd b/upstream/is/chrome/locale/is/messenger/aboutDialog.dtd
-index 4c9dadb..821c544 100644
+index dd8bade..83d9c02 100644
 --- a/upstream/is/chrome/locale/is/messenger/aboutDialog.dtd
 +++ b/upstream/is/chrome/locale/is/messenger/aboutDialog.dtd
 @@ -2,9 +2,7 @@
  <!ENTITY aboutButton.label "&lt; Til baka">
  <!ENTITY aboutButton.accesskey "T">
  <!ENTITY aboutVersion "útgáfa">
--<!ENTITY copyrightText "&#169;1998-2009 Þátttakendur. Allur réttur áskilinn. Mozilla Thunderbird og 
+-<!ENTITY copyrightText "&#169;1998-2010 Þátttakendur. Allur réttur áskilinn. Mozilla Thunderbird og 
 -                                 Thunderbird nafnmerkið eru vörumerki Mozilla stofnunarinnar.  Allur réttur 
 -                                 áskilinn.">
-+<!ENTITY copyrightText "&#169;1998-2009 Þátttakendur. Allur réttur áskilinn.">
++<!ENTITY copyrightText "&#169;1998-2010 Þátttakendur. Allur réttur áskilinn.">
  <!ENTITY aboutMenu.label "Um">
  <!ENTITY aboutMenu.accesskey "U">
  <!ENTITY aboutCredits.label "Þakkir">

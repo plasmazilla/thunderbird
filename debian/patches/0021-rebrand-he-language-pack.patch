@@ -45,7 +45,7 @@ index f6e0280..298be55 100644
  <!ENTITY aboutMenu.accesskey    "א">
  <!ENTITY aboutCredits.label     "תודות">
 diff --git a/upstream/he/chrome/locale/he/messenger/accountCreation.dtd b/upstream/he/chrome/locale/he/messenger/accountCreation.dtd
-index 151aa06..89117ee 100644
+index 1f8c9cf..4f3036a 100644
 --- a/upstream/he/chrome/locale/he/messenger/accountCreation.dtd
 +++ b/upstream/he/chrome/locale/he/messenger/accountCreation.dtd
 @@ -68,7 +68,7 @@

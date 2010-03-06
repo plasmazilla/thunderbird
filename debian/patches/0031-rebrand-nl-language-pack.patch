@@ -32,17 +32,17 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/nl/chrome/locale/nl/messenger/aboutDialog.dtd b/upstream/nl/chrome/locale/nl/messenger/aboutDialog.dtd
-index 6fc4e4a..57f699c 100644
+index 9dfc56d..36e89ee 100644
 --- a/upstream/nl/chrome/locale/nl/messenger/aboutDialog.dtd
 +++ b/upstream/nl/chrome/locale/nl/messenger/aboutDialog.dtd
 @@ -2,9 +2,7 @@
  <!ENTITY aboutButton.label      "&lt; Terug">
  <!ENTITY aboutButton.accesskey  "T">
  <!ENTITY aboutVersion           "versie">
--<!ENTITY copyrightText          "© 1998-2009 Medewerkers. Alle rechten voorbehouden. Mozilla Thunderbird en de 
+-<!ENTITY copyrightText          "© 1998-2010 Medewerkers. Alle rechten voorbehouden. Mozilla Thunderbird en de 
 -                                 Thunderbird-logo’s zijn handelsmerken van de Mozilla Foundation. Alle rechten 
 -                                 voorbehouden.">
-+<!ENTITY copyrightText          "© 1998-2009 Medewerkers. Alle rechten voorbehouden.">
++<!ENTITY copyrightText          "© 1998-2010 Medewerkers. Alle rechten voorbehouden.">
  <!ENTITY aboutMenu.label        "Over">
  <!ENTITY aboutMenu.accesskey    "O">
  <!ENTITY aboutCredits.label     "Dankbetuigingen">
