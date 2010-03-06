@@ -12,7 +12,7 @@
 <!ENTITY returnSome.label "Tillad kvitteringer for nogle meddelelser">
 <!ENTITY returnSome.accesskey "k">
 <!ENTITY notInToCc.label "Hvis jeg ikke er i meddelelsens Til- eller Kopi til-felt:">
-<!ENTITY notInToCc.accesskey "T">
+<!ENTITY notInToCc.accesskey "H">
 <!ENTITY outsideDomain.label "Hvis afsenderen er udenfor mit domæne:">
 <!ENTITY outsideDomain.accesskey "s">
 <!ENTITY otherCases.label "I alle andre tilfælde:">

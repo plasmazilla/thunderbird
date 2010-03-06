@@ -165,7 +165,7 @@
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Verkfæri">
 <!ENTITY tasksMenu.accesskey "e">
-<!ENTITY messengerCmd.label "Póstur &amp; fréttahópar">
+<!ENTITY messengerCmd.label "Póstur og fréttahópar">
 <!ENTITY messengerCmd.accesskey "P">
 <!ENTITY messengerCmd.commandkey "1">
 <!ENTITY addressBookCmd.label "Nafnaskrá">

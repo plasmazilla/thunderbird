@@ -76,7 +76,7 @@
 <!ENTITY printSetupCmd.label "Imposta pagina…">
 <!ENTITY printSetupCmd.accesskey "p">
 <!ENTITY printCmd.label "Stampa…">
-<!ENTITY printCmd.accesskey "p">
+<!ENTITY printCmd.accesskey "a">
 <!ENTITY printCmd.key "P">
 <!ENTITY closeCmd.label "Chiudi">
 <!ENTITY closeCmd.accesskey "h">
@@ -232,7 +232,7 @@
 <!ENTITY formatFontColor.label "Colore testo…">
 <!ENTITY formatFontColor.accesskey "o">
 <!ENTITY tableOrCellColor.label "Colore di sfondo tabella o cella…">
-<!ENTITY tableOrCellColor.accesskey "d">
+<!ENTITY tableOrCellColor.accesskey "f">
 <!ENTITY formatRemoveStyles.key "Y">
 <!ENTITY formatRemoveLinks.key "K">
 <!ENTITY formatRemoveNamedAnchors.label "Rimuovi ancora con nome">
@@ -298,7 +298,7 @@
 <!ENTITY increaseIndent.accesskey "u">
 <!ENTITY increaseIndent.key "]">
 <!ENTITY decreaseIndent.label "Diminuisci indentazione">
-<!ENTITY decreaseIndent.accesskey "m">
+<!ENTITY decreaseIndent.accesskey "z">
 <!ENTITY decreaseIndent.key "[">
 <!ENTITY grid.label "Griglia di posizionamento">
 <!ENTITY grid.accesskey "G">
@@ -402,7 +402,7 @@
 <!ENTITY alignjustifyButton.tooltip "Allinea il testo lungo i margini sinistro e destro">
 <!ENTITY NormalModeTab.label "Normale">
 <!ENTITY NormalMode.label "Modalità modifica normale">
-<!ENTITY NormalMode.accesskey "M">
+<!ENTITY NormalMode.accesskey "n">
 <!ENTITY NormalMode.tooltip "Mostra i bordi delle tabelle e le ancore">
 <!ENTITY AllTagsMode.label "Tag HTML">
 <!ENTITY AllTagsMode.accesskey "T">

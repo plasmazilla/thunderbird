@@ -57,7 +57,7 @@
 <!ENTITY PhoneticField2.id              "PhoneticLastName">
 
 <!ENTITY NameField1.label 				"Fornavn:">
-<!ENTITY NameField1.accesskey 			"r">
+<!ENTITY NameField1.accesskey 			"F">
 <!ENTITY NameField2.label 				"Efternavn:">
 <!ENTITY NameField2.accesskey 			"E">
 <!ENTITY PhoneticField1.label 			"Fonetisk:">
@@ -165,7 +165,7 @@
 <!ENTITY BrowsePhoto.label              "Gennemse">
 <!ENTITY BrowsePhoto.accesskey          "G">
 <!ENTITY PhotoURL.label                 "På nettet">
-<!ENTITY PhotoURL.accesskey             "P">
+<!ENTITY PhotoURL.accesskey             "e">
 <!ENTITY PhotoURL.emptytext             "Indsæt eller skriv et fotos web-adresse">
 <!ENTITY UpdatePhoto.label              "Opdater">
 <!ENTITY UpdatePhoto.accesskey          "d">

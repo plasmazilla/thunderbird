@@ -11,8 +11,8 @@
 <!ENTITY systemIntegration.label "Comhtháthú Córais">
 <!ENTITY alwaysCheckDefault.label "Seiceáil i gcónaí ag am tosaithe an é &brandShortName; an cliant réamhshocraithe ríomhphoist">
 <!ENTITY alwaysCheckDefault.accesskey "A">
-<!ENTITY searchIntegration.label "Ceadaigh do searchIntegration.engineName; teachtaireachtaí a chuardach">
-<!ENTITY searchIntegration.accesskey "S">
+<!ENTITY searchIntegration.label "Ceadaigh do &searchIntegration.engineName; teachtaireachtaí a chuardach">
+<!ENTITY searchIntegration.accesskey "C">
 <!ENTITY checkNow.label "Seiceáil Anois">
 <!ENTITY checkNow.accesskey "N">
 <!ENTITY configEditDesc.label "Cumraíocht Chasta">

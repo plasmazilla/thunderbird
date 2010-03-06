@@ -337,7 +337,7 @@
 
 <!ENTITY pageProperties.label "Sidens titel og egenskaber…">
 <!ENTITY pageProperties.accesskey "e">
-<!ENTITY colorsAndBackground.label "Sidens farve og baggrund…">
+<!ENTITY colorsAndBackground.label "Sidens farver og baggrund…">
 <!ENTITY colorsAndBackground.accesskey "v">
 
 <!-- Table Menu -->

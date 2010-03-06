@@ -8,5 +8,5 @@
 <!ENTITY checkOnStartup.label "Seiceáil mar seo i gcónaí agus &brandShortName; á thosú">
 <!ENTITY checkOnStartup.accesskey "A">
 
-<!ENTITY searchIntegration.label "Ceadaigh do searchIntegration.engineName; teachtaireachtaí a chuardach">
-<!ENTITY searchIntegration.accesskey "S">
+<!ENTITY searchIntegration.label "Ceadaigh do &searchIntegration.engineName; teachtaireachtaí a chuardach">
+<!ENTITY searchIntegration.accesskey "C">

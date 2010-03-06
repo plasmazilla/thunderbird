@@ -12,7 +12,7 @@
  
 <!ENTITY manageSubscriptions.accesskey "S">
 <!-- entities from rss.rdf -->
-<!ENTITY feeds.accountName "Blogg &amp; Fréttastraumar">
+<!ENTITY feeds.accountName "Blogg og fréttastraumar">
 <!ENTITY feeds.wizardShortName "Straumar">
-<!ENTITY feeds.wizardLongName "Blogg &amp; Fréttastraumar">
+<!ENTITY feeds.wizardLongName "Blogg og fréttastraumar">
 <!ENTITY feeds.wizardLongName.accesskey "F">

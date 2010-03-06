@@ -8,15 +8,15 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-nn-NO@thunderbird.mozilla.org"
                em:name="Norsk nynorsk (NO) Language Pack"
-               em:version="3.0.1"
+               em:version="3.0.212"
                em:type="8"
                em:creator="firefox.no">
     <em:contributor>Kurt-Rune Bergset</em:contributor>  <em:contributor>Eirik Ulltang Birkeland</em:contributor>  <em:contributor>Håvar Henriksen</em:contributor>  <em:contributor>Torstein Hønsi</em:contributor>  <em:contributor>Erik Klepsvik</em:contributor>  <em:contributor>Håvard Mork</em:contributor>  <em:contributor>Jan-Espen Pettersen</em:contributor>  <em:contributor>Tom Ottar Røw</em:contributor>  <em:contributor>Åsmund Skjæveland</em:contributor>  <em:contributor>Pascual Strømsnæs</em:contributor>  <em:contributor>Vebjørn Sture</em:contributor>  <em:contributor>Kristian Svanes</em:contributor>  <em:contributor>Bjørn I. Svindseth</em:contributor>  <em:contributor>Ronny Vårdal</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>3.0.1</em:minVersion>
-        <em:maxVersion>3.0.1</em:maxVersion>
+        <em:minVersion>3.0</em:minVersion>
+        <em:maxVersion>3.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

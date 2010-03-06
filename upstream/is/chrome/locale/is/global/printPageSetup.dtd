@@ -1,7 +1,7 @@
 <!-- extracted from printjoboptions.xul -->
 
 <!ENTITY printSetup.title "Síðuuppsetning">
-<!ENTITY basic.tab "Snið &amp; Stillingar">
+<!ENTITY basic.tab "Snið og stillingar">
 <!ENTITY formatGroup.label "Snið">
 <!ENTITY orientation.label "Stefna:">
 <!ENTITY portrait.label "Skammsnið">
@@ -16,7 +16,7 @@
 <!ENTITY optionsGroup.label "Valkostir">
 <!ENTITY printBG.label "Prenta bakgrunn (liti og myndir)">
 <!ENTITY printBG.accesskey "b">
-<!ENTITY advanced.tab "Spássía &amp; Haus/Fótur">
+<!ENTITY advanced.tab "Spássía og haus/fótur">
 <!ENTITY marginGroup.label "Spássía (#1)">
 <!ENTITY marginUnits.inches "tommur">
 <!ENTITY marginUnits.metric "millimetrar">
@@ -28,7 +28,7 @@
 <!ENTITY marginLeft.accesskey "V">
 <!ENTITY marginRight.label "Hægri:">
 <!ENTITY marginRight.accesskey "r">
-<!ENTITY headerFooter.label "Hausar &amp; Fætur">
+<!ENTITY headerFooter.label "Hausar og fætur">
 <!ENTITY hfLeft.label "Vinstri:">
 <!ENTITY hfCenter.label "Miðja:">
 <!ENTITY hfRight.label "Hægri:">

@@ -18,8 +18,8 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "f">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Leita að uppfærðum íbótum">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Leita að uppfærðum þemum">
-<!ENTITY cmd.installLocalFile.label "Setja upp…">
-<!ENTITY cmd.installLocalFile.accesskey "u">
+<!ENTITY cmd.installLocalFile.label "Setja inn…">
+<!ENTITY cmd.installLocalFile.accesskey "n">
 <!ENTITY cmd.installFileAddon.tooltip "Setja  íbót">
 <!ENTITY cmd.installFileTheme.tooltip "Setja inn þema">
 <!ENTITY cmd.installUpdatesAll.label "Setja inn uppfærslur">
@@ -68,9 +68,9 @@
 <!ENTITY cmd.cancelUpgrade.label "Hætta við uppfærslu">
 <!ENTITY cmd.cancelUpgrade.accesskey "H">
 <!ENTITY cmd.cancelUpgrade.tooltip "Hætta við uppfærslu viðbótar">
-<!ENTITY cmd.installUpdate.label "Setja upp uppfærslu">
+<!ENTITY cmd.installUpdate.label "Setja inn uppfærslu">
 <!ENTITY cmd.installUpdate.accesskey "S">
-<!ENTITY cmd.installUpdate.tooltip "Setja upp uppfærslur fyrir viðbót">
+<!ENTITY cmd.installUpdate.tooltip "Setja inn uppfærslur fyrir viðbót">
 <!ENTITY cmd.showUpdateInfo.label "Sýna upplýsingar">
 <!ENTITY cmd.showUpdateInfo.accesskey "u">
 <!ENTITY cmd.showUpdateInfo.tooltip "Sýna meiri upplýsingar um þessar uppfærslur">
@@ -79,7 +79,7 @@
 <!ENTITY cmd.hideUpdateInfo.tooltip "Fela upplýsingar um þessar uppfærslur">
 <!ENTITY cmd.installSearchResult.label "Bæta við &brandShortName;…">
 <!ENTITY cmd.installSearchResult.accesskey "B">
-<!ENTITY cmd.installSearchResult.tooltip "Niðurhala og setja upp þessa viðbót">
+<!ENTITY cmd.installSearchResult.tooltip "Niðurhala og setja inn þessa viðbót">
 <!-- The selected add-on's cancel action button label -->
 <!ENTITY cancel.label "Hætta við">
 <!ENTITY cancel.accesskey "H">
@@ -153,6 +153,6 @@
 <!ENTITY eula.title "Leyfisskilmálar notanda">
 <!ENTITY eula.width "560px">
 <!ENTITY eula.height "400px">
-<!ENTITY eula.accept "Samþykkja og setja upp…">
+<!ENTITY eula.accept "Samþykkja og setja inn…">
 <!ENTITY blocklist.blocked.label "Lokað">
 <!ENTITY blocklist.checkbox.label "Gera óvirkt">

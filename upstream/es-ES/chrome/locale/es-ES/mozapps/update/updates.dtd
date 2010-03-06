@@ -1,6 +1,6 @@
 <!ENTITY updateWizard.title "Actualización de software">
-<!ENTITY window.width "36em">
-<!ENTITY window.macWidth "39em">
+<!ENTITY window.width "40em">
+<!ENTITY window.macWidth "45em">
 <!ENTITY checking.title "Comprobando actualizaciones">
 <!ENTITY updateCheck.label "Buscando nuevas versiones de &brandShortName;…">
 <!ENTITY noupdatesfound.title "No se encontraron actualizaciones">

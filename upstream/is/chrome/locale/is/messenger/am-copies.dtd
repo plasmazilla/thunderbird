@@ -1,6 +1,6 @@
 <!-- extracted from am-copies.xul -->
 
-<!ENTITY copyAndFolderTitle.label "Afrit &amp; Möppur">
+<!ENTITY copyAndFolderTitle.label "Afrit og möppur">
 <!ENTITY sendingPrefix.label "Þegar póstur er sendur, gerist eftirfarandi sjálfkrafa: ">
 <!ENTITY fccMailFolder.label "Setja afrit í:">
 <!ENTITY fccMailFolder.accesskey "t">
