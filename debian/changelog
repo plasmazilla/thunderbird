@@ -1,3 +1,15 @@
+icedove (3.0.3-1) experimental; urgency=low
+
+  * New Upstream Version fixes:
+    - missing folders or empty folder pane after updating to version 3.0.2
+  * [a69cdfd] rebuild patches from patch-queue:
+    - additional fix for FTBFS on kfreeBSD
+  * [e4bffd4] disable prefetch service (Closes: #572789)
+  * [3838bbe] branding files shouldn't be executable
+  * [3dc6688] add missing newline in logo license file
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 06 Mar 2010 21:48:50 +0100
+
 icedove (3.0.2-1) experimental; urgency=low
 
   * New Upstream Version fixes:
