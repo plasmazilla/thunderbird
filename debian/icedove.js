@@ -19,5 +19,3 @@ pref("mail.shell.checkDefaultMail", false);
 pref("network.protocol-handler.app.http", "x-www-browser");
 pref("network.protocol-handler.app.https", "x-www-browser");
 
-// disable prefetch service (i.e., prefetching of <link rel="next"> URLs).
-pref("network.prefetch-next", false);
