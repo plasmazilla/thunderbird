@@ -1,3 +1,15 @@
+icedove-l10n (1:3.0.3-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #564782)
+    - changes in: ca, da, de, es-ES, fi, fr, fy-NL, ga-IE, he, is, it, ko, ln,
+      nn-NO, pt-PT, ru, sk
+  * [25ce7af] rebuild patches from patch-queue branch
+    - remove 0049-adjust-min-and-max-version-to-a-larger-range.patch, which
+      was fixed upstream
+  * [8361d82] add watch file
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 07 Mar 2010 14:29:24 +0100
+
 icedove-l10n (1:3.0.1-1) experimental; urgency=low
 
   * New upstream release and New maintainer (Closes: #543928)
