@@ -51,31 +51,6 @@ ifeq (1,$(USE_SYSTEM_XUL))
    EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-libxul-sdk=$(DEBIAN_XUL_DEV)
 endif
 
-USE_SYSTEM_CAIRO := $(shell pkg-config --exists 'cairo >= 1.8.8'; a=$$?; if test $$a != 1; then echo 1; fi)
-
-# for old cairo versions we cannot use system cairo
-ifeq (1,$(USE_SYSTEM_CAIRO))
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-cairo
-else
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --disable-system-cairo
-endif
-
-# gutsy doesn't have the right system-nss/nspr
-USE_SYSTEM_NSPR := $(shell pkg-config --exists 'nspr >= 4.7.3'; a=$$?; if test $$a != 1; then echo 1; fi)
-ifeq (1,$(USE_SYSTEM_NSPR))
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nspr
-endif
-
-USE_SYSTEM_NSS := $(shell pkg-config --exists 'nss >= 3.12.3'; a=$$?; if test $$a != 1; then echo 1; fi)
-ifeq (1,$(USE_SYSTEM_NSS))
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --with-system-nss
-endif
-
-USE_SYSTEM_SQLITE := $(shell pkg-config --exists 'sqlite3 >= 3.6.22'; a=$$?; if test $$a != 1; then echo 1; fi)
-ifeq (1,$(USE_SYSTEM_SQLITE))
-   EXTRA_SYSTEM_CONFIGURE_FLAGS += --enable-system-sqlite
-endif
-
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
 ifneq (,$(wildcard *.tar.bz2)$(DEBIAN_MOZCLIENT_EMBEDDED))
@@ -114,6 +89,8 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-system-jpeg=/usr \
 	--with-system-zlib=/usr \
 	--with-system-bz2 \
+	--with-system-nspr \
+	--with-system-nss \
 	--with-gssapi=/usr \
 	--disable-javaxpcom \
 	--disable-crashreporter \
@@ -138,6 +115,8 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-gnomeui \
 	--enable-canvas \
 	--enable-crypto \
+	--enable-system-cairo \
+	--enable-system-sqlite \
 	--with-distribution-id=$(DEBIAN_DIST) \
 	--build=$(DEB_BUILD_GNU_TYPE) \
 	--host=$(DEB_HOST_GNU_TYPE) \
