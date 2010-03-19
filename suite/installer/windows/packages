@@ -440,12 +440,15 @@ bin\crashreporter.ini
 bin\updater.exe
 
 [mail]
+; MailNews component binaries
 #ifndef MOZ_STATIC_BUILD
-; component binaries
 bin\components\import.dll
 bin\components\mail.dll
 bin\components\msgMapi.dll
 bin\components\msgsmime.dll
+#endif
+#ifndef MOZ_STATIC_MAIL_BUILD
+bin\msgbsutl.dll
 #endif
 
 ; component xpts

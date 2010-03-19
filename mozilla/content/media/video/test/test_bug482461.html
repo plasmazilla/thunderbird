@@ -31,19 +31,8 @@ function playbackEnded() {
     return false
 
   completed = true;
-
-  // Workaround for (Parallels) MacOSX SeaMonkey 2.0. (Bug 510788)
-  var fct = ok;
-  if (/ SeaMonkey/.test(navigator.userAgent)) {
-    netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-    const osString = Components.classes["@mozilla.org/xre/app-info;1"]
-                               .getService(Components.interfaces.nsIXULRuntime).OS;
-    if (osString == "Darwin" && !(3 < v.currentTime && v.currentTime < 5))
-      fct = todo;
-  }
-
-  fct(3 < v.currentTime && v.currentTime < 5,
-     "Checking currentTime at end: 3 < " + v.currentTime + " < 5");
+  ok(v.currentTime > 3 && v.currentTime < 5,
+     "Checking currentTime at end: " + v.currentTime);
   ok(v.ended, "Checking playback has ended");
   SimpleTest.finish();
   return false;

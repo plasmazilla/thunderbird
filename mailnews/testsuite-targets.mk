@@ -49,7 +49,7 @@ endif
 
 mailbloat:
 	$(PYTHON) -u $(topsrcdir)/mozilla/config/pythonpath.py \
-        -I$(DIST)/../build \
+        -I$(DIST)/../build -I$(MOZILLA_DIR)/build \
         $(topsrcdir)/mailnews/test/performance/bloat/runtest.py \
 	--distdir=$(DIST) --bin=$(MOZ_APP_NAME) --brand=$(APP_NAME) \
 	$(SYMBOLS_PATH) $(EXTRA_BLOAT_ARGS)

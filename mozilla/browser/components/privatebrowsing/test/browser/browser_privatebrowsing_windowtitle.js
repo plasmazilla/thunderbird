@@ -40,9 +40,7 @@
 
 function test() {
   // initialization
-  let prefBranch = Cc["@mozilla.org/preferences-service;1"].
-                   getService(Ci.nsIPrefBranch);
-  prefBranch.setBoolPref("browser.privatebrowsing.keep_current_session", true);
+  gPrefService.setBoolPref("browser.privatebrowsing.keep_current_session", true);
   let pb = Cc["@mozilla.org/privatebrowsing;1"].
            getService(Ci.nsIPrivateBrowsingService);
 
@@ -54,87 +52,83 @@ function test() {
   let test_title = "Test title";
   let app_name = document.documentElement.getAttribute("title");
   const isOSX = ("nsILocalFileMac" in Ci);
-    var page_with_title;
-    var page_without_title;
-    var pb_page_with_title;
-    var pb_page_without_title;
-    var about_pb_title;
+  let page_with_title;
+  let page_without_title;
+  let about_pb_title;
+  let pb_page_with_title;
+  let pb_page_without_title;
+  let pb_about_pb_title;
   if (isOSX) {
     page_with_title = test_title;
     page_without_title = app_name;
+    about_pb_title = "Would you like to start Private Browsing?";
     pb_page_with_title = test_title + " - (Private Browsing)";
     pb_page_without_title = app_name + " - (Private Browsing)";
-    about_pb_title = pb_page_without_title;
+    pb_about_pb_title = pb_page_without_title;
   }
   else {
     page_with_title = test_title + " - " + app_name;
     page_without_title = app_name;
+    about_pb_title = "Would you like to start Private Browsing?" + " - " + app_name;
     pb_page_with_title = test_title + " - " + app_name + " (Private Browsing)";
     pb_page_without_title = app_name + " (Private Browsing)";
-    about_pb_title = "Private Browsing - " + app_name + " (Private Browsing)";
+    pb_about_pb_title = "Private Browsing - " + app_name + " (Private Browsing)";
   }
 
-  // check the window title for a page without a title
-  let blankTab = gBrowser.addTab();
-  gBrowser.selectedTab = blankTab;
-  is(document.title, page_without_title, "The window title for a page without a title matches " +
-    "(outside private browsing mode)");
-  gBrowser.removeTab(blankTab);
+  function testTabTitle(url, insidePB, expected_title, funcNext) {
+    pb.privateBrowsingEnabled = insidePB;
 
-  let pageTab = gBrowser.addTab();
-  gBrowser.selectedTab = pageTab;
-  let pageBrowser = gBrowser.getBrowserForTab(pageTab);
-  pageBrowser.addEventListener("load", function () {
-    pageBrowser.removeEventListener("load", arguments.callee, true);
+    let tab = gBrowser.selectedTab = gBrowser.addTab();
+    let browser = gBrowser.selectedBrowser;
+    browser.stop();
+    // ensure that the test is run after the titlebar has been updated
+    browser.addEventListener("pageshow", function () {
+      browser.removeEventListener("pageshow", arguments.callee, false);
+      executeSoon(function () {
+        is(document.title, expected_title, "The window title for " + url +
+           " is correct (" + (insidePB ? "inside" : "outside") +
+           " private browsing mode)");
 
-    // check the window title for a page with a title
-    is(document.title, page_with_title, "The window title for a page with a title matches " +
-      "(outside private browsing mode)");
+        let win = gBrowser.replaceTabWithWindow(tab);
+        win.addEventListener("load", function() {
+          win.removeEventListener("load", arguments.callee, false);
 
-    gBrowser.removeTab(pageTab);
+          // ensure that the test is run after delayedStartup
+          let _delayedStartup = win.delayedStartup;
+          win.delayedStartup = function() {
+            _delayedStartup.apply(win, arguments);
+            win.delayedStartup = _delayedStartup;
 
-    // enter the private browsing mode
-    pb.privateBrowsingEnabled = true;
+            is(win.document.title, expected_title, "The window title for " + url +
+               " detached tab is correct (" + (insidePB ? "inside" : "outside") +
+               " private browsing mode)");
+            win.close();
 
-    // check the window title for a page without a title
-    blankTab = gBrowser.addTab();
-    gBrowser.selectedTab = blankTab;
-    is(document.title, pb_page_without_title, "The window title for a page without a title matches " +
-      "(inside private browsing mode)");
-    gBrowser.removeTab(blankTab);
+            setTimeout(funcNext, 0);
+          };
+        }, false);
+      });
+    }, false);
 
-    pageTab = gBrowser.addTab();
-    gBrowser.selectedTab = pageTab;
-    pageBrowser = gBrowser.getBrowserForTab(pageTab);
-    pageBrowser.addEventListener("load", function () {
-      pageBrowser.removeEventListener("load", arguments.callee, true);
+    browser.loadURI(url);
+  }
 
-      // check the window title for a page with a title
-      is(document.title, pb_page_with_title, "The window title for a page with a title matches " +
-        "(inside private browsing mode)");
+  function cleanup() {
+    pb.privateBrowsingEnabled = false;
+    gPrefService.clearUserPref("browser.privatebrowsing.keep_current_session");
+    finish();
+  }
 
-      gBrowser.removeTab(pageTab);
-
-      let aboutPBTab = gBrowser.addTab();
-      gBrowser.selectedTab = aboutPBTab;
-      let aboutPBBrowser = gBrowser.getBrowserForTab(aboutPBTab);
-      aboutPBBrowser.addEventListener("load", function() {
-        aboutPBBrowser.removeEventListener("load", arguments.callee, true);
-
-        // check the window title for about:privatebrowsing
-        is(document.title, about_pb_title, "The window title for about:privatebrowsing matches " +
-          "(inside private browsing mode)");
-
-        gBrowser.removeTab(aboutPBTab);
-
-        // cleanup
-        pb.privateBrowsingEnabled = false;
-        prefBranch.clearUserPref("browser.privatebrowsing.keep_current_session");
-        finish();
-      }, true);
-      aboutPBBrowser.contentWindow.location = "about:privatebrowsing";
-    }, true);
-    pageBrowser.contentWindow.location = testPageURL;
-  }, true);
-  pageBrowser.contentWindow.location = testPageURL;
+  testTabTitle("about:blank", false, page_without_title, function() {
+    testTabTitle(testPageURL, false, page_with_title, function() {
+      testTabTitle("about:privatebrowsing", false, about_pb_title, function() {
+        testTabTitle("about:blank", true, pb_page_without_title, function() {
+          testTabTitle(testPageURL, true, pb_page_with_title, function() {
+            testTabTitle("about:privatebrowsing", true, pb_about_pb_title, cleanup);
+          });
+        });
+      });
+    });
+  });
+  return;
 }

@@ -13,7 +13,7 @@
  *
  * The Original Code is Geolocation.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -43,6 +43,7 @@
 #include <objc/objc.h>
 #include <objc/objc-runtime.h>
 
+#include "nsObjCExceptions.h"
 #include "nsAutoPtr.h"
 #include "nsCOMArray.h"
 #include "nsWifiMonitor.h"
@@ -59,57 +60,59 @@ BOOL UsingSnowLeopard() {
 nsresult
 GetAccessPointsFromWLAN(nsCOMArray<nsWifiAccessPoint> &accessPoints)
 {
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
+
   if (!UsingSnowLeopard())
     return NS_ERROR_NOT_AVAILABLE;
 
+  accessPoints.Clear();
+
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-  void *corewlan_library = dlopen("/System/Library/Frameworks/CoreWLAN.framework/CoreWLAN",
-                                  RTLD_LAZY);
-  if (!corewlan_library)
-    return NS_ERROR_NOT_AVAILABLE;
-  
-  accessPoints.Clear();
-  
-  id anObject;
-  NSError *err = nil;
-  NSDictionary *params = nil;
+  @try {
+    NSBundle * bundle = [[[NSBundle alloc] initWithPath:@"/System/Library/Frameworks/CoreWLAN.framework"] autorelease];
+    if (!bundle) {
+      [pool release];
+      return NS_ERROR_NOT_AVAILABLE;
+    }
 
-  // We do this the hard way because we want to be able to run on pre-10.6.  When we drop
-  // this requirement, this objective-c magic goes away.
+    Class CWI_class = [bundle classNamed:@"CWInterface"];
+    if (!CWI_class) {
+      [pool release];
+      return NS_ERROR_NOT_AVAILABLE;
+    }
 
-  // dynamically call: [CWInterface interface];
-  Class CWI_class = objc_getClass("CWInterface");
-  if (!CWI_class) {
-    dlclose(corewlan_library);
+    id scanResult = [[CWI_class interface] scanForNetworksWithParameters:nil error:nil];
+    if (!scanResult) {
+      [pool release];
+      return NS_ERROR_NOT_AVAILABLE;
+    }
+
+    NSArray* scan = [NSMutableArray arrayWithArray:scanResult];
+    NSEnumerator *enumerator = [scan objectEnumerator];
+
+    while (id anObject = [enumerator nextObject]) {
+      nsWifiAccessPoint* ap = new nsWifiAccessPoint();
+      if (!ap) {
+        [pool release];
+        return NS_ERROR_OUT_OF_MEMORY;
+      }
+      NSData* data = [anObject bssidData];
+      ap->setMac((unsigned char*)[data bytes]);
+      ap->setSignal([[anObject rssi] intValue]);
+      ap->setSSID([[anObject ssid] UTF8String], 32);
+
+      accessPoints.AppendObject(ap);
+    }
+  }
+  @catch(NSException *_exn) {
+    [pool release];
     return NS_ERROR_NOT_AVAILABLE;
   }
 
-  SEL interfaceSel = sel_registerName("interface");
-  id interface = objc_msgSend(CWI_class, interfaceSel);
+  [pool release];
 
-  // call [interface scanForNetworksWithParameters:params err:&err]
-  SEL scanSel = sel_registerName("scanForNetworksWithParameters:error:");
-  id scanResult = objc_msgSend(interface, scanSel, params, err);
-
-  NSArray* scan = [NSMutableArray arrayWithArray:scanResult];
-  NSEnumerator *enumerator = [scan objectEnumerator];
-  
-  while (anObject = [enumerator nextObject]) {
- 
-    nsWifiAccessPoint* ap = new nsWifiAccessPoint();
-    if (!ap)
-      continue;
- 
-
-    NSData* data = [anObject bssidData];
-    ap->setMac((unsigned char*)[data bytes]);
-    ap->setSignal([[anObject rssi] intValue]);
-    ap->setSSID([[anObject ssid] UTF8String], 32);
-    
-    accessPoints.AppendObject(ap);
-  }
-
-  dlclose(corewlan_library);
   return NS_OK;
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(NS_ERROR_NOT_AVAILABLE);
 }
