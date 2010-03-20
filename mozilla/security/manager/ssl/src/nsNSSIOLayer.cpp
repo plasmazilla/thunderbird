@@ -86,6 +86,7 @@
 #include "nsProxyRelease.h"
 #include "nsIClassInfoImpl.h"
 #include "nsIProgrammingLanguage.h"
+#include "nsCommaSeparatedTokenizer.h"
 
 #include "ssl.h"
 #include "secerr.h"
@@ -827,6 +828,11 @@ void nsSSLIOLayerHelpers::Cleanup()
   if (mTLSIntolerantSites) {
     delete mTLSIntolerantSites;
     mTLSIntolerantSites = nsnull;
+  }
+
+  if (mRenegoUnrestrictedSites) {
+    delete mRenegoUnrestrictedSites;
+    mRenegoUnrestrictedSites = nsnull;
   }
 
   if (mSharedPollableEvent)
@@ -1928,6 +1934,8 @@ PRIOMethods nsSSLIOLayerHelpers::nsSSLIOLayerMethods;
 PRLock *nsSSLIOLayerHelpers::mutex = nsnull;
 nsCStringHashSet *nsSSLIOLayerHelpers::mTLSIntolerantSites = nsnull;
 nsPSMRememberCertErrorsTable *nsSSLIOLayerHelpers::mHostsWithCertErrors = nsnull;
+nsCStringHashSet *nsSSLIOLayerHelpers::mRenegoUnrestrictedSites = nsnull;
+PRBool nsSSLIOLayerHelpers::mTreatUnsafeNegotiationAsBroken = PR_FALSE;
 PRFileDesc *nsSSLIOLayerHelpers::mSharedPollableEvent = nsnull;
 nsNSSSocketInfo *nsSSLIOLayerHelpers::mSocketOwningPollableEvent = nsnull;
 PRBool nsSSLIOLayerHelpers::mPollableEventCurrentlySet = PR_FALSE;
@@ -2137,6 +2145,14 @@ nsresult nsSSLIOLayerHelpers::Init()
 
   mTLSIntolerantSites->Init(1);
 
+  mRenegoUnrestrictedSites = new nsCStringHashSet();
+  if (!mRenegoUnrestrictedSites)
+    return NS_ERROR_OUT_OF_MEMORY;
+
+  mRenegoUnrestrictedSites->Init(1);
+
+  mTreatUnsafeNegotiationAsBroken = PR_FALSE;
+  
   mHostsWithCertErrors = new nsPSMRememberCertErrorsTable();
   if (!mHostsWithCertErrors)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -2154,6 +2170,49 @@ PRBool nsSSLIOLayerHelpers::isKnownAsIntolerantSite(const nsCString &str)
 {
   nsAutoLock lock(mutex);
   return mTLSIntolerantSites->Contains(str);
+}
+
+void nsSSLIOLayerHelpers::setRenegoUnrestrictedSites(const nsCString &str)
+{
+  nsAutoLock lock(mutex);
+  
+  if (mRenegoUnrestrictedSites) {
+    delete mRenegoUnrestrictedSites;
+    mRenegoUnrestrictedSites = nsnull;
+  }
+
+  mRenegoUnrestrictedSites = new nsCStringHashSet();
+  if (!mRenegoUnrestrictedSites)
+    return;
+  
+  mRenegoUnrestrictedSites->Init(1);
+  
+  nsCCommaSeparatedTokenizer toker(str);
+
+  while (toker.hasMoreTokens()) {
+    const nsCSubstring &host = toker.nextToken();
+    if (!host.IsEmpty()) {
+      mRenegoUnrestrictedSites->Put(host);
+    }
+  }
+}
+
+PRBool nsSSLIOLayerHelpers::isRenegoUnrestrictedSite(const nsCString &str)
+{
+  nsAutoLock lock(mutex);
+  return mRenegoUnrestrictedSites->Contains(str);
+}
+
+void nsSSLIOLayerHelpers::setTreatUnsafeNegotiationAsBroken(PRBool broken)
+{
+  nsAutoLock lock(mutex);
+  mTreatUnsafeNegotiationAsBroken = broken;
+}
+
+PRBool nsSSLIOLayerHelpers::treatUnsafeNegotiationAsBroken()
+{
+  nsAutoLock lock(mutex);
+  return mTreatUnsafeNegotiationAsBroken;
 }
 
 nsresult
@@ -3443,6 +3502,15 @@ nsSSLIOLayerSetOptions(PRFileDesc *fd, PRBool forSTARTTLS,
   if (SECSuccess != SSL_BadCertHook(fd, (SSLBadCertHandler) nsNSSBadCertHandler,
                                     infoObject)) {
     return NS_ERROR_FAILURE;
+  }
+
+  if (nsSSLIOLayerHelpers::isRenegoUnrestrictedSite(nsDependentCString(host))) {
+    if (SECSuccess != SSL_OptionSet(fd, SSL_REQUIRE_SAFE_NEGOTIATION, PR_FALSE)) {
+      return NS_ERROR_FAILURE;
+    }
+    if (SECSuccess != SSL_OptionSet(fd, SSL_ENABLE_RENEGOTIATION, SSL_RENEGOTIATE_UNRESTRICTED)) {
+      return NS_ERROR_FAILURE;
+    }
   }
 
   // Set the Peer ID so that SSL proxy connections work properly.

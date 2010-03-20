@@ -48,6 +48,9 @@
 /* If we have a working stdint.h, use it.  */
 #if defined(JS_HAVE_STDINT_H)
 #include <stdint.h>
+/* If <sys/types.h> defines int8_t, int16_t, etc. */
+#elif defined(JS_SYS_TYPES_H_DEFINES_EXACT_SIZE_TYPES)
+#include <sys/types.h>
 
 /* If the configure script was able to find appropriate types for us,
    use those.  */

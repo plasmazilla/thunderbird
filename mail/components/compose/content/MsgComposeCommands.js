@@ -1,5 +1,4 @@
-/* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * ***** BEGIN LICENSE BLOCK *****
+/* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -1637,6 +1636,10 @@ function ComposeStartup(recycled, aParams)
     gAutoSaveTimeout = setTimeout(AutoSave, gAutoSaveInterval);
 
   gAutoSaveKickedIn = false;
+
+  Components.classes["@mozilla.org/messenger/services/session;1"]
+            .getService(Components.interfaces.nsIMsgMailSession)
+            .AddMsgWindow(msgWindow);
 }
 
 // The new, nice, simple way of getting notified when a new editor has been created
@@ -1737,7 +1740,7 @@ function ComposeLoad()
       ComposeStartup(false, null);
   }
   catch (ex) {
-    dump("EX: = " + ex + "\n");
+    Components.utils.reportError(ex);
     var bundle = document.getElementById("bundle_composeMsgs");
     gPromptService.alert(window, bundle.getString("initErrorDlogTitle"),
                          bundle.getFormattedString("initErrorDlogMessage", [""]));
@@ -2768,6 +2771,9 @@ function ReleaseAutoCompleteState()
 
 function MsgComposeCloseWindow(recycleIt)
 {
+  Components.classes["@mozilla.org/messenger/services/session;1"]
+            .getService(Components.interfaces.nsIMsgMailSession)
+            .RemoveMsgWindow(msgWindow);
   if (gMsgCompose)
     gMsgCompose.CloseWindow(recycleIt);
   else

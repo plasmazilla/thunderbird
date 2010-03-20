@@ -7156,6 +7156,7 @@ let gPrivateBrowsingUI = {
       docElement.setAttribute("titlemodifier",
         docElement.getAttribute("titlemodifier_privatebrowsing"));
       docElement.setAttribute("browsingmode", "private");
+      gBrowser.updateTitlebar();
     }
   },
 

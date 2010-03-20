@@ -466,11 +466,14 @@ bin/Throbber-small.gif
 bin/updater
 
 [mail]
+; MailNews component binaries
 #ifndef MOZ_STATIC_BUILD
-; component binaries
 bin/components/libimport.so
 bin/components/libmail.so
 bin/components/libmsgsmime.so
+#endif
+#ifndef MOZ_STATIC_MAIL_BUILD
+bin/libmsgbaseutil.so
 #endif
 
 ; component xpts

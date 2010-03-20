@@ -47,6 +47,7 @@ XPIDL_MODULE	= suitebrowser
 
 XPIDLSRCS = \
 	nsIBookmarksService.idl \
+	nsIProgressDialog.idl \
 	nsISearchService.idl \
 	$(NULL)
 

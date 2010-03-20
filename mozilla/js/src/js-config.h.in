@@ -58,6 +58,9 @@
    time.  */
 #undef JS_HAVE_STDINT_H
 
+/* Define to 1 if the <sys/types.h> defines int8_t, etc. */
+#undef JS_SYS_TYPES_H_DEFINES_EXACT_SIZE_TYPES
+
 /* Define to 1 if the public SpiderMonkey headers may assume that the
    N-byte __intN types are defined by the compiler.  */
 #undef JS_HAVE___INTN

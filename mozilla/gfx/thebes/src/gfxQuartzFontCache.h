@@ -83,6 +83,8 @@ public:
     ATSUFontID GetFontID();
     nsresult ReadCMAP();
 
+    PRBool UseLiGothicAtsuiHack() { return mUseLiGothicAtsuiHack; }
+
 protected:
     // for use with data fonts
     MacOSFontEntry(const nsAString& aPostscriptName, ATSUFontID aFontID,
@@ -94,6 +96,7 @@ protected:
     ATSUFontID mATSUFontID;
     PRPackedBool mATSUIDInitialized;
     PRPackedBool mStandardFace;
+    PRPackedBool mUseLiGothicAtsuiHack;
 };
 
 // helper class for adding other family names back into font cache
