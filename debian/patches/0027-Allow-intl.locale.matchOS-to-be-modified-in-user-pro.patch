@@ -10,7 +10,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=519468
  3 files changed, 57 insertions(+), 42 deletions(-)
 
 diff --git a/mozilla/chrome/src/nsChromeRegistry.cpp b/mozilla/chrome/src/nsChromeRegistry.cpp
-index 091390a..91c5738 100644
+index d70e594..2a1a3da 100644
 --- a/mozilla/chrome/src/nsChromeRegistry.cpp
 +++ b/mozilla/chrome/src/nsChromeRegistry.cpp
 @@ -550,48 +550,27 @@ nsChromeRegistry::Init()
@@ -72,7 +72,7 @@ index 091390a..91c5738 100644
    CheckForNewChrome();
  
    mInitialized = PR_TRUE;
-@@ -1483,6 +1462,31 @@ nsChromeRegistry::ProcessNewChromeBuffer(char *aBuffer, PRInt32 aLength,
+@@ -1484,6 +1463,31 @@ nsChromeRegistry::ProcessNewChromeBuffer(char *aBuffer, PRInt32 aLength,
    return NS_OK;
  }
  
@@ -104,7 +104,7 @@ index 091390a..91c5738 100644
  NS_IMETHODIMP nsChromeRegistry::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
  {
    nsresult rv = NS_OK;
-@@ -1493,20 +1497,22 @@ NS_IMETHODIMP nsChromeRegistry::Observe(nsISupports *aSubject, const char *aTopi
+@@ -1494,20 +1498,22 @@ NS_IMETHODIMP nsChromeRegistry::Observe(nsISupports *aSubject, const char *aTopi
  
      NS_ConvertUTF16toUTF8 pref(someData);
  
@@ -137,7 +137,7 @@ index 091390a..91c5738 100644
      } else {
        NS_ERROR("Unexpected pref!");
      }
-@@ -1526,6 +1532,9 @@ NS_IMETHODIMP nsChromeRegistry::Observe(nsISupports *aSubject, const char *aTopi
+@@ -1527,6 +1533,9 @@ NS_IMETHODIMP nsChromeRegistry::Observe(nsISupports *aSubject, const char *aTopi
        }
      }
    }

@@ -1,0 +1,24 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Mar 2010 14:45:29 +0100
+Subject: [PATCH] don't remove xpt-tools
+
+would be needed for the icedove-dev package
+---
+ mail/installer/Makefile.in |    3 ---
+ 1 files changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/mail/installer/Makefile.in b/mail/installer/Makefile.in
+index 990e96f..84250bc 100644
+--- a/mail/installer/Makefile.in
++++ b/mail/installer/Makefile.in
+@@ -47,9 +47,6 @@ NO_PKG_FILES = \
+ 	thunderbird-config \
+ 	regxpcom* \
+ 	xpcshell* \
+-	xpidl* \
+-	xpt_dump* \
+-	xpt_link* \
+ 	plugins \
+ 	res/bloatcycle.html \
+ 	nspr-config \
+-- 

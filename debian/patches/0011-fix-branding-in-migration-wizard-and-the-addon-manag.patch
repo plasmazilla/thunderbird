@@ -9,8 +9,10 @@ addon-checking/installing/updating will work
 Closes: #565559
 ---
  mail/app/profile/all-thunderbird.js                |   28 ++++++++++----------
+ .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-
+ mail/locales/en-US/chrome/messenger/credits.dtd    |    2 +-
  .../en-US/chrome/messenger/featureConfigurator.dtd |    8 +++---
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ 4 files changed, 20 insertions(+), 20 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
 index 74caa52..ada59b3 100644
@@ -91,6 +93,30 @@ index 74caa52..ada59b3 100644
  
  // What level of warning should we send to the error console?
  pref("mail.wizard.logging.console", "None");
+diff --git a/mail/locales/en-US/chrome/messenger/accountCreation.dtd b/mail/locales/en-US/chrome/messenger/accountCreation.dtd
+index bd75d6f..28526d2 100644
+--- a/mail/locales/en-US/chrome/messenger/accountCreation.dtd
++++ b/mail/locales/en-US/chrome/messenger/accountCreation.dtd
+@@ -65,7 +65,7 @@
+ <!ENTITY changeSettings.label            "Change Settings">
+ <!ENTITY changeSettings.accesskey        "S">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Thunderbird FAQ for more information.">
++<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Icedove FAQ for more information.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Warning! This is an insecure server.">
+ <!ENTITY insecureServer.tooltip.details  "Click circle for more details.">
+diff --git a/mail/locales/en-US/chrome/messenger/credits.dtd b/mail/locales/en-US/chrome/messenger/credits.dtd
+index abd3113..a7a7b58 100644
+--- a/mail/locales/en-US/chrome/messenger/credits.dtd
++++ b/mail/locales/en-US/chrome/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; Credits">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Special Thanks To">
+ 
+ <!-- localization credits look like this: -->
 diff --git a/mail/locales/en-US/chrome/messenger/featureConfigurator.dtd b/mail/locales/en-US/chrome/messenger/featureConfigurator.dtd
 index ba6b69c..90c8883 100644
 --- a/mail/locales/en-US/chrome/messenger/featureConfigurator.dtd

@@ -11,10 +11,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=546642
  4 files changed, 14 insertions(+), 1 deletions(-)
 
 diff --git a/Makefile.in b/Makefile.in
-index 75b14ef..44f3300 100644
+index 4cab451..cf61636 100644
 --- a/Makefile.in
 +++ b/Makefile.in
-@@ -75,3 +75,12 @@ buildsymbols ::
+@@ -78,3 +78,12 @@ buildsymbols ::
  	$(MAKE) -C mozilla MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS="$(topsrcdir)/mozilla/extensions/inspector $(topsrcdir)/mozilla $(topsrcdir)" $@
  
  include $(topsrcdir)/config/rules.mk

@@ -9,7 +9,7 @@ Closes: #512111
  1 files changed, 0 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index b2b1d8c..652d940 100644
+index 4668d95..7e098c1 100644
 --- a/mozilla/modules/libpref/src/prefapi.cpp
 +++ b/mozilla/modules/libpref/src/prefapi.cpp
 @@ -334,8 +334,6 @@ pref_savePref(PLDHashTable *table, PLDHashEntryHdr *heh, PRUint32 i, void *arg)
