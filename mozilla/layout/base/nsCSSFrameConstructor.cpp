@@ -6974,7 +6974,7 @@ nsCSSFrameConstructor::ConstructMathMLFrame(nsFrameConstructorState& aState,
   else if (aTag == nsGkAtoms::math) { 
     // root <math> element
     const nsStyleDisplay* display = aStyleContext->GetStyleDisplay();
-    PRBool isBlock = (NS_STYLE_DISPLAY_BLOCK == display->mDisplay);
+    PRBool isBlock = display->IsBlockOutside();
     newFrame = NS_NewMathMLmathFrame(mPresShell, isBlock, aStyleContext);
   }
   else {
@@ -11174,6 +11174,14 @@ nsCSSFrameConstructor::MaybeRecreateContainerForFrameRemoval(nsIFrame* aFrame,
 #endif
 
     *aResult = ReframeContainingBlock(aFrame);
+    return PR_TRUE;
+  }
+
+  nsIContent* content = aFrame->GetContent();
+  if (content && content->IsRootOfNativeAnonymousSubtree()) {
+    // We can't handle reconstructing the root of a native anonymous subtree,
+    // so reconstruct the parent.
+    *aResult = RecreateFramesForContent(content->GetParent());
     return PR_TRUE;
   }
 

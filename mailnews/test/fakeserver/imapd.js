@@ -880,7 +880,8 @@ IMAP_RFC3501_handler.prototype = {
     this.closing = true;
     if (this._selectedMailbox)
       this._daemon.synchronize(this._selectedMailbox, !this._readOnly);
-    return "* BYE IMAP4rev1 Logging out\0OK LOGOUT completed";
+     this._state = IMAP_STATE_NOT_AUTHED;
+     return "* BYE IMAP4rev1 Logging out\0OK LOGOUT completed";
   },
   NOOP : function (args) {
     return "OK NOOP completed";
@@ -1245,8 +1246,10 @@ IMAP_RFC3501_handler.prototype = {
   },
 
   postCommand : function (obj) {
-    if (this.closing)
+    if (this.closing) {
+      this.closing = false;
       obj.closeSocket();
+    }
     if (this.sendingLiteral)
       obj.preventLFMunge();
     obj.setMultiline(this._multiline);

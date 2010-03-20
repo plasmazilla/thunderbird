@@ -285,11 +285,20 @@ public:
   static nsCStringHashSet *mTLSIntolerantSites;
   static nsPSMRememberCertErrorsTable* mHostsWithCertErrors;
   
+  static nsCStringHashSet *mRenegoUnrestrictedSites;
+  static PRBool mTreatUnsafeNegotiationAsBroken;
+
+  static void setTreatUnsafeNegotiationAsBroken(PRBool broken);
+  static PRBool treatUnsafeNegotiationAsBroken();
+
   static PRBool rememberPossibleTLSProblemSite(PRFileDesc* fd, nsNSSSocketInfo *socketInfo);
 
   static void addIntolerantSite(const nsCString &str);
   static PRBool isKnownAsIntolerantSite(const nsCString &str);
   
+  static void setRenegoUnrestrictedSites(const nsCString &str);
+  static PRBool isRenegoUnrestrictedSite(const nsCString &str);
+
   static PRFileDesc *mSharedPollableEvent;
   static nsNSSSocketInfo *mSocketOwningPollableEvent;
   

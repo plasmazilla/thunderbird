@@ -70,7 +70,7 @@ _DEST_DIR = $(DEPTH)/_tests/reftest
 # We want to get an extension-packaged version of reftest as well, 
 # so this seems to be the simplest way to make that happen.
 ifndef XPI_NAME
-make-xpi:
+make-xpi: autoconf.js
 	+$(MAKE) -C $(CURDIR) libs XPI_NAME=reftest
 copy-harness: make-xpi
 libs:: copy-harness
@@ -79,7 +79,7 @@ endif
 _HARNESS_FILES = \
   $(srcdir)/runreftest.py \
   automation.py \
-  $(CURDIR)/automationutils.py \
+  $(topsrcdir)/build/automationutils.py \
   $(NULL)
 
 $(_DEST_DIR):
@@ -117,4 +117,3 @@ autoconf.js: $(DEPTH)/config/autoconf.mk Makefile
 	echo '};' >> $@
 
 ALL_TRASH	+= autoconf.js
-

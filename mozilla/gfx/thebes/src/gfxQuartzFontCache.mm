@@ -123,7 +123,8 @@ MacOSFontEntry::MacOSFontEntry(const nsAString& aPostscriptName,
                                PRInt32 aWeight, PRUint32 aTraits,
                                PRBool aIsStandardFace)
     : gfxFontEntry(aPostscriptName), mTraits(aTraits), mATSUFontID(0),
-      mATSUIDInitialized(0), mStandardFace(aIsStandardFace)
+      mATSUIDInitialized(0), mStandardFace(aIsStandardFace),
+      mUseLiGothicAtsuiHack(PR_FALSE)
 {
     mWeight = aWeight;
 
@@ -135,7 +136,8 @@ MacOSFontEntry::MacOSFontEntry(const nsAString& aPostscriptName, ATSUFontID aFon
                                PRUint16 aWeight, PRUint16 aStretch, PRUint32 aItalicStyle,
                                gfxUserFontData *aUserFontData)
     : gfxFontEntry(aPostscriptName), mATSUFontID(aFontID),
-      mATSUIDInitialized(PR_TRUE), mStandardFace(PR_FALSE)
+      mATSUIDInitialized(PR_TRUE), mStandardFace(PR_FALSE),
+      mUseLiGothicAtsuiHack(PR_FALSE)
 {
     // xxx - stretch is basically ignored for now
 
@@ -200,8 +202,8 @@ MacOSFontEntry::ReadCMAP()
 
     PRUint32 kCMAP = TRUETYPE_TAG('c','m','a','p');
     
-    status = ATSFontGetTable(fontID, kCMAP, 0, 0, 0, &size);
-    cmapSize = size;
+    status = ATSFontGetTable(fontID, kCMAP, 0, 0, 0, &cmapSize);
+
     //printf( "cmap size: %s %d", NS_ConvertUTF16toUTF8(mName).get(), size );
 #if DEBUG
     if (status != noErr) {
@@ -213,16 +215,16 @@ MacOSFontEntry::ReadCMAP()
     NS_ENSURE_TRUE(status == noErr, NS_ERROR_FAILURE);
 
     nsAutoTArray<PRUint8,16384> buffer;
-    if (!buffer.AppendElements(size))
+    if (!buffer.AppendElements(cmapSize))
         return NS_ERROR_OUT_OF_MEMORY;
     PRUint8 *cmap = buffer.Elements();
 
-    status = ATSFontGetTable(fontID, kCMAP, 0, size, cmap, &size);
+    status = ATSFontGetTable(fontID, kCMAP, 0, cmapSize, cmap, &cmapSize);
     NS_ENSURE_TRUE(status == noErr, NS_ERROR_FAILURE);
 
     nsresult rv = NS_ERROR_FAILURE;
     PRPackedBool  unicodeFont, symbolFont; // currently ignored
-    rv = gfxFontUtils::ReadCMAP(cmap, size, mCharacterMap, unicodeFont, symbolFont);
+    rv = gfxFontUtils::ReadCMAP(cmap, cmapSize, mCharacterMap, unicodeFont, symbolFont);
                                          
     if (NS_FAILED(rv)) {
         mCharacterMap.reset();
@@ -267,6 +269,22 @@ MacOSFontEntry::ReadCMAP()
             // general exclusion - if no morph table, exclude codepoints
             if (!hasMorphTable) {
                 mCharacterMap.ClearRange(gScriptsThatRequireShaping[s].rangeStart, gScriptsThatRequireShaping[s].rangeEnd);
+            }
+        }
+    }
+
+    if ((gfxPlatformMac::GetPlatform()->OSXVersion() &
+         MAC_OS_X_MAJOR_VERSION_MASK) == MAC_OS_X_VERSION_10_6_HEX) {
+        // even ruder hack - LiGothic font on 10.6 has a bad glyph for U+775B
+        // that causes ATSUI failure, so we set a flag to tell our layout code
+        // to hack around that character
+        if (mName.EqualsLiteral("LiGothicMed")) {
+            // check whether the problem char maps to the expected glyph;
+            // if not, we'll assume this isn't the problem version of the font
+            if (gfxFontUtils::MapCharToGlyph(cmap, cmapSize,
+                                             kLiGothicBadCharUnicode) ==
+                kLiGothicBadCharGlyph) {
+                mUseLiGothicAtsuiHack = PR_TRUE;
             }
         }
     }

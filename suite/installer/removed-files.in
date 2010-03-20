@@ -112,6 +112,7 @@ extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/components.list
 ; Venkman.
 extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/components.list
 greprefs.js
+@DLL_PREFIX@layers@DLL_SUFFIX@
 modules/JSON.jsm
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
 @DLL_PREFIX@mozlcms@DLL_SUFFIX@
@@ -124,11 +125,11 @@ msvcm80.dll
 msvcp80.dll
 msvcr80.dll
 #else
-mozcpp19.dll
 mozcrt19.dll
 #endif
-xpicleanup.exe
+mozcpp19.dll
 regxpcom.exe
+xpicleanup.exe
 #else
 xpicleanup
 #endif
@@ -234,6 +235,13 @@ components/xpc3250.dll
 components/xppref32.dll
 #endif
 ; MOZ_STATIC_BUILD
+#endif
+#ifdef MOZ_STATIC_MAIL_BUILD
+#ifdef XP_WIN
+msgbsutl.dll
+#else
+@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
+#endif
 #endif
 #ifdef XP_WIN
 components/commandlines.dll

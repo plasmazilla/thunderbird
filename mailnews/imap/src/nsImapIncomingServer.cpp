@@ -257,7 +257,7 @@ nsImapIncomingServer::SetOverrideNamespaces(PRBool bVal)
 {
   nsCString serverKey;
   GetKey(serverKey);
-  if (serverKey.IsEmpty())
+  if (!serverKey.IsEmpty())
   {
     nsresult rv;
     nsCOMPtr<nsIImapHostSessionList> hostSession = do_GetService(kCImapHostSessionListCID, &rv);
@@ -278,7 +278,7 @@ nsImapIncomingServer::SetUsingSubscription(PRBool bVal)
 {
   nsCString serverKey;
   GetKey(serverKey);
-  if (serverKey.IsEmpty())
+  if (!serverKey.IsEmpty())
   {
     nsresult rv;
     nsCOMPtr<nsIImapHostSessionList> hostSession = do_GetService(kCImapHostSessionListCID, &rv);

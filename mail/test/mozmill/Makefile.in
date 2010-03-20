@@ -57,7 +57,7 @@ _HARNESS_FILES = \
 	$(srcdir)/runtestlist.py \
 	$(srcdir)/mozmilltests.list \
 	automation.py \
-	automationutils.py \
+	$(MOZILLA_DIR)/build/automationutils.py \
 	$(NULL)
 
 GARBAGE += automation.py

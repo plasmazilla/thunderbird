@@ -1345,7 +1345,7 @@ public:
             mCharacterGlyphs[aCharIndex] = aGlyph;
         }
         if (mDetailedGlyphs) {
-            mDetailedGlyphs[aCharIndex] = nsnull;
+            (mDetailedGlyphs.get())[aCharIndex] = nsnull;
         }
     }
     void SetGlyphs(PRUint32 aCharIndex, CompressedGlyph aGlyph,
@@ -1365,7 +1365,7 @@ public:
     // and gfxFont::GetBoundingBox
     const CompressedGlyph *GetCharacterGlyphs() { return mCharacterGlyphs; }
     const DetailedGlyph *GetDetailedGlyphs(PRUint32 aCharIndex) {
-        return mDetailedGlyphs ? mDetailedGlyphs[aCharIndex].get() : nsnull;
+        return mDetailedGlyphs ? (mDetailedGlyphs.get())[aCharIndex].get() : nsnull;
     }
     PRBool HasDetailedGlyphs() { return mDetailedGlyphs.get() != nsnull; }
     PRUint32 CountMissingGlyphs();
