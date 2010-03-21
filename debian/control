@@ -55,18 +55,18 @@ Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary, ${mail:Rec
 Suggests: ttf-lyx
 Provides: mail-reader
 Replaces: icedove-gnome-support (<< 3.0-1~)
-Conflicts: icedove-gnome-support (<< 3.0-1~), icedove-3.0-gnome-support, icedove-dev
+Conflicts: icedove-gnome-support (<< 3.0-1~), icedove-3.0-gnome-support
 Section: mail
 Description: mail/news client with RSS and integrated spam filter support
  Icedove is a mail/news/RSS client.
 
-#Package: icedove-dev
-#Architecture: any
-#Section: mail
-#Depends: icedove (= ${binary:Version}), ${misc:Depends}
-#Description: Development files for Icedove
-# This package contains the development headers, idl files and static libraries 
-# needed to develop applications using Icedove.
+Package: icedove-dev
+Architecture: any
+Section: mail
+Depends: icedove (= ${binary:Version}), ${misc:Depends}
+Description: Development files for Icedove
+ This package contains the development headers, idl files and static libraries
+ needed to develop applications using Icedove.
 
 Package: icedove-dbg
 Architecture: any
