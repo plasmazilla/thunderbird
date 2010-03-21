@@ -160,6 +160,9 @@ install/$(DEB_MOZ_APPLICATION)::
 	install -d -m 755 debian/tmp/usr/share/pixmaps
 	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm
 
+install/$(DEB_MOZ_APPLICATION)-dev::
+	find debian/tmp/usr/share/idl/icedove -type f -name '*.idl' -exec chmod a-x {} \;
+
 binary-install/$(DEB_MOZ_APPLICATION)::
 	touch debian/$(DEB_MOZ_NAME)$(DEBIAN_TB_DIR)/.autoreg
 	dh_install -p$(DEB_MOZ_APPLICATION) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm usr/share/pixmaps
