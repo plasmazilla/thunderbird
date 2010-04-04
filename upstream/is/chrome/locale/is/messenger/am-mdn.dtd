@@ -2,9 +2,9 @@
 <!ENTITY useGlobalPrefs.label "Nota aðalstillingu á staðfestingu á lestri fyrir þennan reikning">
 <!ENTITY useGlobalPrefs.accesskey "u">
 <!ENTITY useCustomPrefs.label "Sérsniða staðfestingar á lestri fyrir þennan reikning">
-<!ENTITY useCustomPrefs.accesskey "S">
+<!ENTITY useCustomPrefs.accesskey "ð">
 <!ENTITY requestReceipt.label "Þegar póstur er sendur, alltaf krefjast staðfestingar á lestri">
-<!ENTITY requestReceipt.accesskey "e">
+<!ENTITY requestReceipt.accesskey "p">
 <!ENTITY receiptArrive.label "Ef kvittun er móttekin:">
 <!ENTITY leaveIt.label "Skilja hana eftir í innhólfi">
 <!ENTITY leaveIt.accesskey "i">

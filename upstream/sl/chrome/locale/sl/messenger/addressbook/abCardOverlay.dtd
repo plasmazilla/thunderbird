@@ -1,0 +1,175 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY Contact.tab                     "Stik">
+<!ENTITY Contact.accesskey               "C">
+<!ENTITY Name.box                        "Ime">
+
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+<!ENTITY NameField1.id                  "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id                  "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id              "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id              "PhoneticLastName">
+
+<!ENTITY NameField1.label               "Ime:">
+<!ENTITY NameField1.accesskey           "F">
+<!ENTITY NameField2.label               "Priimek:">
+<!ENTITY NameField2.accesskey           "L ">
+<!ENTITY PhoneticField1.label           "Fonetično:">
+<!ENTITY PhoneticField2.label           "Fonetično:">
+<!ENTITY DisplayName.label              "Prikaži:">
+<!ENTITY DisplayName.accesskey          "D">
+<!ENTITY NickName.label                 "Vzdevek:">
+<!ENTITY NickName.accesskey             "N">
+
+<!ENTITY PrimaryEmail.label             "E-pošta:">
+<!ENTITY PrimaryEmail.accesskey         "E">
+<!ENTITY SecondEmail.label              "Dodatna E-pošta:">
+<!ENTITY SecondEmail.accesskey          "o">
+<!ENTITY PreferMailFormat.label         "Raje prejema sporočila oblike:">
+<!ENTITY PreferMailFormat.accesskey     "p">
+<!ENTITY PlainText.label                "Golo besedilo">
+<!ENTITY HTML.label                     "HTML">
+<!ENTITY Unknown.label                  "Neznano">
+<!ENTITY ScreenName.label               "Ime zaslona:">
+<!ENTITY ScreenName.accesskey           "S">
+
+<!ENTITY allowRemoteContent1.label      "Dovoli oddaljeno vsebino.">
+<!ENTITY allowRemoteContent1.accesskey  "r">
+<!ENTITY allowRemoteContent1.tooltip    "In HTML messages it is possible to
+embed content from remote sources. Opening such a message will open a
+connection to this external source. This may allow tracking of the
+message being read. Ticking this box will allow such external embedded
+content in HTML messages from this contact.">
+
+<!ENTITY WorkPhone.label                "Služba:">
+<!ENTITY WorkPhone.accesskey            "t">
+<!ENTITY HomePhone.label                "Doma:">
+<!ENTITY HomePhone.accesskey            "H">
+<!ENTITY FaxNumber.label                "Faks:">
+<!ENTITY FaxNumber.accesskey            "x">
+<!ENTITY PagerNumber.label              "Pozivnik:">
+<!ENTITY PagerNumber.accesskey          "v">
+<!ENTITY CellularNumber.label           "Mobi:">
+<!ENTITY CellularNumber.accesskey       "M">
+
+<!ENTITY Home.tab                       "Zasebno">
+<!ENTITY Home.accesskey                 "p">
+<!ENTITY HomeAddress.label              "Spletni naslov:">
+<!ENTITY HomeAddress.accesskey          "d">
+<!ENTITY HomeAddress2.label             "">
+<!ENTITY HomeAddress2.accesskey         "">
+<!ENTITY HomeCity.label                 "Kraj:">
+<!ENTITY HomeCity.accesskey             "y">
+<!ENTITY HomeState.label                "Okraj:">
+<!ENTITY HomeState.accesskey            "C">
+<!ENTITY HomeZipCode.label              "Poštna številka">
+<!ENTITY HomeZipCode.accesskey          "p">
+<!ENTITY HomeCountry.label              "Država:">
+<!ENTITY HomeCountry.accesskey          "u">
+<!ENTITY HomeWebPage.label              "Spletna stran:">
+<!ENTITY HomeWebPage.accesskey          "i">
+<!ENTITY Birthday.label                 "Rojstni datum:">
+<!ENTITY Birthday.accesskey             "B">
+<!ENTITY In.label                       "">
+<!ENTITY Year.emptytext                 "Leto">
+<!ENTITY Or.value                       "ali">
+<!ENTITY Age.emptytext                  "Starost">
+<!ENTITY YearsOld.label                 "">
+
+<!ENTITY Work.tab                       "Delo">
+<!ENTITY Work.accesskey                 "t">
+<!ENTITY JobTitle.label                 "Naslov:">
+<!ENTITY JobTitle.accesskey             "i">
+<!ENTITY Department.label               "Oddelek:">
+<!ENTITY Department.accesskey           "s">
+<!ENTITY Company.label                  "Organizacija:">
+<!ENTITY Company.accesskey              "O">
+<!ENTITY WorkAddress.label              "Spletni naslov:">
+<!ENTITY WorkAddress.accesskey          "r">
+<!ENTITY WorkAddress2.label             "">
+<!ENTITY WorkAddress2.accesskey         "">
+<!ENTITY WorkCity.label                 "Kraj:">
+<!ENTITY WorkCity.accesskey             "L">
+<!ENTITY WorkState.label                "Okraj:">
+<!ENTITY WorkState.accesskey            "t">
+<!ENTITY WorkZipCode.label              "Poštna številka">
+<!ENTITY WorkZipCode.accesskey          "s">
+<!ENTITY WorkCountry.label              "Država:">
+<!ENTITY WorkCountry.accesskey          "n">
+<!ENTITY WorkWebPage.label              "Spletna stran:">
+<!ENTITY WorkWebPage.accesskey          "b">
+
+<!ENTITY Other.tab                      "Drugo">
+<!ENTITY Other.accesskey                "h">
+<!ENTITY Custom1.label                  "Po meri 1:">
+<!ENTITY Custom1.accesskey              "1">
+<!ENTITY Custom2.label                  "Po meri 2">
+<!ENTITY Custom2.accesskey              "2">
+<!ENTITY Custom3.label                  "Po meri 3">
+<!ENTITY Custom3.accesskey              "3">
+<!ENTITY Custom4.label                  "Po meri 4">
+<!ENTITY Custom4.accesskey              "4">
+<!ENTITY Notes.label                    "Beležke:">
+<!ENTITY Notes.accesskey                "N">
+
+<!ENTITY Photo.tab                      "Slika">
+<!ENTITY Photo.accesskey                "o">
+<!ENTITY PhotoDesc.label                "Izberite:">
+<!ENTITY GenericPhoto.label             "generičen foto">
+<!ENTITY GenericPhoto.accesskey         "G">
+<!ENTITY DefaultPhoto.label             "Privzeto">
+<!ENTITY PhotoFile.label                "Na tem računalniku">
+<!ENTITY PhotoFile.accesskey            "n">
+<!ENTITY BrowsePhoto.label              "Brskaj">
+<!ENTITY BrowsePhoto.accesskey          "r">
+<!ENTITY PhotoURL.label                 "na mreži">
+<!ENTITY PhotoURL.accesskey             "b">
+<!ENTITY PhotoURL.emptytext             "Prilepite sliko ali vtipkajte njen naslov na mreži">
+<!ENTITY UpdatePhoto.label              "Obnovi">
+<!ENTITY UpdatePhoto.accesskey          "u">

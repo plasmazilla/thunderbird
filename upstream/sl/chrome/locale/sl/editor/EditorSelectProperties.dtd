@@ -1,0 +1,80 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Input Tag Properties Dialog.
+   -
+   - The Initial Developer of the Original Code is
+   - Neil Rashbrook.
+   - Portions created by the Initial Developer are Copyright (C) 2001
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s): Neil Rashbrook <neil@parkwaycc.co.uk>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the LGPL or the GPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY windowTitle.label "Nastavitve za izbirni seznam">
+
+<!ENTITY Select.label "Izbirni seznam">
+<!ENTITY SelectName.label "Ime seznama:">
+<!ENTITY SelectName.accesskey "N">
+<!ENTITY SelectSize.label "Višina:">
+<!ENTITY SelectSize.accesskey "H">
+<!ENTITY SelectMultiple.label "Večkratna izbira">
+<!ENTITY SelectMultiple.accesskey "M">
+<!ENTITY SelectDisabled.label "Onemogočeno">
+<!ENTITY SelectDisabled.accesskey "D">
+<!ENTITY SelectTabIndex.label "Indeks oznake:">
+<!ENTITY SelectTabIndex.accesskey "I">
+
+<!ENTITY OptGroup.label "Izbirna skupina">
+<!ENTITY OptGroupLabel.label "Nalepka:">
+<!ENTITY OptGroupLabel.accesskey "L ">
+<!ENTITY OptGroupDisabled.label "Onemogočeno">
+<!ENTITY OptGroupDisabled.accesskey "D">
+
+<!ENTITY Option.label "Izbira">
+<!ENTITY OptionText.label "Besedilo:">
+<!ENTITY OptionText.accesskey "T">
+<!ENTITY OptionValue.label "Vrednost:">
+<!ENTITY OptionValue.accesskey "V">
+<!ENTITY OptionSelected.label "Ob začetku izbrano">
+<!ENTITY OptionSelected.accesskey "S">
+<!ENTITY OptionDisabled.label "Onemogočeno">
+<!ENTITY OptionDisabled.accesskey "D">
+
+<!ENTITY TextHeader.label "Besedilo">
+<!ENTITY ValueHeader.label "Vrednost">
+<!ENTITY SelectedHeader.label "Izbrano">
+
+<!ENTITY AddOption.label "Dodaj izbiro">
+<!ENTITY AddOption.accesskey "O">
+<!ENTITY AddOptGroup.label "Dodaj skupino">
+<!ENTITY AddOptGroup.accesskey "G">
+<!ENTITY RemoveElement.label "Odstrani">
+<!ENTITY RemoveElement.accesskey "D">
+<!ENTITY MoveElementUp.label "Premakni gor">
+<!ENTITY MoveElementUp.accesskey "U">
+<!ENTITY MoveElementDown.label "Premakni dol">
+<!ENTITY MoveElementDown.accesskey "D">

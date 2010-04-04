@@ -4,7 +4,7 @@
 <!ENTITY receiptArrive.label "Ef kvittun er móttekin:">
 <!ENTITY leaveIt.label "Skilja hana eftir í innhólfi">
 <!ENTITY leaveIt.accesskey "i">
-<!ENTITY moveToSent.label "Færa yfir í %quot;Sent&quot;-möppuna mína">
+<!ENTITY moveToSent.label "Færa yfir í &quot;Sent&quot;-möppuna mína">
 <!ENTITY moveToSent.accesskey "m">
 <!ENTITY requestMDN.label "Þegar ég móttek beiðni um staðfestingu á lestri:">
 <!ENTITY never.label "Aldrei senda staðfestingu á lestri">

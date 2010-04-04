@@ -42,7 +42,7 @@
 
   &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
 -->
-<!ENTITY allAutosync.label               "Сінхронізувати всі повідомлення локально, не зважаючи на вік">
+<!ENTITY allAutosync.label               "Синхронізувати всі повідомлення локально, незважаючи на вік">
 <!ENTITY allAutosync.accesskey           "С">
 <!ENTITY ageAutosyncBefore.label         "Синхронізувати за останні">
 <!ENTITY ageAutosync.accesskey           "о">

@@ -1,5 +1,5 @@
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
-<!ENTITY msgComposeWindow.title "Nýr: (ekkert efni)">
+<!ENTITY msgComposeWindow.title "Skrifa: (ekkert efni)">
 <!-- File Menu -->
 <!ENTITY fileMenu.label "Skrá">
  
@@ -40,7 +40,7 @@
 <!ENTITY sendNowCmd.accesskey "d">
 <!ENTITY sendLaterCmd.label "Senda síðar">
 <!ENTITY sendLaterCmd.keycode "VK_RETURN">
-<!ENTITY sendLaterCmd.accesskey "S">
+<!ENTITY sendLaterCmd.accesskey "ð">
 <!ENTITY printSetupCmd.label "Síðuuppsetning…">
 <!ENTITY printSetupCmd.accesskey "u">
 <!ENTITY printCmd.label "Prenta…">
@@ -49,14 +49,14 @@
 <!-- Edit Menu -->
 <!ENTITY editMenu.label "Breyta">
  
-<!ENTITY editMenu.accesskey "B">
+<!ENTITY editMenu.accesskey "e">
 <!ENTITY undoCmd.label "Afturkalla">
 <!ENTITY undoCmd.key "Z">
 <!ENTITY undoCmd.accesskey "u">
  
 <!ENTITY redoCmd.label "Endurtaka">
 <!ENTITY redoCmd.key "Y">
-<!ENTITY redoCmd.accesskey "E">
+<!ENTITY redoCmd.accesskey "r">
  
 <!ENTITY cutCmd.label "Klippa">
 <!ENTITY cutCmd.key "X">
@@ -73,24 +73,24 @@
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY editRewrapCmd.label "Línuskipta">
 <!ENTITY editRewrapCmd.key "R">
-<!ENTITY editRewrapCmd.accesskey "L">
+<!ENTITY editRewrapCmd.accesskey "s">
 <!ENTITY deleteCmd.label "Eyða">
 <!ENTITY deleteCmd.accesskey "E">
 <!ENTITY selectAllCmd.label "Velja allt">
-<!ENTITY selectAllCmd.key "A">
-<!ENTITY selectAllCmd.accesskey "a">
+<!ENTITY selectAllCmd.key "V">
+<!ENTITY selectAllCmd.accesskey "j">
  
-<!ENTITY findCmd.label "Leita og víxla…">
+<!ENTITY findCmd.label "Leita og breyta…">
 <!ENTITY findCmd.key "F">
-<!ENTITY findCmd.accesskey "L">
+<!ENTITY findCmd.accesskey "o">
 <!ENTITY findAgainCmd.label "Leita aftur">
 <!ENTITY findAgainCmd.key "G">
-<!ENTITY findAgainCmd.accesskey "a">
+<!ENTITY findAgainCmd.accesskey "i">
 <!ENTITY findAgainCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.label "Leita að fyrra">
+<!ENTITY findPrevCmd.label "Leita til baka">
 <!ENTITY findPrevCmd.key "G">
 <!ENTITY findPrevCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.accesskey "f">
+<!ENTITY findPrevCmd.accesskey "b">
  
 
 <!-- View Menu -->
@@ -105,7 +105,7 @@
 <!ENTITY showCompositionToolbarCmd.label "Samsetningarslá">
 <!ENTITY showCompositionToolbarCmd.accesskey "m">
 <!ENTITY showFormattingBarCmd.label "Sniðslá">
-<!ENTITY showFormattingBarCmd.accesskey "S">
+<!ENTITY showFormattingBarCmd.accesskey "n">
 <!ENTITY showTaskbarCmd.label "Stöðuslá">
 <!ENTITY showTaskbarCmd.accesskey "S">
 <!ENTITY customizeToolbar.label "Sérsníða…">
@@ -120,7 +120,7 @@
 <!ENTITY formatMenu.accesskey "n">
 <!-- Options Menu -->
 <!ENTITY optionsMenu.label "Valkostir">
-<!ENTITY optionsMenu.accesskey "V">
+<!ENTITY optionsMenu.accesskey "a">
 <!ENTITY checkSpellingCmd2.label "Yfirfara stafsetningu…">
 <!ENTITY checkSpellingCmd2.key "p">
 <!ENTITY checkSpellingCmd2.key2 "VK_F7">
@@ -137,13 +137,13 @@
 <!ENTITY dsnMenu.label "Staðfesting á móttöku">
 <!ENTITY dsnMenu.accesskey "n">
 <!ENTITY outputFormatMenu.label "Snið">
-<!ENTITY outputFormatMenu.accesskey "S">
+<!ENTITY outputFormatMenu.accesskey "ð">
 <!ENTITY autoFormatCmd.label "Skynja sjálfkrafa">
 <!ENTITY autoFormatCmd.accesskey "a">
 <!ENTITY plainTextFormatCmd.label "Aðeins ósniðinn texti">
-<!ENTITY plainTextFormatCmd.accesskey "e">
+<!ENTITY plainTextFormatCmd.accesskey "n">
 <!ENTITY htmlFormatCmd.label "Aðeins aukinn texti (HTML)">
-<!ENTITY htmlFormatCmd.accesskey "A">
+<!ENTITY htmlFormatCmd.accesskey "H">
 <!ENTITY bothFormatCmd.label "Venjulegur og aukinn texti (HTML)">
 <!ENTITY bothFormatCmd.accesskey "l">
 <!ENTITY priorityMenu.label "Forgangur">
@@ -164,7 +164,7 @@
 <!ENTITY fileHereMenu.label "Setja skrá hérna">
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Verkfæri">
-<!ENTITY tasksMenu.accesskey "e">
+<!ENTITY tasksMenu.accesskey "V">
 <!ENTITY messengerCmd.label "Póstur og fréttahópar">
 <!ENTITY messengerCmd.accesskey "P">
 <!ENTITY messengerCmd.commandkey "1">
@@ -226,7 +226,7 @@
 <!ENTITY followupAddr.label "Eftirfylgni:">
  
 <!ENTITY subject.label "Efni:">
-<!ENTITY subject.accesskey "E">
+<!ENTITY subject.accesskey "f">
 <!ENTITY attachments.label "Viðhengi:">
 <!ENTITY attachments.accesskey "V">
 <!-- Format Toolbar, imported from editorAppShell.xul -->
@@ -254,7 +254,7 @@
 <!ENTITY spellCheckAddToDictionary.label "Bæta við í orðasafn">
 <!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY undo.label "Afturkalla">
-<!ENTITY undo.accesskey "A">
+<!ENTITY undo.accesskey "u">
 <!ENTITY cut.label "Klippa">
 <!ENTITY cut.accesskey "K">
 <!ENTITY copy.label "Afrita">
@@ -262,7 +262,7 @@
 <!ENTITY paste.label "Líma">
 <!ENTITY paste.accesskey "L">
 <!ENTITY pasteQuote.label "Líma inn sem tilvitnun">
-<!ENTITY pasteQuote.accesskey "t">
+<!ENTITY pasteQuote.accesskey "i">
 <!ENTITY openAttachment.label "Opna">
 <!ENTITY openAttachment.accesskey "O">
 <!ENTITY delete.label "Eyða">

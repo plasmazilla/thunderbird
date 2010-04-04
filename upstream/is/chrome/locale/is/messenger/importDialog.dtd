@@ -46,7 +46,7 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 
 <!ENTITY importDialog.windowTitle "Flytja inn">
 <!ENTITY importAll.label "Flytja inn allt">
-<!ENTITY importAll.accesskey "a">
+<!ENTITY importAll.accesskey "F">
 <!ENTITY importMail.label "Póstur">
 <!ENTITY importMail.accesskey "P">
 <!ENTITY importAddressbook.label "Nafnaskrár">

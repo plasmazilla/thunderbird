@@ -11,6 +11,6 @@
 <!ENTITY toButton.label "Bæta við í Til:">
 <!ENTITY toButton.accesskey "a">
 <!ENTITY ccButton.label "Bæta við í Afrit:">
-<!ENTITY ccButton.accesskey "B">
+<!ENTITY ccButton.accesskey "æ">
 <!ENTITY bccButton.label "Bæta við í falið afrit:">
 <!ENTITY bccButton.accesskey "B">

@@ -23,13 +23,13 @@
 <!ENTITY cmd.installFileAddon.tooltip "Setja  íbót">
 <!ENTITY cmd.installFileTheme.tooltip "Setja inn þema">
 <!ENTITY cmd.installUpdatesAll.label "Setja inn uppfærslur">
-<!ENTITY cmd.installUpdatesAll.accesskey "i">
+<!ENTITY cmd.installUpdatesAll.accesskey "S">
 <!ENTITY cmd.installUpdatesAll.tooltip "Setur upp allar valdar uppfærslur">
 <!ENTITY cmd.restartApp2.label "Endurræsa &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "r">
 <!ENTITY cmd.restartApp2.tooltip "Endurræsa &brandShortName; til að virkja breytingar">
 <!ENTITY cmd.skip.label "Sleppa">
-<!ENTITY cmd.skip.accesskey "S">
+<!ENTITY cmd.skip.accesskey "l">
 <!ENTITY cmd.skip.tooltip "Sleppa þessum uppfærslum">
 <!ENTITY cmd.continue.label "Áfram">
 <!ENTITY cmd.continue.accesskey "f">

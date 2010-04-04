@@ -29,13 +29,13 @@
 <!ENTITY addTagButton.label "Bæta við">
 <!ENTITY addTagButton.accesskey "B">
 <!ENTITY editTagButton.label "Breyta">
-<!ENTITY editTagButton.accesskey "r">
+<!ENTITY editTagButton.accesskey "e">
 <!ENTITY removeTagButton.label "Eyða">
-<!ENTITY removeTagButton.accesskey "E">
+<!ENTITY removeTagButton.accesskey "y">
 <!-- Fonts -->
 <!ENTITY fontsAndColors.label "Leturgerðir">
 <!ENTITY defaultFont.label "Sjálfgefin leturgerð:">
-<!ENTITY defaultFont.accesskey "S">
+<!ENTITY defaultFont.accesskey "j">
 <!ENTITY defaultSize.label "Stærð:">
 <!ENTITY defaultSize.accesskey "S">
 <!ENTITY fontOptions.accesskey "u">

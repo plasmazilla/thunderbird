@@ -1,0 +1,78 @@
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY securitySettings.label "Varnostne nastavitve">
+<!ENTITY serverSettings.label "Nastavitve strežnika">
+<!ENTITY serverType.label "Vrsta strežnika:">
+<!ENTITY serverName.label "Ime strežnika: ">
+<!ENTITY serverName.accesskey "S">
+<!ENTITY userName.label "Uporabniško ime:">
+<!ENTITY userName.accesskey "N">
+<!ENTITY port.label "Vrata:">
+<!ENTITY port.accesskey "p">
+<!ENTITY serverPortDefault.label "Privzeto:">
+<!-- LOCALIZATION NOTE (biffStart.label) : translate below 2 line with grammer dependency
+        For example, in Japanese cases:
+                biffStart.label "every"
+                biffEnd.label   "minutes for new messages Check"
+-->
+<!ENTITY biffStart.label "Preveri nova sporočila vsakih ">
+<!ENTITY biffStart.accesskey "k">
+<!ENTITY biffEnd.label "minut">
+<!ENTITY connectionSecurity.label "Varnost povezave:">
+<!ENTITY connectionSecurity.accesskey "u">
+<!ENTITY connectionSecurityType-0.label "Nič">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, če je na voljo">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY useSecAuth.label "Uporabi varno overovljanje">
+<!ENTITY useSecAuth.accesskey "L">
+<!ENTITY leaveOnServer.label "Pusti sporočila na strežniku">
+<!ENTITY leaveOnServer.accesskey "v">
+<!ENTITY headersOnly.label "Prenesi samo glave">
+<!ENTITY headersOnly.accesskey "p">
+<!ENTITY deleteByAgeFromServer.label "Za največ">
+<!ENTITY deleteByAgeFromServer.accesskey "o">
+<!ENTITY daysEnd.label "dni">
+<!ENTITY deleteOnServer2.label "Dokler jih ne izbrišem">
+<!ENTITY deleteOnServer2.accesskey "d">
+<!ENTITY downloadOnBiff.label "Samodejno prenesi nova sporočila">
+<!ENTITY downloadOnBiff.accesskey "s">
+<!ENTITY username.label "Vaše prijavno ime">
+<!ENTITY deleteMessagePrefix.label "Ko izbrišem sporočilo:">
+<!ENTITY modelMoveToTrash.label "Ga premakni v mapo:">
+<!ENTITY modelMoveToTrash.accesskey "o">
+<!ENTITY modelMarkDeleted.label "Samo označi kot izbrisano">
+<!ENTITY modelMarkDeleted.accesskey "k">
+<!ENTITY modelDeleteImmediately.label "Odstrani ga takoj">
+<!ENTITY modelDeleteImmediately.accesskey "d">
+<!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
+<!ENTITY expungeOnExit.label "Počisti (&quot;zbriši&quot;) Prejeto ob izhodu">
+<!ENTITY expungeOnExit.accesskey "E">
+<!ENTITY emptyTrashOnExit.label "Ob izhodu izprazni Koš">
+<!ENTITY emptyTrashOnExit.accesskey "x">
+<!ENTITY loginAtStartup.label "Ob zagonu preveri nova sporočila">
+<!ENTITY loginAtStartup.accesskey "C">
+<!-- LOCALIZATION NOTE (maxMessagesStart.label) : translate below 2 lines with grammar dependency
+     maxMessengerStart.label will be followed by maxMessagesEnd.label with the number
+     of messages between them
+-->
+<!ENTITY maxMessagesStart.label "Vprašaj me pred prenašanjem več kot">
+<!ENTITY maxMessagesStart.accesskey "s">
+<!-- LOCALIZATION NOTE (maxMessagesEnd.label) : see note for maxMessagesStart.label -->
+<!ENTITY maxMessagesEnd.label "sporočil">
+<!ENTITY alwaysAuthenticate.label "Ob povezavi na ta strežnik, vedno zahtevaj preverjanje pristnosti">
+<!ENTITY alwaysAuthenticate.accesskey "w">
+<!ENTITY newsrcFilePath.label "datoteka newsrc:">
+<!ENTITY localPath.label "Lokalni imenik:">
+<!ENTITY abbreviate.label "Prikaži imena novičarskih skupin v podoknu Mapa za pošto kot:">
+<!ENTITY abbreviateOn.label "Polna imena (Na primer, 'netscape.public.mozilla.mail-news')">
+<!ENTITY abbreviateOff.label "Skrajšajte imena (Na primer, 'n.p.m.mail-news')">
+<!ENTITY advancedButton.label "Napredno ...">
+<!ENTITY advancedButton.accesskey "p">
+<!ENTITY serverDefaultCharset.label "Privzeti nabor znakov:">
+<!ENTITY localFolderPicker.label "Izberi lokalni imenik">
+<!ENTITY browseFolder.label "Brskaj…">
+<!ENTITY browseFolder.accesskey "B">
+<!ENTITY newsrcPicker.label "Izberi datoteko newsrc">
+<!ENTITY browseNewsrc.label "Brskaj…">
+<!ENTITY browseNewsrc.accesskey "i">

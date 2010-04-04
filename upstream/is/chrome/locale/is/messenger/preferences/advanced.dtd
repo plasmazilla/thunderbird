@@ -88,11 +88,11 @@
 <!ENTITY certs.auto "Velja eitt sjálfkrafa">
 <!ENTITY certs.auto.accesskey "V">
 <!ENTITY certs.ask "Spyrja í hvert skipti">
-<!ENTITY certs.ask.accesskey "S">
+<!ENTITY certs.ask.accesskey "a">
 <!ENTITY viewCertificates.label "Skoða skilríki">
 <!ENTITY viewCertificates.accesskey "k">
 <!ENTITY viewCRLs.label "Afturköllunarlisti">
-<!ENTITY viewCRLs.accesskey "A">
+<!ENTITY viewCRLs.accesskey "r">
 <!ENTITY validation.label "Sannprófun">
 <!ENTITY validation.accesskey "S">
 <!ENTITY viewSecurityDevices.label "Öryggistæki">

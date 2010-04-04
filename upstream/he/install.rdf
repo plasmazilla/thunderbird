@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-he@thunderbird.mozilla.org"
                em:name="Hebrew (IL) Language Pack"
-               em:version="3.0.334"
+               em:version="3.0.338"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>Reuven Gonen</em:contributor> <em:contributor>Tsahi Asher</em:contributor> <em:contributor>Tomer Cohen</em:contributor>

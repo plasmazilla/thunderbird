@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-fi@thunderbird.mozilla.org"
                em:name="Suomenkielinen (FI) Language Pack"
-               em:version="3.0.135"
+               em:version="3.0.102"
                em:type="8"
                em:creator="Suomennosprojekti">
     <em:targetApplication>
