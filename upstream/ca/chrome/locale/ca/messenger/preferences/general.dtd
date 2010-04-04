@@ -29,8 +29,8 @@
 <!ENTITY browse.accesskey                 "N">
 
 <!ENTITY addonsMgr.label                  "Complements">
-<!ENTITY manageAddonsDescWin.label        "Canvieu les opcions dels complements">
-<!ENTITY manageAddonsDescUnix2.label      "Canvieu les preferències dels complements">
+<!ENTITY manageAddonsDescWin.label        "Canvia les opcions dels vostres complements">
+<!ENTITY manageAddonsDescUnix2.label      "Canvia les preferències dels vostres complements">
 <!ENTITY manageAddons.label               "Gestiona els complements…">
 <!ENTITY manageAddons.accesskey           "G">
 

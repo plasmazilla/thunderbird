@@ -1,0 +1,57 @@
+<!ENTITY itemGeneral.label                   "Splošno">
+<!ENTITY itemAutoComplete.label              "Naslavljanje">
+<!ENTITY itemSpellCheck.label                "Črkovanje">
+
+<!ENTITY forwardMsg.label                     "Posreduj sporočila:">
+<!ENTITY forwardMsg.accesskey                 "F">
+<!ENTITY inline.label                         "Notranji (Inline) slog">
+<!ENTITY asAttachment.label                   "Kot priponka">
+<!ENTITY addExtension.label                   "dodaj končnico imenu datoteke">
+<!ENTITY addExtension.accesskey               "i">
+
+<!ENTITY htmlComposeHeader.label              "HTML">
+<!ENTITY font.label                           "Pisava:">
+<!ENTITY font.accesskey                       "n">
+<!ENTITY size.label                           "Velikost:">
+<!ENTITY size.accesskey                       "z">
+<!ENTITY fontColor.label                      "Barva besedila:">
+<!ENTITY fontColor.accesskey                  "T">
+<!ENTITY bgColor.label                        "Barva ozadja celice:">
+<!ENTITY bgColor.accesskey                    "B">
+<!ENTITY restoreHTMLDefaults.label            "Ponastavi privzeto">
+<!ENTITY restoreHTMLDefaults.accesskey        "D">
+
+<!ENTITY spellCheck.label                     "Preden pošlješ,  preveri črkovanje">
+<!ENTITY spellCheck.accesskey                 "C">
+<!ENTITY spellCheckInline.label               "Aktiviraj črkovanje med vnosom">
+<!ENTITY spellCheckInline1.accesskey          "E">
+<!ENTITY languagePopup.label                  "Jezik:">
+<!ENTITY languagePopup.accessKey              "L ">
+<!ENTITY downloadDictionaries.label           "Prenesi dodatne slovarje">
+
+<!ENTITY warnOnSendAccelKey.label             "Potrdi, kadar za pošiljanje sporočil uporabljate bližnjice">
+<!ENTITY warnOnSendAccelKey.accesskey         "C">
+<!ENTITY autoSave.label                       "Samodejno shrani vsakih">
+<!ENTITY autoSave.accesskey                   "A">
+<!ENTITY autoSaveEnd.label                    "minut">
+
+<!ENTITY emailCollectionPicker.label           "Samodejno dodaj odhodne e-poštne naslove v moj:">
+<!ENTITY emailCollectionPicker.accesskey       "A">
+<!ENTITY addressingTitle.label                 "Samodokončanje naslova">
+<!ENTITY autocompleteText.label                "Pri naslavljanju sporočil išči ustrezne vnose v:">
+<!ENTITY addressingEnable.label                "lokalnih adresarjih">
+<!ENTITY addressingEnable.accesskey            "L ">
+<!ENTITY directories.label                     "Imeniškem strežniku:">
+<!ENTITY directories.accesskey                 "D">
+<!ENTITY directoriesNone.label                 "Nič">
+<!ENTITY editDirectories.label                 "Uredi imenike ...">
+<!ENTITY editDirectories.accesskey             "E">
+
+<!ENTITY sendOptionsDescription.label          "Obnašanje pri oblikovanju besedila">
+<!ENTITY sendOptions.label                     "Možnosti pošiljanja...">
+<!ENTITY sendOptions.accesskey                 "S">
+
+<!ENTITY attachmentReminder.label              "Kontrola, da priponke ne manjkajo">
+<!ENTITY attachmentReminder.accesskey          "s">
+<!ENTITY attachmentReminderOptions.label       "Ključne besede...">
+<!ENTITY attachmentReminderOptions.accesskey   "K">

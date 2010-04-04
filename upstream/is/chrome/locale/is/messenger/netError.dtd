@@ -17,7 +17,7 @@
    <strong>www</strong>.mozilla.org</li>
   <li>Ef þú getur ekki tengst öðrum síðum, athugaðu þá nettengingu
   tölvunnar.</li>
-  <li>Ef tölvan þín er varin af eldvegg eða staðgengli, vertu viss um
+  <li>Ef tölvan þín er varin af eldvegg eða milliþjóni, vertu viss um
    að &brandShortName; hafi leyfi til að tengjast vefnum.</li>
 </ul>">
 <!ENTITY fileNotFound.title "Skrá fannst ekki">
@@ -65,20 +65,20 @@
   <li>Til að opna þetta veffang gætir þú þurft að hlaða inn öðrum hugbúnaði.</li>
 </ul>
 ">
-<!ENTITY proxyConnectFailure.title "Staðgengill neitar tengingum">
+<!ENTITY proxyConnectFailure.title "Milliþjónn neitar tengingum">
 <!ENTITY proxyConnectFailure.longDesc "
 <ul>
-  <li>Athugaðu staðgengla stillingar netþjóns til að ganga úr skugga um að þær séu réttar.</li>
-  <li>Hafðu samband við netkerfisstjóra til að athuga hvort staðgengils netþjónn sé
+  <li>Athugaðu milliþjóna stillingar netþjóns til að ganga úr skugga um að þær séu réttar.</li>
+  <li>Hafðu samband við netkerfisstjóra til að athuga hvort milliþjónn sé
     virkur.</li>
 </ul>
 ">
-<!ENTITY proxyResolveFailure.title "Fann ekki staðgenglaþjón">
+<!ENTITY proxyResolveFailure.title "Fann ekki milliþjón">
 <!ENTITY proxyResolveFailure.longDesc "
 <ul>
-  <li>Athugaðu staðgengla stillingar netþjóns til að ganga úr skugga um að þær séu réttar.</li>
+  <li>Athugaðu milliþjóna stillingar netþjóns til að ganga úr skugga um að þær séu réttar.</li>
   <li>Athugaðu hvort tölvan þín sé tengd við netið.</li>
-  <li>Ef tölvan eða netið er varið af eldvegg eða staðgengli, athugaðu þá hvort
+  <li>Ef tölvan eða netið er varið af eldvegg eða milliþjóni, athugaðu þá hvort
     &brandShortName; hefur leyfi til að tengjast netinu.</li>
 </ul>
 ">
@@ -116,7 +116,7 @@
     seinna.</li>
   <li>Ef þú getur ekki hlaðið inn neinni síðu, athugaðu þá nettengingu
     tölvunnar.</li>
-  <li>Ef tölvan eða netið er varið af eldvegg eða staðgengli, athugaðu þá
+  <li>Ef tölvan eða netið er varið af eldvegg eða milliþjóni, athugaðu þá
     hvort &brandShortName; hafi aðgang til þess að fara á netið.</li>
 </ul>
 ">

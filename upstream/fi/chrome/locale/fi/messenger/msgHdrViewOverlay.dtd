@@ -69,7 +69,7 @@
 <!ENTITY hdrForwardButton.tooltip "välitä viesti">
 <!ENTITY hdrJunkButton.label "roskapostia">
 <!ENTITY hdrJunkButton.tooltip "merkitse viesti roskapostiksi">
-<!ENTITY hdrTrashButton.label "poista">
+<!ENTITY hdrTrashButton.label "posta">
 <!ENTITY hdrTrashButton.tooltip "poista viesti">
 
 <!ENTITY hdrViewToolbarShowFull.label "Kuvakkeet ja teksti">

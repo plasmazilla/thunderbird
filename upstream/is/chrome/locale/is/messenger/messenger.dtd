@@ -7,7 +7,7 @@
 <!ENTITY closeTabCmd.label "Loka flipa">
 <!ENTITY closeTabCmd.accesskey "L">
 <!ENTITY closeOtherTabsCmd.label "Loka öðrum flipum">
-<!ENTITY closeOtherTabsCmd.accesskey "L">
+<!ENTITY closeOtherTabsCmd.accesskey "o">
 <!ENTITY newVirtualFolderCmd.label "Vistuð leit…">
 <!ENTITY newVirtualFolderCmd.accesskey "V">
 <!ENTITY newOtherAccountsCmd.label "Aðrir reikningar…">
@@ -74,7 +74,7 @@
 <!ENTITY cancelNewsMsgCmd.label "Hætta við boð">
 <!ENTITY cancelNewsMsgCmd.accesskey "H">
 <!ENTITY deleteMsgsCmd.label "Eyða völdum póstum">
-<!ENTITY deleteMsgsCmd.accesskey "d">
+<!ENTITY deleteMsgsCmd.accesskey "E">
 <!ENTITY undeleteMsgsCmd.label "Endurheimta valinn póst">
 <!ENTITY undeleteMsgsCmd.accesskey "d">
 <!ENTITY cancelNewsMsgsCmd.label "Hætta við valinn póst">
@@ -134,7 +134,7 @@
 <!ENTITY unreadFolders.label "Ólesið">
 <!ENTITY unreadFolders.accesskey "l">
 <!ENTITY favoriteFolders.label "Eftirlætissmappa">
-<!ENTITY favoriteFolders.accesskey "E">
+<!ENTITY favoriteFolders.accesskey "f">
 <!ENTITY recentFolders.label "Nýlegt">
 <!ENTITY recentFolders.accesskey "N">
 <!-- Sort Menu -->
@@ -147,19 +147,19 @@
 <!ENTITY sortByStarCmd.label "Stjörnumerkt">
 <!ENTITY sortByStarCmd.accesskey "S">
 <!ENTITY sortByAttachmentsCmd.label "Viðhengi">
-<!ENTITY sortByAttachmentsCmd.accesskey "V">
+<!ENTITY sortByAttachmentsCmd.accesskey "h">
 <!ENTITY sortByPriorityCmd.label "Forgangi">
-<!ENTITY sortByPriorityCmd.accesskey "F">
+<!ENTITY sortByPriorityCmd.accesskey "g">
 <!ENTITY sortBySizeCmd.label "Stærð">
-<!ENTITY sortBySizeCmd.accesskey "S">
+<!ENTITY sortBySizeCmd.accesskey "æ">
 <!ENTITY sortByStatusCmd.label "Stöðu">
 <!ENTITY sortByStatusCmd.accesskey "ð">
 <!ENTITY sortByTagsCmd.label "Flokkum">
-<!ENTITY sortByTagsCmd.accesskey "F">
+<!ENTITY sortByTagsCmd.accesskey "k">
 <!ENTITY sortByJunkStatusCmd.label "Ruslpóststöðu">
-<!ENTITY sortByJunkStatusCmd.accesskey "R">
+<!ENTITY sortByJunkStatusCmd.accesskey "p">
 <!ENTITY sortBySubjectCmd.label "Efni">
-<!ENTITY sortBySubjectCmd.accesskey "E">
+<!ENTITY sortBySubjectCmd.accesskey "n">
 <!ENTITY sortByFromCmd.label "Frá">
 <!ENTITY sortByFromCmd.accesskey "F">
 <!ENTITY sortByRecipientCmd.label "Viðtakanda">
@@ -167,7 +167,7 @@
 <!ENTITY sortByUnreadCmd.label "Lesið">
 <!ENTITY sortByUnreadCmd.accesskey "L">
 <!ENTITY sortByOrderReceivedCmd.label "Í móttekinni röð">
-<!ENTITY sortByOrderReceivedCmd.accesskey "m">
+<!ENTITY sortByOrderReceivedCmd.accesskey "ö">
 <!ENTITY sortAscending.label "Hækkandi">
 <!ENTITY sortAscending.accesskey "a">
 <!ENTITY sortDescending.label "Lækkandi">
@@ -175,9 +175,9 @@
 <!ENTITY sortThreaded.label "Umræður">
 <!ENTITY sortThreaded.accesskey "U">
 <!ENTITY sortUnthreaded.label "Ekki umræða">
-<!ENTITY sortUnthreaded.accesskey "E">
+<!ENTITY sortUnthreaded.accesskey "r">
 <!ENTITY groupBySort.label "Flokkað eftir röðun">
-<!ENTITY groupBySort.accesskey "F">
+<!ENTITY groupBySort.accesskey "o">
 <!ENTITY msgsMenu.label "Póstur">
 <!ENTITY msgsMenu.accesskey "P">
 <!ENTITY threads.label "Umræður">
@@ -188,7 +188,7 @@
 <!ENTITY expandAllThreadsCmd.accesskey "O">
 <!ENTITY expandAllThreadsCmd.key "*">
 <!ENTITY collapseAllThreadsCmd.label "Fella saman allar umræður">
-<!ENTITY collapseAllThreadsCmd.accesskey "F">
+<!ENTITY collapseAllThreadsCmd.accesskey "e">
 <!ENTITY collapseAllThreadsCmd.key "\">
 <!ENTITY unreadMsgsCmd.label "Ólesnar">
 <!ENTITY unreadMsgsCmd.accesskey "l">
@@ -311,7 +311,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY archiveMsgCmd.accesskey "a">
 <!ENTITY archiveMsgCmd.key "a">
 <!ENTITY replyMsgCmd.label "Svara">
-<!ENTITY replyMsgCmd.accesskey "S">
+<!ENTITY replyMsgCmd.accesskey "r">
 <!ENTITY replyMsgCmd.key "r">
 <!ENTITY replySenderCmd.label "Svara sendanda">
 <!ENTITY replySenderCmd.accesskey "r">
@@ -324,27 +324,27 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyToListMsgCmd.accesskey "l">
 <!ENTITY replyToListMsgCmd.key "l">
 <!ENTITY forwardMsgCmd.label "Áfram">
-<!ENTITY forwardMsgCmd.accesskey "r">
+<!ENTITY forwardMsgCmd.accesskey "m">
 <!ENTITY forwardMsgCmd.key "l">
 <!ENTITY forwardAsMenu.label "Áframsenda sem">
-<!ENTITY forwardAsMenu.accesskey "m">
+<!ENTITY forwardAsMenu.accesskey "d">
 <!ENTITY forwardAsInline.label "Innfellt">
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Viðhengi">
 <!ENTITY forwardAsAttachmentCmd.accesskey "V">
 <!ENTITY editMsgAsNewCmd.label "Breyta pósti sem nýjum">
-<!ENTITY editMsgAsNewCmd.accesskey "B">
+<!ENTITY editMsgAsNewCmd.accesskey "e">
 <!ENTITY editMsgAsNewCmd.key "e">
 <!ENTITY createFilter.label "Búa til síu út frá pósti…">
 <!ENTITY createFilter.accesskey "u">
 <!ENTITY moveMsgToMenu.label "Færa í">
-<!ENTITY moveMsgToMenu.accesskey "æ">
+<!ENTITY moveMsgToMenu.accesskey "F">
 <!ENTITY moveCopyMsgRecentMenu.label "Nýlegt">
 <!ENTITY moveCopyMsgRecentMenu.accesskey "N">
 <!ENTITY copyMessageLocation.label "Afrita staðsetningu pósts">
 <!ENTITY copyMessageLocation.accesskey "A">
 <!ENTITY copyMsgToMenu.label "Afrita í">
-<!ENTITY copyMsgToMenu.accesskey "A">
+<!ENTITY copyMsgToMenu.accesskey "i">
 <!ENTITY moveToFolderAgain.label "Færa aftur">
 <!ENTITY moveToFolderAgain.accesskey "æ">
 <!ENTITY moveToFolderAgainCmd.key "m">
@@ -362,7 +362,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY copyHereMenu.label "Afrita hingað">
 <!ENTITY copyHereMenu.accesskey "A">
 <!ENTITY tagMenu.label "Flokkur">
-<!ENTITY tagMenu.accesskey "k">
+<!ENTITY tagMenu.accesskey "o">
 <!ENTITY tagCmd0.key "0">
 <!ENTITY tagCmd1.key "1">
 <!ENTITY tagCmd2.key "2">
@@ -374,7 +374,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY tagCmd8.key "8">
 <!ENTITY tagCmd9.key "9">
 <!ENTITY markMenu.label "Merkja">
-<!ENTITY markMenu.accesskey "j">
+<!ENTITY markMenu.accesskey "k">
 <!ENTITY markAsReadCmd.label "Sem lesið">
 <!ENTITY markAsReadCmd.accesskey "l">
 <!ENTITY markAsReadCmd.key "m">
@@ -533,7 +533,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextMarkMailFolderRead.label "Merkja möppu sem lesna">
 <!ENTITY folderContextMarkMailFolderRead.accesskey "k">
 <!ENTITY folderContextSubscribe.label "Gerast áskrifandi…">
-<!ENTITY folderContextSubscribe.accesskey "G">
+<!ENTITY folderContextSubscribe.accesskey "e">
 <!ENTITY folderContextSearchMessages.label "Leita…">
 <!ENTITY folderContextSearchMessages.accesskey "L">
 <!ENTITY folderContextProperties.label "Eiginleikar…">
@@ -606,17 +606,17 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextArchive.label "Safna">
 <!ENTITY contextArchive.accesskey "n">
 <!ENTITY contextReplySender.label "Svara aðeins sendanda">
-<!ENTITY contextReplySender.accesskey "S">
+<!ENTITY contextReplySender.accesskey "r">
 <!ENTITY contextReplyNewsgroup.label "Svara á fréttahóp">
-<!ENTITY contextReplyNewsgroup.accesskey "f">
+<!ENTITY contextReplyNewsgroup.accesskey "h">
 <!ENTITY contextReplyAll.label "Svara öllum">
 <!ENTITY contextReplyAll.accesskey "ö">
 <!ENTITY contextReplyList.label "Svara póstlista">
 <!ENTITY contextReplyList.accesskey "l">
 <!ENTITY contextForward.label "Áfram">
-<!ENTITY contextForward.accesskey "f">
+<!ENTITY contextForward.accesskey "m">
 <!ENTITY contextForwardAsAttachment.label "Áframsenda sem viðhengi">
-<!ENTITY contextForwardAsAttachment.accesskey "f">
+<!ENTITY contextForwardAsAttachment.accesskey "m">
 <!ENTITY contextMoveMsgMenu.label "Færa í">
 <!ENTITY contextMoveMsgMenu.accesskey "F">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Nýlegt">
@@ -624,7 +624,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextCopyMsgMenu.label "Afrita í">
 <!ENTITY contextCopyMsgMenu.accesskey "A">
 <!ENTITY contextSaveAs.label "Vista sem…">
-<!ENTITY contextSaveAs.accesskey "V">
+<!ENTITY contextSaveAs.accesskey "s">
 <!ENTITY contextPrint.label "Prenta…">
 <!ENTITY contextPrint.accesskey "P">
 <!ENTITY contextPrintPreview.label "Prentskoðun">

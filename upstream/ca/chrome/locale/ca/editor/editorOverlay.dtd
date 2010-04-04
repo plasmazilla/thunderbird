@@ -51,11 +51,11 @@
 <!ENTITY newBlankPageCmd.label "Obre una finestra del Redactor">
 <!ENTITY newBlankPageCmd.accesskey "n">
 <!ENTITY newMenu.label "Nou">
-<!ENTITY openFileCmd.label "Obre un fitxer…">
+<!ENTITY openFileCmd.label "Obre el fitxer…">
 <!ENTITY openFileCmd.accesskey "O">
 <!ENTITY openFileCmd.key "O">
 <!ENTITY openRemoteCmd.label "Obre una ubicació web…">
-<!ENTITY openRemoteCmd.accesskey "w">
+<!ENTITY openRemoteCmd.accesskey "L">
 <!ENTITY openRemoteCmd.key "L">
 <!ENTITY fileRecentMenu.label "Pàgines recents">
 <!ENTITY fileRecentMenu.accesskey "r">

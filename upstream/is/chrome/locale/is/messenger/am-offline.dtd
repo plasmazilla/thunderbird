@@ -20,19 +20,19 @@
 <!ENTITY retentionKeepMsg.label "Eyða bréfum eldri en">
 <!ENTITY retentionKeepMsg.accesskey "m">
 <!ENTITY retentionKeepAll.label "Ekki eyða neinum bréfum">
-<!ENTITY retentionKeepAll.accesskey "a">
+<!ENTITY retentionKeepAll.accesskey "n">
 <!ENTITY retentionKeepRecent.label "Eyða öllum nema nýjustu">
 <!ENTITY retentionKeepRecent.accesskey "E">
 <!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
 <!ENTITY retentionKeepUnreadHidden.label "Alltaf eyða lesnum bréfum (hunsa aldursstillingar)">
 <!ENTITY retentionApplyToFlagged.label "Alltaf geyma stjörnumerktan póst">
-<!ENTITY retentionApplyToFlagged.accesskey "e">
+<!ENTITY retentionApplyToFlagged.accesskey "k">
 <!ENTITY nntpRemoveMsgBody.label "Fjarlægja meginmál úr bréfum eldri en">
 <!ENTITY nntpRemoveMsgBody.accesskey "F">
 <!ENTITY offlineSelectNntp.label "Veldu fréttahópa fyrir ótengda notkun…">
 <!ENTITY offlineSelectNntp.accesskey "V">
 <!ENTITY offlineImapAdvancedOffline.label "Frekari stillingar…">
-<!ENTITY offlineImapAdvancedOffline.accesskey "a">
+<!ENTITY offlineImapAdvancedOffline.accesskey "F">
 <!ENTITY syncGroupTitle.label "Samstilla póst">
 <!ENTITY diskspaceGroupTitle.label "Diskpláss">
 <!-- LOCALIZATION NOTE: (ageAutosyncBefore.label, ageAutosyncMiddle.label, ageAutosyncAfter.label):
@@ -43,8 +43,8 @@
 -->
 <!ENTITY allAutosync.label "Samstilla allann póst staðbundið án tillits til aldurs">
 <!ENTITY allAutosync.accesskey "S">
-<!ENTITY ageAutosyncBefore.label "Samstilla flesta nýlega">
-<!ENTITY ageAutosync.accesskey "a">
+<!ENTITY ageAutosyncBefore.label "Samstilla nýjustu">
+<!ENTITY ageAutosync.accesskey "t">
 <!ENTITY ageAutosyncMiddle.label "">
 <!ENTITY dayAgeInterval.label "Dagar">
 <!ENTITY weekAgeInterval.label "Vikur">

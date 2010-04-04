@@ -51,7 +51,7 @@
 <!ENTITY altText.accessKey "A">
 <!ENTITY altTextEditField.tooltip "Sláðu inn texta til að sýna í staðinn fyrir mynd">
 <!ENTITY noAltText.label "Ekki nota auka texta">
-<!ENTITY noAltText.accessKey "E">
+<!ENTITY noAltText.accessKey "k">
 <!ENTITY previewBox.label "Forskoðun myndar">
 <!-- These controls are in the Dimensions tab panel -->
 <!-- actualSize.label should be same as actualSizeRadio.label + ":" -->
@@ -67,7 +67,7 @@
 <!ENTITY widthEditField.label "Breidd:">
 <!ENTITY widthEditField.accessKey "B">
 <!ENTITY constrainCheckbox.label "Skorður">
-<!ENTITY constrainCheckbox.accessKey "S">
+<!ENTITY constrainCheckbox.accessKey "k">
 <!ENTITY constrainCheckbox.tooltip "Læsa hlutföllum á mynd">
 <!-- These controls are in the Image Map box of the expanded area -->
 <!ENTITY imagemapBox.label "Myndvörpun">

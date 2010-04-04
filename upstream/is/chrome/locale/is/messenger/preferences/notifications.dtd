@@ -4,6 +4,6 @@
 <!ENTITY previewText.label "Forskoðun textapósts">
 <!ENTITY previewText.accesskey "F">
 <!ENTITY subject.label "Efni">
-<!ENTITY subject.accesskey "E">
+<!ENTITY subject.accesskey "f">
 <!ENTITY sender.label "Sendandi">
 <!ENTITY sender.accesskey "e">

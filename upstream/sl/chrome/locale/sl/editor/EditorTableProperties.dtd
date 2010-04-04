@@ -1,0 +1,108 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Communicator client code, released
+   - March 31, 1998.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corporation.
+   - Portions created by the Initial Developer are Copyright (C) 1998-1999
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either of the GNU General Public License Version 2 or later (the "GPL"),
+   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY tableWindow.title                "Lastnosti tabele">
+<!ENTITY applyButton.label                "Uveljavi">
+<!ENTITY applyButton.accesskey            "A">
+<!ENTITY closeButton.label                "Zapri">
+<!ENTITY tableTab.label                   "Tabela">
+<!ENTITY cellTab.label                    "Celice">
+<!ENTITY tableRows.label                  "Vrstice:">
+<!ENTITY tableRows.accessKey              "D">
+<!ENTITY tableColumns.label               "Stolpci:">
+<!ENTITY tableColumns.accessKey           "C">
+<!ENTITY tableHeight.label                "Višina:">
+<!ENTITY tableHeight.accessKey            "G">
+<!ENTITY tableWidth.label                 "Dolžina:">
+<!ENTITY tableWidth.accessKey             "t">
+<!ENTITY tableBorderSpacing.label         "Robovi in razmik">
+<!ENTITY tableBorderWidth.label           "Rob:">
+<!ENTITY tableBorderWidth.accessKey       "B">
+<!ENTITY tableSpacing.label               "Razmik:">
+<!ENTITY tableSpacing.accessKey           "S">
+<!ENTITY tablePadding.label               "Obroba:">
+<!ENTITY tablePadding.accessKey           "p">
+<!ENTITY tablePxBetwCells.label           "pik med celicami">
+<!ENTITY tablePxBetwBrdrCellContent.label "pik med robom celice in vsebino">
+<!ENTITY tableAlignment.label             "Poravnava tabele:">
+<!ENTITY tableAlignment.accessKey         "T">
+<!ENTITY tableCaption.label               "Naslov:">
+<!ENTITY tableCaption.accessKey           "N">
+<!ENTITY tableCaptionAbove.label          "Nad tabelo">
+<!ENTITY tableCaptionBelow.label          "Pod tabelo">
+<!ENTITY tableCaptionLeft.label           "Levo od tabele">
+<!ENTITY tableCaptionRight.label          "Desno od tabele">
+<!ENTITY tableCaptionNone.label           "Nič">
+<!ENTITY tableInheritColor.label           "(Naj bo prozorna za barvo strani)">
+
+<!ENTITY cellSelection.label              "Izbira">
+<!ENTITY cellSelectCell.label             "Celica">
+<!ENTITY cellSelectRow.label              "Vrsta">
+<!ENTITY cellSelectColumn.label           "Stolpec">
+<!ENTITY cellSelectNext.label             "Naslednji">
+<!ENTITY cellSelectNext.accessKey         "N">
+<!ENTITY cellSelectPrevious.label         "Prejšnje">
+<!ENTITY cellSelectPrevious.accessKey     "p">
+<!ENTITY applyBeforeChange.label          "Trenutne spremembe se bo izvedlo, preden se spremeni izbiro..">
+<!ENTITY cellContentAlignment.label       "Poravnava vsebine">
+<!ENTITY cellHorizontal.label             "Vodoravno:">
+<!ENTITY cellHorizontal.accessKey         "Ž">
+<!ENTITY cellVertical.label               "Navpično:">
+<!ENTITY cellVertical.accessKey           "V">
+<!ENTITY cellStyle.label                  "Slog za celico:">
+<!ENTITY cellStyle.accessKey              "C">
+<!ENTITY cellNormal.label                 "Normalno">
+<!ENTITY cellHeader.label                 "Glava">
+<!ENTITY cellTextWrap.label               "Lomi besedilo:">
+<!ENTITY cellTextWrap.accessKey           "T">
+<!ENTITY cellWrap.label                   "Lomi">
+<!ENTITY cellNoWrap.label                 "Ne lomi">
+<!ENTITY cellAlignTop.label               "Vrh">
+<!ENTITY cellAlignMiddle.label            "Sreda">
+<!ENTITY cellAlignBottom.label            "Dno">
+<!ENTITY cellAlignJustify.label           "Justiraj">
+<!ENTITY cellInheritColor.label           "(Naj bo prozorna za barvo strani)">
+<!ENTITY cellUseCheckboxHelp.label        "S pomočjo izbirnih polj določite, katere od lastnosti naj se uporabi za vse izbrane celice">
+
+<!-- Used in both Table and Cell panels  -->
+<!ENTITY size.label                       "Velikost">
+<!ENTITY pixels.label                     "pik">
+<!ENTITY backgroundColor.label            "Barva ozadja celice:">
+<!ENTITY backgroundColor.accessKey        "B">
+<!ENTITY AlignLeft.label                  "Levo">
+<!ENTITY AlignCenter.label                "Center">
+<!ENTITY AlignRight.label                 "Desno">

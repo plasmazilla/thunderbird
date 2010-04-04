@@ -1,0 +1,13 @@
+<!ENTITY credit.title     "&brandFullName; O sodelavcih">
+<!ENTITY brandMotto       "Te ptice letijo!">
+<!ENTITY credit.thanks    "Posebne zahvale">
+
+<!-- localization credits look like this: -->
+<!--
+<!ENTITY credit.translation
+  "<h3>Translators</h3><ul><li>Name Here</li></ul>">
+-->
+<!ENTITY credit.translation "<h3>Localisation</h3><ul><li>Mark Tyndall</li></ul>">
+
+<!ENTITY credit.memory         "V spomin na">
+<!ENTITY credit.poweredByGecko "Uporablja Gecko&trade;">

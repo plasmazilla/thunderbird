@@ -18,7 +18,7 @@
 <!ENTITY openJunkLog.label "Sýna kladda">
 <!ENTITY openJunkLog.accesskey "S">
 <!ENTITY resetTrainingData.label "Endursetja þjálfunargögn">
-<!ENTITY resetTrainingData.accesskey "þ">
+<!ENTITY resetTrainingData.accesskey "ö">
 <!-- Phishing Detector -->
 <!ENTITY phishingDetector1.intro "&brandShortName; getur reynt að greina hvort póstur er svindlpóstur með því að leita eftir dæmigerðum aðferðum í svindlpóstum.">
 <!ENTITY enablePhishingDetector1.label "Láta vita ef ég les póst sem er grunaður um að vera falsaður">

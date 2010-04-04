@@ -1,0 +1,74 @@
+<!-- for SearchDialog.xul -->
+<!ENTITY searchHeading.label         "Išči za sporočila v:">
+<!ENTITY searchHeading.accesskey     "h">
+<!ENTITY searchSubfolders.label      "Išči v podmapah">
+<!ENTITY searchSubfolders.accesskey  "i">
+<!ENTITY searchOnServer.label        "Sproži iskanje na strežniku">
+<!ENTITY searchOnServer.accesskey    "u">
+<!ENTITY resetButton.label           "Pobriši">
+<!ENTITY resetButton.accesskey       "C">
+<!ENTITY openButton.label            "Odpri">
+<!ENTITY openButton.accesskey        "n">
+<!ENTITY deleteButton.label          "Izbriši">
+<!ENTITY deleteButton.accesskey      "D">
+<!ENTITY searchDialogTitle.label     "Išči po sporočilih">
+<!ENTITY results.label               "Rezultati">
+<!ENTITY fileHereMenu.label          "Uvrsti sem">
+<!ENTITY fileHereMenu.accesskey      "F">
+<!ENTITY fileButton.label            "Datoteka">
+<!ENTITY fileButton.accesskey        "L">
+<!ENTITY closeCmd.key                "t"> 
+<!ENTITY openInFolder.label          "Odpri v mapi">
+<!ENTITY openInFolder.accesskey      "r">
+<!ENTITY saveAsVFButton.label        "Shrani kot iskalno mapo">
+<!ENTITY saveAsVFButton.accesskey    "a">
+
+<!-- for ABSearchDialog.xul -->
+<!ENTITY abSearchHeading.label       "Išči v:">
+<!ENTITY abSearchHeading.accesskey   "h">
+<!ENTITY propertiesButton.label      "Lastnosti">
+<!ENTITY propertiesButton.accesskey  "p">
+<!ENTITY composeButton.label         "Piši">
+<!ENTITY composeButton.accesskey     "t">
+<!ENTITY abSearchDialogTitle.label   "Napredno iskanje v adresarju">
+
+<!-- Thread Pane -->
+<!ENTITY threadColumn.label "Nit">
+<!ENTITY fromColumn.label "Od">
+<!ENTITY recipientColumn.label "Prejemnik">
+<!ENTITY subjectColumn.label "Zadeva">
+<!ENTITY dateColumn.label "Datum">
+<!ENTITY priorityColumn.label "Prioriteta">
+<!ENTITY tagsColumn.label "Oznake">
+<!ENTITY accountColumn.label "Račun">
+<!ENTITY statusColumn.label "Status">
+<!ENTITY sizeColumn.label "Velikost">
+<!ENTITY junkStatusColumn.label "Status za neresno">
+<!ENTITY unreadColumn.label "Neprebrano">
+<!ENTITY totalColumn.label "Skupaj">
+<!ENTITY readColumn.label "Prebrano">
+<!ENTITY receivedColumn.label "Prejeto">
+<!ENTITY starredColumn.label "Označeno z zvezdico">
+<!ENTITY locationColumn.label "Kraj">
+<!ENTITY idColumn.label "Čas prejema">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser.tooltip "S klikom izberite stolpce, ki jih želite prikazati">
+<!ENTITY threadColumn.tooltip "Kliknite za prikaz niti sporočil"> 
+<!ENTITY fromColumn.tooltip "Kliknite za razvrščanje po Od">
+<!ENTITY recipientColumn.tooltip "Kliknite za razvrščanje po prejemniku">
+<!ENTITY subjectColumn.tooltip "Kliknite za razvrščanje po zadevi">
+<!ENTITY dateColumn.tooltip "Kliknite za razvrščanje po datumu">
+<!ENTITY priorityColumn.tooltip "Kliknite za razvrščanje po prioriteti">
+<!ENTITY tagsColumn.tooltip "Kliknite za razvrščanje po oznakah">
+<!ENTITY accountColumn.tooltip "Kliknite za razvrščanje po računu">
+<!ENTITY statusColumn.tooltip "Kliknite za razvrščanje po statusu">
+<!ENTITY sizeColumn.tooltip "Kliknite za razvrstitev po velikosti ">
+<!ENTITY junkStatusColumn.tooltip "Kliknite za razvrščanje glede na želeno/neželeno">
+<!ENTITY unreadColumn.tooltip "Število neprebranih sporočil v niti">
+<!ENTITY totalColumn.tooltip "Skupno število sporočil v niti">
+<!ENTITY readColumn.tooltip "Kliknite za razvrščanje po Prebrano  /Neprebrano">
+<!ENTITY receivedColumn.tooltip "Kliknite za razvrstitev po datumu prejema">
+<!ENTITY starredColumn.tooltip "Kliknite za razvrščanje glede na zvezdico">
+<!ENTITY locationColumn.tooltip "Kliknite za razvrščanje po mestu">
+<!ENTITY idColumn.tooltip "Kliknite za razvrščanje po času prejema">

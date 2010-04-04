@@ -1,0 +1,13 @@
+
+<!ENTITY  prefWindow.titleWin     "Možnosti">
+<!ENTITY  prefWindow.titleGNOME   "Nastavitve &brandShortName;a">
+<!ENTITY  prefWindow.styleWindows "width: 44em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 47em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 42em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title        "Splošno">
+<!ENTITY paneDisplay.title        "Prikaži">
+<!ENTITY paneComposition.title    "Sestavljanje">
+<!ENTITY paneAttachments.title    "Priponke">
+<!ENTITY paneSecurity.title       "Varnost">
+<!ENTITY paneAdvanced.title       "Napredno">
