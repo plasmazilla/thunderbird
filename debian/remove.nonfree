@@ -101,6 +101,23 @@ rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg16x16-win.png
 rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg32x32.png
 rm -fv ./mozilla/modules/libpr0n/test/unit/image2jpg32x32-win.png
 
+rm -fvr ./mozilla/layout/html/tests
+rm -fvr ./mozilla/layout/doc
+rm -fvr ./mozilla/content/xml/tests
+rm -fvr ./mozilla/testing/performance
+rm -fvr ./mozilla/modules/libpr0n/test/reftest/pngsuite-transparency
+
+# Images embedded in ./mozilla/browser/locales/en-US/searchplugins/*.xml are most likely non-free.
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.amazon.com/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.answers.com/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/answers.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.creativecommons.org/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/creativecommons.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.ebay.com/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/eBay.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.google.com/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/google.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://en.wikipedia.org/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/wikipedia.xml
+sed -i 's,>data:.*\(</Image>\), type="image/x-icon">http://www.yahoo.com/favicon.ico\1,' ./mozilla/browser/locales/en-US/searchplugins/yahoo.xml
+
+
+
 # remove the throbbers as they are branded
 rm -fv ./suite/themes/classic/communicator/brand/throbber-anim.png
 rm -fv ./suite/themes/classic/communicator/brand/throbber-single.png
