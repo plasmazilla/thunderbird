@@ -1,3 +1,55 @@
+icedove (3.0.4-1) unstable; urgency=low
+
+  [ Guido Günther ]
+  * [01983a4] Add missing message/rfc822 mime type for eml files
+    (Closes: #574528)
+
+  [ Christoph Goehre ]
+  * New Upstream Version fixes:
+    - MFSA 2010-16 aka CVE-2010-0173, CVE-2010-0174: Crashes with evidence of
+      memory corruption (rv:1.9.2.2/ 1.9.1.9/ 1.9.0.19)
+    - MFSA 2010-17 aka CVE-2010-0175: Remote code execution with
+      use-after-free in nsTreeSelection
+    - MFSA 2010-18 aka CVE-2010-0176: Dangling pointer vulnerability in
+      nsTreeContentView
+    - MFSA 2010-22 aka CVE-2009-3555: Update NSS to support TLS renegotiation
+      indication
+    - MFSA 2010-24 aka CVE-2010-0182: XMLDocument::load() doesn't check
+      nsIContentPolicy
+  * upload icedove 3 to unstable (Closes: #401848, #422886, #425497, #430644,
+    #483550, #495522, #501113, #552617, #574188)
+  * rebuild patch queue from patch-queue branch:
+    added patches:
+    - 0044-don-t-remove-xpt-tools.patch
+    - 0045-Don-t-error-out-when-run-time-libsqlite-is-older-tha.patch
+    modified patches:
+    - 0011-fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - 0012-Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - 0030-Force-better-nsAutoT-Ptr-Array-buffer-alignment.patch
+    - 0035-Fix-stack-alignment-on-function-calls-in-JIT-on-ARM.patch
+    obsolete patches (fixed upstream):
+    - 0021-Fix-crash-with-SwitchProxy-installed.patch
+    - 0023-Don-t-remove-build-automationutils.py-on-make-clean.patch
+    - 0039-Don-t-show-the-SVG-output-option-in-the-print-dialog.patch
+  * [a7f3529] Revert "disable prefetch service". This bug was already fixed in
+    3.0.2 (CVE-2009-4629) and 'network.prefetch-next' has no effect in
+    icedove.
+  * [fecc0b4] install versioned build depends instead of checking on build
+    time
+  * [4806890] enable building of icedove-dev package
+  * [412b8ac] be more explicit on installing file into icedove package
+  * [23b1d4b] depends on newer version of libnspr4-dev and libnss3-dev
+  * [809c723] lintian: idl files didn't need to be executable
+  * [ecd284e] lintian: add ${shlibs:Depends} to icedove-dev package
+  * [da75ee2] replace/remove non-free searchplugin icons and doubtful
+    origin file in mozilla folder (Closes: #567917)
+  * [eaf405e] update /usr/lib/icedove/dictionaries symlink to point to
+    /usr/share/hunspell
+  * [fe362ba] describe profile renaming on update to icedove 3.0
+    (Closes: #566329)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 05 Apr 2010 21:11:42 +0200
+
 icedove (3.0.3-1) experimental; urgency=low
 
   * New Upstream Version fixes:
