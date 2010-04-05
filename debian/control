@@ -22,9 +22,9 @@ Depends:
  icedove-l10n-ko, icedove-l10n-lt, icedove-l10n-nb-no, icedove-l10n-nl,
  icedove-l10n-nn-no, icedove-l10n-pa-in, icedove-l10n-pl, icedove-l10n-pt-br,
  icedove-l10n-pt-pt, icedove-l10n-ro, icedove-l10n-ru, icedove-l10n-si,
- icedove-l10n-sk, icedove-l10n-sq, icedove-l10n-sr, icedove-l10n-sv-se,
- icedove-l10n-ta-lk, icedove-l10n-tr, icedove-l10n-uk, icedove-l10n-vi,
- icedove-l10n-zh-cn, icedove-l10n-zh-tw
+ icedove-l10n-sk, icedove-l10n-sl, icedove-l10n-sq, icedove-l10n-sr,
+ icedove-l10n-sv-se, icedove-l10n-ta-lk, icedove-l10n-tr, icedove-l10n-uk,
+ icedove-l10n-vi, icedove-l10n-zh-cn, icedove-l10n-zh-tw
 Description: All language packages for Icedove (meta)
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -457,6 +457,17 @@ Description: Slovak language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Slovak.
+
+Package: icedove-l10n-sl
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Recommends: myspell-sl
+Description: Slovenian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Slovenian.
 
 Package: icedove-l10n-sq
 Architecture: all
