@@ -9,7 +9,7 @@ usr/share/@DEB_MOZ_APPLICATION@/modules usr/lib/@DEB_MOZ_APPLICATION@/modules
 /etc/@DEB_MOZ_APPLICATION@/profile /usr/share/@DEB_MOZ_APPLICATION@/defaults/profile
 /etc/@DEB_MOZ_APPLICATION@/pref /usr/share/@DEB_MOZ_APPLICATION@/defaults/syspref
 
-/usr/share/myspell/dicts /usr/lib/@DEB_MOZ_APPLICATION@/dictionaries
+/usr/share/hunspell /usr/lib/@DEB_MOZ_APPLICATION@/dictionaries
 
 usr/share/@DEB_MOZ_APPLICATION@/components/newsblog.js usr/lib/@DEB_MOZ_APPLICATION@/components/newsblog.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsSetDefaultMail.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsSetDefaultMail.js
