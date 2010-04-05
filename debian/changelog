@@ -1,3 +1,15 @@
+icedove-l10n (1:3.0.4-1) unstable; urgency=low
+
+  * New Upstream Version
+    - changes in: ca, da, de, es-ES, fi, fr, gl, he, is, it, ja, ko, nn-NO,
+      pt-PT, ru, uk
+    - [cc8e164] add Slovenian (sl) localization
+  * [b165032] depend on icedove-l10n-et and icedove-l10n-si in icedove-
+    l10n-all
+  * [e90ec39] Switch to dpkg-source 3.0 (quilt) format
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 05 Apr 2010 11:03:35 +0200
+
 icedove-l10n (1:3.0.3-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #564782)
