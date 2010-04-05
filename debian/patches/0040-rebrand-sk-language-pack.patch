@@ -32,17 +32,17 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/sk/chrome/locale/sk/messenger/aboutDialog.dtd b/upstream/sk/chrome/locale/sk/messenger/aboutDialog.dtd
-index f7f35fc..ab336f2 100644
+index 43fe1f7..a9cf8c9 100644
 --- a/upstream/sk/chrome/locale/sk/messenger/aboutDialog.dtd
 +++ b/upstream/sk/chrome/locale/sk/messenger/aboutDialog.dtd
 @@ -2,9 +2,7 @@
  <!ENTITY aboutButton.label      "&lt; Naspäť">
  <!ENTITY aboutButton.accesskey  "N">
  <!ENTITY aboutVersion           "verzia">
--<!ENTITY copyrightText          "&#169;1998-2010 Prispievatelia. Všetky práva vyhradené.  Mozilla Thunderbird a
+-<!ENTITY copyrightText          "&#169;1998-2009 Prispievatelia. Všetky práva vyhradené.  Mozilla Thunderbird a
 -                                logá Thunderbird sú ochranné známky patriace Mozilla Foundation. Všetky práva
 -                                vyhradené.">
-+<!ENTITY copyrightText          "&#169;1998-2010 Prispievatelia. Všetky práva vyhradené.">
++<!ENTITY copyrightText          "&#169;1998-2009 Prispievatelia. Všetky práva vyhradené."
  <!ENTITY aboutMenu.label        "O programe">
  <!ENTITY aboutMenu.accesskey    "O">
  <!ENTITY aboutCredits.label     "Tvorcovia">

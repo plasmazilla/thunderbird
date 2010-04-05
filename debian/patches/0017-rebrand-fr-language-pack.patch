@@ -31,17 +31,17 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/fr/chrome/locale/fr/messenger/aboutDialog.dtd b/upstream/fr/chrome/locale/fr/messenger/aboutDialog.dtd
-index b2a3979..6d96011 100644
+index ca51187..97c77ed 100644
 --- a/upstream/fr/chrome/locale/fr/messenger/aboutDialog.dtd
 +++ b/upstream/fr/chrome/locale/fr/messenger/aboutDialog.dtd
 @@ -2,9 +2,7 @@
  <!ENTITY aboutButton.label "&lt; À propos de &brandShortName;">
  <!ENTITY aboutButton.accesskey "o">
  <!ENTITY aboutVersion "version">
--<!ENTITY copyrightText "&#169;1998-2010 Les contributeurs. Tous droits réservés. Mozilla Thunderbird
+-<!ENTITY copyrightText "&#169;1998-2009 Les contributeurs. Tous droits réservés. Mozilla Thunderbird
 -                                    et les logos Thunderbird sont des marques déposées de la Mozilla Foundation.
 -                                    Tous droits réservés.">
-+<!ENTITY copyrightText "&#169;1998-2010 Les contributeurs. Tous droits réservés.">
++<!ENTITY copyrightText "&#169;1998-2009 Les contributeurs. Tous droits réservés."
  <!ENTITY aboutMenu.label "À propos de">
  <!ENTITY aboutCredits.label "Crédits">
  <!ENTITY aboutCredits.accesskey "d">
@@ -57,7 +57,7 @@ index 0287afa..c8f341a 100644
  
  <!-- localization credits look like this: -->
 diff --git a/upstream/fr/chrome/locale/fr/messenger/featureConfigurator.dtd b/upstream/fr/chrome/locale/fr/messenger/featureConfigurator.dtd
-index a100f93..2e07ae9 100644
+index 935472a..86a28c2 100644
 --- a/upstream/fr/chrome/locale/fr/messenger/featureConfigurator.dtd
 +++ b/upstream/fr/chrome/locale/fr/messenger/featureConfigurator.dtd
 @@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->

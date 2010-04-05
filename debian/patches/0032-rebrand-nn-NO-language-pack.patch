@@ -69,7 +69,7 @@ index 28682d7..32265b9 100644
  
  <!-- localization credits look like this: -->
 diff --git a/upstream/nn-NO/chrome/locale/nn-NO/messenger/featureConfigurator.dtd b/upstream/nn-NO/chrome/locale/nn-NO/messenger/featureConfigurator.dtd
-index 0a8ceeb..7bed175 100644
+index 0631595..c26da53 100644
 --- a/upstream/nn-NO/chrome/locale/nn-NO/messenger/featureConfigurator.dtd
 +++ b/upstream/nn-NO/chrome/locale/nn-NO/messenger/featureConfigurator.dtd
 @@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
@@ -101,8 +101,8 @@ index 0a8ceeb..7bed175 100644
  
  <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
  of the paragraph before the beginning of the link to the AMO search page.-->
--<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 har forbetra den detaljerte meldingshovudvisinga, mellom anna knappane for meldingsrelaterte handlingar. Alternative utsjånader er tilgjengelege som ">
-+<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 har forbetra den detaljerte meldingshovudvisinga, mellom anna knappane for meldingsrelaterte handlingar. Alternative utsjånader er tilgjengelege som ">
+-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 har forbetra den detaljerte meldingshovudvisinga, mellom anna knappane for meldingsrelaterte handlingar. Alternative utsjånader er tilgjengelege som">
++<!ENTITY featureConfigurator.headerParaBeforeLink "Icedove 3 har forbetra den detaljerte meldingshovudvisinga, mellom anna knappane for meldingsrelaterte handlingar. Alternative utsjånader er tilgjengelege som">
  
  <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
  the link to the AMO search page.-->

@@ -71,7 +71,7 @@ index 43f21b0..cde897d 100644
  
  
 diff --git a/upstream/ca/chrome/locale/ca/messenger/featureConfigurator.dtd b/upstream/ca/chrome/locale/ca/messenger/featureConfigurator.dtd
-index 42222b8..b2b10d2 100644
+index d774533..5d985d5 100644
 --- a/upstream/ca/chrome/locale/ca/messenger/featureConfigurator.dtd
 +++ b/upstream/ca/chrome/locale/ca/messenger/featureConfigurator.dtd
 @@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
