@@ -42,3 +42,4 @@
 0042-Header-adjustment-for-imported-changes.patch
 0043-Handle-side-effect-sibling-destruction-when-destroyi.patch
 0044-don-t-remove-xpt-tools.patch
+0045-Don-t-error-out-when-run-time-libsqlite-is-older-tha.patch
