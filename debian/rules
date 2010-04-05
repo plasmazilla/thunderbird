@@ -3,7 +3,7 @@
 SHELL := sh -e
 
 %:
-	dh ${@} --with quilt
+	dh ${@}
 
 override_dh_auto_clean:
 	dh_auto_clean
