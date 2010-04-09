@@ -13,10 +13,15 @@ DEB_MOZ_NAME=icedove
 DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
+MAIN_LDFLAGS :=
 
 DEBIAN_VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: *\(.*\)$$/\1/ p')
 DEBIAN_UPSTREAM_VERSION := $(shell echo $(DEBIAN_VERSION) | sed 's/^\(.*\)-[^-]*$$/\1/')
 DEBIAN_REV_CODE := $(shell echo $(DEBIAN_VERSION) | sed 's/^.*-\([0-9]*\)[^-]*$$/0\1/ ; s/^.*\(..\)$$/\1/')
+
+ifeq ($(DEB_BUILD_ARCH),alpha)
+	MAIN_LDFLAGS += -Wl,--no-relax
+endif
 
 ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
@@ -147,6 +152,9 @@ $(DEB_MOZ_APPLICATION)%: thunderbird%.in
 	       < $< > $@
 
 pre-build:: $(subst_files)
+
+configure/$(DEB_MOZ_APPLICATION)::
+	sed -i '/^OS_LDFLAGS/s|=|& $(MAIN_LDFLAGS)|' config/autoconf.mk mozilla/config/autoconf.mk mozilla/js/src/config/autoconf.mk directory/c-sdk/config/autoconf.mk
 
 post-patches:: debian/stamp-autotools-files-moz
 debian/stamp-autotools-files-moz:
