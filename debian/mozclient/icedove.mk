@@ -22,12 +22,9 @@ BRANDING_DIR = mail/branding/icedove/
 MOZCLIENT_PROJECTNAME := icedove
 include debian/mozclient/thunderbird.mk
 
-post-patches:: debian/stamp-icedove-branding
+makebuilddir/$(DEB_MOZ_APPLICATION):: debian/stamp-icedove-branding
 debian/stamp-icedove-branding:
 	cp -af debian/icedove-branding $(BRANDING_DIR)
-	for uue in `find $(BRANDING_DIR) -name '*.uu'`; do \
-		uudecode $$uue; rm $$uue; \
-	done
-	uudecode debian/preview.png.uu
+	cp debian/preview.png mail/themes/gnomestripe/mail/preview.png
 	touch $@
 
