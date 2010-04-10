@@ -18,12 +18,6 @@ if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] ; then
     touch $LIBDIR/.autoreg
 fi
 
-# Clean a possible left over
-if [ -f /usr/lib/thunderbird-3.0a1pre/.autoreg ] ; then
-  rm -f /usr/lib/thunderbird-3.0a1pre/.autoreg
-  rmdir /usr/lib/thunderbird-3.0a1pre
-fi
-
 if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "3.0.1-1"; then
     symlink_dir "/usr/share/$DEB_MOZ_APPLICATION/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}" \
                 "/usr/lib/$DEB_MOZ_APPLICATION/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}"
