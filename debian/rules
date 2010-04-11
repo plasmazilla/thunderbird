@@ -161,6 +161,8 @@ debian/stamp-autotools-files-moz:
 	then cd $(DEB_SRCDIR)/mozilla && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/mozilla/js/src/configure ]; \
 	then cd $(DEB_SRCDIR)/mozilla/js/src && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
+	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/directory/c-sdk/configure ]; \
+	then cd $(DEB_SRCDIR)/directory/c-sdk && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	touch $@
 
 install/$(DEB_MOZ_APPLICATION)::
