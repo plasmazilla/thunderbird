@@ -21,7 +21,6 @@ Build-Depends: bzip2,
 	libcairo2-dev (>= 1.8.8),
 	libgnomevfs2-dev (>= 1:2.16),
 	libgnomeui-dev (>= 2.16),
-	librsvg2-bin,
 	libhunspell-dev (>= 1.2),
 	libnspr4-dev (>= 4.8.0),
 	libnss3-dev (>= 3.12.6),
@@ -32,7 +31,6 @@ Build-Depends: bzip2,
 	libasound2-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386],
 	libiw-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386],
 	python-ply,
-	patchutils (>= 0.2.25),
 	cdbs (>= 0.4.27)
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
