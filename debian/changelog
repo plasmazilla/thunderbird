@@ -1,3 +1,24 @@
+icedove (3.0.4-2) unstable; urgency=low
+
+  * [57f0a8b] remove icedove-3.0 transitional package (Closes: #576741)
+  * [8008231] remove wrong mime types in desktop file
+  * [a12edde] set StartupWMClass in desktop file to Icedove-bin
+  * [7512224] extend package description of icedove, icedove-dev and
+    icedove-dbg
+  * [7e725b9] fix FTBFS on alpha by passing '-Wl,--no-relax' to gcc
+  * [92d3515] Switch to dpkg-source 3.0 (quilt) format
+  * [14d5894] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0046-add-missing-headers-for-icedove-dev-package.patch (Closes: #577021)
+    modified patches:
+    - 0012-Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - 0020-Work-around-FTBFS-on-mips-by-disabling-TLS-support.patch
+  * [2cdd850] remove obsolete thunderbird 3.0a1pre postinst stuff
+  * [443f44b] process directory/c-sdk/configure with autoconf too
+  * [66c2f65] remove obsolete build depends librsvg2-bin and patchutils
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 11 Apr 2010 12:44:26 +0200
+
 icedove (3.0.4-1) unstable; urgency=low
 
   [ Guido Günther ]
