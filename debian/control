@@ -55,7 +55,7 @@ Description: mail/news client with RSS and integrated spam filter support
 Package: icedove-dev
 Architecture: any
 Section: mail
-Depends: icedove (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Depends: icedove (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}, libnspr4-dev, libnss3-dev
 Description: Development files for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free
  distribution. The goal of Thunderbird is to produce a cross platform stand-
