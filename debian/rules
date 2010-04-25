@@ -107,7 +107,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--disable-tests \
 	--disable-mochitest \
 	--disable-updater \
-	--enable-optimize \
 	--enable-static \
 	--enable-static-mail \
 	--enable-pango \
@@ -129,9 +128,9 @@ DEB_CONFIGURE_USER_FLAGS= \
 	$(NULL)
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-	DEB_CONFIGURE_USER_FLAGS += \
-		--disable-optimize \
-		$(NULL)
+	DEB_CONFIGURE_USER_FLAGS += --disable-optimize
+else
+	DEB_CONFIGURE_USER_FLAGS += --enable-optimize
 endif
 
 subst_files = \
