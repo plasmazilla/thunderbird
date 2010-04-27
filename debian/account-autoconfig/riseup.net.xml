@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<clientConfig version="1.1">
+    <emailProvider id="riseup.net">
+      <domain>riseup.net</domain>
+
+      <displayName>Riseup Networks Mail</displayName>
+      <displayShortName>Riseup</displayShortName>
+
+      <incomingServer type="imap">
+         <hostname>imap.riseup.net</hostname>
+         <port>143</port>
+         <socketType>STARTTLS</socketType>
+         <username>%EMAILLOCALPART%</username>
+         <authentication>plain</authentication>
+      </incomingServer>
+
+      <outgoingServer type="smtp">
+         <hostname>mail.riseup.net</hostname>
+         <port>587</port>
+         <socketType>STARTTLS</socketType>
+         <username>%EMAILLOCALPART%</username>
+         <authentication>plain</authentication>
+         <addThisServer>true</addThisServer>
+         <useGlobalPreferredServer>false</useGlobalPreferredServer>
+      </outgoingServer>
+
+      <identity>
+         <!-- FIXME: needed? -->
+      </identity>
+      <instructionsURL url="https://we.riseup.net/help/thunderbird-imap"
+         descr-en="Configure Thunderbird for Riseup Mail">
+         Configure Thunderbird for Riseup Mail</instructionsURL>
+    </emailProvider>
+
+    <clientConfigUpdate url="https://autoconfig.riseup.net/mail/config-v1.1.xml" />
+
+</clientConfig>
