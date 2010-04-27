@@ -41,7 +41,7 @@ Package: icedove
 Architecture: any
 Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}, ${misc:Depends}
 Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary, ${mail:Recommends}
-Suggests: ttf-lyx
+Suggests: ttf-lyx, libgssapi-krb5-2
 Provides: mail-reader
 Replaces: icedove-gnome-support (<< 3.0-1~)
 Conflicts: icedove-gnome-support (<< 3.0-1~)

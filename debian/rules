@@ -96,7 +96,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-system-bz2 \
 	--with-system-nspr \
 	--with-system-nss \
-	--with-gssapi=/usr \
 	--disable-javaxpcom \
 	--disable-crashreporter \
 	--disable-elf-dynstr-gc \
