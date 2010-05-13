@@ -75,11 +75,7 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/msgAsyncPrompter.js usr/shar
 
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/NetworkGeolocationProvider.js usr/share/@DEB_MOZ_APPLICATION@/components
 
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/libdbusservice.so
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/libimgicon.so
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/libjsd.so
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/libxpinstall.so
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/libmozgnome.so
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/lib*.so
 
 debian/icedove.js etc/@DEB_MOZ_APPLICATION@/pref
 debian/vendor.js usr/share/@DEB_MOZ_APPLICATION@/defaults/pref

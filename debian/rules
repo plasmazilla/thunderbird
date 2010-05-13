@@ -8,6 +8,7 @@ DEB_BUILD_ARCH      ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
 export BUILD_OFFICIAL=1
 export INSTALL_SDK=1
+export MAIL_PKG_SHARED=1
 
 DEB_MOZ_NAME=icedove
 DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
@@ -77,6 +78,8 @@ DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-dbg
 
 DEB_DH_SHLIBDEPS_ARGS_ALL=-l $(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) -Xlibmozgnome -Xlibnkgnomevfs -Xlibdbusservice
 
+DEB_DH_MAKESHLIBS_ARGS_ALL=-Xlibsystem-pref.so
+
 CFLAGS = -g
 CXXFLAGS = -g
 
@@ -106,8 +109,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--disable-tests \
 	--disable-mochitest \
 	--disable-updater \
-	--enable-static \
-	--enable-static-mail \
 	--enable-pango \
 	--enable-xft \
 	--enable-png \
