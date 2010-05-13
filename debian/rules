@@ -179,7 +179,7 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 binary-post-install/$(DEB_MOZ_APPLICATION):: compare
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
-	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dRecommends -pmail debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/libdbusservice.so -e debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/libmozgnome.so -e debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/libnkgnomevfs.so
+	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome nkgnomevfs,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
 
 clean::
 	rm -f debian/stamp-autotools-files-moz debian/stamp-icedove-branding

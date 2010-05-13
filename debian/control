@@ -40,8 +40,8 @@ Standards-Version: 3.8.4
 Package: icedove
 Architecture: any
 Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}, ${misc:Depends}
-Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary, ${mail:Recommends}
-Suggests: ttf-lyx, libgssapi-krb5-2
+Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary
+Suggests: ttf-lyx, libgssapi-krb5-2, ${gnome:Depends}
 Provides: mail-reader
 Replaces: icedove-gnome-support (<< 3.0-1~)
 Conflicts: icedove-gnome-support (<< 3.0-1~)
