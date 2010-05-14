@@ -1,3 +1,21 @@
+icedove (3.0.4-3) unstable; urgency=low
+
+  * [4026b50] icedove-dev need depend on libnspr4-dev and libnss3-dev
+    (Closes: #455725)
+  * [1fee936] don't run configure with --enable-optimize and --disable-
+    optimize if DEB_BUILD_OPTIONS contains noopt
+  * [02c0ea3] ship account autoconfig file for Riseup Networks (riseup.net)
+    (Closes: #577616)
+  * [e710d08] suggest libgssapi-krb5-2 for Kerberos login possibility
+  * [7609291] build a shared icedove binary. This avoid crashes because of
+    mixed functions from system and icedove itself (e.g. str2charray from
+    libldap_r-2.4.so.2 and libldap60.so). (Closes: #578916)
+  * [68f4b49] downgrade gnome stuff from Recommends to Suggests
+    (Closes: #579714)
+  * [bcff10b] install mailViews.dat into usr/share/icedove/defaults/messenger
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 14 May 2010 22:21:32 +0200
+
 icedove (3.0.4-2) unstable; urgency=low
 
   * [57f0a8b] remove icedove-3.0 transitional package (Closes: #576741)
