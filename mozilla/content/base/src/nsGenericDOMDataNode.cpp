@@ -285,8 +285,7 @@ nsGenericDOMDataNode::SubstringData(PRUint32 aStart, PRUint32 aCount,
 {
   aReturn.Truncate();
 
-  // XXX add <0 checks if types change
-  PRUint32 textLength = PRUint32( mText.GetLength() );
+  PRUint32 textLength = mText.GetLength();
   if (aStart > textLength) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
@@ -354,6 +353,20 @@ nsGenericDOMDataNode::SetTextInternal(PRUint32 aOffset, PRUint32 aCount,
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
 
+  if (aCount > textLength - aOffset) {
+    aCount = textLength - aOffset;
+  }
+
+  PRUint32 endOffset = aOffset + aCount;
+
+  // Make sure the text fragment can hold the new data.
+  if (aLength > aCount && !mText.CanGrowBy(aLength - aCount)) {
+    // This exception isn't per spec, but the spec doesn't actually
+    // say what to do here.
+
+    return NS_ERROR_DOM_DOMSTRING_SIZE_ERR;
+  }
+
   nsIDocument *document = GetCurrentDoc();
   mozAutoDocUpdate updateBatch(document, UPDATE_CONTENT_MODEL, aNotify);
 
@@ -367,12 +380,6 @@ nsGenericDOMDataNode::SetTextInternal(PRUint32 aOffset, PRUint32 aCount,
     oldValue = GetCurrentValueAtom();
   }
     
-  PRUint32 endOffset = aOffset + aCount;
-  if (endOffset > textLength) {
-    aCount = textLength - aOffset;
-    endOffset = textLength;
-  }
-
   if (aNotify) {
     CharacterDataChangeInfo info = {
       aOffset == textLength,
@@ -400,10 +407,10 @@ nsGenericDOMDataNode::SetTextInternal(PRUint32 aOffset, PRUint32 aCount,
     NS_ENSURE_TRUE(to, NS_ERROR_OUT_OF_MEMORY);
 
     // Copy over appropriate data
-    if (0 != aOffset) {
+    if (aOffset) {
       mText.CopyTo(to, 0, aOffset);
     }
-    if (0 != aLength) {
+    if (aLength) {
       memcpy(to + aOffset, aBuffer, aLength * sizeof(PRUnichar));
     }
     if (endOffset != textLength) {

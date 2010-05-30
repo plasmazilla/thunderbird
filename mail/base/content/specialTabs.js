@@ -276,6 +276,7 @@ var specialTabs = {
                                        aTab.closeListener, true);
       aTab.browser.webProgress.removeProgressListener(aTab.filter);
       aTab.filter.removeProgressListener(aTab.progressListener);
+      aTab.browser.destroy();
     },
     saveTabState: function onSaveTabState(aTab) {
       aTab.browser.setAttribute("type", "content-targetable");
@@ -684,14 +685,11 @@ var specialTabs = {
       this.lastBrowserId++;
     },
     closeTab: function onTabClosed(aTab) {
-      try {
       aTab.browser.removeEventListener("DOMTitleChanged",
                                        aTab.titleListener, true);
       aTab.browser.removeEventListener("DOMWindowClose",
                                        aTab.closeListener, true);
-      } catch (e) {
-        logException(e);
-      }
+      aTab.browser.destroy();
     },
     saveTabState: function onSaveTabState(aTab) {
     },

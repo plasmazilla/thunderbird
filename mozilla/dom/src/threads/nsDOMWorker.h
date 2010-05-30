@@ -63,6 +63,7 @@ class nsDOMWorkerTimeout;
 class nsICancelable;
 class nsIDOMEventListener;
 class nsIEventTarget;
+class nsIRunnable;
 class nsIScriptGlobalObject;
 class nsIXPConnectWrappedNative;
 
@@ -105,6 +106,7 @@ class nsDOMWorker : public nsIWorker,
   friend class nsDOMWorkerXHR;
   friend class nsDOMWorkerXHRProxy;
   friend class nsReportErrorRunnable;
+  friend class nsDOMFireEventRunnable;
 
   friend JSBool DOMWorkerOperationCallback(JSContext* aCx);
   friend void DOMWorkerErrorReporter(JSContext* aCx,
@@ -113,7 +115,6 @@ class nsDOMWorker : public nsIWorker,
 
 #ifdef DEBUG
   // For fun assertions.
-  friend class nsDOMFireEventRunnable;
 #endif
 
 public:
@@ -150,6 +151,10 @@ public:
 
   PRBool IsSuspended() {
     return mSuspended;
+  }
+
+  PRBool IsTerminated() {
+    return mTerminated;
   }
 
   PRBool SetGlobalForContext(JSContext* aCx);
@@ -210,6 +215,8 @@ private:
     mURI = aURI;
   }
 
+  PRBool QueueSuspendedRunnable(nsIRunnable* aRunnable);
+
 private:
 
   // mParent will live as long as mParentWN but only mParentWN will keep the JS
@@ -240,6 +247,8 @@ private:
   nsCOMPtr<nsIURI> mURI;
 
   PRInt32 mErrorHandlerRecursionCount;
+
+  nsTArray<nsCOMPtr<nsIRunnable> > mQueuedRunnables;
 
   PRPackedBool mCanceled;
   PRPackedBool mSuspended;

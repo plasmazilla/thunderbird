@@ -222,7 +222,7 @@ var gUpdates = {
     //
     // Encode version since it could be a non-ascii string (bug 359093)
     var neverPrefName = PREF_UPDATE_NEVER_BRANCH +
-                       encodeURIComponent(gUpdates.update.version);
+                        encodeURIComponent(gUpdates.update.version);
     gPref.setBoolPref(neverPrefName, true);
     this.wiz.cancel();
   },
@@ -588,6 +588,15 @@ var gIncompatibleCheckPage = {
    * Initialize
    */
   onPageShow: function() {
+    var aus = CoC["@mozilla.org/updates/update-service;1"].
+              getService(CoI.nsIApplicationUpdateService2);
+    // Display the manual update page if the user is unable to apply the update
+    if (!aus.canApplyUpdates) {
+      gUpdates.wiz.currentPage.setAttribute("next", "manualUpdate");
+      gUpdates.wiz.advance();
+      return;
+    }
+
     var ai = CoC["@mozilla.org/xre/app-info;1"].getService(CoI.nsIXULAppInfo);
     var vc = CoC["@mozilla.org/xpcom/version-comparator;1"].
              getService(CoI.nsIVersionComparator);
@@ -701,6 +710,31 @@ var gIncompatibleCheckPage = {
         !iid.equals(CoI.nsISupports))
       throw CoR.NS_ERROR_NO_INTERFACE;
     return this;
+  }
+};
+
+/**
+ * The "Unable to Update" page. Provides the user information about why they
+ * were unable to update and a manual download url.
+ */
+var gManualUpdatePage = {
+  onPageShow: function() {
+    var formatter = CoC["@mozilla.org/toolkit/URLFormatterService;1"].
+                    getService(CoI.nsIURLFormatter);
+    var manualURL = formatter.formatURLPref(PREF_UPDATE_MANUAL_URL);
+    var manualUpdateLinkLabel = document.getElementById("manualUpdateLinkLabel");
+    manualUpdateLinkLabel.value = manualURL;
+    manualUpdateLinkLabel.setAttribute("url", manualURL);
+
+    // Prevent multiple notifications for the same update when the user is
+    // unable to apply updates.
+    // Encode version since it could be a non-ascii string (bug 359093)
+    var neverPrefName = PREF_UPDATE_NEVER_BRANCH +
+                        encodeURIComponent(gUpdates.update.version);
+    gPref.setBoolPref(neverPrefName, true);
+
+    gUpdates.setButtons(null, null, "okButton", true);
+    gUpdates.wiz.getButton("finish").focus();
   }
 };
 

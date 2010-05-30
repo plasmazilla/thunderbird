@@ -3472,13 +3472,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSUint8Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                         JSUint8 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3500,13 +3504,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSUint16Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                          JSUint16 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3528,13 +3536,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSUint32Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                          JSUint32 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3556,13 +3568,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSInt8Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                        JSInt8 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3582,13 +3598,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSInt16Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                         JSInt16 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3608,13 +3628,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSInt32Buffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                         JSInt32 *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;
@@ -3634,13 +3658,17 @@ JS_FRIEND_API(JSBool)
 js_ArrayToJSDoubleBuffer(JSContext *cx, JSObject *obj, jsuint offset, jsuint count,
                          jsdouble *dest)
 {
-    uint32 length;
+    uint32 length, capacity;
 
     if (!obj || !OBJ_IS_DENSE_ARRAY(cx, obj))
         return JS_FALSE;
 
     length = obj->fslots[JSSLOT_ARRAY_LENGTH];
     if (length < offset + count)
+        return JS_FALSE;
+
+    capacity = js_DenseArrayCapacity(obj);
+    if (capacity < offset + count)
         return JS_FALSE;
 
     jsval v;

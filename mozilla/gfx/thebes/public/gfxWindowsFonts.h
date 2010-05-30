@@ -116,7 +116,9 @@ class FontEntry : public gfxFontEntry
 public:
     FontEntry(const nsAString& aFaceName, gfxWindowsFontType aFontType,
               PRBool aItalic, PRUint16 aWeight, gfxUserFontData *aUserFontData) : 
-        gfxFontEntry(aFaceName), mFontType(aFontType),
+        gfxFontEntry(aFaceName),
+        mWindowsFamily(0), mWindowsPitch(0),
+        mFontType(aFontType),
         mForceGDI(PR_FALSE), mUnknownCMAP(PR_FALSE),
         mUnicodeFont(PR_FALSE), mSymbolFont(PR_FALSE), mUserFont(PR_FALSE),
         mCharset(0), mUnicodeRanges(0)

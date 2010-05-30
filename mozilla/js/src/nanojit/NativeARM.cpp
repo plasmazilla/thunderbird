@@ -80,6 +80,7 @@ const Register Assembler::savedRegs[] = { R4, R5, R6, R7, R8, R9, R10 };
 void
 Assembler::nInit(AvmCore*)
 {
+    max_out_args = 0;
 }
 
 NIns*
@@ -91,7 +92,7 @@ Assembler::genPrologue()
 
     // NJ_RESV_OFFSET is space at the top of the stack for us
     // to use for parameter passing (8 bytes at the moment)
-    uint32_t stackNeeded = STACK_GRANULARITY * _activation.highwatermark + NJ_STACK_OFFSET;
+    uint32_t stackNeeded = max_out_args + STACK_GRANULARITY * _activation.highwatermark + NJ_STACK_OFFSET;
     uint32_t savingCount = 2;
 
     uint32_t savingMask = rmask(FP) | rmask(LR);
@@ -228,7 +229,6 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
         // if we're about to put this on the stack, make sure the
         // stack is 64-bit aligned
         if (r == UnknownReg && (stkd&7) != 0) {
-            SUBi(SP, SP, 4);
             stkd += 4;
         }
 #endif
@@ -253,7 +253,7 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
                         if (r == R4)
                             r = UnknownReg;
                     } else {
-                        STR_preindex(IP, SP, -4);
+                        STR(IP, SP, stkd);
                         asm_ld_imm(IP, *p++);
                         stkd += 4;
                     }
@@ -268,7 +268,7 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
                         if (r == R4)
                             r = UnknownReg;
                     } else {
-                        STR_preindex(IP, SP, -4);
+                        STR(IP, SP, stkd);
                         LDR(IP, FP, d + k*4);
                         stkd += 4;
                     }
@@ -287,7 +287,7 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
                     r = UnknownReg;
             } else if (r == R3) {
                 // legacy ABI only
-                STR_preindex(IP, SP, -4);
+                STR(IP, SP, 0);
                 FMRDL(IP, sr);
                 FMRDH(r, sr);
                 stkd += 4;
@@ -295,7 +295,6 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
                 r = UnknownReg;
             } else {
                 FSTD(sr, SP, 0);
-                SUB(SP, SP, 8);
                 stkd += 8;
                 r = UnknownReg;
             }
@@ -329,7 +328,7 @@ Assembler::asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd)
                 r = UnknownReg;
         } else {
             int d = findMemFor(arg);
-            STR_preindex(IP, SP, -4);
+            STR(IP, SP, stkd);
             if (arg->isop(LIR_alloc)) {
                 asm_add_imm(IP, FP, d);
             } else {
@@ -409,6 +408,9 @@ Assembler::asm_call(LInsp ins)
 #endif
 
         asm_arg(sz, arg, r, stkd);
+    }
+    if (stkd > max_out_args) {
+        max_out_args = stkd;
     }
 }
 

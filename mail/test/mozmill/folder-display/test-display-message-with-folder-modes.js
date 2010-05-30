@@ -51,7 +51,7 @@ var RELATIVE_ROOT = "../shared-modules";
 var MODULE_REQUIRES = ["folder-display-helpers"];
 
 var folder;
-
+var dummyFolder;
 var msgHdr;
 
 function setupModule(module) {
@@ -63,6 +63,10 @@ function setupModule(module) {
   // don't attempt to expand any inboxes.
   inboxFolder.createSubfolder("DisplayMessageWithFolderModesA", null);
   folder = inboxFolder.getChildNamed("DisplayMessageWithFolderModesA");
+  // This second folder is meant to act as a dummy folder to switch to when we
+  // want to not be in folder.
+  inboxFolder.createSubfolder("DisplayMessageWithFolderModesB", null);
+  dummyFolder = inboxFolder.getChildNamed("DisplayMessageWithFolderModesB");
   make_new_sets_in_folder(folder, [{count: 5}]);
 }
 
@@ -96,15 +100,20 @@ function test_display_message_with_folder_not_present_in_current_folder_mode() {
  */
 function test_display_message_with_folder_present_in_current_folder_mode() {
   // Mark the folder as a favorite
-  folder.flags |= Components.interfaces.nsMsgFolderFlags.Favorite;
+  folder.flags |= Ci.nsMsgFolderFlags.Favorite;
+  // Also mark the dummy folder as a favorite, in preparation for
+  // test_display_message_in_smart_folder_mode_works
+  dummyFolder.flags |= Ci.nsMsgFolderFlags.Favorite;
 
   // Make sure the folder doesn't appear in the favorite folder mode just
   // because it was selected last before switching
   be_in_folder(inboxFolder);
 
-  // Switch to favorite folders. Check that the folder is now in the view
+  // Switch to favorite folders. Check that the folder is now in the view, as is
+  // the dummy folder
   mc.folderTreeView.mode = "favorite";
   assert_folder_visible(folder);
+  assert_folder_visible(dummyFolder);
 
   // Try displaying a message
   display_message_in_folder_tab(msgHdr);
@@ -119,6 +128,14 @@ function test_display_message_with_folder_present_in_current_folder_mode() {
  * view to expand.
  */
 function test_display_message_in_smart_folder_mode_works() {
+  // Clear the message selection, otherwise msgHdr will still be displayed and
+  // display_message_in_folder_tab(msgHdr) will be a no-op.
+  select_none();
+  // Switch to the dummy folder, otherwise msgHdr will be in the view and the
+  // display message in folder tab logic will simply select the message without
+  // bothering to expand any folders.
+  be_in_folder(dummyFolder);
+
   mc.folderTreeView.mode = "smart";
 
   let rootFolder = folder.server.rootFolder;

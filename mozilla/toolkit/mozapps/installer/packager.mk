@@ -88,8 +88,12 @@ PACKAGE       = $(PKG_PATH)$(PKG_BASENAME)$(PKG_SUFFIX)
 
 # By default, the SDK uses the same packaging type as the main bundle,
 # but on mac it is a .tar.bz2
+SDK_PATH      = $(PKG_PATH)
+ifeq ($(MOZ_APP_NAME),xulrunner)
+SDK_PATH = sdk/
+endif
 SDK_SUFFIX    = $(PKG_SUFFIX)
-SDK           = $(PKG_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
+SDK           = $(SDK_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
 
 MAKE_PACKAGE	= $(error What is a $(MOZ_PKG_FORMAT) package format?);
 
@@ -196,6 +200,9 @@ UNMAKE_PACKAGE	= \
 # individual dmg and are created by hdiutil.
 SDK_SUFFIX = .tar.bz2
 SDK = $(MOZ_PKG_APPNAME)-$(MOZ_PKG_VERSION).$(AB_CD).mac-$(TARGET_CPU).sdk$(SDK_SUFFIX)
+ifeq ($(MOZ_APP_NAME),xulrunner)
+SDK = $(SDK_PATH)$(MOZ_APP_NAME)-$(MOZ_PKG_VERSION).$(AB_CD).mac-$(TARGET_CPU).sdk$(SDK_SUFFIX)
+endif
 MAKE_SDK = $(CREATE_FINAL_TAR) - $(MOZ_APP_NAME)-sdk | bzip2 -vf > $(SDK)
 endif
 
@@ -286,7 +293,7 @@ ifndef PACKAGER_NO_LIBS
 libs:: make-package
 endif
 
-DEFINES += -DDLL_PREFIX=$(DLL_PREFIX) -DDLL_SUFFIX=$(DLL_SUFFIX)
+DEFINES += -DDLL_PREFIX=$(DLL_PREFIX) -DDLL_SUFFIX=$(DLL_SUFFIX) -DBIN_SUFFIX=$(BIN_SUFFIX)
 
 ifdef MOZ_PKG_REMOVALS
 MOZ_PKG_REMOVALS_GEN = removed-files
@@ -507,6 +514,7 @@ make-sdk:
 # sdk/lib is the same as sdk/sdk/lib
 	(cd $(DIST)/sdk/lib && tar $(TAR_CREATE_FLAGS) - .) | \
 	  (cd $(DIST)/$(MOZ_APP_NAME)-sdk/lib && tar -xf -)
+	$(NSINSTALL) -D $(DIST)/$(SDK_PATH)
 	cd $(DIST) && $(MAKE_SDK)
 
 ifeq ($(OS_TARGET), WINNT)

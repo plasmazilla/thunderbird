@@ -42,11 +42,17 @@
 
 #include "nsHTMLContainerFrame.h"
 
+#define NS_FIRSTLETTER_FRAME_CID \
+ { 0x64e918c7, 0x786a, 0x4f5c,{0x93, 0xe0, 0x24, 0x59, 0x64, 0x31, 0xcf, 0x75}}
+
 #define nsFirstLetterFrameSuper nsHTMLContainerFrame
 
 class nsFirstLetterFrame : public nsFirstLetterFrameSuper {
 public:
   nsFirstLetterFrame(nsStyleContext* aContext) : nsHTMLContainerFrame(aContext) {}
+
+  // nsISupports overrides
+  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aInstancePtr);
 
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,
@@ -92,6 +98,15 @@ public:
                                            nsIFrame **outChildFrame);
 
   nscoord GetFirstLetterBaseline() const { return mBaseline; }
+
+  // For floating first letter frames, create a continuation for aChild and
+  // place it in the correct place. aContinuation is an outparam for the
+  // continuation that is created. aIsFluid determines if the continuation is
+  // fluid or not.
+  nsresult CreateContinuationForFloatingParent(nsPresContext* aPresContext,
+                                               nsIFrame* aChild,
+                                               nsIFrame** aContinuation,
+                                               PRBool aIsFluid);
 
 protected:
   nscoord mBaseline;

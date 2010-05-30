@@ -17,6 +17,7 @@ smtpDaemon.prototype = {
   function SMTP_RFC2822_handler(daemon, authMechanisms, username, password) {
   this._daemon = daemon;
   this.closing = false;
+  this.dropOnAuthFailure = false;
   this._authMechanisms = authMechanisms ? authMechanisms : "PLAIN";
   this._username = username ? username : "testsmtp";
   this._password = password ? password : "smtptest";
@@ -36,8 +37,11 @@ SMTP_RFC2822_handler.prototype = {
 
     switch (splitArgs[0]) {
     case "PLAIN": {
-      if (splitArgs[1] != btoa("\u0000" + this._username + "\u0000" + this._password))
+      if (splitArgs[1] != btoa("\u0000" + this._username + "\u0000" + this._password)) {
+        if (this.dropOnAuthFailure)
+          this.closing = true;
         return "535 authentication failed";
+      }
 
       this._authState = 3;
 
@@ -94,6 +98,8 @@ SMTP_RFC2822_handler.prototype = {
       case 1: {
         if (line != btoa(this._username)) {
           this._authState = 0;
+          if (this.dropOnAuthFailure)
+            this.closing = true;
           return "535 authentication failed";
         }
         this._authState = 2;
@@ -103,6 +109,8 @@ SMTP_RFC2822_handler.prototype = {
       case 2: {
         if (line != btoa(this._password)) {
           this._authState = 0;
+          if (this.dropOnAuthFailure)
+            this.closing = true;
           return "535 authentication failed";
         }
         this._authState = 3;
@@ -119,14 +127,14 @@ SMTP_RFC2822_handler.prototype = {
       if (this.expectingData) {
         this.expectingData = false;
         return "250 Wonderful article, your style is gorgeous!";
-	    }
+     }
     }
 
     if (this.expectingData) {
-	    if (line[0] == '.')
+      if (line[0] == '.')
         line = line.substring(1);
       // This uses CR LF to match with the specification
-	    this.post += line + '\r\n';
+      this.post += line + '\r\n';
     }
     return undefined;
   },
