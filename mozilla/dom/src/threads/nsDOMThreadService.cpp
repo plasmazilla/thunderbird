@@ -505,24 +505,42 @@ DOMWorkerErrorReporter(JSContext* aCx,
     do_CreateInstance(NS_SCRIPTERROR_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,);
 
-  const PRUnichar* message =
-    reinterpret_cast<const PRUnichar*>(aReport->ucmessage);
+  if (NS_FAILED(rv)) {
+    return;
+  }
 
-  nsAutoString filename;
-  filename.AssignWithConversion(aReport->filename);
+  nsAutoString message, filename, line;
+  PRUint32 lineNumber, columnNumber, flags, errorNumber;
 
-  const PRUnichar* line =
-    reinterpret_cast<const PRUnichar*>(aReport->uclinebuf);
+  if (aReport) {
+    if (aReport->ucmessage) {
+      message.Assign(aReport->ucmessage);
+    }
+    filename.AssignWithConversion(aReport->filename);
+    line.Assign(aReport->uclinebuf);
+    lineNumber = aReport->lineno;
+    columnNumber = aReport->uctokenptr - aReport->uclinebuf;
+    flags = aReport->flags;
+    errorNumber = aReport->errorNumber;
+  }
+  else {
+    lineNumber = columnNumber = errorNumber = 0;
+    flags = nsIScriptError::errorFlag | nsIScriptError::exceptionFlag;
+  }
 
-  PRUint32 column = aReport->uctokenptr - aReport->uclinebuf;
+  if (message.IsEmpty()) {
+    message.AssignWithConversion(aMessage);
+  }
 
-  rv = scriptError->Init(message, filename.get(), line, aReport->lineno,
-                         column, aReport->flags, "DOM Worker javascript");
-  NS_ENSURE_SUCCESS(rv,);
+  rv = scriptError->Init(message.get(), filename.get(), line.get(), lineNumber,
+                         columnNumber, flags, "DOM Worker javascript");
+  if (NS_FAILED(rv)) {
+    return;
+  }
 
   // Don't call the error handler if we're out of stack space.
-  if (aReport->errorNumber != JSMSG_SCRIPT_STACK_QUOTA &&
-      aReport->errorNumber != JSMSG_OVER_RECURSED) {
+  if (errorNumber != JSMSG_SCRIPT_STACK_QUOTA &&
+      errorNumber != JSMSG_OVER_RECURSED) {
     // Try the onerror handler for the worker's scope.
     nsCOMPtr<nsIDOMEventListener> handler =
       worker->mInnerHandler->GetOnXListener(NS_LITERAL_STRING("error"));
@@ -530,9 +548,9 @@ DOMWorkerErrorReporter(JSContext* aCx,
     if (handler) {
       nsRefPtr<nsDOMWorkerErrorEvent> event(new nsDOMWorkerErrorEvent());
       if (event) {
-        rv = event->InitErrorEvent(NS_LITERAL_STRING("error"), PR_FALSE, PR_TRUE,
-                                   nsDependentString(message), filename,
-                                   aReport->lineno);
+        rv = event->InitErrorEvent(NS_LITERAL_STRING("error"), PR_FALSE,
+                                   PR_TRUE, nsDependentString(message),
+                                   filename, lineNumber);
         if (NS_SUCCEEDED(rv)) {
           NS_ASSERTION(worker->GetInnerScope(), "Null scope!");
           event->SetTarget(worker->GetInnerScope());
@@ -565,7 +583,9 @@ DOMWorkerErrorReporter(JSContext* aCx,
   // top-level worker and we send the message to the main thread.
   rv = parent ? nsDOMThreadService::get()->Dispatch(parent, runnable)
               : NS_DispatchToMainThread(runnable, NS_DISPATCH_NORMAL);
-  NS_ENSURE_SUCCESS(rv,);
+  if (NS_FAILED(rv)) {
+    return;
+  }
 }
 
 /*******************************************************************************

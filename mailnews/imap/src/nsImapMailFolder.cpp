@@ -3207,10 +3207,7 @@ NS_IMETHODIMP nsImapMailFolder::BeginCopy(nsIMsgDBHdr *message)
 
   nsCOMPtr<nsIOutputStream> fileOutputStream;
   nsCOMPtr <nsILocalFile> localFile = do_QueryInterface(m_copyState->m_tmpFile);
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(fileOutputStream), localFile, -1, 00600);
-  NS_ENSURE_SUCCESS(rv,rv);
-  rv = NS_NewBufferedOutputStream(getter_AddRefs(m_copyState->m_msgFileStream), fileOutputStream, FOUR_K);
-  NS_ENSURE_SUCCESS(rv,rv);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_copyState->m_msgFileStream), localFile, -1, 00600);
 
   if (!m_copyState->m_dataBuffer)
     m_copyState->m_dataBuffer = (char*) PR_CALLOC(COPY_BUFFER_SIZE+1);
@@ -4349,7 +4346,7 @@ nsImapMailFolder::SetupMsgWriteStream(nsIFile * aFile, PRBool addDummyEnvelope)
   aFile->Remove(PR_FALSE);
   nsCOMPtr<nsILocalFile>  localFile = do_QueryInterface(aFile, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(m_tempMessageStream), localFile, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE, 00700);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_tempMessageStream), localFile, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE, 00700);
   if (m_tempMessageStream && addDummyEnvelope)
   {
     nsCAutoString result;
@@ -8280,9 +8277,12 @@ NS_IMETHODIMP nsImapMailFolder::RenameClient(nsIMsgWindow *msgWindow, nsIMsgFold
     if (imapFolder)
     {
       nsCAutoString onlineName(m_onlineFolderName);
+      nsCAutoString utf7LeafName;
+
       if (!onlineName.IsEmpty())
-      onlineName.Append(hierarchyDelimiter);
-      LossyAppendUTF16toASCII(folderNameStr, onlineName);
+        onlineName.Append(hierarchyDelimiter);
+      CopyUTF16toMUTF7(folderNameStr, utf7LeafName);
+      onlineName.Append(utf7LeafName);
       imapFolder->SetVerifiedAsOnlineFolder(PR_TRUE);
       imapFolder->SetOnlineName(onlineName);
       imapFolder->SetHierarchyDelimiter(hierarchyDelimiter);

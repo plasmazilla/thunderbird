@@ -801,6 +801,15 @@ add_makefiles "
 # Conditional makefiles
 #
 
+if [ "$ENABLE_TESTS" ]; then
+  add_makefiles "
+    testing/mochitest/tests/MochiKit-1.4.2/Makefile
+    testing/mochitest/tests/MochiKit-1.4.2/MochiKit/Makefile
+    testing/mochitest/tests/MochiKit-1.4.2/tests/Makefile
+    testing/mochitest/tests/MochiKit-1.4.2/tests/SimpleTest/Makefile
+  "
+fi
+
 if [ "$MOZ_ZIPWRITER" ]; then
   add_makefiles "
     modules/libjar/zipwriter/Makefile

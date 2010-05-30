@@ -53,10 +53,7 @@ extern JSObject *
 js_InitMathClass(JSContext *cx, JSObject *obj);
 
 extern void
-js_random_init(JSRuntime *rt);
-
-extern jsdouble
-js_random_nextDouble(JSRuntime *rt);
+js_InitRandom(JSContext *cx);
 
 JS_END_EXTERN_C
 

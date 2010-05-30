@@ -1772,13 +1772,16 @@ public:
         mFontSelected(PR_FALSE), mForceGDIPlace(PR_FALSE)
     {
         NS_ASSERTION(mMaxGlyphs < 65535, "UniscribeItem is too big, ScriptShape() will fail!");
-        mGlyphs.SetLength(mMaxGlyphs);
-        mClusters.SetLength(mItemLength + 1);
-        mAttr.SetLength(mMaxGlyphs);
     }
 
     ~UniscribeItem() {
         free(mAlternativeString);
+    }
+
+    PRBool AllocateBuffers() {
+        return (mGlyphs.SetLength(mMaxGlyphs) &&
+                mClusters.SetLength(mItemLength + 1) &&
+                mAttr.SetLength(mMaxGlyphs));
     }
 
     /* possible return values:
@@ -1817,8 +1820,10 @@ public:
 
             if (rv == E_OUTOFMEMORY) {
                 mMaxGlyphs *= 2;
-                mGlyphs.SetLength(mMaxGlyphs);
-                mAttr.SetLength(mMaxGlyphs);
+                if (!mGlyphs.SetLength(mMaxGlyphs) ||
+                    !mAttr.SetLength(mMaxGlyphs)) {
+                    return E_OUTOFMEMORY;
+                }
                 continue;
             }
 
@@ -1956,8 +1961,10 @@ public:
     }
 
     HRESULT Place() {
-        mOffsets.SetLength(mNumGlyphs);
-        mAdvances.SetLength(mNumGlyphs);
+        if (!mOffsets.SetLength(mNumGlyphs) ||
+            !mAdvances.SetLength(mNumGlyphs)) {
+            return E_OUTOFMEMORY;
+        }
 
         if (mForceGDIPlace)
             return PlaceGDI();
@@ -2361,7 +2368,10 @@ public:
                                                 mItems[i+1].iCharPos - mItems[i].iCharPos,
                                                 &mItems[i],
                                                 aGroup);
-
+        if (!item->AllocateBuffers()) {
+            delete item;
+            return nsnull;
+        }
         return item;
     }
 
@@ -2593,9 +2603,13 @@ gfxWindowsFontGroup::InitTextRunUniscribe(gfxContext *aContext, gfxTextRun *aRun
     int numItems = us.Itemize();
 
     for (int i = 0; i < numItems; ++i) {
-        SaveDC(aDC);
-
         nsAutoPtr<UniscribeItem> item(us.GetItem(i, this));
+        if (!item) {
+            // failed to initialize the item; give up (out of memory)
+            break;
+        }
+
+        SaveDC(aDC);
 
         // jtdfix - push this into the pref handling code??
         mItemLangGroup = nsnull;

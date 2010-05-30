@@ -455,6 +455,8 @@ const gPopupBlockerObserver = {
 
     if (gPrivateBrowsingUI.privateBrowsingEnabled)
       blockedPopupAllowSite.setAttribute("disabled", "true");
+    else
+      blockedPopupAllowSite.removeAttribute("disabled");
 
     var item = aEvent.target.lastChild;
     while (item && item.getAttribute("observes") != "blockedPopupsSeparator") {
@@ -7163,6 +7165,10 @@ let gPrivateBrowsingUI = {
   onExitPrivateBrowsing: function PBUI_onExitPrivateBrowsing() {
     if (BrowserSearch.searchBar)
       BrowserSearch.searchBar.textbox.reset();
+
+    if (gURLBar) {
+      gURLBar.editor.transactionManager.clear();
+    }
 
     document.getElementById("menu_import").removeAttribute("disabled");
 

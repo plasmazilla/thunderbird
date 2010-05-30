@@ -41,6 +41,38 @@
  * for inspiration and idioms (and also a name :).
  */
 
+/* BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+ *  BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+ * BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+ *  BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+ * BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+ * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ *  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ *   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ *    XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XX
+ *
+ * The following changes have been made to this file on the Thunderbird 3.0.x
+ *  branch that are unique and distinct from those on the trunk.
+ *
+ * - A solution to https://bugzilla.mozilla.org/show_bug.cgi?id=530098 that
+ *    does not rev the database schema.  (The bug is about fixing slow deletion
+ *    by creating an index we thought already existed).  Due to a failure to
+ *    really think ahead about schema revisions, we can't just luck out and
+ *    bump the schema rev by 1 and know that thing will work out when people
+ *    upgrade to 3.1 because the database will need to get blown away anyways.
+ *    (The problem is 3.1 beta 2 is only on schema rev 21).
+ *
+ *  Our solution is to check for the existence of the index we require on
+ *   startup synchronously and make sure we asynchronously add it if it does
+ *   not exist.  The synchronous check step is believed to be cheap enough that
+ *   it outweighs the implementation effort (and check cost) of using some
+ *   other mechanism to capture the state change.  Note that CREATE INDEX
+ *   statements can actually append "IF NOT EXISTS" to make them idempotent but
+ *   we avoid doing that because if it turns out gloda is disabled, we don't
+ *   want to be spinning up the database's async thread.  (The gloda database
+ *   gets created even when disabled; it just stays pretty empty.)
+ */
+
 const EXPORTED_SYMBOLS = ["GlodaDatastore"];
 
 const Cc = Components.classes;
@@ -692,6 +724,16 @@ var GlodaDatastore = {
           attribQuery: [
             "attributeID", "value",
             /* covering: */ "conversationID", "messageID"],
+          // This is required for deletion of a message's attributes to be
+          // performant.  We could optimize this index away if we changed our
+          // deletion logic to issue specific attribute deletions based on the
+          // information it already has available in the message's JSON blob.
+          // The rub there is that if we screwed up we could end up leaking
+          // attributes and there is a non-trivial performance overhead to
+          // the many requests it would cause (which can also be reduced in
+          // the future by changing our SQL dispatch code.)
+          messageAttribFastDeletion: [
+            "messageID"],
         },
       },
 
@@ -840,6 +882,36 @@ var GlodaDatastore = {
     this._populateMessageManagedId();
     this._populateContactManagedId();
     this._populateIdentityManagedId();
+
+    // BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
+    // -- determine if the index required for fast deletion exists and
+    //  asynchronously cause it to exist if it does not.
+    let indexExistsStmt = this._createSyncStatement(
+      "PRAGMA index_list(messageAttributes)", true);
+    let indexExists = false;
+    try {
+      while (indexExistsStmt.executeStep()) {
+        let indexName = indexExistsStmt.getString(1);
+        if (indexName == "messageAttribFastDeletion") {
+          indexExists = true;
+          break;
+        }
+      }
+    }
+    finally {
+      indexExistsStmt.finalize();
+    }
+    if (!indexExists) {
+      let asyncCreateIndex = this._createAsyncStatement(
+        "CREATE INDEX messageAttribFastDeletion ON " +
+          "messageAttributes(messageID)",
+        /* we will finalize */ true);
+      asyncCreateIndex.executeAsync(this.trackAsync());
+      // (this does not interfere with the asynchronous fellow; it just kills
+      //  off the synchronous side of the house)
+      asyncCreateIndex.finalize();
+    }
+    // FIN FIN FIN FIN FIN FIN FIN FINF IN FIN FIN FIN FIN FIN FIN FIN FIN FIN
 
     // create the timer we use to periodically drop our references to folders
     //  we no longer need XPCOM references to (or more significantly, their

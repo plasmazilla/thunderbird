@@ -1522,7 +1522,7 @@
 
             if (!aTabWillBeMoved) {
               let ds = browser.docShell;
-              if (ds.contentViewer && !ds.contentViewer.permitUnload())
+              if (ds && ds.contentViewer && !ds.contentViewer.permitUnload())
                 return null;
             }
 

@@ -152,7 +152,7 @@ private:
   nsCOMPtr<nsIThreadPool> mThreadPool;
 
   // Maps nsIScriptGlobalObject* to nsDOMWorkerPool.
-  nsRefPtrHashtable<nsISupportsHashKey, nsDOMWorkerPool> mPools;
+  nsRefPtrHashtable<nsVoidPtrHashKey, nsDOMWorkerPool> mPools;
 
   // mMonitor protects all access to mWorkersInProgress and
   // mCreationsInProgress.

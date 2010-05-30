@@ -166,6 +166,10 @@ def move_to_stable():
         config.set('paths', 'default-push',
                    "%s://hg.mozilla.org/releases/mozilla-1.9.1/" % match.group(1) )
 
+    hgcloneopts = []
+    if options.hgcloneopts:
+        hgcloneopts = options.hgcloneopts.split()
+
     hgopts = []
     if options.hgopts:
         hgopts = options.hgopts.split()
@@ -180,7 +184,7 @@ def move_to_stable():
         sys.exit("Error: Mozilla directory renaming failed!")
 
     # Locally clone common repository history.
-    check_call_noisy([options.hg, 'clone', '-r', MOZILLA_BASE_REV] + hgopts + [mozilla_trunk_path, mozilla_path],
+    check_call_noisy([options.hg, 'clone', '-r', MOZILLA_BASE_REV] + hgcloneopts + hgopts + [mozilla_trunk_path, mozilla_path],
                      retryMax=options.retries)
 
     # Rewrite hgrc for new local mozilla repo based on pre-existing hgrc
@@ -209,26 +213,37 @@ def backup_cvs_extension(extensionName, extensionDir, extensionPath):
         sys.exit("Error: %s directory renaming failed!" % extensionName)
 
 def do_hg_pull(dir, repository, hg, rev):
+    """Clone if the dir doesn't exist, pull if it does.
+    """
+
     fulldir = os.path.join(topsrcdir, dir)
-    # clone if the dir doesn't exist, pull if it does
+
+    hgcloneopts = []
+    if options.hgcloneopts:
+        hgcloneopts = options.hgcloneopts.split()
+
     hgopts = []
     if options.hgopts:
         hgopts = options.hgopts.split()
+
     if not os.path.exists(fulldir):
         fulldir = os.path.join(topsrcdir, dir)
-        check_call_noisy([hg, 'clone'] + hgopts + [repository, fulldir],
+        check_call_noisy([hg, 'clone'] + hgcloneopts + hgopts + [repository, fulldir],
                          retryMax=options.retries)
     else:
         cmd = [hg, 'pull', '-R', fulldir] + hgopts
         if repository is not None:
             cmd.append(repository)
         check_call_noisy(cmd, retryMax=options.retries)
+
     # update to specific revision
+    cmd = [hg, 'update', '-r', rev, '-R', fulldir ] + hgopts
     if options.verbose:
-        cmd = [hg, 'update', '-v', '-r', rev, '-R', fulldir ] + hgopts
-    else:
-        cmd = [hg, 'update', '-r', rev, '-R', fulldir ] + hgopts
-    check_call_noisy(cmd, retryMax=options.retries)
+        cmd.append('-v')
+    # Explicitly never retry 'hg update': otherwise any merge failures are ignored.
+    # This command is local: a failure can't be caused by a network error.
+    check_call_noisy(cmd, retryMax=0)
+
     check_call([hg, 'parent', '-R', fulldir,
                 '--template=Updated to revision {node}.\n'])
 
@@ -239,18 +254,14 @@ def do_cvs_checkout(modules, tag, cvsroot, cvs, checkoutdir):
     for module in modules:
         (parent, leaf) = os.path.split(module)
         print "CVS checkout begin: " + datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        if tag == 'HEAD':
-            check_call_noisy([cvs, '-d', cvsroot, '-q',
-                              'checkout', '-P', '-A', '-d', leaf,
-                              'mozilla/%s' % module],
-                             cwd=os.path.join(topsrcdir, checkoutdir, parent),
-                             retryMax=options.retries)
-        else:
-            check_call_noisy([cvs, '-d', cvsroot, '-q',
-                              'checkout', '-P', '-r', tag, '-d', leaf,
-                              'mozilla/%s' % module],
-                             cwd=os.path.join(topsrcdir, checkoutdir, parent),
-                             retryMax=options.retries)
+        revopt = ((tag == 'HEAD') and ['-A']) or ['-r', tag]
+        # Explicitly never retry 'cvs checkout': otherwise any merge failures are ignored.
+        # No way to tell whether a failure is caused by a network error or a local conflict: better be safe.
+        check_call_noisy([cvs, '-d', cvsroot, '-q',
+                          'checkout', '-P'] + revopt + ['-d', leaf,
+                          'mozilla/%s' % module],
+                         retryMax=0,
+                         cwd=os.path.join(topsrcdir, checkoutdir, parent))
         print "CVS checkout end: " + datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
 def check_retries_option(option, opt_str, value, parser):
@@ -320,6 +331,8 @@ o.add_option("-v", "--verbose", dest="verbose",
              help="Enable verbose output on hg updates")
 o.add_option("--hg-options", dest="hgopts",
              help="Pass arbitrary options to hg commands (i.e. --debug, --time)")
+o.add_option("--hg-clone-options", dest="hgcloneopts",
+             help="Pass arbitrary options to hg clone commands (i.e. --uncompressed)")
 
 o.add_option("--cvs", dest="cvs", default=os.environ.get('CVS', 'cvs'),
              help="The location of the cvs binary")
