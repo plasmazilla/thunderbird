@@ -47,11 +47,28 @@
 #include "nsAutoPtr.h"
 #include "nsStyleSet.h"
 #include "nsFrameManager.h"
+#include "nsPlaceholderFrame.h"
+#include "nsCSSFrameConstructor.h"
+
+NS_DEFINE_IID(kFirstLetterFrameCID, NS_FIRSTLETTER_FRAME_CID);
 
 nsIFrame*
 NS_NewFirstLetterFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   return new (aPresShell) nsFirstLetterFrame(aContext);
+}
+
+NS_IMETHODIMP
+nsFirstLetterFrame::QueryInterface(const nsIID& aIID, void** aInstancePtr)
+{
+  NS_PRECONDITION(aInstancePtr, "null out param");
+
+  if (aIID.Equals(kFirstLetterFrameCID)) {
+    *aInstancePtr = this;
+    return NS_OK;
+  }
+
+  return nsFirstLetterFrameSuper::QueryInterface(aIID, aInstancePtr);
 }
 
 #ifdef NS_DEBUG
@@ -279,23 +296,32 @@ nsFirstLetterFrame::Reflow(nsPresContext*          aPresContext,
   else {
     // Create a continuation for the child frame if it doesn't already
     // have one.
-    nsIFrame* nextInFlow;
-    rv = CreateNextInFlow(aPresContext, this, kid, nextInFlow);
-    if (NS_FAILED(rv)) {
-      return rv;
-    }
-
-    // And then push it to our overflow list
-    if (nextInFlow) {
-      kid->SetNextSibling(nsnull);
-      SetOverflowFrames(aPresContext, nextInFlow);
-    }
-    else {
-      nsIFrame* nextSib = kid->GetNextSibling();
-      if (nextSib) {
-        kid->SetNextSibling(nsnull);
-        SetOverflowFrames(aPresContext, nextSib);
+    if (!GetStyleDisplay()->IsFloating()) {
+      nsIFrame* nextInFlow;
+      rv = CreateNextInFlow(aPresContext, this, kid, nextInFlow);
+      if (NS_FAILED(rv)) {
+        return rv;
       }
+
+      // And then push it to our overflow list
+      if (nextInFlow) {
+        kid->SetNextSibling(nsnull);
+        SetOverflowFrames(aPresContext, nextInFlow);
+      }
+      else {
+        nsIFrame* nextSib = kid->GetNextSibling();
+        if (nextSib) {
+          kid->SetNextSibling(nsnull);
+          SetOverflowFrames(aPresContext, nextSib);
+        }
+      }
+    } else if (!kid->GetNextInFlow()) {
+      // For floating first letter frames (if a continuation wasn't already
+      // created for us) we need to put the continuation with the rest of the
+      // text that the first letter frame was made out of.
+      nsIFrame* continuation;
+      rv = CreateContinuationForFloatingParent(aPresContext, kid,
+                                               &continuation, PR_TRUE);
     }
   }
 
@@ -310,6 +336,53 @@ nsFirstLetterFrame::CanContinueTextRun() const
 {
   // We can continue a text run through a first-letter frame.
   return PR_TRUE;
+}
+
+nsresult
+nsFirstLetterFrame::CreateContinuationForFloatingParent(nsPresContext* aPresContext,
+                                                        nsIFrame* aChild,
+                                                        nsIFrame** aContinuation,
+                                                        PRBool aIsFluid)
+{
+  NS_ASSERTION(GetStyleDisplay()->IsFloating(),
+               "can only call this on floating first letter frames");
+  NS_PRECONDITION(aContinuation, "bad args");
+
+  *aContinuation = nsnull;
+  nsresult rv = NS_OK;
+
+  nsIPresShell* presShell = aPresContext->PresShell();
+  nsPlaceholderFrame* placeholderFrame =
+    presShell->FrameManager()->GetPlaceholderFrameFor(this);
+  nsIFrame* parent = placeholderFrame->GetParent();
+
+  nsIFrame* continuation;
+  rv = presShell->FrameConstructor()->
+    CreateContinuingFrame(aPresContext, aChild, parent, &continuation, aIsFluid);
+  if (NS_FAILED(rv) || !continuation) {
+    return rv;
+  }
+
+  // The continuation will have gotten the first letter style from it's
+  // prev continuation, so we need to repair the style context so it
+  // doesn't have the first letter styling.
+  nsStyleContext* parentSC = this->GetStyleContext()->GetParent();
+  if (parentSC) {
+    nsRefPtr<nsStyleContext> newSC;
+    newSC = presShell->StyleSet()->ResolveStyleForNonElement(parentSC);
+    if (newSC) {
+      continuation->SetStyleContext(newSC);
+    }
+  }
+
+  //XXX Bidi may not be involved but we have to use the list name
+  // nsGkAtoms::nextBidi because this is just like creating a continuation
+  // except we have to insert it in a different place and we don't want a
+  // reflow command to try to be issued.
+  rv = parent->InsertFrames(nsGkAtoms::nextBidi, placeholderFrame, continuation);
+
+  *aContinuation = continuation;
+  return rv;
 }
 
 void

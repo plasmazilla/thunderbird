@@ -48,6 +48,8 @@ components/airbag.xpt
 components/@DLL_PREFIX@bookmark@DLL_SUFFIX@
 components/bookmarks.xpt
 components/chatzilla-service.js
+components/components.list
+components/contentAreaDropListener.js
 components/contentSecurityPolicy.js
 components/crashreporter.xpt
 components/crypto-SDR.js
@@ -64,6 +66,7 @@ components/nsINIProcessor.js
 components/nsInterfaceInfoToIDL.js
 components/nsKillAll.js
 components/nsLDAPPrefsService.js
+components/nsMicrosummaryService.js
 components/nsPlacesAutoComplete.js
 components/nsPlacesExpiration.js
 components/nsResetPref.js
@@ -115,6 +118,7 @@ greprefs.js
 @DLL_PREFIX@layers@DLL_SUFFIX@
 modules/JSON.jsm
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
+mozilla-runtime@BIN_SUFFIX@
 @DLL_PREFIX@mozlcms@DLL_SUFFIX@
 @DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
 LICENSE
@@ -129,9 +133,6 @@ mozcrt19.dll
 #endif
 mozcpp19.dll
 regxpcom.exe
-xpicleanup.exe
-#else
-xpicleanup
 #endif
 res/cmessage.txt
 modules/dbViewWrapper.js
@@ -147,6 +148,7 @@ extensions/p@m/components/palmsync.dll
 extensions/p@m/components/palmsync.xpt
 extensions/p@m/defaults/preferences/palmsync.js
 #endif
+xpicleanup@BIN_SUFFIX@
 #ifdef MOZ_STATIC_BUILD
 components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
 components/@DLL_PREFIX@appcomps@DLL_SUFFIX@

@@ -48,6 +48,8 @@
 #include "jspubtd.h"
 #include "jsutil.h" /* Added by JSIFY */
 #include "jstypes.h"
+#include "jsapi.h"
+#include "jsarray.h"
 #include "jsbit.h"
 #include "jscntxt.h"
 #include "jsdtoa.h"
@@ -462,7 +464,10 @@ FinishSharingTitle(JSContext *cx, JSTitle *title)
     obj = scope->object;
     if (obj) {
         nslots = scope->freeslot;
-        for (i = 0; i != nslots; ++i) {
+        i = (STOBJ_GET_CLASS(obj) == &js_SlowArrayClass)
+            ? JSSLOT_PRIVATE + 1
+            : JSSLOT_PRIVATE;
+        for (; i < nslots; ++i) {
             v = STOBJ_GET_SLOT(obj, i);
             if (JSVAL_IS_STRING(v) &&
                 !js_MakeStringImmutable(cx, JSVAL_TO_STRING(v))) {

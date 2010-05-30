@@ -195,7 +195,8 @@ verbose_only( extern const char* shiftNames[]; )
     void asm_ld_imm(Register d, int32_t imm);                           \
     void asm_arg(ArgSize sz, LInsp arg, Register& r, int& stkd);        \
     int* _nSlot;                                                        \
-    int* _nExitSlot;
+    int* _nExitSlot;                                                    \
+    int max_out_args;
 
 
 //printf("jmp_l_n count=%d, nins=%X, %X = %X\n", (_c), nins, _nIns, ((intptr_t)(nins+(_c))-(intptr_t)_nIns - 4) );

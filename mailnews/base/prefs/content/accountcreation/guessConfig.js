@@ -586,7 +586,7 @@ HostDetector.prototype =
     if (protocol == IMAP)
       return /AUTH=(CRAM-MD5|NTLM|MSN|GSSAPI)/.test(line);
     if (protocol == SMTP)
-      return /AUTH (CRAM-MD5|NTLM|MSN|GSSAPI)/.test(line);
+      return /AUTH.*(CRAM-MD5|NTLM|MSN|GSSAPI)/.test(line);
   },
 
   _matchTLS : function(curTry, result)

@@ -210,6 +210,7 @@ isp/zh-TW/gmail.rdf
 license.html
 LICENSE.txt
 modules/JSON.jsm
+mozilla-runtime@BIN_SUFFIX@
 plugins/
 res/bloatcycle.html
 res/cmessage.txt

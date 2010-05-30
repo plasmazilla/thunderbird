@@ -115,7 +115,8 @@ function configure_message_injection(aInjectionConfig) {
     // Note: Inbox is not created automatically when there is no deferred server,
     // so we need to create it.
     mis.rootFolder = mis.incomingServer.rootMsgFolder;
-    mis.inboxFolder = mis.rootFolder.addSubfolder("Inbox");
+    mis.rootFolder.createSubfolder("Inbox", null);
+    mis.inboxFolder = mis.rootFolder.getChildNamed("Inbox");
     // a local inbox should have a Mail flag!
     mis.inboxFolder.setFlag(Ci.nsMsgFolderFlags.Mail);
     mis.inboxFolder.setFlag(Ci.nsMsgFolderFlags.Inbox);
@@ -308,6 +309,9 @@ SEARCH_TERM_MAP_HELPER = {
   involves: Components.interfaces.nsMsgSearchAttrib.AllAddresses,
   age: Components.interfaces.nsMsgSearchAttrib.AgeInDays,
   tags: Components.interfaces.nsMsgSearchAttrib.Keywords,
+  // If a test uses a custom search term, they must register that term
+  //  with the id "mailnews@mozilla.org#test"
+  custom: Components.interfaces.nsMsgSearchAttrib.Custom,
 };
 
 /**
@@ -423,6 +427,8 @@ function make_virtual_folder(aFolders, aSearchDef, aBooleanAnd, aName) {
     value.str = val;
     term.value = value;
     term.attrib = SEARCH_TERM_MAP_HELPER[key];
+    if (term.attrib == Components.interfaces.nsMsgSearchAttrib.Custom)
+      term.customId = "mailnews@mozilla.org#test";
     term.op = Components.interfaces.nsMsgSearchOp.Contains;
     term.booleanAnd = Boolean(aBooleanAnd);
     terms.push(term);

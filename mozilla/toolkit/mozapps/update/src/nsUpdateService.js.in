@@ -129,7 +129,6 @@ var gABI        = null;
 var gOSVersion  = null;
 var gLocale     = null;
 var gConsole    = null;
-var gCanUpdate  = null;
 var gLogEnabled = { };
 
 // shared code for suppressing bad cert dialogs
@@ -148,6 +147,143 @@ function LOG(module, string) {
       gConsole.logStringMessage("AUS:SVC " + module + ":" + string);
   }
 }
+
+__defineGetter__("gCanCheckForUpdates", function () {
+  delete this.gCanCheckForUpdates;
+  // If the administrator has locked the app update functionality
+  // OFF - this is not just a user setting, so disable the manual
+  // UI too.
+  var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true);
+  if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED)) {
+    LOG("UpdateService", "gCanCheckForUpdates - unable to check for " +
+        "updates, disabled by pref");
+    return gCanCheckForUpdates = false;
+  }
+
+  // If we don't know the binary platform we're updating, we can't update.
+  if (!gABI) {
+    LOG("UpdateService", "gCanCheckForUpdates - unable to check for " +
+        "updates, unknown ABI");
+    return gCanCheckForUpdates = false;
+  }
+
+  // If we don't know the OS version we're updating, we can't update.
+  if (!gOSVersion) {
+    LOG("UpdateService", "gCanCheckForUpdates - unable to check for " +
+        "updates, unknown OS version");
+    return gCanCheckForUpdates = false;
+  }
+
+  LOG("UpdateService", "gCanCheckForUpdates - able to check for updates");
+  return gCanCheckForUpdates = true;
+});
+
+__defineGetter__("gCanApplyUpdates", function () {
+  delete this.gCanApplyUpdates;
+  try {
+    var appDirFile = getUpdateFile([FILE_PERMS_TEST]);
+    LOG("UpdateService", "gCanApplyUpdates - testing " + appDirFile.path);
+    if (!appDirFile.exists()) {
+      appDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
+      appDirFile.remove(false);
+    }
+    var updateDir = getUpdatesDir();
+    var upDirFile = updateDir.clone();
+    upDirFile.append(FILE_PERMS_TEST);
+    LOG("UpdateService", "gCanApplyUpdates - testing " + upDirFile.path);
+    if (!upDirFile.exists()) {
+      upDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
+      upDirFile.remove(false);
+    }
+#ifdef XP_WIN
+    var sysInfo = Cc["@mozilla.org/system-info;1"].
+                  getService(Ci.nsIPropertyBag2);
+
+    // Example windowsVersion:  Windows XP == 5.1
+    var windowsVersion = sysInfo.getProperty("version");
+    LOG("UpdateService", "gCanApplyUpdates - windowsVersion = " +
+        windowsVersion);
+
+    // For Vista, updates can be performed to a location requiring 
+    // admin privileges by requesting elevation via the UAC prompt when 
+    // launching updater.exe if the appDir is under the Program Files 
+    // directory (e.g. C:\Program Files\) and UAC is turned on and 
+    // we can elevate (e.g. user has a split token)
+    //
+    // Note: this does note attempt to handle the case where UAC is
+    // turned on and the installation directory is in a restricted
+    // location that requires admin privileges to update other than 
+    // Program Files.
+
+    var userCanElevate = false;
+
+    if (parseFloat(windowsVersion) >= 6) {
+      try {
+        var fileLocator = Cc["@mozilla.org/file/directory_service;1"].
+                          getService(Ci.nsIProperties);
+        // KEY_UPDROOT will fail and throw an exception if
+        // appDir is not under the Program Files, so we rely on that
+        var dir = fileLocator.get(KEY_UPDROOT, Ci.nsIFile);
+        // appDir is under Program Files, so check if the user can elevate
+        userCanElevate = gApp.QueryInterface(Ci.nsIWinAppHelper).
+                         userCanElevate;
+        LOG("UpdateService", "gCanApplyUpdates - on Vista, userCanElevate: " +
+            userCanElevate);
+      }
+      catch (ex) {
+        // When the installation directory is not under Program Files,
+        // fall through to checking if write access to the 
+        // installation directory is available.
+        LOG("UpdateService", "gCanApplyUpdates - on Vista, appDir is not " +
+            "under Program Files");
+      }
+    }
+
+    // On Windows, we no longer store the update under the app dir
+    // if the app dir is under C:\Program Files.
+    //
+    // If we are on Windows (including Vista, if we can't elevate)
+    // we need to check that
+    // we can create and remove files from the actual app directory
+    // (like C:\Program Files\Mozilla Firefox).  If we can't
+    // (because this user is not an adminstrator, for example)
+    // canUpdate() should return false.
+    //
+    // For Vista, we perform this check to enable updating the 
+    // application when the user has write access to the installation 
+    // directory under the following scenarios:
+    // 1) the installation directory is not under Program Files 
+    //    (e.g. C:\Program Files)
+    // 2) UAC is turned off
+    // 3) UAC is turned on and the user is not an admin 
+    //    (e.g. the user does not have a split token)
+    // 4) UAC is turned on and the user is already elevated,
+    //    so they can't be elevated again.
+    if (!userCanElevate) {
+      // if we're unable to create the test file
+      // the code below will throw an exception 
+      var actualAppDir = getDir(KEY_APPDIR, []);
+      var actualAppDirFile = actualAppDir.clone();
+      actualAppDirFile.append(FILE_PERMS_TEST);
+      LOG("UpdateService", "gCanApplyUpdates - testing " +
+          actualAppDirFile.path);
+      if (!actualAppDirFile.exists()) {
+        actualAppDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
+        actualAppDirFile.remove(false);
+      }
+    }
+#endif
+  }
+  catch (e) {
+     LOG("UpdateService", "gCanApplyUpdates - unable to apply update. " +
+         "Exception: " + e);
+    // No write privileges to install directory
+    return gCanApplyUpdates = false;
+  }
+
+  LOG("UpdateService", "gCanCheckForUpdates - able to apply updates");
+  return gCanApplyUpdates = true;
+});
 
 /**
  * Convert a string containing binary values to hex.
@@ -1187,8 +1323,11 @@ UpdateService.prototype = {
     // Detect installation failures and notify
 
     // Bail out if we don't have appropriate permissions
-    if (!this.canUpdate)
+    if (!this.canUpdate) {
+      LOG("UpdateService:_postUpdateProcessing - unable to update");
       return;
+    }
+ 
 
     var status = readStatusFile(getUpdatesDir());
 
@@ -1452,6 +1591,21 @@ UpdateService.prototype = {
     // Encode version since it could be a non-ascii string (bug 359093)
     var neverPrefName = PREF_UPDATE_NEVER_BRANCH +
                         encodeURIComponent(update.version);
+
+    if (!gCanApplyUpdates) {
+      if (getPref("getBoolPref", neverPrefName, false)) {
+        LOG("Checker", "_selectAndInstallUpdate - the user is unable to " +
+            "apply updates. Not prompting because the preference " +
+            neverPrefName + " is true");
+      }
+      else {
+        LOG("Checker", "_selectAndInstallUpdate - the user is unable to " +
+            "apply updates... prompting");
+        this._showPrompt(update);
+      }
+      return;
+    }
+
     if (update.type == "major" &&
         getPref("getBoolPref", neverPrefName, false)) {
       LOG("Checker", "_selectAndInstallUpdate - not prompting because this " +
@@ -1602,7 +1756,7 @@ UpdateService.prototype = {
    * See nsIExtensionManager.idl
    */
   onUpdateEnded: function AUS_onUpdateEnded() {
-    if (this._incompatAddonsCount > 0) {
+    if (this._incompatAddonsCount > 0 || !gCanApplyUpdates) {
       LOG("Checker", "onUpdateEnded - prompting because there are " +
           "incompatible add-ons");
       this._showPrompt(this._update);
@@ -1654,129 +1808,21 @@ UpdateService.prototype = {
    * See nsIUpdateService.idl
    */
   get canUpdate() {
-    if (gCanUpdate !== null)
-      return gCanUpdate;
+    return gCanApplyUpdates && gCanCheckForUpdates;
+  },
 
-    try {
-      var appDirFile = getUpdateFile([FILE_PERMS_TEST]);
-      LOG("UpdateService", "canUpdate - testing " + appDirFile.path);
-      if (!appDirFile.exists()) {
-        appDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
-        appDirFile.remove(false);
-      }
-      var updateDir = getUpdatesDir();
-      var upDirFile = updateDir.clone();
-      upDirFile.append(FILE_PERMS_TEST);
-      LOG("UpdateService", "canUpdate - testing " + upDirFile.path);
-      if (!upDirFile.exists()) {
-        upDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
-        upDirFile.remove(false);
-      }
-#ifdef XP_WIN
-      var sysInfo = Cc["@mozilla.org/system-info;1"].
-                    getService(Ci.nsIPropertyBag2);
+  /**
+   * See nsIUpdateService.idl
+   */
+  get canCheckForUpdates() {
+    return gCanCheckForUpdates;
+  },
 
-      // Example windowsVersion:  Windows XP == 5.1
-      var windowsVersion = sysInfo.getProperty("version");
-      LOG("UpdateService", "canUpdate - windowsVersion = " + windowsVersion);
-
-      // For Vista, updates can be performed to a location requiring 
-      // admin privileges by requesting elevation via the UAC prompt when 
-      // launching updater.exe if the appDir is under the Program Files 
-      // directory (e.g. C:\Program Files\) and UAC is turned on and 
-      // we can elevate (e.g. user has a split token)
-      //
-      // Note: this does note attempt to handle the case where UAC is
-      // turned on and the installation directory is in a restricted
-      // location that requires admin privileges to update other than 
-      // Program Files.
-
-      var userCanElevate = false;
-
-      if (parseFloat(windowsVersion) >= 6) {
-        try {
-          var fileLocator = Cc["@mozilla.org/file/directory_service;1"].
-                            getService(Ci.nsIProperties);
-          // KEY_UPDROOT will fail and throw an exception if
-          // appDir is not under the Program Files, so we rely on that
-          var dir = fileLocator.get(KEY_UPDROOT, Ci.nsIFile);
-          // appDir is under Program Files, so check if the user can elevate
-          userCanElevate = gApp.QueryInterface(Ci.nsIWinAppHelper).
-                           userCanElevate;
-          LOG("UpdateService", "canUpdate - on Vista, userCanElevate: " +
-              userCanElevate);
-        }
-        catch (ex) {
-          // When the installation directory is not under Program Files,
-          // fall through to checking if write access to the 
-          // installation directory is available.
-          LOG("UpdateService", "canUpdate - on Vista, appDir is not under " +
-              "Program Files");
-        }
-      }
-
-      // On Windows, we no longer store the update under the app dir
-      // if the app dir is under C:\Program Files.
-      //
-      // If we are on Windows (including Vista, if we can't elevate)
-      // we need to check that
-      // we can create and remove files from the actual app directory
-      // (like C:\Program Files\Mozilla Firefox).  If we can't
-      // (because this user is not an adminstrator, for example)
-      // canUpdate() should return false.
-      //
-      // For Vista, we perform this check to enable updating the 
-      // application when the user has write access to the installation 
-      // directory under the following scenarios:
-      // 1) the installation directory is not under Program Files 
-      //    (e.g. C:\Program Files)
-      // 2) UAC is turned off
-      // 3) UAC is turned on and the user is not an admin 
-      //    (e.g. the user does not have a split token)
-      // 4) UAC is turned on and the user is already elevated,
-      //    so they can't be elevated again.
-      if (!userCanElevate) {
-        // if we're unable to create the test file
-        // the code below will throw an exception 
-        var actualAppDir = getDir(KEY_APPDIR, []);
-        var actualAppDirFile = actualAppDir.clone();
-        actualAppDirFile.append(FILE_PERMS_TEST);
-        LOG("UpdateService", "canUpdate - testing " + actualAppDirFile.path);
-        if (!actualAppDirFile.exists()) {
-          actualAppDirFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
-          actualAppDirFile.remove(false);
-        }
-      }
-#endif
-    }
-    catch (e) {
-       LOG("UpdateService", "canUpdate - unable to update. Exception: " + e);
-      // No write privileges to install directory
-      return gCanUpdate = false;
-    }
-    // If the administrator has locked the app update functionality
-    // OFF - this is not just a user setting, so disable the manual
-    // UI too.
-    var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true);
-    if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED)) {
-      LOG("UpdateService", "canUpdate - unable to update, disabled by pref");
-      return gCanUpdate = false;
-    }
-
-    // If we don't know the binary platform we're updating, we can't update.
-    if (!gABI) {
-      LOG("UpdateService", "canUpdate - unable tp update, unknown ABI");
-      return gCanUpdate = false;
-    }
-
-    // If we don't know the OS version we're updating, we can't update.
-    if (!gOSVersion) {
-      LOG("UpdateService", "canUpdate unable to update, unknown OS version");
-      return gCanUpdate = false;
-    }
-
-    LOG("UpdateService", "canUpdate - able to update");
-    return gCanUpdate = true;
+  /**
+   * See nsIUpdateService.idl
+   */
+  get canApplyUpdates() {
+    return gCanApplyUpdates;
   },
 
   /**
@@ -1854,7 +1900,9 @@ UpdateService.prototype = {
   implementationLanguage: Ci.nsIProgrammingLanguage.JAVASCRIPT,
   getHelperForLanguage: function(language) null,
   getInterfaces: function AUS_getInterfaces(count) {
-    var interfaces = [Ci.nsIApplicationUpdateService, Ci.nsITimerCallback,
+    var interfaces = [Ci.nsIApplicationUpdateService,
+                      Ci.nsIApplicationUpdateService2,
+                      Ci.nsITimerCallback,
                       Ci.nsIObserver];
     count.value = interfaces.length;
     return interfaces;
@@ -1866,6 +1914,7 @@ UpdateService.prototype = {
   _xpcom_categories: [{ category: "app-startup", service: true }],
   _xpcom_factory: UpdateServiceFactory,
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIApplicationUpdateService,
+                                         Ci.nsIApplicationUpdateService2,
                                          Ci.nsIAddonUpdateCheckListener,
                                          Ci.nsITimerCallback,
                                          Ci.nsIObserver])
@@ -2309,11 +2358,8 @@ Checker.prototype = {
    */
   _enabled: true,
   get enabled() {
-    var aus = Cc["@mozilla.org/updates/update-service;1"].
-              getService(Ci.nsIApplicationUpdateService);
-    var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true) &&
-                  aus.canUpdate && this._enabled;
-    return enabled;
+    return getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true) &&
+           gCanCheckForUpdates && this._enabled;
   },
 
   /**

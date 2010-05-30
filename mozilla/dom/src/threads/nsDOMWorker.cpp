@@ -852,6 +852,26 @@ public:
       return NS_ERROR_ABORT;
     }
 
+    // Don't run message events targeted to terminated workers.
+    if (mWorker->IsTerminated() && !mToInner) {
+      nsCOMPtr<nsIWorkerMessageEvent> messageEvent(
+        do_QueryInterface(static_cast<nsIDOMEvent*>(mEvent)));
+      if (messageEvent) {
+        return NS_OK;
+      }
+    }
+
+    // If the worker is suspended and we're running on the main thread then we
+    // can't actually dispatch the event yet. Instead we queue it for whenever
+    // we resume.
+    if (mWorker->IsSuspended() && NS_IsMainThread()) {
+      if (!mWorker->QueueSuspendedRunnable(this)) {
+        NS_ERROR("Out of memory?!");
+        return NS_ERROR_ABORT;
+      }
+      return NS_OK;
+    }
+
     nsCOMPtr<nsIDOMEventTarget> target = mToInner ?
       static_cast<nsIDOMEventTarget*>(mWorker->GetInnerScope()) :
       static_cast<nsIDOMEventTarget*>(mWorker);
@@ -980,6 +1000,7 @@ nsDOMWorker::~nsDOMWorker()
   }
 
   NS_ASSERTION(!mFeatures.Length(), "Live features!");
+  NS_ASSERTION(!mQueuedRunnables.Length(), "Events that never ran!");
 
   nsCOMPtr<nsIThread> mainThread;
   NS_GetMainThread(getter_AddRefs(mainThread));
@@ -1181,6 +1202,9 @@ nsDOMWorker::Cancel()
   mCanceled = PR_TRUE;
 
   CancelFeatures();
+
+  // Make sure we kill any queued runnables that we never had a chance to run.
+  mQueuedRunnables.Clear();
 }
 
 void
@@ -1201,6 +1225,13 @@ nsDOMWorker::Resume()
   mSuspended = PR_FALSE;
 
   ResumeFeatures();
+
+  // Repost any events that were queued for the main thread while suspended.
+  PRUint32 count = mQueuedRunnables.Length();
+  for (PRUint32 index = 0; index < count; index++) {
+    NS_DispatchToCurrentThread(mQueuedRunnables[index]);
+  }
+  mQueuedRunnables.Clear();
 }
 
 nsresult
@@ -1531,6 +1562,13 @@ nsDOMWorker::GetParent()
 {
   nsRefPtr<nsDOMWorker> parent(mParent);
   return parent.forget();
+}
+
+PRBool
+nsDOMWorker::QueueSuspendedRunnable(nsIRunnable* aRunnable)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+  return mQueuedRunnables.AppendElement(aRunnable) ? PR_TRUE : PR_FALSE;
 }
 
 /**

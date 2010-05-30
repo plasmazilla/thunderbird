@@ -389,8 +389,11 @@ let gFolderTreeView = {
    * in the tree
    */
   getSelectedFolders: function ftv_getSelectedFolders() {
+    let selection = this.selection;
+    if (!selection)
+      return [];
+
     let folderArray = [];
-    let selection = this._treeElement.view.selection;
     let rangeCount = selection.getRangeCount();
     for (let i = 0; i < rangeCount; i++) {
       let startIndex = {};
@@ -1086,6 +1089,7 @@ let gFolderTreeView = {
 
   _tree: null,
 
+  selection: null,
   /**
    * An array of ftvItems, where each item corresponds to a row in the tree
    */
@@ -1104,6 +1108,10 @@ let gFolderTreeView = {
    * settings
    */
   _rebuild: function ftv__rebuild() {
+    let selectedFolders = this.getSelectedFolders();
+    if (this.selection)
+      this.selection.clearSelection();
+
     let oldCount = this._rowMap ? this._rowMap.length : null;
     try {
       this._rowMap = this._mapGenerators[this.mode](this);
@@ -1126,6 +1134,14 @@ let gFolderTreeView = {
       this._tree.invalidate();
     }
     this._restoreOpenStates();
+    // restore selection.
+    for (let [, folder] in Iterator(selectedFolders)) {
+      if (folder) {
+        let index = this.getIndexOfFolder(folder);
+        if (index != null)
+          this.selection.toggleSelect(index);
+      }
+    }
   },
 
   _sortedAccounts: function ftv_getSortedAccounts()
