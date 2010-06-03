@@ -14,7 +14,7 @@ DEB_MOZ_NAME=icedove
 DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
-MAIN_LDFLAGS :=
+MAIN_LDFLAGS := -Wl,--as-needed
 
 DEBIAN_VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: *\(.*\)$$/\1/ p')
 DEBIAN_UPSTREAM_VERSION := $(shell echo $(DEBIAN_VERSION) | sed 's/^\(.*\)-[^-]*$$/\1/')
