@@ -11,10 +11,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=546642
  4 files changed, 14 insertions(+), 1 deletions(-)
 
 diff --git a/Makefile.in b/Makefile.in
-index 4cab451..cf61636 100644
+index 1dc5f97..566dc7b 100644
 --- a/Makefile.in
 +++ b/Makefile.in
-@@ -78,3 +78,12 @@ buildsymbols ::
+@@ -81,3 +81,12 @@ buildsymbols ::
  	$(MAKE) -C mozilla MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS="$(topsrcdir)/mozilla/extensions/inspector $(topsrcdir)/mozilla $(topsrcdir)" $@
  
  include $(topsrcdir)/config/rules.mk
@@ -54,7 +54,7 @@ index 4604da1..9d53ed4 100644
  
  ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 diff --git a/suite/locales/Makefile.in b/suite/locales/Makefile.in
-index 684e44a..1e0f5cf 100644
+index d3a6914..f48ddd5 100644
 --- a/suite/locales/Makefile.in
 +++ b/suite/locales/Makefile.in
 @@ -165,6 +165,8 @@ SEARCH_PLUGINS = $(shell cat \

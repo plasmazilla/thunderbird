@@ -1,0 +1,42 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Tue, 6 Apr 2010 09:58:04 +0200
+Subject: [PATCH] KDE/Gnome startup notification not disappearing for the first time startup (needsRestart)
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=534845
+---
+ mozilla/toolkit/xre/nsAppRunner.cpp |   21 +++++++--------------
+ 1 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/mozilla/toolkit/xre/nsAppRunner.cpp b/mozilla/toolkit/xre/nsAppRunner.cpp
+index bdc0bfc..57c62ee 100644
+--- a/mozilla/toolkit/xre/nsAppRunner.cpp
++++ b/mozilla/toolkit/xre/nsAppRunner.cpp
+@@ -3396,20 +3396,13 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
+       }
+ #endif
+ 
+-// XXXkt s/MOZ_TOOLKIT_GTK2/MOZ_WIDGET_GTK2/?
+-// but the hidden window has been destroyed so toolkit is NULL anyway.
+-#if defined(HAVE_DESKTOP_STARTUP_ID) && defined(MOZ_TOOLKIT_GTK2)
+-      nsGTKToolkit* toolkit = GetGTKToolkit();
+-      if (toolkit) {
+-        nsCAutoString currentDesktopStartupID;
+-        toolkit->GetDesktopStartupID(&currentDesktopStartupID);
+-        if (!currentDesktopStartupID.IsEmpty()) {
+-          nsCAutoString desktopStartupEnv;
+-          desktopStartupEnv.AssignLiteral("DESKTOP_STARTUP_ID=");
+-          desktopStartupEnv.Append(currentDesktopStartupID);
+-          // Leak it with extreme prejudice!
+-          PR_SetEnv(ToNewCString(desktopStartupEnv));
+-        }
++#if defined(HAVE_DESKTOP_STARTUP_ID) && defined(MOZ_WIDGET_GTK2)
++      if (!desktopStartupID.IsEmpty()) {
++        nsCAutoString desktopStartupEnv;
++        desktopStartupEnv.AssignLiteral("DESKTOP_STARTUP_ID=");
++        desktopStartupEnv.Append(desktopStartupID);
++        // Leak it with extreme prejudice!
++        PR_SetEnv(ToNewCString(desktopStartupEnv));
+       }
+ #endif
+ 
+-- 

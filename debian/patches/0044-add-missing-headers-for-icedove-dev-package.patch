@@ -9,6 +9,8 @@ mimemoz2.h
 to let enigmail build
 
 Closes: #577021
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=562059
 ---
  mailnews/mime/src/Makefile.in |    3 +++
  1 files changed, 3 insertions(+), 0 deletions(-)

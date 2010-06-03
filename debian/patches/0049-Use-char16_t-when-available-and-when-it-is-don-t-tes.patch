@@ -1,0 +1,294 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Wed, 7 Apr 2010 18:56:43 +0200
+Subject: [PATCH] Use char16_t when available, and when it is, don't test for -fshort-wchar
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=502298
+---
+ configure.in                                  |   27 +++++++++++---
+ mozilla/configure.in                          |   27 +++++++++++---
+ mozilla/js/src/config/autoconf.mk.in          |    2 -
+ mozilla/js/src/configure.in                   |   47 -------------------------
+ mozilla/xpcom/glue/nsStringAPI.h              |   13 +++++--
+ mozilla/xpcom/string/public/nsLiteralString.h |   14 +++++--
+ mozilla/xpcom/xpcom-config.h.in               |    3 ++
+ 7 files changed, 66 insertions(+), 67 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index 0d3cfe2..ade3c8e 100644
+--- a/configure.in
++++ b/configure.in
+@@ -2948,7 +2948,24 @@ else
+     AC_MSG_RESULT(no)
+ fi
+ 
+-AC_LANG_C
++AC_LANG_CPLUSPLUS
++
++dnl Check for usable char16_t (2 bytes, unsigned)
++dnl (we might not need the unsignedness check anymore)
++AC_CACHE_CHECK(for usable char16_t (2 bytes, unsigned),
++    ac_cv_have_usable_char16_t,
++    [AC_TRY_COMPILE([$configure_static_assert_macros],
++                    [CONFIGURE_STATIC_ASSERT(sizeof(char16_t) == 2);
++                     CONFIGURE_STATIC_ASSERT(char16_t(-1) > char16_t(0));
++                     CONFIGURE_STATIC_ASSERT(sizeof((u"hello")[0]) == 2);
++                     CONFIGURE_STATIC_ASSERT(sizeof(u'a') == 2);
++                     CONFIGURE_STATIC_ASSERT(u'\xFFFF' > u'\x0')],
++                    ac_cv_have_usable_char16_t="yes",
++                    ac_cv_have_usable_char16_t="no")])
++if test "$ac_cv_have_usable_char16_t" = "yes"; then
++    AC_DEFINE(HAVE_CPP_CHAR16_T)
++    HAVE_CPP_CHAR16_T=1
++fi
+ 
+ dnl Check for usable wchar_t (2 bytes, unsigned)
+ dnl (we really don't need the unsignedness check anymore)
+@@ -2965,15 +2982,13 @@ AC_CACHE_CHECK(for usable wchar_t (2 bytes, unsigned),
+ if test "$ac_cv_have_usable_wchar_v2" = "yes"; then
+     AC_DEFINE(HAVE_CPP_2BYTE_WCHAR_T)
+     HAVE_CPP_2BYTE_WCHAR_T=1
+-else
++elif test "$ac_cv_have_usable_char16_t" != "yes"; then
+ dnl This is really gcc-only
+ dnl Do this test using CXX only since some versions of gcc
+ dnl 2.95-2.97 have a signed wchar_t in c++ only and some versions
+ dnl only have short-wchar support for c++.
+ dnl Note that we assume that mac & win32 have short wchar (see nscore.h)
+ 
+-    AC_LANG_SAVE
+-    AC_LANG_CPLUSPLUS
+     _SAVE_CXXFLAGS=$CXXFLAGS
+     CXXFLAGS="$CXXFLAGS -fshort-wchar"
+ 
+@@ -2992,9 +3007,10 @@ dnl Note that we assume that mac & win32 have short wchar (see nscore.h)
+     else    
+         CXXFLAGS=$_SAVE_CXXFLAGS
+     fi
+-    AC_LANG_RESTORE
+ fi
+ 
++AC_LANG_C
++
+ dnl Check for .hidden assembler directive and visibility attribute.
+ dnl Borrowed from glibc configure.in
+ dnl ===============================================================
+@@ -7462,6 +7478,7 @@ HAVE_CPP_2BYTE_WCHAR_T
+ HAVE_CPP_ACCESS_CHANGING_USING
+ HAVE_CPP_AMBIGUITY_RESOLVING_USING
+ HAVE_CPP_BOOL
++HAVE_CPP_CHAR16_T
+ HAVE_CPP_DYNAMIC_CAST_TO_VOID_PTR
+ HAVE_CPP_EXPLICIT
+ HAVE_CPP_MODERN_SPECIALIZE_TEMPLATE_SYNTAX
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index e914b8b..6a13bc7 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -2832,7 +2832,24 @@ else
+     AC_MSG_RESULT(no)
+ fi
+ 
+-AC_LANG_C
++AC_LANG_CPLUSPLUS
++
++dnl Check for usable char16_t (2 bytes, unsigned)
++dnl (we might not need the unsignedness check anymore)
++AC_CACHE_CHECK(for usable char16_t (2 bytes, unsigned),
++    ac_cv_have_usable_char16_t,
++    [AC_TRY_COMPILE([$configure_static_assert_macros],
++                    [CONFIGURE_STATIC_ASSERT(sizeof(char16_t) == 2);
++                     CONFIGURE_STATIC_ASSERT(char16_t(-1) > char16_t(0));
++                     CONFIGURE_STATIC_ASSERT(sizeof((u"hello")[0]) == 2);
++                     CONFIGURE_STATIC_ASSERT(sizeof(u'a') == 2);
++                     CONFIGURE_STATIC_ASSERT(u'\xFFFF' > u'\x0')],
++                    ac_cv_have_usable_char16_t="yes",
++                    ac_cv_have_usable_char16_t="no")])
++if test "$ac_cv_have_usable_char16_t" = "yes"; then
++    AC_DEFINE(HAVE_CPP_CHAR16_T)
++    HAVE_CPP_CHAR16_T=1
++fi
+ 
+ dnl Check for usable wchar_t (2 bytes, unsigned)
+ dnl (we really don't need the unsignedness check anymore)
+@@ -2849,15 +2866,13 @@ AC_CACHE_CHECK(for usable wchar_t (2 bytes, unsigned),
+ if test "$ac_cv_have_usable_wchar_v2" = "yes"; then
+     AC_DEFINE(HAVE_CPP_2BYTE_WCHAR_T)
+     HAVE_CPP_2BYTE_WCHAR_T=1
+-else
++elif test "$ac_cv_have_usable_char16_t" != "yes"; then
+ dnl This is really gcc-only
+ dnl Do this test using CXX only since some versions of gcc
+ dnl 2.95-2.97 have a signed wchar_t in c++ only and some versions
+ dnl only have short-wchar support for c++.
+ dnl Note that we assume that mac & win32 have short wchar (see nscore.h)
+ 
+-    AC_LANG_SAVE
+-    AC_LANG_CPLUSPLUS
+     _SAVE_CXXFLAGS=$CXXFLAGS
+     CXXFLAGS="$CXXFLAGS -fshort-wchar"
+ 
+@@ -2877,9 +2892,10 @@ dnl Note that we assume that mac & win32 have short wchar (see nscore.h)
+     else    
+         CXXFLAGS=$_SAVE_CXXFLAGS
+     fi
+-    AC_LANG_RESTORE
+ fi
+ 
++AC_LANG_C
++
+ dnl Check for .hidden assembler directive and visibility attribute.
+ dnl Borrowed from glibc configure.in
+ dnl ===============================================================
+@@ -8334,6 +8350,7 @@ HAVE_CPP_2BYTE_WCHAR_T
+ HAVE_CPP_ACCESS_CHANGING_USING
+ HAVE_CPP_AMBIGUITY_RESOLVING_USING
+ HAVE_CPP_BOOL
++HAVE_CPP_CHAR16_T
+ HAVE_CPP_DYNAMIC_CAST_TO_VOID_PTR
+ HAVE_CPP_EXPLICIT
+ HAVE_CPP_MODERN_SPECIALIZE_TEMPLATE_SYNTAX
+diff --git a/mozilla/js/src/config/autoconf.mk.in b/mozilla/js/src/config/autoconf.mk.in
+index e83f107..a7b1dc4 100644
+--- a/mozilla/js/src/config/autoconf.mk.in
++++ b/mozilla/js/src/config/autoconf.mk.in
+@@ -141,8 +141,6 @@ MOZ_NATIVE_NSPR = @MOZ_NATIVE_NSPR@
+ 
+ CROSS_COMPILE   = @CROSS_COMPILE@
+ 
+-WCHAR_CFLAGS	= @WCHAR_CFLAGS@
+-
+ OS_CPPFLAGS	= @CPPFLAGS@
+ OS_CFLAGS	= $(OS_CPPFLAGS) @CFLAGS@
+ OS_CXXFLAGS	= $(OS_CPPFLAGS) @CXXFLAGS@
+diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
+index 415fa77..f49bc06 100644
+--- a/mozilla/js/src/configure.in
++++ b/mozilla/js/src/configure.in
+@@ -2716,52 +2716,6 @@ fi
+ 
+ AC_LANG_C
+ 
+-dnl Check for usable wchar_t (2 bytes, unsigned)
+-dnl (we really don't need the unsignedness check anymore)
+-dnl ========================================================
+-
+-AC_CACHE_CHECK(for usable wchar_t (2 bytes, unsigned),
+-    ac_cv_have_usable_wchar_v2,
+-    [AC_TRY_COMPILE([#include <stddef.h>
+-                     $configure_static_assert_macros],
+-                    [CONFIGURE_STATIC_ASSERT(sizeof(wchar_t) == 2);
+-                     CONFIGURE_STATIC_ASSERT((wchar_t)-1 > (wchar_t) 0)],
+-                    ac_cv_have_usable_wchar_v2="yes",
+-                    ac_cv_have_usable_wchar_v2="no")])
+-if test "$ac_cv_have_usable_wchar_v2" = "yes"; then
+-    AC_DEFINE(HAVE_CPP_2BYTE_WCHAR_T)
+-    HAVE_CPP_2BYTE_WCHAR_T=1
+-else
+-dnl This is really gcc-only
+-dnl Do this test using CXX only since some versions of gcc
+-dnl 2.95-2.97 have a signed wchar_t in c++ only and some versions
+-dnl only have short-wchar support for c++.
+-dnl Note that we assume that mac & win32 have short wchar (see nscore.h)
+-
+-    AC_LANG_SAVE
+-    AC_LANG_CPLUSPLUS
+-    _SAVE_CXXFLAGS=$CXXFLAGS
+-    CXXFLAGS="$CXXFLAGS -fshort-wchar"
+-
+-    AC_CACHE_CHECK(for compiler -fshort-wchar option, 
+-        ac_cv_have_usable_wchar_option_v2,
+-        [AC_TRY_LINK([#include <stddef.h>
+-                      $configure_static_assert_macros],
+-                     [CONFIGURE_STATIC_ASSERT(sizeof(wchar_t) == 2);
+-                      CONFIGURE_STATIC_ASSERT((wchar_t)-1 > (wchar_t) 0)],
+-                     ac_cv_have_usable_wchar_option_v2="yes",
+-                     ac_cv_have_usable_wchar_option_v2="no")])
+-
+-    if test "$ac_cv_have_usable_wchar_option_v2" = "yes"; then
+-        AC_DEFINE(HAVE_CPP_2BYTE_WCHAR_T)
+-        HAVE_CPP_2BYTE_WCHAR_T=1
+-        WCHAR_CFLAGS="-fshort-wchar"
+-    else    
+-        CXXFLAGS=$_SAVE_CXXFLAGS
+-    fi
+-    AC_LANG_RESTORE
+-fi
+-
+ dnl Check for .hidden assembler directive and visibility attribute.
+ dnl Borrowed from glibc configure.in
+ dnl ===============================================================
+@@ -5050,7 +5004,6 @@ AC_SUBST(COMPILE_CXXFLAGS)
+ AC_SUBST(LDFLAGS)
+ AC_SUBST(LIBS)
+ AC_SUBST(CROSS_COMPILE)
+-AC_SUBST(WCHAR_CFLAGS)
+ 
+ AC_SUBST(HOST_CC)
+ AC_SUBST(HOST_CXX)
+diff --git a/mozilla/xpcom/glue/nsStringAPI.h b/mozilla/xpcom/glue/nsStringAPI.h
+index 57f76b0..19ca533 100644
+--- a/mozilla/xpcom/glue/nsStringAPI.h
++++ b/mozilla/xpcom/glue/nsStringAPI.h
+@@ -1050,12 +1050,17 @@ private:
+  * Under GCC, this define should only be set if compiling with -fshort-wchar.
+  */
+ 
+-#ifdef HAVE_CPP_2BYTE_WCHAR_T
++#if defined(HAVE_CPP_CHAR16_T) || defined(HAVE_CPP_2BYTE_WCHAR_T)
++#if defined(HAVE_CPP_CHAR16_T)
++  PR_STATIC_ASSERT(sizeof(char16_t) == 2);
++  #define NS_LL(s)                                u##s
++#else
+   PR_STATIC_ASSERT(sizeof(wchar_t) == 2);
+   #define NS_LL(s)                                L##s
+-  #define NS_MULTILINE_LITERAL_STRING(s)          nsDependentString(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
+-  #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
+-  #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
++#endif
++  #define NS_MULTILINE_LITERAL_STRING(s)          nsDependentString(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
++  #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
++  #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
+   typedef nsDependentString nsLiteralString;
+ #else
+   #define NS_LL(s)                                s
+diff --git a/mozilla/xpcom/string/public/nsLiteralString.h b/mozilla/xpcom/string/public/nsLiteralString.h
+index d504a02..7808f24 100644
+--- a/mozilla/xpcom/string/public/nsLiteralString.h
++++ b/mozilla/xpcom/string/public/nsLiteralString.h
+@@ -78,11 +78,17 @@ literal_string( const nsACString::char_type* aPtr, PRUint32 aLength )
+   }
+ #endif
+ 
+-#ifdef HAVE_CPP_2BYTE_WCHAR_T
++#if defined(HAVE_CPP_CHAR16_T) || defined(HAVE_CPP_2BYTE_WCHAR_T)
++#if defined(HAVE_CPP_CHAR16_T)
++  //PR_STATIC_ASSERT(sizeof(char16_t) == 2);
++  #define NS_LL(s)                                u##s
++#else
++  //PR_STATIC_ASSERT(sizeof(wchar_t) == 2);
+   #define NS_LL(s)                                L##s
+-  #define NS_MULTILINE_LITERAL_STRING(s)          nsDependentString(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
+-  #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
+-  #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/sizeof(wchar_t))-1))
++#endif
++  #define NS_MULTILINE_LITERAL_STRING(s)          nsDependentString(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
++  #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
++  #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
+   typedef nsDependentString nsLiteralString;
+ #else
+   #define NS_LL(s)                                s
+diff --git a/mozilla/xpcom/xpcom-config.h.in b/mozilla/xpcom/xpcom-config.h.in
+index 5338a41..17afa70 100644
+--- a/mozilla/xpcom/xpcom-config.h.in
++++ b/mozilla/xpcom/xpcom-config.h.in
+@@ -20,6 +20,9 @@
+ /* Define if the c++ compiler has builtin Bool type */
+ #undef HAVE_CPP_BOOL
+ 
++/* Define if the c++ compiler supports char16_t */
++#undef HAVE_CPP_CHAR16_T
++
+ /* Define if a dyanmic_cast to void* gives the most derived object */
+ #undef HAVE_CPP_DYNAMIC_CAST_TO_VOID_PTR
+ 
+-- 

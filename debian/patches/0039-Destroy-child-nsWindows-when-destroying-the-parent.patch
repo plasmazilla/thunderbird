@@ -9,10 +9,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=522635
  2 files changed, 41 insertions(+), 29 deletions(-)
 
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index d51ebb9..e72579e 100644
+index 8d6a4b0..bbe5e55 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
-@@ -673,9 +673,7 @@ CheckDestroyInvisibleContainer()
+@@ -679,9 +679,7 @@ CheckDestroyInvisibleContainer()
  
  // Change the containing GtkWidget on a sub-hierarchy of GdkWindows belonging
  // to aOldWidget and rooted at aWindow, and reparent any child GtkWidgets of
@@ -23,7 +23,7 @@ index d51ebb9..e72579e 100644
  static void
  SetWidgetForHierarchy(GdkWindow *aWindow,
                        GtkWidget *aOldWidget,
-@@ -694,13 +692,7 @@ SetWidgetForHierarchy(GdkWindow *aWindow,
+@@ -700,13 +698,7 @@ SetWidgetForHierarchy(GdkWindow *aWindow,
  
          // This window belongs to a child widget, which will no longer be a
          // child of aOldWidget.
@@ -38,7 +38,7 @@ index d51ebb9..e72579e 100644
  
          return;
      }
-@@ -714,6 +706,34 @@ SetWidgetForHierarchy(GdkWindow *aWindow,
+@@ -720,6 +712,34 @@ SetWidgetForHierarchy(GdkWindow *aWindow,
      gdk_window_set_user_data(aWindow, aNewWidget);
  }
  
@@ -73,7 +73,7 @@ index d51ebb9..e72579e 100644
  NS_IMETHODIMP
  nsWindow::Destroy(void)
  {
-@@ -751,15 +771,6 @@ nsWindow::Destroy(void)
+@@ -757,15 +777,6 @@ nsWindow::Destroy(void)
  
      NativeShow(PR_FALSE);
  
@@ -89,7 +89,7 @@ index d51ebb9..e72579e 100644
  #ifdef USE_XIM
      IMEDestroyContext();
  #endif
-@@ -806,16 +817,13 @@ nsWindow::Destroy(void)
+@@ -812,16 +823,13 @@ nsWindow::Destroy(void)
                            "mGdkWindow should be NULL when mContainer is destroyed");
      }
      else if (mGdkWindow) {
@@ -112,7 +112,7 @@ index d51ebb9..e72579e 100644
          g_object_set_data(G_OBJECT(mGdkWindow), "nsWindow", NULL);
          gdk_window_destroy(mGdkWindow);
          mGdkWindow = nsnull;
-@@ -2563,7 +2571,7 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
+@@ -2569,7 +2577,7 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
                   "unexpected \"unrealize\" signal");
  
      if (mGdkWindow) {
@@ -121,7 +121,7 @@ index d51ebb9..e72579e 100644
  
          g_object_set_data(G_OBJECT(mGdkWindow), "nsWindow", NULL);
          mGdkWindow = NULL;
-@@ -7115,6 +7123,9 @@ nsWindow::GetSurfaceForGdkDrawable(GdkDrawable* aDrawable,
+@@ -7123,6 +7131,9 @@ nsWindow::GetSurfaceForGdkDrawable(GdkDrawable* aDrawable,
  gfxASurface*
  nsWindow::GetThebesSurface()
  {

@@ -28,7 +28,7 @@ index 185d396..59db6e7 100644
  # or in $(MY_RULES)
  #
 diff --git a/mozilla/Makefile.in b/mozilla/Makefile.in
-index 7c0d6d1..8d8b785 100644
+index 96d3c0f..609fe3a 100644
 --- a/mozilla/Makefile.in
 +++ b/mozilla/Makefile.in
 @@ -72,7 +72,7 @@ include $(topsrcdir)/config/config.mk

@@ -48,10 +48,10 @@ index 8f1d2f0..7135873 100644
  typedef struct _MozContainerClass MozContainerClass;
  
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index d769178..d51ebb9 100644
+index e6b50f5..8d6a4b0 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
-@@ -136,11 +136,6 @@ D_DEBUG_DOMAIN( ns_Window, "nsWindow", "nsWindow" );
+@@ -142,11 +142,6 @@ D_DEBUG_DOMAIN( ns_Window, "nsWindow", "nsWindow" );
  #define D_DEBUG_AT(x,y...)    do {} while (0)
  #endif
  
@@ -63,7 +63,7 @@ index d769178..d51ebb9 100644
  // Don't put more than this many rects in the dirty region, just fluff
  // out to the bounding-box if there are more
  #define MAX_RECTS_IN_REGION 100
-@@ -801,25 +796,27 @@ nsWindow::Destroy(void)
+@@ -807,25 +802,27 @@ nsWindow::Destroy(void)
          gtk_widget_destroy(mShell);
          mShell = nsnull;
          mContainer = nsnull;
@@ -98,7 +98,7 @@ index d769178..d51ebb9 100644
          gdk_window_destroy(mGdkWindow);
          mGdkWindow = nsnull;
      }
-@@ -2567,6 +2564,9 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
+@@ -2573,6 +2570,9 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
  
      if (mGdkWindow) {
          SetWidgetForHierarchy(mGdkWindow, aWidget, NULL);
@@ -108,7 +108,7 @@ index d769178..d51ebb9 100644
      }
  }
  
-@@ -2588,8 +2588,6 @@ nsWindow::OnSizeAllocate(GtkWidget *aWidget, GtkAllocation *aAllocation)
+@@ -2594,8 +2594,6 @@ nsWindow::OnSizeAllocate(GtkWidget *aWidget, GtkAllocation *aAllocation)
      if (!mGdkWindow)
          return;
  
@@ -117,7 +117,7 @@ index d769178..d51ebb9 100644
      if (mTransparencyBitmap) {
        ApplyTransparencyBitmap();
      }
-@@ -4019,7 +4017,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
+@@ -4027,7 +4025,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
          gtk_window_set_focus(GTK_WINDOW(mShell), container);
  
          // and the drawing area
@@ -126,7 +126,7 @@ index d769178..d51ebb9 100644
  
          if (mWindowType == eWindowType_popup) {
              // gdk does not automatically set the cursor for "temporary"
-@@ -4043,7 +4041,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
+@@ -4051,7 +4049,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
              gtk_container_add(parentGtkContainer, container);
              gtk_widget_realize(container);
  
@@ -135,7 +135,7 @@ index d769178..d51ebb9 100644
          }
          else {
              NS_WARNING("Warning: tried to create a new child widget with no parent!");
-@@ -4155,8 +4153,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
+@@ -4163,8 +4161,7 @@ nsWindow::NativeCreate(nsIWidget        *aParent,
               (void *)GTK_WIDGET(mContainer)->window,
               GDK_WINDOW_XWINDOW(GTK_WIDGET(mContainer)->window)));
      }
@@ -145,7 +145,7 @@ index d769178..d51ebb9 100644
          LOG(("\tmGdkWindow %p %lx\n", (void *)mGdkWindow,
               GDK_WINDOW_XWINDOW(mGdkWindow)));
      }
-@@ -4316,15 +4313,15 @@ nsWindow::NativeResize(PRInt32 aWidth, PRInt32 aHeight, PRBool  aRepaint)
+@@ -4324,15 +4321,15 @@ nsWindow::NativeResize(PRInt32 aWidth, PRInt32 aHeight, PRBool  aRepaint)
          gtk_window_resize(GTK_WINDOW(mShell), aWidth, aHeight);
      }
      else if (mContainer) {
@@ -166,7 +166,7 @@ index d769178..d51ebb9 100644
          gdk_window_resize(mGdkWindow, aWidth, aHeight);
      }
  }
-@@ -4355,12 +4352,11 @@ nsWindow::NativeResize(PRInt32 aX, PRInt32 aY,
+@@ -4363,12 +4360,11 @@ nsWindow::NativeResize(PRInt32 aX, PRInt32 aY,
      }
      else if (mContainer) {
          GtkAllocation allocation;
@@ -181,7 +181,7 @@ index d769178..d51ebb9 100644
      }
      else if (mGdkWindow) {
          gdk_window_move_resize(mGdkWindow, aX, aY, aWidth, aHeight);
-@@ -4392,12 +4388,10 @@ nsWindow::NativeShow (PRBool  aAction)
+@@ -4400,12 +4396,10 @@ nsWindow::NativeShow (PRBool  aAction)
                  SetUserTimeAndStartupIDForActivatedWindow(mShell);
              }
  
@@ -194,7 +194,7 @@ index d769178..d51ebb9 100644
              gtk_widget_show(GTK_WIDGET(mContainer));
          }
          else if (mGdkWindow) {
-@@ -4411,9 +4405,8 @@ nsWindow::NativeShow (PRBool  aAction)
+@@ -4419,9 +4413,8 @@ nsWindow::NativeShow (PRBool  aAction)
          }
          else if (mContainer) {
              gtk_widget_hide(GTK_WIDGET(mContainer));

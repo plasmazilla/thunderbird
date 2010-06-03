@@ -1,0 +1,97 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Mon, 15 Feb 2010 16:30:22 +0100
+Subject: [PATCH] Fix misalignments in --help command line
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=546296
+---
+ editor/ui/nsComposerCmdLineHandler.js             |    2 +-
+ mailnews/addrbook/src/nsAbManager.cpp             |    2 +-
+ mailnews/base/src/nsMailNewsCommandLineHandler.js |    4 ++--
+ mailnews/compose/src/nsMsgComposeService.cpp      |    2 +-
+ mailnews/news/src/nsNntpService.cpp               |    2 +-
+ suite/browser/nsBrowserContentHandler.js          |    6 +++---
+ 6 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/editor/ui/nsComposerCmdLineHandler.js b/editor/ui/nsComposerCmdLineHandler.js
+index d6a5d7c..6920f05 100644
+--- a/editor/ui/nsComposerCmdLineHandler.js
++++ b/editor/ui/nsComposerCmdLineHandler.js
+@@ -110,7 +110,7 @@ nsComposerCmdLineHandler.prototype = {
+     cmdLine.preventDefault = true;
+   },
+ 
+-  helpInfo : "  -edit <url>          Open Composer.\n"
++  helpInfo : "  -edit <url>        Open Composer.\n"
+ };
+ 
+ function nsComposerCmdLineHandlerFactory() {
+diff --git a/mailnews/addrbook/src/nsAbManager.cpp b/mailnews/addrbook/src/nsAbManager.cpp
+index 62fee8a..59ab7bb 100644
+--- a/mailnews/addrbook/src/nsAbManager.cpp
++++ b/mailnews/addrbook/src/nsAbManager.cpp
+@@ -1243,6 +1243,6 @@ nsAbManager::Handle(nsICommandLine* aCmdLine)
+ NS_IMETHODIMP
+ nsAbManager::GetHelpInfo(nsACString& aResult)
+ {
+-  aResult.Assign(NS_LITERAL_CSTRING("  -addressbook         Open the address book at startup.\n"));
++  aResult.Assign(NS_LITERAL_CSTRING("  -addressbook       Open the address book at startup.\n"));
+   return NS_OK;
+ }
+diff --git a/mailnews/base/src/nsMailNewsCommandLineHandler.js b/mailnews/base/src/nsMailNewsCommandLineHandler.js
+index d4629f0..5831737 100644
+--- a/mailnews/base/src/nsMailNewsCommandLineHandler.js
++++ b/mailnews/base/src/nsMailNewsCommandLineHandler.js
+@@ -147,8 +147,8 @@ var nsMailNewsCommandLineHandler =
+     aCommandLine.handleFlag(MAPI_STARTUP_ARG, false);
+   },
+ 
+-  helpInfo: "  -mail                Open the mail folder view.\n" +
+-            "  -mail <URL>          Open the message specified by this URL.\n",
++  helpInfo: "  -mail              Open the mail folder view.\n" +
++            "  -mail <URL>        Open the message specified by this URL.\n",
+ 
+   /* nsIClassInfo */
+   flags: Ci.nsIClassInfo.SINGLETON,
+diff --git a/mailnews/compose/src/nsMsgComposeService.cpp b/mailnews/compose/src/nsMsgComposeService.cpp
+index 09ec9b4..6a86212 100644
+--- a/mailnews/compose/src/nsMsgComposeService.cpp
++++ b/mailnews/compose/src/nsMsgComposeService.cpp
+@@ -1664,6 +1664,6 @@ nsMsgComposeService::Handle(nsICommandLine* aCmdLine)
+ NS_IMETHODIMP
+ nsMsgComposeService::GetHelpInfo(nsACString& aResult)
+ {
+-  aResult.Assign(NS_LITERAL_CSTRING("  -compose             Compose a mail or news message.\n"));
++  aResult.Assign(NS_LITERAL_CSTRING("  -compose           Compose a mail or news message.\n"));
+   return NS_OK;
+ }
+diff --git a/mailnews/news/src/nsNntpService.cpp b/mailnews/news/src/nsNntpService.cpp
+index 416e3b8..048c96b 100644
+--- a/mailnews/news/src/nsNntpService.cpp
++++ b/mailnews/news/src/nsNntpService.cpp
+@@ -1741,7 +1741,7 @@ nsNntpService::Handle(nsICommandLine* aCmdLine)
+ NS_IMETHODIMP
+ nsNntpService::GetHelpInfo(nsACString& aResult)
+ {
+-  aResult.Assign(NS_LITERAL_CSTRING("  -news                Open the news client.\n"));
++  aResult.Assign(NS_LITERAL_CSTRING("  -news              Open the news client.\n"));
+   return NS_OK;
+ }
+ 
+diff --git a/suite/browser/nsBrowserContentHandler.js b/suite/browser/nsBrowserContentHandler.js
+index 7c90785..0de720e 100644
+--- a/suite/browser/nsBrowserContentHandler.js
++++ b/suite/browser/nsBrowserContentHandler.js
+@@ -536,9 +536,9 @@ var nsBrowserContentHandler = {
+     });
+   },
+ 
+-  helpInfo: "  -browser <url>       Open a browser window.\n" +
+-            "  -url <url>           Open the specified url.\n" +
+-            "  -chrome <url>        Open the specified chrome.\n",
++  helpInfo: "  -browser <url>     Open a browser window.\n" +
++            "  -url <url>         Open the specified url.\n" +
++            "  -chrome <url>      Open the specified chrome.\n",
+ 
+   /* nsICommandLine */
+   length: 1,
+-- 

@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=528386
  1 files changed, 1 insertions(+), 5 deletions(-)
 
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index e72579e..b00bcdf 100644
+index bbe5e55..db71ecb 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
-@@ -713,9 +713,7 @@ nsWindow::DestroyChildWindows()
+@@ -719,9 +719,7 @@ nsWindow::DestroyChildWindows()
      if (!mGdkWindow)
          return;
  
@@ -22,7 +22,7 @@ index e72579e..b00bcdf 100644
          GdkWindow *child = GDK_WINDOW(children->data);
          nsWindow *kid = get_window_for_gdk_window(child);
          if (kid) {
-@@ -730,8 +728,6 @@ nsWindow::DestroyChildWindows()
+@@ -736,8 +734,6 @@ nsWindow::DestroyChildWindows()
              }
          }
      }
