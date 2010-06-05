@@ -4,3 +4,4 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@-devel usr/lib/
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/xpidl usr/lib/@DEB_MOZ_APPLICATION@/
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/xpt_dump usr/lib/@DEB_MOZ_APPLICATION@/
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/xpt_link usr/lib/@DEB_MOZ_APPLICATION@/
+debian/@DEB_MOZ_APPLICATION@.pc usr/lib/pkgconfig/

@@ -141,6 +141,7 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).links \
 	debian/$(DEB_MOZ_APPLICATION).menu \
 	debian/$(DEB_MOZ_APPLICATION).desktop \
+	debian/$(DEB_MOZ_APPLICATION).pc \
 	$(NULL)
 
 $(DEB_MOZ_APPLICATION)%: thunderbird%.in
