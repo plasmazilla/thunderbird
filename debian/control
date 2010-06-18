@@ -49,8 +49,13 @@ Breaks: myspell-ru (<< 0.99g5-8.1), myspell-lv (<< 0.7.3-3.1), myspell-et (<< 1:
 Section: mail
 Description: mail/news client with RSS and integrated spam filter support
  Icedove is an unbranded Thunderbird mail client suitable for free
- distribution. The goal of Thunderbird is to produce a cross platform stand-
- alone mail application using the XUL user interface language.
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
+ .
+ The goal of Icedove is to produce a cross platform standalone mail application
+ using the XUL user interface language.
 
 Package: icedove-dev
 Architecture: any
@@ -58,8 +63,10 @@ Section: mail
 Depends: icedove (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}, libnspr4-dev, libnss3-dev
 Description: Development files for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free
- distribution. The goal of Thunderbird is to produce a cross platform stand-
- alone mail application using the XUL user interface language.
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
  .
  This package contains the development headers, idl files and static libraries
  needed to develop applications using Icedove.
@@ -71,8 +78,10 @@ Section: debug
 Depends: icedove (= ${binary:Version}), ${misc:Depends}
 Description: Debug Symbols for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free
- distribution. The goal of Thunderbird is to produce a cross platform stand-
- alone mail application using the XUL user interface language.
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
  .
  This package contains the debug symbols for Icedove. Install this package if
  you need to debug such a program or if you need a useful backtrace of a crash.
