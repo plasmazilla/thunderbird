@@ -38,4 +38,4 @@
 
 <!ENTITY renameFolderDialog.title          "Preimenovanje imenika">
 <!ENTITY rename.label                      "Vnesite novo ime za imenik:">
-<!ENTITY rename.accesskey                  "E">
+<!ENTITY rename.accesskey                  "e">

@@ -57,7 +57,7 @@
 <!ENTITY threadColumn.tooltip "Kliek om die boodskapdrade te vertoon">
 <!ENTITY fromColumn.tooltip "Kliek om te rangskik vanaf">
 <!ENTITY recipientColumn.tooltip "Kliek om volgens ontvanger te rangskik">
-<!ENTITY subjectColumn.tooltip "Kliek om te volgens onderwerp rangskik">
+<!ENTITY subjectColumn.tooltip "Kliek om volgens onderwerp te rangskik">
 <!ENTITY dateColumn.tooltip "Kliek om volgens datum te rangskik">
 <!ENTITY priorityColumn.tooltip "Kliek om volgens prioriteit te rangskik">
 <!ENTITY tagsColumn.tooltip "Kliek om volgens merker te rangskik">

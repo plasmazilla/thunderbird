@@ -328,7 +328,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY archiveMsgCmd.accesskey "A">
 <!ENTITY archiveMsgCmd.key "a">
 <!ENTITY replyMsgCmd.label "Antwoord">
-<!ENTITY replyMsgCmd.accesskey "A">
+<!ENTITY replyMsgCmd.accesskey "r">
 <!ENTITY replyMsgCmd.key "r">
 <!ENTITY replySenderCmd.label "Antwoord net aan afsender">
 <!ENTITY replySenderCmd.accesskey "A">
@@ -341,7 +341,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyToListMsgCmd.accesskey "l">
 <!ENTITY replyToListMsgCmd.key "l">
 <!ENTITY forwardMsgCmd.label "Aanstuur">
-<!ENTITY forwardMsgCmd.accesskey "A">
+<!ENTITY forwardMsgCmd.accesskey "u">
 <!ENTITY forwardMsgCmd.key "l">
 <!ENTITY forwardAsMenu.label "Stuur aan as">
 <!ENTITY forwardAsMenu.accesskey "t">
@@ -363,7 +363,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY copyMsgToMenu.label "Kopieer na">
 <!ENTITY copyMsgToMenu.accesskey "K">
 <!ENTITY moveToFolderAgain.label "Verskuif weer">
-<!ENTITY moveToFolderAgain.accesskey "V">
+<!ENTITY moveToFolderAgain.accesskey "i">
 <!ENTITY moveToFolderAgainCmd.key "m">
 <!ENTITY killThreadMenu.label "Ignoreer draad">
 <!ENTITY killThreadMenu.accesskey "I">
@@ -609,7 +609,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY threadColumn.tooltip "Kliek om die boodskapdrade te vertoon">
 <!ENTITY fromColumn.tooltip "Kliek om te rangskik vanaf">
 <!ENTITY recipientColumn.tooltip "Kliek om volgens ontvanger te rangskik">
-<!ENTITY subjectColumn.tooltip "Kliek om te volgens onderwerp rangskik">
+<!ENTITY subjectColumn.tooltip "Kliek om volgens onderwerp te rangskik">
 <!ENTITY dateColumn.tooltip "Kliek om volgens datum te rangskik">
 <!ENTITY priorityColumn.tooltip "Kliek om volgens prioriteit te rangskik">
 <!ENTITY tagsColumn.tooltip "Kliek om volgens merker te rangskik">

@@ -1,6 +1,6 @@
 <!-- Entities for AccountWizard -->
 
-<!ENTITY windowTitle.label "Čarovnik za račune ">
+<!ENTITY windowTitle.label "Čarovnik za račune">
 <!ENTITY accountWizard.size "width: 40em; height: 38em;">
 
 <!-- Entities for Account Type page -->
@@ -30,7 +30,7 @@
 <!ENTITY fullnameLabel.accesskey "D">
 
 <!ENTITY emailLabel.label "E-naslov:">
-<!ENTITY emailLabel.accesskey "E">
+<!ENTITY emailLabel.accesskey "e">
 
 <!-- Entities for Server page -->
 
@@ -47,25 +47,26 @@
 <!ENTITY smtpServerLabel.label "Izhodni strežnik:">
 <!ENTITY smtpServerLabel.accesskey "O">
 <!ENTITY newsServerLabel.label "Strežnik za novice:">
-<!ENTITY newsServerLabel.accesskey "N">
+<!ENTITY newsServerLabel.accesskey "b">
 <!-- LOCALIZATION NOTE (imapType.label) : Do not translate "IMAP" in below line -->
 <!ENTITY imapType.label "IMAP">
 <!ENTITY imapType.accesskey "I">
 <!-- LOCALIZATION NOTE (popType.label) : Do not translate "POP" in below line -->
 <!ENTITY popType.label "POP">
-<!ENTITY popType.accesskey "p">
+<!ENTITY popType.accesskey "Z">
 
 <!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
 -->
-<!ENTITY haveSmtp1.prefix "Uporabljalo se bo vaš obstoječi izhodni strežnik (SMTP) &quot;">
+<!ENTITY haveSmtp1.prefix "Uporabljalo se bo vaš obstoječi izhodni strežnik (SMTP),&quot;
+">
 <!ENTITY haveSmtp1.suffix2 "&quot;. Odhodne strežnike lahko spremenite v nastavitvah računa.">
 
 <!-- Entities for Login page -->
 
 <!ENTITY loginTitle.label "Uporabniška imena">
-<!ENTITY usernameDesc.label "Vnesite vstopno uporabniško ime, ki ste ga dobili od svojega ponudnika za e-pošto ">
+<!ENTITY usernameDesc.label "Vnesite vstopno uporabniško ime,ki ste ga dobili od svojega ponudnika za e-pošto ">
 <!-- LOCALIZATION NOTE (usernameExample.label) : do not translate "&quot;jsmith&quot;" in below line -->
 <!ENTITY usernameExample.label "(na primer, &quot;mnovak&quot;).">
 <!ENTITY usernameLabel.label "Vhodno uporabniško ime:">
@@ -84,7 +85,7 @@
      text after the "&quot;" entity in haveSmtp3.suffix2, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "Vaš odhodni (SMTP) strežnik, &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, je enak vašemu dohodnemu strežniku, za dostop se bo uporabljalo vaše vhodno uporabniško ime. Odhodne strežnike lahko spremenite v nastavitvah računa.">
+<!ENTITY haveSmtp3.suffix2 "&quot;,  je enak vašemu dohodnemu strežniku, za dostop se bo uporabljalo vaše vhodno uporabniško ime. Odhodne strežnike lahko spremenite v nastavitvah računa.">
 
 <!-- Entities for Account name page -->
 
@@ -92,20 +93,20 @@
 <!-- LOCALIZATION NOTE (accnameDesc.label) : do not translate any "&quot;" in below line -->
 <!ENTITY accnameDesc.label "Vnesite ime, s katerim bi želeli nazivati ta račun (na primer, &quot;račun v službi&quot;, &quot;račun doma&quot; ali &quot;račun za novice&quot;).">
 <!ENTITY accnameLabel.label "Ime računa:">
-<!ENTITY accnameLabel.accesskey "A">
+<!ENTITY accnameLabel.accesskey "v">
 
 <!-- Entities for Done (Congratulations) page -->
 
 <!ENTITY completionTitle.label "Čestitamo!">
-<!ENTITY completionText.label "Prosimo, preverite, da so podatki spodaj pravilni..">
+<!ENTITY completionText.label "Prosimo, preverite, da so podatki spodaj pravilni.">
 <!ENTITY serverTypePrefix.label "Vrsta dohodnega strežnika:">
 <!ENTITY serverNamePrefix.label "Ime dohodnega strežnika:">
 <!ENTITY smtpServerNamePrefix.label "Ime strežnika za odhodno pošto (SMTP):">
 <!ENTITY newsServerNamePrefix.label "Ime strežnika za novice (NNTP):">
-<!ENTITY downloadOnLogin.label "Naloži sedaj sporočila ...">
+<!ENTITY downloadOnLogin.label "Naloži sedaj sporočila…">
 <!ENTITY downloadOnLogin.accesskey "D">
-<!ENTITY deferStorageDesc.label "Zbrišite kljuko v tem polju, če želite pošto za ta račun shranjevati v svojem lastnem imeniku. Tako bo ta račun prikazan kot račun na najvišjem nivoju. Drugače bo del računa Lokalne mape Globalno Vhodni predal">
+<!ENTITY deferStorageDesc.label "Zbrišite kljuko v tem polju, če želite pošto za ta račun shranjevati v svojem lastnem imeniku. Tako bo ta račun prikazan kot račun na najvišji ravni. Drugače bo del računa Lokalne mape Globalno Vhodni predal">
 <!ENTITY deferStorage.label "Uporabljajo globalni vhodni predal (pošto shranjuj v lokalne mape)">
-<!ENTITY deferStorage.accesskey "G">
+<!ENTITY deferStorage.accesskey "o">
 <!ENTITY clickFinish.label "Kliknite Dokončaj, da shranite nastavitve in čarovnika za račun zaprete.">
 <!ENTITY clickFinish.labelMac "Kliknite Končano, da shranite te nastavitve in zaprete čarovnika za račun.">

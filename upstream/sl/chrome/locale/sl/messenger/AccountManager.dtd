@@ -2,16 +2,16 @@
 
 <!ENTITY accountManagerTitle.label "Nastavitve računa">
 
-<!ENTITY accountActionsButton.label "Dodaj račun ...">
-<!ENTITY accountActionsButton.accesskey "A">
-<!ENTITY addMailAccountButton.label "Nastavi kot privzeto">
-<!ENTITY addMailAccountButton.accesskey "A">
-<!ENTITY addOtherAccountButton.label "Podvojitev">
-<!ENTITY addOtherAccountButton.accesskey "O">
-<!ENTITY setDefaultButton.label "R">
-<!ENTITY setDefaultButton.accesskey "p">
+<!ENTITY accountActionsButton.label "Postopki za račune">
+<!ENTITY accountActionsButton.accesskey "P">
+<!ENTITY addMailAccountButton.label "Dodaj račun za pošto…">
+<!ENTITY addMailAccountButton.accesskey "P">
+<!ENTITY addOtherAccountButton.label "Dodaj drug račun…">
+<!ENTITY addOtherAccountButton.accesskey "D">
+<!ENTITY setDefaultButton.label "Nastavi kot privzet">
+<!ENTITY setDefaultButton.accesskey "N">
 <!ENTITY removeButton.label "Odstrani račun">
-<!ENTITY removeButton.accesskey "D">
+<!ENTITY removeButton.accesskey "O">
 
 <!-- AccountManager.xul -->
 <!-- LOCALIZATION NOTE : this is part of an inline-style attribute on the account

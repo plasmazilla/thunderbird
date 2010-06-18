@@ -7,5 +7,5 @@
 <!ENTITY subject.label                    "Zadeva">
 <!ENTITY subject.accesskey                "S">
 <!ENTITY sender.label                     "Pošiljatelj">
-<!ENTITY sender.accesskey                 "i">
+<!ENTITY sender.accesskey                 "s">
 

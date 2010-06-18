@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-de@thunderbird.mozilla.org"
                em:name="Deutsch (DE) Language Pack"
-               em:version="3.0.930"
+               em:version="3.0.948"
                em:type="8"
                em:creator="thunderbird-mail.de">
     <em:contributor>Alexander Ihrig</em:contributor> <em:contributor>Robert Kaiser</em:contributor> <em:contributor>Abdulkadir Topal</em:contributor>
