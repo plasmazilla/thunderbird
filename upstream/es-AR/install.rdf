@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-es-AR@thunderbird.mozilla.org"
                em:name="Español (AR) Language Pack"
-               em:version="3.0.400"
+               em:version="3.0.422"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>Marcelo Poli</em:contributor> <em:contributor>Pablo Lilia</em:contributor> <em:contributor>Sergio Celani</em:contributor>

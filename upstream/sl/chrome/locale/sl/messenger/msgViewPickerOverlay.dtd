@@ -3,16 +3,16 @@
 <!ENTITY viewPicker.label "Pokaži:">
 <!ENTITY viewPicker.accesskey "L">
 <!ENTITY viewAll.label "Vse">
-<!ENTITY viewAll.accesskey "A">
+<!ENTITY viewAll.accesskey "v">
 <!ENTITY viewUnread.label "Neprebrano">
 <!ENTITY viewUnread.accesskey "U">
 <!ENTITY viewNotDeleted.label "Ne izbrisano">
 <!ENTITY viewNotDeleted.accesskey "D">
 <!ENTITY viewTags.label "Oznake">
-<!ENTITY viewTags.accesskey "T">
+<!ENTITY viewTags.accesskey "R">
 <!ENTITY viewCustomViews.label "Pogledi po meri">
-<!ENTITY viewCustomViews.accesskey "V">
+<!ENTITY viewCustomViews.accesskey "N">
 <!ENTITY viewVirtualFolder.label "Shrani pogled kot mapo…">
 <!ENTITY viewVirtualFolder.accesskey "S">
-<!ENTITY viewCustomizeView.label "Po meri ...">
-<!ENTITY viewCustomizeView.accesskey "C">
+<!ENTITY viewCustomizeView.label "Po meri…">
+<!ENTITY viewCustomizeView.accesskey "z">

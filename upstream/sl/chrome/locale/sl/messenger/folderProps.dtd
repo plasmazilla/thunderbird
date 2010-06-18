@@ -42,35 +42,36 @@
 
 <!ENTITY generalInfo.label                       "Splošne informacije">
 <!ENTITY folderCharsetTab.label                  "Privzeti nabor znakov:">
-<!ENTITY folderCharsetTab.accesskey              "E">
+<!ENTITY folderCharsetTab.accesskey              "e">
 <!ENTITY folderCharsetOverride.label             "Uveljavi privzeto za vsa sporočila v mapi (posamezne nastavitve za nabore znakov in samodejno zaznavanje ne bodo upoštevane)">
-<!ENTITY folderCharsetOverride.accesskey         "A">
+<!ENTITY folderCharsetOverride.accesskey         "v">
 <!ENTITY folderRebuildSummaryFile.label          "Ponovno grajenje indeksa">
-<!ENTITY folderRebuildSummaryFile.accesskey      "D">
+<!ENTITY folderRebuildSummaryFile.accesskey      "e">
 <!ENTITY folderRebuildSummaryFileTip.label       "Ponovno zgradi datoteko s povzetki"> 
 
 <!ENTITY retention.label "Pravila zadrževanja">
 <!ENTITY retentionUseAccount.label  "Uporabi moje nastavitve računa">
 <!ENTITY retentionUseAccount.accesskey "U">
-<!ENTITY daysOld.label "dni staro">
+<!ENTITY daysOld.label "dni">
 <!ENTITY message.label "sporočil">
 <!ENTITY retentionCleanup.label "Prostor na disku lahko prihranite, če dokončno izbrišete stara sporočila.">
 <!ENTITY retentionCleanupImap.label "Prostor na disku lahko prihranite, če dokončno izbrišete stara sporočila, lokalna in sporočila na oddaljenem strežniku.">
 <!ENTITY retentionCleanupPop.label "Prostor na disku lahko prihranite, če dokončno izbrišete stara sporočila, vključno z originali na oddaljenem strežniku.">
-<!ENTITY retentionDeleteMsg.label "Izbriši sporočila večja kot">
+<!ENTITY retentionDeleteMsg.label "Zbriši sporočila starejša kot">
 <!ENTITY retentionDeleteMsg.accesskey "s">
-<!ENTITY retentionKeepAll.label "Ne izbriši nobenih sporočil">
-<!ENTITY retentionKeepAll.accesskey "A">
-<!ENTITY retentionKeepRecent.label "Izbriši vse, razen najnovejših">
-<!ENTITY retentionKeepRecent.accesskey "l">
+<!ENTITY retentionKeepAll.label "Ne zbriši nobenih sporočil">
+<!ENTITY retentionKeepAll.accesskey "v">
+<!ENTITY retentionKeepRecent.label "Zbriši vse, razen najnovejših">
+<!ENTITY retentionKeepRecent.accesskey "s">
 <!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
-<!ENTITY retentionKeepUnreadHidden.label "Vedno izbriši prebrana sporočila (razveljavi nastavitve o starosti)">
+<!ENTITY retentionKeepUnreadHidden.label "Vedno z
+		briši prebrana sporočila (razveljavi nastavitve o starosti)">
 <!ENTITY retentionApplyToFlagged.label "Vedno ohrani označena sporočila">
-<!ENTITY retentionApplyToFlagged.accesskey "i">
+<!ENTITY retentionApplyToFlagged.accesskey "s">
 
 <!ENTITY folderSynchronizationTab.label          "Sinhronizacija">
 <!ENTITY folderCheckForNewMessages.label         "Preveri to mapo za nova sporočila">
-<!ENTITY folderCheckForNewMessages.accesskey     "C">
+<!ENTITY folderCheckForNewMessages.accesskey     "z">
 
 <!ENTITY offlineFolder.check.label               "Za delo brez povezave, izberite to mapo">
 <!ENTITY offlineFolder.check.accesskey           "S">
@@ -78,18 +79,18 @@
 <!ENTITY offlineFolder.button.accesskey          "D">
 
 <!ENTITY selectofflineNewsgroup.check.label      "Izberi to novičarsko skupino za delo brez povezave">
-<!ENTITY selectofflineNewsgroup.check.accesskey  "o">
+<!ENTITY selectofflineNewsgroup.check.accesskey  "O">
 <!ENTITY offlineNewsgroup.button.label           "Prenesi zdaj">
 <!ENTITY offlineNewsgroup.button.accesskey       "D">
 
 <!ENTITY folderProps.name.label                  "Ime:">
-<!ENTITY folderProps.name.accesskey              "N">
+<!ENTITY folderProps.name.accesskey              "b">
 <!ENTITY folderProps.location.label              "Kje:">
-<!ENTITY folderProps.location.accesskey          "L ">
+<!ENTITY folderProps.location.accesskey          "m">
 
 <!ENTITY folderSharingTab.label                  "Skupna raba">
-<!ENTITY privileges.button.label                 "Privilegiji...">
-<!ENTITY privileges.button.accesskey             "p">
+<!ENTITY privileges.button.label                 "Privilegiji…">
+<!ENTITY privileges.button.accesskey             "Z">
 <!ENTITY permissionsDesc.label                   "Imate ta dovoljenja:">
 <!ENTITY folderType.label                        "Vrsta mape:">
 

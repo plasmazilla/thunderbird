@@ -5,7 +5,7 @@
 <!ENTITY newsgroups.label "Nuusgroepe">
 <!ENTITY feeds.label "Nuusvoere">
 
-<!ENTITY checkOnStartup.label "Kontroleer altyd wanneer &brandShortName; begin word.">
+<!ENTITY checkOnStartup.label "Kontroleer altyd wanneer &brandShortName; begin word">
 <!ENTITY checkOnStartup.accesskey "K">
 
 <!ENTITY searchIntegration.label "Laat &searchIntegration.engineName; toe om boodskappe te deursoek">

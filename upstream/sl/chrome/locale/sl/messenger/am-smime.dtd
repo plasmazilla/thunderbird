@@ -6,16 +6,16 @@
 <!ENTITY neverEncrypt.label "Nikoli (ne uporabljaj šifriranja)">
 <!ENTITY neverEncrypt.accesskey "N">
 <!ENTITY alwaysEncryptMessage.label "Zahtevano (sporočila ni mogoče poslati, če nimajo potrdil prav vsi prejemniki)">
-<!ENTITY alwaysEncryptMessage.accesskey "u">
-<!ENTITY encryptionCert.message "Uporabi to potrdilo za šifriranje &amp; dešifriraj sporočila poslana k vam:">
-<!ENTITY digitalSign.certificate.button "Izberi ...">
-<!ENTITY digitalSign.certificate.accesskey "S">
-<!ENTITY digitalSign.certificate_clear.button "Pobriši">
-<!ENTITY digitalSign.certificate_clear.accesskey "C">
-<!ENTITY encryption.certificate.button "Izberi ...">
-<!ENTITY encryption.certificate.accesskey "t">
+<!ENTITY alwaysEncryptMessage.accesskey "Z">
+<!ENTITY encryptionCert.message "Uporabi to potrdilo za šifriranje in dešifriranje sporočila, ki se vam jih pošilja:">
+<!ENTITY digitalSign.certificate.button "Izberi…">
+<!ENTITY digitalSign.certificate.accesskey "I">
+<!ENTITY digitalSign.certificate_clear.button "Zbriši">
+<!ENTITY digitalSign.certificate_clear.accesskey "Z">
+<!ENTITY encryption.certificate.button "Izberi…">
+<!ENTITY encryption.certificate.accesskey "I">
 <!ENTITY encryption.certificate_clear.button "Pobriši">
-<!ENTITY encryption.certificate_clear.accesskey "i">
+<!ENTITY encryption.certificate_clear.accesskey "P">
 <!ENTITY signingGroupTitle.label "Digitalno podpisovanje">
 <!ENTITY signMessage.label "Digitalno podpiši sporočila (privzeto)">
 <!ENTITY signMessage.accesskey "D">
@@ -23,6 +23,6 @@
 
 <!ENTITY certificates.label "Potrdila">
 <!ENTITY manageCerts.label "Pokaži potrdila">
-<!ENTITY manageCerts.accesskey "V">
+<!ENTITY manageCerts.accesskey "P">
 <!ENTITY manageDevices.label "Varnostne naprave">
-<!ENTITY manageDevices.accesskey "y">
+<!ENTITY manageDevices.accesskey "V">

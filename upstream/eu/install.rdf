@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-eu@thunderbird.mozilla.org"
                em:name="Basque Language Pack"
-               em:version="3.0.222"
+               em:version="3.0.236"
                em:type="8"
                em:creator="librezale.org">
     <em:contributor>Librezale.org</em:contributor>

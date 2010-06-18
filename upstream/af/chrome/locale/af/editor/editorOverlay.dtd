@@ -374,7 +374,7 @@
 <!ENTITY tableColumnBefore.label "Kolom voor">
 <!ENTITY tableColumnBefore.accesskey "K">
 <!ENTITY tableColumnAfter.label "Kolom na">
-<!ENTITY tableColumnAfter.accesskey " ">
+<!ENTITY tableColumnAfter.accesskey "a">
 <!ENTITY tableCell.label "Sel">
 <!ENTITY tableCells.label "Sel(le)">
 <!ENTITY tableCell.accesskey "S">

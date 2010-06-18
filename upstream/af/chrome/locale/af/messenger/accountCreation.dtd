@@ -8,14 +8,14 @@
 <!ENTITY email.emptytext "epos@voorbeeld.co.za">
 <!ENTITY password.label "Wagwoord:">
 <!ENTITY password.accesskey "W">
-<!ENTITY password.emptytext "Password">
+<!ENTITY password.emptytext "Wagwoord">
 <!ENTITY password.text "Opsioneel, sal net gebruik word om die gebruikernaam te valideer">
 
 <!ENTITY accountInformation.label "Rekeninginligting">
 <!ENTITY username2.label "Gebruikernaam:">
 <!ENTITY incoming.label "Inkomend:">
 <!ENTITY outgoing.label "Uitgaande:">
-<!ENTITY noEncryption.label "None">
+<!ENTITY noEncryption.label "Geen">
 <!ENTITY starttls.label "STARTTLS">
 <!ENTITY sslTls.label "SSL/TLS">
 
@@ -47,7 +47,7 @@
 <!ENTITY warning.label "Let wel!">
 <!ENTITY incomingSettings.label "Inkomende instellings:">
 <!ENTITY outgoingSettings.label "Uitgaande instellings:">
-<!ENTITY technicaldetails.label "Technical Details">
+<!ENTITY technicaldetails.label "Tegniese detail">
 <!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
      warning on the outgoing server, then the user will need to check a
      checkbox beside this text before continuing. -->
