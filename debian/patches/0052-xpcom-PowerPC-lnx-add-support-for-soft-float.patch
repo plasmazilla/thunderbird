@@ -1,0 +1,243 @@
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Date: Wed, 16 Jun 2010 11:03:10 +0200
+Subject: [PATCH] xpcom/PowerPC lnx: add support for soft-float
+
+current implemention assumes hard float what means dedicated floating
+point registers are used for floating point numbers. This does not work
+on soft float toolchains where dedicated floating point registers and
+opcodes are not used and/or available. On such toolchains the gcc
+compiler provides a built-in define __NO_FPRS__ to signalize such a
+behavior.
+
+http://hg.mozilla.org/mozilla-central/rev/38b06fd30c16
+https://bugzilla.mozilla.org/show_bug.cgi?id=492299
+Target Milestone: mozilla1.9.3a1
+
+Closes: #586100
+---
+ .../xptcall/src/md/unix/xptcinvoke_asm_ppc_linux.s |    9 +++++-
+ .../xptcall/src/md/unix/xptcinvoke_ppc_linux.cpp   |   25 +++++++++++++++++--
+ .../xptcall/src/md/unix/xptcstubs_asm_ppc_linux.s  |    8 +++++-
+ .../xptcall/src/md/unix/xptcstubs_ppc_linux.cpp    |   24 +++++++++++++++++-
+ 4 files changed, 58 insertions(+), 8 deletions(-)
+
+diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_asm_ppc_linux.s b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_asm_ppc_linux.s
+index 9ffd7ed..1f1f6c3 100644
+--- a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_asm_ppc_linux.s
++++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_asm_ppc_linux.s
+@@ -24,6 +24,7 @@
+ //   Franz.Sirl-kernel@lauterbach.com (Franz Sirl)
+ //   beard@netscape.com (Patrick Beard)
+ //   waterson@netscape.com (Chris Waterson)
++//   bigeasy@linutronix.de (Sebastian Andrzej Siewior)
+ //
+ // Alternatively, the contents of this file may be used under the terms of
+ // either the GNU General Public License Version 2 or later (the "GPL"), or
+@@ -86,10 +87,14 @@ NS_InvokeByIndex_P:
+ 	mr      r5,r6				// r5 <= params
+ 	add     r6,r3,r10			// r6 <= gpregs ( == args + r10 )
+ 	mr      r30,r6				// store in r30 for use later...
++#ifndef __NO_FPRS__
+ 	addi    r7,r6,32			// r7 <= fpregs ( == gpregs + 32 )
++#else
++	li	r7, 0
++#endif
+ 
+ 	bl      invoke_copy_to_stack@local	// (args, paramCount, params, gpregs, fpregs)
+-
++#ifndef __NO_FPRS__
+ 	lfd     f1,32(r30)			// load FP registers with method parameters
+ 	lfd     f2,40(r30)   
+ 	lfd     f3,48(r30)  
+@@ -98,7 +103,7 @@ NS_InvokeByIndex_P:
+ 	lfd     f6,72(r30)  
+ 	lfd     f7,80(r30)  
+ 	lfd     f8,88(r30)
+-
++#endif
+ 	lwz     r3,8(r31)			// r3 <= that
+ 	lwz     r4,12(r31)			// r4 <= methodIndex
+ 	lwz     r5,0(r3)			// r5 <= vtable ( == *that )
+diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_ppc_linux.cpp b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_ppc_linux.cpp
+index 033bf4e..e7946b7 100644
+--- a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_ppc_linux.cpp
++++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_ppc_linux.cpp
+@@ -23,6 +23,7 @@
+  *   Franz.Sirl-kernel@lauterbach.com (Franz Sirl)
+  *   beard@netscape.com (Patrick Beard)
+  *   waterson@netscape.com (Chris Waterson)
++ *   bigeasy@linutronix.de (Sebastian Andrzej Siewior)
+  *
+  * Alternatively, the contents of this file may be used under the terms of
+  * either of the GNU General Public License Version 2 or later (the "GPL"),
+@@ -53,10 +54,12 @@
+ // 8 integral parameters are passed in registers
+ #define GPR_COUNT     8
+ 
+-// 8 floating point parameters are passed in registers, floats are
+-// promoted to doubles when passed in registers
++// With hardfloat support 8 floating point parameters are passed in registers,
++// floats are promoted to doubles when passed in registers
++// In Softfloat mode, everything is handled via gprs
++#ifndef __NO_FPRS__
+ #define FPR_COUNT     8
+-
++#endif
+ extern "C" PRUint32
+ invoke_count_words(PRUint32 paramCount, nsXPTCVariant* s)
+ {
+@@ -71,7 +74,9 @@ invoke_copy_to_stack(PRUint32* d,
+                      double* fpregs)
+ {
+     PRUint32 gpr = 1; // skip one GP reg for 'that'
++#ifndef __NO_FPRS__
+     PRUint32 fpr = 0;
++#endif
+     PRUint32 tempu32;
+     PRUint64 tempu64;
+     
+@@ -98,8 +103,17 @@ invoke_copy_to_stack(PRUint32* d,
+         }
+ 
+         if (!s->IsPtrData() && s->type == nsXPTType::T_DOUBLE) {
++#ifndef __NO_FPRS__
+             if (fpr < FPR_COUNT)
+                 fpregs[fpr++]    = s->val.d;
++#else
++            if (gpr & 1)
++                gpr++;
++            if ((gpr + 1) < GPR_COUNT) {
++                *((double*) &gpregs[gpr]) = s->val.d;
++                gpr += 2;
++            }
++#endif
+             else {
+                 if ((PRUint32) d & 4) d++; // doubles are 8-byte aligned on stack
+                 *((double*) d) = s->val.d;
+@@ -107,8 +121,13 @@ invoke_copy_to_stack(PRUint32* d,
+             }
+         }
+         else if (!s->IsPtrData() && s->type == nsXPTType::T_FLOAT) {
++#ifndef __NO_FPRS__
+             if (fpr < FPR_COUNT)
+                 fpregs[fpr++]   = s->val.f; // if passed in registers, floats are promoted to doubles
++#else
++            if (gpr < GPR_COUNT)
++                *((float*) &gpregs[gpr++]) = s->val.f;
++#endif
+             else
+                 *((float*) d++) = s->val.f;
+         }
+diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_asm_ppc_linux.s b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_asm_ppc_linux.s
+index d5834a1..6aff42c 100644
+--- a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_asm_ppc_linux.s
++++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_asm_ppc_linux.s
+@@ -24,6 +24,7 @@
+ //   Franz.Sirl-kernel@lauterbach.com (Franz Sirl)
+ //   beard@netscape.com (Patrick Beard)
+ //   waterson@netscape.com (Chris Waterson)
++//   bigeasy@linutronix.de (Sebastian Andrzej Siewior)
+ //
+ // Alternatively, the contents of this file may be used under the terms of
+ // either the GNU General Public License Version 2 or later (the "GPL"), or
+@@ -75,7 +76,7 @@ SharedStub:
+ 	stw	r8,28(sp)
+ 	stw	r9,32(sp)
+ 	stw	r10,36(sp)
+-
++#ifndef __NO_FPRS__
+ 	stfd	f1,40(sp)			// save FP registers
+ 	stfd	f2,48(sp)
+ 	stfd	f3,56(sp)
+@@ -84,6 +85,7 @@ SharedStub:
+ 	stfd	f6,80(sp)
+ 	stfd	f7,88(sp)
+ 	stfd	f8,96(sp)
++#endif
+ 
+ 						// r3 has the 'self' pointer already
+ 	
+@@ -94,7 +96,11 @@ SharedStub:
+ 						// beyond r3-r10/f1-f8 mapped range
+ 	
+ 	addi	r6,sp,8				// r6 <= gprData
++#ifndef __NO_FPRS__
+ 	addi	r7,sp,40			// r7 <= fprData
++#else
++	li	r7, 0				// r7 should be unused
++#endif
+       
+ 	bl	PrepareAndDispatch@local	// Go!
+     
+diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_ppc_linux.cpp b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_ppc_linux.cpp
+index 846583b..8a65994 100644
+--- a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_ppc_linux.cpp
++++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_ppc_linux.cpp
+@@ -23,6 +23,7 @@
+  *   Franz.Sirl-kernel@lauterbach.com (Franz Sirl)
+  *   beard@netscape.com (Patrick Beard)
+  *   waterson@netscape.com (Chris Waterson)
++ *   bigeasy@linutronix.de (Sebastian Andrzej Siewior)
+  *
+  * Alternatively, the contents of this file may be used under the terms of
+  * either of the GNU General Public License Version 2 or later (the "GPL"),
+@@ -49,11 +50,14 @@
+ // caller.  The rest of the parameters are passed in the callers stack
+ // area. The stack pointer has to retain 16-byte alignment, longlongs
+ // and doubles are aligned on 8-byte boundaries.
+-
++#ifndef __NO_FPRS__
+ #define PARAM_BUFFER_COUNT     16
+ #define GPR_COUNT               8
+ #define FPR_COUNT               8
+-
++#else
++#define PARAM_BUFFER_COUNT      8
++#define GPR_COUNT               8
++#endif
+ // PrepareAndDispatch() is called by SharedStub() and calls the actual method.
+ //
+ // - 'args[]' contains the arguments passed on stack
+@@ -98,7 +102,9 @@ PrepareAndDispatch(nsXPTCStubBase* self,
+ 
+     PRUint32* ap = args;
+     PRUint32 gpr = 1;    // skip one GPR register
++#ifndef __NO_FPRS__
+     PRUint32 fpr = 0;
++#endif
+     PRUint32 tempu32;
+     PRUint64 tempu64;
+ 
+@@ -108,8 +114,17 @@ PrepareAndDispatch(nsXPTCStubBase* self,
+         nsXPTCMiniVariant* dp = &dispatchParams[i];
+ 	
+         if (!param.IsOut() && type == nsXPTType::T_DOUBLE) {
++#ifndef __NO_FPRS__
+             if (fpr < FPR_COUNT)
+                 dp->val.d = fprData[fpr++];
++#else
++            if (gpr & 1)
++                gpr++;
++            if (gpr + 1 < GPR_COUNT) {
++                dp->val.d = *(double*) &gprData[gpr];
++                gpr += 2;
++            }
++#endif
+             else {
+                 if ((PRUint32) ap & 4) ap++; // doubles are 8-byte aligned on stack
+                 dp->val.d = *(double*) ap;
+@@ -118,8 +133,13 @@ PrepareAndDispatch(nsXPTCStubBase* self,
+             continue;
+         }
+         else if (!param.IsOut() && type == nsXPTType::T_FLOAT) {
++#ifndef __NO_FPRS__
+             if (fpr < FPR_COUNT)
+                 dp->val.f = (float) fprData[fpr++]; // in registers floats are passed as doubles
++#else
++            if (gpr  < GPR_COUNT)
++                dp->val.f = *(float*) &gprData[gpr++];
++#endif
+             else
+                 dp->val.f = *(float*) ap++;
+             continue;
+-- 
