@@ -32,15 +32,15 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/he/chrome/locale/he/messenger/aboutDialog.dtd b/upstream/he/chrome/locale/he/messenger/aboutDialog.dtd
-index f6e0280..298be55 100644
+index 1b34b3e..25594d8 100644
 --- a/upstream/he/chrome/locale/he/messenger/aboutDialog.dtd
 +++ b/upstream/he/chrome/locale/he/messenger/aboutDialog.dtd
 @@ -2,7 +2,7 @@
  <!ENTITY aboutButton.label      "&lt; חזרה">
  <!ENTITY aboutButton.accesskey  "ח">
  <!ENTITY aboutVersion           "גרסה">
--<!ENTITY copyrightText          "&#169;1998-2009 תורמים. כל הזכויות שמורות. Mozilla Thunderbird והסמלים                           של Thunderbird הם סימנים מסחריים של קרן Mozilla. כל הזכויות                           שמורות.">
-+<!ENTITY copyrightText          "&#169;1998-2009 תורמים. כל הזכויות שמורות.">
+-<!ENTITY copyrightText          "&#169;1998-2010 תורמים. כל הזכויות שמורות. Mozilla Thunderbird והסמלים                           של Thunderbird הם סימנים מסחריים של קרן Mozilla. כל הזכויות                           שמורות.">
++<!ENTITY copyrightText          "&#169;1998-2010 תורמים. כל הזכויות שמורות.">
  <!ENTITY aboutMenu.label        "אודות">
  <!ENTITY aboutMenu.accesskey    "א">
  <!ENTITY aboutCredits.label     "תודות">

@@ -31,7 +31,7 @@ index e20eab8..09e6402 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/ta-LK/chrome/locale/ta-LK/messenger/aboutDialog.dtd b/upstream/ta-LK/chrome/locale/ta-LK/messenger/aboutDialog.dtd
-index fccbba6..5e66f5d 100644
+index fccbba6..23c5e87 100644
 --- a/upstream/ta-LK/chrome/locale/ta-LK/messenger/aboutDialog.dtd
 +++ b/upstream/ta-LK/chrome/locale/ta-LK/messenger/aboutDialog.dtd
 @@ -4,7 +4,7 @@
@@ -39,7 +39,7 @@ index fccbba6..5e66f5d 100644
  <!ENTITY aboutButton.accesskey  "B">
  <!ENTITY aboutVersion           "பதிப்பு">
 -<!ENTITY copyrightText "&#169;1998-2005 பங்கெடுப்பாளர்கள். All Rights Reserved.Mozilla Thunderbird மற்றும் Thunderbird இலட்சினைகள் Mozilla நிலையத்தினுடைய வர்த்தகக்குறியீடுகள் ஆகும்.  All rights reserved.">
-+<!ENTITY copyrightText "&#169;1998-2005 பங்கெடுப்பாளர்கள். All Rights Reserved.Moz">
++<!ENTITY copyrightText "&#169;1998-2005 பங்கெடுப்பாளர்கள். All Rights Reserved.">
  <!ENTITY aboutMenu.label        "பற்றி">
  <!ENTITY aboutMenu.accesskey    "A">
  <!ENTITY aboutRights.label      "உங்களுடைய உரிமைகள்">

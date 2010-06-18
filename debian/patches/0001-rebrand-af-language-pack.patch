@@ -45,7 +45,7 @@ index 99846c3..90ac22c 100644
  <!ENTITY aboutMenu.accesskey "A">
  <!ENTITY aboutCredits.label "Erkenning">
 diff --git a/upstream/af/chrome/locale/af/messenger/accountCreation.dtd b/upstream/af/chrome/locale/af/messenger/accountCreation.dtd
-index c0d5819..b0f106a 100644
+index d47be5c..2dd5398 100644
 --- a/upstream/af/chrome/locale/af/messenger/accountCreation.dtd
 +++ b/upstream/af/chrome/locale/af/messenger/accountCreation.dtd
 @@ -65,7 +65,7 @@
