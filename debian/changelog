@@ -1,3 +1,38 @@
+icedove (3.0.5-1) unstable; urgency=low
+
+  * New Upstream Version
+  * [9774410] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0045-Fix-misalignments-in-help-command-line.patch
+    - 0046-Fix-misalignments-in-help-command-line.patch
+    - 0047-KDE-Gnome-startup-notification-not-disappearing-when.patch
+    - 0048-KDE-Gnome-startup-notification-not-disappearing-for-.patch
+    - 0049-Use-char16_t-when-available-and-when-it-is-don-t-tes.patch
+    - 0050-Fix-compiler-errors-with-g-4.4-with-std-gnu-0x.patch
+    - 0051-Add-xptcall-support-for-SH4-processors.patch
+    modified patches:
+    - 0028-Avoid-crashing-when-trying-to-kill-a-nsProcess-that-.patch
+    obsolete patches (fixed upstream):
+    - 0021-Avoid-creating-the-updates-directory-when-update-ser.patch
+    - 0035-Fix-stack-alignment-on-function-calls-in-JIT-on-ARM.patch
+  * [3b98c84] avoid unneeded package depends by building with
+    '-Wl,--as-needed'
+  * [0067020] Build with -std=gnu++0x
+  * [72d4300] add pkg-config file for icedove (Closes: #577740)
+  * [e6af35d] enlarge package description with specification from icedove 2.0
+    (Closes: #565887)
+  * [ef0bc10] add support for new Debian arch: powerpcspe (Closes: #586100) -
+    thanks to Sebastian Andrzej Siewior
+  * [5ae6099] use high bandwidth server in watch file to get new upstream
+    release
+  * [5e6d641] remove obsolete build depends libkrb5-dev
+  * [8ed7848] remove unused DEBIAN_VERSION vars in rules file
+  * [9959bd5] DEB_HOST_GNU_TYPE, DEB_BUILD_GNU_TYPE and DEB_BUILD_ARCH are
+    defined by cdbs too
+  * [9f6c088] Fix misalignments in --help command line
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 19 Jun 2010 23:26:55 +0200
+
 icedove (3.0.4-3) unstable; urgency=low
 
   * [4026b50] icedove-dev need depend on libnspr4-dev and libnss3-dev
