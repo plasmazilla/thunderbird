@@ -1,11 +1,5 @@
 #!/usr/bin/make -f
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-DEB_BUILD_ARCH      ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
-
 export BUILD_OFFICIAL=1
 export INSTALL_SDK=1
 export MAIL_PKG_SHARED=1
@@ -15,10 +9,6 @@ DEB_MOZ_APPLICATION=$(DEB_MOZ_NAME)
 MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
 MAIN_LDFLAGS := -Wl,--as-needed
-
-ifeq ($(DEB_BUILD_ARCH),alpha)
-	MAIN_LDFLAGS += -Wl,--no-relax
-endif
 
 ifeq ($(DEB_MOZ_NAME),icedove)
   DEBIAN_DIST := org.debian
@@ -127,6 +117,10 @@ ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	DEB_CONFIGURE_USER_FLAGS += --disable-optimize
 else
 	DEB_CONFIGURE_USER_FLAGS += --enable-optimize
+endif
+
+ifeq ($(DEB_BUILD_ARCH),alpha)
+	MAIN_LDFLAGS += -Wl,--no-relax
 endif
 
 subst_files = \
