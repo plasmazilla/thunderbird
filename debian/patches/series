@@ -50,3 +50,4 @@
 0050-Fix-compiler-errors-with-g-4.4-with-std-gnu-0x.patch
 0051-Add-xptcall-support-for-SH4-processors.patch
 0052-xpcom-PowerPC-lnx-add-support-for-soft-float.patch
+0053-Fix-misalignments-in-help-command-line.patch
