@@ -16,10 +16,6 @@ MOZ_APPLICATION=mail
 XUL_VERSION=1.9.1
 MAIN_LDFLAGS := -Wl,--as-needed
 
-DEBIAN_VERSION := $(shell dpkg-parsechangelog | sed -n 's/^Version: *\(.*\)$$/\1/ p')
-DEBIAN_UPSTREAM_VERSION := $(shell echo $(DEBIAN_VERSION) | sed 's/^\(.*\)-[^-]*$$/\1/')
-DEBIAN_REV_CODE := $(shell echo $(DEBIAN_VERSION) | sed 's/^.*-\([0-9]*\)[^-]*$$/0\1/ ; s/^.*\(..\)$$/\1/')
-
 ifeq ($(DEB_BUILD_ARCH),alpha)
 	MAIN_LDFLAGS += -Wl,--no-relax
 endif
