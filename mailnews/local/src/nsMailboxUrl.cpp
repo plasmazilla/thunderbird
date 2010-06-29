@@ -169,7 +169,7 @@ NS_IMETHODIMP nsMailboxUrl::Clone(nsIURI **_retval)
   nsresult rv = nsMsgMailNewsUrl::Clone(_retval);
   NS_ENSURE_SUCCESS(rv, rv);
   // also clone the mURI member, because GetUri below won't work if
-  // mURI isn't set due to nsFileSpec/nsIFile fun.
+  // mURI isn't set due to nsIFile fun.
   nsCOMPtr <nsIMsgMessageUrl> clonedUrl = do_QueryInterface(*_retval);
   if (clonedUrl)
     clonedUrl->SetUri(mURI.get());
@@ -188,18 +188,21 @@ NS_IMETHODIMP nsMailboxUrl::GetUri(char ** aURI)
     if (m_filePath)
     {
       nsCAutoString baseUri;
+      nsresult rv;
+      nsCOMPtr<nsIMsgAccountManager> accountManager =
+        do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
       // we blow off errors here so that we can open attachments
       // in .eml files.
-      (void) FolderUriFromDirInProfile(m_filePath, baseUri);
+      (void) accountManager->FolderUriForPath(m_filePath, baseUri);
       if (baseUri.IsEmpty())
         m_baseURL->GetSpec(baseUri);
       nsCString baseMessageURI;
       nsCreateLocalBaseMessageURI(baseUri, baseMessageURI);
-      char * uri = nsnull;
       nsCAutoString uriStr;
       nsBuildLocalMessageURI(baseMessageURI.get(), m_messageKey, uriStr);
-      uri = ToNewCString(uriStr);
-      *aURI = uri;
+      *aURI = ToNewCString(uriStr);
     }
     else
       *aURI = nsnull;
@@ -341,7 +344,7 @@ nsresult nsMailboxUrl::ParseSearchPart()
     char * messageKey = extractAttributeValue(searchPart.get(), "number=");
     m_messageID = extractAttributeValue(searchPart.get(),"messageid=");
     if (messageKey)
-      m_messageKey = atol(messageKey); // convert to a long...
+      m_messageKey = (nsMsgKey) ParseUint64Str(messageKey); // convert to a PRUint32...
 
     PR_Free(msgPart);
     PR_Free(messageKey);
@@ -524,5 +527,3 @@ NS_IMETHODIMP nsMailboxUrl::GetNumMoveCopyMsgs(PRUint32 *numMsgs)
   *numMsgs = m_keys.Length();
   return NS_OK;
 }
-
-

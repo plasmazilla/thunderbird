@@ -49,15 +49,19 @@ cp $1/src/liboggz/metric_internal.c ./src/liboggz/metric_internal.c
 cp $1/src/liboggz/dirac.h ./src/liboggz/dirac.h
 cp $1/src/liboggz/dirac.c ./src/liboggz/dirac.c
 cp $1/AUTHORS ./AUTHORS
-patch -p3 <endian.patch
-patch -p3 <oggz_off_t.patch
 patch -p3 <wince.patch
-patch -p3 <bounded_seek.patch
+patch -p3 <endian.patch
 patch -p3 <key_frame_seek.patch
 patch -p3 <offset_next.patch
 patch -p3 <bug487519.patch
 patch -p3 <bug496063.patch
-patch -p3 <oggz_os2.patch
+patch -p3 <faster_seek.patch
 patch -p3 <bug516847.patch
+patch -p3 <bug518169.patch
 patch -p3 <bug504843.patch
+patch -p3 <bug519155.patch
+patch -p3 <bug498380.patch
+patch -p3 <bug520493.patch
+patch -p3 <bug523335.patch
+
 

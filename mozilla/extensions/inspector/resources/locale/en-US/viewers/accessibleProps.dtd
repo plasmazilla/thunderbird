@@ -41,11 +41,13 @@
 <!ENTITY descDescription.label "Description:">
 <!ENTITY descValue.label "Value:">
 <!ENTITY descState.label "State:">
-<!ENTITY descActionName.label "Action Name:">
 <!ENTITY descBounds.label "Bounds:">
 <!ENTITY tabAttrs.label "Object attributes">
 <!ENTITY colAttrName.label "Name">
 <!ENTITY colAttrValue.label "Value">
+<!ENTITY tabActions.label "Actions">
+<!ENTITY descKeyBindings.label "Key bindings:">
+<!ENTITY descInvoke.label "Invoke">
 <!ENTITY tabTableCell.label "Table cell">
 <!ENTITY descColumnIdx.label "Column index:">
 <!ENTITY descRowIdx.label "Row index:">

@@ -50,6 +50,7 @@
 #include "nsLineBox.h"
 #include "nsCSSPseudoElements.h"
 #include "nsStyleSet.h"
+#include "nsFloatManager.h"
 
 enum LineReflowStatus {
   // The line was completely reflowed and fit in available width, and we should
@@ -61,6 +62,10 @@ enum LineReflowStatus {
   // We need to reflow the line again at its current vertical position. The
   // new reflow should not try to pull up any frames from the next line.
   LINE_REFLOW_REDO_NO_PULL,
+  // We need to reflow the line again using the floats from its height
+  // this reflow, since its height made it hit floats that were not
+  // adjacent to its top.
+  LINE_REFLOW_REDO_MORE_FLOATS,
   // We need to reflow the line again at a lower vertical postion where there
   // may be more horizontal space due to different float configuration.
   LINE_REFLOW_REDO_NEXT_BAND,
@@ -127,11 +132,6 @@ class nsIntervalSet;
 
 #define nsBlockFrameSuper nsHTMLContainerFrame
 
-#define NS_BLOCK_FRAME_CID \
- { 0xa6cf90df, 0x15b3, 0x11d2,{0x93, 0x2e, 0x00, 0x80, 0x5f, 0x8a, 0xdd, 0x32}}
-
-extern const nsIID kBlockFrameCID;
-
 /*
  * Base class for block and inline frames.
  * The block frame has an additional named child list:
@@ -142,6 +142,9 @@ extern const nsIID kBlockFrameCID;
 class nsBlockFrame : public nsBlockFrameSuper
 {
 public:
+  NS_DECL_QUERYFRAME_TARGET(nsBlockFrame)
+  NS_DECL_FRAMEARENA_HELPERS
+
   typedef nsLineList::iterator                  line_iterator;
   typedef nsLineList::const_iterator            const_line_iterator;
   typedef nsLineList::reverse_iterator          reverse_line_iterator;
@@ -158,23 +161,24 @@ public:
 
   friend nsIFrame* NS_NewBlockFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRUint32 aFlags);
 
-  // nsISupports
-  NS_IMETHOD  QueryInterface(const nsIID& aIID, void** aInstancePtr);
+  // nsQueryFrame
+  NS_DECL_QUERYFRAME
 
   // nsIFrame
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList);
+                                 nsFrameList&    aChildList);
   NS_IMETHOD  AppendFrames(nsIAtom*        aListName,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
   NS_IMETHOD  InsertFrames(nsIAtom*        aListName,
                            nsIFrame*       aPrevFrame,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
   NS_IMETHOD  RemoveFrame(nsIAtom*        aListName,
                           nsIFrame*       aOldFrame);
-  virtual nsIFrame* GetFirstChild(nsIAtom* aListName) const;
+  virtual nsFrameList GetChildList(nsIAtom* aListName) const;
+  virtual nsIFrame* GetLastChild(nsIAtom* aListName) const;
   virtual nscoord GetBaseline() const;
   virtual nsIAtom* GetAdditionalChildListName(PRInt32 aIndex) const;
   virtual void Destroy();
@@ -199,7 +203,6 @@ public:
   NS_IMETHOD List(FILE* out, PRInt32 aIndent) const;
   NS_IMETHOD_(nsFrameState) GetDebugStateBits() const;
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
-  NS_IMETHOD VerifyTree() const;
 #endif
 
 #ifdef ACCESSIBILITY
@@ -236,6 +239,11 @@ public:
   virtual PRBool IsEmpty();
   virtual PRBool CachedIsEmpty();
   virtual PRBool IsSelfEmpty();
+
+  // Given that we have a bullet, does it actually draw something, i.e.,
+  // do we have either a 'list-style-type' or 'list-style-image' that is
+  // not 'none'?
+  PRBool BulletIsEmpty() const;
 
   virtual void MarkIntrinsicWidthsDirty();
   virtual nscoord GetMinWidth(nsIRenderingContext *aRenderingContext);
@@ -307,7 +315,9 @@ public:
       { return marginLeft + borderBoxWidth + marginRight; }
   };
   static ReplacedElementWidthToClear
-    WidthToClearPastFloats(nsBlockReflowState& aState, nsIFrame* aFrame);
+    WidthToClearPastFloats(nsBlockReflowState& aState,
+                           const nsRect& aFloatAvailableSpace,
+                           nsIFrame* aFrame);
 
   /**
    * Walks up the frame tree, starting with aCandidate, and returns the first
@@ -349,6 +359,10 @@ protected:
                                        gfxFloat aAscent,
                                        gfxFloat aSize,
                                        const PRUint8 aDecoration);
+
+  virtual void AdjustForTextIndent(const nsLineBox* aLine,
+                                   nscoord& start,
+                                   nscoord& width);
 
   void TryAllLines(nsLineList::iterator* aIterator,
                    nsLineList::iterator* aStartIterator,
@@ -392,7 +406,7 @@ protected:
     * contains aPrevSibling and add aFrameList after aPrevSibling on that line.
     * new lines are created as necessary to handle block data in aFrameList.
     */
-  virtual nsresult AddFrames(nsIFrame* aFrameList,
+  virtual nsresult AddFrames(const nsFrameList& aFrameList,
                              nsIFrame* aPrevSibling);
 
 #ifdef IBMBIDI
@@ -465,6 +479,9 @@ protected:
   /** reflow all lines that have been marked dirty */
   nsresult ReflowDirtyLines(nsBlockReflowState& aState);
 
+  /** Mark a given line dirty due to reflow being interrupted on or before it */
+  void MarkLineDirtyForInterrupt(nsLineBox* aLine);
+
   //----------------------------------------
   // Methods for line reflow
   /**
@@ -478,11 +495,16 @@ protected:
                       line_iterator aLine,
                       PRBool* aKeepReflowGoing);
 
-  // Return PR_TRUE if aLine gets pushed.
-  void PlaceLine(nsBlockReflowState& aState,
-                 nsLineLayout&       aLineLayout,
-                 line_iterator       aLine,
-                 PRBool*             aKeepReflowGoing);
+  // Return false if it needs another reflow because of reduced space
+  // between floats that are next to it (but not next to its top), and
+  // return true otherwise.
+  PRBool PlaceLine(nsBlockReflowState& aState,
+                   nsLineLayout&       aLineLayout,
+                   line_iterator       aLine,
+                   nsFloatManager::SavedState* aFloatStateBeforeLine,
+                   nsRect&             aFloatAvailableSpace, /* in-out */
+                   nscoord&            aAvailableSpaceHeight, /* in-out */
+                   PRBool*             aKeepReflowGoing);
 
   /**
    * Mark |aLine| dirty, and, if necessary because of possible
@@ -521,6 +543,10 @@ protected:
   nsresult DoReflowInlineFrames(nsBlockReflowState& aState,
                                 nsLineLayout& aLineLayout,
                                 line_iterator aLine,
+                                nsFlowAreaRect& aFloatAvailableSpace,
+                                nscoord& aAvailableSpaceHeight,
+                                nsFloatManager::SavedState*
+                                  aFloatStateBeforeLine,
                                 PRBool* aKeepReflowGoing,
                                 LineReflowStatus* aLineReflowStatus,
                                 PRBool aAllowPullUp);
@@ -532,14 +558,17 @@ protected:
                              LineReflowStatus* aLineReflowStatus);
 
   // Compute the available width for a float. 
-  nsRect ComputeFloatAvailableSpace(nsBlockReflowState& aState,
-                                    nsIFrame*           aFloatFrame);
+  nsRect AdjustFloatAvailableSpace(nsBlockReflowState& aState,
+                                   const nsRect&       aFloatAvailableSpace,
+                                   nsIFrame*           aFloatFrame);
   // Computes the border-box width of the float
   nscoord ComputeFloatWidth(nsBlockReflowState& aState,
+                            const nsRect&       aFloatAvailableSpace,
                             nsPlaceholderFrame* aPlaceholder);
   // An incomplete aReflowStatus indicates the float should be split
   // but only if the available height is constrained.
   nsresult ReflowFloat(nsBlockReflowState& aState,
+                       const nsRect&       aFloatAvailableSpace,
                        nsPlaceholderFrame* aPlaceholder,
                        nsMargin&           aFloatMargin,
                        nsReflowStatus&     aReflowStatus);

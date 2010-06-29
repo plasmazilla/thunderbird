@@ -42,23 +42,21 @@
 
 #include "nsHTMLContainerFrame.h"
 
-#define NS_FIRSTLETTER_FRAME_CID \
- { 0x64e918c7, 0x786a, 0x4f5c,{0x93, 0xe0, 0x24, 0x59, 0x64, 0x31, 0xcf, 0x75}}
-
 #define nsFirstLetterFrameSuper nsHTMLContainerFrame
 
 class nsFirstLetterFrame : public nsFirstLetterFrameSuper {
 public:
-  nsFirstLetterFrame(nsStyleContext* aContext) : nsHTMLContainerFrame(aContext) {}
+  NS_DECL_FRAMEARENA_HELPERS
+  NS_DECL_QUERYFRAME_TARGET(nsFirstLetterFrame)
+  NS_DECL_QUERYFRAME
 
-  // nsISupports overrides
-  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aInstancePtr);
+  nsFirstLetterFrame(nsStyleContext* aContext) : nsHTMLContainerFrame(aContext) {}
 
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList);
+                                 nsFrameList&    aChildList);
 #ifdef NS_DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
 #endif
@@ -88,8 +86,6 @@ public:
                     nsReflowStatus&          aStatus);
 
   virtual PRBool CanContinueTextRun() const;
-
-  NS_IMETHOD SetSelected(nsPresContext* aPresContext, nsIDOMRange *aRange,PRBool aSelected, nsSpread aSpread, SelectionType aType);
 
 //override of nsFrame method
   NS_IMETHOD GetChildFrameContainingOffset(PRInt32 inContentOffset,

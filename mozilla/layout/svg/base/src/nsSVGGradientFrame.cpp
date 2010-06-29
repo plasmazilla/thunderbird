@@ -47,7 +47,6 @@
 #include "nsSVGGeometryFrame.h"
 #include "nsSVGGradientFrame.h"
 #include "gfxContext.h"
-#include "nsIDOMSVGRect.h"
 #include "gfxPattern.h"
 
 //----------------------------------------------------------------------
@@ -59,6 +58,8 @@ nsSVGGradientFrame::nsSVGGradientFrame(nsStyleContext* aContext) :
   mNoHRefURI(PR_FALSE)
 {
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGGradientFrame)
 
 //----------------------------------------------------------------------
 // nsIFrame methods:
@@ -168,15 +169,8 @@ nsSVGGradientFrame::GetGradientTransform(nsSVGGeometryFrame *aSource)
 
     nsIFrame *frame = (callerType == nsGkAtoms::svgGlyphFrame) ?
                         aSource->GetParent() : aSource;
-    nsCOMPtr<nsIDOMSVGRect> rect = nsSVGUtils::GetBBox(frame);
-    if (rect) {
-      float x, y, width, height;
-      rect->GetX(&x);
-      rect->GetY(&y);
-      rect->GetWidth(&width);
-      rect->GetHeight(&height);
-      bboxMatrix = gfxMatrix(width, 0, 0, height, x, y);
-    }
+    gfxRect bbox = nsSVGUtils::GetBBox(frame);
+    bboxMatrix = gfxMatrix(bbox.Width(), 0, 0, bbox.Height(), bbox.X(), bbox.Y());
   }
 
   nsSVGGradientElement *element =
@@ -190,7 +184,7 @@ nsSVGGradientFrame::GetGradientTransform(nsSVGGeometryFrame *aSource)
   if (!gradientTransform)
     return bboxMatrix;
 
-  return nsSVGUtils::ConvertSVGMatrixToThebes(gradientTransform) * bboxMatrix;
+  return bboxMatrix.PreMultiply(nsSVGUtils::ConvertSVGMatrixToThebes(gradientTransform));
 }
 
 PRUint16
@@ -282,7 +276,8 @@ nsSVGGradientFrame::GetReferencedGradient()
   if (!property) {
     // Fetch our gradient element's xlink:href attribute
     nsSVGGradientElement *grad = static_cast<nsSVGGradientElement *>(mContent);
-    const nsString &href = grad->mStringAttributes[nsSVGGradientElement::HREF].GetAnimValue();
+    nsAutoString href;
+    grad->mStringAttributes[nsSVGGradientElement::HREF].GetAnimValue(href, grad);
     if (href.IsEmpty()) {
       mNoHRefURI = PR_TRUE;
       return nsnull; // no URL
@@ -414,6 +409,19 @@ nsSVGGradientFrame::GetGradientUnits()
 // Linear Gradients
 // -------------------------------------------------------------------------
 
+#ifdef DEBUG
+NS_IMETHODIMP
+nsSVGLinearGradientFrame::Init(nsIContent* aContent,
+                               nsIFrame* aParent,
+                               nsIFrame* aPrevInFlow)
+{
+  nsCOMPtr<nsIDOMSVGLinearGradientElement> grad = do_QueryInterface(aContent);
+  NS_ASSERTION(grad, "Content is not an SVG linearGradient");
+
+  return nsSVGLinearGradientFrameBase::Init(aContent, aParent, aPrevInFlow);
+}
+#endif /* DEBUG */
+
 nsIAtom*
 nsSVGLinearGradientFrame::GetType() const
 {
@@ -481,6 +489,19 @@ nsSVGLinearGradientFrame::CreateGradient()
 // -------------------------------------------------------------------------
 // Radial Gradients
 // -------------------------------------------------------------------------
+
+#ifdef DEBUG
+NS_IMETHODIMP
+nsSVGRadialGradientFrame::Init(nsIContent* aContent,
+                               nsIFrame* aParent,
+                               nsIFrame* aPrevInFlow)
+{
+  nsCOMPtr<nsIDOMSVGRadialGradientElement> grad = do_QueryInterface(aContent);
+  NS_ASSERTION(grad, "Content is not an SVG radialGradient");
+
+  return nsSVGRadialGradientFrameBase::Init(aContent, aParent, aPrevInFlow);
+}
+#endif /* DEBUG */
 
 nsIAtom*
 nsSVGRadialGradientFrame::GetType() const
@@ -592,28 +613,18 @@ nsSVGRadialGradientFrame::CreateGradient()
 
 nsIFrame*
 NS_NewSVGLinearGradientFrame(nsIPresShell*   aPresShell,
-                             nsIContent*     aContent,
                              nsStyleContext* aContext)
 {
-  nsCOMPtr<nsIDOMSVGLinearGradientElement> grad = do_QueryInterface(aContent);
-  if (!grad) {
-    NS_ERROR("Can't create frame! Content is not an SVG linearGradient");
-    return nsnull;
-  }
-
   return new (aPresShell) nsSVGLinearGradientFrame(aContext);
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGLinearGradientFrame)
+
 nsIFrame*
 NS_NewSVGRadialGradientFrame(nsIPresShell*   aPresShell,
-                             nsIContent*     aContent,
                              nsStyleContext* aContext)
 {
-  nsCOMPtr<nsIDOMSVGRadialGradientElement> grad = do_QueryInterface(aContent);
-  if (!grad) {
-    NS_ERROR("Can't create frame! Content is not an SVG radialGradient");
-    return nsnull;
-  }
-
   return new (aPresShell) nsSVGRadialGradientFrame(aContext);
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGRadialGradientFrame)

@@ -57,9 +57,6 @@
   <!ENTITY cmdToggleProcessingInstructions.label "Zobraziť vykonávacie inštrukcie">
   <!ENTITY cmdToggleProcessingInstructions.accesskey "Z">
 
-<!ENTITY cmdFlashSelected.label "Zvýrazniť vybraný prvok">
-<!ENTITY cmdFlashSelected.accesskey "v">
-
 <!ENTITY cmdToggleAttributes.label "Zobraziť atribúty">
 <!ENTITY cmdToggleAttributes.accesskey "r">
 

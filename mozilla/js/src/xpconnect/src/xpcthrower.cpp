@@ -301,7 +301,7 @@ XPCThrower::ThrowExceptionObject(JSContext* cx, nsIException* e)
     JSBool success = JS_FALSE;
     if(e)
     {
-        nsCOMPtr<nsXPCException> xpcEx;
+        nsCOMPtr<nsIXPCException> xpcEx;
         jsval thrown;
         nsXPConnect* xpc;
 
@@ -310,7 +310,7 @@ XPCThrower::ThrowExceptionObject(JSContext* cx, nsIException* e)
         // context (i.e., not chrome), rethrow the original value.
         if(!IsCallerChrome(cx) &&
            (xpcEx = do_QueryInterface(e)) &&
-           xpcEx->StealThrownJSVal(&thrown))
+           NS_SUCCEEDED(xpcEx->StealJSVal(&thrown)))
         {
             JS_SetPendingException(cx, thrown);
             success = JS_TRUE;
@@ -352,6 +352,7 @@ XPCThrower::ThrowCOMError(JSContext* cx, unsigned long COMErrorCode,
     if(!nsXPCException::NameAndFormatForNSResult(rv, nsnull, &format))
         format = "";
     msg = format;
+#ifndef WINCE
     if(exception)
     {
         msg += static_cast<const char *>
@@ -392,7 +393,13 @@ XPCThrower::ThrowCOMError(JSContext* cx, unsigned long COMErrorCode,
             msg.AppendInt(static_cast<PRUint32>(COMErrorCode), 16);
         }
     }
-    
+
+#else
+    // No error object, so just report the result
+    msg += "COM Error Result = ";
+    msg.AppendInt(static_cast<PRUint32>(COMErrorCode), 16);
+#endif
+
     XPCThrower::BuildAndThrowException(cx, rv, msg.get());
 }
 

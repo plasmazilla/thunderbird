@@ -40,6 +40,7 @@
 #include "nsFormFillController.h"
 
 #include "nsStorageFormHistory.h"
+#include "nsIFormAutoComplete.h"
 #include "nsIAutoCompleteSimpleResult.h"
 #include "nsString.h"
 #include "nsReadableUtils.h"
@@ -198,6 +199,8 @@ nsFormFillController::GetPopupOpen(PRBool *aPopupOpen)
 {
   if (mFocusedPopup)
     mFocusedPopup->GetPopupOpen(aPopupOpen);
+  else
+    *aPopupOpen = PR_FALSE;
   return NS_OK;
 }
 
@@ -497,6 +500,7 @@ NS_IMETHODIMP
 nsFormFillController::StartSearch(const nsAString &aSearchString, const nsAString &aSearchParam,
                                   nsIAutoCompleteResult *aPreviousResult, nsIAutoCompleteObserver *aListener)
 {
+  nsresult rv;
   nsCOMPtr<nsIAutoCompleteResult> result;
 
   // If the login manager has indicated it's responsible for this field, let it
@@ -505,22 +509,22 @@ nsFormFillController::StartSearch(const nsAString &aSearchString, const nsAStrin
   if (mPwmgrInputs.Get(mFocusedInput, &dummy)) {
     // XXX aPreviousResult shouldn't ever be a historyResult type, since we're not letting
     // satchel manage the field?
-    mLoginManager->AutoCompleteSearch(aSearchString,
+    rv = mLoginManager->AutoCompleteSearch(aSearchString,
                                          aPreviousResult,
                                          mFocusedInput,
                                          getter_AddRefs(result));
   } else {
-    nsCOMPtr<nsIAutoCompleteSimpleResult> historyResult;
-    historyResult = do_QueryInterface(aPreviousResult);
+    nsCOMPtr <nsIFormAutoComplete> formAutoComplete =
+      do_GetService("@mozilla.org/satchel/form-autocomplete;1", &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    nsFormHistory *history = nsFormHistory::GetInstance();
-    if (history) {
-      history->AutoCompleteSearch(aSearchParam,
-                                  aSearchString,
-                                  historyResult,
-                                  getter_AddRefs(result));
-    }
+    rv = formAutoComplete->AutoCompleteSearch(aSearchParam,
+                                              aSearchString,
+                                              mFocusedInput,
+                                              aPreviousResult,
+                                              getter_AddRefs(result));
   }
+  NS_ENSURE_SUCCESS(rv, rv);
 
   aListener->OnSearchResult(this, result);  
   
@@ -691,7 +695,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
     mController->HandleDelete(&cancel);
     break;
   case nsIDOMKeyEvent::DOM_VK_BACK_SPACE:
-    mController->HandleText(PR_FALSE);
+    mController->HandleText();
     break;
 #else
   case nsIDOMKeyEvent::DOM_VK_BACK_SPACE:
@@ -702,7 +706,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
       if (isShift)
         mController->HandleDelete(&cancel);
       else
-        mController->HandleText(PR_FALSE);
+        mController->HandleText();
 
       break;
     }
@@ -843,7 +847,7 @@ nsFormFillController::Input(nsIDOMEvent* aEvent)
   if (mSuppressOnInput || !mController || !mFocusedInput)
     return NS_OK;
 
-  return mController->HandleText(PR_FALSE);
+  return mController->HandleText();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -889,7 +893,7 @@ nsFormFillController::MouseDown(nsIDOMEvent* aMouseEvent)
   if (value.Length() > 0) {
     // Show the popup with a filtered result set
     mController->SetSearchString(EmptyString());
-    mController->HandleText(PR_TRUE);
+    mController->HandleText();
   } else {
     // Show the popup with the complete result set.  Can't use HandleText()
     // because it doesn't display the popup if the input is blank.

@@ -47,29 +47,33 @@
 #include "gfxContext.h"
 
 nsIFrame*
-NS_NewSVGInnerSVGFrame(nsIPresShell* aPresShell, nsIContent* aContent, nsStyleContext* aContext)
+NS_NewSVGInnerSVGFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
-  nsCOMPtr<nsIDOMSVGSVGElement> svg = do_QueryInterface(aContent);
-  if (!svg) {
-    NS_ERROR("Can't create frame! Content is not an SVG 'svg' element!");
-    return nsnull;
-  }
-
   return new (aPresShell) nsSVGInnerSVGFrame(aContext);
 }
 
-//----------------------------------------------------------------------
-// nsISupports methods
-
-NS_INTERFACE_MAP_BEGIN(nsSVGInnerSVGFrame)
-  NS_INTERFACE_MAP_ENTRY(nsISVGValueObserver)
-  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-  NS_INTERFACE_MAP_ENTRY(nsISVGSVGFrame)
-NS_INTERFACE_MAP_END_INHERITING(nsSVGInnerSVGFrameBase)
-
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGInnerSVGFrame)
 
 //----------------------------------------------------------------------
 // nsIFrame methods
+
+NS_QUERYFRAME_HEAD(nsSVGInnerSVGFrame)
+  NS_QUERYFRAME_ENTRY(nsSVGInnerSVGFrame)
+  NS_QUERYFRAME_ENTRY(nsISVGSVGFrame)
+NS_QUERYFRAME_TAIL_INHERITING(nsSVGInnerSVGFrameBase)
+
+#ifdef DEBUG
+NS_IMETHODIMP
+nsSVGInnerSVGFrame::Init(nsIContent* aContent,
+                         nsIFrame* aParent,
+                         nsIFrame* aPrevInFlow)
+{
+  nsCOMPtr<nsIDOMSVGSVGElement> svg = do_QueryInterface(aContent);
+  NS_ASSERTION(svg, "Content is not an SVG 'svg' element!");
+
+  return nsSVGInnerSVGFrameBase::Init(aContent, aParent, aPrevInFlow);
+}
+#endif /* DEBUG */
 
 nsIAtom *
 nsSVGInnerSVGFrame::GetType() const
@@ -95,18 +99,14 @@ nsSVGInnerSVGFrame::PaintSVG(nsSVGRenderState *aContext,
       return NS_OK;
     }
 
-    nsCOMPtr<nsIDOMSVGMatrix> clipTransform;
-    if (!GetMatrixPropagation()) {
-      NS_NewSVGMatrix(getter_AddRefs(clipTransform));
-    } else {
-      clipTransform = static_cast<nsSVGContainerFrame*>(mParent)->GetCanvasTM();
-    }
+    nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(mParent);
+    gfxMatrix clipTransform = parent->GetCanvasTM();
 
-    if (clipTransform) {
-      gfxContext *gfx = aContext->GetGfxContext();
-      autoSR.SetContext(gfx);
-      nsSVGUtils::SetClipRect(gfx, clipTransform, x, y, width, height);
-    }
+    gfxContext *gfx = aContext->GetGfxContext();
+    autoSR.SetContext(gfx);
+    gfxRect clipRect =
+      nsSVGUtils::GetClipRectForFrame(this, x, y, width, height);
+    nsSVGUtils::SetClipRect(gfx, clipTransform, clipRect);
   }
 
   return nsSVGInnerSVGFrameBase::PaintSVG(aContext, aDirtyRect);
@@ -161,17 +161,13 @@ NS_IMETHODIMP_(nsIFrame*)
 nsSVGInnerSVGFrame::GetFrameForPoint(const nsPoint &aPoint)
 {
   if (GetStyleDisplay()->IsScrollableOverflow()) {
+    nsSVGElement *content = static_cast<nsSVGElement*>(mContent);
+    nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(mParent);
+
     float clipX, clipY, clipWidth, clipHeight;
-    nsCOMPtr<nsIDOMSVGMatrix> clipTransform;
+    content->GetAnimatedLengthValues(&clipX, &clipY, &clipWidth, &clipHeight, nsnull);
 
-    nsSVGElement *svg = static_cast<nsSVGElement*>(mContent);
-    svg->GetAnimatedLengthValues(&clipX, &clipY, &clipWidth, &clipHeight, nsnull);
-
-    nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>
-                                             (mParent);
-    clipTransform = parent->GetCanvasTM();
-
-    if (!nsSVGUtils::HitTestRect(clipTransform,
+    if (!nsSVGUtils::HitTestRect(parent->GetCanvasTM(),
                                  clipX, clipY, clipWidth, clipHeight,
                                  PresContext()->AppUnitsToDevPixels(aPoint.x),
                                  PresContext()->AppUnitsToDevPixels(aPoint.y))) {
@@ -241,65 +237,19 @@ nsSVGInnerSVGFrame::NotifyViewportChange()
 //----------------------------------------------------------------------
 // nsSVGContainerFrame methods:
 
-already_AddRefed<nsIDOMSVGMatrix>
+gfxMatrix
 nsSVGInnerSVGFrame::GetCanvasTM()
 {
-  if (!GetMatrixPropagation()) {
-    nsIDOMSVGMatrix *retval;
-    NS_NewSVGMatrix(&retval);
-    return retval;
-  }
-
-  // parentTM * Translate(x,y) * viewBoxTM
-
   if (!mCanvasTM) {
-    // get the transform from our parent's coordinate system to ours:
     NS_ASSERTION(mParent, "null parent");
-    nsSVGContainerFrame *containerFrame = static_cast<nsSVGContainerFrame*>
-                                                     (mParent);
-    nsCOMPtr<nsIDOMSVGMatrix> parentTM = containerFrame->GetCanvasTM();
-    NS_ASSERTION(parentTM, "null TM");
 
-    // append the transform due to the 'x' and 'y' attributes:
-    float x, y;
-    nsSVGSVGElement *svg = static_cast<nsSVGSVGElement*>(mContent);
-    svg->GetAnimatedLengthValues(&x, &y, nsnull);
+    nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(mParent);
+    nsSVGSVGElement *content = static_cast<nsSVGSVGElement*>(mContent);
 
-    nsCOMPtr<nsIDOMSVGMatrix> xyTM;
-    parentTM->Translate(x, y, getter_AddRefs(xyTM));
+    gfxMatrix tm = content->PrependLocalTransformTo(parent->GetCanvasTM());
 
-    // append the viewbox to viewport transform:
-    nsCOMPtr<nsIDOMSVGMatrix> viewBoxTM;
-    nsSVGSVGElement *svgElement = static_cast<nsSVGSVGElement*>(mContent);
-    nsresult res =
-      svgElement->GetViewboxToViewportTransform(getter_AddRefs(viewBoxTM));
-    if (NS_SUCCEEDED(res) && viewBoxTM) {
-      xyTM->Multiply(viewBoxTM, getter_AddRefs(mCanvasTM));
-    } else {
-      NS_WARNING("We should propagate the fact that the viewBox is invalid.");
-      mCanvasTM = xyTM;
-    }
-  }    
-
-  nsIDOMSVGMatrix* retval = mCanvasTM.get();
-  NS_IF_ADDREF(retval);
-  return retval;
+    mCanvasTM = NS_NewSVGMatrix(tm);
+  }
+  return nsSVGUtils::ConvertSVGMatrixToThebes(mCanvasTM);
 }
 
-//----------------------------------------------------------------------
-// nsISVGValueObserver methods:
-
-NS_IMETHODIMP
-nsSVGInnerSVGFrame::WillModifySVGObservable(nsISVGValue* observable,
-                                            nsISVGValue::modificationType aModType)
-{
-  return NS_OK;
-}
-	
-NS_IMETHODIMP
-nsSVGInnerSVGFrame::DidModifySVGObservable (nsISVGValue* observable,
-                                            nsISVGValue::modificationType aModType)
-{
-  NotifyViewportChange();
-  return NS_OK;
-}

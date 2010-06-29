@@ -51,7 +51,6 @@
 #include "nsIDOMNode.h"
 #include "nsIDOMNamedNodeMap.h"
 #include "nsIDOMAttr.h"
-#include "nsIWidget.h"
 #include "nsIRenderingContext.h"
 #include "nsIDocument.h"
 #include "nsIDeviceContext.h"
@@ -281,11 +280,9 @@ nsBox::SetBounds(nsBoxLayoutState& aState, const nsRect& aRect, PRBool aRemoveOv
 
     // Nuke the overflow area. The caller is responsible for restoring
     // it if necessary.
-    if (aRemoveOverflowArea && (GetStateBits() & NS_FRAME_OUTSIDE_CHILDREN)) {
+    if (aRemoveOverflowArea && HasOverflowRect()) {
       // remove the previously stored overflow area
-      PresContext()->PropertyTable()->
-        DeleteProperty(this, nsGkAtoms::overflowAreaProperty);
-      RemoveStateBits(NS_FRAME_OUTSIDE_CHILDREN);
+      ClearOverflowRect();
     }
 
     if (!(flags & NS_FRAME_NO_MOVE_VIEW))
@@ -344,7 +341,7 @@ nsBox::GetBorder(nsMargin& aMargin)
     // Go to the theme for the border.
     nsPresContext *context = PresContext();
     if (gTheme->ThemeSupportsWidget(context, this, disp->mAppearance)) {
-      nsMargin margin(0, 0, 0, 0);
+      nsIntMargin margin(0, 0, 0, 0);
       gTheme->GetWidgetBorder(context->DeviceContext(), this,
                               disp->mAppearance, &margin);
       aMargin.top = context->DevPixelsToAppUnits(margin.top);
@@ -368,7 +365,7 @@ nsBox::GetPadding(nsMargin& aMargin)
     // Go to the theme for the padding.
     nsPresContext *context = PresContext();
     if (gTheme->ThemeSupportsWidget(context, this, disp->mAppearance)) {
-      nsMargin margin(0, 0, 0, 0);
+      nsIntMargin margin(0, 0, 0, 0);
       PRBool useThemePadding;
 
       useThemePadding = gTheme->GetWidgetPadding(context->DeviceContext(),
@@ -422,21 +419,6 @@ PRBool
 nsBox::DoesNeedRecalc(nscoord aCoord)
 {
   return (aCoord == -1);
-}
-
-PRBool
-nsBox::GetWasCollapsed(nsBoxLayoutState& aState)
-{
-  return (GetStateBits() & NS_STATE_IS_COLLAPSED) != 0;
-}
-
-void
-nsBox::SetWasCollapsed(nsBoxLayoutState& aState, PRBool aCollapsed)
-{
-  if (aCollapsed)
-     AddStateBits(NS_STATE_IS_COLLAPSED);
-  else
-     RemoveStateBits(NS_STATE_IS_COLLAPSED);
 }
 
 NS_IMETHODIMP
@@ -728,7 +710,7 @@ nsIBox::AddCSSMinSize(nsBoxLayoutState& aState, nsIBox* aBox, nsSize& aSize)
     if (display->mAppearance) {
       nsITheme *theme = aState.PresContext()->GetTheme();
       if (theme && theme->ThemeSupportsWidget(aState.PresContext(), aBox, display->mAppearance)) {
-        nsSize size;
+        nsIntSize size;
         nsIRenderingContext* rendContext = aState.GetRenderingContext();
         if (rendContext) {
           theme->GetMinimumWidgetSize(rendContext, aBox,

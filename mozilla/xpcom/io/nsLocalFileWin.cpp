@@ -98,6 +98,10 @@ unsigned char *_mbsstr( const unsigned char *str,
 }
 #endif
 
+#ifndef FILE_ATTRIBUTE_NOT_CONTENT_INDEXED
+#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED  0x00002000
+#endif
+
 #ifndef WINCE
 class nsDriveEnumerator : public nsISimpleEnumerator
 {
@@ -117,10 +121,30 @@ private:
     nsAString::const_iterator mStartOfCurrentDrive;
     nsAString::const_iterator mEndOfDrivesString;
 };
+#endif
 
 //----------------------------------------------------------------------------
 // short cut resolver
 //----------------------------------------------------------------------------
+#ifdef WINCE
+class ShortcutResolver
+{
+public:
+    ShortcutResolver() {};
+    // nonvirtual since we're not subclassed
+    ~ShortcutResolver() {};
+
+    nsresult Init() { return NS_OK; }; // nothing to do
+    nsresult Resolve(const WCHAR* in, WCHAR* out);
+};
+
+// |out| must be an allocated buffer of size MAX_PATH
+nsresult
+ShortcutResolver::Resolve(const WCHAR* in, WCHAR* out)
+{
+    return SHGetShortcutTarget(in, out, MAX_PATH) ? NS_OK : NS_ERROR_FAILURE;
+}
+#else // not WINCE
 class ShortcutResolver
 {
 public:
@@ -214,6 +238,7 @@ ShortcutResolver::Resolve(const WCHAR* in, WCHAR* out)
         return NS_ERROR_FAILURE;
     return NS_OK;
 }
+#endif
 
 static ShortcutResolver * gResolver = nsnull;
 
@@ -231,8 +256,6 @@ static void NS_DestroyShortcutResolver()
     delete gResolver;
     gResolver = nsnull;
 }
-
-#endif
 
 
 //-----------------------------------------------------------------------------
@@ -288,16 +311,6 @@ static nsresult ConvertWinError(DWORD winErr)
     }
     return rv;
 }
-
-// definition of INVALID_SET_FILE_POINTER from VC.NET header files
-// it doesn't appear to be defined by VC6
-#ifndef INVALID_SET_FILE_POINTER
-# define INVALID_SET_FILE_POINTER ((DWORD)-1)
-#endif
-// same goes for INVALID_FILE_ATTRIBUTES
-#ifndef INVALID_FILE_ATTRIBUTES
-# define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
-#endif
 
 // as suggested in the MSDN documentation on SetFilePointer
 static __int64 
@@ -519,6 +532,20 @@ OpenDir(const nsAFlatString &name, nsDir * *dir)
     if ( d->handle == INVALID_HANDLE_VALUE )
     {
         PR_Free(d);
+
+#ifdef WINCE
+        /* On WinCE, there is no . or .. directory, so an empty directory will
+           return an error.  We don't want to throw an error, so instead just
+           return success here, if the last error was ERROR_NO_MORE_FILES.
+
+           Errors like the path not existing should be handled higher up, but
+           would return ERROR_PATH_NOT_FOUND, so we would still throw.
+         */
+
+        if (GetLastError() == ERROR_NO_MORE_FILES)
+            return NS_OK;
+#endif
+
         return ConvertWinError(GetLastError());
     }
     d->firstEntry = PR_TRUE;
@@ -779,7 +806,6 @@ nsLocalFile::nsLocalFile(const nsLocalFile& other)
 nsresult
 nsLocalFile::ResolveShortcut()
 {
-#ifndef WINCE
     // we can't do anything without the resolver
     if (!gResolver)
         return NS_ERROR_FAILURE;
@@ -797,9 +823,6 @@ nsLocalFile::ResolveShortcut()
     mResolvedPath.SetLength(len);
 
     return rv;
-#else
-    return NS_OK;
-#endif
 }
 
 // Resolve any shortcuts and stat the resolved path. After a successful return
@@ -904,40 +927,21 @@ nsLocalFile::InitWithPath(const nsAString &filePath)
 
     // just do a sanity check.  if it has any forward slashes, it is not a Native path
     // on windows.  Also, it must have a colon at after the first char.
-
-    PRUnichar *path = nsnull;
-    PRInt32 pathLen = 0;
-
-    if (( 
-         !FindCharInReadable(L'/', begin, end) )   //normal path
-#ifndef WINCE
-        && (secondChar == L':') ||  // additional normal path condition
-        (secondChar == L'\\') &&    // addtional network path condition 
-#else
-        ||
-#endif 
-        (firstChar == L'\\')    // wince absolute path or network path
-
-         )
-    {
-        // This is a native path
-        path = ToNewUnicode(filePath);
-        pathLen = filePath.Length();
-    }
-
-    if (path == nsnull) {
+    if (FindCharInReadable(L'/', begin, end))
         return NS_ERROR_FILE_UNRECOGNIZED_PATH;
-    }
 
+#ifdef WINCE
+    if (firstChar != L'\\')
+#else
+    if (secondChar != L':' && (secondChar != L'\\' || firstChar != L'\\'))
+#endif
+        return NS_ERROR_FILE_UNRECOGNIZED_PATH;
+
+    mWorkingPath = filePath;
     // kill any trailing '\'
-    PRInt32 len = pathLen - 1;
-    if (path[len] == L'\\')
-    {
-        path[len] = L'\0';
-        pathLen = len;
-    }
+    if (mWorkingPath.Last() == L'\\')
+        mWorkingPath.Truncate(mWorkingPath.Length() - 1);
 
-    mWorkingPath.Adopt(path, pathLen);
     return NS_OK;
 
 }
@@ -2682,6 +2686,58 @@ nsLocalFile::SetPersistentDescriptor(const nsACString &aPersistentDescriptor)
         return InitWithNativePath(aPersistentDescriptor);
 }   
 
+/* attrib unsigned long fileAttributesWin; */
+static PRBool IsXPOrGreater()
+{
+#ifdef WINCE
+    return PR_FALSE;
+#endif
+    OSVERSIONINFO osvi;
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+    GetVersionEx(&osvi);
+
+    return ((osvi.dwMajorVersion > 5) ||
+       ((osvi.dwMajorVersion == 5) && (osvi.dwMinorVersion >= 1)));
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetFileAttributesWin(PRUint32 *aAttribs)
+{
+    *aAttribs = 0;
+    DWORD dwAttrs = GetFileAttributesW(mWorkingPath.get());
+    if (dwAttrs == INVALID_FILE_ATTRIBUTES)
+      return NS_ERROR_FILE_INVALID_PATH;
+
+    if (!(dwAttrs & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED))
+        *aAttribs |= WFA_SEARCH_INDEXED;
+
+    return NS_OK;
+}   
+    
+NS_IMETHODIMP
+nsLocalFile::SetFileAttributesWin(PRUint32 aAttribs)
+{
+    DWORD dwAttrs = GetFileAttributesW(mWorkingPath.get());
+    if (dwAttrs == INVALID_FILE_ATTRIBUTES)
+      return NS_ERROR_FILE_INVALID_PATH;
+
+    if (IsXPOrGreater()) {
+      if (aAttribs & WFA_SEARCH_INDEXED) {
+          dwAttrs &= ~FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+      } else {
+          dwAttrs |= FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+      }
+    }
+
+    if (SetFileAttributesW(mWorkingPath.get(), dwAttrs) == 0)
+      return NS_ERROR_FAILURE;
+    return NS_OK;
+}   
+
+
 NS_IMETHODIMP
 nsLocalFile::Reveal()
 {
@@ -2891,7 +2947,7 @@ nsLocalFile::GetNativePath(nsACString &_retval)
 NS_IMETHODIMP
 nsLocalFile::GetNativeCanonicalPath(nsACString &aResult)
 {
-    NS_WARNING("This method is lossy. Use GetCanoincailPath !");
+    NS_WARNING("This method is lossy. Use GetCanonicalPath !");
     EnsureShortPath();
     NS_CopyUnicodeToNative(mShortWorkingPath, aResult);
     return NS_OK;
@@ -3024,18 +3080,14 @@ nsLocalFile::GetHashCode(PRUint32 *aResult)
 void
 nsLocalFile::GlobalInit()
 {
-#ifndef WINCE
     nsresult rv = NS_CreateShortcutResolver();
     NS_ASSERTION(NS_SUCCEEDED(rv), "Shortcut resolver could not be created");
-#endif
 }
 
 void
 nsLocalFile::GlobalShutdown()
 {
-#ifndef WINCE
     NS_DestroyShortcutResolver();
-#endif
 }
 
 #ifndef WINCE

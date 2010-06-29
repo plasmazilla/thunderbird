@@ -120,8 +120,6 @@ nsWidget::nsWidget()
 
   mWidget = nsnull;
   mParent = nsnull;
-  mPreferredWidth  = 0;
-  mPreferredHeight = 0;
   mShown = PR_FALSE;
   mBounds.x = 0;
   mBounds.y = 0;
@@ -604,13 +602,13 @@ NS_IMETHODIMP nsWidget::InvalidateRegion( const nsIRegion *aRegion, PRBool aIsSy
 	}
 
 nsresult nsWidget::CreateWidget(nsIWidget *aParent,
+                                nsNativeWidget aNativeParent,
                                 const nsRect &aRect,
                                 EVENT_CALLBACK aHandleEventFunction,
                                 nsIDeviceContext *aContext,
                                 nsIAppShell *aAppShell,
                                 nsIToolkit *aToolkit,
-                                nsWidgetInitData *aInitData,
-                                nsNativeWidget aNativeParent)
+                                nsWidgetInitData *aInitData)
 {
 
   PtWidget_t *parentWidget = nsnull;
@@ -1158,15 +1156,11 @@ int nsWidget::GotFocusCallback( PtWidget_t *widget, void *data, PtCallbackInfo_t
 			}
 		}
 
-	pWidget->DispatchStandardEvent(NS_GOTFOCUS);
-
   return Pt_CONTINUE;
 }
 
 int nsWidget::LostFocusCallback( PtWidget_t *widget, void *data, PtCallbackInfo_t *cbinfo ) 
 {
-  nsWidget *pWidget = (nsWidget *) data;
- 	pWidget->DispatchStandardEvent(NS_LOSTFOCUS);
   return Pt_CONTINUE;
 }
 

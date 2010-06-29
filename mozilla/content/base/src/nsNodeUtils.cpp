@@ -54,6 +54,8 @@
 #include "nsXULElement.h"
 #endif
 #include "nsBindingManager.h"
+#include "nsGenericHTMLElement.h"
+#include "nsHTMLMediaElement.h"
 
 // This macro expects the ownerDocument of content_ to be in scope as
 // |nsIDocument* doc|
@@ -95,6 +97,18 @@ nsNodeUtils::CharacterDataChanged(nsIContent* aContent,
   nsIDocument* doc = aContent->GetOwnerDoc();
   IMPL_MUTATION_NOTIFICATION(CharacterDataChanged, aContent,
                              (doc, aContent, aInfo));
+}
+
+void
+nsNodeUtils::AttributeWillChange(nsIContent* aContent,
+                                 PRInt32 aNameSpaceID,
+                                 nsIAtom* aAttribute,
+                                 PRInt32 aModType)
+{
+  nsIDocument* doc = aContent->GetOwnerDoc();
+  IMPL_MUTATION_NOTIFICATION(AttributeWillChange, aContent,
+                             (doc, aContent, aNameSpaceID, aAttribute,
+                              aModType));
 }
 
 void
@@ -209,12 +223,23 @@ nsNodeUtils::LastRelease(nsINode* aNode)
     // the properties may want to use the owner document of the nsINode.
     static_cast<nsIDocument*>(aNode)->PropertyTable()->DeleteAllProperties();
   }
-  else if (aNode->HasProperties()) {
-    // Strong reference to the document so that deleting properties can't
-    // delete the document.
-    nsCOMPtr<nsIDocument> document = aNode->GetOwnerDoc();
-    if (document) {
-      document->PropertyTable()->DeleteAllPropertiesFor(aNode);
+  else {
+    if (aNode->HasProperties()) {
+      // Strong reference to the document so that deleting properties can't
+      // delete the document.
+      nsCOMPtr<nsIDocument> document = aNode->GetOwnerDoc();
+      if (document) {
+        document->PropertyTable()->DeleteAllPropertiesFor(aNode);
+      }
+    }
+
+    // I wonder whether it's faster to do the HasFlag check first....
+    if (aNode->IsNodeOfType(nsINode::eHTML_FORM_CONTROL) &&
+        aNode->HasFlag(ADDED_TO_FORM)) {
+      // Tell the form (if any) this node is going away.  Don't
+      // notify, since we're being destroyed in any case.
+      static_cast<nsGenericHTMLFormElement*>(aNode)->ClearForm(PR_TRUE,
+                                                               PR_FALSE);
     }
   }
   aNode->UnsetFlags(NODE_HAS_PROPERTIES);
@@ -222,9 +247,8 @@ nsNodeUtils::LastRelease(nsINode* aNode)
   if (aNode->HasFlag(NODE_HAS_LISTENERMANAGER)) {
 #ifdef DEBUG
     if (nsContentUtils::IsInitialized()) {
-      nsCOMPtr<nsIEventListenerManager> manager;
-      nsContentUtils::GetListenerManager(aNode, PR_FALSE,
-                                         getter_AddRefs(manager));
+      nsIEventListenerManager* manager =
+        nsContentUtils::GetListenerManager(aNode, PR_FALSE);
       if (!manager) {
         NS_ERROR("Huh, our bit says we have a listener manager list, "
                  "but there's nothing in the hash!?!!");
@@ -242,6 +266,8 @@ nsNodeUtils::LastRelease(nsINode* aNode)
       ownerDoc->ClearBoxObjectFor(static_cast<nsIContent*>(aNode));
     }
   }
+
+  nsContentUtils::ReleaseWrapper(aNode, aNode);
 
   delete aNode;
 }
@@ -577,14 +603,15 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
 
     nsIDocument* newDoc = aNode->GetOwnerDoc();
     if (newDoc) {
+      // XXX what if oldDoc is null, we don't know if this should be
+      // registered or not! Can that really happen?
       if (wasRegistered) {
         newDoc->RegisterFreezableElement(static_cast<nsIContent*>(aNode));
       }
 
       nsPIDOMWindow* window = newDoc->GetInnerWindow();
       if (window) {
-        nsCOMPtr<nsIEventListenerManager> elm;
-        aNode->GetListenerManager(PR_FALSE, getter_AddRefs(elm));
+        nsIEventListenerManager* elm = aNode->GetListenerManager(PR_FALSE);
         if (elm) {
           window->SetMutationListeners(elm->MutationListenerBits());
           if (elm->MayHavePaintEventListener()) {
@@ -593,6 +620,16 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
         }
       }
     }
+
+#ifdef MOZ_MEDIA
+    if (wasRegistered && oldDoc != newDoc) {
+      nsCOMPtr<nsIDOMHTMLMediaElement> domMediaElem(do_QueryInterface(aNode));
+      if (domMediaElem) {
+        nsHTMLMediaElement* mediaElem = static_cast<nsHTMLMediaElement*>(aNode);
+        mediaElem->NotifyOwnerDocumentActivityChanged();
+      }
+    }
+#endif
 
     if (elem) {
       elem->RecompileScriptEventListeners();

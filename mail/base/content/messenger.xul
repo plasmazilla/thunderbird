@@ -50,6 +50,7 @@
 <?xul-overlay href="chrome://messenger/content/mailOverlay.xul"?>
 <?xul-overlay href="chrome://messenger/content/editContactOverlay.xul"?>
 <?xul-overlay href="chrome://messenger/content/specialTabs.xul"?>
+<?xul-overlay href="chrome://messenger/content/quickFilterBar.xul"?>
 
 <!DOCTYPE window [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
@@ -58,8 +59,6 @@
 %messengerDTD;
 <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
 %customizeToolbarDTD;
-<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-%globalDTD;
 ]>
 
 <!--
@@ -75,7 +74,9 @@
         onunload="OnUnloadMessenger()"
         screenX="10" screenY="10"
         persist="width height screenX screenY sizemode"
-        windowtype="mail:3pane">
+        toggletoolbar="true"
+        windowtype="mail:3pane"
+        lightweightthemes="true">
 
 
 <!--This (strange!) element is here to support recovering customized toolbars in
@@ -98,30 +99,30 @@
 </stringbundleset>
 
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/widgetglue.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/commandglue.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/shareglue.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mailWindow.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/selectionsummaries.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/msgMail3PaneWindow.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/specialTabs.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/glodaFacetTab.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/searchBar.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mail3PaneWindowCommands.js"/>
-<script type="application/x-javascript" src="chrome://global/content/contentAreaUtils.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/nsContextMenu.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mailContextMenus.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/accountUtils.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/folderPane.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/phishingDetector.js"/>
-<script type="application/x-javascript" src="chrome://communicator/content/contentAreaClick.js"/>
-<script type="application/x-javascript" src="chrome://global/content/nsDragAndDrop.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/editContactOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
+<script type="application/javascript" src="chrome://messenger/content/commandglue.js"/>
+<script type="application/javascript" src="chrome://messenger/content/shareglue.js"/>
+<script type="application/javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailWindow.js"/>
+<script type="application/javascript" src="chrome://messenger/content/selectionsummaries.js"/>
+<script type="application/javascript" src="chrome://messenger/content/msgMail3PaneWindow.js"/>
+<script type="application/javascript" src="chrome://messenger/content/specialTabs.js"/>
+<script type="application/javascript" src="chrome://messenger/content/glodaFacetTab.js"/>
+<script type="application/javascript" src="chrome://messenger/content/searchBar.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mail3PaneWindowCommands.js"/>
+<script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
+<script type="application/javascript" src="chrome://messenger/content/nsContextMenu.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailContextMenus.js"/>
+<script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
+<script type="application/javascript" src="chrome://messenger/content/folderPane.js"/>
+<script type="application/javascript" src="chrome://messenger/content/phishingDetector.js"/>
+<script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
+<script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
+<script type="application/javascript" src="chrome://messenger/content/editContactOverlay.js"/>
 
 
 <!-- move needed functions into a single js file -->
-<script type="application/x-javascript" src="chrome://messenger/content/threadPane.js"/>
+<script type="application/javascript" src="chrome://messenger/content/threadPane.js"/>
 
 <commandset id="mailCommands">
   <commandset id="mailFileMenuItems"/>
@@ -241,7 +242,12 @@
        A mechanism for adding sidebar panes will be added in bug 476154. -->
   <hbox id="tabmail-container" flex="1">
     <tabmail id="tabmail" flex="1" panelcontainer="tabpanelcontainer">
-      <hbox id="tabmail-buttons"/>
+      <hbox>
+        <!-- extensions can put stuff in here -->
+        <hbox id="tabmail-buttons"/>
+        <!-- extensions must not put stuff in here -->
+        <hbox id="thunderbird-private-tabmail-buttons"/>
+      </hbox>
       <tabpanels id="tabpanelcontainer" flex="1" class="plain" selectedIndex="0">
         <!-- mailContent is the container used for the "wide" layout. Normally,
              all it contains is the "messengerBox" box.  However, in "wide" mode
@@ -257,19 +263,17 @@
                 <label id="folderpane-title"/>
                 <spacer flex="1"/>
                 <toolbarbutton id="folderview-cycler-prev"
-                               chromedir="&locale.dir;"
                                dir="prev"
                                class="folderview-cycler"
                                onclick="gFolderTreeView.cycleMode(false);"/>
                 <toolbarbutton id="folderview-cycler-next"
-                               chromedir="&locale.dir;"
                                dir="next"
                                class="folderview-cycler"
                                onclick="gFolderTreeView.cycleMode(true);"/>
               </sidebarheader>
 
               <tree id="folderTree" class="plain" flex="1"
-                    hidecolumnpicker="true" persist="mode" mode="smart"
+                    hidecolumnpicker="true" persist="mode" mode="all"
                     keepcurrentinview="true"
                     context="folderPaneContext"
                     disableKeyNavigation="true"
@@ -409,7 +413,6 @@
 
                 <!-- if you change this id, please change GetThreadAndMessagePaneSplitter() and MsgToggleMessagePane() -->
                 <splitter id="threadpane-splitter"
-                          chromedir="&locale.dir;"
                           collapse="after"
                           collapsed="true"
                           onmouseup="OnMouseUpThreadAndMessagePaneSplitter()"/>
@@ -424,18 +427,28 @@
                            flex="1" name="multimessage"
                            hidden="true"
                            disablesecurity="true" disablehistory="true"
+                           tooltip="aHTMLTooltip"
                            src="chrome://messenger/content/multimessageview.xhtml"
                            autofind="false"/>
                   <vbox id="singlemessage" flex="1">
                     <hbox id="msgHeaderView"/>
                     <hbox id="editMessageBox"/>
                     <deck id="msgNotificationBar"/>
-                    <browser id="messagepane" context="mailContext" autofind="false"
-                             minheight="1" flex="1" name="messagepane" tooltip="aHTMLTooltip"
-                             disablehistory="true" type="content-primary" src="about:blank"
-                             onresize="return messagePaneOnResize(event);"
-                             disablesecurity="true" onclick="return contentAreaClick(event);"/>
-                    <splitter id="attachment-splitter" collapse="after" resizebefore="closest" resizeafter="closest" collapsed="true"/>
+                    <!-- The messagepanewrapper hbox exists to allow
+                         extensions to add sidebars to the message. -->
+                    <hbox id="messagepanewrapper" flex="1">
+                      <browser id="messagepane" context="mailContext"
+                               autofind="false" minheight="1" flex="1"
+                               name="messagepane" tooltip="aHTMLTooltip"
+                               disablehistory="true" type="content-primary"
+                               src="about:blank"
+                               onresize="return messagePaneOnResize(event);"
+                               disablesecurity="true"
+                               onclick="return contentAreaClick(event);"/>
+                    </hbox>
+                    <splitter id="attachment-splitter" collapse="after"
+                              resizebefore="closest" resizeafter="closest"
+                              collapsed="true"/>
                     <hbox id="attachmentView"/>
                     <findbar id="FindToolbar" browserid="messagepane"/>
                   </vbox>
@@ -449,12 +462,11 @@
     <vbox id="contentTab"/>
     <vbox id="chromeTab"/>
   </hbox>
-  <panel id="customizeToolbarSheetPopup" noautohide="true">
+  <panel id="customizeToolbarSheetPopup"
+         noautohide="true"
+         onpopupshown="this.moveTo(this.boxObject.screenX + (window.innerWidth - this.boxObject.width) / 2, this.boxObject.screenY);">
     <iframe id="customizeToolbarSheetIFrame"
             style="&dialog.style;"
-#ifdef MOZILLA_1_9_1_BRANCH
-            chromedir="&locale.dir;"
-#endif
             hidden="true"/>
   </panel>
 

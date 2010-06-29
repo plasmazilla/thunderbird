@@ -265,13 +265,13 @@ protected:
 // An event that can be used to call a method on a class.  The class type must
 // support reference counting. This event supports Revoke for use
 // with nsRevocableEventPtr.
-template <class T>
+template <class ClassType, typename ReturnType = void>
 class nsRunnableMethod : public nsRunnable
 {
 public:
-  typedef void (T::*Method)();
+  typedef ReturnType (ClassType::*Method)();
 
-  nsRunnableMethod(T *obj, Method method)
+  nsRunnableMethod(ClassType *obj, Method method)
     : mObj(obj), mMethod(method) {
     NS_ADDREF(mObj);
   }
@@ -282,18 +282,38 @@ public:
     (mObj->*mMethod)();
     return NS_OK;
   }
-  
+
   void Revoke() {
     NS_IF_RELEASE(mObj);
   }
 
-private:
+  // These ReturnTypeEnforcer classes set up a blacklist for return types that
+  // we know are not safe. The default ReturnTypeEnforcer compiles just fine but
+  // already_AddRefed will not.
+  template <typename OtherReturnType>
+  class ReturnTypeEnforcer
+  {
+  public:
+    typedef int ReturnTypeIsSafe;
+  };
+
+  template <class T>
+  class ReturnTypeEnforcer<already_AddRefed<T> >
+  {
+    // No ReturnTypeIsSafe makes this illegal!
+  };
+
+  // Make sure this return type is safe.
+  typedef typename ReturnTypeEnforcer<ReturnType>::ReturnTypeIsSafe check;
+
+protected:
   virtual ~nsRunnableMethod() {
     NS_IF_RELEASE(mObj);
   }
 
-  T      *mObj;
-  Method  mMethod;
+private:
+  ClassType* mObj;
+  Method mMethod;
 };
 
 // Use this helper macro like so:
@@ -308,8 +328,16 @@ private:
 //
 // NOTE: Attempts to make this a template function caused VC6 to barf :-(
 //
+
 #define NS_NEW_RUNNABLE_METHOD(class_, obj_, method_) \
-    new nsRunnableMethod<class_>(obj_, &class_::method_)
+    ns_new_runnable_method(obj_, &class_::method_)
+
+template<class ClassType, typename ReturnType>
+nsRunnableMethod<ClassType, ReturnType>*
+ns_new_runnable_method(ClassType* obj, ReturnType (ClassType::*method)())
+{
+  return new nsRunnableMethod<ClassType, ReturnType>(obj, method);
+}
 
 // An event that can be used to call a method on a class, but holds only
 // a raw pointer to the object on which the method will be called.  This

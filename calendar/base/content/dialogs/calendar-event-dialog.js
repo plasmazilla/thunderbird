@@ -220,7 +220,7 @@ function onLoad() {
 
     // Set initial values for datepickers in New Tasks dialog
     if (isToDo(item)) {
-        let initialDatesValue = getDefaultStartDate(args.initialStartDateValue).jsDate;
+        let initialDatesValue = args.initialStartDateValue.jsDate;
         setElementValue("completed-date-picker", initialDatesValue);
         setElementValue("todo-entrydate", initialDatesValue);
         setElementValue("todo-duedate", initialDatesValue);
@@ -235,6 +235,11 @@ function onLoad() {
     // This causes the app to ask if the window should be closed when the
     // application is closed.
     window.tryToClose = onCancel;
+
+    // Normally, Enter closes a <dialog>. We want this to rather on Ctrl+Enter.
+    // Stopping event propagation doesn't seem to work, so just overwrite the
+    // function that does this.
+    document.documentElement._hitEnter = function() {};
 }
 
 /**
@@ -389,6 +394,13 @@ function loadDialog(item) {
         }
         setElementValue("percent-complete-textbox", percentCompleteInteger);
     }
+
+    // Set Item-Menu label to Event or Task
+    let menuItem = document.getElementById("item-menu");
+    menuItem.setAttribute("label", calGetString("calendar-event-dialog",
+                                          cal.isEvent(item) ? "itemMenuLabelEvent" : "itemMenuLabelTask"));
+    menuItem.setAttribute("accesskey", calGetString("calendar-event-dialog",
+                                          cal.isEvent(item) ? "itemMenuAccesskeyEvent2" : "itemMenuAccesskeyTask2"));
 
     // Priority
     gPriority = parseInt(item.priority);
@@ -926,24 +938,16 @@ function saveDateTime(item) {
  * modified.
  */
 function updateTitle() {
-    var title = "";
-    var isNew = window.calendarItem.isMutable;
-    if (isEvent(window.calendarItem)) {
-        if (isNew) {
-            title = calGetString("calendar", "newEventDialog");
-        } else {
-            title = calGetString("calendar", "editEventDialog");
-        }
-    } else if (isToDo(window.calendarItem)) {
-        if (isNew) {
-            title = calGetString("calendar", "newTaskDialog");
-        } else {
-            title = calGetString("calendar", "editTaskDialog");
-        }
+    let strName;
+    if (cal.isEvent(window.calendarItem)) {
+        strName = (window.mode == "new" ? "newEventDialog" : "editEventDialog");
+    } else if (cal.isToDo(window.calendarItem)) {
+        strName = (window.mode == "new" ? "newTaskDialog" : "editTaskDialog");
+    } else {
+        throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
     }
-    title += ': ';
-    title += getElementValue("item-title");
-    document.title = title;
+    document.title = cal.calGetString("calendar", strName) + ": " +
+                        getElementValue("item-title");
 }
 
 /**
@@ -1149,9 +1153,6 @@ function onUpdateAllDay() {
     setElementValue("event-starttime", allDay, "timepickerdisabled");
     setElementValue("event-endtime", allDay, "timepickerdisabled");
 
-    var tzStart = document.getElementById("timezone-starttime");
-    var tzEnd = document.getElementById("timezone-endtime");
-
     setShowTimeAs(allDay);
 
     gStartTime.isDate = allDay;
@@ -1170,6 +1171,16 @@ function openNewEvent() {
     var item = window.calendarItem;
     var args = window.arguments[0];
     args.onNewEvent(item.calendar);
+}
+
+/**
+ * Use the window arguments to cause the opener to create a new event on the
+ * item's calendar
+ */
+function openNewTask() {
+    var item = window.calendarItem;
+    var args = window.arguments[0];
+    args.onNewTodo(item.calendar);
 }
 
 /**
@@ -1250,6 +1261,7 @@ function editAttendees() {
         gItemDuration = duration;
         updateAttendees();
         updateDateTime();
+        updateAllDay();
         if (isAllDay != gStartTime.isDate){
             setShowTimeAs(gStartTime.isDate)
         }
@@ -1290,9 +1302,25 @@ function editAttendees() {
         args);
 }
 
-function editPrivacy(target) {
+/**
+ * This function rotates the Privacy of an item to the next value
+ * following the sequence  -> PUBLIC -> CONFIDENTIAL -> PRIVATE ->.
+ */
+function rotatePrivacy() {
+    const states = ["PUBLIC","CONFIDENTIAL","PRIVATE"];
+    gPrivacy = states[(states.indexOf(gPrivacy) + 1) % states.length];
+    updatePrivacy();
+}
+
+/**
+ * This function sets the privacy of an item to the value specified by
+ * the attribute "privacy" of the UI-element "target".
+ *
+ * @param target    the calling UI-element
+ */
+function editPrivacy(target, event) {
     gPrivacy = target.getAttribute("privacy");
-    updateShowTimeAs();
+    event.stopPropagation();
     updatePrivacy();
 }
 
@@ -1523,7 +1551,7 @@ function editShowTimeAs(target) {
 }
 
 /**
- * Update the dialog controls related related to transparency.
+ * Update the dialog controls related to transparency.
  */
 function updateShowTimeAs() {
     var showAsBusy = document.getElementById("cmd_showtimeas_busy");
@@ -2209,7 +2237,8 @@ function onCommandSave(aIsClosing) {
             // Check if the current window has a calendarItem first, because in case of undo
             // window refers to the main window and we would get a 'calendarItem is undefined' warning.
             if ("calendarItem" in window) {
-                if (aId == window.calendarItem.id && Components.isSuccessCode(aStatus)) {
+                if ((!window.calendarItem.id ||aId == window.calendarItem.id) &&
+                    Components.isSuccessCode(aStatus)) {
                     if (window.calendarItem.recurrenceId) {
                         // TODO This workaround needs to be removed in bug 396182
                         // We are editing an occurrence. Make sure that the returned
@@ -2221,6 +2250,10 @@ function onCommandSave(aIsClosing) {
                         // We are editing the parent item, no workarounds needed
                         window.calendarItem = aItem;
                     }
+
+                    // We now have an item, so we must change to an edit.
+                    window.mode = "modify";
+                    updateTitle();
                 }
             }
         }
@@ -2414,15 +2447,6 @@ function editEndTimezone() {
         "timezone-endtime",
         gEndTime.getInTimezone(gEndTimezone),
         function(datetime) {
-            var equalTimezones = false;
-            if (gStartTimezone && gEndTimezone) {
-                if (compareObjects(gStartTimezone, gEndTimezone)) {
-                    equalTimezones = true;
-                }
-            }
-            if (equalTimezones) {
-                gStartTimezone = datetime.timezone;
-            }
             gEndTimezone = datetime.timezone;
             updateDateTime();
         });
@@ -2539,7 +2563,7 @@ function updateDateTime() {
               endTime.timezone = floating();
               setElementValue("todo-duedate", endTime.jsDate);
           } else {
-              startTime = getDefaultStartDate(window.initialStartDateValue);
+              startTime = window.initialStartDateValue;
               startTime.timezone = floating();
               endTime = startTime.clone();
 
@@ -2594,7 +2618,7 @@ function updateDateTime() {
                 endTime.timezone = floating();
                 setElementValue("todo-duedate", endTime.jsDate);
             } else {
-                startTime = getDefaultStartDate(window.initialStartDateValue);
+                startTime = window.initialStartDateValue
                 startTime.timezone = floating();
                 endTime = startTime.clone();
 
@@ -2619,67 +2643,60 @@ function updateDateTime() {
  * the links will be collapsed.
  */
 function updateTimezone() {
-    var menuItem = document.getElementById('options-timezone-menuitem');
+    let menuItem = document.getElementById('options-timezone-menuitem');
 
     // convert to default timezone if the timezone option
     // is *not* checked, otherwise keep the specific timezone
     // and display the labels in order to modify the timezone.
     if (menuItem.getAttribute('checked') == 'true') {
-        var startTimezone = gStartTimezone;
-        var endTimezone = gEndTimezone;
+        let startTimezone = gStartTimezone;
+        let endTimezone = gEndTimezone;
 
-        var equalTimezones = false;
-        if (startTimezone && endTimezone) {
-            if (compareObjects(startTimezone, endTimezone) || endTimezone.isUTC) {
-                equalTimezones = true;
+        function updateTimezoneElement(aTimezone, aId, aDateTime) {
+            let element = document.getElementById(aId);
+            if (!element) {
+                return;
             }
-        }
 
-        function updateTimezoneElement(aTimezone, aId, aDateTime, aCollapse) {
-            var element = document.getElementById(aId);
-            if (element) {
-                if (aTimezone != null && !aCollapse) {
-                    element.removeAttribute('collapsed');
-                    element.value = aTimezone.displayName || aTimezone.tzid;
-                    if (!aDateTime || !aDateTime.isValid || gIsReadOnly || aDateTime.isDate) {
-                        if (element.hasAttribute('class')) {
-                            element.setAttribute('class-on-enabled',
-                                element.getAttribute('class'));
-                            element.removeAttribute('class');
-                        }
-                        if (element.hasAttribute('onclick')) {
-                            element.setAttribute('onclick-on-enabled',
-                                element.getAttribute('onclick'));
-                            element.removeAttribute('onclick');
-                        }
-                        element.setAttribute('disabled', 'true');
-                    } else {
-                        if (element.hasAttribute('class-on-enabled')) {
-                            element.setAttribute('class',
-                                element.getAttribute('class-on-enabled'));
-                            element.removeAttribute('class-on-enabled');
-                        }
-                        if (element.hasAttribute('onclick-on-enabled')) {
-                            element.setAttribute('onclick',
-                                element.getAttribute('onclick-on-enabled'));
-                            element.removeAttribute('onclick-on-enabled');
-                        }
-                        element.removeAttribute('disabled');
+            if (aTimezone) {
+                element.removeAttribute('collapsed');
+                element.value = aTimezone.displayName || aTimezone.tzid;
+                if (!aDateTime || !aDateTime.isValid || gIsReadOnly || aDateTime.isDate) {
+                    if (element.hasAttribute('class')) {
+                        element.setAttribute('class-on-enabled',
+                                             element.getAttribute('class'));
+                        element.removeAttribute('class');
                     }
+                    if (element.hasAttribute('onclick')) {
+                        element.setAttribute('onclick-on-enabled',
+                                             element.getAttribute('onclick'));
+                        element.removeAttribute('onclick');
+                    }
+                    element.setAttribute('disabled', 'true');
                 } else {
-                    element.setAttribute('collapsed', 'true');
+                    if (element.hasAttribute('class-on-enabled')) {
+                        element.setAttribute('class',
+                                             element.getAttribute('class-on-enabled'));
+                        element.removeAttribute('class-on-enabled');
+                    }
+                    if (element.hasAttribute('onclick-on-enabled')) {
+                        element.setAttribute('onclick',
+                                             element.getAttribute('onclick-on-enabled'));
+                        element.removeAttribute('onclick-on-enabled');
+                    }
+                    element.removeAttribute('disabled');
                 }
+            } else {
+                element.setAttribute('collapsed', 'true');
             }
         }
 
         updateTimezoneElement(startTimezone,
                               'timezone-starttime',
-                              gStartTime,
-                              false);
+                              gStartTime);
         updateTimezoneElement(endTimezone,
                               'timezone-endtime',
-                              gEndTime,
-                              equalTimezones);
+                              gEndTime);
     } else {
         document.getElementById('timezone-starttime')
                 .setAttribute('collapsed', 'true');
@@ -2777,35 +2794,40 @@ function updateAttendees() {
 function updateRepeatDetails() {
     // Don't try to show the details text for
     // anything but a custom recurrence rule.
-    var item = window.calendarItem;
-    var recurrenceInfo = window.recurrenceInfo;
-    var itemRepeat = document.getElementById("item-repeat");
+    let item = window.calendarItem;
+    let recurrenceInfo = window.recurrenceInfo;
+    let itemRepeat = document.getElementById("item-repeat");
     if (itemRepeat.value == "custom" && recurrenceInfo) {
 
         // First of all collapse the details text. If we fail to
         // create a details string, we simply don't show anything.
         // this could happen if the repeat rule is something exotic
         // we don't have any strings prepared for.
-        var repeatDetails = document.getElementById("repeat-details");
+        let repeatDetails = document.getElementById("repeat-details");
         repeatDetails.setAttribute("collapsed", "true");
 
         // Try to create a descriptive string from the rule(s).
-        var kDefaultTimezone = calendarDefaultTimezone();
-        var startDate = jsDateToDateTime(getElementValue("event-starttime"), kDefaultTimezone);
-        var endDate = jsDateToDateTime(getElementValue("event-endtime"), kDefaultTimezone);
-        var allDay = getElementValue("event-all-day", "checked");
-        var detailsString = recurrenceRule2String(
+        let kDefaultTimezone = calendarDefaultTimezone();
+        let event = cal.isEvent(item);
+
+        let startDate =  getElementValue( event ? "event-starttime" : "todo-entrydate");
+        let endDate =  getElementValue( event ? "event-endtime" : "todo-duedate");
+        startDate = jsDateToDateTime(startDate, kDefaultTimezone);
+        endDate = jsDateToDateTime(endDate, kDefaultTimezone);
+
+        let allDay = getElementValue("event-all-day", "checked");
+        let detailsString = recurrenceRule2String(
             recurrenceInfo, startDate, endDate, allDay);
 
         // Now display the string...
         if (detailsString) {
-            var lines = detailsString.split("\n");
+            let lines = detailsString.split("\n");
             repeatDetails.removeAttribute("collapsed");
             while (repeatDetails.childNodes.length > lines.length) {
                 repeatDetails.removeChild(repeatDetails.lastChild);
             }
-            var numChilds = repeatDetails.childNodes.length;
-            for (var i = 0; i < lines.length; i++) {
+            let numChilds = repeatDetails.childNodes.length;
+            for (let i = 0; i < lines.length; i++) {
                 if (i >= numChilds) {
                     var newNode = repeatDetails.childNodes[0]
                                                .cloneNode(true);
@@ -2817,7 +2839,7 @@ function updateRepeatDetails() {
             }
         }
     } else {
-        var repeatDetails = document.getElementById("repeat-details");
+        let repeatDetails = document.getElementById("repeat-details");
         repeatDetails.setAttribute("collapsed", "true");
     }
 }

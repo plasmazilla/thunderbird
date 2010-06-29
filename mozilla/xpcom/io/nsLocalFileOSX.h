@@ -42,9 +42,24 @@
 #include "nsILocalFileMac.h"
 #include "nsString.h"
 #include "nsIHashable.h"
-#include "nsIClassInfoImpl.h"
 
 class nsDirEnumerator;
+
+// Mac OS X 10.4 does not have stat64/lstat64
+#if defined(HAVE_STAT64) && defined(HAVE_LSTAT64) && (MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_4)
+#define STAT stat64
+#define LSTAT lstat64
+#else
+#define STAT stat
+#define LSTAT lstat
+#endif
+
+// Mac OS X 10.4 does not have statvfs64
+#if defined(HAVE_STATVFS64) && (MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_4)
+#define STATVFS statvfs64
+#else
+#define STATVFS statvfs
+#endif
 
 // The native charset of this implementation is UTF-8. The Unicode used by the
 // Mac OS file system is decomposed, so "Native" versions of these routines will
@@ -80,32 +95,18 @@ private:
 
 protected:
   nsLocalFile(const nsLocalFile& src);
-
-  nsresult SetBaseRef(CFURLRef aCFURLRef); // Does CFRetain on aCFURLRef
-  nsresult UpdateTargetRef();
-
-  nsresult GetFSRefInternal(FSRef& aFSSpec);
-  nsresult GetPathInternal(nsACString& path); // Returns path WRT mFollowLinks
-  nsresult EqualsInternal(nsISupports* inFile, PRBool *_retval);
-
+  nsresult SetBaseURL(CFURLRef aCFURLRef); // retains aCFURLRef
+  nsresult GetFSRefInternal(FSRef& aFSRef);
+  nsresult GetPathInternal(nsACString& path); // Returns path respecting mFollowLinks
   nsresult CopyInternal(nsIFile* newParentDir,
                         const nsAString& newName,
                         PRBool followLinks);
-
-  static PRInt64  HFSPlustoNSPRTime(const UTCDateTime& utcTime);
-  static void     NSPRtoHFSPlusTime(PRInt64 nsprTime, UTCDateTime& utcTime);
-  static nsresult CFStringReftoUTF8(CFStringRef aInStrRef, nsACString& aOutStr);
+  nsresult FillStatBufferInternal(struct STAT *statBuffer);
 
 protected:
-  CFURLRef mBaseRef;   // The FS object we represent
-  CFURLRef mTargetRef; // If mBaseRef is an alias, its target
-
+  CFURLRef     mBaseURL; // The FS object we represent
+  char         mPath[PATH_MAX]; // POSIX path, UTF-8, NULL terminated
   PRPackedBool mFollowLinks;
-  PRPackedBool mFollowLinksDirty;
-
-  static const char      kPathSepChar;
-  static const PRUnichar kPathSepUnichar;
-  static const PRInt64   kJanuaryFirst1970Seconds;    
 };
 
 #endif // nsLocalFileMac_h_

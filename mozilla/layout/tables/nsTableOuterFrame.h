@@ -48,6 +48,8 @@ class nsTableFrame;
 class nsTableCaptionFrame : public nsBlockFrame
 {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   // nsISupports
   virtual nsIAtom* GetType() const;
   friend nsIFrame* NS_NewTableCaptionFrame(nsIPresShell* aPresShell, nsStyleContext*  aContext);
@@ -86,9 +88,8 @@ protected:
 class nsTableOuterFrame : public nsHTMLContainerFrame, public nsITableLayout
 {
 public:
-
-  // nsISupports
-  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_QUERYFRAME
+  NS_DECL_FRAMEARENA_HELPERS
 
   /** instantiate a new instance of nsTableRowFrame.
     * @param aPresShell the pres shell for this frame
@@ -101,27 +102,21 @@ public:
 
   virtual void Destroy();
   
-  virtual PRBool IsFrameOfType(PRUint32 aFlags) const
-  {
-    return nsHTMLContainerFrame::IsFrameOfType(aFlags &
-      ~nsIFrame::eExcludesIgnorableWhitespace);
-  }
-
   virtual PRBool IsContainingBlock() const;
 
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList);
+                                 nsFrameList&    aChildList);
  
-  virtual nsIFrame* GetFirstChild(nsIAtom* aListName) const;
+  virtual nsFrameList GetChildList(nsIAtom* aListName) const;
 
   virtual nsIAtom* GetAdditionalChildListName(PRInt32 aIndex) const;
 
   NS_IMETHOD AppendFrames(nsIAtom*        aListName,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
 
   NS_IMETHOD InsertFrames(nsIAtom*        aListName,
                           nsIFrame*       aPrevFrame,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
 
   NS_IMETHOD RemoveFrame(nsIAtom*        aListName,
                          nsIFrame*       aOldFrame);
@@ -172,11 +167,8 @@ public:
 
   /** SetSelected needs to be overridden to talk to inner tableframe
    */
-  NS_IMETHOD SetSelected(nsPresContext* aPresContext,
-                         nsIDOMRange *aRange,
-                         PRBool aSelected,
-                         nsSpread aSpread,
-                         SelectionType aType);
+  void SetSelected(PRBool aSelected,
+                   SelectionType aType);
 
   NS_IMETHOD GetParentStyleContextFrame(nsPresContext* aPresContext,
                                         nsIFrame**      aProviderFrame,
@@ -211,13 +203,6 @@ protected:
     * The inner table frame can answer this question in a meaningful way.
     * @see nsHTMLContainerFrame::GetSkipSides */
   virtual PRIntn GetSkipSides() const;
-
-#ifdef NS_DEBUG
-  /** overridden here to handle special caption-table relationship
-    * @see nsContainerFrame::VerifyTree
-    */
-  NS_IMETHOD VerifyTree() const;
-#endif
 
   PRUint8 GetCaptionSide(); // NS_STYLE_CAPTION_SIDE_* or NO_SIDE
 

@@ -144,15 +144,21 @@ cal.safeNewXML = function calSafeNewXML(aStr) {
  */
 cal.InterfaceRequestor_getInterface = function calInterfaceRequestor_getInterface(aIID) {
     // Support Auth Prompt Interfaces
-    if (aIID.equals(Components.interfaces.nsIAuthPrompt) ||
-        (Components.interfaces.nsIAuthPrompt2 &&
-         aIID.equals(Components.interfaces.nsIAuthPrompt2))) {
-        return new cal.auth.Prompt();
+    if (aIID.equals(Components.interfaces.nsIAuthPrompt2)) {
+        if (!this.calAuthPrompt) {
+            this.calAuthPrompt = new cal.auth.Prompt();
+        }
+        return this.calAuthPrompt;
     } else if (aIID.equals(Components.interfaces.nsIAuthPromptProvider) ||
                aIID.equals(Components.interfaces.nsIPrompt)) {
         return Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
                          .getService(Components.interfaces.nsIWindowWatcher)
                          .getNewPrompter(null);
+    } else if (aIID.equals(Components.interfaces.nsIBadCertListener2)) {
+        if (!this.badCertHandler) {
+            this.badCertHandler = new cal.BadCertHandler(this);
+        }
+        return this.badCertHandler;
     }
 
     try {
@@ -163,6 +169,58 @@ cal.InterfaceRequestor_getInterface = function calInterfaceRequestor_getInterfac
         Components.returnCode = e;
     }
     return null;
+};
+
+/**
+ * Bad Certificate Handler for Network Requests. Shows the Network Exception
+ * Dialog if a certificate Problem occurs.
+ */
+cal.BadCertHandler = function calBadCertHandler(thisProvider) {
+    this.thisProvider = thisProvider;
+};
+cal.BadCertHandler.prototype = {
+    QueryInterface: function cBCL_QueryInterface(aIID) {
+        return cal.doQueryInterface(this, cal.BadCertListener.prototype, aIID,
+                                    [Components.interfaces.nsISupports,
+                                     Components.interfaces.nsIBadCertListener2]);
+    },
+
+    notifyCertProblem: function cBCL_notifyCertProblem(socketInfo, status, targetSite) {
+        if (!status) {
+            return true;
+        }
+
+        // Unfortunately we can't pass js objects using the window watcher, so
+        // we'll just take the first available calendar window. We also need to
+        // do this on a timer so that the modal window doesn't block the
+        // network request.
+        let calWindow = cal.getCalendarWindow();
+
+        let timerCallback = {
+            thisProvider: this.thisProvider,
+            notify: function(timer) {
+                let params = { exceptionAdded: false,
+                               prefetchCert: true,
+                               location: targetSite };
+                calWindow.openDialog("chrome://pippki/content/exceptionDialog.xul",
+                                     "",
+                                     "chrome,centerscreen,modal",
+                                     params);
+                if (this.thisProvider.canRefresh &&
+                    params.exceptionAdded) {
+                    // Refresh the provider if the
+                    // exception certificate was added
+                    this.thisProvider.refresh();
+                }
+            }
+        };
+        let timer = Components.classes["@mozilla.org/timer;1"]
+                    .createInstance(Components.interfaces.nsITimer);
+        timer.initWithCallback(timerCallback,
+                               0,
+                               Components.interfaces.nsITimer.TYPE_ONE_SHOT);
+        return true;
+    }
 };
 
 /**
@@ -488,15 +546,15 @@ cal.ProviderBase.prototype = {
         this.mProperties.currentStatus = Components.results.NS_OK;
     },
 
-    get observers cPB_observers_get() {
+    get observers() {
         return this.mObservers;
     },
 
     // attribute AUTF8String id;
-    get id cPB_id_get() {
+    get id() {
         return this.mID;
     },
-    set id cPB_id_set(aValue) {
+    set id(aValue) {
         if (this.mID) {
             throw Components.results.NS_ERROR_ALREADY_INITIALIZED;
         }
@@ -534,41 +592,41 @@ cal.ProviderBase.prototype = {
     },
 
     // attribute AUTF8String name;
-    get name cPB_name_get() {
+    get name() {
         return this.getProperty("name");
     },
-    set name cPB_name_set(aValue) {
+    set name(aValue) {
         return this.setProperty("name", aValue);
     },
 
     // attribute calICalendar superCalendar;
-    get superCalendar cPB_superCalendar_get() {
+    get superCalendar() {
         // If we have a superCalendar, check this calendar for a superCalendar.
         // This will make sure the topmost calendar is returned
         return (this.mSuperCalendar ? this.mSuperCalendar.superCalendar : this);
     },
-    set superCalendar cPB_superCalendar_set(val) {
+    set superCalendar(val) {
         return (this.mSuperCalendar = val);
     },
 
     // attribute nsIURI uri;
-    get uri cPB_uri_get() {
+    get uri() {
         return this.mUri;
     },
-    set uri cPB_uri_set(aValue) {
+    set uri(aValue) {
         return (this.mUri = aValue);
     },
 
     // attribute boolean readOnly;
-    get readOnly cPB_readOnly_get() {
+    get readOnly() {
         return this.getProperty("readOnly");
     },
-    set readOnly cPB_readOnly_set(aValue) {
+    set readOnly(aValue) {
         return this.setProperty("readOnly", aValue);
     },
 
     // readonly attribute boolean canRefresh;
-    get canRefresh cPB_canRefresh_get() {
+    get canRefresh() {
         return false;
     },
 
@@ -636,10 +694,10 @@ cal.ProviderBase.prototype = {
     },
 
     mTransientPropertiesMode: false,
-    get transientProperties cPB_transientProperties() {
+    get transientProperties() {
         return this.mTransientPropertiesMode;
     },
-    set transientProperties cPB_transientProperties(value) {
+    set transientProperties(value) {
         return (this.mTransientPropertiesMode = value);
     },
 

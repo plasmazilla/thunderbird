@@ -25,6 +25,7 @@
 #   Marco Bonardo <mak77@bonardo.net>
 #   Dietrich Ayala <dietrich@mozilla.com>
 #   Ehsan Akhgari <ehsan.akhgari@gmail.com>
+#   Nils Maier <maierman@web.de>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -51,6 +52,8 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/distribution.js");
 
 const PREF_EM_NEW_ADDONS_LIST = "extensions.newAddons";
+const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
+const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
 
 // Check to see if bookmarks need backing up once per
 // day on 1 hour idle.
@@ -107,6 +110,12 @@ function BrowserGlue() {
   this._init();
 }
 
+#ifndef XP_MACOSX
+# OS X has the concept of zero-window sessions and therefore ignores the
+# browser-lastwindow-close-* topics.
+#define OBSERVE_LASTWINDOW_CLOSE_TOPICS 1
+#endif
+
 BrowserGlue.prototype = {
   
   _saveSession: false,
@@ -156,6 +165,17 @@ BrowserGlue.prototype = {
         // and history synchronization could fail.
         this._onProfileShutdown();
         break;
+#ifdef OBSERVE_LASTWINDOW_CLOSE_TOPICS
+      case "browser-lastwindow-close-requested":
+        // The application is not actually quitting, but the last full browser
+        // window is about to be closed.
+        this._onQuitRequest(subject, "lastwindow");
+        break;
+      case "browser-lastwindow-close-granted":
+        if (this._saveSession)
+          this._setPrefToSaveSession();
+        break;
+#endif
       case "session-save":
         this._setPrefToSaveSession();
         subject.QueryInterface(Ci.nsISupportsPRBool);
@@ -204,6 +224,10 @@ BrowserGlue.prototype = {
     osvr.addObserver(this, "browser:purge-session-history", false);
     osvr.addObserver(this, "quit-application-requested", false);
     osvr.addObserver(this, "quit-application-granted", false);
+#ifdef OBSERVE_LASTWINDOW_CLOSE_TOPICS
+    osvr.addObserver(this, "browser-lastwindow-close-requested", false);
+    osvr.addObserver(this, "browser-lastwindow-close-granted", false);
+#endif
     osvr.addObserver(this, "session-save", false);
     osvr.addObserver(this, "places-init-complete", false);
     osvr.addObserver(this, "places-database-locked", false);
@@ -221,6 +245,10 @@ BrowserGlue.prototype = {
     osvr.removeObserver(this, "sessionstore-windows-restored");
     osvr.removeObserver(this, "browser:purge-session-history");
     osvr.removeObserver(this, "quit-application-requested");
+#ifdef OBSERVE_LASTWINDOW_CLOSE_TOPICS
+    osvr.removeObserver(this, "browser-lastwindow-close-requested");
+    osvr.removeObserver(this, "browser-lastwindow-close-granted");
+#endif
     osvr.removeObserver(this, "quit-application-granted");
     osvr.removeObserver(this, "session-save");
   },
@@ -259,6 +287,18 @@ BrowserGlue.prototype = {
   // profile shutdown handler (contains profile cleanup routines)
   _onProfileShutdown: function() 
   {
+#ifdef WINCE
+    // If there's a pending update, clear cache to free up disk space.
+    try {
+      let um = Cc["@mozilla.org/updates/update-manager;1"].
+               getService(Ci.nsIUpdateManager);
+      if (um.activeUpdate && um.activeUpdate.state == "pending") {
+        let cacheService = Cc["@mozilla.org/network/cache-service;1"].
+                           getService(Ci.nsICacheService);
+        cacheService.evictEntries(Ci.nsICache.STORE_ANYWHERE);
+      }
+    } catch (e) { }
+#endif
     this._shutdownPlaces();
     this._idleService.removeIdleObserver(this, BOOKMARKS_ARCHIVE_IDLE_TIME);
     this.Sanitizer.onShutdown();
@@ -299,6 +339,11 @@ BrowserGlue.prototype = {
     if (this._isPlacesDatabaseLocked) {
       this._showPlacesLockedNotificationBox();
     }
+
+    // If there are plugins installed that are outdated, and the user hasn't
+    // been warned about them yet, open the plugins update page.
+    if (this._prefs.getBoolPref(PREF_PLUGINS_NOTIFYUSER))
+      this._showPluginUpdatePage();
   },
 
   _onQuitRequest: function(aCancelQuit, aQuitType)
@@ -352,7 +397,6 @@ BrowserGlue.prototype = {
     if (!showPrompt || inPrivateBrowsing)
       return false;
 
-    var buttonChoice = 0;
     var quitBundle = this._bundleService.createBundle("chrome://browser/locale/quitDialog.properties");
     var brandBundle = this._bundleService.createBundle("chrome://branding/locale/brand.properties");
 
@@ -391,9 +435,11 @@ BrowserGlue.prototype = {
       button2Title = quitBundle.GetStringFromName("quitTitle");
     }
 
-    buttonChoice = promptService.confirmEx(null, quitDialogTitle, message,
-                                 flags, button0Title, button1Title, button2Title,
-                                 neverAskText, neverAsk);
+    var mostRecentBrowserWindow = wm.getMostRecentWindow("navigator:browser");
+    var buttonChoice =
+      promptService.confirmEx(mostRecentBrowserWindow, quitDialogTitle, message,
+                              flags, button0Title, button1Title, button2Title,
+                              neverAskText, neverAsk);
 
     switch (buttonChoice) {
     case 2: // Quit
@@ -465,7 +511,7 @@ BrowserGlue.prototype = {
     var notifyBox = browser.getNotificationBox();
 
     var brandBundle  = this._bundleService.createBundle("chrome://branding/locale/brand.properties");
-    var rightsBundle = this._bundleService.createBundle("chrome://browser/locale/aboutRights.properties");
+    var rightsBundle = this._bundleService.createBundle("chrome://global/locale/aboutRights.properties");
 
     var buttonLabel      = rightsBundle.GetStringFromName("buttonLabel");
     var buttonAccessKey  = rightsBundle.GetStringFromName("buttonAccessKey");
@@ -489,6 +535,18 @@ BrowserGlue.prototype = {
 
     var box = notifyBox.appendNotification(notifyRightsText, "about-rights", null, notifyBox.PRIORITY_INFO_LOW, buttons);
     box.persistence = 3; // arbitrary number, just so bar sticks around for a bit
+  },
+  
+  _showPluginUpdatePage : function () {
+    this._prefs.setBoolPref(PREF_PLUGINS_NOTIFYUSER, false);
+
+    var formatter = Cc["@mozilla.org/toolkit/URLFormatterService;1"].
+                    getService(Ci.nsIURLFormatter);
+    var updateUrl = formatter.formatURLPref(PREF_PLUGINS_UPDATEURL);
+
+    var win = this.getMostRecentBrowserWindow();
+    var browser = win.gBrowser;
+    browser.selectedTab = browser.addTab(updateUrl);
   },
 
   // returns the (cached) Sanitizer constructor
@@ -829,7 +887,13 @@ BrowserGlue.prototype = {
   },
 
   ensurePlacesDefaultQueriesInitialized: function() {
-    const SMART_BOOKMARKS_VERSION = 1;
+    // This is actual version of the smart bookmarks, must be increased every
+    // time smart bookmarks change.
+    // When adding a new smart bookmark below, its newInVersion property must
+    // be set to the version it has been added in, we will compare its value
+    // to users' smartBookmarksVersion and add new smart bookmarks without
+    // recreating old deleted ones.
+    const SMART_BOOKMARKS_VERSION = 2;
     const SMART_BOOKMARKS_ANNO = "Places/SmartBookmark";
     const SMART_BOOKMARKS_PREF = "browser.places.smartBookmarksVersion";
 
@@ -841,7 +905,7 @@ BrowserGlue.prototype = {
     var smartBookmarksCurrentVersion = 0;
     try {
       smartBookmarksCurrentVersion = this._prefs.getIntPref(SMART_BOOKMARKS_PREF);
-    } catch(ex) {}
+    } catch(ex) { /* no version set, new profile */ }
 
     // bail out if we don't have to create or update Smart Bookmarks
     if (smartBookmarksCurrentVersion == -1 ||
@@ -873,13 +937,14 @@ BrowserGlue.prototype = {
         var smart = {queryId: "MostVisited", // don't change this
                      itemId: null,
                      title: placesBundle.GetStringFromName("mostVisitedTitle"),
-                     uri: this._uri("place:queryType=" +
-                                    Ci.nsINavHistoryQueryOptions.QUERY_TYPE_HISTORY +
+                     uri: this._uri("place:redirectsMode=" +
+                                    Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET +
                                     "&sort=" +
                                     Ci.nsINavHistoryQueryOptions.SORT_BY_VISITCOUNT_DESCENDING +
                                     "&maxResults=" + MAX_RESULTS),
                      parent: bmsvc.toolbarFolder,
-                     position: bookmarksToolbarIndex++};
+                     position: bookmarksToolbarIndex++,
+                     newInVersion: 1 };
         smartBookmarks.push(smart);
 
         // RECENTLY BOOKMARKED
@@ -897,7 +962,8 @@ BrowserGlue.prototype = {
                                 "&maxResults=" + MAX_RESULTS +
                                 "&excludeQueries=1"),
                  parent: bmsvc.bookmarksMenuFolder,
-                 position: bookmarksMenuIndex++};
+                 position: bookmarksMenuIndex++,
+                 newInVersion: 1 };
         smartBookmarks.push(smart);
 
         // RECENT TAGS
@@ -911,15 +977,19 @@ BrowserGlue.prototype = {
                     Ci.nsINavHistoryQueryOptions.SORT_BY_LASTMODIFIED_DESCENDING +
                     "&maxResults=" + MAX_RESULTS),
                  parent: bmsvc.bookmarksMenuFolder,
-                 position: bookmarksMenuIndex++};
+                 position: bookmarksMenuIndex++,
+                 newInVersion: 1 };
         smartBookmarks.push(smart);
 
         var smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO, {});
-        // set current itemId, parent and position if Smart Bookmark exists
+        // Set current itemId, parent and position if Smart Bookmark exists,
+        // we will use these informations to create the new version at the same
+        // position.
         for each(var itemId in smartBookmarkItemIds) {
           var queryId = annosvc.getItemAnnotation(itemId, SMART_BOOKMARKS_ANNO);
           for (var i = 0; i < smartBookmarks.length; i++){
             if (smartBookmarks[i].queryId == queryId) {
+              smartBookmarks[i].found = true;
               smartBookmarks[i].itemId = itemId;
               smartBookmarks[i].parent = bmsvc.getFolderIdForItem(itemId);
               smartBookmarks[i].position = bmsvc.getItemIndex(itemId);
@@ -937,6 +1007,14 @@ BrowserGlue.prototype = {
 
         // create smart bookmarks
         for each(var smartBookmark in smartBookmarks) {
+          // We update or create only changed or new smart bookmarks.
+          // Also we respect user choices, so we won't try to create a smart
+          // bookmark if it has been removed.
+          if (smartBookmarksCurrentVersion > 0 &&
+              smartBookmark.newInVersion <= smartBookmarksCurrentVersion &&
+              !smartBookmark.found)
+            continue;
+
           smartBookmark.itemId = bmsvc.insertBookmark(smartBookmark.parent,
                                                       smartBookmark.uri,
                                                       smartBookmark.position,
@@ -948,7 +1026,8 @@ BrowserGlue.prototype = {
         
         // If we are creating all Smart Bookmarks from ground up, add a
         // separator below them in the bookmarks menu.
-        if (smartBookmarkItemIds.length == 0)
+        if (smartBookmarksCurrentVersion == 0 &&
+            smartBookmarkItemIds.length == 0)
           bmsvc.insertSeparator(bmsvc.bookmarksMenuFolder, bookmarksMenuIndex);
       }
     };
@@ -1124,6 +1203,7 @@ GeolocationPrompt.prototype = {
           var checkbox = newBar.ownerDocument.createElementNS(XULNS, "checkbox");
           checkbox.className = "rememberChoice";
           checkbox.setAttribute("label", browserBundle.GetStringFromName("geolocation.remember"));
+          checkbox.setAttribute("accesskey", browserBundle.GetStringFromName("geolocation.remember.accesskey"));
           newBar.appendChild(checkbox);
         }
 

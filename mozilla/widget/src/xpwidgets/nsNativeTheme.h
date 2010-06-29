@@ -93,6 +93,8 @@ class nsNativeTheme
     return CheckBooleanAttr(aFrame, nsWidgetAtoms::_default);
   }
 
+  PRBool IsButtonTypeMenu(nsIFrame* aFrame);
+
   // checkbox:
   PRBool IsChecked(nsIFrame* aFrame) {
     return GetCheckedOrSelected(aFrame, PR_FALSE);
@@ -123,6 +125,14 @@ class nsNativeTheme
   
   PRBool IsAfterSelectedTab(nsIFrame* aFrame) {
     return IsNextToSelectedTab(aFrame, 1);
+  }
+
+  PRBool IsLeftToSelectedTab(nsIFrame* aFrame) {
+    return IsFrameRTL(aFrame) ? IsAfterSelectedTab(aFrame) : IsBeforeSelectedTab(aFrame);
+  }
+
+  PRBool IsRightToSelectedTab(nsIFrame* aFrame) {
+    return IsFrameRTL(aFrame) ? IsBeforeSelectedTab(aFrame) : IsAfterSelectedTab(aFrame);
   }
 
   // button / toolbarbutton:
@@ -169,4 +179,5 @@ class nsNativeTheme
   PRBool CheckBooleanAttr(nsIFrame* aFrame, nsIAtom* aAtom);
 
   PRBool GetCheckedOrSelected(nsIFrame* aFrame, PRBool aCheckSelected);
+  PRBool GetIndeterminate(nsIFrame* aFrame);
 };

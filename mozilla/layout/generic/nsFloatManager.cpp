@@ -44,6 +44,7 @@
 #include "nsHTMLReflowState.h"
 #include "nsHashSets.h"
 #include "nsBlockDebugFlags.h"
+#include "nsContentErrors.h"
 
 PRInt32 nsFloatManager::sCachedFloatManagerCount = 0;
 void* nsFloatManager::sCachedFloatManagers[NS_FLOAT_MANAGER_CACHE_SIZE];
@@ -54,14 +55,14 @@ void* nsFloatManager::sCachedFloatManagers[NS_FLOAT_MANAGER_CACHE_SIZE];
 static void*
 PSArenaAllocCB(size_t aSize, void* aClosure)
 {
-  return static_cast<nsIPresShell*>(aClosure)->AllocateFrame(aSize);
+  return static_cast<nsIPresShell*>(aClosure)->AllocateMisc(aSize);
 }
 
 // PresShell Arena free callback (for nsIntervalSet use below)
 static void
 PSArenaFreeCB(size_t aSize, void* aPtr, void* aClosure)
 {
-  static_cast<nsIPresShell*>(aClosure)->FreeFrame(aSize, aPtr);
+  static_cast<nsIPresShell*>(aClosure)->FreeMisc(aSize, aPtr);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -135,13 +136,12 @@ void nsFloatManager::Shutdown()
   sCachedFloatManagerCount = -1;
 }
 
-nsRect
-nsFloatManager::GetBand(nscoord aYOffset,
-                        nscoord aMaxHeight,
-                        nscoord aContentAreaWidth,
-                        PRBool* aHasFloats) const
+nsFlowAreaRect
+nsFloatManager::GetFlowArea(nscoord aYOffset, BandInfoType aInfoType,
+                            nscoord aHeight, nscoord aContentAreaWidth,
+                            SavedState* aState) const
 {
-  NS_ASSERTION(aMaxHeight >= 0, "unexpected max height");
+  NS_ASSERTION(aHeight >= 0, "unexpected max height");
   NS_ASSERTION(aContentAreaWidth >= 0, "unexpected content area width");
 
   nscoord top = aYOffset + mY;
@@ -150,21 +150,34 @@ nsFloatManager::GetBand(nscoord aYOffset,
     top = nscoord_MIN;
   }
 
+  // Determine the last float that we should consider.
+  PRUint32 floatCount;
+  if (aState) {
+    // Use the provided state.
+    floatCount = aState->mFloatInfoCount;
+    NS_ABORT_IF_FALSE(floatCount <= mFloats.Length(), "bad state");
+  } else {
+    // Use our current state.
+    floatCount = mFloats.Length();
+  }
+
   // If there are no floats at all, or we're below the last one, return
   // quickly.
-  PRUint32 floatCount = mFloats.Length();
   if (floatCount == 0 ||
       (mFloats[floatCount-1].mLeftYMost <= top &&
        mFloats[floatCount-1].mRightYMost <= top)) {
-    *aHasFloats = PR_FALSE;
-    return nsRect(0, aYOffset, aContentAreaWidth, aMaxHeight);
+    return nsFlowAreaRect(0, aYOffset, aContentAreaWidth, aHeight, PR_FALSE);
   }
 
   nscoord bottom;
-  if (aMaxHeight == nscoord_MAX) {
+  if (aHeight == nscoord_MAX) {
+    // This warning (and the two below) are possible to hit on pages
+    // with really large objects.
+    NS_WARN_IF_FALSE(aInfoType == BAND_FROM_POINT,
+                     "bad height");
     bottom = nscoord_MAX;
   } else {
-    bottom = top + aMaxHeight;
+    bottom = top + aHeight;
     if (bottom < top || bottom > nscoord_MAX) {
       NS_WARNING("bad value");
       bottom = nscoord_MAX;
@@ -180,7 +193,7 @@ nsFloatManager::GetBand(nscoord aYOffset,
   // Walk backwards through the floats until we either hit the front of
   // the list or we're above |top|.
   PRBool haveFloats = PR_FALSE;
-  for (PRUint32 i = mFloats.Length(); i > 0; --i) {
+  for (PRUint32 i = floatCount; i > 0; --i) {
     const FloatInfo &fi = mFloats[i-1];
     if (fi.mLeftYMost <= top && fi.mRightYMost <= top) {
       // There aren't any more floats that could intersect this band.
@@ -193,16 +206,23 @@ nsFloatManager::GetBand(nscoord aYOffset,
       continue;
     }
     nscoord floatTop = fi.mRect.y, floatBottom = fi.mRect.YMost();
-    if (floatTop > top) {
+    if (top < floatTop && aInfoType == BAND_FROM_POINT) {
       // This float is below our band.  Shrink our band's height if needed.
       if (floatTop < bottom) {
         bottom = floatTop;
       }
-    } else if (floatBottom > top) {
+    }
+    // If top == bottom (which happens only with WIDTH_WITHIN_HEIGHT),
+    // we include floats that begin at our 0-height vertical area.  We
+    // need to to this to satisfy the invariant that a
+    // WIDTH_WITHIN_HEIGHT call is at least as narrow on both sides as a
+    // BAND_WITHIN_POINT call beginning at its top.
+    else if (top < floatBottom &&
+             (floatTop < bottom || (floatTop == bottom && top == bottom))) {
       // This float is in our band.
 
       // Shrink our band's height if needed.
-      if (floatBottom < bottom) {
+      if (floatBottom < bottom && aInfoType == BAND_FROM_POINT) {
         bottom = floatBottom;
       }
 
@@ -230,9 +250,8 @@ nsFloatManager::GetBand(nscoord aYOffset,
     }
   }
 
-  *aHasFloats = haveFloats;
   nscoord height = (bottom == nscoord_MAX) ? nscoord_MAX : (bottom - top);
-  return nsRect(left - mX, top - mY, right - left, height);
+  return nsFlowAreaRect(left - mX, top - mY, right - left, height, haveFloats);
 }
 
 nsresult
@@ -265,6 +284,85 @@ nsFloatManager::AddFloat(nsIFrame* aFloatFrame, const nsRect& aMarginRect)
     return NS_ERROR_OUT_OF_MEMORY;
 
   return NS_OK;
+}
+
+nsRect
+nsFloatManager::CalculateRegionFor(nsIFrame*       aFloat,
+                                   const nsMargin& aMargin)
+{
+  nsRect region = aFloat->GetRect();
+
+  // Float region includes its margin
+  region.Inflate(aMargin);
+
+  // If the element is relatively positioned, then adjust x and y
+  // accordingly so that we consider relatively positioned frames
+  // at their original position.
+  const nsStyleDisplay* display = aFloat->GetStyleDisplay();
+  region -= aFloat->GetRelativeOffset(display);
+
+  // Don't store rectangles with negative margin-box width or height in
+  // the float manager; it can't deal with them.
+  if (region.width < 0) {
+    // Preserve the right margin-edge for left floats and the left
+    // margin-edge for right floats
+    if (NS_STYLE_FLOAT_LEFT == display->mFloats) {
+      region.x = region.XMost();
+    }
+    region.width = 0;
+  }
+  if (region.height < 0) {
+    region.height = 0;
+  }
+  return region;
+}
+
+nsRect
+nsFloatManager::GetRegionFor(nsIFrame* aFloat)
+{
+  nsRect region = aFloat->GetRect();
+  void* storedRegion = aFloat->GetProperty(nsGkAtoms::floatRegionProperty);
+  if (storedRegion) {
+    nsMargin margin = *static_cast<nsMargin*>(storedRegion);
+    region.Inflate(margin);
+  }
+  return region;
+}
+
+static void
+DestroyMarginFunc(void*    aFrame,
+                  nsIAtom* aPropertyName,
+                  void*    aPropertyValue,
+                  void*    aDtorData)
+{
+  delete static_cast<nsMargin*>(aPropertyValue);
+}
+
+nsresult
+nsFloatManager::StoreRegionFor(nsIFrame* aFloat,
+                               nsRect&   aRegion)
+{
+  nsresult rv = NS_OK;
+  nsRect rect = aFloat->GetRect();
+  if (aRegion == rect) {
+    rv = aFloat->DeleteProperty(nsGkAtoms::floatRegionProperty);
+    if (rv == NS_PROPTABLE_PROP_NOT_THERE) rv = NS_OK;
+  }
+  else {
+    nsMargin* storedMargin = static_cast<nsMargin*>(aFloat
+                               ->GetProperty(nsGkAtoms::floatRegionProperty));
+    if (!storedMargin) {
+      storedMargin = new nsMargin();
+      rv = aFloat->SetProperty(nsGkAtoms::floatRegionProperty, storedMargin,
+                               DestroyMarginFunc);
+      if (NS_FAILED(rv)) {
+        delete storedMargin;
+        return rv;
+      }
+    }
+    *storedMargin = aRegion - rect;
+  }
+  return rv;
 }
 
 nsresult
@@ -372,7 +470,6 @@ nsFloatManager::List(FILE* out) const
            fi.mRect.x, fi.mRect.y, fi.mRect.width, fi.mRect.height,
            fi.mLeftYMost, fi.mRightYMost);
   }
-
   return NS_OK;
 }
 #endif

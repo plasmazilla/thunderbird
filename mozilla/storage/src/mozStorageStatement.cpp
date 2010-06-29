@@ -57,7 +57,6 @@
 #include "mozStorageStatementParams.h"
 #include "mozStorageStatementRow.h"
 #include "mozStorageStatement.h"
-#include "mozStorageStatementData.h"
 
 #include "prlog.h"
 
@@ -71,15 +70,10 @@ namespace storage {
 ////////////////////////////////////////////////////////////////////////////////
 //// Local Classes
 
+namespace {
+
 /**
  * Used to finalize an asynchronous statement on the background thread.
- *
- * This class gets a reference-counted reference to the Statement whose async
- * statement needs to be cleaned up.  We are only created if the Statement was
- * not being destructed so there is no risk of getting a zombie reference.
- *
- * We used to be in the anonymous namespace but that precluded our being a
- * friend of Statement.
  */
 class AsyncStatementFinalizer : public nsRunnable
 {
@@ -95,21 +89,25 @@ public:
    *        Connection, that we release it on the proper thread.  The release
    *        call is proxied to the appropriate thread.
    */
-  AsyncStatementFinalizer(Statement *aStatement)
+  AsyncStatementFinalizer(sqlite3_stmt *aStatement,
+                          Connection *aConnection)
   : mStatement(aStatement)
+  , mConnection(aConnection)
   {
   }
 
   NS_IMETHOD Run()
   {
-    (void)mStatement->cleanupAsyncStatement();
-    (void)::NS_ProxyRelease(mStatement->owningConnection()->threadOpenedOn,
-                            mStatement);
+    (void)::sqlite3_finalize(mStatement);
+    (void)::NS_ProxyRelease(mConnection->threadOpenedOn, mConnection);
     return NS_OK;
   }
 private:
-  nsCOMPtr<Statement> mStatement;
+  sqlite3_stmt *mStatement;
+  nsCOMPtr<Connection> mConnection;
 };
+
+} // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 //// nsIClassInfo
@@ -201,9 +199,6 @@ Statement::Statement()
 , mColumnNames()
 , mExecuting(false)
 , mCachedAsyncStatement(NULL)
-, mPotentiallyLiveAsyncStatement(false)
-, mFinalized(false)
-, mDestructing(false)
 {
 }
 
@@ -212,28 +207,12 @@ Statement::initialize(Connection *aDBConnection,
                       const nsACString &aSQLStatement)
 {
   NS_ASSERTION(aDBConnection, "No database connection given!");
-  NS_ASSERTION(!mSQLString.IsVoid(), "Statement already initialized!");
+  NS_ASSERTION(!mDBStatement, "Statement already initialized!");
 
   sqlite3 *db = aDBConnection->GetNativeConnection();
   NS_ASSERTION(db, "We should never be called with a null sqlite3 database!");
 
-  mDBConnection = aDBConnection;
-  mSQLString = aSQLStatement;
-
-  return NS_OK;
-}
-
-nsresult
-Statement::buildSyncStatement()
-{
-  if (mFinalized)
-    return NS_ERROR_UNEXPECTED;
-
-  sqlite3 *db = mDBConnection->GetNativeConnection();
-  if (!db)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  int srv = ::sqlite3_prepare_v2(db, PromiseFlatCString(mSQLString).get(),
+  int srv = ::sqlite3_prepare_v2(db, PromiseFlatCString(aSQLStatement).get(),
                                  -1, &mDBStatement, NULL);
   if (srv != SQLITE_OK) {
 #ifdef PR_LOGGING
@@ -241,17 +220,18 @@ Statement::buildSyncStatement()
              ("Sqlite statement prepare error: %d '%s'", srv,
               ::sqlite3_errmsg(db)));
       PR_LOG(gStorageLog, PR_LOG_ERROR,
-             ("Statement was: '%s'", PromiseFlatCString(mSQLString).get()));
+             ("Statement was: '%s'", PromiseFlatCString(aSQLStatement).get()));
 #endif
       return NS_ERROR_FAILURE;
     }
 
 #ifdef PR_LOGGING
   PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Initialized statement '%s' (0x%p)",
-                                      PromiseFlatCString(mSQLString).get(),
+                                      PromiseFlatCString(aSQLStatement).get(),
                                       mDBStatement));
 #endif
 
+  mDBConnection = aDBConnection;
   mParamCount = ::sqlite3_bind_parameter_count(mDBStatement);
   mResultColumnCount = ::sqlite3_column_count(mDBStatement);
   mColumnNames.Clear();
@@ -268,8 +248,8 @@ Statement::buildSyncStatement()
   // using a string.  We only do this in debug builds because it's expensive!
   const nsCaseInsensitiveCStringComparator c;
   nsACString::const_iterator start, end, e;
-  mSQLString.BeginReading(start);
-  mSQLString.EndReading(end);
+  aSQLStatement.BeginReading(start);
+  aSQLStatement.EndReading(end);
   e = end;
   while (::FindInReadable(NS_LITERAL_CSTRING(" LIKE"), start, e, c)) {
     // We have a LIKE in here, so we perform our tests
@@ -285,7 +265,7 @@ Statement::buildSyncStatement()
       // or @, all of which are valid characters for binding a parameter.
       // We will warn the consumer that they may not be safely using LIKE.
       NS_WARNING("Unsafe use of LIKE detected!  Please ensure that you "
-                 "are using mozIStorageStatement::escapeStringForLIKE "
+                 "are using mozIStorageConnection::escapeStringForLIKE "
                  "and that you are binding that result to the statement "
                  "to prevent SQL injection attacks.");
     }
@@ -302,14 +282,15 @@ Statement::buildSyncStatement()
 nsresult
 Statement::getAsynchronousStatementData(StatementData &_data)
 {
-  if (mFinalized)
+  if (!mDBStatement)
     return NS_ERROR_UNEXPECTED;
 
-  mPotentiallyLiveAsyncStatement = true;
-  // mCachedAsyncStatement may be null at this point.  It's okay; the async
-  // thread will call getAsyncStatement to initialize it.  This is desirable
-  // because we don't want to end up acquiring the sqlite3 mutex on this thread.
-  _data = StatementData(mCachedAsyncStatement, bindingParamsArray(), this);
+  sqlite3_stmt *stmt;
+  int rc = getAsyncStatement(&stmt);
+  if (rc != SQLITE_OK)
+    return convertResultCode(rc);
+
+  _data = StatementData(stmt, bindingParamsArray(), this);
 
   return NS_OK;
 }
@@ -318,21 +299,20 @@ int
 Statement::getAsyncStatement(sqlite3_stmt **_stmt)
 {
   // If we have no statement, we shouldn't be calling this method!
-  NS_ASSERTION(!mSQLString.IsVoid(),
-               "We have no SQL to build an async statement from!");
+  NS_ASSERTION(mDBStatement != NULL, "We have no statement to clone!");
 
   // If we do not yet have a cached async statement, clone our statement now.
   if (!mCachedAsyncStatement) {
     int rc = ::sqlite3_prepare_v2(mDBConnection->GetNativeConnection(),
-                                  PromiseFlatCString(mSQLString).get(), -1,
+                                  ::sqlite3_sql(mDBStatement), -1,
                                   &mCachedAsyncStatement, NULL);
     if (rc != SQLITE_OK)
       return rc;
 
 #ifdef PR_LOGGING
-    PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Created async statement '%s' (0x%p)",
-                                        PromiseFlatCString(mSQLString).get(),
-                                        mCachedAsyncStatement));
+    PR_LOG(gStorageLog, PR_LOG_NOTICE,
+           ("Cloned statement 0x%p to 0x%p", mDBStatement,
+            mCachedAsyncStatement));
 #endif
   }
 
@@ -377,7 +357,6 @@ Statement::getParams()
 
 Statement::~Statement()
 {
-  mDestructing = true;
   (void)Finalize();
 }
 
@@ -403,7 +382,8 @@ Statement::Clone(mozIStorageStatement **_statement)
   nsRefPtr<Statement> statement(new Statement());
   NS_ENSURE_TRUE(statement, NS_ERROR_OUT_OF_MEMORY);
 
-  nsresult rv = statement->initialize(mDBConnection, mSQLString);
+  nsCAutoString sql(::sqlite3_sql(mDBStatement));
+  nsresult rv = statement->initialize(mDBConnection, sql);
   NS_ENSURE_SUCCESS(rv, rv);
 
   statement.forget(_statement);
@@ -413,67 +393,37 @@ Statement::Clone(mozIStorageStatement **_statement)
 NS_IMETHODIMP
 Statement::Finalize()
 {
-  // Finalize can get called for two reasons:
-  // 1) User-code called it because it is good about cleaning up.
-  // 2) The destructor called it.  This is indicated by mDestructing.
+  if (!mDBStatement)
+    return NS_OK;
 
-  // Do not allow the synchronous statement to ever be re-created.
-  mFinalized = true;
-
-  int srv = NS_OK;
-  // Cleanup down the synchronous statement if it got created.
-  if (mDBStatement) {
 #ifdef PR_LOGGING
-    PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Finalizing statement '%s'",
-                                        ::sqlite3_sql(mDBStatement)));
+  PR_LOG(gStorageLog, PR_LOG_NOTICE, ("Finalizing statement '%s'",
+                                      ::sqlite3_sql(mDBStatement)));
 #endif
 
-    srv = ::sqlite3_finalize(mDBStatement);
-    mDBStatement = NULL;
-  }
+  int srv = ::sqlite3_finalize(mDBStatement);
+  mDBStatement = NULL;
 
-  // Async Cleanup:
-  //
-  // We only need to do any cleanup if we have ever providing async data about
-  // ourselves, which is tracked by mPotentiallyLiveAsyncStatement.
-  //
-  // Because AsyncExecuteStatements hold a reference to their owning statement,
-  // this cannot be the destructor case if there are any async statements alive.
-  // Therefore, if we are destructing, it's fine (and required) that we kill
-  // the async statement if it is present.  If the async thread is no longer
-  // available and we are not destructing, we still want to kill the async
-  // statement; all of the pending async statements will have been canceled so
-  // there is no possible further usage of the statement.
-  //
-  // Otherwise it is appropriate to dispatch an AsyncStatementFinalizer to clean
-  // up the asynchronous statement.  Because we are not destructing in this
-  // case, it is okay for the AsyncStatementFinalizer to have a reference to us.
-  //
-  // We want to void out mSQLString once we are sure the async statement is done
-  // with it.  So we do this in all cases where we don't dispatch an
-  // AsyncStatementFinalizer.
-  if (mPotentiallyLiveAsyncStatement) {
+  // We need to finalize our async statement too, but want to make sure that any
+  // queued up statements run first.  Dispatch an event to the background thread
+  // that will do this for us.
+  if (mCachedAsyncStatement) {
     nsCOMPtr<nsIEventTarget> target = mDBConnection->getAsyncExecutionTarget();
-    if (mCachedAsyncStatement && (mDestructing || !target)) {
+    if (!target) {
       // However, if we cannot get the background thread, we have to assume it
       // has been shutdown (or is in the process of doing so).  As a result, we
       // should just finalize it here and now.
       (void)::sqlite3_finalize(mCachedAsyncStatement);
-      mSQLString.SetIsVoid(PR_TRUE);
     }
-    else if (!mDestructing && target) {
-      nsCOMPtr<nsIRunnable> event = new AsyncStatementFinalizer(this);
+    else {
+      nsCOMPtr<nsIRunnable> event =
+        new AsyncStatementFinalizer(mCachedAsyncStatement, mDBConnection);
       NS_ENSURE_TRUE(event, NS_ERROR_OUT_OF_MEMORY);
 
       nsresult rv = target->Dispatch(event, NS_DISPATCH_NORMAL);
       NS_ENSURE_SUCCESS(rv, rv);
+      mCachedAsyncStatement = NULL;
     }
-    else {
-      mSQLString.SetIsVoid(PR_TRUE);
-    }
-  }
-  else {
-    mSQLString.SetIsVoid(PR_TRUE);
   }
 
   // We are considered dead at this point, so any wrappers for row or params
@@ -501,22 +451,11 @@ Statement::Finalize()
   return convertResultCode(srv);
 }
 
-void
-Statement::cleanupAsyncStatement()
-{
-  if (mCachedAsyncStatement) {
-    ::sqlite3_finalize(mCachedAsyncStatement);
-    mCachedAsyncStatement = nsnull;
-    mSQLString.SetIsVoid(PR_FALSE);
-  }
-  mPotentiallyLiveAsyncStatement = false;
-}
-
 NS_IMETHODIMP
 Statement::GetParameterCount(PRUint32 *_parameterCount)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   *_parameterCount = mParamCount;
   return NS_OK;
@@ -526,8 +465,8 @@ NS_IMETHODIMP
 Statement::GetParameterName(PRUint32 aParamIndex,
                             nsACString &_name)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
   ENSURE_INDEX_VALUE(aParamIndex, mParamCount);
 
   const char *name = ::sqlite3_bind_parameter_name(mDBStatement,
@@ -549,8 +488,8 @@ NS_IMETHODIMP
 Statement::GetParameterIndex(const nsACString &aName,
                              PRUint32 *_index)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   // We do not accept any forms of names other than ":name", but we need to add
   // the colon for SQLite.
@@ -569,8 +508,8 @@ Statement::GetParameterIndex(const nsACString &aName,
 NS_IMETHODIMP
 Statement::GetColumnCount(PRUint32 *_columnCount)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   *_columnCount = mResultColumnCount;
   return NS_OK;
@@ -580,8 +519,8 @@ NS_IMETHODIMP
 Statement::GetColumnName(PRUint32 aColumnIndex,
                          nsACString &_name)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
   ENSURE_INDEX_VALUE(aColumnIndex, mResultColumnCount);
 
   const char *cname = ::sqlite3_column_name(mDBStatement, aColumnIndex);
@@ -594,8 +533,8 @@ NS_IMETHODIMP
 Statement::GetColumnIndex(const nsACString &aName,
                           PRUint32 *_index)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+      return NS_ERROR_NOT_INITIALIZED;
 
   // Surprisingly enough, SQLite doesn't provide an API for this.  We have to
   // determine it ourselves sadly.
@@ -612,8 +551,8 @@ Statement::GetColumnIndex(const nsACString &aName,
 NS_IMETHODIMP
 Statement::Reset()
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
 #ifdef DEBUG
   PR_LOG(gStorageLog, PR_LOG_DEBUG, ("Resetting statement: '%s'",
@@ -635,6 +574,9 @@ NS_IMETHODIMP
 Statement::BindUTF8StringParameter(PRUint32 aParamIndex,
                                    const nsACString &aValue)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -645,6 +587,9 @@ NS_IMETHODIMP
 Statement::BindStringParameter(PRUint32 aParamIndex,
                                const nsAString &aValue)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -655,6 +600,9 @@ NS_IMETHODIMP
 Statement::BindDoubleParameter(PRUint32 aParamIndex,
                                double aValue)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -665,6 +613,9 @@ NS_IMETHODIMP
 Statement::BindInt32Parameter(PRUint32 aParamIndex,
                               PRInt32 aValue)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -675,6 +626,9 @@ NS_IMETHODIMP
 Statement::BindInt64Parameter(PRUint32 aParamIndex,
                               PRInt64 aValue)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -684,6 +638,9 @@ Statement::BindInt64Parameter(PRUint32 aParamIndex,
 NS_IMETHODIMP
 Statement::BindNullParameter(PRUint32 aParamIndex)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -695,6 +652,9 @@ Statement::BindBlobParameter(PRUint32 aParamIndex,
                              const PRUint8 *aValue,
                              PRUint32 aValueSize)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParams *params = getParams();
   NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
 
@@ -704,6 +664,9 @@ Statement::BindBlobParameter(PRUint32 aParamIndex,
 NS_IMETHODIMP
 Statement::BindParameters(mozIStorageBindingParamsArray *aParameters)
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   BindingParamsArray *array = static_cast<BindingParamsArray *>(aParameters);
   if (array->getOwner() != this)
     return NS_ERROR_UNEXPECTED;
@@ -728,6 +691,9 @@ Statement::NewBindingParamsArray(mozIStorageBindingParamsArray **_array)
 NS_IMETHODIMP
 Statement::Execute()
 {
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
+
   PRBool ret;
   nsresult rv = ExecuteStep(&ret);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -738,8 +704,8 @@ Statement::Execute()
 NS_IMETHODIMP
 Statement::ExecuteStep(PRBool *_moreResults)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   // Bind any parameters first before executing.
   if (mParamsArray) {
@@ -809,9 +775,6 @@ Statement::ExecuteAsync(mozIStorageStatementCallback *aCallback,
 NS_IMETHODIMP
 Statement::GetState(PRInt32 *_state)
 {
-  // If someone is checking our state, they probably want us to have tried to
-  // create the statement.
-  (void)ensureSyncStatement();
   if (!mDBStatement)
     *_state = MOZ_STORAGE_STATEMENT_INVALID;
   else if (mExecuting)
@@ -845,8 +808,8 @@ NS_IMETHODIMP
 Statement::GetColumnDecltype(PRUint32 aParamIndex,
                              nsACString &_declType)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aParamIndex, mResultColumnCount);
 
@@ -860,9 +823,6 @@ Statement::GetColumnDecltype(PRUint32 aParamIndex,
 NS_IMETHODIMP
 Statement::GetNumEntries(PRUint32 *_length)
 {
-  // mResultColumnCount depends on the statement having been created
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
   *_length = mResultColumnCount;
   return NS_OK;
 }
@@ -871,8 +831,8 @@ NS_IMETHODIMP
 Statement::GetTypeOfIndex(PRUint32 aIndex,
                           PRInt32 *_type)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aIndex, mResultColumnCount);
 
@@ -907,8 +867,8 @@ NS_IMETHODIMP
 Statement::GetInt32(PRUint32 aIndex,
                     PRInt32 *_value)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aIndex, mResultColumnCount);
 
@@ -923,8 +883,8 @@ NS_IMETHODIMP
 Statement::GetInt64(PRUint32 aIndex,
                     PRInt64 *_value)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aIndex, mResultColumnCount);
 
@@ -940,8 +900,8 @@ NS_IMETHODIMP
 Statement::GetDouble(PRUint32 aIndex,
                      double *_value)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aIndex, mResultColumnCount);
 
@@ -1003,8 +963,8 @@ Statement::GetBlob(PRUint32 aIndex,
                    PRUint32 *_size,
                    PRUint8 **_blob)
 {
-  nsresult rv = ensureSyncStatement();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mDBStatement)
+    return NS_ERROR_NOT_INITIALIZED;
 
   ENSURE_INDEX_VALUE(aIndex, mResultColumnCount);
 

@@ -41,6 +41,7 @@
 
 #include "gfxPlatform.h"
 #include "nsAutoRef.h"
+#include "nsTArray.h"
 
 extern "C" {
     typedef struct _GdkDrawable GdkDrawable;
@@ -74,7 +75,7 @@ public:
 
     nsresult GetFontList(const nsACString& aLangGroup,
                          const nsACString& aGenericFamily,
-                         nsStringArray& aListOfFonts);
+                         nsTArray<nsString>& aListOfFonts);
 
     nsresult UpdateFontList();
 
@@ -101,7 +102,6 @@ public:
      *
      */
     virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           nsISupports *aLoader,
                                            const PRUint8 *aFontData,
                                            PRUint32 aLength);
 
@@ -116,15 +116,10 @@ public:
 #ifndef MOZ_PANGO
     FontFamily *FindFontFamily(const nsAString& aName);
     FontEntry *FindFontEntry(const nsAString& aFamilyName, const gfxFontStyle& aFontStyle);
+    already_AddRefed<gfxFont> FindFontForChar(PRUint32 aCh, gfxFont *aFont);
+    PRBool GetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> > *aFontEntryList);
+    void SetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> >& aFontEntryList);
 #endif
-
-    static double DPI() {
-        if (sDPI < 0.0) {
-            InitDPI();
-        }
-        NS_ASSERTION(sDPI > 0.0, "Something is wrong");
-        return sDPI;
-    }
 
 #ifndef MOZ_PANGO
     FT_Library GetFTLibrary();
@@ -135,9 +130,8 @@ public:
     GdkDrawable *GetGdkDrawable(gfxASurface *target);
 
 protected:
-    static void InitDPI();
+    void InitDisplayCaps();
 
-    static double sDPI;
     static gfxFontconfigUtils *sFontconfigUtils;
 
 private:

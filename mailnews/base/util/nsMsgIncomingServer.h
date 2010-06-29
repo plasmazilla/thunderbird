@@ -78,8 +78,9 @@ class NS_MSG_BASE nsMsgIncomingServer : public nsIMsgIncomingServer,
 protected:
   nsCString m_serverKey;
 
-  // sets m_password, if password found.
-  void GetPasswordWithoutUI();
+  // Sets m_password, if password found. Can return NS_ERROR_ABORT if the 
+  // user cancels the master password dialog.
+  nsresult GetPasswordWithoutUI();
 
   nsresult ConfigureTemporaryReturnReceiptsFilter(nsIMsgFilterList *filterList);
   nsresult ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filterList);
@@ -108,13 +109,13 @@ protected:
   PRInt32  m_numMsgsDownloaded;
 static PLDHashOperator evictOldEntries(nsCStringHashKey::KeyType aKey, PRInt32 &aData, void *aClosure);
 private:
-  nsCString m_password;
   PRUint32 m_biffState;
   PRPackedBool m_serverBusy;
   nsCOMPtr <nsISpamSettings> mSpamSettings;
   nsCOMPtr<nsIMsgFilterPlugin> mFilterPlugin;  // XXX should be a list
 
 protected:
+  nsCString m_password;
   PRPackedBool m_canHaveFilters;
   PRPackedBool m_displayStartupPage;
   PRPackedBool mPerformingBiff;

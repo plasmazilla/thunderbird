@@ -154,17 +154,16 @@ nsSystemFontsGTK2::nsSystemFontsGTK2()
     GtkWidget *accel_label = gtk_accel_label_new("M");
     GtkWidget *menuitem = gtk_menu_item_new();
     GtkWidget *menu = gtk_menu_new();
-    gtk_object_ref(GTK_OBJECT(menu));
-    gtk_object_sink(GTK_OBJECT(menu));
+    g_object_ref_sink(GTK_OBJECT(menu));
 
     gtk_container_add(GTK_CONTAINER(menuitem), accel_label);
-    gtk_menu_append(GTK_MENU(menu), menuitem);
+    gtk_menu_shell_append((GtkMenuShell *)GTK_MENU(menu), menuitem);
 
     gtk_widget_ensure_style(accel_label);
 
     GetSystemFontInfo(accel_label, &mMenuFontName, &mMenuFontStyle);
 
-    gtk_widget_unref(menu);
+    g_object_unref(menu);
 
     // mButtonFont
     parent = gtk_fixed_new();
@@ -213,13 +212,16 @@ nsSystemFontsGTK2::GetSystemFontInfo(GtkWidget *aWidget, nsString *aFontName,
 
     aFontStyle->weight = pango_font_description_get_weight(desc);
 
+    // FIXME: Set aFontStyle->stretch correctly!
+    aFontStyle->stretch = NS_FONT_STRETCH_NORMAL;
+
     float size = float(pango_font_description_get_size(desc)) / PANGO_SCALE;
 
     // |size| is now either pixels or pango-points (not Mozilla-points!)
 
     if (!MOZ_pango_font_description_get_size_is_absolute(desc)) {
         // |size| is in pango-points, so convert to pixels.
-        size *= gfxPlatformGtk::DPI() / POINTS_PER_INCH_FLOAT;
+        size *= float(gfxPlatform::GetDPI()) / POINTS_PER_INCH_FLOAT;
     }
 
     // |size| is now pixels

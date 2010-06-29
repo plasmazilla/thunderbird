@@ -645,8 +645,7 @@ mozInlineSpellChecker::RegisterEventListeners()
   nsCOMPtr<nsPIDOMEventTarget> piTarget = do_QueryInterface(doc, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIEventListenerManager> elmP;
-  piTarget->GetListenerManager(PR_TRUE, getter_AddRefs(elmP));
+  nsIEventListenerManager* elmP = piTarget->GetListenerManager(PR_TRUE);
   if (elmP) {
     // Focus event doesn't bubble so adding the listener to capturing phase
     elmP->AddEventListenerByIID(static_cast<nsIDOMFocusListener *>(this),
@@ -679,8 +678,8 @@ mozInlineSpellChecker::UnregisterEventListeners()
   nsCOMPtr<nsPIDOMEventTarget> piTarget = do_QueryInterface(doc);
   NS_ENSURE_TRUE(piTarget, NS_ERROR_NULL_POINTER);
 
-  nsCOMPtr<nsIEventListenerManager> elmP;
-  piTarget->GetListenerManager(PR_TRUE, getter_AddRefs(elmP));
+  nsCOMPtr<nsIEventListenerManager> elmP =
+    piTarget->GetListenerManager(PR_TRUE);
   if (elmP) {
     elmP->RemoveEventListenerByIID(static_cast<nsIDOMFocusListener *>(this),
                                    NS_GET_IID(nsIDOMFocusListener),
@@ -814,11 +813,11 @@ mozInlineSpellChecker::SpellCheckRange(nsIDOMRange* aRange)
   return ScheduleSpellCheck(status);
 }
 
-// mozInlineSpellChecker::GetMispelledWord
+// mozInlineSpellChecker::GetMisspelledWord
 
 NS_IMETHODIMP
-mozInlineSpellChecker::GetMispelledWord(nsIDOMNode *aNode, PRInt32 aOffset,
-                                        nsIDOMRange **newword)
+mozInlineSpellChecker::GetMisspelledWord(nsIDOMNode *aNode, PRInt32 aOffset,
+                                         nsIDOMRange **newword)
 {
   NS_ENSURE_ARG_POINTER(aNode);
   nsCOMPtr<nsISelection> spellCheckSelection;
@@ -839,7 +838,7 @@ mozInlineSpellChecker::ReplaceWord(nsIDOMNode *aNode, PRInt32 aOffset,
   NS_ENSURE_TRUE(newword.Length() != 0, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIDOMRange> range;
-  nsresult res = GetMispelledWord(aNode, aOffset, getter_AddRefs(range));
+  nsresult res = GetMisspelledWord(aNode, aOffset, getter_AddRefs(range));
   NS_ENSURE_SUCCESS(res, res); 
 
   if (range)

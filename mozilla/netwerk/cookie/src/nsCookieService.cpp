@@ -138,6 +138,7 @@ struct nsListIter
 {
   nsListIter() {}
 
+  explicit
   nsListIter(nsCookieEntry *aEntry)
    : entry(aEntry)
    , prev(nsnull)
@@ -329,39 +330,6 @@ LogSuccess(PRBool aSetCookie, nsIURI *aHostURI, const nsAFlatCString &aCookieStr
 #define COOKIE_LOGEVICTED(a)             PR_BEGIN_MACRO /* nothing */ PR_END_MACRO
 #define COOKIE_LOGSTRING(a, b)           PR_BEGIN_MACRO /* nothing */ PR_END_MACRO
 #endif
-
-/******************************************************************************
- * nsCookieService impl:
- * private list sorting callbacks
- *
- * these functions return:
- *   < 0 if the first element should come before the second element,
- *     0 if the first element may come before or after the second element,
- *   > 0 if the first element should come after the second element.
- ******************************************************************************/
-
-// comparison function for sorting cookies before sending to a server.
-static int
-compareCookiesForSending(const void *aElement1,
-                         const void *aElement2,
-                         void       *aData)
-{
-  const nsCookie *cookie1 = static_cast<const nsCookie*>(aElement1);
-  const nsCookie *cookie2 = static_cast<const nsCookie*>(aElement2);
-
-  // compare by cookie path length in accordance with RFC2109
-  int rv = cookie2->Path().Length() - cookie1->Path().Length();
-  if (rv == 0) {
-    // when path lengths match, older cookies should be listed first.  this is
-    // required for backwards compatibility since some websites erroneously
-    // depend on receiving cookies in the order in which they were sent to the
-    // browser!  see bug 236772.
-    // note: CreationID is unique, so two id's can never be equal.
-    // we may have overflow problems returning the result directly, so we need branches
-    rv = (cookie1->CreationID() > cookie2->CreationID() ? 1 : -1);
-  }
-  return rv;
-}
 
 /******************************************************************************
  * nsCookieService impl:
@@ -576,10 +544,6 @@ nsCookieService::TryInitDB(PRBool aDeleteExistingDB)
         rv = mDBState->dbConn->CreateStatement(NS_LITERAL_CSTRING(
           "SELECT id, name, value, host, path, expiry, isSecure, isHttpOnly "
           "FROM moz_cookies"), getter_AddRefs(stmt));
-        PRInt32 state;
-        if (NS_SUCCEEDED(rv) && NS_SUCCEEDED(stmt->GetState(&state)) &&
-            state == mozIStorageStatement::MOZ_STORAGE_STATEMENT_INVALID)
-          rv = NS_ERROR_UNEXPECTED;
         if (NS_SUCCEEDED(rv))
           break;
 
@@ -1238,6 +1202,29 @@ nsCookieService::ImportCookies(nsIFile *aCookieFile)
 // helper function for GetCookieList
 static inline PRBool ispathdelimiter(char c) { return c == '/' || c == '?' || c == '#' || c == ';'; }
 
+// Comparator class for sorting cookies before sending to a server.
+class CompareCookiesForSendingComparator
+{
+  public:
+  PRBool Equals(const nsCookie* aCookie1, const nsCookie* aCookie2) const {
+    return PR_FALSE; // CreationID is unique, so two id's can never be equal.
+  }
+  PRBool LessThan(const nsCookie* aCookie1, const nsCookie* aCookie2) const {
+    // compare by cookie path length in accordance with RFC2109
+    int rv = aCookie2->Path().Length() - aCookie1->Path().Length();
+    if (rv == 0) {
+      // when path lengths match, older cookies should be listed first.  this is
+      // required for backwards compatibility since some websites erroneously
+      // depend on receiving cookies in the order in which they were sent to the
+      // browser!  see bug 236772.
+      // note: CreationID is unique, so two id's can never be equal.
+      // we may have overflow problems returning the result directly, so we need branches
+      rv = (aCookie1->CreationID() > aCookie2->CreationID() ? 1 : -1);
+    }
+    return rv < 0;
+  }
+};
+
 void
 nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
                                    nsIChannel  *aChannel,
@@ -1295,7 +1282,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
   }
 
   nsCookie *cookie;
-  nsAutoVoidArray foundCookieList;
+  nsAutoTArray<nsCookie*, 8> foundCookieList;
   PRInt64 currentTimeInUsec = PR_Now();
   PRInt64 currentTime = currentTimeInUsec / PR_USEC_PER_SEC;
   const char *currentDot = hostFromURI.get();
@@ -1361,7 +1348,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
     nextDot = *currentDot ? strchr(currentDot + 1, '.') : nsnull;
   } while (1);
 
-  PRInt32 count = foundCookieList.Count();
+  PRInt32 count = foundCookieList.Length();
   if (count == 0)
     return;
 
@@ -1373,7 +1360,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
     mozStorageTransaction transaction(mDBState->dbConn, PR_TRUE);
 
     for (PRInt32 i = 0; i < count; ++i) {
-      cookie = static_cast<nsCookie*>(foundCookieList.ElementAt(i));
+      cookie = foundCookieList.ElementAt(i);
 
       if (currentTimeInUsec - cookie->LastAccessed() > kCookieStaleThreshold)
         UpdateCookieInList(cookie, currentTimeInUsec);
@@ -1383,11 +1370,11 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
   // return cookies in order of path length; longest to shortest.
   // this is required per RFC2109.  if cookies match in length,
   // then sort by creation time (see bug 236772).
-  foundCookieList.Sort(compareCookiesForSending, nsnull);
+  foundCookieList.Sort(CompareCookiesForSendingComparator());
 
   nsCAutoString cookieData;
   for (PRInt32 i = 0; i < count; ++i) {
-    cookie = static_cast<nsCookie*>(foundCookieList.ElementAt(i));
+    cookie = foundCookieList.ElementAt(i);
 
     // check if we have anything to write
     if (!cookie->Name().IsEmpty() || !cookie->Value().IsEmpty()) {
@@ -2245,6 +2232,36 @@ nsCookieService::CountCookiesFromHost(const nsACString &aHost,
   nsEnumerationData data(PR_Now() / PR_USEC_PER_SEC, LL_MININT);
   *aCountFromHost = CountCookiesFromHostInternal(aHost, data);
   return NS_OK;
+}
+
+// get an enumerator of cookies stored by a particular host. this is provided by the
+// nsICookieManager2 interface.
+NS_IMETHODIMP
+nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
+                                    nsISimpleEnumerator **aEnumerator)
+{
+  nsCOMArray<nsICookie> cookieList(mMaxCookiesPerHost);
+  nsCAutoString hostWithDot(NS_LITERAL_CSTRING(".") + aHost);
+  PRInt64 currentTime = PR_Now() / PR_USEC_PER_SEC;
+
+  const char *currentDot = hostWithDot.get();
+  const char *nextDot = currentDot + 1;
+  do {
+    nsCookieEntry *entry = mDBState->hostTable.GetEntry(currentDot);
+    for (nsListIter iter(entry); iter.current; ++iter) {
+      // only append non-expired cookies
+      if (iter.current->Expiry() > currentTime)
+        cookieList.AppendObject(iter.current);
+    }
+
+    if (!nextDot)
+      break;
+
+    currentDot = nextDot;
+    nextDot = *currentDot ? strchr(currentDot + 1, '.') : nsnull;
+  } while (1);
+
+  return NS_NewArrayEnumerator(aEnumerator, cookieList);
 }
 
 // find an exact cookie specified by host, name, and path that hasn't expired.

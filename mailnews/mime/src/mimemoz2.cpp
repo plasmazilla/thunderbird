@@ -454,13 +454,8 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
       urlString.Append(aResult);
     else
       urlString.Append(tmp->real_name);
-#ifdef MOZILLA_INTERNAL_API
     if (tmp->real_type && !strcmp(tmp->real_type, "message/rfc822") &&
            !StringEndsWith(urlString, NS_LITERAL_CSTRING(".eml"), nsCaseInsensitiveCStringComparator()))
-#else
-    if (tmp->real_type && !strcmp(tmp->real_type, "message/rfc822") &&
-           !StringEndsWith(urlString, NS_LITERAL_CSTRING(".eml"), CaseInsensitiveCompare))
-#endif
       urlString.Append(".eml");
   }
   nsresult rv = nsMimeNewURI(&(tmp->url), urlString.get(), nsnull);
@@ -1195,11 +1190,7 @@ mime_image_make_image_html(void *image_closure)
 
   /* Internal-external-reconnect only works when going to the screen. */
   if (!mid->istream)
-#ifdef MOZILLA_1_9_1_BRANCH
-    return strdup("<P><CENTER><IMG SRC=\"resource://gre/res/loading-image.gif\" ALT=\"[Image]\"></CENTER><P>");
-#else
-    return strdup("<P><CENTER><IMG SRC=\"resource://gre/res/loading-image.png\" ALT=\"[Image]\"></CENTER><P>");
-#endif
+    return strdup("<P><CENTER><IMG SRC=\"resource://gre-resources/loading-image.png\" ALT=\"[Image]\"></CENTER><P>");
 
   nsCOMPtr<nsIPrefBranch> prefBranch;
   nsCOMPtr<nsIPrefService> prefSvc(do_GetService(NS_PREFSERVICE_CONTRACTID));
@@ -1987,10 +1978,10 @@ mimeSetNewURL(nsMIMESession *stream, char *url)
 
   char *tmpPtr = strdup(url);
   if (!tmpPtr)
-    return NS_ERROR_FAILURE;
+    return NS_ERROR_OUT_OF_MEMORY;
 
   PR_FREEIF(msd->url_name);
-  msd->url_name = strdup(tmpPtr);
+  msd->url_name = tmpPtr;
   return NS_OK;
 }
 

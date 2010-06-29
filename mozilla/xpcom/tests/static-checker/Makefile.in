@@ -57,17 +57,18 @@ STACK_FAILURE_TESTCASES = \
   StackNoConstructor.cpp \
   StackVector.cpp \
   StackConditional.cpp \
+  StackAggrInit.cpp \
+  StackCondBad.cpp \
   $(NULL)
 
 STACK_PASS_TESTCASES = \
   StackPlacementNewOK.cpp \
+  StackCond.cpp \
   $(NULL)
 
 OUTPARAMS_WARNING_TESTCASES = \
   e1.cpp \
-  e2.cpp \
   e4.cpp \
-  e5.cpp \
   e6.cpp \
   e7.cpp \
   e8.cpp \
@@ -76,6 +77,11 @@ OUTPARAMS_WARNING_TESTCASES = \
   e11.cpp \
   e12.cpp \
   e13.cpp \
+  $(NULL)
+
+OUTPARAMS_NS_FAILED_TESTCASES = \
+  e2.cpp \
+  e5.cpp \
   $(NULL)
 
 OUTPARAMS_PASS_TESTCASES = \
@@ -97,6 +103,7 @@ OUTPARAMS_PASS_TESTCASES = \
   o16.cpp \
   onull.cpp \
   onull2.cpp \
+  opmember.cpp \
   $(NULL)
 
 FLOW_PASS_TESTCASES = \
@@ -105,21 +112,51 @@ FLOW_PASS_TESTCASES = \
 FLOW_FAILURE_TESTCASES = \
  flow_through_fail.cpp
 
+MUST_OVERRIDE_PASS_TESTCASES = \
+  OverrideOK1.cpp \
+  OverrideOK2.cpp \
+  $(NULL)
+
+MUST_OVERRIDE_FAILURE_TESTCASES = \
+  OverrideFail1.cpp \
+  OverrideFail2.cpp \
+  OverrideFail3.cpp \
+  OverrideFail4.cpp \
+  $(NULL)
+
+OVERRIDE_PASS_TESTCASES = \
+  override-pass.cpp \
+  $(NULL)
+
+OVERRIDE_FAILURE_TESTCASES = \
+  override-global.cpp \
+  override-signature.cpp \
+  override-static.cpp \
+  override-virtual.cpp \
+  $(NULL)
+
 STATIC_FAILURE_TESTCASES = \
   $(FINAL_FAILURE_TESTCASES) \
-  $(STACK_FAILURE_TESTCASES) \
-  $(FLOW_FAILURE_TESTCASES)
+  $(FLOW_FAILURE_TESTCASES) \
+  $(MUST_OVERRIDE_FAILURE_TESTCASES) \
+  $(OVERRIDE_FAILURE_TESTCASES) \
   $(NULL)
 
 STATIC_WARNING_TESTCASES = \
   $(OUTPARAMS_WARNING_TESTCASES) \
+  $(STACK_FAILURE_TESTCASES) \
   $(NULL)
 
 STATIC_PASS_TESTCASES = \
+  $(OUTPARAMS_NS_FAILED_TESTCASES) \
   $(OUTPARAMS_PASS_TESTCASES) \
   $(STACK_PASS_TESTCASES) \
   $(FLOW_PASS_TESTCASES) \
+  $(MUST_OVERRIDE_PASS_TESTCASES) \
+  $(OVERRIDE_PASS_TESTCASES) \
   $(NULL)
+
+REQUIRES = xpcom
 
 include $(topsrcdir)/config/rules.mk
 
@@ -142,13 +179,13 @@ check:: \
 %.s-warn: %.cpp $(GLOBAL_DEPS) $(DEHYDRA_SCRIPTS)
 	@printf "Compiling $(<F) to check that the static-analysis script is checking properly..."
 	@if $(CCC) -Werror $(OUTOPTION)/dev/null -S $(COMPILE_CXXFLAGS) $(_VPATH_SRCS) >$(*F).errlog 2>&1; then \
-	  printf "fail:\nerror: compilation of $(<F) succeeded with -Werror. It shouldn't have!\n" \
+	  printf "fail:\nerror: compilation of $(<F) succeeded with -Werror. It shouldn't have!\n"; \
 	  exit 1; \
 	fi
 	@if $(CCC) $(OUTOPTION)/dev/null -S $(COMPILE_CXXFLAGS) $(_VPATH_SRCS) >$(*F).werrlog 2>&1; then \
 	  printf "ok.\n"; \
 	else \
-	  printf "fail:\nerror: compilation of $(<F) without -Werror failed. A warning should have been issued.\n" \
+	  printf "fail:\nerror: compilation of $(<F) without -Werror failed. A warning should have been issued.\n"; \
 	  exit 1; \
 	fi
 

@@ -40,6 +40,7 @@
  * each as a message and makes sure the streaming doesn't assert or crash.
  */
 load("../../mailnews/resources/mailTestUtils.js");
+Components.utils.import("resource:///modules/IOUtils.js");
 
 var gTestFiles =[ 
   "../../mailnews/data/bug505221",
@@ -67,7 +68,7 @@ function run_test()
   do_test_pending();
   gLocalInboxFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
   for each(let fileName in gTestFiles) {
-    gLocalInboxFolder.addMessage(loadFileToString(do_get_file(fileName)));
+    gLocalInboxFolder.addMessage(IOUtils.loadFileToString(do_get_file(fileName)));
   };
   gMsgEnumerator = gLocalInboxFolder.msgDatabase.EnumerateMessages();
   doNextTest();

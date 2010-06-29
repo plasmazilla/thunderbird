@@ -127,40 +127,42 @@ function startTest()
   checkException(function() {localStorage.key(-1);}, INDEX_SIZE_ERR);
   checkException(function() {localStorage.key(1);}, INDEX_SIZE_ERR);
   is(localStorage.getItem("key1"), "value1-2");
-
+  
   // JS property test
   localStorage.testA = "valueA";
   is(localStorage.testA, "valueA");
   is(localStorage["testA"], "valueA");
   is(localStorage.getItem("testA"), "valueA");
-
+  
   localStorage.testA = "valueA2";
   is(localStorage.testA, "valueA2");
   is(localStorage["testA"], "valueA2");
   is(localStorage.getItem("testA"), "valueA2");
-
+  
   localStorage["testB"] = "valueB";
   is(localStorage.testB, "valueB");
   is(localStorage["testB"], "valueB");
   is(localStorage.getItem("testB"), "valueB");
-
+  
   localStorage["testB"] = "valueB2";
   is(localStorage.testB, "valueB2");
   is(localStorage["testB"], "valueB2");
   is(localStorage.getItem("testB"), "valueB2");
-
+  
   localStorage.setItem("testC", "valueC");
   is(localStorage.testC, "valueC");
   is(localStorage["testC"], "valueC");
   is(localStorage.getItem("testC"), "valueC");
-
+  
   localStorage.setItem("testC", "valueC2");
   is(localStorage.testC, "valueC2");
   is(localStorage["testC"], "valueC2");
   is(localStorage.getItem("testC"), "valueC2");
-
+  
   // Clear the storage
   localStorage.clear();
+  is("testB" in localStorage, false, "Keys are not in the JS scope of the storage");
+  is("testC" in localStorage, false, "Keys are not in the JS scope of the storage");
   is(localStorage.length, 0, "The storage is empty [3]");
   checkException(function() {localStorage.key(0);}, INDEX_SIZE_ERR); // this is unspecified!
   checkException(function() {localStorage.key(-1);}, INDEX_SIZE_ERR);

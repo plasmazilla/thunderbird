@@ -93,7 +93,7 @@
       <field name="mPrefs">null</field>
       <field name="mIsOffline">0</field>
       <field name="mLDAPSession">null</field>
-      <field name="mSessionAdded">0</field>
+      <field name="mSessionAdded">false</field>
       <field name="mIsReadOnly">false</field>
       <field name="mIsInvitation">false</field>
       <field name="mPopupOpen">false</field>
@@ -199,7 +199,7 @@
                              ? organizer.id
                              : calendar.getProperty("organizerId"));
 
-          this.mIsInvitation = (calInstanceOf(calendar, Components.interfaces.calISchedulingSupport) && 
+          this.mIsInvitation = (calInstanceOf(calendar, Components.interfaces.calISchedulingSupport) &&
                                 calendar.isInvitation(args.item));
 
           var listbox =
@@ -267,7 +267,11 @@
           this.removeDirectoryServerObserver();
           this.releaseAutoCompleteState();
           this.mIOService = null;
+
+          // We need to force the ldap session to be cleaned up as soon as
+          // possible to avoid hangs on shutdown.
           this.mLDAPSession = null;
+          Components.utils.forceGC();
         ]]></body>
       </method>
 
@@ -364,12 +368,15 @@
 
           if (aAttendee && aAttendee.isOrganizer) {
               icon.setAttribute("class", "status-icon");
-              icon.setAttribute("status", aAttendee.participationStatus);
+              setElementValue(icon, aAttendee.participationStatus || false, "status");
               return true;
           }
 
           icon.setAttribute("class", "role-icon");
-          icon.setAttribute("role", aAttendee.role);
+          setElementValue(icon, aAttendee.role || false, "role");
+
+          // Set tooltip for rolenames
+          this.updateTooltip(icon);
 
           return true;
         ]]></body>
@@ -427,6 +434,9 @@
               //role.setAttribute("role", newAttendee.role);
               icon.setAttribute("class", "role-icon");
               icon.setAttribute("role", "REQ-PARTICIPANT");
+
+              // Set tooltip for rolenames
+              this.updateTooltip(icon);
 
               // We always clone the first row.  The problem is that the first row
               // could be focused.  When we clone that row, we end up with a cloned
@@ -620,6 +630,32 @@
           event.details = list;
           this.dispatchEvent(event);
         ]]></body>
+      </method>
+
+     <method name="updateTooltip">
+      <parameter name="targetIcon"/>
+      <body><![CDATA[
+        // Function setting the tooltip of attendeeicons based on their role
+        if (targetIcon.className == "role-icon") {
+            let role = targetIcon.getAttribute("role");
+            // Set tooltip for rolenames
+
+            const strMap = {
+              "REQ-PARTICIPANT": "required",
+              "OPT-PARTICIPANT": "optional",
+              "NON-PARTICIPANT": "nonparticipant",
+              "CHAIR": "chair"
+            }
+
+            let roleNameString = "event.attendee.role." + (role in strMap ? strMap[role] : "unknown");
+            let tooltip = cal.calGetString("calendar-event-dialog-attendees",
+                                           roleNameString,
+                                           (role in strMap ? null : [role]));
+            targetIcon.setAttribute("tooltiptext", tooltip);
+
+            return;
+        }
+      ]]></body>
       </method>
 
       <property name="documentSize">
@@ -945,6 +981,7 @@
 
       <method name="setupAutocomplete">
         <body><![CDATA[
+          var setupObserver = false;
           var autocompleteLdap = false;
           var autocompleteDirectory = null;
           var prevAutocompleteDirectory = this.mCurrentAutocompleteDirectory;
@@ -958,6 +995,13 @@
           if (autocompleteLdap) {
               autocompleteDirectory = this.mPrefs.getCharPref(
                   "ldap_2.autoComplete.directoryServer");
+          } else {
+              if (this.mLDAPSession && this.mSessionAdded) {
+                  for (var i = 1; i <= this.mMaxAttendees; i++)
+                      this.getInputElement(i).removeSession(this.mLDAPSession);
+                  this.mSessionAdded = false;
+              }
+              return;
           }
 
           // Use a temporary to do the setup so that we don't overwrite the
@@ -974,7 +1018,7 @@
                       Components.interfaces.nsILDAPAutoCompleteSession);
           }
 
-          if (autocompleteDirectory && !this.mIsOffline) {
+          if (LDAPSession && autocompleteDirectory && !this.mIsOffline) {
               // Add observer on the directory server we are autocompleting against
               // only if current server is different from previous.
               // Remove observer if current server is different from previous
@@ -983,13 +1027,16 @@
                   if (prevAutocompleteDirectory != this.mCurrentAutocompleteDirectory) {
                       this.removeDirectorySettingsObserver(prevAutocompleteDirectory);
                       this.addDirectorySettingsObserver();
+                      setupObserver = true;
+                  } else {
+                      setupObserver = false;
                   }
               } else {
                   this.addDirectorySettingsObserver();
+                  setupObserver = true;
               }
 
-              // Fill in the session params if there is a session
-              if (LDAPSession) {
+              if (setupObserver) {
                   let url = this.mPrefs.getComplexValue(autocompleteDirectory +".uri",
                                                         Components.interfaces.nsISupportsString).data;
 
@@ -998,9 +1045,9 @@
 
                   // Get the login to authenticate as, if there is one
                   try {
-		      LDAPSession.login = this.mPrefs.getComplexValue(
-                          autocompleteDirectory + ".auth.dn",
-                          Components.interfaces.nsISupportsString).data;
+                      LDAPSession.login = this.mPrefs.getComplexValue(
+                        autocompleteDirectory + ".auth.dn",
+                        Components.interfaces.nsISupportsString).data;
                   } catch (ex) {
                       // If we don't have this pref, no big deal
                   }
@@ -1140,39 +1187,29 @@
                       // Just let nsLDAPAutoCompleteSession use its default.
                   }
 
-                  if (!this.mSessionAdded) {
-                      // If we make it here, we know that session initialization has
-                      // succeeded; add the session for all recipients, and
-                      // remember that we've done so
-                      var autoCompleteWidget;
-                      for (i = 1; i <= this.mMaxAttendees; i++) {
-                          autoCompleteWidget = this.getInputElement(i);
-                          if (autoCompleteWidget) {
-                              autoCompleteWidget.addSession(LDAPSession);
-                              // Ldap searches don't insert a default entry with
-                              // the default domain appended to it so reduce the
-                              // minimum results for a popup to 2 in this case.
-                              autoCompleteWidget.minResultsForPopup = 2;
-                          }
-                       }
-                       this.mSessionAdded = true;
-                  }
+                  this.mLDAPSession = LDAPSession;
               }
-          } else {
-              if (this.mCurrentAutocompleteDirectory) {
-                  // Remove observer on the directory server since we are not doing Ldap
-                  // autocompletion.
-                  this.removeDirectorySettingsObserver(this.mCurrentAutocompleteDirectory);
-                  this.mCurrentAutocompleteDirectory = null;
-              }
-              if (this.mLDAPSession && this.mSessionAdded) {
-                  for (var i = 1; i <= this.mMaxAttendees; i++)
-                  this.getInputElement(i).removeSession(this.mLDAPSession);
-                  this.mSessionAdded = false;
+
+              // Add as many autocomplete widgets as needed, but only if they
+              // haven't been added or if they have been removed.
+              if (!this.mSessionAdded) {
+                  // If we make it here, we know that session initialization has
+                  // succeeded; add the session for all recipients, and
+                  // remember that we've done so
+                  var autoCompleteWidget;
+                  for (i = 1; i <= this.mMaxAttendees; i++) {
+                      autoCompleteWidget = this.getInputElement(i);
+                      if (autoCompleteWidget) {
+                          autoCompleteWidget.addSession(LDAPSession);
+                          // Ldap searches don't insert a default entry with
+                          // the default domain appended to it so reduce the
+                          // minimum results for a popup to 2 in this case.
+                          autoCompleteWidget.minResultsForPopup = 2;
+                      }
+                   }
+                   this.mSessionAdded = true;
               }
           }
-
-          this.mLDAPSession = LDAPSession;
         ]]></body>
       </method>
 
@@ -1242,60 +1279,39 @@
 
     <handlers>
       <handler event="click" button="0"><![CDATA[
-        var target = event.originalTarget;
-        if (target.hasAttribute("role")) {
-            if (target.hasAttribute("disabled") &&
-                target.getAttribute("disabled")) {
-                return;
-            }
-            var role = target.getAttribute("role");
-            if (role == "CHAIR") {
-                target.setAttribute("role", "REQ-PARTICIPANT");
-            } else if (role == "REQ-PARTICIPANT") {
-                target.setAttribute("role", "OPT-PARTICIPANT");
-            } else if (role == "OPT-PARTICIPANT") {
-                target.setAttribute("role", "CHAIR");
-            }
-            return;
+        function cycle(values, current) {
+            let nextIndex = (values.indexOf(current) + 1) % values.length;
+            return values[nextIndex];
         }
 
-        if (target.hasAttribute("status")) {
-            if (target.hasAttribute("disabled") &&
-                target.getAttribute("disabled")) {
-                return;
+        let target = event.originalTarget;
+        if (target.className == "role-icon") {
+            if (target.getAttribute("disabled") != "true") {
+                const roleCycle = [ "REQ-PARTICIPANT", "OPT-PARTICIPANT",
+                                    "NON-PARTICIPANT", "CHAIR" ];
+
+                let nextValue = cycle(roleCycle, target.getAttribute("role"));
+                target.setAttribute("role", nextValue);
+                this.updateTooltip(target);
             }
-            var status = target.getAttribute("status");
-            switch (status) {
-                case "NEEDS-ACTION":
-                    target.setAttribute("status", "ACCEPTED");
-                    break;
-                case "ACCEPTED":
-                    target.setAttribute("status", "DECLINED");
-                    break;
-                case "DECLINED":
-                    target.setAttribute("status", "TENTATIVE");
-                    break;
-                case "TENTATIVE":
-                    target.setAttribute("status", "ACCEPTED");
-                    break;
+        } else if (target.className == "status-icon") {
+            if (target.getAttribute("disabled") != "true") {
+                const statusCycle = [ "ACCEPTED", "DECLINED", "TENTATIVE" ];
+
+                let nextValue = cycle(statusCycle, target.getAttribute("status"));
+                target.setAttribute("status", nextValue);
             }
-            return;
-        }
-
-        if (this.mIsReadOnly || this.mIsInvitation) {
-            return;
-        }
-
-        if (target == null ||
-           (target.localName != "listboxbody" &&
-            target.localName != "listcell" &&
-            target.localName != "listitem")) {
-            return;
-        }
-
-        var lastInput = this.getInputElement(this.mMaxAttendees);
-        if (lastInput && lastInput.value) {
-            this.appendNewRow(true);
+        } else if (this.mIsReadOnly || this.mIsInvitation || target == null ||
+                   (target.localName != "listboxbody" &&
+                    target.localName != "listcell" &&
+                    target.localName != "listitem")) {
+            // These are cases where we don't want to append a new row, keep
+            // them here so we can put the rest in the else case.
+        } else {
+            let lastInput = this.getInputElement(this.mMaxAttendees);
+            if (lastInput && lastInput.value) {
+                this.appendNewRow(true);
+            }
         }
       ]]></handler>
 

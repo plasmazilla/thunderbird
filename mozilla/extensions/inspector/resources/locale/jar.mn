@@ -8,6 +8,7 @@ inspector.jar:
   locale/@AB_CD@/inspector/tasksOverlay.dtd                             (@AB_CD@/tasksOverlay.dtd)
 * locale/@AB_CD@/inspector/viewers/accessibleEvent.dtd                  (@AB_CD@/viewers/accessibleEvent.dtd)
 * locale/@AB_CD@/inspector/viewers/accessibleEvents.dtd                 (@AB_CD@/viewers/accessibleEvents.dtd)
+* locale/@AB_CD@/inspector/viewers/accessibleEvents.properties          (@AB_CD@/viewers/accessibleEvents.properties)
 * locale/@AB_CD@/inspector/viewers/accessibleProps.dtd                  (@AB_CD@/viewers/accessibleProps.dtd)
 * locale/@AB_CD@/inspector/viewers/accessibleProps.properties           (@AB_CD@/viewers/accessibleProps.properties)
 * locale/@AB_CD@/inspector/viewers/accessibleRelations.dtd              (@AB_CD@/viewers/accessibleRelations.dtd)

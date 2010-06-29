@@ -38,31 +38,23 @@
 #ifndef nsIRadioControlFrame_h___
 #define nsIRadioControlFrame_h___
 
-#include "nsISupports.h"
+#include "nsQueryFrame.h"
 class nsStyleContext;
 
-// d36ad9b3-d220-45e0-b54c-8ab655c8ee69
-#define NS_IRADIOCONTROLFRAME_IID \
-{ 0xd36ad9b3, 0xd220, 0x45e0,     \
-  { 0xb5, 0x4c, 0x8a, 0xb6, 0x55, 0xc8, 0xee, 0x69 } }
-
 /** 
-  * nsIRadioControlFrame: additional interfaces exposed by a
-  * radio-button control.
+  * nsIRadioControlFrame is the common interface radio buttons.
   * @see nsFormControlFrame and its base classes for more info
   */
-class nsIRadioControlFrame : public nsISupports {
-
+class nsIRadioControlFrame
+{
 public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_IRADIOCONTROLFRAME_IID)
+  NS_DECL_QUERYFRAME_TARGET(nsIRadioControlFrame)
 
    /**
     * Called by content when the radio button's state changes
     */
    NS_IMETHOD OnChecked(nsPresContext* aPresContext, PRBool aChecked) = 0;
 };
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIRadioControlFrame, NS_IRADIOCONTROLFRAME_IID)
 
 #endif
 

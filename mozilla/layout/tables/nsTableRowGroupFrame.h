@@ -72,10 +72,6 @@ struct nsRowGroupReflowState {
   ~nsRowGroupReflowState() {}
 };
 
-#define NS_ITABLEROWGROUPFRAME_IID    \
-{ 0xe940e7bc, 0xb534, 0x11d2,  \
-  { 0x95, 0xa2, 0x0, 0x60, 0xb0, 0xc3, 0x44, 0x14 } }
-
 // use the following bits from nsFrame's frame state 
 
 // thead or tfoot should be repeated on every printed page
@@ -101,7 +97,9 @@ class nsTableRowGroupFrame
   , public nsILineIterator
 {
 public:
-  NS_IMETHOD QueryInterface(const nsIID &aIID, void **aInstancePtr);
+  NS_DECL_QUERYFRAME_TARGET(nsTableRowGroupFrame)
+  NS_DECL_QUERYFRAME
+  NS_DECL_FRAMEARENA_HELPERS
 
   /** instantiate a new instance of nsTableRowFrame.
     * @param aPresShell the pres shell for this frame
@@ -114,11 +112,11 @@ public:
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
   
   NS_IMETHOD AppendFrames(nsIAtom*        aListName,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
   
   NS_IMETHOD InsertFrames(nsIAtom*        aListName,
                           nsIFrame*       aPrevFrame,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
 
   NS_IMETHOD RemoveFrame(nsIAtom*        aListName,
                          nsIFrame*       aOldFrame);
@@ -144,12 +142,6 @@ public:
                     nsHTMLReflowMetrics&     aDesiredSize,
                     const nsHTMLReflowState& aReflowState,
                     nsReflowStatus&          aStatus);
-
-  virtual PRBool IsFrameOfType(PRUint32 aFlags) const
-  {
-    return nsHTMLContainerFrame::IsFrameOfType(aFlags &
-      ~nsIFrame::eExcludesIgnorableWhitespace);
-  }
 
   /**
    * Get the "type" of the frame

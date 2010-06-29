@@ -46,14 +46,14 @@ MODULE		= import
 
 PARALLEL_DIRS	= public src text/src comm4x/public comm4x/src
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 PARALLEL_DIRS	+= eudora/src applemail/src
 endif
 
 ifeq ($(OS_ARCH),WINNT)
 PARALLEL_DIRS	+= eudora/src
 ifndef GNU_CC
-PARALLEL_DIRS	+= oexpress outlook/src
+PARALLEL_DIRS	+= oexpress outlook/src winlivemail
 endif
 endif
 

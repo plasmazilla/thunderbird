@@ -64,7 +64,7 @@
           <children/>
           <html:input anonid="input" class="autocomplete-textbox textbox-input"
                       flex="1" allowevents="true"
-                      xbl:inherits="tooltiptext=inputtooltiptext,onfocus,onblur,value,type,maxlength,disabled,size,readonly,userAction"/>
+                      xbl:inherits="tooltiptext=inputtooltiptext,onfocus,onblur,value,type,maxlength,disabled,size,readonly"/>
         </xul:hbox>
         <children includes="hbox"/>
       </xul:hbox>
@@ -157,7 +157,7 @@
                 onget="return parseInt(this.getAttribute('timeout')) || 50;"/>
 
       <property name="searchParam"
-                onget="return this.getAttribute('autocompletesearchparam');"
+                onget="return this.getAttribute('autocompletesearchparam') || '';"
                 onset="this.setAttribute('autocompletesearchparam', val); return val;"/>
 
       <property name="searchCount" readonly="true"
@@ -254,7 +254,7 @@
       <!-- =================== PUBLIC MEMBERS =================== -->
 
       <property name="value"
-                onget="return this.hasAttribute('empty') ? '' : this.inputField.value;">
+                onget="return this.hasAttribute('isempty') ? '' : this.inputField.value;">
         <setter><![CDATA[
           this.mIgnoreInput = true;
           if (val) {
@@ -512,15 +512,6 @@
             else
               this.mSearchNames = names.split(" ");
           }
-        ]]></body>
-      </method>
-
-      <method name="ifSetAttribute">
-        <parameter name="aAttr"/>
-        <parameter name="aVal"/>
-        <body><![CDATA[
-          if (!this.hasAttribute(aAttr))
-            this.setAttribute(aAttr, aVal);
         ]]></body>
       </method>
 

@@ -351,11 +351,11 @@
           mSelectedColumn: null,
           sortDirection: null,
 
-          get selectedColumn tTV_getSelectedColumn() {
+          get selectedColumn() {
               return this.mSelectedColumn;
           },
 
-          set selectedColumn tTV_setSelectedColumn(aCol) {
+          set selectedColumn(aCol) {
               var tree = document.getAnonymousNodes(this.binding)[0];
               var treecols = tree.getElementsByTagNameNS(tree.namespaceURI, "treecol");
               for (var i = 0; i < treecols.length; i++) {
@@ -571,7 +571,7 @@
               switch (aCol.element.getAttribute("itemproperty")) {
                   case "title":
                       // return title, or "Untitled" if empty/null
-                      return task.title || calGetString("calendar", "eventUntitled");
+                      return (task.title ? task.title.replace(/\n/g, ' ') : calGetString("calendar", "eventUntitled"));
                   case "entryDate":
                       return this._formatDateTime(task.entryDate);
                   case "dueDate":
@@ -709,7 +709,7 @@
 
           onDoubleClick: function tTV_onDoubleClick(event) {
               if (event.button == 0) {
-                  let initialDate = this.binding.getInitialDate();
+                  let initialDate = getDefaultStartDate(this.binding.getInitialDate());
                   var col = {};
                   var item = this._getItemFromEvent(event, col);
                   if (item) {

@@ -55,6 +55,7 @@
 #include "nsIFile.h"
 #include "prmem.h"
 #include <time.h>
+#include "nsMsgUtils.h"
 
 nsMsgMailNewsUrl::nsMsgMailNewsUrl()
 {
@@ -918,7 +919,7 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
   }
   return rv;
   
-  //  rv = m_outputStream->WriteFrom(inStream, PR_MIN(available, count), &bytesWritten);
+  //  rv = m_outputStream->WriteFrom(inStream, NS_MIN(available, count), &bytesWritten);
 }
 
 nsresult nsMsgSaveAsListener::SetupMsgWriteStream(nsIFile *aFile, PRBool addDummyEnvelope)
@@ -935,8 +936,8 @@ nsresult nsMsgSaveAsListener::SetupMsgWriteStream(nsIFile *aFile, PRBool addDumm
   aFile->Remove(PR_FALSE);
 
   nsCOMPtr <nsILocalFile> localFile = do_QueryInterface(aFile);
-  nsresult rv = NS_NewLocalFileOutputStream(getter_AddRefs(m_outputStream),
-                                            localFile, -1, 00600);
+  nsresult rv = MsgNewBufferedFileOutputStream(getter_AddRefs(m_outputStream),
+                                               localFile, -1, 00600);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (m_outputStream && addDummyEnvelope)

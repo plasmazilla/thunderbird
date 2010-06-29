@@ -181,7 +181,30 @@ sidebarheader > label {
   -moz-user-focus: ignore !important;
 }
 
+toolbar[mode="text"] .toolbarbutton-text {
+  padding: 0 !important;
+  margin: 3px 5px !important;
+}
+
 /* ::::: miscellaneous formatting ::::: */
+
+:root:-moz-lwtheme,
+[lwthemefooter="true"],
+statusbarpanel:-moz-lwtheme {
+  -moz-appearance: none;
+}
+
+sidebarheader:-moz-lwtheme {
+  background: none;
+}
+
+:root:-moz-lwtheme-darktext {
+  text-shadow: 1px 1px 2px white;
+}
+
+:root:-moz-lwtheme-brighttext {
+  text-shadow: 1px 1px 2px black;
+}
 
 .inset {
   border: 1px solid ThreeDShadow;
@@ -230,6 +253,7 @@ separator.groove[orient="vertical"] {
 }
     
 .plain {
+  -moz-appearance: none;
   margin: 0 !important;
   border: none;
   padding: 0;
@@ -288,16 +312,7 @@ label[disabled="true"] {
 }
   
 .text-link:focus {
-  color: red;
   border: 1px dotted -moz-DialogText;
-}
-  
-.text-link:hover:active {
-  color: red;
-}
-
-.text-link[visited="true"] {
-  color: purple;
 }
 
 notification > button {
@@ -307,7 +322,7 @@ notification > button {
 
 /* :::::: autoscroll popup ::::: */
 
-#autoscroller {
+.autoscroller {
   height: 28px;
   width: 28px;
   border: none;
@@ -319,10 +334,10 @@ notification > button {
   -moz-appearance: none;
 }
 
-#autoscroller[scrolldir="NS"] {
+.autoscroller[scrolldir="NS"] {
   background-position: center center;
 }
 
-#autoscroller[scrolldir="EW"] {
+.autoscroller[scrolldir="EW"] {
   background-position: center bottom;
 }

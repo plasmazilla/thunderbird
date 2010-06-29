@@ -44,9 +44,9 @@
   <hbox flex="1" style="overflow: auto;">
     <body xmlns="http://www.w3.org/1999/xhtml">
       <a target="_blank"
-         href="https://bugzilla.mozilla.org/show_bug.cgi?id=471493"
-         title=" crash [@ nsPropertyTable::GetPropertyInternal]">
-        Mozilla Bug 471493
+         href="https://bugzilla.mozilla.org/show_bug.cgi?id=489551"
+         title="Values of sliders and progress bars in HTML 5 audio and video element's control sets are not percentages">
+        Mozilla Bug 489551
       </a><br/>
       <p id="display"></p>
       <div id="content" style="display: none">

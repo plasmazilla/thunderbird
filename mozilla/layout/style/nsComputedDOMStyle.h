@@ -41,7 +41,7 @@
 #ifndef nsComputedDOMStyle_h__
 #define nsComputedDOMStyle_h__
 
-#include "nsIComputedDOMStyle.h"
+#include "nsICSSDeclaration.h"
 
 #include "nsROCSSPrimitiveValue.h"
 #include "nsDOMCSSDeclaration.h"
@@ -55,8 +55,10 @@
 #include "nsCOMPtr.h"
 #include "nsWeakReference.h"
 #include "nsAutoPtr.h"
+#include "nsStyleStruct.h"
 
-class nsComputedDOMStyle : public nsIComputedDOMStyle
+class nsComputedDOMStyle : public nsICSSDeclaration,
+                           public nsWrapperCache
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -74,6 +76,15 @@ public:
   virtual ~nsComputedDOMStyle();
 
   static void Shutdown();
+
+  virtual nsISupports *GetParentObject()
+  {
+    return mContent;
+  }
+
+  static already_AddRefed<nsStyleContext>
+  GetStyleContextForContent(nsIContent* aContent, nsIAtom* aPseudo,
+                            nsIPresShell* aPresShell);
 
 private:
   void AssertFlushedPendingReflows() {
@@ -119,6 +130,14 @@ private:
                              PRBool aIsBoxShadow,
                              nsIDOMCSSValue** aValue);
 
+  nsresult GetBackgroundList(PRUint8 nsStyleBackground::Layer::* aMember,
+                             PRUint32 nsStyleBackground::* aCount,
+                             const PRInt32 aTable[],
+                             nsIDOMCSSValue** aResult);
+
+  nsresult GetCSSGradientString(const nsStyleGradient* aGradient,
+                                nsAString& aString);
+
   /* Properties Queryable as CSSValues */
 
   nsresult GetAppearance(nsIDOMCSSValue** aValue);
@@ -147,9 +166,10 @@ private:
   /* Font properties */
   nsresult GetColor(nsIDOMCSSValue** aValue);
   nsresult GetFontFamily(nsIDOMCSSValue** aValue);
-  nsresult GetFontStyle(nsIDOMCSSValue** aValue);
   nsresult GetFontSize(nsIDOMCSSValue** aValue);
   nsresult GetFontSizeAdjust(nsIDOMCSSValue** aValue);
+  nsresult GetFontStretch(nsIDOMCSSValue** aValue);
+  nsresult GetFontStyle(nsIDOMCSSValue** aValue);
   nsresult GetFontWeight(nsIDOMCSSValue** aValue);
   nsresult GetFontVariant(nsIDOMCSSValue** aValue);
 
@@ -162,6 +182,7 @@ private:
   nsresult GetBackgroundClip(nsIDOMCSSValue** aValue);
   nsresult GetBackgroundInlinePolicy(nsIDOMCSSValue** aValue);
   nsresult GetBackgroundOrigin(nsIDOMCSSValue** aValue);
+  nsresult GetMozBackgroundSize(nsIDOMCSSValue** aValue);
 
   /* Padding properties */
   nsresult GetPadding(nsIDOMCSSValue** aValue);
@@ -260,6 +281,7 @@ private:
 
   /* Visibility properties */
   nsresult GetOpacity(nsIDOMCSSValue** aValue);
+  nsresult GetPointerEvents(nsIDOMCSSValue** aValue);
   nsresult GetVisibility(nsIDOMCSSValue** aValue);
 
   /* Direction properties */
@@ -327,7 +349,7 @@ private:
   nsresult GetColorInterpolation(nsIDOMCSSValue** aValue);
   nsresult GetColorInterpolationFilters(nsIDOMCSSValue** aValue);
   nsresult GetDominantBaseline(nsIDOMCSSValue** aValue);
-  nsresult GetPointerEvents(nsIDOMCSSValue** aValue);
+  nsresult GetImageRendering(nsIDOMCSSValue** aValue);
   nsresult GetShapeRendering(nsIDOMCSSValue** aValue);
   nsresult GetTextRendering(nsIDOMCSSValue** aValue);
 
@@ -439,6 +461,11 @@ private:
   PRBool mFlushedPendingReflows;
 #endif
 };
+
+nsresult 
+NS_NewComputedDOMStyle(nsIDOMElement *aElement, const nsAString &aPseudoElt,
+                       nsIPresShell *aPresShell,
+                       nsComputedDOMStyle **aComputedStyle);
 
 #endif /* nsComputedDOMStyle_h__ */
 

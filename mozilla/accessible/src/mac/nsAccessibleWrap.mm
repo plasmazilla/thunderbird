@@ -159,7 +159,7 @@ nsAccessibleWrap::Shutdown ()
   return nsAccessible::Shutdown();
 }
 
-NS_IMETHODIMP
+nsresult
 nsAccessibleWrap::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
@@ -211,18 +211,18 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-nsresult
-nsAccessibleWrap::InvalidateChildren ()
+void
+nsAccessibleWrap::InvalidateChildren()
 {
-  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   if (mNativeWrapper) {
     mozAccessible *object = mNativeWrapper->getNativeObject();
     [object invalidateChildren];
   }
-  return nsAccessible::InvalidateChildren();
+  nsAccessible::InvalidateChildren();
 
-  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
+  NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
 PRInt32
@@ -238,7 +238,7 @@ nsAccessibleWrap::GetUnignoredChildCount(PRBool aDeepCount)
   nsCOMPtr<nsIAccessible> curAcc;
   
   while (NextChild(curAcc)) {
-    nsAccessibleWrap *childWrap = static_cast<nsAccessibleWrap*>((nsIAccessible*)curAcc.get());
+    nsAccessibleWrap *childWrap = static_cast<nsAccessibleWrap*>(curAcc.get());
     
     // if the current child is not ignored, count it.
     if (!childWrap->IsIgnored())
@@ -280,7 +280,7 @@ nsAccessibleWrap::GetUnignoredChildren(nsTArray<nsRefPtr<nsAccessibleWrap> > &aC
     return;
   
   while (NextChild(curAcc)) {
-    nsAccessibleWrap *childWrap = static_cast<nsAccessibleWrap*>((nsIAccessible*)curAcc.get());
+    nsAccessibleWrap *childWrap = static_cast<nsAccessibleWrap*>(curAcc.get());
     if (childWrap->IsIgnored()) {
       // element is ignored, so try adding its children as substitutes, if it has any.
       if (!nsAccUtils::MustPrune(childWrap)) {
@@ -301,7 +301,7 @@ already_AddRefed<nsIAccessible>
 nsAccessibleWrap::GetUnignoredParent()
 {
   nsCOMPtr<nsIAccessible> parent(GetParent());
-  nsAccessibleWrap *parentWrap = static_cast<nsAccessibleWrap*>((nsIAccessible*)parent.get());
+  nsAccessibleWrap *parentWrap = static_cast<nsAccessibleWrap*>(parent.get());
   if (!parentWrap)
     return nsnull;
     

@@ -177,8 +177,8 @@ NS_NewChannel(nsIChannel           **result,
     nsCOMPtr<nsIIOService> grip;
     rv = net_EnsureIOService(&ioService, grip);
     if (ioService) {
-        nsIChannel *chan;
-        rv = ioService->NewChannelFromURI(uri, &chan);
+        nsCOMPtr<nsIChannel> chan;
+        rv = ioService->NewChannelFromURI(uri, getter_AddRefs(chan));
         if (NS_SUCCEEDED(rv)) {
             if (loadGroup)
                 rv |= chan->SetLoadGroup(loadGroup);
@@ -187,9 +187,7 @@ NS_NewChannel(nsIChannel           **result,
             if (loadFlags != nsIRequest::LOAD_NORMAL)
                 rv |= chan->SetLoadFlags(loadFlags);
             if (NS_SUCCEEDED(rv))
-                *result = chan;
-            else
-                NS_RELEASE(chan);
+                chan.forget(result);
         }
     }
     return rv;
@@ -468,13 +466,16 @@ NS_NewAsyncStreamCopier(nsIAsyncStreamCopier **result,
                         nsIEventTarget        *target,
                         PRBool                 sourceBuffered = PR_TRUE,
                         PRBool                 sinkBuffered = PR_TRUE,
-                        PRUint32               chunkSize = 0)
+                        PRUint32               chunkSize = 0,
+                        PRBool                 closeSource = PR_TRUE,
+                        PRBool                 closeSink = PR_TRUE)
 {
     nsresult rv;
     nsCOMPtr<nsIAsyncStreamCopier> copier =
         do_CreateInstance(NS_ASYNCSTREAMCOPIER_CONTRACTID, &rv);
     if (NS_SUCCEEDED(rv)) {
-        rv = copier->Init(source, sink, target, sourceBuffered, sinkBuffered, chunkSize);
+        rv = copier->Init(source, sink, target, sourceBuffered, sinkBuffered,
+                          chunkSize, closeSource, closeSink);
         if (NS_SUCCEEDED(rv)) {
             *result = nsnull;
             copier.swap(*result);
@@ -743,6 +744,46 @@ NS_GetURLSpecFromFile(nsIFile      *file,
     rv = NS_GetFileProtocolHandler(getter_AddRefs(fileHandler), ioService);
     if (NS_SUCCEEDED(rv))
         rv = fileHandler->GetURLSpecFromFile(file, url);
+    return rv;
+}
+
+/**
+ * Converts the nsIFile to the corresponding URL string.
+ * Should only be called on files which are not directories,
+ * is otherwise identical to NS_GetURLSpecFromFile, but is
+ * usually more efficient.
+ * Warning: this restriction may not be enforced at runtime!
+ */
+inline nsresult
+NS_GetURLSpecFromActualFile(nsIFile      *file,
+                            nsACString   &url,
+                            nsIIOService *ioService = nsnull)
+{
+    nsresult rv;
+    nsCOMPtr<nsIFileProtocolHandler> fileHandler;
+    rv = NS_GetFileProtocolHandler(getter_AddRefs(fileHandler), ioService);
+    if (NS_SUCCEEDED(rv))
+        rv = fileHandler->GetURLSpecFromActualFile(file, url);
+    return rv;
+}
+
+/**
+ * Converts the nsIFile to the corresponding URL string.
+ * Should only be called on files which are directories,
+ * is otherwise identical to NS_GetURLSpecFromFile, but is
+ * usually more efficient.
+ * Warning: this restriction may not be enforced at runtime!
+ */
+inline nsresult
+NS_GetURLSpecFromDir(nsIFile      *file,
+                     nsACString   &url,
+                     nsIIOService *ioService = nsnull)
+{
+    nsresult rv;
+    nsCOMPtr<nsIFileProtocolHandler> fileHandler;
+    rv = NS_GetFileProtocolHandler(getter_AddRefs(fileHandler), ioService);
+    if (NS_SUCCEEDED(rv))
+        rv = fileHandler->GetURLSpecFromDir(file, url);
     return rv;
 }
 

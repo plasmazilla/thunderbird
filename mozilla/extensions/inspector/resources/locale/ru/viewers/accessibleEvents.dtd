@@ -38,4 +38,8 @@
 <!ENTITY eventType.label "Тип события">
 <!ENTITY eventTime.label "Время">
 <!ENTITY eventNodeName.label "Имя узла">
+<!ENTITY isWatched.label "Идёт наблюдение">
 <!ENTITY clearEventList.label "Очистить список событий">
+<!ENTITY chooseEventsToWatch.label "Выберите события для наблюдения">
+<!ENTITY selectAll.label "Выделить все">
+<!ENTITY unselectAll.label "Снять выделение со всех">

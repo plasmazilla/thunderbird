@@ -40,9 +40,8 @@
 #include "nsIAccessible.h"
 #include "nsAccessibilityAtoms.h"
 #include "nsHashtable.h"
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #include "nsIAccessibleDocument.h"
-#include "nsPIAccessibleDocument.h"
 #include "nsIDocShell.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocument.h"
@@ -66,7 +65,7 @@
 #include "nsIStringBundle.h"
 #include "nsITimer.h"
 #include "nsRootAccessible.h"
-#include "nsIFocusController.h"
+#include "nsFocusManager.h"
 #include "nsIObserverService.h"
 
 #ifdef MOZ_ACCESSIBILITY_ATK
@@ -83,27 +82,19 @@ nsIStringBundle *nsAccessNode::gStringBundle = 0;
 nsIStringBundle *nsAccessNode::gKeyStringBundle = 0;
 nsITimer *nsAccessNode::gDoCommandTimer = 0;
 nsIDOMNode *nsAccessNode::gLastFocusedNode = 0;
+#ifdef DEBUG
 PRBool nsAccessNode::gIsAccessibilityActive = PR_FALSE;
-PRBool nsAccessNode::gIsShuttingDownApp = PR_FALSE;
+#endif
 PRBool nsAccessNode::gIsCacheDisabled = PR_FALSE;
 PRBool nsAccessNode::gIsFormFillEnabled = PR_FALSE;
 nsAccessNodeHashtable nsAccessNode::gGlobalDocAccessibleCache;
 
 nsApplicationAccessibleWrap *nsAccessNode::gApplicationAccessible = nsnull;
 
-nsIAccessibilityService *nsAccessNode::sAccService = nsnull;
-nsIAccessibilityService *nsAccessNode::GetAccService()
+nsIAccessibilityService*
+nsAccessNode::GetAccService()
 {
-  if (!gIsAccessibilityActive)
-    return nsnull;
-
-  if (!sAccService) {
-    nsresult rv = CallGetService("@mozilla.org/accessibilityService;1",
-                                 &sAccService);
-    NS_ASSERTION(NS_SUCCEEDED(rv), "No accessibility service");
-  }
-
-  return sAccService;
+  return nsAccessibilityService::GetAccessibilityService();
 }
 
 /*
@@ -192,10 +183,10 @@ nsAccessNode::Init()
 
   void* uniqueID;
   GetUniqueID(&uniqueID);
-  nsCOMPtr<nsPIAccessibleDocument> privateDocAccessible =
-    do_QueryInterface(docAccessible);
-  NS_ASSERTION(privateDocAccessible, "No private docaccessible for docaccessible");
-  privateDocAccessible->CacheAccessNode(uniqueID, this);
+  nsRefPtr<nsDocAccessible> docAcc =
+    nsAccUtils::QueryAccessibleDocument(docAccessible);
+  NS_ASSERTION(docAcc, "No nsDocAccessible for document accessible!");
+  docAcc->CacheAccessNode(uniqueID, this);
 
   // Make sure an ancestor in real content is cached
   // so that nsDocAccessible::RefreshNodes() can find the anonymous subtree to release when
@@ -246,9 +237,7 @@ NS_IMETHODIMP nsAccessNode::GetOwnerWindow(void **aWindow)
 already_AddRefed<nsApplicationAccessibleWrap>
 nsAccessNode::GetApplicationAccessible()
 {
-  if (!gIsAccessibilityActive) {
-    return nsnull;
-  }
+  NS_ASSERTION(gIsAccessibilityActive, "Accessibility wasn't initialized!");
 
   if (!gApplicationAccessible) {
     nsApplicationAccessibleWrap::PreCreate();
@@ -274,9 +263,8 @@ nsAccessNode::GetApplicationAccessible()
 
 void nsAccessNode::InitXPAccessibility()
 {
-  if (gIsAccessibilityActive) {
-    return;
-  }
+  NS_ASSERTION(!gIsAccessibilityActive,
+               "Accessibility was initialized already!");
 
   nsCOMPtr<nsIStringBundleService> stringBundleService =
     do_GetService(NS_STRINGBUNDLE_CONTRACTID);
@@ -298,11 +286,13 @@ void nsAccessNode::InitXPAccessibility()
     prefBranch->GetBoolPref("browser.formfill.enable", &gIsFormFillEnabled);
   }
 
+#ifdef DEBUG
   gIsAccessibilityActive = PR_TRUE;
-  NotifyA11yInitOrShutdown();
+#endif
+  NotifyA11yInitOrShutdown(PR_TRUE);
 }
 
-void nsAccessNode::NotifyA11yInitOrShutdown()
+void nsAccessNode::NotifyA11yInitOrShutdown(PRBool aIsInit)
 {
   nsCOMPtr<nsIObserverService> obsService =
     do_GetService("@mozilla.org/observer-service;1");
@@ -311,7 +301,7 @@ void nsAccessNode::NotifyA11yInitOrShutdown()
     static const PRUnichar kInitIndicator[] = { '1', 0 };
     static const PRUnichar kShutdownIndicator[] = { '0', 0 }; 
     obsService->NotifyObservers(nsnull, "a11y-init-or-shutdown",
-                                gIsAccessibilityActive ? kInitIndicator  : kShutdownIndicator);
+                                aIsInit ? kInitIndicator  : kShutdownIndicator);
   }
 }
 
@@ -321,16 +311,12 @@ void nsAccessNode::ShutdownXPAccessibility()
   // which happens when xpcom is shutting down
   // at exit of program
 
-  if (!gIsAccessibilityActive) {
-    return;
-  }
-  gIsShuttingDownApp = PR_TRUE;
+  NS_ASSERTION(gIsAccessibilityActive, "Accessibility was shutdown already!");
 
   NS_IF_RELEASE(gStringBundle);
   NS_IF_RELEASE(gKeyStringBundle);
   NS_IF_RELEASE(gDoCommandTimer);
   NS_IF_RELEASE(gLastFocusedNode);
-  NS_IF_RELEASE(sAccService);
 
   nsApplicationAccessibleWrap::Unload();
   ClearCache(gGlobalDocAccessibleCache);
@@ -340,8 +326,10 @@ void nsAccessNode::ShutdownXPAccessibility()
   NS_IF_RELEASE(gApplicationAccessible);
   gApplicationAccessible = nsnull;  
 
+#ifdef DEBUG
   gIsAccessibilityActive = PR_FALSE;
-  NotifyA11yInitOrShutdown();
+#endif
+  NotifyA11yInitOrShutdown(PR_FALSE);
 }
 
 PRBool
@@ -705,12 +693,8 @@ nsAccessNode::GetDocAccessibleFor(nsIDocShellTreeItem *aContainer,
     return nsnull;
   }
 
-  nsCOMPtr<nsIAccessibilityService> accService = GetAccService();
-  if (!accService)
-    return nsnull;
-  
   nsCOMPtr<nsIAccessible> accessible;
-  accService->GetAccessibleFor(node, getter_AddRefs(accessible));
+  GetAccService()->GetAccessibleFor(node, getter_AddRefs(accessible));
   nsIAccessibleDocument *docAccessible = nsnull;
   if (accessible) {
     CallQueryInterface(accessible, &docAccessible);
@@ -780,33 +764,24 @@ already_AddRefed<nsIDOMNode> nsAccessNode::GetCurrentFocus()
   nsCOMPtr<nsIDocument> doc = shell->GetDocument();
   NS_ENSURE_TRUE(doc, nsnull);
 
-  nsCOMPtr<nsPIDOMWindow> privateDOMWindow(do_QueryInterface(doc->GetWindow()));
-  if (!privateDOMWindow) {
-    return nsnull;
-  }
-  nsIFocusController *focusController = privateDOMWindow->GetRootFocusController();
-  if (!focusController) {
-    return nsnull;
-  }
+  nsIDOMWindow* win = doc->GetWindow();
+
+  nsCOMPtr<nsIDOMWindow> focusedWindow;
   nsCOMPtr<nsIDOMElement> focusedElement;
-  focusController->GetFocusedElement(getter_AddRefs(focusedElement));
+  nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
+  if (fm)
+    fm->GetFocusedElementForWindow(win, PR_TRUE, getter_AddRefs(focusedWindow),
+                                   getter_AddRefs(focusedElement));
+
   nsIDOMNode *focusedNode = nsnull;
-  if (!focusedElement) {
-    // Document itself has focus
-    nsCOMPtr<nsIDOMWindowInternal> focusedWinInternal;
-    focusController->GetFocusedWindow(getter_AddRefs(focusedWinInternal));
-    if (!focusedWinInternal) {
-      return nsnull;
-    }
-    nsCOMPtr<nsIDOMDocument> focusedDOMDocument;
-    focusedWinInternal->GetDocument(getter_AddRefs(focusedDOMDocument));
-    if (!focusedDOMDocument) {
-      return nsnull;
-    }
-    focusedDOMDocument->QueryInterface(NS_GET_IID(nsIDOMNode), (void**)&focusedNode);
+  if (focusedElement) {
+    CallQueryInterface(focusedElement, &focusedNode);
   }
-  else {
-    focusedElement->QueryInterface(NS_GET_IID(nsIDOMNode), (void**)&focusedNode);
+  else if (focusedWindow) {
+    nsCOMPtr<nsIDOMDocument> doc;
+    focusedWindow->GetDocument(getter_AddRefs(doc));
+    if (doc)
+      CallQueryInterface(doc, &focusedNode);
   }
 
   return focusedNode;

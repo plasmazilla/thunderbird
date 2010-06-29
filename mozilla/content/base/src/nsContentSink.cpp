@@ -89,6 +89,7 @@
 #include "nsNodeInfoManager.h"
 #include "nsTimer.h"
 #include "nsIAppShell.h"
+#include "nsIWidget.h"
 #include "nsWidgetsCID.h"
 #include "nsIDOMNSDocument.h"
 #include "nsIRequest.h"
@@ -357,11 +358,6 @@ nsContentSink::ScriptAvailable(nsresult aResult,
 
   // Check if this is the element we were waiting for
   if (count == 0 || aElement != mScriptElements[count - 1]) {
-    if (mDidGetReadyToCallDidBuildModelCall &&
-        !mScriptLoader->HasPendingOrCurrentScripts() &&
-        mParser && mParser->IsParserEnabled()) {
-      ContinueInterruptedParsingAsync();
-    }
     return NS_OK;
   }
 
@@ -404,11 +400,6 @@ nsContentSink::ScriptEvaluated(nsresult aResult,
   // Check if this is the element we were waiting for
   PRInt32 count = mScriptElements.Count();
   if (count == 0 || aElement != mScriptElements[count - 1]) {
-    if (mDidGetReadyToCallDidBuildModelCall &&
-        !mScriptLoader->HasPendingOrCurrentScripts() &&
-        mParser && mParser->IsParserEnabled()) {
-      ContinueInterruptedParsingAsync();
-    }
     return NS_OK;
   }
 
@@ -741,25 +732,25 @@ nsContentSink::ProcessLink(nsIContent* aElement,
                            const nsSubstring& aMedia)
 {
   // XXX seems overkill to generate this string array
-  nsStringArray linkTypes;
+  nsTArray<nsString> linkTypes;
   nsStyleLinkElement::ParseLinkTypes(aRel, linkTypes);
 
-  PRBool hasPrefetch = (linkTypes.IndexOf(NS_LITERAL_STRING("prefetch")) != -1);
+  PRBool hasPrefetch = linkTypes.Contains(NS_LITERAL_STRING("prefetch"));
   // prefetch href if relation is "next" or "prefetch"
-  if (hasPrefetch || linkTypes.IndexOf(NS_LITERAL_STRING("next")) != -1) {
+  if (hasPrefetch || linkTypes.Contains(NS_LITERAL_STRING("next"))) {
     PrefetchHref(aHref, aElement, hasPrefetch);
   }
 
-  if ((!aHref.IsEmpty()) && linkTypes.IndexOf(NS_LITERAL_STRING("dns-prefetch")) != -1) {
+  if ((!aHref.IsEmpty()) && linkTypes.Contains(NS_LITERAL_STRING("dns-prefetch"))) {
     PrefetchDNS(aHref);
   }
 
   // is it a stylesheet link?
-  if (linkTypes.IndexOf(NS_LITERAL_STRING("stylesheet")) == -1) {
+  if (!linkTypes.Contains(NS_LITERAL_STRING("stylesheet"))) {
     return NS_OK;
   }
 
-  PRBool isAlternate = linkTypes.IndexOf(NS_LITERAL_STRING("alternate")) != -1;
+  PRBool isAlternate = linkTypes.Contains(NS_LITERAL_STRING("alternate"));
   return ProcessStyleLink(aElement, aHref, isAlternate, aTitle, aType,
                           aMedia);
 }
@@ -812,7 +803,7 @@ nsContentSink::ProcessStyleLink(nsIContent* aElement,
 nsresult
 nsContentSink::ProcessMETATag(nsIContent* aContent)
 {
-  NS_ASSERTION(aContent, "missing base-element");
+  NS_ASSERTION(aContent, "missing meta-element");
 
   nsresult rv = NS_OK;
 
@@ -827,6 +818,26 @@ nsContentSink::ProcessMETATag(nsIContent* aContent)
       nsCOMPtr<nsIAtom> fieldAtom(do_GetAtom(header));
       rv = ProcessHeaderData(fieldAtom, result, aContent); 
     }
+  }
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (aContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::name,
+                            nsGkAtoms::handheldFriendly, eIgnoreCase)) {
+    nsAutoString result;
+    aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::content, result);
+    if (!result.IsEmpty()) {
+      ToLowerCase(result);
+      mDocument->SetHeaderData(nsGkAtoms::handheldFriendly, result);
+    }
+  }
+
+  /* Look for the viewport meta tag. If we find it, process it and put the
+   * data into the document header. */
+  if (aContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::name,
+                            nsGkAtoms::viewport, eIgnoreCase)) {
+    nsAutoString value;
+    aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::content, value);
+    rv = nsContentUtils::ProcessViewportInfo(mDocument, value);
   }
 
   return rv;
@@ -893,10 +904,18 @@ nsContentSink::PrefetchDNS(const nsAString &aHref)
   if (StringBeginsWith(aHref, NS_LITERAL_STRING("//")))  {
     hostname = Substring(aHref, 2);
   }
-  else
-    nsGenericHTMLElement::GetHostnameFromHrefString(aHref, hostname);
+  else {
+    nsCOMPtr<nsIURI> uri;
+    NS_NewURI(getter_AddRefs(uri), aHref);
+    if (!uri) {
+      return;
+    }
+    nsCAutoString host;
+    uri->GetHost(host);
+    CopyUTF8toUTF16(host, hostname);
+  }
 
-  if (nsHTMLDNSPrefetch::IsAllowed(mDocument)) {
+  if (!hostname.IsEmpty() && nsHTMLDNSPrefetch::IsAllowed(mDocument)) {
     nsHTMLDNSPrefetch::PrefetchLow(hostname);
   }
 }
@@ -1294,9 +1313,7 @@ nsContentSink::StartLayout(PRBool aIgnorePendingSheets)
     // docshell in the iframe, and the content sink's call to OpenBody().
     // (Bug 153815)
 
-    PRBool didInitialReflow = PR_FALSE;
-    shell->GetDidInitialReflow(&didInitialReflow);
-    if (didInitialReflow) {
+    if (shell->DidInitialReflow()) {
       // XXX: The assumption here is that if something already
       // called InitialReflow() on this shell, it also did some of
       // the setup below, so we do nothing and just move on to the
@@ -1543,9 +1560,8 @@ nsContentSink::DidProcessATokenImpl()
     nsIViewManager* vm = shell->GetViewManager();
     NS_ENSURE_TRUE(vm, NS_ERROR_FAILURE);
     nsCOMPtr<nsIWidget> widget;
-    vm->GetWidget(getter_AddRefs(widget));
-    nsCOMPtr<nsIWidget_1_9_1_BRANCH> widget191 = do_QueryInterface(widget);
-    mHasPendingEvent = widget191 && widget191->HasPendingInputEvent();
+    vm->GetRootWidget(getter_AddRefs(widget));
+    mHasPendingEvent = widget && widget->HasPendingInputEvent();
   }
 
   if (mHasPendingEvent && mPendingEventMode == 2) {
@@ -1629,8 +1645,16 @@ nsContentSink::EndUpdate(nsIDocument *aDocument, nsUpdateType aUpdateType)
 }
 
 void
-nsContentSink::DidBuildModelImpl(void)
+nsContentSink::DidBuildModelImpl(PRBool aTerminated)
 {
+  if (mDocument && !aTerminated) {
+    mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_INTERACTIVE);
+  }
+
+  if (mScriptLoader) {
+    mScriptLoader->ParsingComplete(aTerminated);
+  }
+
   if (!mDocument->HaveFiredDOMTitleChange()) {
     mDocument->NotifyPossibleTitleChange(PR_FALSE);
   }
@@ -1753,22 +1777,6 @@ nsContentSink::ContinueInterruptedParsingAsync()
     &nsContentSink::ContinueInterruptedParsingIfEnabled);
 
   NS_DispatchToCurrentThread(ev);
-}
-
-PRBool
-nsContentSink::ReadyToCallDidBuildModelImpl(PRBool aTerminated)
-{
-  if (!mDidGetReadyToCallDidBuildModelCall) {
-    if (mScriptLoader) {
-      mScriptLoader->ParsingComplete(aTerminated);
-    }
-  }
-
-  mDidGetReadyToCallDidBuildModelCall = PR_TRUE;
-  
-  // If we're terminated we always want to call DidBuildModel.
-  return aTerminated || !mScriptLoader ||
-         !mScriptLoader->HasPendingOrCurrentScripts();
 }
 
 // URIs: action, href, src, longdesc, usemap, cite

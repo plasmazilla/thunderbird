@@ -47,83 +47,77 @@ DIRS = namespace1 namespace2
 
 include $(topsrcdir)/config/rules.mk
 
-# ========================= IMPORTANT =========================================
-# Please keep this list of files strictly in alphabetical order.
-# It makes merging much easier and avoids accidential removal of tests from the
-# list.
-
 _TEST_FILES	= \
-	445544.cacheManifest \
-	445544.cacheManifest^headers^ \
+	offlineTests.js \
+	test_badManifestMagic.html \
+	test_badManifestMime.html \
+	test_bypass.html \
+	test_missingFile.html \
+	test_noManifest.html \
+	test_simpleManifest.html \
+	test_identicalManifest.html \
+	test_changingManifest.html \
+	test_refetchManifest.html \
+	test_offlineIFrame.html \
+	test_offlineMode.html \
+	test_bug445544.html \
+	test_bug460353.html \
+	test_bug474696.html \
+	test_foreign.html \
+	test_fallback.html \
+	test_overlap.html \
+	test_redirectManifest.html \
+	test_redirectUpdateItem.html \
+	overlap.cacheManifest \
+	overlap.cacheManifest^headers^ \
+	test_updatingManifest.html \
 	445544_part1.html \
 	445544_part2.html \
+	445544.cacheManifest \
+	445544.cacheManifest^headers^ \
 	460353_iframe_nomanifest.html \
 	460353_iframe_ownmanifest.html \
 	460353_iframe_samemanifest.html \
+	test_obsolete.html \
+	obsolete.html \
+	obsoletingManifest.sjs \
 	badManifestMagic.cacheManifest \
 	badManifestMagic.cacheManifest^headers^ \
 	bypass.cacheManifest \
 	bypass.cacheManifest^headers^ \
 	bypass.html \
-	changing1Hour.sjs \
-	changing1Sec.sjs \
-	changingManifest.sjs \
 	dynamicRedirect.sjs \
 	explicitRedirect.sjs \
-	fallback.cacheManifest \
-	fallback.cacheManifest^headers^ \
 	fallback.html \
 	fallback2.html \
 	fallbackTop.html \
+	fallback.cacheManifest \
+	fallback.cacheManifest^headers^ \
 	foreign1.cacheManifest \
 	foreign1.cacheManifest^headers^ \
 	foreign2.cacheManifest \
 	foreign2.cacheManifest^headers^ \
 	foreign2.html \
-	manifestRedirect.sjs \
-	missing.html \
-	missingFile.cacheManifest \
-	missingFile.cacheManifest^headers^ \
 	notonwhitelist.html \
-	notonwhitelist.html \
-	obsolete.html \
-	obsoletingManifest.sjs \
-	offlineChild.html \
-	offlineTests.js \
 	onwhitelist.html \
 	onwhitelist.html^headers^ \
+	updatingIframe.sjs \
+	updatingImplicit.html \
+	manifestRedirect.sjs \
+	missingFile.cacheManifest \
+	missingFile.cacheManifest^headers^ \
 	redirects.sjs \
 	simpleManifest.cacheManifest \
 	simpleManifest.cacheManifest^headers^ \
-	simpleManifest.notmanifest \
-	test_badManifestMagic.html \
-	test_badManifestMime.html \
-	test_bug445544.html \
-	test_bug460353.html \
-	test_bug474696.html \
-	test_bypass.html \
-	test_changingManifest.html \
-	test_fallback.html \
-	test_overlap.html \
-	overlap.cacheManifest \
-	overlap.cacheManifest^headers^ \
-	test_foreign.html \
-	test_identicalManifest.html \
-	test_missingFile.html \
-	test_missingManifest.html \
-	test_noManifest.html \
-	test_obsolete.html \
-	test_offlineIFrame.html \
-	test_offlineMode.html \
-	test_redirectManifest.html \
-	test_redirectUpdateItem.html \
-	test_refetchManifest.html \
-	test_simpleManifest.html \
-	test_updatingManifest.html \
-	test_xhtmlManifest.xhtml \
-	updatingIframe.sjs \
-	updatingImplicit.html \
 	updatingManifest.sjs \
+	simpleManifest.notmanifest \
+	changing1Sec.sjs \
+	changing1Hour.sjs \
+	changingManifest.sjs \
+	offlineChild.html \
+	test_xhtmlManifest.xhtml \
+	test_missingManifest.html \
+	missing.html \
 	$(NULL)
 
 libs::	$(_TEST_FILES)

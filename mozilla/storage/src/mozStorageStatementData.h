@@ -45,7 +45,6 @@
 #include "nsAutoPtr.h"
 #include "nsTArray.h"
 
-#include "mozStorageStatement.h"
 #include "mozStorageBindingParamsArray.h"
 
 struct sqlite3_stmt;
@@ -58,7 +57,7 @@ class StatementData
 public:
   StatementData(sqlite3_stmt *aStatement,
                 already_AddRefed<BindingParamsArray> aParamsArray,
-                Statement *aStatementOwner)
+                nsISupports *aStatementOwner)
   : mStatement(aStatement)
   , mParamsArray(aParamsArray)
   , mStatementOwner(aStatementOwner)
@@ -74,15 +73,10 @@ public:
   {
   }
 
-  inline int getSqliteStatement(sqlite3_stmt **_stmt)
+  operator sqlite3_stmt *() const
   {
-    if (!mStatement) {
-      int rc = mStatementOwner->getAsyncStatement(&mStatement);
-      if (rc != SQLITE_OK)
-        return rc;
-    }
-    *_stmt = mStatement;
-    return SQLITE_OK;
+    NS_ASSERTION(mStatement, "NULL sqlite3_stmt being handed off!");
+    return mStatement;
   }
   operator BindingParamsArray *() const { return mParamsArray; }
 
@@ -92,10 +86,8 @@ public:
    */
   inline void finalize()
   {
-    if (mStatement) {
-      (void)::sqlite3_reset(mStatement);
-      (void)::sqlite3_clear_bindings(mStatement);
-    }
+    (void)::sqlite3_reset(mStatement);
+    (void)::sqlite3_clear_bindings(mStatement);
     mStatement = NULL;
     mParamsArray = nsnull;
     mStatementOwner = nsnull;
@@ -127,7 +119,7 @@ private:
    * We hold onto a reference of the statement's owner so it doesn't get
    * destroyed out from under us.
    */
-  nsRefPtr<Statement> mStatementOwner;
+  nsCOMPtr<nsISupports> mStatementOwner;
 };
 
 } // namespace storage

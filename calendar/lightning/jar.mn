@@ -22,7 +22,6 @@ lightning.jar:
 % overlay chrome://lightning/content/lightning-standalone.xul chrome://lightning/content/messenger-overlay-sidebar.xul
 % overlay chrome://calendar/content/calendarCreation.xul chrome://lightning/content/lightning-calendar-creation.xul
 % overlay chrome://calendar/content/calendar-properties-dialog.xul chrome://lightning/content/lightning-calendar-properties.xul
-% overlay chrome://messenger/content/messenger.xul chrome://lightning/content/suite-overlay-messenger.xul application={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
 % override chrome://lightning/skin/accountCentral.css chrome://lightning/skin/suite-accountCentral.css application={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
 % content lightning %content/lightning/
     content/lightning/imip-bar.js                          (content/imip-bar.js)
@@ -44,14 +43,16 @@ lightning.jar:
     content/lightning/messenger-overlay-preferences.js     (content/messenger-overlay-preferences.js)
     content/lightning/messenger-overlay-preferences.xul    (content/messenger-overlay-preferences.xul)
 *   content/lightning/messenger-overlay-toolbar.xul        (content/messenger-overlay-toolbar.xul)
-    content/lightning/suite-overlay-messenger.xul          (content/suite-overlay-messenger.xul)
     content/lightning/suite-overlay-preferences.xul        (content/suite-overlay-preferences.xul)
 % skin lightning classic/1.0 %skin/lightning/
+% style chrome://global/content/customizeToolbar.xul chrome://lightning/skin/lightning-toolbar.css
+    skin/lightning/accountCentral.css                      (themes/@THEME@/accountCentral.css)
     skin/lightning/imip.css                                (themes/@THEME@/imip.css)
     skin/lightning/lightning.css                           (themes/@THEME@/lightning.css)
-    skin/lightning/accountCentral.css                      (themes/@THEME@/accountCentral.css)
+    skin/lightning/lightning-toolbar.css                   (themes/common/lightning-toolbar.css)
     skin/lightning/lightning-widgets.css                   (themes/@THEME@/lightning-widgets.css)
     skin/lightning/suite-accountCentral.css                (themes/common/suite-accountCentral.css)
+    skin/lightning/mode-switch-icons.png                   (themes/common/images/mode-switch-icons.png)
 
 calendar.jar:
     content/calendar/calendarCreation.xul                  (/calendar/resources/content/calendarCreation.xul)

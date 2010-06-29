@@ -46,7 +46,7 @@ const MESSAGE_ID_PARAM = "?messageid=";
 
 var nsMailNewsCommandLineHandler =
 {
-  get _messenger nsMailNewsCommandLineHandler_getMessenger() {
+  get _messenger() {
     delete this._messenger;
     return this._messenger = Cc["@mozilla.org/messenger;1"]
                                .createInstance(Ci.nsIMessenger);
@@ -62,7 +62,7 @@ var nsMailNewsCommandLineHandler =
    */
   handle: function nsMailNewsCommandLineHandler_handle(aCommandLine) {
     // Do this here because xpcshell isn't too happy with this at startup
-    Components.utils.import("resource://app/modules/MailUtils.js");
+    Components.utils.import("resource:///modules/MailUtils.js");
     // -mail <URL>
     let mailURL = null;
     try {
@@ -147,8 +147,8 @@ var nsMailNewsCommandLineHandler =
     aCommandLine.handleFlag(MAPI_STARTUP_ARG, false);
   },
 
-  helpInfo: "  -mail                Open the mail folder view.\n" +
-            "  -mail <URL>          Open the message specified by this URL.\n",
+  helpInfo: "  -mail              Open the mail folder view.\n" +
+            "  -mail <URL>        Open the message specified by this URL.\n",
 
   /* nsIClassInfo */
   flags: Ci.nsIClassInfo.SINGLETON,

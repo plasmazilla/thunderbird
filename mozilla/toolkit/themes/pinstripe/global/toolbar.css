@@ -52,8 +52,14 @@ toolbox {
 
 toolbar {
   min-width: 1px;
-  min-height: 20px !important;
+  min-height: 20px;
   -moz-appearance: toolbar;
+}
+
+toolbar:-moz-lwtheme {
+  -moz-appearance: none;
+  background: none;
+  border-style: none;
 }
 
 menubar {
@@ -62,15 +68,7 @@ menubar {
 }
 
 .toolbar-holder {
- min-width: 1px;
-}  
-
-toolbar[mode="icons"] .toolbarbutton-text {
-  display: none;
-}
-
-toolbar[mode="text"] .toolbarbutton-icon {
-  display: none;
+  min-width: 1px;
 }
 
 /* ::::: toolbarseparator ::::: */
@@ -85,7 +83,7 @@ toolbarseparator {
 }
 
 .toolbar-primary {
-	min-height: 24px !important;
+	min-height: 24px;
 }
 
 .toolbar-primary,

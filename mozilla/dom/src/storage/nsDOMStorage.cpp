@@ -285,7 +285,7 @@ ClearStorage(nsDOMStorageEntry* aEntry, void* userArg)
 }
 
 static nsresult
-GetOfflineDomains(nsStringArray& aDomains)
+GetOfflineDomains(nsTArray<nsString>& aDomains)
 {
   nsCOMPtr<nsIPermissionManager> permissionManager =
     do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
@@ -316,7 +316,7 @@ GetOfflineDomains(nsStringArray& aDomains)
           rv = perm->GetHost(host);
           NS_ENSURE_SUCCESS(rv, rv);
 
-          aDomains.AppendString(NS_ConvertUTF8toUTF16(host));
+          aDomains.AppendElement(NS_ConvertUTF8toUTF16(host));
         }
       }
     }
@@ -334,8 +334,8 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
 #ifdef MOZ_STORAGE
     nsresult rv = nsDOMStorage::InitDB();
     NS_ENSURE_SUCCESS(rv, rv);
-
-    return nsDOMStorage::gStorageDB->RemoveOwner(NS_ConvertUTF16toUTF8(aData), PR_FALSE);
+    return nsDOMStorage::gStorageDB->RemoveOwner(NS_ConvertUTF16toUTF8(aData),
+                                                 PR_FALSE);
 #endif
   } else if (!strcmp(aTopic, "cookie-changed") &&
              !nsCRT::strcmp(aData, NS_LITERAL_STRING("cleared").get())) {
@@ -346,7 +346,7 @@ nsDOMStorageManager::Observe(nsISupports *aSubject,
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Remove global storage for domains that aren't marked for offline use.
-    nsStringArray domains;
+    nsTArray<nsString> domains;
     rv = GetOfflineDomains(domains);
     NS_ENSURE_SUCCESS(rv, rv);
     return nsDOMStorage::gStorageDB->RemoveOwners(domains, PR_FALSE, PR_FALSE);
@@ -412,7 +412,7 @@ nsDOMStorageManager::ClearOfflineApps()
     nsresult rv = nsDOMStorage::InitDB();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsStringArray domains;
+    nsTArray<nsString> domains;
     rv = GetOfflineDomains(domains);
     NS_ENSURE_SUCCESS(rv, rv);
     return nsDOMStorage::gStorageDB->RemoveOwners(domains, PR_FALSE, PR_TRUE);
@@ -420,7 +420,7 @@ nsDOMStorageManager::ClearOfflineApps()
 
 NS_IMETHODIMP
 nsDOMStorageManager::GetLocalStorageForPrincipal(nsIPrincipal *aPrincipal,
-                                                 nsIDOMStorage2 **aResult)
+                                                 nsIDOMStorage **aResult)
 {
   NS_ENSURE_ARG_POINTER(aPrincipal);
   *aResult = nsnull;
@@ -500,13 +500,13 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMStorage)
   }
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsDOMStorage, nsIDOMStorage)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsDOMStorage, nsIDOMStorage)
+NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsDOMStorage, nsIDOMStorageObsolete)
+NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsDOMStorage, nsIDOMStorageObsolete)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMStorage)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMStorage)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMStorage)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMStorageObsolete)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMStorageObsolete)
   NS_INTERFACE_MAP_ENTRY(nsPIDOMStorage)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Storage)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(StorageObsolete)
 NS_INTERFACE_MAP_END
 
 NS_IMETHODIMP
@@ -753,6 +753,9 @@ nsDOMStorage::CanUseStorage(PRPackedBool* aSessionOnly)
 PRBool
 nsDOMStorage::CacheStoragePermissions()
 {
+  // Bug 488446, disallowing storage use when in session only mode.
+  // This is temporary fix before we find complete solution for storage
+  // behavior in private browsing mode or session-only cookies mode.
   if (!CanUseStorage(&mSessionOnly))
     return PR_FALSE;
 
@@ -1295,7 +1298,7 @@ nsDOMStorage::ClearAll()
   mItemsCached = PR_FALSE;
 }
 
-already_AddRefed<nsIDOMStorage2>
+already_AddRefed<nsIDOMStorage>
 nsDOMStorage::Clone()
 {
   NS_ASSERTION(PR_FALSE, "Old DOMStorage doesn't implement cloning");
@@ -1385,7 +1388,7 @@ nsDOMStorage::BroadcastChangeNotification()
   // Fire off a notification that a storage object changed. If the
   // storage object is a session storage object, we don't pass a
   // domain, but if it's a global storage object we do.
-  observerService->NotifyObservers((nsIDOMStorage *)this,
+  observerService->NotifyObservers((nsIDOMStorageObsolete *)this,
                                    "dom-storage-changed",
                                    UseDB() ? NS_ConvertUTF8toUTF16(mDomain).get() : nsnull);
 }
@@ -1399,16 +1402,16 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMStorage2)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mStorage)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMStorage2)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mStorage, nsIDOMStorage)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mStorage, nsIDOMStorageObsolete)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsDOMStorage2, nsIDOMStorage2)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsDOMStorage2, nsIDOMStorage2)
+NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsDOMStorage2, nsIDOMStorage)
+NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsDOMStorage2, nsIDOMStorage)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMStorage2)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMStorage2)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMStorage2)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMStorage)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMStorage)
   NS_INTERFACE_MAP_ENTRY(nsPIDOMStorage)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Storage2)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Storage)
 NS_INTERFACE_MAP_END
 
 nsDOMStorage2::nsDOMStorage2()
@@ -1454,7 +1457,7 @@ nsDOMStorage2::InitAsGlobalStorage(const nsACString &aDomainDemanded)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-already_AddRefed<nsIDOMStorage2>
+already_AddRefed<nsIDOMStorage>
 nsDOMStorage2::Clone()
 {
   nsDOMStorage2* storage = new nsDOMStorage2(*this);
@@ -1547,7 +1550,7 @@ NS_INTERFACE_MAP_END
 NS_IMPL_ADDREF(nsDOMStorageList)
 NS_IMPL_RELEASE(nsDOMStorageList)
 
-nsIDOMStorage*
+nsIDOMStorageObsolete*
 nsDOMStorageList::GetNamedItem(const nsAString& aDomain, nsresult* aResult)
 {
   nsCAutoString requestedDomain;
@@ -1602,7 +1605,7 @@ nsDOMStorageList::GetNamedItem(const nsAString& aDomain, nsresult* aResult)
 
 NS_IMETHODIMP
 nsDOMStorageList::NamedItem(const nsAString& aDomain,
-                            nsIDOMStorage** aStorage)
+                            nsIDOMStorageObsolete** aStorage)
 {
   nsresult rv;
   NS_IF_ADDREF(*aStorage = GetNamedItem(aDomain, &rv));
@@ -1617,16 +1620,16 @@ nsDOMStorageList::CanAccessDomain(const nsACString& aRequestedDomain,
   return aRequestedDomain.Equals(aCurrentDomain);
 }
 
-nsIDOMStorage*
+nsIDOMStorageObsolete*
 nsDOMStorageList::GetStorageForDomain(const nsACString& aRequestedDomain,
                                       const nsACString& aCurrentDomain,
                                       PRBool aNoCurrentDomainCheck,
                                       nsresult* aResult)
 {
-  nsCStringArray requestedDomainArray;
+  nsTArray<nsCString> requestedDomainArray;
   if ((!aNoCurrentDomainCheck &&
        !CanAccessDomain(aRequestedDomain, aCurrentDomain)) ||
-      !ConvertDomainToArray(aRequestedDomain, &requestedDomainArray)) {
+    !ConvertDomainToArray(aRequestedDomain, &requestedDomainArray)) {
     *aResult = NS_ERROR_DOM_SECURITY_ERR;
 
     return nsnull;
@@ -1634,18 +1637,18 @@ nsDOMStorageList::GetStorageForDomain(const nsACString& aRequestedDomain,
 
   // now rebuild a string for the domain.
   nsCAutoString usedDomain;
-  PRInt32 requestedPos = 0;
-  for (requestedPos = 0; requestedPos < requestedDomainArray.Count();
+  PRUint32 requestedPos = 0;
+  for (requestedPos = 0; requestedPos < requestedDomainArray.Length();
        requestedPos++) {
     if (!usedDomain.IsEmpty())
       usedDomain.Append('.');
-    usedDomain.Append(*requestedDomainArray[requestedPos]);
+    usedDomain.Append(requestedDomainArray[requestedPos]);
   }
 
   *aResult = NS_OK;
 
   // now have a valid domain, so look it up in the storage table
-  nsIDOMStorage* storage = mStorages.GetWeak(usedDomain);
+  nsIDOMStorageObsolete* storage = mStorages.GetWeak(usedDomain);
   if (!storage) {
     nsRefPtr<nsDOMStorage> newstorage;
     newstorage = new nsDOMStorage();
@@ -1668,7 +1671,7 @@ nsDOMStorageList::GetStorageForDomain(const nsACString& aRequestedDomain,
 // static
 PRBool
 nsDOMStorageList::ConvertDomainToArray(const nsACString& aDomain,
-                                       nsCStringArray* aArray)
+                                       nsTArray<nsCString> *aArray)
 {
   PRInt32 length = aDomain.Length();
   PRInt32 n = 0;
@@ -1684,7 +1687,7 @@ nsDOMStorageList::ConvertDomainToArray(const nsACString& aDomain,
       domain.Assign(Substring(aDomain, n, dotpos - n));
 
     ToLowerCase(domain);
-    aArray->AppendCString(domain);
+    aArray->AppendElement(domain);
 
     if (dotpos == -1)
       break;
@@ -1719,7 +1722,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMStorageItem)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMStorageItem)
   {
-    cb.NoteXPCOMChild((nsIDOMStorage*) tmp->mStorage);
+    cb.NoteXPCOMChild((nsIDOMStorageObsolete*) tmp->mStorage);
   }
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 

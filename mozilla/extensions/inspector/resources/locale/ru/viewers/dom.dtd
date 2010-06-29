@@ -51,8 +51,6 @@
 <!ENTITY cmdToggleAccessibleNodes.accesskey "д">
 <!ENTITY cmdToggleProcessingInstructions.label "Показывать инструкции обработки">
 <!ENTITY cmdToggleProcessingInstructions.accesskey "о">
-<!ENTITY cmdFlashSelected.label "Подсвечивать выбранный элемент">
-<!ENTITY cmdFlashSelected.accesskey "в">
 <!ENTITY cmdToggleAttributes.label "Показывать атрибуты">
 <!ENTITY cmdToggleAttributes.accesskey "а">
 <!ENTITY cmdSelectByClick.label "Выбирать элемент щелчком">
@@ -141,9 +139,9 @@
 <!ENTITY namespaceTitle.RDF.label "RDF">
 <!ENTITY namespaceTitle.XUL.label "XUL">
 <!ENTITY namespaceTitle.SVG.label "SVG">
-<!ENTITY namespaceTitle.XMLEvents.label "XML Events">
-<!ENTITY namespaceTitle.WAIRoles.label "WAI Roles">
-<!ENTITY namespaceTitle.WAIProperties.label "WAI Properties">
+<!ENTITY namespaceTitle.XMLEvents.label "События XML">
+<!ENTITY namespaceTitle.WAIRoles.label "Роли WAI">
+<!ENTITY namespaceTitle.WAIProperties.label "Свойства WAI">
 <!ENTITY cbxStateHover.accesskey "h">
 <!ENTITY cbxStateActive.accesskey "a">
 <!ENTITY cbxStateFocus.accesskey "f">

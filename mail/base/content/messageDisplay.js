@@ -52,7 +52,7 @@ function MessageDisplayWidget() {
 }
 MessageDisplayWidget.prototype = {
   _active: false,
-  get active MessageDisplayWidget_get_active() {
+  get active() {
     return this._active;
   },
 
@@ -64,12 +64,11 @@ MessageDisplayWidget.prototype = {
    *  otherwise the multiple message display pane is desired to be displayed.
    */
   _singleMessageDisplay: null,
-  get singleMessageDisplay MessageDisplayWidget_get_singleMessageDisplay() {
+  get singleMessageDisplay() {
     // when null, assume single message display
     return this._singleMessageDisplay != false;
   },
-  set singleMessageDisplay MessageDisplayWidget_set_singleMessageDisplay(
-      aSingleDisplay) {
+  set singleMessageDisplay(aSingleDisplay) {
     if (this._singleMessageDisplay != aSingleDisplay) {
       this._singleMessageDisplay = aSingleDisplay;
       if (this._active)
@@ -132,6 +131,24 @@ MessageDisplayWidget.prototype = {
    */
   messageLoaded: false,
 
+  /**
+   * This is meant to be called immediately after a message or summary load is
+   * started.
+   */
+  onLoadStarted: function MessageDisplayWidget_onLoadStarted() {
+    this.messageLoading = true;
+    this.messageLoaded = false;
+  },
+
+  /**
+   * This is meant to be called immediately after a message or summary load is
+   * completed.
+   */
+  onLoadCompleted: function MessageDisplayWidget_onLoadCompleted() {
+    this.messageLoading = false;
+    this.messageLoaded = true;
+  },
+
   clearDisplay: function MessageDisplayWidget_clearDisplay() {
     this.displayedMessage = null;
     this.messageLoading = false;
@@ -167,8 +184,7 @@ MessageDisplayWidget.prototype = {
   onDisplayingMessage: function MessageDisplayWidget_onDisplayingMessage(
       aMsgHdr) {
     this.displayedMessage = aMsgHdr;
-    this.messageLoading = true;
-    this.messageLoaded = false;
+    this.onLoadStarted();
   },
   //@}
 
@@ -340,9 +356,9 @@ MessageDisplayWidget.prototype = {
       return false;
     }
     if (oneThread)
-      summarizeThread(selectedMessages);
+      summarizeThread(selectedMessages, this);
     else
-      summarizeMultipleSelection(selectedMessages);
+      summarizeMultipleSelection(selectedMessages, this);
     this.singleMessageDisplay = false;
     return true;
   },
@@ -432,7 +448,7 @@ function MessagePaneDisplayWidget(aBeVisible) {
 MessagePaneDisplayWidget.prototype = {
   __proto__: MessageDisplayWidget.prototype,
 
-  get visible MessageDisplayWidget_get_visible() {
+  get visible() {
     return this._visible;
   },
   /**
@@ -440,7 +456,7 @@ MessagePaneDisplayWidget.prototype = {
    *  reality and does not define reality.  (Setting this to false does not
    *  hide the message pane, it merely makes us think it is hidden.)
    */
-  set visible MessageDisplayWidget_set_visible(aVisible) {
+  set visible(aVisible) {
     // Ignore this if we are inactive.  We don't want to get faked out by things
     //  happening after our tab has closed up shop.
     if (!this._active)

@@ -95,7 +95,10 @@ _TEST_FILES = 	test_bug5141.html \
 		test_bug339494.html \
 		test_bug339494.xhtml \
 		test_bug339494.xul \
+		test_bug340571.html \
 		test_bug343596.html \
+		test_bug345339.html \
+		345339_iframe.html \
 		test_bug352728.html \
 		test_bug352728.xhtml \
 		test_bug353334.html \
@@ -126,6 +129,7 @@ _TEST_FILES = 	test_bug5141.html \
 		test_bug382113.html \
 		test_bug382871.html \
 		test_bug383430.html \
+		test_bug384003.xhtml \
 		test_bug390219.html \
 		test_bug390735.html \
 		test_bug392318.html \
@@ -149,6 +153,7 @@ _TEST_FILES = 	test_bug5141.html \
 		test_bug402150.html^headers^ \
 		test_bug401662.html \
 		test_bug403852.html \
+		test_fileapi.html \
 		test_bug403868.xml \
 		test_bug405182.html \
 		test_bug403841.html \
@@ -242,7 +247,9 @@ _TEST_FILES = 	test_bug5141.html \
 		test_bug450160.html \
 		test_bug453736.html \
 		test_bug454326.html \
+		test_bug505783.html \
 		test_bug457746.html \
+		test_bug518104.html \
 		bug457746.sjs \
 		test_CrossSiteXHR.html \
 		file_CrossSiteXHR_inner.html \
@@ -262,22 +269,50 @@ _TEST_FILES = 	test_bug5141.html \
 		bug461735-post-redirect.js \
 		test_bug461735.html \
 		test_bug380418.html \
+		test_bug465767.html \
 		test_bug380418.html^headers^ \
+		test_bug422403-1.html \
+		file_xhtmlserializer_1.xhtml \
+		file_xhtmlserializer_1_bodyonly.xhtml \
+		file_xhtmlserializer_1_format.xhtml \
+		file_xhtmlserializer_1_linebreak.xhtml \
+		file_xhtmlserializer_1_links.xhtml \
+		file_xhtmlserializer_1_noflag.xhtml \
+		file_xhtmlserializer_1_noformatpre.xhtml \
+		file_xhtmlserializer_1_raw.xhtml \
+		file_xhtmlserializer_1_nested_body.xhtml \
+		file_xhtmlserializer_1_sibling_body.xhtml \
+		file_xhtmlserializer_1_sibling_body_only_body.xhtml \
+		file_xhtmlserializer_1_no_body.xhtml \
+		test_bug422403-2.xhtml \
+		file_xhtmlserializer_2.xhtml \
+		file_xhtmlserializer_2_basic.xhtml \
+		file_xhtmlserializer_2_enthtml.xhtml \
+		file_xhtmlserializer_2_entw3c.xhtml \
+		file_xhtmlserializer_2_latin1.xhtml \
+		test_bug500937.html \
+		test_htmlcopyencoder.html \
+		test_htmlcopyencoder.xhtml \
+		test_bug270145.xhtml \
 		test_elementTraversal.html \
 		test_w3element_traversal.html \
 		test_w3element_traversal.xhtml \
+		test_bug469020.html \
 		test_w3element_traversal_svg.html \
 		w3element_traversal.svg \
-		test_bug469020.html \
-		test_bug465767.html \
 		test_bug444322.html \
 		bug444322.txt \
 		bug444322.js \
 		test_bug455472.html \
+		test_bug455629.html \
+		bug455629-helper.svg \
+		test_bug473162-1.html \
+		test_bug473162-2.html \
 		test_XHRSendData.html \
 		file_XHRSendData.sjs \
 		file_XHRSendData_doc.xml \
 		file_XHRSendData_doc.xml^headers^ \
+		test_bug466751.xhtml \
 		test_bug461555.html \
 		test_sync_xhr_timer.xhtml \
 		file_htmlserializer_ipv6.html \
@@ -287,7 +322,19 @@ _TEST_FILES = 	test_bug5141.html \
 		file_bug498897.html \
 		file_bug498897.html^headers^ \
 		file_bug498897.css \
+		test_bug493881.js \
+		test_bug493881.html \
+		bug466409-page.html \
+		bug466409-empty.css \
+		test_bug466409.html \
+		test_classList.html \
+		test_bug503481.html \
+		file_bug503481.sjs \
+		test_bug503481b.html \
+		file_bug503481b_inner.html \
 		$(NULL)
+# Disabled; see bug 492181
+#		test_plugin_freezing.html
 
 # Disabled for now. Mochitest isn't reliable enough for these.
 # test_bug444546.html \

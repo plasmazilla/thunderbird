@@ -628,17 +628,13 @@ nsMsgComposeAndSend::GatherMimeAttachments()
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIOutputStream> tempfile;
-    rv = NS_NewLocalFileOutputStream(getter_AddRefs(tempfile), mHTMLFile, -1, 00600);
+    rv = MsgNewBufferedFileOutputStream(getter_AddRefs(tempfile), mHTMLFile, -1, 00600);
     if (NS_FAILED(rv))
     {
       if (mSendReport)
       {
         nsAutoString error_msg;
-        nsCAutoString cPath;
-        nsAutoString path;
-        mTempFile->GetNativePath(cPath);
-        NS_CopyNativeToUnicode(cPath, path);
-        nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_TMP_FILE, error_msg, &path, nsnull);
+        nsMsgBuildMessageWithTmpFile(mTempFile, error_msg);
         mSendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
       }
       status = NS_MSG_UNABLE_TO_OPEN_TMP_FILE;
@@ -711,18 +707,14 @@ nsMsgComposeAndSend::GatherMimeAttachments()
   rv = nsMsgCreateTempFile("nsemail.eml", getter_AddRefs(mTempFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(mOutputFile), mTempFile, -1, 00600);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mOutputFile), mTempFile, -1, 00600);
   if (NS_FAILED(rv))
   {
     status = NS_MSG_UNABLE_TO_OPEN_TMP_FILE;
     if (mSendReport)
     {
       nsAutoString error_msg;
-      nsCAutoString cPath;
-      nsAutoString path;
-      mTempFile->GetNativePath(cPath);
-      NS_CopyNativeToUnicode(cPath, path);
-      nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_TMP_FILE, error_msg, &path, nsnull);
+      nsMsgBuildMessageWithTmpFile(mTempFile, error_msg);
       mSendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
     }
     goto FAIL;
@@ -2156,7 +2148,7 @@ nsMsgComposeAndSend::CountCompFieldAttachments()
     nsCOMPtr<nsIMsgAttachment> attachment = do_QueryInterface(element, &rv);
     if (NS_SUCCEEDED(rv) && attachment)
     {
-      attachment->GetUrl(getter_Copies(url));
+      attachment->GetUrl(url);
       if (!url.IsEmpty())
     {
       // Check to see if this is a file URL, if so, don't retrieve
@@ -2212,7 +2204,7 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
     nsCOMPtr<nsIMsgAttachment> attachment = do_QueryInterface(element, &rv);
     if (NS_SUCCEEDED(rv) && attachment)
     {
-      attachment->GetUrl(getter_Copies(url));
+      attachment->GetUrl(url);
       if (!url.IsEmpty())
       {
         // Just look for local file:// attachments and do the right thing.
@@ -2389,7 +2381,7 @@ nsMsgComposeAndSend::AddCompFieldRemoteAttachments(PRUint32   aStartLocation,
     nsCOMPtr<nsIMsgAttachment> attachment = do_QueryInterface(element, &rv);
     if (NS_SUCCEEDED(rv) && attachment)
     {
-      attachment->GetUrl(getter_Copies(url));
+      attachment->GetUrl(url);
       if (!url.IsEmpty())
       {
         // Just look for files that are NOT local file attachments and do
@@ -3738,9 +3730,17 @@ nsMsgComposeAndSend::DeliverFileAsMail()
     if (!msgStatus)
       msgStatus = do_QueryInterface(mStatusFeedback);
 
+    nsCOMPtr<nsIURI> runningUrl;
     rv = smtpService->SendMailMessage(mTempFile, buf, mUserIdentity,
                                       mSmtpPassword.get(), deliveryListener, msgStatus,
-                                      callbacks, mCompFields->GetDSN(), nsnull, getter_AddRefs(mRunningRequest));
+                                      callbacks, mCompFields->GetDSN(),
+                                      getter_AddRefs(runningUrl),
+                                      getter_AddRefs(mRunningRequest));
+
+    // set envid on the returned URL
+    nsCOMPtr<nsISmtpUrl> smtpUrl(do_QueryInterface(runningUrl, &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
+    smtpUrl->SetDsnEnvid(nsDependentCString(mCompFields->GetMessageId()));
   }
 
   PR_FREEIF(buf); // free the buf because we are done with it....
@@ -3875,11 +3875,14 @@ nsMsgComposeAndSend::DoDeliveryExitProcessing(nsIURI * aUri, nsresult aExitCode,
         aExitCode == NS_ERROR_SMTP_SEND_FAILED_INTERRUPTED ||
         aExitCode == NS_ERROR_SMTP_SEND_FAILED_TIMEOUT ||
         aExitCode == NS_ERROR_SMTP_PASSWORD_UNDEFINED ||
-        aExitCode == NS_ERROR_COULD_NOT_LOGIN_TO_SMTP_SERVER ||
-        aExitCode == NS_ERROR_STARTTLS_FAILED_EHLO_STARTTLS ||
-        aExitCode == NS_ERROR_COULD_NOT_LOGIN_TO_SMTP_SERVER_INSECAUTH ||
-        aExitCode == NS_ERROR_COULD_NOT_LOGIN_TO_SMTP_SERVER_SECAUTH ||
-        aExitCode == NS_ERROR_COULD_NOT_LOGIN_TO_SMTP_SERVER_AUTH_NONE)
+        aExitCode == NS_ERROR_SMTP_AUTH_FAILURE ||
+        aExitCode == NS_ERROR_SMTP_AUTH_GSSAPI ||
+        aExitCode == NS_ERROR_SMTP_AUTH_MECH_NOT_SUPPORTED ||
+        aExitCode == NS_ERROR_SMTP_AUTH_NOT_SUPPORTED ||
+        aExitCode == NS_ERROR_SMTP_AUTH_CHANGE_ENCRYPT_TO_PLAIN_NO_SSL ||
+        aExitCode == NS_ERROR_SMTP_AUTH_CHANGE_ENCRYPT_TO_PLAIN_SSL ||
+        aExitCode == NS_ERROR_SMTP_AUTH_CHANGE_PLAIN_TO_ENCRYPT ||
+        aExitCode == NS_ERROR_STARTTLS_FAILED_EHLO_STARTTLS)
       FormatStringWithSMTPHostNameByID(aExitCode, getter_Copies(eMsg));
     else
       mComposeBundle->GetStringFromID(NS_ERROR_GET_CODE(aExitCode), getter_Copies(eMsg));
@@ -4482,17 +4485,13 @@ nsMsgComposeAndSend::MimeDoFCC(nsIFile          *input_file,
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIOutputStream> tempOutfile;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(tempOutfile), mCopyFile, -1, 00600);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(tempOutfile), mCopyFile, -1, 00600);
   if (NS_FAILED(rv))
   {
     if (mSendReport)
     {
       nsAutoString error_msg;
-      nsCAutoString cPath;
-      nsAutoString path;
-      mCopyFile->GetNativePath(cPath);
-      NS_CopyNativeToUnicode(cPath, path);
-      nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_TMP_FILE, error_msg, &path, nsnull);
+      nsMsgBuildMessageWithTmpFile(mCopyFile, error_msg);
       mSendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
     }
     status = NS_MSG_UNABLE_TO_OPEN_TMP_FILE;
@@ -4511,11 +4510,7 @@ nsMsgComposeAndSend::MimeDoFCC(nsIFile          *input_file,
     if (mSendReport)
     {
       nsAutoString error_msg;
-      nsCAutoString cPath;
-      nsAutoString path;
-      mTempFile->GetNativePath(cPath);
-      NS_CopyNativeToUnicode(cPath, path);
-      nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_FILE, error_msg, &path, nsnull);
+      nsMsgBuildMessageWithFile(mTempFile, error_msg);
       mSendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
     }
     status = NS_MSG_UNABLE_TO_OPEN_FILE;

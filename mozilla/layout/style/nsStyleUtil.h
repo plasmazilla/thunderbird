@@ -69,8 +69,7 @@ public:
 
   static PRInt32 ConstrainFontWeight(PRInt32 aWeight);
 
-  static PRBool IsHTMLLink(nsIContent *aContent, nsIAtom *aTag,
-                           nsILinkHandler *aLinkHandler,
+  static PRBool IsHTMLLink(nsIContent *aContent, nsILinkHandler *aLinkHandler,
                            nsLinkState *aState);
   static PRBool IsLink(nsIContent *aContent, nsILinkHandler *aLinkHandler,
                        nsLinkState *aState);
@@ -79,7 +78,9 @@ public:
                                 const nsAString& aSelectorValue,
                                 const nsStringComparator& aComparator);
                                 
-  static void EscapeCSSString(const nsString& aString, nsAString& aReturn);
+  // Append a quoted (with "") and escaped version of aString to aResult.
+  static void AppendEscapedCSSString(const nsString& aString,
+                                     nsAString& aResult);
 
   /*
    * Convert an author-provided floating point number to an integer (0

@@ -56,6 +56,7 @@
 #include "prio.h"
 #include "prnetdb.h"
 #include "prtpool.h"
+#include "prtypes.h"
 #include "nss.h"
 #include "pk11func.h"
 #include "key.h"
@@ -199,9 +200,9 @@ private:
 
 // These are suggestions. If the number of ports to proxy on * 2
 // is greater than either of these, then we'll use that value instead.
-const PRInt32 INITIAL_THREADS = 1;
-const PRInt32 MAX_THREADS = 5;
-const PRInt32 DEFAULT_STACKSIZE = (512 * 1024);
+const PRUint32 INITIAL_THREADS = 1;
+const PRUint32 MAX_THREADS = 5;
+const PRUint32 DEFAULT_STACKSIZE = (512 * 1024);
 
 // global data
 string nssconfigdir;
@@ -286,7 +287,7 @@ bool ConfigureSSLServerSocket(PRFileDesc* socket, server_info_t* si, string &cer
   AutoCert cert(PK11_FindCertFromNickname(
       certnick, NULL));
   if (!cert) {
-    fprintf(stderr, "Failed to find cert %s\n", si->cert_nickname.c_str());
+    fprintf(stderr, "Failed to find cert %s\n", certnick);
     return false;
   }
 
@@ -640,7 +641,7 @@ char* password_func(PK11SlotInfo* slot, PRBool retry, void* arg)
   if (retry)
     return NULL;
 
-  return "";
+  return PL_strdup("");
 }
 
 server_info_t* findServerInfo(int portnumber)
@@ -880,7 +881,7 @@ PRIntn freeClientAuthHashItems(PLHashEntry *he, PRIntn i, void *arg)
 
 int main(int argc, char** argv)
 {
-  char* configFilePath;
+  const char* configFilePath;
   if (argc == 1)
     configFilePath = "ssltunnel.cfg";
   else
@@ -918,10 +919,8 @@ int main(int argc, char** argv)
   }
 
   // create a thread pool to handle connections
-  threads = PR_CreateThreadPool(std::max<PRInt32>(INITIAL_THREADS,
-                                                  servers.size()*2),
-                                std::max<PRInt32>(MAX_THREADS,
-                                                  servers.size()*2),
+  threads = PR_CreateThreadPool(PR_MAX(INITIAL_THREADS, servers.size()*2),
+                                PR_MAX(MAX_THREADS, servers.size()*2),
                                 DEFAULT_STACKSIZE);
   if (!threads) {
     fprintf(stderr, "Failed to create thread pool\n");

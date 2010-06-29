@@ -53,6 +53,7 @@
 #include "nsIMAPNamespace.h"
 #include "nsImapStringBundle.h"
 #include "nsImapUtils.h"
+#include "nsMsgUtils.h"
 
 ////////////////// nsImapServerResponseParser /////////////////////////
 
@@ -125,16 +126,18 @@ PRBool nsImapServerResponseParser::GetNextLineForParser(char **nextLine)
 {
   PRBool rv = PR_TRUE;
   *nextLine = fServerConnection.CreateNewLineFromSocket();
-  if (fServerConnection.DeathSignalReceived() || (fServerConnection.GetConnectionStatus() <= 0))
+  if (fServerConnection.DeathSignalReceived() ||
+      NS_FAILED(fServerConnection.GetConnectionStatus()))
     rv = PR_FALSE;
   // we'd really like to try to silently reconnect, but we shouldn't put this
   // message up just in the interrupt case
-  if (fServerConnection.GetConnectionStatus() <= 0 && !fServerConnection.DeathSignalReceived())
+  if (NS_FAILED(fServerConnection.GetConnectionStatus()) &&
+      !fServerConnection.DeathSignalReceived())
     fServerConnection.AlertUserEventUsingId(IMAP_SERVER_DISCONNECTED);
   return rv;
 }
 
-PRBool	nsImapServerResponseParser::CommandFailed()
+PRBool nsImapServerResponseParser::CommandFailed()
 {
   return fCurrentCommandFailed;
 }
@@ -380,11 +383,9 @@ void nsImapServerResponseParser::PreProcessCommandToken(const char *commandToken
       if (!PL_strcasecmp(fetchToken, "FETCH") )
       {
         char *uidStringToken = NS_strtok(WHITESPACE, &placeInTokenString);
-        if (!PL_strchr(uidStringToken, ',') && !PL_strchr(uidStringToken, ':'))	// , and : are uid delimiters
-        {
+        // , and : are uid delimiters
+        if (!PL_strchr(uidStringToken, ',') && !PL_strchr(uidStringToken, ':'))
           fCurrentCommandIsSingleMessageFetch = PR_TRUE;
-          fUidOfSingleMessageFetch = atoi(uidStringToken);
-        }
       }
     }
   }
@@ -992,7 +993,7 @@ void nsImapServerResponseParser::mailbox(nsImapMailboxSpec *boxSpec)
 
     // if this was cancelled by the user,then we sure don't want to
     // send more mailboxes their way
-    if (fServerConnection.GetConnectionStatus() < 0)
+    if (NS_FAILED(fServerConnection.GetConnectionStatus()))
       SetConnected(PR_FALSE);
   }
 }
@@ -2195,7 +2196,7 @@ void nsImapServerResponseParser::msg_obsolete()
 void nsImapServerResponseParser::capability_data()
 {
   PRInt32 endToken = -1;
-  fCapabilityFlag = kCapabilityDefined;
+  fCapabilityFlag = kCapabilityDefined | kHasAuthOldLoginCapability;
   do {
     AdvanceToNextToken();
     if (fNextToken) {
@@ -2219,9 +2220,7 @@ void nsImapServerResponseParser::capability_data()
       else if (token.Equals("STARTTLS", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasStartTLSCapability;
       else if (token.Equals("LOGINDISABLED", nsCaseInsensitiveCStringComparator()))
-        fCapabilityFlag |= kLoginDisabled;
-      else if (token.Equals("X-NETSCAPE", nsCaseInsensitiveCStringComparator()))
-        fCapabilityFlag |= kHasXNetscapeCapability;
+        fCapabilityFlag &= ~kHasAuthOldLoginCapability; // remove flag
       else if (token.Equals("XSENDER", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasXSenderCapability;
       else if (token.Equals("IMAP4", nsCaseInsensitiveCStringComparator()))
@@ -3249,12 +3248,11 @@ nsImapMailboxSpec *nsImapServerResponseParser::CreateCurrentMailboxSpec(const ch
   return returnSpec;
   
 }
-// zero stops a list recording of flags and causes the flags for
-// each individual message to be sent back to libmsg 
-void nsImapServerResponseParser::ResetFlagInfo(int numberOfInterestingMessages)
+// Reset the flag state.
+void nsImapServerResponseParser::ResetFlagInfo()
 {
   if (fFlagState)
-    fFlagState->Reset(numberOfInterestingMessages);
+    fFlagState->Reset();
 }
 
 

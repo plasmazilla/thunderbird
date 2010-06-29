@@ -1,4 +1,4 @@
-# 
+#
 # ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
@@ -78,9 +78,7 @@ endif
 
 CSRCS		= \
 		mozcontainer.c \
-		mozdrawingarea.c \
 		keysym2ucs.c \
-		nsPrintdGTK.c \
 		$(NULL)
 
 ifdef ACCESSIBILITY
@@ -102,14 +100,11 @@ CPPSRCS		= \
 		nsScreenManagerGtk.cpp \
 		nsImageToPixbuf.cpp \
 		nsAccessibilityHelper.cpp \
+		nsAccelerometerUnix.cpp \
 		$(NULL)
 
-ifdef NS_OSSO
-CPPSRCS         += nsIdleServiceOSSO.cpp
-else
 ifdef MOZ_X11
 CPPSRCS         += nsIdleServiceGTK.cpp
-endif
 endif
 
 ifdef NS_PRINTING
@@ -137,13 +132,22 @@ SHARED_LIBRARY_LIBS = ../xpwidgets/libxpwidgets_s.a
 EXTRA_DSO_LDOPTS += \
 		$(MOZ_COMPONENT_LIBS) \
 		-lgkgfx \
+		-lthebes \
+		$(MOZ_CAIRO_LIBS) \
                 $(MOZ_STARTUP_NOTIFICATION_LIBS) \
 		$(XLDFLAGS) \
 		$(XLIBS) \
+		$(XEXT_LIBS) \
+		$(XCOMPOSITE_LIBS) \
 		$(MOZ_GTK2_LIBS) \
-		-lthebes \
 		$(QCMS_LIBS) \
 		$(NULL)
+
+ifdef MOZ_PLATFORM_MAEMO
+ifdef MOZ_ENABLE_GCONF
+EXTRA_DSO_LDOPTS += $(MOZ_GCONF_LIBS)
+endif
+endif
 
 ifdef MOZ_X11
 EXTRA_DSO_LDOPTS += -lgtkxtbin -lXrender
@@ -152,7 +156,6 @@ endif
 EXPORTS		= \
                 nsGTKToolkit.h \
 		nsIImageToPixbuf.h \
-		mozdrawingarea.h \
 		mozcontainer.h \
 		$(NULL)
 
@@ -165,7 +168,13 @@ endif
 include $(topsrcdir)/config/rules.mk
 
 CFLAGS          += $(MOZ_GTK2_CFLAGS) $(MOZ_STARTUP_NOTIFICATION_CFLAGS)
-CXXFLAGS        += $(MOZ_GTK2_CFLAGS) $(MOZ_STARTUP_NOTIFICATION_CFLAGS)
+CXXFLAGS        += $(MOZ_CAIRO_CFLAGS) $(MOZ_GTK2_CFLAGS) $(MOZ_STARTUP_NOTIFICATION_CFLAGS)
+
+ifdef MOZ_PLATFORM_MAEMO
+ifdef MOZ_ENABLE_GCONF
+CXXFLAGS += $(MOZ_GCONF_CFLAGS)
+endif
+endif
 
 DEFINES         += -DUSE_XIM
 DEFINES		+= -DCAIRO_GFX
@@ -176,14 +185,8 @@ EXTRA_DSO_LDOPTS += -lgfxpsshar
 endif
 
 
-DEFINES		+= 
+DEFINES		+=
 INCLUDES	+= \
 		-I$(srcdir)/../xpwidgets \
 		-I$(topsrcdir)/other-licenses/atk-1.0 \
 		$(NULL)
-
-test_container: mozdrawingarea.o mozcontainer.o test_container.c
-	$(CC) $(MOZ_GTK2_CFLAGS) -o test_container test_container.c \
-		mozdrawingarea.o mozcontainer.o \
-		$(MOZ_GTK2_LIBS)
-

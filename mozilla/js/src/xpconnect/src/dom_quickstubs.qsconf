@@ -77,12 +77,10 @@ members = [
     'nsIDOMScreen.height',
     'nsIDOMScreen.width',
     'nsIDOMScreen.left',
-    'nsIDOMClientRect.top',
-    'nsIDOMClientRect.right',
-    'nsIDOMClientRect.bottom',
-    'nsIDOMClientRect.left',
-    'nsIDOMClientRectList.item',
-    'nsIDOMClientRectList.length',
+    'nsIDOMClientRect.*',
+    'nsIDOMClientRectList.*',
+    'nsIDOMPaintRequest.*',
+    'nsIDOMPaintRequestList.*',
     # nsLocationSH has ~ALLOW_PROP_MODS_TO_PROTOTYPE, so don't try.
     #'nsIDOMLocation.hostname',
     #'nsIDOMLocation.href',
@@ -181,6 +179,8 @@ members = [
     'nsIDOMNode.attributes',
     'nsIDOMNodeList.item',
     'nsIDOMNodeList.length',
+    'nsIDOMNodeSelector.querySelector',
+    'nsIDOMNodeSelector.querySelectorAll',
     'nsIDOMText.splitText',
     'nsIDOM3Document.documentURI',
     'nsIDOM3Document.adoptNode',
@@ -215,7 +215,7 @@ members = [
     #'nsIDOMNSDocument.location',
     'nsIDOMNSDocument.elementFromPoint',
     'nsIDOMNSDocument.activeElement',
-    'nsIDOMNSDocument.getBoxObjectFor',
+    'nsIDOMXULDocument.getBoxObjectFor',
     'nsIDOMXMLDocument.evaluateXPointer',
     'nsIDOMXMLDocument.evaluateFIXptr',
     'nsIDOMNSElement.getClientRects',
@@ -226,6 +226,7 @@ members = [
     'nsIDOMNSElement.clientHeight',
     'nsIDOMNSElement.clientWidth',
     'nsIDOMNSElement.clientTop',
+    'nsIDOMNSElement.mozMatchesSelector',
 
     # dom/public/idl/css
     'nsIDOMElementCSSInlineStyle.style',
@@ -254,16 +255,6 @@ members = [
     'nsIDOMViewCSS.getComputedStyle',
 
     # dom/public/idl/events
-    'nsIDOMEvent.target',
-    'nsIDOMEvent.preventDefault',
-    'nsIDOMEvent.cancelable',
-    'nsIDOMEvent.currentTarget',
-    'nsIDOMEvent.timeStamp',
-    'nsIDOMEvent.bubbles',
-    'nsIDOMEvent.type',
-    'nsIDOMEvent.initEvent',
-    'nsIDOMEvent.stopPropagation',
-    'nsIDOMEvent.eventPhase',
     'nsIDOMEventTarget.dispatchEvent',
     'nsIDOMEventTarget.removeEventListener',
     # Conflicts with nsIDOMNSEventTarget.addEventListener;
@@ -271,30 +262,22 @@ members = [
     # (See bug 453331.)
     #'nsIDOMEventTarget.addEventListener',
     'nsIDOMDocumentEvent.createEvent',
-    'nsIDOMMouseEvent.clientX',
-    'nsIDOMMouseEvent.clientY',
-    'nsIDOMMouseEvent.relatedTarget',
-    'nsIDOMMouseEvent.shiftKey',
-    'nsIDOMMouseEvent.button',
-    'nsIDOMMouseEvent.altKey',
-    'nsIDOMMouseEvent.metaKey',
-    'nsIDOMMouseEvent.ctrlKey',
-    'nsIDOMMouseEvent.screenY',
-    'nsIDOMMouseEvent.screenX',
+
+    'nsIDOMEvent.*',
+    'nsIDOMMouseEvent.*',
+    'nsIDOMKeyEvent.*',
+    'nsIDOMMutationEvent.*',
+    'nsIDOMDragEvent.*',
+    'nsIDOMScrollAreaEvent.*',
+    'nsIDOMNotifyPaintEvent.*',
+    'nsIDOMMessageEvent.*',
+    'nsIDOMMouseScrollEvent.*',
+    'nsIDOMProgressEvent.lengthComputable',
+    'nsIDOMProgressEvent.loaded',
+    'nsIDOMProgressEvent.total',
+    #XXX Can't quickstub initProgressEvent because it has long long parameters.
     'nsIDOMNSEvent.originalTarget',
-    'nsIDOMNSEvent.preventCapture',
-    'nsIDOMKeyEvent.ctrlKey',
-    'nsIDOMKeyEvent.shiftKey',
-    'nsIDOMKeyEvent.keyCode',
-    'nsIDOMKeyEvent.metaKey',
-    'nsIDOMKeyEvent.charCode',
-    'nsIDOMKeyEvent.altKey',
-    'nsIDOMMutationEvent.attrName',
-    'nsIDOMMutationEvent.relatedNode',
-    'nsIDOMMutationEvent.attrChange',
-    'nsIDOMMutationEvent.newValue',
-    'nsIDOMMutationEvent.prevValue',
-    'nsIDOMNSUIEvent.getPreventDefault',
+    'nsIDOMNSEvent.getPreventDefault',
     'nsIDOMNSUIEvent.which',
     'nsIDOMNSUIEvent.rangeParent',
     'nsIDOMNSUIEvent.rangeOffset',
@@ -462,14 +445,14 @@ members = [
 
     # dom/public/idl/storage
     'nsIDOMToString.toString',
-    'nsIDOMStorage2.setItem',
-    'nsIDOMStorage2.length',
-    'nsIDOMStorage2.getItem',
-    'nsIDOMStorage2.key',
-    'nsIDOMStorage2.removeItem',
-    'nsIDOMStorage2.clear',
+    'nsIDOMStorage.setItem',
+    'nsIDOMStorage.length',
+    'nsIDOMStorage.getItem',
+    'nsIDOMStorage.key',
+    'nsIDOMStorage.removeItem',
+    'nsIDOMStorage.clear',
     'nsIDOMStorageItem.value',
-    'nsIDOMStorageWindow_1_9_1.sessionStorage',
+    'nsIDOMStorageWindow.sessionStorage',
     'nsIDOMStorageWindow.globalStorage',
 
     # dom/public/idl/stylesheets - None.
@@ -515,7 +498,6 @@ irregularFilenames = {
 
     # stowaways
     'nsIDOMTextMetrics': 'nsIDOMCanvasRenderingContext2D',
-    'nsIDOMNSCSS2Properties': 'nsIDOMCSS2Properties',
     'nsIXPointerResult': 'nsIXPointer',
     }
 
@@ -530,6 +512,17 @@ nsIDOMNode_GetChildNodes_customMethodCallCode = """
     nsIDOMNodeList* result = self->GetChildNodesList();
     if (!result)
         return xpc_qsThrowGetterSetterFailed(cx, NS_ERROR_OUT_OF_MEMORY, JSVAL_TO_OBJECT(*vp), id);
+"""
+
+nsIDOMStorage_Clear_customMethodCallCode = """
+    nsresult rv = self->Clear();
+    if (NS_SUCCEEDED(rv))
+        JS_ClearScope(cx, obj);
+        
+#ifdef DEBUG
+    nsISupports* result = nsnull;
+    nsISupports* debug_result = nsnull;
+#endif
 """
 
 customMethodCalls = {
@@ -564,5 +557,8 @@ customMethodCalls = {
     'nsIDOMNodeList_Item': {
         'thisType': 'nsINodeList',
         'code': '    nsINode* result = self->GetNodeAt(arg0);'
+        },
+    'nsIDOMStorage_Clear': {
+        'code': nsIDOMStorage_Clear_customMethodCallCode
         }
     }

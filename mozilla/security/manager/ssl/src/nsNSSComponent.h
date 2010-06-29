@@ -203,8 +203,9 @@ public:
 
 private:
   ~nsCryptoHash();
-  
+
   HASHContext* mHashContext;
+  PRBool mInitialized;
 
   virtual void virtualDestroyNSSReference();
   void destructorSafeDestroyNSSReference();
@@ -220,9 +221,8 @@ public:
 
 private:
   ~nsCryptoHMAC();
-
   PK11Context* mHMACContext;
-  
+
   virtual void virtualDestroyNSSReference();
   void destructorSafeDestroyNSSReference();
 };

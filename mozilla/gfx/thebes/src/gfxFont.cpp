@@ -15,13 +15,14 @@
  * The Original Code is Mozilla Foundation code.
  *
  * The Initial Developer of the Original Code is Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2005
+ * Portions created by the Initial Developer are Copyright (C) 2005-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *   Stuart Parmenter <stuart@mozilla.com>
  *   Masayuki Nakano <masayuki@d-toybox.com>
  *   John Daggett <jdaggett@mozilla.com>
+ *   Jonathan Kew <jfkthame@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -37,7 +38,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIPref.h"
+#include "nsIPrefService.h"
 #include "nsServiceManagerUtils.h"
 #include "nsReadableUtils.h"
 #include "nsExpirationTracker.h"
@@ -50,6 +51,7 @@
 #include "gfxContext.h"
 #include "gfxFontMissingGlyphs.h"
 #include "gfxUserFontSet.h"
+#include "gfxPlatformFontList.h"
 #include "nsMathUtils.h"
 #include "nsBidiUtils.h"
 
@@ -59,6 +61,8 @@
 #include "nsCRT.h"
 
 gfxFontCache *gfxFontCache::gGlobalCache = nsnull;
+
+static PRLogModuleInfo *gFontSelection = PR_NewLogModule("fontSelectionLog");
 
 #ifdef DEBUG_roc
 #define DEBUG_TEXT_RUN_STORAGE_METRICS
@@ -83,31 +87,159 @@ gfxFontEntry::~gfxFontEntry()
 }
 
 
-PRBool gfxFontEntry::TestCharacterMap(PRUint32 aCh) {
-    if (!mCmapInitialized) ReadCMAP();
+PRBool gfxFontEntry::TestCharacterMap(PRUint32 aCh)
+{
+    if (!mCmapInitialized) {
+        ReadCMAP();
+    }
     return mCharacterMap.test(aCh);
 }
 
 
-gfxFontEntry *gfxFontFamily::FindFontForStyle(const gfxFontStyle& aFontStyle, PRBool& aNeedsBold)
+nsresult gfxFontEntry::ReadCMAP()
 {
-    gfxFontEntry *weightList[10] = { 0 };
+    mCmapInitialized = PR_TRUE;
+    return NS_OK;
+}
+
+
+const nsString& gfxFontEntry::FamilyName()
+{
+    NS_ASSERTION(mFamily, "gfxFontEntry is not a member of a family");
+    return mFamily->Name();
+}
+
+// we consider faces with mStandardFace == PR_TRUE to be "greater than" those with PR_FALSE,
+// because during style matching, later entries will replace earlier ones
+class FontEntryStandardFaceComparator {
+  public:
+    PRBool Equals(const nsRefPtr<gfxFontEntry>& a, const nsRefPtr<gfxFontEntry>& b) const {
+        return a->mStandardFace == b->mStandardFace;
+    }
+    PRBool LessThan(const nsRefPtr<gfxFontEntry>& a, const nsRefPtr<gfxFontEntry>& b) const {
+        return (a->mStandardFace == PR_FALSE && b->mStandardFace == PR_TRUE);
+    }
+};
+
+void
+gfxFontFamily::SortAvailableFonts()
+{
+    mAvailableFonts.Sort(FontEntryStandardFaceComparator());
+}
+
+PRBool
+gfxFontFamily::HasOtherFamilyNames()
+{
+    // need to read in other family names to determine this
+    if (!mOtherFamilyNamesInitialized) {
+        AddOtherFamilyNameFunctor addOtherNames(gfxPlatformFontList::PlatformFontList());
+        ReadOtherFamilyNames(addOtherNames);  // sets mHasOtherFamilyNames
+    }
+    return mHasOtherFamilyNames;
+}
+
+gfxFontEntry*
+gfxFontFamily::FindFontForStyle(const gfxFontStyle& aFontStyle, PRBool& aNeedsBold)
+{
+    if (!mHasStyles)
+        FindStyleVariations(); // collect faces for the family, if not already done
+
+    NS_ASSERTION(mAvailableFonts.Length() > 0, "font family with no faces!");
 
     aNeedsBold = PR_FALSE;
 
-    PRBool foundWeights = FindWeightsForStyle(weightList, aFontStyle);
-    if (!foundWeights)
-        return nsnull;
-
     PRInt8 baseWeight, weightDistance;
     aFontStyle.ComputeWeightAndOffset(&baseWeight, &weightDistance);
+    PRBool wantBold = baseWeight >= 6;
+    if ((wantBold && weightDistance < 0) || (!wantBold && weightDistance > 0)) {
+        wantBold = !wantBold;
+    }
+
+    // If the family has only one face, we simply return it; no further checking needed
+    if (mAvailableFonts.Length() == 1) {
+        gfxFontEntry *fe = mAvailableFonts[0];
+        aNeedsBold = wantBold && !fe->IsBold();
+        return fe;
+    }
+
+    PRBool wantItalic = (aFontStyle.style & (FONT_STYLE_ITALIC | FONT_STYLE_OBLIQUE)) != 0;
+
+    // Most families are "simple", having just Regular/Bold/Italic/BoldItalic,
+    // or some subset of these. In this case, we have exactly 4 entries in mAvailableFonts,
+    // stored in the above order; note that some of the entries may be NULL.
+    // We can then pick the required entry based on whether the request is for
+    // bold or non-bold, italic or non-italic, without running the more complex
+    // matching algorithm used for larger families with many weights and/or widths.
+
+    if (mIsSimpleFamily) {
+        // Family has no more than the "standard" 4 faces, at fixed indexes;
+        // calculate which one we want.
+        // Note that we cannot simply return it as not all 4 faces are necessarily present.
+        PRUint8 faceIndex = (wantItalic ? kItalicMask : 0) |
+                            (wantBold ? kBoldMask : 0);
+
+        // if the desired style is available, return it directly
+        gfxFontEntry *fe = mAvailableFonts[faceIndex];
+        if (fe) {
+            // no need to set aNeedsBold here as we matched the boldness request
+            return fe;
+        }
+
+        // order to check fallback faces in a simple family, depending on requested style
+        static const PRUint8 simpleFallbacks[4][3] = {
+            { kBoldFaceIndex, kItalicFaceIndex, kBoldItalicFaceIndex },   // fallbacks for Regular
+            { kRegularFaceIndex, kBoldItalicFaceIndex, kItalicFaceIndex },// Bold
+            { kBoldItalicFaceIndex, kRegularFaceIndex, kBoldFaceIndex },  // Italic
+            { kItalicFaceIndex, kBoldFaceIndex, kRegularFaceIndex }       // BoldItalic
+        };
+        const PRUint8 *order = simpleFallbacks[faceIndex];
+
+        for (PRUint8 trial = 0; trial < 3; ++trial) {
+            // check remaining faces in order of preference to find the first that actually exists
+            fe = mAvailableFonts[order[trial]];
+            if (fe) {
+                PR_LOG(gFontSelection, PR_LOG_DEBUG,
+                       ("(FindFontForStyle) name: %s, sty: %02x, wt: %d, sz: %.1f -> %s (trial %d)\n", 
+                        NS_ConvertUTF16toUTF8(mName).get(),
+                        aFontStyle.style, aFontStyle.weight, aFontStyle.size,
+                        NS_ConvertUTF16toUTF8(fe->Name()).get(), trial));
+                aNeedsBold = wantBold && !fe->IsBold();
+                return fe;
+            }
+        }
+
+        // this can't happen unless we have totally broken the font-list manager!
+        NS_NOTREACHED("no face found in simple font family!");
+        return nsnull;
+    }
+
+    // This is a large/rich font family, so we do full style- and weight-matching:
+    // first collect a list of weights that are the best match for the requested
+    // font-stretch and font-style, then pick the best weight match among those
+    // available.
+
+    gfxFontEntry *weightList[10] = { 0 };
+    PRBool foundWeights = FindWeightsForStyle(weightList, wantItalic, aFontStyle.stretch);
+    if (!foundWeights) {
+        PR_LOG(gFontSelection, PR_LOG_DEBUG,
+               ("(FindFontForStyle) name: %s, sty: %02x, wt: %d, sz: %.1f -> null\n", 
+                NS_ConvertUTF16toUTF8(mName).get(),
+                aFontStyle.style, aFontStyle.weight, aFontStyle.size));
+        return nsnull;
+    }
 
     // 500 isn't quite bold so we want to treat it as 400 if we don't
     // have a 500 weight
     if (baseWeight == 5 && weightDistance == 0) {
         // If we have a 500 weight then use it
-        if (weightList[5])
+        if (weightList[5]) {
+            PR_LOG(gFontSelection, PR_LOG_DEBUG,
+                   ("(FindFontForStyle) name: %s, sty: %02x, wt: %d, sz: %.1f -> %s using wt 500\n", 
+                    NS_ConvertUTF16toUTF8(mName).get(),
+                    aFontStyle.style, aFontStyle.weight, aFontStyle.size,
+                    NS_ConvertUTF16toUTF8(weightList[5]->Name()).get()));
             return weightList[5];
+        }
 
         // Otherwise treat as 400
         baseWeight = 4;
@@ -123,33 +255,337 @@ gfxFontEntry *gfxFontFamily::FindFontForStyle(const gfxFontStyle& aFontStyle, PR
 
         // if we've reached one side without finding a font,
         // go the other direction until we find a match
-        if (i == 1 || i == 9)
+        if (i == 1 || i == 9) {
             direction = -direction;
+        }
     }
 
     gfxFontEntry *matchFE;
     const PRInt8 absDistance = abs(weightDistance);
     direction = (weightDistance >= 0) ? 1 : -1;
-    PRInt8 i, k;
-    for (i = matchBaseWeight, k = 0; i < 10 && i > 0; i += direction) {
+    PRInt8 i, wghtSteps = 0;
+
+    // account for synthetic bold in lighter case
+    // if lighter is applied with an inherited bold weight,
+    // and no actual bold faces exist, synthetic bold is used
+    // so the matched weight above is actually one step down already
+    if (weightDistance < 0 && baseWeight > 5 && matchBaseWeight < 6) {
+        wghtSteps = 1; // if no faces [600, 900] then synthetic bold at 700
+    }
+
+    for (i = matchBaseWeight; i < 10 && i > 0; i += direction) {
         if (weightList[i]) {
             matchFE = weightList[i];
-            k++;
+            wghtSteps++;
         }
-        if (k > absDistance)
+        if (wghtSteps > absDistance)
             break;
     }
 
-    if (weightDistance > 0 && k <= absDistance) {
+    if (weightDistance > 0 && wghtSteps <= absDistance) {
         aNeedsBold = PR_TRUE;
     }
 
-    if (!matchFE)
+    if (!matchFE) {
         matchFE = weightList[matchBaseWeight];
+    }
 
+    PR_LOG(gFontSelection, PR_LOG_DEBUG,
+           ("(FindFontForStyle) name: %s, sty: %02x, wt: %d, sz: %.1f -> %s\n", 
+            NS_ConvertUTF16toUTF8(mName).get(),
+            aFontStyle.style, aFontStyle.weight, aFontStyle.size,
+            NS_ConvertUTF16toUTF8(matchFE->Name()).get()));
     NS_ASSERTION(matchFE, "we should always be able to return something here");
     return matchFE;
 }
+
+void
+gfxFontFamily::CheckForSimpleFamily()
+{
+    if (mAvailableFonts.Length() > 4) {
+        return; // can't be "simple" if there are >4 faces
+    }
+
+    PRInt16 firstStretch = mAvailableFonts[0]->Stretch();
+
+    gfxFontEntry *faces[4] = { 0 };
+    for (PRUint8 i = 0; i < mAvailableFonts.Length(); ++i) {
+        gfxFontEntry *fe = mAvailableFonts[i];
+        if (fe->Stretch() != firstStretch) {
+            return; // font-stretch doesn't match, don't treat as simple family
+        }
+        PRUint8 faceIndex = (fe->IsItalic() ? kItalicMask : 0) |
+                            (fe->Weight() >= 600 ? kBoldMask : 0);
+        if (faces[faceIndex]) {
+            return; // two faces resolve to the same slot; family isn't "simple"
+        }
+        faces[faceIndex] = fe;
+    }
+
+    // we have successfully slotted the available faces into the standard
+    // 4-face framework
+    mAvailableFonts.SetLength(4);
+    for (PRUint8 i = 0; i < 4; ++i) {
+        if (mAvailableFonts[i].get() != faces[i]) {
+            mAvailableFonts[i].swap(faces[i]);
+        }
+    }
+
+    mIsSimpleFamily = PR_TRUE;
+}
+
+static inline PRUint32
+StyleDistance(gfxFontEntry *aFontEntry,
+              PRBool anItalic, PRInt16 aStretch)
+{
+    // Compute a measure of the "distance" between the requested style
+    // and the given fontEntry,
+    // considering italicness and font-stretch but not weight.
+
+    // TODO (refine CSS spec...): discuss priority of italic vs stretch;
+    // whether penalty for stretch mismatch should depend on actual difference in values;
+    // whether a sign mismatch in stretch should increase the effective distance
+
+    return (aFontEntry->IsItalic() != anItalic ? 1 : 0) +
+           (aFontEntry->mStretch != aStretch ? 10 : 0);
+}
+
+PRBool
+gfxFontFamily::FindWeightsForStyle(gfxFontEntry* aFontsForWeights[],
+                                   PRBool anItalic, PRInt16 aStretch)
+{
+    PRUint32 foundWeights = 0;
+    PRUint32 bestMatchDistance = 0xffffffff;
+
+    for (PRUint32 i = 0; i < mAvailableFonts.Length(); i++) {
+        // this is not called for "simple" families, and therefore it does not
+        // need to check the mAvailableFonts entries for NULL
+        gfxFontEntry *fe = mAvailableFonts[i];
+        PRUint32 distance = StyleDistance(fe, anItalic, aStretch);
+        if (distance <= bestMatchDistance) {
+            PRInt8 wt = fe->mWeight / 100;
+            NS_ASSERTION(wt >= 1 && wt < 10, "invalid weight in fontEntry");
+            if (!aFontsForWeights[wt]) {
+                // record this as a possible candidate for weight matching
+                aFontsForWeights[wt] = fe;
+                ++foundWeights;
+            } else {
+                PRUint32 prevDistance = StyleDistance(aFontsForWeights[wt], anItalic, aStretch);
+                if (prevDistance >= distance) {
+                    // replacing a weight we already found, so don't increment foundWeights
+                    aFontsForWeights[wt] = fe;
+                }
+            }
+            bestMatchDistance = distance;
+        }
+    }
+
+    NS_ASSERTION(foundWeights > 0, "Font family containing no faces?");
+
+    if (foundWeights == 1) {
+        // no need to cull entries if we only found one weight
+        return PR_TRUE;
+    }
+
+    // we might have recorded some faces that were a partial style match, but later found
+    // others that were closer; in this case, we need to cull the poorer matches from the
+    // weight list we'll return
+    for (PRUint32 i = 0; i < 10; ++i) {
+        if (aFontsForWeights[i] &&
+            StyleDistance(aFontsForWeights[i], anItalic, aStretch) > bestMatchDistance)
+        {
+            aFontsForWeights[i] = 0;
+        }
+    }
+
+    return (foundWeights > 0);
+}
+
+
+void gfxFontFamily::LocalizedName(nsAString& aLocalizedName)
+{
+    // just return the primary name; subclasses should override
+    aLocalizedName = mName;
+}
+
+
+void
+gfxFontFamily::FindFontForChar(FontSearch *aMatchData)
+{
+    // xxx - optimization point - keep a bit vector with the union of supported unicode ranges
+    // by all fonts for this family and bail immediately if the character is not in any of
+    // this family's cmaps
+
+    // iterate over fonts
+    PRUint32 numFonts = mAvailableFonts.Length();
+    for (PRUint32 i = 0; i < numFonts; i++) {
+        gfxFontEntry *fe = mAvailableFonts[i];
+        if (!fe)
+            continue;
+
+        PRInt32 rank = 0;
+
+        if (fe->TestCharacterMap(aMatchData->mCh)) {
+            rank += 20;
+        }
+
+        // if we didn't match any characters don't bother wasting more time with this face.
+        if (rank == 0)
+            continue;
+            
+        // omitting from original windows code -- family name, lang group, pitch
+        // not available in current FontEntry implementation
+
+        if (aMatchData->mFontToMatch) { 
+            const gfxFontStyle *style = aMatchData->mFontToMatch->GetStyle();
+            
+            // italics
+            if (fe->IsItalic() && 
+                    (style->style & (FONT_STYLE_ITALIC | FONT_STYLE_OBLIQUE)) != 0) {
+                rank += 5;
+            }
+            
+            // weight
+            PRInt8 baseWeight, weightDistance;
+            style->ComputeWeightAndOffset(&baseWeight, &weightDistance);
+
+            // xxx - not entirely correct, the one unit of weight distance reflects 
+            // the "next bolder/lighter face"
+            PRInt32 targetWeight = (baseWeight * 100) + (weightDistance * 100);
+
+            PRInt32 entryWeight = fe->Weight();
+            if (entryWeight == targetWeight) {
+                rank += 5;
+            } else {
+                PRUint32 diffWeight = abs(entryWeight - targetWeight);
+                if (diffWeight <= 100)  // favor faces close in weight
+                    rank += 2;
+            }
+        } else {
+            // if no font to match, prefer non-bold, non-italic fonts
+            if (!fe->IsItalic() && !fe->IsBold())
+                rank += 5;
+        }
+        
+        // xxx - add whether AAT font with morphing info for specific lang groups
+        
+        if (rank > aMatchData->mMatchRank
+            || (rank == aMatchData->mMatchRank &&
+                Compare(fe->Name(), aMatchData->mBestMatch->Name()) > 0)) 
+        {
+            aMatchData->mBestMatch = fe;
+            aMatchData->mMatchRank = rank;
+        }
+    }
+}
+
+
+// returns true if other names were found, false otherwise
+PRBool
+gfxFontFamily::ReadOtherFamilyNamesForFace(AddOtherFamilyNameFunctor& aOtherFamilyFunctor,
+                                           gfxFontEntry *aFontEntry,
+                                           PRBool useFullName)
+{
+    const PRUint32 kNAME = TRUETYPE_TAG('n','a','m','e');
+
+    nsAutoTArray<PRUint8,8192> buffer;
+    if (aFontEntry->GetFontTable(kNAME, buffer) != NS_OK)
+        return PR_FALSE;
+
+    const PRUint8 *nameData = buffer.Elements();
+    PRUint32 dataLength = buffer.Length();
+    const gfxFontUtils::NameHeader *nameHeader =
+        reinterpret_cast<const gfxFontUtils::NameHeader*>(nameData);
+
+    PRUint32 nameCount = nameHeader->count;
+    if (nameCount * sizeof(gfxFontUtils::NameRecord) > dataLength) {
+        NS_WARNING("invalid font (name records)");
+        return PR_FALSE;
+    }
+    
+    const gfxFontUtils::NameRecord *nameRecord =
+        reinterpret_cast<const gfxFontUtils::NameRecord*>(nameData + sizeof(gfxFontUtils::NameHeader));
+    PRUint32 stringsBase = PRUint32(nameHeader->stringOffset);
+
+    PRBool foundNames = PR_FALSE;
+    for (PRUint32 i = 0; i < nameCount; i++, nameRecord++) {
+        PRUint32 nameLen = nameRecord->length;
+        PRUint32 nameOff = nameRecord->offset;  // offset from base of string storage
+
+        if (stringsBase + nameOff + nameLen > dataLength) {
+            NS_WARNING("invalid font (name table strings)");
+            return PR_FALSE;
+        }
+
+        PRUint16 nameID = nameRecord->nameID;
+        if ((useFullName && nameID == gfxFontUtils::NAME_ID_FULL) ||
+            (!useFullName && (nameID == gfxFontUtils::NAME_ID_FAMILY ||
+                              nameID == gfxFontUtils::NAME_ID_PREFERRED_FAMILY))) {
+            nsAutoString otherFamilyName;
+            PRBool ok = gfxFontUtils::DecodeFontName(nameData + stringsBase + nameOff,
+                                                     nameLen,
+                                                     PRUint32(nameRecord->platformID),
+                                                     PRUint32(nameRecord->encodingID),
+                                                     PRUint32(nameRecord->languageID),
+                                                     otherFamilyName);
+            // add if not same as canonical family name
+            if (ok && otherFamilyName != mName) {
+                aOtherFamilyFunctor(this, otherFamilyName);
+                foundNames = PR_TRUE;
+            }
+        }
+    }
+
+    return foundNames;
+}
+
+
+void
+gfxFontFamily::ReadOtherFamilyNames(AddOtherFamilyNameFunctor& aOtherFamilyFunctor)
+{
+    if (mOtherFamilyNamesInitialized) 
+        return;
+    mOtherFamilyNamesInitialized = PR_TRUE;
+
+    // read in other family names for the first face in the list
+    PRUint32 numFonts = mAvailableFonts.Length();
+    PRUint32 i;
+    for (i = 0; i < numFonts; ++i) {
+        if (!mAvailableFonts[i])
+            continue;
+        mHasOtherFamilyNames = ReadOtherFamilyNamesForFace(aOtherFamilyFunctor,
+                                                           mAvailableFonts[i].get());
+        break;
+    }
+
+    // read in other names for the first face in the list with the assumption
+    // that if extra names don't exist in that face then they don't exist in
+    // other faces for the same font
+    if (mHasOtherFamilyNames) {
+        // read in names for all faces, needed to catch cases where fonts have
+        // family names for individual weights (e.g. Hiragino Kaku Gothic Pro W6)
+        for ( ; i < numFonts; i++) {
+            if (!mAvailableFonts[i])
+                continue;
+            ReadOtherFamilyNamesForFace(aOtherFamilyFunctor, mAvailableFonts[i].get());
+        }
+    }
+}
+
+
+gfxFontEntry*
+gfxFontFamily::FindFont(const nsAString& aPostscriptName)
+{
+    // find the font using a simple linear search
+    PRUint32 numFonts = mAvailableFonts.Length();
+    for (PRUint32 i = 0; i < numFonts; i++) {
+        gfxFontEntry *fe = mAvailableFonts[i].get();
+        if (fe && fe->Name() == aPostscriptName)
+            return fe;
+    }
+    return nsnull;
+}
+
 
 nsresult
 gfxFontCache::Init()
@@ -493,16 +929,34 @@ UnionRange(gfxFloat aX, gfxFloat* aDestMin, gfxFloat* aDestMax)
     *aDestMax = PR_MAX(*aDestMax, aX);
 }
 
+// We get precise glyph extents if the textrun creator requested them, or
+// if the font is a user font --- in which case the author may be relying
+// on overflowing glyphs.
+static PRBool
+NeedsGlyphExtents(gfxFont *aFont, gfxTextRun *aTextRun)
+{
+    return (aTextRun->GetFlags() & gfxTextRunFactory::TEXT_NEED_BOUNDING_BOX) ||
+        aFont->GetFontEntry()->IsUserFont();
+}
+
 static PRBool
 NeedsGlyphExtents(gfxTextRun *aTextRun)
 {
-    return (aTextRun->GetFlags() & gfxTextRunFactory::TEXT_NEED_BOUNDING_BOX) != 0;
+    if (aTextRun->GetFlags() & gfxTextRunFactory::TEXT_NEED_BOUNDING_BOX)
+        return PR_TRUE;
+    PRUint32 numRuns;
+    const gfxTextRun::GlyphRun *glyphRuns = aTextRun->GetGlyphRuns(&numRuns);
+    for (PRUint32 i = 0; i < numRuns; ++i) {
+        if (glyphRuns[i].mFont->GetFontEntry()->IsUserFont())
+            return PR_TRUE;
+    }
+    return PR_FALSE;
 }
 
 gfxFont::RunMetrics
 gfxFont::Measure(gfxTextRun *aTextRun,
                  PRUint32 aStart, PRUint32 aEnd,
-                 PRBool aTightBoundingBox, gfxContext *aRefContext,
+                 BoundingBoxType aBoundingBoxType, gfxContext *aRefContext,
                  Spacing *aSpacing)
 {
     const PRUint32 appUnitsPerDevUnit = aTextRun->GetAppUnitsPerDevUnit();
@@ -522,8 +976,11 @@ gfxFont::Measure(gfxTextRun *aTextRun,
     const gfxTextRun::CompressedGlyph *charGlyphs = aTextRun->GetCharacterGlyphs();
     PRBool isRTL = aTextRun->IsRightToLeft();
     double direction = aTextRun->GetDirection();
+    PRBool needsGlyphExtents = NeedsGlyphExtents(this, aTextRun);
     gfxGlyphExtents *extents =
-        (!aTightBoundingBox && !NeedsGlyphExtents(aTextRun) && !aTextRun->HasDetailedGlyphs()) ? nsnull
+        (aBoundingBoxType == LOOSE_INK_EXTENTS &&
+            !needsGlyphExtents &&
+            !aTextRun->HasDetailedGlyphs()) ? nsnull
         : GetOrCreateGlyphExtents(aTextRun->GetAppUnitsPerDevUnit());
     double x = 0;
     if (aSpacing) {
@@ -536,10 +993,12 @@ gfxFont::Measure(gfxTextRun *aTextRun,
             double advance = glyphData->GetSimpleAdvance();
             // Only get the real glyph horizontal extent if we were asked
             // for the tight bounding box or we're in quality mode
-            if ((aTightBoundingBox || NeedsGlyphExtents(aTextRun)) && extents) {
+            if ((aBoundingBoxType != LOOSE_INK_EXTENTS || needsGlyphExtents) &&
+                extents) {
                 PRUint32 glyphIndex = glyphData->GetSimpleGlyph();
                 PRUint16 extentsWidth = extents->GetContainedGlyphWidthAppUnits(glyphIndex);
-                if (extentsWidth != gfxGlyphExtents::INVALID_WIDTH && !aTightBoundingBox) {
+                if (extentsWidth != gfxGlyphExtents::INVALID_WIDTH &&
+                    aBoundingBoxType == LOOSE_INK_EXTENTS) {
                     UnionRange(x, &advanceMin, &advanceMax);
                     UnionRange(x + direction*extentsWidth, &advanceMin, &advanceMax);
                 } else {
@@ -592,7 +1051,7 @@ gfxFont::Measure(gfxTextRun *aTextRun,
         }
     }
 
-    if (!aTightBoundingBox) {
+    if (aBoundingBoxType == LOOSE_INK_EXTENTS) {
         UnionRange(x, &advanceMin, &advanceMax);
         gfxRect fontBox(advanceMin, -metrics.mAscent,
                         advanceMax - advanceMin, metrics.mAscent + metrics.mDescent);
@@ -933,8 +1392,7 @@ gfxFontGroup::ForEachFontInternal(const nsAString& aFamilies,
     const PRUnichar kDoubleQuote  = PRUnichar('\"');
     const PRUnichar kComma        = PRUnichar(',');
 
-    nsCOMPtr<nsIPref> prefs;
-    prefs = do_GetService(NS_PREF_CONTRACTID);
+    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
 
     nsPromiseFlatString families(aFamilies);
     const PRUnichar *p, *p_end;
@@ -943,6 +1401,7 @@ gfxFontGroup::ForEachFontInternal(const nsAString& aFamilies,
     nsAutoString family;
     nsCAutoString lcFamily;
     nsAutoString genericFamily;
+    nsXPIDLCString value;
     nsCAutoString lang(aLangGroup);
     if (lang.IsEmpty())
         lang.Assign("x-unicode"); // XXX or should use "x-user-def"?
@@ -999,11 +1458,10 @@ gfxFontGroup::ForEachFontInternal(const nsAString& aFamilies,
 
                 // prefs file always uses (must use) UTF-8 so that we can use
                 // |GetCharPref| and treat the result as a UTF-8 string.
-                nsXPIDLString value;
-                nsresult rv = prefs->CopyUnicharPref(prefName.get(), getter_Copies(value));
+                nsresult rv = prefs->GetCharPref(prefName.get(), getter_Copies(value));
                 if (NS_SUCCEEDED(rv)) {
                     CopyASCIItoUTF16(lcFamily, genericFamily);
-                    family = value;
+                    CopyUTF8toUTF16(value, family);
                 }
             } else {
                 generic = PR_FALSE;
@@ -1043,10 +1501,10 @@ gfxFontGroup::ForEachFontInternal(const nsAString& aFamilies,
             prefName.Append(lcFamily);
             prefName.AppendLiteral(".");
             prefName.Append(aLangGroup);
-            nsXPIDLString value;
-            nsresult rv = prefs->CopyUnicharPref(prefName.get(), getter_Copies(value));
+            nsresult rv = prefs->GetCharPref(prefName.get(), getter_Copies(value));
             if (NS_SUCCEEDED(rv)) {
-                ForEachFontInternal(value, lang, PR_FALSE, aResolveFontName,
+                ForEachFontInternal(NS_ConvertUTF8toUTF16(value),
+                                    lang, PR_FALSE, aResolveFontName,
                                     fc, closure);
             }
         }
@@ -1105,9 +1563,9 @@ gfxFontGroup::FindFontForChar(PRUint32 aCh, PRUint32 aPrevCh, PRUint32 aNextCh, 
 {
     nsRefPtr<gfxFont>    selectedFont;
 
-    // if this character or the next one is a joiner use the
-    // same font as the previous range if we can
-    if (gfxFontUtils::IsJoiner(aCh) || gfxFontUtils::IsJoiner(aPrevCh) || gfxFontUtils::IsJoiner(aNextCh)) {
+    // if this character or the previous one is a join-causer,
+    // use the same font as the previous range if we can
+    if (gfxFontUtils::IsJoinCauser(aCh) || gfxFontUtils::IsJoinCauser(aPrevCh)) {
         if (aPrevMatchedFont && aPrevMatchedFont->HasCharacter(aCh)) {
             selectedFont = aPrevMatchedFont;
             return selectedFont.forget();
@@ -1232,18 +1690,19 @@ gfxFontGroup::GetGeneration()
 
 gfxFontStyle::gfxFontStyle() :
     style(FONT_STYLE_NORMAL), systemFont(PR_TRUE), printerFont(PR_FALSE), 
-    familyNameQuirks(PR_FALSE), weight(FONT_WEIGHT_NORMAL), size(DEFAULT_PIXEL_FONT_SIZE),
+    familyNameQuirks(PR_FALSE), weight(FONT_WEIGHT_NORMAL),
+    stretch(NS_FONT_STRETCH_NORMAL), size(DEFAULT_PIXEL_FONT_SIZE),
     langGroup(NS_LITERAL_CSTRING("x-western")), sizeAdjust(0.0f)
 {
 }
 
-gfxFontStyle::gfxFontStyle(PRUint8 aStyle, PRUint16 aWeight, gfxFloat aSize,
-                           const nsACString& aLangGroup,
+gfxFontStyle::gfxFontStyle(PRUint8 aStyle, PRUint16 aWeight, PRInt16 aStretch,
+                           gfxFloat aSize, const nsACString& aLangGroup,
                            float aSizeAdjust, PRPackedBool aSystemFont,
                            PRPackedBool aFamilyNameQuirks,
                            PRPackedBool aPrinterFont):
     style(aStyle), systemFont(aSystemFont), printerFont(aPrinterFont),
-    familyNameQuirks(aFamilyNameQuirks), weight(aWeight),
+    familyNameQuirks(aFamilyNameQuirks), weight(aWeight), stretch(aStretch),
     size(aSize), langGroup(aLangGroup), sizeAdjust(aSizeAdjust)
 {
     if (weight > 900)
@@ -1268,7 +1727,7 @@ gfxFontStyle::gfxFontStyle(PRUint8 aStyle, PRUint16 aWeight, gfxFloat aSize,
 gfxFontStyle::gfxFontStyle(const gfxFontStyle& aStyle) :
     style(aStyle.style), systemFont(aStyle.systemFont), printerFont(aStyle.printerFont),
     familyNameQuirks(aStyle.familyNameQuirks), weight(aStyle.weight),
-    size(aStyle.size), langGroup(aStyle.langGroup),
+    stretch(aStyle.stretch), size(aStyle.size), langGroup(aStyle.langGroup),
     sizeAdjust(aStyle.sizeAdjust)
 {
 }
@@ -1485,6 +1944,7 @@ gfxTextRun::ComputeLigatureData(PRUint32 aPartStart, PRUint32 aPartEnd,
             }
         }
     }
+    NS_ASSERTION(totalClusterCount > 0, "Ligature involving no clusters??");
     result.mPartAdvance = ligatureWidth*partClusterIndex/totalClusterCount;
     result.mPartWidth = ligatureWidth*partClusterCount/totalClusterCount;
 
@@ -1794,7 +2254,8 @@ gfxTextRun::Draw(gfxContext *aContext, gfxPoint aPt,
     if (HasNonOpaqueColor(aContext, currentColor) && HasSyntheticBold(this, aStart, aLength)) {
         needToRestore = PR_TRUE;
         // measure text, use the bounding box
-        gfxTextRun::Metrics metrics = MeasureText(aStart, aLength, PR_FALSE, aContext, aProvider);
+        gfxTextRun::Metrics metrics = MeasureText(aStart, aLength, gfxFont::LOOSE_INK_EXTENTS,
+                                                  aContext, aProvider);
         metrics.mBoundingBox.MoveBy(aPt);
         syntheticBoldBuffer.PushSolidColor(metrics.mBoundingBox, currentColor, GetAppUnitsPerDevUnit());
     }
@@ -1859,7 +2320,8 @@ gfxTextRun::DrawToPath(gfxContext *aContext, gfxPoint aPt,
 void
 gfxTextRun::AccumulateMetricsForRun(gfxFont *aFont,
                                     PRUint32 aStart, PRUint32 aEnd,
-                                    PRBool aTight, gfxContext *aRefContext,
+                                    gfxFont::BoundingBoxType aBoundingBoxType,
+                                    gfxContext *aRefContext,
                                     PropertyProvider *aProvider,
                                     PRUint32 aSpacingStart, PRUint32 aSpacingEnd,
                                     Metrics *aMetrics)
@@ -1867,14 +2329,15 @@ gfxTextRun::AccumulateMetricsForRun(gfxFont *aFont,
     nsAutoTArray<PropertyProvider::Spacing,200> spacingBuffer;
     PRBool haveSpacing = GetAdjustedSpacingArray(aStart, aEnd, aProvider,
         aSpacingStart, aSpacingEnd, &spacingBuffer);
-    Metrics metrics = aFont->Measure(this, aStart, aEnd, aTight, aRefContext,
+    Metrics metrics = aFont->Measure(this, aStart, aEnd, aBoundingBoxType, aRefContext,
                                      haveSpacing ? spacingBuffer.Elements() : nsnull);
     aMetrics->CombineWith(metrics, IsRightToLeft());
 }
 
 void
 gfxTextRun::AccumulatePartialLigatureMetrics(gfxFont *aFont,
-    PRUint32 aStart, PRUint32 aEnd, PRBool aTight, gfxContext *aRefContext,
+    PRUint32 aStart, PRUint32 aEnd,
+    gfxFont::BoundingBoxType aBoundingBoxType, gfxContext *aRefContext,
     PropertyProvider *aProvider, Metrics *aMetrics)
 {
     if (aStart >= aEnd)
@@ -1887,7 +2350,8 @@ gfxTextRun::AccumulatePartialLigatureMetrics(gfxFont *aFont,
     // First measure the complete ligature
     Metrics metrics;
     AccumulateMetricsForRun(aFont, data.mLigatureStart, data.mLigatureEnd,
-                            aTight, aRefContext, aProvider, aStart, aEnd, &metrics);
+                            aBoundingBoxType, aRefContext,
+                            aProvider, aStart, aEnd, &metrics);
 
     // Clip the bounding box to the ligature part
     gfxFloat bboxLeft = metrics.mBoundingBox.X();
@@ -1910,7 +2374,8 @@ gfxTextRun::AccumulatePartialLigatureMetrics(gfxFont *aFont,
 
 gfxTextRun::Metrics
 gfxTextRun::MeasureText(PRUint32 aStart, PRUint32 aLength,
-                        PRBool aTightBoundingBox, gfxContext *aRefContext,
+                        gfxFont::BoundingBoxType aBoundingBoxType,
+                        gfxContext *aRefContext,
                         PropertyProvider *aProvider)
 {
     NS_ASSERTION(aStart + aLength <= mCharacterCount, "Substring out of range");
@@ -1926,20 +2391,20 @@ gfxTextRun::MeasureText(PRUint32 aStart, PRUint32 aLength,
         ShrinkToLigatureBoundaries(&ligatureRunStart, &ligatureRunEnd);
 
         AccumulatePartialLigatureMetrics(font, start, ligatureRunStart,
-            aTightBoundingBox, aRefContext, aProvider, &accumulatedMetrics);
+            aBoundingBoxType, aRefContext, aProvider, &accumulatedMetrics);
 
         // XXX This sucks. We have to get glyph extents just so we can detect
-        // glyphs outside the font box, even when aTightBoundingBox is false,
+        // glyphs outside the font box, even when aBoundingBoxType is LOOSE,
         // even though in almost all cases we could get correct results just
         // by getting some ascent/descent from the font and using our stored
         // advance widths.
         AccumulateMetricsForRun(font,
-            ligatureRunStart, ligatureRunEnd, aTightBoundingBox,
+            ligatureRunStart, ligatureRunEnd, aBoundingBoxType,
             aRefContext, aProvider, ligatureRunStart, ligatureRunEnd,
             &accumulatedMetrics);
 
         AccumulatePartialLigatureMetrics(font, ligatureRunEnd, end,
-            aTightBoundingBox, aRefContext, aProvider, &accumulatedMetrics);
+            aBoundingBoxType, aRefContext, aProvider, &accumulatedMetrics);
     }
 
     return accumulatedMetrics;
@@ -1953,7 +2418,8 @@ gfxTextRun::BreakAndMeasureText(PRUint32 aStart, PRUint32 aMaxLength,
                                 PropertyProvider *aProvider,
                                 PRBool aSuppressInitialBreak,
                                 gfxFloat *aTrimWhitespace,
-                                Metrics *aMetrics, PRBool aTightBoundingBox,
+                                Metrics *aMetrics,
+                                gfxFont::BoundingBoxType aBoundingBoxType,
                                 gfxContext *aRefContext,
                                 PRBool *aUsedHyphenation,
                                 PRUint32 *aLastBreak,
@@ -2093,7 +2559,7 @@ gfxTextRun::BreakAndMeasureText(PRUint32 aStart, PRUint32 aMaxLength,
 
     if (aMetrics) {
         *aMetrics = MeasureText(aStart, charsFit - trimmableChars,
-            aTightBoundingBox, aRefContext, aProvider);
+            aBoundingBoxType, aRefContext, aProvider);
     }
     if (aTrimWhitespace) {
         *aTrimWhitespace = trimmableAdvance;
@@ -2163,7 +2629,6 @@ gfxTextRun::FindFirstGlyphRunContaining(PRUint32 aOffset)
     NS_ASSERTION(aOffset <= mCharacterCount, "Bad offset looking for glyphrun");
     if (aOffset == mCharacterCount)
         return mGlyphRuns.Length();
-
     PRUint32 start = 0;
     PRUint32 end = mGlyphRuns.Length();
     while (end - start > 1) {
@@ -2234,6 +2699,33 @@ gfxTextRun::SortGlyphRuns()
                          runs[i].mCharacterOffset !=
                          runs[i - 1].mCharacterOffset,
                          "Two fonts for the same run, glyph indices may not match the font");
+        }
+    }
+}
+
+void
+gfxTextRun::SanitizeGlyphRuns()
+{
+    if (mGlyphRuns.Length() <= 1)
+        return;
+
+    // If any glyph run starts with ligature-continuation characters, we need to advance it
+    // to the first "real" character to avoid drawing partial ligature glyphs from wrong font
+    // (seen with U+FEFF in reftest 474417-1, as Core Text eliminates the glyph, which makes
+    // it appear as if a ligature has been formed)
+    PRInt32 i, lastRunIndex = mGlyphRuns.Length() - 1;
+    for (i = lastRunIndex; i >= 0; --i) {
+        GlyphRun& run = mGlyphRuns[i];
+        while (mCharacterGlyphs[run.mCharacterOffset].IsLigatureContinuation() &&
+               run.mCharacterOffset < mCharacterCount) {
+            run.mCharacterOffset++;
+        }
+        // if the run has become empty, eliminate it
+        if ((i < lastRunIndex &&
+             run.mCharacterOffset >= mGlyphRuns[i+1].mCharacterOffset) ||
+            (i == lastRunIndex && run.mCharacterOffset == mCharacterCount)) {
+            mGlyphRuns.RemoveElementAt(i);
+            --lastRunIndex;
         }
     }
 }
@@ -2311,23 +2803,6 @@ gfxTextRun::SetMissingGlyph(PRUint32 aIndex, PRUint32 aChar)
     mCharacterGlyphs[aIndex].SetMissing(1);
 }
 
-void
-gfxTextRun::RecordSurrogates(const PRUnichar *aString)
-{
-    if (!(mFlags & gfxTextRunFactory::TEXT_HAS_SURROGATES))
-        return;
-
-    // Remember which characters are low surrogates (the second half of
-    // a surrogate pair).
-    PRUint32 i;
-    gfxTextRun::CompressedGlyph g;
-    for (i = 0; i < mCharacterCount; ++i) {
-        if (NS_IS_LOW_SURROGATE(aString[i])) {
-            SetGlyphs(i, g.SetLowSurrogate(), nsnull);
-        }
-    }
-}
-
 static void
 ClearCharacters(gfxTextRun::CompressedGlyph *aGlyphs, PRUint32 aLength)
 {
@@ -2402,6 +2877,9 @@ gfxTextRun::CopyGlyphDataFrom(gfxTextRun *aSource, PRUint32 aStart,
         PRUint32 end = iter.GetStringEnd();
 #endif
         PRUint32 start = iter.GetStringStart();
+        // These assertions are probably not needed; it's possible for us to assign
+        // different fonts to a base character and a following diacritic.
+        // View http://www.alanwood.net/unicode/cyrillic.html on OS X 10.5 for an example.
         NS_ASSERTION(aSource->IsClusterStart(start),
                      "Started word in the middle of a cluster...");
         NS_ASSERTION(end == aSource->GetLength() || aSource->IsClusterStart(end),
@@ -2445,7 +2923,8 @@ gfxTextRun::SetSpaceGlyph(gfxFont *aFont, gfxContext *aContext, PRUint32 aCharIn
 void
 gfxTextRun::FetchGlyphExtents(gfxContext *aRefContext)
 {
-    if (!NeedsGlyphExtents(this) && !mDetailedGlyphs)
+    PRBool needsGlyphExtents = NeedsGlyphExtents(this);
+    if (!needsGlyphExtents && !mDetailedGlyphs)
         return;
 
     PRUint32 i;
@@ -2464,7 +2943,7 @@ gfxTextRun::FetchGlyphExtents(gfxContext *aRefContext)
             if (glyphData->IsSimpleGlyph()) {
                 // If we're in speed mode, don't set up glyph extents here; we'll
                 // just return "optimistic" glyph bounds later
-                if (NeedsGlyphExtents(this)) {
+                if (needsGlyphExtents) {
                     PRUint32 glyphIndex = glyphData->GetSimpleGlyph();
                     if (!extents->IsGlyphKnown(glyphIndex)) {
                         if (!fontIsSetup) {

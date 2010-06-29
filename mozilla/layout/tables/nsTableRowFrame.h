@@ -67,6 +67,10 @@ struct nsTableCellReflowState;
 class nsTableRowFrame : public nsHTMLContainerFrame
 {
 public:
+  NS_DECL_QUERYFRAME_TARGET(nsTableRowFrame)
+  NS_DECL_QUERYFRAME
+  NS_DECL_FRAMEARENA_HELPERS
+
   virtual ~nsTableRowFrame();
 
   NS_IMETHOD Init(nsIContent*      aContent,
@@ -76,10 +80,10 @@ public:
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
   
   NS_IMETHOD AppendFrames(nsIAtom*        aListName,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
   NS_IMETHOD InsertFrames(nsIAtom*        aListName,
                           nsIFrame*       aPrevFrame,
-                          nsIFrame*       aFrameList);
+                          nsFrameList&    aFrameList);
   NS_IMETHOD RemoveFrame(nsIAtom*        aListName,
                          nsIFrame*       aOldFrame);
 
@@ -119,12 +123,6 @@ public:
                     nsReflowStatus&          aStatus);
 
   void DidResize();
-
-  virtual PRBool IsFrameOfType(PRUint32 aFlags) const
-  {
-    return nsHTMLContainerFrame::IsFrameOfType(aFlags &
-      ~nsIFrame::eExcludesIgnorableWhitespace);
-  }
 
   /**
    * Get the "type" of the frame

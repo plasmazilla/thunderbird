@@ -353,17 +353,19 @@ def GetVCSFilename(file, srcdirs):
         for srcdir in srcdirs:
             if os.path.isdir(os.path.join(path, "CVS")):
                 fileInfo = CVSFileInfo(file, srcdir)
+                if fileInfo:
+                    root = fileInfo.root
             elif os.path.isdir(os.path.join(path, ".svn")) or \
                  os.path.isdir(os.path.join(path, "_svn")):
                  fileInfo = SVNFileInfo(file);
             elif os.path.isdir(os.path.join(srcdir, '.hg')) and \
                  IsInDir(file, srcdir):
                  fileInfo = HGFileInfo(file, srcdir)
-            
-            if fileInfo:
+
+            if fileInfo: 
                 vcsFileInfoCache[file] = fileInfo
                 break
-    
+
     if fileInfo:
         file = fileInfo.filename
         root = fileInfo.root
@@ -517,11 +519,10 @@ class Dumper:
                             (x, index, filename) = line.split(None, 2)
                             if sys.platform == "sunos5":
                                 for srcdir in self.srcdirs:
-                                  start = filename.find(srcdir)
-                                  if start != -1:
-                                    filename = filename[start:]
-                                    break
-
+                                    start = filename.find(self.srcdir)
+                                    if start != -1:
+                                        filename = filename[start:]
+                                        break
                             filename = self.FixFilenameCase(filename.rstrip())
                             sourcepath = filename
                             if self.vcsinfo:
@@ -538,6 +539,8 @@ class Dumper:
                         else:
                             # pass through all other lines unchanged
                             f.write(line)
+                            # we want to return true only if at least one line is not a MODULE or FILE line
+                            result = True
                     f.close()
                     cmd.close()
                     # we output relative paths so callers can get a list of what
@@ -548,7 +551,6 @@ class Dumper:
                         self.SourceServerIndexing(file, guid, sourceFileStream, vcs_root)
                     if self.copy_debug:
                         self.CopyDebug(file, debug_file, guid)
-                    result = True
             except StopIteration:
                 pass
             except:
@@ -652,7 +654,7 @@ class Dumper_Linux(Dumper):
                                 debug_file + ".dbg")
         full_path = os.path.normpath(os.path.join(self.symbol_path,
                                                   rel_path))
-        shutil.copyfile(file_dbg, full_path)
+        shutil.move(file_dbg, full_path)
         # gzip the shipped debug files
         os.system("gzip %s" % full_path)
         print rel_path + ".gz"
@@ -705,9 +707,32 @@ class Dumper_Mac(Dumper):
         os.system("dsymutil %s %s >/dev/null" % (' '.join([a.replace('-a ', '--arch=') for a in self.archs]),
                                       file))
         res = Dumper.ProcessFile(self, dsymbundle)
-        if not self.copy_debug:
-            shutil.rmtree(dsymbundle)
+        # CopyDebug will already have been run from Dumper.ProcessFile
+        shutil.rmtree(dsymbundle)
+
+        # fallback for DWARF-less binaries
+        if not res:
+            print >> sys.stderr, "Couldn't read DWARF symbols in: %s" % dsymbundle
+            res = Dumper.ProcessFile(self, file)
+
         return res
+
+    def CopyDebug(self, file, debug_file, guid):
+        """ProcessFile has already produced a dSYM bundle, so we should just
+        copy that to the destination directory. However, we'll package it
+        into a .tar.bz2 because the debug symbols are pretty huge, and
+        also because it's a bundle, so it's a directory. |file| here is the
+        dSYM bundle, and |debug_file| is the original filename."""
+        rel_path = os.path.join(debug_file,
+                                guid,
+                                os.path.basename(file) + ".tar.bz2")
+        full_path = os.path.abspath(os.path.join(self.symbol_path,
+                                                  rel_path))
+        success = call(["tar", "cjf", full_path, os.path.basename(file)],
+                       cwd=os.path.dirname(file),
+                       stdout=open("/dev/null","w"), stderr=STDOUT)
+        if success == 0 and os.path.exists(full_path):
+            print rel_path
 
 # Entry point if called as a standalone program
 def main():

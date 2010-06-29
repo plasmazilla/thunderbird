@@ -56,7 +56,7 @@
 #include "nsPresContext.h"
 #include "nsGkAtoms.h"
 #include "nsString.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsIDOMStyleSheetList.h"
 #include "nsIDOMCSSStyleSheet.h"
 #include "nsIDOMCSSRule.h"
@@ -353,7 +353,8 @@ nsMediaQueryResultCacheKey::Matches(nsPresContext* aPresContext) const
   for (PRUint32 i = 0; i < mFeatureCache.Length(); ++i) {
     const FeatureEntry *entry = &mFeatureCache[i];
     nsCSSValue actual;
-    nsresult rv = (entry->mFeature->mGetter)(aPresContext, actual);
+    nsresult rv =
+      (entry->mFeature->mGetter)(aPresContext, entry->mFeature, actual);
     NS_ENSURE_SUCCESS(rv, PR_FALSE); // any better ideas?
 
     for (PRUint32 j = 0; j < entry->mExpressions.Length(); ++j) {
@@ -462,7 +463,7 @@ nsMediaQuery::AppendToString(nsAString& aString) const
                        "bad unit");
           AppendASCIItoUTF16(
               nsCSSProps::ValueToKeyword(expr.mValue.GetIntValue(),
-                                         feature->mKeywordTable),
+                                         feature->mData.mKeywordTable),
               aString);
           break;
       }
@@ -494,7 +495,8 @@ nsMediaQuery::Matches(nsPresContext* aPresContext,
   for (PRUint32 i = 0, i_end = mExpressions.Length(); match && i < i_end; ++i) {
     const nsMediaExpression &expr = mExpressions[i];
     nsCSSValue actual;
-    nsresult rv = (expr.mFeature->mGetter)(aPresContext, actual);
+    nsresult rv =
+      (expr.mFeature->mGetter)(aPresContext, expr.mFeature, actual);
     NS_ENSURE_SUCCESS(rv, PR_FALSE); // any better ideas?
 
     match = expr.Matches(aPresContext, actual);
@@ -867,7 +869,7 @@ nsCSSStyleSheetInner::nsCSSStyleSheetInner(nsCSSStyleSheetInner& aCopy,
 #endif
 {
   MOZ_COUNT_CTOR(nsCSSStyleSheetInner);
-  mSheets.AppendElement(aPrimarySheet);
+  AddSheet(aPrimarySheet);
   aCopy.mOrderedRules.EnumerateForwards(CloneRuleInto, &mOrderedRules);
   mOrderedRules.EnumerateForwards(SetStyleSheetReference, aPrimarySheet);
 
@@ -898,16 +900,16 @@ nsCSSStyleSheetInner::AddSheet(nsICSSStyleSheet* aSheet)
 void
 nsCSSStyleSheetInner::RemoveSheet(nsICSSStyleSheet* aSheet)
 {
-  if (1 == mSheets.Count()) {
-    NS_ASSERTION(aSheet == (nsICSSStyleSheet*)mSheets.ElementAt(0), "bad parent");
+  if (1 == mSheets.Length()) {
+    NS_ASSERTION(aSheet == mSheets.ElementAt(0), "bad parent");
     delete this;
     return;
   }
-  if (aSheet == (nsICSSStyleSheet*)mSheets.ElementAt(0)) {
+  if (aSheet == mSheets.ElementAt(0)) {
     mSheets.RemoveElementAt(0);
-    NS_ASSERTION(mSheets.Count(), "no parents");
+    NS_ASSERTION(mSheets.Length(), "no parents");
     mOrderedRules.EnumerateForwards(SetStyleSheetReference,
-                                    (nsICSSStyleSheet*)mSheets.ElementAt(0));
+                                    mSheets.ElementAt(0));
   }
   else {
     mSheets.RemoveElement(aSheet);
@@ -1050,7 +1052,7 @@ nsCSSStyleSheet::~nsCSSStyleSheet()
   // not be released. The document will let us know when it is going
   // away.
   if (mRuleProcessors) {
-    NS_ASSERTION(mRuleProcessors->Count() == 0, "destructing sheet with rule processor reference");
+    NS_ASSERTION(mRuleProcessors->Length() == 0, "destructing sheet with rule processor reference");
     delete mRuleProcessors; // weak refs, should be empty here anyway
   }
 }
@@ -1076,11 +1078,11 @@ NS_IMETHODIMP
 nsCSSStyleSheet::AddRuleProcessor(nsCSSRuleProcessor* aProcessor)
 {
   if (! mRuleProcessors) {
-    mRuleProcessors = new nsAutoVoidArray();
+    mRuleProcessors = new nsAutoTArray<nsCSSRuleProcessor*, 8>();
     if (!mRuleProcessors)
       return NS_ERROR_OUT_OF_MEMORY;
   }
-  NS_ASSERTION(-1 == mRuleProcessors->IndexOf(aProcessor),
+  NS_ASSERTION(mRuleProcessors->NoIndex == mRuleProcessors->IndexOf(aProcessor),
                "processor already registered");
   mRuleProcessors->AppendElement(aProcessor); // weak ref
   return NS_OK;
@@ -1466,7 +1468,7 @@ nsCSSStyleSheet::GetStyleSheetAt(PRInt32 aIndex, nsICSSStyleSheet*& aSheet) cons
 nsresult  
 nsCSSStyleSheet::EnsureUniqueInner()
 {
-  if (1 < mInner->mSheets.Count()) {
+  if (1 < mInner->mSheets.Length()) {
     nsCSSStyleSheetInner* clone = mInner->CloneFor(this);
     if (clone) {
       mInner->RemoveSheet(this);
@@ -1552,20 +1554,15 @@ void nsCSSStyleSheet::List(FILE* out, PRInt32 aIndent) const
 }
 #endif
 
-static PRBool
-EnumClearRuleCascades(void* aProcessor, void* aData)
-{
-  nsCSSRuleProcessor* processor =
-    static_cast<nsCSSRuleProcessor*>(aProcessor);
-  processor->ClearRuleCascades();
-  return PR_TRUE;
-}
-
 void 
 nsCSSStyleSheet::ClearRuleCascades()
 {
   if (mRuleProcessors) {
-    mRuleProcessors->EnumerateForwards(EnumClearRuleCascades, nsnull);
+    nsCSSRuleProcessor **iter = mRuleProcessors->Elements(),
+                       **end = iter + mRuleProcessors->Length();
+    for(; iter != end; ++iter) {
+      (*iter)->ClearRuleCascades();
+    }
   }
   if (mParent) {
     nsCSSStyleSheet* parent = (nsCSSStyleSheet*)mParent;
@@ -2177,6 +2174,12 @@ nsCSSStyleSheet::StyleSheetLoaded(nsICSSStyleSheet* aSheet,
   }
 
   return NS_OK;
+}
+
+NS_IMETHODIMP_(nsIURI*)
+nsCSSStyleSheet::GetOriginalURI() const
+{
+  return mInner->mOriginalSheetURI;
 }
 
 nsresult

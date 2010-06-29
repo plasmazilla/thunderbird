@@ -69,6 +69,8 @@ class PropertyProvider;
 
 class nsTextFrame : public nsFrame {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   friend class nsContinuingTextFrame;
 
   nsTextFrame(nsStyleContext* aContext) : nsFrame(aContext)
@@ -90,9 +92,7 @@ public:
   NS_IMETHOD GetCursor(const nsPoint& aPoint,
                        nsIFrame::Cursor& aCursor);
   
-  NS_IMETHOD CharacterDataChanged(nsPresContext* aPresContext,
-                                  nsIContent*     aChild,
-                                  PRBool          aAppend);
+  NS_IMETHOD CharacterDataChanged(CharacterDataChangeInfo* aInfo);
                                   
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
   
@@ -153,13 +153,24 @@ public:
 #endif
   
   virtual ContentOffsets CalcContentOffsetsFromFramePoint(nsPoint aPoint);
-   
-  NS_IMETHOD SetSelected(nsPresContext* aPresContext,
-                         nsIDOMRange *aRange,
-                         PRBool aSelected,
-                         nsSpread aSpread,
-                         SelectionType aType);
-  
+  ContentOffsets GetCharacterOffsetAtFramePoint(const nsPoint &aPoint);
+
+  /**
+   * This is called only on the primary text frame. It indicates that
+   * the selection state of the given character range has changed.
+   * Text in the range is unconditionally invalidated
+   * (nsTypedSelection::Repaint depends on this).
+   * @param aSelected true if the selection has been added to the range,
+   * false otherwise
+   * @param aType the type of selection added or removed
+   */
+  virtual void SetSelected(PRBool        aSelected,
+                           SelectionType aType);
+  void SetSelectedRange(PRUint32 aStart,
+                        PRUint32 aEnd,
+                        PRBool aSelected,
+                        SelectionType aType);
+
   virtual PRBool PeekOffsetNoAmount(PRBool aForward, PRInt32* aOffset);
   virtual PRBool PeekOffsetCharacter(PRBool aForward, PRInt32* aOffset);
   virtual PRBool PeekOffsetWord(PRBool aForward, PRBool aWordSelectEatSpace, PRBool aIsKeyboardSelect,
@@ -408,7 +419,7 @@ protected:
                       PRUint32 aLength,
                       nsCSSShadowItem* aShadowDetails,
                       PropertyProvider* aProvider,
-                      const gfxRect& aDirtyRect,
+                      const nsRect& aDirtyRect,
                       const gfxPoint& aFramePt,
                       const gfxPoint& aTextBaselinePt,
                       gfxContext* aCtx,
@@ -442,10 +453,15 @@ protected:
   };
   TextDecorations GetTextDecorations(nsPresContext* aPresContext);
 
-  PRBool HasSelectionOverflowingDecorations(nsPresContext* aPresContext,
-                                            float* aRatio = nsnull);
+  // Set non empty rect to aRect, it should be overflow rect or frame rect.
+  // If the result rect is larger than the given rect, this returns PR_TRUE.
+  PRBool CombineSelectionUnderlineRect(nsPresContext* aPresContext,
+                                       nsRect& aRect);
 
   PRBool IsFloatingFirstLetterChild();
+
+  ContentOffsets GetCharacterOffsetAtFramePointInternal(const nsPoint &aPoint,
+                   PRBool aForInsertionPoint);
 };
 
 #endif

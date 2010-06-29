@@ -13,7 +13,7 @@ Detail
 ======
 
 Each run gets a unique ID number, which is used to map a test run to a 
-database of results. Every test (which lives in the tests/ directory) is 
+database of results. Every test (which lives in the tests/ directory) is
 enumerated in step 2. Adding a new test is as simple as just creating the 
 directory and addiing the appropriate files.
 

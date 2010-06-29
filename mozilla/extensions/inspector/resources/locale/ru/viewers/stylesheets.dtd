@@ -36,5 +36,5 @@
    -
 #endif
    - ***** END LICENSE BLOCK ***** -->
-<!ENTITY styleLocation.label "Таблица стилей">
-<!ENTITY styleRules.label "Правила">
+<!ENTITY sheetLocation.label "Таблица стилей">
+<!ENTITY sheetRules.label "Правила">

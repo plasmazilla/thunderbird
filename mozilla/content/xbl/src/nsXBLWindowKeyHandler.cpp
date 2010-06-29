@@ -56,6 +56,7 @@
 #include "nsIControllers.h"
 #include "nsIDOMWindowInternal.h"
 #include "nsIFocusController.h"
+#include "nsFocusManager.h"
 #include "nsPIWindowRoot.h"
 #include "nsIURI.h"
 #include "nsNetUtil.h"
@@ -65,7 +66,6 @@
 #include "nsIDOMNSDocument.h"
 #include "nsPIWindowRoot.h"
 #include "nsPIDOMWindow.h"
-#include "nsIFocusController.h"
 #include "nsIDocShell.h"
 #include "nsIPresShell.h"
 #include "nsIPrivateDOMEvent.h"
@@ -360,8 +360,7 @@ nsXBLWindowKeyHandler::WalkHandlers(nsIDOMKeyEvent* aKeyEvent, nsIAtom* aEventTy
 
   WalkHandlersInternal(aKeyEvent, aEventType, mHandler);
 
-  nsINativeKeyBindings *nativeBindings;
-  if (isEditor && (nativeBindings = GetEditorKeyBindings())) {
+  if (isEditor && GetEditorKeyBindings()) {
     nsNativeKeyEvent nativeEvent;
     // get the DOM window we're attached to
     nsCOMPtr<nsIControllers> controllers;
@@ -370,7 +369,8 @@ nsXBLWindowKeyHandler::WalkHandlers(nsIDOMKeyEvent* aKeyEvent, nsIAtom* aEventTy
       nsCOMPtr<nsIFocusController> fc;
       root->GetFocusController(getter_AddRefs(fc));
       if (fc) {
-        fc->GetControllers(getter_AddRefs(controllers));
+        nsCOMPtr<nsPIDOMWindow> piWindow = do_QueryInterface(root->GetWindow());
+        fc->GetControllers(piWindow, getter_AddRefs(controllers));
       }
     }
 
@@ -449,20 +449,18 @@ nsXBLWindowKeyHandler::ShutDown()
 PRBool
 nsXBLWindowKeyHandler::IsEditor()
 {
-  nsCOMPtr<nsPIWindowRoot> windowRoot(do_QueryInterface(mTarget));
-  NS_ENSURE_TRUE(windowRoot, PR_FALSE);
-  nsCOMPtr<nsIFocusController> focusController;
-  windowRoot->GetFocusController(getter_AddRefs(focusController));
-  if (!focusController) {
-    NS_WARNING("********* Something went wrong! No focus controller on the root!!!\n");
+  // XXXndeakin even though this is only used for key events which should be
+  // going to the focused frame anyway, this doesn't seem like the right way
+  // to determine if something is an editor.
+  nsIFocusManager* fm = nsFocusManager::GetFocusManager();
+  if (!fm)
     return PR_FALSE;
-  }
 
-  nsCOMPtr<nsIDOMWindowInternal> focusedWindow;
-  focusController->GetFocusedWindow(getter_AddRefs(focusedWindow));
+  nsCOMPtr<nsIDOMWindow> focusedWindow;
+  fm->GetFocusedWindow(getter_AddRefs(focusedWindow));
   if (!focusedWindow)
     return PR_FALSE;
-  
+
   nsCOMPtr<nsPIDOMWindow> piwin(do_QueryInterface(focusedWindow));
   nsIDocShell *docShell = piwin->GetDocShell();
   nsCOMPtr<nsIPresShell> presShell;

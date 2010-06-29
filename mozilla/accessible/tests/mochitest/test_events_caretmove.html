@@ -165,6 +165,14 @@
 
     function doTests()
     {
+      // XXX Bug 510128
+      if (!MAC) {
+        // test no focused accessibles
+        testCaretOffset("textbox", -1);
+        testCaretOffset("textarea", -1);
+        testCaretOffset("p", -1);
+      }
+
       // test caret move events and caret offsets
       gQueue = new eventQueue(nsIAccessibleEvent.EVENT_TEXT_CARET_MOVED);
 
@@ -184,7 +192,7 @@
       gQueue.push(new synthRightKey(id, 1));
       gQueue.push(new synthDownKey(id, 6));
 
-      gQueue.push(new synthClick("p1_in_div", 0));
+      gQueue.push(new synthClick("p1_in_div", 0, "p2_in_div", -1));
 
       gQueue.push(new synthTabTest("p", 0, true));
       gQueue.push(new synthTabTest("textarea", 12, true));

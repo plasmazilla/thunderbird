@@ -119,6 +119,12 @@ function getPreviewForTask( toDoItem )
       hasHeader = true;
     }
 
+    // First try to get calendar name appearing in tooltip
+    if (toDoItem.calendar.name) {
+      let calendarNameString = toDoItem.calendar.name;
+      boxAppendLabeledText(vbox, "tooltipCalName", calendarNameString);
+    }
+
     if (toDoItem.entryDate && toDoItem.entryDate.isValid)
     {
       boxAppendLabeledDateTime(vbox, "tooltipStart", toDoItem.entryDate);
@@ -155,7 +161,7 @@ function getPreviewForTask( toDoItem )
       hasHeader = true;
     }
 
-    if (toDoItem.percentComplete != 0 && toDoItem.percentComplete != 100)
+    if (toDoItem.status != null && toDoItem.percentComplete != 0 && toDoItem.percentComplete != 100)
     {
       boxAppendLabeledText(vbox, "tooltipPercent", String(toDoItem.percentComplete)+"%");
       hasHeader = true;
@@ -219,6 +225,12 @@ function getPreviewForEvent( aEvent) {
     }
     boxAppendLabeledDateTimeInterval(vbox, "tooltipDate", event);
 
+    // First try to get calendar name appearing in tooltip
+    if (event.calendar.name) {
+      let calendarNameString = event.calendar.name;
+      boxAppendLabeledText(vbox, "tooltipCalName", calendarNameString);
+    }
+
     if (event.status && event.status != "NONE") {
       var statusString = getEventStatusString(event);
       boxAppendLabeledText(vbox, "tooltipStatus", statusString);
@@ -248,7 +260,7 @@ function getEventStatusString(calendarEvent)
     case "CONFIRMED":
       return calGetString('calendar', "statusConfirmed");
     case "CANCELLED":
-      return calGetString('calendar', "statusCancelled");
+      return calGetString('calendar', "eventStatusCancelled");
      default:
         return "";
   }
@@ -265,7 +277,7 @@ function getToDoStatusString(iCalToDo)
     case "IN-PROCESS":
       return calGetString('calendar', "statusInProcess");
     case "CANCELLED":
-      return calGetString('calendar', "statusCancelled");
+      return calGetString('calendar', "todoStatusCancelled");
     case "COMPLETED":
       return calGetString('calendar', "statusCompleted");
      default:

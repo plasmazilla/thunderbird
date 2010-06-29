@@ -86,7 +86,6 @@ Observer.prototype =
   },
   QueryInterface: function(iid) {
     if (iid.equals(Ci.nsINavHistoryObserver) ||
-        iid.equals(Ci.nsINavHistoryObserver_MOZILLA_1_9_1_ADDITIONS) ||
         iid.equals(Ci.nsISupports)) {
       return this;
     }

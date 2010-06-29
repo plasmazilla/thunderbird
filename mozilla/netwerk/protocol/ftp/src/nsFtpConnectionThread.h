@@ -52,6 +52,7 @@
 #include "nsIStreamListener.h"
 #include "nsICacheListener.h"
 #include "nsIURI.h"
+#include "prnetdb.h"
 #include "prtime.h"
 #include "nsString.h"
 #include "nsIFTPChannel.h"
@@ -269,6 +270,7 @@ private:
     PRPackedBool        mStorReplyReceived; // FALSE if waiting for STOR
                                             // completion status from server
     nsresult            mInternalError; // represents internal state errors
+    PRPackedBool        mReconnectAndLoginAgain;
 
         // ****** URI vars
     PRInt32                mPort;       // the port to connect to
@@ -285,7 +287,7 @@ private:
     
     static PRUint32         mSessionStartTime;
 
-    char                    mServerAddress[64];
+    PRNetAddr               mServerAddress;
 
     // ***** control read gvars
     nsresult                mControlStatus;

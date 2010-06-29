@@ -40,18 +40,27 @@
 #define NSSVGGFRAME_H
 
 #include "nsSVGContainerFrame.h"
+#include "gfxMatrix.h"
 
 typedef nsSVGDisplayContainerFrame nsSVGGFrameBase;
 
 class nsSVGGFrame : public nsSVGGFrameBase
 {
   friend nsIFrame*
-  NS_NewSVGGFrame(nsIPresShell* aPresShell, nsIContent* aContent, nsStyleContext* aContext);
+  NS_NewSVGGFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGGFrame(nsStyleContext* aContext) :
     nsSVGGFrameBase(aContext) {}
 
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
+#ifdef DEBUG
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+#endif
+
   /**
    * Get the "type" of the frame
    *
@@ -75,7 +84,7 @@ public:
   virtual void NotifySVGChanged(PRUint32 aFlags);
 
   // nsSVGContainerFrame methods:
-  virtual already_AddRefed<nsIDOMSVGMatrix> GetCanvasTM();
+  virtual gfxMatrix GetCanvasTM();
 
   nsCOMPtr<nsIDOMSVGMatrix> mCanvasTM;
 };

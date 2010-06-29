@@ -45,12 +45,15 @@
 #include "nsIServiceManager.h"
 #include "nsITheme.h"
 #include "nsDisplayList.h"
+#include "nsCSSAnonBoxes.h"
 
 nsIFrame*
 NS_NewGfxRadioControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   return new (aPresShell) nsGfxRadioControlFrame(aContext);
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsGfxRadioControlFrame)
 
 nsGfxRadioControlFrame::nsGfxRadioControlFrame(nsStyleContext* aContext):
   nsFormControlFrame(aContext)
@@ -61,27 +64,20 @@ nsGfxRadioControlFrame::~nsGfxRadioControlFrame()
 {
 }
 
-// Frames are not refcounted, no need to AddRef
-NS_IMETHODIMP
-nsGfxRadioControlFrame::QueryInterface(const nsIID& aIID, void** aInstancePtr)
-{
-  NS_PRECONDITION(aInstancePtr, "null out param");
-
-  if (aIID.Equals(NS_GET_IID(nsIRadioControlFrame))) {
-    *aInstancePtr = static_cast<nsIRadioControlFrame*>(this);
-    return NS_OK;
-  }
-
-  return nsFormControlFrame::QueryInterface(aIID, aInstancePtr);
-}
+NS_QUERYFRAME_HEAD(nsGfxRadioControlFrame)
+  NS_QUERYFRAME_ENTRY(nsIRadioControlFrame)
+NS_QUERYFRAME_TAIL_INHERITING(nsFormControlFrame)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsGfxRadioControlFrame::GetAccessible(nsIAccessible** aAccessible)
+NS_IMETHODIMP
+nsGfxRadioControlFrame::GetAccessible(nsIAccessible** aAccessible)
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
+  nsCOMPtr<nsIAccessibilityService> accService
+    = do_GetService("@mozilla.org/accessibilityService;1");
 
   if (accService) {
-    return accService->CreateHTMLRadioButtonAccessible(static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLRadioButtonAccessible(
+      static_cast<nsIFrame*>(this), aAccessible);
   }
 
   return NS_ERROR_FAILURE;
@@ -107,7 +103,6 @@ PaintCheckedRadioButton(nsIFrame* aFrame,
   aCtx->FillEllipse(rect);
 }
 
-//--------------------------------------------------------------
 NS_IMETHODIMP
 nsGfxRadioControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                                          const nsRect&           aDirtyRect,
@@ -121,7 +116,7 @@ nsGfxRadioControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     return NS_OK;
   
   if (IsThemed())
-    return NS_OK; // No need to paint the radio button. The theme will do it.
+    return NS_OK; // The theme will paint the check, if any.
 
   PRBool checked = PR_TRUE;
   GetCurrentCheckState(&checked); // Get check state from the content model
@@ -132,8 +127,6 @@ nsGfxRadioControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     nsDisplayGeneric(this, PaintCheckedRadioButton, "CheckedRadioButton"));
 }
 
-
-//--------------------------------------------------------------
 NS_IMETHODIMP
 nsGfxRadioControlFrame::OnChecked(nsPresContext* aPresContext,
                                   PRBool aChecked)

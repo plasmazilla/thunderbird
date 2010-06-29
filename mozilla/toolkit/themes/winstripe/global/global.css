@@ -95,7 +95,7 @@ window.dialog {
 }
 
 .message-icon {
-  list-style-image: url("chrome://global/skin/icons/Message.png");
+  list-style-image: url("chrome://global/skin/icons/information-32.png");
 }
 
 .alert-icon {
@@ -181,7 +181,32 @@ sidebarheader > label {
   -moz-user-focus: ignore !important;
 }
 
+toolbar[mode="text"] .toolbarbutton-text {
+  padding: 0 !important;
+  margin: 3px 5px !important;
+}
+
 /* ::::: miscellaneous formatting ::::: */
+
+:root:-moz-lwtheme,
+[lwthemefooter="true"] {
+  -moz-appearance: none;
+}
+
+:root:-moz-lwtheme-darktext {
+  text-shadow: 1px 1px 2px white;
+}
+
+:root:-moz-lwtheme-brighttext {
+  text-shadow: 1px 1px 2px black;
+}
+
+statusbar:-moz-lwtheme,
+sidebarheader:-moz-lwtheme {
+  -moz-appearance: none;
+  background: none;
+  border-style: none;
+}
 
 .inset {
   border: 1px solid ThreeDShadow;
@@ -231,6 +256,7 @@ separator.groove[orient="vertical"] {
 }
     
 .plain {
+  -moz-appearance: none;
   margin: 0 !important;
   border: none;
   padding: 0;
@@ -294,21 +320,12 @@ label[disabled="true"]:-moz-system-metric(windows-classic) {
 }
   
 .text-link:focus {
-  color: red;
   border: 1px dotted -moz-DialogText;
-}
-  
-.text-link:hover:active {
-  color: red;
-}
-
-.text-link[visited="true"] {
-  color: purple;
 }
 
 /* :::::: autoscroll popup ::::: */
 
-#autoscroller {
+.autoscroller {
   height: 28px;
   width: 28px;
   border: none;
@@ -322,7 +339,7 @@ label[disabled="true"]:-moz-system-metric(windows-classic) {
   -moz-appearance: none;
 }
 
-#autoscroller[scrolldir="NS"] {
+.autoscroller[scrolldir="NS"] {
 %ifdef XP_WIN
   background-position: right center;
 %else
@@ -330,7 +347,7 @@ label[disabled="true"]:-moz-system-metric(windows-classic) {
 %endif
 }
 
-#autoscroller[scrolldir="EW"] {
+.autoscroller[scrolldir="EW"] {
 %ifdef XP_WIN
   background-position: right bottom;
 %else

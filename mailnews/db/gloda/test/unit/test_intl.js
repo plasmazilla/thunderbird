@@ -37,11 +37,11 @@
 
 /*
  * Sanity check our encoding transforms and make sure the mozporter tokenizer
- *  is resulting in the expected fulltext search results.
- * - Check subject, Body, and Attachment names are properly indexed; previously
- *    we screwed up at least one of these in terms of handling encodings
- *    properly.
- * - That we can fulltext search on those things afterwards.
+ *  is resulting in the expected fulltext search results.  Specifically:
+ * - Check that subject, body, and attachment names are properly indexed;
+ *    previously we screwed up at least one of these in terms of handling
+ *    encodings properly.
+ * - Check that we can fulltext search on those things afterwards.
  */
 
 load("resources/glodaTestHelper.js");
@@ -52,7 +52,7 @@ load("resources/glodaTestHelper.js");
  * To make the encoding pairs:
  * - For the subject bit:
  *   import email
- *   h = email.header.Header(charset=CHARSET)
+ *   h = email.Header.Header(charset=CHARSET)
  *   h.append(STRING)
  *   h.encode()
  * - For the body bit
@@ -116,6 +116,102 @@ var intlPhrases = [
       {body: "slov\u00e1cko", match: true},
       {body: "moravsk\u00e9", match: true},
       {body: "rODIN\u011b", match: true},
+    ]
+  },
+  // ignore accent search
+  {
+    name: "having accent: Paris",
+    actual: "Par\u00eds",
+    encodings: {
+      "utf-8": ["=?UTF-8?B?UGFyw61z?=",
+                "Par\xc3\xads"]
+    },
+    searchPhrases: [
+      {body: "paris", match: true},
+    ]
+  },
+  // case insentive case for non-ASCII characters
+  {
+    name: "Russian: new",
+    actual: "\u041d\u043e\u0432\u043e\u0435",
+    encodings: {
+      "utf-8": ["=?UTF-8?B?0J3QvtCy0L7QtQ==?=",
+                "\xd0\x9d\xd0\xbe\xd0\xb2\xd0\xbe\xd0\xb5"]
+    },
+    searchPhrases: [
+      {body: "\u043d\u043e\u0432\u043e\u0435", match: true},
+    ]
+  },
+  // case-folding happens after decomposition
+  {
+    name: "Awesome where A has a bar over it",
+    actual: "\u0100wesome",
+    encodings: {
+      "utf-8": ["=?utf-8?q?=C4=80wesome?=",
+                "\xc4\x80wesome"]
+    },
+    searchPhrases: [
+      {body: "\u0100wesome", match: true}, // upper A-bar
+      {body: "\u0101wesome", match: true}, // lower a-bar
+      {body: "Awesome", match: true}, // upper A
+      {body: "awesome", match: true}, // lower a
+    ]
+  },
+  // deep decomposition happens and after that, case folding
+  {
+    name: "Upper case upsilon with diaeresis and hook goes to small upsilon",
+    actual: "\u03d4esterday",
+    encodings: {
+      "utf-8": ["=?utf-8?q?=CF=94esterday?=",
+                "\xcf\x94esterday"]
+    },
+    searchPhrases: [
+      {body: "\u03d4esterday", match: true}, // Y_: 03d4 => 03d2 (decomposed)
+      {body: "\u03d3esterday", match: true}, // Y_' 03d3 => 03d2 (decomposed)
+      {body: "\u03d2esterday", match: true}, // Y_  03d2 => 03a5 (decomposed)
+      {body: "\u03a5esterday", match: true}, // Y   03a5 => 03c5 (lowercase)
+      {body: "\u03c5esterday", match: true}, // y   03c5 (final state)
+    ]
+  },
+  // full-width alphabet
+  // Even if search phrases are ASCII, it has to hit.
+  {
+    name: "Full-width Thunderbird",
+    actual: "\uff34\uff48\uff55\uff4e\uff44\uff45\uff52\uff42\uff49\uff52\uff44",
+    encodings: {
+      "utf-8": ["=?UTF-8?B?77y0772I772V772O772E772F772S772C772J772S772E?=",
+                "\xef\xbc\xb4\xef\xbd\x88\xef\xbd\x95\xef\xbd\x8e\xef\xbd\x84\xef\xbd\x85\xef\xbd\x92\xef\xbd\x82\xef\xbd\x89\xef\xbd\x92\xef\xbd\x84"]
+    },
+    searchPhrases: [
+      // full-width lower
+      {body: "\uff34\uff28\uff35\uff2e\uff24\uff25\uff32\uff22\uff29\uff32\uff24", match: true},
+      // half-width
+      {body: "Thunderbird", match: true},
+    ]
+  },
+  // half-width Katakana with voiced sound mark
+  // Even if search phrases are full-width, it has to hit.
+  {
+    name: "Half-width Katakana: Thunderbird (SANDAABAADO)",
+    actual: "\uff7b\uff9d\uff80\uff9e\uff70\uff8a\uff9e\uff70\uff84\uff9e",
+    encodings: {
+      "utf-8": ["=?UTF-8?B?7727776d776A776e772w776K776e772w776E776e?=",
+                "\xef\xbd\xbb\xef\xbe\x9d\xef\xbe\x80\xef\xbe\x9e\xef\xbd\xb0\xef\xbe\x8a\xef\xbe\x9e\xef\xbd\xb0\xef\xbe\x84\xef\xbe\x9e"]
+    },
+    searchPhrases: [
+      {body: "\u30b5\u30f3\u30c0\u30fc\u30d0\u30fc\u30c9", match: true},
+    ]
+  },
+  // Thai: Would you like to see the movie?
+  {
+    name: "Thai: query movie word into Thai language content",
+    actual: "\u0e04\u0e38\u0e13\u0e2d\u0e22\u0e32\u0e01\u0e44\u0e1b\u0e14\u0e39\u0e2b\u0e19\u0e31\u0e07",
+    encodings: {
+      "utf-8": ["=?UTF-8?B?4LiE4Li44LiT4Lit4Lii4Liy4LiB4LmE4Lib4LiU4Li54Lir4LiZ4Lix4LiH?=",
+                "\xe0\xb8\x84\xe0\xb8\xb8\xe0\xb8\x93\xe0\xb8\xad\xe0\xb8\xa2\xe0\xb8\xb2\xe0\xb8\x81\xe0\xb9\x84\xe0\xb8\x9b\xe0\xb8\x94\xe0\xb8\xb9\xe0\xb8\xab\xe0\xb8\x99\xe0\xb8\xb1\xe0\xb8\x87"]
+    },
+    searchPhrases: [
+      {body: "\u0e2b\u0e19\u0e31\u0e07", match: true},
     ]
   }
 ];
@@ -192,6 +288,38 @@ function test_fulltextsearch(aPhrase)
 }
 
 
+/**
+ * Names with encoded commas in them can screw up our mail address parsing if
+ *  we perform the mime decoding prior to handing the mail address off for
+ *  parsing.
+ */
+function test_encoding_complications_with_mail_addresses() {
+  let basePair = gMessageGenerator.makeNameAndAddress();
+  // The =2C encodes a comma!
+  let encodedCommaPair = ["=?iso-8859-1?Q?=DFnake=2C_=DFammy?=",
+                          basePair[1]];
+  // "Snake, Sammy", but with a much cooler looking S-like character!
+  let decodedName = "\u00dfnake, \u00dfammy";
+  // Use the thing with the comma in it for all cases; previously there was an
+  //  asymmetry between to and cc...
+  let smsg = gMessageGenerator.makeMessage({
+    from: encodedCommaPair,
+    to: [encodedCommaPair],
+    cc: [encodedCommaPair],
+  });
+  function verify_sammy_snake(smsg, gmsg) {
+    do_check_eq(gmsg.from.contact.name, decodedName);
+    do_check_eq(gmsg.to.length, 1);
+    do_check_eq(gmsg.to[0].id, gmsg.from.id);
+    do_check_eq(gmsg.cc.length, 1);
+    do_check_eq(gmsg.cc[0].id, gmsg.from.id);
+  }
+
+  let synSet = new SyntheticMessageSet([smsg]);
+  yield add_sets_to_folder(gInbox, [synSet]);
+  yield wait_for_gloda_indexer(synSet, {verifier: verify_sammy_snake});
+}
+
 /* ===== Driver ===== */
 
 var tests = [
@@ -201,6 +329,7 @@ var tests = [
     return wait_for_gloda_db_flush();
   },
   parameterizeTest(test_fulltextsearch, intlPhrases),
+  test_encoding_complications_with_mail_addresses,
 ];
 
 var gInbox;

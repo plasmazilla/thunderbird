@@ -47,8 +47,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://app/modules/MsgHdrSyntheticView.js");
-Components.utils.import("resource://app/modules/errUtils.js");
+Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
+Components.utils.import("resource:///modules/errUtils.js");
 
 /**
  * Displays message "folder"s, mail "message"s, and "glodaList" results.  The
@@ -120,16 +120,6 @@ let mailTabType = {
         else
           windowToInheritFrom = FindOther3PaneWindow();
 
-        if (windowToInheritFrom) {
-          let searchInputToInheritFrom =
-            windowToInheritFrom.document.getElementById("searchInput");
-          if (searchInputToInheritFrom) {
-            let searchInput = document.getElementById("searchInput");
-            if (searchInput)
-              // This should set the aTab.searchMode as well
-              searchInput.searchMode = searchInputToInheritFrom.searchMode;
-          }
-        }
         aTab.folderDisplay.makeActive();
       },
       /**
@@ -141,8 +131,6 @@ let mailTabType = {
        * @param [aArgs.messagePaneVisible] Whether the message pane should be
        *            visible. If this isn't specified, the current or first tab's
        *            current state is used.
-       * @param [aArgs.searchMode] The search mode for this tab. If this isn't
-       *            specified, the current or first tab's current mode is used.
        * @param [aArgs.forceSelectMessage] Whether we should consider dropping
        *            filters to select the message. This has no effect if
        *            aArgs.msgHdr isn't specified. Defaults to false.
@@ -156,13 +144,6 @@ let mailTabType = {
         //  "folder" tab.)
         let modelTab = document.getElementById("tabmail")
                          .getTabInfoForCurrentOrFirstModeInstance(aTab.mode);
-        let searchInput = document.getElementById("searchInput");
-
-        if ("searchMode" in aArgs)
-          aTab.searchMode = aArgs.searchMode;
-        else if (searchInput)
-          aTab.searchMode = searchInput.searchMode;
-        aTab.searchInputValue = "";
 
         // - figure out whether to show the folder pane
         let folderPaneShouldBeVisible;
@@ -238,8 +219,6 @@ let mailTabType = {
             messagePaneVisible: aTab.messageDisplay.visible,
             firstTab: aTab.firstTab
           };
-          if ("searchMode" in aTab)
-            retval.searchMode = aTab.searchMode;
           return retval;
         } catch (e) {
           logException(e);
@@ -282,12 +261,21 @@ let mailTabType = {
                   aPersistedState.dontRestoreFirstTab))
               gFolderTreeView.selectFolder(folder);
 
-            // This should be after selectFolder, so that onDisplayingFolder
-            // there doesn't clobber this.
-            if ("searchMode" in aPersistedState) {
-              let searchInput = document.getElementById("searchInput");
-              if (searchInput)
-                searchInput.searchMode = aPersistedState.searchMode;
+            // We need to manually trigger the tab monitor restore trigger
+            // for this tab.  In theory this should be in tabmail, but the
+            // special nature of the first tab will last exactly long as this
+            // implementation right here so it does not particularly matter
+            // and is a bit more honest, if ugly, to do it here.
+            let tabmail = document.getElementById("tabmail");
+            let restoreState = tabmail._restoringTabState;
+            let tab = tabmail.tabInfo[0];
+            for each (let [, tabMonitor] in Iterator(tabmail.tabMonitors)) {
+              if (("onTabRestored" in tabMonitor) &&
+                  (tabMonitor.monitorName in restoreState.ext)) {
+                tabMonitor.onTabRestored(tab,
+                                         restoreState.ext[tabMonitor.monitorName],
+                                         true);
+              }
             }
           }
           else {
@@ -297,8 +285,6 @@ let mailTabType = {
               messagePaneVisible: aPersistedState.messagePaneVisible,
               background: true
             };
-            if ("searchMode" in aPersistedState)
-              tabArgs.searchMode = aPersistedState.searchMode;
             aTabmail.openTab("folder", tabArgs);
           }
         }
@@ -372,8 +358,7 @@ let mailTabType = {
 
         // Once we're brought into the foreground, the message pane should
         // get focus
-        aTab._focusedWindow = GetMessagePaneFrame();
-        aTab._focusedElement = null;
+        aTab._focusedElement = document.getElementById("messagepane");
 
         // we only want to make it active after setting up the view and the message
         //  to avoid generating bogus summarization events.
@@ -550,23 +535,23 @@ let mailTabType = {
 
   /**
    * Save off the tab's currently focused element or window.
-   * - If the message pane or summary is currently focused, we'll save this as
-   *   our focused window. We won't try to save the focused element, as they'll
-   *   be rebuilt every time we switch panes and it'll be too hard for us to do
-   *   that.
+   * - If the message pane or summary is currently focused, save the
+   *   corresponding browser element as the focused element.
    * - If the thread tree or folder tree is focused, save that as the focused
-   *   element and the toplevel window as the focused window.
+   *   element.
    */
   saveFocus: function mailTabType_saveFocus(aTab) {
     let focusedWindow = document.commandDispatcher.focusedWindow.top;
-    if (focusedWindow == document.getElementById("messagepane").contentWindow ||
-        focusedWindow == document.getElementById("multimessage").contentWindow) {
-      aTab._focusedWindow = focusedWindow;
-      aTab._focusedElement = null;
+
+    let messagepane = document.getElementById("messagepane");
+    let multimessage = document.getElementById("multimessage");
+    if (focusedWindow == messagepane.contentWindow) {
+      aTab._focusedElement = messagepane;
+    }
+    else if (focusedWindow == multimessage.contentWindow) {
+      aTab._focusedElement = multimessage;
     }
     else {
-      aTab._focusedWindow = window;
-
       // Look for children as well. This logic is copied from the mail 3pane
       // version of WhichPaneHasFocus().
       let focusedElement = document.commandDispatcher.focusedElement;
@@ -589,25 +574,11 @@ let mailTabType = {
     // There seem to be issues with opening multiple messages at once, so allow
     // things to stabilize a bit before proceeding
     let reallyRestoreFocus = function mailTabType_reallyRestoreFocus(aTab) {
-      if ("_focusedWindow" in aTab && aTab._focusedWindow) {
-        let windowWatcher = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                              .getService(Components.interfaces.nsIWindowWatcher);
-        if (windowWatcher.activeWindow == window)
-          aTab._focusedWindow.focus();
-        else
-          // We can't focus() the window if it's in the background relative to
-          // other windows within this process, or it'll steal focus. Set the
-          // focused window instead, so that when this window receives focus
-          // again, we'll focus the right thing.
-          // XXX This should only be needed for 1.9.1
-          document.commandDispatcher.focusedWindow = aTab._focusedWindow;
-      }
       if ("_focusedElement" in aTab && aTab._focusedElement)
         aTab._focusedElement.focus();
-      aTab._focusedWindow = aTab._focusedElement = null;
+      aTab._focusedElement = null;
     };
 
-    let self = this;
     window.setTimeout(reallyRestoreFocus, 0, aTab);
   },
 

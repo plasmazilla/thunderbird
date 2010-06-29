@@ -53,6 +53,9 @@
 #include "nsIMsgMailSession.h"
 #include "nsMsgMessageFlags.h"
 #include "nsIMsgStatusFeedback.h"
+#include "nsServiceManagerUtils.h"
+#include "nsComponentManagerUtils.h"
+#include "nsMsgUtils.h"
 
 // This file contains the news article download state machine.
 
@@ -526,7 +529,8 @@ nsresult DownloadMatchingNewsArticlesToNewsDB::RunSearch(nsIMsgFolder *folder, n
   NS_ENSURE_ARG(searchSession);
   NS_ENSURE_ARG(folder);
 
-  searchSession->RegisterListener(this);
+  searchSession->RegisterListener(this,
+                                  nsIMsgSearchSession::allNotifications);
   rv = searchSession->AddScopeTerm(nsMsgSearchScope::localNews, folder);
   return searchSession->Search(m_window);
 }

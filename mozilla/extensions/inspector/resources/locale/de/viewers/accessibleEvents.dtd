@@ -38,5 +38,9 @@
 <!ENTITY eventType.label "Ereignis-Typ">
 <!ENTITY eventTime.label "Zeit">
 <!ENTITY eventNodeName.label "Knoten-Name">
+<!ENTITY isWatched.label "Wird beobachtet">
 <!ENTITY clearEventList.label "Ereignis-Liste leeren">
+<!ENTITY chooseEventsToWatch.label "Zu beobachtende Ereignisse auswählen">
+<!ENTITY selectAll.label "Alle auswählen">
+<!ENTITY unselectAll.label "Keine auswählen">
 

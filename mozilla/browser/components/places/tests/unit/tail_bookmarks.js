@@ -39,7 +39,7 @@
 
 // Run the event loop to be more like the browser, which normally runs the
 // event loop long before code like this would run.
-// Not doing so could cause us to close the connection between all tasks have
+// Not doing so could cause us to close the connection before all tasks have
 // been completed, and that would crash badly.
 flush_main_thread_events();
 

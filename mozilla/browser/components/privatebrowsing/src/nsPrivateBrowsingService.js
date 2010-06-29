@@ -74,6 +74,11 @@ const Ci = Components.interfaces;
 const Cu = Components.utils;
 const Cr = Components.results;
 
+const STATE_IDLE = 0;
+const STATE_TRANSITION_STARTED = 1;
+const STATE_WAITING_FOR_RESTORE = 2;
+const STATE_RESTORE_FINISHED = 3;
+
 ////////////////////////////////////////////////////////////////////////////////
 //// PrivateBrowsingService
 
@@ -81,6 +86,8 @@ function PrivateBrowsingService() {
   this._obs.addObserver(this, "profile-after-change", true);
   this._obs.addObserver(this, "quit-application-granted", true);
   this._obs.addObserver(this, "private-browsing", true);
+  this._obs.addObserver(this, "command-line-startup", true);
+  this._obs.addObserver(this, "sessionstore-browser-state-restored", true);
 }
 
 PrivateBrowsingService.prototype = {
@@ -114,14 +121,14 @@ PrivateBrowsingService.prototype = {
   // How to treat the non-private session
   _saveSession: true,
 
-  // Make sure we don't allow re-enterant changing of the private mode
-  _alreadyChangingMode: false,
+  // The current status of the private browsing service
+  _currentStatus: STATE_IDLE,
 
-  // Whether we're entering the private browsing mode at application startup
-  _autoStart: false,
-
-  // Whether the private browsing mode has been started automatically
+  // Whether the private browsing mode has been started automatically (ie. always-on)
   _autoStarted: false,
+
+  // List of view source window URIs for restoring later
+  _viewSrcURLs: [],
 
   // List of nsIXULWindows we are going to be closing during the transition
   _windowsToClose: [],
@@ -131,12 +138,14 @@ PrivateBrowsingService.prototype = {
   contractID: "@mozilla.org/privatebrowsing;1",
   classID: Components.ID("{c31f4883-839b-45f6-82ad-a6a9bc5ad599}"),
   _xpcom_categories: [
+    { category: "command-line-handler", entry: "m-privatebrowsing" },
     { category: "app-startup", service: true }
   ],
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIPrivateBrowsingService, 
                                          Ci.nsIObserver,
-                                         Ci.nsISupportsWeakReference]),
+                                         Ci.nsISupportsWeakReference,
+                                         Ci.nsICommandLineHandler]),
 
   _unload: function PBS__destroy() {
     // Force an exit from the private browsing mode on shutdown
@@ -146,8 +155,8 @@ PrivateBrowsingService.prototype = {
   },
 
   _onBeforePrivateBrowsingModeChange: function PBS__onBeforePrivateBrowsingModeChange() {
-    // nothing needs to be done here if we're auto-starting
-    if (!this._autoStart) {
+    // nothing needs to be done here if we're enabling at startup
+    if (!this._autoStarted) {
       let ss = Cc["@mozilla.org/browser/sessionstore;1"].
                getService(Ci.nsISessionStore);
       let blankState = JSON.stringify({
@@ -172,6 +181,22 @@ PrivateBrowsingService.prototype = {
       }
 
       this._closePageInfoWindows();
+
+      // save view-source windows URIs and close them
+      let viewSrcWindowsEnum = Cc["@mozilla.org/appshell/window-mediator;1"].
+                               getService(Ci.nsIWindowMediator).
+                               getEnumerator("navigator:view-source");
+      while (viewSrcWindowsEnum.hasMoreElements()) {
+        let win = viewSrcWindowsEnum.getNext();
+        if (this._inPrivateBrowsing) {
+          let plainURL = win.getBrowser().currentURI.spec;
+          if (plainURL.indexOf("view-source:") == 0) {
+            plainURL = plainURL.substr(12);
+            this._viewSrcURLs.push(plainURL);
+          }
+        }
+        win.close();
+      }
 
       if (!this._quitting && this._saveSession) {
         let browserWindow = this._getBrowserWindow();
@@ -198,10 +223,7 @@ PrivateBrowsingService.prototype = {
                        .treeOwner
                        .QueryInterface(Ci.nsIInterfaceRequestor)
                        .getInterface(Ci.nsIXULWindow)
-                       .docShell
-                       .contentViewer
-                       .QueryInterface(Ci.nsIContentViewer_MOZILLA_1_9_1_BRANCH)
-                       .resetCloseWindow();
+                       .docShell.contentViewer.resetCloseWindow();
         }
       }
     }
@@ -210,18 +232,41 @@ PrivateBrowsingService.prototype = {
   },
 
   _onAfterPrivateBrowsingModeChange: function PBS__onAfterPrivateBrowsingModeChange() {
-    // nothing to do here if we're auto-starting or the current session is being
+    // nothing to do here if we're enabling at startup or the current session is being
     // used
-    if (!this._autoStart && this._saveSession) {
+    if (!this._autoStarted && this._saveSession) {
       let ss = Cc["@mozilla.org/browser/sessionstore;1"].
                getService(Ci.nsISessionStore);
       // if we have transitioned out of private browsing mode and the session is
       // to be restored, do it now
       if (!this._inPrivateBrowsing) {
+        this._currentStatus = STATE_WAITING_FOR_RESTORE;
         ss.setBrowserState(this._savedBrowserState);
         this._savedBrowserState = null;
 
         this._closePageInfoWindows();
+
+        // re-open all view-source windows
+        let windowWatcher = Cc["@mozilla.org/embedcomp/window-watcher;1"].
+                            getService(Ci.nsIWindowWatcher);
+        this._viewSrcURLs.forEach(function(uri) {
+          let args = Cc["@mozilla.org/supports-array;1"].
+                     createInstance(Ci.nsISupportsArray);
+          let str = Cc["@mozilla.org/supports-string;1"].
+                    createInstance(Ci.nsISupportsString);
+          str.data = uri;
+          args.AppendElement(str);
+          args.AppendElement(null); // charset
+          args.AppendElement(null); // page descriptor
+          args.AppendElement(null); // line number
+          let forcedCharset = Cc["@mozilla.org/supports-PRBool;1"].
+                              createInstance(Ci.nsISupportsPRBool);
+          forcedCharset.data = false;
+          args.AppendElement(forcedCharset);
+          windowWatcher.openWindow(null, "chrome://global/content/viewSource.xul",
+            "_blank", "all,dialog=no", args);
+        });
+        this._viewSrcURLs = [];
       }
       else {
         // otherwise, if we have transitioned into private browsing mode, load
@@ -237,8 +282,32 @@ PrivateBrowsingService.prototype = {
           }]
         };
         // Transition into private browsing mode
+        this._currentStatus = STATE_WAITING_FOR_RESTORE;
         ss.setBrowserState(JSON.stringify(privateBrowsingState));
       }
+    }
+  },
+
+  _notifyIfTransitionComplete: function PBS__notifyIfTransitionComplete() {
+    switch (this._currentStatus) {
+      case STATE_TRANSITION_STARTED:
+        // no session store operation was needed, so just notify of transition completion
+      case STATE_RESTORE_FINISHED:
+        // restore has been completed
+        this._currentStatus = STATE_IDLE;
+        this._obs.notifyObservers(null, "private-browsing-transition-complete", "");
+        break;
+      case STATE_WAITING_FOR_RESTORE:
+        // too soon to notify...
+        break;
+      case STATE_IDLE:
+        // no need to notify
+        break;
+      default:
+        // unexpected state observed
+        Cu.reportError("Unexpected private browsing status reached: " +
+                       this._currentStatus);
+        break;
     }
   },
 
@@ -280,7 +349,7 @@ PrivateBrowsingService.prototype = {
 
     while (windowsEnum.hasMoreElements()) {
       let win = windowsEnum.getNext().QueryInterface(Ci.nsIXULWindow);
-      if (win.docShell.contentViewer.QueryInterface(Ci.nsIContentViewer_MOZILLA_1_9_1_BRANCH).permitUnloadAndCloseWindow())
+      if (win.docShell.contentViewer.permitUnload(true))
         this._windowsToClose.push(win);
       else
         throw Cr.NS_ERROR_ABORT;
@@ -306,11 +375,10 @@ PrivateBrowsingService.prototype = {
         // private browsing mode upon startup.
         // This won't interfere with the session store component, because
         // that component will be initialized on final-ui-startup.
-        this._autoStart = this._prefs.getBoolPref("browser.privatebrowsing.autostart");
-        if (this._autoStart) {
-          this._autoStarted = true;
-          this.privateBrowsingEnabled = true;
-          this._autoStart = false;
+        if (!this._autoStarted) {
+          this._autoStarted = this._prefs.getBoolPref("browser.privatebrowsing.autostart");
+          if (this._autoStarted)
+            this.privateBrowsingEnabled = true;
         }
         this._obs.removeObserver(this, "profile-after-change");
         break;
@@ -340,7 +408,31 @@ PrivateBrowsingService.prototype = {
           consoleService.reset();
         }
         break;
+      case "command-line-startup":
+        this._obs.removeObserver(this, "command-line-startup");
+        aSubject.QueryInterface(Ci.nsICommandLine);
+        this.handle(aSubject);
+        break;
+      case "sessionstore-browser-state-restored":
+        if (this._currentStatus == STATE_WAITING_FOR_RESTORE) {
+          this._currentStatus = STATE_RESTORE_FINISHED;
+          this._notifyIfTransitionComplete();
+        }
+        break;
     }
+  },
+
+  // nsICommandLineHandler
+
+  handle: function PBS_handle(aCmdLine) {
+    if (aCmdLine.handleFlag("private", false)) {
+      this.privateBrowsingEnabled = true;
+      this._autoStarted = true;
+    }
+  },
+
+  get helpInfo PBS_get_helpInfo() {
+    return "  -private            Enable private browsing mode.\n";
   },
 
   // nsIPrivateBrowsingService
@@ -361,11 +453,11 @@ PrivateBrowsingService.prototype = {
     // status of the service while it's in the process of another transition.
     // So, we detect a reentrant call here and throw an error.
     // This is documented in nsIPrivateBrowsingService.idl.
-    if (this._alreadyChangingMode)
+    if (this._currentStatus != STATE_IDLE)
       throw Cr.NS_ERROR_FAILURE;
 
     try {
-      this._alreadyChangingMode = true;
+      this._currentStatus = STATE_TRANSITION_STARTED;
 
       if (val != this._inPrivateBrowsing) {
         if (val) {
@@ -379,8 +471,7 @@ PrivateBrowsingService.prototype = {
 
         this._ensureCanCloseWindows();
 
-        this._autoStarted = val ?
-          this._prefs.getBoolPref("browser.privatebrowsing.autostart") : false;
+        this._autoStarted = this._prefs.getBoolPref("browser.privatebrowsing.autostart");
         this._inPrivateBrowsing = val != false;
 
         let data = val ? "enter" : "exit";
@@ -404,14 +495,14 @@ PrivateBrowsingService.prototype = {
       // We aborted the transition to/from private browsing, we must restore the
       // beforeunload handling on all the windows for which we switched it off.
       for (let i = 0; i < this._windowsToClose.length; i++)
-        this._windowsToClose[i].docShell.contentViewer.QueryInterface(Ci.nsIContentViewer_MOZILLA_1_9_1_BRANCH).resetCloseWindow();
+        this._windowsToClose[i].docShell.contentViewer.resetCloseWindow();
       // We don't log an error when the transition is canceled from beforeunload
       if (ex != Cr.NS_ERROR_ABORT)
         Cu.reportError("Exception thrown while processing the " +
           "private browsing mode change request: " + ex.toString());
     } finally {
       this._windowsToClose = [];
-      this._alreadyChangingMode = false;
+      this._notifyIfTransitionComplete();
     }
   },
 
@@ -419,7 +510,7 @@ PrivateBrowsingService.prototype = {
    * Whether private browsing has been started automatically.
    */
   get autoStarted PBS_get_autoStarted() {
-    return this._autoStarted;
+    return this._inPrivateBrowsing && this._autoStarted;
   },
 
   removeDataFromDomain: function PBS_removeDataFromDomain(aDomain)

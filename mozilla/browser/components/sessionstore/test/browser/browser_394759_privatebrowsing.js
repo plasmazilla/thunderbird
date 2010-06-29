@@ -155,7 +155,8 @@ function test() {
                  "restored when exiting PB mode");
 
               // cleanup
-              gPrefService.clearUserPref("browser.sessionstore.interval");
+              if (gPrefService.prefHasUserValue("browser.sessionstore.interval"))
+                gPrefService.clearUserPref("browser.sessionstore.interval");
               finish();
             });
           }, true);

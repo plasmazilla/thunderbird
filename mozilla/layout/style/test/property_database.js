@@ -20,7 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
- *   L. David Baron <dbaron@dbaron.org>, Mozilla Corporation (original author)
+ *	 L. David Baron <dbaron@dbaron.org>, Mozilla Corporation (original author)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -47,20 +47,20 @@ const CSS_TYPE_TRUE_SHORTHAND = 1;
 const CSS_TYPE_SHORTHAND_AND_LONGHAND = 2;
 
 // Each property has the following fields:
-//   domProp: The name of the relevant member of nsIDOM[NS]CSS2Properties
-//   inherited: Whether the property is inherited by default (stated as 
-//     yes or no in the property header in all CSS specs)
-//   type: see above
-//   get_computed: if present, the property's computed value shows up on
-//     another property, and this is a function used to get it
-//   initial_values: Values whose computed value should be the same as the
-//     computed value for the property's initial value.
-//   other_values: Values whose computed value should be different from the
-//     computed value for the property's initial value.
-//   XXX Should have a third field for values whose computed value may or
-//     may not be the same as for the property's initial value.
-//   invalid_values: Things that are not values for the property and
-//     should be rejected.
+//	 domProp: The name of the relevant member of nsIDOM[NS]CSS2Properties
+//	 inherited: Whether the property is inherited by default (stated as 
+//	   yes or no in the property header in all CSS specs)
+//	 type: see above
+//	 get_computed: if present, the property's computed value shows up on
+//	   another property, and this is a function used to get it
+//	 initial_values: Values whose computed value should be the same as the
+//	   computed value for the property's initial value.
+//	 other_values: Values whose computed value should be different from the
+//	   computed value for the property's initial value.
+//	 XXX Should have a third field for values whose computed value may or
+//	   may not be the same as for the property's initial value.
+//	 invalid_values: Things that are not values for the property and
+//	   should be rejected.
 
 var gCSSProperties = {
 	"-moz-appearance": {
@@ -72,12 +72,17 @@ var gCSSProperties = {
 		invalid_values: []
 	},
 	"-moz-background-clip": {
+		/*
+		 * When we rename this to 'background-clip', we also
+		 * need to rename the values to match the spec.
+		 */
 		domProp: "MozBackgroundClip",
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
+		/* XXX Need to add support for "content" -- important for symmetry when handling background shorthand */
 		initial_values: [ "border" ],
-		other_values: [ "padding" ],
-		invalid_values: [ "content", "margin" ]
+		other_values: [ "padding", "border, padding", "padding, padding, padding", "border, border" ],
+		invalid_values: [ "content", "margin", "border border" ]
 	},
 	"-moz-background-inline-policy": {
 		domProp: "MozBackgroundInlinePolicy",
@@ -92,8 +97,16 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "padding" ],
-		other_values: [ "border", "content" ],
-		invalid_values: [ "margin" ]
+		other_values: [ "border", "content", "border, padding", "padding, padding, padding", "border, border" ],
+		invalid_values: [ "margin", "padding padding" ]
+	},
+	"-moz-background-size": {
+		domProp: "MozBackgroundSize",
+		inherited: false,
+		type: CSS_TYPE_LONGHAND,
+		initial_values: [ "auto", "auto auto" ],
+		other_values: [ "contain", "cover", "100px auto", "auto 100px", "100% auto", "auto 100%", "25% 50px", "3em 40%" ],
+		invalid_values: [ "contain contain", "cover cover", "cover auto", "auto cover", "contain cover", "cover contain", "-5px 3px", "3px -5px", "auto -5px", "-5px auto" ]
 	},
 	"-moz-binding": {
 		domProp: "MozBinding",
@@ -109,7 +122,7 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
 		other_values: [ "red green", "red #fc3", "#ff00cc", "currentColor", "blue currentColor orange currentColor" ],
-		invalid_values: [ "red none", "red inherit", "red, green" ]
+		invalid_values: [ "red none", "red inherit", "red, green", "none red", "inherit red" ]
 	},
 	"-moz-border-end": {
 		domProp: "MozBorderEnd",
@@ -155,16 +168,16 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
 		other_values: [ "url('border.png') 27 27 27 27",
-		                "url('border.png') 27",
-		                "url('border.png') 27 27 27 27 repeat",
-		                "url('border.png') 27 27 27 27 / 1em",
-		                "url('border.png') 27 27 27 27 / 1em 1em 1em 1em repeat",
-		                "url('border.png') 27 27 27 27 / 1em 1em 1em 1em stretch round" ],
+						"url('border.png') 27",
+						"url('border.png') 27 27 27 27 repeat",
+						"url('border.png') 27 27 27 27 / 1em",
+						"url('border.png') 27 27 27 27 / 1em 1em 1em 1em repeat",
+						"url('border.png') 27 27 27 27 / 1em 1em 1em 1em stretch round" ],
 		invalid_values: [ "url('border.png')",
-		                  "url('border.png') 27 27 27 27 27",
-		                  "url('border.png') 27 27 27 27 / 1em 1em 1em 1em 1em",
-		                  "url('border.png') / repeat",
-		                  "url('border.png') 27 27 27 27 /" ]
+						  "url('border.png') 27 27 27 27 27",
+						  "url('border.png') 27 27 27 27 / 1em 1em 1em 1em 1em",
+						  "url('border.png') / repeat",
+						  "url('border.png') 27 27 27 27 /" ]
 	},
 	"-moz-border-left-colors": {
 		domProp: "MozBorderLeftColors",
@@ -172,7 +185,7 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
 		other_values: [ "red green", "red #fc3", "#ff00cc", "currentColor", "blue currentColor orange currentColor" ],
-		invalid_values: [ "red none", "red inherit", "red, green" ]
+		invalid_values: [ "red none", "red inherit", "red, green", "none red", "inherit red" ]
 	},
 	"-moz-border-radius": {
 		domProp: "MozBorderRadius",
@@ -181,8 +194,8 @@ var gCSSProperties = {
 		subproperties: [ "-moz-border-radius-bottomleft", "-moz-border-radius-bottomright", "-moz-border-radius-topleft", "-moz-border-radius-topright" ],
 		initial_values: [ "0", "0px", "0px 0 0 0px" ], /* 0% ? */
 		other_values: [ "3%", "1px", "2em", "3em 2px", "2pt 3% 4em", "2px 2px 2px 2px", // circular
-		                "3% / 2%", "1px / 4px", "2em / 1em", "3em 2px / 2px 3em", "2pt 3% 4em / 4pt 1% 5em", "2px 2px 2px 2px / 4px 4px 4px 4px", "1pt / 2pt 3pt", "4pt 5pt / 3pt" // elliptical
-		              ],
+						"3% / 2%", "1px / 4px", "2em / 1em", "3em 2px / 2px 3em", "2pt 3% 4em / 4pt 1% 5em", "2px 2px 2px 2px / 4px 4px 4px 4px", "1pt / 2pt 3pt", "4pt 5pt / 3pt" // elliptical
+					  ],
 		invalid_values: [ "2px -2px", "inherit 2px", "inherit / 2px", "2px inherit", "2px / inherit", "2px 2px 2px 2px 2px", "1px / 2px 2px 2px 2px 2px" ]
 	},
 	"-moz-border-radius-bottomleft": {
@@ -191,8 +204,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px" ], /* 0% ? */
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-border-radius-bottomright": {
@@ -201,8 +214,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px" ], /* 0% ? */
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-border-radius-topleft": {
@@ -211,8 +224,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px" ], /* 0% ? */
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-border-radius-topright": {
@@ -221,8 +234,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px" ], /* 0% ? */
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-border-right-colors": {
@@ -231,7 +244,7 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
 		other_values: [ "red green", "red #fc3", "#ff00cc", "currentColor", "blue currentColor orange currentColor" ],
-		invalid_values: [ "red none", "red inherit", "red, green" ]
+		invalid_values: [ "red none", "red inherit", "red, green", "none red", "inherit red" ]
 	},
 	"-moz-border-start": {
 		domProp: "MozBorderStart",
@@ -277,7 +290,7 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
 		other_values: [ "red green", "red #fc3", "#ff00cc", "currentColor", "blue currentColor orange currentColor" ],
-		invalid_values: [ "red none", "red inherit", "red, green" ]
+		invalid_values: [ "red none", "red inherit", "red, green", "none red", "inherit red" ]
 	},
 	"-moz-box-align": {
 		domProp: "MozBoxAlign",
@@ -308,8 +321,8 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "1" ],
-		other_values: [ "0", "-1", "100", "-1000" ],
-		invalid_values: [ "1.0" ]
+		other_values: [ "0", "100" ],
+		invalid_values: [ "1.0", "-1", "-1000" ]
 	},
 	"-moz-box-orient": {
 		domProp: "MozBoxOrient",
@@ -349,11 +362,9 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "auto" ],
-		other_values: [ "1", "0", "17" ],
-		invalid_values: [
-			"-1", //unclear: see http://lists.w3.org/Archives/Public/www-style/2007Apr/0030
-			"3px"
-		]
+		other_values: [ "1", "17" ],
+		// negative and zero invalid per editor's draft
+		invalid_values: [ "-1", "0", "3px" ]
 	},
 	"-moz-column-gap": {
 		domProp: "MozColumnGap",
@@ -368,8 +379,8 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "auto" ],
-		other_values: [ "15px", "50%" ],
-		invalid_values: [ "20", "-1px" ]
+		other_values: [ "15px" ],
+		invalid_values: [ "20", "-1px", "50%" ]
 	},
 	"-moz-column-rule-width": {
 		domProp: "MozColumnRuleWidth",
@@ -460,8 +471,8 @@ var gCSSProperties = {
 		subproperties: [ "-moz-outline-radius-bottomleft", "-moz-outline-radius-bottomright", "-moz-outline-radius-topleft", "-moz-outline-radius-topright" ],
 		initial_values: [ "0", "0px", "0%" ],
 		other_values: [ "3%", "1px", "2em", "3em 2px", "2pt 3% 4em", "2px 2px 2px 2px", // circular
-		                "3% / 2%", "1px / 4px", "2em / 1em", "3em 2px / 2px 3em", "2pt 3% 4em / 4pt 1% 5em", "2px 2px 2px 2px / 4px 4px 4px 4px", "1pt / 2pt 3pt", "4pt 5pt / 3pt" // elliptical
-		              ],
+						"3% / 2%", "1px / 4px", "2em / 1em", "3em 2px / 2px 3em", "2pt 3% 4em / 4pt 1% 5em", "2px 2px 2px 2px / 4px 4px 4px 4px", "1pt / 2pt 3pt", "4pt 5pt / 3pt" // elliptical
+					  ],
 		invalid_values: [ "2px -2px", "inherit 2px", "inherit / 2px", "2px inherit", "2px / inherit", "2px 2px 2px 2px 2px", "1px / 2px 2px 2px 2px 2px" ]
 	},
 	"-moz-outline-radius-bottomleft": {
@@ -470,8 +481,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px", "0%" ],
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-outline-radius-bottomright": {
@@ -480,8 +491,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px", "0%" ],
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-outline-radius-topleft": {
@@ -490,8 +501,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px", "0%" ],
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-outline-radius-topright": {
@@ -500,8 +511,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "0", "0px", "0%" ],
 		other_values: [ "3%", "1px", "2em", // circular
-		                "3% 2%", "1px 4px", "2em 2pt" // elliptical
-		              ],
+						"3% 2%", "1px 4px", "2em 2pt" // elliptical
+					  ],
 		invalid_values: [ "-1px", "4px -2px", "inherit 2px", "2px inherit" ]
 	},
 	"-moz-padding-end": {
@@ -610,22 +621,78 @@ var gCSSProperties = {
 		domProp: "background",
 		inherited: false,
 		type: CSS_TYPE_TRUE_SHORTHAND,
-		subproperties: [ "background-attachment", "background-color", "background-image", "background-position", "background-repeat", "-moz-background-clip", "-moz-background-inline-policy", "-moz-background-origin" ],
-		initial_values: [ "transparent", "none", "repeat", "scroll", "0% 0%", "top left", "left top", "transparent none", "top left none", "left top none", "none left top", "none top left", "none 0% 0%", "transparent none repeat scroll top left", "left top repeat none scroll transparent"],
-		other_values: [ "green", "none green repeat scroll left top", "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "repeat url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==') transparent left top scroll", "repeat-x", "repeat-y", "no-repeat", "none repeat-y transparent scroll 0% 0%", "fixed", "0% top transparent fixed repeat none", "top", "left", "50% 50%", "center", "bottom right scroll none transparent repeat", "50% transparent", "transparent 50%", "50%" ],
- 		invalid_values: [
- 			/* mixes with keywords have to be in correct order */
- 			"50% left", "top 50%",
- 			/* bug 258080: don't accept background-position separated */
- 			"left url(404.png) top", "top url(404.png) left"
- 		]
+		subproperties: [ "background-attachment", "background-color", "background-image", "background-position", "background-repeat", "-moz-background-clip", "-moz-background-origin", "-moz-background-size" ],
+		initial_values: [ "transparent", "none", "repeat", "scroll", "0% 0%", "top left", "left top", "transparent none", "top left none", "left top none", "none left top", "none top left", "none 0% 0%", "transparent none repeat scroll top left", "left top repeat none scroll transparent" ],
+		other_values: [
+				/* without multiple backgrounds */
+			"green",
+			"none green repeat scroll left top",
+			"url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)",
+			"repeat url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==') transparent left top scroll",
+			"repeat-x",
+			"repeat-y",
+			"no-repeat",
+			"none repeat-y transparent scroll 0% 0%",
+			"fixed",
+			"0% top transparent fixed repeat none",
+			"top",
+			"left",
+			"50% 50%",
+			"center",
+			"bottom right scroll none transparent repeat",
+			"50% transparent",
+			"transparent 50%",
+			"50%",
+			"-moz-radial-gradient(10% bottom, #ffffff, black) scroll no-repeat",
+			"-moz-linear-gradient(10px 10px -45deg, red, blue) repeat",
+			"-moz-repeating-radial-gradient(10% bottom, #ffffff, black) scroll no-repeat",
+			"-moz-repeating-linear-gradient(10px 10px -45deg, red, blue) repeat",
+				/* multiple backgrounds */
+				"url(404.png), url(404.png)",
+				"url(404.png), url(404.png) transparent",
+				"url(404.png), url(404.png) red",
+				"repeat-x, fixed, none",
+				"0% top url(404.png), url(404.png) 0% top",
+				"fixed repeat-y top left url(404.png), repeat-x green",
+				"url(404.png), -moz-linear-gradient(20px 20px -45deg, blue, green) black",
+				/* test cases with clip+origin in the shorthand */
+	// This is commented out for now until we change
+	// -moz-background-clip to background-clip, -moz-background-origin
+	// to background-origin, change their value names to *-box, and add
+	// support for content-box on background-clip.
+	/*
+				"url(404.png) green padding-box",
+				"url(404.png) border-box transparent",
+				"content-box url(404.png) blue",
+	*/
+		],
+		invalid_values: [
+			/* mixes with keywords have to be in correct order */
+			"50% left", "top 50%",
+			/* bug 258080: don't accept background-position separated */
+			"left url(404.png) top", "top url(404.png) left",
+			/* not allowed to have color in non-bottom layer */
+			"url(404.png) transparent, url(404.png)",
+			"url(404.png) red, url(404.png)",
+			"url(404.png) transparent, url(404.png) transparent",
+			"url(404.png) transparent red, url(404.png) transparent red",
+			"url(404.png) red, url(404.png) red",
+			"url(404.png) rgba(0, 0, 0, 0), url(404.png)",
+			"url(404.png) rgb(255, 0, 0), url(404.png)",
+			"url(404.png) rgba(0, 0, 0, 0), url(404.png) rgba(0, 0, 0, 0)",
+			"url(404.png) rgba(0, 0, 0, 0) rgb(255, 0, 0), url(404.png) rgba(0, 0, 0, 0) rgb(255, 0, 0)",
+			"url(404.png) rgb(255, 0, 0), url(404.png) rgb(255, 0, 0)",
+			/* bug 513395: old syntax for gradients */
+			"-moz-radial-gradient(10% bottom, 30px, 20px 20px, 10px, from(#ffffff), to(black)) scroll no-repeat",
+			"-moz-linear-gradient(10px 10px, 20px 20px, from(red), to(blue)) repeat",
+		]
 	},
 	"background-attachment": {
 		domProp: "backgroundAttachment",
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "scroll" ],
-		other_values: [ "fixed" ],
+		other_values: [ "fixed", "scroll,scroll", "fixed, scroll", "scroll, fixed, scroll", "fixed, fixed" ],
 		invalid_values: []
 	},
 	"background-color": {
@@ -641,15 +708,228 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
-		other_values: [ "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', ],
-		invalid_values: []
+		other_values: [
+		"url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+		"none, none",
+		"none, none, none, none, none",
+		"url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==), none",
+		"none, url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==), none",
+		"url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==), url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)",
+		/* gradient torture test */
+		"-moz-linear-gradient(red, blue)",
+		"-moz-linear-gradient(red, yellow, blue)",
+		"-moz-linear-gradient(red 1px, yellow 20%, blue 24em, green)",
+		"-moz-linear-gradient(red, yellow, green, blue 50%)",
+		"-moz-linear-gradient(red -50%, yellow -25%, green, blue)",
+		"-moz-linear-gradient(red -99px, yellow, green, blue 120%)",
+		"-moz-linear-gradient(#ffff00, #ef3, rgba(10, 20, 30, 0.4))",
+		"-moz-linear-gradient(rgba(10, 20, 30, 0.4), #ffff00, #ef3)",
+
+		"-moz-linear-gradient(top left, red, blue)",
+		"-moz-linear-gradient(0 0, red, blue)",
+		"-moz-linear-gradient(20% bottom, red, blue)",
+		"-moz-linear-gradient(center 20%, red, blue)",
+		"-moz-linear-gradient(left 35px, red, blue)",
+		"-moz-linear-gradient(10% 10em, red, blue)",
+		"-moz-linear-gradient(44px top, red, blue)",
+
+		"-moz-linear-gradient(top left 45deg, red, blue)",
+		"-moz-linear-gradient(20% bottom -300deg, red, blue)",
+		"-moz-linear-gradient(center 20% 1.95929rad, red, blue)",
+		"-moz-linear-gradient(left 35px 30grad, red, blue)",
+		"-moz-linear-gradient(10% 10em 99999deg, red, blue)",
+		"-moz-linear-gradient(44px top -33deg, red, blue)",
+
+		"-moz-linear-gradient(-33deg, red, blue)",
+		"-moz-linear-gradient(30grad left 35px, red, blue)",
+		"-moz-linear-gradient(10deg 20px, red, blue)",
+		"-moz-linear-gradient(.414rad bottom, red, blue)",
+
+		"-moz-radial-gradient(red, blue)",
+		"-moz-radial-gradient(red, yellow, blue)",
+		"-moz-radial-gradient(red 1px, yellow 20%, blue 24em, green)",
+		"-moz-radial-gradient(red, yellow, green, blue 50%)",
+		"-moz-radial-gradient(red -50%, yellow -25%, green, blue)",
+		"-moz-radial-gradient(red -99px, yellow, green, blue 120%)",
+		"-moz-radial-gradient(#ffff00, #ef3, rgba(10, 20, 30, 0.4))",
+
+		"-moz-radial-gradient(top left, red, blue)",
+		"-moz-radial-gradient(20% bottom, red, blue)",
+		"-moz-radial-gradient(center 20%, red, blue)",
+		"-moz-radial-gradient(left 35px, red, blue)",
+		"-moz-radial-gradient(10% 10em, red, blue)",
+		"-moz-radial-gradient(44px top, red, blue)",
+
+		"-moz-radial-gradient(top left 45deg, red, blue)",
+		"-moz-radial-gradient(0 0, red, blue)",
+		"-moz-radial-gradient(20% bottom -300deg, red, blue)",
+		"-moz-radial-gradient(center 20% 1.95929rad, red, blue)",
+		"-moz-radial-gradient(left 35px 30grad, red, blue)",
+		"-moz-radial-gradient(10% 10em 99999deg, red, blue)",
+		"-moz-radial-gradient(44px top -33deg, red, blue)",
+		"-moz-radial-gradient(rgba(10, 20, 30, 0.4), #ffff00, #ef3)",
+
+		"-moz-radial-gradient(-33deg, red, blue)",
+		"-moz-radial-gradient(30grad left 35px, red, blue)",
+		"-moz-radial-gradient(10deg 20px, red, blue)",
+		"-moz-radial-gradient(.414rad bottom, red, blue)",
+
+		"-moz-radial-gradient(cover, red, blue)",
+		"-moz-radial-gradient(circle, red, blue)",
+		"-moz-radial-gradient(ellipse closest-corner, red, blue)",
+		"-moz-radial-gradient(farthest-side circle, red, blue)",
+
+		"-moz-radial-gradient(top left, cover, red, blue)",
+		"-moz-radial-gradient(15% 20%, circle, red, blue)",
+		"-moz-radial-gradient(45px, ellipse closest-corner, red, blue)",
+		"-moz-radial-gradient(45px, farthest-side circle, red, blue)",
+
+		"-moz-radial-gradient(99deg, cover, red, blue)",
+		"-moz-radial-gradient(-1.2345rad, circle, red, blue)",
+		"-moz-radial-gradient(399grad, ellipse closest-corner, red, blue)",
+		"-moz-radial-gradient(399grad, farthest-side circle, red, blue)",
+
+		"-moz-radial-gradient(top left 99deg, cover, red, blue)",
+		"-moz-radial-gradient(15% 20% -1.2345rad, circle, red, blue)",
+		"-moz-radial-gradient(45px 399grad, ellipse closest-corner, red, blue)",
+		"-moz-radial-gradient(45px 399grad, farthest-side circle, red, blue)",
+
+		"-moz-repeating-linear-gradient(red, blue)",
+		"-moz-repeating-linear-gradient(red, yellow, blue)",
+		"-moz-repeating-linear-gradient(red 1px, yellow 20%, blue 24em, green)",
+		"-moz-repeating-linear-gradient(red, yellow, green, blue 50%)",
+		"-moz-repeating-linear-gradient(red -50%, yellow -25%, green, blue)",
+		"-moz-repeating-linear-gradient(red -99px, yellow, green, blue 120%)",
+		"-moz-repeating-linear-gradient(#ffff00, #ef3, rgba(10, 20, 30, 0.4))",
+		"-moz-repeating-linear-gradient(rgba(10, 20, 30, 0.4), #ffff00, #ef3)",
+
+		"-moz-repeating-linear-gradient(top left, red, blue)",
+		"-moz-repeating-linear-gradient(0 0, red, blue)",
+		"-moz-repeating-linear-gradient(20% bottom, red, blue)",
+		"-moz-repeating-linear-gradient(center 20%, red, blue)",
+		"-moz-repeating-linear-gradient(left 35px, red, blue)",
+		"-moz-repeating-linear-gradient(10% 10em, red, blue)",
+		"-moz-repeating-linear-gradient(44px top, red, blue)",
+
+		"-moz-repeating-linear-gradient(top left 45deg, red, blue)",
+		"-moz-repeating-linear-gradient(20% bottom -300deg, red, blue)",
+		"-moz-repeating-linear-gradient(center 20% 1.95929rad, red, blue)",
+		"-moz-repeating-linear-gradient(left 35px 30grad, red, blue)",
+		"-moz-repeating-linear-gradient(10% 10em 99999deg, red, blue)",
+		"-moz-repeating-linear-gradient(44px top -33deg, red, blue)",
+
+		"-moz-repeating-linear-gradient(-33deg, red, blue)",
+		"-moz-repeating-linear-gradient(30grad left 35px, red, blue)",
+		"-moz-repeating-linear-gradient(10deg 20px, red, blue)",
+		"-moz-repeating-linear-gradient(.414rad bottom, red, blue)",
+
+		"-moz-repeating-radial-gradient(red, blue)",
+		"-moz-repeating-radial-gradient(red, yellow, blue)",
+		"-moz-repeating-radial-gradient(red 1px, yellow 20%, blue 24em, green)",
+		"-moz-repeating-radial-gradient(red, yellow, green, blue 50%)",
+		"-moz-repeating-radial-gradient(red -50%, yellow -25%, green, blue)",
+		"-moz-repeating-radial-gradient(red -99px, yellow, green, blue 120%)",
+		"-moz-repeating-radial-gradient(#ffff00, #ef3, rgba(10, 20, 30, 0.4))",
+		"-moz-repeating-radial-gradient(rgba(10, 20, 30, 0.4), #ffff00, #ef3)",
+
+		"-moz-repeating-radial-gradient(top left, red, blue)",
+		"-moz-repeating-radial-gradient(0 0, red, blue)",
+		"-moz-repeating-radial-gradient(20% bottom, red, blue)",
+		"-moz-repeating-radial-gradient(center 20%, red, blue)",
+		"-moz-repeating-radial-gradient(left 35px, red, blue)",
+		"-moz-repeating-radial-gradient(10% 10em, red, blue)",
+		"-moz-repeating-radial-gradient(44px top, red, blue)",
+
+		"-moz-repeating-radial-gradient(top left 45deg, red, blue)",
+		"-moz-repeating-radial-gradient(20% bottom -300deg, red, blue)",
+		"-moz-repeating-radial-gradient(center 20% 1.95929rad, red, blue)",
+		"-moz-repeating-radial-gradient(left 35px 30grad, red, blue)",
+		"-moz-repeating-radial-gradient(10% 10em 99999deg, red, blue)",
+		"-moz-repeating-radial-gradient(44px top -33deg, red, blue)",
+
+		"-moz-repeating-radial-gradient(-33deg, red, blue)",
+		"-moz-repeating-radial-gradient(30grad left 35px, red, blue)",
+		"-moz-repeating-radial-gradient(10deg 20px, red, blue)",
+		"-moz-repeating-radial-gradient(.414rad bottom, red, blue)",
+
+		"-moz-repeating-radial-gradient(cover, red, blue)",
+		"-moz-repeating-radial-gradient(circle, red, blue)",
+		"-moz-repeating-radial-gradient(ellipse closest-corner, red, blue)",
+		"-moz-repeating-radial-gradient(farthest-side circle, red, blue)",
+
+		"-moz-repeating-radial-gradient(top left, cover, red, blue)",
+		"-moz-repeating-radial-gradient(15% 20%, circle, red, blue)",
+		"-moz-repeating-radial-gradient(45px, ellipse closest-corner, red, blue)",
+		"-moz-repeating-radial-gradient(45px, farthest-side circle, red, blue)",
+
+		"-moz-repeating-radial-gradient(99deg, cover, red, blue)",
+		"-moz-repeating-radial-gradient(-1.2345rad, circle, red, blue)",
+		"-moz-repeating-radial-gradient(399grad, ellipse closest-corner, red, blue)",
+		"-moz-repeating-radial-gradient(399grad, farthest-side circle, red, blue)",
+
+		"-moz-repeating-radial-gradient(top left 99deg, cover, red, blue)",
+		"-moz-repeating-radial-gradient(15% 20% -1.2345rad, circle, red, blue)",
+		"-moz-repeating-radial-gradient(45px 399grad, ellipse closest-corner, red, blue)",
+		"-moz-repeating-radial-gradient(45px 399grad, farthest-side circle, red, blue)"
+		],
+		invalid_values: [
+			/* Old syntax */
+			"-moz-linear-gradient(10px 10px, 20px, 30px 30px, 40px, from(blue), to(red))",
+			"-moz-radial-gradient(20px 20px, 10px 10px, from(green), to(#ff00ff))",
+			"-moz-radial-gradient(10px 10px, 20%, 40px 40px, 10px, from(green), to(#ff00ff))",
+			"-moz-linear-gradient(10px, 20px, 30px, 40px, color-stop(0.5, #00ccff))",
+			"-moz-linear-gradient(20px 20px, from(blue), to(red))",
+			"-moz-linear-gradient(40px 40px, 10px 10px, from(blue) to(red) color-stop(10%, fuchsia))",
+			"-moz-linear-gradient(20px 20px 30px, 10px 10px, from(red), to(#ff0000))",
+			"-moz-radial-gradient(left top, center, 20px 20px, 10px, from(blue), to(red))",
+			"-moz-linear-gradient(left left, top top, from(blue))",
+			"-moz-linear-gradient(inherit, 10px 10px, from(blue))",
+			/* New syntax */
+			"-moz-linear-gradient(10px 10px, 20px, 30px 30px, 40px, blue 0, red 100%)",
+			"-moz-radial-gradient(20px 20px, 10px 10px, from(green), to(#ff00ff))",
+			"-moz-radial-gradient(10px 10px, 20%, 40px 40px, 10px, from(green), to(#ff00ff))",
+			"-moz-linear-gradient(10px, 20px, 30px, 40px, #00ccff 50%)",
+			"-moz-linear-gradient(40px 40px, 10px 10px, blue 0 fuchsia 10% red 100%)",
+			"-moz-linear-gradient(20px 20px 30px, 10px 10px, red 0, #ff0000 100%)",
+			"-moz-radial-gradient(left top, center, 20px 20px, 10px, from(blue), to(red))",
+			"-moz-linear-gradient(left left, top top, blue 0)",
+			"-moz-linear-gradient(inherit, 10px 10px, blue 0)",
+			"-moz-linear-gradient(left left blue red)",
+			"-moz-linear-gradient(left left blue, red)",
+			"-moz-linear-gradient()",
+			"-moz-linear-gradient(cover, red, blue)",
+			"-moz-linear-gradient(auto, red, blue)",
+			"-moz-linear-gradient(22 top, red, blue)",
+			"-moz-linear-gradient(10% red blue)",
+			"-moz-linear-gradient(10%, red blue)",
+			"-moz-linear-gradient(10%,, red, blue)",
+			"-moz-linear-gradient(45px, center, red, blue)",
+			"-moz-linear-gradient(45px, center red, blue)",
+			"-moz-radial-gradient(contain, ellipse, red, blue)",
+			"-moz-radial-gradient(10deg contain, red, blue)",
+			"-moz-radial-gradient(10deg, contain,, red, blue)",
+			"-moz-radial-gradient(contain contain, red, blue)",
+			"-moz-radial-gradient(ellipse circle, red, blue)",
+
+			"-moz-repeating-linear-gradient(10px 10px, 20px, 30px 30px, 40px, blue 0, red 100%)",
+			"-moz-repeating-radial-gradient(20px 20px, 10px 10px, from(green), to(#ff00ff))",
+			"-moz-repeating-radial-gradient(10px 10px, 20%, 40px 40px, 10px, from(green), to(#ff00ff))",
+			"-moz-repeating-linear-gradient(10px, 20px, 30px, 40px, #00ccff 50%)",
+			"-moz-repeating-linear-gradient(40px 40px, 10px 10px, blue 0 fuchsia 10% red 100%)",
+			"-moz-repeating-linear-gradient(20px 20px 30px, 10px 10px, red 0, #ff0000 100%)",
+			"-moz-repeating-radial-gradient(left top, center, 20px 20px, 10px, from(blue), to(red))",
+			"-moz-repeating-linear-gradient(left left, top top, blue 0)",
+			"-moz-repeating-linear-gradient(inherit, 10px 10px, blue 0)",
+			"-moz-repeating-linear-gradient(left left blue red)",
+			"-moz-repeating-linear-gradient()" ]
 	},
 	"background-position": {
 		domProp: "backgroundPosition",
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
+		/* is "0px 0px" an initial value or not? */
 		initial_values: [ "top left", "left top", "0% 0%", "0% top", "left 0%" ],
-		other_values: [ "top", "left", "right", "bottom", "center", "center bottom", "bottom center", "center right", "right center", "center top", "top center", "center left", "left center", "right bottom", "bottom right", "50%" ],
+		other_values: [ "top", "left", "right", "bottom", "center", "center bottom", "bottom center", "center right", "right center", "center top", "top center", "center left", "left center", "right bottom", "bottom right", "50%", "top left, top left", "top left, top right", "top right, top left", "left top, 0% 0%", "10% 20%, 30%, 40%", "top left, bottom right", "right bottom, left top", "0%", "0px", "30px", "0%, 10%, 20%, 30%", "top, top, top, top, top" ],
 		invalid_values: [ "50% left", "top 50%" ]
 	},
 	"background-repeat": {
@@ -657,8 +937,13 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "repeat" ],
-		other_values: [ "repeat-x", "repeat-y", "no-repeat" ],
-		invalid_values: []
+		other_values: [ "repeat-x", "repeat-y", "no-repeat",
+			"repeat-x, repeat-x",
+			"repeat, no-repeat",
+			"repeat-y, no-repeat, repeat-y",
+			"repeat, repeat, repeat"
+		],
+		invalid_values: [ "repeat repeat" ]
 	},
 	"border": {
 		domProp: "border",
@@ -907,8 +1192,8 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		/* XXX needs to be on pseudo-elements */
 		initial_values: [ "normal", "none" ],
-		other_values: [ '""', "''", '"hello"', "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', ],
-		invalid_values: []
+		other_values: [ '""', "''", '"hello"', "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', 'counter(foo)', 'counter(bar, upper-roman)', 'counters(foo, ".")', "counters(bar, '-', lower-greek)", "'-' counter(foo) '.'", "attr(title)", "open-quote", "close-quote", "no-open-quote", "no-close-quote", "close-quote attr(title) counters(foo, '.', upper-alpha)", "counter(foo, none)", "counters(bar, '.', none)" ],
+		invalid_values: [ 'counters(foo)', 'counter(foo, ".")', 'attr("title")', "attr('title')" ]
 	},
 	"counter-increment": {
 		domProp: "counterIncrement",
@@ -959,7 +1244,7 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "auto" ],
-		other_values: [ "crosshair", "default", "pointer", "move", "e-resize", "ne-resize", "nw-resize", "n-resize", "se-resize", "sw-resize", "s-resize", "w-resize", "text", "wait", "help", "progress", "none" ],
+		other_values: [ "crosshair", "default", "pointer", "move", "e-resize", "ne-resize", "nw-resize", "n-resize", "se-resize", "sw-resize", "s-resize", "w-resize", "text", "wait", "help", "progress", "copy", "alias", "context-menu", "cell", "not-allowed", "col-resize", "row-resize", "no-drop", "vertical-text", "all-scroll", "nesw-resize", "nwse-resize", "ns-resize", "ew-resize", "none", "-moz-copy", "-moz-alias", "-moz-context-menu", "-moz-grab", "-moz-grabbing", "-moz-spinning", "-moz-zoom-in", "-moz-zoom-out" ],
 		invalid_values: []
 	},
 	"direction": {
@@ -1020,8 +1305,8 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "serif" ],
-		other_values: [ "sans-serif", "Times New Roman, serif", "'Times New Roman', serif", "cursive", "fantasy" ],
-		invalid_values: []
+		other_values: [ "sans-serif", "Times New Roman, serif", "'Times New Roman', serif", "cursive", "fantasy", "\"Times New Roman", "Times, \"Times New Roman" ],
+		invalid_values: [ "\"Times New\" Roman" ]
 	},
 	"font-size": {
 		domProp: "fontSize",
@@ -1042,7 +1327,6 @@ var gCSSProperties = {
 	"font-stretch": {
 		domProp: "fontStretch",
 		inherited: true,
-		backend_only: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "normal" ],
 		other_values: [ "wider", "narrower", "ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded" ],
@@ -1116,7 +1400,7 @@ var gCSSProperties = {
 		 * getComputedStyle (which uses the CSS2 computed value, or
 		 * CSS2.1 used value) doesn't match what the CSS2.1 computed
 		 * value is.  And they even require consistent font metrics for
-		 * computation of 'normal'.  -moz-block-height requires height
+		 * computation of 'normal'.	 -moz-block-height requires height
 		 * on a block.
 		 */
 		prerequisites: { "font-size": "19px", "font-size-adjust": "none", "font-family": "serif", "font-weight": "normal", "font-style": "normal", "height": "18px", "display": "block"},
@@ -1129,16 +1413,37 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_TRUE_SHORTHAND,
 		subproperties: [ "list-style-type", "list-style-position", "list-style-image" ],
-		initial_values: [ "outside", "disc", "none disc outside" ],
-		other_values: [ "inside none", "none inside", "none none inside", "none outside none", "square", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', "none" ],
-		invalid_values: []
+		initial_values: [ "outside", "disc", "disc outside", "outside disc", "disc none", "none disc", "none disc outside", "none outside disc", "disc none outside", "disc outside none", "outside none disc", "outside disc none" ],
+		other_values: [ "inside none", "none inside", "none none inside", "square", "none", "none none", "outside none none", "none outside none", "none none outside", "none outside", "outside none",
+			'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			'none url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") none',
+			'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") outside',
+			'outside url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			'outside none url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			'outside url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") none',
+			'none url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") outside',
+			'none outside url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") outside none',
+			'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") none outside'
+		],
+		invalid_values: [ "outside outside", "disc disc", "unknown value", "none none none", "none disc url(404.png)", "none url(404.png) disc", "disc none url(404.png)", "disc url(404.png) none", "url(404.png) none disc", "url(404.png) disc none", "none disc outside url(404.png)" ]
 	},
 	"list-style-image": {
 		domProp: "listStyleImage",
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
-		other_values: [ 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")' ],
+		other_values: [ 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
+			// Add some tests for interesting url() values here to test serialization, etc.
+			"url(\'data:text/plain,\"\')",
+			"url(\"data:text/plain,\'\")",
+			"url(\'data:text/plain,\\\'\')",
+			"url(\"data:text/plain,\\\"\")",
+			"url(\'data:text/plain,\\\"\')",
+			"url(\"data:text/plain,\\\'\")",
+			"url(data:text/plain,\\\\)",
+		],
 		invalid_values: []
 	},
 	"list-style-position": {
@@ -1182,8 +1487,8 @@ var gCSSProperties = {
 		/* no subproperties */
 		/* XXX testing auto has prerequisites */
 		initial_values: [ "0", "0px", "0%" ],
-		other_values: [ "1px", "2em", "5%" ],
-		invalid_values: []
+		other_values: [ "1px", "2em", "5%", ".5px", "+32px", "+.789px", "-.328px", "+0.56px", "-0.974px", "237px", "-289px", "-056px", "1987.45px", "-84.32px" ],
+		invalid_values: [ "..25px", ".+5px", ".px", "-.px", "++5px", "-+4px", "+-3px", "--7px", "+-.6px", "-+.5px", "++.7px", "--.4px" ]
 	},
 	"margin-right": {
 		domProp: "marginRight",
@@ -1270,11 +1575,7 @@ var gCSSProperties = {
 		// XXX requires display:block
 		initial_values: [ "2" ],
 		other_values: [ "1", "7" ],
-		invalid_values: [
-			// "0", // not clear whether it's valid or not.
-			// "-1", // not clear whether it's valid or not.
-			"0px", "3px"
-		]
+		invalid_values: [ "0", "-1", "0px", "3px" ]
 	},
 	"outline": {
 		domProp: "outline",
@@ -1436,27 +1737,27 @@ var gCSSProperties = {
 		backend_only: true,
 		type: CSS_TYPE_TRUE_SHORTHAND,
 		subproperties: [ "pause-before", "pause-after" ],
-		initial_values: [ "0", "0s", "0ms", "0 0", "0s 0ms", "0ms 0" ],
+		initial_values: [ "0s", "0ms", "0s 0ms" ],
 		other_values: [ "1s", "200ms", "-2s", "50%", "-10%", "10% 200ms", "-3s -5%" ],
-		invalid_values: [ "0px" ]
+		invalid_values: [ "0", "0px", "0 0", "0ms 0" ]
 	},
 	"pause-after": {
 		domProp: "pauseAfter",
 		inherited: false,
 		backend_only: true,
 		type: CSS_TYPE_LONGHAND,
-		initial_values: [ "0", "0s", "0ms" ],
+		initial_values: [ "0s", "0ms" ],
 		other_values: [ "1s", "200ms", "-2s", "50%", "-10%" ],
-		invalid_values: [ "0px" ]
+		invalid_values: [ "0", "0px" ]
 	},
 	"pause-before": {
 		domProp: "pauseBefore",
 		inherited: false,
 		backend_only: true,
 		type: CSS_TYPE_LONGHAND,
-		initial_values: [ "0", "0s", "0ms" ],
+		initial_values: [ "0s", "0ms" ],
 		other_values: [ "1s", "200ms", "-2s", "50%", "-10%" ],
-		invalid_values: [ "0px" ]
+		invalid_values: [ "0", "0px" ]
 	},
 	"pitch": {
 		domProp: "pitch",
@@ -1476,6 +1777,15 @@ var gCSSProperties = {
 		other_values: [ "0", "100.0", "99.7", "47", "3.2" ],
 		invalid_values: [" -0.01", "100.2", "108", "-3" ]
 	},
+	"pointer-events": {
+		domProp: "pointerEvents",
+		inherited: true,
+		type: CSS_TYPE_LONGHAND,
+		initial_values: [ "auto" ],
+		other_values: [ "visiblePainted", "visibleFill", "visibleStroke", "visible",
+						"painted", "fill", "stroke", "all", "none" ],
+		invalid_values: []
+	},
 	"position": {
 		domProp: "position",
 		inherited: false,
@@ -1489,7 +1799,7 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ '"\u201C" "\u201D" "\u2018" "\u2019"',
-		                  '"\\201C" "\\201D" "\\2018" "\\2019"' ],
+						  '"\\201C" "\\201D" "\\2018" "\\2019"' ],
 		other_values: [ "none", "'\"' '\"'" ],
 		invalid_values: []
 	},
@@ -1595,7 +1905,7 @@ var gCSSProperties = {
 		type: CSS_TYPE_LONGHAND,
 		// don't know whether left and right are same as start
 		initial_values: [ "start" ],
-		other_values: [ "center", "justify" ],
+		other_values: [ "center", "justify", "end" ],
 		invalid_values: []
 	},
 	"text-decoration": {
@@ -1603,7 +1913,7 @@ var gCSSProperties = {
 		inherited: false,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
-		other_values: [ "underline", "overline", "line-through", "blink line-through underline", "underline overline line-through blink" ],
+		other_values: [ "underline", "overline", "line-through", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
 		invalid_values: [ "underline none", "none underline", "line-through blink line-through" ]
 	},
 	"text-indent": {
@@ -1699,11 +2009,7 @@ var gCSSProperties = {
 		// XXX requires display:block
 		initial_values: [ "2" ],
 		other_values: [ "1", "7" ],
-		invalid_values: [
-			// "0", // not clear whether it's valid or not.
-			// "-1", // not clear whether it's valid or not.
-			"0px", "3px"
-		]
+		invalid_values: [ "0", "-1", "0px", "3px" ]
 	},
 	"width": {
 		domProp: "width",
@@ -1712,7 +2018,7 @@ var gCSSProperties = {
 		initial_values: [ " auto" ],
 		/* XXX these have prerequisites */
 		other_values: [ "15px", "3em", "15%", "-moz-max-content", "-moz-min-content", "-moz-fit-content", "-moz-available" ],
-		invalid_values: [ "none" ]
+		invalid_values: [ "none", "-2px" ]
 	},
 	"word-spacing": {
 		domProp: "wordSpacing",
@@ -1830,6 +2136,14 @@ var gCSSProperties = {
 		other_values: [ "0", "0.3", "-7.3" ],
 		invalid_values: []
 	},
+	"image-rendering": {
+		domProp: null,
+		inherited: true,
+		type: CSS_TYPE_LONGHAND,
+		initial_values: [ "auto" ],
+		other_values: [ "optimizeSpeed", "optimizeQuality", "-moz-crisp-edges" ],
+		invalid_values: []
+	},
 	"lighting-color": {
 		domProp: null,
 		inherited: false,
@@ -1880,14 +2194,6 @@ var gCSSProperties = {
 		other_values: [ "url(#mymask)" ],
 		invalid_values: []
 	},
-	"pointer-events": {
-		domProp: null,
-		inherited: true,
-		type: CSS_TYPE_LONGHAND,
-		initial_values: [ "visiblepainted" ],
-		other_values: [ "visibleFill", "visiblestroke", "Visible", "painted", "fill", "stroke", "all", "none" ],
-		invalid_values: []
-	},
 	"shape-rendering": {
 		domProp: null,
 		inherited: true,
@@ -1926,7 +2232,7 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "none" ],
-		other_values: [ "5px,3px,2px", "  5px ,3px  , 2px ", "1px", "5%", "3em" ],
+		other_values: [ "5px,3px,2px", "  5px ,3px	, 2px ", "1px", "5%", "3em" ],
 		invalid_values: []
 	},
 	"stroke-dashoffset": {
@@ -1958,8 +2264,8 @@ var gCSSProperties = {
 		inherited: true,
 		type: CSS_TYPE_LONGHAND,
 		initial_values: [ "4" ],
-		other_values: [ "1", "7", "5000" ],
-		invalid_values: [ "0.9", "0", "-1", "3px" ]
+		other_values: [ "1", "7", "5000", "1.1" ],
+		invalid_values: [ "0.9", "0", "-1", "3px", "-0.3" ]
 	},
 	"stroke-opacity": {
 		domProp: null,

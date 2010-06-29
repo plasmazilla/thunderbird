@@ -243,12 +243,18 @@
                          anonid="emailAddresses" flex="1"
                          orient="vertical" pack="start" />
       </xul:hbox>
+      <xul:label class="moreIndicator" onclick="this.parentNode.toggleWrap()"
+                 collapsed="true" anonid="more"/>
     </content>
 
     <implementation>
       <constructor>
         <![CDATA[
           this.mAddresses = new Array;
+
+          this.maxLinesBeforeMore = Application.prefs.getValue(
+            "mailnews.headers.show_n_lines_before_more",
+            this.maxLinesBeforeMore);
         ]]>
       </constructor>
 
@@ -304,89 +310,97 @@
         </body>
       </method>
 
-      <!-- fillCachedAddresses: private method used to fill up any cached pre-existing
-           emailAddress fields without creating new email address fields. Returns a remainder
-           for the # of addresses which require new addresses being created.
-           Invariants: 1) aNumAddressesToShow >= 0 && it is <= mAddresses.length -->
-      <method name="fillCachedAddresses">
-        <parameter name="aAddressesNode"/>
-        <parameter name="aNumAddressesToShow"/>
-        <body>
-          <![CDATA[
-            var numExistingCachedAddresses = aAddressesNode.childNodes.length;
-            if (!numExistingCachedAddresses)
-              return this.mAddresses.length; // we couldn't pre fill anything
-            else if (numExistingCachedAddresses > 1)
-              numExistingCachedAddresses = (numExistingCachedAddresses + 1)/ 2;
-
-            var index = 0;
-            var numAddressesAdded = 0;
-            var emailAddressNode;
-            var commaNode;
-            while (numAddressesAdded < numExistingCachedAddresses && numAddressesAdded < aNumAddressesToShow)
-            {
-              if (index && numExistingCachedAddresses > 1)
-              {
-                commaNode = aAddressesNode.childNodes[index++];
-                if (commaNode)
-                  commaNode.hidden = false;
-              }
-
-              // get the node pointed to by index
-              emailAddressNode = aAddressesNode.childNodes[index++];
-              this.updateEmailAddressNode(emailAddressNode, this.mAddresses[numAddressesAdded]);
-              emailAddressNode.hidden = false;
-              numAddressesAdded++;
-            }
-
-            // if we have added all of our elements but we still have more cached items in this address node
-            // then make sure the extra cached copies are hidden...
-            numExistingCachedAddresses = aAddressesNode.childNodes.length;  // reset
-            while (index < numExistingCachedAddresses)
-            {
-              aAddressesNode.childNodes[index++].hidden = true;
-            }
-
-            return this.mAddresses.length - numAddressesAdded;
-          ]]>
-        </body>
-      </method>
-
-      <!-- fillAddressesNode: private method used to create email address nodes for either our short
-           or long view. aAddressesNode: the div we want to add addresses too.
-          aNumAddressesToShow: number of addresses to put into the list -->
+      <!-- fillAddressesNode: private method used to create email address
+           nodes for either our short or long view.
+           @param aAddressesNode {DOMElement}: the div to add addresses too
+           @param all {Boolean}: If false, show only a few addresses + "more"
+           @return {Integer} number of addresses we have put into the list
+      -->
       <method name="fillAddressesNode">
         <parameter name="aAddressesNode"/>
-        <parameter name="aNumAddressesToShow"/>
+        <parameter name="all"/>
         <body>
           <![CDATA[
-            var numAddresses = this.mAddresses.length;
-            if (aNumAddressesToShow <= 0 || aNumAddressesToShow > numAddresses)  // then show all
-              aNumAddressesToShow = numAddresses;
+            var cached = aAddressesNode.childNodes.length;
 
-            // before we try to create email address nodes, try to leverage any cached nodes...
-            var remainder = this.fillCachedAddresses(aAddressesNode, aNumAddressesToShow);
-            var index = numAddresses - remainder;
-            while (index < numAddresses && index < aNumAddressesToShow)
+            // XXXdmose one or more of the ancestor nodes could be collapsed,
+            // so this hack just undoes that for all ancestors.  We should do
+            // better.  Observed causes include the message header pane being
+            // collapsed before the first message has been read, as well as
+            // (more common), the <row> containing this widget being collapsed
+            // because the previously displayed message didn't have this header.
+            for (let node = aAddressesNode; node; node = node.parentNode)
+              node.collapsed = false;
+
+            var availableWidth = aAddressesNode.clientWidth;
+
+            // add addresses until we're done, or we overflow this line
+            var i = 0;
+            for (let curLine = 0, curLineWidth = 0;
+                 i < this.mAddresses.length && (all || curLine < this.maxLinesBeforeMore);
+                 i++)
             {
-              var newAddressNode = document.createElement("mail-emailaddress");
+              let newAddressNode;
 
-              // Stash the headerName somewhere that AddExtraAddressProcessing
-              // will be able to find it.
-              newAddressNode.setAttribute("headerName", this.headerName);
-
-              if (index)
-              {
-                var textNode = document.createElement("text");
-                textNode.setAttribute("value", ",");
-                textNode.setAttribute("class", "emailSeparator");
-                aAddressesNode.appendChild(textNode);
+              // First, add a comma as long as this isn't the first address.
+              if (i > 0) {
+                if (cached-- > 0)
+                  aAddressesNode.childNodes[i*2 - 1].hidden = false;
+                else
+                  this.appendComma();
               }
 
-              var itemInDocument = aAddressesNode.appendChild(newAddressNode);
-              this.updateEmailAddressNode(itemInDocument, this.mAddresses[index]);
-              index++;
+              // Now add an email address.
+              if (cached-- > 0) {
+                newAddressNode = aAddressesNode.childNodes[i*2];
+                newAddressNode.hidden = false;
+              } else {
+                newAddressNode = document.createElement("mail-emailaddress");
+
+                // Stash the headerName somewhere that AddExtraAddressProcessing
+                // will be able to find it.
+                newAddressNode.setAttribute("headerName", this.headerName);
+
+                newAddressNode = aAddressesNode.appendChild(newAddressNode);
+              }
+              this.updateEmailAddressNode(newAddressNode, this.mAddresses[i]);
+
+              // Reading .clientWidth triggers an expensive reflow, so only
+              // do it when necessary for possible early loop exit to display
+              // (X more).
+              if (!all) {
+
+                // Calculate width and lines
+                // <http://www.w3.org/TR/cssom-view/#client-attributes>
+                // <https://developer.mozilla.org/en/Determining_the_dimensions_of_elements>
+                curLineWidth += newAddressNode.clientWidth;
+                if (curLineWidth > availableWidth && i > 0) {
+                  curLine++;
+                  curLineWidth = 0;
+                }
+              }
             }
+
+            // Hide any extra nodes but keep them around for later.
+            for (let j = i*2 - 1; j < aAddressesNode.childNodes.length; j++) {
+              aAddressesNode.childNodes[j].hidden = true;
+            }
+
+            // If we're not required to show all addresses, and there are still
+            // addresses remaining, add an (N more) widget.
+            if (!all) {
+              let remainingAddresses = this.mAddresses.length - i;
+              if (remainingAddresses > 0) {
+                if (aAddressesNode.childNodes.length % 2 == 0)
+                  aAddressesNode.lastChild.hidden = false;
+                else
+                  this.appendComma();
+
+                this.addNMore(remainingAddresses);
+              }
+            }
+
+            return i; // number of addresses shown
           ]]>
         </body>
       </method>
@@ -398,10 +412,12 @@
       <property name="more" onget="return document.getAnonymousElementByAttribute(this, 'anonid', 'more')"
         readonly="true"/>
 
-      <!-- The number of addresses buildViews will display before adding a
-           (more) indicator to the widget; the nodes associated with these
-           addresses are cached for the lifetime of the widget. -->
-      <field name="maxAddressesBeforeMore">1</field>
+      <!-- The number of lines of addresses we will display before adding a
+           (more) indicator to the widget. This can be increased using the
+           preference mailnews.headers.show_n_lines_before_more .
+           This will also influence how many address elements are cached
+           for the lifetime of the widget. -->
+      <field name="maxLinesBeforeMore">1</field>
 
       <!-- Public method to build the DOM nodes for display, to be called
            after all the addresses have been added to the widget. Displays at
@@ -410,24 +426,39 @@
       <method name="buildViews">
         <body>
           <![CDATA[
-            this.fillAddressesNode(this.emailAddresses,
-                                   this.maxAddressesBeforeMore);
+            this.fillAddressesNode(this.emailAddresses, false);
+          ]]>
+        </body>
+      </method>
 
-            // If that's all the addresses we've got, we're done.
-            if (this.mAddresses.length <= this.maxAddressesBeforeMore) {
-              return;
-            }
-
+      <!-- Append a comma after the (currently) final (email address, we hope!)
+           node of this.emailAddresses -->
+      <method name="appendComma">
+        <body>
+          <![CDATA[
             // Create and append a comma.
             let commaNode = document.createElement("text");
             commaNode.setAttribute("value", ",");
             commaNode.setAttribute("class", "emailSeparator");
             this.emailAddresses.appendChild(commaNode);
+           ]]>
+        </body>
+      </method>
 
-            // Create and append the more indicator.
-            let more = document.createElement("mail-multi-more-indicator");
-            more.setAttribute("anonid", "more");
-            this.emailAddresses.appendChild(more);
+      <!-- Add a (N more) widget which can be clicked to reveal the rest. -->
+      <method name="addNMore">
+        <parameter name="aNumber"/>
+        <body>
+          <![CDATA[
+            // figure out the right plural for the language we're using
+            let words = gMessengerBundle.getString("headerMoreAddrs");
+            let moreForm = PluralForm.get(aNumber, words).replace("#1",
+                                                                  aNumber);
+
+            // set the "n more" text node
+            this.more.setAttribute("value", moreForm);
+
+            this.more.collapsed = false;
           ]]>
         </body>
       </method>
@@ -460,10 +491,11 @@
       <method name="toggleWrap">
         <body>
           <![CDATA[
-            this.more.collapsed = true;
-
-            // HACK Bug 525302
-            // Workaround for bug 492645, which prevents bug 525225.
+            // Workaround the fact that XUL line-wrapping and "overflow: auto"
+            // don't interact properly (bug 492645), without which we
+            // would be inadvertently occluding too much of the message header
+            // text and forcing the user to scroll unnecessarily (bug 525225).
+            // 
             // Fake the "All Headers" mode, so that we get a scroll bar
             // Will be reset when a new message loads
             document.getElementById("expandedHeaderView").setAttribute("show_header_mode","all");
@@ -475,7 +507,15 @@
             this.clearChildNodes(this.emailAddresses);
 
             // Re-render the node, this time with all the addresses.
-            this.fillAddressesNode(this.emailAddresses, -1);
+            this.fillAddressesNode(this.emailAddresses, true);
+
+            // Scroll slightly to make it clear to the user how to reach
+            // the remaining addresses
+            let eHV = document.getElementById("expandedHeaderView");
+            let style = getComputedStyle(eHV, null);
+
+            // assume that the last two chars are "px" and discard them
+            eHV.scrollTop = style.getPropertyValue("font-size").slice(0, -2);
           ]]>
         </body>
       </method>
@@ -485,6 +525,8 @@
         <parameter name="aParentNode"/>
         <body>
           <![CDATA[
+            this.more.collapsed = true;
+
             // We want to keep around the first maxAddressesBeforeMore email
             // address nodes as well as any intervening comma nodes.
             var numItemsToPreserve = this.maxAddressesBeforeMore * 2 - 1;
@@ -511,18 +553,6 @@
         </body>
       </method>
     </implementation>
-  </binding>
-
- <!-- XXX This shouldn't really be its own binding, since it depends on the
-      internal structure of mail-multi-emailHeaderField (thus the parentNode
-      glop).  It really wants to be created from the JS inside that binding
-      somewhere, but that implies a properties file change, and we're already
-      past string freeze, so... -->
-  <binding id="mail-multi-more-indicator">
-    <content>
-      <xul:label class="moreIndicator" value="&more.label;"
-                 onclick="this.parentNode.parentNode.parentNode.parentNode.toggleWrap()"/>
-    </content>
   </binding>
 
   <binding id="mail-emailaddress">
@@ -1261,6 +1291,11 @@
             {
               window.openDialog('chrome://messenger/content/CustomHeaders.xul', "", 'modal,centerscreen,resizable,titlebar,chrome', null);
               setTimeout(UpdateAfterCustomHeaderChange, 0); // XXX bug 212625
+            }
+            else if (val == Components.interfaces.nsMsgSearchAttrib.AgeInDays)
+            {
+              // We want "Age in Days" to default to "is less than".
+              this.value = Components.interfaces.nsMsgSearchOp.IsLessThan;
             }
             return val;
           ]]>
@@ -2042,8 +2077,8 @@
 
             // skip servers, Trash and Junk folders
             if (!aFolder || aFolder.isServer ||
-                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Junk) ||
-                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Trash))
+                aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Junk) ||
+                aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Trash))
               return false;
             var pref = Components.classes["@mozilla.org/preferences-service;1"]
                                  .getService(Components.interfaces.nsIPrefBranch);
@@ -2056,8 +2091,7 @@
               var srchFolderUriArray = srchFolderUri.split('|');
               var foldersAdded = 0;
               var RDF = Components.classes['@mozilla.org/rdf/rdf-service;1']
-                                  .getService()
-                                  .QueryInterface(Components.interfaces.nsIRDFService);
+                                  .getService(Components.interfaces.nsIRDFService);
               for (var i in srchFolderUriArray)
               {
                 var realFolder = RDF.GetResource(srchFolderUriArray[i])
@@ -2178,7 +2212,7 @@
     <implementation>
       <constructor>
         <![CDATA[
-          Components.utils.import("resource://app/modules/MailUtils.js");
+          Components.utils.import("resource:///modules/MailUtils.js");
           var pref = Components.classes["@mozilla.org/preferences-service;1"]
                                .getService(Components.interfaces.nsIPrefBranch);
           if (!pref.getBoolPref("mail.biff.alert.show_preview"))

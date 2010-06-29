@@ -49,6 +49,7 @@ _TEST_FILES = 	test_bug360220.xul \
 		test_bug365773.xul \
 		test_bug382990.xul \
 		test_bug457632.xul \
+		test_bug509732.xul \
 		test_button.xul \
 		test_closemenu_attribute.xul \
 		test_colorpicker_popup.xul \
@@ -70,9 +71,8 @@ _TEST_FILES = 	test_bug360220.xul \
 		popup_shared.js \
 		popup_trigger.js \
 		window_popup_button.xul \
-		window_menuchecks.xul \
 		window_popup_attribute.xul \
-		window_tooltip.xul \
+		test_tooltip.xul \
 		test_progressmeter.xul \
 		test_props.xul \
 		test_statusbar.xul \
@@ -103,13 +103,15 @@ _TEST_FILES = 	test_bug360220.xul \
 		test_menu.xul \
 		test_menu_hide.xul \
 		test_focus.xul \
+		test_focus_anons.xul \
 		test_tabindex.xul \
  		test_mousescroll.xul \
 		test_scrollbar.xul \
 		test_sorttemplate.xul \
- 		test_videocontrols.html \
-		test_videocontrols_audio_direction.html \
+		test_contextmenu_list.xul \
+		test_videocontrols.html \
 		test_videocontrols_video_direction.html \
+		test_videocontrols_audio_direction.html \
 		videocontrols_direction-1-ref.html \
 		videocontrols_direction-1a.html \
 		videocontrols_direction-1b.html \
@@ -124,8 +126,7 @@ _TEST_FILES = 	test_bug360220.xul \
 		videocontrols_direction-2e.html \
 		videocontrols_direction_test.js \
 		use_large_cache.js \
-		audio.oga \
-		black.ogv \
+		audio.wav \
 		video.ogg \
 		videomask.css \
 		$(NULL)
@@ -133,10 +134,6 @@ _TEST_FILES = 	test_bug360220.xul \
 ifeq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
 _TEST_FILES += test_menubar.xul \
                window_menubar.xul
-endif
-
-ifeq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-_TEST_FILES += test_contextmenu_list.xul 
 endif
 
 libs:: $(_TEST_FILES)

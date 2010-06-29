@@ -44,7 +44,7 @@
 #include "nsIObserverService.h"
 #include "nsISupportsArray.h"
 #include "nsStringAPI.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsINavHistoryService.h"
 
 class nsICookieManager2;
@@ -74,10 +74,10 @@ public:
   typedef nsresult(*prefConverter)(void*, nsIPrefBranch*);
 
   struct PrefTransform {
-    char*         sectionName;
-    char*         keyName;
+    const char*   sectionName;
+    const char*   keyName;
     PrefType      type;
-    char*         targetPrefName;
+    const char*   targetPrefName;
     prefConverter prefSetterFunc;
     PRBool        prefHasValue;
     union {
@@ -200,8 +200,8 @@ protected:
 private:
   nsCOMPtr<nsIBinaryInputStream> mStream;
 
-  nsVoidArray mDomainStack;
-  nsVoidArray mPathStack;
+  nsTArray<char*> mDomainStack;
+  nsTArray<char*> mPathStack;
 
   struct Cookie {
     nsCString id;

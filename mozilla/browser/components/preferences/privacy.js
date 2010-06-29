@@ -533,6 +533,7 @@ var gPrivacyPane = {
                                            "", null);
   },
 
+
   /**
    * Displays a dialog from which individual parts of private data may be
    * cleared.
@@ -547,7 +548,7 @@ var gPrivacyPane = {
     const Cc = Components.classes, Ci = Components.interfaces;
     var glue = Cc["@mozilla.org/browser/browserglue;1"]
                  .getService(Ci.nsIBrowserGlue);
-    glue.sanitize(window || null);
+    glue.sanitize(window);
 
     // reset the timeSpan pref
     if (aClearEverything)
@@ -558,8 +559,7 @@ var gPrivacyPane = {
    * Enables or disables the "Settings..." button depending
    * on the privacy.sanitize.sanitizeOnShutdown preference value
    */
-  _updateSanitizeSettingsButton: function ()
-   {
+  _updateSanitizeSettingsButton: function () {
     var settingsButton = document.getElementById("clearDataSettings");
     var sanitizeOnShutdownPref = document.getElementById("privacy.sanitize.sanitizeOnShutdown");
     

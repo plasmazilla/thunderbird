@@ -51,7 +51,6 @@
 #include "IEnumFE.h"
 #include "nsPrimitiveHelpers.h"
 #include "nsXPIDLString.h"
-#include "nsIImage.h"
 #include "nsImageClipboard.h"
 #include "nsCRT.h"
 #include "nsPrintfCString.h"
@@ -94,16 +93,6 @@ MakeRandomString(char *buf, PRInt32 bufLen)
 // IAsyncOperation interface GUID
 #ifndef __IAsyncOperation_INTERFACE_DEFINED__
   const IID IID_IAsyncOperation = {0x3D8B0590, 0xF691, 0x11d2, {0x8E, 0xA9, 0x00, 0x60, 0x97, 0xDF, 0x5B, 0xD4}};
-#endif
-
-#if 0
-#define PRNTDEBUG(_x) printf(_x);
-#define PRNTDEBUG2(_x1, _x2) printf(_x1, _x2);
-#define PRNTDEBUG3(_x1, _x2, _x3) printf(_x1, _x2, _x3);
-#else
-#define PRNTDEBUG(_x) // printf(_x);
-#define PRNTDEBUG2(_x1, _x2) // printf(_x1, _x2);
-#define PRNTDEBUG3(_x1, _x2, _x3) // printf(_x1, _x2, _x3);
 #endif
 
 //-----------------------------------------------------------------------------
@@ -149,7 +138,7 @@ STDMETHODIMP nsDataObj::CStream::QueryInterface(REFIID refiid, void** ppvResult)
     return S_OK;
   }
 
-  return ResultFromScode(E_NOINTERFACE);
+  return E_NOINTERFACE;
 }
 
 //-----------------------------------------------------------------------------
@@ -395,9 +384,7 @@ nsDataObj::~nsDataObj()
 {
   NS_IF_RELEASE(mTransferable);
 
-  for (PRInt32 i = 0; i < mDataFlavors.Count(); ++i) {
-    delete reinterpret_cast<nsCString *>(mDataFlavors.ElementAt(i));
-  }
+  mDataFlavors.Clear();
 
   m_enumFE->Release();
 
@@ -427,7 +414,7 @@ STDMETHODIMP nsDataObj::QueryInterface(REFIID riid, void** ppv)
     return S_OK;
   }
 
-	return ResultFromScode(E_NOINTERFACE);
+	return E_NOINTERFACE;
 }
 
 //-----------------------------------------------------
@@ -435,7 +422,6 @@ STDMETHODIMP_(ULONG) nsDataObj::AddRef()
 {
 	++m_cRef;
 	NS_LOG_ADDREF(this, m_cRef, "nsDataObj", sizeof(*this));
-  //PRNTDEBUG3("nsDataObj::AddRef  >>>>>>>>>>>>>>>>>> %d on %p\n", (m_cRef+1), this);
 	return m_cRef;
 }
 
@@ -443,9 +429,8 @@ STDMETHODIMP_(ULONG) nsDataObj::AddRef()
 //-----------------------------------------------------
 STDMETHODIMP_(ULONG) nsDataObj::Release()
 {
-  //PRNTDEBUG3("nsDataObj::Release >>>>>>>>>>>>>>>>>> %d on %p\n", (m_cRef-1), this);
-
 	--m_cRef;
+	
 	NS_LOG_RELEASE(this, m_cRef, "nsDataObj");
 	if (0 != m_cRef)
 		return m_cRef;
@@ -458,24 +443,22 @@ STDMETHODIMP_(ULONG) nsDataObj::Release()
 //-----------------------------------------------------
 BOOL nsDataObj::FormatsMatch(const FORMATETC& source, const FORMATETC& target) const
 {
-	if ((source.cfFormat == target.cfFormat) &&
-		 (source.dwAspect  & target.dwAspect)  &&
-		 (source.tymed     & target.tymed))       {
-		return TRUE;
-	} else {
-		return FALSE;
-	}
+  if ((source.cfFormat == target.cfFormat) &&
+      (source.dwAspect & target.dwAspect) &&
+      (source.tymed & target.tymed)) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
 }
 
 //-----------------------------------------------------
 // IDataObject methods
 //-----------------------------------------------------
-STDMETHODIMP nsDataObj::GetData(LPFORMATETC pFE, LPSTGMEDIUM pSTM)
+STDMETHODIMP nsDataObj::GetData(LPFORMATETC aFormat, LPSTGMEDIUM pSTM)
 {
-  PRNTDEBUG("nsDataObj::GetData\n");
-  PRNTDEBUG3("  format: %d  Text: %d\n", pFE->cfFormat, CF_HDROP);
-  if ( !mTransferable )
-	  return ResultFromScode(DATA_E_FORMATETC);
+  if (!mTransferable)
+    return DV_E_FORMATETC;
 
   PRUint32 dfInx = 0;
 
@@ -486,74 +469,68 @@ STDMETHODIMP nsDataObj::GetData(LPFORMATETC pFE, LPSTGMEDIUM pSTM)
   static CLIPFORMAT fileFlavor = ::RegisterClipboardFormat( CFSTR_FILECONTENTS ); 
   static CLIPFORMAT PreferredDropEffect = ::RegisterClipboardFormat( CFSTR_PREFERREDDROPEFFECT );
 
-  // Arbitrary system formats
+  // Arbitrary system formats are used for image feedback during drag
+  // and drop. We are responsible for storing these internally during
+  // drag operations.
   LPDATAENTRY pde;
-  HRESULT hres = FindFORMATETC(pFE, &pde, FALSE);
-  if (SUCCEEDED(hres)) {
-      return AddRefStgMedium(&pde->stgm, pSTM, FALSE);
+  if (LookupArbitraryFormat(aFormat, &pde, FALSE)) {
+    return CopyMediumData(pSTM, &pde->stgm, aFormat, FALSE)
+           ? S_OK : E_UNEXPECTED;
   }
 
   // Firefox internal formats
   ULONG count;
   FORMATETC fe;
   m_enumFE->Reset();
-  while (NOERROR == m_enumFE->Next(1, &fe, &count)) {
-    nsCString * df = reinterpret_cast<nsCString*>(mDataFlavors.SafeElementAt(dfInx));
-    if ( df ) {
-      if (FormatsMatch(fe, *pFE)) {
-        pSTM->pUnkForRelease = NULL;        // caller is responsible for deleting this data
-        CLIPFORMAT format = pFE->cfFormat;
-        switch(format) {
+  while (NOERROR == m_enumFE->Next(1, &fe, &count)
+         && dfInx < mDataFlavors.Length()) {
+    nsCString& df = mDataFlavors.ElementAt(dfInx);
+    if (FormatsMatch(fe, *aFormat)) {
+      pSTM->pUnkForRelease = NULL;        // caller is responsible for deleting this data
+      CLIPFORMAT format = aFormat->cfFormat;
+      switch(format) {
 
-        // Someone is asking for plain or unicode text
-        case CF_TEXT:
-        case CF_UNICODETEXT:
-        return GetText(*df, *pFE, *pSTM);
+      // Someone is asking for plain or unicode text
+      case CF_TEXT:
+      case CF_UNICODETEXT:
+      return GetText(df, *aFormat, *pSTM);
 
-        // Some 3rd party apps that receive drag and drop files from the browser
-        // window require support for this.
-        case CF_HDROP:
-          return GetFile(*pFE, *pSTM);
+      // Some 3rd party apps that receive drag and drop files from the browser
+      // window require support for this.
+      case CF_HDROP:
+        return GetFile(*aFormat, *pSTM);
 
-        // Someone is asking for an image
-        case CF_DIB:
-          return GetDib(*df, *pFE, *pSTM);
-                                              
-        // ... not yet implemented ...
-        //case CF_BITMAP:
-        //  return GetBitmap(*pFE, *pSTM);
-        //case CF_METAFILEPICT:
-        //  return GetMetafilePict(*pFE, *pSTM);
-            
-        default:
-          if ( format == fileDescriptorFlavorA )
-            return GetFileDescriptor ( *pFE, *pSTM, PR_FALSE );
-          if ( format == fileDescriptorFlavorW )
-            return GetFileDescriptor ( *pFE, *pSTM, PR_TRUE);
-          if ( format == uniformResourceLocatorA )
-            return GetUniformResourceLocator( *pFE, *pSTM, PR_FALSE);
-          if ( format == uniformResourceLocatorW )
-            return GetUniformResourceLocator( *pFE, *pSTM, PR_TRUE);
-          if ( format == fileFlavor )
-            return GetFileContents ( *pFE, *pSTM );
-          if ( format == PreferredDropEffect )
-            return GetPreferredDropEffect( *pFE, *pSTM );
-          PRNTDEBUG2("***** nsDataObj::GetData - Unknown format %u\n", format);
-          return GetText(*df, *pFE, *pSTM);
-        } //switch
-      } // if
-    }
+      // Someone is asking for an image
+      case CF_DIB:
+        return GetDib(df, *aFormat, *pSTM);
+
+      default:
+        if ( format == fileDescriptorFlavorA )
+          return GetFileDescriptor ( *aFormat, *pSTM, PR_FALSE );
+        if ( format == fileDescriptorFlavorW )
+          return GetFileDescriptor ( *aFormat, *pSTM, PR_TRUE);
+        if ( format == uniformResourceLocatorA )
+          return GetUniformResourceLocator( *aFormat, *pSTM, PR_FALSE);
+        if ( format == uniformResourceLocatorW )
+          return GetUniformResourceLocator( *aFormat, *pSTM, PR_TRUE);
+        if ( format == fileFlavor )
+          return GetFileContents ( *aFormat, *pSTM );
+        if ( format == PreferredDropEffect )
+          return GetPreferredDropEffect( *aFormat, *pSTM );
+        //printf("***** nsDataObj::GetData - Unknown format %u\n", format);
+        return GetText(df, *aFormat, *pSTM);
+      } //switch
+    } // if
     dfInx++;
   } // while
 
-  return ResultFromScode(DATA_E_FORMATETC);
+  return DATA_E_FORMATETC;
 }
 
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::GetDataHere(LPFORMATETC pFE, LPSTGMEDIUM pSTM)
 {
-  PRNTDEBUG("nsDataObj::GetDataHere\n");
-		return ResultFromScode(E_FAIL);
+  return E_FAIL;
 }
 
 
@@ -563,12 +540,11 @@ STDMETHODIMP nsDataObj::GetDataHere(LPFORMATETC pFE, LPSTGMEDIUM pSTM)
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::QueryGetData(LPFORMATETC pFE)
 {
-  PRNTDEBUG("nsDataObj::QueryGetData  ");
-  PRNTDEBUG2("format: %d\n", pFE->cfFormat);
-
-  // Arbitrary system formats
+  // Arbitrary system formats are used for image feedback during drag
+  // and drop. We are responsible for storing these internally during
+  // drag operations.
   LPDATAENTRY pde;
-  if (SUCCEEDED(FindFORMATETC(pFE, &pde, FALSE)))
+  if (LookupArbitraryFormat(pFE, &pde, FALSE))
     return S_OK;
 
   // Firefox internal formats
@@ -580,177 +556,144 @@ STDMETHODIMP nsDataObj::QueryGetData(LPFORMATETC pFE)
       return S_OK;
     }
   }
-
-  PRNTDEBUG2("***** nsDataObj::QueryGetData - Unknown format %d\n", pFE->cfFormat);
-	return ResultFromScode(E_FAIL);
+	return E_FAIL;
 }
 
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::GetCanonicalFormatEtc
 	 (LPFORMATETC pFEIn, LPFORMATETC pFEOut)
 {
-  PRNTDEBUG("nsDataObj::GetCanonicalFormatEtc\n");
-		return ResultFromScode(E_FAIL);
-}
-
-HGLOBAL nsDataObj::GlobalClone(HGLOBAL hglobIn)
-{
-  HGLOBAL hglobOut = NULL;
-
-  LPVOID pvIn = GlobalLock(hglobIn);
-  if (pvIn) {
-    SIZE_T cb = GlobalSize(hglobIn);
-    HGLOBAL hglobOut = GlobalAlloc(GMEM_FIXED, cb);
-    if (hglobOut) {
-      CopyMemory(hglobOut, pvIn, cb);
-    }
-    GlobalUnlock(hglobIn);
-  }
-  return hglobOut;
-}
-
-IUnknown* nsDataObj::GetCanonicalIUnknown(IUnknown *punk)
-{
-  IUnknown *punkCanonical;
-  if (punk && SUCCEEDED(punk->QueryInterface(IID_IUnknown,
-                                             (LPVOID*)&punkCanonical))) {
-    punkCanonical->Release();
-  } else {
-    punkCanonical = punk;
-  }
-  return punkCanonical;
+  return E_FAIL;
 }
 
 //-----------------------------------------------------
-STDMETHODIMP nsDataObj::SetData(LPFORMATETC pFE, LPSTGMEDIUM pSTM, BOOL fRelease)
+STDMETHODIMP nsDataObj::SetData(LPFORMATETC aFormat, LPSTGMEDIUM aMedium, BOOL shouldRel)
 {
-  PRNTDEBUG("nsDataObj::SetData\n");
-  static CLIPFORMAT PerformedDropEffect = ::RegisterClipboardFormat( CFSTR_PERFORMEDDROPEFFECT );  
-
-  if (pFE && pFE->cfFormat == PerformedDropEffect) {
-    // The drop operation has completed.  Delete the temp file if it exists.
-    if (mCachedTempFile) {
-      mCachedTempFile->Remove(PR_FALSE);
-      mCachedTempFile = NULL;
-    }
-  }
-  // Store arbitrary system formats
+  // Arbitrary system formats are used for image feedback during drag
+  // and drop. We are responsible for storing these internally during
+  // drag operations.
   LPDATAENTRY pde;
-  HRESULT hres = FindFORMATETC(pFE, &pde, TRUE); // add
-  if (SUCCEEDED(hres)) {
+  if (LookupArbitraryFormat(aFormat, &pde, TRUE)) {
+    // Release the old data the lookup handed us for this format. This
+    // may have been set in CopyMediumData when we originally stored the
+    // data.
     if (pde->stgm.tymed) {
       ReleaseStgMedium(&pde->stgm);
-      ZeroMemory(&pde->stgm, sizeof(STGMEDIUM));
+      memset(&pde->stgm, 0, sizeof(STGMEDIUM));
     }
 
-    if (fRelease) {
-      pde->stgm = *pSTM;
-      hres = S_OK;
+    PRBool result = PR_TRUE;
+    if (shouldRel) {
+      // If shouldRel is TRUE, the data object called owns the storage medium
+      // after the call returns. Store the incoming data in our data array for
+      // release when we are destroyed. This is the common case with arbitrary
+      // data from explorer.
+      pde->stgm = *aMedium;
     } else {
-      hres = AddRefStgMedium(pSTM, &pde->stgm, TRUE);
+      // Copy the incoming data into our data array. (AFAICT, this never gets
+      // called with arbitrary formats for drag images.)
+      result = CopyMediumData(&pde->stgm, aMedium, aFormat, TRUE);
     }
     pde->fe.tymed = pde->stgm.tymed;
 
-    // Break circular reference loop (see msdn)
-    if (GetCanonicalIUnknown(pde->stgm.pUnkForRelease) ==
-        GetCanonicalIUnknown(static_cast<IDataObject*>(this))) {
-      pde->stgm.pUnkForRelease->Release();
-      pde->stgm.pUnkForRelease = NULL;
-    }
-    return hres;
+    return result ? S_OK : DV_E_TYMED;
   }
 
-  if (fRelease)
-    ReleaseStgMedium(pSTM);
+  if (shouldRel)
+    ReleaseStgMedium(aMedium);
 
-  return ResultFromScode(S_OK);
+  return S_OK;
 }
 
-HRESULT
-nsDataObj::FindFORMATETC(FORMATETC *pfe, LPDATAENTRY *ppde, BOOL fAdd)
+PRBool
+nsDataObj::LookupArbitraryFormat(FORMATETC *aFormat, LPDATAENTRY *aDataEntry, BOOL aAddorUpdate)
 {
-  *ppde = NULL;
+  *aDataEntry = NULL;
 
-  if (pfe->ptd != NULL) return DV_E_DVTARGETDEVICE;
+  if (aFormat->ptd != NULL)
+    return PR_FALSE;
 
-  // See if it's in our list
+  // See if it's already in our list. If so return the data entry.
   for (PRUint32 idx = 0; idx < mDataEntryList.Length(); idx++) {
-    if (mDataEntryList[idx]->fe.cfFormat == pfe->cfFormat &&
-        mDataEntryList[idx]->fe.dwAspect == pfe->dwAspect &&
-        mDataEntryList[idx]->fe.lindex == pfe->lindex) {
-      if (fAdd || (mDataEntryList[idx]->fe.tymed & pfe->tymed)) {
-        *ppde = mDataEntryList[idx];
-        return S_OK;
+    if (mDataEntryList[idx]->fe.cfFormat == aFormat->cfFormat &&
+        mDataEntryList[idx]->fe.dwAspect == aFormat->dwAspect &&
+        mDataEntryList[idx]->fe.lindex == aFormat->lindex) {
+      if (aAddorUpdate || (mDataEntryList[idx]->fe.tymed & aFormat->tymed)) {
+        // If the caller requests we update, or if the 
+        // medium type matches, return the entry. 
+        *aDataEntry = mDataEntryList[idx];
+        return PR_TRUE;
       } else {
-        return DV_E_TYMED;
+        // Medium does not match, not found.
+        return PR_FALSE;
       }
     }
   }
 
-  if (!fAdd)
-    return DV_E_FORMATETC;
+  if (!aAddorUpdate)
+    return PR_FALSE;
 
-  LPDATAENTRY pde = (LPDATAENTRY)CoTaskMemAlloc(sizeof(DATAENTRY));
-  if (pde) {
-    pde->fe = *pfe;
-    *ppde = pde;
-    ZeroMemory(&pde->stgm, sizeof(STGMEDIUM));
+  // Add another entry to mDataEntryList
+  LPDATAENTRY dataEntry = (LPDATAENTRY)CoTaskMemAlloc(sizeof(DATAENTRY));
+  if (!dataEntry)
+    return PR_FALSE;
+  
+  dataEntry->fe = *aFormat;
+  *aDataEntry = dataEntry;
+  memset(&dataEntry->stgm, 0, sizeof(STGMEDIUM));
 
-    m_enumFE->AddFormatEtc(pfe);
-    mDataEntryList.AppendElement(pde);
+  // Add this to our IEnumFORMATETC impl. so we can return it when
+  // it's requested.
+  m_enumFE->AddFormatEtc(aFormat);
 
-    return S_OK;
-  } else {
-    return E_OUTOFMEMORY;
-  }
+  // Store a copy internally in the arbitrary formats array.
+  mDataEntryList.AppendElement(dataEntry);
+
+  return PR_TRUE;
 }
 
-HRESULT
-nsDataObj::AddRefStgMedium(STGMEDIUM *pstgmIn, STGMEDIUM *pstgmOut, BOOL fCopyIn)
+PRBool
+nsDataObj::CopyMediumData(STGMEDIUM *aMediumDst, STGMEDIUM *aMediumSrc, LPFORMATETC aFormat, BOOL aSetData)
 {
-  HRESULT hres = S_OK;
-  STGMEDIUM stgmOut = *pstgmIn;
-
-  if (pstgmIn->pUnkForRelease == NULL &&
-      !(pstgmIn->tymed & (TYMED_ISTREAM | TYMED_ISTORAGE))) {
-    if (fCopyIn) {
-      // Object needs to be cloned
-      if (pstgmIn->tymed == TYMED_HGLOBAL) {
-        stgmOut.hGlobal = GlobalClone(pstgmIn->hGlobal);
-        if (!stgmOut.hGlobal) {
-          hres = E_OUTOFMEMORY;
-        }
-      } else {
-        hres = DV_E_TYMED;
-      }
-    } else {
-      stgmOut.pUnkForRelease = static_cast<IDataObject*>(this);
-    }
-  }
-
-  if (SUCCEEDED(hres)) {
-    switch (stgmOut.tymed) {
+  STGMEDIUM stgmOut = *aMediumSrc;
+  
+  switch (stgmOut.tymed) {
     case TYMED_ISTREAM:
       stgmOut.pstm->AddRef();
-      break;
+    break;
     case TYMED_ISTORAGE:
       stgmOut.pstg->AddRef();
-      break;
-    }
-    if (stgmOut.pUnkForRelease) {
-      stgmOut.pUnkForRelease->AddRef();
-    }
-    *pstgmOut = stgmOut;
+    break;
+    case TYMED_HGLOBAL:
+      if (!aMediumSrc->pUnkForRelease) {
+        if (aSetData) {
+          if (aMediumSrc->tymed != TYMED_HGLOBAL)
+            return PR_FALSE;
+          stgmOut.hGlobal = OleDuplicateData(aMediumSrc->hGlobal, aFormat->cfFormat, 0);
+          if (!stgmOut.hGlobal)
+            return PR_FALSE;
+        } else {
+          // We are returning this data from LookupArbitraryFormat, indicate to the
+          // shell we hold it and will free it.
+          stgmOut.pUnkForRelease = static_cast<IDataObject*>(this);
+        }
+      }
+    break;
+    default:
+      return PR_FALSE;
   }
 
-  return hres;
+  if (stgmOut.pUnkForRelease)
+    stgmOut.pUnkForRelease->AddRef();
+
+  *aMediumDst = stgmOut;
+
+  return PR_TRUE;
 }
 
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::EnumFormatEtc(DWORD dwDir, LPENUMFORMATETC *ppEnum)
 {
-  PRNTDEBUG("nsDataObj::EnumFormatEtc\n");
-
   switch (dwDir) {
     case DATADIR_GET:
       m_enumFE->Clone(ppEnum);
@@ -772,23 +715,20 @@ STDMETHODIMP nsDataObj::EnumFormatEtc(DWORD dwDir, LPENUMFORMATETC *ppEnum)
 STDMETHODIMP nsDataObj::DAdvise(LPFORMATETC pFE, DWORD dwFlags,
 										            LPADVISESINK pIAdviseSink, DWORD* pdwConn)
 {
-  PRNTDEBUG("nsDataObj::DAdvise\n");
-	return ResultFromScode(E_FAIL);
+  return E_FAIL;
 }
 
 
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::DUnadvise(DWORD dwConn)
 {
-  PRNTDEBUG("nsDataObj::DUnadvise\n");
-	return ResultFromScode(E_FAIL);
+  return E_FAIL;
 }
 
 //-----------------------------------------------------
 STDMETHODIMP nsDataObj::EnumDAdvise(LPENUMSTATDATA *ppEnum)
 {
-  PRNTDEBUG("nsDataObj::EnumDAdvise\n");
-	return ResultFromScode(E_FAIL);
+  return E_FAIL;
 }
 
 // IAsyncOperation methods
@@ -838,46 +778,33 @@ STDMETHODIMP nsDataObj::StartOperation(IBindCtx *pbcReserved)
 //-----------------------------------------------------
 HRESULT nsDataObj::AddSetFormat(FORMATETC& aFE)
 {
-  PRNTDEBUG("nsDataObj::AddSetFormat\n");
-	return ResultFromScode(S_OK);
+  return S_OK;
 }
 
 //-----------------------------------------------------
 HRESULT nsDataObj::AddGetFormat(FORMATETC& aFE)
 {
-  PRNTDEBUG("nsDataObj::AddGetFormat\n");
-	return ResultFromScode(S_OK);
+  return S_OK;
 }
-
-//-----------------------------------------------------
-HRESULT 
-nsDataObj::GetBitmap ( const nsACString& , FORMATETC&, STGMEDIUM& )
-{
-  PRNTDEBUG("nsDataObj::GetBitmap\n");
-	return ResultFromScode(E_NOTIMPL);
-}
-
 
 //
 // GetDIB
 //
 // Someone is asking for a bitmap. The data in the transferable will be a straight
-// nsIImage, so just QI it.
+// imgIContainer, so just QI it.
 //
 HRESULT 
 nsDataObj :: GetDib ( const nsACString& inFlavor, FORMATETC &, STGMEDIUM & aSTG )
 {
-  PRNTDEBUG("nsDataObj::GetDib\n");
   ULONG result = E_FAIL;
   PRUint32 len = 0;
   nsCOMPtr<nsISupports> genericDataWrapper;
   mTransferable->GetTransferData(PromiseFlatCString(inFlavor).get(), getter_AddRefs(genericDataWrapper), &len);
-  nsCOMPtr<nsIImage> image ( do_QueryInterface(genericDataWrapper) );
+  nsCOMPtr<imgIContainer> image ( do_QueryInterface(genericDataWrapper) );
   if ( !image ) {
-    // In the 0.9.4 timeframe, I had some embedding clients put the nsIImage directly into the
-    // transferable. Newer code, however, wraps the nsIImage in a nsISupportsInterfacePointer.
-    // We should be backwards compatibile with code already out in the field. If we can't find
-    // the image directly out of the transferable,  unwrap the image from its wrapper.
+    // Check if the image was put in an nsISupportsInterfacePointer wrapper.
+    // This might not be necessary any more, but could be useful for backwards
+    // compatibility.
     nsCOMPtr<nsISupportsInterfacePointer> ptr(do_QueryInterface(genericDataWrapper));
     if ( ptr )
       ptr->GetData(getter_AddRefs(image));
@@ -932,7 +859,6 @@ nsDataObj :: GetFileDescriptor ( FORMATETC& aFE, STGMEDIUM& aSTG, PRBool aIsUnic
     NS_WARNING ( "Not yet implemented\n" );
   
 	return res;
-	
 } // GetFileDescriptor
 
 
@@ -1077,7 +1003,6 @@ GetLocalizedString(const PRUnichar * aName, nsXPIDLString & aString)
 HRESULT
 nsDataObj :: GetFileDescriptorInternetShortcutA ( FORMATETC& aFE, STGMEDIUM& aSTG )
 {
-
   // get the title of the shortcut
   nsAutoString title;
   if ( NS_FAILED(ExtractShortcutTitle(title)) )
@@ -1372,13 +1297,13 @@ HRESULT nsDataObj::GetFile(FORMATETC& aFE, STGMEDIUM& aSTG)
   FORMATETC fe;
   m_enumFE->Reset();
   PRBool found = PR_FALSE;
-  while (NOERROR == m_enumFE->Next(1, &fe, &count)) {
-    nsCString * df = reinterpret_cast<nsCString*>(mDataFlavors.SafeElementAt(dfInx));
-    dfInx++;
-    if (df && df->EqualsLiteral(kNativeImageMime)) {
+  while (NOERROR == m_enumFE->Next(1, &fe, &count)
+         && dfInx < mDataFlavors.Length()) {
+    if (mDataFlavors[dfInx].EqualsLiteral(kNativeImageMime)) {
       found = PR_TRUE;
       break;
     }
+    dfInx++;
   }
 
   if (!found)
@@ -1389,13 +1314,12 @@ HRESULT nsDataObj::GetFile(FORMATETC& aFE, STGMEDIUM& aSTG)
   nsCOMPtr<nsISupports> genericDataWrapper;
 
   mTransferable->GetTransferData(kNativeImageMime, getter_AddRefs(genericDataWrapper), &len);
-  nsCOMPtr<nsIImage> image ( do_QueryInterface(genericDataWrapper) );
+  nsCOMPtr<imgIContainer> image ( do_QueryInterface(genericDataWrapper) );
   
   if (!image) {
-    // In the 0.9.4 timeframe, I had some embedding clients put the nsIImage directly into the
-    // transferable. Newer code, however, wraps the nsIImage in a nsISupportsInterfacePointer.
-    // We should be backwards compatibile with code already out in the field. If we can't find
-    // the image directly out of the transferable,  unwrap the image from its wrapper.
+    // Check if the image was put in an nsISupportsInterfacePointer wrapper.
+    // This might not be necessary any more, but could be useful for backwards
+    // compatibility.
     nsCOMPtr<nsISupportsInterfacePointer> ptr(do_QueryInterface(genericDataWrapper));
     if (ptr)
       ptr->GetData(getter_AddRefs(image));
@@ -1528,19 +1452,19 @@ HRESULT nsDataObj::GetFile(FORMATETC& aFE, STGMEDIUM& aSTG)
 //-----------------------------------------------------
 HRESULT nsDataObj::GetMetafilePict(FORMATETC&, STGMEDIUM&)
 {
-	return ResultFromScode(E_NOTIMPL);
+	return E_NOTIMPL;
 }
 
 //-----------------------------------------------------
 HRESULT nsDataObj::SetBitmap(FORMATETC&, STGMEDIUM&)
 {
-	return ResultFromScode(E_NOTIMPL);
+	return E_NOTIMPL;
 }
 
 //-----------------------------------------------------
 HRESULT nsDataObj::SetDib(FORMATETC&, STGMEDIUM&)
 {
-	return ResultFromScode(E_FAIL);
+	return E_FAIL;
 }
 
 //-----------------------------------------------------
@@ -1560,13 +1484,13 @@ HRESULT nsDataObj::SetText  (FORMATETC& aFE, STGMEDIUM& aSTG)
     nsAutoString str; str.AssignWithConversion(pString);
 
   }
-	return ResultFromScode(E_FAIL);
+	return E_FAIL;
 }
 
 //-----------------------------------------------------
 HRESULT nsDataObj::SetMetafilePict(FORMATETC&, STGMEDIUM&)
 {
-	return ResultFromScode(E_FAIL);
+	return E_FAIL;
 }
 
 
@@ -1587,7 +1511,7 @@ void nsDataObj::AddDataFlavor(const char* aDataFlavor, LPFORMATETC aFE)
   // Later, OLE will tell us it needs a certain type of FORMATETC (text, unicode, etc)
   // unicode, etc), so we will look up the data flavor that corresponds to
   // the FE and then ask the transferable for that type of data.
-  mDataFlavors.AppendElement(new nsCString(aDataFlavor));
+  mDataFlavors.AppendElement(aDataFlavor);
   m_enumFE->AddFormatEtc(aFE);
 }
 
@@ -2006,7 +1930,7 @@ HRESULT nsDataObj::GetFileContents_IStream(FORMATETC& aFE, STGMEDIUM& aSTG)
 
   aSTG.tymed = TYMED_ISTREAM;
   aSTG.pstm = pStream;
-  aSTG.pUnkForRelease = pStream;
+  aSTG.pUnkForRelease = NULL;
 
   return S_OK;
 }

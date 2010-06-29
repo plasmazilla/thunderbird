@@ -206,6 +206,22 @@ gfxWindowsNativeDrawing::BeginNativeDrawing()
 }
 
 PRBool
+gfxWindowsNativeDrawing::IsDoublePass()
+{
+    // this is the same test we use in BeginNativeDrawing.
+    nsRefPtr<gfxASurface> surf = mContext->CurrentSurface(&mDeviceOffset.x, &mDeviceOffset.y);
+    if (!surf || surf->CairoStatus())
+        return false;
+    if ((surf->GetType() == gfxASurface::SurfaceTypeWin32 ||
+         surf->GetType() == gfxASurface::SurfaceTypeWin32Printing) &&
+        (surf->GetContentType() != gfxASurface::CONTENT_COLOR ||
+         (surf->GetContentType() == gfxASurface::CONTENT_COLOR_ALPHA &&
+          !(mNativeDrawFlags & CAN_DRAW_TO_COLOR_ALPHA))))
+        return PR_TRUE;
+    return PR_FALSE;
+}
+
+PRBool
 gfxWindowsNativeDrawing::ShouldRenderAgain()
 {
     switch (mRenderState) {
@@ -279,7 +295,7 @@ gfxWindowsNativeDrawing::PaintToContext()
         pat->SetMatrix(m);
 
         if (mNativeDrawFlags & DO_NEAREST_NEIGHBOR_FILTERING)
-            pat->SetFilter(0);
+            pat->SetFilter(gfxPattern::FILTER_FAST);
 
         mContext->SetPattern(pat);
         mContext->Fill();

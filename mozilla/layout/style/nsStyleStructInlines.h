@@ -46,11 +46,13 @@
 
 #include "nsStyleStruct.h"
 #include "imgIRequest.h"
+#include "imgIContainer.h"
 
 inline void
 nsStyleBorder::SetBorderImage(imgIRequest* aImage)
 {
   mBorderImage = aImage;
+  mSubImages.Clear();
 }
 
 inline imgIRequest*
@@ -65,6 +67,21 @@ inline PRBool nsStyleBorder::IsBorderImageLoaded() const
   return mBorderImage &&
          NS_SUCCEEDED(mBorderImage->GetImageStatus(&status)) &&
          (status & imgIRequest::STATUS_FRAME_COMPLETE);
+}
+
+inline void
+nsStyleBorder::SetSubImage(PRUint8 aIndex, imgIContainer* aSubImage) const
+{
+  const_cast<nsStyleBorder*>(this)->mSubImages.ReplaceObjectAt(aSubImage, aIndex);
+}
+
+inline imgIContainer*
+nsStyleBorder::GetSubImage(PRUint8 aIndex) const
+{
+  imgIContainer* subImage = 0;
+  if (0 <= aIndex && mSubImages.Count() > aIndex)
+    subImage = mSubImages[aIndex];
+  return subImage;
 }
 
 #endif /* !defined(nsStyleStructInlines_h_) */

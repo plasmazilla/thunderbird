@@ -71,8 +71,6 @@
   <stringbundleset id="stringbundleset">
     <stringbundle id="dmBundle"
                   src="chrome://communicator/locale/downloads/downloadmanager.properties"/>
-    <stringbundle id="progDlgBundle"
-                  src="chrome://global/locale/nsProgressDialog.properties"/>
   </stringbundleset>
 
   <commandset id="dlWinCommands">
@@ -197,8 +195,7 @@
 
   <toolbox id="download-toolbox">
     <menubar id="download-menubar"
-             grippytooltiptext="&menuBar.tooltip;"
-             chromedir="&locale.dir;">
+             grippytooltiptext="&menuBar.tooltip;">
       <menu id="menu_File">
         <menupopup id="menu_FilePopup">
           <menuitem id="dlMenu_open"
@@ -373,13 +370,12 @@
     <toolbar class="chromeclass-toolbar"
              id="downloadToolbar"
              align="center"
-             grippytooltiptext="&searchBar.tooltip;"
-             chromedir="&locale.dir;">
+             grippytooltiptext="&searchBar.tooltip;">
       <textbox id="search-box"
                clickSelectsAll="true"
                type="search"
                class="compact"
-               emptytext="&search.emptytext;"
+               placeholder="&search.placeholder;"
                oncommand="searchDownloads(this.value);"/>
       <spacer flex="1"/>
       <button id="clearListButton" command="cmd_clearList"

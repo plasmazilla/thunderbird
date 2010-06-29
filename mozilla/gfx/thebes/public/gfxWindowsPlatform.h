@@ -39,18 +39,20 @@
 #ifndef GFX_WINDOWS_PLATFORM_H
 #define GFX_WINDOWS_PLATFORM_H
 
+#if defined(WINCE)
+#define MOZ_FT2_FONTS 1
+#endif
+
 #include "gfxFontUtils.h"
 #include "gfxWindowsSurface.h"
-
 #ifdef MOZ_FT2_FONTS
 #include "gfxFT2Fonts.h"
 #else
 #include "gfxWindowsFonts.h"
 #endif
-
 #include "gfxPlatform.h"
 
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsDataHashtable.h"
 
 #ifdef MOZ_FT2_FONTS
@@ -70,9 +72,35 @@ public:
     already_AddRefed<gfxASurface> CreateOffscreenSurface(const gfxIntSize& size,
                                                          gfxASurface::gfxImageFormat imageFormat);
 
+    enum RenderMode {
+        /* Use GDI and windows surfaces */
+        RENDER_GDI = 0,
+
+        /* Use 32bpp image surfaces and call StretchDIBits */
+        RENDER_IMAGE_STRETCH32,
+
+        /* Use 32bpp image surfaces, and do 32->24 conversion before calling StretchDIBits */
+        RENDER_IMAGE_STRETCH24,
+
+        /* Use DirectDraw on Windows CE */
+        RENDER_DDRAW,
+
+        /* Use 24bpp image surfaces, with final DirectDraw 16bpp blt on Windows CE */
+        RENDER_IMAGE_DDRAW16,
+
+        /* Use DirectDraw with OpenGL on Windows CE */
+        RENDER_DDRAW_GL,
+
+        /* max */
+        RENDER_MODE_MAX
+    };
+
+    RenderMode GetRenderMode() { return mRenderMode; }
+    void SetRenderMode(RenderMode rmode) { mRenderMode = rmode; }
+
     nsresult GetFontList(const nsACString& aLangGroup,
                          const nsACString& aGenericFamily,
-                         nsStringArray& aListOfFonts);
+                         nsTArray<nsString>& aListOfFonts);
 
     nsresult UpdateFontList();
 
@@ -98,7 +126,6 @@ public:
      * Activate a platform font (needed to support @font-face src url() )
      */
     virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           nsISupports *aLoader,
                                            const PRUint8 *aFontData,
                                            PRUint32 aLength);
 
@@ -124,6 +151,8 @@ public:
     PRBool GetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> > *array);
     void SetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> >& array);
 
+    void ClearPrefFonts() { mPrefFonts.Clear(); }
+
     typedef nsDataHashtable<nsStringHashKey, nsRefPtr<FontFamily> > FontTable;
 
 #ifdef MOZ_FT2_FONTS
@@ -132,6 +161,11 @@ private:
     void AppendFacesFromFontFile(const PRUnichar *aFileName);
     void FindFonts();
 #endif
+
+protected:
+    void InitDisplayCaps();
+
+    RenderMode mRenderMode;
 
 private:
     void Init();
@@ -177,7 +211,7 @@ private:
     FontTable mFonts;
     FontTable mFontAliases;
     FontTable mFontSubstitutes;
-    nsStringArray mNonExistingFonts;
+    nsTArray<nsString> mNonExistingFonts;
 
     // when system-wide font lookup fails for a character, cache it to skip future searches
     gfxSparseBitSet mCodepointsWithNoFonts;

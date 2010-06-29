@@ -1,3 +1,4 @@
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -13,12 +14,13 @@
  *
  * The Original Code is Geolocation.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
- * Portions created by the Initial Developer are Copyright (C) 2008
+ * The Initial Developer of the Original Code is Mozilla Foundation.
+ * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *  Doug Turner <dougt@meer.net>  (Original Author)
+ *  Nino D'Aversa <ninodaversa@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -34,43 +36,85 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIGeolocationProvider.h"
-#include "nsIDOMGeoPosition.h"
-
 #include "nsCOMPtr.h"
+#include "nsAutoPtr.h"
+#include "nsCOMArray.h"
+#include "nsTArray.h"
+#include "nsITimer.h"
+#include "nsIObserver.h"
+#include "nsIURI.h"
 
-#include <glib.h>
-#include <errno.h>
-#include <gpsbt.h>
-#include <gpsmgr.h>
+#include "nsWeakPtr.h"
+#include "nsCycleCollectionParticipant.h"
 
-extern "C" {
-  // need to extern these because of:
-  // https://bugs.maemo.org/show_bug.cgi?id=3226
-  #include <location/location-gps-device.h>
-  #include <location/location-gpsd-control.h>
+#include "nsIDOMGeoGeolocation.h"
+#include "nsIDOMGeoPosition.h"
+#include "nsIDOMGeoPositionError.h"
+#include "nsIDOMGeoPositionCallback.h"
+#include "nsIDOMGeoPositionErrorCallback.h"
+#include "nsIDOMGeoPositionOptions.h"
+#include "nsIDOMNavigatorGeolocation.h"
+#include "nsIDOMGeoPositionCoords.h"
+
+#include "nsPIDOMWindow.h"
+
+#include "nsIGeolocationProvider.h"
+
+
+extern "C"
+{
+#include <location/location-gps-device.h>
+#include <location/location-gpsd-control.h>
+#include <location/location-distance-utils.h>
+#include <location/location-misc.h>
 }
 
-class MaemoLocationProvider : public nsIGeolocationProvider
+class MaemoLocationProvider : public nsIGeolocationProvider,
+                              public nsITimerCallback
+
 {
-public:
+ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIGEOLOCATIONPROVIDER
+  NS_DECL_NSITIMERCALLBACK
 
   MaemoLocationProvider();
 
   void Update(nsIDOMGeoPosition* aPosition);
 
-private:
+ private:
   ~MaemoLocationProvider();
 
+  nsresult StartControl();
+  nsresult StartDevice();
+  nsresult LocationUpdate(LocationGPSDevice* aDev);
+
+  static void DeviceDisconnected(LocationGPSDevice* device, void* self);
+  static void ControlStopped(LocationGPSDControl* device, void* self);
+  static void ControlError(LocationGPSDControl* control, void* self);
+  static void LocationChanged(LocationGPSDevice* device, void* self);
+
+  gulong mLocationChanged;
+  gulong mControlError;
+  gulong mDeviceDisconnected;
+  gulong mControlStopped;
+
   nsCOMPtr<nsIGeolocationUpdate> mCallback;
+  PRPackedBool mHasSeenLocation;
+  PRPackedBool mHasGPS;
 
-  LocationGPSDevice *mGPSDevice;
+  nsCOMPtr<nsITimer> mUpdateTimer;
+  LocationGPSDControl* mGPSControl;
+  LocationGPSDevice* mGPSDevice;
 
-  gulong mCallbackChanged;
+  PRBool mIgnoreMinorChanges;
 
-  PRBool mHasSeenLocation;
-  PRTime mLastSeenTime;
+  double mPrevLat;
+  double mPrevLong;
+
+  PRBool mIgnoreBigHErr;
+  PRInt32 mMaxHErr;
+  PRBool mIgnoreBigVErr;
+  PRInt32 mMaxVErr;
 
 };

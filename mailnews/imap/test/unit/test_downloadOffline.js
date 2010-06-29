@@ -15,6 +15,7 @@ const gFileName = "bug460636";
 const gMsgFile = do_get_file("../../mailnews/data/" + gFileName);
 
 var gDownloadedOnce = false;
+var gIMAPInbox;
 
 function run_test()
 {
@@ -60,7 +61,10 @@ function run_test()
   inbox.addMessage(imapMsg);
   
   do_test_pending();
-  do_timeout(10000, "do_throw('downloadAllForOffline did not complete within 10 seconds. ABORTING.');");
+  do_timeout(10000, function(){
+        do_throw('downloadAllForOffline did not complete within 10 seconds. ABORTING.');
+      }
+    );
 
   // Get the IMAP inbox...
   let rootFolder = gIMAPIncomingServer.rootFolder;
@@ -83,7 +87,7 @@ var UrlListener =
       gIMAPInbox.downloadAllForOffline(UrlListener, null);
       return;
     }
-   else {
+    else {
       // verify that the message headers have the offline flag set.
       let msgEnumerator = gIMAPInbox.msgDatabase.EnumerateMessages();
       let offset = new Object;
@@ -93,14 +97,16 @@ var UrlListener =
         let header = msgEnumerator.getNext();
         // Verify that each message has been downloaded and looks OK.
         if (header instanceof Components.interfaces.nsIMsgDBHdr &&
-           (header.flags & Ci.nsMsgMessageFlags.Offline))
-           gIMAPInbox.getOfflineFileStream(header.messageKey, offset, size).close();
-         else
-           do_throw("Message not downloaded for offline use");
+            (header.flags & Ci.nsMsgMessageFlags.Offline))
+          gIMAPInbox.getOfflineFileStream(header.messageKey, offset, size).close();
+        else
+          do_throw("Message not downloaded for offline use");
       }
-      endTest();
     }
-    do_timeout(1000, "endTest();");
+    do_timeout(1000, endTest);
+  },
+  finalize: function() {
+    do_timeout(0, endTest);
   }
 };
 

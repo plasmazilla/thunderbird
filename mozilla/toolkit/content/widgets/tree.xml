@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE bindings [
-<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-%globalDTD;
 <!ENTITY % treeDTD SYSTEM "chrome://global/locale/tree.dtd">
 %treeDTD;
 ]>
@@ -32,7 +30,7 @@
   </binding>
 
   <binding id="tree" extends="chrome://global/content/bindings/tree.xml#tree-base">
-    <content hidevscroll="true" hidehscroll="true" chromedir="&locale.dir;">
+    <content hidevscroll="true" hidehscroll="true">
       <children includes="treecols"/>
       <xul:stack class="tree-stack" flex="1">
         <xul:treerows class="tree-rows" flex="1" xbl:inherits="hidevscroll">
@@ -105,6 +103,11 @@
         true
 #endif
       </field>
+      <property name="keepCurrentInView"
+                onget="return (this.getAttribute('keepcurrentinview') == 'true');"
+                onset="if (val) this.setAttribute('keepcurrentinview', 'true');
+                       else this.removeAttribute('keepcurrentinview'); return val;"/>
+
       <property name="enableColumnDrag"
                 onget="return this.hasAttribute('enableColumnDrag');"
                 onset="if (val) this.setAttribute('enableColumnDrag', 'true');
@@ -204,25 +207,35 @@
         <parameter name="aThresh"/>
         <parameter name="aPos"/>
         <body><![CDATA[
-          if (aPos) aPos.value = "before";
+          var isRTL = document.defaultView.getComputedStyle(this, "")
+                              .direction == "rtl";
 
+          if (aPos)
+            aPos.value = isRTL ? "after" : "before";
+
+          var columns = [];
           var col = this.columns.getFirstColumn();
-          var lastCol = null;
+          while (col) {
+            columns.push(col);
+            col = col.getNext();
+          }
+          if (isRTL)
+            columns.reverse();
           var currentX = this.boxObject.x;
           var adjustedX = aX + this.treeBoxObject.horizontalPosition;
-          while (col) {
+          for (var i = 0; i < columns.length; ++i) {
+            col = columns[i];
             var cw = col.element.boxObject.width;
             if (cw > 0) {
               currentX += cw;
               if (currentX - (cw * aThresh) > adjustedX)
                 return col.element;
             }
-            lastCol = col;
-            col = col.getNext();
           }
 
-          if (aPos) aPos.value = "after";
-          return lastCol.element;
+          if (aPos)
+            aPos.value = isRTL ? "before" : "after";
+          return columns.pop().element;
         ]]></body>
       </method>
 
@@ -260,13 +273,6 @@
           ]]>
         </getter>
       </property>
-
-      <constructor><![CDATA[
-          // Bindings that extend this one wouldn't inherit the
-          // chromedir attribute if it would only be set in <content>.
-          this.setAttribute("chromedir", "]]>&locale.dir;<![CDATA[");
-        ]]>
-      </constructor>
 
       <method name="_getNextColumn">
         <parameter name="row"/>
@@ -651,7 +657,7 @@
     </implementation>
     
     <handlers>
-      <handler event="DOMMouseScroll" phase="capturing">
+      <handler event="DOMMouseScroll">
         <![CDATA[
           if (this._editingColumn)
             return;
@@ -665,6 +671,22 @@
             this.treeBoxObject.scrollByPages(1);
           else
             this.treeBoxObject.scrollByLines(rows);
+        ]]>
+      </handler>
+      <handler event="MozSwipeGesture">
+        <![CDATA[
+          // Figure out which row to show
+          let targetRow = 0;
+
+          // Only handle swipe gestures up and down
+          switch (event.direction) {
+            case event.DIRECTION_DOWN:
+              targetRow = this.view.rowCount - 1;
+              // Fall through for actual action
+            case event.DIRECTION_UP:
+              this.treeBoxObject.ensureRowIsVisible(targetRow);
+              break;
+          }
         ]]>
       </handler>
       <handler event="select" phase="target"
@@ -689,11 +711,13 @@
           if (this._editingColumn) {
             this.stopEditing(true);
             this.focus();
-            event.stopPropagation();
           }
           else {
-            this.changeOpenState(this.currentIndex);
+            if (!this.changeOpenState(this.currentIndex))
+              return; // don't consume the event if the open state wasn't changed
           }
+          event.stopPropagation();
+          event.preventDefault();
         ]]>
       </handler>
       <handler event="keypress" keycode="VK_RETURN">
@@ -701,11 +725,13 @@
           if (this._editingColumn) {
             this.stopEditing(true);
             this.focus();
-            event.stopPropagation();
           }
           else {
-            this.changeOpenState(this.currentIndex);
+            if (!this.changeOpenState(this.currentIndex))
+              return; // don't consume the event if the open state wasn't changed
           }
+          event.stopPropagation();
+          event.preventDefault();
         ]]>
       </handler>
       <handler event="keypress" keycode="VK_ESCAPE">
@@ -714,6 +740,7 @@
             this.stopEditing(false);
             this.focus();
             event.stopPropagation();
+            event.preventDefault();
           }
         ]]>
       </handler>

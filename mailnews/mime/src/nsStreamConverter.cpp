@@ -71,6 +71,7 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIAsyncInputStream.h"
 #include "nsIAsyncOutputStream.h"
+#include "nsMsgUtils.h"
 
 #define PREF_MAIL_DISPLAY_GLYPH "mail.display_glyph"
 #define PREF_MAIL_DISPLAY_STRUCT "mail.display_struct"
@@ -394,17 +395,8 @@ nsStreamConverter::DetermineOutputFormat(const char *aUrl, nsMimeOutputType *aNe
       // %2F strings with the slash character
       const char *nextField = PL_strpbrk(format, "&; ");
       mOutputFormat.Assign(format, nextField ? nextField - format : -1);
-#ifdef MOZILLA_INTERNAL_API
-      mOutputFormat.ReplaceSubstring("%2F", "/");
-      mOutputFormat.ReplaceSubstring("%2f", "/");
-#else
-      PRInt32 pos = mOutputFormat.Find("%2f", CaseInsensitiveCompare);
-      while (pos != -1)
-      {
-        mOutputFormat.Replace(pos, 3, '/');
-        mOutputFormat.Find("%2f", pos + 1, CaseInsensitiveCompare);
-      }
-#endif
+      MsgReplaceSubstring(mOutputFormat, "%2F", "/");
+      MsgReplaceSubstring(mOutputFormat, "%2f", "/");
 
       // Don't muck with this data!
       *aNewType = nsMimeOutput::nsMimeMessageRaw;
@@ -526,10 +518,11 @@ nsStreamConverter::nsStreamConverter()
 {
   // Init member variables...
   mWrapperOutput = PR_FALSE;
-  mBridgeStream = NULL;
+  mBridgeStream = nsnull;
   mOutputFormat = "text/html";
   mAlreadyKnowOutputType = PR_FALSE;
   mForwardInline = PR_FALSE;
+  mForwardInlineFilter = PR_FALSE;
   mOverrideComposeFormat = PR_FALSE;
 
   mPendingRequest = nsnull;
@@ -787,9 +780,23 @@ nsStreamConverter::SetMimeHeadersListener(nsIMimeStreamConverterListener *listen
 }
 
 NS_IMETHODIMP
-nsStreamConverter::SetForwardInline(PRBool forwardInline)
+nsStreamConverter::SetForwardInline(PRBool aForwardInline)
 {
-  mForwardInline = forwardInline;
+  mForwardInline = aForwardInline;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsStreamConverter::GetForwardToAddress(nsAString &aAddress)
+{
+  aAddress = mForwardToAddress;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsStreamConverter::SetForwardToAddress(const nsAString &aAddress)
+{
+  mForwardToAddress = aAddress;
   return NS_OK;
 }
 
@@ -810,10 +817,25 @@ nsStreamConverter::SetOverrideComposeFormat(PRBool aOverrideComposeFormat)
 }
 
 NS_IMETHODIMP
-nsStreamConverter::GetForwardInline(PRBool *result)
+nsStreamConverter::GetForwardInline(PRBool *aResult)
 {
-  if (!result) return NS_ERROR_NULL_POINTER;
-  *result = mForwardInline;
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = mForwardInline;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsStreamConverter::GetForwardInlineFilter(PRBool *aResult)
+{
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = mForwardInlineFilter;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsStreamConverter::SetForwardInlineFilter(PRBool aForwardInlineFilter)
+{
+  mForwardInlineFilter = aForwardInlineFilter;
   return NS_OK;
 }
 

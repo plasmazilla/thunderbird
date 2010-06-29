@@ -53,25 +53,7 @@ LIB_IS_C_ONLY    = 1
 
 ifeq (,$(filter-out WINNT WINCE,$(OS_ARCH)))
 ifndef GNU_CC
-
-## We need normalizepath but comm-1.9.1/config/rules.mk does not have it while
-##  mozilla-1.9.1/config/rules.mk does.  Since our goal is to avoid creating
-##  conflicts in the event of changes to mozilla-1.9.1, let's just copy it in
-##  to ourselves here.
-ifdef CYGWIN_WRAPPER
-normalizepath = $(foreach p,$(1),$(shell cygpath -m $(p)))
-else
-# assume MSYS
-#  We use 'pwd -W' to get DOS form of the path.  However, since the given path
-#  could be a file or a non-existent path, we cannot call 'pwd -W' directly
-#  on the path.  Instead, we extract the root path (i.e. "c:/"), call 'pwd -W'
-#  on it, then merge with the rest of the path.
-root-path = $(shell echo $(1) | sed -e "s|\(/[^/]*\)/\?\(.*\)|\1|")
-non-root-path = $(shell echo $(1) | sed -e "s|\(/[^/]*\)/\?\(.*\)|\2|")
-normalizepath = $(foreach p,$(1),$(if $(filter /%,$(1)),$(shell cd $(call root-path,$(1)) && pwd -W)$(call non-root-path,$(1)),$(1)))
-endif
-
-DEFFILE = $(call normalizepath,$(CURDIR)/sqlite-processed.def)
+DEFFILE = $(CURDIR)/sqlite-processed.def
 RCFILE  = sqlite.rc
 RESFILE = sqlite.res
 
@@ -87,12 +69,15 @@ sqlite-version.h: sqlite-version.py sqlite3.h
 # We have to preprocess our def file because we need different symbols in debug
 # builds exposed that are not built in non-debug builds.
 $(DEFFILE): sqlite.def
-	@$(PYTHON) $(MOZILLA_DIR)/config/Preprocessor.py $(DEFINES) \
+	@$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(DEFINES) \
 	  $(srcdir)/sqlite.def > $(DEFFILE)
 
 export:: sqlite-version.h
 endif
 endif
+
+# FIXME: bug 419893
+NO_PROFILE_GUIDED_OPTIMIZE = 1
 
 ifdef GNU_CC
 MODULE_OPTIMIZE_FLAGS = -O2
@@ -132,11 +117,6 @@ endif
 # Turn on SQLite's assertions in debug builds.
 ifdef MOZ_DEBUG
 DEFINES += -DSQLITE_DEBUG=1
-endif
-
-# disable PGO for Sun Studio
-ifdef SOLARIS_SUNPRO_CC
-NO_PROFILE_GUIDED_OPTIMIZE = 1
 endif
 
 ifeq ($(OS_ARCH),OS2)

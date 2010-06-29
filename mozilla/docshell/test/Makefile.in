@@ -72,10 +72,23 @@ _TEST_FILES = \
 		test_bug402210.html \
 		test_bug475636.html \
 		file_bug475636.sjs \
+		test_bug385434.html \
+		file_bug385434_1.html \
+		file_bug385434_2.html \
+		file_bug385434_3.html \
+		test_bug509055.html \
+		file_bug509055.html \
 		test_bug529119-1.html \
 		test_bug529119-2.html \
 		bug529119-window.html \
 		$(NULL)
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
+_TEST_FILES += \
+		test_bug511449.html \
+		file_bug511449.html \
+		$(NULL)
+endif
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

@@ -93,9 +93,9 @@
   locale/@AB_CD@/messenger/comm4xMailImportMsgs.properties              (%chrome/messenger/comm4xMailImportMsgs.properties)
   locale/@AB_CD@/messenger/eudoraImportMsgs.properties                  (%chrome/messenger/eudoraImportMsgs.properties)
   locale/@AB_CD@/messenger/oeImportMsgs.properties                      (%chrome/messenger/oeImportMsgs.properties)
+  locale/@AB_CD@/messenger/wmImportMsgs.properties                      (%chrome/messenger/wmImportMsgs.properties)
   locale/@AB_CD@/messenger/outlookImportMsgs.properties                 (%chrome/messenger/outlookImportMsgs.properties)
   locale/@AB_CD@/messenger/shutdownWindow.properties                    (%chrome/messenger/shutdownWindow.properties)
-  locale/@AB_CD@/messenger/quickSearch.properties                       (%chrome/messenger/quickSearch.properties)
   locale/@AB_CD@/messenger/featureConfigurator.dtd                      (%chrome/messenger/featureConfigurator.dtd)
   locale/@AB_CD@/messenger/configEditorOverlay.dtd                      (%chrome/messenger/configEditorOverlay.dtd)
   locale/@AB_CD@/messenger/gloda.properties                             (%chrome/messenger/gloda.properties)
@@ -103,6 +103,7 @@
   locale/@AB_CD@/messenger/templateUtils.properties                     (%chrome/messenger/templateUtils.properties)
   locale/@AB_CD@/messenger/glodaFacetView.properties                    (%chrome/messenger/glodaFacetView.properties)
   locale/@AB_CD@/messenger/glodaFacetView.dtd                           (%chrome/messenger/glodaFacetView.dtd)
+  locale/@AB_CD@/messenger/quickFilterBar.dtd                           (%chrome/messenger/quickFilterBar.dtd)
   locale/@AB_CD@/messenger/addressbook/abMainWindow.dtd                 (%chrome/messenger/addressbook/abMainWindow.dtd)
   locale/@AB_CD@/messenger/addressbook/abNewCardDialog.dtd              (%chrome/messenger/addressbook/abNewCardDialog.dtd)
   locale/@AB_CD@/messenger/addressbook/abContactsPanel.dtd              (%chrome/messenger/addressbook/abContactsPanel.dtd)
@@ -154,6 +155,7 @@
   locale/@AB_CD@/messenger/activity.properties                          (%chrome/messenger/activity.properties)
   locale/@AB_CD@/messenger/downloads/settingsChange.dtd                 (%chrome/overrides/settingsChange.dtd)
   locale/@AB_CD@/messenger/netError.dtd                                 (%chrome/overrides/netError.dtd)
+  locale/@AB_CD@/messenger/downloadsOverlay.dtd                         (%chrome/messenger/downloadsOverlay.dtd)
 % locale messenger-mapi @AB_CD@ %locale/@AB_CD@/messenger-mapi/
   locale/@AB_CD@/messenger-mapi/mapi.properties                         (%chrome/messenger-mapi/mapi.properties)
 % locale messenger-newsblog @AB_CD@ %locale/@AB_CD@/messenger-newsblog/

@@ -182,6 +182,7 @@ nsContextMenu.prototype = {
     if (!this.inMessageArea) {
       const messageTabSpecificItems = [
         "mailContext-openNewWindow", "threadPaneContext-openNewTab",
+        "mailContext-openConversation",
         "mailContext-archive", "mailContext-replySender",
         "mailContext-editAsNew", "mailContext-replyNewsgroup",
         "mailContext-replyAll", "mailContext-replyList",
@@ -205,6 +206,10 @@ nsContextMenu.prototype = {
                   this.numSelectedMessages == 1 && this.inThreadPane);
     this.showItem("threadPaneContext-openNewTab",
                   this.numSelectedMessages == 1 && this.inThreadPane);
+
+    this.showItem("mailContext-openConversation",
+                  this.numSelectedMessages == 1 && this.inThreadPane &&
+                  gConversationOpener.isSelectedMessageIndexed());
 
     this.setSingleSelection("mailContext-replySender");
     this.setSingleSelection("mailContext-editAsNew");
@@ -245,7 +250,12 @@ nsContextMenu.prototype = {
 
     this.showItem("mailContext-mark", msgModifyItems);
 
-    this.setSingleSelection("mailContext-saveAs");
+    this.showItem("mailContext-saveAs", this.numSelectedMessages > 0 &&
+                                        !this.hideMailItems &&
+                                        !gMessageDisplay.isDummy &&
+                                        !this.onPlayableMedia);
+
+
     if (Application.platformIsMac)
       this.showItem("mailContext-printpreview", false);
     else
@@ -292,7 +302,22 @@ nsContextMenu.prototype = {
     const xulNS =
       "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
     if (aNode.namespaceURI == xulNS) {
-      this.shouldDisplay = false;
+      if (aNode.localName == "treecol") {
+        // The column header was clicked, show the column picker.
+        let treecols = aNode.parentNode;
+        let nodeList = document.getAnonymousNodes(treecols);
+        let treeColPicker;
+        for (let i = 0; i < nodeList.length; i++) {
+          if (nodeList.item(i).localName == "treecolpicker") {
+            treeColPicker = nodeList.item(i);
+            break;
+          }
+        }
+        let popup = document.getAnonymousElementByAttribute(treeColPicker, "anonid", "popup");
+        treeColPicker.buildPopup(popup);
+        popup.openPopup(aNode, "before_start", 0, 0, true)
+        this.shouldDisplay = false;
+      }
       return;
     }
     this.onImage        = false;

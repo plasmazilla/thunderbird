@@ -62,8 +62,12 @@ public:
                                   const char *propertyVal);
   NS_IMETHOD    SetUint32AttributeOnPendingHdr(nsIMsgDBHdr *pendingHdr, const char *property,
                                   PRUint32 propertyVal);
-  NS_IMETHOD    DeleteMessages(nsTArray<nsMsgKey>* nsMsgKeys,
+  NS_IMETHOD    SetUint64AttributeOnPendingHdr(nsIMsgDBHdr *aPendingHdr,
+                                               const char *aProperty,
+                                               PRUint64 aPropertyVal);
+  NS_IMETHOD    DeleteMessages(PRUint32 aNumKeys, nsMsgKey* nsMsgKeys,
                                nsIDBChangeListener *instigator);
+  NS_IMETHOD    UpdatePendingAttributes(nsIMsgDBHdr* aNewHdr);
 
 protected:
   // IMAP does not set local file flags, override does nothing

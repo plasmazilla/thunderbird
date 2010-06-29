@@ -39,7 +39,6 @@
 #define nsView_h___
 
 #include "nsIView.h"
-#include "nsIWidget.h"
 #include "nsRegion.h"
 #include "nsRect.h"
 #include "nsCRT.h"
@@ -167,6 +166,8 @@ public:
   void SetPositionIgnoringChildWidgets(nscoord aX, nscoord aY);
   nsresult LoadWidget(const nsCID &aClassIID);
 
+  void NotifyEffectiveVisibilityChanged(PRBool aEffectivelyVisible);
+
   // Update the cached RootViewManager for all view manager descendents,
   // If the hierarchy is being removed, aViewManagerParent points to the view
   // manager for the hierarchy's old parent, and will have its mouse grab
@@ -192,7 +193,9 @@ public:
     return mViewToWidgetOffset;
   }
 
-  nsRect CalcWidgetBounds(nsWindowType aType);
+  nsIntRect CalcWidgetBounds(nsWindowType aType);
+
+  PRBool IsEffectivelyVisible();
 
 protected:
   // Do the actual work of ResetWidgetBounds, unconditionally.  Don't

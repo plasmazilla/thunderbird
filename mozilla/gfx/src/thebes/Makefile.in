@@ -57,6 +57,7 @@ REQUIRES =  xpcom \
             string \
             thebes \
             widget \
+            locale \
             view \
             pref \
             unicharutil \
@@ -65,9 +66,12 @@ REQUIRES =  xpcom \
             qcms \
             $(NULL)
 
+ifeq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
+REQUIRES += uconv
+endif
+
 CPPSRCS		= \
 		nsThebesDeviceContext.cpp \
-		nsThebesImage.cpp \
 		nsThebesRegion.cpp \
 		nsThebesGfxFactory.cpp \
 		nsThebesRenderingContext.cpp \
@@ -110,8 +114,8 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),beos)
 CPPSRCS		+= nsSystemFontsBeOS.cpp
 endif
 
-ifneq (,$(filter $(MOZ_WIDGET_TOOLKIT),mac cocoa))
-CPPSRCS          += nsSystemFontsMac.cpp
+ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
+CMMSRCS		= nsSystemFontsMac.mm
 endif
 
 EXPORTS         += nsIThebesFontMetrics.h
@@ -123,7 +127,6 @@ LOCAL_INCLUDES	= \
 		$(NULL)
 
 EXTRA_DSO_LDOPTS += \
-		../shared/$(LIB_PREFIX)gfxshared_s.$(LIB_SUFFIX) \
 		$(LIBS_DIR) \
 		$(EXTRA_DSO_LIBS) \
 		$(DEPTH)/modules/libutil/src/$(LIB_PREFIX)mozutil_s.$(LIB_SUFFIX) \
@@ -139,8 +142,7 @@ endif
 
 include $(topsrcdir)/config/rules.mk
 
-CXXFLAGS  += $(TK_CFLAGS)
-CFLAGS    += $(TK_CFLAGS)
+CXXFLAGS  += $(TK_CFLAGS) $(MOZ_CAIRO_CFLAGS)
 
 ifdef MOZ_ENABLE_GTK2
 DEFINES += -DMOZ_ENABLE_GTK2

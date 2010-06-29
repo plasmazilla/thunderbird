@@ -47,6 +47,7 @@
 #include "nsIDOMHTMLCollection.h"
 #include "nsIScriptElement.h"
 #include "jsapi.h"
+#include "nsTArray.h"
 
 #include "pldhash.h"
 #include "nsIHttpChannel.h"
@@ -68,7 +69,7 @@ class nsIDocumentCharsetInfo;
 class nsICacheEntryDescriptor;
 
 class nsHTMLDocument : public nsDocument,
-                       public nsIHTMLDocument_1_9_1_BRANCH,
+                       public nsIHTMLDocument,
                        public nsIDOMHTMLDocument,
                        public nsIDOMNSHTMLDocument
 {
@@ -187,13 +188,6 @@ public:
     mDisableDocWrite = aDisabled;
   }
 
-#ifdef DEBUG
-  virtual nsresult CreateElem(nsIAtom *aName, nsIAtom *aPrefix,
-                              PRInt32 aNamespaceID,
-                              PRBool aDocumentDefaultType,
-                              nsIContent** aResult);
-#endif
-
   nsresult ChangeContentEditableCount(nsIContent *aElement, PRInt32 aChange);
 
   virtual EditingState GetEditingState()
@@ -239,6 +233,8 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual NS_HIDDEN_(void) RemovedFromDocShell();
+
 protected:
   nsresult GetBodySize(PRInt32* aWidth,
                        PRInt32* aHeight);
@@ -275,7 +271,7 @@ protected:
 
   virtual PRInt32 GetDefaultNamespaceID() const
   {
-    return mIsRegularHTML ? kNameSpaceID_None : kNameSpaceID_XHTML;
+    return kNameSpaceID_XHTML;
   }
 
   nsCOMArray<nsIDOMHTMLMapElement> mImageMaps;
@@ -344,7 +340,7 @@ protected:
   // finishes processing that script.
   PRUint32 mWriteLevel;
 
-  nsSmallVoidArray mPendingScripts;
+  nsAutoTArray<nsIScriptElement*, 1> mPendingScripts;
 
   // Load flags of the document's channel
   PRUint32 mLoadFlags;

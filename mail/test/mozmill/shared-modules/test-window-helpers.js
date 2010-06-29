@@ -48,7 +48,7 @@ Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var frame = {};
 Cu.import('resource://mozmill/modules/frame.js', frame);
 
-Cu.import('resource://app/modules/iteratorUtils.jsm');
+Cu.import('resource:///modules/iteratorUtils.jsm');
 
 const MODULE_NAME = 'window-helpers';
 
@@ -82,6 +82,19 @@ const WINDOW_CLOSE_TIMEOUT_MS = 10000;
  */
 const WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
 
+/**
+ * Timeout for focusing a window.  Only really an issue on linux.
+ */
+const WINDOW_FOCUS_TIMEOUT_MS = 10000;
+
+const focusManager = Cc["@mozilla.org/focus-manager;1"].
+                       getService(Ci.nsIFocusManager);
+const threadManager = Cc["@mozilla.org/thread-manager;1"]
+                        .getService(Ci.nsIThreadManager);
+const hiddenWindow = Cc["@mozilla.org/appshell/appShellService;1"]
+                       .getService(Ci.nsIAppShellService)
+                       .hiddenDOMWindow;
+
 function setupModule() {
   // do nothing
 }
@@ -95,6 +108,9 @@ function installInto(module) {
   module.wait_for_window_close = wait_for_window_close;
   module.close_window = close_window;
   module.wait_for_existing_window = wait_for_existing_window;
+
+  module.plan_for_observable_event = plan_for_observable_event;
+  module.wait_for_observable_event = wait_for_observable_event;
 
   module.augment_controller = augment_controller;
 }
@@ -167,19 +183,18 @@ var WindowWatcher = {
    */
   waitForWindowOpen: function WindowWatcher_waitForWindowOpen(aWindowType) {
     this.waitingForOpen = aWindowType;
-    controller.waitForEval(
-      'subject.monitorizeOpen()',
-      this._firstWindowOpened ? WINDOW_OPEN_TIMEOUT_MS
-                              : FIRST_WINDOW_EVER_TIMEOUT_MS,
-      this._firstWindowOpened ? WINDOW_OPEN_CHECK_INTERVAL_MS
-                              : FIRST_WINDOW_CHECK_INTERVAL_MS,
-      this);
+    if (!controller.waitForEval(
+          'subject.monitorizeOpen()',
+          this._firstWindowOpened ? WINDOW_OPEN_TIMEOUT_MS
+            : FIRST_WINDOW_EVER_TIMEOUT_MS,
+          this._firstWindowOpened ? WINDOW_OPEN_CHECK_INTERVAL_MS
+            : FIRST_WINDOW_CHECK_INTERVAL_MS,
+          this))
+      throw new Error("Timed out waiting for window open!");
     this.waitingForOpen = null;
     let xulWindow = this.waitingList[aWindowType];
-dump("### XUL window: " + xulWindow + "\n");
     let domWindow = xulWindow.docShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                       .getInterface(Ci.nsIDOMWindowInternal);
-dump("domWindow: " + domWindow + "\n");
     delete this.waitingList[aWindowType];
     // spin the event loop to make sure any setTimeout 0 calls have gotten their
     //  time in the sun.
@@ -236,6 +251,11 @@ dump(" cleanup!\n");
       delete this.waitingList[this.waitingForOpen];
       this._timer.cancel();
 dump("canceled!\n");
+
+      // now we are waiting for it to close...
+      this.waitingForClose = this.waitingForOpen;
+      this.waitingForOpen = null;
+
       try {
         dump("::: calling\n");
         try {
@@ -250,9 +270,6 @@ dump("canceled!\n");
       finally {
         this.subTestFunc = null;
       }
-      // now we are waiting for it to close...
-      this.waitingForClose = this.waitingForOpen;
-      this.waitingForOpen = null;
 
       // if the test failed, make sure we force the window closed...
       // except I'm not sure how to easily figure that out...
@@ -278,15 +295,17 @@ dump("canceled!\n");
     if (this.subTestFunc == null)
       return;
     // spin the event loop until we the window has come and gone.
-    controller.waitForEval(
-      'subject.waitingForOpen == null && subject.waitingForClose == null',
-      WINDOW_OPEN_TIMEOUT_MS, WINDOW_OPEN_CHECK_INTERVAL_MS, this);
+    if (!controller.waitForEval(
+           'subject.waitingForOpen == null && subject.monitorizeClose()',
+            WINDOW_OPEN_TIMEOUT_MS, WINDOW_OPEN_CHECK_INTERVAL_MS, this))
+      throw new Error("Timeout waiting for modal dialog to open.");
     this.waitingForClose = null;
   },
 
   planForWindowClose: function WindowWatcher_planForWindowClose(aXULWindow) {
     let windowType =
-      aXULWindow.document.documentElement.getAttribute("windowtype");
+      aXULWindow.document.documentElement.getAttribute("windowtype") ||
+      aXULWindow.document.documentElement.getAttribute("id");
     this.waitingList[windowType] = aXULWindow;
     this.waitingForClose = windowType;
   },
@@ -297,9 +316,10 @@ dump("canceled!\n");
    */
   waitingForClose: null,
   waitForWindowClose: function WindowWatcher_waitForWindowClose() {
-    controller.waitForEval('subject.monitorizeClose()',
-                           WINDOW_CLOSE_TIMEOUT_MS,
-                           WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
+    if (!controller.waitForEval('subject.monitorizeClose()',
+                                WINDOW_CLOSE_TIMEOUT_MS,
+                                WINDOW_CLOSE_CHECK_INTERVAL_MS, this))
+      throw new Error("Timeout waiting for window to close!");
     let didDisappear = this.waitingList[this.waitingForClose] == null;
     delete this.waitingList[windowType];
     let windowType = this.waitingForClose;
@@ -397,7 +417,8 @@ dump("### has contentViewer\n");
       return false;
 dump("has href: " + outerDoc.location.href + "\n");
     // finally, we can now have a windowtype!
-    let windowType = outerDoc.documentElement.getAttribute("windowtype");
+    let windowType = outerDoc.documentElement.getAttribute("windowtype") ||
+                     outerDoc.documentElement.getAttribute("id");
 dump("has windowtype: " + windowType + "\n");
 dump("this: " + this + "\n");
 dump("waitingList: " + this.waitingList + "\n");
@@ -422,7 +443,8 @@ dump("waitingList: " + this.waitingList + "\n");
     let domWindow = aXULWindow.docShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                        .getInterface(Ci.nsIDOMWindowInternal);
     let windowType =
-      domWindow.document.documentElement.getAttribute("windowtype");
+      domWindow.document.documentElement.getAttribute("windowtype") ||
+      domWindow.document.documentElement.getAttribute("id");
     // XXX because of how we dance with things, equivalence is not gonna
     //  happen for us.  This is most pragmatic.
     if (this.waitingList[windowType] !== null)
@@ -490,7 +512,9 @@ function wait_for_new_window(aWindowType) {
  *  you need to provide a sub-test function to be run inside the modal dialog
  *  (and it should not start with "test" or mozmill will also try and run it.)
  *
- * @param aWindowType The window type that you expect the modal dialog to have.
+ * @param aWindowType The window type that you expect the modal dialog to have
+ *                    or the id of the window if there is no window type
+ *                    available.
  * @param aSubTestFunction The sub-test function that will be run once the modal
  *     dialog appears and is loaded.  This function should take one argument,
  *     a MozmillController against the modal dialog.
@@ -534,6 +558,51 @@ function close_window(aController) {
   aController.window.close();
   wait_for_window_close();
 }
+
+
+let obsService = Cc["@mozilla.org/observer-service;1"]
+                   .getService(Ci.nsIObserverService);
+let observationWaitFuncs = {};
+let observationSaw = {};
+/**
+ * Plan for a notification to be sent via the observer service.
+ *
+ * @param aTopic The topic that will be sent via the observer service.
+ */
+function plan_for_observable_event(aTopic) {
+  observationSaw[aTopic] = false;
+  let waiter = observationWaitFuncs[aTopic] = {
+    observe: function() {
+      observationSaw[aTopic] = true;
+    }
+  };
+  obsService.addObserver(waiter, aTopic, false);
+}
+
+/**
+ * Wait for a notification (previously planned for via
+ *  |plan_for_observable_event|) to fire.
+ *
+ * @param aTopic The topic sent via the observer service.
+ */
+function wait_for_observable_event(aTopic) {
+  try {
+    function areWeThereYet() {
+      return observationSaw[aTopic];
+    }
+    if (!controller.waitForEval(
+          'subject()',
+          3000, 50,
+          areWeThereYet))
+      throw new Error("Timed out waiting for notification: " + aTopic);
+  }
+  finally {
+    obsService.removeObserver(observationWaitFuncs[aTopic], aTopic);
+    delete observationWaitFuncs[aTopic];
+    delete observationSaw[aTopic];
+  }
+}
+
 
 /**
  * Methods to augment every controller that passes through augment_controller.
@@ -580,6 +649,15 @@ var AugmentEverybodyWith = {
     },
 
     /**
+     * Wait for an element with the given id to show up.
+     *
+     * @param aId The DOM id of the element you want to wait to show up.
+     */
+    ewait: function _wait_for_element_by_id_helper(aId) {
+      this.waitForElement(new elib.ID(this.window.document, aId));
+    },
+
+    /**
      * Find an element in the anonymous subtree of an element in the document
      *  identified by its id.  You would use this to dig into XBL bindings that
      *  are not doing what you want.  For example, jerks that don't focus right.
@@ -592,11 +670,14 @@ var AugmentEverybodyWith = {
      *  // when you want the first descendent with the given tagName
      *  a("threadTree", {tagName: "treechildren"})
      *
+     * @param aId The element id or the actual element.
+     *
      * @return the anonymous element determined by the query found in the
      *  anonymous sub-tree of the element with the given id.
      */
     a: function _get_anon_element_by_id_and_query(aId, aQuery) {
-      let realElem = this.window.document.getElementById(aId);
+      let realElem = (typeof(aId) == "string") ?
+                       this.window.document.getElementById(aId) : aId;
       if (aQuery["class"]) {
         return this.window.document.getAnonymousElementByAttribute(
           realElem, "class", aQuery["class"]);
@@ -655,6 +736,65 @@ var AugmentEverybodyWith = {
                               dis.click(aWhatToClick);
                             }, 1000);
     },
+
+    /**
+     * Dynamically-built/XBL-defined menus can be hard to work with, this makes it
+     *  easier.
+     *
+     * @param aRootPopup The base popup.  We will open it if it is not open or
+     *     wait for it to open if it is in the process.
+     * @param aActions A list of objects where each object has a single
+     *     attribute with a single value.  We pick the menu option whose DOM
+     *     node has an attribute with that name and value.  We click whatever we
+     *     find.  We throw if we don't find what you were asking for.
+     */
+    click_menus_in_sequence: function _click_menus(aRootPopup, aActions) {
+      if (aRootPopup.state == "closed")
+        aRootPopup.openPopup(null, "", 0, 0, true, true);
+      if (aRootPopup.state != "open") { // handle "showing"
+        if (!controller.waitForEval("subject.state == 'open'", 1000, 100,
+                                    aRootPopup)) {
+          throw new Error("Popup never opened!");
+        }
+      }
+
+      let curPopup = aRootPopup;
+      for each (let [iAction, actionObj] in Iterator(aActions)) {
+        let matchingNode = null;
+
+        let kids = curPopup.children;
+        for (let iKid=0; iKid < kids.length; iKid++) {
+          let node = kids[iKid];
+          let matchedAll = true;
+          for each (let [name, value] in Iterator(actionObj)) {
+            if (!node.hasAttribute(name) ||
+                node.getAttribute(name) != value) {
+              matchedAll = false;
+              break;
+            }
+          }
+
+          if (matchedAll) {
+            matchingNode = node;
+            break;
+          }
+        }
+
+        if (!matchingNode)
+          throw new Error("Did not find matching menu item for action index " +
+                          iAction);
+
+        this.click(new elib.Elem(matchingNode));
+        if ("menupopup" in matchingNode) {
+          curPopup = matchingNode.menupopup;
+          if (!controller.waitForEval("subject.state == 'open'", 1000, 100,
+                                      curPopup)) {
+            throw new Error("Popup never opened at action depth: " + iAction);
+          }
+        }
+      }
+    }
+
   },
 };
 

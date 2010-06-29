@@ -31,6 +31,8 @@
  *   Jeremy Morton <bugzilla@game-point.net>
  *   Andrew Sutherland <asutherland@asutherland.org>
  *   Dan Mosedale <dmose@mozilla.org>
+ *   Michiel van Leeuwen <mvl@exedo.nl>
+ *   Joachim Herb <herb@leo.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -46,7 +48,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://app/modules/gloda/dbview.js");
+Components.utils.import("resource:///modules/gloda/dbview.js");
 
 const ADDR_DB_LARGE_COMMIT       = 1;
 
@@ -71,9 +73,10 @@ const kAllowRemoteContent = 2;
 const kMsgNotificationPhishingBar = 1;
 const kMsgNotificationJunkBar = 2;
 const kMsgNotificationRemoteImages = 3;
+const kMsgNotificationMDN = 4;
 
-Components.utils.import("resource://app/modules/MailUtils.js");
-Components.utils.import("resource://app/modules/MailConsts.js");
+Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource:///modules/MailConsts.js");
 
 var gMessengerBundle;
 var gPrefBranch = Components.classes["@mozilla.org/preferences-service;1"]
@@ -943,39 +946,48 @@ function UpdateReplyButtons()
   else if (showReplyAll)
     buttonToShow = "replyAll";
 
+  let smartReplyButton = document.getElementById("hdrSmartReplyButton");
   let replyButton = document.getElementById("hdrReplyButton");
   let replyAllButton = document.getElementById("hdrReplyAllButton");
   let replyAllSubButton = document.getElementById("hdrReplyAllSubButton");
   let replyAllSubButtonSep = document.getElementById("hdrReplyAllSubButtonSep");
   let replyListButton = document.getElementById("hdrReplyListButton");
+  let replyToSenderButton = document.getElementById("hdrReplyToSenderButton");
 
-  let alwaysOfferReply =
-    Application.prefs.get("mailnews.headers.always_show_reply_sender").value;
-
-  replyButton.hidden = (buttonToShow != "reply" && !alwaysOfferReply);
-  replyAllButton.hidden = (buttonToShow != "replyAll");
-  replyListButton.hidden = (buttonToShow != "replyList");
-
-  if (gFolderDisplay.selectedMessageIsNews)
+  if (smartReplyButton)
   {
-    // If it's a news item, show the ReplyAll sub-button and separator.
-    replyAllSubButton.hidden = false;
-    replyAllSubButtonSep.hidden = false;
+    replyButton.hidden = (buttonToShow != "reply");
+    replyAllButton.hidden = (buttonToShow != "replyAll");
+    replyListButton.hidden = (buttonToShow != "replyList");
+    if (gFolderDisplay.selectedMessageIsNews)
+    {
+      // If it's a news item, show the ReplyAll sub-button and separator.
+      replyAllSubButton.hidden = false;
+      replyAllSubButtonSep.hidden = false;
+     }
+    else if (gFolderDisplay.selectedMessageIsFeed)
+    {
+      // otherwise, if it's an rss item, hide all the Reply buttons.
+      replyButton.hidden = true;
+      replyAllButton.hidden = true;
+      replyListButton.hidden = true;
+      replyAllSubButton.hidden = true;
+      replyAllSubButtonSep.hidden = true;
+    }
+    else
+    {
+      // otherwise, hide the ReplyAll sub-buttons.
+      replyAllSubButton.hidden = true;
+      replyAllSubButtonSep.hidden = true;
+    }
   }
-  else if (gFolderDisplay.selectedMessageIsFeed)
+
+  if (replyToSenderButton)
   {
-    // otherwise, if it's an rss item, hide all the Reply buttons.
-    replyButton.hidden = true;
-    replyAllButton.hidden = true;
-    replyListButton.hidden = true;
-    replyAllSubButton.hidden = true;
-    replyAllSubButtonSep.hidden = true;
-  }
-  else
-  {
-    // otherwise, hide the ReplyAll sub-buttons.
-    replyAllSubButton.hidden = true;
-    replyAllSubButtonSep.hidden = true;
+    if (gFolderDisplay.selectedMessageIsFeed)
+      replyToSenderButton.hidden = true;
+    else
+      replyToSenderButton.hidden = (replyButton && !replyButton.hidden);
   }
 
   goUpdateCommand("button_reply");
@@ -1294,20 +1306,19 @@ function BatchMessageMover()
 
 BatchMessageMover.prototype = {
 
-  archiveSelectedMessages: function()
+  archiveMessages: function BatchMessageMover_archiveMessages (aMsgHdrs)
   {
     gFolderDisplay.hintMassMoveStarting();
 
-    let selectedMessages = gFolderDisplay.selectedMessages;
-    if (!selectedMessages.length)
+    if (!aMsgHdrs.length)
       return;
 
     let messages = Components.classes["@mozilla.org/array;1"]
                              .createInstance(Components.interfaces.nsIMutableArray);
 
-    for (let i = 0; i < selectedMessages.length; ++i)
+    for (let i = 0; i < aMsgHdrs.length; ++i)
     {
-      let msgHdr = selectedMessages[i];
+      let msgHdr = aMsgHdrs[i];
 
       let server = msgHdr.folder.server;
       let rootFolder = server.rootFolder;
@@ -1336,13 +1347,20 @@ BatchMessageMover.prototype = {
       if (granularity >= Components.interfaces.nsIMsgIncomingServer
                                    .perYearArchiveFolders)
         copyBatchKey += msgYear;
-      if (granularity >= Components.interfaces.nsIMsgIncomingServer
-                                   .perMonthArchiveFolders)
+
+      if (granularity >=  Components.interfaces.nsIMsgIncomingServer
+                                    .perMonthArchiveFolders)
         copyBatchKey += monthFolderName;
 
+      let keepFolderStructure = archiveFolder.server.archiveKeepFolderStructure;
+      if (keepFolderStructure)
+        copyBatchKey += msgHdr.folder.URI;
+
+       // Add a key to copyBatchKey
        if (! (copyBatchKey in this._batches)) {
         this._batches[copyBatchKey] = [msgHdr.folder, archiveFolderUri,
-                                       granularity, msgYear, monthFolderName];
+                                       granularity, keepFolderStructure,
+                                       msgYear, monthFolderName];
       }
       this._batches[copyBatchKey].push(msgHdr);
     }
@@ -1351,7 +1369,7 @@ BatchMessageMover.prototype = {
     this.processNextBatch();
   },
 
-  processNextBatch: function()
+  processNextBatch: function BatchMessageMover_processNextBatch ()
   {
     for (let key in this._batches)
     {
@@ -1360,10 +1378,12 @@ BatchMessageMover.prototype = {
       let srcFolder = batch[0];
       let archiveFolderUri = batch[1];
       let granularity = batch[2];
-      let msgYear = batch[3];
-      let msgMonth = batch[4];
-      let msgs = batch.slice(5, batch.length);
+      let keepFolderStructure = batch[3];
+      let msgYear = batch[4];
+      let msgMonth = batch[5];
+      let msgs = batch.slice(6, batch.length);
       let subFolder, dstFolder;
+      let initFolderLevel = 1;
       let Ci = Components.interfaces;
 
       let archiveFolder = GetMsgFolderFromUri(archiveFolderUri, false);
@@ -1431,6 +1451,27 @@ BatchMessageMover.prototype = {
       else {
         dstFolder = archiveFolder;
       }
+     // Create the folder structure in Archives
+     if (keepFolderStructure) {
+         let dstFolder2;
+         // Detect the root folder of message
+         let server = batch[0].server;
+         let InitialFolderLevel = server.rootFolder;
+         // Find the folder structure to create
+         let folderURI = batch[0].URI.split(InitialFolderLevel.URI).toString().substr(1).split("/");
+         if (folderURI[1] == "INBOX")
+             initFolderLevel = 2;
+         for (let i = initFolderLevel; i < folderURI.length; i++) {
+             archiveFolderUri += "/" + folderURI[i];
+             dstFolder2 = GetMsgFolderFromUri(archiveFolderUri, false);
+             if (!dstFolder2.parent) {
+                 dstFolder2.createStorageIfMissing(this);
+                 if (isImap)
+                    return;
+             }
+         }
+         dstFolder = GetMsgFolderFromUri(archiveFolderUri, false);
+     }
       if (dstFolder != srcFolder) {
         var mutablearray = Components.classes["@mozilla.org/array;1"]
                             .createInstance(Components.interfaces.nsIMutableArray);
@@ -1503,7 +1544,7 @@ BatchMessageMover.prototype = {
 function MsgArchiveSelectedMessages(event)
 {
   let batchMover = new BatchMessageMover();
-  batchMover.archiveSelectedMessages();
+  batchMover.archiveMessages(gFolderDisplay.selectedMessages);
 }
 
 function MsgForwardMessage(event)
@@ -1684,8 +1725,7 @@ function ToggleFavoriteFolderFlag()
 
 function MsgSaveAsFile()
 {
-  if (GetNumSelectedMessages() == 1)
-    SaveAsFile(gFolderDisplay.selectedMessageUris[0]);
+  SaveAsFile(gFolderDisplay.selectedMessageUris);
 }
 
 function MsgSaveAsTemplate()
@@ -1830,7 +1870,7 @@ function MsgDisplayMessageInFolderTab(aMsgHdr)
   let folderTab = tabmail.getTabInfoForCurrentOrFirstModeInstance(
                       tabmail.tabModes["folder"]);
   let folderDisplay = folderTab.folderDisplay;
-  let folder = aMsgHdr.folder;
+  let folder = gFolderTreeView.getFolderForMsgHdr(aMsgHdr);
 
   // XXX Yuck. We really need to have the tabmail be able to handle an extra
   // param with data to send to showTab, and to have the folder display have
@@ -1915,36 +1955,27 @@ function MsgFilters(emailAddress, folder)
     // Try to determine the folder from the selected message.
     if (gDBView)
     {
+      /*
+       * Here we face a decision. If the message has been moved to a
+       *  different account, then a single filter cannot work for both
+       *  manual and incoming scope. So we will create the filter based
+       *  on its existing location, which will make it work properly in
+       *  manual scope. This is the best solution for POP3 with global
+       *  inbox (as then both manual and incoming filters work correctly),
+       *  but may not be what IMAP users who filter to a local folder
+       *  really want.
+       */
       try
       {
-        var msgHdr = gFolderDisplay.selectedMessage;
-        var accountKey = msgHdr.accountKey;
-        if (accountKey.length > 0)
-        {
-          var account = accountManager.getAccount(accountKey);
-          if (account)
-          {
-            var server = account.incomingServer;
-            if (server)
-              folder = server.rootFolder;
-          }
-        }
+        folder = gFolderDisplay.selectedMessage.folder;
+        // except for news, we define the filter on the account's root
+        if (!gFolderDisplay.selectedMessageIsNews)
+          folder = folder.rootFolder;
       }
       catch (ex) {}
     }
     if (!folder)
-    {
       folder = GetFirstSelectedMsgFolder();
-      // If this is the local folders account, check if the default account
-      // defers to it; if so, we'll use the default account so the simple case
-      // of one pop3 account with the global inbox creates filters for the right server.
-      if (folder && folder.server.type == "none" && folder.server.isDeferredTo)
-      {
-        var defaultServer = accountManager.defaultAccount.incomingServer;
-        if (defaultServer.rootMsgFolder == folder.server.rootFolder)
-          folder = defaultServer.rootFolder;
-      }
-    }
   }
   var args;
   if (emailAddress)
@@ -2512,7 +2543,8 @@ var gMessageNotificationBar =
                     0, // for no msgNotificationBar
                     1, // 1 << (kMsgNotificationPhishingBar - 1)
                     2, // 1 << (kMsgNotificationJunkBar - 1)
-                    4  // 1 << (kMsgNotificationRemoteImages - 1)
+                    4, // 1 << (kMsgNotificationRemoteImages - 1)
+                    8  // 1 << (kMsgNotificationMSN - 1) 
                   ],
 
   mMsgNotificationBar: document.getElementById('msgNotificationBar'),
@@ -2548,7 +2580,14 @@ var gMessageNotificationBar =
   {
     this.updateMsgNotificationBar(kMsgNotificationPhishingBar, true);
   },
-
+  
+  setMDNMsg: function(aMdnGenerator, aMsgHeader)
+  {
+    this.mdnGenerator = aMdnGenerator;
+    this.msgHeader = aMsgHeader;
+    this.updateMsgNotificationBar(kMsgNotificationMDN, true);
+  },
+  
   clearMsgNotifications: function()
   {
     this.mBarStatus = 0;
@@ -2801,31 +2840,6 @@ function OnMsgLoaded(aUrl)
 
   // See if MDN was requested but has not been sent.
   HandleMDNResponse(aUrl);
-
-  if (!gFolderDisplay.selectedMessageIsImap)
-    return;
-
-  var imapServer = folder.server.QueryInterface(Components.interfaces.nsIImapIncomingServer);
-  if (imapServer.storeReadMailInPFC)
-  {
-    // Look in read mail PFC for msg with same msg id - if we find one,
-    // don't put this message in the read mail pfc.
-    var outputPFC = imapServer.GetReadMailPFC(true);
-
-    if (msgHdr && msgHdr.messageId.length > 0)
-    {
-      var readMailDB = outputPFC.msgDatabase;
-      if (readMailDB && readMailDB.getMsgHdrForMessageID(msgHdr.messageId))
-        return; // Don't copy to offline folder.
-    }
-
-    var messages = Components.classes["@mozilla.org/array;1"]
-                              .createInstance(Components.interfaces.nsIMutableArray);
-    messages.appendElement(msgHdr, false);
-    outputPFC.copyMessages(folder, messages, false /*isMove*/,
-                            msgWindow /*nsIMsgWindow*/, null /*listener*/,
-                            false /*isFolder*/, false /*allowUndo*/);
-  }
 }
 
 /**
@@ -2871,6 +2885,8 @@ function HandleMDNResponse(aUrl)
   // After a msg is downloaded it's already marked READ at this point so we must check if
   // the msg has a "Disposition-Notification-To" header and no MDN report has been sent yet.
   var msgFlags = msgHdr.flags;
+  if (!msgFlags)
+    return;
   if ((msgFlags & Components.interfaces.nsMsgMessageFlags.IMAPDeleted) ||
       (msgFlags & Components.interfaces.nsMsgMessageFlags.MDNReportSent))
     return;
@@ -2884,25 +2900,29 @@ function HandleMDNResponse(aUrl)
   var mdnGenerator = Components.classes["@mozilla.org/messenger-mdn/generator;1"]
                                .createInstance(Components.interfaces.nsIMsgMdnGenerator);
   const MDN_DISPOSE_TYPE_DISPLAYED = 0;
-  mdnGenerator.process(MDN_DISPOSE_TYPE_DISPLAYED, msgWindow, msgFolder,
-                       msgHdr.messageKey, mimeHdr, false);
+  let askUser = mdnGenerator.process(MDN_DISPOSE_TYPE_DISPLAYED, msgWindow, msgFolder,
+                                     msgHdr.messageKey, mimeHdr, false);
+  if (askUser)
+    gMessageNotificationBar.setMDNMsg(mdnGenerator, msgHdr);
+}
 
-  // Reset mark msg MDN "Sent" and "Not Needed".
-  msgHdr.flags = (msgFlags &
-                  ~Components.interfaces.nsMsgMessageFlags.MDNReportNeeded);
-  msgHdr.OrFlags(Components.interfaces.nsMsgMessageFlags.MDNReportSent);
+function SendMDNResponse()
+{
+  gMessageNotificationBar.mdnGenerator.userAgreed();
+  gMessageNotificationBar.updateMsgNotificationBar(kMsgNotificationMDN, false);
+}
 
-  // Commit db changes.
-  var msgdb = msgFolder.msgDatabase;
-  if (msgdb)
-    msgdb.Commit(ADDR_DB_LARGE_COMMIT);
+function IgnoreMDNResponse()
+{
+  gMessageNotificationBar.mdnGenerator.userDeclined();
+  gMessageNotificationBar.updateMsgNotificationBar(kMsgNotificationMDN, false);
 }
 
 function QuickSearchFocus()
 {
   var quickSearchTextBox = document.getElementById('searchInput');
   if (quickSearchTextBox)
-    quickSearchTextBox.focus();
+    quickSearchTextBox.select();
 }
 
 /**

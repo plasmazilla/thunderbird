@@ -83,6 +83,8 @@ let observer = {
   },
   onTitleChanged: function(aURI, aPageTitle) {
   },
+  onBeforeDeleteURI: function(aURI) {
+  },
   onDeleteURI: function(aURI) {
   },
 

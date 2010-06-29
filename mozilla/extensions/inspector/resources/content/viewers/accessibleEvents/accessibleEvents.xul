@@ -43,7 +43,7 @@
   <!ENTITY % dtd3 SYSTEM "chrome://inspector/locale/viewers/accessibleEvents.dtd"> %dtd3;
 ]>
 
-<?xml-stylesheet href="chrome://inspector/skin/"?>
+<?xml-stylesheet href="chrome://inspector/skin/viewers/accessibleEvents/accessibleEvents.css"?>
 
 <page id="winAccessibleEvents"
       xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
@@ -57,11 +57,46 @@
   <script type="application/javascript"
           src="chrome://inspector/content/viewers/accessibleEvents/accessibleEvents.js"/>
 
-  <button label="&clearEventList.label;"
-          oncommand="viewer.clearEventsList();"/>
+  <stringbundle id="accessiblePropsBundle"
+                src="chrome://inspector/locale/viewers/accessibleEvents.properties"/>
+
+  <hbox align="right">
+    <button label="&clearEventList.label;"
+            oncommand="viewer.clearEventsList();"/>
+    <button label="&chooseEventsToWatch.label;"
+            type="checkbox"
+            oncommand="viewer.chooseEventsToWatch();"/>
+  </hbox>
+
+  <vbox id="watchContainer"
+        hidden="true"
+        flex="1">
+    <tree id="watchEventList"
+          flex="1"
+          editable="true">
+      <treecols>
+        <treecol id="welEventType"
+                 label="&eventType.label;"
+                 primary="true"
+                 persist="width,hidden,ordinal"
+                 flex="1"/>
+        <treecol id="welIsWatched"
+                 label="&isWatched.label;"
+                 type="checkbox"
+                 editable="true"
+                 persist="width,hidden,ordinal"/>
+      </treecols>
+      <treechildren/>
+    </tree>
+    <hbox align="right">
+      <button label="&selectAll.label;"
+              oncommand="viewer.watchAllEvents(true);"/>
+      <button label="&unselectAll.label;"
+              oncommand="viewer.watchAllEvents(false);"/>
+    </hbox>
+  </vbox>
 
   <tree id="olAccessibleEvents"
-        class="plain"
         flex="1"
         onselect="viewer.onItemSelected()">
 

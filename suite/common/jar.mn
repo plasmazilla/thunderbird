@@ -53,7 +53,6 @@ comm.jar:
    content/communicator/certError.xhtml
    content/communicator/communicator.css
    content/communicator/consoleOverlay.xul
-   content/communicator/contentAreaUtils.js
    content/communicator/contentAreaDD.js
    content/communicator/contentAreaClick.js
    content/communicator/contentAreaContextOverlay.xul
@@ -61,6 +60,7 @@ comm.jar:
    content/communicator/defaultClientDialog.xul
    content/communicator/editorBindings.xul
    content/communicator/findUtils.js
+   content/communicator/fullscreen-video.xhtml
    content/communicator/helpEditorOverlay.xul
    content/communicator/helpMessengerOverlay.xul
    content/communicator/helpSecurityOverlay.xul
@@ -129,6 +129,8 @@ comm.jar:
    content/communicator/downloads/DownloadProgressListener.js       (downloads/DownloadProgressListener.js)
    content/communicator/downloads/progressDialog.xul                (downloads/progressDialog.xul)
    content/communicator/downloads/progressDialog.js                 (downloads/progressDialog.js)
+   content/communicator/downloads/uploadProgress.xul                (downloads/uploadProgress.xul)
+   content/communicator/downloads/uploadProgress.js                 (downloads/uploadProgress.js)
    content/communicator/downloads/treeView.js                       (downloads/treeView.js)
    content/communicator/feeds/subscribe.xhtml                       (feeds/subscribe.xhtml)
    content/communicator/feeds/subscribe.js                          (feeds/subscribe.js)

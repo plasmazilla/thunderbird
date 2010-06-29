@@ -60,7 +60,7 @@ textbox {
   color: -moz-FieldText;
 }
 
-textbox[empty="true"] {
+textbox[isempty="true"] {
   color: GrayText;
 }
 
@@ -110,8 +110,8 @@ textbox.plain {
   -moz-image-region: rect(0, 16px, 16px, 0);
 }
 
-.textbox-search-icon[chromedir="rtl"] {
-  list-style-image: url(chrome://global/skin/icons/Search-glass-rtl.png);
+.textbox-search-icon:-moz-locale-dir(rtl) {
+  -moz-transform: scaleX(-1);
 }
 
 .textbox-search-icon[searchbutton]:not([disabled]) {

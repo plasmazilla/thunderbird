@@ -74,6 +74,7 @@ JSObjectViewer.prototype =
   get subject() { return this.mSubject },
   set subject(aObject) 
   {
+    aObject = this.unwrapObject(aObject);
     this.mSubject = aObject;
     this.emptyTree(this.mTreeKids);
     var ti = this.addTreeItem(this.mTreeKids, bundle.getString("root.title"), aObject, aObject);
@@ -103,6 +104,16 @@ JSObjectViewer.prototype =
   getCommand: function(aCommand)
   {
     return null;
+  },
+
+  unwrapObject: function(aObject)
+  {
+    /* unwrap() throws for primitive values, so don't call it for those */
+    if (typeof(aObject) === "object" && aObject &&
+        "unwrap" in XPCNativeWrapper) {
+        aObject = XPCNativeWrapper.unwrap(aObject);
+    }
+    return aObject;
   },
   
   ////////////////////////////////////////////////////////////////////////////
@@ -238,7 +249,7 @@ JSObjectViewer.prototype =
     for (var i = 0; i < propertyNames.length; i++) {
       try {
         this.addTreeItem(aTreeChildren, propertyNames[i],
-                         aObject[propertyNames[i]], aObject);
+                         this.unwrapObject(aObject[propertyNames[i]]), aObject);
       } catch (ex) {
         // hide unsightly NOT YET IMPLEMENTED errors when accessing certain properties
       }

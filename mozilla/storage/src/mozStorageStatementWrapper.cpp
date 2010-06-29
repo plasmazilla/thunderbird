@@ -79,21 +79,13 @@ StatementWrapper::Initialize(mozIStorageStatement *aStatement)
   NS_ENSURE_ARG_POINTER(aStatement);
 
   mStatement = static_cast<Statement *>(aStatement);
-  // Get the raw sqlite3_stmt.  This will be NULL if the statement is invalid.
-  // In that case, we should fail to initialize and make sure that we restore
-  // our state to invalid (mStatement == NULL).
-  sqlite3_stmt *stmt = nativeStatement();
-  if (stmt == nsnull) {
-    mStatement = nsnull;
-    return NS_ERROR_ILLEGAL_VALUE;
-  }
 
   // fetch various things we care about
   (void)mStatement->GetParameterCount(&mParamCount);
   (void)mStatement->GetColumnCount(&mResultColumnCount);
 
   for (unsigned int i = 0; i < mResultColumnCount; i++) {
-    const void *name = ::sqlite3_column_name16(stmt, i);
+    const void *name = ::sqlite3_column_name16(nativeStatement(), i);
     (void)mColumnNames.AppendElement(nsDependentString(static_cast<const PRUnichar*>(name)));
   }
 

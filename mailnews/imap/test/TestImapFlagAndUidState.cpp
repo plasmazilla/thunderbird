@@ -62,14 +62,14 @@ const char * MainChecks(nsImapFlagAndUidState* flagState, struct msgState *expec
     flagState->GetMessageFlags(expectedState[i].index, &flag);
     if (uid != expectedState[i].uid)
     {
-      PR_snprintf(errorMsg, sizeof(errorMsg), 
+      PR_snprintf(errorMsg, sizeof(errorMsg),
                   "expected uid %d, got %d at index %d\n", expectedState[i].uid,
                   uid, i);
       return errorMsg;
     }
     if (flag != expectedState[i].flag)
     {
-      PR_snprintf(errorMsg, sizeof(errorMsg), 
+      PR_snprintf(errorMsg, sizeof(errorMsg),
                   "expected flag %d, got %d at index %d\n", expectedState[i].flag,
                   flag, i);
       return errorMsg;
@@ -77,6 +77,7 @@ const char * MainChecks(nsImapFlagAndUidState* flagState, struct msgState *expec
   }
   PRInt32 numMsgsInFlagState;
   PRInt32 numUnread = 0;
+  PRInt32 expectedMsgIndex = 0;
 
   flagState->GetNumberOfMessages(&numMsgsInFlagState);
   for (PRInt32 msgIndex = 0; msgIndex < numMsgsInFlagState; msgIndex++)
@@ -85,6 +86,13 @@ const char * MainChecks(nsImapFlagAndUidState* flagState, struct msgState *expec
     flagState->GetUidOfMessage(msgIndex, &uidOfMessage);
     if (!uidOfMessage || uidOfMessage == nsMsgKey_None)
       continue;
+    if (uidOfMessage != expectedState[expectedMsgIndex++].uid)
+    {
+      PR_snprintf(errorMsg, sizeof(errorMsg),
+                  "got a uid w/o a match in expected state, uid %d at index %d\n",
+                  uidOfMessage, msgIndex);
+      return errorMsg;
+    }
     imapMessageFlagsType flags;
     flagState->GetMessageFlags(msgIndex, &flags);
     if (! (flags & kImapMsgSeenFlag))
@@ -92,7 +100,7 @@ const char * MainChecks(nsImapFlagAndUidState* flagState, struct msgState *expec
   }
   if (numUnread != expectedNumUnread)
   {
-      PR_snprintf(errorMsg, sizeof(errorMsg), 
+      PR_snprintf(errorMsg, sizeof(errorMsg),
                   "expected %d unread message, got %d\n", expectedNumUnread,
                   numUnread);
       return errorMsg;
@@ -129,7 +137,7 @@ int main(int argc, char** argv)
   }
 
   // Now reset all
-  flagState->Reset(0);
+  flagState->Reset();
 
   // This tests adding some messages to a partial uid flag state,
   // i.e., CONDSTORE.
@@ -139,8 +147,8 @@ int main(int argc, char** argv)
     {73, kImapMsgSeenFlag, 71}};
   numMsgs = sizeof(msgState2) / sizeof(msgState2[0]);
   for (PRInt32 i = 0; i < numMsgs; i++)
-        flagState->AddUidFlagPair(msgState2[i].uid, msgState2[i].flag,
-                                  msgState2[i].index);
+    flagState->AddUidFlagPair(msgState2[i].uid, msgState2[i].flag,
+                              msgState2[i].index);
   error = MainChecks(flagState, msgState2, numMsgs, 0);
   if (error)
   {

@@ -46,6 +46,7 @@
 #include "nsEnumeratorUtils.h"
 #include "nsNetUtil.h"
 #include "nsReadableUtils.h"
+#include "nsIWidget.h"
 
 #include <qfile.h>
 #include <qstringlist.h>
@@ -93,8 +94,8 @@ nsFilePicker::AppendFilter(const nsAString & aTitle, const nsAString & aFilter)
     CopyUTF16toUTF8(aFilter, filter);
     CopyUTF16toUTF8(aTitle, name);
 
-    mFilters.AppendCString(filter);
-    mFilterNames.AppendCString(name);
+    mFilters.AppendElement(filter);
+    mFilterNames.AppendElement(name);
 
     return NS_OK;
 }
@@ -224,9 +225,9 @@ nsFilePicker::Show(PRInt16 *aReturn)
     mDialog->setDirectory(directory.get());
 
     QStringList filters;
-    PRInt32 count = mFilters.Count();
-    for (PRInt32 i = 0; i < count; ++i) {
-        filters.append( mFilters[i]->get() );
+    PRUint32 count = mFilters.Length();
+    for (PRUint32 i = 0; i < count; ++i) {
+        filters.append( mFilters[i].get() );
     }
     mDialog->setFilters(filters);
 

@@ -47,21 +47,23 @@ try {
 var observer = {
   onBeginUpdateBatch: function() {},
   onEndUpdateBatch: function() {},
-  onItemAdded: function(id, folder, index) {
+  onItemAdded: function(id, folder, index, itemType) {
     this._itemAddedId = id;
     this._itemAddedParent = folder;
     this._itemAddedIndex = index;
   },
-  onItemRemoved: function(id, folder, index) {},
+  onBeforeItemRemoved: function() {},
+  onItemRemoved: function() {},
   _itemChangedProperty: null,
-  onItemChanged: function(id, property, isAnnotationProperty, value) {
+  onItemChanged: function(id, property, isAnnotationProperty, value,
+                          lastModified, itemType) {
     this._itemChangedId = id;
     this._itemChangedProperty = property;
     this._itemChanged_isAnnotationProperty = isAnnotationProperty;
     this._itemChangedValue = value;
   },
-  onItemVisited: function(id, visitID, time) {},
-  onItemMoved: function(id, oldParent, oldIndex, newParent, newIndex) {},
+  onItemVisited: function() {},
+  onItemMoved: function() {},
   QueryInterface: function(iid) {
     if (iid.equals(Ci.nsINavBookmarkObserver) ||
         iid.equals(Ci.nsISupports)) {
@@ -88,11 +90,12 @@ function run_test() {
   do_check_eq(observer._itemChangedProperty, "dateAdded");
   do_check_eq(observer._itemChangedValue, newDate);
   // test saved value
-  do_check_eq(bmsvc.getItemDateAdded(bookmarkId), newDate);
+  var dateAdded = bmsvc.getItemDateAdded(bookmarkId);
+  do_check_eq(dateAdded, newDate);
 
   // after just inserting, modified should not be set
   var lastModified = bmsvc.getItemLastModified(bookmarkId);
-  do_check_eq(lastModified, 0);
+  do_check_eq(lastModified, dateAdded);
 
   bmsvc.setItemLastModified(bookmarkId, newDate);
   // test notification

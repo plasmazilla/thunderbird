@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Test the URI Classifier</title>
-  <script type="text/javascript" src="/MochiKit/MochiKit.js"></script>
+  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
 </head>
@@ -53,21 +53,11 @@ function doUpdate(update) {
 
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
 
-  try {
-    dbService.beginUpdate(listener,
-                          "test-malware-simple", "");
-    dbService.beginStream("", "");
-    dbService.updateStream(update);
-    dbService.finishStream();
-    dbService.finishUpdate();
-  } catch(ex) {
-    // The DB service might already be updating.  Try again after a 5 seconds...
-    if (--numTries != 0) {
-      setTimeout(function() { doUpdate(update) }, 5000);
-      return;
-    }
-    throw ex;
-  }
+  dbService.beginUpdate(listener, "test-malware-simple", "");
+  dbService.beginStream("", "");
+  dbService.updateStream(update);
+  dbService.finishStream();
+  dbService.finishUpdate();
 }
 
 SimpleTest.waitForExplicitFinish();

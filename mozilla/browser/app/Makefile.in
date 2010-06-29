@@ -51,14 +51,15 @@ PREF_JS_EXPORTS = $(srcdir)/profile/firefox.js \
 		  $(srcdir)/profile/channel-prefs.js \
 		  $(NULL)
 
-ifndef MOZ_BRANDING_DIRECTORY
-PREF_JS_EXPORTS += $(srcdir)/firefox-branding.js
-endif
 
 # hardcode en-US for the moment
 AB_CD = en-US
 
-DEFINES += -DAB_CD=$(AB_CD)
+DEFINES += \
+  -DAB_CD=$(AB_CD) \
+  -DDLL_PREFIX=$(DLL_PREFIX) \
+  -DDLL_SUFFIX=$(DLL_SUFFIX) \
+  $(NULL)
 
 APP_VERSION = $(shell cat $(srcdir)/../config/version.txt)
 DEFINES += -DAPP_VERSION="$(APP_VERSION)"
@@ -77,7 +78,7 @@ ifdef SOURCE_STAMP
 DEFINES += -DMOZ_SOURCE_STAMP="$(SOURCE_STAMP)"
 endif
 
-SOURCE_REPO := $(shell hg -R $(topsrcdir) showconfig paths.default 2>/dev/null | sed s/^ssh:/http:/)
+SOURCE_REPO := $(shell hg -R $(topsrcdir) showconfig paths.default 2>/dev/null | sed -e "s/^ssh:/http:/")
 ifdef SOURCE_REPO
 DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
 endif
@@ -192,7 +193,9 @@ endif
 ifeq ($(OS_ARCH),WINNT)
 OS_LIBS += $(call EXPAND_LIBNAME,comctl32 comdlg32 uuid shell32 ole32 oleaut32 version winspool)
 OS_LIBS += $(call EXPAND_LIBNAME,usp10 msimg32)
+endif
 
+ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
 RCINCLUDE = splash.rc
 ifndef GNU_CC
 RCFLAGS += -DMOZ_PHOENIX -I$(srcdir)
@@ -223,7 +226,7 @@ endif
 ifdef DEBUG
 RCFLAGS += -DDEBUG
 endif
-RCFLAGS += -DFIREFOX_ICO=\"$(DIST)/branding/firefox.ico\" -DDOCUMENT_ICO=\"$(DIST)/branding/document.ico\"
+RCFLAGS += -DFIREFOX_ICO=\"$(DIST)/branding/firefox-os2.ico\" -DDOCUMENT_ICO=\"$(DIST)/branding/document-os2.ico\"
 endif
 
 include $(topsrcdir)/config/rules.mk
@@ -282,58 +285,26 @@ endif
 
 endif # LIBXUL_SDK
 
-ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-
-ICON_FILES	= \
-		$(DIST)/branding/mozicon128.png \
-		$(DIST)/branding/mozicon50.xpm \
-		$(DIST)/branding/mozicon16.xpm \
-		$(DIST)/branding/document.png \
-		$(NULL)
-
-libs:: $(ICON_FILES)
-	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/icons
-
-install::
-	$(SYSINSTALL) $(IFLAGS1) $(ICON_FILES) $(DESTDIR)$(mozappdir)/icons
-endif
-
 ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 libs::
-	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default16.png $(DIST)/bin/chrome/icons/default
-	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default32.png $(DIST)/bin/chrome/icons/default
-	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default48.png $(DIST)/bin/chrome/icons/default
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/mozicon128.png $(DIST)/bin/icons
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/document.png   $(DIST)/bin/icons
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default16.png  $(DIST)/bin/chrome/icons/default
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default32.png  $(DIST)/bin/chrome/icons/default
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default48.png  $(DIST)/bin/chrome/icons/default
 endif
 
-export::
-ifndef MOZ_BRANDING_DIRECTORY
-	$(NSINSTALL) -D $(DIST)/branding
-ifeq ($(OS_ARCH),WINNT)
-	cp $(srcdir)/firefox.ico   $(DIST)/branding/firefox.ico
-	cp $(srcdir)/firefox.ico   $(DIST)/branding/app.ico
-	cp $(srcdir)/document.ico  $(DIST)/branding/document.ico
+ifdef MOZ_SPLASHSCREEN
+ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
+libs::
+	$(INSTALL) $(IFLAGS1) $(DIST)/branding/splash.bmp $(DIST)/bin
 endif
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
-	cp $(srcdir)/macbuild/firefox.icns  $(DIST)/branding/firefox.icns
-	cp $(srcdir)/macbuild/document.icns  $(DIST)/branding/document.icns
-	cp $(srcdir)/macbuild/dsstore $(DIST)/branding/dsstore
-	cp $(srcdir)/macbuild/background.png $(DIST)/branding/background.png
-	cp $(srcdir)/macbuild/disk.icns $(DIST)/branding/disk.icns
 endif
-ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-	cp $(srcdir)/mozicon128.png $(DIST)/branding/mozicon128.png
-	cp $(srcdir)/mozicon16.xpm $(DIST)/branding/mozicon16.xpm
-	cp $(srcdir)/mozicon50.xpm $(DIST)/branding/mozicon50.xpm
-	cp $(srcdir)/document.png $(DIST)/branding/document.png
-endif
-ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
-	cp $(srcdir)/default16.png   $(DIST)/branding/default16.png
-	cp $(srcdir)/default32.png   $(DIST)/branding/default32.png
-	cp $(srcdir)/default48.png   $(DIST)/branding/default48.png
-endif
-ifeq ($(OS_ARCH),OS2)
-	cp $(srcdir)/firefox-os2.ico   $(DIST)/branding/firefox.ico
-	cp $(srcdir)/document-os2.ico  $(DIST)/branding/document.ico
+
+ifdef WINCE
+ifdef MOZ_FASTSTART
+libs::
+	cp -f $(DIST)/bin/faststartstub.exe $(DIST)/bin/$(MOZ_APP_NAME)faststart.exe
 endif
 endif
 
@@ -382,12 +353,9 @@ else
 	rm -f $(DIST)/$(APP_NAME).app/Contents/MacOS/$(PROGRAM)
 	rsync -aL $(PROGRAM) $(DIST)/$(APP_NAME).app/Contents/MacOS
 endif
-	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
-	rsync -a --copy-unsafe-links $(LIBXUL_DIST)/package/PrintPDE.plugin $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
 	-cp -L $(DIST)/bin/mangle $(DIST)/bin/shlibsign $(DIST)/$(APP_NAME).app/Contents/$(APPFILES)
 	cp -RL $(DIST)/branding/firefox.icns $(DIST)/$(APP_NAME).app/Contents/Resources/firefox.icns
 	cp -RL $(DIST)/branding/document.icns $(DIST)/$(APP_NAME).app/Contents/Resources/document.icns
-	cp -RL $(LIBXUL_DIST)/package/mozillaSuite.rsrc $(DIST)/$(APP_NAME).app/Contents/Resources/firefox-bin.rsrc
 	printf APPLMOZB > $(DIST)/$(APP_NAME).app/Contents/PkgInfo
 #       remove CVS dirs from packaged app
 	find $(DIST)/$(APP_NAME).app -type d -name "CVS" -prune -exec rm -rf {} \;
@@ -395,7 +363,7 @@ endif
 else
 ifdef LIBXUL_SDK
 libs::
-	cp $(LIBXUL_DIST)/bin/xulrunner-stub$(BIN_SUFFIX) $(DIST)/bin/firefox$(BIN_SUFFIX)
+	cp $(LIBXUL_DIST)/bin/$(XULRUNNER_STUB_NAME)$(BIN_SUFFIX) $(DIST)/bin/firefox$(BIN_SUFFIX)
 endif
 endif
 

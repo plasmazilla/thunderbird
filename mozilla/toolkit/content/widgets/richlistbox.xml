@@ -480,6 +480,20 @@
           }
         ]]>
       </handler>
+
+      <handler event="MozSwipeGesture">
+        <![CDATA[
+          // Only handle swipe gestures up and down
+          switch (event.direction) {
+            case event.DIRECTION_DOWN:
+              this._scrollbox.scrollTop = this._scrollbox.scrollHeight;
+              break;
+            case event.DIRECTION_UP:
+              this._scrollbox.scrollTop = 0;
+              break;
+          }
+        ]]>
+      </handler>
     </handlers>
   </binding>
 

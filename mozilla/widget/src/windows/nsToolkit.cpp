@@ -46,7 +46,6 @@
 #include "nsIServiceManager.h"
 #include "nsComponentManagerUtils.h"
 #include "nsWidgetAtoms.h"
-#include "nsWindowAPI.h"
 #include <objbase.h>
 #include <initguid.h>
 
@@ -58,13 +57,6 @@
 #include <unknwn.h>
 
 NS_IMPL_ISUPPORTS1(nsToolkit, nsIToolkit)
-
-// If PR_TRUE the user is currently moving a top level window.
-static PRBool gIsMovingWindow = PR_FALSE;
-
-// Message filter used to determine if the user is currently 
-// moving a top-level window.
-static HHOOK   nsMsgFilterHook = NULL;
 
 //
 // Static thread local storage index of the Toolkit 
@@ -131,39 +123,6 @@ struct ThreadInitInfo {
     nsToolkit *toolkit;
 };
 
-/* Detect when the user is moving a top-level window */
-
-#ifndef WINCE
-LRESULT CALLBACK DetectWindowMove(int code, WPARAM wParam, LPARAM lParam)
-{
-    static NS_DEFINE_CID(kAppShellCID, NS_APPSHELL_CID);
-
-    /* This msg filter is required to determine when the user has
-     * clicked in the window title bar and is moving the window. 
-     */
-
-    CWPSTRUCT* sysMsg = (CWPSTRUCT*)lParam;
-    if (sysMsg) {
-      nsCOMPtr<nsIAppShell> appShell = do_GetService(kAppShellCID);
-      NS_ASSERTION(appShell, "no appshell");
-      if (sysMsg->message == WM_ENTERSIZEMOVE) {
-        gIsMovingWindow = PR_TRUE; 
-        // Notify appshell that it should favor interactivity
-        // over performance because the user is moving a 
-        // window
-        appShell->FavorPerformanceHint(PR_FALSE, 0);
-      } else if (sysMsg->message == WM_EXITSIZEMOVE) {
-        gIsMovingWindow = PR_FALSE;
-        // Notify appshell that it should go back to its 
-        // previous performance setting which may favor
-        // performance over interactivity
-        appShell->FavorPerformanceHint(PR_TRUE, 0);
-      }
-    }
-    return CallNextHookEx(nsMsgFilterHook, code, wParam, lParam);
-}
-#endif //#ifndef WINCE
-
 MouseTrailer*       nsToolkit::gMouseTrailer;
 
 void RunPump(void* arg)
@@ -228,15 +187,6 @@ nsToolkit::~nsToolkit()
       delete gMouseTrailer;
       gMouseTrailer = nsnull;
     }
-
-    // Unhook the filter used to determine when
-    // the user is moving a top-level window.
-#ifndef WINCE
-    if (nsMsgFilterHook != NULL) {
-      UnhookWindowsHookEx(nsMsgFilterHook);
-      nsMsgFilterHook = NULL;
-    }
-#endif
 
 #if defined (MOZ_STATIC_COMPONENT_LIBS) || defined(WINCE)
     nsToolkit::Shutdown();
@@ -371,21 +321,7 @@ NS_METHOD nsToolkit::Init(PRThread *aThread)
 
     nsWidgetAtoms::RegisterAtoms();
 
-#ifndef WINCE
-    // Hook window move messages so the toolkit can report when
-    // the user is moving a top-level window.
-    if (nsMsgFilterHook == NULL) {
-      nsMsgFilterHook = SetWindowsHookEx(WH_CALLWNDPROC, DetectWindowMove, 
-                                         NULL, GetCurrentThreadId());
-    }
-#endif
-
     return NS_OK;
-}
-
-PRBool nsToolkit::UserIsMovingWindow(void)
-{
-    return gIsMovingWindow;
 }
 
 //-------------------------------------------------------------------------
@@ -397,11 +333,6 @@ LRESULT CALLBACK nsToolkit::WindowProc(HWND hWnd, UINT msg, WPARAM wParam,
                                        LPARAM lParam)
 {
     switch (msg) {
-        case WM_CALLMETHOD:
-        {
-            MethodInfo *info = (MethodInfo *)lParam;
-            return info->Invoke();
-        }
 #ifndef WINCE
         case WM_SYSCOLORCHANGE:
         {

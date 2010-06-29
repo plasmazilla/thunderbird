@@ -57,6 +57,9 @@
 #include "nsIStreamListener.h"
 #include "nsIObserver.h"
 #include "nsAutoPtr.h"
+#ifdef MOZ_SMIL
+class nsSMILAnimationController;
+#endif // MOZ_SMIL
 
 class nsIContent;
 class nsPresContext;
@@ -98,11 +101,12 @@ class nsIDOMNodeList;
 class mozAutoSubtreeModified;
 struct JSObject;
 class nsFrameLoader;
+class nsIBoxObject;
 
 // IID for the nsIDocument interface
 #define NS_IDOCUMENT_IID      \
-  { 0x98a4006e, 0x53c4, 0x4390, \
-    { 0xb4, 0x2d, 0x33, 0x68, 0x4a, 0xa9, 0x24, 0x04 } }
+  { 0x2ca82a51, 0x4a6a, 0x4dfa, \
+      { 0xa6, 0x5f, 0x49, 0x52, 0xa3, 0xaa, 0x02, 0xef } }
 
 // Flag for AddStyleSheet().
 #define NS_STYLESHEET_FROM_CATALOG                (1 << 0)
@@ -125,13 +129,14 @@ public:
       mCompatMode(eCompatibility_FullStandards),
       mIsInitialDocumentInWindow(PR_FALSE),
       mMayStartLayout(PR_TRUE),
+      mVisible(PR_TRUE),
+      mRemovedFromDocShell(PR_FALSE),
       // mAllowDNSPrefetch starts true, so that we can always reliably && it
       // with various values that might disable it.  Since we never prefetch
       // unless we get a window, and in that case the docshell value will get
       // &&-ed in, this is safe.
       mAllowDNSPrefetch(PR_TRUE),
-      mPartID(0),
-      mJSObject(nsnull)
+      mPartID(0)
   {
     mParentPtrBits |= PARENT_BIT_INDOCUMENT;
   }
@@ -629,6 +634,11 @@ public:
   virtual void EndUpdate(nsUpdateType aUpdateType) = 0;
   virtual void BeginLoad() = 0;
   virtual void EndLoad() = 0;
+
+  enum ReadyState { READYSTATE_UNINITIALIZED = 0, READYSTATE_LOADING = 1, READYSTATE_INTERACTIVE = 3, READYSTATE_COMPLETE = 4};
+  virtual void SetReadyStateInternal(ReadyState rs) = 0;
+  virtual ReadyState GetReadyStateEnum() = 0;
+
   // notify that one or two content nodes changed state
   // either may be nsnull, but not both
   virtual void ContentStatesChanged(nsIContent* aContent1,
@@ -644,13 +654,6 @@ public:
                               nsIStyleRule* aStyleRule) = 0;
   virtual void StyleRuleRemoved(nsIStyleSheet* aStyleSheet,
                                 nsIStyleRule* aStyleRule) = 0;
-
-  /**
-   * Notify document of pending attribute change
-   */
-  virtual void AttributeWillChange(nsIContent* aChild,
-                                   PRInt32 aNameSpaceID,
-                                   nsIAtom* aAttribute) = 0;
 
   /**
    * Flush notifications for this document and its parent documents
@@ -688,12 +691,10 @@ public:
                           nsIPrincipal* aPrincipal) = 0;
 
   /**
-   * Set the container (docshell) for this document.
+   * Set the container (docshell) for this document. Virtual so that
+   * docshell can call it.
    */
-  void SetContainer(nsISupports *aContainer)
-  {
-    mDocumentContainer = do_GetWeakReference(aContainer);
-  }
+  virtual void SetContainer(nsISupports *aContainer);
 
   /**
    * Get the container (docshell) for this document.
@@ -908,6 +909,12 @@ public:
   virtual void ClearBoxObjectFor(nsIContent *aContent) = 0;
 
   /**
+   * Get the box object for an element. This is not exposed through a
+   * scriptable interface except for XUL documents.
+   */
+  NS_IMETHOD GetBoxObjectFor(nsIDOMElement* aElement, nsIBoxObject** aResult) = 0;
+
+  /**
    * Get the compatibility mode for this document
    */
   nsCompatibility GetCompatibilityMode() const {
@@ -994,16 +1001,6 @@ public:
   void SetMayStartLayout(PRBool aMayStartLayout)
   {
     mMayStartLayout = aMayStartLayout;
-  }
-
-  JSObject* GetJSObject() const
-  {
-    return mJSObject;
-  }
-
-  void SetJSObject(JSObject *aJSObject)
-  {
-    mJSObject = aJSObject;
   }
 
   // This method should return an addrefed nsIParser* or nsnull. Implementations
@@ -1123,12 +1120,27 @@ public:
    * called yet.
    */
   PRBool IsShowing() { return mIsShowing; }
+  /**
+   * Return whether the document is currently visible (in the sense of
+   * OnPageHide having been called and OnPageShow not yet having been called)
+   */
+  PRBool IsVisible() { return mVisible; }
+  /**
+   * Return true when this document is active, i.e., the active document
+   * in a content viewer.
+   */
+  PRBool IsActive() { return mDocumentContainer && !mRemovedFromDocShell; }
 
   void RegisterFreezableElement(nsIContent* aContent);
   PRBool UnregisterFreezableElement(nsIContent* aContent);
   typedef void (* FreezableElementEnumerator)(nsIContent*, void*);
   void EnumerateFreezableElements(FreezableElementEnumerator aEnumerator,
                                   void* aData);
+
+#ifdef MOZ_SMIL
+  // Getter for this document's SMIL Animation Controller
+  virtual nsSMILAnimationController* GetAnimationController() = 0;
+#endif // MOZ_SMIL
 
   /**
    * Prevents user initiated events from being dispatched to the document and
@@ -1146,6 +1158,38 @@ public:
   PRUint32 EventHandlingSuppressed() const { return mEventsSuppressed; }
 
   PRBool IsDNSPrefetchAllowed() const { return mAllowDNSPrefetch; }
+
+  /**
+   * Called by nsParser to preload images. Can be removed and code moved
+   * to nsPreloadURIs::PreloadURIs() in file nsParser.cpp whenever the
+   * parser-module is linked with gklayout-module.
+   */
+  virtual void MaybePreLoadImage(nsIURI* uri) = 0;
+
+  enum DocumentTheme {
+    Doc_Theme_Uninitialized, // not determined yet
+    Doc_Theme_None,
+    Doc_Theme_Neutral,
+    Doc_Theme_Dark,
+    Doc_Theme_Bright
+  };
+
+  /**
+   * Returns Doc_Theme_None if there is no lightweight theme specified,
+   * Doc_Theme_Dark for a dark theme, Doc_Theme_Bright for a light theme, and
+   * Doc_Theme_Neutral for any other theme. This is used to determine the state
+   * of the pseudoclasses :-moz-lwtheme and :-moz-lwtheme-text.
+   */
+  virtual int GetDocumentLWTheme() { return Doc_Theme_None; }
+
+  /**
+   * Returns true if the locale used for the document specifies a direction of
+   * right to left. For chrome documents, this comes from the chrome registry.
+   * This is used to determine the current state for the :-moz-locale-dir pseudoclass
+   * so once can know whether a document is expected to be rendered left-to-right
+   * or right-to-left.
+   */
+  virtual PRBool IsDocumentRightToLeft() { return PR_FALSE; }
 
 protected:
   ~nsIDocument()
@@ -1229,6 +1273,15 @@ protected:
   // True iff IsShowing() should be returning true
   PRPackedBool mIsShowing;
 
+  // True iff the document "page" is not hidden (i.e. currently in the
+  // bfcache)
+  PRPackedBool mVisible;
+
+  // True if our content viewer has been removed from the docshell
+  // (it may still be displayed, but in zombie state). Form control data
+  // has been saved.
+  PRPackedBool mRemovedFromDocShell;
+
   // True iff DNS prefetch is allowed for this document.  Note that if the
   // document has no window, DNS prefetch won't be performed no matter what.
   PRPackedBool mAllowDNSPrefetch;
@@ -1262,12 +1315,6 @@ protected:
   nsCOMPtr<nsIDocument> mDisplayDocument;
 
   PRUint32 mEventsSuppressed;
-
-private:
-  // JSObject cache. Only to be used for performance
-  // optimizations. This will be set once this document is touched
-  // from JS, and it will be unset once the JSObject is finalized.
-  JSObject *mJSObject;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument, NS_IDOCUMENT_IID)

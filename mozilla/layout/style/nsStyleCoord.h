@@ -53,6 +53,9 @@ enum nsStyleUnit {
   eStyleUnit_None         = 3,      // (no value)
   eStyleUnit_Percent      = 10,     // (float) 1.0 == 100%
   eStyleUnit_Factor       = 11,     // (float) a multiplier
+  eStyleUnit_Degree       = 12,     // (float) angle in degrees
+  eStyleUnit_Grad         = 13,     // (float) angle in grads
+  eStyleUnit_Radian       = 14,     // (float) angle in radians
   eStyleUnit_Coord        = 20,     // (nscoord) value is twips
   eStyleUnit_Integer      = 30,     // (int) value is simple integer
   eStyleUnit_Enumerated   = 32      // (int) value has enumerated meaning
@@ -88,10 +91,17 @@ public:
     NS_ASSERTION(mUnit != eStyleUnit_Null, "reading uninitialized value");
     return mUnit;
   }
+
+  PRBool IsAngleValue(void) const {
+    return eStyleUnit_Degree <= mUnit && mUnit <= eStyleUnit_Radian;
+  }
+
   nscoord     GetCoordValue(void) const;
   PRInt32     GetIntValue(void) const;
   float       GetPercentValue(void) const;
   float       GetFactorValue(void) const;
+  float       GetAngleValue(void) const;
+  double      GetAngleValueInRadians(void) const;
   void        GetUnionValue(nsStyleUnion& aValue) const;
 
   void  Reset(void);  // sets to null
@@ -99,14 +109,10 @@ public:
   void  SetIntValue(PRInt32 aValue, nsStyleUnit aUnit);
   void  SetPercentValue(float aValue);
   void  SetFactorValue(float aValue);
+  void  SetAngleValue(float aValue, nsStyleUnit aUnit);
   void  SetNormalValue(void);
   void  SetAutoValue(void);
   void  SetNoneValue(void);
-
-#ifdef DEBUG
-  void  AppendToString(nsString& aBuffer) const;
-  void  ToString(nsString& aBuffer) const;
-#endif
 
 public:
   nsStyleUnit   mUnit;
@@ -149,11 +155,6 @@ public:
   inline void SetRight(const nsStyleCoord& aCoord);
   inline void SetBottom(const nsStyleCoord& aCoord);
 
-#ifdef DEBUG
-  void  AppendToString(nsString& aBuffer) const;
-  void  ToString(nsString& aBuffer) const;
-#endif
-
 protected:
   PRUint8       mUnits[4];
   nsStyleUnion  mValues[4];
@@ -181,11 +182,6 @@ public:
   void  Reset(void);
 
   inline void Set(PRUint8 aHalfCorner, const nsStyleCoord& aCoord);
-
-#ifdef DEBUG
-  void  AppendToString(nsString& aBuffer) const;
-  void  ToString(nsString& aBuffer) const;
-#endif
 
 protected:
   PRUint8       mUnits[8];
@@ -255,6 +251,16 @@ inline float nsStyleCoord::GetFactorValue(void) const
 {
   NS_ASSERTION(mUnit == eStyleUnit_Factor, "not a factor value");
   if (mUnit == eStyleUnit_Factor) {
+    return mValue.mFloat;
+  }
+  return 0.0f;
+}
+
+inline float nsStyleCoord::GetAngleValue(void) const
+{
+  NS_ASSERTION(mUnit >= eStyleUnit_Degree &&
+               mUnit <= eStyleUnit_Radian, "not an angle value");
+  if (mUnit >= eStyleUnit_Degree && mUnit <= eStyleUnit_Radian) {
     return mValue.mFloat;
   }
   return 0.0f;

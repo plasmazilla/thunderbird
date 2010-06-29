@@ -17,6 +17,7 @@ REQUIRES = \
 	pref \
 	xpcom \
 	unicharutil \
+	uconv \
 	$(LCMS_REQUIRES) \
 	qcms \
 	$(NULL)
@@ -35,6 +36,7 @@ CPPSRCS	= \
 	gfxPath.cpp \
 	gfxPattern.cpp \
 	gfxPlatform.cpp \
+	gfxPlatformFontList.cpp \
 	gfxRect.cpp \
 	gfxSkipChars.cpp \
 	gfxTextRunCache.cpp \
@@ -60,8 +62,12 @@ CPPSRCS	+= 	gfxWindowsPlatform.cpp \
 		$(NULL)
 
 ifdef WINCE
-DEFINES += -DMOZ_FT2_FONTS
-CPPSRCS	+= gfxFT2Fonts.cpp
+CPPSRCS	+= gfxFT2Fonts.cpp \
+	   gfxFT2FontBase.cpp \
+	   gfxFT2Utils.cpp \
+	   gfxDDrawSurface.cpp \
+	   $(NULL)
+EXTRA_DSO_LDOPTS += ddraw.lib
 else
 CPPSRCS	+= gfxWindowsFonts.cpp 
 endif
@@ -104,6 +110,8 @@ REQUIRES += locale
 CPPSRCS +=  gfxPlatformGtk.cpp gfxGdkNativeRenderer.cpp
 CPPSRCS +=	gfxPDFSurface.cpp gfxPSSurface.cpp
 CPPSRCS +=	gfxFontconfigUtils.cpp
+CPPSRCS +=  gfxFT2FontBase.cpp
+CPPSRCS +=  gfxFT2Utils.cpp
 CPPSRCS +=	nsUnicodeRange.cpp
 
 ifdef MOZ_X11
@@ -126,6 +134,8 @@ REQUIRES += locale
 CPPSRCS += gfxQtPlatform.cpp gfxQPainterSurface.cpp
 CPPSRCS += gfxXlibSurface.cpp gfxQtNativeRenderer.cpp
 CPPSRCS +=	gfxFT2Fonts.cpp
+CPPSRCS +=  gfxFT2FontBase.cpp
+CPPSRCS +=  gfxFT2Utils.cpp
 CPPSRCS +=	gfxFontconfigUtils.cpp
 CPPSRCS +=	nsUnicodeRange.cpp
 #CSRCS = cairo-xlib-utils.c
@@ -136,6 +146,8 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),beos)
 REQUIRES += locale
 CPPSRCS	+= 	gfxBeOSSurface.cpp gfxBeOSPlatform.cpp
 CPPSRCS +=	gfxPangoFonts.cpp 
+CPPSRCS +=  gfxFT2FontBase.cpp
+CPPSRCS +=  gfxFT2Utils.cpp
 #CPPSRCS +=	gfxPDFSurface.cpp
 CPPSRCS +=	gfxFontconfigUtils.cpp
 CPPSRCS +=	nsUnicodeRange.cpp
@@ -154,15 +166,21 @@ CPPSRCS	+= \
 CPPSRCS +=      nsUnicodeRange.cpp
 CPPSRCS +=      gfxQuartzNativeDrawing.cpp
 
-CMMSRCS = gfxQuartzFontCache.mm
+ifdef MOZ_CORETEXT
+CPPSRCS += gfxCoreTextFonts.cpp
+endif
+
+CMMSRCS = gfxMacPlatformFontList.mm
 
 # Always link with OpenGL/AGL
 EXTRA_DSO_LDOPTS += -framework OpenGL -framework AGL -framework QuickTime
 endif
 
+CSRCS += woff.c
+
 EXTRA_DSO_LDOPTS += $(TK_LIBS)
 
-DEFINES += -DIMPL_THEBES
+DEFINES += -DIMPL_THEBES -DWOFF_MOZILLA_CLIENT
 
 include $(topsrcdir)/config/rules.mk
 

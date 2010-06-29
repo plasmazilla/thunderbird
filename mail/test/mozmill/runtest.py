@@ -15,7 +15,7 @@
 # The Original Code is Mail Bloat Test.
 #
 # The Initial Developer of the Original Code is
-# Mozilla Messaging.
+# the Mozilla Foundation.
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
 #
@@ -24,6 +24,7 @@
 #   Andrew Sutherland <bugzilla@asutherland.org>
 #   Ludovic Hirlimann <ludovic@hirlimann.net>
 #   Michael Foord <fuzzyman@voidspace.org.uk>
+#   Siddharth Agarwal <sid.bugzilla@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -44,7 +45,7 @@ Runs the Bloat test harness
 """
 
 import sys
-import os
+import os, os.path, platform, subprocess, signal
 import shutil
 import mozrunner
 import jsbridge
@@ -53,8 +54,30 @@ import socket
 import copy
 SCRIPT_DIRECTORY = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
 sys.path.append(SCRIPT_DIRECTORY)
-import automation
+# The try case handles trunk. The exception case handles MOZILLA_1_9_2_BRANCH.
+try:
+    from automation import Automation
+    automation = Automation()
+except ImportError:
+    import automation
+from automationutils import checkForCrashes
 from time import sleep
+import imp
+
+PROFILE_DIR = os.path.join(SCRIPT_DIRECTORY, 'mozmillprofile')
+SYMBOLS_PATH = None
+# XXX This breaks any semblance of test runner modularity, and only works
+# because we know that we run MozMill only once per process. This needs to be
+# fixed if that ever changes.
+TEST_NAME = None
+
+# The name of the (optional) module that tests can define as a wrapper (e.g. to
+# run before Thunderbird is started)
+WRAPPER_MODULE_NAME = "wrapper"
+
+# The wrapper module (if any) for the test. Just like TEST_NAME, this breaks any
+# semblance of modularity.
+wrapper = None
 
 # We need this because rmtree-ing read-only files fails on Windows
 def rmtree_onerror(func, path, exc_info):
@@ -130,12 +153,21 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.smtpserver.smtp1.username' :  "tinderbox",
         'mail.smtpservers' :  "smtp1",
         'mail.startup.enabledMailCheckOnce' :  True,
+        'extensions.checkCompatibility.3.1b': False,
+        'extensions.checkCompatibility.3.2a': False,
+        # In case a developer is working on a laptop without a network
+        # connection, don't detect offline mode; hence we'll still startup
+        # online which is what mozmill currently requires. It'll also protect us
+        # from any random network failures.
+        'offline.autoDetect': False,
         # Don't load what's new or the remote start page - keep everything local
         # under our control.
         'mailnews.start_page_override.mstone' :  "ignore",
         'mailnews.start_page.url': "about:blank",
         # Do not enable gloda
-        'mailnews.database.global.indexer.enabled': False
+        'mailnews.database.global.indexer.enabled': False,
+        # Do not allow fonts to be upgraded
+        'mail.font.windows.version': 1
         }
 
     def create_new_profile(self, binary):
@@ -144,13 +176,18 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         when we are creating a new profile so that we can go in after the run
         and examine things for debugging or general interest.
         '''
-        profile_dir = os.path.join(SCRIPT_DIRECTORY, 'mozmillprofile')
         # create a clean directory
-        if os.path.exists(profile_dir):
-            shutil.rmtree(profile_dir, onerror=rmtree_onerror)
-        os.makedirs(profile_dir)
+        if os.path.exists(PROFILE_DIR):
+            shutil.rmtree(PROFILE_DIR, onerror=rmtree_onerror)
+        os.makedirs(PROFILE_DIR)
 
-        return profile_dir
+        # If there's a wrapper, call it
+        if wrapper is not None and hasattr(wrapper, "on_profile_created"):
+            # It's a little dangerous to allow on_profile_created access to the
+            # profile object, because it isn't fully initalized yet
+            wrapper.on_profile_created(PROFILE_DIR)
+
+        return PROFILE_DIR
 
     def cleanup(self):
         '''
@@ -161,6 +198,9 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         pass
 
 class ThunderTestRunner(mozrunner.ThunderbirdRunner):
+    VNC_SERVER_PATH = '/usr/bin/vncserver'
+    VNC_PASSWD_PATH = '~/.vnc/passwd'
+
     def __init__(self, *args, **kwargs):
         kwargs['env'] = env = dict(os.environ)
         # note, we do NOT want to set NO_EM_RESTART or jsbridge wouldn't work
@@ -171,10 +211,57 @@ class ThunderTestRunner(mozrunner.ThunderbirdRunner):
             env['XPCOM_DEBUG_BREAK'] = 'stack'
         # do not reuse an existing instance
         env['MOZ_NO_REMOTE'] = '1'
+
+        # Only use the VNC server if the capability is available and a password
+        # is already defined so this can run without prompting the user.
+        self.use_vnc_server = (
+            platform.system() == 'Linux' and
+            os.path.isfile(self.VNC_SERVER_PATH) and
+            os.path.isfile(os.path.expanduser(self.VNC_PASSWD_PATH)))
+
         mozrunner.Runner.__init__(self, *args, **kwargs)
 
     def find_binary(self):
         return self.profile.app_path
+
+    def start(self):
+        if self.use_vnc_server:
+            try:
+                subprocess.check_call([self.VNC_SERVER_PATH, ':99'])
+            except subprocess.CalledProcessError, ex:
+                # Okay, so that display probably already exists.  We can either
+                # use it as-is or kill it.  I'm deciding we want to kill it
+                # since there might be other processes alive in there that
+                # want to make trouble for us.
+                subprocess.check_call([self.VNC_SERVER_PATH, '-kill', ':99'])
+                # Now let's try again.  if this didn't work, let's just let
+                # the exception kill us.
+                subprocess.check_call([self.VNC_SERVER_PATH, ':99'])
+            self.vnc_alive = True
+            self.env['DISPLAY'] = ':99'
+
+        if wrapper is not None and hasattr(wrapper, "on_before_start"):
+            wrapper.on_before_start(self.profile)
+
+        return mozrunner.ThunderbirdRunner.start(self)
+
+    def wait(self, timeout=None):
+        '''
+        Wrap the call to wait in logic that kills the VNC server when we are
+        done waiting.  During normal operation, wait is the last thing.  In
+        the keyboard interrupt case wait will die due to the interrupt and
+        stop/kill will be killed.  Since we are wrapping wait, we don't need
+        to specialize for stop/kill though.
+        '''
+        try:
+            return mozrunner.ThunderbirdRunner.wait(self, timeout)
+        finally:
+            try:
+                if self.use_vnc_server and self.vnc_alive:
+                    subprocess.check_call([self.VNC_SERVER_PATH,
+                                           '-kill', ':99'])
+            except Exception, ex:
+                print '!!! Exception during killing VNC server:', ex
 
 
 class ThunderTestCLI(mozmill.CLI):
@@ -183,18 +270,47 @@ class ThunderTestCLI(mozmill.CLI):
     runner_class = ThunderTestRunner
     parser_options = copy.copy(mozmill.CLI.parser_options)
     parser_options[('-m', '--bloat-tests')] = {"default":None, "dest":"created_profile", "help":"Log file name."}
+    parser_options[('--symbols-path',)] = {"default": None, "dest": "symbols",
+                                           "help": "The path to the symbol files from build_symbols"}
 
     def __init__(self, *args, **kwargs):
+        global SYMBOLS_PATH, TEST_NAME
         # invoke jsbridge.CLI's constructor directly since we are explicitly
         #  trying to replace mozmill's CLI constructor here (which hardcodes
         #  the firefox runner and profile in 1.3 for no clear reason).
         jsbridge.CLI.__init__(self, *args, **kwargs)
+        SYMBOLS_PATH = self.options.symbols
+        TEST_NAME = os.path.basename(self.options.test)
+
+        self._load_wrapper()
+
         self.mozmill = self.mozmill_class(runner_class=self.runner_class,
                                           profile_class=self.profile_class,
                                           jsbridge_port=int(self.options.port))
 
         self.mozmill.add_global_listener(mozmill.LoggerListener())
 
+    def _load_wrapper(self):
+        global wrapper
+        """
+        Load the wrapper module if it is present in the test directory.
+        """
+        if os.path.isdir(self.options.test):
+            testdir = self.options.test
+        else:
+            testdir = os.path.dirname(self.options.test)
+
+        try:
+            (fd, path, desc) = imp.find_module(WRAPPER_MODULE_NAME, [testdir])
+        except ImportError:
+            # No wrapper module, which is fine.
+            pass
+        else:
+            try:
+                wrapper = imp.load_module(WRAPPER_MODULE_NAME, fd, path, desc)
+            finally:
+                if fd is not None:
+                    fd.close()
 
 TEST_RESULTS = []
 # override mozmill's default logging case, which I hate.
@@ -255,5 +371,16 @@ def prettyPrintResults():
 import atexit
 atexit.register(prettyPrintResults)
 
+def checkCrashesAtExit():
+    if checkForCrashes(os.path.join(PROFILE_DIR, 'minidumps'), SYMBOLS_PATH,
+                       TEST_NAME):
+        print >> sys.stderr, 'TinderboxPrint: ' + TEST_NAME + '<br/><em class="testfail">CRASH</em>'
+        sys.exit(1)
+
 if __name__ == '__main__':
-    ThunderTestCLI().run()
+    # Too bad atexit doesn't return a non-zero exit code when it encounters an
+    # exception in a handler.
+    try:
+        ThunderTestCLI().run()
+    finally:
+        checkCrashesAtExit()

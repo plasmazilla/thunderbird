@@ -71,6 +71,8 @@ NS_NewPageFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   return new (aPresShell) nsPageFrame(aContext);
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsPageFrame)
+
 nsPageFrame::nsPageFrame(nsStyleContext* aContext)
 : nsContainerFrame(aContext)
 {
@@ -80,7 +82,7 @@ nsPageFrame::~nsPageFrame()
 {
 }
 
-NS_IMETHODIMP nsPageFrame::Reflow(nsPresContext*          aPresContext,
+NS_IMETHODIMP nsPageFrame::Reflow(nsPresContext*           aPresContext,
                                   nsHTMLReflowMetrics&     aDesiredSize,
                                   const nsHTMLReflowState& aReflowState,
                                   nsReflowStatus&          aStatus)
@@ -314,7 +316,7 @@ nsPageFrame::DrawHeaderFooter(nsIRenderingContext& aRenderingContext,
 }
 
 // Draw a header or footer string
-// @param aRenderingContext - rendering content ot draw into
+// @param aRenderingContext - rendering context to draw into
 // @param aHeaderFooter - indicates whether it is a header or footer
 // @param aJust - indicates where the string is located within the header/footer
 // @param aStr - the string to be drawn
@@ -387,7 +389,7 @@ nsPageFrame::DrawHeaderFooter(nsIRenderingContext& aRenderingContext,
     // set up new clip and draw the text
     aRenderingContext.PushState();
     aRenderingContext.SetColor(NS_RGB(0,0,0));
-    aRenderingContext.SetClipRect(aRect, nsClipCombine_kReplace);
+    aRenderingContext.SetClipRect(aRect, nsClipCombine_kIntersect);
     nsLayoutUtils::DrawString(this, &aRenderingContext, str.get(), str.Length(), nsPoint(x, y + aAscent));
     aRenderingContext.PopState();
   }
@@ -606,6 +608,8 @@ NS_NewPageBreakFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   return new (aPresShell) nsPageBreakFrame(aContext);
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsPageBreakFrame)
+
 nsPageBreakFrame::nsPageBreakFrame(nsStyleContext* aContext) :
   nsLeafFrame(aContext), mHaveReflowed(PR_FALSE)
 {
@@ -628,7 +632,7 @@ nsPageBreakFrame::GetIntrinsicHeight()
 }
 
 nsresult 
-nsPageBreakFrame::Reflow(nsPresContext*          aPresContext,
+nsPageBreakFrame::Reflow(nsPresContext*           aPresContext,
                          nsHTMLReflowMetrics&     aDesiredSize,
                          const nsHTMLReflowState& aReflowState,
                          nsReflowStatus&          aStatus)

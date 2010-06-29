@@ -21,6 +21,7 @@
  * Contributor(s):
  *   Andrew Sutherland <asutherland@asutherland.org>
  *   Siddharth Agarwal <sid.bugzilla@gmail.com>
+ *   Dan Mosedale <dmose@mozillamessaging.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -210,7 +211,19 @@ function test_indexing_sweep() {
   mark_action("actual", "marked gloda folder dirty", [glodaFolderC]);
   GlodaMsgIndexer.indexingSweepNeeded = true;
   yield wait_for_gloda_indexer([setC1, setC2]);
+
+  // -- Forced folder indexing.
+  var callbackInvoked = false;
+  mark_sub_test_start("forced folder indexing");
+  GlodaMsgIndexer.indexFolder(get_real_injection_folder(folderA), {
+    force: true,
+    callback: function() {
+      callbackInvoked = true;
+    }});
+  yield wait_for_gloda_indexer([setA1, setA2]);
+  do_check_true(callbackInvoked);
 }
+
 
 /**
  * We used to screw up and downgrade filthy folders to dirty if we saw an event
@@ -243,6 +256,74 @@ function test_event_driven_indexing_does_not_mess_with_filthy_folders() {
   GlodaMsgIndexer.indexingSweepNeeded = true;
   // (the message won't get indexed though)
   yield wait_for_gloda_indexer([]);
+}
+
+function test_indexing_never_priority() {
+
+  // add a folder with a bunch of messages
+  let [folder, msgSet] = make_folder_with_sets([{count: 1}]);
+  yield wait_for_message_injection();
+
+  // index it, and augment the msgSet with the glodaMessages array
+  // for later use by sqlExpectCount
+  yield wait_for_gloda_indexer([msgSet], {augment: true});
+
+  // explicitly tell gloda to never index this folder
+  let XPCOMFolder = get_real_injection_folder(folder);
+  let glodaFolder = Gloda.getFolderForFolder(XPCOMFolder);
+  GlodaMsgIndexer.setFolderIndexingPriority(XPCOMFolder,
+                                            glodaFolder.kIndexingNeverPriority);
+
+  // verify that the setter and getter do the right thing
+  do_check_eq(glodaFolder.indexingPriority, glodaFolder.kIndexingNeverPriority);
+
+  // check that existing message is marked as deleted
+  yield wait_for_gloda_indexer([], {deleted: [msgSet]});
+
+  // make sure the deletion hit the database
+  yield sqlExpectCount(1,
+    "SELECT COUNT(*) from folderLocations WHERE id = ? AND indexingPriority = ?",
+     glodaFolder.id, glodaFolder.kIndexingNeverPriority);
+
+  // add another message
+  make_new_sets_in_folder(folder, [{count: 1}]);
+  yield wait_for_message_injection();
+
+  // make sure that indexing returns nothing
+  GlodaMsgIndexer.indexingSweepNeeded = true;
+  yield wait_for_gloda_indexer([]);
+}
+
+function test_setting_indexing_priority_never_while_indexing() {
+
+  if (!message_injection_is_local())
+    return;
+
+  // Configure the gloda indexer to hang while streaming the message.
+  configure_gloda_indexing({hangWhile: "streaming"});
+
+  // create a folder with a message inside.
+  let [folder, msgSet] = make_folder_with_sets([{count: 1}]);
+  yield wait_for_message_injection();
+
+  yield wait_for_indexing_hang();
+
+  // explicitly tell gloda to never index this folder
+  let XPCOMFolder = get_real_injection_folder(folder);
+  let glodaFolder = Gloda.getFolderForFolder(XPCOMFolder);
+  GlodaMsgIndexer.setFolderIndexingPriority(XPCOMFolder,
+                                            glodaFolder.kIndexingNeverPriority);
+
+  // reset indexing to not hang
+  configure_gloda_indexing({});
+
+  // sorta get the event chain going again...
+  resume_from_simulated_hang(true);
+
+  // Because the folder was dirty it should actually end up getting indexed,
+  //  so in the end the message will get indexed.  Also, make sure a cleanup
+  //  was observed.
+  yield wait_for_gloda_indexer([], {cleanedUp: 1});
 }
 
 /* ===== Threading / Conversation Grouping ===== */
@@ -455,6 +536,47 @@ function test_attributes_explicit() {
   // -- Replied To
 
   // -- Forwarded
+}
+
+/* ===== Fulltext Indexing ===== */
+
+/**
+ * Make sure that we are using the saneBodySize flag.  This is basically the
+ *  test_sane_bodies test from test_mime_emitter but we pull the indexedBodyText
+ *  off the message to check and also make sure that the text contents slice
+ *  off the end rather than the beginning.
+ */
+function test_streamed_bodies_are_size_capped() {
+  if (!expectFulltextResults)
+    return;
+
+  let hugeString =
+    "qqqqxxxx qqqqxxx qqqqxxx qqqqxxx qqqqxxx qqqqxxx qqqqxxx \r\n";
+  const powahsOfTwo = 10;
+  for (let i = 0; i < powahsOfTwo; i++) {
+    hugeString = hugeString + hugeString;
+  }
+  let bodyString = "aabb" + hugeString + "xxyy";
+
+  let synMsg = gMessageGenerator.makeMessage(
+    {body: {body: bodyString, contentType: "text/plain"}});
+  let msgSet = new SyntheticMessageSet([synMsg]);
+  let folder = make_empty_folder();
+  yield add_sets_to_folder(folder, [msgSet]);
+
+  if (goOffline) {
+    yield wait_for_gloda_indexer(msgSet);
+    yield make_folder_and_contents_offline(folder);
+  }
+
+  yield wait_for_gloda_indexer(msgSet, {augment: true});
+  let gmsg = msgSet.glodaMessages[0];
+  do_check_eq(gmsg.indexedBodyText.indexOf("aabb"), 0);
+  do_check_eq(gmsg.indexedBodyText.indexOf("xxyy"), -1);
+
+  if (gmsg.indexedBodyText.length > (20 * 1024 + 58 + 10))
+    do_throw("indexed body text is too big! (" + gmsg.indexedBodyText.length +
+             ")");
 }
 
 
@@ -874,6 +996,8 @@ var tests = [
   test_attributes_fundamental_from_disk,
   test_attributes_explicit,
 
+  test_streamed_bodies_are_size_capped,
+
   test_imap_add_unread_to_folder,
   test_message_moving,
 
@@ -884,4 +1008,7 @@ var tests = [
   test_sweep_indexing_does_not_reindex_event_indexed,
 
   test_filthy_moves_slash_move_from_unindexed_to_indexed,
+
+  test_indexing_never_priority,
+  test_setting_indexing_priority_never_while_indexing,
 ];

@@ -353,7 +353,7 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
           NS_STYLE_FONT_SIZE_LARGE
         };
         str.CompressWhitespace();
-        for (PRInt32 i = 0; i < NS_ARRAY_LENGTH(sizes); ++i) {
+        for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(sizes); ++i) {
           if (str.EqualsASCII(sizes[i])) {
             aData->mFontData->mSize.SetIntValue(values[i], eCSSUnit_Enumerated);
             break;
@@ -366,7 +366,7 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
     if (value && value->Type() == nsAttrValue::eString &&
         aData->mFontData->mFamily.GetUnit() == eCSSUnit_Null) {
       aData->mFontData->mFamily.SetStringValue(value->GetStringValue(),
-                                               eCSSUnit_String);
+                                               eCSSUnit_Families);
       aData->mFontData->mFamilyFromHTML = PR_FALSE;
     }
   }

@@ -55,8 +55,16 @@ var gEditItemOverlay = {
   _staticFoldersListBuilt: false,
   _initialized: false,
 
+  // the first field which was edited after this panel was initialized for
+  // a certain item
+  _firstEditedField: "",
+
   get itemId() {
     return this._itemId;
+  },
+
+  get uri() {
+    return this._uri;
   },
 
   get multiEdit() {
@@ -154,12 +162,12 @@ var gEditItemOverlay = {
     }
     else {
       this._itemId = aFor;
-      var container =  PlacesUtils.bookmarks.getFolderIdForItem(this._itemId);
+      var containerId = PlacesUtils.bookmarks.getFolderIdForItem(this._itemId);
       this._itemType = PlacesUtils.bookmarks.getItemType(this._itemId);
       if (this._itemType == Ci.nsINavBookmarksService.TYPE_BOOKMARK) {
         this._uri = PlacesUtils.bookmarks.getBookmarkURI(this._itemId);
         if (!this._readOnly) // If readOnly wasn't forced through aInfo
-          this._readOnly = PlacesUtils.livemarks.isLivemark(container);
+          this._readOnly = PlacesUtils.itemIsLivemark(containerId);
         this._initTextField("keywordField",
                             PlacesUtils.bookmarks
                                        .getKeywordForBookmark(this._itemId));
@@ -173,7 +181,7 @@ var gEditItemOverlay = {
           this._readOnly = false;
 
         this._uri = null;
-        this._isLivemark = PlacesUtils.livemarks.isLivemark(this._itemId);
+        this._isLivemark = PlacesUtils.itemIsLivemark(this._itemId);
         if (this._isLivemark) {
           var feedURI = PlacesUtils.livemarks.getFeedURI(this._itemId);
           var siteURI = PlacesUtils.livemarks.getSiteURI(this._itemId);
@@ -183,7 +191,7 @@ var gEditItemOverlay = {
       }
 
       // folder picker
-      this._initFolderMenuList(container);
+      this._initFolderMenuList(containerId);
 
       // description field
       this._initTextField("descriptionField", 
@@ -549,18 +557,19 @@ var gEditItemOverlay = {
     this._allTags = [];
     this._itemIds = [];
     this._multiEdit = false;
+    this._firstEditedField = "";
     this._initialized = false;
   },
 
   onTagsFieldBlur: function EIO_onTagsFieldBlur() {
-    this._updateTags();
+    if (this._updateTags()) // if anything has changed
+      this._mayUpdateFirstEditField("tagsField");
   },
 
   _updateTags: function EIO__updateTags() {
     if (this._multiEdit)
-      this._updateMultipleTagsForItems();
-    else
-      this._updateSingleTagForItem();
+      return this._updateMultipleTagsForItems();
+    return this._updateSingleTagForItem();
   },
 
   _updateSingleTagForItem: function EIO__updateSingleTagForItem() {
@@ -592,8 +601,32 @@ var gEditItemOverlay = {
         // Ensure the tagsField is in sync, clean it up from empty tags
         var tags = PlacesUtils.tagging.getTagsForURI(this._uri, {}).join(", ");
         this._initTextField("tagsField", tags, false);
+        return true;
       }
     }
+    return false;
+  },
+
+   /**
+    * Stores the first-edit field for this dialog, if the passed-in field
+    * is indeed the first edited field
+    * @param aNewField
+    *        the id of the field that may be set (without the "editBMPanel_"
+    *        prefix)
+    */
+  _mayUpdateFirstEditField: function EIO__mayUpdateFirstEditField(aNewField) {
+    // * The first-edit-field behavior is not applied in the multi-edit case
+    // * if this._firstEditedField is already set, this is not the first field,
+    //   so there's nothing to do
+    if (this._multiEdit || this._firstEditedField)
+      return;
+
+    this._firstEditedField = aNewField;
+
+    // set the pref
+    var prefs = Cc["@mozilla.org/preferences-service;1"].
+                getService(Ci.nsIPrefBranch);
+    prefs.setCharPref("browser.bookmarks.editDialog.firstEditField", aNewField);
   },
 
   _updateMultipleTagsForItems: function EIO__updateMultipleTagsForItems() {
@@ -637,8 +670,10 @@ var gEditItemOverlay = {
 
         // Ensure the tagsField is in sync, clean it up from empty tags
         this._initTextField("tagsField", tags, false);
+        return true;
       }
     }
+    return false;
   },
 
   onNamePickerInput: function EIO_onNamePickerInput() {
@@ -657,6 +692,7 @@ var gEditItemOverlay = {
     // Here we update either the item title or its cached static title
     var newTitle = this._element("userEnteredName").label;
     if (this._getItemStaticTitle() != newTitle) {
+      this._mayUpdateFirstEditField("namePicker");
       if (PlacesUIUtils.microsummaries.hasMicrosummary(this._itemId)) {
         // Note: this implicitly also takes care of the microsummary->static
         // title case, the removeMicorosummary method in the service will set
@@ -689,7 +725,7 @@ var gEditItemOverlay = {
     ptm.doTransaction(aggregate);
   },
 
-  onDescriptionFieldBlur: function EIO_onDescriptionFieldInput() {
+  onDescriptionFieldBlur: function EIO_onDescriptionFieldBlur() {
     var description = this._element("descriptionField").value;
     if (description != PlacesUIUtils.getItemDescription(this._itemId)) {
       var txn = PlacesUIUtils.ptm
@@ -1029,7 +1065,8 @@ var gEditItemOverlay = {
 
   // nsINavBookmarkObserver
   onItemChanged: function EIO_onItemChanged(aItemId, aProperty,
-                                            aIsAnnotationProperty, aValue) {
+                                            aIsAnnotationProperty, aValue,
+                                            aLastModified, aItemType) {
     if (this._itemId != aItemId) {
       if (aProperty == "title") {
         // If the title of a folder which is listed within the folders
@@ -1109,7 +1146,7 @@ var gEditItemOverlay = {
   },
 
   onItemMoved: function EIO_onItemMoved(aItemId, aOldParent, aOldIndex,
-                                        aNewParent, aNewIndex) {
+                                        aNewParent, aNewIndex, aItemType) {
     if (aItemId != this._itemId ||
         aNewParent == this._getFolderIdFromMenuList())
       return;
@@ -1121,12 +1158,13 @@ var gEditItemOverlay = {
     this._folderMenuList.selectedItem = folderItem;
   },
 
-  onItemAdded: function EIO_onItemAdded(aItemId, aFolder, aIndex) {
+  onItemAdded: function EIO_onItemAdded(aItemId, aFolder, aIndex, aItemType) {
     this._lastNewItem = aItemId;
   },
 
   onBeginUpdateBatch: function() { },
   onEndUpdateBatch: function() { },
+  onBeforeItemRemoved: function() { },
   onItemRemoved: function() { },
   onItemVisited: function() { },
 };

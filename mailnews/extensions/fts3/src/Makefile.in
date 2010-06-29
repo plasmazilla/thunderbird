@@ -59,10 +59,12 @@ REQUIRES	= \
 
 CPPSRCS		= \
 		nsFts3Tokenizer.cpp \
+		nsGlodaRankerFunction.cpp \
 		$(NULL)
 
 CSRCS		= \
 		fts3_porter.c \
+		Normalize.c \
 		$(NULL)
 
 LOCAL_INCLUDES = \

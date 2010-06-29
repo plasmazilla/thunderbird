@@ -52,6 +52,22 @@ class nsIFrame;
 struct nsHTMLReflowState;
 class nsPresContext;
 
+/**
+ * The available space for content not occupied by floats is divided
+ * into a (vertical) sequence of rectangles.  However, we need to know
+ * not only the rectangle, but also whether it was reduced (from the
+ * content rectangle) by floats that actually intruded into the content
+ * rectangle.
+ */
+struct nsFlowAreaRect {
+  nsRect mRect;
+  PRPackedBool mHasFloats;
+
+  nsFlowAreaRect(nscoord aX, nscoord aY, nscoord aWidth, nscoord aHeight,
+                 PRBool aHasFloats)
+    : mRect(aX, aY, aWidth, aHeight), mHasFloats(aHasFloats) {}
+};
+
 #define NS_FLOAT_MANAGER_CACHE_SIZE 4
 
 class nsFloatManager {
@@ -63,6 +79,41 @@ public:
   void operator delete(void* aPtr, size_t aSize);
 
   static void Shutdown();
+
+  /**
+   * Get float region stored on the frame. (Defaults to mRect if it's
+   * not there.) The float region is the area impacted by this float;
+   * the coordinates are relative to the containing block frame.
+   */
+  static nsRect GetRegionFor(nsIFrame* aFloatFrame);
+  /**
+   * Calculate the float region for this frame using aMargin and the
+   * frame's mRect. The region includes the margins around the float,
+   * but doesn't include the relative offsets.
+   * Note that if the frame is or has a continuation, aMargin's top
+   * and/or bottom must be zeroed by the caller.
+   */
+  static nsRect CalculateRegionFor(nsIFrame* aFloatFrame,
+                                   const nsMargin& aMargin);
+  /**
+   * Store the float region on the frame. The region is stored
+   * as a delta against the mRect, so repositioning the frame will
+   * also reposition the float region.
+   */
+  static nsresult StoreRegionFor(nsIFrame* aFloat,
+                                 nsRect&   aRegion);
+
+  // Structure that stores the current state of a frame manager for
+  // Save/Restore purposes.
+  struct SavedState;
+  friend struct SavedState;
+  struct SavedState {
+  private:
+    PRUint32 mFloatInfoCount;
+    nscoord mX, mY;
+    
+    friend class nsFloatManager;
+  };
 
   /**
    * Translate the current origin by the specified (dx, dy). This
@@ -79,31 +130,47 @@ public:
   void GetTranslation(nscoord& aX, nscoord& aY) const { aX = mX; aY = mY; }
 
   /**
-   * Get information about the band containing vertical coordinate |aY|,
-   * but up to at most |aMaxHeight| (which may be nscoord_MAX).  This
-   * will return the tallest rectangle whose top is |aY| and in which
-   * there are no changes in what floats are on the sides of that
-   * rectangle, but will limit the height of the rectangle to
-   * |aMaxHeight|.  The left and right edges of the rectangle give the
-   * area available for line boxes in that space.
+   * Get information about the area available to content that flows
+   * around floats.  Two different types of space can be requested:
+   *   BAND_FROM_POINT: returns the band containing vertical coordinate
+   *     |aY| (though actually with the top truncated to begin at aY),
+   *     but up to at most |aHeight| (which may be nscoord_MAX).
+   *     This will return the tallest rectangle whose top is |aY| and in
+   *     which there are no changes in what floats are on the sides of
+   *     that rectangle, but will limit the height of the rectangle to
+   *     |aHeight|.  The left and right edges of the rectangle give the
+   *     area available for line boxes in that space.  The width of this
+   *     resulting rectangle will not be negative.
+   *   WIDTH_WITHIN_HEIGHT: This returns a rectangle whose top is aY and
+   *     whose height is exactly aHeight.  Its left and right edges give
+   *     the left and right edges of the space that can be used for line
+   *     boxes *throughout* that space.  (It is possible that more
+   *     horizontal space could be used in part of the space if a float
+   *     begins or ends in it.)  The width of the resulting rectangle
+   *     can be negative.
    *
    * @param aY [in] vertical coordinate for top of available space
    *           desired
-   * @param aMaxHeight [in] maximum height of available space desired
+   * @param aHeight [in] see above
    * @param aContentAreaWidth [in] the width of the content area (whose left
    *                          edge must be zero in the current translation)
-   * @param aHasFloats [out] whether there are floats at the sides of
-   *                    the return value including those that do not
-   *                    reduce the line box width at all (because they
-   *                    are entirely in the margins)
-   * @return the resulting rectangle for line boxes.  It will not go
-   *         left of 0, nor right of aContentAreaWidth, but will be
-   *         narrower when floats are present.
+   * @param aState [in] If null, use the current state, otherwise, do
+   *                    computation based only on floats present in the given
+   *                    saved state.
+   * @return An nsFlowAreaRect whose:
+   *           mRect is the resulting rectangle for line boxes.  It will not go
+   *             left of 0, nor right of aContentAreaWidth, but will be
+   *             narrower when floats are present.
+   *          mBandHasFloats is whether there are floats at the sides of the
+   *            return value including those that do not reduce the line box
+   *            width at all (because they are entirely in the margins)
    *
    * aY and aAvailSpace are positioned relative to the current translation
    */
-  nsRect GetBand(nscoord aY, nscoord aMaxHeight, nscoord aContentAreaWidth,
-                 PRBool* aHasFloats) const;
+  enum BandInfoType { BAND_FROM_POINT, WIDTH_WITHIN_HEIGHT };
+  nsFlowAreaRect GetFlowArea(nscoord aY, BandInfoType aInfoType,
+                             nscoord aHeight, nscoord aContentAreaWidth,
+                             SavedState* aState) const;
 
   /**
    * Add a float that comes after all floats previously added.  Its top
@@ -127,18 +194,6 @@ public:
 private:
   struct FloatInfo;
 public:
-
-  // Structure that stores the current state of a frame manager for
-  // Save/Restore purposes.
-  struct SavedState;
-  friend struct SavedState;
-  struct SavedState {
-  private:
-    PRUint32 mFloatInfoCount;
-    nscoord mX, mY;
-    
-    friend class nsFloatManager;
-  };
 
   PRBool HasAnyFloats() const { return !mFloats.IsEmpty(); }
 
@@ -172,7 +227,9 @@ public:
    * These states must be managed using stack discipline. PopState can only
    * be used after PushState has been used to save the state, and it can only
    * be used once --- although it can be omitted; saved states can be ignored.
-   * States must be popped in the reverse order they were pushed. 
+   * States must be popped in the reverse order they were pushed.  A
+   * call to PopState invalidates any saved states Pushed after the
+   * state passed to PopState was pushed.
    */
   void PopState(SavedState* aState);
 
@@ -192,6 +249,13 @@ public:
    * Both aY and the result are relative to the current translation.
    */
   nscoord ClearFloats(nscoord aY, PRUint8 aBreakType) const;
+
+  void AssertStateMatches(SavedState *aState) const
+  {
+    NS_ASSERTION(aState->mX == mX && aState->mY == mY &&
+                 aState->mFloatInfoCount == mFloats.Length(),
+                 "float manager state should match saved state");
+  }
 
 #ifdef DEBUG
   /**

@@ -52,12 +52,14 @@
 #include "nsISupports.h"
 #include "nsStringGlue.h"
 #include "mozFlushType.h"
+#include "nsIDTD.h"
 
 class nsIParser;
 
+// 57b395ad-4276-408c-9f98-7044b5025c3d
 #define NS_ICONTENT_SINK_IID \
-{ 0x6fd3c94f, 0xaf81, 0x4792, \
-  { 0xa3, 0xe4, 0x1f, 0xb9, 0x40, 0xb6, 0x9c, 0x3a } }
+{ 0x57b395ad, 0x4276, 0x408c, \
+  { 0x9f, 0x98, 0x70, 0x44, 0xb5, 0x02, 0x5c, 0x3d } }
 
 class nsIContentSink : public nsISupports {
 public:
@@ -76,28 +78,27 @@ public:
    * This method gets called when the parser begins the process
    * of building the content model via the content sink.
    *
+   * Default implementation provided since the sink should have the option of
+   * doing nothing in response to this call.
+   *
    * @update 5/7/98 gess
    */
-  NS_IMETHOD WillBuildModel(void)=0;
+  NS_IMETHOD WillBuildModel(nsDTDMode aDTDMode) {
+    return NS_OK;
+  }
 
   /**
    * This method gets called when the parser concludes the process
    * of building the content model via the content sink.
    *
+   * Default implementation provided since the sink should have the option of
+   * doing nothing in response to this call.
+   *
    * @update 5/7/98 gess
    */
-  NS_IMETHOD DidBuildModel()=0;
-
-  /**
-   * Thie method gets caller right before DidBuildModel is called.
-   * If false, the parser won't call DidBuildModel yet.
-   *
-   * If aTerminated is true, the parser has been terminated.
-   */
-  virtual PRBool ReadyToCallDidBuildModel(PRBool aTerminated)
-  {
-    return PR_TRUE;
-  };
+  NS_IMETHOD DidBuildModel(PRBool aTerminated) {
+    return NS_OK;
+  }
 
   /**
    * This method gets called when the parser gets i/o blocked,

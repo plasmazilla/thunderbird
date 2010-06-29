@@ -113,16 +113,20 @@ public:
   NS_DECL_NSIGEOLOCATIONUPDATE
   NS_DECL_NSIOBSERVER
 
-  nsGeolocationService();
+  nsGeolocationService() {mTimeout = 6000;};
+
+  nsresult Init();
 
   // Management of the nsGeolocation objects
   void AddLocator(nsGeolocation* locator);
   void RemoveLocator(nsGeolocation* locator);
 
+  PRBool IsBetterPosition(nsIDOMGeoPosition* aPosition);
+
   void SetCachedPosition(nsIDOMGeoPosition* aPosition);
   nsIDOMGeoPosition* GetCachedPosition();
 
-  // Returns true if there is a geolocation provider registered.
+  // Returns true if there is at least one geolocation provider.
   PRBool   HasGeolocationProvider();
 
   // Find and startup a geolocation device (gps, nmea, etc.)
@@ -147,10 +151,10 @@ private:
   PRInt32 mTimeout;
 
   // The object providing geo location information to us.
-  nsCOMPtr<nsIGeolocationProvider> mProvider;
+  nsCOMArray<nsIGeolocationProvider> mProviders;
 
   // mGeolocators are not owned here.  Their constructor
-  // addes them to this list, and their destructor removes
+  // adds them to this list, and their destructor removes
   // them from this list.
   nsTArray<nsGeolocation*> mGeolocators;
 
@@ -171,7 +175,9 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS(nsGeolocation)
 
-  nsGeolocation(nsIDOMWindow* contentDom);
+  nsGeolocation();
+
+  nsresult Init(nsIDOMWindow* contentDom=nsnull);
 
   // Called by the geolocation device to notify that a location has changed.
   void Update(nsIDOMGeoPosition* aPosition);
@@ -192,7 +198,7 @@ public:
   nsIWeakReference* GetOwner() { return mOwner; }
 
   // Check to see if the widnow still exists
-  PRBool OwnerStillExists();
+  PRBool WindowOwnerStillExists();
 
 private:
 

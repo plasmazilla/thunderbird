@@ -11,6 +11,7 @@ var gFrontProgressListener = {
 
   onStateChange: function (aWebProgress, aRequest, aStateFlags, aStatus) {
     var state = "onStateChange";
+    info("FrontProgress: " + state + " 0x" + aStateFlags.toString(16));
     ok(gFrontNotificationsPos < gFrontNotifications.length, "Got an expected notification for the front notifications listener");
     is(state, gFrontNotifications[gFrontNotificationsPos], "Got a notification for the front notifications listener");
     gFrontNotificationsPos++;
@@ -18,6 +19,7 @@ var gFrontProgressListener = {
 
   onLocationChange: function (aWebProgress, aRequest, aLocationURI) {
     var state = "onLocationChange";
+    info("FrontProgress: " + state + " " + aLocationURI.spec);
     ok(gFrontNotificationsPos < gFrontNotifications.length, "Got an expected notification for the front notifications listener");
     is(state, gFrontNotifications[gFrontNotificationsPos], "Got a notification for the front notifications listener");
     gFrontNotificationsPos++;
@@ -28,6 +30,7 @@ var gFrontProgressListener = {
 
   onSecurityChange: function (aWebProgress, aRequest, aState) {
     var state = "onSecurityChange";
+    info("FrontProgress: " + state + " 0x" + aState.toString(16));
     ok(gFrontNotificationsPos < gFrontNotifications.length, "Got an expected notification for the front notifications listener");
     is(state, gFrontNotifications[gFrontNotificationsPos], "Got a notification for the front notifications listener");
     gFrontNotificationsPos++;
@@ -42,6 +45,7 @@ var gAllProgressListener = {
 
   onStateChange: function (aBrowser, aWebProgress, aRequest, aStateFlags, aStatus) {
     var state = "onStateChange";
+    info("AllProgress: " + state + " 0x" + aStateFlags.toString(16));
     ok(aBrowser == gTestBrowser, state + " notification came from the correct browser");
     ok(gAllNotificationsPos < gAllNotifications.length, "Got an expected notification for the all notifications listener");
     is(state, gAllNotifications[gAllNotificationsPos], "Got a notification for the all notifications listener");
@@ -56,6 +60,7 @@ var gAllProgressListener = {
 
   onLocationChange: function (aBrowser, aWebProgress, aRequest, aLocationURI) {
     var state = "onLocationChange";
+    info("AllProgress: " + state + " " + aLocationURI.spec);
     ok(aBrowser == gTestBrowser, state + " notification came from the correct browser");
     ok(gAllNotificationsPos < gAllNotifications.length, "Got an expected notification for the all notifications listener");
     is(state, gAllNotifications[gAllNotificationsPos], "Got a notification for the all notifications listener");
@@ -69,6 +74,7 @@ var gAllProgressListener = {
 
   onSecurityChange: function (aBrowser, aWebProgress, aRequest, aState) {
     var state = "onSecurityChange";
+    info("AllProgress: " + state + " 0x" + aState.toString(16));
     ok(aBrowser == gTestBrowser, state + " notification came from the correct browser");
     ok(gAllNotificationsPos < gAllNotifications.length, "Got an expected notification for the all notifications listener");
     is(state, gAllNotifications[gAllNotificationsPos], "Got a notification for the all notifications listener");
@@ -109,6 +115,7 @@ function startTests() {
 }
 
 function startTest1() {
+  info("\nTest 1");
   gBrowser.addProgressListener(gFrontProgressListener);
   gBrowser.addTabsProgressListener(gAllProgressListener);
 
@@ -123,6 +130,7 @@ function startTest1() {
 }
 
 function startTest2() {
+  info("\nTest 2");
   gAllNotifications = [
     "onStateChange",
     "onLocationChange",
@@ -135,6 +143,7 @@ function startTest2() {
 }
 
 function startTest3() {
+  info("\nTest 3");
   gAllNotifications = [
     "onStateChange",
     "onLocationChange",
@@ -146,6 +155,7 @@ function startTest3() {
 }
 
 function startTest4() {
+  info("\nTest 4");
   gAllNotifications = [
     "onStateChange",
     "onLocationChange",
@@ -158,6 +168,7 @@ function startTest4() {
 }
 
 function startTest5() {
+  info("\nTest 5");
   // Switch the foreground browser
   [gForegroundBrowser, gBackgroundBrowser] = [gBackgroundBrowser, gForegroundBrowser];
   [gForegroundTab, gBackgroundTab] = [gBackgroundTab, gForegroundTab];
@@ -177,6 +188,7 @@ function startTest5() {
 }
 
 function startTest6() {
+  info("\nTest 6");
   gAllNotifications = [
     "onStateChange",
     "onLocationChange",

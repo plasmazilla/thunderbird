@@ -50,12 +50,28 @@ MOZ_NO_ACTIVEX_SUPPORT=1
 MOZ_ACTIVEX_SCRIPTING_SUPPORT=
 MOZ_INSTALLER=
 MOZ_MATHML=
-# MOZ_OJI is only required to be cleared for MOZILLA_1_9_1_BRANCH.
-# mozilla-central does not have this.
-MOZ_OJI=
 NECKO_COOKIES=
-MOZ_NO_XPCOM_OBSOLETE=1
 MOZ_EXTENSIONS_DEFAULT=
 MOZ_UNIVERSALCHARDET=
-MOZ_APP_VERSION=`cat $topsrcdir/$MOZ_BUILD_APP/sunbird/config/version.txt`
+
+# Needed for the mozilla-central build side of the system.
+# Can be dropped when we branch MOZILLA_1_9_2_BRANCH
+MOZILLA_BRANCH_VERSION=`echo ${MOZILLA_VERSION} | sed -e 's/^\([0-9]\.[0-9]\.[0-9]\).*/\1/;'`
+
+if test "$MOZILLA_BRANCH_VERSION" = "1.9.2"; then
+  MOZ_APP_VERSION_TXT=$topsrcdir/$MOZ_BUILD_APP/sunbird/config/version-192.txt
+  MOZ_NO_XPCOM_OBSOLETE=1
+  # MOZ_OJI is only required to be cleared for MOZILLA_1_9_2_BRANCH (OS X).
+  MOZ_OJI=
+else
+  MOZ_APP_VERSION_TXT=$topsrcdir/$MOZ_BUILD_APP/sunbird/config/version.txt
+fi
+
+MOZ_APP_VERSION=`cat $MOZ_APP_VERSION_TXT`
+
 SUNBIRD_VERSION=$MOZ_APP_VERSION
+MOZ_OFFICIAL_BRANDING_DIRECTORY=other-licenses/branding/sunbird
+
+# Until we can build with libxul, we can't have ipc either
+MOZ_ENABLE_LIBXUL=
+MOZ_IPC=

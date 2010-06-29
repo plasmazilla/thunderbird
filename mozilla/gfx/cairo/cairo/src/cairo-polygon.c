@@ -64,6 +64,11 @@ _cairo_polygon_grow (cairo_polygon_t *polygon)
     int old_size = polygon->edges_size;
     int new_size = 4 * old_size;
 
+    if (CAIRO_INJECT_FAULT ()) {
+	polygon->status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	return FALSE;
+    }
+
     if (polygon->edges == polygon->edges_embedded) {
 	new_edges = _cairo_malloc_ab (new_size, sizeof (cairo_edge_t));
 	if (new_edges != NULL)
@@ -73,7 +78,7 @@ _cairo_polygon_grow (cairo_polygon_t *polygon)
 		                       new_size, sizeof (cairo_edge_t));
     }
 
-    if (new_edges == NULL) {
+    if (unlikely (new_edges == NULL)) {
 	polygon->status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	return FALSE;
     }
@@ -84,16 +89,17 @@ _cairo_polygon_grow (cairo_polygon_t *polygon)
     return TRUE;
 }
 
-static void
+void
 _cairo_polygon_add_edge (cairo_polygon_t *polygon,
 			 const cairo_point_t *p1,
-			 const cairo_point_t *p2)
+			 const cairo_point_t *p2,
+			 int		      dir)
 {
     cairo_edge_t *edge;
 
     /* drop horizontal edges */
     if (p1->y == p2->y)
-	goto DONE;
+	return;
 
     if (polygon->num_edges == polygon->edges_size) {
 	if (! _cairo_polygon_grow (polygon))
@@ -104,15 +110,12 @@ _cairo_polygon_add_edge (cairo_polygon_t *polygon,
     if (p1->y < p2->y) {
 	edge->edge.p1 = *p1;
 	edge->edge.p2 = *p2;
-	edge->clockWise = 1;
+	edge->dir = dir;
     } else {
 	edge->edge.p1 = *p2;
 	edge->edge.p2 = *p1;
-	edge->clockWise = 0;
+	edge->dir = -dir;
     }
-
-  DONE:
-    _cairo_polygon_move_to (polygon, p2);
 }
 
 void
@@ -131,9 +134,9 @@ _cairo_polygon_line_to (cairo_polygon_t *polygon,
 			const cairo_point_t *point)
 {
     if (polygon->has_current_point)
-	_cairo_polygon_add_edge (polygon, &polygon->current_point, point);
-    else
-	_cairo_polygon_move_to (polygon, point);
+	_cairo_polygon_add_edge (polygon, &polygon->current_point, point, 1);
+
+    _cairo_polygon_move_to (polygon, point);
 }
 
 void
@@ -142,7 +145,8 @@ _cairo_polygon_close (cairo_polygon_t *polygon)
     if (polygon->has_current_point) {
 	_cairo_polygon_add_edge (polygon,
 				 &polygon->current_point,
-				 &polygon->first_point);
+				 &polygon->first_point,
+				 1);
 
 	polygon->has_current_point = FALSE;
     }

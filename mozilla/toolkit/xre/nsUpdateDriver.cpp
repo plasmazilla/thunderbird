@@ -125,12 +125,11 @@ GetCurrentWorkingDir(char *buf, size_t size)
   if (DosQueryPathInfo( ".", FIL_QUERYFULLNAME, buf, size))
     return NS_ERROR_FAILURE;
 #elif defined(XP_WIN)
-  wchar_t *wpath = _wgetcwd(NULL, size);
-  if (!wpath)
+  wchar_t wpath[MAX_PATH];
+  if (!_wgetcwd(wpath, size))
     return NS_ERROR_FAILURE;
   NS_ConvertUTF16toUTF8 path(wpath);
   strncpy(buf, path.get(), size);
-  free(wpath);
 #else
   if(!getcwd(buf, size))
     return NS_ERROR_FAILURE;
@@ -527,7 +526,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 #elif defined(XP_WIN)
   _wchdir(applyToDir.get());
 
-  if (!WinLaunchChild(updaterPathW.get(), appArgc + 4, argv, 0))
+  if (!WinLaunchChild(updaterPathW.get(), appArgc + 4, argv))
     return;
   _exit(0);
 #else

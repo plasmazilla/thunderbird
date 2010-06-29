@@ -58,7 +58,6 @@
 #include "nsIDOMCDATASection.h"
 #include "nsDOMDocumentType.h"
 #include "nsHTMLParts.h"
-#include "nsVoidArray.h"
 #include "nsCRT.h"
 #include "nsICSSLoader.h"
 #include "nsICSSStyleSheet.h"
@@ -213,7 +212,7 @@ nsXMLContentSink::WillParse(void)
 }
 
 NS_IMETHODIMP
-nsXMLContentSink::WillBuildModel(void)
+nsXMLContentSink::WillBuildModel(nsDTDMode aDTDMode)
 {
   WillBuildModelImpl();
 
@@ -312,9 +311,9 @@ CheckXSLTParamPI(nsIDOMProcessingInstruction* aPi,
 }
 
 NS_IMETHODIMP
-nsXMLContentSink::DidBuildModel()
+nsXMLContentSink::DidBuildModel(PRBool aTerminated)
 {
-  DidBuildModelImpl();
+  DidBuildModelImpl(aTerminated);
 
   if (mXSLTProcessor) {
     // stop observing in order to avoid crashing when replacing content
@@ -388,19 +387,12 @@ nsXMLContentSink::DidBuildModel()
   return NS_OK;
 }
 
-PRBool
-nsXMLContentSink::ReadyToCallDidBuildModel(PRBool aTerminated)
-{
-  return ReadyToCallDidBuildModelImpl(aTerminated);
-}
-
 NS_IMETHODIMP
 nsXMLContentSink::OnDocumentCreated(nsIDocument* aResultDocument)
 {
   NS_ENSURE_ARG(aResultDocument);
 
-  nsCOMPtr<nsIHTMLDocument_1_9_1_BRANCH> htmlDoc =
-    do_QueryInterface(aResultDocument);
+  nsCOMPtr<nsIHTMLDocument> htmlDoc = do_QueryInterface(aResultDocument);
   if (htmlDoc) {
     htmlDoc->SetDocWriteDisabled(PR_TRUE);
   }
@@ -446,7 +438,7 @@ nsXMLContentSink::OnTransformDone(nsresult aResult,
     // Transform succeeded or it failed and we have an error
     // document to display.
     mDocument = aResultDocument;
-    nsCOMPtr<nsIHTMLDocument_1_9_1_BRANCH> htmlDoc = do_QueryInterface(mDocument);
+    nsCOMPtr<nsIHTMLDocument> htmlDoc = do_QueryInterface(mDocument);
     if (htmlDoc) {
       htmlDoc->SetDocWriteDisabled(PR_FALSE);
     }
@@ -1212,7 +1204,11 @@ nsXMLContentSink::HandleEndElement(const PRUnichar *aName,
 #ifdef MOZ_SVG
   if (mDocument &&
       content->GetNameSpaceID() == kNameSpaceID_SVG &&
-      content->HasAttr(kNameSpaceID_None, nsGkAtoms::onload)) {
+      (
+#ifdef MOZ_SMIL
+       content->Tag() == nsGkAtoms::svg ||
+#endif
+       content->HasAttr(kNameSpaceID_None, nsGkAtoms::onload))) {
     FlushTags();
 
     nsEvent event(PR_TRUE, NS_SVG_LOAD);
@@ -1440,33 +1436,6 @@ nsXMLContentSink::ParsePIData(const nsString &aData, nsString &aHref,
   return PR_TRUE;
 }
 
-/*
- * Extends nsContentSink::ProcessMETATag to grab the 'viewport' meta tag. This
- * information is ignored by the generic content sink because it only stores
- * http-equiv meta tags. We need it in the XMLContentSink for XHTML documents.
- *
- * Initially implemented for bug #436083
- */
-nsresult
-nsXMLContentSink::ProcessMETATag(nsIContent *aContent) {
-
-  /* Call the superclass method. */
-  nsContentSink::ProcessMETATag(aContent);
-
-  nsresult rv = NS_OK;
-
-  /* Look for the viewport meta tag. If we find it, process it and put the
-   * data into the document header. */
-  if (aContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::name,
-                            nsGkAtoms::viewport, eIgnoreCase)) {
-    nsAutoString value;
-    aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::content, value);
-    rv = nsContentUtils::ProcessViewportInfo(mDocument, value);
-  }
-
-  return rv;
-}
-
 NS_IMETHODIMP
 nsXMLContentSink::HandleXMLDeclaration(const PRUnichar *aVersion,
                                        const PRUnichar *aEncoding,
@@ -1670,7 +1639,7 @@ nsXMLContentSink::FlushPendingNotifications(mozFlushType aType)
         FlushText(PR_FALSE);
       }
     }
-    if (aType >= Flush_Layout) {
+    if (aType >= Flush_InterruptibleLayout) {
       // Make sure that layout has started so that the reflow flush
       // will actually happen.
       MaybeStartLayout(PR_TRUE);

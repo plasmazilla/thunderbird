@@ -98,6 +98,7 @@
 #include "nsCycleCollector.h"
 #include "nsThreadUtils.h"
 #include "nsTObserverArray.h"
+#include "nsWildCard.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/Monitor.h"
 #include "mozilla/CondVar.h"
@@ -209,10 +210,10 @@ void XXXNeverCalled()
     new nsVariant();
     nsUnescape(nsnull);
     nsEscape(nsnull, url_XAlphas);
-    nsStringArray array;
+    nsTArray<nsString> array;
     NS_NewStringEnumerator(nsnull, &array);
     NS_NewAdoptingStringEnumerator(nsnull, &array);
-    nsCStringArray carray;
+    nsTArray<nsCString> carray;
     NS_NewUTF8StringEnumerator(nsnull, &carray);
     NS_NewAdoptingUTF8StringEnumerator(nsnull, &carray);
     nsVoidableString str3;
@@ -302,4 +303,9 @@ void XXXNeverCalled()
     Mutex theMutex("dummy");
     Monitor theMonitor("dummy2");
     CondVar theCondVar(theMutex, "dummy3");
+
+    NS_WildCardValid((const char *)nsnull);
+    NS_WildCardValid((const PRUnichar *)nsnull);
+    NS_WildCardMatch((const char *)nsnull, (const char *)nsnull, PR_FALSE);
+    NS_WildCardMatch((const PRUnichar *)nsnull, (const PRUnichar *)nsnull, PR_FALSE);
 }

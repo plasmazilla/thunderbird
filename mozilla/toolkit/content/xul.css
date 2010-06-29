@@ -14,10 +14,16 @@
   -moz-user-focus: ignore;
   -moz-user-select: -moz-none;
   display: -moz-box;
+  -moz-box-sizing: border-box;
 }
 
 :root {
   text-rendering: optimizeLegibility;
+  -moz-binding: url("chrome://global/content/bindings/general.xml#root-element");
+}
+
+:root:-moz-locale-dir(rtl) {
+  direction: rtl;
 }
 
 /* hide the content and destroy the frame */
@@ -112,6 +118,12 @@ button {
   -moz-binding: url("chrome://global/content/bindings/button.xml#button");
 }
 
+%ifdef XP_MACOSX
+button[default="true"] {
+  -moz-binding: url("chrome://global/content/bindings/button.xml#button-periodic-redraw");
+}
+%endif
+
 button[type="repeat"] {
   -moz-binding: url("chrome://global/content/bindings/button.xml#button-repeat");
 }
@@ -130,12 +142,18 @@ toolbarbutton {
   -moz-binding: url("chrome://global/content/bindings/toolbarbutton.xml#toolbarbutton");
 }
 
-toolbarbutton[type="menu"], toolbarbutton[type="panel"] {
+toolbarbutton[type="menu"],
+toolbarbutton[type="panel"] {
   -moz-binding: url("chrome://global/content/bindings/toolbarbutton.xml#menu");
 }
 
 toolbarbutton[type="menu-button"] {
   -moz-binding: url("chrome://global/content/bindings/toolbarbutton.xml#menu-button");
+}
+
+toolbar[mode="icons"] .toolbarbutton-text,
+toolbar[mode="text"] .toolbarbutton-icon {
+  display: none;
 }
 
 /******** browser, editor, iframe ********/
@@ -225,6 +243,21 @@ toolbar {
 toolbar[type="menubar"] {
   min-height: 0 !important;
   border: 0 !important;
+}
+%endif
+
+%ifdef XP_WIN
+toolbar[type="menubar"][autohide="true"] {
+  -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar-menubar-autohide");
+  overflow: hidden;
+}
+
+toolbar[type="menubar"][autohide="true"]:not([customizable="true"])[inactive="true"],
+toolbox:not([customizing="true"]) > toolbar[type="menubar"][autohide="true"][customizable="true"][inactive="true"]:not([customized="true"]) {
+  min-height: 0 !important;
+  height: 0 !important;
+  -moz-appearance: none !important;
+  border-style: none !important;
 }
 %endif
 
@@ -578,21 +611,14 @@ tabs {
   -moz-box-orient: horizontal;
 }
 
-/**
- * XXXben - this looks like something added specifically for tabbrowser.
- *          if it turns out no one uses this that can't easily be evangelized to
- *          use their own roll-your-own binding, then we should get rid of this
- *          to tighten up the toolkit api. This binding made obsolete in Firefox
- *          by 308396. 
- */
-tabs[closebutton="true"] {
-  -moz-binding: url("chrome://global/content/bindings/tabbox.xml#tabs-closebutton");
-}
-
 tab {
   -moz-binding: url("chrome://global/content/bindings/tabbox.xml#tab");
   -moz-box-align: center;
   -moz-box-pack: center;
+}
+
+tab[selected="true"] {
+  -moz-user-focus: normal;
 }
 
 tabpanels {
@@ -651,34 +677,6 @@ textbox[multiline="true"] {
   -moz-binding: url("chrome://global/content/bindings/textbox.xml#textarea");
 }
 
-html|*.textbox-input {
-  -moz-appearance: none !important;
-  text-align: inherit;
-  text-shadow: inherit;
-}
-
-html|*.textbox-textarea {
-  -moz-appearance: none !important;
-  text-shadow: inherit;
-}
-
-textbox[empty="true"] html|*.textbox-input ,
-textbox[empty="true"] html|*.textbox-textarea {
-  text-align: left;
-  direction: ltr;
-}
-
-textbox[empty="true"][chromedir="rtl"] html|*.textbox-input ,
-textbox[empty="true"][chromedir="rtl"] html|*.textbox-textarea {
-  text-align: right;
-  direction: rtl;
-}
-
-textbox[empty="true"] html|*.textbox-input[emptytextdelay="true"] ,
-textbox[empty="true"] html|*.textbox-textarea[emptytextdelay="true"] {
-  color: transparent !important;
-}
-
 .textbox-input-box {
   -moz-binding: url("chrome://global/content/bindings/textbox.xml#input-box");
 }
@@ -699,7 +697,7 @@ textbox[type="number"] {
   -moz-binding: url("chrome://global/content/bindings/numberbox.xml#numberbox");
 }
 
-.textbox-contextmenu[chromedir="rtl"] {
+.textbox-contextmenu:-moz-locale-dir(rtl) {
   direction: rtl;
 }
 
@@ -763,7 +761,6 @@ panel[type="autocomplete-richlistbox"] {
 .autocomplete-richlistbox {
   -moz-binding: url("chrome://global/content/bindings/autocomplete.xml#autocomplete-richlistbox");
   -moz-user-focus: ignore;
-  -moz-appearance: none;
 }
 
 .autocomplete-richlistbox > scrollbox {
@@ -791,11 +788,7 @@ panel[type="autocomplete-richlistbox"] {
 
 %endif
 
-/* Bug 453827 */
-toolbaritem.chromeclass-location > textbox > hbox > hbox > html|*.textbox-input > html|*.anonymous-div {
-  /* Make the line-height equal to the available height */
-  line-height: -moz-block-height;
-}
+
 
 /* the C++ implementation of widgets is too eager to make popups visible.
    this causes problems (bug 120155 and others), thus this workaround: */
@@ -843,11 +836,6 @@ menulist[type="description"] {
   -moz-binding: url("chrome://global/content/bindings/menulist.xml#menulist-description");
 }
 
-html|*.menulist-editable-input {
-  -moz-appearance: none !important;
-  background: transparent ! important;
-}
-
 menulist > menupopup > menuitem {
   -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem-iconic-noaccel");
 }
@@ -861,41 +849,6 @@ dropmarker {
 resizer {
   -moz-binding: url("chrome://global/content/bindings/resizer.xml#resizer");
 }
-
-resizer[dir="top"],
-resizer[dir="bottom"] {
-  cursor: ns-resize;
-}
-
-resizer[dir="left"],
-resizer[dir="right"] {
-  cursor: ew-resize;
-}
-
-resizer[dir="topleft"] {
-  cursor: nw-resize;
-}
-
-resizer[dir="bottomright"],
-resizer[dir="bottomend"][chromedir="ltr"] {
-  cursor: se-resize;
-}
-
-resizer[dir="topright"] {
-  cursor: ne-resize;
-}
-
-resizer[dir="bottomleft"],
-resizer[dir="bottomend"][chromedir="rtl"] {
-  cursor: sw-resize;
-}
-
-%ifndef XP_MACOSX
-resizer[dir="bottomright"][chromedir="ltr"],
-resizer[dir="bottomend"] {
-  -moz-appearance: resizer;
-}
-%endif
 
 /********** splitter **********/
 
@@ -1036,7 +989,8 @@ stringbundle {
 
 /********** dialog **********/
 
-dialog {
+dialog,
+dialog:root /* override :root from above */ {
   -moz-binding: url("chrome://global/content/bindings/dialog.xml#dialog");
   -moz-box-orient: vertical;
 }
@@ -1053,7 +1007,8 @@ page {
 
 /********** wizard **********/
 
-wizard {
+wizard,
+wizard:root /* override :root from above */ {
   -moz-binding: url("chrome://global/content/bindings/wizard.xml#wizard");
   -moz-box-orient: vertical;
   width: 40em;
@@ -1076,7 +1031,8 @@ wizardpage {
 
 /********** preferences ********/
 
-prefwindow {
+prefwindow,
+prefwindow:root /* override :root from above */ {
   -moz-binding: url("chrome://global/content/bindings/preferences.xml#prefwindow");  
   -moz-box-orient: vertical;
 }
@@ -1116,7 +1072,6 @@ preference {
 radio[pane] {
   -moz-binding: url("chrome://global/content/bindings/preferences.xml#panebutton") !important; 
   -moz-box-orient: vertical;
-  -moz-appearance: none;
   -moz-box-align: center;
 }
 
@@ -1137,7 +1092,6 @@ expander {
 richlistbox {
   -moz-binding: url('chrome://global/content/bindings/richlistbox.xml#richlistbox');
   -moz-user-focus: normal;
-  -moz-appearance: listbox;
   -moz-box-orient: vertical;
 }
 
@@ -1171,6 +1125,10 @@ timepicker {
 /*********** findbar ************/
 findbar {
   -moz-binding: url('chrome://global/content/bindings/findbar.xml#findbar');
+}
+
+.findbar-textbox {
+  -moz-binding: url("chrome://global/content/bindings/findbar.xml#findbar-textbox");
 }
 
 

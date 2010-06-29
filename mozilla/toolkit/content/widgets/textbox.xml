@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE bindings [
-  <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-  %globalDTD;
   <!ENTITY % textcontextDTD SYSTEM "chrome://global/locale/textcontext.dtd" >
   %textcontextDTD;
 ]>
@@ -15,6 +13,7 @@
 
   <binding id="textbox" extends="xul:box">
     <resources>
+      <stylesheet src="chrome://global/content/textbox.css"/>
       <stylesheet src="chrome://global/skin/textbox.css"/>
     </resources>
 
@@ -22,7 +21,7 @@
       <children/>
       <xul:hbox class="textbox-input-box" flex="1" xbl:inherits="context,spellcheck">
         <html:input class="textbox-input" flex="1" anonid="input"
-                    xbl:inherits="onfocus,onblur,value,type,maxlength,disabled,size,readonly,tabindex,accesskey"/>
+                    xbl:inherits="onfocus,onblur,value,type,maxlength,disabled,size,readonly,tabindex,accesskey,noinitialfocus"/>
       </xul:hbox>
     </content>
 
@@ -54,7 +53,7 @@
       </property>
 
       <property name="value"
-                onget="return this.hasAttribute('empty') ? '' : this.inputField.value;">
+                onget="return this.hasAttribute('isempty') ? '' : this.inputField.value;">
         <setter><![CDATA[
           if (val) {
             // clear the emptyText _before_ setting a new non-empty value
@@ -128,7 +127,7 @@
 
       <property name="controllers"    readonly="true" onget="return this.inputField.controllers"/>
       <property name="textLength"     readonly="true"
-                                      onget="return this.hasAttribute('empty') ?
+                                      onget="return this.hasAttribute('isempty') ?
                                                     0 : this.inputField.textLength;"/>
       <property name="selectionStart" onset="this.inputField.selectionStart = val; return val;"
                                       onget="return this.inputField.selectionStart;"/>
@@ -167,14 +166,14 @@
               !this.value &&
               this.emptyText) {
 
-            if (!this.hasAttribute("empty")) {
-              this.setAttribute("empty", "true");
+            if (!this.hasAttribute("isempty")) {
+              this.setAttribute("isempty", "true");
 
               // Hide the emptytext for a bit, in case the textbox will be focused subsequently
               this.inputField.setAttribute("emptytextdelay", "true");
-              setTimeout(function (textbox) {
-                textbox.inputField.removeAttribute("emptytextdelay");
-              }, 100, this);
+              setTimeout(function (input) {
+                input.removeAttribute("emptytextdelay");
+              }, 100, this.inputField);
 
               try {
                 this.editor.transactionManager.beginBatch();
@@ -188,7 +187,7 @@
 
       <method name="_clearEmptyText">
         <body><![CDATA[
-          if (this.hasAttribute("empty")) {
+          if (this.hasAttribute("isempty")) {
             this.inputField.value = "";
             try {
               var transactionManager = this.editor.transactionManager;
@@ -199,7 +198,7 @@
                   transactionManager.numberOfRedoItems == 0)
                 transactionManager.clear();
             } catch (e) {}
-            this.removeAttribute("empty");
+            this.removeAttribute("isempty");
           }
         ]]></body>
       </method>
@@ -210,10 +209,6 @@
           this.inputField.value = str;
           this.boxObject.removeProperty("value");
         }
-
-        // Bindings that extend this one wouldn't inherit the
-        // chromedir attribute if it would only be set in <content>.
-        this.setAttribute("chromedir", "]]>&locale.dir;<![CDATA[");
 
         this._updateVisibleText();
         this._setNewlineHandling();
@@ -267,6 +262,12 @@
         <![CDATA[
           this.removeAttribute('focused');
           this._updateVisibleText();
+
+          // don't trigger clickSelectsAll when switching application windows
+          if (window == window.top &&
+              window.constructor == ChromeWindow &&
+              document.activeElement == this.inputField)
+            this.mIgnoreFocus = true;
         ]]>
       </handler>
 
@@ -322,7 +323,7 @@
                 onset="this.setAttribute('timeout', val); return val;"
                 onget="return parseInt(this.getAttribute('timeout')) || 0;"/>
       <property name="value"
-                onget="return this.hasAttribute('empty') ? '' : this.inputField.value;">
+                onget="return this.hasAttribute('isempty') ? '' : this.inputField.value;">
         <setter><![CDATA[
           if (val) {
             // clear the emptyText _before_ setting a new non-empty value
@@ -376,12 +377,10 @@
         <xul:deck class="textbox-search-icons" anonid="search-icons">
           <xul:image class="textbox-search-icon"
                      onclick="document.getBindingParent(this)._iconClick();"
-                     xbl:inherits="src=image,searchbutton,disabled"
-                     chromedir="&locale.dir;"/>
+                     xbl:inherits="src=image,searchbutton,disabled"/>
           <xul:image class="textbox-search-clear"
                      onclick="document.getBindingParent(this)._clearSearch();"
-                     xbl:inherits="disabled"
-                     chromedir="&locale.dir;"/>
+                     xbl:inherits="disabled"/>
         </xul:deck>
       </xul:hbox>
     </content>
@@ -407,7 +406,7 @@
         ]]></setter>
       </property>
       <property name="value"
-                onget="return this.hasAttribute('empty') ? '' : this.inputField.value;">
+                onget="return this.hasAttribute('isempty') ? '' : this.inputField.value;">
         <setter><![CDATA[
           if (val) {
             // clear the emptyText _before_ setting a new non-empty value
@@ -514,7 +513,6 @@
       <children/>
       <xul:menupopup anonid="input-box-contextmenu"
                      class="textbox-contextmenu"
-                     chromedir="&locale.dir;"
                      onpopupshowing="if (document.commandDispatcher.focusedElement != this.parentNode.firstChild)
                                        this.parentNode.firstChild.focus();
                                      this.parentNode._doPopupItemEnabling(this);"
@@ -577,7 +575,6 @@
       <children/>
       <xul:menupopup anonid="input-box-contextmenu"
                      class="textbox-contextmenu"
-                     chromedir="&locale.dir;"
                      onpopupshowing="if (document.commandDispatcher.focusedElement != this.parentNode.firstChild)
                                        this.parentNode.firstChild.focus();
                                      this.parentNode._doPopupItemEnablingSpell(this);"

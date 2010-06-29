@@ -314,26 +314,26 @@ nsOperaProfileMigrator::GetSourceHomePageURL(nsACString& aResult)
 
 static
 nsOperaProfileMigrator::PrefTransform gTransforms[] = {
-  { "User Prefs", "Download Directory", _OPM(STRING), "browser.download.dir", _OPM(SetFile), PR_FALSE, -1 },
-  { nsnull, "Enable Cookies", _OPM(INT), "network.cookie.cookieBehavior", _OPM(SetCookieBehavior), PR_FALSE, -1 },
-  { nsnull, "Accept Cookies Session Only", _OPM(BOOL), "network.cookie.lifetimePolicy", _OPM(SetCookieLifetime), PR_FALSE, -1 },
-  { nsnull, "Allow script to resize window", _OPM(BOOL), "dom.disable_window_move_resize", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Allow script to move window", _OPM(BOOL), "dom.disable_window_move_resize", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Allow script to raise window", _OPM(BOOL), "dom.disable_window_flip", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Allow script to change status", _OPM(BOOL), "dom.disable_window_status_change", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Ignore Unrequested Popups", _OPM(BOOL), "dom.disable_open_during_load", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Load Figures", _OPM(BOOL), "permissions.default.image", _OPM(SetImageBehavior), PR_FALSE, -1 },
+  { "User Prefs", "Download Directory", _OPM(STRING), "browser.download.dir", _OPM(SetFile), PR_FALSE, { -1 } },
+  { nsnull, "Enable Cookies", _OPM(INT), "network.cookie.cookieBehavior", _OPM(SetCookieBehavior), PR_FALSE, { -1 } },
+  { nsnull, "Accept Cookies Session Only", _OPM(BOOL), "network.cookie.lifetimePolicy", _OPM(SetCookieLifetime), PR_FALSE, { -1 } },
+  { nsnull, "Allow script to resize window", _OPM(BOOL), "dom.disable_window_move_resize", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Allow script to move window", _OPM(BOOL), "dom.disable_window_move_resize", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Allow script to raise window", _OPM(BOOL), "dom.disable_window_flip", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Allow script to change status", _OPM(BOOL), "dom.disable_window_status_change", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Ignore Unrequested Popups", _OPM(BOOL), "dom.disable_open_during_load", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Load Figures", _OPM(BOOL), "permissions.default.image", _OPM(SetImageBehavior), PR_FALSE, { -1 } },
 
-  { "Visited link", nsnull, _OPM(COLOR), "browser.visited_color", _OPM(SetString), PR_FALSE, -1 },
-  { "Link", nsnull, _OPM(COLOR), "browser.anchor_color", _OPM(SetString), PR_FALSE, -1 },
-  { nsnull, "Underline", _OPM(BOOL), "browser.underline_anchors", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Expiry", _OPM(INT), "browser.history_expire_days", _OPM(SetInt), PR_FALSE, -1 },
+  { "Visited link", nsnull, _OPM(COLOR), "browser.visited_color", _OPM(SetString), PR_FALSE, { -1 } },
+  { "Link", nsnull, _OPM(COLOR), "browser.anchor_color", _OPM(SetString), PR_FALSE, { -1 } },
+  { nsnull, "Underline", _OPM(BOOL), "browser.underline_anchors", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Expiry", _OPM(INT), "browser.history_expire_days", _OPM(SetInt), PR_FALSE, { -1 } },
 
-  { "Security Prefs", "Enable SSL v2", _OPM(BOOL), "security.enable_ssl2", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Enable SSL v3", _OPM(BOOL), "security.enable_ssl3", _OPM(SetBool), PR_FALSE, -1 },
-  { nsnull, "Enable TLS v1.0", _OPM(BOOL), "security.enable_tls", _OPM(SetBool), PR_FALSE, -1 },
+  { "Security Prefs", "Enable SSL v2", _OPM(BOOL), "security.enable_ssl2", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Enable SSL v3", _OPM(BOOL), "security.enable_ssl3", _OPM(SetBool), PR_FALSE, { -1 } },
+  { nsnull, "Enable TLS v1.0", _OPM(BOOL), "security.enable_tls", _OPM(SetBool), PR_FALSE, { -1 } },
 
-  { "Extensions", "Scripting", _OPM(BOOL), "javascript.enabled", _OPM(SetBool), PR_FALSE, -1 }
+  { "Extensions", "Scripting", _OPM(BOOL), "javascript.enabled", _OPM(SetBool), PR_FALSE, { -1 } }
 };
 
 nsresult 
@@ -420,7 +420,7 @@ nsOperaProfileMigrator::CopyPreferences(PRBool aReplace)
   PrefTransform* transform;
   PrefTransform* end = gTransforms + sizeof(gTransforms)/sizeof(PrefTransform);
 
-  char* lastSectionName = nsnull;
+  const char* lastSectionName = nsnull;
   for (transform = gTransforms; transform < end; ++transform) {
     if (transform->sectionName)
       lastSectionName = transform->sectionName;
@@ -430,7 +430,7 @@ nsOperaProfileMigrator::CopyPreferences(PRBool aReplace)
       nsresult rv = ParseColor(parser, lastSectionName, &colorString);
       if (NS_SUCCEEDED(rv)) {
         transform->stringValue = colorString;
-   
+
         transform->prefHasValue = PR_TRUE;
         transform->prefSetterFunc(transform, branch);
       }
@@ -695,7 +695,7 @@ nsOperaCookieMigrator::Migrate()
         mStream->ReadBytes(length, &buf);
         buf = (char*)nsMemory::Realloc(buf, length+1);
         buf[length] = '\0';
-        mDomainStack.AppendElement((void*)buf);
+        mDomainStack.AppendElement(buf);
       }
       break;
     case END_DOMAIN_SEGMENT:
@@ -704,9 +704,9 @@ nsOperaCookieMigrator::Migrate()
           AddCookieOverride(permissionManager);
 
         // Pop the domain stack
-        PRUint32 count = mDomainStack.Count();
+        PRUint32 count = mDomainStack.Length();
         if (count > 0) {
-          char* segment = (char*)mDomainStack.ElementAt(count - 1);
+          char* segment = mDomainStack.ElementAt(count - 1);
           if (segment) 
             nsMemory::Free(segment);
           mDomainStack.RemoveElementAt(count - 1);
@@ -724,7 +724,7 @@ nsOperaCookieMigrator::Migrate()
         mStream->ReadBytes(length, &buf);
         buf = (char*)nsMemory::Realloc(buf, length+1);
         buf[length] = '\0';
-        mPathStack.AppendElement((void*)buf);
+        mPathStack.AppendElement(buf);
       }
       break;
     case END_PATH_SEGMENT:
@@ -737,9 +737,9 @@ nsOperaCookieMigrator::Migrate()
         // i.e. telling us that we are done processing cookies for "/"
 
         // Pop the path stack
-        PRUint32 count = mPathStack.Count();
+        PRUint32 count = mPathStack.Length();
         if (count > 0) {
-          char* segment = (char*)mPathStack.ElementAt(count - 1);
+          char* segment = mPathStack.ElementAt(count - 1);
           if (segment)
             nsMemory::Free(segment);
           mPathStack.RemoveElementAt(count - 1);
@@ -849,17 +849,17 @@ nsOperaCookieMigrator::Migrate()
   // Make sure the path and domain stacks are clear. 
   char* segment = nsnull;
   PRUint32 i;
-  PRUint32 count = mPathStack.Count();
+  PRUint32 count = mPathStack.Length();
   for (i = 0; i < count; ++i) {
-    segment = (char*)mPathStack.ElementAt(i);
+    segment = mPathStack.ElementAt(i);
     if (segment) {
       nsMemory::Free(segment);
       segment = nsnull;
     }
   }
-  count = mDomainStack.Count();
+  count = mDomainStack.Length();
   for (i = 0; i < count; ++i) {
-    segment = (char*)mDomainStack.ElementAt(i);
+    segment = mDomainStack.ElementAt(i);
     if (segment) {
       nsMemory::Free(segment);
       segment = nsnull;
@@ -881,9 +881,10 @@ nsOperaCookieMigrator::AddCookieOverride(nsIPermissionManager* aManager)
     return NS_ERROR_OUT_OF_MEMORY;
   uri->SetHost(domain);
 
-  rv = aManager->Add(uri, "cookie", 
-                     (mCurrHandlingInfo == 1 || mCurrHandlingInfo == 3) ? nsIPermissionManager::ALLOW_ACTION :
-                                                                          nsIPermissionManager::DENY_ACTION);
+  rv = aManager->Add(uri, "cookie",
+                     (mCurrHandlingInfo == 1 || mCurrHandlingInfo == 3)
+                     ? (PRUint32) nsIPermissionManager::ALLOW_ACTION
+                     : (PRUint32) nsIPermissionManager::DENY_ACTION);
 
   mCurrHandlingInfo = 0;
 
@@ -922,10 +923,10 @@ nsOperaCookieMigrator::AddCookie(nsICookieManager2* aManager)
 void
 nsOperaCookieMigrator::SynthesizePath(char** aResult)
 {
-  PRUint32 count = mPathStack.Count();
+  PRUint32 count = mPathStack.Length();
   nsCAutoString synthesizedPath("/");
   for (PRUint32 i = 0; i < count; ++i) {
-    synthesizedPath.Append((char*)mPathStack.ElementAt(i));
+    synthesizedPath.Append(mPathStack.ElementAt(i));
     if (i != count-1)
       synthesizedPath.Append("/");
   }
@@ -938,13 +939,13 @@ nsOperaCookieMigrator::SynthesizePath(char** aResult)
 void
 nsOperaCookieMigrator::SynthesizeDomain(char** aResult)
 {
-  PRUint32 count = mDomainStack.Count();
+  PRUint32 count = mDomainStack.Length();
   if (count == 0)
     return;
 
   nsCAutoString synthesizedDomain;
   for (PRInt32 i = (PRInt32)count - 1; i >= 0; --i) {
-    synthesizedDomain.Append((char*)mDomainStack.ElementAt((PRUint32)i));
+    synthesizedDomain.Append(mDomainStack.ElementAt((PRUint32)i));
     if (i != 0)
       synthesizedDomain.Append(".");
   }
@@ -1236,10 +1237,10 @@ nsOperaProfileMigrator::CopySmartKeywords(nsINavBookmarksService* aBMS,
       continue;
 
     PRUint32 length = name.Length();
-    PRInt32 index = 0; 
+    PRInt32 index = 0;
     do {
       index = name.FindChar('&', index);
-      if (index >= length - 2)
+      if ((PRUint32)index >= length - 2)
         break;
 
       // Assume "&&" is an escaped ampersand in the search query title. 
@@ -1251,7 +1252,7 @@ nsOperaProfileMigrator::CopySmartKeywords(nsINavBookmarksService* aBMS,
 
       name.Cut(index, 1);
     }
-    while (index < length);
+    while ((PRUint32)index < length);
 
     nsCOMPtr<nsIURI> uri;
     if (NS_FAILED(NS_NewURI(getter_AddRefs(uri), url.get())) || !uri)

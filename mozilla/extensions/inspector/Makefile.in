@@ -45,7 +45,7 @@ VPATH = @srcdir@
 include $(DEPTH)/config/autoconf.mk
 
 MODULE = inspector
-DOMi_VERSION = 2.0.4
+DOMi_VERSION = 2.0.5
 
 DIRS = \
   base \

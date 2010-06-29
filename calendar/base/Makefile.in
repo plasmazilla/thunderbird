@@ -53,7 +53,7 @@ DIRS = public src modules build
 # OS X: pinstripe
 # Others: winstripe
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 THEME = pinstripe
 else
 THEME = winstripe
@@ -79,7 +79,7 @@ ifneq (,$(filter windows os2 gtk gtk2,$(MOZ_WIDGET_TOOLKIT)))
 ifneq (,$(filter windows os2,$(MOZ_WIDGET_TOOLKIT)))
 ICON_SUFFIX = .ico
 else
-ICON_SUFFIX = .xpm
+ICON_SUFFIX = .png
 endif
 
 # Copy the window icons into the correct directory

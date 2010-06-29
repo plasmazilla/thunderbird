@@ -54,9 +54,9 @@ DEFINES += \
   -DGRE_BUILDID=$(GRE_BUILDID) \
    $(NULL)
 
-SOURCE_STAMP := $(shell cd $(topsrcdir) ; hg identify -i 2>/dev/null | cut -f1 -d' ')
-ifdef SOURCE_STAMP
-DEFINES += -DMOZ_SOURCE_STAMP="$(SOURCE_STAMP)"
+MOZ_SOURCE_STAMP ?= $(firstword $(shell hg -R $(topsrcdir) parent --template="{node|short}\n" 2>/dev/null))
+ifdef MOZ_SOURCE_STAMP
+DEFINES += -DMOZ_SOURCE_STAMP="$(MOZ_SOURCE_STAMP)"
 endif
 
 SOURCE_REPO := $(shell hg -R $(topsrcdir) showconfig paths.default 2>/dev/null | sed -e "s/^ssh:/http:/")
@@ -64,7 +64,7 @@ ifdef SOURCE_REPO
 DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
 endif
 
-ifneq (,$(BUILD_OFFICIAL)$(MOZILLA_OFFICIAL))
+ifdef MOZILLA_OFFICIAL
 DEFINES += -DOFFICIAL_BUILD=1
 endif
 
@@ -80,9 +80,9 @@ PREF_JS_EXPORTS = \
     $(NULL)
 
 ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
-PROGRAM = thunderbird$(BIN_SUFFIX)
+PROGRAM = $(MOZ_APP_NAME)$(BIN_SUFFIX)
 else
-PROGRAM = thunderbird-bin$(BIN_SUFFIX)
+PROGRAM = $(MOZ_APP_NAME)-bin$(BIN_SUFFIX)
 endif
 
 REQUIRES = \
@@ -105,14 +105,14 @@ STATIC_COMPONENTS_LINKER_PATH = -L$(MOZDEPTH)/staticlib
 endif
 LIBS += $(MOZDEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX)
 else
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 LIBS += $(DIST)/bin/XUL
 else
 EXTRA_DSO_LIBS += xul
 endif
 endif
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 TK_LIBS := -framework Cocoa $(TK_LIBS)
 ifdef BUILD_STATIC_LIBS
 TK_LIBS := -framework SystemConfiguration $(TK_LIBS)
@@ -148,6 +148,11 @@ ifdef MOZ_ENABLE_DBUS
 LIBS += $(MOZ_DBUS_GLIB_LIBS)
 endif
 
+ifndef MOZ_ENABLE_LIBXUL
+ifdef MOZ_NATIVE_HUNSPELL
+LIBS += $(MOZ_HUNSPELL_LIBS)
+endif
+endif
 
 ifndef MOZ_WINCONSOLE
 ifdef MOZ_DEBUG
@@ -181,20 +186,14 @@ EXTRA_DSO_LIBS	+= $(STATIC_EXTRA_DSO_LIBS)
 REQUIRES	+= $(STATIC_REQUIRES)
 EXTRA_LIBS	+= $(STATIC_EXTRA_LIBS)
 
-ifndef MOZILLA_1_9_1_BRANCH
 ifndef MOZILLA_1_9_2_BRANCH
 
-# OpenGL is required for MOZ_ENABLE_CANVAS3D (only set in m-c build system).
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+# OpenGL is required by (mozilla/)content/canvas: see (mozilla/)layout/build/Makefile.in.
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 OS_LIBS += -framework OpenGL
 endif
 
-ifneq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
-OS_LIBS += opengl32.lib
-endif
-
 endif # MOZILLA_1_9_2_BRANCH
-endif # MOZILLA_1_9_1_BRANCH
 
 endif # BUILD_STATIC_LIBS
 
@@ -209,6 +208,7 @@ RCFLAGS += -DMOZ_THUNDERBIRD --include-dir $(srcdir)
 endif
 ifdef BUILD_STATIC_LIBS
 RCFLAGS += -DMOZ_STATIC_BUILD
+OS_LIBS += $(call EXPAND_LIBNAME,shlwapi)
 endif
 endif
 
@@ -222,7 +222,7 @@ ifeq ($(OS_ARCH),OS2)
 RESFILE=splashos2.res
 RCFLAGS += -DMOZ_THUNDERBIRD
 ifdef BUILD_STATIC_LIBS
-RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include/widget
+RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include
 endif
 ifdef DEBUG
 RCFLAGS += -DDEBUG
@@ -247,7 +247,7 @@ endif
 APP_UA_NAME = $(shell echo $(MOZ_APP_DISPLAYNAME) | sed -e's/[^A-Za-z]//g')
 DEFINES += -DAPP_VERSION="$(MOZ_APP_VERSION)" -DAPP_UA_NAME="$(APP_UA_NAME)"
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 ifdef BUILD_STATIC_LIBS
 LIBS	+= -lcups
 endif
@@ -317,18 +317,18 @@ install::
 endif
 
 ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
-thunderbird:: $(topsrcdir)/mozilla/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
+$(MOZ_APP_NAME):: $(MOZILLA_DIR)/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
 	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
 		-e "s|%MOZ_APP_DISPLAYNAME%|$(MOZ_APP_DISPLAYNAME)|" > $@
 	chmod +x $@
 
-libs:: thunderbird
+libs:: $(MOZ_APP_NAME)
 	$(INSTALL) $< $(DIST)/bin
 
-install:: thunderbird
+install:: $(MOZ_APP_NAME)
 	$(SYSINSTALL) $< $(DESTDIR)$(bindir)
 
-GARBAGE += thunderbird
+GARBAGE += $(MOZ_APP_NAME)
 GARBAGE += $(addprefix $(DIST)/bin/defaults/pref/, all.js all-thunderbird.js channel-prefs.js mailnews.js)
 endif
 
@@ -339,7 +339,7 @@ endif
 libs:: $(srcdir)/profile/prefs.js
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/defaults/profile
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 
 AB := $(firstword $(subst -, ,$(AB_CD)))
 
@@ -359,10 +359,6 @@ libs:: $(PROGRAM)
 	rsync -a $(DIST)/bin/ $(DIST)/$(APP_NAME).app/Contents/MacOS
 	rm -f $(DIST)/$(APP_NAME).app/Contents/MacOS/$(PROGRAM)
 	rsync -aL $(PROGRAM) $(DIST)/$(APP_NAME).app/Contents/MacOS
-ifdef MOZILLA_1_9_1_BRANCH
-	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
-	rsync -a --copy-unsafe-links $(DIST)/package/PrintPDE.plugin $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
-endif
 	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Library/Spotlight
 	rsync -a --copy-unsafe-links $(DIST)/package/Thunderbird.mdimporter $(DIST)/$(APP_NAME).app/Contents/Library/Spotlight
 	cp -RL $(DIST)/branding/thunderbird.icns $(DIST)/$(APP_NAME).app/Contents/Resources/thunderbird.icns

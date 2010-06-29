@@ -138,6 +138,7 @@ XPCWrappedNativeScope::XPCWrappedNativeScope(XPCCallContext& ccx,
     :   mRuntime(ccx.GetRuntime()),
         mWrappedNativeMap(Native2WrappedNativeMap::newMap(XPC_NATIVE_MAP_SIZE)),
         mWrappedNativeProtoMap(ClassInfo2WrappedNativeProtoMap::newMap(XPC_NATIVE_PROTO_MAP_SIZE)),
+        mMainThreadWrappedNativeProtoMap(ClassInfo2WrappedNativeProtoMap::newMap(XPC_NATIVE_PROTO_MAP_SIZE)),
         mWrapperMap(WrappedNative2WrapperMap::newMap(XPC_WRAPPER_MAP_SIZE)),
         mComponents(nsnull),
         mNext(nsnull),
@@ -145,6 +146,9 @@ XPCWrappedNativeScope::XPCWrappedNativeScope(XPCCallContext& ccx,
         mPrototypeJSObject(nsnull),
         mPrototypeJSFunction(nsnull),
         mPrototypeNoHelper(nsnull)
+#ifndef XPCONNECT_STANDALONE
+        , mScriptObjectPrincipal(nsnull)
+#endif
 {
     // add ourselves to the scopes list
     {   // scoped lock
@@ -194,14 +198,14 @@ XPCWrappedNativeScope::SetComponents(nsXPCComponents* aComponents)
 // scopes. By doing this we avoid allocating a new scope for every
 // wrapper on creation of the wrapper, and most wrappers won't need
 // their own scope at all for the lifetime of the wrapper.
-// JSCLASS_HAS_PRIVATE is key here (even though there's never anything
+// WRAPPER_SLOTS is key here (even though there's never anything
 // in the private data slot in these prototypes), as the number of
 // reserved slots in this class needs to match that of the wrappers
 // for the JS engine to share scopes.
 
 JSClass XPC_WN_NoHelper_Proto_JSClass = {
     "XPC_WN_NoHelper_Proto_JSClass",// name;
-    JSCLASS_HAS_PRIVATE,            // flags;
+    WRAPPER_SLOTS,                  // flags;
 
     /* Mandatory non-null function pointer members. */
     JS_PropertyStub,                // addProperty;
@@ -211,7 +215,7 @@ JSClass XPC_WN_NoHelper_Proto_JSClass = {
     JS_EnumerateStub,               // enumerate;
     JS_ResolveStub,                 // resolve;
     JS_ConvertStub,                 // convert;
-    JS_FinalizeStub,                // finalize;
+    nsnull,                         // finalize;
 
     /* Optionally non-null members start here. */
     XPC_WN_Proto_GetObjectOps,      // getObjectOps;
@@ -245,14 +249,16 @@ XPCWrappedNativeScope::SetGlobal(XPCCallContext& ccx, JSObject* aGlobal)
         nsISupports* priv = (nsISupports*)xpc_GetJSPrivate(aGlobal);
         nsCOMPtr<nsIXPConnectWrappedNative> native =
             do_QueryInterface(priv);
+        nsCOMPtr<nsIScriptObjectPrincipal> sop;
         if(native)
         {
-            mScriptObjectPrincipal = do_QueryWrappedNative(native);
+            sop = do_QueryWrappedNative(native);
         }
-        if(!mScriptObjectPrincipal)
+        if(!sop)
         {
-            mScriptObjectPrincipal = do_QueryInterface(priv);
+            sop = do_QueryInterface(priv);
         }
+        mScriptObjectPrincipal = sop;
     }
 #endif
 
@@ -312,6 +318,12 @@ XPCWrappedNativeScope::~XPCWrappedNativeScope()
     {
         NS_ASSERTION(0 == mWrappedNativeProtoMap->Count(), "scope has non-empty map");
         delete mWrappedNativeProtoMap;
+    }
+
+    if(mMainThreadWrappedNativeProtoMap)
+    {
+        NS_ASSERTION(0 == mMainThreadWrappedNativeProtoMap->Count(), "scope has non-empty map");
+        delete mMainThreadWrappedNativeProtoMap;
     }
 
     if(mWrapperMap)
@@ -400,11 +412,11 @@ WrappedNativeSuspecter(JSDHashTable *table, JSDHashEntryHdr *hdr,
         NS_ASSERTION(NS_IsMainThread(), 
                      "Suspecting wrapped natives from non-main thread");
 
-#ifndef DEBUG_CC
-        // Only record objects that might be part of a cycle as roots.
-        if(!JS_IsAboutToBeFinalized(closure->cx, wrapper->GetFlatJSObject()))
+        // Only record objects that might be part of a cycle as roots, unless
+        // the callback wants all traces (a debug feature).
+        if(!(closure->cb.WantAllTraces()) && 
+           !JS_IsAboutToBeFinalized(closure->cx, wrapper->GetFlatJSObject()))
             return JS_DHASH_NEXT;
-#endif
 
         closure->cb.NoteRoot(nsIProgrammingLanguage::JAVASCRIPT,
                              wrapper->GetFlatJSObject(),
@@ -452,7 +464,9 @@ XPCWrappedNativeScope::FinishedMarkPhaseOfGC(JSContext* cx, XPCJSRuntime* rt)
            JS_IsAboutToBeFinalized(cx, cur->mGlobalJSObject))
         {
             cur->mGlobalJSObject = nsnull;
-
+#ifndef XPCONNECT_STANDALONE
+            cur->mScriptObjectPrincipal = nsnull;
+#endif
             // Move this scope from the live list to the dying list.
             if(prev)
                 prev->mNext = next;
@@ -525,6 +539,7 @@ XPCWrappedNativeScope::MarkAllWrappedNativesAndProtos()
     {
         cur->mWrappedNativeMap->Enumerate(WrappedNativeMarker, nsnull);
         cur->mWrappedNativeProtoMap->Enumerate(WrappedNativeProtoMarker, nsnull);
+        cur->mMainThreadWrappedNativeProtoMap->Enumerate(WrappedNativeProtoMarker, nsnull);
     }
 
     DEBUG_TrackScopeTraversal();
@@ -556,6 +571,8 @@ XPCWrappedNativeScope::ASSERT_NoInterfaceSetsAreMarked()
         cur->mWrappedNativeMap->Enumerate(
             ASSERT_WrappedNativeSetNotMarked, nsnull);
         cur->mWrappedNativeProtoMap->Enumerate(
+            ASSERT_WrappedNativeProtoSetNotMarked, nsnull);
+        cur->mMainThreadWrappedNativeProtoMap->Enumerate(
             ASSERT_WrappedNativeProtoSetNotMarked, nsnull);
     }
 }
@@ -671,6 +688,8 @@ XPCWrappedNativeScope::SystemIsBeingShutDown(JSContext* cx)
         // proto pointers in the proto map.
         cur->mWrappedNativeProtoMap->
                 Enumerate(WrappedNativeProtoShutdownEnumerator,  &data);
+        cur->mMainThreadWrappedNativeProtoMap->
+                Enumerate(WrappedNativeProtoShutdownEnumerator,  &data);
         cur->mWrappedNativeMap->
                 Enumerate(WrappedNativeShutdownEnumerator,  &data);
     }
@@ -701,6 +720,9 @@ GetScopeOfObject(JSObject* obj)
 {
     nsISupports* supports;
     JSClass* clazz = STOBJ_GET_CLASS(obj);
+
+    if(IS_SLIM_WRAPPER_CLASS(clazz))
+        return GetSlimWrapperProto(obj)->GetScope();
 
     if(!IS_WRAPPER_CLASS(clazz) ||
        !(supports = (nsISupports*) xpc_GetJSPrivate(obj)))
@@ -860,6 +882,7 @@ XPCWrappedNativeScope::ClearAllWrappedNativeSecurityPolicies(XPCCallContext& ccx
     for(XPCWrappedNativeScope* cur = gScopes; cur; cur = cur->mNext)
     {
         cur->mWrappedNativeProtoMap->Enumerate(WNProtoSecPolicyClearer, nsnull);
+        cur->mMainThreadWrappedNativeProtoMap->Enumerate(WNProtoSecPolicyClearer, nsnull);
         cur->mWrappedNativeMap->Enumerate(WNSecPolicyClearer, nsnull);
     }
 
@@ -888,6 +911,8 @@ XPCWrappedNativeScope::RemoveWrappedNativeProtos()
     XPCAutoLock al(mRuntime->GetMapLock());
     
     mWrappedNativeProtoMap->Enumerate(WNProtoRemover, 
+        GetRuntime()->GetDetachedWrappedNativeProtoMap());
+    mMainThreadWrappedNativeProtoMap->Enumerate(WNProtoRemover, 
         GetRuntime()->GetDetachedWrappedNativeProtoMap());
 }
 
@@ -969,23 +994,17 @@ XPCWrappedNativeScope::DebugDump(PRInt16 depth)
             mWrappedNativeProtoMap->Enumerate(WrappedNativeProtoMapDumpEnumerator, &depth);
             XPC_LOG_OUTDENT();
         }
+
+        XPC_LOG_ALWAYS(("mMainThreadWrappedNativeProtoMap @ %x with %d protos(s)", \
+                         mMainThreadWrappedNativeProtoMap, \
+                         mMainThreadWrappedNativeProtoMap ? mMainThreadWrappedNativeProtoMap->Count() : 0));
+        // iterate contexts...
+        if(depth && mMainThreadWrappedNativeProtoMap && mMainThreadWrappedNativeProtoMap->Count())
+        {
+            XPC_LOG_INDENT();
+            mMainThreadWrappedNativeProtoMap->Enumerate(WrappedNativeProtoMapDumpEnumerator, &depth);
+            XPC_LOG_OUTDENT();
+        }
     XPC_LOG_OUTDENT();
 #endif
 }
-
-#ifndef XPCONNECT_STANDALONE
-// static
-void
-XPCWrappedNativeScope::TraverseScopes(XPCCallContext& ccx)
-{
-    // Hold the lock throughout.
-    XPCAutoLock lock(ccx.GetRuntime()->GetMapLock());
-
-    for(XPCWrappedNativeScope* cur = gScopes; cur; cur = cur->mNext)
-        if(cur->mGlobalJSObject && cur->mScriptObjectPrincipal)
-        {
-            ccx.GetXPConnect()->RecordTraversal(cur->mGlobalJSObject,
-                                                cur->mScriptObjectPrincipal);
-        }
-}
-#endif

@@ -41,12 +41,8 @@
 # ***** END LICENSE BLOCK *****
 
 //******** define a js object to implement nsITreeView
-function pageInfoTreeView(columnids, copycol)
+function pageInfoTreeView(copycol)
 {
-  // columnids is an array of strings indicating the names of the columns, in order
-  this.columnids = columnids;
-  this.colcount = columnids.length;
-
   // copycol is the index number for the column that we want to add to
   // the copy-n-paste buffer when the user hits accel-c
   this.copycol = copycol;
@@ -71,8 +67,7 @@ pageInfoTreeView.prototype = {
   {
     // row can be null, but js arrays are 0-indexed.
     // colidx cannot be null, but can be larger than the number
-    // of columns in the array (when column is a string not in
-    // this.columnids.) In this case it's the fault of
+    // of columns in the array. In this case it's the fault of
     // whoever typoed while calling this function.
     return this.data[row][column.index] || "";
   },
@@ -90,6 +85,8 @@ pageInfoTreeView.prototype = {
   {
     this.rows = this.data.push(row);
     this.rowCountChanged(this.rows - 1, 1);
+    if (this.selection.count == 0 && this.rowCount && !gImageElement)
+      this.selection.select(0);
   },
 
   rowCountChanged: function(index, count)
@@ -151,6 +148,7 @@ pageInfoTreeView.prototype = {
 // mmm, yummy. global variables.
 var gWindow = null;
 var gDocument = null;
+var gImageElement = null;
 
 // column number to help using the data array
 const COL_IMAGE_ADDRESS = 0;
@@ -167,10 +165,8 @@ const COPYCOL_META_CONTENT = 1;
 const COPYCOL_IMAGE = COL_IMAGE_ADDRESS;
 
 // one nsITreeView for each tree in the window
-var gMetaView = new pageInfoTreeView(["meta-name","meta-content"], COPYCOL_META_CONTENT);
-var gImageView = new pageInfoTreeView(["image-address","image-type","image-size",
-                                       "image-alt","image-count","image-node","image-bg"],
-                                      COPYCOL_IMAGE);
+var gMetaView = new pageInfoTreeView(COPYCOL_META_CONTENT);
+var gImageView = new pageInfoTreeView(COPYCOL_IMAGE);
 
 gImageView.getCellProperties = function(row, col, props) {
   var aserv = Components.classes[ATOM_CONTRACTID]
@@ -283,16 +279,12 @@ function onLoadPageInfo()
   gStrings.mediaLink = gBundle.getString("mediaLink");
   gStrings.mediaInput = gBundle.getString("mediaInput");
 
-  if ("arguments" in window && window.arguments.length >= 1 &&
-       window.arguments[0] && window.arguments[0].doc) {
-    gDocument = window.arguments[0].doc;
-    gWindow = gDocument.defaultView;
-  }
-  else {
-    if ("gBrowser" in window.opener)
-      gWindow = window.opener.gBrowser.contentWindow;
-    else
-      gWindow = window.opener.frames[0];
+  var args = "arguments" in window &&
+             window.arguments.length >= 1 &&
+             window.arguments[0];
+
+  if (!args || !args.doc) {
+    gWindow = window.opener.content;
     gDocument = gWindow.document;
   }
 
@@ -300,19 +292,8 @@ function onLoadPageInfo()
   var imageTree = document.getElementById("imagetree");
   imageTree.view = gImageView;
 
-  // build the content
-  loadPageInfo();
-
   /* Select the requested tab, if the name is specified */
-  var initialTab = "generalTab";
-  if ("arguments" in window && window.arguments.length >= 1 &&
-       window.arguments[0] && window.arguments[0].initialTab)
-    initialTab = window.arguments[0].initialTab;
-  var radioGroup = document.getElementById("viewGroup");
-  initialTab = document.getElementById(initialTab) || document.getElementById("generalTab");
-  radioGroup.selectedItem = initialTab;
-  radioGroup.selectedItem.doCommand();
-  radioGroup.focus();
+  loadTab(args);
   Components.classes["@mozilla.org/observer-service;1"]
             .getService(Components.interfaces.nsIObserverService)
             .notifyObservers(window, "page-info-dialog-loaded", null);
@@ -339,7 +320,7 @@ function loadPageInfo()
   onLoadRegistry.forEach(function(func) { func(); });
 }
 
-function resetPageInfo()
+function resetPageInfo(args)
 {
   /* Reset Meta tags part */
   gMetaView.clear();
@@ -363,8 +344,8 @@ function resetPageInfo()
   /* Call registered overlay reset functions */
   onResetRegistry.forEach(function(func) { func(); });
 
-  /* And let's rebuild the data */
-  loadPageInfo();
+  /* Rebuild the data */
+  loadTab(args);
 }
 
 function onUnloadPageInfo()
@@ -400,6 +381,26 @@ function showTab(id)
   var deck  = document.getElementById("mainDeck");
   var pagel = document.getElementById(id + "Panel");
   deck.selectedPanel = pagel;
+}
+
+function loadTab(args)
+{
+  if (args && args.doc) {
+    gDocument = args.doc;
+    gWindow = gDocument.defaultView;
+  }
+
+  gImageElement = args && args.imageElement;
+
+  /* Load the page info */
+  loadPageInfo();
+
+  var initialTab = (args && args.initialTab) || "generalTab";
+  var radioGroup = document.getElementById("viewGroup");
+  initialTab = document.getElementById(initialTab) || document.getElementById("generalTab");
+  radioGroup.selectedItem = initialTab;
+  radioGroup.selectedItem.doCommand();
+  radioGroup.focus();
 }
 
 function onClickMore()
@@ -530,6 +531,7 @@ function processFrames()
     var iterator = doc.createTreeWalker(doc, NodeFilter.SHOW_ELEMENT, grabAll, true);
     gFrameList.shift();
     setTimeout(doGrab, 16, iterator);
+    onFinished.push(selectImage);
   }
   else
     onFinished.forEach(function(func) { func(); });
@@ -544,14 +546,6 @@ function doGrab(iterator)
     }
 
   setTimeout(doGrab, 16, iterator);
-}
-
-function ensureSelection(view)
-{
-  // only select something if nothing is currently selected
-  // and if there's anything to select
-  if (view.selection.count == 0 && view.rowCount)
-    view.selection.select(0);
 }
 
 function addImage(url, type, alt, elem, isBg)
@@ -598,16 +592,21 @@ function addImage(url, type, alt, elem, isBg)
   else {
     var i = gImageHash[url][type][alt];
     gImageView.data[i][COL_IMAGE_COUNT]++;
+    if (elem == gImageElement)
+      gImageView.data[i][COL_IMAGE_NODE] = elem;
   }
 }
 
 function grabAll(elem)
 {
-  // check for background images, any node may have one
-  var ComputedStyle = elem.ownerDocument.defaultView.getComputedStyle(elem, "");
-  var url = ComputedStyle && ComputedStyle.getPropertyCSSValue("background-image");
-  if (url && url.primitiveType == CSSPrimitiveValue.CSS_URI)
-    addImage(url.getStringValue(), gStrings.mediaBGImg, gStrings.notSet, elem, true);
+  // check for background images, any node may have multiple
+  var computedStyle = elem.ownerDocument.defaultView.getComputedStyle(elem, "");
+  if (computedStyle) {
+    Array.forEach(computedStyle.getPropertyCSSValue("background-image"), function (url) {
+      if (url.primitiveType == CSSPrimitiveValue.CSS_URI)
+        addImage(url.getStringValue(), gStrings.mediaBGImg, gStrings.notSet, elem, true);
+    });
+  }
 
   // one swi^H^H^Hif-else to rule them all
   if (elem instanceof HTMLImageElement)
@@ -1165,4 +1164,20 @@ function doSelectAll()
 
   if (elem && "treeBoxObject" in elem)
     elem.view.selection.selectAll();
+}
+
+function selectImage() {
+  if (!gImageElement)
+    return;
+
+  var tree = document.getElementById("imagetree");
+  for (var i = 0; i < tree.view.rowCount; i++) {
+    if (gImageElement == gImageView.data[i][COL_IMAGE_NODE] &&
+        !gImageView.data[i][COL_IMAGE_BG]) {
+      tree.view.selection.select(i);
+      tree.treeBoxObject.ensureRowIsVisible(i);
+      tree.focus();
+      return;
+    }
+  }
 }

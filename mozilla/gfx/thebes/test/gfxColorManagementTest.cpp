@@ -6,6 +6,8 @@
 
 #include "qcms.h"
 
+using std::isspace;
+
 /* Nabbed from the http://www.jonh.net/~jonh/md5/crc32/crc32.c. License is
  * "do anything, no restrictions." */
 unsigned long crc32(const unsigned char *s, unsigned int len);
@@ -308,7 +310,7 @@ RunTest(struct TestContext *ctx, struct TestParams *params,
 
     /* Precache. */
     cmsPrecacheProfile(inProfile, CMS_PRECACHE_LI16W_FORWARD);
-    cmsPrecacheProfile(inProfile, CMS_PRECACHE_LI16F_FORWARD);
+    cmsPrecacheProfile(inProfile, CMS_PRECACHE_LI8F_FORWARD);
     cmsPrecacheProfile(outProfile, CMS_PRECACHE_LI1616_REVERSE);
     cmsPrecacheProfile(outProfile, CMS_PRECACHE_LI168_REVERSE);
 

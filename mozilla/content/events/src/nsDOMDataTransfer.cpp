@@ -38,7 +38,6 @@
 #include "nsDOMDataTransfer.h"
 
 #include "prlog.h"
-#include "nsAutoPtr.h"
 #include "nsString.h"
 #include "nsIServiceManager.h"
 #include "nsIVariant.h"
@@ -60,9 +59,8 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsDOMDataTransfer)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMDataTransfer)
   NS_INTERFACE_MAP_ENTRY(nsIDOMDataTransfer)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSDataTransfer)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMNSDataTransfer_MOZILLA_1_9_1)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMDataTransfer)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(DataTransfer)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(DataTransfer)
 NS_INTERFACE_MAP_END
 
 // the size of the array
@@ -74,12 +72,12 @@ nsDOMDataTransfer::nsDOMDataTransfer()
   : mEventType(NS_DRAGDROP_START),
     mDropEffect(nsIDragService::DRAGDROP_ACTION_NONE),
     mEffectAllowed(nsIDragService::DRAGDROP_ACTION_UNINITIALIZED),
+    mCursorState(PR_FALSE),
     mReadOnly(PR_FALSE),
     mIsExternal(PR_FALSE),
     mUserCancelled(PR_FALSE),
     mDragImageX(0),
-    mDragImageY(0),
-    mCursorState(PR_FALSE)
+    mDragImageY(0)
 {
 }
 
@@ -222,9 +220,75 @@ nsDOMDataTransfer::GetMozUserCancelled(PRBool* aUserCancelled)
 }
 
 NS_IMETHODIMP
+nsDOMDataTransfer::GetFiles(nsIDOMFileList** aFileList)
+{
+  *aFileList = nsnull;
+
+  if (mEventType != NS_DRAGDROP_DROP && mEventType != NS_DRAGDROP_DRAGDROP)
+    return NS_OK;
+
+  if (!mFiles) {
+    mFiles = new nsDOMFileList();
+    NS_ENSURE_TRUE(mFiles, NS_ERROR_OUT_OF_MEMORY);
+
+    PRUint32 count = mItems.Length();
+
+    for (PRUint32 i = 0; i < count; i++) {
+      nsCOMPtr<nsIVariant> variant;
+      nsresult rv = MozGetDataAt(NS_ConvertUTF8toUTF16(kFileMime), i, getter_AddRefs(variant));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (!variant)
+        continue;
+
+      nsCOMPtr<nsISupports> supports;
+      rv = variant->GetAsISupports(getter_AddRefs(supports));
+
+      if (NS_FAILED(rv))
+        continue;
+
+      nsCOMPtr<nsIFile> file = do_QueryInterface(supports);
+
+      if (!file)
+        continue;
+
+      nsRefPtr<nsDOMFile> domFile = new nsDOMFile(file);
+      NS_ENSURE_TRUE(domFile, NS_ERROR_OUT_OF_MEMORY);
+
+      if (!mFiles->Append(domFile))
+        return NS_ERROR_FAILURE;
+    }
+  }
+
+  *aFileList = mFiles;
+  NS_ADDREF(*aFileList);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMDataTransfer::GetTypes(nsIDOMDOMStringList** aTypes)
 {
-  return MozTypesAt(0, aTypes);
+  *aTypes = nsnull;
+
+  nsRefPtr<nsDOMStringList> types = new nsDOMStringList();
+  NS_ENSURE_TRUE(types, NS_ERROR_OUT_OF_MEMORY);
+
+  if (mItems.Length()) {
+    nsTArray<TransferItem>& item = mItems[0];
+    for (PRUint32 i = 0; i < item.Length(); i++)
+      types->Add(item[i].mFormat);
+
+    PRBool filePresent, filePromisePresent;
+    types->Contains(NS_LITERAL_STRING(kFileMime), &filePresent);
+    types->Contains(NS_LITERAL_STRING("application/x-moz-file-promise"), &filePromisePresent);
+    if (filePresent || filePromisePresent)
+      types->Add(NS_LITERAL_STRING("Files"));
+  }
+
+  *aTypes = types;
+  NS_ADDREF(*aTypes);
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -409,7 +473,7 @@ nsDOMDataTransfer::MozSetDataAt(const nsAString& aFormat,
   // XXX perhaps this should also limit any non-string type as well
   if ((aFormat.EqualsLiteral("application/x-moz-file-promise") ||
        aFormat.EqualsLiteral("application/x-moz-file")) &&
-       !nsContentUtils::IsCallerChrome()) {
+       !nsContentUtils::IsCallerTrustedForCapability("UniversalXPConnect")) {
     return NS_ERROR_DOM_SECURITY_ERR;
   }
 

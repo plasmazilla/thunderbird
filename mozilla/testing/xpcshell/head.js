@@ -50,13 +50,37 @@ var _tests_pending = 0;
 var _passedChecks = 0, _falsePassedChecks = 0;
 var _cleanupFunctions = [];
 
+// Disable automatic network detection, so tests work correctly when
+// not connected to a network.
+let (ios = Components.classes["@mozilla.org/network/io-service;1"]
+           .getService(Components.interfaces.nsIIOService2)) {
+  ios.manageOfflineStatus = false;
+  ios.offline = false;
+}
 
-function _TimerCallback(expr) {
-  this._expr = expr;
+// Enable crash reporting, if possible
+// We rely on the Python harness to set MOZ_CRASHREPORTER_NO_REPORT
+// and handle checking for minidumps.
+if ("@mozilla.org/toolkit/crash-reporter;1" in Components.classes) {
+  // Remember to update </toolkit/crashreporter/test/unit/test_crashreporter.js>
+  // too if you change this initial setting.
+  let (crashReporter =
+        Components.classes["@mozilla.org/toolkit/crash-reporter;1"]
+        .getService(Components.interfaces.nsICrashReporter)) {
+    crashReporter.enabled = true;
+    crashReporter.minidumpPath = do_get_cwd();
+  }
+}
+
+var _pendingTimerCallbacks = [];
+function _TimerCallback(expr, timer) {
+  this._func = typeof expr === "function"
+             ? expr
+             : function() { eval(expr); };
+  // Keep timer alive until it fires
+  _pendingTimerCallbacks.push(timer);
 }
 _TimerCallback.prototype = {
-  _expr: "",
-
   QueryInterface: function(iid) {
     if (iid.Equals(Components.interfaces.nsITimerCallback) ||
         iid.Equals(Components.interfaces.nsISupports))
@@ -66,7 +90,8 @@ _TimerCallback.prototype = {
   },
 
   notify: function(timer) {
-    eval(this._expr);
+    _pendingTimerCallbacks.splice(_pendingTimerCallbacks.indexOf(timer), 1);
+    this._func.call(null);
   }
 };
 
@@ -151,7 +176,18 @@ function _load_files(aFiles) {
 function do_timeout(delay, expr) {
   var timer = Components.classes["@mozilla.org/timer;1"]
                         .createInstance(Components.interfaces.nsITimer);
-  timer.initWithCallback(new _TimerCallback(expr), delay, timer.TYPE_ONE_SHOT);
+  timer.initWithCallback(new _TimerCallback(expr, timer), delay, timer.TYPE_ONE_SHOT);
+}
+
+function do_execute_soon(callback) {
+  var tm = Components.classes["@mozilla.org/thread-manager;1"]
+                     .getService(Components.interfaces.nsIThreadManager);
+
+  tm.mainThread.dispatch({
+    run: function() {
+      callback();
+    }
+  }, Components.interfaces.nsIThread.DISPATCH_NORMAL);
 }
 
 function do_throw(text, stack) {

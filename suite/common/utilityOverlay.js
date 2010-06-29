@@ -41,6 +41,9 @@
  * for shared application glue for the Communicator suite of applications
  **/
 
+// Services = object with smart getters for common XPCOM services
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 /*
   Note: All Editor/Composer-related methods have been moved to editorApplicationOverlay.js,
   so app windows that require those must include editorNavigatorOverlay.xul
@@ -50,13 +53,15 @@
  * Go into online/offline mode
  **/
 
-const kIOServiceProgID = "@mozilla.org/network/io-service;1";
-const kObserverServiceProgID = "@mozilla.org/observer-service;1";
 const kProxyManual = ["network.proxy.ftp",
                       "network.proxy.gopher",
                       "network.proxy.http",
                       "network.proxy.socks",
                       "network.proxy.ssl"];
+const kExistingWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_CURRENTWINDOW;
+const kNewWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWWINDOW;
+const kNewTab = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWTAB;
+const nsIPrefLocalizedString = Components.interfaces.nsIPrefLocalizedString;
 var gShowBiDi = false;
 var gUtilityBundle = null;
 
@@ -70,25 +75,20 @@ function toggleOfflineStatus()
     checkfunc = null;
   }
 
-  var ioService = Components.classes[kIOServiceProgID]
-                            .getService(Components.interfaces.nsIIOService2);
   if (checkfunc) {
     if (!eval(checkfunc)) {
       // the pre-offline check function returned false, so don't go offline
       return;
     }
   }
-  ioService.manageOfflineStatus = false;
-  ioService.offline = !ioService.offline;
+  Services.io.manageOfflineStatus = false;
+  Services.io.offline = !Services.io.offline;
 }
 
 function setNetworkStatus(networkProxyType)
 {
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
   try {
-    prefBranch.setIntPref("network.proxy.type", networkProxyType);
+    Services.prefs.setIntPref("network.proxy.type", networkProxyType);
   }
   catch (ex) {}
 }
@@ -100,11 +100,8 @@ function InitProxyMenu()
   var networkProxyPac = document.getElementById("network-proxy-pac");
   var networkProxyWpad = document.getElementById("network-proxy-wpad");
   var networkProxySystem = document.getElementById("network-proxy-system");
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
 
-  var proxyLocked = prefBranch.prefIsLocked("network.proxy.type");
+  var proxyLocked = Services.prefs.prefIsLocked("network.proxy.type");
   if (proxyLocked) {
     networkProxyNo.setAttribute("disabled", "true");
     networkProxyWpad.setAttribute("disabled", "true");
@@ -147,7 +144,7 @@ function InitProxyMenu()
 
   var networkProxyType;
   try {
-    networkProxyType = prefBranch.getIntPref("network.proxy.type");
+    networkProxyType = Services.prefs.getIntPref("network.proxy.type");
   } catch(e) {}
 
   // The pref value 3 for network.proxy.type is unused to maintain
@@ -164,12 +161,8 @@ function setProxyTypeUI()
   if (!panel)
     return;
 
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
-
   try {
-    var networkProxyType = prefBranch.getIntPref("network.proxy.type");
+    var networkProxyType = Services.prefs.getIntPref("network.proxy.type");
   } catch(e) {}
 
   var onlineTooltip = "onlineTooltip" + networkProxyType;
@@ -179,7 +172,8 @@ function setProxyTypeUI()
 function GetStringPref(name)
 {
   try {
-    return pref.getComplexValue(name, Components.interfaces.nsISupportsString).data;
+    return Services.prefs.getComplexValue(name,
+               Components.interfaces.nsISupportsString).data;
   } catch (e) {}
   return "";
 }
@@ -192,11 +186,7 @@ function setOfflineUI(offline)
 
   // Checking for a preference "network.online", if it's locked, disabling
   // network icon and menu item
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
-
-  var offlineLocked = prefBranch.prefIsLocked("network.online");
+  var offlineLocked = Services.prefs.prefIsLocked("network.online");
 
   if (offlineLocked ) {
       broadcaster.setAttribute("disabled","true");
@@ -215,7 +205,7 @@ function setOfflineUI(offline)
       broadcaster.removeAttribute("checked");
       panel.setAttribute("context", "networkProperties");
       try {
-        var networkProxyType = prefBranch.getIntPref("network.proxy.type");
+        var networkProxyType = Services.prefs.getIntPref("network.proxy.type");
       } catch(e) {}
       var onlineTooltip = "onlineTooltip" + networkProxyType;
       panel.setAttribute("tooltiptext", gUtilityBundle.getString(onlineTooltip));
@@ -225,9 +215,7 @@ function setOfflineUI(offline)
 function getBrowserURL() {
 
   try {
-    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-    var url = prefs.getCharPref("browser.chromeURL");
+    var url = Services.prefs.getCharPref("browser.chromeURL");
     if (url)
       return url;
   } catch(e) {
@@ -238,11 +226,7 @@ function getBrowserURL() {
 function goPreferences(paneID)
 {
   //check for an existing pref window and focus it; it's not application modal
-  const kWindowMediatorContractID = "@mozilla.org/appshell/window-mediator;1";
-  const kWindowMediatorIID = Components.interfaces.nsIWindowMediator;
-  const kWindowMediator = Components.classes[kWindowMediatorContractID]
-                                    .getService(kWindowMediatorIID);
-  var lastPrefWindow = kWindowMediator.getMostRecentWindow("mozilla:preferences");
+  var lastPrefWindow = Services.wm.getMostRecentWindow("mozilla:preferences");
   if (lastPrefWindow)
     lastPrefWindow.focus();
   else
@@ -307,13 +291,8 @@ function goCustomizeToolbar(toolbox)
     else
       sheetFrame.setAttribute("src", customizeURL);
 
-    // XXXmano: there's apparently no better way to get this when the iframe
-    // is hidden
-    var sheetWidth = sheetFrame.style.width.match(/([0-9]+)px/)[1];
     document.getElementById("customizeToolbarSheetPopup")
-            .openPopup(toolbox,
-                       "after_start",
-                       (window.innerWidth - sheetWidth) / 2, 0);
+            .openPopup(toolbox, "after_start", 0, 0);
 
     return sheetFrame.contentWindow;
   }
@@ -484,8 +463,7 @@ function toolboxCustomizeInit(menubarID)
 function toolboxCustomizeDone(menubarID, toolbox, aToolboxChanged)
 {
   if (gCustomizeSheet) {
-    var sheetFrame = document.getElementById("customizeToolbarSheetIFrame");
-    sheetFrame.hidden = true;
+    document.getElementById("customizeToolbarSheetIFrame").hidden = true;
     document.getElementById("customizeToolbarSheetPopup").hidePopup();
     if (content)
       content.focus();
@@ -535,9 +513,7 @@ function goClickThrobber( urlPref )
 {
   var url;
   try {
-    var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-    url = pref.getComplexValue(urlPref, Components.interfaces.nsIPrefLocalizedString).data;
+    url = Services.prefs.getComplexValue(urlPref, nsIPrefLocalizedString).data;
   }
 
   catch(e) {
@@ -550,14 +526,7 @@ function goClickThrobber( urlPref )
 
 function getTopWin()
 {
-    var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].getService();
-    var windowManagerInterface = windowManager.QueryInterface( Components.interfaces.nsIWindowMediator);
-    var topWindowOfType = windowManagerInterface.getMostRecentWindow( "navigator:browser" );
-
-    if (topWindowOfType) {
-        return topWindowOfType;
-    }
-    return null;
+  return Services.wm.getMostRecentWindow("navigator:browser");
 }
 
 function isRestricted( url )
@@ -611,14 +580,9 @@ function openTopWin( url, opener )
 
 function goAbout(aProtocol)
 {
-  const kExistingWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_CURRENTWINDOW;
-  const kNewWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWWINDOW;
-
   var target;
   var url = "about:" + (aProtocol || "");
-  var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                       .getService(Components.interfaces.nsIPrefBranch);
-  var defaultAboutState = pref.getIntPref("browser.link.open_external");
+  var defaultAboutState = Services.prefs.getIntPref("browser.link.open_external");
 
   switch (defaultAboutState) {
   case kNewWindow:
@@ -670,9 +634,9 @@ function updateCheckUpdatesItem()
   // Disable the UI if the update enabled pref has been locked by the
   // administrator or if we cannot update for some other reason.
   var checkForUpdates = document.getElementById("checkForUpdates");
-  var canUpdate = updates.canUpdate;
-  checkForUpdates.setAttribute("disabled", !canUpdate);
-  if (!canUpdate)
+  var canCheckForUpdates = updates.canCheckForUpdates;
+  checkForUpdates.setAttribute("disabled", !canCheckForUpdates);
+  if (!canCheckForUpdates)
     return;
 
   // By default, show "Check for Updates..."
@@ -810,9 +774,7 @@ var offlineObserver = {
 var proxyTypeObserver = {
   observe: function(subject, topic, state) {
     // sanity checks
-    var ioService = Components.classes[kIOServiceProgID]
-                              .getService(Components.interfaces.nsIIOService);
-    if (state == "network.proxy.type" && !ioService.offline)
+    if (state == "network.proxy.type" && !Services.io.offline)
       setProxyTypeUI();
   }
 }
@@ -824,23 +786,14 @@ function utilityOnLoad(aEvent)
   var broadcaster = document.getElementById("Communicator:WorkMode");
   if (!broadcaster) return;
 
-  var observerService = Components.classes[kObserverServiceProgID]
-                                  .getService(Components.interfaces.nsIObserverService);
-  observerService.addObserver(offlineObserver, "network:offline-status-changed", false);
+  Services.obs.addObserver(offlineObserver, "network:offline-status-changed", false);
   // make sure we remove this observer later
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
-  prefBranch = prefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
-
-  prefBranch.addObserver("network.proxy.type", proxyTypeObserver, false);
+  Services.prefs.addObserver("network.proxy.type", proxyTypeObserver, false);
 
   addEventListener("unload", utilityOnUnload, false);
 
   // set the initial state
-  var ioService = Components.classes[kIOServiceProgID]
-                            .getService(Components.interfaces.nsIIOService);
-  setOfflineUI(ioService.offline);
+  setOfflineUI(Services.io.offline);
 
   // Check for system proxy settings class and show menuitem if present
   if ("@mozilla.org/system-proxy-settings;1" in Components.classes &&
@@ -850,19 +803,15 @@ function utilityOnLoad(aEvent)
 
 function utilityOnUnload(aEvent)
 {
-  var observerService = Components.classes[kObserverServiceProgID]
-                                  .getService(Components.interfaces.nsIObserverService);
-  observerService.removeObserver(offlineObserver, "network:offline-status-changed");
-  var prefService = Components.classes["@mozilla.org/preferences-service;1"];
-  prefService = prefService.getService(Components.interfaces.nsIPrefService);
-  var prefBranch = prefService.getBranch(null);
-  prefBranch = prefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
-
-  prefBranch.removeObserver("network.proxy.type", proxyTypeObserver);
+  Services.obs.removeObserver(offlineObserver, "network:offline-status-changed");
+  Services.prefs.removeObserver("network.proxy.type", proxyTypeObserver);
 }
 
 addEventListener("load", utilityOnLoad, false);
 
+/**
+ * @deprecated   Please use validateFileName from contentAreaUtils.js directly.
+ */
 function GenerateValidFilename(filename, extension)
 {
   if (filename) // we have a title; let's see if it's usable
@@ -876,20 +825,31 @@ function GenerateValidFilename(filename, extension)
   return null;
 }
 
-function validateFileName(aFileName)
+/**
+ * example use:
+ *   suggestUniqueFileName("testname", ".txt", ["testname.txt", "testname(2).txt"])
+ *   returns "testname(3).txt"
+ * does not check file system for existing files
+ *
+ * @param aBaseName base name for generating unique filenames.
+ *
+ * @param aExtension extension name to use for the generated filename.
+ *
+ * @param aExistingNames array of names in use.
+ *
+ * @return suggested filename as a string.
+ */
+function suggestUniqueFileName(aBaseName, aExtension, aExistingNames)
 {
-  var re = /[\/]+/g;
-  if (navigator.appVersion.indexOf("Windows") != -1) {
-    re = /[\\\/\|]+/g;
-    aFileName = aFileName.replace(/[\"]+/g, "'");
-    aFileName = aFileName.replace(/[\*\:\?]+/g, " ");
-    aFileName = aFileName.replace(/[\<]+/g, "(");
-    aFileName = aFileName.replace(/[\>]+/g, ")");
+  var suffix = 1;
+  aBaseName = validateFileName(aBaseName);
+  var suggestion = aBaseName + aExtension;
+  while (aExistingNames.indexOf(suggestion) != -1)
+  {
+    suffix++;
+    suggestion = aBaseName + "(" + suffix + ")" + aExtension;
   }
-  else if (navigator.appVersion.indexOf("Macintosh") != -1)
-    re = /[\:\/]+/g;
-
-  return aFileName.replace(re, "_");
+  return suggestion;
 }
 
 function focusElement(aElement)
@@ -904,6 +864,79 @@ function isElementVisible(aElement)
   // height, width or both will be 0.
   var bo = aElement.boxObject;
   return (bo.height > 0 && bo.width > 0);
+}
+
+function openAsExternal(aURL)
+{
+  var loadType = Services.prefs.getIntPref("browser.link.open_external");
+  var loadInBackground = Services.prefs.getBoolPref("browser.tabs.loadDivertedInBackground");
+  openNewTabWindowOrExistingWith(loadType, aURL, null, loadInBackground);
+}
+
+function openNewWindowWith(aURL, aDoc)
+{
+  openNewTabWindowOrExistingWith(kNewWindow, aURL, aDoc, false);
+}
+
+function openNewTabWith(aURL, aDoc, aReverseBackgroundPref)
+{
+  var loadInBackground = false;
+  if (pref) {
+    loadInBackground = Services.prefs.getBoolPref("browser.tabs.loadInBackground");
+    if (aReverseBackgroundPref)
+      loadInBackground = !loadInBackground;
+  }
+  openNewTabWindowOrExistingWith(kNewTab, aURL, aDoc, loadInBackground);
+}
+
+function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground)
+{
+  // Make sure we are allowed to open this url
+  if (aDoc)
+    urlSecurityCheck(aURL, aDoc.nodePrincipal,
+                     Components.interfaces.nsIScriptSecurityManager.STANDARD);
+
+  // get referrer, if as external should be null
+  var referrer = aDoc ? aDoc.documentURIObject : null;
+
+  var browserWin;
+  // if we're not opening a new window, try and find existing window
+  if (aType != kNewWindow)
+    browserWin = getTopWin();
+
+  // Where appropriate we want to pass the charset of the
+  // current document over to a new tab / window.
+  var originCharset = null;
+  if (aType != kExistingWindow) {
+    var wintype = document.documentElement.getAttribute('windowtype');
+    if (wintype == "navigator:browser")
+      originCharset = window.content.document.characterSet;
+  }
+
+  // We want to open in a new window or no existing window can be found.
+  if (!browserWin) {
+    var charsetArg = null;
+    if (originCharset)
+      charsetArg = "charset=" + originCharset;
+    window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no",
+                      aURL, charsetArg, referrer);
+    return;
+  }
+
+  // Get the existing browser object
+  var browser = browserWin.getBrowser();
+
+  // Open link in an existing window.
+  if (aType == kExistingWindow) {
+    browser.loadURI(aURL);
+    browserWin.content.focus();
+    return;
+  }
+
+  // open link in new tab
+  browser.addTab(aURL, referrer, originCharset, !aLoadInBackground);
+  if (!aLoadInBackground)
+    browserWin.content.focus();
 }
 
 /**
@@ -925,14 +958,9 @@ function BrowserOnCommand(event)
       /^about:certerror\?/.test(ownerDoc.documentURI)) {
     if (ot.id == 'exceptionDialogButton') {
       var params = { exceptionAdded : false };
-      
-      try {
-        const prefBranch =
-          Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefService)
-                    .getBranch(null);
 
-        switch (prefBranch.getIntPref("browser.ssl_override_behavior")) {
+      try {
+        switch (Services.prefs.getIntPref("browser.ssl_override_behavior")) {
           case 2 : // Pre-fetch & pre-populate.
             params.prefetchCert = true;
             // Fall through.
@@ -954,8 +982,8 @@ function BrowserOnCommand(event)
       // Redirect them to a known-functioning page, default start page
       var url = "about:blank";
       try {
-        url = pref.getComplexValue("browser.startup.homepage",
-                                   Components.interfaces.nsIPrefLocalizedString).data;
+        url = Services.prefs.getComplexValue("browser.startup.homepage",
+                                             nsIPrefLocalizedString).data;
       } catch(e) {
         Components.utils.reportError("Couldn't get homepage pref: " + e);
       }
@@ -1028,7 +1056,7 @@ function popupBlockerMenuCommand(target)
 
 function disablePopupBlockerNotifications()
 {
-  pref.setBoolPref("privacy.popups.showBrowserMessage", false);
+  Services.prefs.setBoolPref("privacy.popups.showBrowserMessage", false);
 }
 
 /**
@@ -1098,9 +1126,7 @@ function closeMenus(node)
 function getBoolPref(prefname, def)
 {
   try {
-    var pref = Components.classes["@mozilla.org/preferences-service;1"]
-                         .getService(Components.interfaces.nsIPrefBranch);
-    return pref.getBoolPref(prefname);
+    return Services.prefs.getBoolPref(prefname);
   }
   catch (er) {
     return def;
@@ -1178,7 +1204,7 @@ function openUILinkIn(url, where, allowThirdPartyFixup)
     return null;
 
   if (where == "save") {
-    saveURL(url, null, null, true);
+    saveURL(url, null, null, true, true);
     return null;
   }
 
@@ -1225,7 +1251,7 @@ function openUILinkArrayIn(urlArray, where, allowThirdPartyFixup)
 
   if (where == "save") {
     for (var i = 0; i < urlArray.length; i++)
-      saveURL(urlArray[i], null, null, true);
+      saveURL(urlArray[i], null, null, true, true);
     return null;
   }
 
@@ -1292,4 +1318,30 @@ function subscribeToFeedMiddleClick(href, event) {
     // unlike for command events, we have to close the menus manually
     closeMenus(event.target);
   }
+}
+
+function FillInHTMLTooltip(tipElement)
+{
+  if (tipElement.namespaceURI == "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul")
+    return false;
+
+  while (tipElement instanceof Element) {
+    if (tipElement.hasAttribute("title")) {
+      var defView = tipElement.ownerDocument.defaultView;
+      var titleText = tipElement.getAttribute("title");
+      // XXX Work around bug 350679:
+      // "Tooltips can be fired in documents with no view".
+      if (!defView || !titleText)
+        return false;
+
+      var tipNode = document.getElementById("aHTMLTooltip");
+      tipNode.style.direction = defView.getComputedStyle(tipElement, "")
+                                       .getPropertyValue("direction");
+      tipNode.label = titleText;
+      return true;
+    }
+    tipElement = tipElement.parentNode;
+  }
+
+  return false;
 }

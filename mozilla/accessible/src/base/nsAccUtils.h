@@ -44,6 +44,7 @@
 #include "nsIAccessibleDocument.h"
 #include "nsIAccessibleRole.h"
 #include "nsIAccessibleText.h"
+#include "nsIAccessibleTable.h"
 #include "nsARIAMap.h"
 
 #include "nsIDOMNode.h"
@@ -52,6 +53,12 @@
 #include "nsPoint.h"
 
 class nsAccessNode;
+class nsAccessible;
+class nsHTMLTableAccessible;
+class nsDocAccessible;
+#ifdef MOZ_XUL
+class nsXULTreeAccessible;
+#endif
 
 class nsAccUtils
 {
@@ -173,6 +180,12 @@ public:
                            nsIAccessible **aTreeItemParent);
 
   /**
+   * Return true if the DOM node of given accessible has aria-selected="true"
+   * attribute.
+   */
+  static PRBool IsARIASelected(nsIAccessible *aAccessible);
+
+  /**
    * Return text accessible containing focus point of the given selection.
    * Used for normal and misspelling selection changes processing.
    *
@@ -244,10 +257,15 @@ public:
   {
     PRUint32 role = nsIAccessibleRole::ROLE_NOTHING;
     if (aAcc)
-      aAcc->GetFinalRole(&role);
+      aAcc->GetRole(&role);
 
     return role;
   }
+
+  /**
+   * Return the role from native markup of the given accessible.
+   */
+  static PRUint32 RoleInternal(nsIAccessible *aAcc);
 
   /**
    * Return the state for the given accessible.
@@ -262,6 +280,19 @@ public:
   }
 
   /**
+   * Return the extended state for the given accessible.
+   */
+  static PRUint32 ExtendedState(nsIAccessible *aAcc)
+  {
+    PRUint32 state = 0;
+    PRUint32 extstate = 0;
+    if (aAcc)
+      aAcc->GetState(&state, &extstate);
+
+    return extstate;
+  }
+
+  /**
    * Get the ARIA attribute characteristics for a given ARIA attribute.
    * 
    * @param aAtom  ARIA attribute
@@ -269,6 +300,39 @@ public:
    *               (see nsARIAMap.h for possible bit masks, prefixed "ARIA_")
    */
   static PRUint8 GetAttributeCharacteristics(nsIAtom* aAtom);
+
+  /**
+   * Get the 'live' or 'container-live' object attribute value from the given
+   * ELiveAttrRule constant.
+   *
+   * @param  aRule   [in] rule constant (see ELiveAttrRule in nsAccMap.h)
+   * @param  aValue  [out] object attribute value
+   *
+   * @return         true if object attribute should be exposed
+   */
+  static PRBool GetLiveAttrValue(PRUint32 aRule, nsAString& aValue);
+
+  /**
+   * Query DestinationType from the given SourceType.
+   */
+  template<class DestinationType, class SourceType> static inline
+    already_AddRefed<DestinationType> QueryObject(SourceType *aObject)
+  {
+    DestinationType* object = nsnull;
+    if (aObject)
+      CallQueryInterface(aObject, &object);
+
+    return object;
+  }
+  template<class DestinationType, class SourceType> static inline
+    already_AddRefed<DestinationType> QueryObject(nsCOMPtr<SourceType>& aObject)
+  {
+    DestinationType* object = nsnull;
+    if (aObject)
+      CallQueryInterface(aObject, &object);
+
+    return object;
+  }
 
   /**
    * Query nsAccessNode from the given nsIAccessible.
@@ -309,6 +373,44 @@ public:
     return accessNode;
   }
 
+  /**
+   * Query nsAccessible from the given nsIAccessible.
+   */
+  static already_AddRefed<nsAccessible>
+    QueryAccessible(nsIAccessible *aAccessible);
+
+  /**
+   * Query nsAccessible from the given nsIAccessNode.
+   */
+  static already_AddRefed<nsAccessible>
+    QueryAccessible(nsIAccessNode *aAccessNode);
+
+  /**
+   * Query nsHTMLTableAccessible from the given nsIAccessibleTable.
+   */
+  static already_AddRefed<nsHTMLTableAccessible>
+    QueryAccessibleTable(nsIAccessibleTable *aAccessibleTable);
+
+  /**
+   * Query nsDocAccessible from the given nsIAccessible.
+   */
+  static already_AddRefed<nsDocAccessible>
+    QueryAccessibleDocument(nsIAccessible *aAccessible);
+
+  /**
+   * Query nsDocAccessible from the given nsIAccessibleDocument.
+   */
+  static already_AddRefed<nsDocAccessible>
+    QueryAccessibleDocument(nsIAccessibleDocument *aAccessibleDocument);
+
+#ifdef MOZ_XUL
+  /**
+   * Query nsXULTreeAccessible from the given nsIAccessible.
+   */
+  static already_AddRefed<nsXULTreeAccessible>
+    QueryAccessibleTree(nsIAccessible *aAccessible);
+#endif
+
 #ifdef DEBUG_A11Y
   /**
    * Detect whether the given accessible object implements nsIAccessibleText,
@@ -346,11 +448,11 @@ public:
   /**
    * Return true if the given accessible hasn't children.
    */
-  static PRBool IsLeaf(nsIAccessible *aAcc)
+  static inline PRBool IsLeaf(nsIAccessible *aAcc)
   {
-    PRInt32 numChildren;
+    PRInt32 numChildren = 0;
     aAcc->GetChildCount(&numChildren);
-    return numChildren > 0;
+    return numChildren == 0;
   }
 
   /**
@@ -369,6 +471,32 @@ public:
    * Return multiselectable parent for the given selectable accessible if any.
    */
   static already_AddRefed<nsIAccessible> GetMultiSelectFor(nsIDOMNode *aNode);
+
+  /**
+   * Search hint enum constants. Used by GetHeaderCellsFor() method.
+   */
+  enum {
+    // search for row header cells, left direction
+    eRowHeaderCells,
+    // search for column header cells, top direction
+    eColumnHeaderCells
+  };
+
+  /**
+   * Return an array of row or column header cells for the given cell.
+   *
+   * @param aTable                [in] table accessible
+   * @param aCell                 [in] cell accessible within the given table to
+   *                               get header cells
+   * @param aRowOrColHeaderCells  [in] specifies whether column or row header
+   *                               cells are returned (see enum constants
+   *                               above)
+   * @param aCells                [out] array of header cell accessibles
+   */
+  static nsresult GetHeaderCellsFor(nsIAccessibleTable *aTable,
+                                    nsIAccessibleTableCell *aCell,
+                                    PRInt32 aRowOrColHeaderCells,
+                                    nsIArray **aCells);
 };
 
 #endif

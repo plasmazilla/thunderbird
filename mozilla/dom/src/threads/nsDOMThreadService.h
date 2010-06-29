@@ -108,6 +108,9 @@ public:
   static nsIThreadJSContextStack* ThreadJSContextStack();
   static nsIXPCSecurityManager* WorkerSecurityManager();
 
+  static jsval ShareStringAsJSVal(JSContext* aCx,
+                                  const nsAString& aString);
+
   void CancelWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
   void SuspendWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
   void ResumeWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
@@ -124,7 +127,12 @@ private:
   static void Shutdown();
 
   nsresult Dispatch(nsDOMWorker* aWorker,
-                    nsIRunnable* aRunnable);
+                    nsIRunnable* aRunnable,
+                    PRIntervalTime aTimeoutInterval = 0,
+                    PRBool aClearQueue = PR_FALSE);
+
+  void SetWorkerTimeout(nsDOMWorker* aWorker,
+                        PRIntervalTime aTimeoutInterval);
 
   void WorkerComplete(nsDOMWorkerRunnable* aRunnable);
 
@@ -135,6 +143,7 @@ private:
                      PRBool aRemove);
 
   void TriggerOperationCallbackForPool(nsDOMWorkerPool* aPool);
+  void RescheduleSuspendedWorkerForPool(nsDOMWorkerPool* aPool);
 
   void NoteEmptyPool(nsDOMWorkerPool* aPool);
 
@@ -147,6 +156,16 @@ private:
   void GetAppVersion(nsAString& aAppVersion);
   void GetPlatform(nsAString& aPlatform);
   void GetUserAgent(nsAString& aUserAgent);
+
+  void RegisterPrefCallbacks();
+  void UnregisterPrefCallbacks();
+
+  static int PrefCallback(const char* aPrefName,
+                          void* aClosure);
+
+  static PRUint32 GetWorkerCloseHandlerTimeoutMS();
+
+  PRBool QueueSuspendedWorker(nsDOMWorkerRunnable* aRunnable);
 
   // Our internal thread pool.
   nsCOMPtr<nsIThreadPool> mThreadPool;
@@ -164,6 +183,10 @@ private:
   // A list of active JSContexts that we've created. Always protected with
   // mMonitor.
   nsTArray<JSContext*> mJSContexts;
+
+  // A list of worker runnables that were never started because the worker was
+  // suspended. Always protected with mMonitor.
+  nsTArray<nsDOMWorkerRunnable*> mSuspendedWorkers;
 
   nsString mAppName;
   nsString mAppVersion;

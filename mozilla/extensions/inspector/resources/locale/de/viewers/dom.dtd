@@ -57,9 +57,6 @@
   <!ENTITY cmdToggleProcessingInstructions.label "Verarbeitungsbefehle anzeigen">
   <!ENTITY cmdToggleProcessingInstructions.accesskey "D">
 
-  <!ENTITY cmdFlashSelected.label "Ausgewähltes Element blinken lassen">
-  <!ENTITY cmdFlashSelected.accesskey "g">
-
   <!ENTITY cmdToggleAttributes.label "Attribute anzeigen">
   <!ENTITY cmdToggleAttributes.accesskey "t">
 

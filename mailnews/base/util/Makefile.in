@@ -114,6 +114,7 @@ EXPORTS		= \
 		nsMsgLineBuffer.h \
 		nsMsgKeySet.h \
 		nsMsgDBFolder.h \
+		nsMsgDBFolderAtomList.h \
 		nsMsgIdentity.h \
 		nsMsgIncomingServer.h \
 		nsMsgUtils.h \
@@ -133,9 +134,10 @@ EXTRA_JS_MODULES = \
 		iteratorUtils.jsm \
 		jsTreeSelection.js \
 		traceHelper.js \
-		autoconfigUtils.jsm \
 		StringBundle.js \
 		templateUtils.js \
+		IOUtils.js \
+		mailnewsMigrator.js \
 		$(NULL)
 
 ifndef MOZ_STATIC_MAIL_BUILD

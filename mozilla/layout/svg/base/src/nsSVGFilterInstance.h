@@ -38,7 +38,6 @@
 #define __NS_SVGFILTERINSTANCE_H__
 
 #include "nsIDOMSVGLength.h"
-#include "nsIDOMSVGRect.h"
 #include "nsIDOMSVGFilters.h"
 #include "nsRect.h"
 #include "nsIContent.h"
@@ -53,6 +52,7 @@ class nsSVGLength2;
 class nsSVGElement;
 class nsSVGFilterElement;
 class nsSVGFilterPaintCallback;
+struct gfxRect;
 
 /**
  * This class performs all filter processing.
@@ -69,10 +69,10 @@ public:
   nsSVGFilterInstance(nsIFrame *aTargetFrame,
                       nsSVGFilterPaintCallback *aPaintCallback,
                       nsSVGFilterElement *aFilterElement,
-                      nsIDOMSVGRect *aTargetBBox,
+                      const gfxRect &aTargetBBox,
                       const gfxRect& aFilterRect,
                       const nsIntSize& aFilterSpaceSize,
-                      nsIDOMSVGMatrix *aFilterSpaceToDeviceSpaceTransform,
+                      const gfxMatrix &aFilterSpaceToDeviceSpaceTransform,
                       const nsIntRect& aDirtyOutputRect,
                       const nsIntRect& aDirtyInputRect,
                       PRUint16 aPrimitiveUnits) :
@@ -107,9 +107,9 @@ public:
   nsresult ComputeSourceNeededRect(nsIntRect* aDirty);
   nsresult ComputeOutputBBox(nsIntRect* aBBox);
 
-  already_AddRefed<nsIDOMSVGMatrix> GetUserSpaceToFilterSpaceTransform() const;
-  nsIDOMSVGMatrix* GetFilterSpaceToDeviceSpaceTransform() const {
-    return mFilterSpaceToDeviceSpaceTransform.get();
+  gfxMatrix GetUserSpaceToFilterSpaceTransform() const;
+  gfxMatrix GetFilterSpaceToDeviceSpaceTransform() const {
+    return mFilterSpaceToDeviceSpaceTransform;
   }
 
 private:
@@ -184,8 +184,8 @@ private:
   nsIFrame*               mTargetFrame;
   nsSVGFilterPaintCallback* mPaintCallback;
   nsSVGFilterElement*     mFilterElement;
-  nsCOMPtr<nsIDOMSVGRect> mTargetBBox;
-  nsCOMPtr<nsIDOMSVGMatrix> mFilterSpaceToDeviceSpaceTransform;
+  gfxRect                 mTargetBBox;
+  gfxMatrix               mFilterSpaceToDeviceSpaceTransform;
   gfxRect                 mFilterRect;
   nsIntSize               mFilterSpaceSize;
   nsIntRect               mDirtyOutputRect;

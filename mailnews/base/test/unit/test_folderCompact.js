@@ -25,6 +25,9 @@ var gCurTestNum;
 // folder size to be.
 var gExpectedFolderSize;
 var gMsgHdrs = new Array();
+var gExpectedInboxSize;
+var gExpectedFolder2Size;
+var gExpectedFolder3Size;
 
 const gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
                       .getService(Ci.nsIMsgCopyService);
@@ -48,7 +51,7 @@ var copyListener =
     // This can happen with a bunch of synchronous functions grouped together, and
     // can even cause tests to fail because they're still waiting for the listener
     // to return
-    do_timeout(0, "doTest(++gCurTestNum)");
+    do_timeout(0, function(){doTest(++gCurTestNum);});
   }
 };
 
@@ -63,7 +66,7 @@ var urlListener =
     // This can happen with a bunch of synchronous functions grouped together, and
     // can even cause tests to fail because they're still waiting for the listener
     // to return
-    do_timeout(0, "doTest(++gCurTestNum)");
+    do_timeout(0, function(){doTest(++gCurTestNum);});
   }
 };
 
@@ -188,9 +191,14 @@ function doTest(test)
     gCurTestNum = test;
     
     var testFn = gTestArray[test-1];
-    // Set a limit of three seconds; if the notifications haven't arrived by then there's a problem.
-    do_timeout(10000, "if (gCurTestNum == "+test+") \
-      do_throw('Notifications not received in 10000 ms for operation "+testFn.name+", current status is '+gCurrStatus);");
+    // Set a limit of 10 seconds; if the notifications haven't arrived by then there's a problem.
+    do_timeout(10000, function(){
+
+        if (gCurTestNum == test)
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
+            ", current status is " + gCurrStatus);
+        }
+      );
     try {
     testFn();
     } catch(ex) {dump(ex);}

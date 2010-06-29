@@ -42,7 +42,7 @@
 #include "nsISupports.idl"
 #include "nsIGlobalHistory2.idl"
 
-[scriptable, uuid(96602bf3-de2a-42ed-812f-a83b130e6299)]
+[scriptable, uuid(b333c6dd-3dbe-4c0b-8062-92ed92b7e7c9)]
 interface nsIBrowserHistory : nsIGlobalHistory2
 {
     /**
@@ -112,6 +112,19 @@ interface nsIBrowserHistory : nsIGlobalHistory2
     void removePagesByTimeframe(in long long aBeginTime, in long long aEndTime);
 
     /**
+     * removeVisitsByTimeframe
+     *
+     * Removes all visits in a given timeframe.  Limits are included:
+     * aBeginTime <= timeframe <= aEndTime.  Any place that becomes unvisited
+     * as a result will also be deleted.
+     *
+     * Note that removal is performed in batch, so observers will not be
+     * notified of individual places that are deleted.  Instead they will be
+     * notified onBeginUpdateBatch and onEndUpdateBatch.
+     */
+    void removeVisitsByTimeframe(in long long aBeginTime, in long long aEndTime);
+
+    /**
      * removeAllPages
      *
      * Remove all pages from global history
@@ -135,30 +148,4 @@ interface nsIBrowserHistory : nsIGlobalHistory2
      * the user, so it's okay to be an autocomplete result.
      */
     void markPageAsTyped(in nsIURI aURI);
-};
-
-
-/**
- * Additional methods for browser history.  You must QI to this interface to
- * use its methods.
- *
- * This interface was added after the binary compatibility freeze, so it lives
- * in a separate interface for 1.9.1.  In future releases, the methods found in
- * this interface will be in nsIBrowserHistory.
- */
-[scriptable, uuid(130f2940-6a63-4790-ae8d-89d5a2683090)]
-interface nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS : nsISupports
-{
-    /**
-     * removeVisitsByTimeframe
-     *
-     * Removes all visits in a given timeframe.  Limits are included:
-     * aBeginTime <= timeframe <= aEndTime.  Any place that becomes unvisited
-     * as a result will also be deleted.
-     *
-     * Note that removal is performed in batch, so observers will not be
-     * notified of individual places that are deleted.  Instead they will be
-     * notified onBeginUpdateBatch and onEndUpdateBatch.
-     */
-    void removeVisitsByTimeframe(in long long aBeginTime, in long long aEndTime);
 };

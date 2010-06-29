@@ -599,7 +599,7 @@ Function AddQuickLaunchShortcut
 FunctionEnd
 
 Function CheckExistingInstall
-  ; If there is a pending file copy from a previous uninstall don't allow
+  ; If there is a pending file copy from a previous upgrade don't allow
   ; installing until after the system has rebooted.
   IfFileExists "$INSTDIR\${FileMainEXE}.moz-upgrade" +1 +4
   MessageBox MB_YESNO|MB_ICONEXCLAMATION "$(WARN_RESTART_REQUIRED_UPGRADE)" IDNO +2
@@ -840,11 +840,19 @@ Function preSummary
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 2" flags  "READONLY"
 
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Type   "label"
-  WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text   "$(SUMMARY_CLICK)"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Left   "0"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Right  "-1"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Top    "130"
   WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Bottom "150"
+
+  ${If} ${FileExists} "$INSTDIR\${FileMainEXE}"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text "$(SUMMARY_UPGRADE_CLICK)"
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NextButtonText "$(UPGRADE_BUTTON)"
+  ${Else}
+    WriteINIStr "$PLUGINSDIR\summary.ini" "Field 3" Text "$(SUMMARY_INSTALL_CLICK)"
+    DeleteINIStr "$PLUGINSDIR\summary.ini" "Settings" NextButtonText
+  ${EndIf}
+
 
   ; Remove the "Field 4" ini section in case the user hits back and changes the
   ; installation directory which could change whether the make default checkbox
@@ -862,7 +870,7 @@ Function preSummary
     ${If} "$R9" != "true"
       WriteINIStr "$PLUGINSDIR\summary.ini" "Settings" NumFields "4"
       WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Type   "checkbox"
-      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Text   "$(OPTIONS_MAKE_DEFAULT)"
+      WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Text   "$(SUMMARY_TAKE_DEFAULTS)"
       WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Left   "0"
       WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" Right  "-1"
       WriteINIStr "$PLUGINSDIR\summary.ini" "Field 4" State  "1"
@@ -934,7 +942,7 @@ Function .onInit
   StrCpy $LANGUAGE 0
   ${SetBrandNameVars} "$EXEDIR\localized\distribution\setup.ini"
 
-  ${InstallOnInitCommon} "$(WARN_UNSUPPORTED_MSG)"
+  ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OS_MSG)"
 
   !insertmacro InitInstallOptionsFile "options.ini"
   !insertmacro InitInstallOptionsFile "shortcuts.ini"

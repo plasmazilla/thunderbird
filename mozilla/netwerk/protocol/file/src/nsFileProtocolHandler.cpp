@@ -192,7 +192,7 @@ nsFileProtocolHandler::ReadURLFile(nsIFile* aFile, nsIURI** aURI)
     return rv;
 }
 
-#elif defined(XP_UNIX)
+#elif defined(XP_UNIX) && !defined(__SYMBIAN32__)
 NS_IMETHODIMP
 nsFileProtocolHandler::ReadURLFile(nsIFile* aFile, nsIURI** aURI)
 {
@@ -332,6 +332,21 @@ nsFileProtocolHandler::GetURLSpecFromFile(nsIFile *file, nsACString &result)
 {
     NS_ENSURE_ARG_POINTER(file);
     return net_GetURLSpecFromFile(file, result);
+}
+
+NS_IMETHODIMP
+nsFileProtocolHandler::GetURLSpecFromActualFile(nsIFile *file, 
+                                                nsACString &result)
+{
+    NS_ENSURE_ARG_POINTER(file);
+    return net_GetURLSpecFromActualFile(file, result);
+}
+
+NS_IMETHODIMP
+nsFileProtocolHandler::GetURLSpecFromDir(nsIFile *file, nsACString &result)
+{
+    NS_ENSURE_ARG_POINTER(file);
+    return net_GetURLSpecFromDir(file, result);
 }
 
 NS_IMETHODIMP

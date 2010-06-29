@@ -174,15 +174,23 @@ let gMessenger = Cc["@mozilla.org/messenger;1"].
  *     require that the message be available offline.  If false is passed and
  *     the message is not available offline, we will propagate an exception
  *     thrown by the underlying code.
+ * @param [aOptions] Optional options.
+ * @param [aOptions.saneBodySize] Limit body sizes to a 'reasonable' size in
+ *     order to combat corrupt offline/message stores creating pathological
+ *     situtations where we have erroneously multi-megabyte messages.  This
+ *     also likely reduces the impact of legitimately ridiculously large
+ *     messages.
  */
 function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
-                             aAllowDownload) {
+                             aAllowDownload, aOptions) {
   shutdownCleanupObserver.ensureInitialized();
 
   let requireOffline = !aAllowDownload;
 
   let msgURI = aMsgHdr.folder.getUriForMsg(aMsgHdr);
   let msgService = gMessenger.messageServiceFromURI(msgURI);
+
+  MsgHdrToMimeMessage.OPTION_TUNNEL = aOptions;
 
   // if we're already streaming this msg, just add the callback
   // to the listener.
@@ -212,8 +220,11 @@ function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
     if (activeStreamListeners[msgURI]) {
       delete activeStreamListeners[msgURI];
     }
+    MsgHdrToMimeMessage.OPTION_TUNNEL = null;
     throw(ex);
   }
+
+  MsgHdrToMimeMessage.OPTION_TUNNEL = null;
 }
 
 /**
@@ -231,6 +242,14 @@ function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
  * If you can come up with a prettier way to shuttle this data, please do.
  */
 MsgHdrToMimeMessage.RESULT_RENDEVOUZ = {};
+/**
+ * Cram rich options here for the MimeMessageEmitter to grab from.  We
+ *  leverage the known control-flow to avoid needing a whole dictionary here.
+ *  We set this immediately before constructing the emitter and clear it
+ *  afterwards.  Control flow is never yielded during the process and reentrancy
+ *  cannot happen via any other means.
+ */
+MsgHdrToMimeMessage.OPTION_TUNNEL = null;
 
 let HeaderHandlerBase = {
   /**
@@ -514,6 +533,23 @@ MimeUnknown.prototype = {
   }
 };
 
+const MIME_MSG_DEFAULT_ATTACHMENT_NAME = 1040;
+let localizedPartStr;
+
+/**
+ * Part names are localized for display purposes; a longer term fix is proposed
+ * on bug 554294, although since this will fix that bug, a new bug will likely
+ * be filed and referenced by that bug.
+ */
+function getLocalizedPartStr() {
+  let stringBundleService = Cc["@mozilla.org/intl/stringbundle;1"]
+                              .getService(Ci.nsIStringBundleService);
+  let mimeBundle = stringBundleService.createBundle(
+                     "chrome://messenger/locale/mime.properties");
+  localizedPartStr = mimeBundle.GetStringFromID(
+                       MIME_MSG_DEFAULT_ATTACHMENT_NAME);
+}
+
 /**
  * @class An attachment proper.  We think it's an attachment because it has a
  *  filename that libmime was able to figure out.
@@ -543,10 +579,13 @@ MimeMessageAttachment.prototype = {
    *  gets its own MIME part because the original message had both HTML and text
    *  as alternatives.
    * Our super-advanced heuristic is to check whether the attachment name is
-   *  the same as the part name.
+   *  the same as the part name. Beware, this is localized.
    */
   get isRealAttachment() {
-    return this.name != "Part " + this.partName;
+    if (!localizedPartStr)
+      getLocalizedPartStr();
+    let partName = localizedPartStr.replace("%s", this.partName);
+    return this.name != partName;
   },
   get allAttachments() {
     return [this]; // we are a leaf, so just us.

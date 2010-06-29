@@ -1,8 +1,8 @@
+.autoreg
 chrome/app-chrome.manifest
 chrome/chatzilla.jar
 chrome/debugqa.jar
 chrome/debugqa.manifest
-chrome/installed-chrome.txt
 chrome/icons/default/abcardWindow.xpm
 chrome/icons/default/abcardWindow16.xpm
 chrome/icons/default/ablistWindow.xpm
@@ -14,9 +14,9 @@ chrome/icons/default/bookmark-window.xpm
 chrome/icons/default/bookmark-window16.xpm
 chrome/icons/default/calendar-window.xpm
 chrome/icons/default/calendar-window16.xpm
+chrome/icons/default/chatzilla-window.ico
 chrome/icons/default/chatzilla-window.xpm
 chrome/icons/default/chatzilla-window16.xpm
-chrome/icons/default/chatzilla-window.ico
 chrome/icons/default/default.xpm
 chrome/icons/default/default16.xpm
 chrome/icons/default/downloadManager.xpm
@@ -29,9 +29,9 @@ chrome/icons/default/findHistoryWindow.xpm
 chrome/icons/default/findHistoryWindow16.xpm
 chrome/icons/default/history-window.xpm
 chrome/icons/default/history-window16.xpm
+chrome/icons/default/JSConsoleWindow.xpm
 chrome/icons/default/jsconsoleWindow.xpm
 chrome/icons/default/jsconsoleWindow16.xpm
-chrome/icons/default/JSConsoleWindow.xpm
 chrome/icons/default/main-window.xpm
 chrome/icons/default/main-window16.xpm
 chrome/icons/default/messengerWindow.xpm
@@ -40,88 +40,110 @@ chrome/icons/default/msgcomposeWindow.xpm
 chrome/icons/default/msgcomposeWindow16.xpm
 chrome/icons/default/venkman-window.xpm
 chrome/icons/default/venkman-window16.xpm
+chrome/installed-chrome.txt
+chrome/reporter.jar
+chrome/reporter.manifest
 chrome/venkman.jar
-#ifdef XP_MACOSX
-updater.app/Contents/MacOS/updater.ini
-#endif
 components/airbag.xpt
 components/@DLL_PREFIX@bookmark@DLL_SUFFIX@
 components/bookmarks.xpt
 components/chatzilla-service.js
-components/components.list
-components/contentAreaDropListener.js
-components/contentSecurityPolicy.js
 components/crashreporter.xpt
-components/crypto-SDR.js
 components/downloadmanager.xpt
-components/GPSDGeolocationProvider.js
-components/@DLL_PREFIX@jsctypes@DLL_SUFFIX@
-components/msgAsyncPrompter.js
+components/mozbrwsr.xpt
 components/@DLL_PREFIX@myspell@DLL_SUFFIX@
 components/nsCloseAllWindows.js
 components/nsDictionary.js
 components/nsDownloadProgressListener.js
-components/nsFormAutoComplete.js
-components/nsINIProcessor.js
 components/nsInterfaceInfoToIDL.js
 components/nsKillAll.js
 components/nsLDAPPrefsService.js
-components/nsMicrosummaryService.js
-components/nsPlacesAutoComplete.js
-components/nsPlacesExpiration.js
+#ifdef XP_WIN
+components/nsPostUpdateWin.js
+#endif
+components/nsProgressDialog.js
 components/nsResetPref.js
 components/nsScriptableIO.js
 components/nsSetDefaultBrowser.js
 components/nsSetDefaultMail.js
 components/nsUnsetDefaultMail.js
+#ifndef MOZ_UPDATER
+components/nsUpdateService.js
+components/nsUpdateServiceStub.js
+#endif
 components/nsXmlRpcClient.js
+components/@DLL_PREFIX@oji@DLL_SUFFIX@
 components/progressDlg.xpt
 components/search.xpt
-components/sigonviewer.xpt
 components/sidebar.xpt
+components/sigonviewer.xpt
 components/@DLL_PREFIX@srchsvc@DLL_SUFFIX@
-components/suitetypeaheadfind.xpt
 components/@DLL_PREFIX@suitetypeaheadfind@DLL_SUFFIX@
+components/suitetypeaheadfind.xpt
+components/@DLL_PREFIX@ucvmath@DLL_SUFFIX@
 components/urlwidgt.xpt
 components/util.xpt
 components/venkman-service.js
 components/@DLL_PREFIX@wallet@DLL_SUFFIX@
-components/@DLL_PREFIX@walletviewers@DLL_SUFFIX@
-#ifdef XP_WIN
-components/wlltvwrs.dll
-#endif
 components/wallet.xpt
 components/walleteditor.xpt
 components/walletpreview.xpt
+components/@DLL_PREFIX@walletviewers@DLL_SUFFIX@
+components/winhooks.xpt
 #ifdef XP_WIN
-components/windowsproxy.dll
+components/wlltvwrs.dll
 #endif
+components/xml-rpc.xpt
 components/@DLL_PREFIX@xmlextras@DLL_SUFFIX@
 #ifdef XP_WIN
-components/xpinstall.dll
+components/xpinstal.dll
 #endif
-components/winhooks.xpt
-components/xml-rpc.xpt
-defaults/wallet/VcardSchema.tbl
-defaults/wallet/FieldSchema.tbl
-defaults/wallet/SchemaConcat.tbl
+#ifndef MOZ_CRASHREPORTER
+#ifdef XP_MACOSX
+crashreporter.app/
+#else
+crashreporter@BIN_SUFFIX@
+crashreporter.ini
+#endif
+#endif
 defaults/wallet/DistinguishedSchema.tbl
-defaults/wallet/SchemaStrings.tbl
+defaults/wallet/FieldSchema.tbl
 defaults/wallet/PositionalSchema.tbl
+defaults/wallet/SchemaConcat.tbl
+defaults/wallet/SchemaStrings.tbl
 defaults/wallet/StateSchema.tbl
-extensions/inspector@mozilla.org/components/components.list
-; ChatZilla.
-extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/components.list
-; Venkman.
-extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/components.list
-greprefs.js
-@DLL_PREFIX@layers@DLL_SUFFIX@
-modules/JSON.jsm
-@DLL_PREFIX@xpistub@DLL_SUFFIX@
-mozilla-runtime@BIN_SUFFIX@
-@DLL_PREFIX@mozlcms@DLL_SUFFIX@
-@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+defaults/wallet/VcardSchema.tbl
+#ifdef XP_WIN
+extensions/p@m/PalmSyncInstall.exe
+extensions/p@m/PalmSyncProxy.dll
+extensions/p@m/components/palmsync.dll
+extensions/p@m/components/palmsync.xpt
+extensions/p@m/defaults/preferences/palmsync.js
+extensions/p@m/install.rdf
+extensions/p@m/mozABConduit.dll
+#endif
+#ifdef XP_WIN
+gksvggdiplus.dll
+#endif
+greprefs/all.js
+greprefs/security-prefs.js
+greprefs/xpinstall.js
+greprefs/
+#ifdef XP_WIN
+js3250.dll
+jsj3250.dll
+#else
+@DLL_PREFIX@jsj@DLL_SUFFIX@
+#endif
 LICENSE
+#ifdef XP_MACOSX
+libwidget.rsrc
+#endif
+modules/JSON.jsm
+modules/dbViewWrapper.js
+modules/mailViewManager.js
+modules/quickSearchManager.js
+modules/searchSpec.js
 #ifdef XP_WIN
 #ifdef MOZ_MEMORY
 Microsoft.VC80.CRT.manifest
@@ -129,26 +151,87 @@ msvcm80.dll
 msvcp80.dll
 msvcr80.dll
 #else
+mozcpp19.dll
 mozcrt19.dll
 #endif
-mozcpp19.dll
+#endif
+#ifndef MOZ_IPC
+mozilla-runtime@BIN_SUFFIX@
+#endif
+@DLL_PREFIX@mozlcms@DLL_SUFFIX@
+#ifdef XP_MACOSX
+../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
+../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/Localizable.strings
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/classes.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/info.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
+#endif
+#ifdef XP_WIN
 regxpcom.exe
 #endif
+res/arrow.gif
+res/arrowd.gif
+res/broken-image.gif
+res/broken-image.png
+res/charsetData.properties
+res/charsetalias.properties
 res/cmessage.txt
-modules/dbViewWrapper.js
-modules/mailViewManager.js
-modules/quickSearchManager.js
-modules/searchSpec.js
-#ifdef XP_WIN
-extensions/p@m/install.rdf
-extensions/p@m/mozABConduit.dll
-extensions/p@m/PalmSyncInstall.exe
-extensions/p@m/PalmSyncProxy.dll
-extensions/p@m/components/palmsync.dll
-extensions/p@m/components/palmsync.xpt
-extensions/p@m/defaults/preferences/palmsync.js
+res/forms.css
+res/hiddenWindow.html
+res/html.css
+res/loading-image.gif
+res/loading-image.png
+res/maccharset.properties
+res/mathml.css
+res/os2charset.properties
+res/quirk.css
+res/ua.css
+res/unixcharset.properties
+res/viewsource.css
+res/wincharset.properties
+@DLL_PREFIX@sqlite3@DLL_SUFFIX@
+#ifndef MOZ_CRASHREPORTER
+#ifdef XP_UNIX
+#ifndef XP_MACOSX
+Throbber-small.gif
+#endif
+#endif
+#endif
+#ifdef XP_MACOSX
+updater.app/Contents/MacOS/updater.ini
 #endif
 xpicleanup@BIN_SUFFIX@
+@DLL_PREFIX@xpistub@DLL_SUFFIX@
+
+#ifndef MOZ_STATIC_MAIL_BUILD
+; '! MOZ_STATIC_BUILD' case.
+components/@DLL_PREFIX@mail@DLL_SUFFIX@
+#else
+components/@DLL_PREFIX@addrbook@DLL_SUFFIX@
+components/@DLL_PREFIX@bayesflt@DLL_SUFFIX@
+components/@DLL_PREFIX@fts3tok@DLL_SUFFIX@
+components/@DLL_PREFIX@mailview@DLL_SUFFIX@
+components/@DLL_PREFIX@mime@DLL_SUFFIX@
+#ifdef WIN_OR_OS2
+; To become |#ifdef XP_OS2| in bug 534408.
+; At that time, copy these entries into the following |#ifdef XP_WIN| block. (Or just don't.!.)
+components/mimeemit.dll
+msgbsutl.dll
+components/msgcompo.dll
+#else
+components/@DLL_PREFIX@mimeemitter@DLL_SUFFIX@
+@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
+components/@DLL_PREFIX@msgcompose@DLL_SUFFIX@
+#endif
+components/@DLL_PREFIX@msgbase@DLL_SUFFIX@
+components/@DLL_PREFIX@msgdb@DLL_SUFFIX@
+components/@DLL_PREFIX@msgimap@DLL_SUFFIX@
+components/@DLL_PREFIX@msglocal@DLL_SUFFIX@
+components/@DLL_PREFIX@msgmdn@DLL_SUFFIX@
+components/@DLL_PREFIX@msgnews@DLL_SUFFIX@
+components/@DLL_PREFIX@vcard@DLL_SUFFIX@
+
 #ifdef MOZ_STATIC_BUILD
 components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
 components/@DLL_PREFIX@appcomps@DLL_SUFFIX@
@@ -171,6 +254,9 @@ components/@DLL_PREFIX@i18n@DLL_SUFFIX@
 components/@DLL_PREFIX@imglib2@DLL_SUFFIX@
 components/@DLL_PREFIX@import@DLL_SUFFIX@
 components/@DLL_PREFIX@intlapp@DLL_SUFFIX@
+components/@DLL_PREFIX@jar50@DLL_SUFFIX@
+components/@DLL_PREFIX@jsctypes@DLL_SUFFIX@
+; 'MOZ_STATIC_BUILD' case.
 components/@DLL_PREFIX@mail@DLL_SUFFIX@
 components/@DLL_PREFIX@mork@DLL_SUFFIX@
 components/@DLL_PREFIX@mozfind@DLL_SUFFIX@
@@ -178,7 +264,6 @@ components/@DLL_PREFIX@mozldap@DLL_SUFFIX@
 components/@DLL_PREFIX@msgsmime@DLL_SUFFIX@
 components/@DLL_PREFIX@necko@DLL_SUFFIX@
 components/@DLL_PREFIX@nsappshell@DLL_SUFFIX@
-components/@DLL_PREFIX@oji@DLL_SUFFIX@
 components/@DLL_PREFIX@permissions@DLL_SUFFIX@
 components/@DLL_PREFIX@pipboot@DLL_SUFFIX@
 components/@DLL_PREFIX@pipnss@DLL_SUFFIX@
@@ -195,7 +280,6 @@ components/@DLL_PREFIX@tkautocomplete@DLL_SUFFIX@
 components/@DLL_PREFIX@toolkitcomps@DLL_SUFFIX@
 components/@DLL_PREFIX@txmgr@DLL_SUFFIX@
 components/@DLL_PREFIX@uconv@DLL_SUFFIX@
-components/@DLL_PREFIX@ucvmath@DLL_SUFFIX@
 components/@DLL_PREFIX@universalchardet@DLL_SUFFIX@
 components/@DLL_PREFIX@unixproxy@DLL_SUFFIX@
 components/@DLL_PREFIX@webbrwsr@DLL_SUFFIX@
@@ -204,56 +288,200 @@ components/@DLL_PREFIX@windowds@DLL_SUFFIX@
 components/@DLL_PREFIX@xpautocomplete@DLL_SUFFIX@
 components/@DLL_PREFIX@xpconnect@DLL_SUFFIX@
 components/@DLL_PREFIX@zipwriter@DLL_SUFFIX@
-@DLL_PREFIX@gfxpsshar@DLL_SUFFIX@
-@DLL_PREFIX@gkgfx@DLL_SUFFIX@
-@DLL_PREFIX@gtkxtbin@DLL_SUFFIX@
-@DLL_PREFIX@jsj@DLL_SUFFIX@
-@DLL_PREFIX@mozz@DLL_SUFFIX@
-@DLL_PREFIX@thebes@DLL_SUFFIX@
-@DLL_PREFIX@xul@DLL_SUFFIX@
 #ifdef XP_MACOSX
-XUL
 components/libimgicon.dylib
 components/libjar50.dylib
 components/libosxproxy.dylib
 components/libwidget_mac.dylib
 #endif
 #ifdef XP_WIN
-gksvggdiplus.dll
-jsj3250.dll
-components/appshell.dll
-components/cmdlines.dll
-components/gkparser.dll
 components/gkwidget.dll
 components/imgicon.dll
 components/msgMapi.dll
+components/windowsproxy.dll
+components/xpc3250.dll
+components/xppref32.dll
+#endif
+@DLL_PREFIX@gfxpsshar@DLL_SUFFIX@
+@DLL_PREFIX@gkgfx@DLL_SUFFIX@
+@DLL_PREFIX@gtkxtbin@DLL_SUFFIX@
+@DLL_PREFIX@layers@DLL_SUFFIX@
+@DLL_PREFIX@mozz@DLL_SUFFIX@
+@DLL_PREFIX@thebes@DLL_SUFFIX@
+@DLL_PREFIX@xul@DLL_SUFFIX@
+#ifdef XP_MACOSX
+XUL
+#endif
+; MOZ_STATIC_BUILD
+#endif
+; MOZ_STATIC_MAIL_BUILD
+#endif
+
+; Library files which used to have a short name.
+#ifdef XP_WIN
+components/appshell.dll
+components/cmdlines.dll
+components/gkparser.dll
 components/perms.dll
 components/spellchk.dll
 components/strgcmps.dll
 components/tkautoc.dll
 components/tkitcmps.dll
 components/xpautoc.dll
-components/xpc3250.dll
-components/xppref32.dll
 #endif
-; MOZ_STATIC_BUILD
-#endif
-#ifdef MOZ_STATIC_MAIL_BUILD
-#ifdef XP_WIN
-msgbsutl.dll
-#else
-@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
-#endif
-#endif
-#ifdef XP_WIN
-components/commandlines.dll
-components/htmlpars.dll
-components/nsappshell.dll
-components/permissions.dll
-components/spellchecker.dll
-components/storagecomps.dll
-components/tkautocomplete.dll
-components/toolkitcomps.dll
-components/xpautocomplete.dll
-mozjs.dll
+
+# ****************************************************************************
+# * Remove the XPTs that were present at the time (2010-02) when we started  *
+# * linking XPTs on Mac. You don't want to add anything to this section.     *
+# ****************************************************************************
+#ifdef XP_MACOSX
+components/accessibility.xpt
+components/addrbook.xpt
+components/alerts.xpt
+components/appshell.xpt
+components/appstartup.xpt
+components/autocomplete.xpt
+components/autoconfig.xpt
+components/caps.xpt
+components/chardet.xpt
+components/chrome.xpt
+components/commandhandler.xpt
+components/commandlines.xpt
+components/composer.xpt
+components/content_base.xpt
+components/content_canvas.xpt
+components/content_events.xpt
+components/content_html.xpt
+components/content_htmldoc.xpt
+components/content_xmldoc.xpt
+components/content_xslt.xpt
+components/content_xtf.xpt
+components/contentprefs.xpt
+components/cookie.xpt
+components/directory.xpt
+components/docshell.xpt
+components/dom.xpt
+components/dom_base.xpt
+components/dom_canvas.xpt
+components/dom_core.xpt
+components/dom_css.xpt
+components/dom_events.xpt
+components/dom_geolocation.xpt
+components/dom_html.xpt
+components/dom_json.xpt
+components/dom_loadsave.xpt
+components/dom_offline.xpt
+components/dom_range.xpt
+components/dom_sidebar.xpt
+components/dom_smil.xpt
+components/dom_storage.xpt
+components/dom_stylesheets.xpt
+components/dom_svg.xpt
+components/dom_threads.xpt
+components/dom_traversal.xpt
+components/dom_views.xpt
+components/dom_xbl.xpt
+components/dom_xpath.xpt
+components/dom_xul.xpt
+components/downloads.xpt
+components/editor.xpt
+components/embed_base.xpt
+components/extensions.xpt
+components/exthandler.xpt
+components/exthelper.xpt
+components/fastfind.xpt
+components/feeds.xpt
+components/find.xpt
+components/fts3tok.xpt
+components/gfx.xpt
+components/htmlparser.xpt
+components/imgicon.xpt
+components/imglib2.xpt
+components/impComm4xMail.xpt
+components/import.xpt
+components/inspector.xpt
+components/intl.xpt
+components/jar.xpt
+components/jsdservice.xpt
+components/layout_base.xpt
+components/layout_printing.xpt
+components/layout_xul.xpt
+components/layout_xul_tree.xpt
+components/locale.xpt
+components/loginmgr.xpt
+components/lwbrk.xpt
+components/mailview.xpt
+components/mime.xpt
+components/mimetype.xpt
+components/mozfind.xpt
+components/msgbase.xpt
+components/msgcompose.xpt
+components/msgdb.xpt
+components/msgimap.xpt
+components/msglocal.xpt
+components/msgnews.xpt
+components/msgsearch.xpt
+components/msgsmime.xpt
+components/necko.xpt
+components/necko_about.xpt
+components/necko_cache.xpt
+components/necko_cookie.xpt
+components/necko_dns.xpt
+components/necko_file.xpt
+components/necko_ftp.xpt
+components/necko_http.xpt
+components/necko_res.xpt
+components/necko_socket.xpt
+components/necko_strconv.xpt
+components/necko_viewsource.xpt
+components/necko_wifi.xpt
+components/oji.xpt
+components/parentalcontrols.xpt
+components/places.xpt
+components/plugin.xpt
+components/pref.xpt
+components/prefetch.xpt
+components/profile.xpt
+components/proxyObjInst.xpt
+components/proxyObject.xpt
+components/rdf.xpt
+components/satchel.xpt
+components/saxparser.xpt
+components/shellservice.xpt
+components/shistory.xpt
+components/smile.xpt
+components/spellchecker.xpt
+components/storage.xpt
+components/suitebrowser.xpt
+components/suitecommon.xpt
+components/suitefeeds.xpt
+components/suitemigration.xpt
+components/toolkitprofile.xpt
+components/txmgr.xpt
+components/txtsvc.xpt
+components/uconv.xpt
+components/unicharutil.xpt
+components/update.xpt
+components/uriloader.xpt
+components/urlformatter.xpt
+components/webBrowser_core.xpt
+components/webbrowserpersist.xpt
+components/webshell_idls.xpt
+components/widget.xpt
+components/windowds.xpt
+components/windowwatcher.xpt
+components/xpautocomplete.xpt
+components/xpcom_base.xpt
+components/xpcom_components.xpt
+components/xpcom_ds.xpt
+components/xpcom_io.xpt
+components/xpcom_system.xpt
+components/xpcom_threads.xpt
+components/xpcom_xpti.xpt
+components/xpconnect.xpt
+components/xpinstall.xpt
+components/xulapp.xpt
+components/xuldoc.xpt
+components/xultmpl.xpt
+components/zipwriter.xpt
 #endif

@@ -69,7 +69,7 @@ function setFilter(aFilterString) {
 var signonsTreeView = {
   _filterSet : [],
   _lastSelectedRanges : [],
-  selection: null, 
+  selection: null,
 
   rowCount : 0,
   setTree : function(tree) {},
@@ -115,7 +115,11 @@ function LoadSignons() {
 
   // sort and display the table
   signonsTree.treeBoxObject.view = signonsTreeView;
-  SignonColumnSort('hostname');
+  // The sort column didn't change. SortTree (called by
+  // SignonColumnSort) assumes we want to toggle the sort
+  // direction but here we don't so we have to trick it
+  lastSignonSortAscending = !lastSignonSortAscending;
+  SignonColumnSort(lastSignonSortColumn);
 
   // disable "remove all signons" button if there are no signons
   var element = document.getElementById("removeAllSignons");
@@ -127,7 +131,7 @@ function LoadSignons() {
     element.removeAttribute("disabled");
     toggle.removeAttribute("disabled");
   }
- 
+
   return true;
 }
 
@@ -238,15 +242,37 @@ function HandleSignonKeyPress(e) {
   }
 }
 
-var lastSignonSortColumn = "";
-var lastSignonSortAscending = false;
+function getColumnByName(column) {
+  switch (column) {
+    case "hostname":
+      return document.getElementById("siteCol");
+    case "username":
+      return document.getElementById("userCol");
+    case "password":
+      return document.getElementById("passwordCol");
+  }
+}
+
+var lastSignonSortColumn = "hostname";
+var lastSignonSortAscending = true;
 
 function SignonColumnSort(column) {
+  // clear out the sortDirection attribute on the old column
+  var lastSortedCol = getColumnByName(lastSignonSortColumn);
+  lastSortedCol.removeAttribute("sortDirection");
+
+  // sort
   lastSignonSortAscending =
     SortTree(signonsTree, signonsTreeView,
                  signonsTreeView._filterSet.length ? signonsTreeView._filterSet : signons,
                  column, lastSignonSortColumn, lastSignonSortAscending);
   lastSignonSortColumn = column;
+
+  // set the sortDirection attribute to get the styling going
+  // first we need to get the right element
+  var sortedCol = getColumnByName(column);
+  sortedCol.setAttribute("sortDirection", lastSignonSortAscending ?
+                                          "ascending" : "descending");
 }
 
 function SignonClearFilter() {
@@ -258,10 +284,8 @@ function SignonClearFilter() {
   signonsTreeView._filterSet = [];
 
   // Just reload the list to make sure deletions are respected
-  lastSignonSortColumn = "";
-  lastSignonSortAscending = false;
   LoadSignons();
-    
+
   // Restore selection
   if (singleSelection) {
     signonsTreeView.selection.clearSelection();
@@ -327,7 +351,7 @@ function _filterPasswords()
   var newFilterSet = FilterPasswords(filter, signonsTreeView);
   if (!signonsTreeView._filterSet.length) {
     // Save Display Info for the Non-Filtered mode when we first
-    // enter Filtered mode. 
+    // enter Filtered mode.
     SignonSaveState();
   }
   signonsTreeView._filterSet = newFilterSet;

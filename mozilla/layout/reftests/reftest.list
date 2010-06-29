@@ -11,6 +11,9 @@ include reftest-sanity/reftest.list
 # images (if libpr0n is busted, could result in weird failures in other tests)
 include ../../modules/libpr0n/test/reftest/reftest.list
 
+# backgrounds/
+include backgrounds/reftest.list
+
 # bidi/
 include bidi/reftest.list
 
@@ -38,8 +41,17 @@ include css-import/reftest.list
 # css character encoding tests
 include css-charset/reftest.list
 
+# css gradients
+include css-gradients/reftest.list
+
 # css media queries (tests for print mode)
 include css-mediaqueries/reftest.list
+
+# css namespaces
+include css-namespace/reftest.list
+
+# css values and units
+include css-valuesandunits/reftest.list
 
 # columns/
 include columns/reftest.list
@@ -65,6 +77,9 @@ include floats/reftest.list
 # font-face
 include font-face/reftest.list
 
+# font matching
+include font-matching/reftest.list
+
 # forms
 include forms/reftest.list
 
@@ -77,11 +92,20 @@ include image/reftest.list
 # image-region/
 include image-region/reftest.list
 
+# inline borders and padding
+include inline-borderpadding/reftest.list
+
 # line-breaking/
 include line-breaking/reftest.list
 
 # mathml/
 include mathml/reftest.list
+
+# margin-collapsing
+include margin-collapsing/reftest.list
+
+# marquee/
+include marquee/reftest.list
 
 # native-theme/
 include native-theme/reftest.list
@@ -98,9 +122,15 @@ include percent-overflow-sizing/reftest.list
 # pixel-rounding/
 include pixel-rounding/reftest.list
 
+# plugin/
+include ../../modules/plugin/test/reftest/reftest.list
+
 # printing
 include printing/reftest.list
 include pagination/reftest.list
+
+# selection
+include selection/reftest.list
 
 # svg/
 include svg/reftest.list
@@ -134,6 +164,9 @@ include text-indent/reftest.list
 
 # text-shadow/
 include text-shadow/reftest.list
+
+# theme (pinstripe)
+include ../../toolkit/themes/pinstripe/reftests/reftest.list
 
 # text-transform/
 include text-transform/reftest.list

@@ -108,7 +108,6 @@ nsImapIncomingServer::nsImapIncomingServer()
   mDoingLsub = PR_FALSE;
   m_canHaveFilters = PR_TRUE;
   m_userAuthenticated = PR_FALSE;
-  m_readPFCName = PR_FALSE;
   m_shuttingDown = PR_FALSE;
 }
 
@@ -215,8 +214,7 @@ nsImapIncomingServer::GetConstructedPrettyName(nsAString& retval)
     }
   }
 
-  rv = GetFormattedStringFromID(emailAddress, IMAP_DEFAULT_ACCOUNT_NAME, retval);
-  return rv;
+  return GetFormattedStringFromID(emailAddress, IMAP_DEFAULT_ACCOUNT_NAME, retval);
 }
 
 
@@ -384,9 +382,6 @@ NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, FetchByChunks,
 
 NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, MimePartsOnDemand,
                        "mime_parts_on_demand")
-
-NS_IMPL_SERVERPREF_BOOL(nsImapIncomingServer, AOLMailboxView,
-                       "aol_mailbox_view")
 
 NS_IMETHODIMP
 nsImapIncomingServer::GetIsAOLServer(PRBool *aBool)
@@ -838,14 +833,23 @@ nsImapIncomingServer::CreateProtocolInstance(nsIEventTarget *aEventTarget,
   // we may need to flag the protocol connection as busy so we don't get
   // a race condition where someone else goes through this code
 
-  PRBool useSecAuth;
-  GetUseSecAuth(&useSecAuth);
+  PRInt32 authMethod;
+  GetAuthMethod(&authMethod);
   nsresult rv;
-  // pre-flight that we have nss - on the ui thread
-  if (useSecAuth)
+  // pre-flight that we have nss - on the ui thread - for MD5 etc.
+  switch (authMethod)
   {
-    nsCOMPtr<nsISignatureVerifier> verifier = do_GetService(SIGNATURE_VERIFIER_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
+    case nsMsgAuthMethod::passwordEncrypted:
+    case nsMsgAuthMethod::secure:
+    case nsMsgAuthMethod::anything:
+      {
+        nsCOMPtr<nsISignatureVerifier> verifier =
+            do_GetService(SIGNATURE_VERIFIER_CONTRACTID, &rv);
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+      break;
+    default:
+      break;
   }
   nsIImapProtocol * protocolInstance;
   rv = CallCreateInstance(kImapProtocolCID, &protocolInstance);
@@ -1006,99 +1010,6 @@ nsImapIncomingServer::CloseCachedConnections()
 
   PR_CExitMonitor(this);
   return NS_OK;
-}
-
-void nsImapIncomingServer::GetPFCName(nsACString& aPfcname)
-{
-  if (!m_readPFCName)
-  {
-    if(NS_SUCCEEDED(GetStringBundle()))
-    {
-      nsAutoString pfcName;
-      nsresult res = m_stringBundle->GetStringFromID(IMAP_PERSONAL_FILING_CABINET, getter_Copies(pfcName));
-      if (NS_SUCCEEDED(res))
-        CopyUTF16toUTF8(pfcName, m_pfcName);
-    }
-    m_readPFCName = PR_TRUE;
-  }
-  aPfcname = m_pfcName;
-  return;
-}
-
-NS_IMETHODIMP nsImapIncomingServer::GetIsPFC(const nsACString& folderName, PRBool *result)
-{
-  NS_ENSURE_ARG(result);
-  nsCString pfcName;
-  GetPFCName(pfcName);
-  *result = folderName.Equals(pfcName);
-  return NS_OK;
-}
-
-NS_IMETHODIMP nsImapIncomingServer::GetPFC(PRBool createIfMissing, nsIMsgFolder **pfcFolder)
-{
-  nsresult rv;
-  nsCOMPtr<nsIMsgAccountManager> accountManager =
-           do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv))
-  {
-    nsCOMPtr <nsIMsgIncomingServer> server;
-    rv = accountManager->GetLocalFoldersServer(getter_AddRefs(server));
-    if (NS_SUCCEEDED(rv) && server)
-      return server->GetRootMsgFolder(pfcFolder);
-  }
-  return rv;
-}
-
-nsresult nsImapIncomingServer::GetPFCForStringId(PRBool createIfMissing, PRInt32 stringId, nsIMsgFolder **aFolder)
-{
-  NS_ENSURE_ARG_POINTER(aFolder);
-  nsCOMPtr <nsIMsgFolder> pfcParent;
-
-  nsresult rv = GetPFC(createIfMissing, getter_AddRefs(pfcParent));
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCString pfcURI;
-  pfcParent->GetURI(pfcURI);
-
-  rv = GetStringBundle();
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsAutoString pfcName;
-  rv = m_stringBundle->GetStringFromID(stringId, getter_Copies(pfcName));
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCAutoString pfcMailUri(pfcURI);
-//  pfcMailUri.Append(".sbd");
-  pfcMailUri.Append('/');
-  AppendUTF16toUTF8(pfcName, pfcMailUri);
-  pfcParent->GetChildWithURI(pfcMailUri, PR_FALSE, PR_FALSE /* caseInsensitive*/, aFolder);
-  if (!*aFolder && createIfMissing)
-  {
-    // get the URI from the incoming server
-    nsCOMPtr<nsIRDFService> rdf = do_GetService("@mozilla.org/rdf/rdf-service;1", &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
-
-    nsCOMPtr<nsIRDFResource> res;
-    rv = rdf->GetResource(pfcMailUri, getter_AddRefs(res));
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    nsCOMPtr <nsIMsgFolder> parentToCreate = do_QueryInterface(res, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    parentToCreate->SetParent(pfcParent);
-    parentToCreate->CreateStorageIfMissing(nsnull);
-    NS_IF_ADDREF(*aFolder = parentToCreate);
-  }
-  return rv;
-}
-
-NS_IMETHODIMP nsImapIncomingServer::GetReadMailPFC(PRBool createIfMissing, nsIMsgFolder **aFolder)
-{
-  NS_ENSURE_ARG_POINTER(aFolder);
-  return GetPFCForStringId(createIfMissing, IMAP_PFC_READ_MAIL, aFolder);
-}
-
-NS_IMETHODIMP nsImapIncomingServer::GetSentMailPFC(PRBool createIfMissing, nsIMsgFolder **aFolder)
-{
-  NS_ENSURE_ARG_POINTER(aFolder);
-  return GetPFCForStringId(createIfMissing, IMAP_PFC_SENT_MAIL, aFolder);
 }
 
 nsresult
@@ -1862,26 +1773,6 @@ PRBool nsImapIncomingServer::AllDescendentsAreNoSelect(nsIMsgFolder *parentFolde
   return allDescendentsAreNoSelect;
 }
 
-
-#if 0
-void nsImapIncomingServer::UnsubscribeFromAllDescendents(nsIMsgFolder *parentFolder)
-{
-  int numberOfSubfolders = parentFolder->GetNumSubFolders();
-
-  for (int childIndex=0; childIndex < numberOfSubfolders; childIndex++)
-  {
-    MSG_IMAPFolderInfoMail *currentChild = (MSG_IMAPFolderInfoMail *) parentFolder->GetSubFolder(childIndex);
-    char *unsubscribeUrl = CreateIMAPUnsubscribeMailboxURL(currentChild->GetHostName(), currentChild->GetOnlineName(), currentChild->GetOnlineHierarchySeparator());	// unsubscribe from child
-    if (unsubscribeUrl)
-    {
-      MSG_UrlQueue::AddUrlToPane(unsubscribeUrl, NULL, pane);
-      XP_FREE(unsubscribeUrl);
-    }
-    UnsubscribeFromAllDescendants(currentChild);	// unsubscribe from its children
-  }
-}
-#endif // 0
-
 NS_IMETHODIMP
 nsImapIncomingServer::PromptLoginFailed(nsIMsgWindow *aMsgWindow,
                                         PRInt32 *aResult)
@@ -1894,6 +1785,30 @@ nsImapIncomingServer::PromptLoginFailed(nsIMsgWindow *aMsgWindow,
 
 NS_IMETHODIMP
 nsImapIncomingServer::FEAlert(const nsAString& aString, nsIMsgMailNewsUrl *aUrl)
+{
+  GetStringBundle();
+
+  if (m_stringBundle)
+  {
+    nsAutoString hostName;
+    nsresult rv = GetPrettyName(hostName);
+    if (NS_SUCCEEDED(rv))
+    {
+      nsString message;
+      nsString tempString(aString);
+      const PRUnichar *params[] = { hostName.get(), tempString.get() };
+
+      rv = m_stringBundle->FormatStringFromID(IMAP_SERVER_ALERT, params, 2,
+                                              getter_Copies(message));
+      if (NS_SUCCEEDED(rv))
+        return AlertUser(message, aUrl);
+    }
+  }
+  return AlertUser(aString, aUrl);
+}
+
+nsresult nsImapIncomingServer::AlertUser(const nsAString& aString,
+                                         nsIMsgMailNewsUrl *aUrl)
 {
   nsresult rv;
   nsCOMPtr <nsIMsgMailSession> mailSession =
@@ -1916,16 +1831,15 @@ nsImapIncomingServer::FEAlertWithID(PRInt32 aMsgId, nsIMsgMailNewsUrl *aUrl)
 
   if (m_stringBundle)
   {
-    nsCAutoString hostName;
-    nsresult rv = GetRealHostName(hostName);
+    nsAutoString hostName;
+    nsresult rv = GetPrettyName(hostName);
     if (NS_SUCCEEDED(rv))
     {
-      NS_ConvertASCIItoUTF16 hostStr(hostName);
-      const PRUnichar *params[] = { hostStr.get() };
+      const PRUnichar *params[] = { hostName.get() };
       rv = m_stringBundle->FormatStringFromID(aMsgId, params, 1,
                                               getter_Copies(message));
       if (NS_SUCCEEDED(rv))
-        return FEAlert(message, aUrl);
+        return AlertUser(message, aUrl);
     }
   }
 
@@ -1940,15 +1854,13 @@ NS_IMETHODIMP  nsImapIncomingServer::FEAlertFromServer(const nsACString& aString
                                                        nsIMsgMailNewsUrl *aUrl)
 {
   NS_ENSURE_TRUE(!aString.IsEmpty(), NS_OK);
-  
-  nsresult rv;
-  nsCOMPtr <nsIMsgMailSession> mailSession =
-    do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
 
-  // Skip over the first two words, I guess.
   nsCString message(aString);
+  message.Trim(" \t\b\r\n");
+  if (message.Last() != '.')
+    message.Append('.');
 
+  // Skip over the first two words (the command tag and "NO").
   // Find the first word break.
   PRInt32 pos = message.FindChar(' ');
 
@@ -1958,19 +1870,59 @@ NS_IMETHODIMP  nsImapIncomingServer::FEAlertFromServer(const nsACString& aString
 
   // Adjust the message.
   if (pos != -1)
-  {
     message = Substring(message, pos + 1);
-    message.Append('.');
+
+  nsString hostName;
+  GetPrettyName(hostName);
+
+  const PRUnichar *formatStrings[] =
+  {
+    hostName.get(),
+    nsnull,
+    nsnull
+  };
+
+  PRUint32 msgID;
+  PRInt32 numStrings;
+  nsString fullMessage;
+  nsCOMPtr<nsIImapUrl> imapUrl = do_QueryInterface(aUrl);
+  NS_ENSURE_TRUE(imapUrl, NS_ERROR_INVALID_ARG);
+
+  nsImapState imapState;
+  imapUrl->GetRequiredImapState(&imapState);
+  nsString folderName;
+
+  NS_ConvertUTF8toUTF16 unicodeMsg(message);
+
+  nsCOMPtr<nsIMsgFolder> folder;
+  if (imapState == nsIImapUrl::nsImapSelectedState)
+  {
+    aUrl->GetFolder(getter_AddRefs(folder));
+    if (folder)
+      folder->GetPrettyName(folderName);
+    numStrings = 3;
+    msgID = IMAP_FOLDER_COMMAND_FAILED;
+    formatStrings[1] = folderName.get();
+  }
+  else
+  {
+    msgID = IMAP_SERVER_COMMAND_FAILED;
+    numStrings = 2;
   }
 
-  nsString fullMessage;
-  GetImapStringByID(IMAP_SERVER_SAID, fullMessage);
-  NS_ENSURE_TRUE(!fullMessage.IsEmpty(), NS_OK);
+  formatStrings[numStrings -1] = unicodeMsg.get();
 
-  // The alert string from the server IS UTF-8!!! We must convert it to unicode
-  // correctly before appending it to our error message string...
-  AppendUTF8toUTF16(message, fullMessage);
-  return mailSession->AlertUser(fullMessage, aUrl);
+  nsresult rv = GetStringBundle();
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (m_stringBundle)
+  {
+    rv = m_stringBundle->FormatStringFromID(msgID,
+                                formatStrings, numStrings,
+                                getter_Copies(fullMessage));
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  return AlertUser(fullMessage, aUrl);
 }
 
 #define IMAP_MSGS_URL       "chrome://messenger/locale/imapMsgs.properties"
@@ -2152,8 +2104,36 @@ NS_IMETHODIMP nsImapIncomingServer::ForgetPassword()
 }
 
 
-NS_IMETHODIMP nsImapIncomingServer::PromptForPassword(nsACString& aPassword,
-                                                      nsIMsgWindow * aMsgWindow)
+NS_IMETHODIMP
+nsImapIncomingServer::AsyncGetPassword(nsIImapProtocol *aProtocol,
+                                       PRBool aNewPasswordRequested,
+                                       nsACString &aPassword)
+{
+  if (m_password.IsEmpty())
+  {
+    // We're now going to need to do something that will end up with us either
+    // poking login manager or prompting the user. We need to ensure we only
+    // do one prompt at a time (and login manager could cause a master password
+    // prompt), so we need to use the async prompter.
+    nsresult rv;
+    nsCOMPtr<nsIMsgAsyncPrompter> asyncPrompter =
+      do_GetService(NS_MSGASYNCPROMPTER_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIMsgAsyncPromptListener> promptListener(do_QueryInterface(aProtocol));
+    rv = asyncPrompter->QueueAsyncAuthPrompt(m_serverKey, aNewPasswordRequested,
+                                             promptListener);
+    // Explict NS_ENSURE_SUCCESS for debug purposes as errors tend to get
+    // hidden.
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  if (!m_password.IsEmpty())
+    aPassword = m_password;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsImapIncomingServer::PromptPassword(nsIMsgWindow *aMsgWindow,
+                                  nsACString &aPassword)
 {
   nsString passwordTitle;
   IMAPGetStringByID(IMAP_ENTER_PASSWORD_PROMPT_TITLE, getter_Copies(passwordTitle));
@@ -2170,7 +2150,11 @@ NS_IMETHODIMP nsImapIncomingServer::PromptForPassword(nsACString& aPassword,
                                          IMAP_ENTER_PASSWORD_PROMPT,
                                          passwordText);
   NS_ENSURE_SUCCESS(rv,rv);
-  return GetPasswordWithUI(passwordText, passwordTitle, aMsgWindow, aPassword);
+
+  rv = GetPasswordWithUI(passwordText, passwordTitle, aMsgWindow, aPassword);
+  if (NS_SUCCEEDED(rv))
+    m_password = aPassword;
+  return rv;
 }
 
 // for the nsIImapServerSink interface
@@ -2821,8 +2805,6 @@ nsImapIncomingServer::GetOfflineSupportLevel(PRInt32 *aSupportLevel)
 NS_IMETHODIMP
 nsImapIncomingServer::GeneratePrettyNameForMigration(nsAString& aPrettyName)
 {
-  nsresult rv = NS_OK;
-
   nsCString userName;
   nsCString hostName;
 
@@ -2831,7 +2813,7 @@ nsImapIncomingServer::GeneratePrettyNameForMigration(nsAString& aPrettyName)
   * provided the port is valid and not the default
 */
   // Get user name to construct pretty name
-  rv = GetUsername(userName);
+  nsresult rv = GetUsername(userName);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Get host name to construct pretty name
@@ -2861,7 +2843,7 @@ nsImapIncomingServer::GeneratePrettyNameForMigration(nsAString& aPrettyName)
   PRInt32 socketType;
   rv = GetSocketType(&socketType);
   NS_ENSURE_SUCCESS(rv,rv);
-  PRBool isSecure = (socketType == nsIMsgIncomingServer::useSSL);
+  PRBool isSecure = (socketType == nsMsgSocketType::SSL);
 
   // Is server port a default port ?
   PRBool isItDefaultPort = PR_FALSE;
@@ -2881,15 +2863,14 @@ nsImapIncomingServer::GeneratePrettyNameForMigration(nsAString& aPrettyName)
     constructedPrettyName.AppendInt(serverPort);
   }
 
-    // Format the pretty name
-    return GetFormattedStringFromID(constructedPrettyName, IMAP_DEFAULT_ACCOUNT_NAME, aPrettyName);
+  // Format the pretty name
+  return GetFormattedStringFromID(constructedPrettyName, IMAP_DEFAULT_ACCOUNT_NAME, aPrettyName);
 }
 
 nsresult
 nsImapIncomingServer::GetFormattedStringFromID(const nsAString& aValue, PRInt32 aID, nsAString& aResult)
 {
-  nsresult rv;
-  rv = GetStringBundle();
+  nsresult rv = GetStringBundle();
   if (m_stringBundle)
   {
     nsString tmpVal (aValue);
@@ -2919,7 +2900,7 @@ nsImapIncomingServer::GetPrefForServerAttribute(const char *prefSuffix, PRBool *
 
   if (NS_FAILED(mPrefBranch->GetBoolPref(prefSuffix, prefValue)))
     mDefPrefBranch->GetBoolPref(prefSuffix, prefValue);
-  
+
   return NS_OK;
 }
 
@@ -3257,3 +3238,8 @@ nsImapIncomingServer::CramMD5Hash(const char *decodedChallenge, const char *key,
   return (*result) ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
+NS_IMETHODIMP
+nsImapIncomingServer::GetLoginUsername(nsACString &aLoginUsername)
+{
+  return GetRealUsername(aLoginUsername);
+}

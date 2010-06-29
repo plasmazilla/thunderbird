@@ -1,4 +1,5 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 sw=2 et tw=79: */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -84,6 +85,7 @@
 #include "nsFrameSelection.h"
 #include "nsIDOM3Node.h"
 #include "nsContentUtils.h"
+#include "nsTArray.h"
 
 //const static char* kMOZEditorBogusNodeAttr="MOZ_EDITOR_BOGUS_NODE";
 //const static char* kMOZEditorBogusNodeValue="TRUE";
@@ -599,7 +601,10 @@ nsHTMLEditRules::WillDoAction(nsISelection *aSelection,
 
   // Deal with actions for which we don't need to check whether the selection is
   // editable.
-  if (info->action == kOutputText) {
+  if (info->action == kOutputText ||
+      info->action == kUndo ||
+      info->action == kRedo)
+  {
     return nsTextEditRules::WillDoAction(aSelection, aInfo, aCancel, aHandled);
   }
 
@@ -641,7 +646,7 @@ nsHTMLEditRules::WillDoAction(nsISelection *aSelection,
       return NS_OK;
     }
   }
-    
+
   switch (info->action)
   {
     case kInsertText:
@@ -2414,6 +2419,7 @@ nsHTMLEditRules::WillDeleteSelection(nsISelection *aSelection,
       {
         // deleting across blocks
         // are the blocks of same type?
+        NS_ENSURE_STATE(leftParent && rightParent);
         
         // are the blocks siblings?
         nsCOMPtr<nsIDOMNode> leftBlockParent;
@@ -4419,10 +4425,10 @@ nsHTMLEditRules::CreateStyleForInsertText(nsISelection *aSelection, nsIDOMDocume
 
   // next examine our present style and make sure default styles are either present or
   // explicitly overridden.  If neither, add the default style to the TypeInState
-  PRInt32 j, defcon = mHTMLEditor->mDefaultStyles.Count();
+  PRInt32 j, defcon = mHTMLEditor->mDefaultStyles.Length();
   for (j=0; j<defcon; j++)
   {
-    PropItem *propItem = (PropItem*)mHTMLEditor->mDefaultStyles[j];
+    PropItem *propItem = mHTMLEditor->mDefaultStyles[j];
     if (!propItem) 
       return NS_ERROR_NULL_POINTER;
     PRBool bFirst, bAny, bAll;
@@ -4718,7 +4724,7 @@ nsHTMLEditRules::WillAlign(nsISelection *aSelection,
   // Next we detect all the transitions in the array, where a transition
   // means that adjacent nodes in the array don't have the same parent.
 
-  nsVoidArray transitionList;
+  nsTArray<PRPackedBool> transitionList;
   res = MakeTransitionList(arrayOfNodes, transitionList);
   if (NS_FAILED(res)) return res;                                 
 
@@ -5802,39 +5808,42 @@ nsHTMLEditRules::GetNodesForOperation(nsCOMArray<nsIDOMRange>& inArrayOfRanges,
   
   if (!aDontTouchContent)
   {
-    nsVoidArray rangeItemArray;
+    nsAutoTArray<nsRangeStore, 16> rangeItemArray;
+    if (!rangeItemArray.AppendElements(rangeCount)) {
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
+
+    NS_ASSERTION(rangeCount == rangeItemArray.Length(), "How did that happen?");
+
     // first register ranges for special editor gravity
-    // XXXbz doesn't this leak all the nsRangeStore structs on error
-    // conditions??
     for (i = 0; i < (PRInt32)rangeCount; i++)
     {
       opRange = inArrayOfRanges[0];
-      nsRangeStore *item = new nsRangeStore();
-      if (!item) return NS_ERROR_NULL_POINTER;
+      nsRangeStore *item = rangeItemArray.Elements() + i;
       item->StoreRange(opRange);
       mHTMLEditor->mRangeUpdater.RegisterRangeItem(item);
-      rangeItemArray.AppendElement((void*)item);
       inArrayOfRanges.RemoveObjectAt(0);
     }    
-    // now bust up inlines
-    for (i = rangeCount-1; i >= 0; i--)
+    // now bust up inlines.  Safe to start at rangeCount-1, since we
+    // asserted we have enough items above.
+    for (i = rangeCount-1; i >= 0 && NS_SUCCEEDED(res); i--)
     {
-      nsRangeStore *item = (nsRangeStore*)rangeItemArray.ElementAt(i);
-      res = BustUpInlinesAtRangeEndpoints(*item);
-      if (NS_FAILED(res)) return res;    
+      res = BustUpInlinesAtRangeEndpoints(rangeItemArray[i]);
     } 
     // then unregister the ranges
     for (i = 0; i < rangeCount; i++)
     {
-      nsRangeStore *item = (nsRangeStore*)rangeItemArray.ElementAt(0);
-      if (!item) return NS_ERROR_NULL_POINTER;
-      rangeItemArray.RemoveElementAt(0);
+      nsRangeStore *item = rangeItemArray.Elements() + i;
       mHTMLEditor->mRangeUpdater.DropRangeItem(item);
-      res = item->GetRange(address_of(opRange));
-      if (NS_FAILED(res)) return res;
-      delete item;
+      nsresult res2 = item->GetRange(address_of(opRange));
+      if (NS_FAILED(res2) && NS_SUCCEEDED(res)) {
+        // Remember the failure, but keep going so we make sure to unregister
+        // all our range items.
+        res = res2;
+      }
       inArrayOfRanges.AppendObject(opRange);
-    }    
+    }
+    if (NS_FAILED(res)) return res;
   }
   // gather up a list of all the nodes
   for (i = 0; i < rangeCount; i++)
@@ -6394,11 +6403,11 @@ nsHTMLEditRules::GetNodesFromSelection(nsISelection *selection,
 //                       
 nsresult 
 nsHTMLEditRules::MakeTransitionList(nsCOMArray<nsIDOMNode>& inArrayOfNodes, 
-                                    nsVoidArray &inTransitionArray)
+                                    nsTArray<PRPackedBool> &inTransitionArray)
 {
-  PRInt32 listCount = inArrayOfNodes.Count();
-  PRInt32 i;
-  nsVoidArray transitionList;
+  PRUint32 listCount = inArrayOfNodes.Count();
+  inTransitionArray.EnsureLengthAtLeast(listCount);
+  PRUint32 i;
   nsCOMPtr<nsIDOMNode> prevElementParent;
   nsCOMPtr<nsIDOMNode> curElementParent;
   
@@ -6409,12 +6418,12 @@ nsHTMLEditRules::MakeTransitionList(nsCOMArray<nsIDOMNode>& inArrayOfNodes,
     if (curElementParent != prevElementParent)
     {
       // different parents, or separated by <br>: transition point
-      inTransitionArray.InsertElementAt((void*)PR_TRUE,i);  
+      inTransitionArray[i] = PR_TRUE;
     }
     else
     {
       // same parents: these nodes grew up together
-      inTransitionArray.InsertElementAt((void*)PR_FALSE,i); 
+      inTransitionArray[i] = PR_FALSE;
     }
     prevElementParent = curElementParent;
   }
@@ -7900,7 +7909,7 @@ nsHTMLEditRules::RemoveEmptyNodes()
   nsresult res = iter->Init(mDocChangeRange);
   if (NS_FAILED(res)) return res;
   
-  nsVoidArray skipList;
+  nsTArray<nsIDOMNode*> skipList;
 
   // check for empty nodes
   while (!iter->IsDone())
@@ -7913,12 +7922,12 @@ nsHTMLEditRules::RemoveEmptyNodes()
 
     node->GetParentNode(getter_AddRefs(parent));
     
-    PRInt32 idx = skipList.IndexOf((void*)node);
-    if (idx>=0)
+    PRUint32 idx = skipList.IndexOf(node);
+    if (idx != skipList.NoIndex)
     {
       // this node is on our skip list.  Skip processing for this node, 
       // and replace it's value in the skip list with the value of it's parent
-      skipList.ReplaceElementAt((void*)parent, idx);
+      skipList[idx] = parent;
     }
     else
     {
@@ -7979,7 +7988,7 @@ nsHTMLEditRules::RemoveEmptyNodes()
       if (!bIsEmptyNode)
       {
         // put parent on skip list
-        skipList.AppendElement((void*)parent);
+        skipList.AppendElement(parent);
       }
     }
 

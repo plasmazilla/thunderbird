@@ -165,7 +165,7 @@ nsFilePicker.prototype = {
     }
     if (filterMask & nsIFilePicker.filterImages) {
       this.appendFilter(bundle.GetStringFromName("imageTitle"),
-                   bundle.GetStringFromName("imageFilter"));
+                   "*.jpg; *.jpeg; *.gif; *.png; *.bmp; *.ico"); // XXX 528755
     }
     if (filterMask & nsIFilePicker.filterXML) {
       this.appendFilter(bundle.GetStringFromName("xmlTitle"),
@@ -197,8 +197,7 @@ nsFilePicker.prototype = {
         iid.equals(nsISupports))
       return this;
 
-    Components.returnCode = Components.results.NS_ERROR_NO_INTERFACE;
-    return null;
+    throw Components.results.NS_ERROR_NO_INTERFACE;
   },
 
   show: function() {

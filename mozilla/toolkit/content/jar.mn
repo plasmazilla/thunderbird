@@ -5,14 +5,20 @@ toolkit.jar:
 # provide the nsTransferable in nsDragAndDrop.js to extensions that have to
 # work with Geckos from before 1.9, when there was a separate file
 %  override chrome://global/content/nsTransferable.js chrome://global/content/nsDragAndDrop.js
+# Simplify migration from m-1.9.1 to (m-1.9.2 and) m-1.9.3.
+%  resource gre-resources resource://gre/res/
 *  content/global/license.html                (license.html)
    content/global/XPCNativeWrapper.js         (XPCNativeWrapper.js)
 *  content/global/xul.css                     (xul.css)
+   content/global/textbox.css                 (textbox.css)
+   content/global/menulist.css                (menulist.css)
 *  content/global/about.xhtml                 (about.xhtml)
+*  content/global/aboutRights.xhtml           (aboutRights.xhtml)
+*  content/global/aboutRights-unbranded.xhtml (aboutRights-unbranded.xhtml)
    content/global/directionDetector.html
    content/global/plugins.html
    content/global/plugins.css
-*+  content/global/buildconfig.html            (buildconfig.html)
+*+ content/global/buildconfig.html            (buildconfig.html)
 +  content/global/charsetOverlay.js           (charsetOverlay.js)
 +  content/global/charsetOverlay.xul          (charsetOverlay.xul)
 *+ content/global/commonDialog.js             (commonDialog.js)

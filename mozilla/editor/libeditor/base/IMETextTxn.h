@@ -77,11 +77,8 @@ public:
                   const nsAString& aString,
                   nsWeakPtr aSelCon);
 
-private:
-	
-	IMETextTxn();
+  IMETextTxn();
 
-public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(IMETextTxn, EditTxn)
 
   NS_DECL_EDITTXN
@@ -120,8 +117,6 @@ protected:
   nsWeakPtr mSelConWeak;  // use a weak reference
 
   PRBool	mFixed;
-
-  friend class TransactionFactory;
 };
 
 #endif

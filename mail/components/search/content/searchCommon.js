@@ -53,9 +53,9 @@ const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
 
-Cu.import("resource://gre/modules/iteratorUtils.jsm");
-Cu.import("resource://app/modules/gloda/log4moz.js");
-Cu.import("resource://app/modules/MailUtils.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource:///modules/iteratorUtils.jsm");
+Cu.import("resource:///modules/MailUtils.js");
 
 let SearchSupport =
 {

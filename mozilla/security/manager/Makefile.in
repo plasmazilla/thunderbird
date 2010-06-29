@@ -159,11 +159,19 @@ ifeq (WINNT_1,$(OS_TARGET)_$(MOZ_MEMORY))
 export DLLFLAGS
 endif
 
+ifndef WINCE
 # To get debug symbols from NSS
 export MOZ_DEBUG_SYMBOLS
+endif
+
+ifdef .PYMAKE
+NSSMAKE = $(GMAKE)
+else
+NSSMAKE = $(MAKE)
+endif
 
 # NSS makefiles are not safe for parallel execution.
-DEFAULT_GMAKE_FLAGS = MAKE="$(MAKE) -j1" -j1
+DEFAULT_GMAKE_FLAGS = MAKE="$(NSSMAKE) -j1" -j1
 DEFAULT_GMAKE_FLAGS += CC="$(CC)"
 DEFAULT_GMAKE_FLAGS += SOURCE_MD_DIR=$(ABS_DIST)
 DEFAULT_GMAKE_FLAGS += DIST=$(ABS_DIST)
@@ -237,6 +245,26 @@ DEFAULT_GMAKE_FLAGS += NSS_ENABLE_ZLIB=
 DEFAULT_GMAKE_FLAGS += PROGRAMS=
  
 ifdef CROSS_COMPILE
+
+ifdef WINCE
+DEFAULT_GMAKE_FLAGS += \
+	NSINSTALL="$(NSINSTALL)" \
+	NATIVE_CC="$(HOST_CC)" \
+	CC="$(CC)" \
+	CCC="$(CC)" \
+	LINK="$(LD)" \
+	LD="$(LD) -DLL" \
+	AS="$(AS) -Cp -Sn -Zi -coff $(INCLUDES)" \
+	AR='$(AR) -NOLOG0 -OUT:$$@' \
+	RANLIB="echo" \
+	RC="$(RC) $(RCFLAGS)" \
+	OS_ARCH="$(OS_ARCH)" \
+	OS_TEST="$(OS_TEST)" \
+	CPU_ARCH="ARM" \
+	USE_MSYS=1 \
+	WINCE=1 \
+	$(NULL)
+else
 DEFAULT_GMAKE_FLAGS += \
 	NSINSTALL="$(NSINSTALL)" \
 	NATIVE_CC="$(HOST_CC)" \
@@ -251,6 +279,8 @@ DEFAULT_GMAKE_FLAGS += \
 	OS_TEST="$(OS_TEST)" \
 	CPU_ARCH="$(TARGET_CPU)" \
 	$(NULL)
+endif
+
 SKIP_CHK=1
 endif
 SUBMAKEFILES = boot/Makefile ssl/Makefile pki/Makefile locales/Makefile
@@ -262,11 +292,11 @@ export:: .nss.cleaned
 
 .nss.cleaned: .nss.checkout
 ifndef MOZ_NATIVE_NSS
-	$(MAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
-	$(MAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
 ifndef SKIP_CHK
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
 endif
 	touch $@
 endif
@@ -288,22 +318,22 @@ endif
 
 libs::
 ifndef MOZ_NATIVE_NSS
-	$(MAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS)
 ifndef NSS_DISABLE_DBM
-	$(MAKE) -C $(topsrcdir)/security/dbm $(DEFAULT_GMAKE_FLAGS) 
+	$(NSSMAKE) -C $(topsrcdir)/security/dbm $(DEFAULT_GMAKE_FLAGS) 
 endif
-	$(MAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS)
 ifdef ENABLE_TESTS
 	# Need certutil binary for mochitest certificates generation
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/certutil $(DEFAULT_GMAKE_FLAGS)
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/pk12util $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/certutil $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/pk12util $(DEFAULT_GMAKE_FLAGS)
 endif
 ifndef SKIP_CHK
 ifndef ENABLE_TESTS # Just avoid secondary compile
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
 endif
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS)
 endif
 	$(INSTALL) -m 755 $(DIST)/lib/$(LOADABLE_ROOT_MODULE) $(DIST)/bin
 ifndef SKIP_CHK
@@ -354,9 +384,7 @@ ifndef MOZ_NATIVE_NSS
 # NSS installs headers to dist/public and we want them in dist/include
 	$(NSINSTALL) -D $(DIST)/include/nss
 	(cd $(DIST)/public/nss && tar $(TAR_CREATE_FLAGS) - .) | \
-	  (cd $(DIST)/include/nss && tar -xf -)
-	(cd $(DIST)/public/nss && tar $(TAR_CREATE_FLAGS) - .) | \
-	  (cd $(DIST)/sdk/include && tar -xf -)
+	  (cd $(DIST)/include && tar -xf -)
 endif
 	$(MAKE) -C boot $@
 	$(MAKE) -C ssl $@
@@ -427,11 +455,11 @@ ifdef MOZ_XUL
 	$(MAKE) -C pki $@
 endif
 ifndef MOZ_NATIVE_NSS
-	$(MAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
-	$(MAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
 ifndef SKIP_CHK
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
-	$(MAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
 endif
 endif
 

@@ -98,6 +98,9 @@
                 label="&mediaHideControls.label;"
                 accesskey="&mediaHideControls.accesskey;"
                 oncommand="gContextMenu.mediaCommand('hidecontrols');"/>
+      <menuitem id="context-video-fullscreen"
+                label="&fullScreenCmd.label;"
+                oncommand="gContextMenu.fullScreenVideo();"/>
       <menuseparator id="context-media-sep-commands"/>
       <menuitem id="context-reloadimage"
                 label="&reloadImageCmd.label;"
@@ -148,6 +151,10 @@
                 type="checkbox"
                 accesskey="&blockImageCmd.accesskey;"
                 oncommand="gContextMenu.toggleImageBlocking(this.getAttribute('checked') == 'true');"/>
+      <menuitem id="context-viewimageinfo"
+                label="&viewImageInfoCmd.label;"
+                accesskey="&viewImageInfoCmd.accesskey;"
+                oncommand="gContextMenu.viewImageInfo();"/>
       <menuitem id="context-savevideo"
                 label="&saveVideoCmd.label;"
                 accesskey="&saveVideoCmd.accesskey;"
@@ -167,13 +174,11 @@
       <menuitem id="context-back"
                 label="&backCmd.label;"
                 accesskey="&backCmd.accesskey;"
-                chromedir="&locale.dir;"
                 command="Browser:BackOrBackDuplicate"
                 onclick="checkForMiddleClick(this, event);"/>
       <menuitem id="context-forward"
                 label="&forwardCmd.label;"
                 accesskey="&forwardCmd.accesskey;"
-                chromedir="&locale.dir;"
                 command="Browser:ForwardOrForwardDuplicate"
                 onclick="checkForMiddleClick(this, event);"/>
       <menuitem id="context-reload"
@@ -283,7 +288,6 @@
                     oncommand="gContextMenu.viewFrameInfo();"/>
         </menupopup>
       </menu>
-      <menuseparator id="context-sep-properties"/>
       <menuitem id="context-viewpartialsource-selection"
                 label="&viewPartialSourceForSelectionCmd.label;"
                 accesskey="&viewPartialSourceCmd.accesskey;"
@@ -294,6 +298,7 @@
                 accesskey="&viewPartialSourceCmd.accesskey;"
                 oncommand="gContextMenu.viewPartialSource('mathml');"
                 observes="isImage"/>
+      <menuseparator id="context-sep-viewsource"/>
       <menuitem id="context-viewsource"
                 label="&viewPageSourceCmd.label;"
                 accesskey="&viewPageSourceCmd.accesskey;"
@@ -303,10 +308,6 @@
                 label="&viewPageInfoCmd.label;"
                 accesskey="&viewPageInfoCmd.accesskey;"
                 oncommand="gContextMenu.viewInfo();"/>
-      <menuitem id="context-metadata"
-                label="&metadataCmd.label;"
-                accesskey="&metadataCmd.accesskey;"
-                oncommand="gContextMenu.showMetadata();"/>
       <menuseparator id="spell-separator"/>
       <menuitem id="spell-check-enabled"
                 label="&spellCheckEnable.label;"

@@ -80,7 +80,6 @@
 #include "nsINameSpaceManager.h"
 #include "nsUnicharUtils.h"
 #include "nsIURL.h"
-#include "nsIImage.h"
 #include "nsIDocument.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsIPrincipal.h"
@@ -93,6 +92,7 @@
 #include "nsEscape.h"
 #include "nsContentUtils.h"
 #include "nsIMIMEService.h"
+#include "imgIContainer.h"
 #include "imgIRequest.h"
 #include "nsContentCID.h"
 #include "nsDOMDataTransfer.h"
@@ -171,7 +171,7 @@ private:
   nsString mInfoString;
 
   PRBool mIsAnchor;
-  nsCOMPtr<nsIImage> mImage;
+  nsCOMPtr<imgIContainer> mImage;
 };
 
 
@@ -329,6 +329,7 @@ nsContentAreaDragDrop::DragOver(nsIDOMDragEvent* inEvent)
   }
 
   session->SetCanDrop(dropAllowed);
+
   return NS_OK;
 }
 
@@ -972,7 +973,7 @@ nsTransferableFactory::Produce(nsDOMDataTransfer* aDataTransfer,
         nsCOMPtr<imgIRequest> imgRequest;
 
         // grab the image data, and its request.
-        nsCOMPtr<nsIImage> img =
+        nsCOMPtr<imgIContainer> img =
           nsContentUtils::GetImageFromContent(image,
                                               getter_AddRefs(imgRequest));
 
@@ -1420,7 +1421,8 @@ nsTransferableFactory::SerializeNodeOrSelection(nsIDOMWindow* inWindow,
   NS_ENSURE_TRUE(domDoc, NS_ERROR_FAILURE);
 
   PRUint32 flags = nsIDocumentEncoder::OutputAbsoluteLinks |
-                   nsIDocumentEncoder::OutputEncodeHTMLEntities;
+                   nsIDocumentEncoder::OutputEncodeHTMLEntities |
+                   nsIDocumentEncoder::OutputRaw;
   nsCOMPtr<nsIDOMRange> range;
   nsCOMPtr<nsISelection> selection;
   nsCOMPtr<nsIDOMNode> node = do_QueryInterface(inNode);

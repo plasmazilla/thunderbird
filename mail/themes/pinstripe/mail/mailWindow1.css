@@ -73,7 +73,7 @@ treechildren::-moz-tree-twisty {
 }
 
 #folderPaneHeader, #folderTree {
-  background-color: #D6DDE5 !important;
+  background-color: #DEE4EA !important;
   border-bottom: 2px solid transparent;
 }
 
@@ -410,7 +410,7 @@ treechildren::-moz-tree-row(dummy, focus, selected)  {
 }
 
 .folderview-cycler[dir="prev"],
-.folderview-cycler[dir="next"][chromedir="rtl"] {
+.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
   list-style-image: url("chrome://messenger/skin/icons/spin-buttons.png");
   -moz-image-region: rect(0 15px 16px 0);
   padding: 0 !important;
@@ -418,7 +418,7 @@ treechildren::-moz-tree-row(dummy, focus, selected)  {
 }
 
 .folderview-cycler[dir="next"],
-.folderview-cycler[dir="prev"][chromedir="rtl"] {
+.folderview-cycler[dir="prev"]:-moz-locale-dir(rtl) {
   list-style-image: url("chrome://messenger/skin/icons/spin-buttons.png");
   -moz-image-region: rect(0 31px 16px 15px);
   padding: 0 !important;
@@ -447,7 +447,7 @@ splitter {
   -moz-border-end: 1px solid #8C8C8C;
 }
 
-#threadpane-splitter[chromedir="rtl"] {
+#threadpane-splitter:-moz-locale-dir(rtl) {
   background-image: url("chrome://messenger/skin/icons/vertical-threadpane-splitter-bg-rtl.gif");
 }
 
@@ -496,6 +496,6 @@ splitter {
   text-align: center;
 }
 
-.tabmail-tab[type="message"]  .tab-icon-image {
+.tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/message-mail.png");
 }

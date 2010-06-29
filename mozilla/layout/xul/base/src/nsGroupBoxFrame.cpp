@@ -44,6 +44,7 @@
 
 class nsGroupBoxFrame : public nsBoxFrame {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
 
   nsGroupBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext):
     nsBoxFrame(aShell, aContext) {}
@@ -102,6 +103,8 @@ NS_NewGroupBoxFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   return new (aPresShell) nsGroupBoxFrame(aPresShell, aContext);
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsGroupBoxFrame)
+
 class nsDisplayXULGroupBackground : public nsDisplayItem {
 public:
   nsDisplayXULGroupBackground(nsGroupBoxFrame* aFrame) : nsDisplayItem(aFrame) {
@@ -115,17 +118,18 @@ public:
 
   virtual nsIFrame* HitTest(nsDisplayListBuilder* aBuilder, nsPoint aPt,
                             HitTestState* aState) { return mFrame; }
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx,
-     const nsRect& aDirtyRect);
+  virtual void Paint(nsDisplayListBuilder* aBuilder,
+                     nsIRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("XULGroupBackground")
 };
 
 void
 nsDisplayXULGroupBackground::Paint(nsDisplayListBuilder* aBuilder,
-     nsIRenderingContext* aCtx, const nsRect& aDirtyRect)
+                                   nsIRenderingContext* aCtx)
 {
   static_cast<nsGroupBoxFrame*>(mFrame)->
-    PaintBorderBackground(*aCtx, aBuilder->ToReferenceFrame(mFrame), aDirtyRect);
+    PaintBorderBackground(*aCtx, aBuilder->ToReferenceFrame(mFrame),
+                          mVisibleRect);
 }
 
 NS_IMETHODIMP

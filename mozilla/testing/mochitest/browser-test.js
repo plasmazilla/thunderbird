@@ -33,8 +33,20 @@ function Tester(aTests, aDumper, aCallback) {
   this.callback = aCallback;
   this._cs = Cc["@mozilla.org/consoleservice;1"].
              getService(Ci.nsIConsoleService);
+
+  var scriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
+                     getService(Ci.mozIJSSubScriptLoader);
+  scriptLoader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/EventUtils.js", this.EventUtils);
+  // Avoid polluting this scope with packed.js contents.
+  var simpleTestScope = {};
+  scriptLoader.loadSubScript("chrome://mochikit/content/MochiKit/packed.js", simpleTestScope);
+  scriptLoader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/SimpleTest.js", simpleTestScope);
+  this.SimpleTest = simpleTestScope.SimpleTest;
 }
 Tester.prototype = {
+  EventUtils: {},
+  SimpleTest: {},
+
   checker: null,
   currentTestIndex: -1,
   get currentTest() {
@@ -92,8 +104,33 @@ Tester.prototype = {
   },
 
   execTest: function Tester_execTest() {
+    if (this.currentTest) {
+      // Run cleanup functions for the current test before moving on to the
+      // next one.
+      let testScope = this.currentTest.scope;
+      while (testScope.__cleanupFunctions.length > 0) {
+        let func = testScope.__cleanupFunctions.shift();
+        func.apply(testScope);
+      };
+    }
+
     if (this.done) {
       this.finish();
+      return;
+    }
+
+    // Make sure the window is raised before each test.
+    let fm = Cc["@mozilla.org/focus-manager;1"].getService(Ci.nsIFocusManager);
+    if (fm.activeWindow != window) {
+      this.dumper.dump("Waiting for window activation...\n");
+      let self = this;
+      window.addEventListener("activate", function () {
+        window.removeEventListener("activate", arguments.callee, false);
+        setTimeout(function () {
+          self.execTest();
+        }, 0);
+      }, false);
+      window.focus();
       return;
     }
 
@@ -105,8 +142,22 @@ Tester.prototype = {
     // Load the tests into a testscope
     this.currentTest.scope = new testScope(this, this.currentTest);
 
+    // Import utils in the test scope.
+    this.currentTest.scope.EventUtils = this.EventUtils;
+    this.currentTest.scope.SimpleTest = this.SimpleTest;
+
     var scriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
                        getService(Ci.mozIJSSubScriptLoader);
+
+    // Import head.js script if it exists.
+    var currentTestDirPath =
+      this.currentTest.path.substr(0, this.currentTest.path.lastIndexOf("/"));
+    var headPath = currentTestDirPath + "/head.js";
+    try {
+      scriptLoader.loadSubScript(headPath, this.currentTest.scope);
+    } catch (ex) { /* no head */ }
+
+    // Import the test script.
     try {
       scriptLoader.loadSubScript(this.currentTest.path, this.currentTest.scope);
 
@@ -154,8 +205,13 @@ function testResult(aCondition, aName, aDiag, aIsTodo) {
     else
       this.result = "TEST-PASS";
   } else {
-    if (aDiag)
+    if (aDiag) {
+      if (typeof aDiag == "object" && "fileName" in aDiag) {
+        // we have an exception - print filename and linenumber information
+        this.msg += " at " + aDiag.fileName + ":" + aDiag.lineNumber;
+      }
       this.msg += " - " + aDiag;
+    }
     if (aIsTodo)
       this.result = "TEST-UNEXPECTED-PASS";
     else
@@ -172,10 +228,6 @@ function testMessage(aName) {
 // Need to be careful adding properties to this object, since its properties
 // cannot conflict with global variables used in tests.
 function testScope(aTester, aTest) {
-  var scriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
-                     getService(Ci.mozIJSSubScriptLoader);
-  scriptLoader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/EventUtils.js", this.EventUtils);
-
   this.__tester = aTester;
   this.__browserTest = aTest;
 
@@ -212,8 +264,16 @@ function testScope(aTester, aTest) {
     }, Ci.nsIThread.DISPATCH_NORMAL);
   };
 
-  this.waitForExplicitFinish = function test_WFEF() {
+  this.waitForExplicitFinish = function test_waitForExplicitFinish() {
     self.__done = false;
+  };
+
+  this.waitForFocus = function test_waitForFocus(callback, targetWindow) {
+    self.SimpleTest.waitForFocus(callback, targetWindow);
+  };
+
+  this.registerCleanupFunction = function test_registerCleanupFunction(aFunction) {
+    self.__cleanupFunctions.push(aFunction);
   };
 
   this.finish = function test_finish() {
@@ -232,6 +292,8 @@ function testScope(aTester, aTest) {
 testScope.prototype = {
   __done: true,
   __waitTimer: null,
+  __cleanupFunctions: [],
 
-  EventUtils: {}
+  EventUtils: {},
+  SimpleTest: {}
 };

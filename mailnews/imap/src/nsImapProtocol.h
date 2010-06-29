@@ -87,6 +87,7 @@
 #include "nsITimer.h"
 #include "nsAutoPtr.h"
 #include "nsIMsgFolder.h"
+#include "nsIMsgAsyncPrompter.h"
 
 class nsIMAPMessagePartIDArray;
 class nsIMsgIncomingServer;
@@ -154,8 +155,13 @@ private:
 #define IMAP_ISSUED_LANGUAGE_REQUEST  0x00000020 // make sure we only issue the language request once per connection...
 #define IMAP_ISSUED_COMPRESS_REQUEST  0x00000040 // make sure we only request compression once
 
-class nsImapProtocol : public nsIImapProtocol, public nsIRunnable, public nsIInputStreamCallback,
- public nsSupportsWeakReference, public nsMsgProtocol, public nsIImapProtocolSink
+class nsImapProtocol : public nsIImapProtocol,
+                       public nsIRunnable,
+                       public nsIInputStreamCallback,
+                       public nsSupportsWeakReference,
+                       public nsMsgProtocol,
+                       public nsIImapProtocolSink,
+                       public nsIMsgAsyncPromptListener
 {
 public:
 
@@ -179,7 +185,9 @@ public:
   // we support the nsIImapProtocolSink interface
   //////////////////////////////////////////////////////////////////////////////////
   NS_DECL_NSIIMAPPROTOCOLSINK
-  
+
+  NS_DECL_NSIMSGASYNCPROMPTLISTENER
+
   // message id string utilities.
   PRUint32    CountMessagesInIdString(const char *idString);
   static  PRBool  HandlingMultipleMessages(const nsCString &messageIdString);
@@ -241,15 +249,15 @@ public:
   PRBool  GetIgnoreExpunges() {return m_ignoreExpunges;}
   // Generic accessors required by the imap parser
   char * CreateNewLineFromSocket();
-  PRInt32 GetConnectionStatus();
-  void SetConnectionStatus(PRInt32 status);
+  nsresult GetConnectionStatus();
+  void SetConnectionStatus(nsresult status);
 
   // Cleanup the connection and shutdown the thread.
   void TellThreadToDie();
 
   const nsCString& GetImapHostName(); // return the host name from the url for the
   // current connection
-  const nsCString& GetImapUserName(); // return the user name from the identity;
+  const nsCString& GetImapUserName(); // return the user name from the identity
   const char* GetImapServerKey(); // return the user name from the incoming server;
 
   // state set by the imap parser...
@@ -345,13 +353,13 @@ private:
   nsCString             m_hostName;
   nsCString             m_userName;
   nsCString             m_serverKey;
+  nsCString             m_realHostName;
   char                  *m_dataOutputBuf;
   nsMsgLineStreamBuffer * m_inputStreamBuffer;
   PRUint32              m_allocatedSize; // allocated size
   PRUint32        m_totalDataSize; // total data size
   PRUint32        m_curReadIndex;  // current read index
   nsCString       m_trashFolderName;
-  PRBool          m_authLogin;
 
   // Ouput stream for writing commands to the socket
   nsCOMPtr<nsISocketTransport>  m_transport;
@@ -374,10 +382,18 @@ private:
   PRMonitor    *m_waitForBodyIdsMonitor;
   PRMonitor    *m_fetchMsgListMonitor;
   PRMonitor   *m_fetchBodyListMonitor;
+  PRMonitor   *m_passwordReadyMonitor;
+
+  // If we get an async password prompt, this is where the UI thread
+  // stores the password, before notifying the imap thread of the password
+  // via the m_passwordReadyMonitor.
+  nsCString m_password;
+  // Set to the result of nsImapServer::PromptPassword
+  nsresult    m_passwordStatus;
 
   PRBool       m_imapThreadIsRunning;
   void ImapThreadMainLoop(void);
-  PRInt32     m_connectionStatus;
+  nsresult    m_connectionStatus;
   nsCString   m_connectionType;
 
   PRBool      m_nextUrlReadyToRun;
@@ -474,7 +490,11 @@ private:
   void StartTLS();
 
   // login related methods.
-  nsresult GetPassword(nsCString &password);
+  nsresult GetPassword(nsCString &password, PRBool aNewPasswordRequested);
+  void InitPrefAuthMethods(PRInt32 authMethodPrefValue);
+  nsresult ChooseAuthMethod();
+  void MarkAuthMethodAsFailed(PRInt32 failedAuthMethod);
+  void ResetAuthMethods();
 
   // All of these methods actually issue protocol
   void Capability(); // query host for capabilities.
@@ -595,7 +615,9 @@ private:
   PRBool  m_fetchByChunks;
   PRInt32 m_curFetchSize;
   PRBool  m_ignoreExpunges;
-  PRBool  m_useSecAuth;
+  PRInt32 m_prefAuthMethods; // set of capability flags (in nsImapCore.h) for auth methods
+  PRInt32 m_failedAuthMethods; // ditto
+  eIMAPCapabilityFlag m_currentAuthMethod; // exactly one capability flag, or 0
   PRInt32 m_socketType;
   PRInt32 m_chunkSize;
   PRInt32 m_chunkThreshold;

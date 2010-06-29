@@ -52,7 +52,7 @@
 #include "nsISupportsObsolete.h"
 #include "nsQuickSort.h"
 #include "nsAutoPtr.h"
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && !defined(__LP64__)
 #include "nsIAppleFileDecoder.h"
 #include "nsILocalFileMac.h"
 #endif
@@ -287,6 +287,10 @@ public:
   char** m_displayNameArray;
   char** m_messageUriArray;
   PRBool m_detachingAttachments;
+
+  // if detaching, do without warning? Will create unique files instead of
+  //  prompting if duplicate files exist.
+  PRBool m_withoutWarning;
   nsCStringArray m_savedFiles; // if detaching first, remember where we saved to.
 };
 
@@ -372,8 +376,14 @@ NS_IMETHODIMP nsMessenger::SetWindow(nsIDOMWindowInternal *aWin, nsIMsgWindow *a
     // Remove pref observer
     pbi->RemoveObserver(MAILNEWS_ALLOW_PLUGINS_PREF_NAME, this);
 
-    rv = mailSession->RemoveFolderListener(this);
-    NS_ENSURE_SUCCESS(rv, rv);
+    // Remove the folder listener if we added it, i.e. if mWindow is non-null
+    if (mWindow)
+    {
+      rv = mailSession->RemoveFolderListener(this);
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+
+    mWindow = nsnull;
   }
 
   return NS_OK;
@@ -392,7 +402,7 @@ NS_IMETHODIMP nsMessenger::SetDisplayCharset(const nsACString& aCharset)
       if (muDV)
       {
         muDV->SetHintCharacterSet(aCharset);
-        muDV->SetHintCharacterSetSource(9);
+        muDV->SetHintCharacterSetSource(kCharsetFromMetaTag);
       }
 
       mCurrentDisplayCharset = aCharset;
@@ -702,6 +712,53 @@ NS_IMETHODIMP nsMessenger::SaveAttachmentToFile(nsIFile *aFile,
   return SaveAttachment(aFile, aURL, aMessageUri, aContentType, nsnull, aListener);
 }
 
+NS_IMETHODIMP
+nsMessenger::DetachAttachmentsWOPrompts(nsIFile* aDestFolder,
+                                        PRUint32 aCount,
+                                        const char **aContentTypeArray,
+                                        const char **aUrlArray,
+                                        const char **aDisplayNameArray,
+                                        const char **aMessageUriArray,
+                                        nsIUrlListener *aListener)
+{
+  nsSaveAllAttachmentsState *saveState;
+  nsCOMPtr<nsIFile> clone;
+  nsresult rv = aDestFolder->Clone(getter_AddRefs(clone));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsILocalFile> attachmentDestination(do_QueryInterface(clone, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCAutoString path;
+  rv = attachmentDestination->GetNativePath(path);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsAutoString unescapedFileName;
+  ConvertAndSanitizeFileName(aDisplayNameArray[0], unescapedFileName);
+  rv = attachmentDestination->Append(unescapedFileName);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = attachmentDestination->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  saveState = new nsSaveAllAttachmentsState(aCount,
+                                            aContentTypeArray,
+                                            aUrlArray,
+                                            aDisplayNameArray,
+                                            aMessageUriArray,
+                                            path.get(),
+                                            PR_TRUE);
+
+  // This method is used in filters, where we don't want to warn
+  saveState->m_withoutWarning = PR_TRUE;
+  rv = SaveAttachment(attachmentDestination,
+                      nsDependentCString(aUrlArray[0]),
+                      nsDependentCString(aMessageUriArray[0]),
+                      nsDependentCString(aContentTypeArray[0]),
+                      (void *)saveState,
+                      aListener);
+  return rv;
+}
+
 nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
                                      const nsACString &aURL,
                                      const nsACString &aMessageUri,
@@ -709,7 +766,7 @@ nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
                                      void *closure,
                                      nsIUrlListener *aListener)
 {
-  nsIMsgMessageService *messageService = nsnull;
+  nsCOMPtr<nsIMsgMessageService> messageService;
   nsSaveAllAttachmentsState *saveState= (nsSaveAllAttachmentsState*) closure;
   nsCOMPtr<nsIMsgMessageFetchPartService> fetchService;
   nsCAutoString urlString;
@@ -755,7 +812,7 @@ nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
 
   if (NS_SUCCEEDED(rv))
   {
-    rv = GetMessageServiceFromURI(aMessageUri, &messageService);
+    rv = GetMessageServiceFromURI(aMessageUri, getter_AddRefs(messageService));
     if (NS_SUCCEEDED(rv))
     {
       fetchService = do_QueryInterface(messageService);
@@ -1248,6 +1305,117 @@ nsMessenger::GetSaveAsFile(const nsAString& aMsgFilename, PRInt32 *aSaveAsFileTy
   return NS_OK;
 }
 
+/**
+ * Show a Save All dialog allowing the user to pick which folder to save
+ * messages to.
+ * @param [out] aSaveDir directory to save to. Will be null on cancel.
+ */
+nsresult
+nsMessenger::GetSaveToDir(nsILocalFile **aSaveDir)
+{
+  nsresult rv;
+  nsCOMPtr<nsIFilePicker> filePicker =
+    do_CreateInstance("@mozilla.org/filepicker;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsString chooseFolderStr;
+  GetString(NS_LITERAL_STRING("ChooseFolder"), chooseFolderStr);
+  filePicker->Init(mWindow, chooseFolderStr, nsIFilePicker::modeGetFolder);
+
+  nsCOMPtr<nsILocalFile> lastSaveDir;
+  rv = GetLastSaveDirectory(getter_AddRefs(lastSaveDir));
+  if (NS_SUCCEEDED(rv) && lastSaveDir)
+    filePicker->SetDisplayDirectory(lastSaveDir);
+
+  PRInt16 dialogResult;
+  rv = filePicker->Show(&dialogResult);
+  if (NS_FAILED(rv) || dialogResult == nsIFilePicker::returnCancel)
+  {
+    // We'll indicate this by setting the outparam to null.
+    *aSaveDir = nsnull;
+    return NS_OK;
+  }
+
+  nsCOMPtr<nsILocalFile> dir;
+  rv = filePicker->GetFile(getter_AddRefs(dir));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = SetLastSaveDirectory(dir);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  *aSaveDir = nsnull;
+  dir.swap(*aSaveDir);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsMessenger::SaveMessages(PRUint32 aCount,
+                          const PRUnichar **aFilenameArray,
+                          const char **aMessageUriArray)
+{
+  NS_ENSURE_ARG_MIN(aCount, 1);
+  NS_ENSURE_ARG_POINTER(aFilenameArray);
+  NS_ENSURE_ARG_POINTER(aMessageUriArray);
+
+  nsresult rv;
+
+  nsCOMPtr<nsILocalFile> saveDir;
+  rv = GetSaveToDir(getter_AddRefs(saveDir));
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (!saveDir) // A null saveDir means that the user canceled the save.
+    return NS_OK;
+
+  for (PRUint32 i = 0; i < aCount; i++) {
+    if (!aFilenameArray[i]) // just to be sure
+      return NS_ERROR_FAILURE;
+
+    nsCOMPtr<nsILocalFile> saveToFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = saveToFile->InitWithFile(saveDir);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = saveToFile->Append(nsDependentString(aFilenameArray[i]));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = PromptIfFileExists(saveToFile);
+    if (NS_FAILED(rv))
+      continue;
+
+    nsCOMPtr<nsIMsgMessageService> messageService;
+    nsCOMPtr<nsIUrlListener> urlListener;
+
+    rv = GetMessageServiceFromURI(nsDependentCString(aMessageUriArray[i]),
+                                  getter_AddRefs(messageService));
+    if (NS_FAILED(rv)) {
+      Alert("saveMessageFailed");
+      return rv;
+    }
+
+    nsSaveMsgListener *saveListener = new nsSaveMsgListener(saveToFile, this, nsnull);
+    if (!saveListener) {
+      NS_IF_RELEASE(saveListener);
+      Alert("saveMessageFailed");
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
+    NS_ADDREF(saveListener);
+
+    rv = saveListener->QueryInterface(NS_GET_IID(nsIUrlListener),
+                                      getter_AddRefs(urlListener));
+    if (NS_FAILED(rv)) {
+      NS_IF_RELEASE(saveListener);
+      Alert("saveMessageFailed");
+      return rv;
+    }
+
+    // Ok, now save the message.
+    rv = messageService->SaveMessageToDisk(aMessageUriArray[i],
+                                           saveToFile, PR_FALSE,
+                                           urlListener, nsnull,
+                                           PR_TRUE, mMsgWindow);
+  }
+  return rv;
+}
+
 nsresult
 nsMessenger::Alert(const char *stringName)
 {
@@ -1621,7 +1789,15 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, PRUint32 a
     // but what is a small download? Well that's kind of arbitrary
     // so make an arbitrary decision based on the content length of the
     // attachment -- show it if less than half of the download has completed
-    if (mMaxProgress != -1 && mMaxProgress > aBytesDownloaded * 2)
+
+    // When we don't allow warnings, also don't show progress, as this
+    //  is an environment (typically filters) where we don't want
+    //  interruption.
+    PRBool allowProgress = PR_TRUE;
+    if (m_saveAllAttachmentsState)
+      allowProgress = !m_saveAllAttachmentsState->m_withoutWarning;
+    if (allowProgress && mMaxProgress != -1 &&
+        mMaxProgress > aBytesDownloaded * 2)
     {
       nsCOMPtr<nsITransfer> tr = do_CreateInstance(NS_TRANSFER_CONTRACTID, &rv);
       if (tr && outputFile)
@@ -1641,7 +1817,7 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, PRUint32 a
       }
     }
     
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && !defined(__LP64__)
     /* if we are saving an appledouble or applesingle attachment, we need to use an Apple File Decoder */
     if (m_contentType.LowerCaseEqualsLiteral(APPLICATION_APPLEFILE) ||
         m_contentType.LowerCaseEqualsLiteral(MULTIPART_APPLEDOUBLE))
@@ -1663,7 +1839,7 @@ NS_IMETHODIMP
 nsSaveMsgListener::OnStartRequest(nsIRequest* request, nsISupports* aSupport)
 {
   if (m_file)
-    NS_NewLocalFileOutputStream(getter_AddRefs(m_outputStream), m_file, -1, 00600);
+    MsgNewBufferedFileOutputStream(getter_AddRefs(m_outputStream), m_file, -1, 00600);
   if (!m_outputStream)
   {
     mCanceled = PR_TRUE;
@@ -1736,9 +1912,20 @@ nsSaveMsgListener::OnStopRequest(nsIRequest* request, nsISupports* aSupport,
       rv = localFile->Append(unescapedName);
       if (NS_FAILED(rv))
         goto done;
-      
-      rv = m_messenger->PromptIfFileExists(localFile);
-      if (NS_FAILED(rv)) goto done;
+
+      // When we are running with no warnings (typically filters and other automatic
+      //  uses), then don't prompt for duplicates, but create a unique file
+      //  instead.
+      if (!m_saveAllAttachmentsState->m_withoutWarning)
+      {
+        rv = m_messenger->PromptIfFileExists(localFile);
+        if (NS_FAILED(rv)) goto done;
+      }
+      else
+      {
+        rv = localFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
+        if (NS_FAILED(rv)) goto done;
+      }
       rv = m_messenger->SaveAttachment(localFile,
                                        nsDependentCString(state->m_urlArray[i]),
                                        nsDependentCString(state->m_messageUriArray[i]),
@@ -1762,9 +1949,10 @@ nsSaveMsgListener::OnStopRequest(nsIRequest* request, nsISupports* aSupport,
                                        (const char **) state->m_urlArray,
                                        (const char **) state->m_displayNameArray,
                                        (const char **) state->m_messageUriArray,
-                                       &state->m_savedFiles);
+                                       &state->m_savedFiles,
+                                       state->m_withoutWarning);
       }
-      
+
       delete m_saveAllAttachmentsState;
       m_saveAllAttachmentsState = nsnull;
     }
@@ -1877,6 +2065,7 @@ nsSaveAllAttachmentsState::nsSaveAllAttachmentsState(PRUint32 count,
                                                      const char **uriArray,
                                                      const char *dirName,
                                                      PRBool detachingAttachments)
+    : m_withoutWarning(PR_FALSE)
 {
     PRUint32 i;
     NS_ASSERTION(count && urlArray && nameArray && uriArray && dirName,
@@ -2680,11 +2869,7 @@ nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aM
   rv = mMsgFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsCOMPtr<nsIOutputStream> fileOutputStream;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(fileOutputStream), mMsgFile, -1, 00600);
-  NS_ENSURE_SUCCESS(rv,rv);
-  rv = NS_NewBufferedOutputStream(getter_AddRefs(mMsgFileStream), fileOutputStream, FOUR_K);
-  NS_ENSURE_SUCCESS(rv,rv);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mMsgFileStream), mMsgFile, -1, 00600);
 
   // create the additional header for data conversion. This will tell the stream converter
   // which MIME emitter we want to use, and it will tell the MIME emitter which attachments

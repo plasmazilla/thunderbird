@@ -359,7 +359,13 @@ extensions/talkback@mozilla.org/components/talkback.so
 #endif
 #endif
 #
-
+# Clean out update service components if MOZ_UPDATER isn't defined
+#
+#ifndef MOZ_UPDATER
+components/nsUpdateService.js
+components/nsUpdateServiceStub.js
+#endif
+#
 # bug 404085 (Consolidate provider methods into a default calendar
 # implementation)
 components/calDavCalendar.js
@@ -452,4 +458,34 @@ calendar-js/calAuthUtils.js
 # Bug 420811 replace loading and broken image GIFs with PNGs
 res/broken-image.gif
 res/loading-image.gif
+#endif
+
+#ifdef XP_WIN
+#ifdef MOZILLA_1_9_1_BRANCH
+mozjs.dll
+#elifdef MOZILLA_1_9_2_BRANCH
+mozjs.dll
+#else
+# Bug 504029
+js3250.dll
+#endif
+#endif
+
+# bug 520394 - We now use Cocoa Printing instead of PrintPDE
+#ifdef XP_MACOSX
+../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
+../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/Localizable.strings
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/classes.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/info.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
+#endif
+
+#ifndef MOZILLA_1_9_2_BRANCH
+components/contentprefs.xpt
+#endif
+
+# Bug 522712 - Port |Bug 511761 - Only use compatibility.ini (not .autoreg, or stat()s) to invalidate fastloads and other caches| to comm-central (apps)
+#ifndef MOZILLA_1_9_2_BRANCH
+.autoreg
 #endif

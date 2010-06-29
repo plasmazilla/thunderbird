@@ -40,7 +40,7 @@ const gTestArray =
   // just get a message into the local folder
   function getLocalMessages1() {
     gPOP3Pump.files = gFiles;
-    gPOP3Pump.onDone = "doTest();";
+    gPOP3Pump.onDone = doTest;
     ++gCurTestNum;
     gPOP3Pump.run();
   },
@@ -66,7 +66,7 @@ const gTestArray =
   // just get a message into the local folder
   function getLocalMessages2() {
     gPOP3Pump.files = gFiles;
-    gPOP3Pump.onDone = "doTest();";
+    gPOP3Pump.onDone = doTest;
     ++gCurTestNum;
     gPOP3Pump.run();
   },
@@ -126,7 +126,7 @@ function run_test()
 
 function doTest()
 {
-  test = gCurTestNum;
+  var test = gCurTestNum;
   if (test <= gTestArray.length)
   {
     var testFn = gTestArray[test-1];
@@ -135,11 +135,11 @@ function doTest()
     try {
       testFn();
     } catch(ex) {
-      do_throw ('TEST FAILED ' + e);
+      do_throw ('TEST FAILED ' + ex);
     }
   }
   else
-    do_timeout(1000, "endTest();");
+    do_timeout(1000, endTest);
 }
 
 // nsIFolderListener implementation
@@ -150,7 +150,7 @@ var FolderListener = {
   OnItemRemoved: function OnItemRemoved(aParentItem, aItem) {
     this._showEvent(aParentItem, "OnItemRemoved");
     // continue test, as all tests remove a message during the move
-    do_timeout(0, "doTest();");
+    do_timeout(0, doTest);
   },
   OnItemEvent: function OnItemEvent(aEventFolder, aEvent) {
     this._showEvent(aEventFolder, aEvent.toString())

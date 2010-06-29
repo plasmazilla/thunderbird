@@ -19,7 +19,7 @@
  * }
  */
 
-Components.utils.import("resource://app/modules/errUtils.js");
+Components.utils.import("resource:///modules/errUtils.js");
 
 /**
  * Url listener that can wrap another listener and trigger a callback, but
@@ -133,9 +133,18 @@ function async_run(aArgs) {
  *  cleaner.
  */
 function async_driver() {
-  do_timeout_function(0, _async_driver);
+  do_execute_soon(_async_driver);
   return false;
 }
+
+/**
+ * Sentinel object that test helpers can throw to cause a generator stack to
+ *  abort without triggering a test failure.  You would use this when you wrap
+ *  a utility function to inject faults into the calling function so that you
+ *  can control how far the logic gets.  This allows testing of multi-step logic
+ *  after each step.
+ */
+var asyncExpectedEarlyAbort = "REAP!";
 
 // the real driver!
 function _async_driver() {
@@ -148,7 +157,7 @@ function _async_driver() {
       return false;
     }
     catch (ex) {
-      if (ex != StopIteration) {
+      if (ex != StopIteration && ex != asyncExpectedEarlyAbort) {
         let asyncStack = [];
         dump("*******************************************\n");
         dump("Generator explosion!\n");
@@ -226,13 +235,13 @@ function parameterizeTest(aTestFunc, aParameters) {
   return [aTestFunc, aParameters];
 }
 
-DEFAULT_LONGEST_TEST_RUN_CONCEIVABLE_SECS = 600;
+const DEFAULT_LONGEST_TEST_RUN_CONCEIVABLE_SECS = 600;
 function async_run_tests(aTests, aLongestTestRunTimeConceivableInSecs) {
   if (aLongestTestRunTimeConceivableInSecs == null)
     aLongestTestRunTimeConceivableInSecs =
         DEFAULT_LONGEST_TEST_RUN_CONCEIVABLE_SECS;
   do_timeout(aLongestTestRunTimeConceivableInSecs * 1000,
-      "_async_test_runner_timeout();");
+      _async_test_runner_timeout);
 
   do_test_pending();
 

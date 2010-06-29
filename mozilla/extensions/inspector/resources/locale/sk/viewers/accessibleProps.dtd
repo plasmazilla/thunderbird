@@ -42,11 +42,13 @@
 <!ENTITY descDescription.label "Popis:">
 <!ENTITY descValue.label "Hodnota:">
 <!ENTITY descState.label "Stav:">
-<!ENTITY descActionName.label "Názov akcie:">
 <!ENTITY descBounds.label "Okraje:">
 <!ENTITY tabAttrs.label "Atribúty objektu">
 <!ENTITY colAttrName.label "Názov">
 <!ENTITY colAttrValue.label "Hodnota">
+<!ENTITY tabActions.label "Akcie">
+<!ENTITY descKeyBindings.label "Kláv. skratky:">
+<!ENTITY descInvoke.label "Vyvolať">
 <!ENTITY tabTableCell.label "Bunka tabuľky">
 <!ENTITY descColumnIdx.label "Index stĺpca:">
 <!ENTITY descRowIdx.label "Index riadka:">

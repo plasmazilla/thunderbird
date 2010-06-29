@@ -45,9 +45,9 @@
 #include "nsGkAtoms.h"
 #include "nsSVGGeometryFrame.h"
 #include "gfxRect.h"
+#include "gfxMatrix.h"
 
 class nsPresContext;
-class nsIDOMSVGMatrix;
 class nsSVGMarkerFrame;
 class nsSVGMarkerProperty;
 
@@ -61,20 +61,15 @@ class nsSVGPathGeometryFrame : public nsSVGPathGeometryFrameBase,
                                public nsISVGChildFrame
 {
   friend nsIFrame*
-  NS_NewSVGPathGeometryFrame(nsIPresShell* aPresShell, nsIContent* aContent,
-                             nsStyleContext* aContext);
+  NS_NewSVGPathGeometryFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGPathGeometryFrame(nsStyleContext* aContext) :
     nsSVGPathGeometryFrameBase(aContext) {}
 
 public:
-  // nsISupports interface:
-  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aInstancePtr);
-private:
-  NS_IMETHOD_(nsrefcnt) AddRef() { return 1; }
-  NS_IMETHOD_(nsrefcnt) Release() { return 1; }
+  NS_DECL_QUERYFRAME
+  NS_DECL_FRAMEARENA_HELPERS
 
-public:
   // nsIFrame interface:
   NS_IMETHOD  AttributeChanged(PRInt32         aNameSpaceID,
                                nsIAtom*        aAttribute,
@@ -97,7 +92,7 @@ public:
 #endif
 
   // nsSVGGeometryFrame methods
-  NS_IMETHOD GetCanvasTM(nsIDOMSVGMatrix * *aCTM);
+  gfxMatrix GetCanvasTM();
 
 protected:
   // nsISVGChildFrame interface:
@@ -112,16 +107,17 @@ protected:
   NS_IMETHOD NotifyRedrawUnsuspended();
   NS_IMETHOD SetMatrixPropagation(PRBool aPropagate);
   virtual PRBool GetMatrixPropagation();
-  NS_IMETHOD GetBBox(nsIDOMSVGRect **_retval);
+  virtual gfxRect GetBBoxContribution(const gfxMatrix &aToBBoxUserspace);
   NS_IMETHOD_(PRBool) IsDisplayContainer() { return PR_FALSE; }
   NS_IMETHOD_(PRBool) HasValidCoveredRect() { return PR_TRUE; }
 
 protected:
   virtual PRUint16 GetHittestMask();
+  void GeneratePath(gfxContext *aContext,
+                    const gfxMatrix *aOverrideTransform = nsnull);
 
 private:
   void Render(nsSVGRenderState *aContext);
-  void GeneratePath(gfxContext *aContext);
 
   struct MarkerProperties {
     nsSVGMarkerProperty* mMarkerStart;

@@ -37,7 +37,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsExpatDriver.h"
-#include "nsIParser.h"
 #include "nsCOMPtr.h"
 #include "nsParserCIID.h"
 #include "CParserContext.h"
@@ -803,10 +802,12 @@ nsExpatDriver::OpenInputStreamFromExternalDTD(const PRUnichar* aFPIStr,
     localURI.swap(uri);
   }
 
-  nsCOMPtr<nsIContentSink> sink = do_QueryInterface(mSink);
   nsCOMPtr<nsIDocument> doc;
-  if (sink)
-    doc = do_QueryInterface(sink->GetTarget());
+  NS_ASSERTION(mSink == nsCOMPtr<nsIExpatSink>(do_QueryInterface(mOriginalSink)),
+               "In nsExpatDriver::OpenInputStreamFromExternalDTD: "
+               "mOriginalSink not the same object as mSink?");
+  if (mOriginalSink)
+    doc = do_QueryInterface(mOriginalSink->GetTarget());
   PRInt16 shouldLoad = nsIContentPolicy::ACCEPT;
   rv = NS_CheckContentLoadPolicy(nsIContentPolicy::TYPE_DTD,
                                 uri,
@@ -1202,6 +1203,11 @@ nsExpatDriver::ConsumeToken(nsScanner& aScanner, PRBool& aFlushTokens)
                  "Unreachable data left in Expat's buffer");
 
     start.advance(length);
+
+    // It's possible for start to have passed end if we received more data
+    // (e.g. if we spun the event loop in an inline script). Reload end now
+    // to compensate.
+    aScanner.EndReading(end);
   }
 
   aScanner.SetPosition(currentExpatPosition, PR_TRUE);
@@ -1226,6 +1232,8 @@ nsExpatDriver::WillBuildModel(const CParserContext& aParserContext,
     mInternalState = NS_ERROR_UNEXPECTED;
     return mInternalState;
   }
+
+  mOriginalSink = aSink;
 
   static const XML_Memory_Handling_Suite memsuite =
     {
@@ -1286,35 +1294,28 @@ nsExpatDriver::WillBuildModel(const CParserContext& aParserContext,
   // Set up the user data.
   XML_SetUserData(mExpatParser, this);
 
-  return aSink->WillBuildModel();
+  // XML must detect invalid character convertion
+  aParserContext.mScanner->OverrideReplacementCharacter(0xffff);
+
+  return mInternalState;
 }
 
 NS_IMETHODIMP
-nsExpatDriver::BuildModel(nsIParser* aParser,
-                          nsITokenizer* aTokenizer,
-                          nsITokenObserver* anObserver,
-                          nsIContentSink* aSink)
+nsExpatDriver::BuildModel(nsITokenizer* aTokenizer,
+                          PRBool,// aCanInterrupt,
+                          PRBool,// aCountLines,
+                          const nsCString*)// aCharsetPtr)
 {
   return mInternalState;
 }
 
 NS_IMETHODIMP
-nsExpatDriver::DidBuildModel(nsresult anErrorCode,
-                             PRBool aNotifySink,
-                             nsIParser* aParser,
-                             nsIContentSink* aSink)
+nsExpatDriver::DidBuildModel(nsresult anErrorCode)
 {
-  // Check for mSink is intentional. This would make sure
-  // that DidBuildModel() is called only once on the sink.
-  nsresult result = NS_OK;
-  if (mSink) {
-    result = aSink->DidBuildModel();
-    mSink = nsnull;
-  }
-
+  mOriginalSink = nsnull;
+  mSink = nsnull;
   mExtendedSink = nsnull;
-
-  return result;
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1323,18 +1324,6 @@ nsExpatDriver::WillTokenize(PRBool aIsFinalChunk,
 {
   mIsFinalChunk = aIsFinalChunk;
   return NS_OK;
-}
-
-NS_IMETHODIMP
-nsExpatDriver::WillResumeParse(nsIContentSink* aSink)
-{
-  return aSink ? aSink->WillResume() : NS_OK;
-}
-
-NS_IMETHODIMP
-nsExpatDriver::WillInterruptParse(nsIContentSink* aSink)
-{
-  return aSink ? aSink->WillInterrupt() : NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1357,6 +1346,12 @@ NS_IMETHODIMP_(PRInt32)
 nsExpatDriver::GetType()
 {
   return NS_IPARSER_FLAG_XML;
+}
+
+NS_IMETHODIMP_(nsDTDMode)
+nsExpatDriver::GetMode() const
+{
+  return eDTDMode_full_standards;
 }
 
 /*************************** Unused methods **********************************/
@@ -1414,8 +1409,8 @@ nsExpatDriver::CopyState(nsITokenizer* aTokenizer)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsExpatDriver::HandleToken(CToken* aToken,nsIParser* aParser)
+nsresult
+nsExpatDriver::HandleToken(CToken* aToken)
 {
   return NS_OK;
 }

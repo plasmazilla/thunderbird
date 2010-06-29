@@ -81,7 +81,6 @@ public:
     // nsIScriptGlobalObject methods
     virtual void OnFinalize(PRUint32 aLangID, void *aGlobal);
     virtual void SetScriptsEnabled(PRBool aEnabled, PRBool aFireTimeouts);
-    virtual nsresult SetNewArguments(nsIArray *aArguments);
 
     virtual void *GetScriptGlobal(PRUint32 lang);
     virtual nsresult EnsureScriptEnvironment(PRUint32 aLangID);
@@ -230,7 +229,8 @@ NS_NewXULPrototypeDocument(nsXULPrototypeDocument** aResult)
 
 // Helper method that shares a system global among all prototype documents
 // that have the system principal as their security principal.   Called by
-// nsXULPrototypeDocument::Read and nsXULPDGlobalObject::GetGlobalObject.
+// nsXULPrototypeDocument::Read and
+// nsXULPrototypeDocument::GetScriptGlobalObject.
 // This method greatly reduces the number of nsXULPDGlobalObjects and their
 // nsIScriptContexts in apps that load many XUL documents via chrome: URLs.
 
@@ -806,13 +806,6 @@ void
 nsXULPDGlobalObject::SetScriptsEnabled(PRBool aEnabled, PRBool aFireTimeouts)
 {
     // We don't care...
-}
-
-nsresult
-nsXULPDGlobalObject::SetNewArguments(nsIArray *aArguments)
-{
-    NS_NOTREACHED("waaah!");
-    return NS_ERROR_UNEXPECTED;
 }
 
 //----------------------------------------------------------------------

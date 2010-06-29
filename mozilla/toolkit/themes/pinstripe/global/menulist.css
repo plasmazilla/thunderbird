@@ -48,8 +48,13 @@
 
 menulist {
   -moz-appearance: menulist;
-  margin: 2px 4px 1px;
+  margin: 5px 2px 3px;
   min-height: 20px !important;
+  color: -moz-DialogText;
+  text-shadow: none;
+}
+
+listbox menulist:not([disabled]) {
   color: -moz-DialogText;
 }
 
@@ -79,19 +84,18 @@ menulist {
 /* ..... disabled state ..... */
 
 menulist[disabled="true"] {
-  color: #777777 !important;
+  color: GrayText;
 }
 
 menulist[disabled="true"] > .menulist-dropmarker {
-  padding-left: 7px !important;
+  -moz-padding-start: 7px !important;
 }
 
 /* ::::: editable menulists ::::: */
 
 menulist[editable="true"] {
-  -moz-user-focus: normal;
   -moz-appearance: menulist-textfield;
-  margin: 2px 4px;
+  margin: 4px 2px;
 }
 
 html|*.menulist-editable-input {
@@ -123,7 +127,7 @@ html|*.menulist-editable-input {
 }  
 
 .menulist-compact > .menulist-dropmarker {
-  margin-left: 2px;
+  -moz-margin-start: 2px;
   border: none;
   padding: 0 !important;
   background: transparent;
@@ -135,9 +139,4 @@ html|*.menulist-editable-input {
   -moz-border-bottom-colors: ThreeDDarkShadow ThreeDShadow;
   -moz-border-left-colors: ThreeDDarkShadow ThreeDShadow;
   background-color: ThreeDShadow;
-}
-
-
-listbox menulist:not([disabled]) {
-  color: #000;
 }

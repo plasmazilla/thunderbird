@@ -48,7 +48,6 @@
 #include "nspr.h"
 #include "nsCRT.h"
 #include "ImageLogging.h"
-#include "nsIImage.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "gfxColor.h"
 
@@ -101,6 +100,7 @@ nsJPEGDecoder::nsJPEGDecoder()
   mState = JPEG_HEADER;
   mReading = PR_TRUE;
   mError = NS_OK;
+  mImageData = nsnull;
 
   mBytesToSkip = 0;
   memset(&mInfo, 0, sizeof(jpeg_decompress_struct));
@@ -187,22 +187,17 @@ NS_IMETHODIMP nsJPEGDecoder::Init(imgILoad *aLoad)
   mImageLoad->GetImage(getter_AddRefs(mImage));
 
   if (!mImage) {
-    mImage = do_CreateInstance("@mozilla.org/image/container;1");
+    mImage = do_CreateInstance("@mozilla.org/image/container;2");
     if (!mImage)
       return NS_ERROR_OUT_OF_MEMORY;
       
     mImageLoad->SetImage(mImage);
-
-    // Don't discard if we're multipart, and assume we are for safety.
-    PRBool multipart = PR_TRUE;
-    if (NS_SUCCEEDED(mImageLoad->GetIsMultiPartChannel(&multipart)) && !multipart) {
-      nsresult result = mImage->SetDiscardable("image/jpeg");
-      if (NS_FAILED(result)) {
-        mState = JPEG_ERROR;
-        PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
-               (" (could not set image container to discardable)"));
-        return result;
-      }
+    nsresult result = mImage->SetDiscardable("image/jpeg");
+    if (NS_FAILED(result)) {
+      mState = JPEG_ERROR;
+      PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
+             (" (could not set image container to discardable)"));
+      return result;
     }
   }
 
@@ -478,52 +473,23 @@ nsresult nsJPEGDecoder::ProcessData(const char *data, PRUint32 count, PRUint32 *
 
     mObserver->OnStartContainer(nsnull, mImage);
 
-    mImage->GetFrameAt(0, getter_AddRefs(mFrame));
-
-    PRBool createNewFrame = PR_TRUE;
-
-    if (mFrame) {
-      PRInt32 width, height;
-      mFrame->GetWidth(&width);
-      mFrame->GetHeight(&height);
-
-      if ((width == (PRInt32)mInfo.image_width) &&
-          (height == (PRInt32)mInfo.image_height)) {
-        createNewFrame = PR_FALSE;
-      } else {
-        mImage->Clear();
-      }
-    }
-
-    if (createNewFrame) {
-      mFrame = do_CreateInstance("@mozilla.org/gfx/image/frame;2");
-      if (!mFrame) {
-        mState = JPEG_ERROR;
-        PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
-               ("} (could not create image frame)"));
-        return NS_ERROR_OUT_OF_MEMORY;
-      }
-
-      gfx_format format = gfxIFormats::RGB;
-#if defined(XP_WIN) || defined(XP_OS2) || defined(XP_BEOS)
-      format = gfxIFormats::BGR;
-#endif
-
-      if (NS_FAILED(mFrame->Init(0, 0, mInfo.image_width, mInfo.image_height, format, 24))) {
-        mState = JPEG_ERROR;
-        PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
-               ("} (could not initialize image frame)"));
-        return NS_ERROR_OUT_OF_MEMORY;
-      }
-
-      mImage->AppendFrame(mFrame);
-
+    // Use EnsureCleanFrame so we don't create a new frame if we're being
+    // reused for e.g. multipart/x-replace
+    PRUint32 imagelength;
+    if (NS_FAILED(mImage->EnsureCleanFrame(0, 0, 0, mInfo.image_width, mInfo.image_height,
+                                           gfxASurface::ImageFormatRGB24,
+                                           &mImageData, &imagelength))) {
+      mState = JPEG_ERROR;
       PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
-             ("        JPEGDecoderAccounting: nsJPEGDecoder::ProcessData -- created image frame with %ux%u pixels",
-              mInfo.image_width, mInfo.image_height));
+             ("} (could not initialize image frame)"));
+      return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    mObserver->OnStartFrame(nsnull, mFrame);
+    PR_LOG(gJPEGDecoderAccountingLog, PR_LOG_DEBUG,
+           ("        JPEGDecoderAccounting: nsJPEGDecoder::ProcessData -- created image frame with %ux%u pixels",
+            mInfo.image_width, mInfo.image_height));
+
+    mObserver->OnStartFrame(nsnull, 0);
     mState = JPEG_START_DECOMPRESS;
   }
 
@@ -707,16 +673,9 @@ nsJPEGDecoder::OutputScanlines(PRBool* suspend)
   const PRUint32 top = mInfo.output_scanline;
   nsresult rv = NS_OK;
 
-  mFrame->LockImageData();
-  
-  // we're thebes. we can write stuff directly to the data
-  PRUint8 *imageData;
-  PRUint32 imageDataLength;
-  mFrame->GetImageData(&imageData, &imageDataLength);
-
   while ((mInfo.output_scanline < mInfo.output_height)) {
       /* Use the Cairo image buffer as scanline buffer */
-      PRUint32 *imageRow = ((PRUint32*)imageData) +
+      PRUint32 *imageRow = ((PRUint32*)mImageData) +
                            (mInfo.output_scanline * mInfo.output_width);
 
       if (mInfo.cconvert->color_convert == ycc_rgb_convert_argb) {
@@ -799,13 +758,10 @@ nsJPEGDecoder::OutputScanlines(PRBool* suspend)
 
   if (top != mInfo.output_scanline) {
       nsIntRect r(0, top, mInfo.output_width, mInfo.output_scanline-top);
-      nsCOMPtr<nsIImage> img(do_GetInterface(mFrame));
-      rv = img->ImageUpdated(nsnull, nsImageUpdateFlags_kBitsChanged, &r);
-      mObserver->OnDataAvailable(nsnull, mFrame, &r);
+      rv = mImage->FrameUpdated(0, r);
+      mObserver->OnDataAvailable(nsnull, PR_TRUE, &r);
   }
-  
-  mFrame->UnlockImageData();
-  
+
   return rv;
 }
 
@@ -1021,15 +977,16 @@ term_source (j_decompress_ptr jd)
   nsJPEGDecoder *decoder = (nsJPEGDecoder *)(jd->client_data);
 
   if (decoder->mObserver) {
-    decoder->mObserver->OnStopFrame(nsnull, decoder->mFrame);
+    decoder->mObserver->OnStopFrame(nsnull, 0);
     decoder->mObserver->OnStopContainer(nsnull, decoder->mImage);
     decoder->mObserver->OnStopDecode(nsnull, NS_OK, nsnull);
   }
 
-  PRBool isMutable = PR_FALSE;
+  PRBool multipart = PR_FALSE;
   if (decoder->mImageLoad) 
-      decoder->mImageLoad->GetIsMultiPartChannel(&isMutable);
-  decoder->mFrame->SetMutable(isMutable);
+      decoder->mImageLoad->GetIsMultiPartChannel(&multipart);
+  if (!multipart)
+    decoder->mImage->DecodingComplete();
 }
 
 

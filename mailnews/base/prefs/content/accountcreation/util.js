@@ -39,9 +39,15 @@
  * Some common, generic functions
  */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+try {
+  var Cc = Components.classes;
+  var Ci = Components.interfaces;
+} catch (e) { ddump(e); } // if already declared, as in xpcshell-tests
+try {
+  var Cu = Components.utils;
+} catch (e) { ddump(e); }
+
+Cu.import("resource:///modules/errUtils.js");
 
 /**
  * Create a subtype
@@ -54,7 +60,7 @@ function extend(child, supertype)
 function assert(test, errorMsg)
 {
   if (!test)
-    throw new Exception(errorMsg);
+    throw new NotReached(errorMsg);
 }
 
 
@@ -167,6 +173,13 @@ function getStringBundle(bundleURI)
 function Exception(msg)
 {
   this._message = msg;
+
+  // get stack
+  try {
+    not.found.here += 1; // force a native exception ...
+  } catch (e) {
+    this.stack = e.stack; // ... to get the current stack
+  }
 }
 Exception.prototype =
 {
@@ -182,6 +195,7 @@ Exception.prototype =
 
 function NotReached(msg)
 {
+  Exception.call(this, msg);
 }
 extend(NotReached, Exception);
 
@@ -236,6 +250,33 @@ IntervalAbortable.prototype =
   }
 }
 extend(IntervalAbortable, Abortable);
+
+
+// Allows you to make several network calls, but return only one Abortable object.
+function SuccessiveAbortable()
+{
+  this._current = null;
+}
+SuccessiveAbortable.prototype =
+{
+  set current(abortable)
+  {
+    assert(abortable instanceof Abortable || abortable == null,
+        "need an Abortable object (or null)");
+    this._current = abortable;
+  },
+  get current()
+  {
+    return this._current;
+  },
+  cancel : function()
+  {
+    if (this._current)
+      this._current.cancel();
+  },
+}
+extend(SuccessiveAbortable, Abortable);
+
 
 function deepCopy(org)
 {

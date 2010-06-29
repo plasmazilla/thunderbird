@@ -205,9 +205,12 @@ EXTRA_DSO_LDOPTS += \
 	-lcrypto \
 	$(TK_LIBS) \
 	$(NULL)
+endif
 
+ifeq ($(OS_ARCH),Darwin)
 ifdef MOZ_SYDNEYAUDIO
 EXTRA_DSO_LDOPTS += \
+	-framework Carbon \
 	-framework CoreAudio \
 	-framework AudioToolbox \
 	-framework AudioUnit \
@@ -215,12 +218,12 @@ EXTRA_DSO_LDOPTS += \
 endif
 endif
 
-ifdef MOZ_PLATFORM_HILDON
-EXTRA_DSO_LDOPTS += $(LIBHILDONMIME_LIBS)
+ifdef MOZ_PLATFORM_MAEMO
+EXTRA_DSO_LDOPTS += $(MOZ_PLATFORM_MAEMO_LIBS)
 endif 
 
-ifdef NS_OSSO
-EXTRA_DSO_LDOPTS += $(LIBOSSO_LIBS)
+ifdef MOZ_ENABLE_LIBCONIC
+EXTRA_DSO_LDOPTS += $(LIBCONIC_LIBS)
 endif
 
 ifdef MOZ_ENABLE_DBUS
@@ -228,7 +231,7 @@ EXTRA_DSO_LDOPTS += $(MOZ_DBUS_GLIB_LIBS)
 endif
 
 ifeq (gtk2,$(MOZ_WIDGET_TOOLKIT))
-EXTRA_DSO_LDOPTS += $(XLDFLAGS) $(XLIBS) $(MOZ_PANGO_LIBS) $(MOZ_GTK2_LIBS) $(XT_LIBS) -lgthread-2.0
+EXTRA_DSO_LDOPTS += $(XLDFLAGS) $(XLIBS) $(XEXT_LIBS) $(XCOMPOSITE_LIBS) $(MOZ_PANGO_LIBS) $(MOZ_GTK2_LIBS) $(XT_LIBS) -lgthread-2.0
 EXTRA_DSO_LDOPTS += $(FT2_LIBS)
 endif
 
@@ -240,8 +243,6 @@ endif
 ifdef MOZ_TREE_FREETYPE
 EXTRA_DSO_LDOPTS += $(FT2_LIBS)
 endif
-
-EXTRA_DSO_LDOPTS += $(MOZ_LOCATION_LIBS)
 
 ifdef MOZ_ENABLE_STARTUP_NOTIFICATION
 EXTRA_DSO_LDOPTS += $(MOZ_STARTUP_NOTIFICATION_LIBS)
@@ -262,9 +263,13 @@ EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME,imagehlp)
 endif
 endif # WINNT
 ifeq ($(OS_ARCH),WINCE)
-EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME, aygshell uuid ole32 oleaut32 Ws2)
+EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME, aygshell uuid ole32 oleaut32 Ws2 ddraw)
+EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME, ceosutil libcmt comsuppw)
 ifdef WINCE_WINDOWS_MOBILE
 EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME, cellcore)
+endif
+ifdef HAS_OGLES
+EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME, libGLESv2 libEGL)
 endif
 endif
 

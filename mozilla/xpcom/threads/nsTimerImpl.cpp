@@ -42,7 +42,6 @@
 #include "TimerThread.h"
 #include "nsAutoLock.h"
 #include "nsAutoPtr.h"
-#include "nsVoidArray.h"
 #include "nsThreadManager.h"
 #include "nsThreadUtils.h"
 #include "prmem.h"
@@ -292,6 +291,14 @@ NS_IMETHODIMP nsTimerImpl::Cancel()
 
 NS_IMETHODIMP nsTimerImpl::SetDelay(PRUint32 aDelay)
 {
+  if (mCallbackType == CALLBACK_TYPE_UNKNOWN && mType == TYPE_ONE_SHOT) {
+    // This may happen if someone tries to re-use a one-shot timer
+    // by re-setting delay instead of reinitializing the timer.
+    NS_ERROR("nsITimer->SetDelay() called when the "
+             "one-shot timer is not set up.");
+    return NS_ERROR_NOT_INITIALIZED;
+  }
+
   // If we're already repeating precisely, update mTimeout now so that the
   // new delay takes effect in the future.
   if (mTimeout != 0 && mType == TYPE_REPEATING_PRECISE)

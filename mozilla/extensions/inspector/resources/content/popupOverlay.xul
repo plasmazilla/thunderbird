@@ -51,6 +51,12 @@
     <menuitem class="menuitem-iconic" type="checkbox" label="&cmdToggleBrowser.label;"
               accesskey="&cmdToggleBrowser.accesskey;" observes="cmdToggleBrowser"/>
     <menuseparator/>
+    <menuitem id="item:flashOnSelect"
+              class="menuitem-iconic"
+              type="checkbox"
+              label="&cmdFlashOnSelect.label;"
+              accesskey="&cmdFlashOnSelect.accesskey;"
+              observes="cmdFlashOnSelect"/>
   </menupopup>
 
   <popupset id="ppsViewerPopupset"/>

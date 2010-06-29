@@ -113,7 +113,7 @@ function OnStopCopy(aStatus) {
     // Check the data is matching.
     do_check_eq(originalData, fileData);
 
-    do_timeout(sendMessageLater(), 0);
+    sendMessageLater();
   } catch (e) {
     do_throw(e);
   } finally {
@@ -154,7 +154,9 @@ function sendMessageLater()
 
     server.performTest();
 
-    do_timeout(10000, "if (!finished) do_throw('Notifications of message send/copy not received');");
+    do_timeout(10000, function()
+        {if (!finished) do_throw('Notifications of message send/copy not received');}
+      );
   } catch (e) {
     do_throw(e);
   } finally {
@@ -182,7 +184,7 @@ function run_test() {
   acctMgr.setSpecialFolders();
 
   var account = acctMgr.createAccount();
-  incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);

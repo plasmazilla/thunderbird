@@ -37,7 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "mozcontainer.h"
-#include <gtk/gtkprivate.h>
+#include <gtk/gtk.h>
 #include <stdio.h>
 
 #ifdef ACCESSIBILITY
@@ -83,10 +83,10 @@ static GtkContainerClass *parent_class = NULL;
 
 /* public methods */
 
-GtkType
+GType
 moz_container_get_type(void)
 {
-    static GtkType moz_container_type = 0;
+    static GType moz_container_type = 0;
 
     if (!moz_container_type) {
         static GTypeInfo moz_container_info = {
@@ -122,7 +122,7 @@ moz_container_new (void)
 {
     MozContainer *container;
 
-    container = gtk_type_new (MOZ_CONTAINER_TYPE);
+    container = g_object_new (MOZ_CONTAINER_TYPE, NULL);
 
     return GTK_WIDGET(container);
 }
@@ -167,36 +167,6 @@ moz_container_move (MozContainer *container, GtkWidget *child_widget,
     new_allocation.height = height;
 
     /* printf("moz_container_move %p %p will allocate to %d %d %d %d\n",
-       (void *)container, (void *)child_widget,
-       new_allocation.x, new_allocation.y,
-       new_allocation.width, new_allocation.height); */
-
-    gtk_widget_size_allocate(child_widget, &new_allocation);
-}
-
-/* This function updates the allocation on a child widget without
-causing a size_allocate event to be generated on that widget.  This
-should only be used for scrolling since it's assumed that the expose
-event created by the scroll will update any widgets that come into view. */
-
-void
-moz_container_scroll_update (MozContainer *container, GtkWidget *child_widget,
-                             gint x, gint y)
-{
-    MozContainerChild *child;
-    GtkAllocation new_allocation;
-
-    child = moz_container_get_child (container, child_widget);
-
-    child->x = x;
-    child->y = y;
-
-    new_allocation.x = x;
-    new_allocation.y = y;
-    new_allocation.width = child_widget->allocation.width;
-    new_allocation.height = child_widget->allocation.height;
-
-    /* printf("moz_container_update %p %p will allocate to %d %d %d %d\n",
        (void *)container, (void *)child_widget,
        new_allocation.x, new_allocation.y,
        new_allocation.width, new_allocation.height); */
@@ -269,10 +239,7 @@ moz_container_map (GtkWidget *widget)
 void
 moz_container_unmap (GtkWidget *widget)
 {
-    MozContainer *container;
-
     g_return_if_fail (IS_MOZ_CONTAINER (widget));
-    container = MOZ_CONTAINER (widget);
   
     GTK_WIDGET_UNSET_FLAGS (widget, GTK_MAPPED);
 
@@ -294,8 +261,15 @@ moz_container_realize (GtkWidget *widget)
 
     /* create the shell window */
 
-    attributes.event_mask = gtk_widget_get_events (widget);
-    attributes.event_mask |=  (GDK_EXPOSURE_MASK | GDK_STRUCTURE_MASK);
+    attributes.event_mask = (gtk_widget_get_events (widget) |
+                             GDK_EXPOSURE_MASK | GDK_STRUCTURE_MASK |
+                             GDK_VISIBILITY_NOTIFY_MASK |
+                             GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK |
+                             GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+#ifdef HAVE_GTK_MOTION_HINTS
+                             GDK_POINTER_MOTION_HINT_MASK |
+#endif
+                             GDK_POINTER_MOTION_MASK);
     attributes.x = widget->allocation.x;
     attributes.y = widget->allocation.y;
     attributes.width = widget->allocation.width;
