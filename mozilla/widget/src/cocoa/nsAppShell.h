@@ -78,7 +78,6 @@ private:
   nsTArray<nsCocoaAppModalWindowListItem> mList;
 };
 
-
 @class AppShellDelegate;
 
 class nsAppShell : public nsBaseAppShell
@@ -123,6 +122,7 @@ protected:
   PRPackedBool       mTerminated;
   PRPackedBool       mNotifiedWillTerminate;
   PRPackedBool       mSkippedNativeCallback;
+  PRPackedBool       mRunningCocoaEmbedded;
 
   // mHadMoreEventsCount and kHadMoreEventsCountMax are used in
   // ProcessNextNativeEvent().

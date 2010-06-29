@@ -238,6 +238,15 @@ InspectorApp.prototype =
     this.setBrowser(!this.mShowBrowser, aToggleSplitter)
   },
 
+  /**
+   * Toggle 'blink on select' command.
+   */
+  toggleFlashOnSelect: function inspector_toggleFlashOnSelect()
+  {
+    this.mPanelSet.flasher.flashOnSelect =
+      !this.mPanelSet.flasher.flashOnSelect;
+  },
+
   setBrowser: function(aValue, aToggleSplitter)
   {
     this.mShowBrowser = aValue;

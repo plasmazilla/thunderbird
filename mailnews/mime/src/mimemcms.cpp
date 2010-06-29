@@ -188,6 +188,18 @@ MimeMultCMS_init (MimeObject *obj)
        !PL_strcasecmp(micalg, PARAM_MICALG_SHA1_4) ||
        !PL_strcasecmp(micalg, PARAM_MICALG_SHA1_5))
     hash_type = nsICryptoHash::SHA1;
+  else if (!PL_strcasecmp(micalg, PARAM_MICALG_SHA256) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA256_2) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA256_3))
+    hash_type = nsICryptoHash::SHA256;
+  else if (!PL_strcasecmp(micalg, PARAM_MICALG_SHA384) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA384_2) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA384_3))
+    hash_type = nsICryptoHash::SHA384;
+  else if (!PL_strcasecmp(micalg, PARAM_MICALG_SHA512) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA512_2) ||
+       !PL_strcasecmp(micalg, PARAM_MICALG_SHA512_3))
+    hash_type = nsICryptoHash::SHA512;
   else if (!PL_strcasecmp(micalg, PARAM_MICALG_MD2))
     hash_type = nsICryptoHash::MD2;
   else
@@ -206,10 +218,18 @@ MimeMultCMS_init (MimeObject *obj)
   data->hash_type = hash_type;
 
   data->data_hash_context = do_CreateInstance("@mozilla.org/security/hash;1", &rv);
-  if (NS_FAILED(rv)) return 0;
+  if (NS_FAILED(rv))
+  {
+    delete data;
+    return 0;
+  }
 
   rv = data->data_hash_context->Init(data->hash_type);
-  if (NS_FAILED(rv)) return 0;
+  if (NS_FAILED(rv))
+  {
+    delete data;
+    return 0;
+  }
 
   PR_SetError(0,0);
 

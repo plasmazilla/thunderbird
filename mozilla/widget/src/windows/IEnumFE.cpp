@@ -36,7 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsAlgorithm.h"
 #include "IEnumFE.h"
 
 CEnumFormatEtc::CEnumFormatEtc() :
@@ -125,7 +124,7 @@ CEnumFormatEtc::Next(ULONG aMaxToFetch, FORMATETC *aResult, ULONG *aNumFetched)
   if (!aMaxToFetch)
       return S_FALSE;
 
-  PRUint32 count = NS_MIN(static_cast<PRUint32>(aMaxToFetch), left);
+  PRUint32 count = static_cast<PRUint32>(aMaxToFetch) < left ? static_cast<PRUint32>(aMaxToFetch) : left;
 
   PRUint32 idx = 0;
   while (count > 0) {

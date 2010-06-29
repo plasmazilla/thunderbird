@@ -21,9 +21,9 @@ function startTest()
   var uri = ios.newURI(url, "", null);
   var principal = ssm.getCodebasePrincipal(uri);
   var storage = dsm.getLocalStorageForPrincipal(principal);
-
+  
   storage.setItem("chromekey", "chromevalue");
-
+  
   var aframe = document.getElementById("aframe");
   aframe.onload = function()
   {
@@ -31,7 +31,7 @@ function startTest()
     is(aframe.contentDocument.getElementById("data").innerHTML, "chromevalue");
     SimpleTest.finish();
   }
-  aframe.src = "http://example.com/tests/dom/tests/mochitest/localstorage/frameChromeSlave.html";
+  aframe.src = "http://example.com/tests/dom/tests/mochitest/localstorage/frameChromeSlave.html";  
 
   // Additionally check that we do not crash when we access the localStorage
   // object in the owning chrome window (but we should throw).  See bug 485396.

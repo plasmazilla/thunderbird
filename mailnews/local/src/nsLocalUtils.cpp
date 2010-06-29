@@ -226,7 +226,7 @@ nsresult nsParseLocalMessageURI(const char* uri,
   PRInt32 keySeparator = uriStr.FindChar('#');
   if(keySeparator != -1)
   {
-    PRInt32 keyEndSeparator = FindCharInSet(uriStr, "?&", keySeparator); 
+    PRInt32 keyEndSeparator = MsgFindCharInSet(uriStr, "?&", keySeparator);
     folderURI = StringHead(uriStr, keySeparator);
     folderURI.Cut(7, 8);    // cut out the -message part of mailbox-message:
 
@@ -237,14 +237,8 @@ nsresult nsParseLocalMessageURI(const char* uri,
     else
       keyStr = StringTail(uriStr, uriStr.Length() - (keySeparator + 1));
 
-#if MOZILLA_INTERNAL_API
-    PRInt32 errorCode;
-#else
-    nsresult errorCode;
-#endif
-    *key = keyStr.ToInteger(&errorCode);
-
-    return errorCode;
+    *key = (PRUint32) ParseUint64Str(keyStr.get());
+    return NS_OK;
   }
   return NS_ERROR_FAILURE;
 

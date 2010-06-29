@@ -49,13 +49,16 @@ vpath %.png @srcdir@/en-US/searchplugins
 vpath %.src $(LOCALE_SRCDIR)/searchplugins
 vpath %.png $(LOCALE_SRCDIR)/searchplugins
 
-run_for_effects := $(shell if ! test -d $(DIST); then $(NSINSTALL) -D $(DIST); fi; if ! test -d $(DIST)/branding; then $(NSINSTALL) -D $(DIST)/branding; fi)
-_ABS_DIST := $(shell cd $(DIST) && pwd)
+run_for_effects := $(shell if test ! -d $(DIST); then $(NSINSTALL) -D $(DIST); fi; if test ! -d $(DIST)/branding; then $(NSINSTALL) -D $(DIST)/branding; fi)
+_ABS_DIST := $(call core_abspath,$(DIST))
+
+SUBMAKEFILES += \
+	$(DEPTH)/$(MOZ_BRANDING_DIRECTORY)/Makefile \
+	$(NULL)
 
 AB = $(firstword $(subst -, ,$(AB_CD)))
 
-PWD := $(shell pwd)
-core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(PWD)/$(1)))
+PWD := $(CURDIR)
 
 # These are defaulted to be compatible with the files the wget-en-US target
 # pulls. You may override them if you provide your own files. You _must_
@@ -63,23 +66,17 @@ core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(PWD)
 # work in that case.
 ZIP_IN ?= $(_ABS_DIST)/$(PACKAGE)
 WIN32_INSTALLER_IN ?= $(_ABS_DIST)/$(PKG_INST_PATH)$(PKG_INST_BASENAME).exe
-
-VERSION_SUFFIX = $(shell hg -R $(LOCALE_SRCDIR)/.. parent --template=".{rev}" 2>/dev/null)
+RETRIEVE_WINDOWS_INSTALLER = 1
 
 DEFINES += \
 	-DAB_CD=$(AB_CD) \
 	-DMOZ_PSM=$(MOZ_PSM) \
 	-DMOZ_LANGPACK_EID=langpack-$(AB_CD)@seamonkey.mozilla.org \
 	-DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
-	-DVERSION_SUFFIX=$(VERSION_SUFFIX) \
 	-DLOCALE_SRCDIR=$(call core_abspath,$(LOCALE_SRCDIR)) \
 	-DPKG_BASENAME="$(PKG_BASENAME)" \
 	-DPKG_INST_BASENAME="$(PKG_INST_BASENAME)" \
 	$(NULL)
-
-ifeq (,$(filter-out pref,$(MOZ_EXTENSIONS)))
-DEFINES += -DEXTENSION_PREF
-endif
 
 PREF_JS_EXPORTS = $(LOCALE_SRCDIR)/suite-l10n.js
 
@@ -165,6 +162,8 @@ SEARCH_PLUGINS = $(shell cat \
 	done
 	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py profile/search.rdf.in > $@
 
+GARBAGE_DIRS += profile
+
 libs:: $(FINAL_TARGET)/defaults/profile/bookmarks.html ;
 libs:: $(FINAL_TARGET)/defaults/profile/search.rdf ;
 libs:: $(FINAL_TARGET)/defaults/profile/panels.rdf ;
@@ -234,7 +233,7 @@ include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
 repackage-win32-installer: WIN32_INSTALLER_OUT="$(_ABS_DIST)/$(PKG_INST_PATH)$(PKG_INST_BASENAME).exe"
 repackage-win32-installer: $(WIN32_INSTALLER_IN) $(SUBMAKEFILES)
 	@echo "Repackaging $(WIN32_INSTALLER_IN) into $(WIN32_INSTALLER_OUT)."
-	$(MAKE) -C ../installer/windows export
+	$(MAKE) -C $(DEPTH)/$(MOZ_BRANDING_DIRECTORY) export
 	if test ! -d $(_ABS_DIST)/$(PKG_INST_PATH); then \
 	  $(NSINSTALL) -D $(_ABS_DIST)/$(PKG_INST_PATH); \
 	fi
@@ -363,9 +362,11 @@ langpack-%: XPI_NAME=locale-$*
 langpack-%: libs-%
 	@echo "Making langpack $(LANGPACK_FILE)"
 	@$(NSINSTALL) -D $(DIST)/$(PKG_LANGPACK_PATH)
-	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) -I$(call EXPAND_LOCALE_SRCDIR,toolkit/locales)/defines.inc -I$(LOCALE_SRCDIR)/defines.inc $(srcdir)/generic/install.rdf > $(FINAL_TARGET)/install.rdf
+	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) -I$(call EXPAND_MOZLOCALE_SRCDIR,toolkit/locales)/defines.inc -I$(LOCALE_SRCDIR)/defines.inc $(srcdir)/generic/install.rdf > $(FINAL_TARGET)/install.rdf
 	cd $(DIST)/xpi-stage/locale-$(AB_CD) && \
 	  $(ZIP) -r9D $(LANGPACK_FILE) install.rdf chrome chrome.manifest -x chrome/$(AB_CD).manifest
+
+langpack: langpack-$(AB_CD)
 
 # This is a generic target that will make a langpack, repack ZIP (+tarball)
 # builds, and repack an installer if applicable. It is called from the
@@ -411,11 +412,14 @@ endif
 
 ident:
 	@printf "comm_revision "
-	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(STAGEDIST)/application.ini App SourceStamp
+	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
+	    $(STAGEDIST)/application.ini App SourceStamp
 	@printf "moz_revision "
-	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(STAGEDIST)/platform.ini Build SourceStamp
-	@printf "build_id "
-	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(STAGEDIST)/application.ini App BuildID
+	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
+	    $(STAGEDIST)/platform.ini Build SourceStamp
+	@printf "buildid "
+	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
+	    $(STAGEDIST)/application.ini App BuildID
 
 #These make targets call prepare-repackages by setting different UPLOAD_DIR
 prepare-upload-latest-%:
@@ -452,13 +456,24 @@ endif
 # Set the permissions that the folders will have in ftp once uploaded
 	chmod -vR 775 $(UPLOAD_DIR)
 
+generate-snippet-%:
+	$(PYTHON) $(MOZILLA_SRCDIR)/tools/update-packaging/generatesnippet.py \
+	    --mar-path=$(_ABS_DIST)/update \
+	    --application-ini-file=$(STAGEDIST)/application.ini \
+	    --locale=$* \
+	    --product=$(MOZ_PKG_APPNAME) \
+	    --platform=$(MOZ_PKG_PLATFORM) \
+	    --download-base-URL=$(DOWNLOAD_BASE_URL) \
+	    --branch=$(FILE_BRANCH) \
+	    --verbose
+
 l10n-upload-%: AB_CD=$*
 l10n-upload-%:
 	$(PYTHON) $(MOZILLA_SRCDIR)/build/upload.py --base-path $(DIST) "$(DIST)/$(PACKAGE)" $(DIST)/$(LANGPACK)
 ifdef MOZ_MAKE_COMPLETE_MAR
 	$(PYTHON) $(MOZILLA_SRCDIR)/build/upload.py --base-path $(DIST) $(DIST)/$(COMPLETE_MAR) $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR)))
 endif
-ifeq (WINNT, $(OS_ARCH))
+ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
 	$(PYTHON) $(MOZILLA_SRCDIR)/build/upload.py --base-path $(DIST) "$(INSTALLER_PACKAGE)"
 endif
 

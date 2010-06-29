@@ -55,10 +55,10 @@ class nsIDOMHTMLBodyElement;
 class nsIScriptElement;
 class nsIEditor;
 
-// 5a959364-a2f4-4cac-9a2c-957055dc3569
+// 56ff0e81-191c-421c-b75c-1727e13091c0
 #define NS_IHTMLDOCUMENT_IID \
-{ 0x5a959364, 0xa2f4, 0x4cac, \
-  { 0x9a, 0x2c, 0x95, 0x70, 0x55, 0xdc, 0x35, 0x69 } }
+{ 0x56ff0e81, 0x191c, 0x421c, \
+  { 0xb7, 0x5c, 0x17, 0x27, 0xe1, 0x30, 0x91, 0xc0 } }
 
 
 /**
@@ -197,23 +197,10 @@ public:
   virtual void TearingDownEditor(nsIEditor *aEditor) = 0;
 
   virtual void SetIsXHTML(PRBool aXHTML) = 0;
-};
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIHTMLDocument, NS_IHTMLDOCUMENT_IID)
-
-// 498ec6d4-a724-4779-9ede-9c71923c2da6
-#define NS_IHTMLDOCUMENT_1_9_1_BRANCH_IID \
-{ 0x498ec6d4, 0xa724, 0x4779, \
-  { 0x9e, 0xde, 0x9c, 0x71, 0x92, 0x3c, 0x2d, 0xa6 } }
-
-class nsIHTMLDocument_1_9_1_BRANCH : public nsIHTMLDocument
-{
-public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_IHTMLDOCUMENT_1_9_1_BRANCH_IID)
 
   virtual void SetDocWriteDisabled(PRBool aDisabled) = 0;
 };
 
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIHTMLDocument_1_9_1_BRANCH, NS_IHTMLDOCUMENT_1_9_1_BRANCH_IID)
+NS_DEFINE_STATIC_IID_ACCESSOR(nsIHTMLDocument, NS_IHTMLDOCUMENT_IID)
 
 #endif /* nsIHTMLDocument_h___ */

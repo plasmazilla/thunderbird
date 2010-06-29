@@ -44,6 +44,9 @@ var MODULE_NAME = 'test-message-header';
 var RELATIVE_ROOT = '../shared-modules';
 var MODULE_REQUIRES = ['folder-display-helpers', 'window-helpers'];
 
+var elib = {};
+Cu.import('resource://mozmill/modules/elementslib.js', elib);
+
 var folder;
 
 function setupModule(module) {
@@ -126,7 +129,7 @@ function test_add_tag_with_really_long_label() {
  *        with the data.
  * @param expectedName code to be eval()ed returning the expected value of
  *                     nsIAccessible.name for the DOM element in question
- * @param expectedFinalRole the expected value for nsIAccessible.finalRole
+ * @param expectedRole the expected value for nsIAccessible.role
  */
 let headersToTest = [
 {
@@ -134,32 +137,32 @@ let headersToTest = [
   headerValueElement: "mc.a('expandedsubjectBox', {class: 'headerValue'})",
   expectedName: "mc.e('expandedsubjectLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.textContent",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Content-Base",
   headerValueElement: "mc.a('expandedcontent-baseBox', {class: 'headerValue text-link headerValueUrl'})",
   expectedName: "mc.e('expandedcontent-baseLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.textContent",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "From",
-  headerValueElement: "mc.window.document.getAnonymousElementByAttribute(" + 
+  headerValueElement: "mc.window.document.getAnonymousElementByAttribute(" +
                       "mc.a('expandedfromBox', {tagName: 'mail-emailaddress'})," +
                       "'class', 'emailDisplayButton')",
   expectedName: "mc.e('expandedfromLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.getAttribute('fullAddress')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "To",
   headerValueElement: "mc.window.document.getAnonymousElementByAttribute(" +
                       "mc.a('expandedtoBox', {tagName: 'mail-emailaddress'})," +
                       "'class', 'emailDisplayButton')",
-  expectedName: "mc.e('expandedtoLabel').value.slice(0,-1) + ': ' + " + 
+  expectedName: "mc.e('expandedtoLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.getAttribute('fullAddress')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Cc",
@@ -168,7 +171,7 @@ let headersToTest = [
                       "'class', 'emailDisplayButton')",
   expectedName: "mc.e('expandedccLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.getAttribute('fullAddress')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Bcc",
@@ -177,7 +180,7 @@ let headersToTest = [
                       "'class', 'emailDisplayButton')",
   expectedName: "mc.e('expandedbccLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.getAttribute('fullAddress')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Reply-To",
@@ -186,7 +189,7 @@ let headersToTest = [
                       "'class', 'emailDisplayButton')",
   expectedName: "mc.e('expandedreply-toLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.getAttribute('fullAddress')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Newsgroups",
@@ -195,14 +198,14 @@ let headersToTest = [
                       "'class', 'newsgrouplabel')",
   expectedName: "mc.e('expandednewsgroupsLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.parentNode.parentNode.getAttribute('newsgroup')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_ENTRY
+  expectedRole: Ci.nsIAccessibleRole.ROLE_ENTRY
 },
 {
   headerName: "Tags",
   headerValueElement: "mc.a('expandedtagsBox', {class: 'tagvalue blc-FF0000'})",
   expectedName: "mc.e('expandedtagsLabel').value.slice(0,-1) + ': ' + " +
                 "headerValueElement.getAttribute('value')",
-  expectedFinalRole: Ci.nsIAccessibleRole.ROLE_LABEL
+  expectedRole: Ci.nsIAccessibleRole.ROLE_LABEL
 }
 ];
 
@@ -223,10 +226,10 @@ function verify_header_a11y(aHeaderInfo) {
   let headerValueElement = eval(aHeaderInfo.headerValueElement);
 
   let headerAccessible = gAccRetrieval.getAccessibleFor(headerValueElement);
-  if (headerAccessible.finalRole != aHeaderInfo.expectedFinalRole) {
-    throw new Error("finalRole for " + aHeaderInfo.headerName + " was " +
-                    headerAccessible.finalRole + "; should have been " +
-                    aHeaderInfo.expectedFinalRole);
+  if (headerAccessible.role != aHeaderInfo.expectedRole) {
+    throw new Error("role for " + aHeaderInfo.headerName + " was " +
+                    headerAccessible.role + "; should have been " +
+                    aHeaderInfo.expectedRole);
   }
 
   let expectedName = eval(aHeaderInfo.expectedName);
@@ -266,7 +269,7 @@ function test_that_msg_without_date_clears_previous_headers() {
   // ensure that this message doesn't have a Date header
   delete msg.headers.Date;
 
-  // this will add the message to position 0 of the folder.
+  // this will add the message to the end of the folder
   add_message_to_folder(folder, msg);
 
   // select and open the first message
@@ -284,5 +287,227 @@ function test_that_msg_without_date_clears_previous_headers() {
   if (mc.e("expandednewsgroupsRow").collapsed != true) {
     throw new Error("Expected <row> elemnent for Newsgroups header to be " +
                     "collapsed, but it wasn't\n!");
+  }
+}
+
+/**
+ * Test various aspects of the (n more) widgetry.
+ */
+function test_more_widget() {
+  // generate message with 20 recips (effectively guarantees overflow)
+  be_in_folder(folder);
+  let msg = create_message({toCount: 20});
+
+  // add the message to the end of the folder
+  add_message_to_folder(folder, msg);
+
+  // select and open the last message
+  let curMessage = select_click_row(-1);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // get the description element containing the addresses
+  let toDescription = mc.a('expandedtoBox', {class: "headerValue"});
+
+  subtest_more_widget_display(toDescription);
+  subtest_more_widget_click(toDescription);
+  subtest_more_widget_star_click(toDescription);
+}
+
+/**
+ * Get the number of lines in one of the multi-address fields
+ * @param node the description element containing the addresses
+ * @return the number of lines
+ */
+function help_get_num_lines(node) {
+  let style = mc.window.getComputedStyle(node, null);
+  return style.height / style.lineHeight;
+}
+
+/**
+ * Make sure that there is no card for this email address
+ * @param emailAddress the address that should have no cards
+ */
+function ensure_no_card_exists(emailAddress)
+{
+  var books = Components.classes["@mozilla.org/abmanager;1"]
+                        .getService(Components.interfaces.nsIAbManager)
+                        .directories;
+
+  while (books.hasMoreElements()) {
+    var ab = books.getNext()
+                  .QueryInterface(Components.interfaces.nsIAbDirectory);
+    try {
+      var card = ab.cardForEmailAddress(emailAddress);
+      if (card) {
+        let cardArray = Cc["@mozilla.org/array;1"]
+                          .createInstance(Ci.nsIMutableArray);
+        cardArray.appendElement(card, false);
+        ab.deleteCards(cardArray);
+      }
+    }
+    catch (ex) { }
+  }
+}
+
+/**
+ * Test that the "more" widget displays when it should.
+ * @param toDescription the description node for the "to" field
+ */
+function subtest_more_widget_display(toDescription) {
+  // test that the to element doesn't have more than max lines
+  let numLines = help_get_num_lines(toDescription);
+
+  // get maxline pref
+  let prefBranch = Cc["@mozilla.org/preferences-service;1"]
+    .getService(Ci.nsIPrefService).getBranch(null);
+  let maxLines = prefBranch.getIntPref(
+    "mailnews.headers.show_n_lines_before_more");
+
+  if (numLines > maxLines) {
+    throw new Error("expected <= " + maxLines + "lines; found " + numLines);
+  }
+
+  // test that we've got a (more) node and that it's expanded
+  let moreNode = mc.a('expandedtoBox', {class: 'moreIndicator'});
+  if (!moreNode) {
+    throw new Error("more node not found before activation");
+  }
+  if (moreNode.collapsed) {
+    throw new Error("more node was collapsed when it should have been visible");
+  }
+}
+
+/**
+ * Test that clicking the "more" widget displays all the addresses.
+ * @param toDescription the description node for the "to" field
+ */
+function subtest_more_widget_click(toDescription) {
+  let oldNumLines = help_get_num_lines(toDescription);
+
+  // activate (n more)
+  let moreNode = mc.aid('expandedtoBox', {class: 'moreIndicator'});
+  mc.click(moreNode);
+
+  // test that (n more) is gone
+  moreNode = mc.a('expandedtoBox', {class: 'moreIndicator'});
+  if (!moreNode.collapsed) {
+    throw new Error("more node should be collapsed after activation");
+  }
+
+  // test that we actually have more lines than we did before!
+  let newNumLines = help_get_num_lines(toDescription);
+  if (newNumLines <= oldNumLines) {
+    throw new Error("number of address lines present after more clicked = " +
+      newNumLines + "<= number of lines present beforehand = " + oldNumLines);
+  }
+}
+
+/**
+ * Test that clicking the star updates the UI properly (see bug 563612).
+ * @param toDescription the description node for the "to" field
+ */
+function subtest_more_widget_star_click(toDescription) {
+  let addrs = toDescription.getElementsByTagName('mail-emailaddress');
+  let lastAddr = addrs[addrs.length-1];
+  ensure_no_card_exists(lastAddr.getAttribute("emailAddress"));
+
+  // scroll to the bottom first so the address is in view
+  let view = mc.e('expandedHeaderView');
+  view.scrollTop = view.scrollHeight - view.clientHeight;
+
+  mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
+  if (lastAddr.getAttribute('hascard') == 'false') {
+    throw new Error("address not updated after clicking star");
+  }
+}
+
+/**
+ * Make sure the (more) widget hidden pref actually works with a
+ * non-default value.
+  */
+function test_more_widget_with_maxlines_of_3(){
+
+  // set maxLines to 2
+  let prefBranch = Cc["@mozilla.org/preferences-service;1"]
+    .getService(Ci.nsIPrefService).getBranch(null);
+  let maxLines = prefBranch.setIntPref(
+    "mailnews.headers.show_n_lines_before_more", 3);
+
+  // call test_more_widget again
+  test_more_widget();
+}
+
+/**
+ * When the window gets too narrow the toolbar should float above the From
+ *  line.  Then they need to return back to the right when we get large
+ *  enough again.
+ */
+function test_toolbar_collapse_and_expand() {
+  be_in_folder(folder);
+  // Select and open a message, in this case the last, for no particular reason.
+  let curMessage = select_click_row(-1);
+
+  try {
+    let expandedHeadersTopBox = mc.e("expandedHeadersTopBox");
+    let toolbar = mc.e("header-view-toolbar");
+    let mode = toolbar.getAttribute("mode");
+
+    // Get really big, so that we can figure out how big we actually want to be.
+    mc.window.resizeTo(1200, 600);
+    // spin the event loop once
+    mc.sleep(0);
+
+    let folderPaneWidth = mc.e("folderPaneBox").clientWidth;
+    let fromWidth = mc.e("expandedfromRow").clientWidth;
+
+    // This is the biggest we need to be.
+    let bigWidth = folderPaneWidth + fromWidth + toolbar.clientWidth;
+
+    // Now change to icons-only mode for a much smaller toolbar.
+    toolbar.setAttribute("mode", "icons");
+    let smallWidth = folderPaneWidth + fromWidth + toolbar.clientWidth;
+
+    // Re-set the mode to its original value.
+    toolbar.setAttribute("mode", mode);
+
+    // And resize to half way between the big and small widths, so that we
+    //  can toggle the mode to force the overflow.
+    mc.window.resizeTo((bigWidth + smallWidth) / 2, 600);
+    // spin the event loop once
+    mc.sleep(0);
+
+    // Make sure we are too small to contain the buttons and from line, so
+    //  we will be tall.
+    let tallHeight = expandedHeadersTopBox.clientHeight;
+
+    // Change from icons and text to just icons to make our toolbar
+    //  narrower, and by extension our header shorter.
+    toolbar.setAttribute("mode", "icons");
+
+    let shortHeight = expandedHeadersTopBox.clientHeight;
+    if (shortHeight >= tallHeight)
+      throw new Error("The header box should have been made smaller!");
+
+    // Change back to icons and text to make our toolbar wider and our
+    //   header taller again.
+    toolbar.setAttribute("mode", mode);
+    if (expandedHeadersTopBox.clientHeight != tallHeight)
+      throw new Error("The header box should have returned to its original size!");
+
+    // And make our window big to achieve the same effect as the just icons mode.
+    mc.window.resizeTo(1200, 600);
+    // spin the event loop once
+    mc.sleep(0);
+    if (expandedHeadersTopBox.clientHeight != shortHeight)
+      throw new Error("The header box should have returned to its wide size!");
+  }
+  finally {
+    // restore window to nominal dimensions; saving was not working out
+    //  See also: quick-filter-bar/test-display-issues.js if we change the
+    //            default window size.
+    mc.window.resizeTo(1024, 768);
   }
 }

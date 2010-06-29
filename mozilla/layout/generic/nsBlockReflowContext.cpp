@@ -326,7 +326,7 @@ nsBlockReflowContext::ReflowBlock(const nsRect&       aSpace,
   }
 #endif
 
-  if (!(NS_FRAME_OUTSIDE_CHILDREN & mFrame->GetStateBits())) {
+  if (!mFrame->HasOverflowRect()) {
     // Provide overflow area for child that doesn't have any
     mMetrics.mOverflowArea.x = 0;
     mMetrics.mOverflowArea.y = 0;
@@ -349,7 +349,7 @@ nsBlockReflowContext::ReflowBlock(const nsRect&       aSpace,
         // Floats will eventually be removed via nsBlockFrame::RemoveFloat
         // which detaches the placeholder from the float.
 /* XXX promote DeleteChildsNextInFlow to nsIFrame to elminate this cast */
-        aState.mOverflowTracker.Finish(mFrame);
+        aState.mOverflowTracker->Finish(mFrame);
         static_cast<nsHTMLContainerFrame*>(kidNextInFlow->GetParent())
           ->DeleteNextInFlowChild(mPresContext, kidNextInFlow, PR_TRUE);
       }

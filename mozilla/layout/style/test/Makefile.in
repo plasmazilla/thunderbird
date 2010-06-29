@@ -72,6 +72,7 @@ css_properties.js: host_ListCSSProperties$(HOST_BIN_SUFFIX) css_properties_like_
 GARBAGE += css_properties.js
 
 _TEST_FILES =	test_acid3_test46.html \
+		test_at_rule_parse_serialize.html \
 		test_bug73586.html \
 		test_bug74880.html \
 		test_bug98997.html \
@@ -95,19 +96,26 @@ _TEST_FILES =	test_acid3_test46.html \
 		test_bug391034.html \
 		test_bug391221.html \
 		test_bug397427.html \
+		test_bug399349.html \
 		test_bug401046.html \
 		test_bug405818.html \
 		test_bug412901.html \
 		test_bug437915.html \
 		test_bug450191.html \
 		test_bug453896_deck.html \
+		test_bug470769.html \
+		test_bug499655.html \
+		test_bug499655.xhtml \
+		test_bug517224.html \
 		test_cascade.html \
 		test_compute_data_with_start_struct.html \
+		test_computed_style_no_pseudo.html \
 		test_css_eof_handling.html \
 		test_descriptor_storage.html \
 		test_descriptor_syntax_errors.html \
 		test_dont_use_document_colors.html \
 		test_font_face_parser.html \
+		test_garbage_at_end_of_declarations.html \
 		test_hover.html \
 		test_inherit_computation.html \
 		test_inherit_storage.html \
@@ -119,12 +127,17 @@ _TEST_FILES =	test_acid3_test46.html \
 		test_namespace_rule.html \
 		test_of_type_selectors.xhtml \
 		test_parse_rule.html \
-		test_priority_preservation.html \
+		test_parse_url.html \
+		test_pointer-events.html \
 		test_property_database.html \
+		test_priority_preservation.html \
 		test_property_syntax_errors.html \
+		test_rem_unit.html \
 		test_selectors.html \
 		test_selectors_on_anonymous_content.html \
+		test_shorthand_property_getters.html \
 		test_style_struct_copy_constructors.html \
+		test_system_font_serialization.html \
 		test_units_angle.html \
 		test_units_frequency.html \
 		test_units_length.html \
@@ -155,6 +168,7 @@ _TEST_FILES =	test_acid3_test46.html \
 		media_queries_dynamic_xbl_iframe.html \
 		media_queries_dynamic_xbl_style.css \
 		bug453896_iframe.html \
+		bug517224.sjs \
 		$(NULL)
 
 _BROWSER_FILES = \

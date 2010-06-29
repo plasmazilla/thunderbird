@@ -75,6 +75,7 @@
 #include "nsIPrincipal.h"
 #include "nsComponentManagerUtils.h"
 #include "nsCSSPseudoClasses.h"
+#include "nsTArray.h"
 
 #include "nsContentUtils.h"
 #include "nsContentErrors.h"
@@ -196,12 +197,12 @@ nsPseudoClassList::~nsPseudoClassList(void)
 }
 
 nsAttrSelector::nsAttrSelector(PRInt32 aNameSpace, const nsString& aAttr)
-  : mNameSpace(aNameSpace),
+  : mValue(),
+    mNext(nsnull),
     mAttr(nsnull),
+    mNameSpace(aNameSpace),
     mFunction(NS_ATTR_FUNC_SET),
-    mCaseSensitive(1),
-    mValue(),
-    mNext(nsnull)
+    mCaseSensitive(1)
 {
   MOZ_COUNT_CTOR(nsAttrSelector);
 
@@ -210,12 +211,12 @@ nsAttrSelector::nsAttrSelector(PRInt32 aNameSpace, const nsString& aAttr)
 
 nsAttrSelector::nsAttrSelector(PRInt32 aNameSpace, const nsString& aAttr, PRUint8 aFunction, 
                                const nsString& aValue, PRBool aCaseSensitive)
-  : mNameSpace(aNameSpace),
+  : mValue(aValue),
+    mNext(nsnull),
     mAttr(nsnull),
+    mNameSpace(aNameSpace),
     mFunction(aFunction),
-    mCaseSensitive(aCaseSensitive),
-    mValue(aValue),
-    mNext(nsnull)
+    mCaseSensitive(aCaseSensitive)
 {
   MOZ_COUNT_CTOR(nsAttrSelector);
 
@@ -225,12 +226,12 @@ nsAttrSelector::nsAttrSelector(PRInt32 aNameSpace, const nsString& aAttr, PRUint
 nsAttrSelector::nsAttrSelector(PRInt32 aNameSpace, nsIAtom* aAttr,
                                PRUint8 aFunction, const nsString& aValue,
                                PRBool aCaseSensitive)
-  : mNameSpace(aNameSpace),
+  : mValue(aValue),
+    mNext(nsnull),
     mAttr(aAttr),
+    mNameSpace(aNameSpace),
     mFunction(aFunction),
-    mCaseSensitive(aCaseSensitive),
-    mValue(aValue),
-    mNext(nsnull)
+    mCaseSensitive(aCaseSensitive)
 {
   MOZ_COUNT_CTOR(nsAttrSelector);
 }
@@ -257,14 +258,16 @@ nsAttrSelector::~nsAttrSelector(void)
 // -- nsCSSSelector -------------------------------
 
 nsCSSSelector::nsCSSSelector(void)
-  : mNameSpace(kNameSpaceID_Unknown), mTag(nsnull), 
-    mIDList(nsnull), 
-    mClassList(nsnull), 
+  : mLowercaseTag(nsnull),
+    mCasedTag(nsnull),
+    mIDList(nsnull),
+    mClassList(nsnull),
     mPseudoClassList(nsnull),
-    mAttrList(nsnull), 
-    mOperator(0),
+    mAttrList(nsnull),
     mNegations(nsnull),
-    mNext(nsnull)
+    mNext(nsnull),
+    mNameSpace(kNameSpaceID_Unknown),
+    mOperator(0)
 {
   MOZ_COUNT_CTOR(nsCSSSelector);
 }
@@ -277,7 +280,8 @@ nsCSSSelector::Clone(PRBool aDeepNext, PRBool aDeepNegations) const
     return nsnull;
 
   result->mNameSpace = mNameSpace;
-  result->mTag = mTag;
+  result->mLowercaseTag = mLowercaseTag;
+  result->mCasedTag = mCasedTag;
   result->mOperator = mOperator;
   
   NS_IF_CLONE(mIDList);
@@ -314,7 +318,8 @@ nsCSSSelector::~nsCSSSelector(void)
 void nsCSSSelector::Reset(void)
 {
   mNameSpace = kNameSpaceID_Unknown;
-  mTag = nsnull;
+  mLowercaseTag = nsnull;
+  mCasedTag = nsnull;
   NS_IF_DELETE(mIDList);
   NS_IF_DELETE(mClassList);
   NS_IF_DELETE(mPseudoClassList);
@@ -332,12 +337,23 @@ void nsCSSSelector::SetNameSpace(PRInt32 aNameSpace)
   mNameSpace = aNameSpace;
 }
 
-void nsCSSSelector::SetTag(const nsString& aTag)
+void nsCSSSelector::SetTag(const nsString& aTag, PRBool aCaseMatters)
 {
-  if (aTag.IsEmpty())
-    mTag = nsnull;
-  else
-    mTag = do_GetAtom(aTag);
+  if (aTag.IsEmpty()) {
+    mLowercaseTag = mCasedTag =  nsnull;
+    return;
+  }
+
+  mCasedTag = do_GetAtom(aTag);
+ 
+  if (aCaseMatters) {
+    mLowercaseTag = mCasedTag;
+  } 
+  else {
+    nsAutoString lowercase(aTag);
+    ToLowerCase(lowercase);
+    mLowercaseTag = do_GetAtom(lowercase);
+  }
 }
 
 void nsCSSSelector::AddID(const nsString& aID)
@@ -416,11 +432,11 @@ void nsCSSSelector::SetOperator(PRUnichar aOperator)
   mOperator = aOperator;
 }
 
-PRInt32 nsCSSSelector::CalcWeight(void) const
+PRInt32 nsCSSSelector::CalcWeightWithoutNegations() const
 {
   PRInt32 weight = 0;
 
-  if (nsnull != mTag) {
+  if (nsnull != mLowercaseTag) {
     weight += 0x000001;
   }
   nsAtomList* list = mIDList;
@@ -443,28 +459,17 @@ PRInt32 nsCSSSelector::CalcWeight(void) const
     weight += 0x000100;
     attr = attr->mNext;
   }
-  if (nsnull != mNegations) {
-    weight += mNegations->CalcWeight();
-  }
   return weight;
 }
 
-// pseudo-elements are stored in the selectors' chain using fictional elements;
-// these fictional elements have mTag starting with a colon
-static PRBool IsPseudoElement(nsIAtom* aAtom)
+PRInt32 nsCSSSelector::CalcWeight() const
 {
-  if (aAtom) {
-    const char* str;
-    aAtom->GetUTF8String(&str);
-    return str && (*str == ':');
+  // Loop over this selector and all its negations.
+  PRInt32 weight = 0;
+  for (const nsCSSSelector *n = this; n; n = n->mNegations) {
+    weight += n->CalcWeightWithoutNegations();
   }
-
-  return PR_FALSE;
-}
-
-void nsCSSSelector::AppendNegationToString(nsAString& aString)
-{
-  aString.AppendLiteral(":not(");
+  return weight;
 }
 
 //
@@ -477,28 +482,58 @@ nsCSSSelector::ToString(nsAString& aString, nsICSSStyleSheet* aSheet,
 {
   if (!aAppend)
    aString.Truncate();
-   
-  ToStringInternal(aString, aSheet, IsPseudoElement(mTag), PR_FALSE);
-}
 
-void nsCSSSelector::ToStringInternal(nsAString& aString,
-                                     nsICSSStyleSheet* aSheet,
-                                     PRBool aIsPseudoElem,
-                                     PRBool aIsNegated) const
-{
-  nsAutoString temp;
-  PRBool isPseudoElement = IsPseudoElement(mTag);
-  
-  // selectors are linked from right-to-left, so the next selector in the linked list
-  // actually precedes this one in the resulting string
-  if (mNext) {
-    mNext->ToStringInternal(aString, aSheet, IsPseudoElement(mTag), 0);
-    if (!aIsNegated && !isPseudoElement) {
-      // don't add a leading whitespace if we have a pseudo-element
-      // or a negated simple selector
-      aString.Append(PRUnichar(' '));
+  // selectors are linked from right-to-left, so the next selector in
+  // the linked list actually precedes this one in the resulting string
+  nsAutoTArray<const nsCSSSelector*, 8> stack;
+  for (const nsCSSSelector *s = this; s; s = s->mNext) {
+    stack.AppendElement(s);
+  }
+   
+  while (!stack.IsEmpty()) {
+    PRUint32 index = stack.Length() - 1;
+    const nsCSSSelector *s = stack.ElementAt(index);
+    stack.RemoveElementAt(index);
+
+    s->AppendToStringWithoutCombinators(aString, aSheet);
+
+    // Append the combinator, if needed.
+    if (!stack.IsEmpty()) {
+      const nsCSSSelector *next = stack.ElementAt(index - 1);
+      if (!next->IsPseudoElement()) {
+        aString.Append(PRUnichar(' '));
+        PRUnichar oper = s->mOperator;
+        if (oper != PRUnichar(0)) {
+          aString.Append(oper);
+          aString.Append(PRUnichar(' '));
+        }
+      }
     }
   }
+}
+
+void
+nsCSSSelector::AppendToStringWithoutCombinators
+                   (nsAString& aString, nsICSSStyleSheet* aSheet) const
+{
+  AppendToStringWithoutCombinatorsOrNegations(aString, aSheet, PR_FALSE);
+
+  for (const nsCSSSelector* negation = mNegations; negation;
+       negation = negation->mNegations) {
+    aString.AppendLiteral(":not(");
+    negation->AppendToStringWithoutCombinatorsOrNegations(aString, aSheet,
+                                                          PR_TRUE);
+    aString.Append(PRUnichar(')'));
+  }
+}
+
+void
+nsCSSSelector::AppendToStringWithoutCombinatorsOrNegations
+                   (nsAString& aString, nsICSSStyleSheet* aSheet,
+                   PRBool aIsNegated) const
+{
+  nsAutoString temp;
+  PRBool isPseudoElement = IsPseudoElement();
 
   // For non-pseudo-element selectors or for lone pseudo-elements, deal with
   // namespace prefixes.
@@ -554,7 +589,7 @@ void nsCSSSelector::ToStringInternal(nsAString& aString,
     }
   }
       
-  if (!mTag) {
+  if (!mLowercaseTag) {
     // Universal selector:  avoid writing the universal selector when we
     // can avoid it, especially since we're required to avoid it for the
     // inside of :not()
@@ -571,12 +606,12 @@ void nsCSSSelector::ToStringInternal(nsAString& aString,
         // XXXldb Why?
         aString.Append(PRUnichar('*'));
       }
-      if (!nsCSSPseudoElements::IsCSS2PseudoElement(mTag)) {
+      if (!nsCSSPseudoElements::IsCSS2PseudoElement(mLowercaseTag)) {
         aString.Append(PRUnichar(':'));
       }
     }
     nsAutoString prefix;
-    mTag->ToString(prefix);
+    mLowercaseTag->ToString(prefix);
     aString.Append(prefix);
   }
 
@@ -641,12 +676,7 @@ void nsCSSSelector::ToStringInternal(nsAString& aString,
         aString.Append(PRUnichar('='));
       
         // Append the value
-        nsAutoString escaped;
-        nsStyleUtil::EscapeCSSString(list->mValue, escaped);
-      
-        aString.Append(PRUnichar('\"'));
-        aString.Append(escaped);
-        aString.Append(PRUnichar('\"'));
+        nsStyleUtil::AppendEscapedCSSString(list->mValue, aString);
       }
 
       aString.Append(PRUnichar(']'));
@@ -690,22 +720,6 @@ void nsCSSSelector::ToStringInternal(nsAString& aString,
       }
       list = list->mNext;
     }
-  }
-
-  if (!aIsNegated) {
-    for (nsCSSSelector* negation = mNegations; negation;
-         negation = negation->mNegations) {
-      aString.AppendLiteral(":not(");
-      negation->ToStringInternal(aString, aSheet, PR_FALSE, PR_TRUE);
-      aString.Append(PRUnichar(')'));
-    }
-  }
-
-  // Append the operator only if the selector is not negated and is not
-  // a pseudo-element
-  if (!aIsNegated && mOperator && !aIsPseudoElem) {
-    aString.Append(PRUnichar(' '));
-    aString.Append(mOperator);
   }
 }
 
@@ -846,7 +860,7 @@ public:
   virtual ~DOMCSSDeclarationImpl(void);
 
   NS_IMETHOD GetParentRule(nsIDOMCSSRule **aParent);
-  virtual void DropReference(void);
+  void DropReference(void);
   virtual nsresult GetCSSDeclaration(nsCSSDeclaration **aDecl,
                                      PRBool aAllocate);
   virtual nsresult GetCSSParsingEnvironment(nsIURI** aSheetURI,
@@ -860,6 +874,11 @@ public:
   // |DOMCSSStyleRuleImpl|.
   NS_IMETHOD_(nsrefcnt) AddRef(void);
   NS_IMETHOD_(nsrefcnt) Release(void);
+
+  virtual nsISupports *GetParentObject()
+  {
+    return nsnull;
+  }
 
   friend class DOMCSSStyleRuleImpl;
 

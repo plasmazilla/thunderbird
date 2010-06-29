@@ -73,14 +73,31 @@ endif
 
 tier_external_dirs	+= gfx/qcms
 
+ifeq ($(OS_ARCH),WINCE)
+tier_external_dirs += modules/lib7z
+endif
+
 #
 # tier "gecko" - core components
 #
 
+ifdef MOZ_IPC
+tier_gecko_dirs += ipc
+endif
+
 tier_gecko_dirs += \
 		js/src/xpconnect \
+		js/ctypes \
 		intl/chardet \
 		$(NULL)
+
+ifdef BUILD_CTYPES
+ifndef _MSC_VER
+tier_gecko_staticdirs += \
+		js/ctypes/libffi \
+		$(NULL)
+endif
+endif
 
 ifdef MOZ_ENABLE_GTK2
 ifdef MOZ_X11
@@ -134,12 +151,9 @@ tier_gecko_dirs	+= \
 		uriloader \
 		modules/libimg \
 		caps \
-		parser/expat \
-		parser/xml \
-		parser/htmlparser \
+		parser \
 		gfx \
 		modules/libpr0n \
-		sun-java \
 		modules/plugin \
 		dom \
 		view \
@@ -173,6 +187,7 @@ endif
 ifdef MOZ_OJI
 tier_gecko_dirs	+= \
 		js/src/liveconnect \
+		sun-java \
 		modules/oji \
 		$(NULL)
 endif
@@ -194,10 +209,6 @@ tier_toolkit_dirs += chrome profile
 # This must preceed xpfe
 ifdef MOZ_JPROF
 tier_toolkit_dirs        += tools/jprof
-endif
-
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
-tier_toolkit_dirs       += xpfe/bootstrap/appleevents
 endif
 
 tier_toolkit_dirs	+= \
@@ -256,8 +267,11 @@ ifdef MOZ_ENABLE_GNOME_COMPONENT
 tier_toolkit_dirs    += toolkit/system/gnome
 endif
 
+ifndef MOZ_ENABLE_LIBCONIC
+# if libconic is present, it will do its own network monitoring
 ifdef MOZ_ENABLE_DBUS
 tier_toolkit_dirs    += toolkit/system/dbus
+endif
 endif
 
 ifdef MOZ_LEAKY
@@ -270,4 +284,8 @@ endif
 
 ifdef ENABLE_TESTS
 tier_toolkit_dirs	+= testing/mochitest
+endif
+
+ifdef MOZ_TREE_FREETYPE
+tier_external_dirs	+= modules/freetype2
 endif

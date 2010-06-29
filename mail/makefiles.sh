@@ -41,34 +41,36 @@ mail/Makefile
 mail/app/Makefile
 mail/app/profile/Makefile
 mail/base/Makefile
-mail/branding/nightly/Makefile
-mail/branding/nightly/locales/Makefile
-mail/locales/Makefile
 mail/components/Makefile
-mail/components/compose/Makefile
 mail/components/addrbook/Makefile
-mail/components/preferences/Makefile
 mail/components/build/Makefile
+mail/components/compose/Makefile
+mail/components/phishing/Makefile
+mail/components/preferences/Makefile
 mail/components/shell/Makefile
 mail/components/shell/public/Makefile
-mail/components/phishing/Makefile
 mail/extensions/Makefile
 mail/extensions/mailviews/Makefile
 mail/extensions/smime/Makefile
 mail/installer/Makefile
 mail/installer/windows/Makefile
+mail/locales/Makefile
+mail/test/mozmill/Makefile
 mail/themes/Makefile
+mail/themes/gnomestripe/Makefile
 mail/themes/pinstripe/Makefile
 mail/themes/qute/Makefile
-mail/themes/gnomestripe/Makefile
-mail/test/mozmill/Makefile
+$MOZ_BRANDING_DIRECTORY/Makefile
+$MOZ_BRANDING_DIRECTORY/locales/Makefile
 "
 
-if test -n "$MOZ_BRANDING_DIRECTORY"; then
-  add_makefiles "
-    $MOZ_BRANDING_DIRECTORY/Makefile
-    $MOZ_BRANDING_DIRECTORY/locales/Makefile
-  "
-fi
-
+# storage-backport stuff.
+# this is temporary until we branch for MOZILLA_1_9_2_BRANCH
+add_makefiles "
+storage-backport/Makefile
+storage-backport/public/Makefile
+storage-backport/src/Makefile
+storage-backport/build/Makefile
+storage-backport/test/Makefile
+"
 fi

@@ -37,11 +37,15 @@ menulist > menupopup > menu > .menu-iconic-left {
   width: 16px;
   min-height: 16px;
   margin: 0 3px;
-  list-style-image: url("chrome://global/skin/icons/notloading_16.png");
 }
 
 #throbber-box[busy="true"] {
   list-style-image: url("chrome://global/skin/icons/loading_16.png");
+}
+
+#throbber-box,
+#wrapper-throbber-box > #throbber-box {
+  list-style-image: url("chrome://global/skin/icons/notloading_16.png");
 }
 
 /* ::::: online/offline icons ::::: */
@@ -104,6 +108,10 @@ sidebarheader .toolbarbutton-text:not([value]) {
 
 #searchInput {
   padding: 2px;
+}
+
+#searchInput:-moz-lwtheme:not([focused="true"]) {
+  opacity: .85;
 }
 
 /* Stock icons for the menu bar items */
@@ -273,11 +281,11 @@ menuitem[key="cmd_goBack"][disabled] {
   list-style-image: url("moz-icon://stock/gtk-go-back-ltr?size=menu&state=disabled");
 }
 
-menuitem[command="cmd_goBack"][chromedir="rtl"] {
+menuitem[command="cmd_goBack"]:-moz-locale-dir(rtl) {
   list-style-image: url("moz-icon://stock/gtk-go-back-rtl?size=menu");
 }
 
-menuitem[command="cmd_goBack"][disabled][chromedir="rtl"] {
+menuitem[command="cmd_goBack"][disabled]:-moz-locale-dir(rtl) {
   list-style-image: url("moz-icon://stock/gtk-go-back-rtl?size=menu&state=disabled");
 }
 
@@ -289,11 +297,11 @@ menuitem[command="cmd_goForward"][disabled] {
   list-style-image: url("moz-icon://stock/gtk-go-forward-ltr?size=menu&state=disabled");
 }
 
-menuitem[command="cmd_goForward"][chromedir="rtl"] {
+menuitem[command="cmd_goForward"]:-moz-locale-dir(rtl) {
   list-style-image: url("moz-icon://stock/gtk-go-forward-rtl?size=menu");
 }
 
-menuitem[command="cmd_goForward"][disabled][chromedir="rtl"] {
+menuitem[command="cmd_goForward"][disabled]:-moz-locale-dir(rtl) {
   list-style-image: url("moz-icon://stock/gtk-go-forward-rtl?size=menu&state=disabled");
 }
 

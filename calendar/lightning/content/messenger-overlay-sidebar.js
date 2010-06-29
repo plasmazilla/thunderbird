@@ -61,10 +61,6 @@ var calendarTabType = {
             // foreground.
             ltnSwitch2Calendar();
         }
-
-        if (("selectedDay" in aArgs) && aArgs.selectedDay != null) {
-            currentView().goToDay(aArgs.selectedDay);
-        }
       },
 
       showTab: function(aTab) {
@@ -82,8 +78,6 @@ var calendarTabType = {
       persistTab: function(aTab) {
         let tabmail = document.getElementById("tabmail");
         return {
-            // Save the currently selected day
-            selectedDay: getSelectedDay().icalString,
             // Since we do strange tab switching logic in ltnSwitch2Calendar,
             // we should store the current tab state ourselves.
             background: (aTab != tabmail.currentTabInfo)
@@ -91,18 +85,12 @@ var calendarTabType = {
       },
 
       restoreTab: function(aTabmail, aState) {
-        aState.title = document.getElementById('calendar-tab-button').getAttribute('tooltiptext');
-        if ("selectedDay" in aState) {
-            // Convert the serialized date to a datetime object
-            aState.selectedDay = cal.createDateTime(aState.selectedDay);
-        }
+        aState.title = ltnGetString("lightning", "tabTitleCalendar");
         aTabmail.openTab('calendar', aState);
       },
 
       onTitleChanged: function(aTab) {
-        // Make sure the title is updated.
-        // TODO We should move this to a dedicated string some time.
-        aTab.title = document.getElementById("calendar-tab-button").getAttribute("tooltiptext");
+        aTab.title = ltnGetString("lightning", "tabTitleCalendar");
       },
 
       supportsCommand: function (aCommand, aTab) calendarController.supportsCommand(aCommand),
@@ -142,8 +130,12 @@ var calendarTabType = {
       },
 
       restoreTab: function(aTabmail, aState) {
-        aState.title = document.getElementById('task-tab-button').getAttribute('tooltiptext');
+        aState.title = ltnGetString("lightning", "tabTitleTasks");
         aTabmail.openTab('tasks', aState);
+      },
+
+      onTitleChanged: function(aTab) {
+        aTab.title = ltnGetString("lightning", "tabTitleTasks");
       },
 
       supportsCommand: function (aCommand, aTab) calendarController.supportsCommand(aCommand),

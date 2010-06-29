@@ -62,6 +62,7 @@ DIRS += \
 	typeaheadfind \
 	parentalcontrols \
 	passwordmgr \
+	aboutmemory \
 	$(NULL)
 
 ifneq (,$(filter cocoa, $(MOZ_WIDGET_TOOLKIT)))
@@ -107,6 +108,10 @@ endif
 
 ifdef MOZ_URL_CLASSIFIER
 DIRS += url-classifier
+endif
+
+ifdef MOZ_FASTSTART
+DIRS += faststart
 endif
 
 DIRS += \

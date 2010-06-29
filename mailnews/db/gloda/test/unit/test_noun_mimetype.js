@@ -44,7 +44,7 @@
 
 load("resources/glodaTestHelper.js");
 
-Components.utils.import("resource://app/modules/gloda/noun_mimetype.js");
+Components.utils.import("resource:///modules/gloda/noun_mimetype.js");
 
 /* ===== Tests ===== */
 
@@ -107,7 +107,7 @@ function test_basics() {
 
   // - make sure the numeric trickiness for the block stuff is actually doing
   //  the right thing!
-  BLOCK_SIZE = MimeTypeNoun.TYPE_BLOCK_SIZE;
+  const BLOCK_SIZE = MimeTypeNoun.TYPE_BLOCK_SIZE;
   // same blocks
   do_check_eq(Math.floor(jpeg.id / BLOCK_SIZE),
               Math.floor(png.id / BLOCK_SIZE));

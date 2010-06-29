@@ -45,6 +45,8 @@
 #include "nsIServiceManager.h"
 #include "nsIDOMHTMLInputElement.h"
 #include "nsDisplayList.h"
+#include "nsCSSAnonBoxes.h"
+#include "nsIDOMNSHTMLInputElement.h"
 
 static void
 PaintCheckMark(nsIFrame* aFrame,
@@ -79,12 +81,31 @@ PaintCheckMark(nsIFrame* aFrame,
   aCtx->FillPolygon(paintPolygon, checkNumPoints);
 }
 
+static void
+PaintIndeterminateMark(nsIFrame* aFrame,
+                       nsIRenderingContext* aCtx,
+                       const nsRect& aDirtyRect,
+                       nsPoint aPt)
+{
+  nsRect rect(aPt, aFrame->GetSize());
+  rect.Deflate(aFrame->GetUsedBorderAndPadding());
+
+  rect.y += (rect.height - rect.height/4) / 2;
+  rect.height /= 4;
+
+  aCtx->SetColor(aFrame->GetStyleColor()->mColor);
+  aCtx->FillRect(rect);
+}
+
 //------------------------------------------------------------
 nsIFrame*
-NS_NewGfxCheckboxControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
+NS_NewGfxCheckboxControlFrame(nsIPresShell* aPresShell,
+                              nsStyleContext* aContext)
 {
   return new (aPresShell) nsGfxCheckboxControlFrame(aContext);
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsGfxCheckboxControlFrame)
 
 
 //------------------------------------------------------------
@@ -99,30 +120,20 @@ nsGfxCheckboxControlFrame::~nsGfxCheckboxControlFrame()
 }
 
 
-//----------------------------------------------------------------------
-// nsISupports
-//----------------------------------------------------------------------
-// Frames are not refcounted, no need to AddRef
-NS_IMETHODIMP
-nsGfxCheckboxControlFrame::QueryInterface(const nsIID& aIID, void** aInstancePtr)
-{
-  NS_PRECONDITION(aInstancePtr, "null out param");
-
-  if (aIID.Equals(NS_GET_IID(nsICheckboxControlFrame))) {
-    *aInstancePtr = static_cast<nsICheckboxControlFrame*>(this);
-    return NS_OK;
-  }
-
-  return nsFormControlFrame::QueryInterface(aIID, aInstancePtr);
-}
+NS_QUERYFRAME_HEAD(nsGfxCheckboxControlFrame)
+  NS_QUERYFRAME_ENTRY(nsICheckboxControlFrame)
+NS_QUERYFRAME_TAIL_INHERITING(nsFormControlFrame)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsGfxCheckboxControlFrame::GetAccessible(nsIAccessible** aAccessible)
+NS_IMETHODIMP
+nsGfxCheckboxControlFrame::GetAccessible(nsIAccessible** aAccessible)
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
+  nsCOMPtr<nsIAccessibilityService> accService
+    = do_GetService("@mozilla.org/accessibilityService;1");
 
   if (accService) {
-    return accService->CreateHTMLCheckboxAccessible(static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLCheckboxAccessible(
+      static_cast<nsIFrame*>(this), aAccessible);
   }
 
   return NS_ERROR_FAILURE;
@@ -149,23 +160,34 @@ nsGfxCheckboxControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   NS_ENSURE_SUCCESS(rv, rv);
   
   // Get current checked state through content model.
-  if (!GetCheckboxState() || !IsVisibleForPainting(aBuilder))
+  if ((!IsChecked() && !IsIndeterminate()) || !IsVisibleForPainting(aBuilder))
     return NS_OK;   // we're not checked or not visible, nothing to paint.
-
+    
   if (IsThemed())
     return NS_OK; // No need to paint the checkmark. The theme will do it.
 
-  // Paint the checkmark
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-    nsDisplayGeneric(this, PaintCheckMark, "CheckedCheckbox"));
+    nsDisplayGeneric(this,
+                     IsIndeterminate()
+                     ? PaintIndeterminateMark : PaintCheckMark,
+                     "CheckedCheckbox"));
 }
 
 //------------------------------------------------------------
 PRBool
-nsGfxCheckboxControlFrame::GetCheckboxState ( )
+nsGfxCheckboxControlFrame::IsChecked()
 {
   nsCOMPtr<nsIDOMHTMLInputElement> elem(do_QueryInterface(mContent));
   PRBool retval = PR_FALSE;
   elem->GetChecked(&retval);
+  return retval;
+}
+
+PRBool
+nsGfxCheckboxControlFrame::IsIndeterminate()
+{
+  nsCOMPtr<nsIDOMNSHTMLInputElement> elem(do_QueryInterface(mContent));
+  PRBool retval = PR_FALSE;
+  elem->GetIndeterminate(&retval);
   return retval;
 }

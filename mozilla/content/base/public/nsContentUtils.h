@@ -42,7 +42,7 @@
 #ifndef nsContentUtils_h___
 #define nsContentUtils_h___
 
-#include "jspubtd.h"
+#include "jsprvtd.h"
 #include "jsnum.h"
 #include "nsAString.h"
 #include "nsIStatefulFrame.h"
@@ -79,11 +79,12 @@ class nsIThreadJSContextStack;
 class nsIParserService;
 class nsIIOService;
 class nsIURI;
+class imgIContainer;
 class imgIDecoderObserver;
 class imgIRequest;
 class imgILoader;
+class imgICache;
 class nsIPrefBranch;
-class nsIImage;
 class nsIImageLoadingContent;
 class nsIDOMHTMLFormElement;
 class nsIDOMDocument;
@@ -100,7 +101,6 @@ class nsIRunnable;
 class nsIInterfaceRequestor;
 template<class E> class nsCOMArray;
 class nsIPref;
-class nsVoidArray;
 struct JSRuntime;
 class nsICaseConversion;
 class nsIUGenCategory;
@@ -108,6 +108,7 @@ class nsIWidget;
 class nsIDragSession;
 class nsPIDOMWindow;
 class nsPIDOMEventTarget;
+class nsIPresShell;
 #ifdef MOZ_XTF
 class nsIXTFService;
 #endif
@@ -210,15 +211,18 @@ public:
   static PRBool ContentIsDescendantOf(nsINode* aPossibleDescendant,
                                       nsINode* aPossibleAncestor);
 
+  /**
+   * Similar to ContentIsDescendantOf except it crosses document boundaries.
+   */
+  static PRBool ContentIsCrossDocDescendantOf(nsINode* aPossibleDescendant,
+                                              nsINode* aPossibleAncestor);
+
   /*
    * This method fills the |aArray| with all ancestor nodes of |aNode|
    * including |aNode| at the zero index.
-   *
-   * These elements were |nsIDOMNode*|s before casting to |void*| and must
-   * be cast back to |nsIDOMNode*| on usage, or bad things will happen.
    */
   static nsresult GetAncestors(nsIDOMNode* aNode,
-                               nsVoidArray* aArray);
+                               nsTArray<nsIDOMNode*>* aArray);
 
   /*
    * This method fills |aAncestorNodes| with all ancestor nodes of |aNode|
@@ -226,16 +230,12 @@ public:
    * For each ancestor, there is a corresponding element in |aAncestorOffsets|
    * which is the IndexOf the child in relation to its parent.
    *
-   * The elements of |aAncestorNodes| were |nsIContent*|s before casting to
-   * |void*| and must be cast back to |nsIContent*| on usage, or bad things
-   * will happen.
-   *
    * This method just sucks.
    */
   static nsresult GetAncestorsAndOffsets(nsIDOMNode* aNode,
                                          PRInt32 aOffset,
-                                         nsVoidArray* aAncestorNodes,
-                                         nsVoidArray* aAncestorOffsets);
+                                         nsTArray<nsIContent*>* aAncestorNodes,
+                                         nsTArray<PRInt32>* aAncestorOffsets);
 
   /*
    * The out parameter, |aCommonAncestor| will be the closest node, if any,
@@ -656,13 +656,18 @@ public:
                             imgIRequest** aRequest);
 
   /**
-   * Method to get an nsIImage from an image loading content
+   * Returns whether the given URI is in the image cache.
+   */
+  static PRBool IsImageInCache(nsIURI* aURI);
+
+  /**
+   * Method to get an imgIContainer from an image loading content
    *
    * @param aContent The image loading content.  Must not be null.
    * @param aRequest The image request [out]
-   * @return the nsIImage corresponding to the first frame of the image
+   * @return the imgIContainer corresponding to the first frame of the image
    */
-  static already_AddRefed<nsIImage> GetImageFromContent(nsIImageLoadingContent* aContent, imgIRequest **aRequest = nsnull);
+  static already_AddRefed<imgIContainer> GetImageFromContent(nsIImageLoadingContent* aContent, imgIRequest **aRequest = nsnull);
 
   /**
    * Method that decides whether a content node is draggable
@@ -812,6 +817,11 @@ public:
   static PRBool IsChromeDoc(nsIDocument *aDocument);
 
   /**
+   * Returns true if aDocument is in a docshell whose parent is the same type
+   */
+  static PRBool IsChildOfSameType(nsIDocument* aDoc);
+
+  /**
    * Get the script file name to use when compiling the script
    * referenced by aURI. In cases where there's no need for any extra
    * security wrapper automation the script file name that's returned
@@ -838,7 +848,7 @@ public:
   static nsresult ReleasePtrOnShutdown(nsISupports** aSupportsPtr) {
     NS_ASSERTION(aSupportsPtr, "Expect to crash!");
     NS_ASSERTION(*aSupportsPtr, "Expect to crash!");
-    return sPtrsToPtrsToRelease->AppendElement(aSupportsPtr) ? NS_OK :
+    return sPtrsToPtrsToRelease->AppendElement(aSupportsPtr) != nsnull ? NS_OK :
       NS_ERROR_OUT_OF_MEMORY;
   }
 
@@ -946,11 +956,9 @@ public:
    * @param aNode The node for which to get the eventlistener manager.
    * @param aCreateIfNotFound If PR_FALSE, returns a listener manager only if
    *                          one already exists.
-   * @param aResult [out] Set to the eventlistener manager for aNode.
    */
-  static nsresult GetListenerManager(nsINode *aNode,
-                                     PRBool aCreateIfNotFound,
-                                     nsIEventListenerManager **aResult);
+  static nsIEventListenerManager* GetListenerManager(nsINode* aNode,
+                                                     PRBool aCreateIfNotFound);
 
   /**
    * Remove the eventlistener manager for aNode.
@@ -1154,6 +1162,42 @@ public:
    */
   static nsresult DropJSObjects(void* aScriptObjectHolder);
 
+#ifdef DEBUG
+  static void CheckCCWrapperTraversal(nsISupports* aScriptObjectHolder,
+                                      nsWrapperCache* aCache);
+#endif
+
+  static void PreserveWrapper(nsISupports* aScriptObjectHolder,
+                              nsWrapperCache* aCache)
+  {
+    if (!aCache->PreservingWrapper()) {
+      nsXPCOMCycleCollectionParticipant* participant;
+      CallQueryInterface(aScriptObjectHolder, &participant);
+      HoldJSObjects(aScriptObjectHolder, participant);
+      aCache->SetPreservingWrapper(PR_TRUE);
+#ifdef DEBUG
+      // Make sure the cycle collector will be able to traverse to the wrapper.
+      CheckCCWrapperTraversal(aScriptObjectHolder, aCache);
+#endif
+    }
+  }
+  static void ReleaseWrapper(nsISupports* aScriptObjectHolder,
+                             nsWrapperCache* aCache)
+  {
+    if (aCache->PreservingWrapper()) {
+      DropJSObjects(aScriptObjectHolder);
+      aCache->SetPreservingWrapper(PR_FALSE);
+    }
+  }
+  static void TraceWrapper(nsWrapperCache* aCache, TraceCallback aCallback,
+                           void *aClosure)
+  {
+    if (aCache->PreservingWrapper()) {
+      aCallback(nsIProgrammingLanguage::JAVASCRIPT, aCache->GetWrapper(),
+                aClosure);
+    }
+  }
+
   /**
    * Convert nsIContent::IME_STATUS_* to nsIWidget::IME_STATUS_*
    */
@@ -1264,7 +1308,7 @@ public:
 
   /**
    * Hide any XUL popups associated with aDocument, including any documents
-   * displayed in child frames.
+   * displayed in child frames. Does nothing if aDocument is null.
    */
   static void HidePopupsInDocument(nsIDocument* aDocument);
 
@@ -1272,6 +1316,15 @@ public:
    * Retrieve the current drag session, or null if no drag is currently occuring
    */
   static already_AddRefed<nsIDragSession> GetDragSession();
+
+  /*
+   * Initialize and set the dataTransfer field of an nsDragEvent.
+   */
+  static nsresult SetDataTransferInEvent(nsDragEvent* aDragEvent);
+
+  // filters the drag and drop action to fit within the effects allowed and
+  // returns it.
+  static PRUint32 FilterDropEffect(PRUint32 aAction, PRUint32 aEffectAllowed);
 
   /**
    * Return true if aURI is a local file URI (i.e. file://).
@@ -1330,6 +1383,7 @@ public:
    *                   scripts. Passing null is allowed and results in nothing
    *                   happening. It is also allowed to pass an object that
    *                   has not yet been AddRefed.
+   * @return false on out of memory, true otherwise.
    */
   static PRBool AddScriptRunner(nsIRunnable* aRunnable);
 
@@ -1375,8 +1429,8 @@ public:
   static nsresult ProcessViewportInfo(nsIDocument *aDocument,
                                       const nsAString &viewportInfo);
 
-  static nsresult GetContextForEventHandlers(nsINode* aNode,
-                                             nsIScriptContext** aContext);
+  static nsIScriptContext* GetContextForEventHandlers(nsINode* aNode,
+                                                      nsresult* aRv);
 
   static JSContext *GetCurrentJSContext();
 
@@ -1407,6 +1461,47 @@ public:
                                nsString& aOrigin);
   static nsresult GetUTFOrigin(nsIURI* aURI, nsString& aOrigin);
 
+  /**
+   * This method creates and dispatches "command" event, which implements
+   * nsIDOMXULCommandEvent.
+   * If aShell is not null, dispatching goes via
+   * nsIPresShell::HandleDOMEventWithTarget.
+   */
+  static nsresult DispatchXULCommand(nsIContent* aTarget,
+                                     PRBool aTrusted,
+                                     nsIDOMEvent* aSourceEvent = nsnull,
+                                     nsIPresShell* aShell = nsnull,
+                                     PRBool aCtrl = PR_FALSE,
+                                     PRBool aAlt = PR_FALSE,
+                                     PRBool aShift = PR_FALSE,
+                                     PRBool aMeta = PR_FALSE);
+
+  /**
+   * Gets the nsIDocument given the script context. Will return nsnull on failure.
+   *
+   * @param aScriptContext the script context to get the document for; can be null
+   *
+   * @return the document associated with the script context
+   */
+  static already_AddRefed<nsIDocument>
+  GetDocumentFromScriptContext(nsIScriptContext *aScriptContext);
+
+  /**
+   * The method checks whether the caller can access native anonymous content.
+   * If there is no JS in the stack or privileged JS is running, this
+   * method returns PR_TRUE, otherwise PR_FALSE.
+   */
+  static PRBool CanAccessNativeAnon();
+
+  static PRBool IsHandlingKeyBoardEvent()
+  {
+    return sIsHandlingKeyBoardEvent;
+  }
+
+  static void SetIsHandlingKeyBoardEvent(PRBool aHandling)
+  {
+    sIsHandlingKeyBoardEvent = aHandling;
+  }
 private:
 
   static PRBool InitializeEventTable();
@@ -1451,6 +1546,7 @@ private:
   static nsIPref *sPref;
 
   static imgILoader* sImgLoader;
+  static imgICache* sImgCache;
 
   static nsIConsoleService* sConsoleService;
 
@@ -1468,7 +1564,7 @@ private:
   static nsIUGenCategory* sGenCat;
 
   // Holds pointers to nsISupports* that should be released at shutdown
-  static nsVoidArray* sPtrsToPtrsToRelease;
+  static nsTArray<nsISupports**>* sPtrsToPtrsToRelease;
 
   static nsIScriptRuntime* sScriptRuntimes[NS_STID_ARRAY_UBOUND];
   static PRInt32 sScriptRootCount[NS_STID_ARRAY_UBOUND];
@@ -1485,6 +1581,8 @@ private:
   static PRUint32 sRunnersCountAtFirstBlocker;
 
   static nsIInterfaceRequestor* sSameOriginChecker;
+
+  static PRBool sIsHandlingKeyBoardEvent;
 };
 
 #define NS_HOLD_JS_OBJECTS(obj, clazz)                                         \
@@ -1503,15 +1601,28 @@ public:
 
   // Returns PR_FALSE if something erroneous happened.
   PRBool Push(nsPIDOMEventTarget *aCurrentTarget);
-  PRBool Push(JSContext *cx);
   // If nothing has been pushed to stack, this works like Push.
   // Otherwise if context will change, Pop and Push will be called.
   PRBool RePush(nsPIDOMEventTarget *aCurrentTarget);
+  // If a null JSContext is passed to Push(), that will cause no
+  // push to happen and false to be returned.
+  PRBool Push(JSContext *cx);
+  // Explicitly push a null JSContext on the the stack
+  PRBool PushNull();
+
+  // Pop() will be a no-op if Push() or PushNull() fail
   void Pop();
 
 private:
+  // Combined code for PushNull() and Push(JSContext*)
+  PRBool DoPush(JSContext* cx);
+
   nsCOMPtr<nsIScriptContext> mScx;
   PRBool mScriptIsRunning;
+  PRBool mPushedSomething;
+#ifdef DEBUG
+  JSContext* mPushedContext;
+#endif
 };
 
 class nsAutoGCRoot {
@@ -1576,78 +1687,6 @@ private:
   PRUint32 mNestingLevel;
   nsCOMPtr<nsIDocument> mDocument;
   nsCOMPtr<nsIDocumentObserver> mObserver;
-};
-
-/**
- * Class used to detect unexpected mutations. To use the class create an
- * nsMutationGuard on the stack before unexpected mutations could occur.
- * You can then at any time call Mutated to check if any unexpected mutations
- * have occured.
- *
- * When a guard is instantiated sMutationCount is set to 300. It is then
- * decremented by every mutation (capped at 0). This means that we can only
- * detect 300 mutations during the lifetime of a single guard, however that
- * should be more then we ever care about as we usually only care if more then
- * one mutation has occured.
- *
- * When the guard goes out of scope it will adjust sMutationCount so that over
- * the lifetime of the guard the guard itself has not affected sMutationCount,
- * while mutations that happened while the guard was alive still will. This
- * allows a guard to be instantiated even if there is another guard higher up
- * on the callstack watching for mutations.
- *
- * The only thing that has to be avoided is for an outer guard to be used
- * while an inner guard is alive. This can be avoided by only ever
- * instantiating a single guard per scope and only using the guard in the
- * current scope.
- */
-class nsMutationGuard {
-public:
-  nsMutationGuard()
-  {
-    mDelta = eMaxMutations - sMutationCount;
-    sMutationCount = eMaxMutations;
-  }
-  ~nsMutationGuard()
-  {
-    sMutationCount =
-      mDelta > sMutationCount ? 0 : sMutationCount - mDelta;
-  }
-
-  /**
-   * Returns true if any unexpected mutations have occured. You can pass in
-   * an 8-bit ignore count to ignore a number of expected mutations.
-   */
-  PRBool Mutated(PRUint8 aIgnoreCount)
-  {
-    return sMutationCount < static_cast<PRUint32>(eMaxMutations - aIgnoreCount);
-  }
-
-  // This function should be called whenever a mutation that we want to keep
-  // track of happen. For now this is only done when children are added or
-  // removed, but we might do it for attribute changes too in the future.
-  static void DidMutate()
-  {
-    if (sMutationCount) {
-      --sMutationCount;
-    }
-  }
-
-private:
-  // mDelta is the amount sMutationCount was adjusted when the guard was
-  // initialized. It is needed so that we can undo that adjustment once
-  // the guard dies.
-  PRUint32 mDelta;
-
-  // The value 300 is not important, as long as it is bigger then anything
-  // ever passed to Mutated().
-  enum { eMaxMutations = 300 };
-
-  
-  // sMutationCount is a global mutation counter which is decreased by one at
-  // every mutation. It is capped at 0 to avoid wrapping.
-  // It's value is always between 0 and 300, inclusive.
-  static PRUint32 sMutationCount;
 };
 
 #define NS_AUTO_GCROOT_PASTE2(tok,line) tok##line

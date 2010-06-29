@@ -64,6 +64,11 @@
 #include "nsCycleCollectionParticipant.h"
 #include "nsIDocument.h"
 #include "nsIDOMNodeSelector.h"
+#include "nsIDOMXPathNSResolver.h"
+
+#ifdef MOZ_SMIL
+#include "nsISMILAttr.h"
+#endif // MOZ_SMIL
 
 class nsIDOMAttr;
 class nsIDOMEventListener;
@@ -72,16 +77,16 @@ class nsIDOMNamedNodeMap;
 class nsDOMCSSDeclaration;
 class nsIDOMCSSStyleDeclaration;
 class nsIURI;
-class nsVoidArray;
 class nsINodeInfo;
 class nsIControllers;
 class nsIDOMNSFeatureFactory;
 class nsIEventListenerManager;
 class nsIScrollableView;
 class nsContentList;
+class nsDOMTokenList;
 struct nsRect;
 
-typedef unsigned long PtrBits;
+typedef PRUptrdiff PtrBits;
 
 /**
  * Class that implements the nsIDOMNodeList interface (a list of children of
@@ -104,8 +109,9 @@ public:
   NS_DECL_NSIDOMNODELIST
 
   // nsINodeList interface
-  virtual nsINode* GetNodeAt(PRUint32 aIndex);  
-  
+  virtual nsIContent* GetNodeAt(PRUint32 aIndex);
+  virtual PRInt32 IndexOf(nsIContent* aContent);
+
   void DropReference()
   {
     mNode = nsnull;
@@ -140,14 +146,14 @@ private:
 /**
  * A tearoff class for nsGenericElement to implement additional interfaces
  */
-class nsNode3Tearoff : public nsIDOM3Node
+class nsNode3Tearoff : public nsIDOM3Node, public nsIDOMXPathNSResolver
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
   NS_DECL_NSIDOM3NODE
 
-  NS_DECL_CYCLE_COLLECTION_CLASS(nsNode3Tearoff)
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsNode3Tearoff, nsIDOM3Node)
 
   nsNode3Tearoff(nsIContent *aContent) : mContent(aContent)
   {
@@ -245,7 +251,7 @@ private:
   // nsDOMEventRTTearoff::Create(). That's why the constructor and
   // destrucor of this class is private.
 
-  nsDOMEventRTTearoff(nsIContent *aContent);
+  nsDOMEventRTTearoff(nsINode *aNode);
 
   static nsDOMEventRTTearoff *mCachedEventTearoff[NS_EVENT_TEAROFF_CACHE_SIZE];
   static PRUint32 mCachedEventTearoffCount;
@@ -266,7 +272,7 @@ public:
    * Use this static method to create instances of nsDOMEventRTTearoff.
    * @param aContent the content to create a tearoff for
    */
-  static nsDOMEventRTTearoff *Create(nsIContent *aContent);
+  static nsDOMEventRTTearoff *Create(nsINode *aNode);
 
   /**
    * Call before shutdown to clear the cache and free memory for this class.
@@ -293,7 +299,7 @@ private:
    * Strong reference back to the content object from where an instance of this
    * class was 'torn off'
    */
-  nsCOMPtr<nsIContent> mContent;
+  nsCOMPtr<nsINode> mNode;
 };
 
 /**
@@ -345,26 +351,25 @@ public:
   // nsINode interface methods
   virtual PRUint32 GetChildCount() const;
   virtual nsIContent *GetChildAt(PRUint32 aIndex) const;
-  virtual nsIContent * const * GetChildArray() const;
+  virtual nsIContent * const * GetChildArray(PRUint32* aChildCount) const;
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  PRBool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify);
+  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
   virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
   virtual nsresult DispatchDOMEvent(nsEvent* aEvent, nsIDOMEvent* aDOMEvent,
                                     nsPresContext* aPresContext,
                                     nsEventStatus* aEventStatus);
-  virtual nsresult GetListenerManager(PRBool aCreateIfNotFound,
-                                      nsIEventListenerManager** aResult);
+  virtual nsIEventListenerManager* GetListenerManager(PRBool aCreateIfNotFound);
   virtual nsresult AddEventListenerByIID(nsIDOMEventListener *aListener,
                                          const nsIID& aIID);
   virtual nsresult RemoveEventListenerByIID(nsIDOMEventListener *aListener,
                                             const nsIID& aIID);
   virtual nsresult GetSystemEventGroup(nsIDOMEventGroup** aGroup);
-  virtual nsresult GetContextForEventHandlers(nsIScriptContext** aContext)
+  virtual nsIScriptContext* GetContextForEventHandlers(nsresult* aRv)
   {
-    return nsContentUtils::GetContextForEventHandlers(this, aContext);
+    return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
 
   // nsIContent interface methods
@@ -413,7 +418,6 @@ public:
                               PRBool aNotify);
   virtual PRBool TextIsOnlyWhitespace();
   virtual void AppendTextTo(nsAString& aResult);
-  virtual void SetFocus(nsPresContext* aContext);
   virtual nsIContent *GetBindingParent() const;
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
   virtual already_AddRefed<nsIURI> GetBaseURI() const;
@@ -422,10 +426,17 @@ public:
   virtual PRBool MayHaveFrame() const;
 
   virtual PRUint32 GetScriptTypeID() const;
-  virtual nsresult SetScriptTypeID(PRUint32 aLang);
+  NS_IMETHOD SetScriptTypeID(PRUint32 aLang);
 
   virtual void DestroyContent();
   virtual void SaveSubtreeState();
+
+#ifdef MOZ_SMIL
+  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* /*aName*/)
+  {
+    return nsnull;
+  }
+#endif // MOZ_SMIL
 
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const
@@ -444,7 +455,7 @@ public:
   NS_IMETHOD SetInlineStyleRule(nsICSSStyleRule* aStyleRule, PRBool aNotify);
   NS_IMETHOD_(PRBool)
     IsAttributeMapped(const nsIAtom* aAttribute) const;
-  virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute, 
+  virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
                                               PRInt32 aModType) const;
   /*
    * Attribute Mapping Helpers
@@ -452,7 +463,7 @@ public:
   struct MappedAttributeEntry {
     nsIAtom** attribute;
   };
-  
+
   /**
    * A common method where you can just pass in a list of maps to check
    * for attribute dependence. Most implementations of
@@ -530,7 +541,7 @@ public:
 
   /**
    * Add a script event listener with the given event handler name
-   * (like onclick) and with the value as JS   
+   * (like onclick) and with the value as JS
    * @param aEventName the event listener name
    * @param aValue the JS to attach
    * @param aDefer indicates if deferred execution is allowed
@@ -569,11 +580,9 @@ public:
                                      const nsAString& aFeature,
                                      const nsAString& aVersion,
                                      nsISupports** aReturn);
-  
+
   static already_AddRefed<nsIDOMNSFeatureFactory>
     GetDOMFeatureFactory(const nsAString& aFeature, const nsAString& aVersion);
-
-  static PRBool ShouldFocus(nsIContent *aContent);
 
   static PRBool ShouldBlur(nsIContent *aContent);
 
@@ -646,7 +655,8 @@ public:
   static nsresult doRemoveChildAt(PRUint32 aIndex, PRBool aNotify,
                                   nsIContent* aKid, nsIContent* aParent,
                                   nsIDocument* aDocument,
-                                  nsAttrAndChildArray& aChildArray);
+                                  nsAttrAndChildArray& aChildArray,
+                                  PRBool aMutationEvent);
 
   /**
    * Helper methods for implementing querySelector/querySelectorAll
@@ -656,6 +666,7 @@ public:
   static nsresult doQuerySelectorAll(nsINode* aRoot,
                                      const nsAString& aSelector,
                                      nsIDOMNodeList **aReturn);
+  static PRBool doMatchesSelector(nsIContent* aNode, const nsAString& aSelector);
 
   /**
    * Default event prehandling for content objects. Handles event retargeting.
@@ -675,7 +686,7 @@ public:
                                      nsIContent* aTarget,
                                      PRBool aFullDispatch,
                                      nsEventStatus* aStatus);
-  
+
   /**
    * Method to dispatch aEvent to aTarget. If aFullDispatch is true, the event
    * will be dispatched through the full dispatching of the presshell of the
@@ -693,7 +704,7 @@ public:
    * Get the primary frame for this content without flushing (see
    * GetPrimaryFrameFor)
    *
-   * @return the primary frame 
+   * @return the primary frame
    */
   nsIFrame* GetPrimaryFrame();
 
@@ -726,10 +737,15 @@ public:
       mName(aName), mValue(aValue) {}
     nsAttrInfo(const nsAttrInfo& aOther) :
       mName(aOther.mName), mValue(aOther.mValue) {}
-      
+
     const nsAttrName* mName;
     const nsAttrValue* mValue;
   };
+
+  const nsAttrValue* GetParsedAttr(nsIAtom* aAttr) const
+  {
+    return mAttrsAndChildren.GetAttr(aAttr);
+  }
 
   /**
    * Returns the attribute map, if there is one.
@@ -747,7 +763,7 @@ public:
   {
   }
 
-  NS_DECL_CYCLE_COLLECTION_CLASS(nsGenericElement)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsGenericElement)
 
 protected:
   /**
@@ -932,7 +948,7 @@ public:
       */
       nsIControllers* mControllers; // [OWNER]
     };
-    
+
     /**
      * Weak reference to this node
      */
@@ -942,6 +958,11 @@ public:
      * An object implementing the .children property for this element.
      */
     nsRefPtr<nsContentList> mChildrenList;
+
+    /**
+     * An object implementing the .classList property for this element.
+     */
+    nsRefPtr<nsDOMTokenList> mClassList;
   };
 
 protected:
@@ -1087,7 +1108,7 @@ public:
   nsNSElementTearoff(nsGenericElement *aContent) : mContent(aContent)
   {
   }
-  
+
 private:
   nsContentList* GetChildrenList();
 

@@ -73,6 +73,7 @@
 #include "nsIDOMNSUIEvent.h"
 #include "nsIDOMEventGroup.h"
 #include "nsIDOM3EventTarget.h"
+#include "nsIDOMNSHTMLInputElement.h"
 #ifdef ACCESSIBILITY
 #include "nsIAccessibilityService.h"
 #endif
@@ -87,11 +88,14 @@ NS_NewFileControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   return new (aPresShell) nsFileControlFrame(aContext);
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsFileControlFrame)
+
 nsFileControlFrame::nsFileControlFrame(nsStyleContext* aContext):
-  nsAreaFrame(aContext),
+  nsBlockFrame(aContext),
   mTextFrame(nsnull), 
   mCachedState(nsnull)
 {
+  AddStateBits(NS_BLOCK_FLOAT_MGR);
 }
 
 nsFileControlFrame::~nsFileControlFrame()
@@ -107,7 +111,7 @@ nsFileControlFrame::Init(nsIContent* aContent,
                          nsIFrame*   aParent,
                          nsIFrame*   aPrevInFlow)
 {
-  nsresult rv = nsAreaFrame::Init(aContent, aParent, aPrevInFlow);
+  nsresult rv = nsBlockFrame::Init(aContent, aParent, aPrevInFlow);
   NS_ENSURE_SUCCESS(rv, rv);
 
   mMouseListener = new MouseListener(this);
@@ -143,7 +147,7 @@ nsFileControlFrame::Destroy()
   }
 
   mMouseListener->ForgetFrame();
-  nsAreaFrame::Destroy();
+  nsBlockFrame::Destroy();
 }
 
 nsresult
@@ -154,12 +158,15 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
 
   nsCOMPtr<nsINodeInfo> nodeInfo;
   nodeInfo = doc->NodeInfoManager()->GetNodeInfo(nsGkAtoms::input, nsnull,
-                                                 kNameSpaceID_None);
+                                                 kNameSpaceID_XHTML);
 
   // Create the text content
   NS_NewHTMLElement(getter_AddRefs(mTextContent), nodeInfo, PR_FALSE);
   if (!mTextContent)
     return NS_ERROR_OUT_OF_MEMORY;
+
+  // Mark the element to be native anonymous before setting any attributes.
+  mTextContent->SetNativeAnonymous();
 
   mTextContent->SetAttr(kNameSpaceID_None, nsGkAtoms::type,
                         NS_LITERAL_STRING("text"), PR_FALSE);
@@ -171,7 +178,7 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
       // Initialize value when we create the content in case the value was set
       // before we got here
       nsAutoString value;
-      fileControl->GetFileName(value);
+      fileControl->GetDisplayFileName(value);
       textControl->SetValue(value);
     }
 
@@ -197,6 +204,9 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
   NS_NewHTMLElement(getter_AddRefs(mBrowse), nodeInfo, PR_FALSE);
   if (!mBrowse)
     return NS_ERROR_OUT_OF_MEMORY;
+
+  // Mark the element to be native anonymous before setting any attributes.
+  mBrowse->SetNativeAnonymous();
 
   mBrowse->SetAttr(kNameSpaceID_None, nsGkAtoms::type,
                    NS_LITERAL_STRING("button"), PR_FALSE);
@@ -228,34 +238,14 @@ nsFileControlFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
   return NS_OK;
 }
 
-// Frames are not refcounted, no need to AddRef
-NS_IMETHODIMP
-nsFileControlFrame::QueryInterface(const nsIID& aIID, void** aInstancePtr)
-{
-  NS_PRECONDITION(aInstancePtr, "null out param");
-
-  if (aIID.Equals(NS_GET_IID(nsIAnonymousContentCreator))) {
-    *aInstancePtr = static_cast<nsIAnonymousContentCreator*>(this);
-    return NS_OK;
-  }
-  if (aIID.Equals(NS_GET_IID(nsIFormControlFrame))) {
-    *aInstancePtr = static_cast<nsIFormControlFrame*>(this);
-    return NS_OK;
-  }
-
-  return nsAreaFrame::QueryInterface(aIID, aInstancePtr);
-}
+NS_QUERYFRAME_HEAD(nsFileControlFrame)
+  NS_QUERYFRAME_ENTRY(nsIAnonymousContentCreator)
+  NS_QUERYFRAME_ENTRY(nsIFormControlFrame)
+NS_QUERYFRAME_TAIL_INHERITING(nsBlockFrame)
 
 void 
 nsFileControlFrame::SetFocus(PRBool aOn, PRBool aRepaint)
 {
-  // Fix for Bug 6133 
-  if (mTextFrame) {
-    nsIContent* content = mTextFrame->GetContent();
-    if (content) {
-      content->SetFocus(PresContext());
-    }
-  }
 }
 
 /**
@@ -290,7 +280,9 @@ nsFileControlFrame::MouseListener::MouseClick(nsIDOMEvent* aMouseEvent)
 
   // Get parent nsIDOMWindowInternal object.
   nsIContent* content = mFrame->GetContent();
-  if (!content)
+  nsCOMPtr<nsIDOMNSHTMLInputElement> inputElem = do_QueryInterface(content);
+  nsCOMPtr<nsIFileControlElement> fileControl = do_QueryInterface(content);
+  if (!content || !inputElem || !fileControl)
     return NS_ERROR_FAILURE;
 
   nsCOMPtr<nsIDocument> doc = content->GetDocument();
@@ -311,7 +303,13 @@ nsFileControlFrame::MouseListener::MouseClick(nsIDOMEvent* aMouseEvent)
     return NS_ERROR_FAILURE;
   }
 
-  result = filePicker->Init(win, title, nsIFilePicker::modeOpen);
+  PRBool multi;
+  result = inputElem->GetMultiple(&multi);
+  NS_ENSURE_SUCCESS(result, result);
+
+  result = filePicker->Init(win, title, multi ?
+                            (PRInt16)nsIFilePicker::modeOpenMultiple :
+                            (PRInt16)nsIFilePicker::modeOpen);
   if (NS_FAILED(result))
     return result;
 
@@ -320,25 +318,29 @@ nsFileControlFrame::MouseListener::MouseClick(nsIDOMEvent* aMouseEvent)
 
   // Set default directry and filename
   nsAutoString defaultName;
-  mFrame->GetFormProperty(nsGkAtoms::value, defaultName);
 
-  nsCOMPtr<nsILocalFile> currentFile = do_CreateInstance("@mozilla.org/file/local;1");
-  if (currentFile && !defaultName.IsEmpty()) {
-    result = currentFile->InitWithPath(defaultName);
-    if (NS_SUCCEEDED(result)) {
+  nsCOMArray<nsIFile> oldFiles;
+  fileControl->GetFileArray(oldFiles);
+
+  if (oldFiles.Count()) {
+    // set directory
+    nsCOMPtr<nsIFile> parentFile;
+    oldFiles[0]->GetParent(getter_AddRefs(parentFile));
+    if (parentFile) {
+      nsCOMPtr<nsILocalFile> parentLocalFile = do_QueryInterface(parentFile, &result);
+      if (parentLocalFile) {
+        filePicker->SetDisplayDirectory(parentLocalFile);
+      }
+    }
+
+    // Unfortunately nsIFilePicker doesn't allow multiple files to be
+    // default-selected, so only select something by default if exactly
+    // one file was selected before.
+    if (oldFiles.Count() == 1) {
       nsAutoString leafName;
-      currentFile->GetLeafName(leafName);
+      oldFiles[0]->GetLeafName(leafName);
       if (!leafName.IsEmpty()) {
         filePicker->SetDefaultString(leafName);
-      }
-
-      // set directory
-      nsCOMPtr<nsIFile> parentFile;
-      currentFile->GetParent(getter_AddRefs(parentFile));
-      if (parentFile) {
-        nsCOMPtr<nsILocalFile> parentLocalFile = do_QueryInterface(parentFile, &result);
-        if (parentLocalFile)
-          filePicker->SetDisplayDirectory(parentLocalFile);
       }
     }
   }
@@ -362,31 +364,52 @@ nsFileControlFrame::MouseListener::MouseClick(nsIDOMEvent* aMouseEvent)
     return NS_OK;
   }
   
-  // Set property
-  nsCOMPtr<nsILocalFile> localFile;
-  result = filePicker->GetFile(getter_AddRefs(localFile));
-  if (localFile) {
-    nsAutoString unicodePath;
-    result = localFile->GetPath(unicodePath);
-    if (!unicodePath.IsEmpty()) {
-      // Tell mTextFrame that this update of the value is a user initiated
-      // change. Otherwise it'll think that the value is being set by a script
-      // and not fire onchange when it should.
-      PRBool oldState = mFrame->mTextFrame->GetFireChangeEventState();
-      mFrame->mTextFrame->SetFireChangeEventState(PR_TRUE);
-      nsCOMPtr<nsIFileControlElement> fileControl = do_QueryInterface(content);
-      if (fileControl) {
-        fileControl->SetFileName(unicodePath);
+  // Collect new selected filenames
+  nsTArray<nsString> newFileNames;
+  if (multi) {
+    nsCOMPtr<nsISimpleEnumerator> iter;
+    result = filePicker->GetFiles(getter_AddRefs(iter));
+    NS_ENSURE_SUCCESS(result, result);
+
+    nsCOMPtr<nsISupports> tmp;
+    while (NS_SUCCEEDED(iter->GetNext(getter_AddRefs(tmp)))) {
+      nsCOMPtr<nsIFile> file = do_QueryInterface(tmp);
+      if (file) {
+        nsString unicodePath;
+        result = file->GetPath(unicodePath);
+        if (!unicodePath.IsEmpty()) {
+          newFileNames.AppendElement(unicodePath);
+        }
       }
-      
-      mFrame->mTextFrame->SetFireChangeEventState(oldState);
-      // May need to fire an onchange here
-      mFrame->mTextFrame->CheckFireOnChange();
-      return NS_OK;
+    }
+  }
+  else {
+    nsCOMPtr<nsILocalFile> localFile;
+    result = filePicker->GetFile(getter_AddRefs(localFile));
+    if (localFile) {
+      nsString unicodePath;
+      result = localFile->GetPath(unicodePath);
+      if (!unicodePath.IsEmpty()) {
+        newFileNames.AppendElement(unicodePath);
+      }
     }
   }
 
-  return NS_FAILED(result) ? result : NS_ERROR_FAILURE;
+  // Set new selected files
+  if (!newFileNames.IsEmpty()) {
+    // Tell mTextFrame that this update of the value is a user initiated
+    // change. Otherwise it'll think that the value is being set by a script
+    // and not fire onchange when it should.
+    PRBool oldState = mFrame->mTextFrame->GetFireChangeEventState();
+    mFrame->mTextFrame->SetFireChangeEventState(PR_TRUE);
+    fileControl->SetFileNames(newFileNames);
+
+    mFrame->mTextFrame->SetFireChangeEventState(oldState);
+    // May need to fire an onchange here
+    mFrame->mTextFrame->CheckFireOnChange();
+  }
+
+  return NS_OK;
 }
 
 nscoord
@@ -420,23 +443,10 @@ NS_IMETHODIMP nsFileControlFrame::Reflow(nsPresContext*          aPresContext,
     }
   }
 
-  // The Areaframe takes care of all our reflow
-  return nsAreaFrame::Reflow(aPresContext, aDesiredSize, aReflowState,
+  // nsBlockFrame takes care of all our reflow
+  return nsBlockFrame::Reflow(aPresContext, aDesiredSize, aReflowState,
                              aStatus);
 }
-
-/*
-NS_IMETHODIMP
-nsFileControlFrame::SetInitialChildList(nsIAtom*        aListName,
-                                        nsIFrame*       aChildList)
-{
-  nsAreaFrame::SetInitialChildList(aListName, aChildList);
-
-  // given that the CSS frame constructor created all our frames. We need to find the text field
-  // so we can get info from it.
-  mTextFrame = GetTextControlFrame(this);
-}
-*/
 
 nsNewFrame*
 nsFileControlFrame::GetTextControlFrame(nsPresContext* aPresContext, nsIFrame* aStart)
@@ -503,16 +513,18 @@ nsFileControlFrame::AttributeChanged(PRInt32         aNameSpaceID,
                                      PRInt32         aModType)
 {
   // propagate disabled to text / button inputs
-  if (aNameSpaceID == kNameSpaceID_None &&
-      aAttribute == nsGkAtoms::disabled) {
-    SyncAttr(aNameSpaceID, aAttribute, SYNC_BOTH);
-  // propagate size to text
-  } else if (aNameSpaceID == kNameSpaceID_None &&
-             aAttribute == nsGkAtoms::size) {
-    SyncAttr(aNameSpaceID, aAttribute, SYNC_TEXT);
+  if (aNameSpaceID == kNameSpaceID_None) {
+    if (aAttribute == nsGkAtoms::disabled) {
+      SyncAttr(aNameSpaceID, aAttribute, SYNC_BOTH);
+    // propagate size to text
+    } else if (aAttribute == nsGkAtoms::size) {
+      SyncAttr(aNameSpaceID, aAttribute, SYNC_TEXT);
+    } else if (aAttribute == nsGkAtoms::tabindex) {
+      SyncAttr(aNameSpaceID, aAttribute, SYNC_BUTTON);
+    }
   }
 
-  return nsAreaFrame::AttributeChanged(aNameSpaceID, aAttribute, aModType);
+  return nsBlockFrame::AttributeChanged(aNameSpaceID, aAttribute, aModType);
 }
 
 PRBool
@@ -551,16 +563,10 @@ nsFileControlFrame::GetFormProperty(nsIAtom* aName, nsAString& aValue) const
   aValue.Truncate();  // initialize out param
 
   if (nsGkAtoms::value == aName) {
-    NS_ASSERTION(!mCachedState || !mTextFrame,
-                 "If we have a cached state, we better have no mTextFrame");
-    if (mCachedState) {
-      aValue.Assign(*mCachedState);
-    } else {
-      nsCOMPtr<nsIFileControlElement> fileControl =
-        do_QueryInterface(mContent);
-      if (fileControl) {
-        fileControl->GetFileName(aValue);
-      }
+    nsCOMPtr<nsIFileControlElement> fileControl =
+      do_QueryInterface(mContent);
+    if (fileControl) {
+      fileControl->GetDisplayFileName(aValue);
     }
   }
   return NS_OK;
@@ -583,7 +589,7 @@ nsFileControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   // styles in forms.css) -- doing it just makes us look ugly in some cases and
   // has no effect in others.
   nsDisplayListCollection tempList;
-  nsresult rv = nsAreaFrame::BuildDisplayList(aBuilder, aDirtyRect, tempList);
+  nsresult rv = nsBlockFrame::BuildDisplayList(aBuilder, aDirtyRect, tempList);
   if (NS_FAILED(rv))
     return rv;
 

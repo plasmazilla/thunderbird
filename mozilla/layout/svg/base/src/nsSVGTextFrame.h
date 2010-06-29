@@ -40,13 +40,15 @@
 #define NS_SVGTEXTFRAME_H
 
 #include "nsSVGTextContainerFrame.h"
+#include "gfxRect.h"
+#include "gfxMatrix.h"
 
 typedef nsSVGTextContainerFrame nsSVGTextFrameBase;
 
 class nsSVGTextFrame : public nsSVGTextFrameBase
 {
   friend nsIFrame*
-  NS_NewSVGTextFrame(nsIPresShell* aPresShell, nsIContent* aContent, nsStyleContext* aContext);
+  NS_NewSVGTextFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGTextFrame(nsStyleContext* aContext)
     : nsSVGTextFrameBase(aContext),
@@ -54,7 +56,15 @@ protected:
       mPositioningDirty(PR_TRUE) {}
 
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   // nsIFrame:
+#ifdef DEBUG
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+#endif
+
   NS_IMETHOD  AttributeChanged(PRInt32         aNameSpaceID,
                                nsIAtom*        aAttribute,
                                PRInt32         aModType);
@@ -84,20 +94,21 @@ public:
   NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint & aPoint);
   NS_IMETHOD UpdateCoveredRegion();
   NS_IMETHOD InitialUpdate();
-  NS_IMETHOD GetBBox(nsIDOMSVGRect **_retval);
+  virtual gfxRect GetBBoxContribution(const gfxMatrix &aToBBoxUserspace);
   
   // nsSVGContainerFrame methods:
-  virtual already_AddRefed<nsIDOMSVGMatrix> GetCanvasTM();
+  virtual gfxMatrix GetCanvasTM();
   
-  // nsISVGTextContentMetrics
-  NS_IMETHOD GetNumberOfChars(PRInt32 *_retval);
-  NS_IMETHOD GetComputedTextLength(float *_retval);
-  NS_IMETHOD GetSubStringLength(PRUint32 charnum, PRUint32 nchars, float *_retval);
+  // nsSVGTextContainerFrame methods:
+  virtual PRUint32 GetNumberOfChars();
+  virtual float GetComputedTextLength();
+  virtual float GetSubStringLength(PRUint32 charnum, PRUint32 nchars);
+  virtual PRInt32 GetCharNumAtPosition(nsIDOMSVGPoint *point);
+
   NS_IMETHOD GetStartPositionOfChar(PRUint32 charnum, nsIDOMSVGPoint **_retval);
   NS_IMETHOD GetEndPositionOfChar(PRUint32 charnum, nsIDOMSVGPoint **_retval);
   NS_IMETHOD GetExtentOfChar(PRUint32 charnum, nsIDOMSVGRect **_retval);
   NS_IMETHOD GetRotationOfChar(PRUint32 charnum, float *_retval);
-  NS_IMETHOD GetCharNumAtPosition(nsIDOMSVGPoint *point, PRInt32 *_retval);
 
   // nsSVGTextFrame
   void NotifyGlyphMetricsChange();

@@ -103,6 +103,15 @@ public:
     SetPluginInstance(aPluginInstance);
     return NS_OK;
   }
+#if (MOZ_PLATFORM_MAEMO == 5)
+#define MOZ_COMPOSITED_PLUGINS
+#endif
+#ifdef MOZ_COMPOSITED_PLUGINS
+  /* XXX: we use this to leak the socket widget out from nsPlugNativeWindowGtk2
+     so that Renderer::NativeDraw() in nsObjectFrame.cpp can draw the widget.
+     I don't currently know a better way to do this... */
+  void *mPlugWindow;
+#endif
 
 protected:
   nsCOMPtr<nsIPluginInstance> mPluginInstance;

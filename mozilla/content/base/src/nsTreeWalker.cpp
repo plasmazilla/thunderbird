@@ -545,7 +545,7 @@ nsTreeWalker::ChildOf(nsINode* aNode,
 }
 
 /*
- * Gets the child index of a node within it's parent. Gets a possible index
+ * Gets the child index of a node within its parent. Gets a possible index
  * from mPossibleIndexes to gain speed. If the value in mPossibleIndexes
  * isn't correct it'll get the index the usual way
  * @param aParent   in which to get the index
@@ -558,9 +558,8 @@ PRInt32 nsTreeWalker::IndexOf(nsINode* aParent,
                               nsINode* aChild,
                               PRInt32 aIndexPos)
 {
-    if (aIndexPos >= 0 && aIndexPos < mPossibleIndexes.Count()) {
-        PRInt32 possibleIndex =
-            NS_PTR_TO_INT32(mPossibleIndexes.FastElementAt(aIndexPos));
+    if (aIndexPos >= 0 && aIndexPos < PRInt32(mPossibleIndexes.Length())) {
+        PRInt32 possibleIndex = mPossibleIndexes.ElementAt(aIndexPos);
         if (aChild == aParent->GetChildAt(possibleIndex)) {
             return possibleIndex;
         }

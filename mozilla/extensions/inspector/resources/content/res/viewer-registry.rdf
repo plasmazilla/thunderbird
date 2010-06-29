@@ -45,7 +45,7 @@
     <rdf:li><rdf:Description 
       ins:uid="stylesheets"
       ins:panels="bxDocPanel"
-      ins:description="Stylesheets"
+      ins:description="Style Sheets"
       ins:filter="return object instanceof Components.interfaces.nsIDOMDocument;"/>
     </rdf:li>
 
@@ -63,11 +63,25 @@
       ins:filter="return object instanceof Components.interfaces.nsIDOMElement;"/>
     </rdf:li>
 
-    <rdf:li><rdf:Description 
-      ins:uid="xblBindings"
-      ins:panels="bxObjectPanel bxObjPanel"
-      ins:description="XBL Bindings"
-      ins:filter="return object instanceof Components.interfaces.nsIDOMElement;"/>
+    <rdf:li>
+      <rdf:Description 
+        ins:uid="xblBindings"
+        ins:panels="bxObjectPanel bxObjPanel"
+        ins:description="XBL Bindings">
+        <ins:filter><![CDATA[
+          if (object instanceof Components.interfaces.nsIDOMElement) {
+            try {
+              var urls =
+                Components.classes["@mozilla.org/inspector/dom-utils;1"].
+                  getService(Components.interfaces["inIDOMUtils"]).
+                    getBindingURLs(object);
+              return urls && urls.length;
+            }
+            catch (e) { }
+          }
+          return false;
+        ]]> </ins:filter>
+      </rdf:Description>
     </rdf:li>
 
     <rdf:li><rdf:Description

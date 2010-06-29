@@ -555,6 +555,8 @@ nsParseMailMessageState::nsParseMailMessageState()
   {
      pPrefBranch->GetCharPref("mailnews.customDBHeaders",  getter_Copies(customDBHeaders));
      ToLowerCase(customDBHeaders);
+     if (customDBHeaders.Find("content-base") == -1)
+      customDBHeaders.Insert(NS_LITERAL_CSTRING("content-base "), 0);
      ParseString(customDBHeaders, ' ', m_customDBHeaders);
      if (m_customDBHeaders.Length())
      {
@@ -1017,7 +1019,7 @@ int nsParseMailMessageState::ParseHeaders ()
       }
       break;
     case 'S': case 's':
-      if (!PL_strncasecmp ("Subject", buf, end - buf))
+      if (!PL_strncasecmp ("Subject", buf, end - buf) && !m_subject.length)
         header = &m_subject;
       else if (!PL_strncasecmp ("Sender", buf, end - buf))
         header = &m_sender;
@@ -1516,6 +1518,7 @@ int nsParseMailMessageState::FinalizeHeaders()
           m_newMsgHdr->SetMessageId(rawMsgId.get());
         else
           m_newMsgHdr->SetMessageId(id->value);
+        m_mailDB->UpdatePendingAttributes(m_newMsgHdr);
 
         if (!mozstatus && statush)
         {
@@ -1803,7 +1806,7 @@ PRInt32 nsParseNewMailState::PublishMsgHeader(nsIMsgWindow *msgWindow)
       // the flushing...
       // flush the inbox because filters will read from disk
       // m_inboxFileStream->Flush();
-      PRUint32 msgOffset;
+      PRUint64 msgOffset;
       (void) m_newMsgHdr->GetMessageOffset(&msgOffset);
       m_curHdrOffset = msgOffset;
 
@@ -2273,9 +2276,12 @@ nsresult nsParseNewMailState::ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow
       rv = m_rootFolder->GetServer(getter_AddRefs(server));
       NS_ENSURE_SUCCESS(rv, rv);
       {
-        nsCOMPtr <nsIMsgComposeService> compService = do_GetService (NS_MSGCOMPOSESERVICE_CONTRACTID) ;
-        if (compService)
-          rv = compService->ForwardMessage(forwardStr, m_msgToForwardOrReply, msgWindow, server);
+        nsCOMPtr<nsIMsgComposeService> compService =
+          do_GetService (NS_MSGCOMPOSESERVICE_CONTRACTID, &rv);
+        NS_ENSURE_SUCCESS(rv, rv);
+        rv = compService->ForwardMessage(forwardStr, m_msgToForwardOrReply,
+                                         msgWindow, server,
+                                         nsIMsgComposeService::kForwardAsDefault);
       }
     }
   }

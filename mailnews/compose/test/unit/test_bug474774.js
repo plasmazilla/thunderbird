@@ -43,12 +43,11 @@ msll.prototype = {
     do_throw("onMessageSendError should not have been called, status: " + aStatus);
   },
   onStopSending: function (aStatus, aMsg, aTotalTried, aSuccessful) {
-    do_test_finished();
     print("msll onStopSending\n");
     try {
+      do_check_eq(aSuccessful, 1);
       do_check_eq(aStatus, 0);
       do_check_eq(aTotalTried, 1);
-      do_check_eq(aSuccessful, 1);
       do_check_eq(this._initialTotal, 1);
       do_check_eq(msgSendLater.sendingMessages, false);
 
@@ -72,6 +71,7 @@ msll.prototype = {
       while (thread.hasPendingEvents())
         thread.processNextEvent(true);
     }
+    do_test_finished();
   }
 };
 
@@ -103,7 +103,7 @@ function OnStopCopy(aStatus)
     do_check_eq(originalData, fileData);
 
     do_test_pending();
-    do_timeout(sendMessageLater(), 0);
+    sendMessageLater();
   } catch (e) {
     do_throw(e);
   } finally {
@@ -146,7 +146,9 @@ function sendMessageLater()
 
     server.performTest();
 
-    do_timeout(10000, "if (!finished) do_throw('Notifications of message send/copy not received');");
+    do_timeout(10000, function()
+        {if (!finished) do_throw('Notifications of message send/copy not received');}
+      );
 
     do_test_pending();
 
@@ -174,7 +176,7 @@ function run_test() {
   acctMgr.setSpecialFolders();
 
   var account = acctMgr.createAccount();
-  incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);

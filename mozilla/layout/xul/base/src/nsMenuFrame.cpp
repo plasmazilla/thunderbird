@@ -54,12 +54,10 @@
 #include "nsMenuPopupFrame.h"
 #include "nsMenuBarFrame.h"
 #include "nsIView.h"
-#include "nsIWidget.h"
 #include "nsIDocument.h"
 #include "nsIDOMNSDocument.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMElement.h"
-#include "nsISupportsArray.h"
 #include "nsIDOMText.h"
 #include "nsILookAndFeel.h"
 #include "nsIComponentManager.h"
@@ -153,40 +151,38 @@ private:
 };
 
 //
-// NS_NewMenuFrame
+// NS_NewMenuFrame and NS_NewMenuItemFrame
 //
-// Wrapper for creating a new menu popup container
+// Wrappers for creating a new menu popup container
 //
 nsIFrame*
-NS_NewMenuFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRUint32 aFlags)
+NS_NewMenuFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   nsMenuFrame* it = new (aPresShell) nsMenuFrame (aPresShell, aContext);
   
-  if ((it != nsnull) && aFlags)
+  if (it)
     it->SetIsMenu(PR_TRUE);
 
   return it;
 }
 
-NS_IMETHODIMP_(nsrefcnt) 
-nsMenuFrame::AddRef(void)
+nsIFrame*
+NS_NewMenuItemFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
-  return NS_OK;
+  nsMenuFrame* it = new (aPresShell) nsMenuFrame (aPresShell, aContext);
+
+  if (it)
+    it->SetIsMenu(PR_FALSE);
+
+  return it;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
-nsMenuFrame::Release(void)
-{
-    return NS_OK;
-}
+NS_IMPL_FRAMEARENA_HELPERS(nsMenuFrame)
 
-//
-// QueryInterface
-//
-NS_INTERFACE_MAP_BEGIN(nsMenuFrame)
-  NS_INTERFACE_MAP_ENTRY(nsIMenuFrame)
-  NS_INTERFACE_MAP_ENTRY(nsIScrollableViewProvider)
-NS_INTERFACE_MAP_END_INHERITING(nsBoxFrame)
+NS_QUERYFRAME_HEAD(nsMenuFrame)
+  NS_QUERYFRAME_ENTRY(nsIMenuFrame)
+  NS_QUERYFRAME_ENTRY(nsIScrollableViewProvider)
+NS_QUERYFRAME_TAIL_INHERITING(nsBoxFrame)
 
 //
 // nsMenuFrame cntr
@@ -331,42 +327,35 @@ nsMenuFrame::~nsMenuFrame()
 
 // The following methods are all overridden to ensure that the menupopup frame
 // is placed in the appropriate list.
-nsIFrame*
-nsMenuFrame::GetFirstChild(nsIAtom* aListName) const
+nsFrameList
+nsMenuFrame::GetChildList(nsIAtom* aListName) const
 {
   if (nsGkAtoms::popupList == aListName) {
     return mPopupFrame;
   }
-  return nsBoxFrame::GetFirstChild(aListName);
+  return nsBoxFrame::GetChildList(aListName);
 }
 
-nsIFrame*
-nsMenuFrame::SetPopupFrame(nsIFrame* aChildList)
+void
+nsMenuFrame::SetPopupFrame(nsFrameList& aFrameList)
 {
-  // Check for a menupopup and move it to mPopupFrame
-  nsFrameList frames(aChildList);
-  nsIFrame* frame = frames.FirstChild();
-  while (frame) {
-    if (frame->GetType() == nsGkAtoms::menuPopupFrame) {
+  for (nsFrameList::Enumerator e(aFrameList); !e.AtEnd(); e.Next()) {
+    if (e.get()->GetType() == nsGkAtoms::menuPopupFrame) {
       // Remove this frame from the list and set it as mPopupFrame
-      frames.RemoveFrame(frame);
-      mPopupFrame = (nsMenuPopupFrame *)frame;
-      aChildList = frames.FirstChild();
+      mPopupFrame = (nsMenuPopupFrame *)e.get();
+      aFrameList.RemoveFrame(e.get());
       break;
     }
-    frame = frame->GetNextSibling();
   }
-
-  return aChildList;
 }
 
 NS_IMETHODIMP
 nsMenuFrame::SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList)
+                                 nsFrameList&    aChildList)
 {
   NS_ASSERTION(!mPopupFrame, "already have a popup frame set");
   if (!aListName || aListName == nsGkAtoms::popupList)
-    aChildList = SetPopupFrame(aChildList);
+    SetPopupFrame(aChildList);
   return nsBoxFrame::SetInitialChildList(aListName, aChildList);
 }
 
@@ -430,6 +419,10 @@ nsMenuFrame::HandleEvent(nsPresContext* aPresContext,
                          nsEventStatus*  aEventStatus)
 {
   NS_ENSURE_ARG_POINTER(aEventStatus);
+  if (nsEventStatus_eConsumeNoDefault == *aEventStatus) {
+    return NS_OK;
+  }
+
   nsWeakFrame weakFrame(this);
   if (*aEventStatus == nsEventStatus_eIgnore)
     *aEventStatus = nsEventStatus_eConsumeDoDefault;
@@ -778,7 +771,7 @@ nsMenuFrame::DoLayout(nsBoxLayoutState& aState)
 
     nsRect bounds(mPopupFrame->GetRect());
 
-    nsCOMPtr<nsIScrollableFrame> scrollframe(do_QueryInterface(child));
+    nsIScrollableFrame *scrollframe = do_QueryFrame(child);
     if (scrollframe &&
         scrollframe->GetScrollbarStyles().mVertical == NS_STYLE_OVERFLOW_AUTO) {
       if (bounds.height < prefSize.height) {
@@ -1183,7 +1176,7 @@ nsMenuFrame::Execute(nsGUIEvent *aEvent)
 
   nsCOMPtr<nsISound> sound(do_CreateInstance("@mozilla.org/sound;1"));
   if (sound)
-    sound->PlaySystemSound(NS_SYSSOUND_MENU_EXECUTE);
+    sound->PlayEventSound(nsISound::EVENT_MENU_EXECUTE);
 
   nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
   if (pm && mMenuParent)
@@ -1214,12 +1207,11 @@ nsMenuFrame::RemoveFrame(nsIAtom*        aListName,
 NS_IMETHODIMP
 nsMenuFrame::InsertFrames(nsIAtom*        aListName,
                           nsIFrame*       aPrevFrame,
-                          nsIFrame*       aFrameList)
+                          nsFrameList&    aFrameList)
 {
   if (!mPopupFrame && (!aListName || aListName == nsGkAtoms::popupList)) {
-    aFrameList = SetPopupFrame(aFrameList);
+    SetPopupFrame(aFrameList);
     if (mPopupFrame) {
-
 #ifdef DEBUG_LAYOUT
       nsBoxLayoutState state(PresContext());
       SetDebug(state, aFrameList, mState & NS_STATE_CURRENTLY_IN_DEBUG);
@@ -1231,7 +1223,7 @@ nsMenuFrame::InsertFrames(nsIAtom*        aListName,
     }
   }
 
-  if (!aFrameList)
+  if (aFrameList.IsEmpty())
     return NS_OK;
 
   if (NS_UNLIKELY(aPrevFrame == mPopupFrame)) {
@@ -1243,13 +1235,10 @@ nsMenuFrame::InsertFrames(nsIAtom*        aListName,
 
 NS_IMETHODIMP
 nsMenuFrame::AppendFrames(nsIAtom*        aListName,
-                          nsIFrame*       aFrameList)
+                          nsFrameList&    aFrameList)
 {
-  if (!aFrameList)
-    return NS_OK;
-
   if (!mPopupFrame && (!aListName || aListName == nsGkAtoms::popupList)) {
-    aFrameList = SetPopupFrame(aFrameList);
+    SetPopupFrame(aFrameList);
     if (mPopupFrame) {
 
 #ifdef DEBUG_LAYOUT
@@ -1262,7 +1251,7 @@ nsMenuFrame::AppendFrames(nsIAtom*        aListName,
     }
   }
 
-  if (!aFrameList)
+  if (aFrameList.IsEmpty())
     return NS_OK;
 
   return nsBoxFrame::AppendFrames(aListName, aFrameList); 

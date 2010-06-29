@@ -386,25 +386,17 @@ NS_IMETHODIMP nsAbView::IsSorted(PRBool *_retval)
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-#ifdef MOZILLA_1_9_1_BRANCH
-NS_IMETHODIMP nsAbView::CanDrop(PRInt32 index, PRInt32 orientation, PRBool *_retval)
-#else
 NS_IMETHODIMP nsAbView::CanDrop(PRInt32 index,
                                 PRInt32 orientation,
                                 nsIDOMDataTransfer *dataTransfer,
                                 PRBool *_retval)
-#endif
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-#ifdef MOZILLA_1_9_1_BRANCH
-NS_IMETHODIMP nsAbView::Drop(PRInt32 row, PRInt32 orientation)
-#else
 NS_IMETHODIMP nsAbView::Drop(PRInt32 row,
                              PRInt32 orientation,
                              nsIDOMDataTransfer *dataTransfer)
-#endif
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -707,8 +699,10 @@ NS_IMETHODIMP nsAbView::SortBy(const PRUnichar *colID, const PRUnichar *sortDir)
     SortClosure closure;
     SetSortClosure(sortColumn.get(), sortDirection.get(), this, &closure);
     
-    nsCOMPtr<nsIArray> selectedCards;
-    rv = GetSelectedCards(getter_AddRefs(selectedCards));
+    nsCOMPtr<nsIMutableArray> selectedCards = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = GetSelectedCards(selectedCards);
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIAbCard> indexCard;
@@ -1086,6 +1080,10 @@ nsresult nsAbView::ReselectCards(nsIArray *aCards, nsIAbCard *aIndexCard)
   rv = aCards->GetLength(&count);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // If we don't have any cards selected, nothing else to do.
+  if (!count)
+    return NS_OK;
+
   for (i = 0; i < count; i++) {
     nsCOMPtr<nsIAbCard> card = do_QueryElementAt(aCards, i);
     if (card) {
@@ -1113,9 +1111,11 @@ nsresult nsAbView::ReselectCards(nsIArray *aCards, nsIAbCard *aIndexCard)
 
 NS_IMETHODIMP nsAbView::DeleteSelectedCards()
 {
-  nsCOMPtr<nsIArray> cardsToDelete;
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> cardsToDelete = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
   
-  nsresult rv = GetSelectedCards(getter_AddRefs(cardsToDelete));
+  rv = GetSelectedCards(cardsToDelete);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // mDirectory should not be null
@@ -1127,9 +1127,8 @@ NS_IMETHODIMP nsAbView::DeleteSelectedCards()
   return rv;
 }
 
-nsresult nsAbView::GetSelectedCards(nsIArray **aSelectedCards)
+nsresult nsAbView::GetSelectedCards(nsCOMPtr<nsIMutableArray> &aSelectedCards)
 {
-  *aSelectedCards = nsnull;
   if (!mTreeSelection)
     return NS_OK;
 
@@ -1140,9 +1139,6 @@ nsresult nsAbView::GetSelectedCards(nsIArray **aSelectedCards)
   if (!selectionCount)
     return NS_OK;
 
-  nsCOMPtr<nsIMutableArray> result(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv,rv);
-  
   for (PRInt32 i = 0; i < selectionCount; i++)
   {
     PRInt32 startRange;
@@ -1157,13 +1153,11 @@ nsresult nsAbView::GetSelectedCards(nsIArray **aSelectedCards)
         rv = GetCardFromRow(rangeIndex, getter_AddRefs(abCard));
         NS_ENSURE_SUCCESS(rv,rv);
         
-        rv = result->AppendElement(abCard, PR_FALSE);
+        rv = aSelectedCards->AppendElement(abCard, PR_FALSE);
         NS_ENSURE_SUCCESS(rv, rv);
       }
     }
   }
-
-  NS_ADDREF(*aSelectedCards = result);
 
   return NS_OK;
 }
@@ -1304,12 +1298,16 @@ NS_IMETHODIMP nsAbView::SwapFirstNameLastName()
 NS_IMETHODIMP nsAbView::GetSelectedAddresses(nsIArray **_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
- 
-  nsCOMPtr<nsIArray> selectedCards;
-  nsresult rv = GetSelectedCards(getter_AddRefs(selectedCards));
+
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> selectedCards = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIMutableArray> addresses = do_CreateInstance(NS_ARRAY_CONTRACTID);
+  rv = GetSelectedCards(selectedCards);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIMutableArray> addresses = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
   PRUint32 count;
   selectedCards->GetLength(&count);
 

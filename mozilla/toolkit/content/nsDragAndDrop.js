@@ -37,6 +37,17 @@
 #
 # ***** END LICENSE BLOCK *****
 
+////////////////////////////////////////////////////////////////////////
+//
+// USE OF THIS API FOR DRAG AND DROP IS DEPRECATED!
+// Do not use this file for new code.
+//
+// For documentation about what to use instead, see:
+//   http://developer.mozilla.org/En/DragDrop/Drag_and_Drop
+//
+////////////////////////////////////////////////////////////////////////
+
+
 /** 
  *  nsTransferable - a wrapper for nsITransferable that simplifies
  *                   javascript clipboard and drag&drop. for use in
@@ -602,7 +613,12 @@ var nsDragAndDrop = {
       var secMan = Components.classes["@mozilla.org/scriptsecuritymanager;1"]
                              .getService(nsIScriptSecurityManager);
 
+      if (!aDragSession)
+        aDragSession = this.mDragService.getCurrentSession();
+
       var sourceDoc = aDragSession.sourceDocument;
+      // Use "file:///" as the default sourceURI so that drops of file:// URIs
+      // are always allowed.
       var sourceURI = sourceDoc ? sourceDoc.documentURI : "file:///";
 
       try {

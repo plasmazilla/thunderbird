@@ -103,7 +103,6 @@
 #include "nsIMarkupDocumentViewer.h"
 #include "nsIMsgMdnGenerator.h"
 #include "plbase64.h"
-#include "nsIUTF8ConverterService.h"
 #include "nsUConvCID.h"
 #include "nsIUnicodeNormalizer.h"
 #include "nsIMsgAccountManager.h"
@@ -114,6 +113,7 @@
 #include "nsIMutableArray.h"
 #include "nsArrayUtils.h"
 #include "nsIMsgWindow.h"
+#include "nsITextToSubURI.h"
 
 static void GetReplyHeaderInfo(PRInt32* reply_header_type,
                                nsString& reply_header_locale,
@@ -666,77 +666,77 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
   }
   m_editor->EndTransaction();
 
-  if (m_editor)
+  if (aBuf.IsEmpty())
+    m_editor->BeginningOfDocument();
+  else
   {
-    if (aBuf.IsEmpty())
-      m_editor->BeginningOfDocument();
-    else
+    switch (reply_on_top)
     {
-      switch (reply_on_top)
+      // This should set the cursor after the body but before the sig
+      case 0:
+      {
+        if (!textEditor)
         {
-          // This should set the cursor after the body but before the sig
-          case 0  :
-          {
-            if (!textEditor)
-            {
-              m_editor->BeginningOfDocument();
-              break;
-            }
-
-            nsCOMPtr<nsISelection> selection = nsnull;
-            nsCOMPtr<nsIDOMNode>      parent = nsnull;
-            PRInt32                   offset;
-            nsresult                  rv;
-
-            // get parent and offset of mailcite
-            rv = GetNodeLocation(nodeInserted, address_of(parent), &offset);
-            if (NS_FAILED(rv) || (!parent))
-            {
-              m_editor->BeginningOfDocument();
-              break;
-            }
-
-            // get selection
-            m_editor->GetSelection(getter_AddRefs(selection));
-            if (!selection)
-            {
-              m_editor->BeginningOfDocument();
-              break;
-            }
-
-            // place selection after mailcite
-            selection->Collapse(parent, offset+1);
-
-            // insert a break at current selection
-            textEditor->InsertLineBreak();
-
-            // i'm not sure if you need to move the selection back to before the
-            // break. expirement.
-            selection->Collapse(parent, offset+1);
-
-            break;
-          }
-
-        case 2  :
-        {
-          m_editor->SelectAll();
+          m_editor->BeginningOfDocument();
           break;
         }
 
-        // This should set the cursor to the top!
-        default : m_editor->BeginningOfDocument();    break;
+        nsCOMPtr<nsISelection> selection = nsnull;
+        nsCOMPtr<nsIDOMNode>      parent = nsnull;
+        PRInt32                   offset;
+        nsresult                  rv;
+
+        // get parent and offset of mailcite
+        rv = GetNodeLocation(nodeInserted, address_of(parent), &offset);
+        if (NS_FAILED(rv) || (!parent))
+        {
+          m_editor->BeginningOfDocument();
+          break;
+        }
+
+        // get selection
+        m_editor->GetSelection(getter_AddRefs(selection));
+        if (!selection)
+        {
+          m_editor->BeginningOfDocument();
+          break;
+        }
+
+        // place selection after mailcite
+        selection->Collapse(parent, offset+1);
+
+        // insert a break at current selection
+        textEditor->InsertLineBreak();
+
+        // i'm not sure if you need to move the selection back to before the
+        // break. expirement.
+        selection->Collapse(parent, offset+1);
+
+        break;
+      }
+
+      case 2:
+      {
+        m_editor->SelectAll();
+        break;
+      }
+
+      // This should set the cursor to the top!
+      default:
+      {
+        m_editor->BeginningOfDocument();
+        break;
       }
     }
-
-    nsCOMPtr<nsISelectionController> selCon;
-    m_editor->GetSelectionController(getter_AddRefs(selCon));
-
-    if (selCon)
-      selCon->ScrollSelectionIntoView(nsISelectionController::SELECTION_NORMAL, nsISelectionController::SELECTION_ANCHOR_REGION, PR_TRUE);
   }
 
-  if (m_editor)
-    m_editor->EnableUndo(PR_TRUE);
+  nsCOMPtr<nsISelectionController> selCon;
+  m_editor->GetSelectionController(getter_AddRefs(selCon));
+
+  if (selCon)
+    selCon->ScrollSelectionIntoView(nsISelectionController::SELECTION_NORMAL, nsISelectionController::SELECTION_ANCHOR_REGION, PR_TRUE);
+
+  m_editor->EnableUndo(PR_TRUE);
   SetBodyModified(PR_FALSE);
 
 #ifdef MSGCOMP_TRACE_PERFORMANCE
@@ -888,13 +888,17 @@ nsMsgCompose::Initialize(nsIDOMWindowInternal *aWindow, nsIMsgComposeParams *par
   return CreateMessage(originalMsgURI.get(), type, composeFields);
 }
 
-nsresult nsMsgCompose::SetDocumentCharset(const char *charset)
+nsresult nsMsgCompose::SetDocumentCharset(const char *aCharset)
 {
   // Set charset, this will be used for the MIME charset labeling.
-  m_compFields->SetCharacterSet(charset);
+  m_compFields->SetCharacterSet(aCharset);
 
   // notify the change to editor
-  m_editor->SetDocumentCharacterSet(charset ? nsDependentCString(charset): EmptyCString());
+  nsCString charset;
+  if (aCharset)
+    charset = nsDependentCString(aCharset);
+  if (m_editor)
+    m_editor->SetDocumentCharacterSet(charset);
 
   return NS_OK;
 }
@@ -1235,7 +1239,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
                   attachment->SetName(NS_ConvertASCIItoUTF16(userid));
               }
 
-              attachment->SetUrl(vCardUrl.get());
+              attachment->SetUrl(vCardUrl);
               m_compFields->AddAttachment(attachment);
           }
       }
@@ -1637,6 +1641,25 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
         replyTo.Append(resultStr);
       }
       m_compFields->SetReplyTo(replyTo.get());
+    }
+
+    /* Setup cc field */
+    PRBool doCc;
+    m_identity->GetDoCc(&doCc);
+    if (doCc)
+    {
+      nsCString ccList;
+      m_identity->GetDoCcList(ccList);
+
+      nsCString resultStr;
+      rv = parser->RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetCc()),
+                                            ccList, resultStr);
+      if (NS_SUCCEEDED(rv) && !resultStr.IsEmpty())
+      {
+        ccList.Append(',');
+        ccList.Append(resultStr);
+      }
+      m_compFields->SetCc(ccList.get());
     }
 
     /* Setup bcc field */
@@ -2051,7 +2074,7 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
               // change all '.' to '_'  see bug #271211
               sanitizedSubj.ReplaceChar('.', '_');
               attachment->SetName(addExtension ? sanitizedSubj + NS_LITERAL_STRING(".eml") : sanitizedSubj);
-              attachment->SetUrl(uri);
+              attachment->SetUrl(nsDependentCString(uri));
               m_compFields->AddAttachment(attachment);
             }
 
@@ -2470,6 +2493,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
         // Populate the AllReply compField.
         mHeaders->ExtractHeader(HEADER_TO, PR_TRUE, getter_Copies(outCString));
         ConvertRawBytesToUTF16(outCString, charset.get(), recipient);
+
         mHeaders->ExtractHeader(HEADER_CC, PR_TRUE, getter_Copies(outCString));
         ConvertRawBytesToUTF16(outCString, charset.get(), cc);
 
@@ -2513,6 +2537,13 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
           else
           {
             // default behaviour for messages without Mail-Followup-To
+            nsAutoString outCCListString;
+            compFields->GetCc(outCCListString);
+
+            if (!replyCompValue.IsEmpty() && !outCCListString.IsEmpty())
+              replyCompValue.AppendLiteral(", ");
+
+            replyCompValue.Append(outCCListString);
             compFields->SetCc(replyCompValue);
           }
 
@@ -3731,7 +3762,7 @@ nsMsgComposeSendListener::RemoveCurrentDraftMessage(nsIMsgCompose *compObj, PRBo
           {
             nsCAutoString srcStr(str+1);
             PRInt32 err;
-            nsMsgKey messageID = srcStr.ToInteger(&err);
+            nsMsgKey messageID = srcStr.ToInteger(&err, 10);
             if (messageID != nsMsgKey_None)
             {
               rv = imapFolder->StoreImapFlags(kImapMsgDeletedFlag, PR_TRUE,
@@ -4398,20 +4429,16 @@ nsresult nsMsgCompose::NotifyStateListeners(PRInt32 aNotificationType, nsresult 
   return NS_OK;
 }
 
-nsresult nsMsgCompose::AttachmentPrettyName(const char* scheme, const char* charset, nsACString& _retval)
+nsresult nsMsgCompose::AttachmentPrettyName(const nsACString & scheme, const char* charset, nsACString& _retval)
 {
   nsresult rv;
 
-  nsCOMPtr<nsIUTF8ConverterService> utf8Cvt =
-    do_GetService(NS_UTF8CONVERTERSERVICE_CONTRACTID);
-  NS_ENSURE_TRUE(utf8Cvt, NS_ERROR_UNEXPECTED);
-
   nsCAutoString utf8Scheme;
 
-  if (PL_strncasestr(scheme, "file:", 5))
+  if (StringHead(scheme, 5).LowerCaseEqualsLiteral("file:"))
   {
     nsCOMPtr<nsIFile> file;
-    rv = NS_GetFileFromURLSpec(nsDependentCString(scheme),
+    rv = NS_GetFileFromURLSpec(scheme,
                                getter_AddRefs(file));
     NS_ENSURE_SUCCESS(rv, rv);
     nsAutoString leafName;
@@ -4423,17 +4450,19 @@ nsresult nsMsgCompose::AttachmentPrettyName(const char* scheme, const char* char
 
   // To work around a mysterious bug in VC++ 6.
   const char* cset = (!charset || !*charset) ? "UTF-8" : charset;
-  rv = utf8Cvt->ConvertURISpecToUTF8(nsDependentCString(scheme),
-                                     cset, utf8Scheme);
+
+  nsCOMPtr<nsITextToSubURI> textToSubURI = do_GetService(NS_ITEXTTOSUBURI_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsAutoString retUrl;
+  rv = textToSubURI->UnEscapeURIForUI(nsDependentCString(cset), scheme, retUrl);
 
   if (NS_SUCCEEDED(rv)) {
-    // Some ASCII characters still need to be escaped.
-    NS_UnescapeURL(utf8Scheme.get(), utf8Scheme.Length(),
-                   esc_SkipControl | esc_AlwaysCopy, _retval);
+    CopyUTF16toUTF8(retUrl, _retval);
   } else {
     _retval.Assign(scheme);
   }
-  if (PL_strncasestr(scheme, "http:", 5))
+  if (StringHead(scheme, 5).LowerCaseEqualsLiteral("http:"))
     _retval.Cut(0, 7);
 
   return NS_OK;
@@ -4802,11 +4831,7 @@ nsMsgCompose::CheckAndPopulateRecipients(PRBool aPopulateMailList,
                   nsCString hexPopularity;
                   if (NS_SUCCEEDED(existingCard->GetPropertyAsAUTF8String(kPopularityIndexProperty, hexPopularity)))
                   {
-#ifdef MOZILLA_INTERNAL_API
-                    PRInt32 errorCode = 0;
-#else
                     nsresult errorCode = NS_OK;
-#endif
                     popularityIndex = hexPopularity.ToInteger(&errorCode, 16);
                     if (errorCode)
                       // We failed, just set it to zero.

@@ -42,26 +42,11 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-NO_PKG_FILES = \
-	$(MOZ_APP_NAME)-config \
-	xpcshell* \
-	xpidl* \
-	xpt_dump* \
-	xpt_link* \
-	nspr-config \
-	$(NULL)
-
 include $(topsrcdir)/config/rules.mk
 
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
 
-ifeq (WINNT,$(OS_ARCH))
-MOZ_PKG_MANIFEST_P = $(srcdir)/windows/packages
-else
-ifneq (,$(filter-out OS2 Darwin,$(OS_ARCH)))
-MOZ_PKG_MANIFEST_P = $(srcdir)/unix/packages
-endif
-endif
+MOZ_PKG_MANIFEST_P = $(srcdir)/package-manifest.in
 
 MOZ_NONLOCALIZED_PKG_LIST = \
 	xpcom \
@@ -81,13 +66,46 @@ MOZ_OPTIONAL_PKG_LIST = \
 	venkman \
 	$(NULL)
 
-DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME)
+DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
+ifdef MOZ_ENABLE_GNOME_COMPONENT
+DEFINES += -DMOZ_ENABLE_GNOME_COMPONENT=1
+endif
+
+ifeq (gtk2, $(MOZ_WIDGET_TOOLKIT))
+DEFINES += -DMOZ_GTK2=1
+endif
+
+ifdef NSS_DISABLE_DBM
+DEFINES += -DNSS_DISABLE_DBM=1
+endif
+
+ifdef MOZ_USE_NATIVE_UCONV
+DEFINES += -DMOZ_USE_NATIVE_UCONV=1
+endif
+
+ifdef MOZ_UPDATER
+DEFINES += -DMOZ_UPDATER=1
+endif
+
+ifdef MOZ_MOVEMAIL
+DEFINES += -DMOZ_MOVEMAIL=1
+endif
+
+ifneq (en-US, $(AB_CD))
+DEFINES += -DLOCALE_BUILD=1
+endif
+
+ifeq (,$(filter-out WINNT OS2,$(OS_ARCH)))
+DEFINES += -DWIN_OR_OS2=1
+endif
 
 ifdef MOZ_PKG_MANIFEST_P
-MOZ_PKG_MANIFEST = packages
+MOZ_PKG_MANIFEST = package-manifest
 
 $(MOZ_PKG_MANIFEST): $(MOZ_PKG_MANIFEST_P)
-	$(PERL) $(MOZILLA_SRCDIR)/config/preprocessor.pl $(DEFINES) $(ACDEFINES) $< > $@
+	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) $< > $@
+
+GARBAGE += $(MOZ_PKG_MANIFEST)
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
@@ -99,23 +117,39 @@ MOZ_PKG_MAC_EXTRA=--format UDBZ \
                   --copy "$(call EXPAND_LOCALE_SRCDIR,suite/locales)/installer/mac/README.txt"
 endif
 
-# On mozilla-central, packager.mk uses core_abspath to redefine DIST
-# As the comm-central config.mk doesn't set it, do it ourselves instead
-core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURDIR)/$(1)))
-
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
+
+ifeq (Darwin, $(OS_ARCH))
+BINPATH = $(_BINPATH)
+DEFINES += -DAPPNAME=$(_APPNAME)
+else
+BINPATH = bin
+endif
+DEFINES += -DBINPATH=$(BINPATH)
+
+libs::
+	$(MAKE) -C $(DEPTH)/suite/locales langpack PKG_LANGPACK_PATH=
+
+UPLOAD_EXTRA_FILES += $(PKG_LANGPACK_BASENAME).xpi
+
 
 ifeq (WINNT,$(OS_ARCH))
 PKGCOMP_FIND_OPTS = 
 else
 PKGCOMP_FIND_OPTS = -L
 endif
+ifeq (Darwin, $(OS_ARCH))
+FINDPATH = $(_APPNAME)/Contents/MacOS
+else
+FINDPATH=bin
+endif
 
-package-compare::
+package-compare:: $(MOZ_PKG_MANIFEST)
 ifdef MOZ_PKG_MANIFEST_P
-	cd $(DIST); find $(PKGCOMP_FIND_OPTS) bin -type f | sort > bin-list.txt
-	grep "^bin" $(MOZ_PKG_MANIFEST) | sed -e 's/\\/\//g' | sort > $(DIST)/pack-list.txt
+	cd $(DIST); find $(PKGCOMP_FIND_OPTS) $(FINDPATH) -type f | sort > bin-list.txt
+	grep "^$(BINPATH)" $(MOZ_PKG_MANIFEST) | sed -e 's/^\///' | sort > $(DIST)/pack-list.txt
 	-diff -u $(DIST)/pack-list.txt $(DIST)/bin-list.txt
+	rm -f $(DIST)/pack-list.txt $(DIST)/bin-list.txt
 endif
 
 installer: removed-files

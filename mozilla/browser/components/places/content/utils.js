@@ -291,7 +291,7 @@ var PlacesUIUtils = {
     }
 
     // tag folders use tag transactions
-    if (aContainer == PlacesUtils.bookmarks.tagsFolder) {
+    if (aContainer == PlacesUtils.tagsFolderId) {
       var txns = [];
       if (aData.children) {
         aData.children.forEach(function(aChild) {
@@ -364,30 +364,24 @@ var PlacesUIUtils = {
       case PlacesUtils.TYPE_X_MOZ_PLACE_CONTAINER:
         if (copy)
           return this._getFolderCopyTransaction(data, container, index);
-        else { // Move the item
-          var id = data.folder ? data.folder.id : data.id;
-          return this.ptm.moveItem(id, container, index);
-        }
+        // Otherwise move the item.
+        return this.ptm.moveItem(data.id, container, index);
         break;
       case PlacesUtils.TYPE_X_MOZ_PLACE:
-        if (data.id <= 0) // non-bookmark item
+        if (data.id == -1) // Not bookmarked.
           return this._getURIItemCopyTransaction(data, container, index);
   
-        if (copy) {
-          // Copying a child of a live-bookmark by itself should result
-          // as a new normal bookmark item (bug 376731)
-          return this._getBookmarkItemCopyTransaction(data, container, index,
-                                                      ["livemark/bookmarkFeedURI"]);
-        }
-        else
-          return this.ptm.moveItem(data.id, container, index);
+        if (copy)
+          return this._getBookmarkItemCopyTransaction(data, container, index);
+        // Otherwise move the item.
+        return this.ptm.moveItem(data.id, container, index);
         break;
       case PlacesUtils.TYPE_X_MOZ_PLACE_SEPARATOR:
         // There is no data in a separator, so copying it just amounts to
         // inserting a new separator.
         if (copy)
           return this.ptm.createSeparator(container, index);
-        // Move the separator otherwise
+        // Otherwise move the item.
         return this.ptm.moveItem(data.id, container, index);
         break;
       default:
@@ -535,8 +529,9 @@ var PlacesUIUtils = {
 
     if (typeof(aKeyword) == "string") {
       info.keyword = aKeyword;
-      // hide the Tags field if we are adding a keyword
+      // Hide the Tags field if we are adding a keyword.
       info.hiddenRows.push("tags");
+      // Keyword related params.
       if (typeof(aPostData) == "string")
         info.postData = aPostData;
       if (typeof(aCharSet) == "string")
@@ -1008,17 +1003,12 @@ var PlacesUIUtils = {
    * Helper for the toolbar and menu views
    */
   createMenuItemForNode:
-  function PUU_createMenuItemForNode(aNode, aContainersMap) {
+  function PUU_createMenuItemForNode(aNode) {
     var element;
     var type = aNode.type;
     if (type == Ci.nsINavHistoryResultNode.RESULT_TYPE_SEPARATOR)
       element = document.createElement("menuseparator");
     else {
-      var iconURI = aNode.icon;
-      var iconURISpec = "";
-      if (iconURI)
-        iconURISpec = iconURI.spec;
-
       if (PlacesUtils.uriTypes.indexOf(type) != -1) {
         element = document.createElement("menuitem");
         element.className = "menuitem-iconic bookmark-item";
@@ -1057,8 +1047,6 @@ var PlacesUIUtils = {
         popup.setAttribute("context", "placesContext");
 #endif
         element.appendChild(popup);
-        if (aContainersMap)
-          aContainersMap.push({ resultNode: aNode, domNode: popup });
         element.className = "menu-iconic bookmark-item";
       }
       else
@@ -1066,11 +1054,12 @@ var PlacesUIUtils = {
 
       element.setAttribute("label", this.getBestTitle(aNode));
 
-      if (iconURISpec)
-        element.setAttribute("image", iconURISpec);
+      var icon = aNode.icon;
+      if (icon)
+        element.setAttribute("image", icon);
     }
     element.node = aNode;
-    element.node.viewIndex = 0;
+    element.node._DOMElement = element;
 
     return element;
   },
@@ -1299,11 +1288,46 @@ var PlacesUIUtils = {
     return this.leftPaneFolderId = leftPaneRoot;
   },
 
+  /**
+   * Get the folder id for the organizer left-pane folder.
+   */
   get allBookmarksFolderId() {
     // ensure the left-pane root is initialized;
     this.leftPaneFolderId;
     delete this.allBookmarksFolderId;
     return this.allBookmarksFolderId = this.leftPaneQueries["AllBookmarks"];
+  },
+
+  /**
+   * If an item is a left-pane query, returns the name of the query
+   * or an empty string if not.
+   *
+   * @param aItemId id of a container
+   * @returns the name of the query, or empty string if not a left-pane query
+   */
+  getLeftPaneQueryNameFromId: function PU_getLeftPaneQueryNameFromId(aItemId) {
+    var queryName = "";
+    // If the let pane hasn't been built, use the annotation service
+    // directly, to avoid building the left pane too early.
+    if (this.__lookupGetter__("leftPaneFolderId")) {
+      try {
+        queryName = PlacesUtils.annotations.
+                                getItemAnnotation(aItemId, ORGANIZER_QUERY_ANNO);
+      }
+      catch (ex) {
+        // doesn't have the annotation
+        queryName = "";
+      }
+    }
+    else {
+      // If the left pane has already been built, use the name->id map
+      // cached in PlacesUIUtils.
+      for (let [name, id] in Iterator(this.leftPaneQueries)) {
+        if (aItemId == id)
+          queryName = name;
+      }
+    }
+    return queryName; 
   },
 
   /**
@@ -1330,7 +1354,7 @@ var PlacesUIUtils = {
       aPopup._lmStatusMenuItem.setAttribute("label", this.getString(lmStatus));
       aPopup._lmStatusMenuItem.setAttribute("disabled", true);
       aPopup.insertBefore(aPopup._lmStatusMenuItem,
-                          aPopup.childNodes[aPopup._startMarker + 1]);
+                          aPopup.childNodes.item(aPopup._startMarker + 1));
       aPopup._startMarker++;
     }
     else if (lmStatus &&

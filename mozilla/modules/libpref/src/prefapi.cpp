@@ -55,9 +55,6 @@
   #include "windows.h"
 #endif /* _WIN32 */
 
-#ifdef MOZ_SECURITY
-#include "sechash.h"
-#endif
 #include "plstr.h"
 #include "pldhash.h"
 #include "plbase64.h"
@@ -87,8 +84,10 @@ clearPrefEntry(PLDHashTable *table, PLDHashEntryHdr *entry)
     PrefHashEntry *pref = static_cast<PrefHashEntry *>(entry);
     if (pref->flags & PREF_STRING)
     {
-        PR_FREEIF(pref->defaultPref.stringVal);
-        PR_FREEIF(pref->userPref.stringVal);
+        if (pref->defaultPref.stringVal)
+            PL_strfree(pref->defaultPref.stringVal);
+        if (pref->userPref.stringVal)
+            PL_strfree(pref->userPref.stringVal);
     }
     // don't need to free this as it's allocated in memory owned by
     // gPrefNameArena
@@ -116,7 +115,6 @@ static PLArenaPool  gPrefNameArena;
 PRBool              gDirty = PR_FALSE;
 
 static struct CallbackNode* gCallbacks = NULL;
-static PRBool       gCallbacksEnabled = PR_TRUE;
 static PRBool       gIsAnyPrefLocked = PR_FALSE;
 // These are only used during the call to pref_DoCallback
 static PRBool       gCallbacksInProgress = PR_FALSE;
@@ -217,8 +215,8 @@ void PREF_Cleanup()
     while (node)
     {
         next_node = node->next;
-        PR_Free(node->domain);
-        PR_Free(node);
+        PL_strfree(node->domain);
+        free(node);
         node = next_node;
     }
     gCallbacks = NULL;
@@ -447,7 +445,7 @@ PREF_CopyCharPref(const char *pref_name, char ** return_buffer, PRBool get_defau
             stringVal = pref->userPref.stringVal;
 
         if (stringVal) {
-            *return_buffer = PL_strdup(stringVal);
+            *return_buffer = NS_strdup(stringVal);
             rv = NS_OK;
         }
     }
@@ -567,8 +565,7 @@ PREF_ClearUserPref(const char *pref_name)
             PL_DHashTableOperate(&gHashTable, pref_name, PL_DHASH_REMOVE);
         }
 
-        if (gCallbacksEnabled)
-            pref_DoCallback(pref_name);
+        pref_DoCallback(pref_name);
         gDirty = PR_TRUE;
         rv = NS_OK;
     }
@@ -595,8 +592,7 @@ pref_ClearUserPref(PLDHashTable *table, PLDHashEntryHdr *he, PRUint32,
             nextOp = PL_DHASH_REMOVE;
         }
 
-        if (gCallbacksEnabled)
-            pref_DoCallback(pref->key);
+        pref_DoCallback(pref->key);
     }
     return nextOp;
 }
@@ -627,8 +623,7 @@ nsresult PREF_LockPref(const char *key, PRBool lockit)
         {
             pref->flags |= PREF_LOCKED;
             gIsAnyPrefLocked = PR_TRUE;
-            if (gCallbacksEnabled)
-                pref_DoCallback(key);
+            pref_DoCallback(key);
         }
     }
     else
@@ -636,8 +631,7 @@ nsresult PREF_LockPref(const char *key, PRBool lockit)
         if (PREF_IS_LOCKED(pref))
         {
             pref->flags &= ~PREF_LOCKED;
-            if (gCallbacksEnabled)
-                pref_DoCallback(key);
+            pref_DoCallback(key);
         }
     }
     return NS_OK;
@@ -667,7 +661,8 @@ static void pref_SetValue(PrefValue* oldValue, PrefValue newValue, PrefType type
     {
         case PREF_STRING:
             PR_ASSERT(newValue.stringVal);
-            PR_FREEIF(oldValue->stringVal);
+            if (oldValue->stringVal)
+                PL_strfree(oldValue->stringVal);
             oldValue->stringVal = newValue.stringVal ? PL_strdup(newValue.stringVal) : NULL;
             break;
 
@@ -763,11 +758,9 @@ nsresult pref_HashPref(const char *key, PrefValue value, PrefType type, PRBool s
     if (valueChanged) {
         gDirty = PR_TRUE;
 
-        if (gCallbacksEnabled) {
-            nsresult rv2 = pref_DoCallback(key);
-            if (NS_FAILED(rv2))
-                rv = rv2;
-        }
+        nsresult rv2 = pref_DoCallback(key);
+        if (NS_FAILED(rv2))
+            rv = rv2;
     }
     return rv;
 }
@@ -844,8 +837,8 @@ pref_RemoveCallbackNode(struct CallbackNode* node,
         prev_node->next = next_node;
     else
         gCallbacks = next_node;
-    PR_Free(node->domain);
-    PR_Free(node);
+    PL_strfree(node->domain);
+    free(node);
     return next_node;
 }
 

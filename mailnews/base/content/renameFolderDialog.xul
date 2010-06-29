@@ -44,11 +44,13 @@
 <dialog xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         title="&renameFolderDialog.title;"
+        buttonlabelaccept="&accept.label;"
+        buttonaccesskeyaccept="&accept.accesskey;"
         ondialogaccept="return onOK();"
         onload="onLoad();">
 
   <stringbundleset id="stringbundleset"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/renameFolderDialog.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/renameFolderDialog.js"/>
 
   <label value="&rename.label;" accesskey="&rename.accesskey;" control="name"/>
   <textbox id="name" oninput="doEnabling();"/>

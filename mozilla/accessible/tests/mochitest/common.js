@@ -32,6 +32,7 @@ const nsIAccessibleHyperText = Components.interfaces.nsIAccessibleHyperText;
 const nsIAccessibleImage = Components.interfaces.nsIAccessibleImage;
 const nsIAccessibleSelectable = Components.interfaces.nsIAccessibleSelectable;
 const nsIAccessibleTable = Components.interfaces.nsIAccessibleTable;
+const nsIAccessibleTableCell = Components.interfaces.nsIAccessibleTableCell;
 const nsIAccessibleValue = Components.interfaces.nsIAccessibleValue;
 
 const nsIObserverService = Components.interfaces.nsIObserverService;
@@ -47,39 +48,9 @@ const nsIDOMXULElement = Components.interfaces.nsIDOMXULElement;
 const nsIPropertyElement = Components.interfaces.nsIPropertyElement;
 
 ////////////////////////////////////////////////////////////////////////////////
-// Roles
-
-const ROLE_CELL = nsIAccessibleRole.ROLE_CELL;
-const ROLE_CHROME_WINDOW = nsIAccessibleRole.ROLE_CHROME_WINDOW;
-const ROLE_COMBOBOX = nsIAccessibleRole.ROLE_COMBOBOX;
-const ROLE_COMBOBOX_LIST = nsIAccessibleRole.ROLE_COMBOBOX_LIST;
-const ROLE_COMBOBOX_OPTION = nsIAccessibleRole.ROLE_COMBOBOX_OPTION;
-const ROLE_DOCUMENT = nsIAccessibleRole.ROLE_DOCUMENT;
-const ROLE_ENTRY = nsIAccessibleRole.ROLE_ENTRY;
-const ROLE_FLAT_EQUATION = nsIAccessibleRole.ROLE_FLAT_EQUATION;
-const ROLE_FORM = nsIAccessibleRole.ROLE_FORM;
-const ROLE_GRAPHIC = nsIAccessibleRole.ROLE_GRAPHIC;
-const ROLE_GRID_CELL = nsIAccessibleRole.ROLE_GRID_CELL;
-const ROLE_GROUPING = nsIAccessibleRole.ROLE_GROUPING;
-const ROLE_HEADING = nsIAccessibleRole.ROLE_HEADING;
-const ROLE_LABEL = nsIAccessibleRole.ROLE_LABEL;
-const ROLE_LIST = nsIAccessibleRole.ROLE_LIST;
-const ROLE_LISTBOX = nsIAccessibleRole.ROLE_LISTBOX;
-const ROLE_NOTHING = nsIAccessibleRole.ROLE_NOTHING;
-const ROLE_OPTION = nsIAccessibleRole.ROLE_OPTION;
-const ROLE_PARAGRAPH = nsIAccessibleRole.ROLE_PARAGRAPH;
-const ROLE_PASSWORD_TEXT = nsIAccessibleRole.ROLE_PASSWORD_TEXT;
-const ROLE_PROGRESSBAR = nsIAccessibleRole.ROLE_PROGRESSBAR;
-const ROLE_PUSHBUTTON = nsIAccessibleRole.ROLE_PUSHBUTTON;
-const ROLE_SECTION = nsIAccessibleRole.ROLE_SECTION;
-const ROLE_SLIDER = nsIAccessibleRole.ROLE_SLIDER;
-const ROLE_TEXT_CONTAINER = nsIAccessibleRole.ROLE_TEXT_CONTAINER;
-const ROLE_TEXT_LEAF = nsIAccessibleRole.ROLE_TEXT_LEAF;
-const ROLE_TOGGLE_BUTTON = nsIAccessibleRole.ROLE_TOGGLE_BUTTON;
-
-////////////////////////////////////////////////////////////////////////////////
 // States
 
+const STATE_BUSY = nsIAccessibleStates.STATE_BUSY;
 const STATE_CHECKED = nsIAccessibleStates.STATE_CHECKED;
 const STATE_CHECKABLE = nsIAccessibleStates.STATE_CHECKABLE;
 const STATE_COLLAPSED = nsIAccessibleStates.STATE_COLLAPSED;
@@ -88,11 +59,14 @@ const STATE_EXTSELECTABLE = nsIAccessibleStates.STATE_EXTSELECTABLE;
 const STATE_FOCUSABLE = nsIAccessibleStates.STATE_FOCUSABLE;
 const STATE_FOCUSED = nsIAccessibleStates.STATE_FOCUSED;
 const STATE_HASPOPUP = nsIAccessibleStates.STATE_HASPOPUP;
+const STATE_INVALID = nsIAccessibleStates.STATE_INVALID;
 const STATE_LINKED = nsIAccessibleStates.STATE_LINKED;
 const STATE_MIXED = nsIAccessibleStates.STATE_MIXED;
 const STATE_MULTISELECTABLE = nsIAccessibleStates.STATE_MULTISELECTABLE;
+const STATE_OFFSCREEN = nsIAccessibleStates.STATE_OFFSCREEN;
 const STATE_PRESSED = nsIAccessibleStates.STATE_PRESSED;
 const STATE_READONLY = nsIAccessibleStates.STATE_READONLY;
+const STATE_REQUIRED = nsIAccessibleStates.STATE_REQUIRED;
 const STATE_SELECTABLE = nsIAccessibleStates.STATE_SELECTABLE;
 const STATE_SELECTED = nsIAccessibleStates.STATE_SELECTED;
 const STATE_TRAVERSED = nsIAccessibleStates.STATE_TRAVERSED;
@@ -101,9 +75,8 @@ const STATE_UNAVAILABLE = nsIAccessibleStates.STATE_UNAVAILABLE;
 const EXT_STATE_EDITABLE = nsIAccessibleStates.EXT_STATE_EDITABLE;
 const EXT_STATE_EXPANDABLE = nsIAccessibleStates.EXT_STATE_EXPANDABLE;
 const EXT_STATE_HORIZONTAL = nsIAccessibleStates.EXT_STATE_HORIZONTAL;
-const EXT_STATE_INVALID = nsIAccessibleStates.STATE_INVALID;
 const EXT_STATE_MULTI_LINE = nsIAccessibleStates.EXT_STATE_MULTI_LINE;
-const EXT_STATE_REQUIRED = nsIAccessibleStates.STATE_REQUIRED;
+const EXT_STATE_SINGLE_LINE = nsIAccessibleStates.EXT_STATE_SINGLE_LINE;
 const EXT_STATE_SUPPORTS_AUTOCOMPLETION = 
       nsIAccessibleStates.EXT_STATE_SUPPORTS_AUTOCOMPLETION;
 
@@ -138,7 +111,7 @@ function addA11yLoadEvent(aFunc)
         var accDoc = getAccessible(document);
         var state = {};
         accDoc.getState(state, {});
-        if (state.value & nsIAccessibleStates.STATE_BUSY)
+        if (state.value & STATE_BUSY)
           return waitForDocLoad();
 
         aFunc.call();
@@ -191,7 +164,7 @@ const DONOTFAIL_IF_NO_INTERFACE = 2;
 
 /**
  * Return accessible for the given identifier (may be ID attribute or DOM
- * element or accessible object).
+ * element or accessible object) or null.
  *
  * @param aAccOrElmOrID      [in] identifier to get an accessible implementing
  *                           the given interfaces
@@ -205,7 +178,7 @@ const DONOTFAIL_IF_NO_INTERFACE = 2;
 function getAccessible(aAccOrElmOrID, aInterfaces, aElmObj, aDoNotFailIf)
 {
   if (!aAccOrElmOrID)
-    return;
+    return null;
 
   var elm = null;
 
@@ -281,6 +254,23 @@ function isAccessible(aAccOrElmOrID, aInterfaces)
 }
 
 /**
+ * Return root accessible for the given identifier.
+ */
+function getRootAccessible(aAccOrElmOrID)
+{
+  var acc = getAccessible(aAccOrElmOrID ? aAccOrElmOrID : document);
+  while (acc) {
+    var parent = acc.parent;
+    if (parent && !parent.parent)
+      return acc;
+
+    acc = parent;
+  }
+
+  return null;
+}
+
+/**
  * Run through accessible tree of the given identifier so that we ensure
  * accessible tree is created.
  */
@@ -303,6 +293,15 @@ function ensureAccessibleTree(aAccOrElmOrID)
 
 /**
  * Compare expected and actual accessibles trees.
+ *
+ * @param  aAccOrElmOrID  [in] accessible identifier
+ * @param  aAccTree       [in] JS object, each field corresponds to property of
+ *                         accessible object. Additionally special properties
+ *                         are presented:
+ *                          children - an array of JS objects representing
+ *                                      children of accessible
+ *                          states   - an object having states and extraStates
+ *                                      fields
  */
 function testAccessibleTree(aAccOrElmOrID, aAccTree)
 {
@@ -311,21 +310,69 @@ function testAccessibleTree(aAccOrElmOrID, aAccTree)
     return;
 
   for (var prop in aAccTree) {
-    var msg = "Wrong value of property '" + prop + "'.";
-    if (prop == "role")
+    var msg = "Wrong value of property '" + prop + "' for " + prettyName(acc) + ".";
+    if (prop == "role") {
       is(roleToString(acc[prop]), roleToString(aAccTree[prop]), msg);
-    else if (prop != "children")
+
+    } else if (prop == "states") {
+      var statesObj = aAccTree[prop];
+      testStates(acc, statesObj.states, statesObj.extraStates,
+                 statesObj.absentStates, statesObj.absentExtraStates);
+
+    } else if (prop != "children") {
       is(acc[prop], aAccTree[prop], msg);
+    }
   }
 
-  if ("children" in aAccTree) {
+  if ("children" in aAccTree && aAccTree["children"] instanceof Array) {
     var children = acc.children;
     is(children.length, aAccTree.children.length,
-       "Different amount of expected children.");
+       "Different amount of expected children of " + prettyName(acc) + ".");
 
-    if (aAccTree.children.length == children.length) { 
+    if (aAccTree.children.length == children.length) {
+      var childCount = children.length;
+
+      // nsIAccessible::firstChild
+      var expectedFirstChild = childCount > 0 ?
+        children.queryElementAt(0, nsIAccessible) : null;
+      var firstChild = null;
+      try { firstChild = acc.firstChild; } catch (e) {}
+      is(firstChild, expectedFirstChild,
+         "Wrong first child of " + prettyName(acc));
+
+      // nsIAccessible::lastChild
+      var expectedLastChild = childCount > 0 ?
+        children.queryElementAt(childCount - 1, nsIAccessible) : null;
+      var lastChild = null;
+      try { lastChild = acc.lastChild; } catch (e) {}
+      is(lastChild, expectedLastChild,
+         "Wrong last child of " + prettyName(acc));
+
       for (var i = 0; i < children.length; i++) {
         var child = children.queryElementAt(i, nsIAccessible);
+
+        // nsIAccessible::parent
+        var parent = null;
+        try { parent = child.parent; } catch (e) {}
+        is(parent, acc, "Wrong parent of " + prettyName(child));
+
+        // nsIAccessible::nextSibling
+        var expectedNextSibling = (i < childCount - 1) ?
+          children.queryElementAt(i + 1, nsIAccessible) : null;
+        var nextSibling = null;
+        try { nextSibling = child.nextSibling; } catch (e) {}
+        is(nextSibling, expectedNextSibling,
+           "Wrong next sibling of " + prettyName(child));
+
+        // nsIAccessible::previousSibling
+        var expectedPrevSibling = (i > 0) ?
+          children.queryElementAt(i - 1, nsIAccessible) : null;
+        var prevSibling = null;
+        try { prevSibling = child.previousSibling; } catch (e) {}
+        is(prevSibling, expectedPrevSibling,
+           "Wrong previous sibling of " + prettyName(child));
+
+        // Go down through subtree
         testAccessibleTree(child, aAccTree.children[i]);
       }
     }
@@ -349,8 +396,11 @@ function statesToString(aStates, aExtraStates)
   var list = gAccRetrieval.getStringStates(aStates, aExtraStates);
 
   var str = "";
-  for (var index = 0; index < list.length; index++)
+  for (var index = 0; index < list.length - 1; index++)
     str += list.item(index) + ", ";
+
+  if (list.length != 0)
+    str += list.item(index)
 
   return str;
 }
@@ -414,6 +464,9 @@ function getNodePrettyName(aNode)
   try {
     if (aNode.nodeType == nsIDOMNode.ELEMENT_NODE && aNode.hasAttribute("id"))
       return " '" + aNode.getAttribute("id") + "' ";
+
+    if (aNode.nodeType == nsIDOMNode.DOCUMENT_NODE)
+      return " 'document node' ";
 
     return " '" + aNode.localName + " node' ";
   } catch (e) {

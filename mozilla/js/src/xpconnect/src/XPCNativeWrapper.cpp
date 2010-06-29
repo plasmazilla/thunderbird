@@ -255,6 +255,12 @@ EnsureLegalActivity(JSContext *cx, JSObject *obj,
   }
 
   JSScript *script = JS_GetFrameScript(cx, fp);
+  if (!script) {
+    // This is likely a SJOW around an XPCNativeWrapper. We don't know
+    // who is accessing us, but given the TODO above, allow access.
+    return JS_TRUE;
+  }
+
   uint32 fileFlags = JS_GetScriptFilenameFlags(script);
   if (fileFlags == JSFILENAME_NULL || (fileFlags & JSFILENAME_SYSTEM)) {
     // We expect implicit native wrappers in system files.
@@ -366,6 +372,7 @@ XPC_NW_AddProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
     return JS_FALSE;
   }
 
+  // Do not allow scripted getters or setters on XPCNativeWrappers.
   if (desc.attrs & (JSPROP_GETTER | JSPROP_SETTER)) {
     return ThrowException(NS_ERROR_ILLEGAL_VALUE, cx);
   }
@@ -446,12 +453,9 @@ XPC_NW_RewrapIfDeepWrapper(JSContext *cx, JSObject *obj, jsval v, jsval *rval)
     }
 
     XPCWrappedNative* wrappedNative =
-      XPCWrappedNative::GetWrappedNativeOfJSObject(cx, nativeObj);
-    if (!wrappedNative) {
-      // Not something we can protect... just make it JSVAL_NULL
-      *rval = JSVAL_NULL;
-      return JS_TRUE;
-    }
+      XPCWrappedNative::GetAndMorphWrappedNativeOfJSObject(cx, nativeObj);
+    if (!wrappedNative)
+      return XPC_SJOW_Construct(cx, nsnull, 1, &v, rval);
 
     if (HAS_FLAGS(flags, FLAG_EXPLICIT)) {
 #ifdef DEBUG_XPCNativeWrapper
@@ -886,7 +890,7 @@ MirrorWrappedNativeParent(JSContext *cx, XPCWrappedNative *wrapper,
     *result = nsnull;
   } else {
     XPCWrappedNative *parent_wrapper =
-      XPCWrappedNative::GetWrappedNativeOfJSObject(cx, wn_parent);
+      XPCWrappedNative::GetAndMorphWrappedNativeOfJSObject(cx, wn_parent);
 
     // parent_wrapper can be null if we're in a Components.utils.evalInSandbox
     // scope. In that case, the best we can do is just use the
@@ -957,6 +961,7 @@ XPCNativeWrapperCtor(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     printf("Wrapping already wrapped object\n");
 #endif
 
+    // It's always safe to re-wrap an object.
     wrappedNative = XPCNativeWrapper::SafeGetWrappedNative(nativeObj);
 
     if (!wrappedNative) {
@@ -967,7 +972,7 @@ XPCNativeWrapperCtor(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     native = OBJECT_TO_JSVAL(nativeObj);
   } else {
     wrappedNative
-      = XPCWrappedNative::GetWrappedNativeOfJSObject(cx, nativeObj);
+      = XPCWrappedNative::GetAndMorphWrappedNativeOfJSObject(cx, nativeObj);
 
     if (!wrappedNative) {
       return ThrowException(NS_ERROR_INVALID_ARG, cx);
@@ -1160,7 +1165,9 @@ XPC_NW_toString(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     }
   }
 
-  if (!EnsureLegalActivity(cx, obj)) {
+  if (!EnsureLegalActivity(cx, obj,
+                           GetRTStringByIndex(cx, XPCJSRuntime::IDX_TO_STRING),
+                           XPCWrapper::sSecMgrGetProp)) {
     return JS_FALSE;
   }
 

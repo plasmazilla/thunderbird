@@ -643,11 +643,11 @@ jsj_EnterJava(JSContext *cx, JNIEnv **envp);
 extern void
 jsj_ExitJava(JSJavaThreadState *jsj_env);
 
-extern jsval
-jsj_wrapper_getRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot);
+extern void
+jsj_LeaveTrace(JSContext *cx); /* Implemented in nsCLiveConnect.cpp */
 
-extern JSBool
-jsj_wrapper_setRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot, jsval v);
+extern void
+jsj_TraceObject(JSTracer *trc, JSObject *obj);
 
 #ifdef DEBUG
 #define DEBUG_LOG(args) printf args

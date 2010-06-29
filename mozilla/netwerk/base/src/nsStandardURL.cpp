@@ -55,6 +55,7 @@
 #include "prlog.h"
 #include "nsAutoPtr.h"
 #include "nsIProgrammingLanguage.h"
+#include "nsVoidArray.h"
 
 static NS_DEFINE_CID(kThisImplCID, NS_THIS_STANDARDURL_IMPL_CID);
 static NS_DEFINE_CID(kStandardURLCID, NS_STANDARDURL_CID);
@@ -269,6 +270,10 @@ nsSegmentEncoder::InitUnicodeEncoder()
 // nsStandardURL <public>
 //----------------------------------------------------------------------------
 
+#ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
+static PRCList gAllURLs;
+#endif
+
 nsStandardURL::nsStandardURL(PRBool aSupportsFileURL)
     : mDefaultPort(-1)
     , mPort(-1)
@@ -293,6 +298,10 @@ nsStandardURL::nsStandardURL(PRBool aSupportsFileURL)
 
     // default parser in case nsIStandardURL::Init is never called
     mParser = net_GetStdURLParser();
+
+#ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
+    PR_APPEND_LINK(&mDebugCList, &gAllURLs);
+#endif
 }
 
 nsStandardURL::~nsStandardURL()
@@ -300,7 +309,23 @@ nsStandardURL::~nsStandardURL()
     LOG(("Destroying nsStandardURL @%p\n", this));
 
     CRTFREEIF(mHostA);
+#ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
+    PR_REMOVE_LINK(&mDebugCList);
+#endif
 }
+
+#ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
+static void DumpLeakedURLs()
+{
+    if (!PR_CLIST_IS_EMPTY(&gAllURLs)) {
+        printf("Leaked URLs:\n");
+        for (PRCList *l = PR_LIST_HEAD(&gAllURLs); l != &gAllURLs; l = PR_NEXT_LINK(l)) {
+            nsStandardURL *url = reinterpret_cast<nsStandardURL*>(reinterpret_cast<char*>(l) - offsetof(nsStandardURL, mDebugCList));
+            url->PrintSpec();
+        }
+    }
+}
+#endif
 
 void
 nsStandardURL::InitGlobalObjects()
@@ -315,6 +340,11 @@ nsStandardURL::InitGlobalObjects()
 
         PrefsChanged(prefBranch, nsnull);
     }
+
+#ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
+    PR_INIT_CLIST(&gAllURLs);
+    atexit(DumpLeakedURLs);
+#endif
 }
 
 void
@@ -785,7 +815,7 @@ nsStandardURL::AppendToSubstring(PRUint32 pos,
     if (tailLen < 0)
         tailLen = strlen(tail);
 
-    char *result = (char *) malloc(len + tailLen + 1);
+    char *result = (char *) NS_Alloc(len + tailLen + 1);
     if (result) {
         memcpy(result, mSpec.get() + pos, len);
         memcpy(result + len, tail, tailLen);
@@ -1669,9 +1699,7 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
     } else
         relpathLen = flat.Length();
     
-    // XXX hack hack hack
-    char *p = nsnull;
-    char **result = &p;
+    char *result = nsnull;
 
     LOG(("nsStandardURL::Resolve [this=%p spec=%s relpath=%s]\n",
         this, mSpec.get(), relpath));
@@ -1725,7 +1753,7 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
                                "://",3) == 0) {
                 // now this is really absolute
                 // because a :// follows the scheme 
-                *result = nsCRT::strdup(relpath);
+                result = NS_strdup(relpath);
             } else {         
                 // This is a deprecated form of relative urls like
                 // http:file or http:/path/file
@@ -1736,7 +1764,7 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
         } else {
             // the schemes are not the same, we are also done
             // because we have to assume this is absolute 
-            *result = nsCRT::strdup(relpath);
+            result = NS_strdup(relpath);
         }  
     } else {
         // add some flags to coalesceFlag if it is an ftp-url
@@ -1748,7 +1776,7 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
         }
         if (relpath[0] == '/' && relpath[1] == '/') {
             // this URL //host/path is almost absolute
-            *result = AppendToSubstring(mScheme.mPos, mScheme.mLen + 1, relpath);
+            result = AppendToSubstring(mScheme.mPos, mScheme.mLen + 1, relpath);
         } else {
             // then it must be relative 
             relative = PR_TRUE;
@@ -1796,27 +1824,25 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
                 len = mDirectory.mPos + mDirectory.mLen;
             }
         }
-        *result = AppendToSubstring(0, len, realrelpath);
+        result = AppendToSubstring(0, len, realrelpath);
         // locate result path
-        resultPath = *result + mPath.mPos;
+        resultPath = result + mPath.mPos;
     }
-    if (!*result)
+    if (!result)
         return NS_ERROR_OUT_OF_MEMORY;
 
     if (resultPath)
         net_CoalesceDirs(coalesceFlag, resultPath);
     else {
         // locate result path
-        resultPath = PL_strstr(*result, "://");
+        resultPath = PL_strstr(result, "://");
         if (resultPath) {
             resultPath = PL_strchr(resultPath + 3, '/');
             if (resultPath)
                 net_CoalesceDirs(coalesceFlag,resultPath);
         }
     }
-    // XXX avoid extra copy
-    out = *result;
-    free(*result);
+    out.Adopt(result);
     return NS_OK;
 }
 

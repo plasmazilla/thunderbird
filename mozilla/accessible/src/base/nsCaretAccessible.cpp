@@ -51,7 +51,8 @@
 #include "nsISelection2.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIViewManager.h"
-#include "nsIWidget.h"
+
+class nsIWidget;
 
 NS_IMPL_ISUPPORTS1(nsCaretAccessible, nsISelectionListener)
   
@@ -119,9 +120,18 @@ nsresult nsCaretAccessible::SetControlSelectionListener(nsIDOMNode *aCurrentNode
   // When focus moves such that the caret is part of a new frame selection
   // this removes the old selection listener and attaches a new one for
   // the current focus.
+
   nsCOMPtr<nsISelectionController> controller =
     GetSelectionControllerForNode(mCurrentControl);
-  NS_ENSURE_TRUE(controller, NS_ERROR_FAILURE);
+#ifdef DEBUG
+  PRUint16 nodeType;
+  nsresult result = aCurrentNode->GetNodeType(&nodeType);
+  NS_ASSERTION(NS_SUCCEEDED(result) &&
+               (controller || nodeType == nsIDOMNode::DOCUMENT_NODE),
+               "No selection controller for non document node!");
+#endif
+  if (!controller)
+    return NS_OK;
 
   // Register 'this' as selection listener for the normal selection.
   nsCOMPtr<nsISelection> normalSel;
@@ -290,10 +300,10 @@ nsCaretAccessible::SpellcheckSelectionChanged(nsIDOMDocument *aDoc,
   return mRootAccessible->FireAccessibleEvent(event);
 }
 
-nsRect
+nsIntRect
 nsCaretAccessible::GetCaretRect(nsIWidget **aOutWidget)
 {
-  nsRect caretRect;
+  nsIntRect caretRect;
   NS_ENSURE_TRUE(aOutWidget, caretRect);
   *aOutWidget = nsnull;
   NS_ENSURE_TRUE(mRootAccessible, caretRect);
@@ -322,30 +332,29 @@ nsCaretAccessible::GetCaretRect(nsIWidget **aOutWidget)
   nsCOMPtr<nsISelection> caretSelection(do_QueryReferent(mLastUsedSelection));
   NS_ENSURE_TRUE(caretSelection, caretRect);
   
+  nsRect rect;
   caret->GetCaretCoordinates(nsCaret::eRenderingViewCoordinates, caretSelection,
-                             &caretRect, &isCollapsed, &view);
-  if (!view || caretRect.IsEmpty()) {
-    return nsRect(); // Return empty rect
+                             &rect, &isCollapsed, &view);
+  if (!view || rect.IsEmpty()) {
+    return nsIntRect(); // Return empty rect
   }
 
   PRBool isVisible;
   caret->GetCaretVisible(&isVisible);
   if (!isVisible) {
-    return nsRect();  // Return empty rect
+    return nsIntRect();  // Return empty rect
   }
   nsPoint offsetFromWidget;
   *aOutWidget = view->GetNearestWidget(&offsetFromWidget);
-  NS_ENSURE_TRUE(*aOutWidget, nsRect());
+  NS_ENSURE_TRUE(*aOutWidget, nsIntRect());
 
   nsPresContext *presContext = presShell->GetPresContext();
-  NS_ENSURE_TRUE(presContext, nsRect());
+  NS_ENSURE_TRUE(presContext, nsIntRect());
 
-  caretRect.x = presContext->AppUnitsToDevPixels(caretRect.x + offsetFromWidget.x);
-  caretRect.y = presContext->AppUnitsToDevPixels(caretRect.y + offsetFromWidget.y);
-  caretRect.width = presContext->AppUnitsToDevPixels(caretRect.width);
-  caretRect.height = presContext->AppUnitsToDevPixels(caretRect.height);
+  rect += offsetFromWidget;
+  caretRect = rect.ToOutsidePixels(presContext->AppUnitsPerDevPixel());
 
-  (*aOutWidget)->WidgetToScreen(caretRect, caretRect);
+  caretRect.MoveBy((*aOutWidget)->WidgetToScreenOffset());
 
   // Correct for character size, so that caret always matches the size of the character
   // This is important for font size transitions, and is necessary because the Gecko caret uses the

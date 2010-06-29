@@ -49,6 +49,8 @@
   <!ENTITY cmdToggleBrowser.label "Browser">
   <!ENTITY cmdToggleBrowser.accesskey "o">
   <!ENTITY cmdToggleSearch.label "Suchergebnisse">
+  <!ENTITY cmdFlashOnSelect.label "Ausgewähltes Element blinken lassen">
+  <!ENTITY cmdFlashOnSelect.accesskey "w">
 
 <!ENTITY browserPanel.label "Browser">
 

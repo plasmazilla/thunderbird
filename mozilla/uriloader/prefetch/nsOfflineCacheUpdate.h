@@ -310,8 +310,8 @@ private:
 
 class nsOfflineCacheUpdateService : public nsIOfflineCacheUpdateService
                                   , public nsIObserver
-                                  , public nsSupportsWeakReference
                                   , public nsOfflineCacheUpdateOwner
+                                  , public nsSupportsWeakReference
 {
 public:
     NS_DECL_ISUPPORTS

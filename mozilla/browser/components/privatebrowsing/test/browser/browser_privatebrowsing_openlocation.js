@@ -88,13 +88,9 @@ function test() {
                "chrome,titlebar", window);
   }
 
-  try {
+
+  if (gPrefService.prefHasUserValue("general.open_location.last_url"))
     gPrefService.clearUserPref("general.open_location.last_url");
-  } catch(e) {
-    // pref didn't exist originally
-    if (e.result != Components.results.NS_ERROR_UNEXPECTED)
-      throw e;
-  }
 
   openLocation("http://example.com/", "", function() {
     openLocation("http://example.org/", "http://example.com/", function() {
@@ -106,7 +102,8 @@ function test() {
           pb.privateBrowsingEnabled = false;
           openLocation("about:blank", "http://example.org/", function() {
             gPrefService.clearUserPref("general.open_location.last_url");
-            gPrefService.clearUserPref("general.open_location.last_window_choice");
+            if (gPrefService.prefHasUserValue("general.open_location.last_window_choice"))
+              gPrefService.clearUserPref("general.open_location.last_window_choice");
             finish();
           });
         });

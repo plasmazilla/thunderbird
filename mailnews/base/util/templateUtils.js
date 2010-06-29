@@ -41,7 +41,7 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/StringBundle.js");
+Cu.import("resource:///modules/StringBundle.js");
 
 const gTemplateUtilsStrings =
   new StringBundle("chrome://messenger/locale/templateUtils.properties");
@@ -93,12 +93,14 @@ function makeFriendlyDateAgo(time)
     let month = end.toLocaleFormat("%B");
     // Remove leading 0 by converting the date string to a number
     let date = Number(end.toLocaleFormat("%d"));
-    let dayMonth = gDownloadManagerStrings.get("monthDate")
+    let dayMonth = gDownloadManagerStrings.get("monthDate");
     dateTime = replaceInsert(dayMonth, 1, month);
     dateTime = replaceInsert(dateTime, 2, date);
   } else {
     // not this year, so show full date format
-    dateTime = end.toLocaleDateString();
+    dateTime = dts.FormatDate("", dts.dateFormatShort,
+                              end.getFullYear(), end.getMonth() + 1,
+                              end.getDate());
   }
   return dateTime;
 }

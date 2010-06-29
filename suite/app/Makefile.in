@@ -48,16 +48,16 @@ GRE_MILESTONE = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py
 GRE_BUILDID = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build BuildID)
 
 DEFINES += \
-	-DSEAMONKEY_ICO=\"../branding/icons/windows/seamonkey.ico\" \
+	-DSEAMONKEY_ICO=\"$(DIST)/branding/seamonkey.ico\" \
 	-DAB_CD=$(AB_CD) \
 	-DAPP_VERSION="$(MOZ_APP_VERSION)" \
 	-DGRE_MILESTONE=$(GRE_MILESTONE) \
 	-DGRE_BUILDID=$(GRE_BUILDID) \
 	$(NULL)
 
-SOURCE_STAMP := $(shell cd $(topsrcdir) ; hg identify -i 2>/dev/null | cut -f1 -d' ')
-ifdef SOURCE_STAMP
-DEFINES += -DMOZ_SOURCE_STAMP="$(SOURCE_STAMP)"
+MOZ_SOURCE_STAMP ?= $(firstword $(shell hg -R $(topsrcdir) parent --template="{node|short}\n" 2>/dev/null))
+ifdef MOZ_SOURCE_STAMP
+DEFINES += -DMOZ_SOURCE_STAMP="$(MOZ_SOURCE_STAMP)"
 endif
 
 SOURCE_REPO := $(shell hg -R $(topsrcdir) showconfig paths.default 2>/dev/null | sed -e "s/^ssh:/http:/")
@@ -133,8 +133,10 @@ ifdef MOZ_ENABLE_DBUS
 LIBS += $(MOZ_DBUS_GLIB_LIBS)
 endif
 
+ifndef MOZ_ENABLE_LIBXUL
 ifdef MOZ_NATIVE_HUNSPELL
 LIBS += $(MOZ_HUNSPELL_LIBS)
+endif
 endif
 
 ifndef MOZ_WINCONSOLE
@@ -155,10 +157,8 @@ endif
 
 ifdef BUILD_STATIC_LIBS
 
-ifndef MOZILLA_1_9_1_BRANCH
 ifeq ($(OS_ARCH),WINNT)
 LIBS += ../shell/src/$(LIB_PREFIX)shellservice_s.$(LIB_SUFFIX)
-endif
 endif
 
 include $(topsrcdir)/config/static-config.mk
@@ -173,6 +173,11 @@ REQUIRES	+= $(STATIC_REQUIRES)
 EXTRA_LIBS	+= $(STATIC_EXTRA_LIBS)
 endif
 
+# OpenGL is required by (mozilla/)content/canvas: see (mozilla/)layout/build/Makefile.in.
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+OS_LIBS += -framework OpenGL
+endif
+
 ifeq ($(OS_ARCH),WINNT)
 OS_LIBS += $(call EXPAND_LIBNAME,comctl32 comdlg32 uuid shell32 ole32 oleaut32 version winspool)
 RCINCLUDE = splash.rc
@@ -182,7 +187,7 @@ else
 RCFLAGS += -DMOZ_SUITE --include-dir $(srcdir)
 endif
 ifdef BUILD_STATIC_LIBS
-OS_LIBS += $(call EXPAND_LIBNAME, msimg32)
+OS_LIBS += $(call EXPAND_LIBNAME, msimg32 shlwapi)
 RCFLAGS += -DMOZ_STATIC_BUILD
 endif
 endif
@@ -198,8 +203,9 @@ ifeq ($(OS_ARCH),OS2)
 RESFILE = splashos2.res
 RCFLAGS += -i $(MOZILLA_SRCDIR)/toolkit/xre
 ifdef BUILD_STATIC_LIBS
-RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include/widget
+RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include
 endif
+RCFLAGS += -DSEAMONKEY_ICO=\"$(DIST)/branding/seamonkey.ico\"
 endif
 
 LIBS += $(JEMALLOC_LIBS)
@@ -252,7 +258,7 @@ libs:: $(MOZ_APP_NAME).1
 install:: $(MOZ_APP_NAME).1
 	$(SYSINSTALL) $(IFLAGS1) $< $(DESTDIR)$(mandir)/man1
 
-$(MOZ_APP_NAME):: $(topsrcdir)/mozilla/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
+$(MOZ_APP_NAME):: $(MOZILLA_DIR)/build/unix/mozilla.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
 	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
 		-e "s|%MOZ_APP_DISPLAYNAME%|$(MOZ_APP_DISPLAYNAME)|" \
 		-e "s|%MOZILLA-BIN%|$(PROGRAM)|g" > $@
@@ -264,12 +270,19 @@ libs:: $(MOZ_APP_NAME)
 install:: $(MOZ_APP_NAME)
 	$(SYSINSTALL) $< $(DESTDIR)$(bindir)
 
-GARBAGE += $(MOZ_APP_NAME)
+GARBAGE += $(MOZ_APP_NAME) $(MOZ_APP_NAME).1
 GARBAGE += $(addprefix $(DIST)/bin/defaults/pref/, browser-prefs.js)
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),photon)
 LIBS += -lphexlib
+endif
+
+ifdef WINCE
+ifdef MOZ_FASTSTART
+libs::
+	cp -f $(DIST)/bin/faststartstub.exe $(DIST)/bin/$(MOZ_APP_NAME)faststart.exe
+endif
 endif
 
 libs::
@@ -279,21 +292,11 @@ ifeq ($(OS_ARCH),WINNT)
 else
 	$(INSTALL) $(topsrcdir)/suite/installer/license.txt $(DIST)/bin/
 endif
-	touch $(DIST)/bin/.autoreg
 
 libs:: blocklist.xml
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-
-# copy .dmg contents into obj dir branding
-export::
-ifndef MOZ_BRANDING_DIRECTORY
-	$(NSINSTALL) -D $(DIST)/branding
-	cp $(topsrcdir)/suite/branding/package/mac/dsstore $(DIST)/branding/dsstore
-	cp $(topsrcdir)/suite/branding/package/mac/background.png $(DIST)/branding/background.png
-	cp $(topsrcdir)/suite/branding/package/mac/disk.icns $(DIST)/branding/disk.icns
-endif
 
 AB := $(firstword $(subst -, ,$(AB_CD)))
 
@@ -313,14 +316,7 @@ libs:: $(PROGRAM)
 	rsync -a $(DIST)/bin/ $(DIST)/$(APP_NAME).app/Contents/MacOS
 	rm -f $(DIST)/$(APP_NAME).app/Contents/MacOS/$(PROGRAM)
 	rsync -aL $(PROGRAM) $(DIST)/$(APP_NAME).app/Contents/MacOS
-ifdef MOZILLA_1_9_1_BRANCH
-	mkdir -p $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
-	rsync -a --copy-unsafe-links $(DIST)/package/PrintPDE.plugin $(DIST)/$(APP_NAME).app/Contents/Plug-Ins
-endif
-	cp -RL $(srcdir)/../branding/icons/mac/*.icns $(DIST)/$(APP_NAME).app/Contents/Resources/
-ifdef MOZILLA_1_9_1_BRANCH
-	cp -RL $(DIST)/package/mozillaSuite.rsrc $(DIST)/$(APP_NAME).app/Contents/Resources/$(PROGRAM).rsrc
-endif
+	cp -RL $(DIST)/branding/icons/*.icns $(DIST)/$(APP_NAME).app/Contents/Resources/
 	printf APPLMOZZ > $(DIST)/$(APP_NAME).app/Contents/PkgInfo
 #       remove CVS dirs from packaged app
 	find $(DIST)/$(APP_NAME).app -type d -name "CVS" -prune -exec rm -rf {} \;

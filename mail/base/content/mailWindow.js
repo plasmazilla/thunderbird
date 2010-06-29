@@ -37,7 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://app/modules/appIdleManager.js");
+Components.utils.import("resource:///modules/appIdleManager.js");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 //This file stores variables common to mail windows
@@ -52,7 +52,7 @@ var accountManager;
 var gMessengerBundle;
 var gBrandBundle;
 
-Components.utils.import("resource://app/modules/gloda/log4moz.js");
+Components.utils.import("resource:///modules/gloda/log4moz.js");
 
 var gContextMenu;
 var gMailWindowLog = Log4Moz.getConfiguredLogger("mailWindow", Log4Moz.Level.Debug, Log4Moz.Level.Debug, Log4Moz.Level.Debug);
@@ -149,9 +149,7 @@ function InitMsgWindow()
             .AddMsgWindow(msgWindow);
   let messagepane = document.getElementById("messagepane");
   messagepane.docShell.allowAuth = false;
-  messagepane.docShell
-             .QueryInterface(Components.interfaces.nsIDocShell_MOZILLA_1_9_1_dns)
-             .allowDNSPrefetch = false;
+  messagepane.docShell.allowDNSPrefetch = false;
   msgWindow.rootDocShell.allowAuth = true;
   msgWindow.rootDocShell.appType = Components.interfaces.nsIDocShell.APP_TYPE_MAIL;
   // Ensure we don't load xul error pages into the main window
@@ -361,6 +359,9 @@ nsMsgStatusFeedback.prototype =
 
   // nsIActivityMgrListener
   onAddedActivity: function(aID, aActivity) {
+    // ignore Gloda activity for status bar purposes
+    if (aActivity.initiator == Gloda)
+      return;
     if (aActivity instanceof Components.interfaces.nsIActivityEvent) {
       this.showStatusString(aActivity.displayText);
     }
@@ -599,20 +600,25 @@ function InformUserOfCertError(socketInfo, targetSite)
  **/
 function FillInHTMLTooltip(tipElement)
 {
-  var retVal = false;
-  if (tipElement.namespaceURI == "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul")
-    return retVal;
-
   const XLinkNS = "http://www.w3.org/1999/xlink";
+  const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+
+  var retVal = false;
+  if (tipElement.namespaceURI == XULNS &&
+      tipElement.ownerDocument.documentElement.nameSpaceURI == XULNS)
+    return retVal;
 
   var titleText = null;
   var XLinkTitleText = null;
+  var tooltipText = null;
   var direction = tipElement.ownerDocument.dir;
 
-  while (!titleText && !XLinkTitleText && tipElement) {
+  while (!titleText && !XLinkTitleText && !tooltipText && tipElement) {
     if (tipElement.nodeType == Node.ELEMENT_NODE) {
       titleText = tipElement.getAttribute("title");
       XLinkTitleText = tipElement.getAttributeNS(XLinkNS, "title");
+      if (tipElement.namespaceURI == XULNS) // only XUL nodes can get tooltiptext
+        tooltipText = tipElement.getAttribute("tooltiptext");
       var defView = tipElement.ownerDocument.defaultView;
       // XXX Work around bug 350679:
       // "Tooltips can be fired in documents with no view".
@@ -627,7 +633,8 @@ function FillInHTMLTooltip(tipElement)
   var tipNode = document.getElementById("aHTMLTooltip");
   tipNode.style.direction = direction;
 
-  for each (var t in [titleText, XLinkTitleText]) {
+  /* tooltiptext has the highest priority but is only non-null for XUL nodes. */
+  for each (var t in [titleText, XLinkTitleText, tooltipText]) {
     if (t && /\S/.test(t)) {
 
       // Per HTML 4.01 6.2 (CDATA section), literal CRs and tabs should be

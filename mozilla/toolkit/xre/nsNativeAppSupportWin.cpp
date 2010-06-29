@@ -331,8 +331,8 @@ private:
                                                     HSZ      hsz1,
                                                     HSZ      hsz2,
                                                     HDDEDATA hdata,
-                                                    ULONG    dwData1,
-                                                    ULONG    dwData2 );
+                                                    ULONG_PTR dwData1,
+                                                    ULONG_PTR dwData2 );
     static void ParseDDEArg( HSZ args, int index, nsString& string);
     static void ParseDDEArg( const WCHAR* args, int index, nsString& aString);
     static HDDEDATA CreateDDEData( DWORD value );
@@ -580,7 +580,14 @@ struct MessageWindow {
         _wgetcwd(cwd, MAX_PATH);
 
         // Construct a narrow UTF8 buffer <commandline>\0<workingdir>\0
+#ifdef WINCE
+        // For WinCE, we're stuck with providing our own argv[0] for the remote
+        // command-line.
+        NS_ConvertUTF16toUTF8 utf8buffer(L"dummy ");
+        AppendUTF16toUTF8(cmd, utf8buffer);
+#else
         NS_ConvertUTF16toUTF8 utf8buffer(cmd);
+#endif
         utf8buffer.Append('\0');
         AppendUTF16toUTF8(cwd, utf8buffer);
         utf8buffer.Append('\0');
@@ -594,13 +601,19 @@ struct MessageWindow {
         };
         // Bring the already running Mozilla process to the foreground.
         // nsWindow will restore the window (if minimized) and raise it.
+#ifdef WINCE
+        // for activating the existing window on wince we need "| 0x01"
+        // see http://msdn.microsoft.com/en-us/library/ms940024.aspx for details
+        ::SetForegroundWindow( (HWND)(((ULONG) mHandle) | 0x01) );
+#else
         ::SetForegroundWindow( mHandle );
+#endif
         ::SendMessage( mHandle, WM_COPYDATA, 0, (LPARAM)&cds );
         return NS_OK;
     }
 
     // Window proc.
-    static long CALLBACK WindowProc( HWND msgWindow, UINT msg, WPARAM wp, LPARAM lp ) {
+    static LRESULT CALLBACK WindowProc( HWND msgWindow, UINT msg, WPARAM wp, LPARAM lp ) {
         if ( msg == WM_COPYDATA ) {
             if (!nsNativeAppSupportWin::mCanHandleRequests)
                 return FALSE;
@@ -941,8 +954,8 @@ nsNativeAppSupportWin::HandleDDENotification( UINT uType,       // transaction t
                                               HSZ hsz1,         // handle to a string
                                               HSZ hsz2,         // handle to a string
                                               HDDEDATA hdata,   // handle to a global memory object
-                                              ULONG dwData1,    // transaction-specific data
-                                              ULONG dwData2 ) { // transaction-specific data
+                                              ULONG_PTR dwData1,    // transaction-specific data
+                                              ULONG_PTR dwData2 ) { // transaction-specific data
 
     if (!mCanHandleRequests)
         return 0;

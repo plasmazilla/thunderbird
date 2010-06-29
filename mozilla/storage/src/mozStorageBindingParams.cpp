@@ -70,53 +70,58 @@ struct BindingColumnData
 } // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
-//// sqlite3_stmt Specialization Functions (varaintToSQLite3T)
+//// Variant Specialization Functions (variantToSQLiteT)
 
-template < >
-int
+static int
 sqlite3_T_int(BindingColumnData aData,
               int aValue)
 {
   return ::sqlite3_bind_int(aData.stmt, aData.column + 1, aValue);
 }
 
-template < >
-int
+static int
 sqlite3_T_int64(BindingColumnData aData,
                 sqlite3_int64 aValue)
 {
   return ::sqlite3_bind_int64(aData.stmt, aData.column + 1, aValue);
 }
 
-template < >
-int
+static int
 sqlite3_T_double(BindingColumnData aData,
                  double aValue)
 {
   return ::sqlite3_bind_double(aData.stmt, aData.column + 1, aValue);
 }
 
-template < >
-int
+static int
+sqlite3_T_text(BindingColumnData aData,
+               const nsCString& aValue)
+{
+  return ::sqlite3_bind_text(aData.stmt,
+                             aData.column + 1,
+                             aValue.get(),
+                             aValue.Length(),
+                             SQLITE_TRANSIENT);
+}
+
+static int
 sqlite3_T_text16(BindingColumnData aData,
-                 nsString aValue)
+                 const nsString& aValue)
 {
   return ::sqlite3_bind_text16(aData.stmt,
                                aData.column + 1,
-                               PromiseFlatString(aValue).get(),
+                               aValue.get(),
                                aValue.Length() * 2, // Length in bytes!
                                SQLITE_TRANSIENT);
 }
 
-template < >
-int
+static int
 sqlite3_T_null(BindingColumnData aData)
 {
   return ::sqlite3_bind_null(aData.stmt, aData.column + 1);
 }
 
-template < >
-int
+static int
 sqlite3_T_blob(BindingColumnData aData,
                const void *aBlob,
                int aSize)
@@ -125,6 +130,8 @@ sqlite3_T_blob(BindingColumnData aData,
                              NS_Free);
 
 }
+
+#include "variantToSQLiteT_impl.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 //// BindingParams
@@ -135,20 +142,8 @@ BindingParams::BindingParams(BindingParamsArray *aOwningArray,
 , mOwningStatement(aOwningStatement)
 , mLocked(false)
 {
-  // We only want to get the number of parameters if it will not cause us to
-  // attempt to acquire the sqlite mutex.  Also, since creation of the
-  // statement can fail, it is not appropriate to trigger that here in a
-  // constructor that cannot fail.
-  if (mOwningStatement->syncStatementAvailable()) {
-    PRUint32 paramCount;
-    (void)mOwningStatement->GetParameterCount(&paramCount);
-    mParamCount = paramCount;
-    (void)mParameters.SetCapacity(mParamCount);
-  }
-  else {
-    // Indicate that we just don't know how many parameters there are.
-    mParamCount = -1;
-  }
+  (void)mOwningStatement->GetParameterCount(&mParamCount);
+  (void)mParameters.SetCapacity(mParamCount);
 }
 
 void
@@ -302,8 +297,7 @@ BindingParams::BindByIndex(PRUint32 aIndex,
                            nsIVariant *aValue)
 {
   NS_ENSURE_FALSE(mLocked, NS_ERROR_UNEXPECTED);
-  NS_ENSURE_TRUE(mParamCount == -1 || aIndex < mParamCount,
-                 NS_ERROR_INVALID_ARG);
+  ENSURE_INDEX_VALUE(aIndex, mParamCount);
 
   // Store the variant for later use.
   NS_ENSURE_TRUE(mParameters.ReplaceObjectAt(aValue, aIndex),

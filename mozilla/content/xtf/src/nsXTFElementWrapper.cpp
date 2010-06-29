@@ -63,6 +63,7 @@
 #include "nsIXPConnect.h"
 #include "nsXTFWeakTearoff.h"
 #include "mozAutoDocUpdate.h"
+#include "nsFocusManager.h"
 
 nsXTFElementWrapper::nsXTFElementWrapper(nsINodeInfo* aNodeInfo,
                                          nsIXTFElement* aXTFElement)
@@ -264,12 +265,13 @@ nsXTFElementWrapper::InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
 }
 
 nsresult
-nsXTFElementWrapper::RemoveChildAt(PRUint32 aIndex, PRBool aNotify)
+nsXTFElementWrapper::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent)
 {
+  NS_ASSERTION(aMutationEvent, "Someone tried to inhibit mutations on xtf child removal.");
   nsresult rv;
   if (mNotificationMask & nsIXTFElement::NOTIFY_WILL_REMOVE_CHILD)
     GetXTFElement()->WillRemoveChild(aIndex);
-  rv = nsXTFElementWrapperBase::RemoveChildAt(aIndex, aNotify);
+  rv = nsXTFElementWrapperBase::RemoveChildAt(aIndex, aNotify, aMutationEvent);
   if (mNotificationMask & nsIXTFElement::NOTIFY_CHILD_REMOVED)
     GetXTFElement()->ChildRemoved(aIndex);
   return rv;
@@ -553,22 +555,9 @@ nsXTFElementWrapper::PerformAccesskey(PRBool aKeyCausesActivation,
                                       PRBool aIsTrustedEvent)
 {
   if (mNotificationMask & nsIXTFElement::NOTIFY_PERFORM_ACCESSKEY) {
-    nsIDocument* doc = GetCurrentDoc();
-    if (!doc)
-      return;
-
-    // Get presentation shell 0
-    nsIPresShell *presShell = doc->GetPrimaryShell();
-    if (!presShell)
-      return;
-
-    nsPresContext *presContext = presShell->GetPresContext();
-    if (!presContext)
-      return;
-
-    nsIEventStateManager *esm = presContext->EventStateManager();
-    if (esm)
-      esm->ChangeFocusWith(this, nsIEventStateManager::eEventFocusedByKey);
+    nsIFocusManager* fm = nsFocusManager::GetFocusManager();
+    if (fm)
+      fm->SetFocus(this, nsIFocusManager::FLAG_BYKEY);
 
     if (aKeyCausesActivation)
       GetXTFElement()->PerformAccesskey();

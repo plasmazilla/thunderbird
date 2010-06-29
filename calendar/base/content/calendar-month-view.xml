@@ -71,8 +71,8 @@
                 <xul:hbox class="calendar-event-details">
                   <xul:vbox pack="center">
                     <xul:image anonid="item-icon"
-                               class="calendar-month-day-box-item-image"
-                               xbl:inherits="progress,allday"/>
+                               class="calendar-item-image"
+                               xbl:inherits="progress,allday,itemType"/>
                   </xul:vbox>
                   <xul:label anonid="item-label"
                              class="calendar-month-day-box-item-label"
@@ -118,9 +118,7 @@
         <setter><![CDATA[
           ASSERT(!this.mOccurrence, "Code changes needed to set the occurrence twice", true);
           this.mOccurrence = val;
-          let icon = document.getAnonymousElementByAttribute(this, "anonid", "item-icon");
-          if (isEvent(val)) {
-            icon.setAttribute("type", "event");
+          if (cal.isEvent(val)) {
             if (!val.startDate.isDate) {
               var label = document.getAnonymousElementByAttribute(this,"anonid","item-label");
               var df = Components.classes["@mozilla.org/calendar/datetime-formatter;1"].
@@ -150,8 +148,6 @@
               }
               label.setAttribute("time", "true");
             }
-          } else if (isToDo(val)) {
-            icon.setAttribute("type", "todo");
           }
 
           this.setEditableLabel();
@@ -159,9 +155,6 @@
           return val;
         ]]></setter>
       </property>
-      <property name="parentBox"
-                onget="return this.mParentBox;"
-                onset="this.mParentBox = val;"/>
     </implementation>
   </binding>
 
@@ -236,22 +229,31 @@
       <method name="setDate">
         <parameter name="aDate"/>
         <body><![CDATA[
-          if (!aDate)
+          if (!aDate) {
             throw Components.results.NS_ERROR_NULL_POINTER;
+          }
 
           // Remove all the old events
           this.mItemData = new Array();
-          while(this.hasChildNodes()) {
+          while (this.hasChildNodes()) {
               this.removeChild(this.lastChild);
           }
 
-          if (this.mDate && this.mDate.compare(aDate) == 0)
+          if (this.mDate && this.mDate.compare(aDate) == 0) {
             return;
+          }
 
           this.mDate = aDate;
 
-         if (this.mShowMonthLabel) {
-             var monthName = calGetString("dateFormat", "month." + (aDate.month+1) + ".Mmm");
+          // Set up DOM attributes for custom CSS coloring.
+          let weekTitle = cal.getWeekInfoService().getWeekTitle(aDate);
+          this.setAttribute("year", aDate.year);
+          this.setAttribute("month", aDate.month + 1);
+          this.setAttribute("week", weekTitle);
+          this.setAttribute("day", aDate.day);
+
+          if (this.mShowMonthLabel) {
+             let monthName = calGetString("dateFormat", "month." + (aDate.month+1) + ".Mmm");
              this.setAttribute("value", aDate.day + " " + monthName);
           } else {
              this.setAttribute("value", aDate.day);
@@ -536,6 +538,8 @@
       <field name="mShowDaysOutsideMonth">true</field>
       <field name="mShowFullMonth">true</field>
 
+      <field name="mClickedTime">null</field>
+
       <!-- other methods -->
       <method name="setAttribute">
         <parameter name="aAttr"/>
@@ -690,6 +694,15 @@
           }
           this.fireEvent("dayselect", realVal);
           return val;
+        ]]></setter>
+      </property>
+
+      <property name="selectedDateTime">
+        <getter><![CDATA[
+            return getDefaultStartDate(this.selectedDay);
+        ]]></getter>
+        <setter><![CDATA[
+            this.mClickedTime = val;
         ]]></setter>
       </property>
 

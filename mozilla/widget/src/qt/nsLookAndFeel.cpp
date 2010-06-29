@@ -142,6 +142,10 @@ nsresult nsLookAndFeel::NativeGetColor(const nsColorID aID,nscolor &aColor)
       aColor = NS_TRANSPARENT;
       break;
 
+    case eColor_SpellCheckerUnderline:
+      aColor = NS_RGB(0xff, 0, 0);
+      break;
+
     case eColor_activeborder:
       aColor = QCOLOR_TO_NS_RGB(palette.color(QPalette::Normal, QPalette::Window));
       break;
@@ -207,6 +211,7 @@ nsresult nsLookAndFeel::NativeGetColor(const nsColorID aID,nscolor &aColor)
       break;
 
     case eColor_menutext:
+    case eColor__moz_menubartext:
       aColor = QCOLOR_TO_NS_RGB(palette.color(QPalette::Normal, QPalette::Text));
       break;
 
@@ -258,10 +263,12 @@ nsresult nsLookAndFeel::NativeGetColor(const nsColorID aID,nscolor &aColor)
       break;
 
     case eColor__moz_field:
+    case eColor__moz_combobox:
       aColor = QCOLOR_TO_NS_RGB(palette.color(QPalette::Normal, QPalette::Base));
       break;
 
     case eColor__moz_fieldtext:
+    case eColor__moz_comboboxtext:
       aColor = QCOLOR_TO_NS_RGB(palette.color(QPalette::Normal, QPalette::Text));
       break;
 
@@ -321,7 +328,6 @@ static const char *metricToString[] = {
     "eMetric_SubmenuDelay",
     "eMetric_MenusCanOverlapOSBar",
     "eMetric_SkipNavigatingDisabledMenuItem",
-    "eMetric_DragFullWindow",
     "eMetric_DragThresholdX",
     "eMetric_DragThresholdY",
     "eMetric_UseAccessibilityTheme",
@@ -462,10 +468,6 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID,PRInt32 &aMetric)
       aMetric = 1;
       break;
 
-    case eMetric_DragFullWindow:
-      aMetric = 1;
-      break;
-
     case eMetric_ScrollArrowStyle:
       aMetric = eMetric_ScrollArrowStyleSingle;
       break;
@@ -475,8 +477,14 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID,PRInt32 &aMetric)
       break;
 
     case eMetric_WindowsDefaultTheme:
+    case eMetric_TouchEnabled:
+    case eMetric_MaemoClassic:
       aMetric = 0;
       res = NS_ERROR_NOT_IMPLEMENTED;
+      break;
+
+    case eMetric_SpellCheckerUnderlineStyle:
+      aMetric = NS_UNDERLINE_STYLE_WAVY;
       break;
 
     default:
@@ -546,6 +554,10 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricFloatID aID,
       break;
 
     case eMetricFloat_IMEUnderlineRelativeSize:
+      aMetric = 1.0f;
+      break;
+
+    case eMetricFloat_SpellCheckerUnderlineRelativeSize:
       aMetric = 1.0f;
       break;
 

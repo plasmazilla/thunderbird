@@ -42,9 +42,6 @@
 
 #include "nsIFileStreams.h"       // New Necko file streams
 
-#ifdef XP_MAC
-#include "nsILocalFileMac.h"
-#endif
 #ifdef XP_OS2
 #include "nsILocalFileOS2.h"
 #endif
@@ -55,6 +52,7 @@
 #include "nsIStorageStream.h"
 #include "nsISeekableStream.h"
 #include "nsIHttpChannel.h"
+#include "nsIHttpChannelInternal.h"
 #include "nsIEncodedChannel.h"
 #include "nsIUploadChannel.h"
 #include "nsICachingChannel.h"
@@ -621,7 +619,7 @@ nsWebBrowserPersist::SerializeNextFile()
 
     return (mURIMap.Count() 
         || mUploadList.Count()
-        || mDocList.Count()
+        || mDocList.Length()
         || mOutputMap.Count());
 }
 
@@ -775,7 +773,7 @@ NS_IMETHODIMP nsWebBrowserPersist::OnStopRequest(
     {
         // if no documents left in mDocList, --> done
         // if we have no files left to serialize and no error result, --> done
-        if (mDocList.Count() == 0
+        if (mDocList.Length() == 0
             || (!SerializeNextFile() && NS_SUCCEEDED(mPersistResult)))
         {
             completed = PR_TRUE;
@@ -988,8 +986,8 @@ NS_IMETHODIMP nsWebBrowserPersist::OnProgress(
     else
     {
       // have to truncate 64-bit to 32bit
-      mProgressListener->OnProgressChange(nsnull, request, nsUint64(aProgress),
-              nsUint64(aProgressMax), mTotalCurrentProgress, mTotalMaxProgress);
+      mProgressListener->OnProgressChange(nsnull, request, PRUint64(aProgress),
+              PRUint64(aProgressMax), mTotalCurrentProgress, mTotalMaxProgress);
     }
 
     // If our progress listener implements nsIProgressEventSink,
@@ -1218,21 +1216,23 @@ nsresult nsWebBrowserPersist::SaveURIInternal(
     if (aCacheKey)
     {
         // Test if the cache key is actually a web page descriptor (docshell)
-        nsCOMPtr<nsIWebPageDescriptor> webPageDescriptor = do_QueryInterface(aCacheKey);
-        if (webPageDescriptor)
+        // or session history entry.
+        nsCOMPtr<nsISHEntry> shEntry = do_QueryInterface(aCacheKey);
+        if (!shEntry)
         {
-            nsCOMPtr<nsISupports> currentDescriptor;
-            webPageDescriptor->GetCurrentDescriptor(getter_AddRefs(currentDescriptor));
-            if (currentDescriptor)
+            nsCOMPtr<nsIWebPageDescriptor> webPageDescriptor =
+                do_QueryInterface(aCacheKey);
+            if (webPageDescriptor)
             {
-                // Descriptor is actually a session history entry
-                nsCOMPtr<nsISHEntry> shEntry = do_QueryInterface(currentDescriptor);
-                NS_ASSERTION(shEntry, "The descriptor is meant to be a session history entry");
-                if (shEntry)
-                {
-                    shEntry->GetCacheKey(getter_AddRefs(cacheKey));
-                }
+                nsCOMPtr<nsISupports> currentDescriptor;
+                webPageDescriptor->GetCurrentDescriptor(getter_AddRefs(currentDescriptor));
+                shEntry = do_QueryInterface(currentDescriptor);
             }
+        }
+
+        if (shEntry)
+        {
+            shEntry->GetCacheKey(getter_AddRefs(cacheKey));
         }
         else
         {
@@ -1261,6 +1261,14 @@ nsresult nsWebBrowserPersist::SaveURIInternal(
         {
             encodedChannel->SetApplyConversion(PR_FALSE);
         }
+    }
+
+    if (mPersistFlags & PERSIST_FLAGS_FORCE_ALLOW_COOKIES) 
+    {
+        nsCOMPtr<nsIHttpChannelInternal> httpChannelInternal =
+                do_QueryInterface(inputChannel);
+        if (httpChannelInternal)
+            httpChannelInternal->SetForceAllowThirdPartyCookie(PR_TRUE);
     }
 
     // Set the referrer, post data and headers if any
@@ -1723,10 +1731,10 @@ nsresult nsWebBrowserPersist::SaveDocuments()
     // Iterate through all queued documents, saving them to file and fixing
     // them up on the way.
 
-    PRInt32 i;
-    for (i = 0; i < mDocList.Count(); i++)
+    PRUint32 i;
+    for (i = 0; i < mDocList.Length(); i++)
     {
-        DocData *docData = (DocData *) mDocList.ElementAt(i);
+        DocData *docData = mDocList.ElementAt(i);
         if (!docData)
         {
             rv = NS_ERROR_FAILURE;
@@ -1771,9 +1779,9 @@ nsresult nsWebBrowserPersist::SaveDocuments()
     }
 
     // delete, cleanup regardless of errors (bug 132417)
-    for (i = 0; i < mDocList.Count(); i++)
+    for (i = 0; i < mDocList.Length(); i++)
     {
-        DocData *docData = (DocData *) mDocList.ElementAt(i);
+        DocData *docData = mDocList.ElementAt(i);
         delete docData;
         if (mSerializingOutput)
         {
@@ -1798,16 +1806,16 @@ void nsWebBrowserPersist::Cleanup()
     mOutputMap.Reset();
     mUploadList.Enumerate(EnumCleanupUploadList, this);
     mUploadList.Reset();
-    PRInt32 i;
-    for (i = 0; i < mDocList.Count(); i++)
+    PRUint32 i;
+    for (i = 0; i < mDocList.Length(); i++)
     {
-        DocData *docData = (DocData *) mDocList.ElementAt(i);
+        DocData *docData = mDocList.ElementAt(i);
         delete docData;
     }
     mDocList.Clear();
-    for (i = 0; i < mCleanupList.Count(); i++)
+    for (i = 0; i < mCleanupList.Length(); i++)
     {
-        CleanupData *cleanupData = (CleanupData *) mCleanupList.ElementAt(i);
+        CleanupData *cleanupData = mCleanupList.ElementAt(i);
         delete cleanupData;
     }
     mCleanupList.Clear();
@@ -1823,10 +1831,10 @@ void nsWebBrowserPersist::CleanupLocalFiles()
     int pass;
     for (pass = 0; pass < 2; pass++)
     {
-        PRInt32 i;
-        for (i = 0; i < mCleanupList.Count(); i++)
+        PRUint32 i;
+        for (i = 0; i < mCleanupList.Length(); i++)
         {
-            CleanupData *cleanupData = (CleanupData *) mCleanupList.ElementAt(i);
+            CleanupData *cleanupData = mCleanupList.ElementAt(i);
             nsCOMPtr<nsILocalFile> file = cleanupData->mFile;
 
             // Test if the dir / file exists (something in an earlier loop
@@ -1858,21 +1866,20 @@ void nsWebBrowserPersist::CleanupLocalFiles()
                 // recursed through to ensure they are actually empty.
 
                 PRBool isEmptyDirectory = PR_TRUE;
-                nsSupportsArray dirStack;
-                PRUint32 stackSize = 0;
+                nsCOMArray<nsISimpleEnumerator> dirStack;
+                PRInt32 stackSize = 0;
 
                 // Push the top level enum onto the stack
                 nsCOMPtr<nsISimpleEnumerator> pos;
                 if (NS_SUCCEEDED(file->GetDirectoryEntries(getter_AddRefs(pos))))
-                    dirStack.AppendElement(pos);
+                    dirStack.AppendObject(pos);
 
-                while (isEmptyDirectory &&
-                    NS_SUCCEEDED(dirStack.Count(&stackSize)) && stackSize > 0)
+                while (isEmptyDirectory && (stackSize = dirStack.Count()))
                 {
                     // Pop the last element
                     nsCOMPtr<nsISimpleEnumerator> curPos;
-                    dirStack.GetElementAt(stackSize - 1, getter_AddRefs(curPos));
-                    dirStack.RemoveElementAt(stackSize - 1);
+                    curPos = dirStack[stackSize-1];
+                    dirStack.RemoveObjectAt(stackSize - 1);
                     
                     // Test if the enumerator has any more files in it
                     PRBool hasMoreElements = PR_FALSE;
@@ -1906,9 +1913,9 @@ void nsWebBrowserPersist::CleanupLocalFiles()
                     // Push parent enumerator followed by child enumerator
                     nsCOMPtr<nsISimpleEnumerator> childPos;
                     childAsFile->GetDirectoryEntries(getter_AddRefs(childPos));
-                    dirStack.AppendElement(curPos);
+                    dirStack.AppendObject(curPos);
                     if (childPos)
-                        dirStack.AppendElement(childPos);
+                        dirStack.AppendObject(childPos);
 
                 }
                 dirStack.Clear();
@@ -1995,7 +2002,7 @@ nsWebBrowserPersist::CalculateUniqueFilename(nsIURI *aURI)
     // Create a filename if it's empty, or if the filename / datapath is
     // already taken by another URI and create an alternate name.
 
-    if (base.IsEmpty() || mFilenameList.Count() > 0)
+    if (base.IsEmpty() || !mFilenameList.IsEmpty())
     {
         nsCAutoString tmpPath;
         nsCAutoString tmpBase;
@@ -2031,7 +2038,7 @@ nsWebBrowserPersist::CalculateUniqueFilename(nsIURI *aURI)
             tmpPath.Append(ext);
 
             // Test if the name is a duplicate
-            if (mFilenameList.IndexOf(tmpPath) < 0)
+            if (!mFilenameList.Contains(tmpPath))
             {
                 if (!base.Equals(tmpBase))
                 {
@@ -2048,7 +2055,7 @@ nsWebBrowserPersist::CalculateUniqueFilename(nsIURI *aURI)
     // Add name to list of those already used
     nsCAutoString newFilepath(directory);
     newFilepath.Append(filename);
-    mFilenameList.AppendCString(newFilepath);
+    mFilenameList.AppendElement(newFilepath);
 
     // Update the uri accordingly if the filename actually changed
     if (nameHasChanged)
@@ -2245,15 +2252,6 @@ nsWebBrowserPersist::CalculateAndAppendFileExt(nsIURI *aURI, nsIChannel *aChanne
             }
 
         }
-
-#ifdef  XP_MAC
-        // Set appropriate Mac file type/creator for this mime type
-        nsCOMPtr<nsILocalFileMac> macFile(do_QueryInterface(localFile));
-        if (macFile)
-        {
-            macFile->SetFileTypeAndCreatorFromMIMEType(contentType.get());
-        }
-#endif            
     }
 
     return NS_OK;
@@ -3834,11 +3832,17 @@ nsWebBrowserPersist::MakeAndStoreLocalFilenameInURIMap(
 
     // Create a sensibly named filename for the URI and store in the URI map
     nsCStringKey key(spec.get());
+    URIData *data;
     if (mURIMap.Exists(&key))
     {
+        data = (URIData *) mURIMap.Get(&key);
+        if (aNeedsPersisting)
+        {
+          data->mNeedsPersisting = PR_TRUE;
+        }
         if (aData)
         {
-            *aData = (URIData *) mURIMap.Get(&key);
+            *aData = data;
         }
         return NS_OK;
     }
@@ -3849,7 +3853,7 @@ nsWebBrowserPersist::MakeAndStoreLocalFilenameInURIMap(
     NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
 
     // Store the file name
-    URIData *data = new URIData;
+    data = new URIData;
     NS_ENSURE_TRUE(data, NS_ERROR_OUT_OF_MEMORY);
 
     data->mNeedsPersisting = aNeedsPersisting;
@@ -3904,7 +3908,7 @@ static PRBool IsSpecialXHTMLTag(nsIDOMNode *aNode)
         return PR_FALSE;
 
     aNode->GetLocalName(tmp);
-    for (PRInt32 i = 0; i < NS_ARRAY_LENGTH(kSpecialXHTMLTags); i++) {
+    for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(kSpecialXHTMLTags); i++) {
         if (tmp.EqualsASCII(kSpecialXHTMLTags[i]))
         {
             // XXX This element MAY have URI attributes, but

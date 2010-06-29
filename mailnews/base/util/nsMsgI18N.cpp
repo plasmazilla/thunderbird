@@ -59,6 +59,8 @@
 #include "nsUTF8Utils.h"
 #include "nsNetUtil.h"
 #include "nsCRTGlue.h"
+#include "nsComponentManagerUtils.h"
+#include "nsUnicharUtils.h"
 //
 // International functions necessary for composition
 //
@@ -544,12 +546,13 @@ nsresult nsMsgI18NShrinkUTF8Str(const nsCString &inString,
   const char* last = start + aMaxLength;
   const char* cur = start;
   const char* prev = nsnull;
+  PRBool err = PR_FALSE;
   while (cur < last) {
     prev = cur;
-    if (!UTF8CharEnumerator::NextChar(&cur, end))
+    if (!UTF8CharEnumerator::NextChar(&cur, end, &err) || err)
       break;
   }
-  if (!prev) {
+  if (!prev || err) {
     outString.Truncate();
     return NS_OK;
   }
@@ -562,7 +565,7 @@ void nsMsgI18NConvertRawBytesToUTF16(const nsCString& inString,
                                      const char* charset,
                                      nsAString& outString)
 {
-  if (IsUTF8(inString))
+  if (MsgIsUTF8(inString))
   {
     CopyUTF8toUTF16(inString, outString);
     return;
@@ -588,7 +591,7 @@ void nsMsgI18NConvertRawBytesToUTF8(const nsCString& inString,
                                     const char* charset,
                                     nsACString& outString)
 {
-  if (IsUTF8(inString))
+  if (MsgIsUTF8(inString))
   {
     outString.Assign(inString);
     return;

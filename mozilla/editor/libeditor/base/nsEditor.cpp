@@ -65,7 +65,6 @@
 #include "nsIDOMFocusListener.h"
 #include "nsIDOMTextListener.h"
 #include "nsIDOMCompositionListener.h"
-#include "nsIDOMDragListener.h"
 #include "nsIDOMHTMLBRElement.h"
 #include "nsIDocument.h"
 #include "nsITransactionManager.h"
@@ -90,7 +89,6 @@
 #include "nsServiceManagerUtils.h"
 
 // transactions the editor knows how to build
-#include "TransactionFactory.h"
 #include "EditAggregateTxn.h"
 #include "PlaceholderTxn.h"
 #include "ChangeAttributeTxn.h"
@@ -336,8 +334,7 @@ nsEditor::InstallEventListeners()
   // register the event listeners with the listener manager
   nsCOMPtr<nsIDOMEventGroup> sysGroup;
   piTarget->GetSystemEventGroup(getter_AddRefs(sysGroup));
-  nsCOMPtr<nsIEventListenerManager> elmP;
-  piTarget->GetListenerManager(PR_TRUE, getter_AddRefs(elmP));
+  nsIEventListenerManager* elmP = piTarget->GetListenerManager(PR_TRUE);
 
   if (sysGroup && elmP)
   {
@@ -400,8 +397,8 @@ nsEditor::RemoveEventListeners()
   if (piTarget)
   {
     // unregister the event listeners with the DOM event target
-    nsCOMPtr<nsIEventListenerManager> elmP;
-    piTarget->GetListenerManager(PR_TRUE, getter_AddRefs(elmP));
+    nsCOMPtr<nsIEventListenerManager> elmP =
+      piTarget->GetListenerManager(PR_TRUE);
     if (mKeyListenerP)
     {
       nsCOMPtr<nsIDOMEventGroup> sysGroup;
@@ -669,11 +666,8 @@ nsEditor::DoTransaction(nsITransaction *aTxn)
     // this transaction goes through here.  I bet this is a record.
     
     // We start off with an EditTxn since that's what the factory returns.
-    nsRefPtr<EditTxn> editTxn;
-    result = TransactionFactory::GetNewTransaction(PlaceholderTxn::GetCID(),
-                                                   getter_AddRefs(editTxn));
-    if (NS_FAILED(result)) { return result; }
-    if (!editTxn) { return NS_ERROR_NULL_POINTER; }
+    nsRefPtr<EditTxn> editTxn = new PlaceholderTxn();
+    if (!editTxn) { return NS_ERROR_OUT_OF_MEMORY; }
 
     // Then we QI to an nsIAbsorbingTransaction to get at placeholder functionality
     nsCOMPtr<nsIAbsorbingTransaction> plcTxn;
@@ -985,7 +979,7 @@ nsEditor::EndPlaceHolderTransaction()
   if (mPlaceHolderBatch == 1)
   {
     nsCOMPtr<nsISelection>selection;
-    nsresult rv = GetSelection(getter_AddRefs(selection));
+    GetSelection(getter_AddRefs(selection));
 
     nsCOMPtr<nsISelectionPrivate>selPrivate(do_QueryInterface(selection));
 
@@ -2044,18 +2038,22 @@ nsEditor::QueryComposition(nsTextEventReply* aReply)
       // XXX_kin: END HACK! HACK! HACK!
 
       nsIView *view = nsnull;
+      nsRect rect;
       result =
         caretP->GetCaretCoordinates(nsCaret::eRenderingViewCoordinates,
                                     selection,
-                                    &(aReply->mCursorPosition),
+                                    &rect,
                                     &(aReply->mCursorIsCollapsed),
                                     &view);
+      aReply->mCursorPosition =
+        rect.ToOutsidePixels(ps->GetPresContext()->AppUnitsPerDevPixel());
       if (NS_SUCCEEDED(result) && view)
         aReply->mReferenceWidget = view->GetWidget();
     }
   }
   return result;
 }
+
 NS_IMETHODIMP
 nsEditor::BeginComposition(nsTextEventReply* aReply)
 {
@@ -2775,14 +2773,16 @@ nsEditor::NotifyDocumentListeners(TDocumentListenerNotification aNotificationTyp
   if (!numListeners)
     return NS_OK;    // maybe there just aren't any.
  
+  nsCOMArray<nsIDocumentStateListener> listeners(mDocStateListeners);
   nsresult rv = NS_OK;
   PRInt32 i;
+
   switch (aNotificationType)
   {
     case eDocumentCreated:
       for (i = 0; i < numListeners;i++)
       {
-        rv = mDocStateListeners[i]->NotifyDocumentCreated();
+        rv = listeners[i]->NotifyDocumentCreated();
         if (NS_FAILED(rv))
           break;
       }
@@ -2791,7 +2791,7 @@ nsEditor::NotifyDocumentListeners(TDocumentListenerNotification aNotificationTyp
     case eDocumentToBeDestroyed:
       for (i = 0; i < numListeners;i++)
       {
-        rv = mDocStateListeners[i]->NotifyDocumentWillBeDestroyed();
+        rv = listeners[i]->NotifyDocumentWillBeDestroyed();
         if (NS_FAILED(rv))
           break;
       }
@@ -2810,7 +2810,7 @@ nsEditor::NotifyDocumentListeners(TDocumentListenerNotification aNotificationTyp
         
         for (i = 0; i < numListeners;i++)
         {
-          rv = mDocStateListeners[i]->NotifyDocumentStateChanged(mDocDirtyState);
+          rv = listeners[i]->NotifyDocumentStateChanged(mDocDirtyState);
           if (NS_FAILED(rv))
             break;
         }
@@ -2833,9 +2833,9 @@ NS_IMETHODIMP nsEditor::CreateTxnForInsertText(const nsAString & aStringToInsert
   if (!aTextNode || !aTxn) return NS_ERROR_NULL_POINTER;
   nsresult result;
 
-  result = TransactionFactory::GetNewTransaction(InsertTextTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_FAILED(result)) return result;
+  *aTxn = new InsertTextTxn();
   if (!*aTxn) return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
   result = (*aTxn)->Init(aTextNode, aOffset, aStringToInsert, this);
   return result;
 }
@@ -2874,11 +2874,11 @@ NS_IMETHODIMP nsEditor::CreateTxnForDeleteText(nsIDOMCharacterData *aElement,
   if (!aElement)
     return NS_ERROR_NULL_POINTER;
 
-  nsresult result = TransactionFactory::GetNewTransaction(DeleteTextTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_SUCCEEDED(result))  {
-    result = (*aTxn)->Init(this, aElement, aOffset, aLength, &mRangeUpdater);
-  }
-  return result;
+  *aTxn = new DeleteTextTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+  return (*aTxn)->Init(this, aElement, aOffset, aLength, &mRangeUpdater);
 }
 
 
@@ -2891,9 +2891,10 @@ NS_IMETHODIMP nsEditor::CreateTxnForSplitNode(nsIDOMNode *aNode,
   if (!aNode)
     return NS_ERROR_NULL_POINTER;
 
-  nsresult result = TransactionFactory::GetNewTransaction(SplitElementTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_FAILED(result))
-    return result;
+  *aTxn = new SplitElementTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
 
   return (*aTxn)->Init(this, aNode, aOffset);
 }
@@ -2905,11 +2906,12 @@ NS_IMETHODIMP nsEditor::CreateTxnForJoinNode(nsIDOMNode  *aLeftNode,
   if (!aLeftNode || !aRightNode)
     return NS_ERROR_NULL_POINTER;
 
-  nsresult result = TransactionFactory::GetNewTransaction(JoinElementTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_SUCCEEDED(result))  {
-    result = (*aTxn)->Init(this, aLeftNode, aRightNode);
-  }
-  return result;
+  *aTxn = new JoinElementTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+
+  return (*aTxn)->Init(this, aLeftNode, aRightNode);
 }
 
 
@@ -3007,6 +3009,10 @@ nsEditor::SplitNodeImpl(nsIDOMNode * aExistingRightNode,
           }        
         }
         // handle selection
+        nsCOMPtr<nsIPresShell> ps = do_QueryReferent(mPresShellWeak);
+        if (ps)
+          ps->FlushPendingNotifications(Flush_Frames);
+
         if (GetShouldTxnSetSelection())
         {
           // editor wants us to set selection at split point
@@ -4686,15 +4692,14 @@ nsEditor::CreateTxnForSetAttribute(nsIDOMElement *aElement,
                                    const nsAString& aValue,
                                    ChangeAttributeTxn ** aTxn)
 {
-  nsresult result = NS_ERROR_NULL_POINTER;
-  if (nsnull != aElement)
-  {
-    result = TransactionFactory::GetNewTransaction(ChangeAttributeTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_SUCCEEDED(result))  {
-      result = (*aTxn)->Init(this, aElement, aAttribute, aValue, PR_FALSE);
-    }
-  }
-  return result;
+  if (!aElement)
+    return NS_ERROR_NULL_POINTER;
+
+  *aTxn = new ChangeAttributeTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+  return (*aTxn)->Init(this, aElement, aAttribute, aValue, PR_FALSE);
 }
 
 
@@ -4703,17 +4708,15 @@ nsEditor::CreateTxnForRemoveAttribute(nsIDOMElement *aElement,
                                       const nsAString& aAttribute,
                                       ChangeAttributeTxn ** aTxn)
 {
-  nsresult result = NS_ERROR_NULL_POINTER;
-  if (nsnull != aElement)
-  {
-    result = TransactionFactory::GetNewTransaction(ChangeAttributeTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_SUCCEEDED(result))  
-    {
-      nsAutoString value;
-      result = (*aTxn)->Init(this, aElement, aAttribute, value, PR_TRUE);
-    }
-  }
-  return result;
+  if (!aElement)
+    return NS_ERROR_NULL_POINTER;
+
+  *aTxn = new ChangeAttributeTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+
+  return (*aTxn)->Init(this, aElement, aAttribute, EmptyString(), PR_TRUE);
 }
 
 
@@ -4722,15 +4725,15 @@ NS_IMETHODIMP nsEditor::CreateTxnForCreateElement(const nsAString& aTag,
                                                   PRInt32         aPosition,
                                                   CreateElementTxn ** aTxn)
 {
-  nsresult result = NS_ERROR_NULL_POINTER;
-  if (nsnull != aParent)
-  {
-    result = TransactionFactory::GetNewTransaction(CreateElementTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_SUCCEEDED(result))  {
-      result = (*aTxn)->Init(this, aTag, aParent, aPosition);
-    }
-  }
-  return result;
+  if (!aParent)
+    return NS_ERROR_NULL_POINTER;
+
+  *aTxn = new CreateElementTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+
+  return (*aTxn)->Init(this, aTag, aParent, aPosition);
 }
 
 
@@ -4739,29 +4742,29 @@ NS_IMETHODIMP nsEditor::CreateTxnForInsertElement(nsIDOMNode * aNode,
                                                   PRInt32      aPosition,
                                                   InsertElementTxn ** aTxn)
 {
-  nsresult result = NS_ERROR_NULL_POINTER;
-  if (aNode && aParent && aTxn)
-  {
-    result = TransactionFactory::GetNewTransaction(InsertElementTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_SUCCEEDED(result)) {
-      result = (*aTxn)->Init(aNode, aParent, aPosition, this);
-    }
-  }
-  return result;
+  if (!aNode || !aParent)
+    return NS_ERROR_NULL_POINTER;
+
+  *aTxn = new InsertElementTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+
+  return (*aTxn)->Init(aNode, aParent, aPosition, this);
 }
 
 NS_IMETHODIMP nsEditor::CreateTxnForDeleteElement(nsIDOMNode * aElement,
                                              DeleteElementTxn ** aTxn)
 {
-  nsresult result = NS_ERROR_NULL_POINTER;
-  if (nsnull != aElement)
-  {
-    result = TransactionFactory::GetNewTransaction(DeleteElementTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_SUCCEEDED(result)) {
-      result = (*aTxn)->Init(this, aElement, &mRangeUpdater);
-    }
-  }
-  return result;
+  if (!aElement)
+    return NS_ERROR_NULL_POINTER;
+
+  *aTxn = new DeleteElementTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
+
+  return (*aTxn)->Init(this, aElement, &mRangeUpdater);
 }
 
 NS_IMETHODIMP 
@@ -4769,30 +4772,24 @@ nsEditor::CreateTxnForIMEText(const nsAString& aStringToInsert,
                               IMETextTxn ** aTxn)
 {
   NS_ASSERTION(aTxn, "illegal value- null ptr- aTxn");
-  if(!aTxn) return NS_ERROR_NULL_POINTER;
      
-  nsresult  result;
+  *aTxn = new IMETextTxn();
+  if (!*aTxn)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
 
-  result = TransactionFactory::GetNewTransaction(IMETextTxn::GetCID(), (EditTxn **)aTxn);
-  if (nsnull!=*aTxn) {
-    result = (*aTxn)->Init(mIMETextNode,mIMETextOffset,mIMEBufferLength,mIMETextRangeList,aStringToInsert,mSelConWeak);
-  }
-  else {
-    result = NS_ERROR_OUT_OF_MEMORY;
-  }
-  return result;
+  return (*aTxn)->Init(mIMETextNode, mIMETextOffset, mIMEBufferLength,
+                       mIMETextRangeList, aStringToInsert, mSelConWeak);
 }
 
 
 NS_IMETHODIMP 
 nsEditor::CreateTxnForAddStyleSheet(nsICSSStyleSheet* aSheet, AddStyleSheetTxn* *aTxn)
 {
-  nsresult rv = TransactionFactory::GetNewTransaction(AddStyleSheetTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_FAILED(rv))
-    return rv;
-    
+  *aTxn = new AddStyleSheetTxn();
   if (! *aTxn)
     return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
 
   return (*aTxn)->Init(this, aSheet);
 }
@@ -4802,12 +4799,10 @@ nsEditor::CreateTxnForAddStyleSheet(nsICSSStyleSheet* aSheet, AddStyleSheetTxn* 
 NS_IMETHODIMP 
 nsEditor::CreateTxnForRemoveStyleSheet(nsICSSStyleSheet* aSheet, RemoveStyleSheetTxn* *aTxn)
 {
-  nsresult rv = TransactionFactory::GetNewTransaction(RemoveStyleSheetTxn::GetCID(), (EditTxn **)aTxn);
-  if (NS_FAILED(rv))
-    return rv;
-    
+  *aTxn = new RemoveStyleSheetTxn();
   if (! *aTxn)
     return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(*aTxn);
 
   return (*aTxn)->Init(this, aSheet);
 }
@@ -4838,10 +4833,11 @@ nsEditor::CreateTxnForDeleteSelection(nsIEditor::EDirection aAction,
       return NS_OK;
 
     // allocate the out-param transaction
-    result = TransactionFactory::GetNewTransaction(EditAggregateTxn::GetCID(), (EditTxn **)aTxn);
-    if (NS_FAILED(result)) {
-      return result;
+    *aTxn = new EditAggregateTxn();
+    if (!*aTxn) {
+      return NS_ERROR_OUT_OF_MEMORY;
     }
+    NS_ADDREF(*aTxn);
 
     nsCOMPtr<nsISelectionPrivate>selPrivate(do_QueryInterface(selection));
     nsCOMPtr<nsIEnumerator> enumerator;
@@ -4858,13 +4854,8 @@ nsEditor::CreateTxnForDeleteSelection(nsIEditor::EDirection aAction,
           range->GetCollapsed(&isCollapsed);
           if (!isCollapsed)
           {
-            nsRefPtr<EditTxn> editTxn;
-            result =
-              TransactionFactory::GetNewTransaction(DeleteRangeTxn::GetCID(),
-                                                    getter_AddRefs(editTxn));
-            nsRefPtr<DeleteRangeTxn> txn =
-              static_cast<DeleteRangeTxn*>(editTxn.get());
-            if (NS_SUCCEEDED(result) && txn)
+            nsRefPtr<DeleteRangeTxn> txn = new DeleteRangeTxn();
+            if (txn)
             {
               txn->Init(this, range, &mRangeUpdater);
               (*aTxn)->AppendChild(txn);
@@ -5200,12 +5191,6 @@ nsEditor::CreateHTMLContent(const nsAString& aTag, nsIContent** aContent)
   nsCOMPtr<nsIAtom> tag = do_GetAtom(aTag);
   if (!tag)
     return NS_ERROR_OUT_OF_MEMORY;
-
-  nsCOMPtr<nsIHTMLDocument> htmlDoc = do_QueryInterface(tempDoc);
-  if (htmlDoc) {
-      return doc->CreateElem(tag, nsnull, doc->GetDefaultNamespaceID(),
-                             PR_TRUE, aContent);
-  }
 
   return doc->CreateElem(tag, nsnull, kNameSpaceID_XHTML, PR_FALSE, aContent);
 }

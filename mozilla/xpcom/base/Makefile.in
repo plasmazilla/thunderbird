@@ -47,6 +47,7 @@ XPIDL_MODULE	= xpcom_base
 LIBRARY_NAME	= xpcombase_s
 GRE_MODULE	= 1
 MOZILLA_INTERNAL_API =1
+LIBXUL_LIBRARY = 1
 
 REQUIRES	= string \
 		  $(NULL)
@@ -81,7 +82,6 @@ endif
 
 EXPORTS		= \
 		nsAgg.h \
-		nsAutoPtr.h \
 		nsAutoRef.h \
 		nsCom.h \
 		nsDebugImpl.h \
@@ -112,6 +112,7 @@ SDK_XPIDLSRCS   = \
 		nsrootidl.idl
 
 SDK_HEADERS     = \
+		nsAutoPtr.h \
 		nsError.h \
 		nsISupportsBase.h \
 		nscore.h \
@@ -122,6 +123,7 @@ XPIDLSRCS	= \
 		nsIConsoleListener.idl \
 		nsIConsoleMessage.idl \
 		nsIConsoleService.idl \
+		nsIDebug2.idl \
 		nsIErrorService.idl \
 		nsIException.idl \
 		nsIExceptionService.idl \
@@ -153,3 +155,4 @@ ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
 CXXFLAGS        += $(MOZ_GTK2_CFLAGS)
 endif
 
+LOCAL_INCLUDES += -I$(srcdir)/../build

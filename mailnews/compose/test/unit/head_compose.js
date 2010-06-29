@@ -2,8 +2,12 @@
 load("../../mailnews/resources/mailDirService.js");
 load("../../mailnews/resources/mailTestUtils.js");
 
+// Import the required setup scripts.
+load("../../mailnews/resources/abSetup.js");
+
 // Import the smtp server scripts
 load("../../mailnews/fakeserver/maild.js")
+load("../../mailnews/fakeserver/auth.js")
 load("../../mailnews/fakeserver/smtpd.js")
 
 const SMTP_PORT = 1024+120;
@@ -11,7 +15,7 @@ const SMTP_PORT = 1024+120;
 // Setup the daemon and server
 function setupServerDaemon(handler) {
   if (!handler)
-    handler = new SMTP_RFC2822_handler(new smtpDaemon());
+    handler = new SMTP_RFC2821_handler(new smtpDaemon());
   var server = new nsMailServer(handler);
   return server;
 }
@@ -26,7 +30,7 @@ function getBasicSmtpServer() {
   smtpServer.hostname = "localhost";
   smtpServer.port = SMTP_PORT;
   // Set the authentication method to "none"
-  smtpServer.authMethod = 0;
+  smtpServer.authMethod = 1;
 
   // Override the default greeting so we get something predicitable
   // in the ELHO message
@@ -50,6 +54,8 @@ function getSmtpIdentity(senderName, smtpServer) {
 
   return identity;
 }
+
+var test;
 
 function do_check_transaction(real, expected) {
   // real.them may have an extra QUIT on the end, where the stream is only

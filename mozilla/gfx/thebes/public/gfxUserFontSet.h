@@ -82,11 +82,11 @@ public:
 // platform/user fonts as downloaded
 
 class gfxMixedFontFamily : public gfxFontFamily {
-
 public:
+    friend class gfxUserFontSet;
+
     gfxMixedFontFamily(const nsAString& aName)
-        : gfxFontFamily(aName)
-    { }
+        : gfxFontFamily(aName) { }
 
     virtual ~gfxMixedFontFamily() { }
 
@@ -130,13 +130,6 @@ public:
         }
         return PR_TRUE;
     }
-
-    nsTArray<nsRefPtr<gfxFontEntry> >  mAvailableFonts;
-
-protected:
-    PRBool FindWeightsForStyle(gfxFontEntry* aFontsForWeights[], 
-                               const gfxFontStyle& aFontStyle);
-
 };
 
 class gfxProxyFontEntry;
@@ -159,9 +152,10 @@ public:
         FLAG_FORMAT_TRUETYPE_AAT   = 1 << 3,
         FLAG_FORMAT_EOT            = 1 << 4,
         FLAG_FORMAT_SVG            = 1 << 5,
-        
+        FLAG_FORMAT_WOFF           = 1 << 6,
+
         // mask of all unused bits, update when adding new formats
-        FLAG_FORMAT_NOT_USED       = ~((1 << 6)-1)
+        FLAG_FORMAT_NOT_USED       = ~((1 << 7)-1)
     };
 
     enum LoadStatus {
@@ -175,7 +169,7 @@ public:
 
     // add in a font face
     // weight, stretch - 0 == unknown, [1, 9] otherwise
-    // italic style = constants in gfxFont.h (e.g. FONT_STYLE_NORMAL)
+    // italic style = constants in gfxFontConstants.h, e.g. NS_FONT_STYLE_NORMAL
     // TODO: support for unicode ranges not yet implemented
     void AddFontFace(const nsAString& aFamilyName, 
                      const nsTArray<gfxFontFaceSrc>& aFontFaceSrcList, 
@@ -204,7 +198,9 @@ public:
     // aDownloadStatus == NS_OK ==> download succeeded, error otherwise
     // returns true if platform font creation sucessful (or local()
     // reference was next in line)
-    PRBool OnLoadComplete(gfxFontEntry *aFontToLoad, nsISupports *aLoader,
+    // Ownership of aFontData is passed in here; the font set must
+    // ensure that it is eventually deleted with NS_Free().
+    PRBool OnLoadComplete(gfxFontEntry *aFontToLoad,
                           const PRUint8 *aFontData, PRUint32 aLength,
                           nsresult aDownloadStatus);
 
@@ -234,6 +230,7 @@ protected:
 // acts a placeholder until the real font is downloaded
 
 class gfxProxyFontEntry : public gfxFontEntry {
+    friend class gfxUserFontSet;
 
 public:
     gfxProxyFontEntry(const nsTArray<gfxFontFaceSrc>& aFontFaceSrcList, 
@@ -248,7 +245,6 @@ public:
     PRPackedBool                           mIsLoading;
     nsTArray<gfxFontFaceSrc>               mSrcList;
     PRUint32                               mSrcIndex; // index of loading src item
-    gfxMixedFontFamily*                    mFamily;
 };
 
 

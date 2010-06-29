@@ -53,10 +53,6 @@
 %messengerDTD;
 <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
 %customizeToolbarDTD;
-#ifdef MOZILLA_1_9_1_BRANCH
-<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-%globalDTD;
-#endif
 ]>
 
 <!--
@@ -70,6 +66,7 @@
         onload="OnLoadMessageWindow()"
         onunload="OnUnloadMessageWindow()"
         persist="width height screenX screenY sizemode"
+        toggletoolbar="true"
         windowtype="mail:messageWindow">
 
   <stringbundleset id="stringbundleset">
@@ -78,22 +75,22 @@
   </stringbundleset>
 
   <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/shareglue.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/commandglue.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/folderDisplay.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/messageDisplay.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/mailWindow.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/messageWindow.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/accountUtils.js"/>
-  <script type="application/x-javascript" src="chrome://global/content/contentAreaUtils.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/nsContextMenu.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/mailContextMenus.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/phishingDetector.js"/>
-  <script type="application/x-javascript" src="chrome://communicator/content/contentAreaClick.js"/>
-  <script type="application/x-javascript" src="chrome://global/content/nsDragAndDrop.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/widgetglue.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/editContactOverlay.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/shareglue.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/commandglue.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/folderDisplay.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/messageDisplay.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/mailWindow.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/messageWindow.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
+  <script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/nsContextMenu.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/mailContextMenus.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/phishingDetector.js"/>
+  <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
+  <script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/editContactOverlay.js"/>
 
   <commandset id="mailCommands">
     <commandset id="mailFileMenuItems"/>
@@ -186,12 +183,11 @@
     <hbox id="attachmentView"/>
     <findbar id="FindToolbar" browserid="messagepane"/>
   </vbox>
-  <panel id="customizeToolbarSheetPopup" noautohide="true">
+  <panel id="customizeToolbarSheetPopup"
+         noautohide="true"
+         onpopupshown="this.moveTo(this.boxObject.screenX + (window.innerWidth - this.boxObject.width) / 2, this.boxObject.screenY);">
     <iframe id="customizeToolbarSheetIFrame"
             style="&dialog.style;"
-#ifdef MOZILLA_1_9_1_BRANCH
-            chromedir="&locale.dir;"
-#endif
             hidden="true"/>
   </panel>
 

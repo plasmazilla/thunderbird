@@ -42,12 +42,10 @@
 #import <Cocoa/Cocoa.h>
 
 #include "nsCOMArray.h"
-
 #include "nsIScreenManager.h"
-
 #include "nsScreenCocoa.h"
 
-class nsScreenManagerCocoa : public nsIScreenManager_MOZILLA_1_9_1_BRANCH
+class nsScreenManagerCocoa : public nsIScreenManager
 {
 public:
     nsScreenManagerCocoa ();
@@ -56,7 +54,6 @@ public:
     NS_DECL_ISUPPORTS
 
     NS_DECL_NSISCREENMANAGER
-    NS_DECL_NSISCREENMANAGER_MOZILLA_1_9_1_BRANCH
 
 private:
 

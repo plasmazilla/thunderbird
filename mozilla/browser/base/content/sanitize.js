@@ -198,7 +198,7 @@ Sanitizer.prototype = {
         var globalHistory = Components.classes["@mozilla.org/browser/global-history;2"]
                                       .getService(Components.interfaces.nsIBrowserHistory);
         if (this.range)
-          globalHistory.QueryInterface(Components.interfaces.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).removeVisitsByTimeframe(this.range[0], this.range[1]);
+          globalHistory.removeVisitsByTimeframe(this.range[0], this.range[1]);
         else
           globalHistory.removeAllPages();
         
@@ -339,10 +339,10 @@ Sanitizer.prototype = {
                             .getService(Components.interfaces.nsISecretDecoderRing);
         sdr.logoutAndTeardown();
 
-        // clear plain HTTP auth sessions
-        var authMgr = Components.classes['@mozilla.org/network/http-auth-manager;1']
-                                .getService(Components.interfaces.nsIHttpAuthManager);
-        authMgr.clearAll();
+        // clear FTP and plain HTTP auth sessions
+        var os = Components.classes["@mozilla.org/observer-service;1"]
+                           .getService(Components.interfaces.nsIObserverService);
+        os.notifyObservers(null, "net:clear-active-logins", null);
       },
       
       get canClear()
@@ -354,13 +354,24 @@ Sanitizer.prototype = {
     siteSettings: {
       clear: function ()
       {
+        // Clear site-specific permissions like "Allow this site to open popups"
         var pm = Components.classes["@mozilla.org/permissionmanager;1"]
                           .getService(Components.interfaces.nsIPermissionManager);
         pm.removeAll();
         
+        // Clear site-specific settings like page-zoom level
         var cps = Components.classes["@mozilla.org/content-pref/service;1"]
                            .getService(Components.interfaces.nsIContentPrefService);
         cps.removeGroupedPrefs();
+        
+        // Clear "Never remember passwords for this site", which is not handled by
+        // the permission manager
+        var pwmgr = Components.classes["@mozilla.org/login-manager;1"]
+                   .getService(Components.interfaces.nsILoginManager);
+        var hosts = pwmgr.getAllDisabledHosts({})
+        for each (var host in hosts) {
+          pwmgr.setLoginSavingEnabled(host, true);
+        }
       },
       
       get canClear()
@@ -449,13 +460,10 @@ Sanitizer.showUI = function(aParentWindow)
 /** 
  * Deletes privacy sensitive data in a batch, optionally showing the 
  * sanitize UI, according to user preferences
- *
- * @returns  null (displayed UI, which should handle errors)
  */
 Sanitizer.sanitize = function(aParentWindow) 
 {
   Sanitizer.showUI(aParentWindow);
-  return null;
 };
 
 Sanitizer.onStartup = function() 

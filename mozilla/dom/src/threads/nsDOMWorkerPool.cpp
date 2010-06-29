@@ -53,6 +53,7 @@
 #include "nsAutoLock.h"
 #include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
+#include "nsProxyRelease.h"
 #include "nsThreadUtils.h"
 
 // DOMWorker includes
@@ -75,6 +76,21 @@ nsDOMWorkerPool::nsDOMWorkerPool(nsIScriptGlobalObject* aGlobalObject,
 
 nsDOMWorkerPool::~nsDOMWorkerPool()
 {
+  nsCOMPtr<nsIThread> mainThread;
+  NS_GetMainThread(getter_AddRefs(mainThread));
+
+  nsIScriptGlobalObject* global;
+  mParentGlobal.forget(&global);
+  if (global) {
+    NS_ProxyRelease(mainThread, global, PR_FALSE);
+  }
+
+  nsIDocument* document;
+  mParentDocument.forget(&document);
+  if (document) {
+    NS_ProxyRelease(mainThread, document, PR_FALSE);
+  }
+
   if (mMonitor) {
     nsAutoMonitor::DestroyMonitor(mMonitor);
   }
@@ -148,9 +164,9 @@ nsDOMWorkerPool::NoteDyingWorker(nsDOMWorker* aWorker)
 void
 nsDOMWorkerPool::GetWorkers(nsTArray<nsDOMWorker*>& aArray)
 {
-  aArray.Clear();
+  PR_ASSERT_CURRENT_THREAD_IN_MONITOR(mMonitor);
+  NS_ASSERTION(!aArray.Length(), "Should be empty!");
 
-  nsAutoMonitor mon(mMonitor);
 #ifdef DEBUG
   nsDOMWorker** newWorkers =
 #endif
@@ -181,9 +197,6 @@ nsDOMWorkerPool::Cancel()
     nsAutoMonitor mon(mMonitor);
     mon.NotifyAll();
   }
-
-  mParentGlobal = nsnull;
-  mParentDocument = nsnull;
 }
 
 void

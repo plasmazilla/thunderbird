@@ -38,9 +38,9 @@
 
 /* This is where functions related to the standalone message window are kept */
 
-Components.utils.import("resource://app/modules/jsTreeSelection.js");
+Components.utils.import("resource:///modules/jsTreeSelection.js");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
-Components.utils.import("resource://app/modules/MsgHdrSyntheticView.js");
+Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
 
 // from MailNewsTypes.h
 const nsMsgKey_None = 0xFFFFFFFF;
@@ -926,7 +926,11 @@ var MessageWindowController =
         if (!loadedFolder || (pref.getBoolPref("mail.last_msg_movecopy_was_move") &&
             !loadedFolder.canDeleteMessages))
           return false;
-        return pref.getCharPref("mail.last_msg_movecopy_target_uri");
+        let targetURI = pref.getCharPref("mail.last_msg_movecopy_target_uri");
+        if (!targetURI)
+          return false;
+        let targetFolder = MailUtils.getFolderForURI(targetURI);
+        return targetFolder && targetFolder.filePath.exists();
       case "cmd_applyFilters":
       case "cmd_runJunkControls":
       case "cmd_deleteJunk":

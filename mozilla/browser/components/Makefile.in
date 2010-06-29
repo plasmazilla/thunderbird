@@ -53,13 +53,12 @@ XPIDLSRCS = \
 EXTRA_PP_COMPONENTS = \
 	nsBrowserContentHandler.js \
 	nsBrowserGlue.js \
-	aboutRights.js \
-	aboutRobots.js \
 	$(NULL)
 
 EXTRA_JS_MODULES = distribution.js
 
 DIRS = \
+	about \
 	certerror \
 	dirprovider \
 	microsummaries \
@@ -77,13 +76,19 @@ ifndef WINCE
 DIRS += migration
 endif
 
+ifeq ($(MOZ_WIDGET_TOOLKIT),windows) 
+ifndef WINCE
+DIRS += wintaskbar
+endif
+endif
+
 ifdef MOZ_SAFE_BROWSING
 DIRS += safebrowsing
 endif
 
 DIRS += build
 
-ifneq (,$(BUILD_OFFICIAL)$(MOZILLA_OFFICIAL))
+ifdef MOZILLA_OFFICIAL
 DEFINES += -DOFFICIAL_BUILD=1
 endif
 

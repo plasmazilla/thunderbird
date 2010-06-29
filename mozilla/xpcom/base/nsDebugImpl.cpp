@@ -48,6 +48,7 @@
 #include "prerror.h"
 #include "prerr.h"
 #include "prenv.h"
+#include "pratom.h"
 
 #if defined(XP_BEOS)
 /* For DEBUGGER macros */
@@ -75,6 +76,9 @@ static void
 Abort(const char *aMsg);
 
 static void
+RealBreak();
+
+static void
 Break(const char *aMsg);
 
 #if defined(XP_OS2)
@@ -91,39 +95,9 @@ Break(const char *aMsg);
 #include <stdlib.h>
 #endif
 
-/*
- * Determine if debugger is present in windows.
- */
-#if defined (_WIN32)
+static PRInt32 gAssertionCount = 0;
 
-typedef WINBASEAPI BOOL (WINAPI* LPFNISDEBUGGERPRESENT)();
-PRBool InDebugger()
-{
-#ifndef WINCE
-   PRBool fReturn = PR_FALSE;
-   LPFNISDEBUGGERPRESENT lpfnIsDebuggerPresent = NULL;
-   HINSTANCE hKernel = LoadLibraryW(L"Kernel32.dll");
-
-   if(hKernel)
-      {
-      lpfnIsDebuggerPresent = 
-         (LPFNISDEBUGGERPRESENT)GetProcAddress(hKernel, "IsDebuggerPresent");
-      if(lpfnIsDebuggerPresent)
-         {
-         fReturn = (*lpfnIsDebuggerPresent)();
-         }
-      FreeLibrary(hKernel);
-      }
-
-   return fReturn;
-#else
-   return PR_FALSE;
-#endif
-}
-
-#endif /* WIN32*/
-
-NS_IMPL_QUERY_INTERFACE1(nsDebugImpl, nsIDebug)
+NS_IMPL_QUERY_INTERFACE2(nsDebugImpl, nsIDebug, nsIDebug2)
 
 NS_IMETHODIMP_(nsrefcnt)
 nsDebugImpl::AddRef()
@@ -163,6 +137,24 @@ NS_IMETHODIMP
 nsDebugImpl::Abort(const char *aFile, PRInt32 aLine)
 {
   NS_DebugBreak(NS_DEBUG_ABORT, nsnull, nsnull, aFile, aLine);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDebugImpl::GetIsDebugBuild(PRBool* aResult)
+{
+#ifdef DEBUG
+  *aResult = PR_TRUE;
+#else
+  *aResult = PR_FALSE;
+#endif
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDebugImpl::GetAssertionCount(PRInt32* aResult)
+{
+  *aResult = gAssertionCount;
   return NS_OK;
 }
 
@@ -328,12 +320,16 @@ NS_DebugBreak(PRUint32 aSeverity, const char *aStr, const char *aExpr,
      return;
 
    case NS_DEBUG_ABORT:
+#ifdef DEBUG
+     RealBreak();
+#endif
      nsTraceRefcntImpl::WalkTheStack(stderr);
      Abort(buf.buffer);
      return;
    }
 
    // Now we deal with assertions
+   PR_AtomicIncrement(&gAssertionCount);
 
    switch (GetAssertBehavior()) {
    case NS_ASSERT_WARN:
@@ -366,9 +362,18 @@ NS_DebugBreak(PRUint32 aSeverity, const char *aStr, const char *aExpr,
 }
 
 static void
+TouchBadMemory()
+{
+  // XXX this should use the frame poisoning code
+  gAssertionCount += *((PRInt32 *) 0); // TODO annotation saying we know 
+                                       // this is crazy
+}
+
+static void
 Abort(const char *aMsg)
 {
 #if defined(_WIN32)
+  TouchBadMemory();
 
 #ifndef WINCE
   //This should exit us
@@ -388,6 +393,31 @@ Abort(const char *aMsg)
   // Don't know how to abort on this platform! call Break() instead
   Break(aMsg);
 #endif
+
+  // Still haven't aborted?  Try dereferencing null.
+  TouchBadMemory();
+
+  // Still haven't aborted?  Try _exit().
+  PR_ProcessExit(127);
+}
+
+static void
+RealBreak()
+{
+#if defined(_WIN32)
+#ifndef WINCE
+  ::DebugBreak();
+#endif
+#elif defined(XP_OS2)
+   asm("int $3");
+#elif defined(XP_BEOS)
+#elif defined(XP_MACOSX)
+   raise(SIGTRAP);
+#elif defined(__GNUC__) && (defined(__i386__) || defined(__i386) || defined(__x86_64__))
+   asm("int $3");
+#else
+   // don't know how to break on this platform
+#endif
 }
 
 // Abort() calls this function, don't call it!
@@ -401,7 +431,7 @@ Break(const char *aMsg)
     const char *shouldIgnoreDebugger = getenv("XPCOM_DEBUG_DLG");
     ignoreDebugger = 1 + (shouldIgnoreDebugger && !strcmp(shouldIgnoreDebugger, "1"));
   }
-  if((ignoreDebugger == 2) || !InDebugger()) {
+  if ((ignoreDebugger == 2) || !::IsDebuggerPresent()) {
     DWORD code = IDRETRY;
 
     /* Create the debug dialog out of process to avoid the crashes caused by 
@@ -450,8 +480,7 @@ Break(const char *aMsg)
     }
   }
 
-  ::DebugBreak();
-
+  RealBreak();
 #endif // WINCE
 #elif defined(XP_OS2)
    char msg[1200];
@@ -474,17 +503,18 @@ Break(const char *aMsg)
    if (( code == MBID_ENTER ) || (code == MBID_ERROR))
      return;
 
-   asm("int $3");
+   RealBreak();
 #elif defined(XP_BEOS)
    DEBUGGER(aMsg);
+   RealBreak();
 #elif defined(XP_MACOSX)
    /* Note that we put this Mac OS X test above the GNUC/x86 test because the
     * GNUC/x86 test is also true on Intel Mac OS X and we want the PPC/x86
     * impls to be the same.
     */
-   raise(SIGTRAP);
+   RealBreak();
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__i386) || defined(__x86_64__))
-   asm("int $3");
+   RealBreak();
 #else
    // don't know how to break on this platform
 #endif

@@ -74,6 +74,18 @@ class nsIDocShellTreeItem;
 typedef nsInterfaceHashtable<nsVoidPtrHashKey, nsIAccessNode>
         nsAccessNodeHashtable;
 
+// What we want is: NS_INTERFACE_MAP_ENTRY(self) for static IID accessors,
+// but some of our classes have an ambiguous base class of nsISupports which
+// prevents this from working (the default macro converts it to nsISupports,
+// then addrefs it, then returns it). Therefore, we expand the macro here and
+// change it so that it works. Yuck.
+#define NS_INTERFACE_MAP_STATIC_AMBIGUOUS(_class) \
+  if (aIID.Equals(NS_GET_IID(_class))) { \
+  NS_ADDREF(this); \
+  *aInstancePtr = this; \
+  return NS_OK; \
+  } else
+
 #define NS_OK_DEFUNCT_OBJECT \
 NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_GENERAL, 0x22)
 
@@ -174,21 +186,21 @@ protected:
     /**
      * Notify global nsIObserver's that a11y is getting init'd or shutdown
      */
-    static void NotifyA11yInitOrShutdown();
+    static void NotifyA11yInitOrShutdown(PRBool aIsInit);
 
     // Static data, we do our own refcounting for our static data
     static nsIStringBundle *gStringBundle;
     static nsIStringBundle *gKeyStringBundle;
     static nsITimer *gDoCommandTimer;
+#ifdef DEBUG
     static PRBool gIsAccessibilityActive;
-    static PRBool gIsShuttingDownApp;
+#endif
     static PRBool gIsCacheDisabled;
     static PRBool gIsFormFillEnabled;
 
     static nsAccessNodeHashtable gGlobalDocAccessibleCache;
 
 private:
-  static nsIAccessibilityService *sAccService;
   static nsApplicationAccessibleWrap *gApplicationAccessible;
 };
 

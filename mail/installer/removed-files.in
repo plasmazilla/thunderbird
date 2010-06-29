@@ -43,31 +43,37 @@ components/airbag.xpt
 components/bookmarks.xpt
 components/downloadmanager.xpt
 components/compreg.dat
+#ifdef MOZILLA_1_9_2_BRANCH
+components/contentSecurityPolicy.js
+#endif
 components/history.xpt
 components/jsconsole.xpt
 components/mailnews.xpt
 components/mozgnome.xpt
 components/@DLL_PREFIX@myspell@DLL_SUFFIX@
 components/necko_data.xpt
-#ifdef MOZILLA_1_9_1_BRANCH
-components/GPSDGeolocationProvider.js
-#endif
 components/nsBackgroundUpdateService.js
 components/nsCloseAllWindows.js
 components/nsComposerCmdLineHandler.js
 components/nsDownloadProgressListener.js
+#ifdef MOZILLA_1_9_2_BRANCH
+components/nsINIProcessor.js
+#endif
 components/nsInterfaceInfoToIDL.js
 components/nsLDAPPrefsService.js
 #ifdef XP_WIN
-#ifndef MOZILLA_1_9_1_BRANCH
 components/nsPostUpdateWin.js
 #endif
-#endif
+components/nsProgressDialog.js
 components/nsScriptableIO.js
 #ifdef XP_MACOSX
 components/nsSpotlightIntegration.js
 #endif
 components/nsUnsetDefaultMail.js
+#ifndef MOZ_UPDATER
+components/nsUpdateService.js
+components/nsUpdateServiceStub.js
+#endif
 components/nsUrlClassifierTable.js
 #ifdef XP_WIN
 components/nsWinSearchIntegration.js
@@ -75,6 +81,7 @@ components/nsWinSearchIntegration.js
 components/progressDlg.xpt
 components/sidebar.xpt
 components/signonviewer.xpt
+components/thunderbird.xpt
 components/@DLL_PREFIX@spellchecker@DLL_SUFFIX@
 components/spellchk.dll
 components/@DLL_PREFIX@wallet@DLL_SUFFIX@
@@ -91,7 +98,7 @@ components/widget_mac.xpt
 components/@DLL_PREFIX@xpcom_compat_c@DLL_SUFFIX@
 components/xpcom_obsolete.xpt
 #ifdef XP_WIN
-#ifndef MOZILLA_1_9_1_BRANCH
+#ifndef MOZILLA_1_9_2_BRANCH
 components/xpinstal.dll
 #else
 components/xpinstall.dll
@@ -145,9 +152,7 @@ defaults/wallet/DistinguishedSchema.tbl
 defaults/wallet/SchemaStrings.tbl
 defaults/wallet/PositionalSchema.tbl
 defaults/wallet/StateSchema.tbl
-#ifdef MOZILLA_1_9_1_BRANCH
-greprefs.js
-#elifdef MOZILLA_1_9_2_BRANCH
+#ifdef MOZILLA_1_9_2_BRANCH
 greprefs.js
 #else
 greprefs/all.js
@@ -161,6 +166,9 @@ icons/mozicon16.xpm
 icons/mozicon50.xpm
 #endif
 init.d/README
+#ifdef XP_MACOSX
+isp/dotmac.rdf
+#endif
 isp/gmail.rdf
 isp/af/gmail.rdf
 isp/be/gmail.rdf
@@ -210,17 +218,40 @@ isp/zh-TW/gmail.rdf
 license.html
 LICENSE.txt
 modules/JSON.jsm
+modules/quickSearchManager.js
+#ifndef MOZ_IPC
 mozilla-runtime@BIN_SUFFIX@
+#endif
+#ifdef XP_MACOSX
+../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
+../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/Localizable.strings
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/classes.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/info.nib
+../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
+#endif
 plugins/
 res/bloatcycle.html
-res/cmessage.txt
-#ifndef MOZILLA_1_9_1_BRANCH
 res/broken-image.gif
+res/cmessage.txt
+#ifndef MOZILLA_1_9_2_BRANCH
+res/arrow.gif
+res/arrowd.gif
 res/charsetData.properties
 res/charsetalias.properties
-res/loading-image.gif
+res/forms.css
+res/hiddenWindow.html
+res/html.css
+res/maccharset.properties
+res/mathml.css
+res/os2charset.properties
+res/quirk.css
+res/ua.css
+res/viewsource.css
+res/unixcharset.properties
 res/wincharset.properties
 #endif
+res/loading-image.gif
 res/platform-forms.css
 res/sample.unixpsfonts.properties
 res/builtin/htmlBindings.xml
@@ -244,6 +275,11 @@ res/html/gopher-sound.gif
 res/html/gopher-telnet.gif
 res/html/gopher-text.gif
 res/html/gopher-unknown.gif
+#ifdef MOZILLA_1_9_2_BRANCH
+@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+#else
+@DLL_PREFIX@sqlite3@DLL_SUFFIX@
+#endif
 #ifdef XP_MACOSX
 Thunderbird.app/Contents/Library/Spotlight/Thunderbird.mdimporter/Contents/Info.plist
 Thunderbird.app/Contents/Library/Spotlight/Thunderbird.mdimporter/Contents/MacOS/Thunderbird
@@ -268,9 +304,7 @@ msvcp80.dll
 msvcr80.dll
 #else
 mozcrt19.dll
-#ifdef MOZILLA_1_9_1_BRANCH
 mozcpp19.dll
-#endif
 #endif
 #endif
 mozilla-installer-bin
@@ -289,9 +323,7 @@ xpicleanup
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
 @DLL_PREFIX@zlib@DLL_SUFFIX@
 #ifdef XP_WIN
-#ifdef MOZILLA_1_9_1_BRANCH
-mozjs.dll
-#elifdef MOZILLA_1_9_2_BRANCH
+#ifdef MOZILLA_1_9_2_BRANCH
 mozjs.dll
 #else
 js3250.dll
@@ -435,13 +467,7 @@ components/@DLL_PREFIX@imgicon@DLL_SUFFIX@
 components/@DLL_PREFIX@imglib2@DLL_SUFFIX@
 components/@DLL_PREFIX@import@DLL_SUFFIX@
 components/@DLL_PREFIX@intlapp@DLL_SUFFIX@
-#ifdef MOZILLA_1_9_1_BRANCH
-#ifdef XP_MACOSX
 components/@DLL_PREFIX@jar50@DLL_SUFFIX@
-#endif
-#else
-components/@DLL_PREFIX@jar50@DLL_SUFFIX@
-#endif
 components/@DLL_PREFIX@mail@DLL_SUFFIX@
 #ifdef XP_WIN
 components/@DLL_PREFIX@mailcmp@DLL_SUFFIX@
@@ -675,10 +701,9 @@ components/xultmpl.xpt
 # ****************************************************************************
 # * Remove the XPTs that were present at the time (2009-04) when we started  *
 # * linking XPTs on Linux, and present at the time (2009-08) when we started *
-# * linking XPTs on Mac. You almost certainly don't want to add anything     *
-# * to this section.                                                         *
+# * linking XPTs on Mac, plus XPTs that shipped with 3.0 (which didn't link  *
+# * XPTs). You almost certainly don't want to add anything to this section.  *
 # ****************************************************************************
-#ifndef MOZILLA_1_9_1_BRANCH
 #ifdef XP_UNIX
 components/activity.xpt
 components/addrbook.xpt
@@ -734,6 +759,7 @@ components/exthelper.xpt
 components/fastfind.xpt
 components/feeds.xpt
 components/find.xpt
+components/fts3tok.xpt
 components/gfx.xpt
 components/htmlparser.xpt
 components/imgicon.xpt
@@ -778,6 +804,7 @@ components/necko_res.xpt
 components/necko_socket.xpt
 components/necko_strconv.xpt
 components/necko_viewsource.xpt
+components/necko_wifi.xpt
 components/parentalcontrols.xpt
 components/pipboot.xpt
 components/pipnss.xpt
@@ -789,10 +816,12 @@ components/pref.xpt
 components/profile.xpt
 components/proxyObjInst.xpt
 components/rdf.xpt
+components/satchel.xpt
 components/saxparser.xpt
 components/shellservice.xpt
 components/shistory.xpt
 components/spellchecker.xpt
+components/steel.xpt
 components/storage.xpt
 components/toolkitprofile.xpt
 components/txmgr.xpt
@@ -832,7 +861,6 @@ components/accessibility.xpt
 components/filepicker.xpt
 components/toolkitremote.xpt
 components/websrvcs.xpt
-#endif
 #endif
 #endif
 # ****************************************************************************

@@ -40,6 +40,8 @@ function step4()
 
 function step5()
 {
+  // The tabbox selects a tab within a setTimeout in a bubbling mousedown event
+  // listener, and focuses the current tab if another tab previously had focus
   is(document.activeElement, tab2, "mouse on another tab while focused still activeElement");
 
   content.focus();

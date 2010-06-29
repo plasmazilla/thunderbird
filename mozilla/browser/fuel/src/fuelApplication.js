@@ -144,24 +144,19 @@ Window.prototype = {
   _event : function win_event(aEvent) {
     this._events.dispatch(aEvent.type, new BrowserTab(this, aEvent.originalTarget.linkedBrowser));
   },
-
   get tabs() {
     var tabs = [];
     var browsers = this._tabbrowser.browsers;
-
     for (var i=0; i<browsers.length; i++)
       tabs.push(new BrowserTab(this, browsers[i]));
     return tabs;
   },
-
   get activeTab() {
     return new BrowserTab(this, this._tabbrowser.selectedBrowser);
   },
-
   open : function win_open(aURI) {
     return new BrowserTab(this, this._tabbrowser.addTab(aURI.spec).linkedBrowser);
   },
-
   _shutdown : function win_shutdown() {
     for (var type in this._cleanup)
       this._tabbrowser.removeEventListener(type, this._cleanup[type], true);
@@ -174,7 +169,6 @@ Window.prototype = {
 
   QueryInterface : XPCOMUtils.generateQI([Ci.fuelIWindow])
 };
-
 
 //=================================================
 // BrowserTab implementation
@@ -232,17 +226,15 @@ BrowserTab.prototype = {
    */
   _event : function bt_event(aEvent) {
     if (aEvent.type == "load") {
-      if (!(aEvent.originalTarget instanceof Ci.nsIDOMHTMLDocument))
+      if (!(aEvent.originalTarget instanceof Ci.nsIDOMDocument))
         return;
 
       if (aEvent.originalTarget.defaultView instanceof Ci.nsIDOMWindowInternal &&
           aEvent.originalTarget.defaultView.frameElement)
         return;
     }
-
     this._events.dispatch(aEvent.type, this);
   },
-
   /*
    * Helper used to determine the index offset of the browsertab
    */
@@ -416,6 +408,9 @@ Bookmark.prototype = {
     // bookmark object doesn't exist at this point
   },
 
+  onBeforeItemRemoved : function bm_obir(aId) {
+  },
+
   onItemRemoved : function bm_oir(aId, aFolder, aIndex) {
     if (this._id == aId)
       this._events.dispatch("remove", aId);
@@ -552,7 +547,7 @@ BookmarkFolder.prototype = {
   },
 
   remove : function bmf_remove() {
-    Utilities.bookmarks.removeFolder(this._id);
+    Utilities.bookmarks.removeItem(this._id);
   },
 
   // observer
@@ -570,6 +565,9 @@ BookmarkFolder.prototype = {
     // handle this folder events
     if (this._id == aFolder)
       this._events.dispatch("addchild", aId);
+  },
+
+  onBeforeItemRemoved : function bmf_oir(aId) {
   },
 
   onItemRemoved : function bmf_oir(aId, aFolder, aIndex) {

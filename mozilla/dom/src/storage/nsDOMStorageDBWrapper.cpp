@@ -203,7 +203,7 @@ nsDOMStorageDBWrapper::RemoveOwner(const nsACString& aOwner,
 
 
 nsresult
-nsDOMStorageDBWrapper::RemoveOwners(const nsStringArray& aOwners,
+nsDOMStorageDBWrapper::RemoveOwners(const nsTArray<nsString> &aOwners,
                                     PRBool aIncludeSubDomains, PRBool aMatch)
 {
   nsresult rv;

@@ -42,7 +42,7 @@ const Cr = Components.results;
 const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/errUtils.js");
+Cu.import("resource:///modules/errUtils.js");
 
 var Gloda = null;
 var GlodaUtils = null;
@@ -99,7 +99,7 @@ ResultRowMulti.prototype = {
   },
   onQueryCompleted: function() {
   }
-}
+};
 
 function nsAutoCompleteGlodaResult(aListener, aCompleter, aString) {
   this.listener = aListener;
@@ -108,6 +108,10 @@ function nsAutoCompleteGlodaResult(aListener, aCompleter, aString) {
   this._results = [];
   this._pendingCount = 0;
   this._problem = false;
+  // Track whether we have reported anything to the complete controller so
+  //  that we know not to send notifications to it during calls to addRows
+  //  prior to that point.
+  this._initiallyReported = false;
 
   this.wrappedJSObject = this;
 }
@@ -123,11 +127,16 @@ nsAutoCompleteGlodaResult.prototype = {
       this.listener.onSearchResult(this.completer, this);
     }
   },
+  announceYourself: function ACGR_announceYourself() {
+    this._initiallyReported = true;
+    this.listener.onSearchResult(this.completer, this);
+  },
   addRows: function ACGR_addRows(aRows) {
     if (!aRows.length)
       return;
     this._results.push.apply(this._results, aRows);
-    this.listener.onSearchResult(this.completer, this);
+    if (this._initiallyReported)
+      this.listener.onSearchResult(this.completer, this);
   },
   // ==== nsIAutoCompleteResult
   searchString: null,
@@ -202,8 +211,17 @@ function ContactIdentityCompleter() {
 ContactIdentityCompleter.prototype = {
   _popularitySorter: function(a, b){ return b.popularity - a.popularity; },
   complete: function ContactIdentityCompleter_complete(aResult, aString) {
-    if (aString.length < 3)
-      return false;
+    if (aString.length < 3) {
+      // In CJK, first name or last name is sometime used as 1 character only.
+      // So we allow autocompleted search even if 1 character.
+      //
+      // [U+3041 - U+9FFF ... Full-width Katakana, Hiragana
+      //                      and CJK Ideograph
+      // [U+AC00 - U+D7FF ... Hangul
+      // [U+F900 - U+FFDC ... CJK compatibility ideograph
+      if (!aString.match(/[\u3041-\u9fff\uac00-\ud7ff\uf900-\uffdc]/))
+        return false;
+    }
 
     let matches;
     if (this.suffixTree) {
@@ -237,13 +255,14 @@ ContactIdentityCompleter.prototype = {
     let pending = {contactToThing: contactToThing, pendingCount: 2};
 
     let contactQuery = Gloda.newQuery(Gloda.NOUN_CONTACT);
-    contactQuery.nameLike(contactQuery.WILD, aString, contactQuery.WILD);
+    contactQuery.nameLike(contactQuery.WILDCARD, aString,
+	contactQuery.WILDCARD);
     pending.contactColl = contactQuery.getCollection(this, aResult);
     pending.contactColl.becomeExplicit();
 
     let identityQuery = Gloda.newQuery(Gloda.NOUN_IDENTITY);
-    identityQuery.kind("email").valueLike(identityQuery.WILD, aString,
-        identityQuery.WILD);
+    identityQuery.kind("email").valueLike(identityQuery.WILDCARD, aString,
+        identityQuery.WILDCARD);
     pending.identityColl = identityQuery.getCollection(this, aResult);
     pending.identityColl.becomeExplicit();
 
@@ -369,7 +388,7 @@ ContactTagCompleter.prototype = {
     if (aString.length < 2)
       return false; // no async mechanism that will add new rows
 
-    tags = this._suffixTree.findMatches(aString.toLowerCase());
+    let tags = this._suffixTree.findMatches(aString.toLowerCase());
     let rows = [];
     for each (let [iTag, tag] in Iterator(tags)) {
       let query = Gloda.newQuery(Gloda.NOUN_CONTACT);
@@ -406,7 +425,7 @@ MessageTagCompleter.prototype = {
     if (aString.length < 2)
       return false;
 
-    tags = this._suffixTree.findMatches(aString.toLowerCase());
+    let tags = this._suffixTree.findMatches(aString.toLowerCase());
     let rows = [];
     for each (let [, tag] in Iterator(tags)) {
       let resRow = new ResultRowSingle(tag, "tag", tag.tag, TagNoun.id);
@@ -478,19 +497,19 @@ function nsAutoCompleteGloda() {
     // set up our awesome globals!
     if (Gloda === null) {
       let loadNS = {};
-      Cu.import("resource://app/modules/gloda/public.js", loadNS);
+      Cu.import("resource:///modules/gloda/public.js", loadNS);
       Gloda = loadNS.Gloda;
 
-      Cu.import("resource://app/modules/gloda/utils.js", loadNS);
+      Cu.import("resource:///modules/gloda/utils.js", loadNS);
       GlodaUtils = loadNS.GlodaUtils;
-      Cu.import("resource://app/modules/gloda/suffixtree.js", loadNS);
+      Cu.import("resource:///modules/gloda/suffixtree.js", loadNS);
       MultiSuffixTree = loadNS.MultiSuffixTree;
-      Cu.import("resource://app/modules/gloda/noun_tag.js", loadNS);
+      Cu.import("resource:///modules/gloda/noun_tag.js", loadNS);
       TagNoun = loadNS.TagNoun;
-      Cu.import("resource://app/modules/gloda/noun_freetag.js", loadNS);
+      Cu.import("resource:///modules/gloda/noun_freetag.js", loadNS);
       FreeTagNoun = loadNS.FreeTagNoun;
 
-      Cu.import("resource://app/modules/gloda/log4moz.js", loadNS);
+      Cu.import("resource:///modules/gloda/log4moz.js", loadNS);
       LOG = loadNS["Log4Moz"].repository.getLogger("gloda.autocomp");
     }
 
@@ -532,7 +551,7 @@ nsAutoCompleteGloda.prototype = {
       //   But we don't do that yet.
       }
 
-      aListener.onSearchResult(this, result);
+      result.announceYourself();
     } catch (e) {
       logException(e);
     }

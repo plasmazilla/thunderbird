@@ -47,7 +47,7 @@ endif
 
 
 # Usage: |make [TEST_PATH=...] [EXTRA_TEST_ARGS=...] mochitest*|.
-mochitest:: mochitest-plain mochitest-chrome mochitest-a11y
+mochitest:: mochitest-plain mochitest-chrome mochitest-a11y mochitest-ipcplugins
 
 RUN_MOCHITEST = \
 	rm -f ./$@.log && \
@@ -81,6 +81,10 @@ mochitest-a11y:
 	$(CHECK_TEST_ERROR)
 
 
+mochitest-ipcplugins:
+	$(RUN_MOCHITEST) --setpref=dom.ipc.plugins.enabled=true --test-path=modules/plugin/test
+	$(CHECK_TEST_ERROR)
+
 # Usage: |make [EXTRA_TEST_ARGS=...] *test|.
 RUN_REFTEST = rm -f ./$@.log && $(PYTHON) _tests/reftest/runreftest.py $(EXTRA_TEST_ARGS) $(1) | tee ./$@.log
 
@@ -92,6 +96,10 @@ crashtest:
 	$(call RUN_REFTEST,$(topsrcdir)/testing/crashtest/crashtests.list)
 	$(CHECK_TEST_ERROR)
 
+jstestbrowser: EXTRA_TEST_ARGS += --extra-profile-file=$(topsrcdir)/js/src/tests/user.js
+jstestbrowser:
+	$(call RUN_REFTEST,$(topsrcdir)/js/src/tests/jstests.list)
+	$(CHECK_TEST_ERROR)
 
 # Execute all xpcshell tests in the directories listed in the manifest.
 # See also config/rules.mk 'xpcshell-tests' target for local execution.
@@ -102,6 +110,7 @@ xpcshell-tests:
 	  $(topsrcdir)/testing/xpcshell/runxpcshelltests.py \
 	  --manifest=$(DEPTH)/_tests/xpcshell/all-test-dirs.list \
 	  --no-logfiles \
+	  --symbols-path=$(DIST)/crashreporter-symbols \
 	  $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS) \
 	  $(DIST)/bin/xpcshell
 
@@ -118,7 +127,8 @@ PKG_STAGE = $(DIST)/universal/test-package-stage
 endif
 
 package-tests:
-	@(cd $(PKG_STAGE) && tar $(TAR_CREATE_FLAGS) - *) | bzip2 -f > $(DIST)/$(PKG_PATH)$(TEST_PACKAGE)
+	$(NSINSTALL) -D $(DIST)/$(PKG_PATH)
+	@(cd $(PKG_STAGE) && tar $(TAR_CREATE_FLAGS) - *) | bzip2 -f > "$(DIST)/$(PKG_PATH)$(TEST_PACKAGE)"
 
 make-stage-dir:
 	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs
@@ -132,9 +142,12 @@ stage-reftest: make-stage-dir
 stage-xpcshell: make-stage-dir
 	$(MAKE) -C $(DEPTH)/testing/xpcshell stage-package
 
+stage-jstests: make-stage-dir
+	$(MAKE) -C $(DEPTH)/js/src/tests stage-package
 
 .PHONY: \
-  mochitest mochitest-plain mochitest-chrome mochitest-a11y \
+  mochitest mochitest-plain mochitest-chrome mochitest-a11y mochitest-ipcplugins \
   reftest crashtest \
   xpcshell-tests \
-  package-tests make-stage-dir stage-mochitest stage-reftest stage-xpcshell
+  jstestbrowser \
+  package-tests make-stage-dir stage-mochitest stage-reftest stage-xpcshell stage-jstests

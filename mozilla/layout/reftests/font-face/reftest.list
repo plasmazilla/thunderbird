@@ -67,8 +67,9 @@ HTTP(..) == disable-sheet-1.html disable-sheet-1-ref.html
 HTTP(..) == disable-sheet-4.html disable-sheet-4-ref.html
 HTTP(..) == disable-sheet-5.html disable-sheet-4-ref.html
 HTTP(..) == sheet-set-base-1.html sheet-set-base-1-ref.html
-random HTTP(..) == sheet-set-switch-1.html sheet-set-switch-1-ref.html # failure is bug 468217
-HTTP(..) == insert-rule-1.html insert-rule-1-ref.html
+random-if(MOZ_WIDGET_TOOLKIT=="cocoa") HTTP(..) == sheet-set-switch-1.html sheet-set-switch-1-ref.html # bug 468217
+HTTP(..) == insert-rule-1a.html insert-rule-1-ref.html
+HTTP(..) == insert-rule-1b.html insert-rule-1-ref.html
 HTTP(..) == delete-rule-1.html delete-rule-1-ref.html
 HTTP(..) == media-query-add-1.html media-query-add-1-ref.html
 HTTP(..) == media-query-remove-1.html media-query-remove-1-ref.html
@@ -85,6 +86,7 @@ HTTP(..) == ex-unit-1-dynamic.html ex-unit-1-ref.html
 
 == local-1.html local-1-ref.html
 HTTP(..) == synthetic-weight-style.html synthetic-weight-style-ref.html
+random-if(MOZ_WIDGET_TOOLKIT=="gtk2") HTTP(..) == synthetic-variations.html synthetic-variations-ref.html # bug 419962
 
 # Leak test
 HTTP(..) load 486974-1.html
@@ -95,3 +97,19 @@ HTTP(..) == load-badchecksum.html load-badchecksum-ref.html
 # t2embed lib on windows is picky about fullname
 HTTP(..) == load-badfullname.html load-badfullname-ref.html
 
+# 507960-1-* : a collection of tests using DeLarge from openfontlibrary.org
+# check that the original DeLarge face (ttf) loads; if this fails,
+# none of the following tests are meaningful
+HTTP(..) != 507960-1-nofont.html 507960-1-ref.html
+# check that the WOFF version loads, with and without a format hint
+HTTP(..) == 507960-1-woff.html 507960-1-ref.html
+HTTP(..) == 507960-1-woff-hint.html 507960-1-ref.html
+# try damaged fonts that should still load (bad checksums)
+HTTP(..) == 507960-1-bad-checksums-ttf.html 507960-1-ref.html
+HTTP(..) == 507960-1-bad-checksums-woff.html 507960-1-ref.html
+# try versions that should NOT load (bad offsets, signatures, hint)
+HTTP(..) != 507960-1-bad-sfnt-version-ttf.html 507960-1-ref.html
+HTTP(..) != 507960-1-bad-sfnt-version-woff.html 507960-1-ref.html
+HTTP(..) != 507960-1-bad-woff-sig.html 507960-1-ref.html
+HTTP(..) != 507960-1-bad-offset-woff.html 507960-1-ref.html
+HTTP(..) != 507960-1-woff-bad-hint.html 507960-1-ref.html

@@ -59,7 +59,6 @@
 #include "nsEventListenerManager.h"
 #include "nsFrame.h"
 #include "nsGenericElement.h"  // for nsDOMEventRTTearoff
-#include "nsStyledElement.h"
 #include "nsGlobalWindow.h"
 #include "nsGkAtoms.h"
 #include "nsImageFrame.h"
@@ -81,10 +80,13 @@
 #include "nsTextFragment.h"
 #include "nsCSSRuleProcessor.h"
 #include "nsXMLHttpRequest.h"
-#include "nsIFocusEventSuppressor.h"
 #include "nsDOMThreadService.h"
 #include "nsHTMLDNSPrefetch.h"
+#include "nsHtml5Module.h"
 #include "nsCrossSiteListenerProxy.h"
+#include "nsFocusManager.h"
+#include "nsFrameList.h"
+#include "nsListControlFrame.h"
 
 #ifdef MOZ_XUL
 #include "nsXULPopupManager.h"
@@ -126,6 +128,8 @@ PRBool NS_SVGEnabled();
 
 #include "nsCycleCollector.h"
 #include "nsJSEnvironment.h"
+
+extern void NS_ShutdownChainItemPool();
 
 static nsrefcnt sLayoutStaticRefcnt;
 
@@ -237,13 +241,11 @@ nsLayoutStatics::Initialize()
     return rv;
   }
 
-#ifndef DEBUG_CC
   rv = nsCCUncollectableMarker::Init();
   if (NS_FAILED(rv)) {
     NS_ERROR("Could not initialize nsCCUncollectableMarker");
     return rv;
   }
-#endif
 
   nsCSSRuleProcessor::Startup();
 
@@ -255,13 +257,13 @@ nsLayoutStatics::Initialize()
   }
 #endif
 
-#ifdef MOZ_MEDIA
-  rv = nsMediaDecoder::InitLogger();
+  rv = nsFocusManager::Init();
   if (NS_FAILED(rv)) {
-    NS_ERROR("Could not initialize nsMediaDecoder");
+    NS_ERROR("Could not initialize nsFocusManager");
     return rv;
   }
-  
+
+#ifdef MOZ_MEDIA
   nsHTMLMediaElement::InitMediaTypes();
 #endif
 
@@ -269,7 +271,15 @@ nsLayoutStatics::Initialize()
   nsAudioStream::InitLibrary();
 #endif
 
+  nsHtml5Module::InitializeStatics();
+  
   nsCrossSiteListenerProxy::Startup();
+
+  rv = nsFrameList::Init();
+  if (NS_FAILED(rv)) {
+    NS_ERROR("Could not initialize nsFrameList");
+    return rv;
+  }
 
   return NS_OK;
 }
@@ -277,6 +287,7 @@ nsLayoutStatics::Initialize()
 void
 nsLayoutStatics::Shutdown()
 {
+  nsFocusManager::Shutdown();
 #ifdef MOZ_XUL
   nsXULPopupManager::Shutdown();
 #endif
@@ -324,7 +335,6 @@ nsLayoutStatics::Shutdown()
   nsCSSScanner::ReleaseGlobals();
 
   NS_IF_RELEASE(nsRuleNode::gLangService);
-  nsStyledElement::Shutdown();
 
   nsTextFragment::Shutdown();
 
@@ -338,6 +348,7 @@ nsLayoutStatics::Shutdown()
   nsGlobalWindow::ShutDown();
   nsDOMClassInfo::ShutDown();
   nsTextControlFrame::ShutDown();
+  nsListControlFrame::Shutdown();
   nsXBLWindowKeyHandler::ShutDown();
   nsAutoCopyListener::Shutdown();
 
@@ -348,8 +359,6 @@ nsLayoutStatics::Shutdown()
 
   nsDOMThreadService::Shutdown();
 
-  NS_ShutdownFocusSuppressor();
-
 #ifdef MOZ_MEDIA
   nsHTMLMediaElement::ShutdownMediaTypes();
 #endif
@@ -358,6 +367,12 @@ nsLayoutStatics::Shutdown()
 #endif
 
   nsXMLHttpRequest::ShutdownACCache();
+  
+  nsHtml5Module::ReleaseStatics();
+
+  NS_ShutdownChainItemPool();
+
+  nsFrameList::Shutdown();
 }
 
 void

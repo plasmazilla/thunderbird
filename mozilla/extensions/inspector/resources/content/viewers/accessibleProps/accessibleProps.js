@@ -138,6 +138,11 @@ AccessiblePropsViewer.prototype =
     this.mPropViewerMgr.inspectInNewView();
   },
 
+  doCommand: function doCommand(aCommandId)
+  {
+    this.mPropViewerMgr.doCommand(aCommandId);
+  },
+
   // private
   updateView: function updateView()
   {
@@ -155,7 +160,9 @@ AccessiblePropsViewer.prototype =
     }
 
     // accessible properties.
-    var containers = document.getElementsByAttribute("prop", "*");
+    var propContainer = document.getElementById("mainPropContainer");
+    var containers = propContainer.getElementsByAttribute("prop", "*");
+
     for (var i = 0; i < containers.length; ++i) {
       var value = "";
       try {
@@ -241,16 +248,6 @@ AccessiblePropsViewer.prototype =
 
     for (var i = 0; i < states.length; i++)
       list.push(states.item(i));
-    return list;
-  },
-
-  get actionNames()
-  {
-    var list = [];
-
-    var count = this.mAccSubject.numActions;
-    for (var i = 0; i < count; i++)
-      list.push(this.mAccSubject.getActionName(i));
     return list;
   }
 };

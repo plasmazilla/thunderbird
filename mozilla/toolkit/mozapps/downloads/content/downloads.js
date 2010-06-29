@@ -48,6 +48,7 @@
 
 const PREF_BDM_CLOSEWHENDONE = "browser.download.manager.closeWhenDone";
 const PREF_BDM_ALERTONEXEOPEN = "browser.download.manager.alertOnEXEOpen";
+const PREF_BDM_SCANWHENDONE = "browser.download.manager.scanWhenDone";
 
 const nsLocalFile = Components.Constructor("@mozilla.org/file/local;1",
                                            "nsILocalFile", "initWithPath");
@@ -289,14 +290,18 @@ function openDownload(aDownload)
     } catch (e) { }
 
 #ifdef XP_WIN
+#ifndef WINCE
     // On Vista and above, we rely on native security prompting for
-    // downloaded content.
+    // downloaded content unless it's disabled.
     try {
-        var sysInfo = Cc["@mozilla.org/system-info;1"].
-                      getService(Ci.nsIPropertyBag2);
-        if (parseFloat(sysInfo.getProperty("version")) >= 6)
-          dontAsk = true;
+      var sysInfo = Cc["@mozilla.org/system-info;1"].
+                    getService(Ci.nsIPropertyBag2);
+      if (parseFloat(sysInfo.getProperty("version")) >= 6 &&
+          pref.getBoolPref(PREF_BDM_SCANWHENDONE)) {
+        dontAsk = true;
+      }
     } catch (ex) { }
+#endif
 #endif
 
     if (!dontAsk) {
@@ -674,29 +679,26 @@ function buildContextMenu(aEvent)
 
 var gDownloadDNDObserver =
 {
-  onDragOver: function (aEvent, aFlavour, aDragSession)
+  onDragOver: function (aEvent)
   {
-    aDragSession.canDrop = true;
+    var types = aEvent.dataTransfer.types;
+    if (types.contains("text/uri-list") ||
+        types.contains("text/x-moz-url") ||
+        types.contains("text/plain"))
+      aEvent.preventDefault();
   },
 
-  onDrop: function(aEvent, aXferData, aDragSession)
+  onDrop: function(aEvent)
   {
-    var split = aXferData.data.split("\n");
-    var url = split[0];
-    if (url != aXferData.data) {  //do nothing, not a valid URL
-      var name = split[1];
-      saveURL(url, name, null, true, true);
+    var dt = aEvent.dataTransfer;
+    var url = dt.getData("URL");
+    var name;
+    if (!url) {
+      url = dt.getData("text/x-moz-url") || dt.getData("text/plain");
+      [url, name] = url.split("\n");
     }
-  },
-  _flavourSet: null,
-  getSupportedFlavours: function ()
-  {
-    if (!this._flavourSet) {
-      this._flavourSet = new FlavourSet();
-      this._flavourSet.appendFlavour("text/x-moz-url");
-      this._flavourSet.appendFlavour("text/unicode");
-    }
-    return this._flavourSet;
+    if (url)
+      saveURL(url, name ? name : url, null, true, true);
   }
 }
 

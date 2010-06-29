@@ -165,3 +165,104 @@ Flasher.prototype =
 
 };
 
+////////////////////////////////////////////////////////////////////////////////
+//// DOMIFlasher
+
+/**
+ * The special version of the flasher operating with DOM Inspector flasher
+ * preferences.
+ */
+function DOMIFlasher()
+{
+  this.init();
+}
+
+DOMIFlasher.prototype =
+{
+  //////////////////////////////////////////////////////////////////////////////
+  //// Public
+
+  get flashOnSelect() { return PrefUtils.getPref("inspector.blink.on"); },
+  set flashOnSelect(aVal) { PrefUtils.setPref("inspector.blink.on", aVal); },
+
+  get color() { return PrefUtils.getPref("inspector.blink.border-color"); },
+  set color(aVal) { PrefUtils.setPref("inspector.blink.border-color", aVal); },
+
+  get thickness() { return PrefUtils.getPref("inspector.blink.border-width"); },
+  set thickness(aVal) { PrefUtils.setPref("inspector.blink.border-width", aVal); },
+
+  get duration() { return PrefUtils.getPref("inspector.blink.duration"); },
+  set duration(aVal) { PrefUtils.setPref("inspector.blink.duration", aVal); },
+
+  get speed() { return PrefUtils.getPref("inspector.blink.speed"); },
+  set speed(aVal) { PrefUtils.setPref("inspector.blink.speed", aVal); },
+
+  get invert() { return PrefUtils.getPref("inspector.blink.invert"); },
+  set invert(aVal) { PrefUtils.setPref("inspector.blink.invert", aVal); },
+
+  flashElement: function DOMIFlasher_flashElement(aElement)
+  {
+    if (this.mFlasher.flashing)
+      this.mFlasher.stop();
+
+    this.mFlasher.element = aElement;
+    this.mFlasher.start();
+  },
+
+  flashElementOnSelect: function DOMIFlasher_flashElementOnSelect(aElement)
+  {
+    if (this.flashOnSelect) {
+      this.flashElement(aElement);
+    }
+  },
+
+  destroy: function DOMIFlasher_destroy()
+  {
+    PrefUtils.removeObserver("inspector.blink.", this);
+  },
+
+  //////////////////////////////////////////////////////////////////////////////
+  //// Private
+
+  init: function DOMIFlasher_init()
+  {
+    this.mFlasher = new Flasher(this.color, this.thickness, this.duration,
+                                this.speed, this.invert);
+
+    PrefUtils.addObserver("inspector.blink.", this);
+
+    this.updateFlashOnSelectCommand();
+  },
+
+  updateFlashOnSelectCommand: function DOMIFlasher_updateFlashOnSelectCommand()
+  {
+    var cmdEl = document.getElementById("cmdFlashOnSelect");
+    if (this.flashOnSelect) {
+      cmdEl.setAttribute("checked", "true");
+    } else {
+      cmdEl.removeAttribute("checked");
+    }
+  },
+
+  observe: function DOMIFlasher_observe(aSubject, aTopic, aData)
+  {
+    if (aData == "inspector.blink.on") {
+      this.updateFlashOnSelectCommand();
+      return;
+    }
+
+    var value = PrefUtils.getPref(aData);
+
+    if (aData == "inspector.blink.border-color") {
+      this.mFlasher.color = value;
+    } else if (aData == "inspector.blink.border-width") {
+      this.mFlasher.thickness = value;
+    } else if (aData == "inspector.blink.duration") {
+      this.mFlasher.duration = value;
+    } else if (aData == "inspector.blink.speed") {
+      this.mFlasher.speed = value;
+    } else if (aData == "inspector.blink.invert") {
+      this.mFlasher.invert = value;
+    }
+  }
+}

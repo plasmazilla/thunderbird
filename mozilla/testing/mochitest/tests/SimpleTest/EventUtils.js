@@ -264,8 +264,10 @@ function synthesizeMouseScroll(aTarget, aOffsetX, aOffsetY, aEvent, aWindow)
     var button = aEvent.button || 0;
     var modifiers = _parseModifiers(aEvent);
 
-    var left = aTarget.boxObject.x;
-    var top = aTarget.boxObject.y;
+    var rect = aTarget.getBoundingClientRect();
+
+    var left = rect.left;
+    var top = rect.top;
 
     var type = aEvent.type || "DOMMouseScroll";
     var axis = aEvent.axis || "vertical";
@@ -500,19 +502,30 @@ function synthesizeDrop(element, dragData, effectAllowed)
   synthesizeMouse(element, 10, 10, { type: "mouseup" });
 
   var event = document.createEvent("DragEvents");
-  event.initDragEvent("dragover", true, true, window, 0, dataTransfer);
+  event.initDragEvent("dragover", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, dataTransfer);
   if (element.dispatchEvent(event))
     return "none";
 
   event = document.createEvent("DragEvents");
-  event.initDragEvent("dragexit", true, true, window, 0, dataTransfer);
+  event.initDragEvent("dragexit", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, dataTransfer);
   element.dispatchEvent(event);
 
   if (dataTransfer.dropEffect != "none") {
     event = document.createEvent("DragEvents");
-    event.initDragEvent("drop", true, true, window, 0, dataTransfer);
+    event.initDragEvent("drop", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, dataTransfer);
     element.dispatchEvent(event);
   }
 
   return dataTransfer.dropEffect;
+}
+
+function disableNonTestMouseEvents(aDisable)
+{
+  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
+
+  var utils =
+    window.QueryInterface(Components.interfaces.nsIInterfaceRequestor).
+           getInterface(Components.interfaces.nsIDOMWindowUtils);
+  if (utils)
+    utils.disableNonTestMouseEvents(aDisable);
 }

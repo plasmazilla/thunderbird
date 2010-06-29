@@ -13,8 +13,7 @@
  *
  * The Original Code is Thunderbird Global Database.
  *
- * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -64,7 +63,7 @@ load("../../mailnews/resources/messageGenerator.js");
 load("../../mailnews/resources/messageModifier.js");
 load("../../mailnews/resources/messageInjection.js");
 
-load("resources/folderEventLogHelper.js");
+load("../../mailnews/resources/folderEventLogHelper.js");
 // register this before gloda gets a chance to do anything so that
 registerFolderEventLogHelper();
 
@@ -74,7 +73,7 @@ const msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
 const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
-Components.utils.import("resource://app/modules/errUtils.js");
+Components.utils.import("resource:///modules/errUtils.js");
 
 /**
  * Create a 'me' identity of "me@localhost" for the benefit of Gloda.  At the
@@ -103,18 +102,35 @@ gPrefs.setBoolPref("mailnews.database.global.indexer.perform_initial_sweep",
 // yes to debug output
 gPrefs.setBoolPref("mailnews.database.global.logging.dump", true);
 
+const ENVIRON_MAPPINGS = [
+  {
+    envVar: "GLODA_DATASTORE_EXPLAIN_TO_PATH",
+    prefName: "mailnews.database.global.datastore.explainToPath"
+  }
+];
+
+// -- Propagate environment variables to prefs as appropriate:
+let environ = Cc["@mozilla.org/process/environment;1"]
+                .getService(Ci.nsIEnvironment);
+for each (let [, {envVar, prefName}] in Iterator(ENVIRON_MAPPINGS)) {
+ if (environ.exists(envVar)) {
+   gPrefs.setCharPref(prefName, environ.get(envVar));
+ }
+}
+
+
 // -- Import our modules
-Components.utils.import("resource://app/modules/gloda/public.js");
-Components.utils.import("resource://app/modules/gloda/indexer.js");
-Components.utils.import("resource://app/modules/gloda/index_msg.js");
-Components.utils.import("resource://app/modules/gloda/datastore.js");
-Components.utils.import("resource://app/modules/gloda/collection.js");
-Components.utils.import("resource://app/modules/gloda/datamodel.js");
-Components.utils.import("resource://app/modules/gloda/noun_tag.js");
-Components.utils.import("resource://app/modules/gloda/mimemsg.js");
+Components.utils.import("resource:///modules/gloda/public.js");
+Components.utils.import("resource:///modules/gloda/indexer.js");
+Components.utils.import("resource:///modules/gloda/index_msg.js");
+Components.utils.import("resource:///modules/gloda/datastore.js");
+Components.utils.import("resource:///modules/gloda/collection.js");
+Components.utils.import("resource:///modules/gloda/datamodel.js");
+Components.utils.import("resource:///modules/gloda/noun_tag.js");
+Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
 // -- Add a logger listener that throws when we give it a warning/error.
-Components.utils.import("resource://app/modules/gloda/log4moz.js");
+Components.utils.import("resource:///modules/gloda/log4moz.js");
 let throwingAppender = new Log4Moz.ThrowingAppender(do_throw);
 throwingAppender.level = Log4Moz.Level.Warn;
 Log4Moz.repository.rootLogger.addAppender(throwingAppender);

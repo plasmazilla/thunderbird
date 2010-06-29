@@ -60,12 +60,14 @@ ifdef MOZ_COMPOSER
 tier_app_dirs += editor/ui
 endif
 
-ifdef MOZ_BRANDING_DIRECTORY
 tier_app_dirs += $(MOZ_BRANDING_DIRECTORY)
-endif
 
 ifdef MOZ_MAIL_NEWS
-tier_app_dirs += mailnews/base mailnews
+tier_app_dirs += \
+	mailnews/base \
+	mailnews/mime/public \
+	mailnews \
+	$(NULL)
 endif
 
 ifdef MOZ_CALENDAR

@@ -18,9 +18,10 @@ var gLastKey;
 var gMessages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
 var gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
                 .getService(Ci.nsIMsgCopyService);
+var gCurTestNum;
 
-Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
-Components.utils.import("resource://gre/modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
 
 const gTestArray =
 [
@@ -97,9 +98,6 @@ function folderCount(folder)
 
 function run_test()
 {
-  // This is before any of the actual tests, so...
-  gTest = 0;
-
   // Add a listener.
   gIMAPDaemon = new imapDaemon();
   gServer = makeServer(gIMAPDaemon, "");
@@ -144,7 +142,7 @@ function run_test()
   gRootFolder = gIMAPIncomingServer.rootFolder;
   gIMAPInbox = gRootFolder.getChildNamed("INBOX");
   dump("gIMAPInbox uri = " + gIMAPInbox.URI + "\n");
-  msgImapFolder = gIMAPInbox.QueryInterface(Ci.nsIMsgImapMailFolder);
+  let msgImapFolder = gIMAPInbox.QueryInterface(Ci.nsIMsgImapMailFolder);
   // these hacks are required because we've created the inbox before
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
@@ -169,18 +167,22 @@ function doTest(test)
 
     var testFn = gTestArray[test - 1];
     // Set a limit of ten seconds; if the notifications haven't arrived by then there's a problem.
-    do_timeout(10000, "if (gCurTestNum == "+test+") \
-      do_throw('Notifications not received in 10000 ms for operation "+testFn.name+", current status is '+gCurrStatus);");
+    do_timeout(10000, function(){
+        if (gCurTestNum == test)
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
+            ", current status is " + gCurrStatus);
+        }
+      );
     try {
     testFn();
     } catch(ex) {
       gServer.stop();
-      do_throw ('TEST FAILED ' + e);
+      do_throw ('TEST FAILED ' + ex);
     }
   }
   else
   {
-    do_timeout(1000, "endTest();");
+    do_timeout(1000, endTest);
   }
 }
 
@@ -204,7 +206,7 @@ var CopyListener =
     // This can happen with a bunch of synchronous functions grouped together, and
     // can even cause tests to fail because they're still waiting for the listener
     // to return
-    do_timeout(0, "doTest(++gCurTestNum)");
+    do_timeout(0, function(){doTest(++gCurTestNum);});
   }
 };
 
@@ -216,7 +218,7 @@ var URLListener =
   {
     dump("in OnStopRunningURL " + gCurTestNum + "\n");
     do_check_eq(aStatus, 0);
-    do_timeout(0, "doTest(++gCurTestNum);");
+    do_timeout(0, function(){doTest(++gCurTestNum);});
   }
 }
 

@@ -164,9 +164,11 @@ function run_test()
                      FILE_PICKER_CID,
                      factory);
 
-  let prefs = Cc["@mozilla.org/preferences-service;1"].
-              getService(Ci.nsIPrefService).
-              getBranch("browser.download.");
+  let prefsService = Cc["@mozilla.org/preferences-service;1"].
+                     getService(Ci.nsIPrefService).
+                     QueryInterface(Ci.nsIPrefBranch);
+  prefsService.setBoolPref("browser.privatebrowsing.keep_current_session", true);
+  let prefs = prefsService.getBranch("browser.download.");
   let obs = Cc["@mozilla.org/observer-service;1"].
             getService(Ci.nsIObserverService);
   let launcher = Cc["@mozilla.org/helperapplauncherdialog;1"].
@@ -215,7 +217,7 @@ function run_test()
   prefs.setComplexValue("lastDir", Ci.nsILocalFile, tmpDir);
 
   observer.file = file1;
-  let file = launcher.promptForSaveToFile(null, context, null, null, true);
+  let file = launcher.promptForSaveToFile(null, context, null, null, null);
   do_check_true(!!file);
   // file picker should start with browser.download.lastDir
   do_check_eq(observer.displayDirectory.path, tmpDir.path);
@@ -228,7 +230,7 @@ function run_test()
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir1.path);
   observer.file = file2;
   observer.displayDirectory = null;
-  file = launcher.promptForSaveToFile(null, context, null, null, true);
+  file = launcher.promptForSaveToFile(null, context, null, null, null);
   do_check_true(!!file);
   // file picker should start with browser.download.lastDir as set before entering the private browsing mode
   do_check_eq(observer.displayDirectory.path, dir1.path);
@@ -242,7 +244,7 @@ function run_test()
   do_check_eq(gDownloadLastDir.file, null);
   observer.file = file3;
   observer.displayDirectory = null;
-  file = launcher.promptForSaveToFile(null, context, null, null, true);
+  file = launcher.promptForSaveToFile(null, context, null, null, null);
   do_check_true(!!file);
   // file picker should start with browser.download.lastDir as set before entering the private browsing mode
   do_check_eq(observer.displayDirectory.path, dir1.path);
@@ -252,6 +254,7 @@ function run_test()
   do_check_eq(gDownloadLastDir.file, null);
 
   // cleanup
+  prefsService.clearUserPref("browser.privatebrowsing.keep_current_session");
   [dir1, dir2, dir3].forEach(function(dir) dir.remove(true));
   dirSvc.QueryInterface(Ci.nsIDirectoryService).unregisterProvider(provider);
   obs.removeObserver(observer, "TEST_FILEPICKER_GETFILE", false);

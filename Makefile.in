@@ -39,15 +39,40 @@ topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
 
+ifndef .PYMAKE
+ifeq (,$(MAKE_VERSION))
+$(error GNU Make is required)
+endif
+ifeq (,$(filter-out 3.78 3.79,$(MAKE_VERSION)))
+$(error GNU Make 3.80 or higher is required)
+endif
+endif
+
 include $(DEPTH)/config/autoconf.mk
 
 default::
 
+ifdef COMPILE_ENVIRONMENT
 include $(topsrcdir)/$(MOZ_BUILD_APP)/build.mk
+endif
 
 include $(topsrcdir)/config/config.mk
 
-default export libs clean realclean distclean alldep maybe_clobber_profiledbuild rebase uploadsymbols signnss deliver::
+default alldep all:: $(topsrcdir)/configure config.status
+
+$(topsrcdir)/configure: $(topsrcdir)/configure.in
+	@echo "STOP!  configure.in has changed, and your configure is out of date."
+	@echo "Please rerun autoconf and configure."
+	@echo "To ignore this message, touch 'configure' in the source directory."
+	@exit 1
+
+config.status: $(topsrcdir)/configure
+	@echo "STOP!  configure has changed and needs to be run in this build directory."
+	@echo "Please rerun configure."
+	@echo "To ignore this message, touch 'config.status' in the build directory."
+	@exit 1
+
+default export libs clean realclean distclean alldep maybe_clobber_profiledbuild uploadsymbols all::
 	$(MAKE) -C mozilla $@
 
 ifdef ENABLE_TESTS
@@ -81,3 +106,18 @@ buildsymbols ::
 	$(MAKE) -C mozilla MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS="$(topsrcdir)/mozilla/extensions/inspector $(topsrcdir)/mozilla $(topsrcdir)" $@
 
 include $(topsrcdir)/config/rules.mk
+
+ifndef MOZILLA_1_9_2_BRANCH
+# defined in (mozilla/.../)package-name.mk
+export MOZ_SOURCE_STAMP
+endif
+
+DIST_GARBAGE = config.cache config.log config.status config-defs.h \
+   dependencies.beos config/autoconf.mk \
+   unallmakefiles comm-config.h \
+   $(topsrcdir)/.mozconfig.mk $(topsrcdir)/.mozconfig.out
+
+distclean::
+	cat unallmakefiles | $(XARGS) rm -f
+	rm -f $(DIST_GARBAGE)
+

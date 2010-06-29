@@ -85,10 +85,6 @@ function test_gestureListener(evt)
      "evt.type (" + evt.type + ") does not match expected value");
   is(evt.target, test_utils.elementFromPoint(20, 20, false, false),
      "evt.target (" + evt.target + ") does not match expected value");
-  is(evt.direction, test_expectedDirection,
-     "evt.direction (" + evt.direction + ") does not match expected value");
-  is(evt.delta, test_expectedDelta,
-     "evt.delta (" + evt.delta + ") does not match expected value");
   is(evt.clientX, 20,
      "evt.clientX (" + evt.clientX + ") does not match expected value");
   is(evt.clientY, 20,
@@ -97,6 +93,11 @@ function test_gestureListener(evt)
         "evt.screenX (" + evt.screenX + ") does not match expected value");
   isnot(evt.screenY, 0,
         "evt.screenY (" + evt.screenY + ") does not match expected value");
+
+  is(evt.direction, test_expectedDirection,
+     "evt.direction (" + evt.direction + ") does not match expected value");
+  is(evt.delta, test_expectedDelta,
+     "evt.delta (" + evt.delta + ") does not match expected value");
 
   is(evt.shiftKey, (test_expectedModifiers & Components.interfaces.nsIDOMNSEvent.SHIFT_MASK) != 0,
      "evt.shiftKey did not match expected value");

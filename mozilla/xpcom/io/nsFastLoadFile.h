@@ -51,7 +51,6 @@
 #include "nsDebug.h"
 #include "nsID.h"
 #include "nsMemory.h"
-#include "nsVoidArray.h"
 
 #include "nsIFastLoadFileControl.h"
 #include "nsIFastLoadService.h"
@@ -402,7 +401,7 @@ class nsFastLoadFileReader
 };
 
 NS_COM nsresult
-NS_NewFastLoadFileReader(nsIObjectInputStream* *aResult,
+NS_NewFastLoadFileReader(nsIObjectInputStream* *aResult NS_OUTPARAM,
                          nsIInputStream* aSrcStream);
 
 /**
@@ -526,7 +525,7 @@ class nsFastLoadFileWriter
 };
 
 NS_COM nsresult
-NS_NewFastLoadFileWriter(nsIObjectOutputStream* *aResult,
+NS_NewFastLoadFileWriter(nsIObjectOutputStream* *aResult NS_OUTPARAM,
                          nsIOutputStream* aDestStream,
                          nsIFastLoadFileIO* aFileIO);
 
@@ -577,7 +576,7 @@ class nsFastLoadFileUpdater
 };
 
 NS_COM nsresult
-NS_NewFastLoadFileUpdater(nsIObjectOutputStream* *aResult,
+NS_NewFastLoadFileUpdater(nsIObjectOutputStream* *aResult NS_OUTPARAM,
                           nsIOutputStream* aOutputStream,
                           nsIObjectInputStream* aReaderAsStream);
 

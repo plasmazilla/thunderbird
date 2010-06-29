@@ -125,7 +125,6 @@ pref("mailnews.headers.showSender", false);
 // Mail server preferences, pop by default
 // 0 pop, 1 imap; (Unix only:) 2 movemail, 3 inbox.
 pref("mail.server_type", 0);
-pref("mail.auth_login", true);
 
 pref("mail.default_drafts", "");    // empty string use default Drafts name;
 pref("mail.default_templates", ""); // empty string use default Templates name
@@ -231,7 +230,6 @@ pref("mail.compose.autosaveinterval", 5); // in minutes
 pref("mail.fcc_folder",                     "");
 
 pref("mail.default_html_action", 0);          // 0=ask, 1=plain, 2=html, 3=both
-pref("mail.smtp.ssl", 0);                     // 0 = no, 1 = try, 2 = must use SSL
 
 pref("mail.mdn.report.not_in_to_cc", 2);               // 0: Never 1: Always 2: Ask me
 pref("mail.mdn.report.outside_domain", 2);             // 0: Never 1: Always 2: Ask me
@@ -451,6 +449,9 @@ pref("mail.collect_addressbook", "moz-abmdbdirectory://history.mab");
 
 pref("mail.default_sendlater_uri", "mailbox://nobody@Local%20Folders/Unsent%20Messages");
 
+pref("mail.smtpservers", "");
+pref("mail.accountmanager.accounts", "");
+
 pref("mail.server.default.port", -1);
 pref("mail.server.default.offline_support_level", -1);
 pref("mail.server.default.leave_on_server", false);
@@ -461,13 +462,12 @@ pref("mail.server.default.num_days_to_leave_on_server", 7);
 pref("mail.server.default.dot_fix", true);
 pref("mail.server.default.limit_offline_message_size", false);
 pref("mail.server.default.max_size", 50);
-pref("mail.server.default.auth_login", true);
 pref("mail.server.default.delete_mail_left_on_server", false);
 pref("mail.server.default.valid", true);
 pref("mail.server.default.abbreviate", true);
 pref("mail.server.default.isSecure", false);
-pref("mail.server.default.useSecAuth", false);
-pref("mail.server.default.socketType", 0);
+pref("mail.server.default.authMethod", 3); // cleartext password. @see nsIMsgIncomingServer.authMethod.
+pref("mail.server.default.socketType", 0); // @see nsIMsgIncomingServer.socketType
 pref("mail.server.default.override_namespaces", true);
 pref("mail.server.default.deferred_to_account", "");
 
@@ -495,7 +495,6 @@ pref("mail.server.default.login_at_startup", false);
 pref("mail.server.default.allows_specialfolders_usage", true);
 pref("mail.server.default.canCreateFolders", true);
 pref("mail.server.default.canFileMessages", true);
-pref("mail.server.default.logon_fallback", true);
 
 // special enhancements for IMAP servers
 pref("mail.server.default.is_gmail", false);
@@ -530,6 +529,7 @@ pref("mail.server.default.offline_download",true);
 pref("mail.server.default.autosync_max_age_days", -1);
 
 pref("mail.server.default.archive_granularity", 1);
+pref("mail.server.default.archive_keep_folder_structure", false);
 // the probablilty threshold over which messages are classified as junk
 // this number is divided by 100 before it is used. The classifier can be fine tuned
 // by changing this pref. Typical values are .99, .95, .90, .5, etc.
@@ -566,10 +566,8 @@ pref("mail.smtp.useMatchingDomainServer", false);
 // matching username and host name
 pref("mail.smtp.useMatchingHostNameServer", false);
 
-pref("mail.smtpserver.default.auth_method", 1); // auth any
-pref("mail.smtpserver.default.useSecAuth", false);
-pref("mail.smtpserver.default.trySecAuth", true);
-pref("mail.smtpserver.default.try_ssl", 0);
+pref("mail.smtpserver.default.authMethod", 3); // cleartext password. @see nsIMsgIncomingServer.authMethod.
+pref("mail.smtpserver.default.try_ssl", 0); // @see nsISmtpServer.socketType
 
 // For the next 3 prefs, see <http://www.bucksch.org/1/projects/mozilla/16507>
 pref("mail.display_glyph", true);   // TXT->HTML :-) etc. in viewer
@@ -687,6 +685,11 @@ pref("mail.biff.add_interval_jitter", true);
 // if true, check for new mail even when opening non-mail windows
 pref("mail.biff.on_new_window", true);
 #endif
+
+// If true, the number used in the Mac OS X dock notification will be the
+// the number of "new" messages, as per the classic Thunderbird definition.
+// Defaults to false, which notifies about the number of unread messages.
+pref("mail.biff.use_new_count_in_mac_dock", false);
 
 // Content disposition for attachments (except binary files and vcards).
 //   0= Content-Disposition: inline
@@ -844,7 +847,9 @@ pref("mailnews.emptyJunk.dontAskAgain", false);
 pref("mailnews.emptyTrash.dontAskAgain", false);
 
 // where to fetch auto config information from.
-pref("mailnews.auto_config_url", "https://live.mozillamessaging.com/autoconfig/");
+pref("mailnews.auto_config_url", "https://live.mozillamessaging.com/autoconfig/v1.1/");
+// Added in bug 551519. Remove when bug 545866 is fixed.
+pref("mailnews.mx_service_url", "https://live.mozillamessaging.com/dns/mx/");
 
 // -- Summary Database options
 // dontPreserveOnCopy: a space separated list of properties that are not

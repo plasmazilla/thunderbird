@@ -60,6 +60,8 @@
 #include "nspr.h"
 #include "ProxyJNI.h"
 #include "nsIPluginHost.h"
+#include "nsIPluginHostOld.h"
+#define nsIPluginHost nsIPluginHostOld
 #include "nsIServiceManager.h"
 #include "nsIThreadManager.h"
 #include "nsIThread.h"

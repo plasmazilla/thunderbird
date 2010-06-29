@@ -43,7 +43,7 @@
 #include "nsSVGPaintServerFrame.h"
 #include "gfxMatrix.h"
 
-class nsIDOMSVGAnimatedPreserveAspectRatio;
+class nsSVGPreserveAspectRatio;
 class nsIFrame;
 class nsSVGLength2;
 class nsSVGElement;
@@ -59,8 +59,9 @@ typedef nsSVGPaintServerFrame  nsSVGPatternFrameBase;
 class nsSVGPatternFrame : public nsSVGPatternFrameBase
 {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   friend nsIFrame* NS_NewSVGPatternFrame(nsIPresShell* aPresShell,
-                                         nsIContent*   aContent,
                                          nsStyleContext* aContext);
 
   nsSVGPatternFrame(nsStyleContext* aContext);
@@ -77,7 +78,7 @@ public:
 
 public:
   // nsSVGContainerFrame methods:
-  virtual already_AddRefed<nsIDOMSVGMatrix> GetCanvasTM();
+  virtual gfxMatrix GetCanvasTM();
 
   // nsIFrame interface:
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
@@ -85,6 +86,12 @@ public:
   NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
                               nsIAtom*        aAttribute,
                               PRInt32         aModType);
+
+#ifdef DEBUG
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+#endif
 
   /**
    * Get the "type" of the frame
@@ -110,33 +117,31 @@ protected:
   nsSVGPatternElement* GetPatternWithAttr(nsIAtom *aAttrName, nsIContent *aDefault);
 
   //
-  nsSVGLength2 *GetX();
-  nsSVGLength2 *GetY();
-  nsSVGLength2 *GetWidth();
-  nsSVGLength2 *GetHeight();
+  const nsSVGLength2 *GetX();
+  const nsSVGLength2 *GetY();
+  const nsSVGLength2 *GetWidth();
+  const nsSVGLength2 *GetHeight();
 
   PRUint16 GetPatternUnits();
   PRUint16 GetPatternContentUnits();
   gfxMatrix GetPatternTransform();
 
-  NS_IMETHOD GetPreserveAspectRatio(nsIDOMSVGAnimatedPreserveAspectRatio
-                                                     **aPreserveAspectRatio);
+  const nsSVGViewBox &GetViewBox();
+  const nsSVGPreserveAspectRatio &GetPreserveAspectRatio();
+
   NS_IMETHOD GetPatternFirstChild(nsIFrame **kid);
-  NS_IMETHOD GetViewBox(nsIDOMSVGRect * *aMatrix);
-  nsresult   GetPatternRect(nsIDOMSVGRect **patternRect,
-                            nsIDOMSVGRect *bbox,
-                            nsIDOMSVGMatrix *callerCTM,
+  gfxRect    GetPatternRect(const gfxRect &bbox,
+                            const gfxMatrix &callerCTM,
                             nsSVGElement *content);
-  gfxMatrix  GetPatternMatrix(nsIDOMSVGRect *bbox,
-                              nsIDOMSVGRect *callerBBox,
-                              nsIDOMSVGMatrix *callerCTM);
-  nsresult   ConstructCTM(nsIDOMSVGMatrix **ctm,
-                          nsIDOMSVGRect *callerBBox,
-                          nsIDOMSVGMatrix *callerCTM);
-  nsresult   GetCallerGeometry(nsIDOMSVGMatrix **aCTM,
-                               nsIDOMSVGRect **aBBox,
-                               nsSVGElement **aContent,
-                               nsSVGGeometryFrame *aSource);
+  gfxMatrix  GetPatternMatrix(const gfxRect &bbox,
+                              const gfxRect &callerBBox,
+                              const gfxMatrix &callerCTM);
+  gfxMatrix  ConstructCTM(const gfxRect &callerBBox,
+                          const gfxMatrix &callerCTM);
+  nsresult   GetTargetGeometry(gfxMatrix *aCTM,
+                               gfxRect *aBBox,
+                               nsSVGElement **aTargetContent,
+                               nsSVGGeometryFrame *aTarget);
 
 private:
   // this is a *temporary* reference to the frame of the element currently

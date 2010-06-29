@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<window title="Text input text centering test (bug 453827)"
+<window title="Text input text centering test"
   xmlns:html="http://www.w3.org/1999/xhtml"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <!--
@@ -19,8 +19,7 @@
       font-family: "Ahem";
       src: url(../fonts/Ahem.ttf);
     }
-    hbox.textbox-input-box {
-      -moz-box-align: stretch;
+    hbox {
       height: 128px;
       background-color: white;
     }
@@ -34,7 +33,7 @@
     }
   </html:style>
 
-  <toolbaritem class="chromeclass-location">
-    <textbox type="autocomplete" value="Ahem"/>
-  </toolbaritem>
+  <hbox align="stretch">
+    <html:input value="Ahem"/>
+  </hbox>
 </window>

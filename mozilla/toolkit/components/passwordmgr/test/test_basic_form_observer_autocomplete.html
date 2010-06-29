@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Test for Login Manager</title>
-  <script type="text/javascript" src="/MochiKit/MochiKit.js"></script>
+  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>  
   <script type="text/javascript" src="pwmgr_common.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
@@ -38,6 +38,7 @@ Login Manager test: simple form with autocomplete off and notifying observers & 
 
 /** Test for Login Manager: simple form with autocomplete off and notifying observers & normal form **/
 
+commonInit();
 netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
 const Cc = Components.classes;
 const Ci = Components.interfaces;

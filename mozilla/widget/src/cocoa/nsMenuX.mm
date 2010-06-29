@@ -81,7 +81,6 @@ static PRBool gMenuMethodsSwizzled = PR_FALSE;
 
 PRInt32 nsMenuX::sIndexingMenuLevel = 0;
 
-
 nsMenuX::nsMenuX()
 : mVisibleItemsCount(0), mParent(nsnull), mMenuBar(nsnull),
   mNativeMenu(nil), mNativeMenuItem(nil), mIsEnabled(PR_TRUE),
@@ -122,7 +121,6 @@ nsMenuX::nsMenuX()
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-
 nsMenuX::~nsMenuX()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -136,7 +134,9 @@ nsMenuX::~nsMenuX()
   [mNativeMenu setDelegate:nil];
   [mNativeMenu release];
   [mMenuDelegate release];
-  [mNativeMenuItem release];
+  // autorelease the native menu item so that anything else happening to this
+  // object happens before the native menu item actually dies
+  [mNativeMenuItem autorelease];
 
   // alert the change notifier we don't care no more
   if (mContent)
@@ -146,7 +146,6 @@ nsMenuX::~nsMenuX()
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
-
 
 nsresult nsMenuX::Create(nsMenuObjectX* aParent, nsMenuBarX* aMenuBar, nsIContent* aNode)
 {
@@ -172,9 +171,8 @@ nsresult nsMenuX::Create(nsMenuObjectX* aParent, nsMenuBarX* aMenuBar, nsIConten
   if (mContent->GetChildCount() == 0)
     mVisible = PR_FALSE;
 
-  NSString *newCocoaLabelString = nsMenuUtilsX::CreateTruncatedCocoaLabel(mLabel);
+  NSString *newCocoaLabelString = nsMenuUtilsX::GetTruncatedCocoaLabel(mLabel);
   mNativeMenuItem = [[NSMenuItem alloc] initWithTitle:newCocoaLabelString action:nil keyEquivalent:@""];
-  [newCocoaLabelString release];
   [mNativeMenuItem setSubmenu:mNativeMenu];
 
   SetEnabled(!mContent->AttrValueIs(kNameSpaceID_None, nsWidgetAtoms::disabled,
@@ -192,7 +190,6 @@ nsresult nsMenuX::Create(nsMenuObjectX* aParent, nsMenuBarX* aMenuBar, nsIConten
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
-
 
 nsresult nsMenuX::AddMenuItem(nsMenuItemX* aMenuItem)
 {
@@ -223,7 +220,6 @@ nsresult nsMenuX::AddMenuItem(nsMenuItemX* aMenuItem)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-
 nsresult nsMenuX::AddMenu(nsMenuX* aMenu)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
@@ -250,13 +246,11 @@ nsresult nsMenuX::AddMenu(nsMenuX* aMenu)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-
 // Includes all items, including hidden/collapsed ones
 PRUint32 nsMenuX::GetItemCount()
 {
   return mMenuObjectsArray.Length();
 }
-
 
 // Includes all items, including hidden/collapsed ones
 nsMenuObjectX* nsMenuX::GetItemAt(PRUint32 aPos)
@@ -267,14 +261,12 @@ nsMenuObjectX* nsMenuX::GetItemAt(PRUint32 aPos)
   return mMenuObjectsArray[aPos];
 }
 
-
 // Only includes visible items
 nsresult nsMenuX::GetVisibleItemCount(PRUint32 &aCount)
 {
   aCount = mVisibleItemsCount;
   return NS_OK;
 }
-
 
 // Only includes visible items. Note that this is provides O(N) access
 // If you need to iterate or search, consider using GetItemAt and doing your own filtering
@@ -306,7 +298,6 @@ nsMenuObjectX* nsMenuX::GetVisibleItemAt(PRUint32 aPos)
   return NULL;
 }
 
-
 nsresult nsMenuX::RemoveAll()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
@@ -328,7 +319,6 @@ nsresult nsMenuX::RemoveAll()
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
-
 
 nsEventStatus nsMenuX::MenuOpened(const nsMenuEvent & aMenuEvent)
 {
@@ -379,7 +369,6 @@ nsEventStatus nsMenuX::MenuOpened(const nsMenuEvent & aMenuEvent)
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(nsEventStatus_eIgnore);
 }
 
-
 void nsMenuX::MenuClosed(const nsMenuEvent & aMenuEvent)
 {
   if (mConstructed) {
@@ -397,7 +386,6 @@ void nsMenuX::MenuClosed(const nsMenuEvent & aMenuEvent)
     mConstructed = false;
   }
 }
-
 
 void nsMenuX::MenuConstruct()
 {
@@ -461,13 +449,11 @@ void nsMenuX::MenuConstruct()
   // printf("Done building, mMenuObjectsArray.Count() = %d \n", mMenuObjectsArray.Count());
 }
 
-
 void nsMenuX::SetRebuild(PRBool aNeedsRebuild)
 {
   if (!gConstructingMenu)
     mNeedsRebuild = aNeedsRebuild;
 }
-
 
 nsresult nsMenuX::SetEnabled(PRBool aIsEnabled)
 {
@@ -479,14 +465,12 @@ nsresult nsMenuX::SetEnabled(PRBool aIsEnabled)
   return NS_OK;
 }
 
-
 nsresult nsMenuX::GetEnabled(PRBool* aIsEnabled)
 {
   NS_ENSURE_ARG_POINTER(aIsEnabled);
   *aIsEnabled = mIsEnabled;
   return NS_OK;
 }
-
 
 GeckoNSMenu* nsMenuX::CreateMenuWithGeckoString(nsString& menuTitle)
 {
@@ -509,7 +493,6 @@ GeckoNSMenu* nsMenuX::CreateMenuWithGeckoString(nsString& menuTitle)
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
-
 
 void nsMenuX::LoadMenuItem(nsIContent* inMenuItemContent)
 {
@@ -553,7 +536,6 @@ void nsMenuX::LoadMenuItem(nsIContent* inMenuItemContent)
   menuItem->SetupIcon();
 }
 
-
 void nsMenuX::LoadSubMenu(nsIContent* inMenuContent)
 {
   nsAutoPtr<nsMenuX> menu(new nsMenuX());
@@ -572,7 +554,6 @@ void nsMenuX::LoadSubMenu(nsIContent* inMenuContent)
 
   menu.forget();
 }
-
 
 // This menu is about to open. Returns TRUE if we should keep processing the event,
 // FALSE if the handler wants to stop the opening of the menu.
@@ -656,7 +637,6 @@ PRBool nsMenuX::OnOpen()
   return PR_TRUE;
 }
 
-
 PRBool nsMenuX::OnOpened()
 {
   nsEventStatus status = nsEventStatus_eIgnore;
@@ -673,7 +653,6 @@ PRBool nsMenuX::OnOpened()
   
   return PR_TRUE;
 }
-
 
 // Returns TRUE if we should keep processing the event, FALSE if the handler
 // wants to stop the closing of the menu.
@@ -701,7 +680,6 @@ PRBool nsMenuX::OnClose()
   return PR_TRUE;
 }
 
-
 PRBool nsMenuX::OnClosed()
 {
   nsEventStatus status = nsEventStatus_eIgnore;
@@ -722,7 +700,6 @@ PRBool nsMenuX::OnClosed()
   
   return PR_TRUE;
 }
-
 
 // Find the |menupopup| child in the |popup| representing this menu. It should be one
 // of a very few children so we won't be iterating over a bazillion menu items to find
@@ -751,20 +728,16 @@ void nsMenuX::GetMenuPopupContent(nsIContent** aResult)
       return;
     }
   }
-
 }
-
 
 NSMenuItem* nsMenuX::NativeMenuItem()
 {
   return mNativeMenuItem;
 }
 
-
 //
 // nsChangeObserver
 //
-
 
 void nsMenuX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aContent,
                                       nsIAtom *aAttribute)
@@ -790,9 +763,8 @@ void nsMenuX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aConte
     if (parentType == eMenuBarObjectType) {
       // reuse the existing menu, to avoid rebuilding the root menu bar.
       NS_ASSERTION(mNativeMenu, "nsMenuX::AttributeChanged: invalid menu handle.");
-      NSString *newCocoaLabelString = nsMenuUtilsX::CreateTruncatedCocoaLabel(mLabel);
+      NSString *newCocoaLabelString = nsMenuUtilsX::GetTruncatedCocoaLabel(mLabel);
       [mNativeMenu setTitle:newCocoaLabelString];
-      [newCocoaLabelString release];
     }
     else {
       static_cast<nsMenuX*>(mParent)->SetRebuild(PR_TRUE);
@@ -841,7 +813,6 @@ void nsMenuX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aConte
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-
 void nsMenuX::ObserveContentRemoved(nsIDocument *aDocument, nsIContent *aChild,
                                     PRInt32 aIndexInContainer)
 {
@@ -852,7 +823,6 @@ void nsMenuX::ObserveContentRemoved(nsIDocument *aDocument, nsIContent *aChild,
   mMenuBar->UnregisterForContentChanges(aChild);
 }
 
-
 void nsMenuX::ObserveContentInserted(nsIDocument *aDocument, nsIContent *aChild,
                                      PRInt32 aIndexInContainer)
 {
@@ -861,7 +831,6 @@ void nsMenuX::ObserveContentInserted(nsIDocument *aDocument, nsIContent *aChild,
 
   SetRebuild(PR_TRUE);
 }
-
 
 nsresult nsMenuX::SetupIcon()
 {
@@ -873,11 +842,9 @@ nsresult nsMenuX::SetupIcon()
   return mIcon->SetupIcon();
 }
 
-
 //
 // Carbon event support
 //
-
 
 static pascal OSStatus MyMenuEventHandler(EventHandlerCallRef myHandler, EventRef event, void* userData)
 {
@@ -895,6 +862,50 @@ static pascal OSStatus MyMenuEventHandler(EventHandlerCallRef myHandler, EventRe
 
   nsMenuX* targetMenu = static_cast<nsMenuX*>(userData);
   UInt32 kind = ::GetEventKind(event);
+
+  // On SnowLeopard, our Help menu items often get disabled when the user
+  // enters a password after waking from sleep or the screen saver.  Whether
+  // or not the user is prompted for a password is governed by the "Require
+  // password" setting in the Security pref panel.  For more information see
+  // bug 513048.
+  //
+  // This is surely an OS bug, though it's not clear exactly what triggers it.
+  // The end result is that the Help menu's items are turned off in Carbon,
+  // even though they're turned on in Cocoa.  (On SnowLeopard, system menus
+  // are still implemented in Carbon (at least for for 32-bit apps), using the
+  // undocumented NSCarbonMenuImpl class.)  The workaround for this is to do
+  // the following whenever a menu is opened:  If it's the Help menu, check
+  // Carbon and Cocoa enabled states of all its menu items.  If any of these
+  // states don't match, change the Carbon enabled state to match the Cocoa
+  // enabled state.
+  if (nsToolkit::OnSnowLeopardOrLater() && targetMenu && (kind == kEventMenuOpening)) {
+    nsCOMPtr<nsIContent> content(targetMenu->Content());
+    NSMenu *nativeMenu = static_cast<NSMenu*>(targetMenu->NativeData());
+    if (content && nativeMenu) {
+      nsAutoString id;
+      content->GetAttr(kNameSpaceID_None, nsWidgetAtoms::id, id);
+      if (id.Equals(NS_LITERAL_STRING("helpMenu"))) {
+        MenuRef helpMenuRef = _NSGetCarbonMenu(nativeMenu);
+        if (helpMenuRef) {
+          NSArray *items = [nativeMenu itemArray];
+          NSUInteger count = [items count];
+          for (NSUInteger i = 0; i < count; ++i) {
+            NSMenuItem *anItem = (NSMenuItem *) [items objectAtIndex:i];
+            BOOL cocoaEnabled = [anItem isEnabled];
+            Boolean carbonEnabled = ::IsMenuItemEnabled(helpMenuRef, i+1);
+            if (carbonEnabled != cocoaEnabled) {
+              if (!carbonEnabled) {
+                ::EnableMenuItem(helpMenuRef, i+1);
+              } else {
+                ::DisableMenuItem(helpMenuRef, i+1);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (kind == kEventMenuTargetItem) {
     // get the position of the menu item we want
     PRUint16 aPos;
@@ -903,13 +914,11 @@ static pascal OSStatus MyMenuEventHandler(EventHandlerCallRef myHandler, EventRe
     
     // don't request a menu item that doesn't exist or we crash
     // this might happen just due to some random quirks in the event system
-    PRUint32 itemCount;
-    targetMenu->GetVisibleItemCount(itemCount);
-    if (aPos >= itemCount)
+    nsMenuObjectX* target = targetMenu->GetVisibleItemAt((PRUint32)aPos);
+    if (!target)
       return eventNotHandledErr;
 
     // Send DOM event if we're over a menu item
-    nsMenuObjectX* target = targetMenu->GetVisibleItemAt((PRUint32)aPos);
     if (target->MenuObjectType() == eMenuItemObjectType) {
       nsMenuItemX* targetMenuItem = static_cast<nsMenuItemX*>(target);
       PRBool handlerCalledPreventDefault; // but we don't actually care
@@ -919,7 +928,7 @@ static pascal OSStatus MyMenuEventHandler(EventHandlerCallRef myHandler, EventRe
   }
   else if (kind == kEventMenuOpening || kind == kEventMenuClosed) {
     if (kind == kEventMenuOpening && gRollupListener && gRollupWidget) {
-      gRollupListener->Rollup(nsnull);
+      gRollupListener->Rollup(nsnull, nsnull);
       return userCanceledErr;
     }
     MenuRef menuRef;
@@ -937,7 +946,6 @@ static pascal OSStatus MyMenuEventHandler(EventHandlerCallRef myHandler, EventRe
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(noErr);
 }
-
 
 static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, EventHandlerRef* outHandler)
 {
@@ -959,14 +967,11 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(noErr);
 }
 
-
 //
 // MenuDelegate Objective-C class, used to set up Carbon events
 //
 
-
 @implementation MenuDelegate
-
 
 - (id)initWithGeckoMenu:(nsMenuX*)geckoMenu
 {
@@ -992,7 +997,6 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-
 // You can get a MenuRef from an NSMenu*, but not until it has been made visible
 // or added to the main menu bar. Basically, Cocoa is attempting lazy loading,
 // and that doesn't work for us. We don't need any carbon events until after the
@@ -1015,7 +1019,6 @@ static OSStatus InstallMyMenuEventHandler(MenuRef menuRef, void* userData, Event
 }
 
 @end
-
 
 // OS X Leopard (at least as of 10.5.2) has an obscure bug triggered by some
 // behavior that's present in Mozilla.org browsers but not (as best I can
@@ -1130,7 +1133,6 @@ static NSMutableDictionary *gShadowKeyEquivDB = nil;
 }
 
 @end
-
 
 @interface NSMenu (MethodSwizzling)
 + (void)nsMenuX_NSMenu_addItem:(NSMenuItem *)aItem toTable:(NSMapTable *)aTable;

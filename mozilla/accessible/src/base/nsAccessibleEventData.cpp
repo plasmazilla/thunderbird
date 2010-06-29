@@ -76,15 +76,19 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsAccEvent)
 // nsAccEvent. Constructors
 
 nsAccEvent::nsAccEvent(PRUint32 aEventType, nsIAccessible *aAccessible,
-                       PRBool aIsAsynch, EEventRule aEventRule):
-  mEventType(aEventType), mAccessible(aAccessible), mEventRule(aEventRule)
+                       PRBool aIsAsynch, EEventRule aEventRule)
+  : mEventType(aEventType)
+  , mEventRule(aEventRule)
+  , mAccessible(aAccessible)
 {
   CaptureIsFromUserInput(aIsAsynch);
 }
 
 nsAccEvent::nsAccEvent(PRUint32 aEventType, nsIDOMNode *aDOMNode,
-                       PRBool aIsAsynch, EEventRule aEventRule):
-  mEventType(aEventType), mDOMNode(aDOMNode), mEventRule(aEventRule)
+                       PRBool aIsAsynch, EEventRule aEventRule)
+  : mEventType(aEventType)
+  , mEventRule(aEventRule)
+  , mDOMNode(aDOMNode)
 {
   CaptureIsFromUserInput(aIsAsynch);
 }
@@ -262,8 +266,9 @@ nsAccEvent::GetAccessibleByNode()
   if (!accService)
     return nsnull;
 
-  nsIAccessible *accessible = nsnull;
-  accService->GetAccessibleFor(mDOMNode, &accessible);
+  nsCOMPtr<nsIAccessible> accessible;
+  accService->GetAccessibleFor(mDOMNode, getter_AddRefs(accessible));
+
 #ifdef MOZ_XUL
   // hack for xul tree table. We need a better way for firing delayed event
   // against xul tree table. see bug 386821.
@@ -278,24 +283,16 @@ nsAccEvent::GetAccessibleByNode()
       PRInt32 treeIndex = -1;
       multiSelect->GetCurrentIndex(&treeIndex);
       if (treeIndex >= 0) {
-        nsCOMPtr<nsIAccessibleTreeCache> treeCache(do_QueryInterface(accessible));
-        NS_IF_RELEASE(accessible);
-        nsCOMPtr<nsIAccessible> treeItemAccessible;
-        if (!treeCache ||
-            NS_FAILED(treeCache->GetCachedTreeitemAccessible(
-                      treeIndex,
-                      nsnull,
-                      getter_AddRefs(treeItemAccessible))) ||
-                      !treeItemAccessible) {
-          return nsnull;
-        }
-        NS_IF_ADDREF(accessible = treeItemAccessible);
+        nsRefPtr<nsXULTreeAccessible> treeAcc =
+          nsAccUtils::QueryAccessibleTree(accessible);
+        if (treeAcc)
+          treeAcc->GetTreeItemAccessible(treeIndex, getter_AddRefs(accessible));
       }
     }
   }
 #endif
 
-  return accessible;
+  return accessible.forget();
 }
 
 /* static */
@@ -381,6 +378,9 @@ nsAccEvent::ApplyEventRules(nsCOMArray<nsIAccessibleEvent> &aEventsToFire)
           }
         }
       } break; // case eRemoveDupes
+
+      default:
+        break; // case eAllowDupes, eDoNotEmit
     } // switch
   } // for (tail)
 }

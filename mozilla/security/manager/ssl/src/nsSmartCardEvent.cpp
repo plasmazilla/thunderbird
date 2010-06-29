@@ -60,7 +60,7 @@ NS_INTERFACE_MAP_BEGIN(nsSmartCardEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMEvent)
   NS_INTERFACE_MAP_ENTRY(nsIPrivateDOMEvent)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(SmartCardEvent)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SmartCardEvent)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsSmartCardEvent)
@@ -106,18 +106,6 @@ NS_IMETHODIMP nsSmartCardEvent::SetTarget(nsIDOMEventTarget *aTarget)
   return mPrivate->SetTarget(aTarget);
 }
 
-NS_IMETHODIMP nsSmartCardEvent::SetCurrentTarget(nsIDOMEventTarget *aTarget)
-{
-  NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
-  return mPrivate->SetCurrentTarget(aTarget);
-}
-
-NS_IMETHODIMP nsSmartCardEvent::SetOriginalTarget(nsIDOMEventTarget *aTarget)
-{
-  NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
-  return mPrivate->SetOriginalTarget(aTarget);
-}
-
 NS_IMETHODIMP_(PRBool ) nsSmartCardEvent::IsDispatchStopped()
 {
   PRBool  isDispatchPrevented = nsnull;
@@ -132,14 +120,6 @@ NS_IMETHODIMP_(nsEvent*) nsSmartCardEvent::GetInternalNSEvent()
   nsEvent** aNSEvent = &nSEvent;
   NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
   return mPrivate->GetInternalNSEvent();
-}
-
-NS_IMETHODIMP_(PRBool ) nsSmartCardEvent::HasOriginalTarget()
-{
-  PRBool  result = nsnull;
-  PRBool * aResult = &result;
-  NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
-  return mPrivate->HasOriginalTarget();
 }
 
 NS_IMETHODIMP nsSmartCardEvent::SetTrusted(PRBool aResult)
@@ -186,6 +166,12 @@ NS_IMETHODIMP nsSmartCardEvent::GetIsTrusted(PRBool *aIsTrusted)
   return mNSEvent->GetIsTrusted(aIsTrusted);
 }
 
+NS_IMETHODIMP
+nsSmartCardEvent::GetPreventDefault(PRBool* aReturn)
+{
+  NS_ASSERTION(mNSEvent, "SmartCardEvent called without Init");
+  return mNSEvent->GetPreventDefault(aReturn);
+}
 
 // IDOMEvent maps
 NS_IMETHODIMP nsSmartCardEvent::GetType(nsAString & aType)

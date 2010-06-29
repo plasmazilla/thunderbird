@@ -16,8 +16,12 @@ function handleRequest(request, response)
       "CACHE MANIFEST\n" +
       "# v" + getState("offline.changingManifest") + "\n" +
       "changing1Hour.sjs\n" +
-      "changing1Sec.sjs\n" + 
-      "NETWORK:\n" +
-      "onwhitelist.html");
+      "changing1Sec.sjs\n");
+      
+    if (getState("offline.changingManifest") != "2") {
+      response.write(
+        "NETWORK:\n" +
+        "onwhitelist.html\n");
+    }
   }
 }

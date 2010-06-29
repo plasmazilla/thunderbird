@@ -38,6 +38,8 @@
 
 // New code must not load/import calUtils.js, but should use calUtils.jsm.
 
+var gCalThreadingEnabled;
+
 EXPORTED_SYMBOLS = ["cal"];
 let cal = {
     // new code should land here,
@@ -71,6 +73,10 @@ let cal = {
         }
 
         for each (let script in scriptNames) {
+            if (!script) {
+                // If the array element is null, then just skip this script.
+                continue;
+            }
             let scriptFile = baseDir.clone();
             scriptFile.append(script);
             let scriptUrlSpec = ioService.newFileURI(scriptFile).spec;
@@ -87,8 +93,12 @@ let cal = {
      * Do this to work around re-entrancy problems w.r.t. processPendingEvent(), e.g. on chrome startup.
      */
     postPone: function cal_postPone(func) {
-        cal.getThreadManager().currentThread.dispatch({ run: func },
-                                                      Components.interfaces.nsIEventTarget.DISPATCH_NORMAL);
+        if (this.threadingEnabled) {
+            cal.getThreadManager().currentThread.dispatch({ run: func },
+                                                          Components.interfaces.nsIEventTarget.DISPATCH_NORMAL);
+        } else {
+            func();
+        }
     },
 
     /**
@@ -99,11 +109,11 @@ let cal = {
         thread.processNextEvent(false /* don't wait */);
     },
 
-    get threadingEnabled cal_threadingEnabled() {
-        if (cal_threadingEnabled.val === undefined) {
-            cal_threadingEnabled.val = !cal.getPrefSafe("calendar.threading.disabled", false);
+    get threadingEnabled() {
+        if (gCalThreadingEnabled === undefined) {
+            gCalThreadingEnabled = !cal.getPrefSafe("calendar.threading.disabled", false);
         }
-        return cal_threadingEnabled.val;
+        return gCalThreadingEnabled;
     },
 
     getWorkerThread: function cal_getWorkerThread() {
@@ -167,7 +177,7 @@ let cal = {
             } // else shutdown ongoing
         }
 
-        runnable.run(); // exec on current thread
+        worker.run(); // exec on current thread
     },
 
     /**

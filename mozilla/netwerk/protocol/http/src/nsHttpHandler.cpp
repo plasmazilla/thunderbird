@@ -219,7 +219,7 @@ nsHttpHandler::Init()
     if (NS_FAILED(rv))
         return rv;
 
-    mIOService = do_GetService(kIOServiceCID, &rv);
+    mIOService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
     if (NS_FAILED(rv)) {
         NS_WARNING("unable to continue without io service");
         return rv;
@@ -248,6 +248,7 @@ nsHttpHandler::Init()
     LOG(("> app-version = %s\n", mAppVersion.get()));
     LOG(("> platform = %s\n", mPlatform.get()));
     LOG(("> oscpu = %s\n", mOscpu.get()));
+    LOG(("> device = %s\n", mDeviceType.get()));
     LOG(("> security = %s\n", mSecurity.get()));
     LOG(("> language = %s\n", mLanguage.get()));
     LOG(("> misc = %s\n", mMisc.get()));
@@ -287,6 +288,7 @@ nsHttpHandler::Init()
         mObserverService->AddObserver(this, "profile-change-net-teardown", PR_TRUE);
         mObserverService->AddObserver(this, "profile-change-net-restore", PR_TRUE);
         mObserverService->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, PR_TRUE);
+        mObserverService->AddObserver(this, "net:clear-active-logins", PR_TRUE);
     }
  
     StartPruneDeadConnectionsTimer();
@@ -464,7 +466,7 @@ nsHttpHandler::GetStreamConverterService(nsIStreamConverterService **result)
 {
     if (!mStreamConvSvc) {
         nsresult rv;
-        mStreamConvSvc = do_GetService(kStreamConverterServiceCID, &rv);
+        mStreamConvSvc = do_GetService(NS_STREAMCONVERTERSERVICE_CONTRACTID, &rv);
         if (NS_FAILED(rv)) return rv;
     }
     *result = mStreamConvSvc;
@@ -476,7 +478,7 @@ nsICookieService *
 nsHttpHandler::GetCookieService()
 {
     if (!mCookieService)
-        mCookieService = do_GetService(kCookieServiceCID);
+        mCookieService = do_GetService(NS_COOKIESERVICE_CONTRACTID);
     return mCookieService;
 }
 
@@ -554,6 +556,7 @@ nsHttpHandler::BuildUserAgent()
                            mPlatform.Length() + 
                            mSecurity.Length() +
                            mOscpu.Length() +
+                           mDeviceType.Length() +
                            mLanguage.Length() +
                            mMisc.Length() +
                            mProduct.Length() +
@@ -662,7 +665,7 @@ nsHttpHandler::InitUserAgentComponents()
 #elif defined(WINCE)
     OSVERSIONINFO info = { sizeof(OSVERSIONINFO) };
     if (GetVersionEx(&info)) {
-        char *buf = PR_smprintf("Windows CE %ld.%ld",
+        char *buf = PR_smprintf("WindowsCE %ld.%ld",
                                 info.dwMajorVersion,
                                 info.dwMinorVersion);
         if (buf) {
@@ -700,13 +703,13 @@ nsHttpHandler::InitUserAgentComponents()
 #elif defined (XP_MACOSX)
 #if defined(__ppc__)
     mOscpu.AssignLiteral("PPC Mac OS X");
-#elif defined(__i386__)
+#elif defined(__i386__) || defined(__x86_64__)
     mOscpu.AssignLiteral("Intel Mac OS X");
 #endif
-    long majorVersion, minorVersion;
+    SInt32 majorVersion, minorVersion;
     if ((::Gestalt(gestaltSystemVersionMajor, &majorVersion) == noErr) &&
         (::Gestalt(gestaltSystemVersionMinor, &minorVersion) == noErr)) {
-        mOscpu += nsPrintfCString(" %ld.%ld", majorVersion, minorVersion);
+        mOscpu += nsPrintfCString(" %d.%d", majorVersion, minorVersion);
     }
 #elif defined (XP_UNIX) || defined (XP_BEOS)
     struct utsname name;
@@ -743,6 +746,14 @@ nsHttpHandler::InitUserAgentComponents()
         mOscpu.Assign(buf);
     }
 #endif
+
+    nsCOMPtr<nsIPropertyBag2> infoService = do_GetService("@mozilla.org/system-info;1");
+    NS_ASSERTION(infoService, "Could not find a system info service");
+
+    nsCString deviceType;
+    nsresult rv = infoService->GetPropertyAsACString(NS_LITERAL_STRING("device"), deviceType);
+    if (NS_SUCCEEDED(rv))
+        mDeviceType = deviceType;
 
     mUserAgentIsDirty = PR_TRUE;
 }
@@ -1079,7 +1090,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
             else {
                 // verify that this socket type is actually valid
                 nsCOMPtr<nsISocketProviderService> sps(
-                        do_GetService(kSocketProviderServiceCID));
+                        do_GetService(NS_SOCKETPROVIDERSERVICE_CONTRACTID));
                 if (sps) {
                     nsCOMPtr<nsISocketProvider> sp;
                     rv = sps->GetSocketProvider(sval, getter_AddRefs(sp));
@@ -1518,7 +1529,7 @@ nsHttpHandler::NewProxiedChannel(nsIURI *uri,
 
         // HACK: make sure PSM gets initialized on the main thread.
         nsCOMPtr<nsISocketProviderService> spserv =
-                do_GetService(kSocketProviderServiceCID);
+                do_GetService(NS_SOCKETPROVIDERSERVICE_CONTRACTID);
         if (spserv) {
             nsCOMPtr<nsISocketProvider> provider;
             spserv->GetSocketProvider("ssl", getter_AddRefs(provider));
@@ -1660,6 +1671,13 @@ nsHttpHandler::GetOscpu(nsACString &value)
 }
 
 NS_IMETHODIMP
+nsHttpHandler::GetDeviceType(nsACString &value)
+{
+    value = mDeviceType;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
 nsHttpHandler::GetLanguage(nsACString &value)
 {
     value = mLanguage;
@@ -1735,6 +1753,9 @@ nsHttpHandler::Observe(nsISupports *subject,
 #endif
         if (mConnMgr)
             mConnMgr->PruneDeadConnections();
+    }
+    else if (strcmp(topic, "net:clear-active-logins") == 0) {
+        mAuthCache.ClearAll();
     }
 
     return NS_OK;

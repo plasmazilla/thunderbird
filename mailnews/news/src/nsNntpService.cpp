@@ -49,8 +49,7 @@
 #include "nsIMsgNewsFolder.h"
 #include "nsNNTPNewsgroupPost.h"
 #include "nsIMsgIdentity.h"
-#include "nsString.h"
-#include "nsReadableUtils.h"
+#include "nsStringGlue.h"
 #include "nsNewsUtils.h"
 #include "nsNewsDatabase.h"
 #include "nsMsgDBCID.h"
@@ -82,7 +81,6 @@
 #include "nsICacheService.h"
 #include "nsICacheEntryDescriptor.h"
 #include "nsMsgUtils.h"
-#include "nsEscape.h"
 #include "nsNetUtil.h"
 #include "nsIWindowWatcher.h"
 #include "nsICommandLine.h"
@@ -205,9 +203,8 @@ nsNntpService::CreateMessageIDURL(nsIMsgFolder *folder, nsMsgKey key, char **url
     // we need to escape the message ID,
     // it might contain characters which will mess us up later, like #
     // see bug #120502
-    char *escapedMessageID = nsEscape(messageID.get(), url_Path);
-    if (!escapedMessageID)
-      return NS_ERROR_OUT_OF_MEMORY;
+    nsCString escapedMessageID;
+    MsgEscapeString(messageID, nsINetUtil::ESCAPE_URL_PATH, escapedMessageID);
 
     nsCOMPtr <nsIMsgFolder> rootFolder;
     rv = folder->GetRootFolder(getter_AddRefs(rootFolder));
@@ -230,8 +227,6 @@ nsNntpService::CreateMessageIDURL(nsIMsgFolder *folder, nsMsgKey key, char **url
     uri += kNewsURIKeyQuery; // &key=
     uri.AppendInt(key);
     *url = ToNewCString(uri);
-
-    PR_FREEIF(escapedMessageID);
 
     if (!*url)
       return NS_ERROR_OUT_OF_MEMORY;
@@ -307,7 +302,7 @@ nsNntpService::DisplayMessage(const char* aMessageURI, nsISupports * aDisplayCon
         rv = server->GetSocketType(&socketType);
         NS_ENSURE_SUCCESS(rv, rv);
 
-        port = (socketType == nsIMsgIncomingServer::useSSL) ?
+        port = (socketType == nsMsgSocketType::SSL) ?
                nsINntpUrl::DEFAULT_NNTPS_PORT : nsINntpUrl::DEFAULT_NNTP_PORT;
       }
 
@@ -596,15 +591,13 @@ nsNntpService::DecomposeNewsMessageURI(const char * aMessageURI, nsIMsgFolder **
       mailnewsurl->SetSpec(nsDependentCString(aMessageURI));
 
       // get group name and message key
-      newsUrl.Mid(groupName, groupPos + kNewsURIGroupQueryLen,
-                  keyPos - groupPos - kNewsURIGroupQueryLen);
-      newsUrl.Mid(keyStr, keyPos + kNewsURIKeyQueryLen,
-                  newsUrl.Length() - keyPos - kNewsURIKeyQueryLen);
-
+      groupName = Substring(newsUrl, groupPos + kNewsURIGroupQueryLen,
+                            keyPos - groupPos - kNewsURIGroupQueryLen);
+      keyStr = Substring(newsUrl, keyPos + kNewsURIKeyQueryLen);
       // get message key
       nsMsgKey key = nsMsgKey_None;
-      PRInt32 errorCode;
-      key = keyStr.ToInteger(&errorCode);
+      nsresult errorCode;
+      key = keyStr.ToInteger(&errorCode, 10);
 
       // get userPass
       nsCAutoString userPass;
@@ -620,16 +613,13 @@ nsNntpService::DecomposeNewsMessageURI(const char * aMessageURI, nsIMsgFolder **
       nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
       NS_ENSURE_SUCCESS(rv,rv);
 
-      char *unescapedUserPass = ToNewCString(userPass);
-      if (!unescapedUserPass)
-        return NS_ERROR_OUT_OF_MEMORY;
-      nsUnescape(unescapedUserPass);
+      nsCString unescapedUserPass;
+      MsgUnescapeString(userPass, 0, unescapedUserPass);
 
       nsCOMPtr<nsIMsgIncomingServer> server;
-      rv = accountManager->FindServer(nsDependentCString(unescapedUserPass), hostName,
+      rv = accountManager->FindServer(unescapedUserPass, hostName,
                                       NS_LITERAL_CSTRING("nntp"), getter_AddRefs(server));
       NS_ENSURE_SUCCESS(rv,rv);
-      PR_FREEIF(unescapedUserPass);
 
       // get root folder
       nsCOMPtr <nsIMsgFolder> rootFolder;
@@ -696,15 +686,12 @@ nsNntpService::GetFolderFromUri(const char *aUri, nsIMsgFolder **aFolder)
   // but the *name* of the newsgroup (we are calling ::GetChildNamed())
   // is unescaped.  see http://bugzilla.mozilla.org/show_bug.cgi?id=210089#c17
   // for more about this
-  char *unescapedPath = PL_strdup(path.get() + 1); /* skip the leading slash */
-  if (!unescapedPath)
-    return NS_ERROR_OUT_OF_MEMORY;
-  nsUnescape(unescapedPath);
+  nsCString unescapedPath;
+  MsgUnescapeString(Substring(path, 1), 0, unescapedPath); /* skip the leading slash */
 
   nsCOMPtr<nsIMsgFolder> subFolder;
   rv = rootFolder->GetChildNamed(NS_ConvertUTF8toUTF16(unescapedPath),
                                  getter_AddRefs(subFolder));
-  PL_strfree(unescapedPath);
   NS_ENSURE_SUCCESS(rv,rv);
 
   subFolder.swap(*aFolder);
@@ -750,9 +737,8 @@ nsNntpService::findNewsServerWithGroup(nsISupports *aElement, void *data)
   findNewsServerEntry *entry = (findNewsServerEntry*) data;
 
   PRBool containsGroup = PR_FALSE;
-
-  NS_ASSERTION(IsUTF8(nsDependentCString(entry->newsgroup)),
-                      "newsgroup is not in UTF-8");
+  NS_ASSERTION(MsgIsUTF8(nsDependentCString(entry->newsgroup)),
+               "newsgroup is not in UTF-8");
   rv = newsserver->ContainsNewsgroup(nsDependentCString(entry->newsgroup),
                                      &containsGroup);
   if (NS_FAILED(rv)) return PR_TRUE;
@@ -870,7 +856,7 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
       {
         // we have news://group or news://host/group
         // set theRest to what's after news://
-        list[index].Right(theRest, list[index].Length() - kNewsRootURILen /* for news:/ */ - 1 /* for the slash */);
+        theRest = Substring(list[index], kNewsRootURILen /* for news:/ */ + 1 /* for the slash */);
       }
       else if (list[index].Find(":/") != -1)
       {
@@ -887,10 +873,10 @@ nsNntpService::GenerateNewsHeaderValsForPosting(const nsACString& newsgroupsList
         nsCAutoString currentGroup;
 
         // theRest is "host/group"
-        theRest.Left(currentHost, slashpos);
+        currentHost = StringHead(theRest, slashpos);
 
         // from "host/group", put "group" into currentGroup;
-        theRest.Right(currentGroup, theRest.Length() - currentHost.Length() - 1);
+        currentGroup = Substring(theRest, slashpos + 1);
 
         NS_ASSERTION(!currentGroup.IsEmpty(), "currentGroup is empty");
         if (currentGroup.IsEmpty())
@@ -1063,7 +1049,7 @@ nsNntpService::CreateNewsAccount(const char *aHostname, PRBool aUseSSL,
 
   if (aUseSSL)
   {
-    rv = (*aServer)->SetSocketType(nsIMsgIncomingServer::useSSL);
+    rv = (*aServer)->SetSocketType(nsMsgSocketType::SSL);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -1607,7 +1593,7 @@ nsNntpService::StreamMessage(const char *aMessageURI, nsISupports *aConsumer,
         rv = server->GetSocketType(&socketType);
         NS_ENSURE_SUCCESS(rv, rv);
 
-        url->SetPort((socketType == nsIMsgIncomingServer::useSSL) ?
+        url->SetPort((socketType == nsMsgSocketType::SSL) ?
                      nsINntpUrl::DEFAULT_NNTPS_PORT : nsINntpUrl::DEFAULT_NNTP_PORT);
 
         rv = IsMsgInMemCache(url, folder, nsnull, &hasMsgOffline);
@@ -1731,7 +1717,8 @@ nsNntpService::Handle(nsICommandLine* aCmdLine)
 
     nsCOMPtr<nsIDOMWindow> opened;
     wwatch->OpenWindow(nsnull, "chrome://messenger/content/", "_blank",
-                       "chrome,dialog=no,all", nsnull, getter_AddRefs(opened));
+                       "chrome,extrachrome,menubar,resizable,scrollbars,status,toolbar",
+                       nsnull, getter_AddRefs(opened));
     aCmdLine->SetPreventDefault(PR_TRUE);
   }
 
@@ -1741,7 +1728,7 @@ nsNntpService::Handle(nsICommandLine* aCmdLine)
 NS_IMETHODIMP
 nsNntpService::GetHelpInfo(nsACString& aResult)
 {
-  aResult.Assign(NS_LITERAL_CSTRING("  -news                Open the news client.\n"));
+  aResult.Assign(NS_LITERAL_CSTRING("  -news              Open the news client.\n"));
   return NS_OK;
 }
 

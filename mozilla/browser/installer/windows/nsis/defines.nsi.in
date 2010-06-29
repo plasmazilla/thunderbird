@@ -7,7 +7,7 @@
 !define WindowClass           "FirefoxMessageWindow"
 !define DDEApplication        "Firefox"
 !define AppRegName            "Firefox"
-!define MinUnsupportedVer     "Microsoft Windows 2000"
+!define MinSupportedVer       "Microsoft Windows 2000"
 
 !define BrandShortName        "@MOZ_APP_DISPLAYNAME@"
 !define PreReleaseSuffix      "@PRE_RELEASE_SUFFIX@"

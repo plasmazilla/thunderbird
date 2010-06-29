@@ -949,9 +949,13 @@ void nsCaret::GetViewForRendering(nsIFrame *caretFrame,
     if (outRelativeView && coordType == eTopLevelWindowCoordinates) {
       nsCOMPtr<nsIPresShell> presShell = do_QueryReferent(mPresShell);
       if (presShell) {
-        nsIViewManager* vm = presShell->GetViewManager();
-        if (vm) {
-          vm->GetRootView(*outRelativeView);
+        nsRootPresContext* rootPC =
+          presShell->GetPresContext()->GetRootPresContext();
+        if (rootPC) {
+          nsIViewManager* vm = rootPC->PresShell()->GetViewManager();
+          if (vm) {
+            vm->GetRootView(*outRelativeView);
+          }
         }
       }
     }
@@ -1126,6 +1130,21 @@ void nsCaret::DrawCaret(PRBool aInvalidate)
   ToggleDrawnStatus();
 }
 
+static PRBool
+FramesOnSameLineHaveZeroHeight(nsIFrame* aFrame)
+{
+  nsLineBox* line = FindContainingLine(aFrame);
+  if (!line)
+    return aFrame->GetRect().height == 0;
+  PRInt32 count = line->GetChildCount();
+  for (nsIFrame* f = line->mFirstChild; count > 0; --count, f = f->GetNextSibling())
+  {
+   if (f->GetRect().height != 0)
+     return PR_FALSE;
+  }
+  return PR_TRUE;
+}
+
 nsresult nsCaret::UpdateCaretRects(nsIFrame* aFrame, PRInt32 aFrameOffset)
 {
   NS_ASSERTION(aFrame, "Should have a frame here");
@@ -1137,11 +1156,8 @@ nsresult nsCaret::UpdateCaretRects(nsIFrame* aFrame, PRInt32 aFrameOffset)
   nsCOMPtr<nsIPresShell> presShell = do_QueryReferent(mPresShell);
   if (!presShell) return NS_ERROR_FAILURE;
 
-  nsPresContext *presContext = presShell->GetPresContext();
-
-  // if we got a zero-height frame, it's probably a BR frame at the end of a non-empty line
-  // (see BRFrame::Reflow). In that case, figure out a height. We have to do this
-  // after we've got an RC.
+  // If we got a zero-height frame we should figure out a height. We have to do
+  // this after we've got an RC.
   if (frameRect.height == 0)
   {
     nsCOMPtr<nsIFontMetrics> fm;
@@ -1153,8 +1169,13 @@ nsresult nsCaret::UpdateCaretRects(nsIFrame* aFrame, PRInt32 aFrameOffset)
       fm->GetMaxAscent(ascent);
       fm->GetMaxDescent(descent);
       frameRect.height = ascent + descent;
-      frameRect.y -= ascent; // BR frames sit on the baseline of the text, so we need to subtract
-      // the ascent to account for the frame height.
+
+      // Place the caret on the baseline for inline frames, except when there is
+      // a frame on the line with non-zero height.  XXXmats why the exception? --
+      // I don't know but it seems to be necessary, see bug 503531.
+      if (aFrame->GetStyleDisplay()->IsInlineOutside() &&
+          !FramesOnSameLineHaveZeroHeight(aFrame))
+        frameRect.y -= ascent;
     }
   }
 
@@ -1184,8 +1205,7 @@ nsresult nsCaret::UpdateCaretRects(nsIFrame* aFrame, PRInt32 aFrameOffset)
   if (scrollFrame)
   {
     // First, use the scrollFrame to get at the scrollable view that we're in.
-    nsIScrollableFrame *scrollable;
-    CallQueryInterface(scrollFrame, &scrollable);
+    nsIScrollableFrame *scrollable = do_QueryFrame(scrollFrame);
     nsIScrollableView *scrollView = scrollable->GetScrollableView();
     nsIView *view;
     scrollView->GetScrolledView(view);
@@ -1210,7 +1230,7 @@ nsresult nsCaret::UpdateCaretRects(nsIFrame* aFrame, PRInt32 aFrameOffset)
   if (NS_STYLE_DIRECTION_RTL == vis->mDirection)
     mCaretRect.x -= mCaretRect.width;
 
-  return UpdateHookRect(presContext, metrics);
+  return UpdateHookRect(presShell->GetPresContext(), metrics);
 }
 
 nsresult nsCaret::UpdateHookRect(nsPresContext* aPresContext,

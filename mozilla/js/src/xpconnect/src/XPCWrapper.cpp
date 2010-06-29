@@ -94,6 +94,9 @@ XPCWrapper::Unwrap(JSContext *cx, JSObject *wrapper)
   if (clasp == &sXPC_SOW_JSClass.base) {
     return UnwrapSOW(cx, wrapper);
   }
+  if (clasp == &sXPC_COW_JSClass.base) {
+    return UnwrapCOW(cx, wrapper);
+  }
 
   return nsnull;
 }
@@ -468,7 +471,6 @@ XPCWrapper::ResolveNativeProperty(JSContext *cx, JSObject *wrapperObj,
 
   // did we find a method/attribute by that name?
   XPCNativeMember* member = ccx.GetMember();
-  NS_ASSERTION(member, "not doing IDispatch, how'd this happen?");
   if (!member) {
     // No member, nothing to resolve.
 
@@ -639,7 +641,6 @@ XPCWrapper::GetOrSetNativeProperty(JSContext *cx, JSObject *obj,
 
   // did we find a method/attribute by that name?
   XPCNativeMember* member = ccx.GetMember();
-  NS_ASSERTION(member, "not doing IDispatch, how'd this happen?");
   if (!member) {
     // No member, no IDL property to expose.
 

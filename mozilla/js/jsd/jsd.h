@@ -348,6 +348,12 @@ extern void
 jsd_DebuggerOff(JSDContext* jsdc);
 
 extern void
+jsd_DebuggerPause(JSDContext* jsdc, JSBool forceAllHooksOff);
+
+extern void
+jsd_DebuggerUnpause(JSDContext* jsdc);
+
+extern void
 jsd_SetUserCallbacks(JSRuntime* jsrt, JSD_UserCallbacks* callbacks, void* user);
 
 extern JSDContext*
@@ -992,6 +998,9 @@ jsd_GetValueConstructor(JSDContext* jsdc, JSDValue* jsdval);
 extern const char*
 jsd_GetValueClassName(JSDContext* jsdc, JSDValue* jsdval);
 
+extern JSDScript*
+jsd_GetScriptForValue(JSDContext* jsdc, JSDValue* jsdval);
+
 /**************************************************/
 
 extern void
@@ -1031,6 +1040,9 @@ jsd_InitObjectManager(JSDContext* jsdc);
 
 extern void
 jsd_DestroyObjectManager(JSDContext* jsdc);
+
+extern void
+jsd_DestroyObjects(JSDContext* jsdc);
 
 extern void
 jsd_ObjectHook(JSContext *cx, JSObject *obj, JSBool isNew, void *closure);

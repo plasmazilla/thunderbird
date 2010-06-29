@@ -42,6 +42,11 @@ classic.jar:
 % skin messenger classic/1.0 %skin/classic/messenger/ os=WINNT osversion<6
 % skin messenger classic/1.0 %skin/classic/messenger/ os!=WINNT
   skin/classic/messenger/featureConfigurator.css              (mail/featureConfigurator.css)
+  skin/classic/messenger/featureConfigurators/subpage.css     (mail/featureConfigurators/subpage.css)
+  skin/classic/messenger/featureConfigurators/animation.png   (mail/featureConfigurators/animation.png)
+  skin/classic/messenger/featureConfigurators/compact-header.png  (mail/featureConfigurators/compact-header.png)
+  skin/classic/messenger/featureConfigurators/folder-columns.png  (mail/featureConfigurators/folder-columns.png)
+  skin/classic/messenger/featureConfigurators/toolbars.png    (mail/featureConfigurators/toolbars.png)
   skin/classic/messenger/primaryToolbar.css                   (mail/primaryToolbar.css)
   skin/classic/messenger/accountCentral.css                   (mail/accountCentral.css)
   skin/classic/messenger/accountCreation.css                  (mail/accountCreation.css)
@@ -73,6 +78,7 @@ classic.jar:
   skin/classic/messenger/newmailalert.css                     (mail/newmailalert.css)
   skin/classic/messenger/tabmail.css                          (mail/tabmail.css)
   skin/classic/messenger/editContactOverlay.css               (mail/editContactOverlay.css)
+  skin/classic/messenger/quickFilterBar.css                   (mail/quickFilterBar.css)
   skin/classic/messenger/starred48.png                        (mail/starred48.png)
   skin/classic/messenger/contactStarred.png                   (mail/contactStarred.png)
   skin/classic/messenger/starContact.png                      (mail/starContact.png)
@@ -233,6 +239,9 @@ classic.jar:
   skin/classic/messenger/icons/empty-search-results.png       (mail/icons/empty-search-results.png)
   skin/classic/messenger/icons/arrow/foldercycler-arrow-left.png        (mail/icons/arrow/foldercycler-arrow-left.png)
   skin/classic/messenger/icons/arrow/foldercycler-arrow-right.png       (mail/icons/arrow/foldercycler-arrow-right.png)
+  skin/classic/messenger/icons/filter.png                     (mail/icons/filter.png)
+  skin/classic/messenger/icons/xp-pin-grey.png                (mail/icons/xp-pin-grey.png)
+  skin/classic/messenger/icons/xp-pin-red.png                 (mail/icons/xp-pin-red.png)
   skin/classic/messenger/tagbg.png                            (mail/tagbg.png)
 % skin messenger-newsblog classic/1.0 %skin/classic/messenger-newsblog/ os=WINNT osversion<6
 % skin messenger-newsblog classic/1.0 %skin/classic/messenger-newsblog/ os!=WINNT
@@ -261,6 +270,11 @@ classic.jar:
   skin/classic/aero/communicator/icons/smileys/smiley-sealed.png        (mail/icons/smiley-sealed-aero.png)
 % skin messenger classic/1.0 %skin/classic/aero/messenger/ os=WINNT osversion>=6
   skin/classic/aero/messenger/featureConfigurator.css              (mail/featureConfigurator.css)
+  skin/classic/aero/messenger/featureConfigurators/subpage.css     (mail/featureConfigurators/subpage.css)
+  skin/classic/aero/messenger/featureConfigurators/animation.png   (mail/featureConfigurators/animation.png)
+  skin/classic/aero/messenger/featureConfigurators/compact-header.png  (mail/featureConfigurators/compact-header.png)
+  skin/classic/aero/messenger/featureConfigurators/folder-columns.png  (mail/featureConfigurators/folder-columns.png)
+  skin/classic/aero/messenger/featureConfigurators/toolbars.png    (mail/featureConfigurators/toolbars.png)
   skin/classic/aero/messenger/primaryToolbar.css                   (mail/primaryToolbar.css)
   skin/classic/aero/messenger/accountCentral.css                   (mail/accountCentral.css)
   skin/classic/aero/messenger/accountCreation.css                  (mail/accountCreation.css)
@@ -294,6 +308,7 @@ classic.jar:
   skin/classic/aero/messenger/newmailalert.css                     (mail/newmailalert.css)
   skin/classic/aero/messenger/tabmail.css                          (mail/tabmail.css)
   skin/classic/aero/messenger/editContactOverlay.css               (mail/editContactOverlay.css)
+  skin/classic/aero/messenger/quickFilterBar.css                   (mail/quickFilterBar.css)
   skin/classic/aero/messenger/starred48.png                        (mail/starred48.png)
   skin/classic/aero/messenger/contactStarred.png                   (mail/contactStarred.png)
   skin/classic/aero/messenger/starContact.png                      (mail/starContact.png)
@@ -453,6 +468,9 @@ classic.jar:
   skin/classic/aero/messenger/icons/arrow/arrow-down-dim.png       (mail/icons/arrow/arrow-down-dim.png)
   skin/classic/aero/messenger/icons/arrow/foldercycler-arrow-left.png        (mail/icons/arrow/foldercycler-arrow-left.png)
   skin/classic/aero/messenger/icons/arrow/foldercycler-arrow-right.png       (mail/icons/arrow/foldercycler-arrow-right.png)
+  skin/classic/aero/messenger/icons/filter.png                     (mail/icons/filter.png)
+  skin/classic/aero/messenger/icons/xp-pin-grey.png                (mail/icons/xp-pin-grey.png)
+  skin/classic/aero/messenger/icons/xp-pin-red.png                 (mail/icons/xp-pin-red.png)
   skin/classic/aero/messenger/tagbg.png                            (mail/tagbg.png)
 % skin messenger-newsblog classic/1.0 %skin/classic/aero/messenger-newsblog/ os=WINNT osversion>=6
   skin/classic/aero/messenger-newsblog/feed-subscriptions.css      (mail/newsblog/feed-subscriptions.css)

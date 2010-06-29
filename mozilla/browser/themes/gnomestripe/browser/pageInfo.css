@@ -42,7 +42,7 @@
 @import url("chrome://global/skin/");
 
 /* View buttons */
-#viewGroup radio {
+#viewGroup > radio {
   list-style-image: url("chrome://browser/skin/pageInfo.png");
   -moz-box-orient: vertical;
   -moz-box-align: center;
@@ -50,12 +50,17 @@
   min-width: 4.5em;
   margin: 0;
   padding: 3px;
+  color: -moz-FieldText;
 }
 
-.viewSelector {
+#viewGroup > radio[selected="true"] {
+  background-color: Highlight;
+  color: HighlightText; 
+}
+
+#topBar {
   -moz-appearance: listbox;
-  margin: 8px 8px 0 8px;
-  padding: 0;
+  margin: 8px 8px 0;
 }
 
 #generalTab {
@@ -210,6 +215,7 @@ treechildren::-moz-tree-cell-text(broken) {
   -moz-padding-end: 7px;
   min-height: 25px;
   border-bottom: 1px dotted #C0C0C0;
+  color: -moz-FieldText;
 }
 
 #feedListbox richlistitem[selected="true"] {
@@ -246,9 +252,10 @@ treechildren::-moz-tree-cell-text(broken) {
   -moz-border-bottom-colors: ThreeDHighlight ThreeDLightShadow;
   -moz-border-left-colors: ThreeDShadow ThreeDDarkShadow;
   background-color: -moz-field;
+  color: -moz-FieldText;
 }
 
-#permList > vbox {
+.permission {
   padding-top: 6px;
   padding-bottom: 6px;
   -moz-padding-start: 7px;
@@ -257,12 +264,13 @@ treechildren::-moz-tree-cell-text(broken) {
   border-bottom: 1px dotted #C0C0C0;
 }
 
-#permList > vbox > label {
+.permissionLabel {
   font-weight: bold;
 }
 
-#permList > vbox:hover {
+.permission:hover {
   background-color: -moz-dialog;
+  color: -moz-DialogText;
 }
 
 /* Security Tab */

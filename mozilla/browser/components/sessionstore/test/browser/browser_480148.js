@@ -108,11 +108,8 @@ function test() {
         // cleanup
         this.window.close();
         // if we're all done, explicitly finish
-        if (++completedTests == numTests) {
-          executeSoon(function() {
-            finish();
-          })
-        }
+        if (++completedTests == numTests)
+          finish();
       },
 
       handleLoad: function (aEvent) {

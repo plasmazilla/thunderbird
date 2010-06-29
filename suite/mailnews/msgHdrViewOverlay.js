@@ -294,7 +294,7 @@ const MsgHdrViewObserver =
       if (prefName == "mail.showCondensedAddresses")
       {
         gShowCondensedEmailAddresses = pref.getBoolPref("mail.showCondensedAddresses");
-        MsgReload();
+        ReloadMessage();
       }
     }
   }
@@ -1142,10 +1142,11 @@ function createNewAttachmentInfo(contentType, url, displayName, uri, isExternalA
 createNewAttachmentInfo.prototype.saveAttachment = function saveAttachment()
 {
   if (this.isExternalAttachment)
+    // TODO: This displays "Save As" instead of "Save Attachment" in the title
     internalSave(this.url, null,
                  this.displayName, null,
                  this.contentType, false,
-                 "SaveAttachmentTitle", null, null);
+                 null, null, null);
   else
     messenger.saveAttachment(this.contentType, 
                              this.url, 

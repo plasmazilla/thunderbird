@@ -65,6 +65,7 @@
 #include "nsMsgUtils.h"
 #include "nsILineInputStream.h"
 #include "nsIMsgIncomingServer.h"
+#include "nsAlgorithm.h"
 
 NS_IMPL_THREADSAFE_ADDREF(nsMsgProtocol)
 NS_IMPL_THREADSAFE_RELEASE(nsMsgProtocol)
@@ -144,8 +145,7 @@ nsMsgProtocol::OpenNetworkSocketWithInfo(const char * aHostName,
   strans->SetSecurityCallbacks(callbacks);
 
   // creates cyclic reference!
-  nsCOMPtr<nsIThread> currentThread;
-  NS_GetCurrentThread(getter_AddRefs(currentThread));
+  nsCOMPtr<nsIThread> currentThread(do_GetCurrentThread());
   strans->SetEventSink(this, currentThread);
 
   m_socketIsOpen = PR_FALSE;
@@ -520,7 +520,7 @@ nsresult nsMsgProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
 
         nsCOMPtr<nsIInputStreamPump> pump;
         rv = NS_NewInputStreamPump(getter_AddRefs(pump),
-          m_inputStream, nsInt64(-1), m_readCount);
+          m_inputStream, -1, m_readCount);
         if (NS_FAILED(rv)) return rv;
 
         m_request = pump; // keep a reference to the pump so we can cancel it
@@ -835,6 +835,9 @@ nsresult nsMsgProtocol::PostMessage(nsIURI* url, nsIFile *postFile)
 nsresult nsMsgProtocol::DoGSSAPIStep1(const char *service, const char *username, nsCString &response)
 {
     nsresult rv;
+#ifdef DEBUG_BenB
+    printf("GSSAPI step 1 for service %s, username %s\n", service, username);
+#endif
 
     // if this fails, then it means that we cannot do GSSAPI SASL.
     m_authModule = do_CreateInstance(NS_AUTH_MODULE_CONTRACTID_PREFIX "sasl-gssapi", &rv);
@@ -855,11 +858,17 @@ nsresult nsMsgProtocol::DoGSSAPIStep1(const char *service, const char *username,
         nsMemory::Free(outBuf);
     }
 
+#ifdef DEBUG_BenB
+    printf("GSSAPI step 1 succeeded\n");
+#endif
     return rv;
 }
 
 nsresult nsMsgProtocol::DoGSSAPIStep2(nsCString &commandResponse, nsCString &response)
 {
+#ifdef DEBUG_BenB
+    printf("GSSAPI step 2\n");
+#endif
     nsresult rv;
     void *inBuf, *outBuf;
     PRUint32 inBufLen, outBufLen;
@@ -913,6 +922,9 @@ nsresult nsMsgProtocol::DoGSSAPIStep2(nsCString &commandResponse, nsCString &res
             response.Adopt((char *)nsMemory::Clone("",1));
     }
 
+#ifdef DEBUG_BenB
+    printf(NS_SUCCEEDED(rv) ? "GSSAPI step 2 succeeded\n" : "GSSAPI step 2 failed\n");
+#endif
     return rv;
 }
 
@@ -1025,7 +1037,7 @@ public:
         }
 
         PRUint32 bytesWritten;
-        rv =  aOutStream->WriteFrom(mInStream, PR_MIN(avail, 4096), &bytesWritten);
+        rv = aOutStream->WriteFrom(mInStream, NS_MIN(avail, 4096U), &bytesWritten);
         // if were full at the time, the input stream may be backed up and we need to read any remains from the last ODA call
         // before we'll get more ODA calls
         if (mMsgProtocol->mSuspendedRead)
@@ -1330,7 +1342,7 @@ nsresult nsMsgAsyncWriteProtocol::UnblockPostReader()
       PRUint32 avail = 0;
       mPostDataStream->Available(&avail);
 
-      m_outputStream->WriteFrom(mPostDataStream, PR_MIN(avail, mSuspendedReadBytes), &amountWritten);
+      m_outputStream->WriteFrom(mPostDataStream, NS_MIN(avail, mSuspendedReadBytes), &amountWritten);
       // hmm sometimes my mSuspendedReadBytes is getting out of whack...so for now, reset it
       // if necessary.
       if (mSuspendedReadBytes > avail)
@@ -1393,8 +1405,7 @@ nsresult nsMsgAsyncWriteProtocol::SetupTransportState()
     pipe->GetOutputStream(&outputStream);
     m_outputStream = dont_AddRef(static_cast<nsIOutputStream *>(outputStream));
 
-    rv = NS_GetCurrentThread(getter_AddRefs(mProviderThread));
-    if (NS_FAILED(rv)) return rv;
+    mProviderThread = do_GetCurrentThread();
 
     nsMsgProtocolStreamProvider *provider;
     NS_NEWXPCOM(provider, nsMsgProtocolStreamProvider);

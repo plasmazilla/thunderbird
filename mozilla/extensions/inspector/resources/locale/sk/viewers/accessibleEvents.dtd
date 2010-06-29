@@ -38,4 +38,8 @@
 <!ENTITY eventType.label "Typ udalosti">
 <!ENTITY eventTime.label "Čas">
 <!ENTITY eventNodeName.label "Názov uzla">
+<!ENTITY isWatched.label "Je sledovaný">
 <!ENTITY clearEventList.label "Vymazať zoznam udalostí">
+<!ENTITY chooseEventsToWatch.label "Zvoliť udalosti na sledovanie">
+<!ENTITY selectAll.label "Vybrať všetko">
+<!ENTITY unselectAll.label "Zrušiť výber">

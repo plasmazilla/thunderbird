@@ -57,13 +57,5 @@ var SubscribeHandler = {
   
   subscribe: function FH_subscribe() {
     this._feedWriter.subscribe();
-  },
-  // Work around for menulist XUL in XHTML bug 461981
-  menuListFocused: function SH_menulistFocused(menulist) {
-    var range = document.createRange();
-    range.selectNode(menulist);
-    var selection = window.getSelection();
-    selection.addRange(range);
-    selection.collapseToStart();
   }
 };

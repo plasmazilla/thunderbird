@@ -53,57 +53,32 @@
 
 function AccountConfig()
 {
-  this.incoming =
-  {
-    type : null, // string-enum: "pop3", "imap", "nntp"
-    hostname: null,
-    port : null, // Integer
-    username : null, // String. May be a placeholder (starts and ends with %).
-    password : null,
-    // enum: 1 = plain, 2 = SSL/TLS, 3 = STARTTLS always
-    // ('TLS when available' is insecure and not supported here)
-    socketType : null,
-    auth : null, // enum: 1 = plain, 2 = "secure"
-    checkInterval : 10, // Integer, in seconds
-    loginAtStartup : true,
-    // POP3 only:
-    useGlobalInbox : false, // boolean. Not yet implemented.
-    leaveMessagesOnServer : true,
-    daysToLeaveMessagesOnServer : 14,
-    deleteByAgeFromServer : true,
-    // When user hits delete, delete from local store and from server
-    deleteOnServerWhenLocalDelete: true,
-    downloadOnBiff: true
-  },
-  this.outgoing =
-  {
-    hostname: null,
-    port : null, // see incoming
-    username : null, // see incoming. may be null, if auth is 0.
-    password : null, // see incoming. may be null, if auth is 0.
-    socketType : null, // see incoming
-    auth : null, // see incoming. 0 for no auth.
-    addThisServer: true, // if we already have an SMTP server, add this or not.
-    // if we already have an SMTP server, use it.
-    useGlobalPreferredServer : false,
-    existingServerKey : null, // we should reuse an already configures SMTP server. This is nsISmtpServer.key.
-    existingServerLabel : null // user display value for existingServerKey
-  },
+  this.incoming = this.createNewIncoming();
+  this.incomingAlternatives = [];
+  this.outgoing = this.createNewOutgoing();
+  this.outgoingAlternatives = [];
   this.identity =
   {
     // displayed real name of user
     realname : "%REALNAME%",
     // email address of user, as shown in From of outgoing mails
-    emailAddress : "%EMAILADDRESS%"
+    emailAddress : "%EMAILADDRESS%",
   };
   this.inputFields = [];
   this.domains = [];
 };
-
 AccountConfig.prototype =
 {
-  incoming : null, // see ctor
-  outgoing : null, // see ctor
+  incoming : null, // see |createNewIncoming()|
+  outgoing : null, // see |createNewOutgoing()|
+  /**
+   * {Array of |incoming|/|createNewIncoming|}
+   * Other servers which can be used instead of |incoming|,
+   * in order of decreasing preference.
+   * (|incoming| itself should not be included here.)
+   */
+  incomingAlternatives : null,
+  outgoingAlternatives : null,
   id : null, // just an internal string to refer to this. Do not show to user.
   source : 0, // who created the config. kSource*
   displayName : null,
@@ -111,6 +86,79 @@ AccountConfig.prototype =
   inputFields : null,
   // Array of Strings - email address domains for which this config is applicable
   domains : null,
+
+  /**
+   * Factory function for incoming and incomingAlternatives
+   */
+  createNewIncoming : function()
+  {
+    return {
+      type : null, // string-enum: "pop3", "imap", "nntp"
+      hostname : null,
+      port : null, // Integer
+      username : null, // String. May be a placeholder (starts and ends with %).
+      password : null,
+      // enum: 1 = plain, 2 = SSL/TLS, 3 = STARTTLS always, 0 = not inited
+      // ('TLS when available' is insecure and not supported here)
+      socketType : 0,
+      /**
+       * true when the cert is invalid (and thus SSL useless), because it's
+       * 1) not from an accepted CA (including self-signed certs)
+       * 2) for a different hostname or
+       * 3) expired.
+       * May go back to false when user explicitly accepted the cert.
+       */
+      badCert : false,
+      /**
+       * How to log in to the server: plaintext or encrypted pw, GSSAPI etc.
+       * Defined by Ci.nsMsgAuthMethod
+       * Same as server pref "authMethod".
+       */
+      auth : 0,
+      /**
+       * {Array of Ci.nsMsgAuthMethod} (same as .auth)
+       * Other auth methods that we think the server supports.
+       * They are ordered by descreasing preference.
+       * (|auth| itself is not included in |authAlternatives|)
+       */
+      authAlternatives : null,
+      checkInterval : 10, // Integer, in minutes
+      loginAtStartup : true,
+      // POP3 only:
+      useGlobalInbox : false, // boolean. Not yet implemented.
+      leaveMessagesOnServer : true,
+      daysToLeaveMessagesOnServer : 14,
+      deleteByAgeFromServer : true,
+      // When user hits delete, delete from local store and from server
+      deleteOnServerWhenLocalDelete : true,
+      downloadOnBiff : true,
+    };
+  },
+  /**
+   * Factory function for outgoing and outgoingAlternatives
+   */
+  createNewOutgoing : function()
+  {
+    return {
+      type : "smtp",
+      hostname : null,
+      port : null, // see incoming
+      username : null, // see incoming. may be null, if auth is 0.
+      password : null, // see incoming. may be null, if auth is 0.
+      socketType : 0, // see incoming
+      badCert : false, // see incoming
+      auth : 0, // see incoming
+      authAlternatives : null, // see incoming
+      addThisServer : true, // if we already have an SMTP server, add this or not.
+      // if we already have an SMTP server, use it.
+      useGlobalPreferredServer : false,
+      // we should reuse an already configured SMTP server. This is nsISmtpServer.key.
+      existingServerKey : null,
+      // user display value for existingServerKey
+      existingServerLabel : null,
+    };
+  },
+
   /**
    * Returns a deep copy of this object,
    * i.e. modifying the copy will not affect the original object.
@@ -123,7 +171,17 @@ AccountConfig.prototype =
       result[prop] = deepCopy(this[prop]);
 
     return result;
-  }
+  },
+  isComplete : function()
+  {
+    return (!!this.incoming.hostname && !!this.incoming.port &&
+         !!this.incoming.socketType && !!this.incoming.auth &&
+         !!this.incoming.username &&
+         (!!this.outgoing.existingServerKey ||
+          (!!this.outgoing.hostname && !!this.outgoing.port &&
+           !!this.outgoing.socketType && !!this.outgoing.auth &&
+           !!this.outgoing.username)));
+  },
 };
 
 
@@ -191,12 +249,14 @@ function replaceVariables(account, realname, emailfull, password)
                                                otherVariables);
   account.outgoing.username = _replaceVariable(account.outgoing.username,
                                                otherVariables);
+  // With the variables in mind, capitalize the hostnames which will then be
+  // sanitized and decapitalized. (Bug 546278)
   account.incoming.hostname =
-    sanitize.hostname(_replaceVariable(account.incoming.hostname,
+    sanitize.hostname(_replaceVariable(account.incoming.hostname.toUpperCase(),
                                        otherVariables));
   if (account.outgoing.hostname) // will be null if user picked existing server.
     account.outgoing.hostname =
-      sanitize.hostname(_replaceVariable(account.outgoing.hostname,
+      sanitize.hostname(_replaceVariable(account.outgoing.hostname.toUpperCase(),
                                          otherVariables));
   account.identity.realname =
     _replaceVariable(account.identity.realname, otherVariables);

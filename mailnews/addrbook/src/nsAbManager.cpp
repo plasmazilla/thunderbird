@@ -603,10 +603,10 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
   nsresult rv;
 
   nsCOMPtr <nsIOutputStream> outputStream;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(outputStream),
-                                   aLocalFile,
-                                   PR_CREATE_FILE | PR_WRONLY | PR_TRUNCATE,
-                                   0664);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(outputStream),
+                                      aLocalFile,
+                                      PR_CREATE_FILE | PR_WRONLY | PR_TRUNCATE,
+                                      0664);
 
   // the desired file may be read only
   if (NS_FAILED(rv))
@@ -784,10 +784,10 @@ nsAbManager::ExportDirectoryToLDIF(nsIAbDirectory *aDirectory, nsILocalFile *aLo
   nsresult rv;
 
   nsCOMPtr <nsIOutputStream> outputStream;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(outputStream),
-                                   aLocalFile,
-                                   PR_CREATE_FILE | PR_WRONLY | PR_TRUNCATE,
-                                   0664);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(outputStream),
+                                      aLocalFile,
+                                      PR_CREATE_FILE | PR_WRONLY | PR_TRUNCATE,
+                                      0664);
 
   // the desired file may be read only
   if (NS_FAILED(rv))
@@ -1235,7 +1235,7 @@ nsAbManager::Handle(nsICommandLine* aCmdLine)
 
   nsCOMPtr<nsIDOMWindow> opened;
   wwatch->OpenWindow(nsnull, "chrome://messenger/content/addressbook/addressbook.xul",
-                     "_blank", "chrome,dialog=no,all", nsnull, getter_AddRefs(opened));
+                     "_blank", "chrome,extrachrome,menubar,resizable,scrollbars,status,toolbar", nsnull, getter_AddRefs(opened));
   aCmdLine->SetPreventDefault(PR_TRUE);
   return NS_OK;
 }
@@ -1243,6 +1243,6 @@ nsAbManager::Handle(nsICommandLine* aCmdLine)
 NS_IMETHODIMP
 nsAbManager::GetHelpInfo(nsACString& aResult)
 {
-  aResult.Assign(NS_LITERAL_CSTRING("  -addressbook         Open the address book at startup.\n"));
+  aResult.Assign(NS_LITERAL_CSTRING("  -addressbook       Open the address book at startup.\n"));
   return NS_OK;
 }

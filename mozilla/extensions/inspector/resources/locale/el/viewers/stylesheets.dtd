@@ -34,6 +34,6 @@
    -
    - ***** END LICENSE BLOCK ***** -->
 
-<!ENTITY styleLocation.label "Stylesheet">
-<!ENTITY styleRules.label "Κανόνες">
+<!ENTITY sheetLocation.label "Stylesheet">
+<!ENTITY sheetRules.label "Κανόνες">
 

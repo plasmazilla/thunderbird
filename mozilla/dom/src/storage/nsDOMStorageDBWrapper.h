@@ -167,7 +167,7 @@ public:
    * list.
    */
   nsresult
-  RemoveOwners(const nsStringArray& aOwners,
+  RemoveOwners(const nsTArray<nsString>& aOwners,
                PRBool aIncludeSubDomains, PRBool aMatch);
 
   /**

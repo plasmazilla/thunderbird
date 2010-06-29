@@ -55,7 +55,8 @@ class nsINodeInfo;
   { 0x80, 0x3f, 0xeb, 0x90, 0xfe, 0xe0, 0x7a, 0xe9 } }
 
 nsresult
-NS_NewSVGSVGElement(nsIContent **aResult, nsINodeInfo *aNodeInfo);
+NS_NewSVGSVGElement(nsIContent **aResult, nsINodeInfo *aNodeInfo,
+                    PRBool aFromParser);
 
 typedef nsSVGGraphicElement nsSVGUseElementBase;
 
@@ -98,8 +99,9 @@ public:
   void DestroyAnonymousContent();
 
   // nsSVGElement specializations:
+  virtual gfxMatrix PrependLocalTransformTo(const gfxMatrix &aMatrix);
   virtual void DidChangeLength(PRUint8 aAttrEnum, PRBool aDoSetAttr);
-  virtual void DidChangeString(PRUint8 aAttrEnum, PRBool aDoSetAttr);
+  virtual void DidChangeString(PRUint8 aAttrEnum);
 
   // nsIContent interface
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;

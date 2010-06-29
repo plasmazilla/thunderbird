@@ -39,6 +39,7 @@
 #define nsIScrollableView_h___
 
 #include "nsCoord.h"
+#include "nsNativeWidget.h"
 
 class nsIView;
 class nsIScrollPositionListener;
@@ -46,8 +47,8 @@ struct nsSize;
 
 // IID for the nsIScrollableView interface
 #define NS_ISCROLLABLEVIEW_IID    \
-{ 0x00bba69f, 0xbbef, 0x4725, \
-{ 0x8b, 0xee, 0xec, 0xfe, 0x82, 0xf7, 0xbd, 0xb0 } }
+  { 0x74254899, 0xccc9, 0x4e67, \
+    { 0xa6, 0x78, 0x6b, 0x79, 0xfa, 0x72, 0xb4, 0x86 } }
 
 /**
  * A scrolling view allows an arbitrary view that you supply to be scrolled
@@ -62,14 +63,6 @@ struct nsSize;
 class nsIScrollableView {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCROLLABLEVIEW_IID)
-
-  /**
-   * Create the controls used to allow scrolling. Call this method
-   * before anything else is done with the scrollable view.
-   * @param aNative native widget to use as parent for control widgets
-   * @return error status
-   */
-  NS_IMETHOD  CreateScrollControls(nsNativeWidget aNative = nsnull) = 0;
 
   /**
    * Get the dimensions of the container
@@ -106,22 +99,6 @@ public:
   NS_IMETHOD ScrollTo(nscoord aX, nscoord aY, PRUint32 aUpdateFlags) = 0;
 
   /**
-   * Set the properties describing how scrolling can be performed
-   * in this scrollable.
-   * @param aProperties new properties
-   * @return error status
-   */
-  NS_IMETHOD SetScrollProperties(PRUint32 aProperties) = 0;
-
-  /**
-   * Get the properties describing how scrolling can be performed
-   * in this scrollable.
-   * @param aProperties out parameter for current properties
-   * @return error status
-   */
-  NS_IMETHOD GetScrollProperties(PRUint32 *aProperties) = 0;
-
-  /**
    * Set the height of a line used for line scrolling.
    * @param aHeight new line height in app units. the default
    *        height is 12 points.
@@ -147,6 +124,20 @@ public:
    */
   NS_IMETHOD ScrollByLines(PRInt32 aNumLinesX, PRInt32 aNumLinexY,
                            PRUint32 aUpdateFlags = 0) = 0;
+  /**
+   * Identical to ScrollByLines while also returning overscroll values.
+   * @param aNumLinesX number of lines to scroll the view horizontally
+   * @param aNumLinesY number of lines to scroll the view vertically
+   * @param aOverflowX returns the number of pixels that could not
+   *                   be scrolled due to scroll bounds.
+   * @param aOverflowY returns the number of pixels that could not
+   *                   be scrolled due to scroll bounds.
+   * @param aUpdateFlags indicate smooth or async scrolling
+   * @return error status
+   */
+  NS_IMETHOD ScrollByLinesWithOverflow(PRInt32 aNumLinesX, PRInt32 aNumLinexY,
+                                       PRInt32& aOverflowX, PRInt32& aOverflowY,
+                                       PRUint32 aUpdateFlags = 0) = 0;
 
   /**
    * Get the desired size of a page scroll in each dimension.
@@ -181,12 +172,17 @@ public:
    * Scroll the view left or right by aNumLinesX pixels.  Positive values move 
    * right.  Scroll the view up or down by aNumLinesY pixels.  Positive values
    * move down.  Prevents scrolling off the end of the view.
-   * @param aNumLinesX number of lines to scroll the view horizontally
-   * @param aNumLinesY number of lines to scroll the view vertically
-   * @param aUpdateFlags indicate smooth or async scrolling
+   * @param aNumPixelsX number of pixels to scroll the view horizontally
+   * @param aNumPixelsY number of pixels to scroll the view vertically
+   * @param aOverflowX returns the number of pixels that could not
+   *                   be scrolled due to scroll bounds.
+   * @param aOverflowY returns the number of pixels that could not
+   *                   be scrolled due to scroll bounds.
+   * @param aUpdateFlags indicate smooth, async, or immediate scrolling
    * @return error status
    */
   NS_IMETHOD ScrollByPixels(PRInt32 aNumPixelsX, PRInt32 aNumPixelsY,
+                            PRInt32& aOverflowX, PRInt32& aOverflowY,
                             PRUint32 aUpdateFlags = 0) = 0;
 
   /**
@@ -215,9 +211,5 @@ public:
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIScrollableView, NS_ISCROLLABLEVIEW_IID)
-
-//regardless of the transparency or opacity settings
-//for this view, it can always be scrolled via a blit
-#define NS_SCROLL_PROPERTY_ALWAYS_BLIT    0x0001
 
 #endif

@@ -56,6 +56,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsMemory.h"
 #include <ctype.h>
+#include "nsMsgUtils.h"
 
 // Forward declares...
 PRInt32 MimeHeaders_build_heads_list(MimeHeaders *hdrs);
@@ -400,8 +401,27 @@ MimeHeaders_get (MimeHeaders *hdrs, const char *header_name,
     char *s;
 
     /* Skip over whitespace after colon. */
-    while (contents <= end && IS_SPACE(*contents) && contents[0] != '\n')
-      contents++;
+    while (contents <= end && IS_SPACE(contents[0])) {
+      /* Mac or Unix style line break, followed by space or tab. */
+      if (contents <= (end - 1) &&
+         (contents[0] == '\r' || contents[0] == '\n') &&
+         (contents[1] == ' ' || contents[1] == '\t'))
+        contents += 2;
+      /* Windows style line break, followed by space or tab. */
+      else if (contents <= (end - 2) &&
+               contents[0] == '\r' && contents[1] == '\n' &&
+              (contents[2] == ' ' || contents[2] == '\t'))
+        contents += 3;
+      /* Any space or tab. */
+      else if (contents[0] == ' ' || contents[0] == '\t')
+        contents++;
+      /* If we get here, it's because this character is a line break
+         followed by non-whitespace, or a line break followed by
+         another line break
+       */
+      else
+        break;
+    }
 
     /* If we're supposed to strip at the first token, pull `end' back to
        the first whitespace or ';' after the first token.
@@ -600,18 +620,9 @@ MimeHeaders_write_all_headers (MimeHeaders *hdrs, MimeDisplayOptions *opt, PRBoo
 
     // MW Fixme: more?
     PRBool convert_charset_only =
-#ifdef MOZILLA_INTERNAL_API
-          name.LowerCaseEqualsLiteral("to") || name.LowerCaseEqualsLiteral("from") ||
-          name.LowerCaseEqualsLiteral("cc") || name.LowerCaseEqualsLiteral("bcc") ||
-          name.LowerCaseEqualsLiteral("reply-to") || name.LowerCaseEqualsLiteral("sender");
-#else
-          name.Equals("to", CaseInsensitiveCompare) ||
-          name.Equals("from", CaseInsensitiveCompare) ||
-          name.Equals("cc", CaseInsensitiveCompare) ||
-          name.Equals("bcc", CaseInsensitiveCompare) ||
-          name.Equals("reply-to", CaseInsensitiveCompare) ||
-          name.Equals("sender", CaseInsensitiveCompare);
-#endif
+          MsgLowerCaseEqualsLiteral(name, "to") || MsgLowerCaseEqualsLiteral(name, "from") ||
+          MsgLowerCaseEqualsLiteral(name, "cc") || MsgLowerCaseEqualsLiteral(name, "bcc") ||
+          MsgLowerCaseEqualsLiteral(name, "reply-to") || MsgLowerCaseEqualsLiteral(name, "sender");
     MimeHeaders_convert_header_value(opt, hdr_value, convert_charset_only);
     // if we're saving as html, we need to convert headers from utf8 to message charset, if any
     if (opt->format_out == nsMimeOutput::nsMimeMessageSaveAs && charset)

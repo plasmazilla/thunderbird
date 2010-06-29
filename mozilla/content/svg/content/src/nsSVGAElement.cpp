@@ -35,6 +35,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsSVGAElement.h"
 #include "nsSVGGraphicElement.h"
 #include "nsIDOMSVGAElement.h"
 #include "nsIDOMSVGURIReference.h"
@@ -43,58 +44,6 @@
 #include "nsCOMPtr.h"
 #include "nsGkAtoms.h"
 
-typedef nsSVGGraphicElement nsSVGAElementBase;
-
-class nsSVGAElement : public nsSVGAElementBase,
-                      public nsIDOMSVGAElement,
-                      public nsIDOMSVGURIReference,
-                      public nsILink
-{
-protected:
-  friend nsresult NS_NewSVGAElement(nsIContent **aResult,
-                                    nsINodeInfo *aNodeInfo);
-  nsSVGAElement(nsINodeInfo *aNodeInfo);
-
-public:
-  // interfaces:
-
-  NS_DECL_ISUPPORTS_INHERITED
-  NS_DECL_NSIDOMSVGAELEMENT
-  NS_DECL_NSIDOMSVGURIREFERENCE
-
-  // XXX: I wish we could use virtual inheritance
-  NS_FORWARD_NSIDOMNODE(nsSVGAElementBase::)
-  NS_FORWARD_NSIDOMELEMENT(nsSVGAElementBase::)
-  NS_FORWARD_NSIDOMSVGELEMENT(nsSVGAElementBase::)
-
-  // nsINode interface methods
-  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
-  virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
-  virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
-
-  // nsILink
-  NS_IMETHOD GetLinkState(nsLinkState &aState);
-  NS_IMETHOD SetLinkState(nsLinkState aState);
-  NS_IMETHOD GetHrefURI(nsIURI** aURI);
-  NS_IMETHOD LinkAdded() { return NS_OK; }
-  NS_IMETHOD LinkRemoved() { return NS_OK; }
-
-  // nsIContent
-  virtual PRBool IsFocusable(PRInt32 *aTabIndex = nsnull);
-  virtual PRBool IsLink(nsIURI** aURI) const;
-  virtual void GetLinkTarget(nsAString& aTarget);
-
-protected:
-
-  virtual StringAttributesInfo GetStringInfo();
-
-  enum { HREF, TARGET };
-  nsSVGString mStringAttributes[2];
-  static StringInfo sStringInfo[2];
-
-  // The cached visited state (for the implementation of nsILink)
-  nsLinkState mLinkState;
-};
 
 nsSVGElement::StringInfo nsSVGAElement::sStringInfo[2] =
 {
@@ -171,32 +120,26 @@ nsSVGAElement::GetTarget(nsIDOMSVGAnimatedString * *aTarget)
 
 
 //----------------------------------------------------------------------
-// nsILink methods
+// nsIContent methods
 
-NS_IMETHODIMP
-nsSVGAElement::GetLinkState(nsLinkState &aState)
+nsLinkState
+nsSVGAElement::GetLinkState() const
 {
-  aState = mLinkState;
-  return NS_OK;
+  return mLinkState;
 }
 
-NS_IMETHODIMP
+void
 nsSVGAElement::SetLinkState(nsLinkState aState)
 {
   mLinkState = aState;
-  return NS_OK;
 }
 
-NS_IMETHODIMP
-nsSVGAElement::GetHrefURI(nsIURI** aURI)
+already_AddRefed<nsIURI>
+nsSVGAElement::GetHrefURI() const
 {
-  *aURI = nsnull;
-  return NS_OK; // XXX GetHrefURIForAnchors(aURI);
+  return nsnull; // XXX GetHrefURIForAnchors();
 }
 
-
-//----------------------------------------------------------------------
-// nsIContent methods
 
 PRBool
 nsSVGAElement::IsFocusable(PRInt32 *aTabIndex)
@@ -253,8 +196,9 @@ nsSVGAElement::IsLink(nsIURI** aURI) const
                       nsIContent::ATTR_VALUE_NO_MATCH) {
     nsCOMPtr<nsIURI> baseURI = GetBaseURI();
     // Get absolute URI
-    nsContentUtils::NewURIWithDocumentCharset(aURI,
-                                              mStringAttributes[HREF].GetAnimValue(),
+    nsAutoString str;
+    mStringAttributes[HREF].GetAnimValue(str, this);
+    nsContentUtils::NewURIWithDocumentCharset(aURI, str,
                                               GetOwnerDoc(), baseURI);
     // must promise out param is non-null if we return true
     return !!*aURI;
@@ -267,7 +211,7 @@ nsSVGAElement::IsLink(nsIURI** aURI) const
 void
 nsSVGAElement::GetLinkTarget(nsAString& aTarget)
 {
-  aTarget = mStringAttributes[TARGET].GetAnimValue();
+  mStringAttributes[TARGET].GetAnimValue(aTarget, this);
   if (aTarget.IsEmpty()) {
 
     static nsIContent::AttrValuesArray sShowVals[] =

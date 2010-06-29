@@ -80,12 +80,13 @@ public:
   virtual void GetScriptText(nsAString& text);
   virtual void GetScriptCharset(nsAString& charset);
   virtual PRBool GetScriptDeferred();
+  virtual PRBool GetScriptAsync();
 
   // nsScriptElement
   virtual PRBool HasScriptContent();
 
   // nsSVGElement specializations:
-  virtual void DidChangeString(PRUint8 aAttrEnum, PRBool aDoSetAttr);
+  virtual void DidChangeString(PRUint8 aAttrEnum);
 
   // nsIContent specializations:
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
@@ -205,7 +206,8 @@ already_AddRefed<nsIURI>
 nsSVGScriptElement::GetScriptURI()
 {
   nsIURI *uri = nsnull;
-  const nsString &src = mStringAttributes[HREF].GetAnimValue();
+  nsAutoString src;
+  mStringAttributes[HREF].GetAnimValue(src, this);
   if (!src.IsEmpty()) {
     nsCOMPtr<nsIURI> baseURI = GetBaseURI();
     NS_NewURI(&uri, src, nsnull, baseURI);
@@ -231,13 +233,21 @@ nsSVGScriptElement::GetScriptDeferred()
   return PR_FALSE;
 }
 
+PRBool
+nsSVGScriptElement::GetScriptAsync()
+{
+  return PR_FALSE;
+}
+
 //----------------------------------------------------------------------
 // nsScriptElement methods
 
 PRBool
 nsSVGScriptElement::HasScriptContent()
 {
-  return !mStringAttributes[HREF].GetAnimValue().IsEmpty() ||
+  nsAutoString str;
+  mStringAttributes[HREF].GetAnimValue(str, this);
+  return !str.IsEmpty() ||
          nsContentUtils::HasNonEmptyTextContent(this);
 }
 
@@ -245,9 +255,9 @@ nsSVGScriptElement::HasScriptContent()
 // nsSVGElement methods
 
 void
-nsSVGScriptElement::DidChangeString(PRUint8 aAttrEnum, PRBool aDoSetAttr)
+nsSVGScriptElement::DidChangeString(PRUint8 aAttrEnum)
 {
-  nsSVGScriptElementBase::DidChangeString(aAttrEnum, aDoSetAttr);
+  nsSVGScriptElementBase::DidChangeString(aAttrEnum);
 
   if (aAttrEnum == HREF) {
     MaybeProcessScript();
@@ -287,3 +297,4 @@ nsSVGScriptElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
 
   return NS_OK;
 }
+

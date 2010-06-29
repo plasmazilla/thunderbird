@@ -57,17 +57,18 @@ NS_CYCLE_COLLECTION_CLASSNAME(nsXPCWrappedJS)::Traverse
     nsXPCWrappedJS *tmp = Downcast(s);
 
     nsrefcnt refcnt = tmp->mRefCnt.get();
-#ifdef DEBUG_CC
-    char name[72];
-    if (tmp->GetClass())
-      JS_snprintf(name, sizeof(name), "nsXPCWrappedJS (%s)",
-                  tmp->GetClass()->GetInterfaceName());
-    else
-      JS_snprintf(name, sizeof(name), "nsXPCWrappedJS");
-    cb.DescribeNode(RefCounted, refcnt, sizeof(nsXPCWrappedJS), name);
-#else
-    cb.DescribeNode(RefCounted, refcnt);
-#endif
+    if (cb.WantDebugInfo()) {
+        char name[72];
+        if (tmp->GetClass())
+            JS_snprintf(name, sizeof(name), "nsXPCWrappedJS (%s)",
+                        tmp->GetClass()->GetInterfaceName());
+        else
+            JS_snprintf(name, sizeof(name), "nsXPCWrappedJS");
+        cb.DescribeNode(RefCounted, refcnt, sizeof(nsXPCWrappedJS), name);
+    } else {
+        cb.DescribeNode(RefCounted, refcnt, sizeof(nsXPCWrappedJS),
+                        "nsXPCWrappedJS");
+    }
 
     // nsXPCWrappedJS keeps its own refcount artificially at or above 1, see the
     // comment above nsXPCWrappedJS::AddRef.
@@ -619,12 +620,12 @@ nsXPCWrappedJS::GetProperty(const nsAString & name, nsIVariant **_retval)
     if(!ccx.IsValid())
         return NS_ERROR_UNEXPECTED;
 
-    JSString* jsstr = XPCStringConvert::ReadableToJSString(ccx, name);
+    jsval jsstr = XPCStringConvert::ReadableToJSVal(ccx, name);
     if(!jsstr)
         return NS_ERROR_OUT_OF_MEMORY;
 
     return nsXPCWrappedJSClass::
-        GetNamedPropertyAsVariant(ccx, mJSObj, STRING_TO_JSVAL(jsstr), _retval);
+        GetNamedPropertyAsVariant(ccx, mJSObj, jsstr, _retval);
 }
 
 /***************************************************************************/
@@ -647,7 +648,7 @@ nsXPCWrappedJS::DebugDump(PRInt16 depth)
         char * iid = GetClass()->GetIID().ToString();
         XPC_LOG_ALWAYS(("IID number is %s", iid ? iid : "invalid"));
         if(iid)
-            PR_Free(iid);
+            NS_Free(iid);
         XPC_LOG_ALWAYS(("nsXPCWrappedJSClass @ %x", mClass));
 
         if(!isRoot)

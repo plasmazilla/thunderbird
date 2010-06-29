@@ -41,11 +41,12 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= theora
+EXPORTS_NAMESPACES = theora
 
-EXPORTS		= \
+EXPORTS_theora = \
 		theora.h \
 		theoradec.h \
+		theoraenc.h \
 		codec.h \
 		$(NULL)
 

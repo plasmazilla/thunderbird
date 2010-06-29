@@ -58,7 +58,6 @@
 #include "nsIMemory.h"
 #include "nsIPipe.h"
 #include "nsCOMPtr.h"
-#include "nsReadableUtils.h"
 #include "nsMsgI18N.h"
 #include "nsINNTPNewsgroupPost.h"
 #include "nsMsgBaseCID.h"
@@ -69,8 +68,7 @@
 #include "prtime.h"
 #include "prlog.h"
 #include "prerror.h"
-#include "nsEscape.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 
 #include "prprf.h"
 
@@ -288,7 +286,8 @@ char *MSG_UnEscapeSearchUrl (const char *commandSpecificData)
   {
     nsCAutoString hex;
     hex.Assign(Substring(result, slashpos + 1, 2));
-    PRInt32 err, ch;
+    PRInt32 ch;
+    nsresult err;
     ch = hex.ToInteger(&err, 16);
     result.Replace(slashpos, 3, err == NS_OK && ch != 0 ? (char) ch : 'X');
     slashpos++;
@@ -399,16 +398,13 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
   nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  char *unescapedUserPass = ToNewCString(userPass);
-  if (!unescapedUserPass)
-    return NS_ERROR_OUT_OF_MEMORY;
-  nsUnescape(unescapedUserPass);
+  nsCString unescapedUserPass;
+  MsgUnescapeString(userPass, 0, unescapedUserPass);
 
   // find the server
   nsCOMPtr<nsIMsgIncomingServer> server;
-  rv = accountManager->FindServer(nsDependentCString(unescapedUserPass), hostName, NS_LITERAL_CSTRING("nntp"),
+  rv = accountManager->FindServer(unescapedUserPass, hostName, NS_LITERAL_CSTRING("nntp"),
     getter_AddRefs(server));
-  PR_FREEIF(unescapedUserPass);
   NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
   if (!server) return NS_MSG_INVALID_OR_MISSING_SERVER;
 
@@ -430,7 +426,7 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
     if (NS_FAILED(rv)) return rv;
 
     if (port<=0) {
-      port = (socketType == nsIMsgIncomingServer::useSSL) ?
+      port = (socketType == nsMsgSocketType::SSL) ?
              nsINntpUrl::DEFAULT_NNTPS_PORT : nsINntpUrl::DEFAULT_NNTP_PORT;
     }
 
@@ -500,7 +496,7 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
     // pass an interface requestor down to the socket transport so that PSM can
     // retrieve a nsIPrompt instance if needed.
     nsCOMPtr<nsIInterfaceRequestor> ir;
-    if (socketType != nsIMsgIncomingServer::defaultSocket && aMsgWindow)
+    if (socketType != nsMsgSocketType::plain && aMsgWindow)
     {
       nsCOMPtr<nsIDocShell> docShell;
       aMsgWindow->GetRootDocShell(getter_AddRefs(docShell));
@@ -518,11 +514,11 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI * aURL, nsIMsgWindow *aMsgWindow
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIProxyInfo> proxyInfo;
-    rv = NS_ExamineForProxy("nntp", hostName.get(), port, getter_AddRefs(proxyInfo));
+    rv = MsgExamineForProxy("nntp", hostName.get(), port, getter_AddRefs(proxyInfo));
     if (NS_FAILED(rv)) proxyInfo = nsnull;
 
     rv = OpenNetworkSocketWithInfo(hostName.get(), port,
-           (socketType == nsIMsgIncomingServer::useSSL) ? "ssl" : nsnull,
+           (socketType == nsMsgSocketType::SSL) ? "ssl" : nsnull,
            proxyInfo, ir);
 
     NS_ENSURE_SUCCESS(rv,rv);
@@ -850,7 +846,8 @@ PRBool nsNNTPProtocol::ReadFromLocalCache()
     {
     // we want to create a file channel and read the msg from there.
       nsCOMPtr<nsIInputStream> fileStream;
-      PRUint32 offset=0, size=0;
+      PRUint64 offset=0;
+      PRUint32 size=0;
       rv = folder->GetOfflineFileStream(m_key, &offset, &size, getter_AddRefs(fileStream));
 
       // get the file stream from the folder, somehow (through the message or
@@ -870,10 +867,10 @@ PRBool nsNNTPProtocol::ReadFromLocalCache()
         cacheListener->Init(m_channelListener, static_cast<nsIChannel *>(this), mailnewsUrl);
 
         // create a stream pump that will async read the specified amount of data.
-        // XXX make offset and size 64-bit ints
+        // XXX make size 64-bit int
         nsCOMPtr<nsIInputStreamPump> pump;
         rv = NS_NewInputStreamPump(getter_AddRefs(pump),
-                                   fileStream, nsInt64(offset), nsInt64(size));
+                                   fileStream, offset, (PRInt64) size);
         if (NS_SUCCEEDED(rv))
           rv = pump->AsyncRead(cacheListener, m_channelContext);
 
@@ -918,7 +915,11 @@ nsNNTPProtocol::OnCacheEntryAvailable(nsICacheEntryDescriptor *entry, nsCacheAcc
       rv = entry->OpenOutputStream(0, getter_AddRefs(out));
       NS_ENSURE_SUCCESS(rv, rv);
 
-      rv = tee->Init(m_channelListener, out);
+      rv = tee->Init(m_channelListener, out
+#ifndef MOZILLA_1_9_2_BRANCH
+                     , nsnull
+#endif
+                     );
       m_channelListener = do_QueryInterface(tee);
       NS_ENSURE_SUCCESS(rv, rv);
     }
@@ -1028,7 +1029,7 @@ nsresult nsNNTPProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
   NS_ASSERTION(NS_SUCCEEDED(rv),"failed to parse news url");
   //if (NS_FAILED(rv)) return rv;
   // XXX group returned from ParseURL is assumed to be in UTF-8
-  NS_ASSERTION(IsUTF8(group), "newsgroup name is not in UTF-8");
+  NS_ASSERTION(MsgIsUTF8(group), "newsgroup name is not in UTF-8");
 
   PR_LOG(NNTP,PR_LOG_ALWAYS,("(%p) m_messageID = %s", this, m_messageID ? m_messageID :"(null)"));
   PR_LOG(NNTP,PR_LOG_ALWAYS,("(%p) group = %s", this, group.get()));
@@ -1103,8 +1104,9 @@ nsresult nsNNTPProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
         else
         {
           m_typeWanted = SEARCH_WANTED;
-          m_commandSpecificData = ToNewCString(commandSpecificData);
-          nsUnescape(m_commandSpecificData);
+          nsCString unescapedCommandSpecificData;
+          MsgUnescapeString(commandSpecificData, 0, unescapedCommandSpecificData);
+          m_commandSpecificData = ToNewCString(unescapedCommandSpecificData);
           m_searchData = m_commandSpecificData;
 
 
@@ -1405,11 +1407,15 @@ nsNNTPProtocol::ParseURL(nsIURI * aURL, char ** aGroup, char ** aMessageID,
 
   // more to do here, but for now, this works.
   // only escape if we are doing a search
+  nsCString unescapedGroup;
+  MsgUnescapeString(nsDependentCString(group), 0, unescapedGroup);
   if (m_newsAction == nsINntpUrl::ActionSearch) {
-    nsUnescape(group);
+    NS_Free(group);
+    group = ToNewCString(unescapedGroup);
   }
   else if (strchr(group, '@') || strstr(group,"%40")) {
-    message_id = nsUnescape(group);
+    NS_Free(group);
+    message_id = ToNewCString(unescapedGroup);
     group = 0;
   }
   else if (!*group) {
@@ -2625,31 +2631,30 @@ void nsNNTPProtocol::ParseHeaderForCancel(char *buf)
     if (!colon)
     return;
 
-    nsCAutoString value;
-    header.Right(value, header.Length() - colon -1);
+    nsCString value(Substring(header, colon + 1));
     value.StripWhitespace();
 
     switch (header.First()) {
     case 'F': case 'f':
-        if (header.Find("From",PR_TRUE) == 0) {
+        if (header.Find("From", CaseInsensitiveCompare) == 0) {
             PR_FREEIF(m_cancelFromHdr);
       m_cancelFromHdr = ToNewCString(value);
         }
         break;
     case 'M': case 'm':
-        if (header.Find("Message-ID",PR_TRUE) == 0) {
+        if (header.Find("Message-ID", CaseInsensitiveCompare) == 0) {
             PR_FREEIF(m_cancelID);
       m_cancelID = ToNewCString(value);
         }
         break;
     case 'N': case 'n':
-        if (header.Find("Newsgroups",PR_TRUE) == 0) {
+        if (header.Find("Newsgroups", CaseInsensitiveCompare) == 0) {
             PR_FREEIF(m_cancelNewsgroups);
       m_cancelNewsgroups = ToNewCString(value);
         }
         break;
      case 'D': case 'd':
-        if (header.Find("Distributions",PR_TRUE) == 0) {
+        if (header.Find("Distributions", CaseInsensitiveCompare) == 0) {
             PR_FREEIF(m_cancelDistribution);
       m_cancelDistribution = ToNewCString(value);
         }
@@ -3799,7 +3804,7 @@ nsresult nsNNTPProtocol::GetNewsStringByName(const char *aName, PRUnichar **aStr
   if (m_stringBundle)
   {
     nsAutoString unicodeName;
-    CopyASCIItoUTF16(aName, unicodeName);
+    CopyASCIItoUTF16(nsDependentCString(aName), unicodeName);
 
     PRUnichar *ptrv = nsnull;
     rv = m_stringBundle->GetStringFromName(unicodeName.get(), &ptrv);
@@ -4098,13 +4103,15 @@ reported here */
   if (NS_FAILED(rv) || requireConfirmationForCancel) {
     /* Last chance to cancel the cancel.*/
     GetNewsStringByName("cancelConfirm", getter_Copies(confirmText));
-    rv = dialog->Confirm(nsnull, confirmText.get(), &confirmCancelResult);
-    // XXX:  todo, check rv?
+    rv = dialog->ConfirmEx(nsnull, confirmText.get(), nsIPrompt::STD_YES_NO_BUTTONS,
+                           nsnull, nsnull, nsnull, nsnull, nsnull, &confirmCancelResult);
+    if (NS_FAILED(rv))
+    	confirmCancelResult = 1; // Default to No.
   }
   else
-    confirmCancelResult = 1;
-
-  if (confirmCancelResult != 1) {
+    confirmCancelResult = 0; // Default to Yes.
+    
+  if (confirmCancelResult != 0) {
       // they cancelled the cancel
       status = MK_NNTP_NOT_CANCELLED;
       failure = PR_TRUE;

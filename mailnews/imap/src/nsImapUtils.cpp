@@ -57,7 +57,6 @@
 #include "nsISupportsObsolete.h"
 #include "nsIMAPNamespace.h"
 #include "nsIImapFlagAndUidState.h"
-#include "nsINetUtil.h"
 
 nsresult
 nsImapURI2FullName(const char* rootURI, const char* hostName, const char* uriStr,
@@ -119,7 +118,7 @@ nsresult nsParseImapMessageURI(const char* uri, nsCString& folderURI, PRUint32 *
                                                    origUserNameLen),
                                          0, unescapedName)))
       {
-        // Re-escape the username, matching the way we do it in uri's, not the
+        // Re-escape the username, matching the way we do it in uris, not the
         // way necko escapes urls. See nsMsgIncomingServer::GetServerURI.
         MsgEscapeString(unescapedName, nsINetUtil::ESCAPE_XALPHAS, escapedName);
         folderURI.Replace(userNamePos, origUserNameLen, escapedName);
@@ -132,7 +131,7 @@ nsresult nsParseImapMessageURI(const char* uri, nsCString& folderURI, PRUint32 *
     else
       uriStr.Right(keyStr, uriStr.Length() - (keySeparator + 1));
     PRInt32 errorCode;
-    *key = keyStr.ToInteger(&errorCode);
+    *key = keyStr.ToInteger(&errorCode, 10);
 
     if (part && keyEndSeparator != -1)
     {
@@ -401,16 +400,4 @@ void AppendUid(nsCString &msgIds, PRUint32 uid)
   char buf[20];
   PR_snprintf(buf, sizeof(buf), "%u", uid);
   msgIds.Append(buf);
-}
-
-PRUint64 ParseUint64Str(const char *str)
-{
-#ifdef XP_WIN
-  {
-    char *endPtr;
-    return _strtoui64(str, &endPtr, 10);
-  }
-#else
-  return strtoull(str, nsnull, 10);
-#endif
 }

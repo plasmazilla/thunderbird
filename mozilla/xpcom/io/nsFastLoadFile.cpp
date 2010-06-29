@@ -950,6 +950,15 @@ nsFastLoadFileReader::Open()
     if (NS_FAILED(rv))
         return rv;
 
+    PRUint32 checksum;
+    rv = ComputeChecksum(&checksum);
+    if (NS_FAILED(rv))
+        return rv;
+    
+    if (checksum != mHeader.mChecksum) {
+        return NS_ERROR_FAILURE;
+    }
+
     if (mHeader.mVersion != MFL_FILE_VERSION)
         return NS_ERROR_UNEXPECTED;
     if (mHeader.mFooterOffset == 0)

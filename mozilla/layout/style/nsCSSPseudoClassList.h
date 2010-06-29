@@ -72,6 +72,7 @@ CSS_PSEUDO_CLASS(focus, ":focus")
 CSS_PSEUDO_CLASS(hover, ":hover")
 CSS_PSEUDO_CLASS(mozDragOver, ":-moz-drag-over")
 CSS_PSEUDO_CLASS(target, ":target")
+CSS_PSEUDO_CLASS(indeterminate, ":indeterminate")
 
 CSS_PSEUDO_CLASS(firstChild, ":first-child")
 CSS_PSEUDO_CLASS(firstNode, ":-moz-first-node")
@@ -94,6 +95,7 @@ CSS_PSEUDO_CLASS(mozLoading, ":-moz-loading")
 CSS_PSEUDO_CLASS(mozTypeUnsupported, ":-moz-type-unsupported")
 CSS_PSEUDO_CLASS(mozHandlerDisabled, ":-moz-handler-disabled")
 CSS_PSEUDO_CLASS(mozHandlerBlocked, ":-moz-handler-blocked")
+CSS_PSEUDO_CLASS(mozHandlerCrashed, ":-moz-handler-crashed")
 
 CSS_PSEUDO_CLASS(mozHasHandlerRef, ":-moz-has-handlerref")
 
@@ -102,6 +104,19 @@ CSS_PSEUDO_CLASS(mozIsHTML, ":-moz-is-html")
 
 // Matches anything when the specified look-and-feel metric is set
 CSS_PSEUDO_CLASS(mozSystemMetric, ":-moz-system-metric")
+
+// -moz-locale-dir(ltr) and -moz-locale-dir(rtl) may be used
+// to match based on the locale's chrome direction
+CSS_PSEUDO_CLASS(mozLocaleDir, ":-moz-locale-dir")
+
+// -moz-lwtheme may be used to match a document that has a lightweight theme
+CSS_PSEUDO_CLASS(mozLWTheme, ":-moz-lwtheme")
+
+// -moz-lwtheme-brighttext matches a document that has a bright lightweight theme
+CSS_PSEUDO_CLASS(mozLWThemeBrightText, ":-moz-lwtheme-brighttext")
+
+// -moz-lwtheme-darktext matches a document that has a bright lightweight theme
+CSS_PSEUDO_CLASS(mozLWThemeDarkText, ":-moz-lwtheme-darktext")
 
 #ifdef MOZ_MATHML
 CSS_PSEUDO_CLASS(mozMathIncrementScriptLevel, ":-moz-math-increment-script-level")

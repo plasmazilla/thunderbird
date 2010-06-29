@@ -70,9 +70,7 @@ nsPrintfCString::nsPrintfCString( size_type n, const char_type* format, ... )
     size_type logical_capacity = kLocalBufferSize;
     if ( n > logical_capacity )
       {
-        SetCapacity(n);
-        size_type capacity = Capacity();
-        if (capacity == size_type(-1) || capacity < n)
+        if (!SetCapacity(n))
           return; // out of memory !!
         logical_capacity = n;
       }

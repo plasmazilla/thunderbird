@@ -44,10 +44,6 @@
 
 #include "nptypes.h"
 
-#ifdef OJI
-#include "jri.h"                /* Java Runtime Interface */
-#endif
-
 #if defined (__OS2__) || defined (OS2)
 # ifndef XP_OS2
 #  define XP_OS2 1
@@ -61,20 +57,11 @@
 # endif /* XP_WIN */
 #endif /* _WINDOWS */
 
-#ifdef __MWERKS__
-# define _declspec __declspec
-# ifdef __INTEL__
-#  undef NULL
-#  ifndef XP_WIN
-#   define XP_WIN 1
-#  endif /* XP_WIN */
-# endif /* __INTEL__ */
-#endif /* __MWERKS__ */
-
 #ifdef XP_MACOSX
-#include <Carbon/Carbon.h>
 #ifdef __LP64__
 #define NP_NO_QUICKDRAW
+#else
+#include <Carbon/Carbon.h>
 #endif
 #endif
 
@@ -279,21 +266,14 @@ typedef enum {
  *   gcc 3.x generated vtables on UNIX and OSX are incompatible with 
  *   previous compilers.
  */
-#if (defined (XP_UNIX) && defined(__GNUC__) && (__GNUC__ >= 3))
+#if (defined(XP_UNIX) && defined(__GNUC__) && (__GNUC__ >= 3))
 #define _NP_ABI_MIXIN_FOR_GCC3 NP_ABI_GCC3_MASK
 #else
 #define _NP_ABI_MIXIN_FOR_GCC3 0
 #endif
 
+#ifdef XP_MACOSX
 #define NP_ABI_MACHO_MASK 0x01000000
-/*
- *   On OSX, the Mach-O executable format is significantly
- *   different than CFM. In addition to having a different
- *   C++ ABI, it also has has different C calling convention.
- *   You must use glue code when calling between CFM and
- *   Mach-O C functions. 
- */
-#if (defined(TARGET_RT_MAC_MACHO))
 #define _NP_ABI_MIXIN_FOR_MACHO NP_ABI_MACHO_MASK
 #else
 #define _NP_ABI_MIXIN_FOR_MACHO 0
@@ -346,6 +326,10 @@ typedef enum {
   /* Used for negotiating drawing models */
   , NPPVpluginDrawingModel = 1000
 #endif
+
+#if (MOZ_PLATFORM_MAEMO == 5)
+  , NPPVpluginWindowlessLocalBool = 2002
+#endif
 } NPPVariable;
 
 /*
@@ -384,6 +368,11 @@ typedef enum {
 #endif
   , NPNVsupportsCoreGraphicsBool = 2001
 #endif
+
+#if (MOZ_PLATFORM_MAEMO == 5)
+  , NPNVSupportsWindowlessLocal = 2002
+#endif
+
 } NPNVariable;
 
 typedef enum {
@@ -425,6 +414,21 @@ typedef struct _NPWindow
   NPWindowType type; /* Is this a window or a drawable? */
 } NPWindow;
 
+typedef struct _NPImageExpose
+{
+  char*    data;       /* image pointer */
+  int32_t  stride;     /* Stride of data image pointer */
+  int32_t  depth;      /* Depth of image pointer */
+  int32_t  x;          /* Expose x */
+  int32_t  y;          /* Expose y */
+  uint32_t width;      /* Expose width */
+  uint32_t height;     /* Expose height */
+  NPSize   dataSize;   /* Data buffer size */
+  float    translateX; /* translate X matrix value */
+  float    translateY; /* translate Y matrix value */
+  float    scaleX;     /* scale X matrix value */
+  float    scaleY;     /* scale Y matrix value */
+} NPImageExpose;
 
 typedef struct _NPFullPrint
 {
@@ -586,7 +590,6 @@ enum NPEventType {
 #define NPVERS_HAS_STREAMOUTPUT             8
 #define NPVERS_HAS_NOTIFICATION             9
 #define NPVERS_HAS_LIVECONNECT              9
-#define NPVERS_WIN16_HAS_LIVECONNECT        9
 #define NPVERS_68K_HAS_LIVECONNECT          11
 #define NPVERS_HAS_WINDOWLESS               11
 #define NPVERS_HAS_XPCONNECT_SCRIPTING      13
@@ -640,9 +643,6 @@ void    NP_LOADDS NPP_Print(NPP instance, NPPrint* platformPrint);
 int16_t NP_LOADDS NPP_HandleEvent(NPP instance, void* event);
 void    NP_LOADDS NPP_URLNotify(NPP instance, const char* url,
                                 NPReason reason, void* notifyData);
-#ifdef OJI
-jref    NP_LOADDS NPP_GetJavaClass();
-#endif
 NPError NP_LOADDS NPP_GetValue(NPP instance, NPPVariable variable, void *value);
 NPError NP_LOADDS NPP_SetValue(NPP instance, NPNVariable variable, void *value);
 
@@ -673,10 +673,6 @@ void*       NP_LOADDS NPN_MemAlloc(uint32_t size);
 void        NP_LOADDS NPN_MemFree(void* ptr);
 uint32_t    NP_LOADDS NPN_MemFlush(uint32_t size);
 void        NP_LOADDS NPN_ReloadPlugins(NPBool reloadPages);
-#ifdef OJI
-JRIEnv*     NP_LOADDS NPN_GetJavaEnv();
-jref        NP_LOADDS NPN_GetJavaPeer(NPP instance);
-#endif
 NPError     NP_LOADDS NPN_GetValue(NPP instance, NPNVariable variable,
                                    void *value);
 NPError     NP_LOADDS NPN_SetValue(NPP instance, NPPVariable variable,

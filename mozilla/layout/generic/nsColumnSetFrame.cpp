@@ -54,10 +54,12 @@
 
 class nsColumnSetFrame : public nsHTMLContainerFrame {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   nsColumnSetFrame(nsStyleContext* aContext);
 
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList);
+                                 nsFrameList&    aChildList);
 
   NS_IMETHOD Reflow(nsPresContext* aPresContext,
                     nsHTMLReflowMetrics& aDesiredSize,
@@ -65,10 +67,10 @@ public:
                     nsReflowStatus& aStatus);
                                
   NS_IMETHOD  AppendFrames(nsIAtom*        aListName,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
   NS_IMETHOD  InsertFrames(nsIAtom*        aListName,
                            nsIFrame*       aPrevFrame,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
   NS_IMETHOD  RemoveFrame(nsIAtom*        aListName,
                           nsIFrame*       aOldFrame);
 
@@ -192,6 +194,8 @@ NS_NewColumnSetFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRUint3
   return it;
 }
 
+NS_IMPL_FRAMEARENA_HELPERS(nsColumnSetFrame)
+
 nsColumnSetFrame::nsColumnSetFrame(nsStyleContext* aContext)
   : nsHTMLContainerFrame(aContext), mLastBalanceHeight(NS_INTRINSICSIZE),
     mLastFrameStatus(NS_FRAME_COMPLETE)
@@ -287,10 +291,10 @@ nsColumnSetFrame::PaintColumnRule(nsIRenderingContext* aCtx,
 
 NS_IMETHODIMP
 nsColumnSetFrame::SetInitialChildList(nsIAtom*        aListName,
-                                      nsIFrame*       aChildList)
+                                      nsFrameList&    aChildList)
 {
   NS_ASSERTION(!aListName, "Only default child list supported");
-  NS_ASSERTION(aChildList && !aChildList->GetNextSibling(),
+  NS_ASSERTION(aChildList.OnlyChild(),
                "initial child list must have exactly one child");
   // Queue up the frames for the content frame
   return nsHTMLContainerFrame::SetInitialChildList(nsnull, aChildList);
@@ -455,6 +459,7 @@ static void MoveChildTo(nsIFrame* aParent, nsIFrame* aChild, nsPoint aOrigin) {
 nscoord
 nsColumnSetFrame::GetMinWidth(nsIRenderingContext *aRenderingContext) {
   nscoord width = 0;
+  DISPLAY_MIN_WIDTH(this, width);
   if (mFrames.FirstChild()) {
     width = mFrames.FirstChild()->GetMinWidth(aRenderingContext);
   }
@@ -488,6 +493,8 @@ nsColumnSetFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext) {
   // the child's preferred width, times the number of columns, plus the width
   // of any required column gaps
   // XXX what about forced column breaks here?
+  nscoord result = 0;
+  DISPLAY_PREF_WIDTH(this, result);
   const nsStyleColumn* colStyle = GetStyleColumn();
   nscoord colGap = GetColumnGap(this, colStyle);
 
@@ -509,7 +516,8 @@ nsColumnSetFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext) {
   nscoord width = colWidth*numColumns + colGap*(numColumns - 1);
   // The multiplication above can make 'width' negative (integer overflow),
   // so use PR_MAX to protect against that.
-  return PR_MAX(width, colWidth);
+  result = PR_MAX(width, colWidth);
+  return result;
 }
 
 PRBool
@@ -587,7 +595,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
     // content from its next sibling. (Note that it might be the last
     // column, but not be the last child because the desired number of columns
     // has changed.)
-    PRBool skipIncremental = !(GetStateBits() & NS_FRAME_IS_DIRTY)
+    PRBool skipIncremental = !aReflowState.ShouldReflowAllKids()
       && !NS_SUBTREE_DIRTY(child)
       && child->GetNextSibling()
       && !(aUnboundedLastColumn && columnCount == aConfig.mBalanceColCount - 1)
@@ -700,6 +708,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
 
     if (NS_FRAME_IS_FULLY_COMPLETE(aStatus) && !NS_FRAME_IS_TRUNCATED(aStatus)) {
       NS_ASSERTION(!kidNextInFlow, "next in flow should have been deleted");
+      child = nsnull;
       break;
     } else {
       ++columnCount;
@@ -716,6 +725,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
         
         if (NS_FAILED(rv)) {
           NS_NOTREACHED("Couldn't create continuation");
+          child = nsnull;
           break;
         }
       }
@@ -747,8 +757,19 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
           SetOverflowFrames(PresContext(), continuationColumns);
           child->SetNextSibling(nsnull);
         }
+        child = nsnull;
         break;
       }
+    }
+
+    if (PresContext()->HasPendingInterrupt()) {
+      // Stop the loop now while |child| still points to the frame that bailed
+      // out.  We could keep going here and condition a bunch of the code in
+      // this loop on whether there's an interrupt, or even just keep going and
+      // trying to reflow the blocks (even though we know they'll interrupt
+      // right after their first line), but stopping now is conceptually the
+      // simplest (and probably fastest) thing.
+      break;
     }
 
     // Advance to the next column
@@ -764,6 +785,21 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
 #ifdef DEBUG_roc
       printf("*** NEXT CHILD ORIGIN.x = %d\n", childOrigin.x);
 #endif
+    }
+  }
+
+  if (PresContext()->CheckForInterrupt(this) &&
+      (GetStateBits() & NS_FRAME_IS_DIRTY)) {
+    // Mark all our kids starting with |child| dirty
+
+    // Note that this is a CheckForInterrupt call, not a HasPendingInterrupt,
+    // because we might have interrupted while reflowing |child|, and since
+    // we're about to add a dirty bit to |child| we need to make sure that
+    // |this| is scheduled to have dirty bits marked on it and its ancestors.
+    // Otherwise, when we go to mark dirty bits on |child|'s ancestors we'll
+    // bail out immediately, since it'll already have a dirty bit.
+    for (; child; child = child->GetNextSibling()) {
+      child->AddStateBits(NS_FRAME_IS_DIRTY);
     }
   }
   
@@ -833,33 +869,22 @@ nsColumnSetFrame::DrainOverflowColumns()
   // frame.
   nsColumnSetFrame* prev = static_cast<nsColumnSetFrame*>(GetPrevInFlow());
   if (prev) {
-    nsIFrame* overflows = prev->GetOverflowFrames(PresContext(), PR_TRUE);
+    nsAutoPtr<nsFrameList> overflows(prev->StealOverflowFrames());
     if (overflows) {
-      // Make all the frames on the overflow list mine
-      nsIFrame* lastFrame = nsnull;
-      for (nsIFrame* f = overflows; f; f = f->GetNextSibling()) {
-        f->SetParent(this);
+      nsHTMLContainerFrame::ReparentFrameViewList(PresContext(), *overflows,
+                                                  prev, this);
 
-        // When pushing and pulling frames we need to check for whether any
-        // views need to be reparented
-        nsHTMLContainerFrame::ReparentFrameView(PresContext(), f, prev, this);
-
-        // Get the next frame
-        lastFrame = f;
-      }
-
-      NS_ASSERTION(lastFrame, "overflow list was created with no frames");
-      lastFrame->SetNextSibling(mFrames.FirstChild());
-      
-      mFrames.SetFrames(overflows);
+      mFrames.InsertFrames(this, nsnull, *overflows);
     }
   }
   
   // Now pull back our own overflows and append them to our children.
   // We don't need to reparent them since we're already their parent.
-  nsIFrame* overflows = GetOverflowFrames(PresContext(), PR_TRUE);
+  nsAutoPtr<nsFrameList> overflows(StealOverflowFrames());
   if (overflows) {
-    mFrames.AppendFrames(this, overflows);
+    // We're already the parent for these frames, so no need to set
+    // their parent again.
+    mFrames.AppendFrames(nsnull, *overflows);
   }
 }
 
@@ -869,11 +894,24 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
                          const nsHTMLReflowState& aReflowState,
                          nsReflowStatus&          aStatus)
 {
+  // Don't support interruption in columns
+  nsPresContext::InterruptPreventer noInterrupts(aPresContext);
+
   DO_GLOBAL_REFLOW_COUNT("nsColumnSetFrame");
   DISPLAY_REFLOW(aPresContext, this, aReflowState, aDesiredSize, aStatus);
 
   // Initialize OUT parameter
   aStatus = NS_FRAME_COMPLETE;
+
+  // Our children depend on our height if we have a fixed height.
+  if (aReflowState.ComputedHeight() != NS_AUTOHEIGHT) {
+    NS_ASSERTION(aReflowState.ComputedHeight() != NS_INTRINSICSIZE,
+                 "Unexpected mComputedHeight");
+    AddStateBits(NS_FRAME_CONTAINS_RELATIVE_HEIGHT);
+  }
+  else {
+    RemoveStateBits(NS_FRAME_CONTAINS_RELATIVE_HEIGHT);
+  }
 
   //------------ Handle Incremental Reflow -----------------
 
@@ -893,7 +931,7 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
   PRBool feasible = ReflowChildren(aDesiredSize, aReflowState,
     aStatus, config, unboundedLastColumn, &carriedOutBottomMargin, colData);
 
-  if (isBalancing) {
+  if (isBalancing && !aPresContext->HasPendingInterrupt()) {
     nscoord availableContentHeight = GetAvailableContentHeight(aReflowState);
   
     // Termination of the algorithm below is guaranteed because
@@ -906,7 +944,7 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
     // search)
     PRBool maybeContinuousBreakingDetected = PR_FALSE;
 
-    while (1) {
+    while (!aPresContext->HasPendingInterrupt()) {
       nscoord lastKnownFeasibleHeight = knownFeasibleHeight;
 
       // Record what we learned from the last reflow
@@ -998,7 +1036,7 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
                                 &carriedOutBottomMargin, colData);
     }
 
-    if (!feasible) {
+    if (!feasible && !aPresContext->HasPendingInterrupt()) {
       // We may need to reflow one more time at the feasible height to
       // get a valid layout.
       PRBool skip = PR_FALSE;
@@ -1021,6 +1059,13 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
                        &carriedOutBottomMargin, colData);
       }
     }
+  }
+
+  if (aPresContext->HasPendingInterrupt() &&
+      aReflowState.availableHeight == NS_UNCONSTRAINEDSIZE) {
+    // In this situation, we might be lying about our reflow status, because
+    // our last kid (the one that got interrupted) was incomplete.  Fix that.
+    aStatus = NS_FRAME_COMPLETE;
   }
   
   CheckInvalidateSizeChange(aDesiredSize);
@@ -1065,7 +1110,7 @@ nsColumnSetFrame::GetSkipSides() const
 
 NS_IMETHODIMP
 nsColumnSetFrame::AppendFrames(nsIAtom*        aListName,
-                               nsIFrame*       aFrameList)
+                               nsFrameList&    aFrameList)
 {
   NS_NOTREACHED("AppendFrames not supported");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -1074,7 +1119,7 @@ nsColumnSetFrame::AppendFrames(nsIAtom*        aListName,
 NS_IMETHODIMP
 nsColumnSetFrame::InsertFrames(nsIAtom*        aListName,
                                nsIFrame*       aPrevFrame,
-                               nsIFrame*       aFrameList)
+                               nsFrameList&    aFrameList)
 {
   NS_NOTREACHED("InsertFrames not supported");
   return NS_ERROR_NOT_IMPLEMENTED;

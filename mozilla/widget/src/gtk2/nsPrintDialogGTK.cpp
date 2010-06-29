@@ -145,6 +145,10 @@ ShowCustomDialog(GtkComboBox *changed_box, gpointer user_data)
                                                          GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                          NULL);
   gtk_dialog_set_default_response(GTK_DIALOG(prompt_dialog), GTK_RESPONSE_ACCEPT);
+  gtk_dialog_set_alternative_button_order(GTK_DIALOG(prompt_dialog),
+                                          GTK_RESPONSE_ACCEPT,
+                                          GTK_RESPONSE_REJECT,
+                                          -1);
 
   printBundle->GetStringFromName(NS_LITERAL_STRING("customHeaderFooterPrompt").get(), getter_Copies(intlString));
   GtkWidget* custom_label = gtk_label_new(NS_ConvertUTF16toUTF8(intlString).get());
@@ -566,7 +570,8 @@ nsPrintDialogServiceGTK::Init()
 }
 
 NS_IMETHODIMP
-nsPrintDialogServiceGTK::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings)
+nsPrintDialogServiceGTK::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
+                              nsIWebBrowserPrint *aWebBrowserPrint)
 {
   NS_PRECONDITION(aParent, "aParent must not be null");
   NS_PRECONDITION(aSettings, "aSettings must not be null");

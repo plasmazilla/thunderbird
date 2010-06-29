@@ -8,8 +8,8 @@
  */
 
 load("../../mailnews/resources/POP3pump.js");
-Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
-Components.utils.import("resource://gre/modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
 
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
 
@@ -25,6 +25,7 @@ var gLastKey;
 var gMessages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
 var gCopyService = Cc["@mozilla.org/messenger/messagecopyservice;1"]
                 .getService(Ci.nsIMsgCopyService);
+var gCurTestNum;
 const gFiles = ["../../mailnews/data/bugmail1",
                 "../../mailnews/data/draft1"];
 
@@ -111,9 +112,6 @@ function run_test()
   // XXX Disabled due to intermittent failures, bug 502928 will fix.
   return 0;
 
-  // This is before any of the actual tests, so...
-  gTest = 0;
-
   // Add a listener.
   gIMAPDaemon = new imapDaemon();
   gServer = makeServer(gIMAPDaemon, "");
@@ -153,7 +151,7 @@ function run_test()
   gRootFolder = gIMAPIncomingServer.rootFolder;
   gIMAPInbox = gRootFolder.getChildNamed("INBOX");
   dump("gIMAPInbox uri = " + gIMAPInbox.URI + "\n");
-  msgImapFolder = gIMAPInbox.QueryInterface(Ci.nsIMsgImapMailFolder);
+  let msgImapFolder = gIMAPInbox.QueryInterface(Ci.nsIMsgImapMailFolder);
   // these hacks are required because we've created the inbox before
   // running initial folder discovery, and adding the folder bails
   // out before we set it as verified online, so we bail out, and
@@ -172,24 +170,28 @@ function run_test()
 
 function doTest()
 {
-  test = gCurTestNum;
+  var test = gCurTestNum;
   if (test <= gTestArray.length)
   {
     dump("Doing test " + test + "\n");
 
     var testFn = gTestArray[test-1];
     // Set a limit of ten seconds; if the notifications haven't arrived by then there's a problem.
-    do_timeout(10000, "if (gCurTestNum == "+test+") \
-      do_throw('Notifications not received in 10000 ms for operation "+testFn.name+", current status is '+gCurrStatus);");
+    do_timeout(10000, function(){
+          if (gCurTestNum == test)
+            do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
+              ", current status is " + gCurrStatus);
+        }
+      );
     try {
     testFn();
     } catch(ex) {
       gServer.stop();
-      do_throw ('TEST FAILED ' + e);
+      do_throw ('TEST FAILED ' + ex);
     }
   }
   else
-    do_timeout(1000, "endTest();");
+    do_timeout(1000, endTest);
 }
 
 // nsIMsgCopyServiceListener implementation - runs next test when copy
@@ -213,7 +215,7 @@ var CopyListener =
     // can even cause tests to fail because they're still waiting for the listener
     // to return
     ++gCurTestNum;
-    do_timeout(0, "doTest()");
+    do_timeout(0, doTest);
   }
 };
 
@@ -226,7 +228,7 @@ var URLListener =
     dump("in OnStopRunningURL " + gCurTestNum + "\n");
     do_check_eq(aStatus, 0);
     gCurTestNum++;
-    do_timeout(0, "doTest();");
+    do_timeout(0, doTest);
   }
 }
 

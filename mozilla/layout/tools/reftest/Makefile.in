@@ -48,10 +48,6 @@ EXTRA_COMPONENTS= \
 		reftest-cmdline.js \
 		$(NULL)
 
-CHROME_DEPS	= \
-		autoconf.js \
-		$(NULL)
-
 ifdef XPI_NAME
 DIST_FILES = install.rdf
 
@@ -70,7 +66,7 @@ _DEST_DIR = $(DEPTH)/_tests/reftest
 # We want to get an extension-packaged version of reftest as well, 
 # so this seems to be the simplest way to make that happen.
 ifndef XPI_NAME
-make-xpi: autoconf.js
+make-xpi:
 	+$(MAKE) -C $(CURDIR) libs XPI_NAME=reftest
 copy-harness: make-xpi
 libs:: copy-harness
@@ -92,6 +88,8 @@ copy-harness: $(_HARNESS_FILES)
 	$(INSTALL) $(_HARNESS_FILES) $(_DEST_DIR)
 	(cd $(DIST)/xpi-stage && tar $(TAR_CREATE_FLAGS) - reftest) | (cd $(_DEST_DIR) && tar -xf -)
 	$(INSTALL) $(DIST)/bin/components/httpd.js $(_DEST_DIR)/reftest/components
+# need to get httpd.js into components.list so it loads
+	@$(PERL) -I$(MOZILLA_DIR)/config $(MOZILLA_DIR)/config/build-list.pl $(_DEST_DIR)/reftest/components/components.list httpd.js
 	$(INSTALL) $(DIST)/bin/components/test_necko.xpt $(_DEST_DIR)/reftest/components
 
 PKG_STAGE = $(DIST)/test-package-stage
@@ -106,14 +104,3 @@ stage-package:
           $(topsrcdir)/testing/crashtest/crashtests.list \
           | (cd $(topsrcdir) && xargs tar $(TAR_CREATE_FLAGS) -) \
           | (cd $(PKG_STAGE)/reftest/tests && tar -xf -)
-
-autoconf.js: $(DEPTH)/config/autoconf.mk Makefile
-	echo 'var gAutoconfVars = {' > $@
-	# strip comments, escape \ and ", use only assignment lines that
-	# don't end in backslashes and don't have variables, and then
-	# convert to JS properties
-	cat $< | egrep -v "^export " | perl -p -e 's/#.*//;s,\\,\\\\,g;s,",\\",g' | grep '=' | grep -v '\\$$' | grep -v '\$$' | perl -p -e 's/[ \t]*:?= *(.*)/: "\1",/' >> $@
-	echo 'dummy_var: null' >> $@ # to avoid trailing comma
-	echo '};' >> $@
-
-ALL_TRASH	+= autoconf.js

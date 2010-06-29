@@ -58,7 +58,6 @@
 #include <string.h>
 
 #include "jsapi.h"
-#include "jscntxt.h"
 #include "jsobj.h"
 #include "jsj_private.h"      /* LiveConnect internals */
 #include "jsj_hash.h"         /* Hash table with Java object as key */
@@ -505,7 +504,7 @@ lookup_member_by_id(JSContext *cx, JNIEnv *jEnv, JSObject *obj,
 
     // This method accesses slots without using the JSAPI and these slots may
     // be stale if running on trace. Must run in the interpreter here.
-    js_LeaveTrace(cx);
+    jsj_LeaveTrace(cx);
 
     found_in_proto = JS_FALSE;
     member_descriptor = NULL;
@@ -860,7 +859,7 @@ JavaObject_lookupProperty(JSContext *cx, JSObject *obj, jsid id,
 static JSBool
 JavaObject_defineProperty(JSContext *cx, JSObject *obj, jsid id, jsval value,
                          JSPropertyOp getter, JSPropertyOp setter,
-                         uintN attrs, JSProperty **propp)
+                         uintN attrs)
 {
     JS_ReportErrorNumber(cx, jsj_GetErrorMessage, NULL,
                          JSJMSG_JOBJECT_PROP_DEFINE);
@@ -997,23 +996,6 @@ JavaObject_checkAccess(JSContext *cx, JSObject *obj, jsid id,
     }
 }
 
-#define JSJ_SLOT_COUNT (JSSLOT_PRIVATE+1)
-
-jsval
-jsj_wrapper_getRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot)
-{
-    JS_ASSERT(slot < JSJ_SLOT_COUNT);
-    return STOBJ_GET_SLOT(obj, slot);
-}
-
-JSBool
-jsj_wrapper_setRequiredSlot(JSContext *cx, JSObject *obj, uint32 slot, jsval v)
-{
-    JS_ASSERT(slot < JSJ_SLOT_COUNT);
-    STOBJ_SET_SLOT(obj, slot, v);
-    return JS_TRUE;
-}
-
 extern JSObjectOps JavaObject_ops;
 
 static const JSObjectMap JavaObjectMap = { &JavaObject_ops };
@@ -1039,10 +1021,8 @@ JSObjectOps JavaObject_ops = {
     NULL,                           /* call */
     NULL,                           /* construct */
     NULL,                           /* hasInstance */
-    NULL,                           /* trace */
-    NULL,                           /* clear */
-    jsj_wrapper_getRequiredSlot,    /* getRequiredSlot */
-    jsj_wrapper_setRequiredSlot     /* setRequiredSlot */
+    jsj_TraceObject,                /* trace */
+    NULL                            /* clear */
 };
 
 static JSObjectOps *

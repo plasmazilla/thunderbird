@@ -31,7 +31,8 @@ function start()
   function dispatch(eventName)
   {
     var event = document.createEvent("DragEvents");
-    event.initDragEvent(eventName, true, true, window, null, null);
+    event.initDragEvent(eventName, true, true, window, 0, 5, 5, 5, 5,
+                        false, false, false, false, 0, null, null);
     element.dispatchEvent(event);
   }
   

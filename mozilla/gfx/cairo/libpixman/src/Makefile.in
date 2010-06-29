@@ -64,9 +64,15 @@ endif
 # Build MMX code either with VC or with gcc-on-x86
 ifdef _MSC_VER
 ifeq (86,$(findstring 86,$(OS_TEST)))
+ifeq (64,$(findstring 64,$(OS_TEST)))
+else
 USE_MMX=1
 USE_SSE2=1
 MMX_CFLAGS=
+endif
+endif
+ifeq (arm,$(findstring arm,$(OS_TEST)))
+USE_ARM_SIMD_MSVC=1
 endif
 endif
 
@@ -84,7 +90,11 @@ endif
 endif
 ifeq (arm,$(findstring arm,$(OS_TEST)))
 ifdef HAVE_ARM_SIMD
-USE_ARM_SIMD=1
+USE_ARM_SIMD_GCC=1
+endif
+ifdef HAVE_ARM_NEON
+# temporarily disabled to see if it fixes odd mobile build breakage
+#USE_ARM_NEON_GCC=1
 endif
 endif
 
@@ -102,6 +112,7 @@ CSRCS	= \
 	pixman-edge.c \
 	pixman-edge-accessors.c \
 	pixman-image.c \
+	pixman-matrix.c \
 	pixman-pict.c \
 	pixman-region16.c \
 	pixman-region32.c \
@@ -127,9 +138,21 @@ CSRCS += pixman-vmx.c
 DEFINES += -DUSE_VMX
 endif
 
-ifdef USE_ARM_SIMD
+ifdef USE_ARM_SIMD_GCC
 CSRCS += pixman-arm-simd.c
 DEFINES += -DUSE_ARM_SIMD
+endif
+
+ifdef USE_ARM_NEON_GCC
+CSRCS += pixman-arm-neon.c
+DEFINES += -DUSE_ARM_NEON
+ARM_NEON_CFLAGS = -mfloat-abi=softfp -mfpu=neon
+endif
+
+ifdef USE_ARM_SIMD_MSVC
+ASFILES += pixman-arm-detect-win32.asm pixman-wce-arm-simd.asm
+DEFINES += -DUSE_ARM_SIMD
+AS_DASH_C_FLAG = 
 endif
 
 EXPORTS		= pixman.h pixman-version.h
@@ -140,9 +163,24 @@ FORCE_STATIC_LIB = 1
 # This library is used by other shared libs in a static build
 FORCE_USE_PIC = 1
 
+include $(topsrcdir)/config/config.mk
+
+ifndef MOZ_ENABLE_LIBXUL
+ifdef GNU_CC
+# -fvisibility=hidden works fine but PIXMAN_EXPORT is not used in header
+# files, so pixman.h needs to be included before
+# "#pragma GCC visibility -push(hidden)".
+ifdef WRAP_SYSTEM_INCLUDES
+MY_VISIBILITY_FLAGS := -include pixman.h $(VISIBILITY_FLAGS)
+COMPILE_CFLAGS += $(MY_VISIBILITY_FLAGS)
+endif # WRAP_SYSTEM_INCLUDES
+endif # GNU_CC
+endif # !MOZ_ENABLE_LIBXUL
+
 include $(topsrcdir)/config/rules.mk
 
 CFLAGS += -DPACKAGE="mozpixman" -D_USE_MATH_DEFINES
+
 
 # special rule for pixman-mmx to get the right cflags
 pixman-mmx.$(OBJ_SUFFIX): pixman-mmx.c Makefile Makefile.in
@@ -154,3 +192,8 @@ pixman-sse2.$(OBJ_SUFFIX): pixman-sse2.c Makefile Makefile.in
 	$(REPORT_BUILD)
 	@$(MAKE_DEPS_AUTO_CC)
 	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(MMX_CFLAGS) $(_VPATH_SRCS)
+
+pixman-arm-neon.$(OBJ_SUFFIX): pixman-arm-neon.c Makefile Makefile.in
+	$(REPORT_BUILD)
+	@$(MAKE_DEPS_AUTO_CC)
+	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(ARM_NEON_CFLAGS) $(_VPATH_SRCS)

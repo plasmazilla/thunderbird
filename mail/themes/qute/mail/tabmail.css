@@ -69,13 +69,13 @@
   -moz-padding-start: 1px;
 }
 
-.tabmail-tab[busy] > .tab-image-middle > .tab-icon-image,
-.tabmail-tab[thinking] > .tab-image-middle > .tab-icon-image {
+.tabmail-tab[busy],
+.tabmail-tab[thinking] {
   list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
-  -moz-image-region: rect(0px, 16px, 16px, 0px) !important;
+  -moz-image-region: auto !important;
 }
 
-.tabmail-tab[type="glodaSearch"] > .tab-image-middle > .tab-icon-image {
+.tabmail-tab[type="glodaSearch"] {
   list-style-image: url("chrome://global/skin/icons/Search-glass.png");
 }
 
@@ -95,7 +95,7 @@
   -moz-border-radius-topleft: 4px;
 }
 
-.tabmail-tab[chromedir="rtl"] > .tab-image-left {
+.tabmail-tab:-moz-locale-dir(rtl) > .tab-image-left {
   background: url("chrome://messenger/skin/icons/tab-right.png") no-repeat;
   background-color: -moz-dialog;
   -moz-border-radius-topleft: 0px;
@@ -107,7 +107,7 @@
   background-color: -moz-dialog;
 }
 
-.tabmail-tab[chromedir="rtl"]:not([selected="true"]):not(:hover) > .tab-image-left {
+.tabmail-tab:-moz-locale-dir(rtl):not([selected="true"]):not(:hover) > .tab-image-left {
   background: url("chrome://messenger/skin/icons/tab-right-bkgnd.png") no-repeat;
   background-color: -moz-dialog;
 }
@@ -131,7 +131,7 @@
   -moz-border-radius-topright: 4px;
 }
 
-.tabmail-tab[chromedir="rtl"] > .tab-image-right {
+.tabmail-tab:-moz-locale-dir(rtl) > .tab-image-right {
   background: url("chrome://messenger/skin/icons/tab-left.png") no-repeat;
   background-color: -moz-dialog;
   -moz-border-radius-topleft: 4px;
@@ -143,7 +143,7 @@
   background-color: -moz-dialog;
 }
 
-.tabmail-tab[chromedir="rtl"]:not([selected="true"]):not(:hover) > .tab-image-right {
+.tabmail-tab:-moz-locale-dir(rtl):not([selected="true"]):not(:hover) > .tab-image-right {
   background: url("chrome://messenger/skin/icons/tab-left-bkgnd.png") no-repeat;
   background-color: -moz-dialog;
 }
@@ -155,11 +155,40 @@
   margin-bottom: 1px;
 }
 
+.tabmail-tab:-moz-lwtheme-brighttext,
+.tabmail-arrowscrollbox > .scrollbutton-up:-moz-lwtheme-brighttext,
+.tabmail-arrowscrollbox > .scrollbutton-down:-moz-lwtheme-brighttext,
+.tabs-alltabs-button:-moz-lwtheme-brighttext {
+  background-color: rgba(0,0,0,.5);
+}
+
+.tabmail-tab:-moz-lwtheme-darktext,
+.tabmail-arrowscrollbox > .scrollbutton-up:-moz-lwtheme-darktext,
+.tabmail-arrowscrollbox > .scrollbutton-down:-moz-lwtheme-darktext,
+.tabs-alltabs-button:-moz-lwtheme-darktext {
+  background-color: rgba(255,255,255,.5);
+}
+
+.tabmail-tab:-moz-lwtheme:not([selected="true"]) {
+  opacity: .85;
+}
+
+.tabmail-tab:-moz-lwtheme[selected="true"] {
+  text-shadow: none;
+}
+
+.tabmail-tabs:-moz-lwtheme {
+  padding-top: 1px;
+}
+
 .tab-icon-image {
   margin-top: 1px;
   -moz-margin-end: 3px;
   width: 16px;
   height: 16px;
+}
+
+.tabmail-tab {
   list-style-image: url("chrome://global/skin/icons/folder-item.png");
   -moz-image-region: rect(0px, 16px, 16px, 0px);
 }
@@ -300,7 +329,7 @@ tabpanels {
   -moz-border-radius-topright: 4px;
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > .scrollbutton-up {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > .scrollbutton-up {
   list-style-image: url("chrome://messenger/skin/icons/tab-arrow-end.png");
   background-image: url("chrome://messenger/skin/icons/tab-arrow-end-bkgnd-enabled.png");
   -moz-border-radius-topleft: 4px;
@@ -312,7 +341,7 @@ tabpanels {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-disabled.png");
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > .scrollbutton-up[disabled="true"] {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > .scrollbutton-up[disabled="true"] {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-end-bkgnd-disabled.png");
 }
 
@@ -321,7 +350,7 @@ tabpanels {
   -moz-image-region: rect(0, 22px, 14px, 11px);
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > .scrollbutton-up:not([disabled="true"]):hover {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > .scrollbutton-up:not([disabled="true"]):hover {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-end-bkgnd-hover.png");
 }
 
@@ -349,7 +378,7 @@ tabpanels {
   -moz-border-radius-topleft: 4px;
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > stack > .scrollbutton-down-box {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > stack > .scrollbutton-down-box {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-enabled.png");
   -moz-border-radius-topleft: 0px;
   -moz-border-radius-topright: 4px;
@@ -359,7 +388,7 @@ tabpanels {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-end-bkgnd-disabled.png");
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > stack > .scrollbutton-down-box[disabled="true"] {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > stack > .scrollbutton-down-box[disabled="true"] {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-disabled.png");
 }
 
@@ -369,7 +398,7 @@ tabpanels {
   opacity: 0.0;
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > stack > .scrollbutton-down-box-animate {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > stack > .scrollbutton-down-box-animate {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-animate.png");
 }
 
@@ -383,7 +412,7 @@ tabpanels {
   padding: 0px;
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > stack > .scrollbutton-down {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > stack > .scrollbutton-down {
   list-style-image: url("chrome://messenger/skin/icons/tab-arrow-start.png");
 }
 
@@ -398,7 +427,7 @@ tabpanels {
   background-position: top left;
 }
 
-.tabmail-arrowscrollbox[chromedir="rtl"] > stack > .scrollbutton-down:not([disabled="true"]):hover {
+.tabmail-arrowscrollbox:-moz-locale-dir(rtl) > stack > .scrollbutton-down:not([disabled="true"]):hover {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-hover.png");
 }
 
@@ -428,7 +457,7 @@ tabpanels {
   -moz-border-radius-topleft: 4px;
 }
 
-stack[chromedir="rtl"] > hbox > .tabs-alltabs-box {
+stack:-moz-locale-dir(rtl) > hbox > .tabs-alltabs-box {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-enabled.png");
   -moz-border-radius-topleft: 0px;
   -moz-border-radius-topright: 4px;
@@ -440,7 +469,7 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-box {
   -moz-border-radius-topright: 0px;
 }
 
-.tabmail-tabs[overflow="true"] stack[chromedir="rtl"] > hbox > .tabs-alltabs-box {
+.tabmail-tabs[overflow="true"] stack:-moz-locale-dir(rtl) > hbox > .tabs-alltabs-box {
   background-image: url("chrome://messenger/skin/icons/alltabs-box-overflow-start-bkgnd.png");
 }
 
@@ -474,7 +503,7 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-box {
   background-repeat: no-repeat;
 }
 
-stack[chromedir="rtl"] > hbox > .tabs-alltabs-button:hover {
+stack:-moz-locale-dir(rtl) > hbox > .tabs-alltabs-button:hover {
   background-image: url("chrome://messenger/skin/icons/tab-arrow-start-bkgnd-hover.png");
 }
 
@@ -482,7 +511,7 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-button:hover {
   background-image: url("chrome://messenger/skin/icons/alltabs-box-overflow-end-bkgnd-hover.png");
 }
 
-.tabmail-tabs[overflow="true"] stack[chromedir="rtl"] > hbox > .tabs-alltabs-button:hover {
+.tabmail-tabs[overflow="true"] stack:-moz-locale-dir(rtl) > hbox > .tabs-alltabs-button:hover {
   background-image: url("chrome://messenger/skin/icons/alltabs-box-overflow-start-bkgnd-hover.png");
 }
 
@@ -496,7 +525,7 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-button:hover {
   opacity: 0.0;
 }
 
-stack[chromedir="rtl"] > hbox > .tabs-alltabs-box-animate {
+stack:-moz-locale-dir(rtl) > hbox > .tabs-alltabs-box-animate {
   background-image: url("chrome://messenger/skin/icons/alltabs-box-overflow-start-bkgnd-animate.png");
 }
 
@@ -504,7 +533,7 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-box-animate {
  * All Tabs Menupopup
  */
 
-.alltabs-item > .menu-iconic-left > .menu-iconic-icon {
+.alltabs-item {
   list-style-image: url("chrome://global/skin/icons/folder-item.png");
   -moz-image-region: rect(0px, 16px, 16px, 0px);
 }
@@ -513,6 +542,6 @@ stack[chromedir="rtl"] > hbox > .tabs-alltabs-box-animate {
   font-weight: bold;
 }
 
-.alltabs-item[busy] > .menu-iconic-left > .menu-iconic-icon {
-  list-style-image: url("chrome://global/skin/icons/loading_16.png");
+.alltabs-item[busy] {
+  list-style-image: url("chrome://global/skin/icons/loading_16.png") !important;
 }

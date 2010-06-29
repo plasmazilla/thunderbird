@@ -41,5 +41,21 @@
 <!ENTITY descDescription.label "Description :">
 <!ENTITY descValue.label "Valeur :">
 <!ENTITY descState.label "État :">
-<!ENTITY descActionName.label "Nom de l'action :">
 <!ENTITY descBounds.label "Liaisons :">
+
+<!ENTITY tabAttrs.label "Attributs de l'objet">
+<!ENTITY colAttrName.label "Nom">
+<!ENTITY colAttrValue.label "Valeur">
+<!ENTITY tabActions.label "Actions">
+<!ENTITY descKeyBindings.label "Raccourcis attribués :">
+<!ENTITY descInvoke.label "Invoquer">
+<!ENTITY tabTableCell.label "Cellule de tableau">
+<!ENTITY descColumnIdx.label "Index de colonne :">
+<!ENTITY descRowIdx.label "Index de ligne :">
+<!ENTITY descColumnExtent.label "Étendue de colonne :">
+<!ENTITY descRowExtent.label "Étendue de ligne :">
+<!ENTITY descIsSelected.label "Est sélectionné :">
+<!ENTITY colProp.label "Propriété">
+<!ENTITY colRole.label "Rôle">
+<!ENTITY colName.label "Nom">
+<!ENTITY colNodeName.label "Nom du nœud">

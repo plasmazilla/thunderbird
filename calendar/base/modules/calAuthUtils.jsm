@@ -49,11 +49,7 @@ cal.auth = {
      * Auth prompt implementation - Uses password manager if at all possible.
      */
     Prompt: function calPrompt() {
-        // use the window watcher service to get a nsIAuthPrompt impl
-        this.mPrompter = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                                   .getService(Components.interfaces.nsIWindowWatcher)
-                                   .getNewAuthPrompter(null);
-        this.mTriedStoredPassword = false;
+        this.mReturnedLogins = {};
     },
 
     /**
@@ -203,16 +199,17 @@ cal.auth = {
     }
 };
 
+/**
+ * Calendar Auth prompt implementation. This instance of the auth prompt should
+ * be used by providers and other components that handle authentication using
+ * nsIAuthPrompt2 and friends.
+ *
+ * This implementation guarantees there are no request loops when an invalid
+ * password is stored in the login-manager.
+ *
+ * There is one instance of that object per calendar provider.
+ */
 cal.auth.Prompt.prototype = {
-    prompt: function capP(aDialogTitle, aText, aPasswordRealm, aSavePassword, aDefaultText, aResult) {
-        return this.mPrompter.prompt(aDialogTitle,
-                                     aText,
-                                     aPasswordRealm,
-                                     aSavePassword,
-                                     aDefaultText,
-                                     aResult);
-    },
-
     getPasswordInfo: function capGPI(aPasswordRealm) {
         let username;
         let password;
@@ -226,34 +223,54 @@ cal.auth.Prompt.prototype = {
             password = logins[0].password;
             found = true;
         }
-
+        if (found) {
+            let keyStr = aPasswordRealm.prePath +":" + aPasswordRealm.realm;
+            let now = new Date();
+            // Remove the saved password if it was already returned less
+            // than 60 seconds ago. The reason for the timestamp check is that
+            // nsIHttpChannel can call the nsIAuthPrompt2 interface
+            // again in some situation. ie: When using Digest auth token
+            // expires.
+            if (this.mReturnedLogins[keyStr] &&
+                now.getTime() - this.mReturnedLogins[keyStr].getTime() < 60000) {
+                cal.LOG("Credentials removed for: user=" + username + ", host="+aPasswordRealm.prePath+", realm="+aPasswordRealm.realm);
+                delete this.mReturnedLogins[keyStr];
+                cal.auth.passwordManagerRemove(username,
+                                               aPasswordRealm.prePath,
+                                               aPasswordRealm.realm);
+                return {found: false, username: username};
+            }
+            else {
+                this.mReturnedLogins[keyStr] = now;
+            }
+        }
         return {found: found, username: username, password: password};
     },
 
-    promptUsernameAndPassword: function capPUAP(aDialogTitle, aText,
-                                                aPasswordRealm, aSavePassword,
-                                                aUser, aPwd) {
-        let pw;
-        if (!this.mTriedStoredPassword) {
-            pw = this.getPasswordInfo(aPasswordRealm);
-        }
-
-        if (pw && pw.found) {
-            this.mTriedStoredPassword = true;
-            aUser.value = pw.username;
-            aPwd.value = pw.password;
-            return true;
-        } else {
-            return this.mPrompter.promptUsernameAndPassword(aDialogTitle,
-                                                            aText,
-                                                            aPasswordRealm,
-                                                            aSavePassword,
-                                                            aUser,
-                                                            aPwd);
-        }
-    },
-
-    // promptAuth is needed/used on trunk only
+    /**
+     * Requests a username and a password. Implementations will commonly show a
+     * dialog with a username and password field, depending on flags also a
+     * domain field.
+     *
+     * @param aChannel
+     *        The channel that requires authentication.
+     * @param level
+     *        One of the level constants NONE, PW_ENCRYPTED, SECURE.
+     * @param authInfo
+     *        Authentication information object. The implementation should fill in
+     *        this object with the information entered by the user before
+     *        returning.
+     *
+     * @retval true
+     *         Authentication can proceed using the values in the authInfo
+     *         object.
+     * @retval false
+     *         Authentication should be cancelled, usually because the user did
+     *         not provide username/password.
+     *
+     * @note   Exceptions thrown from this function will be treated like a
+     *         return value of false.
+     */
     promptAuth: function capPA(aChannel, aLevel, aAuthInfo) {
         let hostRealm = {};
         hostRealm.prePath = aChannel.URI.prePath;
@@ -266,13 +283,9 @@ cal.auth.Prompt.prototype = {
         }
         hostRealm.passwordRealm = aChannel.URI.host + ":" + port + " (" + aAuthInfo.realm + ")";
 
-        let pw;
-        if (!this.mTriedStoredPassword) {
-            pw = this.getPasswordInfo(hostRealm);
-        }
+        let pw = this.getPasswordInfo(hostRealm);
+        aAuthInfo.username = pw.username;
         if (pw && pw.found) {
-            this.mTriedStoredPassword = true;
-            aAuthInfo.username = pw.username;
             aAuthInfo.password = pw.password;
             return true;
         } else {
@@ -283,24 +296,60 @@ cal.auth.Prompt.prototype = {
         }
     },
 
-    promptPassword: function capPP(aDialogTitle, aText, aPasswordRealm,
-                             aSavePassword, aPwd) {
-        let found = false;
-        let pw;
-        if (!this.mTriedStoredPassword) {
-            pw = this.getPasswordInfo(aPasswordRealm);
+    /**
+     * Asynchronously prompt the user for a username and password.
+     * This has largely the same semantics as promptAuth(),
+     * but must return immediately after calling and return the entered
+     * data in a callback.
+     *
+     * If the user closes the dialog using a cancel button or similar,
+     * the callback's nsIAuthPromptCallback::onAuthCancelled method must be
+     * called.
+     * Calling nsICancelable::cancel on the returned object SHOULD close the
+     * dialog and MUST call nsIAuthPromptCallback::onAuthCancelled on the provided
+     * callback.
+     *
+     * @throw NS_ERROR_NOT_IMPLEMENTED
+     *        Asynchronous authentication prompts are not supported;
+     *        the caller should fall back to promptUsernameAndPassword().
+     */
+    asyncPromptAuth : function capAPA(aChannel,   // nsIChannel
+                                      aCallback,  // nsIAuthPromptCallback
+                                      aContext,   // nsISupports
+                                      aLevel,     // PRUint32
+                                      aAuthInfo   // nsIAuthInformation
+                                ) {
+        let hostRealm = {};
+        hostRealm.prePath = aChannel.URI.prePath;
+        hostRealm.realm = aAuthInfo.realm;
+        let port = aChannel.URI.port;
+        if (port == -1) {
+            let handler = cal.getIOService().getProtocolHandler(aChannel.URI.scheme)
+                                            .QueryInterface(Components.interfaces.nsIProtocolHandler);
+            port = handler.defaultPort;
         }
+        hostRealm.passwordRealm = aChannel.URI.host + ":" + port + " (" + aAuthInfo.realm + ")";
 
+        let pw = this.getPasswordInfo(hostRealm);
+        aAuthInfo.username = pw.username;
         if (pw && pw.found) {
-            this.mTriedStoredPassword = true;
-            aPwd.value = pw.password;
-            return true;
+            aAuthInfo.password = pw.password;
+            // We cannot call the callback directly here so call it from a timer
+            let timerCallback = {
+                notify: function(timer) {
+                    aCallback.onAuthAvailable(aContext, aAuthInfo);
+                }
+            };
+            let timer = Components.classes["@mozilla.org/timer;1"]
+                        .createInstance(Components.interfaces.nsITimer);
+            timer.initWithCallback(timerCallback,
+                                   0,
+                                   Components.interfaces.nsITimer.TYPE_ONE_SHOT);
         } else {
-            return this.mPrompter.promptPassword(aDialogTitle,
-                                                 aText,
-                                                 aPasswordRealm,
-                                                 aSavePassword,
-                                                 aPwd);
+            let prompter2 = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
+                                      .getService(Components.interfaces.nsIPromptFactory)
+                                      .getPrompt(null, Components.interfaces.nsIAuthPrompt2);
+            prompter2.asyncPromptAuth(aChannel, aCallback, aContext, aLevel, aAuthInfo);
         }
     }
 };

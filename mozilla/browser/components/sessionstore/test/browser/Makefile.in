@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #   Simon Bünzli <zeniko@gmail.com>
+#   Michael Kraft <morac99-firefox@yahoo.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -44,7 +45,7 @@ relativesrcdir  = browser/components/sessionstore/test/browser
 include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
-# browser_480148.js is disabled, because it breaks browser_420786.js (see bug 483382).
+# browser_477657.js is disabled, because it's unreliable (bug 482975).
 
 _BROWSER_TEST_FILES = \
 	browser_248970_a.js \
@@ -56,12 +57,15 @@ _BROWSER_TEST_FILES = \
 	browser_346337.js \
 	browser_346337_sample.html \
 	browser_350525.js \
+	browser_354894.js \
 	browser_367052.js \
 	browser_393716.js \
 	browser_394759.js \
 	browser_394759_privatebrowsing.js \
 	browser_408470.js \
 	browser_408470_sample.html \
+	browser_423132.js \
+	browser_423132_sample.html \
 	browser_447951.js \
 	browser_447951_sample.html \
 	browser_448741.js \
@@ -69,6 +73,7 @@ _BROWSER_TEST_FILES = \
 	browser_454908_sample.html \
 	browser_456342.js \
 	browser_456342_sample.xhtml \
+	browser_461634.js \
 	browser_463206.js \
 	browser_463206_sample.html \
 	browser_464199.js \
@@ -78,12 +83,20 @@ _BROWSER_TEST_FILES = \
 	browser_466937_sample.html \
 	browser_476161.js \
 	browser_476161_sample.html \
+	browser_480148.js \
+	browser_480893.js \
 	browser_483330.js \
 	browser_485482.js \
 	browser_485482_sample.html \
 	browser_485563.js \
 	browser_490040.js \
+	browser_491168.js \
+	browser_491577.js \
+	browser_493467.js \
 	browser_495495.js \
+	browser_514751.js \
+	browser_522545.js \
+	browser_526613.js \
 	$(NULL)
 
 libs:: $(_BROWSER_TEST_FILES)

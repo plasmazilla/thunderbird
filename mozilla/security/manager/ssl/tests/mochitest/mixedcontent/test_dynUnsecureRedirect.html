@@ -13,7 +13,7 @@
   {
     isSecurityState("secure");
     document.getElementById("image1").src =
-      "https://example.com/tests/security/ssl/mixedcontent/redirect.sjs?http://example.com/tests/security/ssl/mixedcontent/moonsurface.jpg";
+      "https://example.com/tests/security/ssl/mixedcontent/imgunsecredirect.sjs";
 
     window.setTimeout(function() {
       isSecurityState("broken", "src='redirect to unsecure' changed to broken");

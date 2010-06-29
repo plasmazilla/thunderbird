@@ -86,7 +86,6 @@ nsDOMStorageMemoryDB::GetItemsTable(nsDOMStorage* aStorage,
   if (!storageData)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  storageData->mUsageDelta = 0;
   if (!storageData->mTable.Init()) {
     delete storageData;
     return NS_ERROR_OUT_OF_MEMORY;
@@ -348,11 +347,11 @@ nsDOMStorageMemoryDB::RemoveOwner(const nsACString& aOwner,
 
 
 nsresult
-nsDOMStorageMemoryDB::RemoveOwners(const nsStringArray& aOwners,
+nsDOMStorageMemoryDB::RemoveOwners(const nsTArray<nsString> &aOwners,
                                    PRBool aIncludeSubDomains,
                                    PRBool aMatch)
 {
-  if (aOwners.Count() == 0) {
+  if (aOwners.Length() == 0) {
     if (aMatch) {
       return NS_OK;
     }
@@ -360,11 +359,11 @@ nsDOMStorageMemoryDB::RemoveOwners(const nsStringArray& aOwners,
     return RemoveAll();
   }
 
-  for (PRInt32 i = 0; i < aOwners.Count(); i++) {
+  for (PRUint32 i = 0; i < aOwners.Length(); i++) {
     nsCAutoString quotaKey;
     nsresult rv;
     rv = nsDOMStorageDBWrapper::CreateDomainScopeDBKey(
-      NS_ConvertUTF16toUTF8(*aOwners[i]), quotaKey);
+      NS_ConvertUTF16toUTF8(aOwners[i]), quotaKey);
 
     if (!aIncludeSubDomains)
       quotaKey.AppendLiteral(":");

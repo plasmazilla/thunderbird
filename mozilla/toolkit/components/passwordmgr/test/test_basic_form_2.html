@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Test for Login Manager</title>
-  <script type="text/javascript" src="/MochiKit/MochiKit.js"></script>
+  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>  
   <script type="text/javascript" src="pwmgr_common.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
@@ -28,6 +28,8 @@ Login Manager test: simple form fill with autofillForms disabled
 <script class="testbody" type="text/javascript">
 
 /** Test for Login Manager: simple form fill with autofillForms disabled **/
+
+commonInit();
 
 netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
 

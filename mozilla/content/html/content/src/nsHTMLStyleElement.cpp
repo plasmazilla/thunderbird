@@ -49,7 +49,7 @@
 #include "nsIDocument.h"
 #include "nsUnicharUtils.h"
 #include "nsParserUtils.h"
-#include "nsThreadUtils.h"
+
 
 class nsHTMLStyleElement : public nsGenericHTMLElement,
                            public nsIDOMHTMLStyleElement,
@@ -103,8 +103,7 @@ public:
   NS_DECL_NSIMUTATIONOBSERVER_CONTENTREMOVED
 
 protected:
-  void GetStyleSheetURL(PRBool* aIsInline,
-                        nsIURI** aURI);
+  already_AddRefed<nsIURI> GetStyleSheetURL(PRBool* aIsInline);
   void GetStyleSheetInfo(nsAString& aTitle,
                          nsAString& aType,
                          nsAString& aMedia,
@@ -312,24 +311,11 @@ nsHTMLStyleElement::SetInnerHTML(const nsAString& aInnerHTML)
   return rv;
 }
 
-void
-nsHTMLStyleElement::GetStyleSheetURL(PRBool* aIsInline,
-                                     nsIURI** aURI)
+already_AddRefed<nsIURI>
+nsHTMLStyleElement::GetStyleSheetURL(PRBool* aIsInline)
 {
-  *aURI = nsnull;
-  *aIsInline = !HasAttr(kNameSpaceID_None, nsGkAtoms::src);
-  if (*aIsInline) {
-    return;
-  }
-  if (mNodeInfo->NamespaceEquals(kNameSpaceID_XHTML)) {
-    // We stopped supporting <style src="..."> for XHTML as it is
-    // non-standard.
-    *aIsInline = PR_TRUE;
-    return;
-  }
-
-  GetHrefURIForAnchors(aURI);
-  return;
+  *aIsInline = PR_TRUE;
+  return nsnull;
 }
 
 void

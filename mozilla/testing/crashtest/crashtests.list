@@ -2,7 +2,6 @@
 # DO NOT ADD CRASHTESTS INDIVIDUALLY HERE!
 
 include ../../testing/crashtest/sanity/crashtests.list
-include ../../gfx/src/mac/crashtests/crashtests.list
 
 include ../../content/base/crashtests/crashtests.list
 include ../../content/canvas/crashtests/crashtests.list
@@ -18,11 +17,11 @@ include ../../content/xul/content/crashtests/crashtests.list
 include ../../content/xul/document/crashtests/crashtests.list
 include ../../content/xul/templates/src/crashtests/crashtests.list
 include ../../content/mathml/content/crashtests/crashtests.list
-include ../../content/media/video/test/crashtests/crashtests.list
+include ../../content/media/test/crashtests/crashtests.list
 
 include ../../docshell/base/crashtests/crashtests.list
 
-include ../../dom/src/base/crashtests/crashtests.list
+include ../../dom/base/crashtests/crashtests.list
 include ../../dom/src/offline/crashtests/crashtests.list
 include ../../dom/src/jsurl/crashtests/crashtests.list
 
@@ -51,6 +50,7 @@ include ../../gfx/src/thebes/crashtests/crashtests.list
 include ../../gfx/thebes/crashtests/crashtests.list
 
 include ../../modules/libpr0n/test/crashtests/crashtests.list
+include ../../modules/plugin/test/crashtests/crashtests.list
 
 include ../../parser/htmlparser/tests/crashtests/crashtests.list
 

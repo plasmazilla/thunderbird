@@ -82,13 +82,16 @@ nsTableCellFrame::~nsTableCellFrame()
 {
 }
 
-nsTableCellFrame*  
+NS_IMPL_FRAMEARENA_HELPERS(nsTableCellFrame)
+
+nsTableCellFrame*
 nsTableCellFrame::GetNextCell() const
 {
   nsIFrame* childFrame = GetNextSibling();
   while (childFrame) {
-    if (IS_TABLE_CELL(childFrame->GetType())) {
-      return (nsTableCellFrame*)childFrame;
+    nsTableCellFrame *cellFrame = do_QueryFrame(childFrame);
+    if (cellFrame) {
+      return cellFrame;
     }
     childFrame = childFrame->GetNextSibling();
   }
@@ -258,7 +261,7 @@ nsTableCellFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
      
 NS_IMETHODIMP
 nsTableCellFrame::AppendFrames(nsIAtom*        aListName,
-                               nsIFrame*       aFrameList)
+                               nsFrameList&    aFrameList)
 {
   NS_PRECONDITION(PR_FALSE, "unsupported operation");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -267,7 +270,7 @@ nsTableCellFrame::AppendFrames(nsIAtom*        aListName,
 NS_IMETHODIMP
 nsTableCellFrame::InsertFrames(nsIAtom*        aListName,
                                nsIFrame*       aPrevFrame,
-                               nsIFrame*       aFrameList)
+                               nsFrameList&    aFrameList)
 {
   NS_PRECONDITION(PR_FALSE, "unsupported operation");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -391,18 +394,18 @@ public:
 
   virtual nsIFrame* HitTest(nsDisplayListBuilder* aBuilder, nsPoint aPt,
                             HitTestState* aState) { return mFrame; }
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx,
-     const nsRect& aDirtyRect);
+  virtual void Paint(nsDisplayListBuilder* aBuilder,
+                     nsIRenderingContext* aCtx);
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder);
 
   NS_DISPLAY_DECL_NAME("TableCellBackground")
 };
 
 void nsDisplayTableCellBackground::Paint(nsDisplayListBuilder* aBuilder,
-     nsIRenderingContext* aCtx, const nsRect& aDirtyRect)
+                                         nsIRenderingContext* aCtx)
 {
   static_cast<nsTableCellFrame*>(mFrame)->
-    PaintBackground(*aCtx, aDirtyRect, aBuilder->ToReferenceFrame(mFrame));
+    PaintBackground(*aCtx, mVisibleRect, aBuilder->ToReferenceFrame(mFrame));
 }
 
 nsRect
@@ -442,8 +445,9 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     PRBool isRoot = aBuilder->IsAtRootOfPseudoStackingContext();
     if (!isRoot) {
       nsDisplayTableItem* currentItem = aBuilder->GetCurrentTableItem();
-      NS_ASSERTION(currentItem, "No current table item???");
-      currentItem->UpdateForFrameBackground(this);
+      if (currentItem) {
+        currentItem->UpdateForFrameBackground(this);
+      }
     }
 
     // display outset box-shadows if we need to.
@@ -496,6 +500,11 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   nsresult rv = DisplayOutline(aBuilder, aLists);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // Push a null 'current table item' so that descendant tables can't
+  // accidentally mess with our table
+  nsAutoPushCurrentTableItem pushTableItem;
+  pushTableItem.Push(aBuilder, nsnull);
+
   nsIFrame* kid = mFrames.FirstChild();
   NS_ASSERTION(kid && !kid->GetNextSibling(), "Table cells should have just one child");
   // The child's background will go in our BorderBackground() list.
@@ -505,39 +514,6 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   // which isn't right (e.g., would end up on top of our child floats for
   // event handling).
   return BuildDisplayListForChild(aBuilder, kid, aDirtyRect, aLists);
-}
-
-//null range means the whole thing
-NS_IMETHODIMP
-nsTableCellFrame::SetSelected(nsPresContext* aPresContext,
-                              nsIDOMRange*    aRange,
-                              PRBool          aSelected,
-                              nsSpread        aSpread,
-                              SelectionType   aType)
-{
-  //traverse through children unselect tables
-#if 0
-  if ((aSpread == eSpreadDown)){
-    nsIFrame* kid = GetFirstChild(nsnull);
-    while (nsnull != kid) {
-      kid->SetSelected(nsnull, aSelected, eSpreadDown);
-      kid = kid->GetNextSibling();
-    }
-  }
-  //return nsFrame::SetSelected(aRange,aSelected,eSpreadNone);
-#endif
-  // Must call base class to set mSelected state and trigger repaint of frame
-  // Note that in current version, aRange and aSpread are ignored,
-  //   only this frame is considered
-  nsFrame::SetSelected(aPresContext, aRange, aSelected, aSpread, aType);
-
-  nsCOMPtr<nsFrameSelection> frameSelection =
-    aPresContext->PresShell()->FrameSelection();
-  if (frameSelection->GetTableCellSelection()) {
-    // Selection can affect content, border and outline
-    InvalidateOverflowRect();
-  }
-  return NS_OK;
 }
 
 PRIntn
@@ -551,16 +527,6 @@ nsTableCellFrame::GetSkipSides() const
     skip |= 1 << NS_SIDE_BOTTOM;
   }
   return skip;
-}
-
-PRBool nsTableCellFrame::ParentDisablesSelection() const //override default behavior
-{
-  PRBool returnval;
-  if (NS_FAILED(GetSelected(&returnval)))
-    return PR_FALSE;
-  if (returnval)
-    return PR_TRUE;
-  return nsFrame::ParentDisablesSelection();
 }
 
 /* virtual */ void
@@ -681,7 +647,7 @@ nsTableCellFrame::HasVerticalAlignBaseline()
 PRBool 
 nsTableCellFrame::CellHasVisibleContent(nscoord       height,
                                         nsTableFrame* tableFrame,
-                                        nsIFrame* kidFrame)
+                                        nsIFrame*     kidFrame)
 {
   // see  http://www.w3.org/TR/CSS21/tables.html#empty-cells
   if (height > 0)
@@ -805,7 +771,8 @@ void DebugCheckChildSize(nsIFrame*            aChild,
                          nsSize&              aAvailSize)
 {
   if ((aMet.width < 0) || (aMet.width > PROBABLY_TOO_LARGE)) {
-    printf("WARNING: cell content %p has large width %d \n", aChild, aMet.width);
+    printf("WARNING: cell content %p has large width %d \n",
+           static_cast<void*>(aChild), aMet.width);
   }
 }
 #endif
@@ -814,7 +781,7 @@ void DebugCheckChildSize(nsIFrame*            aChild,
 // it is the height (minus border, padding) of the cell's first in flow during its final 
 // reflow without an unconstrained height.
 static nscoord
-CalcUnpaginagedHeight(nsPresContext*       aPresContext,
+CalcUnpaginagedHeight(nsPresContext*        aPresContext,
                       nsTableCellFrame&     aCellFrame, 
                       nsTableFrame&         aTableFrame,
                       nscoord               aVerticalBorderPadding)
@@ -844,7 +811,7 @@ CalcUnpaginagedHeight(nsPresContext*       aPresContext,
   return computedHeight;
 }
 
-NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
+NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
                                    nsHTMLReflowMetrics&     aDesiredSize,
                                    const nsHTMLReflowState& aReflowState,
                                    nsReflowStatus&          aStatus)
@@ -856,14 +823,11 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
     GetFirstInFlow()->AddStateBits(NS_TABLE_CELL_HAD_SPECIAL_REFLOW);
   }
 
-  // work around pixel rounding errors, round down to ensure we don't exceed the avail height in
-  nscoord availHeight = aReflowState.availableHeight;
-
   // see if a special height reflow needs to occur due to having a pct height
   nsTableFrame::CheckRequestSpecialHeightReflow(aReflowState);
 
   aStatus = NS_FRAME_COMPLETE;
-  nsSize availSize(aReflowState.availableWidth, availHeight);
+  nsSize availSize(aReflowState.availableWidth, aReflowState.availableHeight);
 
   /* It's the 'border-collapse' on the table that matters */
   nsTableFrame* tableFrame = nsTableFrame::GetTableFrame(this);
@@ -881,9 +845,9 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
   nscoord leftInset   = borderPadding.left;
 
   // reduce available space by insets, if we're in a constrained situation
-  availSize.width -= leftInset+rightInset;
-  if (NS_UNCONSTRAINEDSIZE!=availSize.height)
-    availSize.height -= topInset+bottomInset;
+  availSize.width -= leftInset + rightInset;
+  if (NS_UNCONSTRAINEDSIZE != availSize.height)
+    availSize.height -= topInset + bottomInset;
 
   // Try to reflow the child into the available space. It might not
   // fit or might need continuing.
@@ -896,16 +860,16 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
   nsIFrame* firstKid = mFrames.FirstChild();
   NS_ASSERTION(firstKid, "Frame construction error, a table cell always has an inner cell frame");
 
-  nscoord computedPaginatedHeight = 0;
-
   if (aReflowState.mFlags.mSpecialHeightReflow) {
     const_cast<nsHTMLReflowState&>(aReflowState).SetComputedHeight(mRect.height - topInset - bottomInset);
     DISPLAY_REFLOW_CHANGE();
   }
   else if (aPresContext->IsPaginated()) {
-    computedPaginatedHeight = CalcUnpaginagedHeight(aPresContext, (nsTableCellFrame&)*this, *tableFrame, topInset + bottomInset);
-    if (computedPaginatedHeight > 0) {
-      const_cast<nsHTMLReflowState&>(aReflowState).SetComputedHeight(computedPaginatedHeight);
+    nscoord computedUnpaginatedHeight =
+      CalcUnpaginagedHeight(aPresContext, (nsTableCellFrame&)*this,
+                            *tableFrame, topInset + bottomInset);
+    if (computedUnpaginatedHeight > 0) {
+      const_cast<nsHTMLReflowState&>(aReflowState).SetComputedHeight(computedUnpaginatedHeight);
       DISPLAY_REFLOW_CHANGE();
     }
   }      
@@ -947,7 +911,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
     // Don't pass OVERFLOW_INCOMPLETE through tables until they can actually handle it
     //XXX should paginate overflow as overflow, but not in this patch (bug 379349)
     NS_FRAME_SET_INCOMPLETE(aStatus);
-    printf("Set table cell incomplete %p\n", this);
+    printf("Set table cell incomplete %p\n", static_cast<void*>(this));
   }
 
   // XXXbz is this invalidate actually needed, really?
@@ -1024,25 +988,11 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*          aPresContext,
 
 /* ----- global methods ----- */
 
-NS_IMPL_ADDREF_INHERITED(nsTableCellFrame, nsHTMLContainerFrame)
-NS_IMPL_RELEASE_INHERITED(nsTableCellFrame, nsHTMLContainerFrame)
-
-NS_IMETHODIMP
-nsTableCellFrame::QueryInterface(const nsIID& aIID, void** aInstancePtr)
-{
-  NS_PRECONDITION(aInstancePtr, "null out param");
-
-  if (aIID.Equals(NS_GET_IID(nsITableCellLayout))) {
-    *aInstancePtr = static_cast<nsITableCellLayout*>(this);
-    return NS_OK;
-  }
-  if (aIID.Equals(NS_GET_IID(nsIPercentHeightObserver))) {
-    *aInstancePtr = static_cast<nsIPercentHeightObserver*>(this);
-    return NS_OK;
-  }
-
-  return nsHTMLContainerFrame::QueryInterface(aIID, aInstancePtr);
-}
+NS_QUERYFRAME_HEAD(nsTableCellFrame)
+  NS_QUERYFRAME_ENTRY(nsTableCellFrame)
+  NS_QUERYFRAME_ENTRY(nsITableCellLayout)
+  NS_QUERYFRAME_ENTRY(nsIPercentHeightObserver)
+NS_QUERYFRAME_TAIL_INHERITING(nsHTMLContainerFrame)
 
 #ifdef ACCESSIBILITY
 NS_IMETHODIMP nsTableCellFrame::GetAccessible(nsIAccessible** aAccessible)
@@ -1081,6 +1031,8 @@ NS_NewTableCellFrame(nsIPresShell*   aPresShell,
   else
     return new (aPresShell) nsTableCellFrame(aContext);
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsBCTableCellFrame)
 
 nsMargin* 
 nsTableCellFrame::GetBorderWidth(nsMargin&  aBorder) const

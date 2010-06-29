@@ -40,8 +40,34 @@
 #include <windows.h>
 #include "nscore.h"
 
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+#include <dwmapi.h>
+#endif
+
+#if defined(WINCE) || (MOZ_WINSDK_TARGETVER == MOZ_NTDDI_WS03)
+struct MARGINS
+{
+  int cxLeftWidth;
+  int cxRightWidth;
+  int cyTopHeight;
+  int cyBottomHeight;
+};
+#endif
+
+// These window messages are not defined in dwmapi.h
 #ifndef WM_DWMCOMPOSITIONCHANGED
 #define WM_DWMCOMPOSITIONCHANGED        0x031E
+#endif
+
+// Windows 7 additions
+#ifndef WM_DWMSENDICONICTHUMBNAIL
+#define WM_DWMSENDICONICTHUMBNAIL 0x0323
+#define WM_DWMSENDICONICLIVEPREVIEWBITMAP 0x0326
+#endif
+
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+#define DWMWA_FORCE_ICONIC_REPRESENTATION 7
+#define DWMWA_HAS_ICONIC_BITMAP           10
 #endif
 
 enum nsUXThemeClass {
@@ -68,24 +94,21 @@ enum nsUXThemeClass {
   eUXNumClasses
 };
 
-struct MARGINS
-{
-  int cxLeftWidth;
-  int cxRightWidth;
-  int cyTopHeight;
-  int cyBottomHeight;
-};
 
 class nsUXThemeData {
   static HMODULE sThemeDLL;
-  static HMODULE sDwmDLL;
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+   static HMODULE sDwmDLL;
+#endif
   static HANDLE sThemes[eUXNumClasses];
   
   static const wchar_t *GetClassName(nsUXThemeClass);
 
 public:
   static const PRUnichar kThemeLibraryName[];
-  static const PRUnichar kDwmLibraryName[];
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+   static const PRUnichar kDwmLibraryName[];
+#endif
   static BOOL sFlatMenus;
   static PRPackedBool sIsXPOrLater;
   static PRPackedBool sIsVistaOrLater;
@@ -119,6 +142,9 @@ public:
   typedef HRESULT (WINAPI*GetThemeContentRectPtr)(HANDLE hTheme, HDC hdc, int iPartId,
                                             int iStateId, const RECT* pRect,
                                             RECT* pContentRect);
+  typedef HRESULT (WINAPI*GetThemeBackgroundRegionPtr)(HANDLE hTheme, HDC hdc, int iPartId,
+                                            int iStateId, const RECT* pRect,
+                                            HRGN *pRegion);
   typedef HRESULT (WINAPI*GetThemePartSizePtr)(HANDLE hTheme, HDC hdc, int iPartId,
                                          int iStateId, RECT* prc, int ts,
                                          SIZE* psz);
@@ -139,6 +165,7 @@ public:
   static DrawThemeBackgroundPtr drawThemeBG;
   static DrawThemeEdgePtr drawThemeEdge;
   static GetThemeContentRectPtr getThemeContentRect;
+  static GetThemeBackgroundRegionPtr getThemeBackgroundRegion;
   static GetThemePartSizePtr getThemePartSize;
   static GetThemeSysFontPtr getThemeSysFont;
   static GetThemeColorPtr getThemeColor;
@@ -147,12 +174,21 @@ public:
   static GetCurrentThemeNamePtr getCurrentThemeName;
   static GetThemeSysColorPtr getThemeSysColor;
 
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   // dwmapi.dll function typedefs and declarations
   typedef HRESULT (WINAPI*DwmExtendFrameIntoClientAreaProc)(HWND hWnd, const MARGINS *pMarInset);
   typedef HRESULT (WINAPI*DwmIsCompositionEnabledProc)(BOOL *pfEnabled);
+  typedef HRESULT (WINAPI*DwmSetIconicThumbnailProc)(HWND hWnd, HBITMAP hBitmap, DWORD dwSITFlags);
+  typedef HRESULT (WINAPI*DwmSetIconicLivePreviewBitmapProc)(HWND hWnd, HBITMAP hBitmap, POINT *pptClient, DWORD dwSITFlags);
+  typedef HRESULT (WINAPI*DwmSetWindowAttributeProc)(HWND hWnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
+  typedef HRESULT (WINAPI*DwmInvalidateIconicBitmapsProc)(HWND hWnd);
 
   static DwmExtendFrameIntoClientAreaProc dwmExtendFrameIntoClientAreaPtr;
   static DwmIsCompositionEnabledProc dwmIsCompositionEnabledPtr;
+  static DwmSetIconicThumbnailProc dwmSetIconicThumbnailPtr;
+  static DwmSetIconicLivePreviewBitmapProc dwmSetIconicLivePreviewBitmapPtr;
+  static DwmSetWindowAttributeProc dwmSetWindowAttributePtr;
+  static DwmInvalidateIconicBitmapsProc dwmInvalidateIconicBitmapsPtr;
 
   static PRBool CheckForCompositor() {
     BOOL compositionIsEnabled = FALSE;
@@ -160,4 +196,5 @@ public:
       dwmIsCompositionEnabledPtr(&compositionIsEnabled);
     return sHaveCompositor = (compositionIsEnabled != 0);
   }
+#endif // MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
 };

@@ -6,9 +6,9 @@
      onload="startTest()" reftest-zoom="1.5" class="reftest-wait">
     
   <title>Testcase for zoomed foreignObject</title>
-    
+
   <!-- From https://bugzilla.mozilla.org/show_bug.cgi?id=484677 -->
-    
+
   <style type="text/css">
     * { margin:0;height:100%;width:100% }
   </style>
@@ -21,7 +21,7 @@
   </foreignObject>
   <script type="text/javascript">
   function startTest() {
-    setTimeout("doTest()", 100);
+    document.addEventListener("MozReftestInvalidate", doTest, false);
   }
   function doTest() {
     var elem = document.elementFromPoint(25, 25);

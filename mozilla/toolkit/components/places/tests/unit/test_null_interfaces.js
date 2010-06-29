@@ -57,9 +57,7 @@ let testServices = [
     ["createFolder", "getItemIdForGUID"]],
   ["browser/livemark-service;2","nsILivemarkService", []],
   ["browser/annotation-service;1","nsIAnnotationService", []],
-  ["browser/favicon-service;1","nsIFaviconService",
-    ["getFaviconLinkForIcon", "addFailedFavicon", "removeFailedFavicon",
-     "isFailedFavicon"]],
+  ["browser/favicon-service;1","nsIFaviconService", []],
   ["browser/tagging-service;1","nsITaggingService", []],
 ];
 _(testServices.join("\n"));

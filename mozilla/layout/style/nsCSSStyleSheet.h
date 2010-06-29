@@ -50,7 +50,7 @@
 #include "nsICSSStyleSheet.h"
 #include "nsIDOMCSSStyleSheet.h"
 #include "nsICSSLoaderObserver.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsCOMArray.h"
 
 class nsIURI;
@@ -78,20 +78,20 @@ public:
   // Create a new namespace map
   nsresult CreateNamespaceMap();
 
-  nsAutoVoidArray        mSheets;
+  nsAutoTArray<nsICSSStyleSheet*, 8> mSheets;
   nsCOMPtr<nsIURI>       mSheetURI; // for error reports, etc.
   nsCOMPtr<nsIURI>       mOriginalSheetURI;  // for GetHref.  Can be null.
   nsCOMPtr<nsIURI>       mBaseURI; // for resolving relative URIs
   nsCOMPtr<nsIPrincipal> mPrincipal;
   nsCOMArray<nsICSSRule> mOrderedRules;
   nsAutoPtr<nsXMLNameSpaceMap> mNameSpaceMap;
-  PRBool                 mComplete;
   // Linked list of child sheets.  This is al fundamentally broken, because
   // each of the child sheets has a unique parent... We can only hope (and
   // currently this is the case) that any time page JS can get ts hands on a
   // child sheet that means we've already ensured unique inners throughout its
   // parent chain and things are good.
   nsRefPtr<nsCSSStyleSheet> mFirstChild;
+  PRBool                 mComplete;
 
 #ifdef DEBUG
   PRBool                 mPrincipalSet;
@@ -165,7 +165,8 @@ public:
   NS_IMETHOD AddRuleProcessor(nsCSSRuleProcessor* aProcessor);
   NS_IMETHOD DropRuleProcessor(nsCSSRuleProcessor* aProcessor);
   NS_IMETHOD InsertRuleInternal(const nsAString& aRule,
-                                PRUint32 aIndex, PRUint32* aReturn);  
+                                PRUint32 aIndex, PRUint32* aReturn);
+  NS_IMETHOD_(nsIURI*) GetOriginalURI() const;
 
   // nsICSSLoaderObserver interface
   NS_IMETHOD StyleSheetLoaded(nsICSSStyleSheet* aSheet, PRBool aWasAlternate,
@@ -228,7 +229,7 @@ protected:
 
   nsCSSStyleSheetInner* mInner;
 
-  nsAutoVoidArray*      mRuleProcessors;
+  nsAutoTArray<nsCSSRuleProcessor*, 8>* mRuleProcessors;
 
   friend class nsMediaList;
   friend class nsCSSRuleProcessor;

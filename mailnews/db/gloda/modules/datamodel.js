@@ -44,10 +44,10 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
 const LOG = Log4Moz.repository.getLogger("gloda.datamodel");
 
-Cu.import("resource://app/modules/gloda/utils.js");
+Cu.import("resource:///modules/gloda/utils.js");
 
 /**
  * @class Represents a gloda attribute definition's DB form.  This class
@@ -304,21 +304,21 @@ GlodaFolder.prototype = {
    * Indicate whether this folder is currently being compacted.  The
    *  |GlodaMsgIndexer| keeps this in-memory-only value up-to-date.
    */
-  get compacting gloda_folder_get_compacting() {
+  get compacting() {
     return this._compacting;
   },
   /**
    * Set whether this folder is currently being compacted.  This is really only
    *  for the |GlodaMsgIndexer| to set.
    */
-  set compacting gloda_folder_set_compacting(aCompacting) {
+  set compacting(aCompacting) {
     this._compacting = aCompacting;
   },
   /**
    * Indicate whether this folder was compacted and has not yet been
    *  compaction processed.
    */
-  get compacted gloda_folder_get_compacted() {
+  get compacted() {
     return Boolean(this._dirtyStatus & this._kFolderCompactedFlag);
   },
   /**
@@ -560,6 +560,22 @@ GlodaMessage.prototype = {
       this._messageKey, this._conversationID, this._conversation, this._date,
       this._headerMessageID, this._deleted, this._jsonText, this._notability,
       this._subject, this._indexedBodyText, this._attachmentNames);
+  },
+
+  /**
+   * Provide a means of propagating changed values on our clone back to
+   *  ourselves.  This is required because of an object identity trick gloda
+   *  does; when indexing an already existing object, all mutations happen on
+   *  a clone of the existing object so that
+   */
+  _declone: function gloda_message_declone(aOther) {
+    if ("_content" in aOther)
+      this._content = aOther._content;
+
+    // The _indexedAuthor/_indexedRecipients fields don't get updated on
+    //  fulltext update so we don't need to propagate.
+    this._indexedBodyText = aOther._indexedBodyText;
+    this._attachmentNames = aOther._attachmentNames;
   },
 
   /**

@@ -4,15 +4,22 @@
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
 	xmlns:html="http://www.w3.org/1999/xhtml">
   <html:style type="text/css">
+    #container {
+      margin-top: 12px;
+      padding-top: 8px;
+    }
     label, textbox {
       -moz-appearance: none;
+      background: inherit;
       border: none 0px;
-      margin: 0px;
-      padding: 0px;
+      margin-top: 0px;
+      padding-top: 0px;
+      margin-bottom: 0px;
+      padding-bottom: 0px;
     }
   </html:style>
 
-  <hbox align="center">
+  <hbox id="container" align="center">
     <label value="test"/>
     <textbox value="text"/>
   </hbox>

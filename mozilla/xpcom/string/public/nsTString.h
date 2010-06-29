@@ -539,6 +539,34 @@ class NS_STACK_CLASS nsTAutoString_CharT : public nsTFixedString_CharT
   };
 
 
+  //
+  // nsAutoString stores pointers into itself which are invalidated when an
+  // nsTArray is resized, so nsTArray must not be instantiated with nsAutoString
+  // elements!
+  //
+  template<class E> class nsTArrayElementTraits;
+  template<>
+  class nsTArrayElementTraits<nsTAutoString_CharT> {
+    public:
+      template<class A> struct Dont_Instantiate_nsTArray_of;
+      template<class A> struct Instead_Use_nsTArray_of;
+
+      static Dont_Instantiate_nsTArray_of<nsTAutoString_CharT> *
+      Construct(Instead_Use_nsTArray_of<nsTString_CharT> *e) {
+        return 0;
+      }
+      template<class A>
+      static Dont_Instantiate_nsTArray_of<nsTAutoString_CharT> *
+      Construct(Instead_Use_nsTArray_of<nsTString_CharT> *e,
+                const A &arg) {
+        return 0;
+      }
+      static Dont_Instantiate_nsTArray_of<nsTAutoString_CharT> *
+      Destruct(Instead_Use_nsTArray_of<nsTString_CharT> *e) {
+        return 0;
+      }
+  };
+
   /**
    * nsTXPIDLString extends nsTString such that:
    *
@@ -560,11 +588,11 @@ class nsTXPIDLString_CharT : public nsTString_CharT
     public:
 
       nsTXPIDLString_CharT()
-        : string_type(const_cast<char_type*>(char_traits::sEmptyBuffer), 0, F_TERMINATED | F_VOIDED) {}
+        : string_type(char_traits::sEmptyBuffer, 0, F_TERMINATED | F_VOIDED) {}
 
         // copy-constructor required to avoid default
       nsTXPIDLString_CharT( const self_type& str )
-        : string_type(const_cast<char_type*>(char_traits::sEmptyBuffer), 0, F_TERMINATED | F_VOIDED)
+        : string_type(char_traits::sEmptyBuffer, 0, F_TERMINATED | F_VOIDED)
         {
           Assign(str);
         }

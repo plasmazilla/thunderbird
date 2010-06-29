@@ -18,6 +18,7 @@ EXPORTS		= 	gfxASurface.h \
 			gfxColor.h \
 			gfxContext.h \
 			gfxFont.h \
+			gfxFontConstants.h \
 			gfxFontUtils.h \
 			gfxImageSurface.h \
 			gfxMatrix.h \
@@ -44,7 +45,10 @@ EXPORTS	+=	gfxWindowsPlatform.h \
 EXPORTS +=	gfxPDFSurface.h
 
 ifdef WINCE
-EXPORTS +=	gfxFT2Fonts.h 
+EXPORTS +=	gfxFT2Fonts.h \
+		gfxFT2FontBase.h \
+		gfxDDrawSurface.h \
+		$(NULL)
 else
 EXPORTS +=	gfxWindowsFonts.h 
 endif
@@ -67,8 +71,9 @@ ifdef MOZ_DFB
 EXPORTS += gfxDirectFBSurface.h
 endif
 
-EXPORTS +=  gfxPlatformGtk.h gfxGdkNativeRenderer.h
-EXPORTS +=	gfxPDFSurface.h gfxPSSurface.h
+EXPORTS += gfxPlatformGtk.h gfxGdkNativeRenderer.h
+EXPORTS += gfxPDFSurface.h gfxPSSurface.h
+EXPORTS += gfxFT2FontBase.h
 
 endif
 
@@ -76,6 +81,7 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
 EXPORTS += gfxQtPlatform.h gfxQPainterSurface.h
 EXPORTS += gfxXlibSurface.h gfxQtNativeRenderer.h
 EXPORTS += gfxFT2Fonts.h
+EXPORTS += gfxFT2FontBase.h
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
@@ -89,6 +95,7 @@ endif
 ifeq ($(MOZ_WIDGET_TOOLKIT),beos)
 EXPORTS	+=	gfxBeOSSurface.h gfxBeOSPlatform.h
 EXPORTS +=	gfxPangoFonts.h
+EXPORTS +=  gfxFT2FontBase.h
 EXPORTS +=	gfxPDFSurface.h
 endif
 
@@ -101,6 +108,10 @@ EXPORTS +=	gfxPlatformMac.h \
 		gfxQuartzNativeDrawing.h \
 		$(NULL)
 
+endif
+
+ifdef MOZ_CORETEXT
+EXPORTS += gfxCoreTextFonts.h
 endif
 
 include $(topsrcdir)/config/rules.mk

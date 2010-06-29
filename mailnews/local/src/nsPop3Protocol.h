@@ -52,6 +52,7 @@
 #include "nsIMsgFolder.h" // TO include biffState enum. Change to bool later...
 #include "nsIAuthModule.h"
 #include "nsITimer.h"
+#include "nsIMsgAsyncPrompter.h"
 
 #include "prerror.h"
 #include "plhash.h"
@@ -114,6 +115,8 @@ enum Pop3CapabilityEnum {
     POP3_HAS_AUTH_GSSAPI        = 0x00100000
 };
 
+// TODO use value > 0?
+#define POP3_HAS_AUTH_NONE        0
 #define POP3_HAS_AUTH_ANY         0x00001C00
 #define POP3_HAS_AUTH_ANY_SEC     0x0011E000
 
@@ -154,7 +157,7 @@ enum Pop3StatesEnum {
     POP3_SEND_CAPA,                             // 28
     POP3_CAPA_RESPONSE,                         // 29
     POP3_PROCESS_AUTH,                          // 30
-    POP3_AUTH_FALLBACK,                         // 31
+    POP3_NEXT_AUTH_STEP,                        // 31
 
     POP3_AUTH_LOGIN,                            // 32
     POP3_AUTH_LOGIN_RESPONSE,                   // 33
@@ -170,7 +173,19 @@ enum Pop3StatesEnum {
 
     POP3_AUTH_GSSAPI,                           // 42
     POP3_AUTH_GSSAPI_FIRST,                     // 43
-    POP3_AUTH_GSSAPI_STEP                       // 44
+    POP3_AUTH_GSSAPI_STEP,                      // 44
+
+    /**
+     * Async wait to obtain the password and deal with the result.
+     * The *PREOBTAIN* states are used for where we try and get the password
+     * before we've initiated a connection to the server.
+     */
+    POP3_OBTAIN_PASSWORD_EARLY,                 // 45
+    POP3_FINISH_OBTAIN_PASSWORD_EARLY,          // 46
+    POP3_OBTAIN_PASSWORD_BEFORE_USERNAME,       // 47
+    POP3_FINISH_OBTAIN_PASSWORD_BEFORE_USERNAME,// 48
+    POP3_OBTAIN_PASSWORD_BEFORE_PASSWORD,       // 49
+    POP3_FINISH_OBTAIN_PASSWORD_BEFORE_PASSWORD // 50
 };
 
 
@@ -254,7 +269,6 @@ typedef struct _Pop3ConData {
     PRInt32 pop3_size;
     PRBool dot_fix;
     PRBool assumed_end;
-    PRInt32 logonFailureCount;
     nsresult urlStatus;
 } Pop3ConData;
 
@@ -267,7 +281,9 @@ typedef struct _Pop3ConData {
 #define POP3_AUTH_FAILURE           0x00000008  /* extended code said authentication failed */
 
 
-class nsPop3Protocol : public nsMsgProtocol, public nsIPop3Protocol
+class nsPop3Protocol : public nsMsgProtocol,
+                       public nsIPop3Protocol,
+                       public nsIMsgAsyncPromptListener
 {
 public:
   nsPop3Protocol(nsIURI* aURL);
@@ -275,6 +291,7 @@ public:
 
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIPOP3PROTOCOL
+  NS_DECL_NSIMSGASYNCPROMPTLISTENER
 
   nsresult Initialize(nsIURI * aURL);
   virtual nsresult LoadUrl(nsIURI *aURL, nsISupports * aConsumer = nsnull);
@@ -282,7 +299,7 @@ public:
   const char* GetUsername() { return m_username.get(); }
   void SetUsername(const char* name);
 
-  nsresult GetPassword(nsCString& aPassword);
+  nsresult StartGetAsyncPassword(Pop3StatesEnum aNextState);
 
   NS_IMETHOD OnTransportStatus(nsITransport *transport, nsresult status, PRUint64 progress, PRUint64 progressMax);
   NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports * aContext, nsresult aStatus);
@@ -304,6 +321,9 @@ private:
   nsCOMPtr<nsIMsgStatusFeedback> m_statusFeedback;
   nsCString m_GSSAPICache;
 
+  // Used for asynchronous password prompts to store the password temporarily.
+  nsCString m_passwordResult;
+
   // progress state information
   void UpdateProgressPercent (PRUint32 totalDone, PRUint32 total);
   void UpdateStatus(PRInt32 aStatusID);
@@ -318,7 +338,6 @@ private:
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
                                         PRUint32 sourceOffset, PRUint32 length);
-  virtual nsresult CloseSocket();
   virtual PRInt32 SendData(nsIURI * aURL, const char * dataBuffer, PRBool aSuppressLogging = PR_FALSE);
 
   nsCOMPtr<nsIURI> m_url;
@@ -332,16 +351,21 @@ private:
 
   PRBool m_tlsEnabled;
   PRInt32 m_socketType;
-  PRBool m_useSecAuth;
   PRBool m_password_already_sent;
 
   void SetCapFlag(PRUint32 flag);
   void ClearCapFlag(PRUint32 flag);
   PRBool TestCapFlag(PRUint32 flag);
+  PRUint32 GetCapFlags();
 
-  void BackupAuthFlags();
-  void RestoreAuthFlags();
-  PRInt32 m_origAuthFlags;
+  void    InitPrefAuthMethods(PRInt32 authMethodPrefValue);
+  nsresult ChooseAuthMethod();
+  void    MarkAuthMethodAsFailed(PRInt32 failedAuthMethod);
+  void    ResetAuthMethods();
+  PRInt32 m_prefAuthMethods; // set of capability flags for auth methods
+  PRInt32 m_failedAuthMethods; // ditto
+  PRInt32 m_currentAuthMethod; // exactly one capability flag, or 0
+
   PRInt32 m_listpos;
 
   nsresult HandleLine(char *line, PRUint32 line_length);
@@ -362,7 +386,7 @@ private:
   PRInt32 CapaResponse(nsIInputStream* inputStream, PRUint32 length);
   PRInt32 SendTLSResponse();
   PRInt32 ProcessAuth();
-  PRInt32 AuthFallback();
+  PRInt32 NextAuthStep();
   PRInt32 AuthLogin();
   PRInt32 AuthLoginResponse();
   PRInt32 AuthNtlm();
@@ -394,6 +418,8 @@ private:
   PRInt32 SendDele();
   PRInt32 DeleResponse();
   PRInt32 CommitState(PRBool remove_last_entry);
+
+  Pop3StatesEnum GetNextPasswordObtainState();
 };
 
 #endif /* nsPop3Protocol_h__ */

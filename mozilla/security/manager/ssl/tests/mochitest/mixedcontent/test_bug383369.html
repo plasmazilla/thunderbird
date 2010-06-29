@@ -40,8 +40,8 @@
     prefs = prefs.getBranch("browser.download.");
         
     prefs.setCharPref("dir", profileDir.path);
-    prefs.setIntPref("folderList", 2);
     prefs.setBoolPref("useDownloadDir", true);
+    prefs.setIntPref("folderList", 2);
     prefs.setBoolPref("manager.closeWhenDone", true);
     prefs.setBoolPref("manager.showWhenStarting", false);
   
@@ -78,11 +78,11 @@
       .getService(Components.interfaces.nsIPrefService);
     prefs = prefs.getBranch("browser.download.");
 
-    try { prefs.clearUserPref("dir"); } catch (e) {}
-    try { prefs.clearUserPref("useDownloadDir"); } catch (e) {}
-    try { prefs.clearUserPref("folderList"); } catch (e) {}
-    try { prefs.clearUserPref("manager.closeWhenDone"); } catch (e) {}
-    try { prefs.clearUserPref("manager.showWhenStarting"); } catch (e) {}
+    var prefKeys = ["dir", "useDownloadDir", "folderList", 
+                    "manager.closeWhenDone", "manager.showWhenStarting"];
+    for (var i = 0; i < prefKeys.length; i++)
+      if (prefs.prefHasUserValue(prefKeys[i]))
+        prefs.clearUserPref(prefKeys[i]);
   }
   
   </script>

@@ -166,12 +166,19 @@ gfxWindowsSurface::OptimizeToDDB(HDC dc, const gfxIntSize& size, gfxImageFormat 
 
     gfxWindowsSurface *raw = (gfxWindowsSurface*) (wsurf.get());
     NS_ADDREF(raw);
+
+    // we let the new DDB surfaces be converted back to dibsections if
+    // acquire_source_image is called on them
+    cairo_win32_surface_set_can_convert_to_dib(raw->CairoSurface(), TRUE);
+
     return raw;
 }
 
-nsresult gfxWindowsSurface::BeginPrinting(const nsAString& aTitle,
-                                          const nsAString& aPrintToFileName)
+nsresult
+gfxWindowsSurface::BeginPrinting(const nsAString& aTitle,
+                                 const nsAString& aPrintToFileName)
 {
+#ifdef NS_PRINTING
 #define DOC_TITLE_LENGTH 30
     DOCINFOW docinfo;
 
@@ -191,44 +198,68 @@ nsresult gfxWindowsSurface::BeginPrinting(const nsAString& aTitle,
     ::StartDocW(mDC, &docinfo);
 
     return NS_OK;
+#else
+    return NS_ERROR_FAILURE;
+#endif
 }
 
-nsresult gfxWindowsSurface::EndPrinting()
+nsresult
+gfxWindowsSurface::EndPrinting()
 {
+#ifdef NS_PRINTING
     int result = ::EndDoc(mDC);
     if (result <= 0)
         return NS_ERROR_FAILURE;
 
     return NS_OK;
+#else
+    return NS_ERROR_FAILURE;
+#endif
 }
 
-nsresult gfxWindowsSurface::AbortPrinting()
+nsresult
+gfxWindowsSurface::AbortPrinting()
 {
+#ifdef NS_PRINTING
     int result = ::AbortDoc(mDC);
     if (result <= 0)
         return NS_ERROR_FAILURE;
     return NS_OK;
+#else
+    return NS_ERROR_FAILURE;
+#endif
 }
 
-nsresult gfxWindowsSurface::BeginPage()
+nsresult
+gfxWindowsSurface::BeginPage()
 {
+#ifdef NS_PRINTING
     int result = ::StartPage(mDC);
     if (result <= 0)
         return NS_ERROR_FAILURE;
     return NS_OK;
+#else
+    return NS_ERROR_FAILURE;
+#endif
 }
 
-nsresult gfxWindowsSurface::EndPage()
+nsresult
+gfxWindowsSurface::EndPage()
 {
+#ifdef NS_PRINTING
     if (mForPrinting)
         cairo_surface_show_page(CairoSurface());
     int result = ::EndPage(mDC);
     if (result <= 0)
         return NS_ERROR_FAILURE;
     return NS_OK;
+#else
+    return NS_ERROR_FAILURE;
+#endif
 }
 
-PRInt32 gfxWindowsSurface::GetDefaultContextFlags() const
+PRInt32
+gfxWindowsSurface::GetDefaultContextFlags() const
 {
     if (mForPrinting)
         return gfxContext::FLAG_SIMPLIFY_OPERATORS |

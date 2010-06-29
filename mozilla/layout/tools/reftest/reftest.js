@@ -44,6 +44,7 @@ const XHTML_NS = "http://www.w3.org/1999/xhtml";
 
 const NS_LOCAL_FILE_CONTRACTID = "@mozilla.org/file/local;1";
 const IO_SERVICE_CONTRACTID = "@mozilla.org/network/io-service;1";
+const DEBUG_CONTRACTID = "@mozilla.org/xpcom/debug;1";
 const NS_LOCALFILEINPUTSTREAM_CONTRACTID =
           "@mozilla.org/network/file-input-stream;1";
 const NS_SCRIPTSECURITYMANAGER_CONTRACTID =
@@ -52,11 +53,20 @@ const NS_REFTESTHELPER_CONTRACTID =
           "@mozilla.org/reftest-helper;1";
 const NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX =
           "@mozilla.org/network/protocol;1?name=";
+const NS_XREAPPINFO_CONTRACTID =
+          "@mozilla.org/xre/app-info;1";
+
 
 var gLoadTimeout = 0;
 
+// "<!--CLEAR-->"
+const BLANK_URL_FOR_CLEARING = "data:text/html,%3C%21%2D%2DCLEAR%2D%2D%3E";
+
 var gBrowser;
 var gCanvas1, gCanvas2;
+// gCurrentCanvas is non-null between InitCurrentCanvasWithSnapshot and the next
+// DocumentLoaded.
+var gCurrentCanvas = null;
 var gURLs;
 // Map from URI spec to the number of times it remains to be used
 var gURIUseCounts;
@@ -71,32 +81,44 @@ var gTestResults = {
   FailedLoad: 0,
   UnexpectedFail: 0,
   UnexpectedPass: 0,
+  AssertionUnexpected: 0,
+  AssertionUnexpectedFixed: 0,
   // Known problems...
   KnownFail : 0,
+  AssertionKnown: 0,
   Random : 0,
   Skip: 0,
 };
 var gTotalTests = 0;
 var gState;
 var gCurrentURL;
-var gFailureTimeout;
+var gFailureTimeout = null;
 var gFailureReason;
 var gServer;
 var gCount = 0;
+var gAssertionCount = 0;
 
 var gIOService;
+var gDebug;
 var gWindowUtils;
 
 var gCurrentTestStartTime;
 var gSlowestTestTime = 0;
 var gSlowestTestURL;
+var gClearingForAssertionCheck = false;
+
+const TYPE_REFTEST_EQUAL = '==';
+const TYPE_REFTEST_NOTEQUAL = '!=';
+const TYPE_LOAD = 'load';     // test without a reference (just test that it does
+                              // not assert, crash, hang, or leak)
+const TYPE_SCRIPT = 'script'; // test contains individual test results
 
 const EXPECTED_PASS = 0;
 const EXPECTED_FAIL = 1;
 const EXPECTED_RANDOM = 2;
 const EXPECTED_DEATH = 3;  // test must be skipped to avoid e.g. crash/hang
-const EXPECTED_LOAD = 4; // test without a reference (just test that it does
-                         // not assert, crash, hang, or leak)
+
+const gProtocolRE = /^\w+:/;
 
 var HTTP_SERVER_PORT = 4444;
 const HTTP_SERVER_PORTS_TO_TRY = 50;
@@ -148,29 +170,44 @@ function OnRefTestLoad()
     var windowElem = document.documentElement;
 
     gIOService = CC[IO_SERVICE_CONTRACTID].getService(CI.nsIIOService);
+    gDebug = CC[DEBUG_CONTRACTID].getService(CI.nsIDebug2);
     gServer = CC["@mozilla.org/server/jshttp;1"].
                   createInstance(CI.nsIHttpServer);
 
     try {
-        if (gServer) {
-            gServer.registerContentType("sjs", "sjs");
-            // We want to try different ports in case the port we want
-            // is being used.
-            var tries = HTTP_SERVER_PORTS_TO_TRY;
-            var succeeded = false;
-            do {
-                try {
-                    gServer.start(HTTP_SERVER_PORT);
-                    succeeded = true;
-                } catch (ex) {
-                    gServer.stop();
-                    ++HTTP_SERVER_PORT;
-                    if (--tries == 0) {
-                        throw ex;
-                    }
-                }
-            } while (!succeeded);
+        if (gServer)
+            StartHTTPServer();
+    } catch (ex) {
+        //gBrowser.loadURI('data:text/plain,' + ex);
+        ++gTestResults.Exception;
+        dump("REFTEST TEST-UNEXPECTED-FAIL | | EXCEPTION: " + ex + "\n");
+        DoneTests();
+    }
+
+    StartTests();
+}
+
+function StartHTTPServer()
+{
+    gServer.registerContentType("sjs", "sjs");
+    // We want to try different ports in case the port we want
+    // is being used.
+    var tries = HTTP_SERVER_PORTS_TO_TRY;
+    do {
+        try {
+            gServer.start(HTTP_SERVER_PORT);
+            return;
+        } catch (ex) {
+            ++HTTP_SERVER_PORT;
+            if (--tries == 0)
+                throw ex;
         }
+    } while (true);
+}
+
+function StartTests()
+{
+    try {
         // Need to read the manifest once we have the final HTTP_SERVER_PORT.
         ReadTopManifest(window.arguments[0]);
         BuildUseCounts();
@@ -224,8 +261,16 @@ function ReadManifest(aURL)
 
     // Build the sandbox for fails-if(), etc., condition evaluation.
     var sandbox = new Components.utils.Sandbox(aURL.spec);
-    for (var prop in gAutoconfVars)
-        sandbox[prop] = gAutoconfVars[prop];
+    var xr = CC[NS_XREAPPINFO_CONTRACTID].getService(CI.nsIXULRuntime);
+    sandbox.MOZ_WIDGET_TOOLKIT = xr.widgetToolkit;
+    sandbox.isDebugBuild = gDebug.isDebugBuild;
+    sandbox.xulRuntime = {widgetToolkit: xr.widgettoolkit, OS: xr.OS};
+
+    // xr.XPCOMABI throws exception for configurations without full ABI support (mobile builds on ARM)
+    try {
+      sandbox.XPCOMABI = xr.XPCOMABI;
+    } catch(e) {}
+
     var hh = CC[NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX + "http"].
                  getService(CI.nsIHttpProtocolHandler);
     sandbox.http = {};
@@ -234,9 +279,37 @@ function ReadManifest(aURL)
                             "product", "productSub", "productComment",
                             "platform", "oscpu", "language", "misc" ])
         sandbox.http[prop] = hh[prop];
+    // see if we have the test plugin available,
+    // and set a sandox prop accordingly
+    sandbox.haveTestPlugin = false;
+    for (var i = 0; i < navigator.mimeTypes.length; i++) {
+        if (navigator.mimeTypes[i].type == "application/x-test" &&
+            navigator.mimeTypes[i].enabledPlugin != null &&
+            navigator.mimeTypes[i].enabledPlugin.name == "Test Plug-in") {
+            sandbox.haveTestPlugin = true;
+            break;
+        }
+    }
+
+    var prefs = CC["@mozilla.org/preferences-service;1"].
+                getService(CI.nsIPrefBranch2);
+    try {
+        sandbox.nativeThemePref = !prefs.getBoolPref("mozilla.widget.disable-native-theme");
+    } catch (e) {
+        sandbox.nativeThemePref = true;
+    }
+
+    new XPCSafeJSObjectWrapper(sandbox).prefs = {
+      __exposedProps__: {
+        getBoolPref: 'r',
+      },
+      _prefs:      prefs,
+      getBoolPref: function(p) { return this._prefs.getBoolPref(p); }
+    }
 
     var line = {value:null};
     var lineNo = 0;
+    var urlprefix = "";
     do {
         var more = lis.readLine(line);
         ++lineNo;
@@ -252,8 +325,17 @@ function ReadManifest(aURL)
             continue;
         var items = str.split(/\s+/); // split on whitespace
 
+        if (items[0] == "url-prefix") {
+            if (items.length != 2)
+                throw "url-prefix requires one url in manifest file " + aURL.spec + " line " + lineNo;
+            urlprefix = items[1];
+            continue;
+        }
+
         var expected_status = EXPECTED_PASS;
-        while (items[0].match(/^(fails|random|skip)/)) {
+        var minAsserts = 0;
+        var maxAsserts = 0;
+        while (items[0].match(/^(fails|random|skip|asserts)/)) {
             var item = items.shift();
             var stat;
             var cond;
@@ -265,8 +347,21 @@ function ReadManifest(aURL)
             } else if (item.match(/^(fails|random|skip)$/)) {
                 stat = item;
                 cond = true;
+            } else if ((m = item.match(/^asserts\((\d+)(-\d+)?\)$/))) {
+                cond = false;
+                minAsserts = Number(m[1]);
+                maxAsserts = (m[2] == undefined) ? minAsserts
+                                                 : Number(m[2].substring(1));
+            } else if ((m = item.match(/^asserts-if\((.*?),(\d+)(-\d+)?\)$/))) {
+                cond = false;
+                if (Components.utils.evalInSandbox("(" + m[1] + ")", sandbox)) {
+                    minAsserts = Number(m[2]);
+                    maxAsserts =
+                      (m[3] == undefined) ? minAsserts
+                                          : Number(m[3].substring(1));
+                }
             } else {
-                throw "Error in manifest file " + aURL.spec + " line " + lineNo;
+                throw "Error 1 in manifest file " + aURL.spec + " line " + lineNo;
             }
 
             if (cond) {
@@ -278,6 +373,10 @@ function ReadManifest(aURL)
                     expected_status = EXPECTED_DEATH;
                 }
             }
+        }
+
+        if (minAsserts > maxAsserts) {
+            throw "Bad range in manifest file " + aURL.spec + " line " + lineNo;
         }
 
         var runHttp = false;
@@ -293,20 +392,29 @@ function ReadManifest(aURL)
             items.shift();
         }
 
+        // do not prefix the url for include commands or urls specifying
+        // a protocol
+        if (urlprefix && items[0] != "include") {
+            if (items.length > 1 && !items[1].match(gProtocolRE)) {
+                items[1] = urlprefix + items[1];
+            }
+            if (items.length > 2 && !items[2].match(gProtocolRE)) {
+                items[2] = urlprefix + items[2];
+            }
+        }
+
         if (items[0] == "include") {
             if (items.length != 2 || runHttp)
-                throw "Error in manifest file " + aURL.spec + " line " + lineNo;
+                throw "Error 2 in manifest file " + aURL.spec + " line " + lineNo;
             var incURI = gIOService.newURI(items[1], null, listURL);
             secMan.checkLoadURI(aURL, incURI,
                                 CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             ReadManifest(incURI);
-        } else if (items[0] == "load") {
-            if (expected_status == EXPECTED_PASS)
-                expected_status = EXPECTED_LOAD;
+        } else if (items[0] == TYPE_LOAD) {
             if (items.length != 2 ||
-                (expected_status != EXPECTED_LOAD &&
+                (expected_status != EXPECTED_PASS &&
                  expected_status != EXPECTED_DEATH))
-                throw "Error in manifest file " + aURL.spec + " line " + lineNo;
+                throw "Error 3 in manifest file " + aURL.spec + " line " + lineNo;
             var [testURI] = runHttp
                             ? ServeFiles(aURL, httpDepth,
                                          listURL.file.parent, [items[1]])
@@ -316,14 +424,35 @@ function ReadManifest(aURL)
                            : testURI.spec;
             secMan.checkLoadURI(aURL, testURI,
                                 CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
-            gURLs.push( { equal: true /* meaningless */,
+            gURLs.push( { type: TYPE_LOAD,
                           expected: expected_status,
                           prettyPath: prettyPath,
+                          minAsserts: minAsserts,
+                          maxAsserts: maxAsserts,
                           url1: testURI,
                           url2: null } );
-        } else if (items[0] == "==" || items[0] == "!=") {
+        } else if (items[0] == TYPE_SCRIPT) {
+            if (items.length != 2)
+                throw "Error 4 in manifest file " + aURL.spec + " line " + lineNo;
+            var [testURI] = runHttp
+                            ? ServeFiles(aURL, httpDepth,
+                                         listURL.file.parent, [items[1]])
+                            : [gIOService.newURI(items[1], null, listURL)];
+            var prettyPath = runHttp
+                           ? gIOService.newURI(items[1], null, listURL).spec
+                           : testURI.spec;
+            secMan.checkLoadURI(aURL, testURI,
+                                CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+            gURLs.push( { type: TYPE_SCRIPT,
+                          expected: expected_status,
+                          prettyPath: prettyPath,
+                          minAsserts: minAsserts,
+                          maxAsserts: maxAsserts,
+                          url1: testURI,
+                          url2: null } );
+        } else if (items[0] == TYPE_REFTEST_EQUAL || items[0] == TYPE_REFTEST_NOTEQUAL) {
             if (items.length != 3)
-                throw "Error in manifest file " + aURL.spec + " line " + lineNo;
+                throw "Error 5 in manifest file " + aURL.spec + " line " + lineNo;
             var [testURI, refURI] = runHttp
                                   ? ServeFiles(aURL, httpDepth,
                                                listURL.file.parent, [items[1], items[2]])
@@ -336,13 +465,15 @@ function ReadManifest(aURL)
                                 CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
             secMan.checkLoadURI(aURL, refURI,
                                 CI.nsIScriptSecurityManager.DISALLOW_SCRIPT);
-            gURLs.push( { equal: (items[0] == "=="),
+            gURLs.push( { type: items[0],
                           expected: expected_status,
                           prettyPath: prettyPath,
+                          minAsserts: minAsserts,
+                          maxAsserts: maxAsserts,
                           url1: testURI,
                           url2: refURI } );
         } else {
-            throw "Error in manifest file " + aURL.spec + " line " + lineNo;
+            throw "Error 6 in manifest file " + aURL.spec + " line " + lineNo;
         }
     } while (more);
 }
@@ -364,8 +495,10 @@ function BuildUseCounts()
 {
     gURIUseCounts = {};
     for (var i = 0; i < gURLs.length; ++i) {
-        var expected = gURLs[i].expected;
-        if (expected != EXPECTED_DEATH && expected != EXPECTED_LOAD) {
+        var url = gURLs[i];
+        if (url.expected != EXPECTED_DEATH &&
+            (url.type == TYPE_REFTEST_EQUAL ||
+             url.type == TYPE_REFTEST_NOTEQUAL)) {
             AddURIUseCount(gURLs[i].url1);
             AddURIUseCount(gURLs[i].url2);
         }
@@ -433,13 +566,21 @@ function StartCurrentTest()
 function StartCurrentURI(aState)
 {
     gCurrentTestStartTime = Date.now();
+    if (gFailureTimeout != null) {
+        dump("REFTEST TEST-UNEXPECTED-FAIL | " +
+             "| program error managing timeouts\n");
+        ++gTestResults.Exception;
+    }
     gFailureTimeout = setTimeout(LoadFailed, gLoadTimeout);
     gFailureReason = "timed out waiting for onload to fire";
 
     gState = aState;
     gCurrentURL = gURLs[0]["url" + aState].spec;
 
-    if (gURICanvases[gCurrentURL] && gURLs[0].expected != EXPECTED_LOAD) {
+    if (gURICanvases[gCurrentURL] &&
+        (gURLs[0].type == TYPE_REFTEST_EQUAL ||
+         gURLs[0].type == TYPE_REFTEST_NOTEQUAL) &&
+        gURLs[0].maxAsserts == 0) {
         // Pretend the document loaded --- DocumentLoaded will notice
         // there's already a canvas for this URL
         setTimeout(DocumentLoaded, 0);
@@ -459,15 +600,21 @@ function DoneTests()
          gTestResults.Pass + " pass, " +
          gTestResults.LoadOnly + " load only)\n");
     count = gTestResults.Exception + gTestResults.FailedLoad +
-            gTestResults.UnexpectedFail + gTestResults.UnexpectedPass;
+            gTestResults.UnexpectedFail + gTestResults.UnexpectedPass +
+            gTestResults.AssertionUnexpected +
+            gTestResults.AssertionUnexpectedFixed;
     dump("REFTEST INFO | Unexpected: " + count + " (" +
          gTestResults.UnexpectedFail + " unexpected fail, " +
          gTestResults.UnexpectedPass + " unexpected pass, " +
+         gTestResults.AssertionUnexpected + " unexpected asserts, " +
+         gTestResults.AssertionUnexpectedFixed + " unexpected fixed asserts, " +
          gTestResults.FailedLoad + " failed load, " +
          gTestResults.Exception + " exception)\n");
-    count = gTestResults.KnownFail + gTestResults.Random + gTestResults.Skip;
+    count = gTestResults.KnownFail + gTestResults.AssertionKnown +
+            gTestResults.Random + gTestResults.Skip;
     dump("REFTEST INFO | Known problems: " + count + " (" +
          gTestResults.KnownFail + " known fail, " +
+         gTestResults.AssertionKnown + " known asserts, " +
          gTestResults.Random + " random, " +
          gTestResults.Skip + " skipped)\n");
 
@@ -484,7 +631,7 @@ function DoneTests()
 }
 
 function setupZoom(contentRootElement) {
-    if (!contentRootElement.hasAttribute('reftest-zoom'))
+    if (!contentRootElement || !contentRootElement.hasAttribute('reftest-zoom'))
         return;
     gBrowser.markupDocumentViewer.fullZoom =
         contentRootElement.getAttribute('reftest-zoom');
@@ -500,6 +647,12 @@ function OnDocumentLoad(event)
         // Ignore load events for subframes.
         return;
 
+    if (gClearingForAssertionCheck &&
+        gBrowser.contentDocument.location.href == BLANK_URL_FOR_CLEARING) {
+        DoAssertionCheck();
+        return;
+    }
+
     if (gBrowser.contentDocument.location.href != gCurrentURL)
         // Ignore load events for previous documents.
         return;
@@ -508,14 +661,16 @@ function OnDocumentLoad(event)
 
     function shouldWait() {
         // use getAttribute because className works differently in HTML and SVG
-        return contentRootElement.hasAttribute('class') &&
+        return contentRootElement &&
+               contentRootElement.hasAttribute('class') &&
                contentRootElement.getAttribute('class').split(/\s+/)
                                  .indexOf("reftest-wait") != -1;
     }
 
     function doPrintMode() {
         // use getAttribute because className works differently in HTML and SVG
-        return contentRootElement.hasAttribute('class') &&
+        return contentRootElement &&
+               contentRootElement.hasAttribute('class') &&
                contentRootElement.getAttribute('class').split(/\s+/)
                                  .indexOf("reftest-print") != -1;
     }
@@ -549,19 +704,112 @@ function OnDocumentLoad(event)
         // Register a mutation listener to know when the 'reftest-wait' class
         // gets removed.
         gFailureReason = "timed out waiting for reftest-wait to be removed (after onload fired)"
-        contentRootElement.addEventListener(
-            "DOMAttrModified",
-            function(event) {
-                if (!shouldWait()) {
-                    contentRootElement.removeEventListener(
-                        "DOMAttrModified",
-                        arguments.callee,
-                        false);
-                    if (doPrintMode())
-                        setupPrintMode();
-                    setTimeout(DocumentLoaded, 0);
+
+        var stopAfterPaintReceived = false;
+        var currentDoc = gBrowser.contentDocument;
+        var utils = gBrowser.contentWindow.QueryInterface(CI.nsIInterfaceRequestor)
+            .getInterface(CI.nsIDOMWindowUtils);
+
+        function FlushRendering() {
+            // Flush pending restyles and reflows
+            contentRootElement.getBoundingClientRect();
+            // Flush out invalidation
+            utils.processUpdates();
+        }
+
+        function WhenMozAfterPaintFlushed(continuation) {
+            if (utils.isMozAfterPaintPending) {
+                function handler() {
+                    gBrowser.removeEventListener("MozAfterPaint", handler, false);
+                    continuation();
                 }
-            }, false);
+                gBrowser.addEventListener("MozAfterPaint", handler, false);
+            } else {
+                continuation();
+            }
+        }
+
+        function AfterPaintListener(event) {
+            if (event.target.document != currentDoc) {
+                // ignore paint events for subframes or old documents in the window.
+                // Invalidation in subframes will cause invalidation in the main document anyway.
+                return;
+            }
+
+            FlushRendering();
+            UpdateCurrentCanvasForEvent(event);
+            // When stopAfteraintReceived is set, we can stop --- but we should keep going as long
+            // as there are paint events coming (there probably shouldn't be any, but it doesn't
+            // hurt to process them)
+            if (stopAfterPaintReceived && !utils.isMozAfterPaintPending) {
+                FinishWaitingForTestEnd();
+            }
+        }
+
+        function FinishWaitingForTestEnd() {
+            gBrowser.removeEventListener("MozAfterPaint", AfterPaintListener, false);
+            setTimeout(DocumentLoaded, 0);
+        }
+
+        function AttrModifiedListener() {
+            if (shouldWait())
+                return;
+
+            // We don't want to be notified again
+            contentRootElement.removeEventListener("DOMAttrModified", AttrModifiedListener, false);
+            // Wait for the next return-to-event-loop before continuing to flush rendering and
+            // check isMozAfterPaintPending --- for example, the attribute may have been modified
+            // in an subdocument's load event handler, in which case we need load event processing
+            // to complete and unsuppress painting before we check isMozAfterPaintPending.
+            setTimeout(AttrModifiedListenerContinuation, 0);
+        }
+
+        function AttrModifiedListenerContinuation() {
+            if (doPrintMode())
+                setupPrintMode();
+            FlushRendering();
+
+            if (utils.isMozAfterPaintPending) {
+                // Wait for the last invalidation to have happened and been snapshotted before
+                // we stop the test
+                stopAfterPaintReceived = true;
+            } else {
+                // Nothing to wait for, so stop now
+                FinishWaitingForTestEnd();
+            }
+        }
+
+        function StartWaitingForTestEnd() {
+            FlushRendering();
+
+            function continuation() {
+                gBrowser.addEventListener("MozAfterPaint", AfterPaintListener, false);
+                contentRootElement.addEventListener("DOMAttrModified", AttrModifiedListener, false);
+
+                // Take a snapshot of the window in its current state
+                InitCurrentCanvasWithSnapshot();
+
+                if (!shouldWait()) {
+                    // reftest-wait was already removed (during the interval between OnDocumentLoaded
+                    // calling setTimeout(StartWaitingForTestEnd,0) below, and this function
+                    // actually running), so let's fake a direct notification of the attribute
+                    // change.
+                    AttrModifiedListener();
+                    return;
+                }
+
+                // Notify the test document that now is a good time to test some invalidation
+                var notification = document.createEvent("Events");
+                notification.initEvent("MozReftestInvalidate", true, false);
+                contentRootElement.dispatchEvent(notification);
+            }
+            WhenMozAfterPaintFlushed(continuation);
+        }
+
+        // After this load event has finished being dispatched, painting is normally
+        // unsuppressed, which invalidates the entire window. So ensure
+        // StartWaitingForTestEnd runs after that invalidation has been requested.
+        setTimeout(StartWaitingForTestEnd, 0);
     } else {
         if (doPrintMode())
             setupPrintMode();
@@ -589,6 +837,58 @@ function UpdateCanvasCache(url, canvas)
     }
 }
 
+function InitCurrentCanvasWithSnapshot()
+{
+    gCurrentCanvas = AllocateCanvas();
+
+    /* XXX This needs to be rgb(255,255,255) because otherwise we get
+     * black bars at the bottom of every test that are different size
+     * for the first test and the rest (scrollbar-related??) */
+    var win = gBrowser.contentWindow;
+    var ctx = gCurrentCanvas.getContext("2d");
+    var scale = gBrowser.markupDocumentViewer.fullZoom;
+    ctx.save();
+    // drawWindow always draws one canvas pixel for each CSS pixel in the source
+    // window, so scale the drawing to show the zoom (making each canvas pixel be one
+    // device pixel instead)
+    ctx.scale(scale, scale);
+    ctx.drawWindow(win, win.scrollX, win.scrollY,
+                   Math.ceil(gCurrentCanvas.width / scale),
+                   Math.ceil(gCurrentCanvas.height / scale),
+                   "rgb(255,255,255)");
+    ctx.restore();
+}
+
+function roundTo(x, fraction)
+{
+    return Math.round(x/fraction)*fraction;
+}
+
+function UpdateCurrentCanvasForEvent(event)
+{
+    var win = gBrowser.contentWindow;
+    var ctx = gCurrentCanvas.getContext("2d");
+    var scale = gBrowser.markupDocumentViewer.fullZoom;
+
+    var rectList = event.clientRects;
+    for (var i = 0; i < rectList.length; ++i) {
+        var r = rectList[i];
+        // Set left/top/right/bottom to "device pixel" boundaries
+        var left = Math.floor(roundTo(r.left*scale, 0.001))/scale;
+        var top = Math.floor(roundTo(r.top*scale, 0.001))/scale;
+        var right = Math.ceil(roundTo(r.right*scale, 0.001))/scale;
+        var bottom = Math.ceil(roundTo(r.bottom*scale, 0.001))/scale;
+
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.translate(left, top);
+        ctx.drawWindow(win, left + win.scrollX, top + win.scrollY,
+                       right - left, bottom - top,
+                       "rgb(255,255,255)");
+        ctx.restore();
+    }
+}
+
 function DocumentLoaded()
 {
     // Keep track of which test was slowest, and how long it took.
@@ -600,42 +900,110 @@ function DocumentLoaded()
 
     clearTimeout(gFailureTimeout);
     gFailureReason = null;
+    gFailureTimeout = null;
 
-    if (gURLs[0].expected == EXPECTED_LOAD) {
+    // Not 'const ...' because of 'EXPECTED_*' value dependency.
+    var outputs = {};
+    const randomMsg = "(EXPECTED RANDOM)";
+    outputs[EXPECTED_PASS] = {
+        true:  {s: "TEST-PASS"                  , n: "Pass"},
+        false: {s: "TEST-UNEXPECTED-FAIL"       , n: "UnexpectedFail"}
+    };
+    outputs[EXPECTED_FAIL] = {
+        true:  {s: "TEST-UNEXPECTED-PASS"       , n: "UnexpectedPass"},
+        false: {s: "TEST-KNOWN-FAIL"            , n: "KnownFail"}
+    };
+    outputs[EXPECTED_RANDOM] = {
+        true:  {s: "TEST-PASS" + randomMsg      , n: "Random"},
+        false: {s: "TEST-KNOWN-FAIL" + randomMsg, n: "Random"}
+    };
+    var output;
+
+    if (gURLs[0].type == TYPE_LOAD) {
         ++gTestResults.LoadOnly;
         dump("REFTEST TEST-PASS | " + gURLs[0].prettyPath + " | (LOAD ONLY)\n");
-        gURLs.shift();
-        StartCurrentTest();
+        FinishTestItem();
+        return;
+    }
+    if (gURLs[0].type == TYPE_SCRIPT) {
+        var missing_msg = false;
+        var testwindow = gBrowser.contentWindow;
+        expected = gURLs[0].expected;
+
+        if (testwindow.wrappedJSObject)
+            testwindow = testwindow.wrappedJSObject;
+
+        var testcases;
+
+        if (!testwindow.getTestCases || typeof testwindow.getTestCases != "function") {
+            // Force an unexpected failure to alert the test author to fix the test.
+            expected = EXPECTED_PASS;
+            missing_msg = "test must provide a function getTestCases(). (SCRIPT)\n";
+        }
+        else if (!(testcases = testwindow.getTestCases())) {
+            // Force an unexpected failure to alert the test author to fix the test.
+            expected = EXPECTED_PASS;
+            missing_msg = "test's getTestCases() must return an Array-like Object. (SCRIPT)\n";
+        }
+        else if (testcases.length == 0) {
+            // This failure may be due to a JavaScript Engine bug causing
+            // early termination of the test.
+            missing_msg = "No test results reported. (SCRIPT)\n";
+        }
+
+        if (missing_msg) {
+            output = outputs[expected][false];
+            ++gTestResults[output.n];
+            var result = "REFTEST " + output.s + " | " +
+                gURLs[0].prettyPath + " | " + // the URL being tested
+                missing_msg;
+
+            dump(result);
+            FinishTestItem();
+            return;
+        }
+
+        var results = testcases.map(function(test) {
+                return { passed: test.testPassed(), description: test.testDescription()};
+            });
+        var anyFailed = results.some(function(result) { return !result.passed; });
+        var outputPair;
+        if (anyFailed && expected == EXPECTED_FAIL) {
+            // If we're marked as expected to fail, and some (but not all) tests
+            // passed, treat those tests as though they were marked random
+            // (since we can't tell whether they were really intended to be
+            // marked failing or not).
+            outputPair = { true: outputs[EXPECTED_RANDOM][true],
+                           false: outputs[expected][false] };
+        } else {
+            outputPair = outputs[expected];
+        }
+        var index = 0;
+        results.forEach(function(result) {
+                var output = outputPair[result.passed];
+
+                ++gTestResults[output.n];
+                result = "REFTEST " + output.s + " | " +
+                    gURLs[0].prettyPath + " | " + // the URL being tested
+                    result.description + " item " + (++index) + "\n";
+                dump(result);
+            });
+
+        FinishTestItem();
         return;
     }
 
-    var canvas;
     if (gURICanvases[gCurrentURL]) {
-        canvas = gURICanvases[gCurrentURL];
-    } else {
-        canvas = AllocateCanvas();
-
-        /* XXX This needs to be rgb(255,255,255) because otherwise we get
-         * black bars at the bottom of every test that are different size
-         * for the first test and the rest (scrollbar-related??) */
-        var win = gBrowser.contentWindow;
-        var ctx = canvas.getContext("2d");
-        var scale = gBrowser.markupDocumentViewer.fullZoom;
-        ctx.save();
-        // drawWindow always draws one canvas pixel for each CSS pixel in the source
-        // window, so scale the drawing to show the zoom (making each canvas pixel be one
-        // device pixel instead)
-        ctx.scale(scale, scale);
-        ctx.drawWindow(win, win.scrollX, win.scrollY,
-                       canvas.width, canvas.height, "rgb(255,255,255)");
-        ctx.restore();
+        gCurrentCanvas = gURICanvases[gCurrentURL];
+    } else if (gCurrentCanvas == null) {
+        InitCurrentCanvasWithSnapshot();
     }
-
     if (gState == 1) {
-        gCanvas1 = canvas;
+        gCanvas1 = gCurrentCanvas;
     } else {
-        gCanvas2 = canvas;
+        gCanvas2 = gCurrentCanvas;
     }
+    gCurrentCanvas = null;
 
     resetZoom();
 
@@ -667,31 +1035,16 @@ function DocumentLoaded()
             }
 
             // whether the comparison result matches what is in the manifest
-            var test_passed = (equal == gURLs[0].equal);
+            var test_passed = (equal == (gURLs[0].type == TYPE_REFTEST_EQUAL));
             // what is expected on this platform (PASS, FAIL, or RANDOM)
             var expected = gURLs[0].expected;
+            output = outputs[expected][test_passed];
 
-            // Not 'const ...' because of 'EXPECTED_*' value dependency.
-            var outputs = {};
-            const randomMsg = "(EXPECTED RANDOM)";
-            outputs[EXPECTED_PASS] = {
-              true:  {s: "TEST-PASS"                  , n: "Pass"},
-              false: {s: "TEST-UNEXPECTED-FAIL"       , n: "UnexpectedFail"}
-            };
-            outputs[EXPECTED_FAIL] = {
-              true:  {s: "TEST-UNEXPECTED-PASS"       , n: "UnexpectedPass"},
-              false: {s: "TEST-KNOWN-FAIL"            , n: "KnownFail"}
-            };
-            outputs[EXPECTED_RANDOM] = {
-              true:  {s: "TEST-PASS" + randomMsg      , n: "Random"},
-              false: {s: "TEST-KNOWN-FAIL" + randomMsg, n: "Random"}
-            };
+            ++gTestResults[output.n];
 
-            ++gTestResults[outputs[expected][test_passed].n];
-
-            var result = "REFTEST " + outputs[expected][test_passed].s + " | " +
+            var result = "REFTEST " + output.s + " | " +
                          gURLs[0].prettyPath + " | "; // the URL being tested
-            if (!gURLs[0].equal) {
+            if (gURLs[0].type == TYPE_REFTEST_NOTEQUAL) {
                 result += "(!=) ";
             }
             dump(result + "\n");
@@ -710,8 +1063,7 @@ function DocumentLoaded()
             UpdateCanvasCache(gURLs[0].url1, gCanvas1);
             UpdateCanvasCache(gURLs[0].url2, gCanvas2);
 
-            gURLs.shift();
-            StartCurrentTest();
+            FinishTestItem();
             break;
         default:
             throw "Unexpected state.";
@@ -720,9 +1072,61 @@ function DocumentLoaded()
 
 function LoadFailed()
 {
+    gFailureTimeout = null;
     ++gTestResults.FailedLoad;
     dump("REFTEST TEST-UNEXPECTED-FAIL | " +
          gURLs[0]["url" + gState].spec + " | " + gFailureReason + "\n");
+    FinishTestItem();
+}
+
+function FinishTestItem()
+{
+    // Replace document with BLANK_URL_FOR_CLEARING in case there are
+    // assertions when unloading.
+    gClearingForAssertionCheck = true;
+    gBrowser.loadURI(BLANK_URL_FOR_CLEARING);
+}
+
+function DoAssertionCheck()
+{
+    gClearingForAssertionCheck = false;
+
+    if (gDebug.isDebugBuild) {
+        // TEMPORARILY DISABLING ASSERTION CHECKS FOR NOW.  TO RE-ENABLE,
+        // USE COMMENTED LINE TO REPLACE FOLLOWING ONE.
+        // var newAssertionCount = gDebug.assertionCount;
+        var newAssertionCount = 0;
+        var numAsserts = newAssertionCount - gAssertionCount;
+        gAssertionCount = newAssertionCount;
+
+        var minAsserts = gURLs[0].minAsserts;
+        var maxAsserts = gURLs[0].maxAsserts;
+
+        var expectedAssertions = "expected " + minAsserts;
+        if (minAsserts != maxAsserts) {
+            expectedAssertions += " to " + maxAsserts;
+        }
+        expectedAssertions += " assertions";
+
+        if (numAsserts < minAsserts) {
+            ++gTestResults.AssertionUnexpectedFixed;
+            dump("REFTEST TEST-UNEXPECTED-PASS | " + gURLs[0].prettyPath +
+                 " | assertion count " + numAsserts + " is less than " +
+                 expectedAssertions + "\n");
+        } else if (numAsserts > maxAsserts) {
+            ++gTestResults.AssertionUnexpected;
+            dump("REFTEST TEST-UNEXPECTED-FAIL | " + gURLs[0].prettyPath +
+                 " | assertion count " + numAsserts + " is more than " +
+                 expectedAssertions + "\n");
+        } else if (numAsserts != 0) {
+            ++gTestResults.AssertionKnown;
+            dump("REFTEST TEST-KNOWN-FAIL | " + gURLs[0].prettyPath +
+                 " | assertion count " + numAsserts + " matches " +
+                 expectedAssertions + "\n");
+        }
+    }
+
+    // And start the next test.
     gURLs.shift();
     StartCurrentTest();
 }

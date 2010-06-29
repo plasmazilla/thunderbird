@@ -21,6 +21,8 @@
  *
  * Contributor(s):
  *   Brian Ryner <bryner@brianryner.com> (original author)
+ *   Dietrich Ayala <dietrich@mozilla.com>
+ *   Marco Bonardo <mak77@bonardo.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -60,19 +62,29 @@ public:
   NS_DECL_NSIANNOTATIONOBSERVER
 
   nsNavBookmarks();
+
+  /**
+   * Obtains the service's object.
+   */
+  static nsNavBookmarks *GetSingleton();
+
+  /**
+   * Initializes the service's object.  This should only be called once.
+   */
   nsresult Init();
 
   // called by nsNavHistory::Init
   static nsresult InitTables(mozIStorageConnection* aDBConn);
 
-  static nsNavBookmarks* GetBookmarksService() {
-    if (!sInstance) {
-      nsresult rv;
-      nsCOMPtr<nsINavBookmarksService> serv(do_GetService(NS_NAVBOOKMARKSSERVICE_CONTRACTID, &rv));
-      NS_ENSURE_SUCCESS(rv, nsnull);
-      NS_ASSERTION(sInstance, "Should have static instance pointer now");
+  static nsNavBookmarks * GetBookmarksService() {
+    if (!gBookmarksService) {
+      nsCOMPtr<nsINavBookmarksService> serv =
+        do_GetService(NS_NAVBOOKMARKSSERVICE_CONTRACTID);
+      NS_ENSURE_TRUE(serv, nsnull);
+      NS_ASSERTION(gBookmarksService,
+                   "Should have static instance pointer now");
     }
-    return sInstance;
+    return gBookmarksService;
   }
 
   nsresult AddBookmarkToHash(PRInt64 aBookmarkId, PRTime aMinTime);
@@ -102,12 +114,9 @@ public:
    *
    * @param aPlaceId
    *        The place_id of the location to check against.
-   * @returns true if it's a real bookmark, false otherwise.
+   * @return true if it's a real bookmark, false otherwise.
    */
   PRBool IsRealBookmark(PRInt64 aPlaceId);
-
-  // Called by History service when quitting.
-  nsresult OnQuit();
 
   nsresult BeginUpdateBatch();
   nsresult EndUpdateBatch();
@@ -120,7 +129,7 @@ public:
   nsresult FinalizeStatements();
 
 private:
-  static nsNavBookmarks *sInstance;
+  static nsNavBookmarks *gBookmarksService;
 
   ~nsNavBookmarks();
 
@@ -134,13 +143,21 @@ private:
   nsresult AdjustIndices(PRInt64 aFolder,
                          PRInt32 aStartIndex, PRInt32 aEndIndex,
                          PRInt32 aDelta);
-  PRInt32 FolderCount(PRInt64 aFolder);
+
+  /**
+   * Calculates number of children for the given folder.
+   *
+   * @param aFolderId Folder to count children for.
+   *
+   * @return aFolderCount The number of children in this folder.
+   *
+   * @throws If folder does not exist.
+   */
+  nsresult FolderCount(PRInt64 aFolderId, PRInt32 *aFolderCount);
+
   nsresult GetFolderType(PRInt64 aFolder, nsACString &aType);
 
   nsresult GetLastChildId(PRInt64 aFolder, PRInt64* aItemId);
-
-  // remove me when there is better query initialization
-  nsNavHistory* History() { return nsNavHistory::GetHistoryService(); }
 
   nsCOMPtr<mozIStorageConnection> mDBConn;
 
@@ -168,6 +185,7 @@ private:
   // This stores a mapping from all pages reachable by redirects from bookmarked
   // pages to the bookmarked page. Used by GetBookmarkedURIFor.
   nsDataHashtable<nsTrimInt64HashKey, PRInt64> mBookmarksHash;
+  nsDataHashtable<nsTrimInt64HashKey, PRInt64>* GetBookmarksHash();
   nsresult FillBookmarksHash();
   nsresult RecursiveAddBookmarkHash(PRInt64 aBookmarkId, PRInt64 aCurrentSource,
                                     PRTime aMinTime);
@@ -181,7 +199,7 @@ private:
   nsresult SetItemDateInternal(mozIStorageStatement* aStatement, PRInt64 aItemId, PRTime aValue);
 
   // Structure to hold folder's children informations
-  typedef struct folderChildrenInfo
+  struct folderChildrenInfo
   {
     PRInt64 itemId;
     PRUint16 itemType;
@@ -197,6 +215,54 @@ private:
   nsresult GetDescendantChildren(PRInt64 aFolderId,
                                  PRInt64 aGrandParentId,
                                  nsTArray<folderChildrenInfo>& aFolderChildrenArray);
+
+  enum ItemType {
+    BOOKMARK = TYPE_BOOKMARK,
+    FOLDER = TYPE_FOLDER,
+    SEPARATOR = TYPE_SEPARATOR,
+    DYNAMIC_CONTAINER = TYPE_DYNAMIC_CONTAINER
+  };
+
+  /**
+   * Helper to insert a bookmark in the database.
+   *
+   *  @param aItemId
+   *         The itemId to insert, pass -1 to generate a new one.
+   *  @param aPlaceId
+   *         The placeId to which this bookmark refers to, pass nsnull for
+   *         items that don't refer to an URI (eg. folders, separators, ...).
+   *  @param aItemType
+   *         The type of the new bookmark, see TYPE_* constants.
+   *  @param aParentId
+   *         The itemId of the parent folder.
+   *  @param aIndex
+   *         The position inside the parent folder.
+   *  @param aTitle
+   *         The title for the new bookmark.
+   *         Pass a void string to set a NULL title.
+   *  @param aDateAdded
+   *         The date for the insertion.
+   *  @param [optional] aLastModified
+   *         The last modified date for the insertion.
+   *         It defaults to aDateAdded.
+   *  @param [optional] aServiceContractId
+   *         The contract id for a dynamic container.
+   *         Pass EmptyCString() for other type of containers.
+   *
+   *  @return The new item id that has been inserted.
+   *
+   *  @note This will also update last modified date of the parent folder.
+   */
+  nsresult InsertBookmarkInDB(PRInt64 aItemId,
+                              PRInt64 aPlaceId,
+                              enum ItemType aItemType,
+                              PRInt64 aParentId,
+                              PRInt32 aIndex,
+                              const nsACString &aTitle,
+                              PRTime aDateAdded,
+                              PRTime aLastModified,
+                              const nsAString &aServiceContractId,
+                              PRInt64 *_retval);
 
   // kGetInfoIndex_* results + kGetChildrenIndex_* results
   nsCOMPtr<mozIStorageStatement> mDBGetChildren;
@@ -233,7 +299,18 @@ private:
 
   nsCOMPtr<mozIStorageStatement> mDBGetItemIdForGUID;
   nsCOMPtr<mozIStorageStatement> mDBGetRedirectDestinations;
+
   nsCOMPtr<mozIStorageStatement> mDBInsertBookmark;
+  static const PRInt32 kInsertBookmarkIndex_Id;
+  static const PRInt32 kInsertBookmarkIndex_PlaceId;
+  static const PRInt32 kInsertBookmarkIndex_Type;
+  static const PRInt32 kInsertBookmarkIndex_Parent;
+  static const PRInt32 kInsertBookmarkIndex_Position;
+  static const PRInt32 kInsertBookmarkIndex_Title;
+  static const PRInt32 kInsertBookmarkIndex_ServiceContractId;
+  static const PRInt32 kInsertBookmarkIndex_DateAdded;
+  static const PRInt32 kInsertBookmarkIndex_LastModified;
+
   nsCOMPtr<mozIStorageStatement> mDBIsBookmarkedInDatabase;
   nsCOMPtr<mozIStorageStatement> mDBIsRealBookmark;
   nsCOMPtr<mozIStorageStatement> mDBGetLastBookmarkID;
@@ -254,7 +331,7 @@ private:
 
     NS_IMETHOD DoTransaction() {
       nsNavBookmarks* bookmarks = nsNavBookmarks::GetBookmarksService();
-
+      NS_ENSURE_TRUE(bookmarks, NS_ERROR_OUT_OF_MEMORY);
       nsresult rv = bookmarks->GetParentAndIndexOfFolder(mID, &mParent, &mIndex);
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -264,13 +341,14 @@ private:
       nsCAutoString type;
       rv = bookmarks->GetFolderType(mID, type);
       NS_ENSURE_SUCCESS(rv, rv);
-      mType = NS_ConvertUTF8toUTF16(type);
+      CopyUTF8toUTF16(type, mType);
 
       return bookmarks->RemoveFolder(mID);
     }
 
     NS_IMETHOD UndoTransaction() {
       nsNavBookmarks* bookmarks = nsNavBookmarks::GetBookmarksService();
+      NS_ENSURE_TRUE(bookmarks, NS_ERROR_OUT_OF_MEMORY);
       PRInt64 newFolder;
       return bookmarks->CreateContainerWithID(mID, mParent, mTitle, mType, PR_TRUE,
                                               &mIndex, &newFolder); 
@@ -305,8 +383,18 @@ private:
 
 struct nsBookmarksUpdateBatcher
 {
-  nsBookmarksUpdateBatcher() { nsNavBookmarks::GetBookmarksService()->BeginUpdateBatch(); }
-  ~nsBookmarksUpdateBatcher() { nsNavBookmarks::GetBookmarksService()->EndUpdateBatch(); }
+  nsBookmarksUpdateBatcher()
+  {
+    nsNavBookmarks *bookmarks = nsNavBookmarks::GetBookmarksService();
+    if (bookmarks)
+      bookmarks->BeginUpdateBatch();
+  }
+  ~nsBookmarksUpdateBatcher()
+  {
+    nsNavBookmarks *bookmarks = nsNavBookmarks::GetBookmarksService();
+    if (bookmarks)
+      bookmarks->EndUpdateBatch();
+  }
 };
 
 

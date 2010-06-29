@@ -15,13 +15,14 @@
  * The Original Code is Mozilla Corporation code.
  *
  * The Initial Developer of the Original Code is Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2006
+ * Portions created by the Initial Developer are Copyright (C) 2006-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *   Vladimir Vukicevic <vladimir@pobox.com>
  *   Masayuki Nakano <masayuki@d-toybox.com>
  *   John Daggett <jdaggett@mozilla.com>
+ *   Jonathan Kew <jfkthame@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -36,6 +37,8 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+#ifndef __LP64__ /* don't compile any of this on 64-bit as ATSUI is not available */
 
 #include "prtypes.h"
 #include "prmem.h"
@@ -57,7 +60,7 @@
 #include "cairo-quartz.h"
 
 #include "gfxQuartzSurface.h"
-#include "gfxQuartzFontCache.h"
+#include "gfxMacPlatformFontList.h"
 #include "gfxUserFontSet.h"
 
 #include "nsUnicodeRange.h"
@@ -89,8 +92,6 @@ OSStatus ATSInitializeGlyphVector(int size, void *glyphVectorPtr);
 OSStatus ATSClearGlyphVector(void *glyphVectorPtr);
 #endif
 
-eFontPrefLang GetFontPrefLangFor(PRUint8 aUnicodeRange);
-
 gfxAtsuiFont::gfxAtsuiFont(MacOSFontEntry *aFontEntry,
                            const gfxFontStyle *fontStyle, PRBool aNeedsBold)
     : gfxFont(aFontEntry, fontStyle),
@@ -98,8 +99,8 @@ gfxAtsuiFont::gfxAtsuiFont(MacOSFontEntry *aFontEntry,
       mHasMirroring(PR_FALSE), mHasMirroringLookedUp(PR_FALSE),
       mFontFace(nsnull), mScaledFont(nsnull), mAdjustedSize(0.0f)
 {
-    ATSUFontID fontID = aFontEntry->GetFontID();
-    ATSFontRef fontRef = FMGetATSFontRefFromFont(fontID);
+    ATSFontRef fontRef = aFontEntry->GetFontRef();
+    ATSUFontID fontID = FMGetFontFromATSFontRef(fontRef);
 
     // determine whether synthetic bolding is needed
     PRInt8 baseWeight, weightDistance;
@@ -168,9 +169,9 @@ gfxAtsuiFont::gfxAtsuiFont(MacOSFontEntry *aFontEntry,
 }
 
 
-ATSUFontID gfxAtsuiFont::GetATSUFontID()
+ATSFontRef gfxAtsuiFont::GetATSFontRef()
 {
-    return GetFontEntry()->GetFontID();
+    return GetFontEntry()->GetFontRef();
 }
 
 static void
@@ -357,10 +358,11 @@ gfxAtsuiFont::InitMetrics(ATSUFontID aFontID, ATSFontRef aFontRef)
     SanitizeMetrics(&mMetrics, GetFontEntry()->mIsBadUnderlineFont);
 
 #if 0
-    fprintf (stderr, "Font: %p size: %f (fixed: %d)", this, size, gfxQuartzFontCache::SharedFontCache()->IsFixedPitch(aFontID));
+    fprintf (stderr, "Font: %p (%s) size: %f\n", this,
+             NS_ConvertUTF16toUTF8(GetName()).get(), mStyle.size);
     fprintf (stderr, "    emHeight: %f emAscent: %f emDescent: %f\n", mMetrics.emHeight, mMetrics.emAscent, mMetrics.emDescent);
     fprintf (stderr, "    maxAscent: %f maxDescent: %f maxAdvance: %f\n", mMetrics.maxAscent, mMetrics.maxDescent, mMetrics.maxAdvance);
-    fprintf (stderr, "    internalLeading: %f externalLeading: %f\n", mMetrics.externalLeading, mMetrics.internalLeading);
+    fprintf (stderr, "    internalLeading: %f externalLeading: %f\n", mMetrics.internalLeading, mMetrics.externalLeading);
     fprintf (stderr, "    spaceWidth: %f aveCharWidth: %f xHeight: %f\n", mMetrics.spaceWidth, mMetrics.aveCharWidth, mMetrics.xHeight);
     fprintf (stderr, "    uOff: %f uSize: %f stOff: %f stSize: %f suOff: %f suSize: %f\n", mMetrics.underlineOffset, mMetrics.underlineSize, mMetrics.strikeoutOffset, mMetrics.strikeoutSize, mMetrics.superscriptOffset, mMetrics.subscriptOffset);
 #endif
@@ -490,7 +492,7 @@ gfxAtsuiFont::HasMirroringInfo()
         ByteCount size;
         
         // 361695 - if the font has a 'prop' table, assume that ATSUI will handle glyph mirroring
-        status = ATSFontGetTable(GetATSUFontID(), TRUETYPE_TAG('p','r','o','p'), 0, 0, 0, &size);
+        status = ATSFontGetTable(GetATSFontRef(), TRUETYPE_TAG('p','r','o','p'), 0, 0, 0, &size);
         mHasMirroring = (status == noErr);
         mHasMirroringLookedUp = PR_TRUE;
     }
@@ -506,7 +508,7 @@ PRBool gfxAtsuiFont::TestCharacterMap(PRUint32 aCh) {
 MacOSFontEntry*
 gfxAtsuiFont::GetFontEntry()
 {
-    return static_cast< MacOSFontEntry*> (mFontEntry.get());
+    return static_cast<MacOSFontEntry*> (mFontEntry.get());
 }
 
 /**
@@ -548,11 +550,11 @@ gfxAtsuiFontGroup::gfxAtsuiFontGroup(const nsAString& families,
 }
 
 PRBool
-gfxAtsuiFontGroup::FindATSUFont(const nsAString& aName,
-                                const nsACString& aGenericName,
-                                void *closure)
+gfxAtsuiFontGroup::FindATSFont(const nsAString& aName,
+                               const nsACString& aGenericName,
+                               void *aClosure)
 {
-    gfxAtsuiFontGroup *fontGroup = (gfxAtsuiFontGroup*) closure;
+    gfxAtsuiFontGroup *fontGroup = static_cast<gfxAtsuiFontGroup*>(aClosure);
     const gfxFontStyle *fontStyle = fontGroup->GetStyle();
 
 
@@ -569,11 +571,11 @@ gfxAtsuiFontGroup::FindATSUFont(const nsAString& aName,
     
     // nothing in the user font set ==> check system fonts
     if (!fe) {
-        gfxQuartzFontCache *fc = gfxQuartzFontCache::SharedFontCache();
-        fe = fc->FindFontForFamily(aName, fontStyle, needsBold);
+        fe = static_cast<MacOSFontEntry*>
+            (gfxMacPlatformFontList::PlatformFontList()->FindFontForFamily(aName, fontStyle, needsBold));
     }
 
-    if (fe && !fontGroup->HasFont(fe->GetFontID())) {
+    if (fe && !fontGroup->HasFont(fe->GetFontRef())) {
         nsRefPtr<gfxAtsuiFont> font = GetOrMakeFont(fe, fontStyle, needsBold);
         if (font) {
             fontGroup->mFonts.AppendElement(font);
@@ -587,37 +589,6 @@ gfxFontGroup *
 gfxAtsuiFontGroup::Copy(const gfxFontStyle *aStyle)
 {
     return new gfxAtsuiFontGroup(mFamilies, aStyle, mUserFontSet);
-}
-
-static void
-SetupClusterBoundaries(gfxTextRun *aTextRun, const PRUnichar *aString)
-{
-    TextBreakLocatorRef locator;
-    OSStatus status = UCCreateTextBreakLocator(NULL, 0, kUCTextBreakClusterMask,
-                                               &locator);
-    if (status != noErr)
-        return;
-    UniCharArrayOffset breakOffset = 0;
-    UCTextBreakOptions options = kUCTextBreakLeadingEdgeMask;
-    PRUint32 length = aTextRun->GetLength();
-    while (breakOffset < length) {
-        UniCharArrayOffset next;
-        status = UCFindTextBreak(locator, kUCTextBreakClusterMask, options,
-                                 aString, length, breakOffset, &next);
-        if (status != noErr)
-            break;
-        options |= kUCTextBreakIterateMask;
-        PRUint32 i;
-        for (i = breakOffset + 1; i < next; ++i) {
-            gfxTextRun::CompressedGlyph g;
-            // Remember that this character is not the start of a cluster by
-            // setting its glyph data to "not a cluster start", "is a
-            // ligature start", with no glyphs.
-            aTextRun->SetGlyphs(i, g.SetComplex(PR_FALSE, PR_TRUE, 0), nsnull);
-        }
-        breakOffset = next;
-    }
-    UCDisposeTextBreakLocator(&locator);
 }
 
 #define UNICODE_LRO 0x202d
@@ -744,8 +715,7 @@ gfxAtsuiFontGroup::MakeTextRun(const PRUnichar *aString, PRUint32 aLength,
     if (!textRun)
         return nsnull;
 
-    textRun->RecordSurrogates(aString);
-    SetupClusterBoundaries(textRun, aString);
+    gfxPlatformMac::SetupClusterBoundaries(textRun, aString);
 
     PRUint32 maxLen;
     nsAutoString utf16;
@@ -825,27 +795,27 @@ gfxAtsuiFontGroup::MakeTextRun(const PRUint8 *aString, PRUint32 aLength,
 }
 
 PRBool
-gfxAtsuiFontGroup::HasFont(ATSUFontID fid)
+gfxAtsuiFontGroup::HasFont(ATSFontRef aFontRef)
 {
     for (PRUint32 i = 0; i < mFonts.Length(); ++i) {
-        if (fid == static_cast<gfxAtsuiFont *>(mFonts.ElementAt(i).get())->GetATSUFontID())
+        if (aFontRef == static_cast<gfxAtsuiFont *>(mFonts.ElementAt(i).get())->GetATSFontRef())
             return PR_TRUE;
     }
     return PR_FALSE;
 }
 
 struct PrefFontCallbackData {
-    PrefFontCallbackData(nsTArray<nsRefPtr<MacOSFamilyEntry> >& aFamiliesArray) 
+    PrefFontCallbackData(nsTArray<nsRefPtr<gfxFontFamily> >& aFamiliesArray) 
         : mPrefFamilies(aFamiliesArray)
     {}
 
-    nsTArray<nsRefPtr<MacOSFamilyEntry> >& mPrefFamilies;
+    nsTArray<nsRefPtr<gfxFontFamily> >& mPrefFamilies;
 
     static PRBool AddFontFamilyEntry(eFontPrefLang aLang, const nsAString& aName, void *aClosure)
     {
-        PrefFontCallbackData *prefFontData = (PrefFontCallbackData*) aClosure;
+        PrefFontCallbackData *prefFontData = static_cast<PrefFontCallbackData*>(aClosure);
         
-        MacOSFamilyEntry *family = gfxQuartzFontCache::SharedFontCache()->FindFamily(aName);
+        gfxFontFamily *family = gfxMacPlatformFontList::PlatformFontList()->FindFamily(aName);
         if (family) {
             prefFontData->mPrefFamilies.AppendElement(family);
         }
@@ -865,7 +835,7 @@ gfxAtsuiFontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
 
     // get the pref font list if it hasn't been set up already
     PRUint32 unicodeRange = FindCharUnicodeRange(aCh);
-    eFontPrefLang charLang = GetFontPrefLangFor(unicodeRange);
+    eFontPrefLang charLang = gfxPlatformMac::GetFontPrefLangFor(unicodeRange);
 
     // if the last pref font was the first family in the pref list, no need to recheck through a list of families
     if (mLastPrefFont && charLang == mLastPrefLang && mLastPrefFirstFont && mLastPrefFont->TestCharacterMap(aCh)) {
@@ -882,10 +852,10 @@ gfxAtsuiFontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
     macPlatform->GetLangPrefs(prefLangs, numLangs, charLang, mPageLang);
 
     for (i = 0; i < numLangs; i++) {
-        nsAutoTArray<nsRefPtr<MacOSFamilyEntry>, 5> families;
+        nsAutoTArray<nsRefPtr<gfxFontFamily>, 5> families;
         eFontPrefLang currentLang = prefLangs[i];
         
-        gfxQuartzFontCache *fc = gfxQuartzFontCache::SharedFontCache();
+        gfxMacPlatformFontList *fc = gfxMacPlatformFontList::PlatformFontList();
 
         // get the pref families for a single pref lang
         if (!fc->GetPrefFontFamilyEntries(currentLang, &families)) {
@@ -901,7 +871,7 @@ gfxAtsuiFontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
         numPrefs = families.Length();
         for (i = 0; i < numPrefs; i++) {
             // look up the appropriate face
-            MacOSFamilyEntry *family = families[i];
+            gfxFontFamily *family = families[i];
             if (!family) continue;
             
             // if a pref font is used, it's likely to be used again in the same text run.
@@ -915,7 +885,8 @@ gfxAtsuiFontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
             }
             
             PRBool needsBold;
-            MacOSFontEntry *fe = family->FindFont(&mStyle, needsBold);
+            MacOSFontEntry *fe =
+                static_cast<MacOSFontEntry*>(family->FindFontForStyle(mStyle, needsBold));
             // if ch in cmap, create and return a gfxFont
             if (fe && fe->TestCharacterMap(aCh)) {
                 nsRefPtr<gfxAtsuiFont> prefFont = GetOrMakeFont(fe, &mStyle, needsBold);
@@ -924,7 +895,7 @@ gfxAtsuiFontGroup::WhichPrefFontSupportsChar(PRUint32 aCh)
                 mLastPrefFont = prefFont;
                 mLastPrefLang = charLang;
                 mLastPrefFirstFont = (i == 0);
-                nsRefPtr<gfxFont> font2 = (gfxFont*) prefFont;
+                nsRefPtr<gfxFont> font2 = prefFont.get();
                 return font2.forget();
             }
 
@@ -939,10 +910,11 @@ gfxAtsuiFontGroup::WhichSystemFontSupportsChar(PRUint32 aCh)
 {
     MacOSFontEntry *fe;
 
-    fe = gfxQuartzFontCache::SharedFontCache()->FindFontForChar(aCh, GetFontAt(0));
+    fe = static_cast<MacOSFontEntry*>
+        (gfxMacPlatformFontList::PlatformFontList()->FindFontForChar(aCh, GetFontAt(0)));
     if (fe) {
         nsRefPtr<gfxAtsuiFont> atsuiFont = GetOrMakeFont(fe, &mStyle, PR_FALSE); // ignore bolder considerations in system fallback case...
-        nsRefPtr<gfxFont> font = (gfxFont*) atsuiFont; 
+        nsRefPtr<gfxFont> font = atsuiFont.get(); 
         return font.forget();
     }
 
@@ -1333,40 +1305,6 @@ PostLayoutOperationCallback(ATSULayoutOperationSelector iCurrentOperation,
     return noErr;
 }
 
-// xxx - leaving this here for now, probably belongs in platform code somewhere
-
-eFontPrefLang
-GetFontPrefLangFor(PRUint8 aUnicodeRange)
-{
-    switch (aUnicodeRange) {
-        case kRangeSetLatin:   return eFontPrefLang_Western;
-        case kRangeCyrillic:   return eFontPrefLang_Cyrillic;
-        case kRangeGreek:      return eFontPrefLang_Greek;
-        case kRangeTurkish:    return eFontPrefLang_Turkish;
-        case kRangeHebrew:     return eFontPrefLang_Hebrew;
-        case kRangeArabic:     return eFontPrefLang_Arabic;
-        case kRangeBaltic:     return eFontPrefLang_Baltic;
-        case kRangeThai:       return eFontPrefLang_Thai;
-        case kRangeKorean:     return eFontPrefLang_Korean;
-        case kRangeJapanese:   return eFontPrefLang_Japanese;
-        case kRangeSChinese:   return eFontPrefLang_ChineseCN;
-        case kRangeTChinese:   return eFontPrefLang_ChineseTW;
-        case kRangeDevanagari: return eFontPrefLang_Devanagari;
-        case kRangeTamil:      return eFontPrefLang_Tamil;
-        case kRangeArmenian:   return eFontPrefLang_Armenian;
-        case kRangeBengali:    return eFontPrefLang_Bengali;
-        case kRangeCanadian:   return eFontPrefLang_Canadian;
-        case kRangeEthiopic:   return eFontPrefLang_Ethiopic;
-        case kRangeGeorgian:   return eFontPrefLang_Georgian;
-        case kRangeGujarati:   return eFontPrefLang_Gujarati;
-        case kRangeGurmukhi:   return eFontPrefLang_Gurmukhi;
-        case kRangeKhmer:      return eFontPrefLang_Khmer;
-        case kRangeMalayalam:  return eFontPrefLang_Malayalam;
-        case kRangeSetCJK:     return eFontPrefLang_CJKSet;
-        default:               return eFontPrefLang_Others;
-    }
-}
-
 // 361695 - ATSUI only does glyph mirroring when the font contains a 'prop' table
 // with glyph mirroring info, the character mirroring has to be done manually in the 
 // fallback case.  Only used for RTL text runs.  The autoptr for the mirrored copy
@@ -1450,9 +1388,9 @@ gfxAtsuiFontGroup::InitTextRun(gfxTextRun *aRun,
     PR_LOG(gAtsuiTextRunLog, PR_LOG_DEBUG,\
            ("InitTextRun %p fontgroup %p (%s) lang: %s len %d TEXTRUN \"%s\" ENDTEXTRUN\n",
             aRun, this, families.get(), mStyle.langGroup.get(), aLengthInTextRun, str.get()) );
-    PR_LOG(gAtsuiTextRunLog, PR_LOG_DEBUG,
-           ("InitTextRun font: %s user font set: %p (%8.8x)\n",
-            NS_ConvertUTF16toUTF8(firstFont->GetUniqueName()).get(), mUserFontSet, PRUint32(mCurrGeneration)) );
+//    PR_LOG(gAtsuiTextRunLog, PR_LOG_DEBUG,
+//           ("InitTextRun font: %s user font set: %p (%8.8x)\n",
+//            NS_ConvertUTF16toUTF8(firstFont->GetUniqueName()).get(), mUserFontSet, PRUint32(mCurrGeneration)) );
 #endif
 
     if (aRun->GetFlags() & TEXT_DISABLE_OPTIONAL_LIGATURES) {
@@ -1581,7 +1519,8 @@ gfxAtsuiFontGroup::InitTextRun(gfxTextRun *aRun,
         
             if (matchedFont != firstFont) {
                 // create a new sub-style and add it to the layout
-                ATSUStyle subStyle = SetLayoutRangeToFont(layout, mainStyle, runStart, matchedLength, matchedFont->GetATSUFontID());
+                ATSUStyle subStyle = SetLayoutRangeToFont(layout, mainStyle, runStart,
+                                                          matchedLength, matchedFont->GetATSFontRef());
                 stylesToDispose.AppendElement(subStyle);
             }
 
@@ -1645,7 +1584,7 @@ gfxAtsuiFontGroup::InitTextRun(gfxTextRun *aRun,
 void
 gfxAtsuiFontGroup::InitFontList()
 {
-    ForEachFont(FindATSUFont, this);
+    ForEachFont(FindATSFont, this);
 
     if (mFonts.Length() == 0) {
         // XXX this will generate a list of the lang groups for which we have no
@@ -1661,7 +1600,8 @@ gfxAtsuiFontGroup::InitFontList()
         // user font.
 
         PRBool needsBold;
-        MacOSFontEntry *defaultFont = gfxQuartzFontCache::SharedFontCache()->GetDefaultFont(&mStyle, needsBold);
+        MacOSFontEntry *defaultFont = static_cast<MacOSFontEntry*>
+            (gfxMacPlatformFontList::PlatformFontList()->GetDefaultFont(&mStyle, needsBold));
         NS_ASSERTION(defaultFont, "invalid default font returned by GetDefaultFont");
 
         nsRefPtr<gfxAtsuiFont> font = GetOrMakeFont(defaultFont, &mStyle, needsBold);
@@ -1683,3 +1623,5 @@ gfxAtsuiFontGroup::InitFontList()
         }
     }
 }
+
+#endif /* not __LP64__ */

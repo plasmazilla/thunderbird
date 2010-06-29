@@ -113,10 +113,6 @@ NS_IMPL_SERVERPREF_BOOL(nsPop3IncomingServer,
                         "delete_mail_left_on_server")
 
 NS_IMPL_SERVERPREF_BOOL(nsPop3IncomingServer,
-                        AuthLogin,
-                        "auth_login")
-
-NS_IMPL_SERVERPREF_BOOL(nsPop3IncomingServer,
                         DotFix,
                         "dot_fix")
 
@@ -612,6 +608,15 @@ nsPop3IncomingServer::GetCanSearchMessages(PRBool *canSearchMessages)
 {
   // this will return false if this server is deferred, which is what we want.
   return GetCanFileMessagesOnServer(canSearchMessages);
+}
+
+NS_IMETHODIMP
+nsPop3IncomingServer::CloseCachedConnections()
+{
+  nsCOMPtr<nsIRequest> channel = do_QueryInterface(m_runningProtocol);
+  if (channel)
+    channel->Cancel(NS_ERROR_ABORT);
+  return NS_OK;
 }
 
 NS_IMETHODIMP

@@ -39,6 +39,15 @@
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 
+// v0.9 registry field meanings are different on Mac OS X
+const CWD = do_get_cwd();
+function checkOS(os) {
+  const nsILocalFile_ = "nsILocalFile" + os;
+  return nsILocalFile_ in Components.interfaces &&
+         CWD instanceof Components.interfaces[nsILocalFile_];
+}
+const isMac = checkOS("Mac");
+
 // Plugin registry uses different field delimeters on different platforms
 var DELIM = ":";
 if ("@mozilla.org/windows-registry-key;1" in Components.classes)
@@ -91,8 +100,13 @@ function run_test() {
 
   // Write out a 0.9 version registry that marks the test plugin as disabled
   var registry = "";
-  registry += file.leafName + DELIM + "$\n";
-  registry += file.path + DELIM + "$\n";
+  if (isMac) {
+    registry += file.leafName + DELIM + "$\n";
+    registry += file.path + DELIM + "$\n";
+  } else {
+    registry += file.path + DELIM + "$\n";
+    registry += DELIM + "$\n";
+  }
   registry += file.lastModifiedTime + DELIM + "0" + DELIM + "0" + DELIM + "$\n";
   registry += "Plug-in for testing purposes." + DELIM + "$\n";
   registry += "Test Plug-in" + DELIM + "$\n";

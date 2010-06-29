@@ -47,18 +47,6 @@ panel[disabled="true"] > .viewer-pane-box-1 {
   list-style-image: url("chrome://inspector/skin/iconViewerList-dis.gif");
 }
 
-.viewer-menu > .toolbarbutton-box > .toolbarbutton-dropmarker {
-  display: none;
-}
-
-.viewer-menu {
-  list-style-image: url("chrome://inspector/skin/iconViewerMenu.gif");
-}
-
-.viewer-menu[disabled="true"] {
-  list-style-image: url("chrome://inspector/skin/iconViewerMenu-dis.gif");
-}
-
 .viewer-pane-toolbox {
   border-right: none;
 }

@@ -39,12 +39,12 @@
  * ***** END LICENSE BLOCK ***** */
 
 // Ensure the activity modules are loaded for this window.
-Components.utils.import("resource://app/modules/activity/activityModules.js");
+Components.utils.import("resource:///modules/activity/activityModules.js");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
-Components.utils.import("resource://app/modules/attachmentChecker.js");
+Components.utils.import("resource:///modules/attachmentChecker.js");
 
-Components.utils.import("resource://app/modules/MailUtils.js");
-Components.utils.import("resource://app/modules/errUtils.js");
+Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource:///modules/errUtils.js");
 
 /**
  * interfaces
@@ -1180,7 +1180,7 @@ function handleMailtoArgs(mailtoUrl)
   return null;
 }
 
-var attachmentWorker = new Worker("resource://app/modules/attachmentChecker.js");
+var attachmentWorker = new Worker("resource:///modules/attachmentChecker.js");
 
 attachmentWorker.lastMessage = null;
 
@@ -1679,26 +1679,16 @@ var gMsgEditorCreationObserver =
   }
 }
 
-function WizCallback()
+function WizCallback(state)
 {
-  // Just assume that we succeeded, and move forward.  Ideally, we'd notice
-  // if the wizard failed to setup a working account, but the APIs don't
-  // make that easy...
-  ComposeStartup(false, null);
-}
-
-/**
- * Callback for verifyAccounts used to open new autoconfig wizard, rather than
- * the old-school account wizard, since that one no longer offers email account
- */
-function WizOpen(aWizCallback){
-  // XXXdmose For the 3.0/1.9.1 branch, we'll just create a dummy window object
-  // associated with no XUL window at all since that's the lowest risk change.
-  // The fix that lands on the trunk will do better.
-  let dummyMsgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
-                       .createInstance(Components.interfaces.nsIMsgWindow);
-
-  NewMailAccount(dummyMsgWindow, aWizCallback);
+  if (state){
+    ComposeStartup(false, null);
+  }
+  else
+  {
+    // The account wizard is still closing so we can't close just yet
+    setTimeout(MsgComposeCloseWindow, 0, false); // Don't recycle a bogus window
+  }
 }
 
 function ComposeLoad()
@@ -1728,7 +1718,7 @@ function ComposeLoad()
     SetupCommandUpdateHandlers();
     // This will do migration, or create a new account if we need to.
     // We also want to open the account wizard if no identities are found
-    var state = verifyAccounts(WizCallback, true, WizOpen);
+    var state = verifyAccounts(WizCallback, true);
 
     if (other_headers) {
       var selectNode = document.getElementById('addressCol1#1');
@@ -1743,7 +1733,7 @@ function ComposeLoad()
     Components.utils.reportError(ex);
     var bundle = document.getElementById("bundle_composeMsgs");
     gPromptService.alert(window, bundle.getString("initErrorDlogTitle"),
-                         bundle.getFormattedString("initErrorDlogMessage", [""]));
+                         bundle.getString("initErrorDlgMessage"));
 
     MsgComposeCloseWindow(false); // Don't try to recycle a bogus window
     return;
@@ -1882,11 +1872,6 @@ function GetCharsetUIString()
 
 function GenericSendMessage( msgType )
 {
-// This try/catch ensures errors make it to the error console on the
-// MOZILLA_1_9_1_BRANCH. On 1.9.2 and later, globalOverlay.js has been fixed
-// to put the errors to the error console for us and therefore this try/catch
-// can be removed.
-try {
   if (gMsgCompose != null)
   {
     var msgCompFields = gMsgCompose.compFields;
@@ -1947,7 +1932,13 @@ try {
           }
         }
 
-        if (gRemindLater && ShouldShowAttachmentNotification(false)) {
+        // Alert the user if
+        //  - the button to remind about attachments was clicked, or
+        //  - the aggressive pref is set and the notification was not dismissed
+        // and the message (still) contains attachment keywords.
+        if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
+             document.getElementById("attachmentNotificationBox").currentNotification)) &&
+            ShouldShowAttachmentNotification(false)) {
           var bundle = document.getElementById("bundle_composeMsgs");
           var flags = gPromptService.BUTTON_POS_0 * gPromptService.BUTTON_TITLE_IS_STRING +
                       gPromptService.BUTTON_POS_1 * gPromptService.BUTTON_TITLE_IS_STRING;
@@ -2134,13 +2125,6 @@ try {
   }
   else
     dump("###SendMessage Error: composeAppCore is null!\n");
-// This try/catch ensures errors make it to the error console on the
-// MOZILLA_1_9_1_BRANCH. On 1.9.2 and later, globalOverlay.js has been fixed
-// to put the errors to the error console for us and therefore this try/catch
-// can be removed.
-} catch (e) {
-  logException(e);
-}
 }
 
 function CheckValidEmailAddress(to, cc, bcc)
@@ -3266,19 +3250,27 @@ function LoadIdentity(startup)
           var prefstring = "mail.identity." + prevIdentity.key;
           RemoveDirectoryServerObserver(prefstring);
           var prevReplyTo = prevIdentity.replyTo;
+          var prevCc = "";
           var prevBcc = "";
           var prevReceipt = prevIdentity.requestReturnReceipt;
           var prevDSN = prevIdentity.DSN;
           var prevAttachVCard = prevIdentity.attachVCard;
 
+          if (prevIdentity.doCc)
+            prevCc += prevIdentity.doCcList;
+
           if (prevIdentity.doBcc)
             prevBcc += prevIdentity.doBccList;
 
           var newReplyTo = gCurrentIdentity.replyTo;
+          var newCc = "";
           var newBcc = "";
           var newReceipt = gCurrentIdentity.requestReturnReceipt;
           var newDSN = gCurrentIdentity.DSN;
           var newAttachVCard = gCurrentIdentity.attachVCard;
+
+          if (gCurrentIdentity.doCc)
+            newCc += gCurrentIdentity.doCcList;
 
           if (gCurrentIdentity.doBcc)
             newBcc += gCurrentIdentity.doBccList;
@@ -3317,6 +3309,15 @@ function LoadIdentity(startup)
               awRemoveRecipients(msgCompFields, "addr_reply", prevReplyTo);
             if (newReplyTo != "")
               awAddRecipients(msgCompFields, "addr_reply", newReplyTo);
+          }
+
+          if (newCc != prevCc)
+          {
+            needToCleanUp = true;
+            if (prevCc != "")
+              awRemoveRecipients(msgCompFields, "addr_cc", prevCc);
+            if (newCc != "")
+              awAddRecipients(msgCompFields, "addr_cc", newCc);
           }
 
           if (newBcc != prevBcc)
@@ -3412,8 +3413,6 @@ function subjectKeyPress(event)
 
 function AttachmentBucketClicked(event)
 {
-  event.currentTarget.focus();
-
   if (event.button != 0)
     return;
 

@@ -41,6 +41,7 @@
 
 #include "gfxPlatform.h"
 #include "nsDataHashtable.h"
+#include "nsTArray.h"
 
 typedef struct FT_LibraryRec_ *FT_Library;
 
@@ -62,7 +63,7 @@ public:
 
     nsresult GetFontList(const nsACString& aLangGroup,
                          const nsACString& aGenericFamily,
-                         nsStringArray& aListOfFonts);
+                         nsTArray<nsString>& aListOfFonts);
 
     nsresult UpdateFontList();
 
@@ -78,21 +79,13 @@ public:
 
     FontFamily *FindFontFamily(const nsAString& aName);
     FontEntry *FindFontEntry(const nsAString& aFamilyName, const gfxFontStyle& aFontStyle);
-
-    static PRInt32 DPI() {
-        if (sDPI == -1) {
-            InitDPI();
-        }
-        NS_ASSERTION(sDPI > 0, "Something is wrong");
-        return sDPI;
-    }
+    already_AddRefed<gfxFont> FindFontForChar(PRUint32 aCh, gfxFont *aFont);
+    PRBool GetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> > *aFontEntryList);
+    void SetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<FontEntry> >& aFontEntryList);
 
     FT_Library GetFTLibrary();
 
 protected:
-    static void InitDPI();
-
-    static PRInt32 sDPI;
     static gfxFontconfigUtils *sFontconfigUtils;
 
 private:

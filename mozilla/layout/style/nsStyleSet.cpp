@@ -57,6 +57,7 @@
 #include "nsIContent.h"
 #include "nsIFrame.h"
 #include "nsContentUtils.h"
+#include "nsRuleProcessorData.h"
 
 NS_IMPL_ISUPPORTS1(nsEmptyStyleRule, nsIStyleRule)
 
@@ -682,7 +683,10 @@ nsStyleSet::ResolveStyleFor(nsIContent* aContent,
 }
 
 already_AddRefed<nsStyleContext>
-nsStyleSet::ResolveStyleForRules(nsStyleContext* aParentContext, const nsCOMArray<nsIStyleRule> &rules)
+nsStyleSet::ResolveStyleForRules(nsStyleContext* aParentContext,
+                                 nsIAtom* aPseudoTag,
+                                 nsRuleNode *aRuleNode,
+                                 const nsCOMArray<nsIStyleRule> &aRules)
 {
   NS_ENSURE_FALSE(mInShutdown, nsnull);
   nsStyleContext* result = nsnull;
@@ -690,12 +694,16 @@ nsStyleSet::ResolveStyleForRules(nsStyleContext* aParentContext, const nsCOMArra
 
   if (presContext) {
     nsRuleWalker ruleWalker(mRuleTree);
+    if (aRuleNode)
+      ruleWalker.SetCurrentNode(aRuleNode);
+    // FIXME: Perhaps this should be passed in, but it probably doesn't
+    // matter.
     ruleWalker.SetLevel(eDocSheet, PR_FALSE);
-    for (PRInt32 i = 0; i < rules.Count(); i++) {
-      ruleWalker.Forward(rules.ObjectAt(i));
+    for (PRInt32 i = 0; i < aRules.Count(); i++) {
+      ruleWalker.Forward(aRules.ObjectAt(i));
     }
     result = GetContext(presContext, aParentContext,
-                        ruleWalker.GetCurrentNode(), nsnull).get();
+                        ruleWalker.GetCurrentNode(), aPseudoTag).get();
   }
   return result;
 }

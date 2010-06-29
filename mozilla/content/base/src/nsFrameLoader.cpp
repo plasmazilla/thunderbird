@@ -130,6 +130,17 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsFrameLoader)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
 NS_INTERFACE_MAP_END
 
+nsFrameLoader*
+nsFrameLoader::Create(nsIContent* aOwner)
+{
+  NS_ENSURE_TRUE(aOwner, nsnull);
+  nsIDocument* doc = aOwner->GetCurrentDoc();
+  NS_ENSURE_TRUE(doc && !doc->GetDisplayDocument() &&
+                 !doc->IsLoadedAsData(), nsnull);
+
+  return new nsFrameLoader(aOwner);
+}
+
 NS_IMETHODIMP
 nsFrameLoader::LoadFrame()
 {
@@ -406,7 +417,7 @@ AddTreeItemToTreeOwner(nsIDocShellTreeItem* aItem, nsIContent* aOwningContent,
 
     aItem->SetItemType(nsIDocShellTreeItem::typeContent);
   } else {
-    // Inherit our type from our parent webshell.  If it is
+    // Inherit our type from our parent docshell.  If it is
     // chrome, we'll be chrome.  If it is content, we'll be
     // content.
 
@@ -636,8 +647,7 @@ nsFrameLoader::SwapWithOtherLoader(nsFrameLoader* aOther,
     return NS_ERROR_NOT_IMPLEMENTED;
   }
 
-  nsIFrameFrame* ourFrameFrame = nsnull;
-  CallQueryInterface(ourFrame, &ourFrameFrame);
+  nsIFrameFrame* ourFrameFrame = do_QueryFrame(ourFrame);
   if (!ourFrameFrame) {
     mInSwap = aOther->mInSwap = PR_FALSE;
     FirePageShowEvent(ourTreeItem, ourChromeEventHandler, PR_TRUE);
@@ -809,7 +819,7 @@ nsFrameLoader::EnsureDocShell()
     do_GetInterface(doc->GetScriptGlobalObject());
 
   // Create the docshell...
-  mDocShell = do_CreateInstance("@mozilla.org/webshell;1");
+  mDocShell = do_CreateInstance("@mozilla.org/docshell;1");
   NS_ENSURE_TRUE(mDocShell, NS_ERROR_FAILURE);
 
   // Get the frame name and tell the docshell about it.
@@ -818,7 +828,7 @@ nsFrameLoader::EnsureDocShell()
   nsAutoString frameName;
 
   PRInt32 namespaceID = mOwnerContent->GetNameSpaceID();
-  if (namespaceID == kNameSpaceID_XHTML) {
+  if (namespaceID == kNameSpaceID_XHTML && !mOwnerContent->IsInHTMLDocument()) {
     mOwnerContent->GetAttr(kNameSpaceID_None, nsGkAtoms::id, frameName);
   } else {
     mOwnerContent->GetAttr(kNameSpaceID_None, nsGkAtoms::name, frameName);

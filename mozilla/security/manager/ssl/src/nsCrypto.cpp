@@ -233,7 +233,7 @@ private:
 NS_INTERFACE_MAP_BEGIN(nsCrypto)
   NS_INTERFACE_MAP_ENTRY(nsIDOMCrypto)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(Crypto)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Crypto)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsCrypto)
@@ -243,7 +243,7 @@ NS_IMPL_RELEASE(nsCrypto)
 NS_INTERFACE_MAP_BEGIN(nsCRMFObject)
   NS_INTERFACE_MAP_ENTRY(nsIDOMCRMFObject)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(CRMFObject)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(CRMFObject)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsCRMFObject)
@@ -2262,7 +2262,6 @@ nsCrypto::ImportUserCertificates(const nsAString& aNickname,
 {
   nsNSSShutDownPreventionLock locker;
   char *nickname=nsnull, *cmmfResponse=nsnull;
-  char *retString=nsnull;
   CMMFCertRepContent *certRepContent = nsnull;
   int numResponses = 0;
   nsIX509Cert **certArr = nsnull;
@@ -2381,8 +2380,6 @@ nsCrypto::ImportUserCertificates(const nsAString& aNickname,
   //nickname (This way we don't free it twice and avoid crashing.
   //That would be a good thing.
 
-  retString = "";
-
   //Import the root chain into the cert db.
   caPubs = CMMF_CertRepContentGetCAPubs(certRepContent);
   if (caPubs) {
@@ -2439,7 +2436,7 @@ nsCrypto::ImportUserCertificates(const nsAString& aNickname,
     }
     delete []certArr;
   }
-  aReturn.Assign(NS_ConvertASCIItoUTF16(retString));
+  aReturn.Assign(EmptyString());
   if (nickname) {
     NS_Free(nickname);
   }
@@ -2933,12 +2930,13 @@ confirm_user(const PRUnichar *message)
   if (prompter) {
     nsPSMUITracker tracker;
     if (!tracker.isUIForbidden()) {
+      PRBool checkState;
       prompter->ConfirmEx(0, message,
                           (nsIPrompt::BUTTON_DELAY_ENABLE) +
                           (nsIPrompt::BUTTON_POS_1_DEFAULT) +
                           (nsIPrompt::BUTTON_TITLE_OK * nsIPrompt::BUTTON_POS_0) +
                           (nsIPrompt::BUTTON_TITLE_CANCEL * nsIPrompt::BUTTON_POS_1),
-                          nsnull, nsnull, nsnull, nsnull, nsnull, &buttonPressed);
+                          nsnull, nsnull, nsnull, nsnull, &checkState, &buttonPressed);
     }
   }
 

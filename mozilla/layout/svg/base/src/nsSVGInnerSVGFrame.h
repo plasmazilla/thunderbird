@@ -36,37 +36,35 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIFrame.h"
-#include "nsISVGChildFrame.h"
-#include "nsSVGOuterSVGFrame.h"
-#include "nsIDOMSVGAnimatedRect.h"
-#include "nsSVGMatrix.h"
-#include "nsSVGSVGElement.h"
 #include "nsSVGContainerFrame.h"
-#include "gfxContext.h"
+#include "nsISVGSVGFrame.h"
+#include "gfxMatrix.h"
 
 typedef nsSVGDisplayContainerFrame nsSVGInnerSVGFrameBase;
 
 class nsSVGInnerSVGFrame : public nsSVGInnerSVGFrameBase,
-                           public nsISVGValueObserver,
                            public nsISVGSVGFrame
 {
   friend nsIFrame*
-  NS_NewSVGInnerSVGFrame(nsIPresShell* aPresShell, nsIContent* aContent, nsStyleContext* aContext);
+  NS_NewSVGInnerSVGFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGInnerSVGFrame(nsStyleContext* aContext) :
     nsSVGInnerSVGFrameBase(aContext) {}
   
-   // nsISupports interface:
-  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aInstancePtr);
-private:
-  NS_IMETHOD_(nsrefcnt) AddRef() { return 1; }
-  NS_IMETHOD_(nsrefcnt) Release() { return 1; }
-
 public:
+  NS_DECL_QUERYFRAME_TARGET(nsSVGInnerSVGFrame)
+  NS_DECL_QUERYFRAME
+  NS_DECL_FRAMEARENA_HELPERS
+
   // We don't define an AttributeChanged method since changes to the
   // 'x', 'y', 'width' and 'height' attributes of our content object
   // are handled in nsSVGSVGElement::DidModifySVGObservable
+
+#ifdef DEBUG
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+#endif
 
   /**
    * Get the "type" of the frame
@@ -88,13 +86,7 @@ public:
   NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint &aPoint);
 
   // nsSVGContainerFrame methods:
-  virtual already_AddRefed<nsIDOMSVGMatrix> GetCanvasTM();
-
-  // nsISVGValueObserver
-  NS_IMETHOD WillModifySVGObservable(nsISVGValue* observable,
-                                     nsISVGValue::modificationType aModType);
-  NS_IMETHOD DidModifySVGObservable (nsISVGValue* observable,
-                                     nsISVGValue::modificationType aModType);
+  virtual gfxMatrix GetCanvasTM();
 
   // nsISupportsWeakReference
   // implementation inherited from nsSupportsWeakReference
@@ -108,4 +100,3 @@ protected:
 
   nsCOMPtr<nsIDOMSVGMatrix> mCanvasTM;
 };
-

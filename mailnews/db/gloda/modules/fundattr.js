@@ -42,15 +42,15 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
-Cu.import("resource://app/modules/StringBundle.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource:///modules/StringBundle.js");
 
-Cu.import("resource://app/modules/gloda/utils.js");
-Cu.import("resource://app/modules/gloda/gloda.js");
-Cu.import("resource://app/modules/gloda/datastore.js");
+Cu.import("resource:///modules/gloda/utils.js");
+Cu.import("resource:///modules/gloda/gloda.js");
+Cu.import("resource:///modules/gloda/datastore.js");
 
-Cu.import("resource://app/modules/gloda/noun_mimetype.js");
-Cu.import("resource://app/modules/gloda/connotent.js");
+Cu.import("resource:///modules/gloda/noun_mimetype.js");
+Cu.import("resource:///modules/gloda/connotent.js");
 
 /**
  * @namespace The Gloda Fundamental Attribute provider is a special attribute
@@ -495,7 +495,7 @@ var GlodaFundAttr = {
     }
     */
     if (author == null || author == "")
-      author = aMsgHdr.mime2DecodedAuthor;
+      author = aMsgHdr.author;
 
     let normalizedListPost = "";
     if (aMimeMsg && aMimeMsg.has("list-post")) {
@@ -504,11 +504,14 @@ var GlodaFundAttr = {
         normalizedListPost = "<" + match[1] + ">";
     }
 
+    // Do not use the MIME decoded variants of any of the email addresses
+    //  because if name is encoded and has a comma in it, it will break the
+    //  address parser (which already knows how to do the decoding anyways).
     let [authorIdentities, toIdentities, ccIdentities, bccIdentities,
          listIdentities] =
       yield aCallbackHandle.pushAndGo(
         Gloda.getOrCreateMailIdentities(aCallbackHandle,
-                                        author, aMsgHdr.mime2DecodedRecipients,
+                                        author, aMsgHdr.recipients,
                                         aMsgHdr.ccList, aMsgHdr.bccList,
                                         normalizedListPost));
 

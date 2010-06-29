@@ -59,7 +59,7 @@
 # define INCL_DOS
 # include <os2.h>
 #elif defined(XP_MACOSX)
-# include <CFBundle.h>
+# include <CoreFoundation/CoreFoundation.h>
 # include <unistd.h>
 # include <dirent.h>
 #elif defined(XP_UNIX)
@@ -814,7 +814,7 @@ GRE_GetPathFromRegKey(HKEY aRegKey,
       }
       else if (!wcsncat(buffer, L"\\" LXPCOM_DLL, aBufLen) 
 #ifdef WINCE
-               || (GetFileAttributesW(buffer) != INVALID_FILE_ATTRIBUTES)
+               || (GetFileAttributesW(buffer) == INVALID_FILE_ATTRIBUTES)
 #else
                || _waccess(buffer, R_OK)
 #endif

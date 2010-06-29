@@ -58,13 +58,20 @@ class nsLeafAccessible : public nsAccessibleWrap
 {
 public:
   nsLeafAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+
+  // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
+
+  // nsIAccessible
   NS_IMETHOD GetFirstChild(nsIAccessible **_retval);
   NS_IMETHOD GetLastChild(nsIAccessible **_retval);
   NS_IMETHOD GetChildCount(PRInt32 *_retval);
-  NS_IMETHOD GetAllowsAnonChildAccessibles(PRBool *aAllowsAnonChildren);
-  NS_IMETHOD GetChildAtPoint(PRInt32 aX, PRInt32 aY, nsIAccessible **aAccessible)
-    { NS_ENSURE_ARG_POINTER(aAccessible); NS_ADDREF(*aAccessible = this); return NS_OK; } // Don't walk into these
+
+  // nsAccessible
+  virtual nsresult GetChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                   PRBool aDeepestChild,
+                                   nsIAccessible **aChild);
+  virtual PRBool GetAllowsAnonChildAccessibles();
 };
 
 /**
@@ -123,8 +130,11 @@ class nsEnumRoleAccessible : public nsAccessibleWrap
 public:
   nsEnumRoleAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell, PRUint32 aRole);
   virtual ~nsEnumRoleAccessible() { }
+
   NS_DECL_ISUPPORTS_INHERITED
-  NS_IMETHODIMP GetRole(PRUint32 *aRole) { *aRole = mRole; return NS_OK; }
+
+  // nsAccessible
+  virtual nsresult GetRoleInternal(PRUint32 *aRole);
 
 protected:
   PRUint32 mRole;

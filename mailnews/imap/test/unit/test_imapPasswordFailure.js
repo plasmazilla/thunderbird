@@ -95,6 +95,10 @@ function run_test() {
   server = makeServer(daemon, "");
   server.setDebugLevel(fsDebugAll);
 
+  // Make username of server match the singons.txt file (pw there is intentionally invalid)
+  server._handler.kUsername = kUserName;
+  server._handler.kPassword = kValidPassword;
+
   incomingServer = createLocalIMAPServer();
 
   // PerformExpand expects us to already have a password loaded into the
@@ -156,7 +160,7 @@ function run_test() {
   do_check_eq(logins[0].username, kUserName);
   do_check_eq(logins[0].password, kValidPassword);
 
-  do_timeout(500, "endTest()");
+  do_timeout(500, endTest);
 }
 
 function endTest() {

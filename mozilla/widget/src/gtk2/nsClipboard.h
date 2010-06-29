@@ -42,7 +42,7 @@
 #include "nsIClipboard.h"
 #include "nsClipboardPrivacyHandler.h"
 #include "nsAutoPtr.h"
-#include <gtk/gtkselection.h>
+#include <gtk/gtk.h>
 
 class nsClipboard : public nsIClipboard
 {

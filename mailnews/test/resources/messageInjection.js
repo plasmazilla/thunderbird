@@ -205,11 +205,11 @@ function configure_message_injection(aInjectionConfig) {
     do_throw("Illegal injection config option: " + mis.injectionConfig.mode);
   }
 
-  mis.trashFolder = mis.rootFolder.getFolderWithFlags(
-                      Ci.nsMsgFolderFlags.Trash);
-  mark_action("messageInjection", "trash folder is", [mis.trashFolder]);
   mis.junkHandle = null;
   mis.junkFolder = null;
+
+  mis.trashHandle = null;
+  mis.trashFolder = null;
 
   return mis.inboxFolder;
 }
@@ -299,7 +299,7 @@ function _synthMessagesToFakeRep(aSynthMessages) {
 }
 
 
-SEARCH_TERM_MAP_HELPER = {
+const SEARCH_TERM_MAP_HELPER = {
   subject: Components.interfaces.nsMsgSearchAttrib.Subject,
   body: Components.interfaces.nsMsgSearchAttrib.Body,
   from: Components.interfaces.nsMsgSearchAttrib.Sender,
@@ -392,7 +392,8 @@ function make_empty_folder(aFolderName, aSpecialFlags) {
 }
 
 /**
- * Get/create the junk folder.
+ * Get/create the junk folder handle.  Use get_real_injection_folder if you
+ *  need the underlying nsIMsgDBFolder.
  */
 function get_junk_folder() {
   let mis = _messageInjectionSetup;
@@ -401,6 +402,32 @@ function get_junk_folder() {
     mis.junkHandle = make_empty_folder("Junk", [Ci.nsMsgFolderFlags.Junk]);
 
   return mis.junkHandle;
+}
+
+/**
+ * Get/create the trash folder handle.  Use get_real_injection_folder if you
+ *  need the underlying nsIMsgDBFolder.
+ */
+function get_trash_folder() {
+  let mis = _messageInjectionSetup;
+
+  if (!mis.trashHandle) {
+    // the folder may have been created and already known...
+    mis.trashFolder = mis.rootFolder.getFolderWithFlags(
+                        Ci.nsMsgFolderFlags.Trash);
+    if (mis.trashFolder) {
+      mis.trashHandle = mis.rootFolder.URI + "/Trash";
+      let fakeFolder = mis.daemon.getMailbox("Trash");
+      mis.handleUriToRealFolder[mis.trashHandle] = mis.trashFolder;
+      mis.handleUriToFakeFolder[mis.trashHandle] = fakeFolder;
+      mis.realUriToFakeFolder[mis.trashFolder.URI] = fakeFolder;
+    }
+    else {
+      mis.trashHandle = make_empty_folder("Trash", [Ci.nsMsgFolderFlags.Trash]);
+    }
+  }
+
+  return mis.trashHandle;
 }
 
 /**
@@ -518,10 +545,14 @@ function make_folders_with_sets(aFolderCount, aSynSetDefs) {
  * @param aSynSetDefs Either an integer describing the number of sets of
  *     messages to create (using default parameters), or a list of set
  *     definition objects as defined by MessageGenerator.makeMessages.
+ * @param [aDoNotForceUpdate=false] By default we force an updateFolder on IMAP
+ *     folders to ensure Thunderbird knows about the newly injected messages.
+ *     If you are testing Thunderbird's use of updateFolder itself, you will
+ *     not want this and so will want to pass true for this argument.
  * @return A list of SyntheticMessageSet objects, each corresponding to the
  *     entry in aSynSetDefs (or implied if an integer was passed).
  */
-function make_new_sets_in_folders(aMsgFolders, aSynSetDefs) {
+function make_new_sets_in_folders(aMsgFolders, aSynSetDefs, aDoNotForceUpdate) {
   // is it just a count of the number of plain vanilla sets to create?
   if (typeof(aSynSetDefs) == "number") {
     let setCount = aSynSetDefs;
@@ -539,7 +570,7 @@ function make_new_sets_in_folders(aMsgFolders, aSynSetDefs) {
   }
 
   // - add the messages to the folders (interleaving them)
-  add_sets_to_folders(aMsgFolders, messageSets);
+  add_sets_to_folders(aMsgFolders, messageSets, aDoNotForceUpdate);
 
   return messageSets;
 }
@@ -586,13 +617,17 @@ function _looperator(aList) {
  * @param aMsgFolders An nsIMsgLocalMailFolder to add the message sets to or a
  *     list of them.
  * @param aMessageSets A list of SyntheticMessageSets.
+ * @param [aDoNotForceUpdate=false] By default we force an updateFolder on IMAP
+ *     folders to ensure Thunderbird knows about the newly injected messages.
+ *     If you are testing Thunderbird's use of updateFolder itself, you will
+ *     not want this and so will want to pass true for this argument.
  *
  * @return true if we were able to do the injection synchronously (e.g. for
  *     a localstore account), false if we kicked off an asynchronous process
  *     (e.g. for an imap account) and we will call |async_driver| when
  *     we are done.  This is consistent with asyncTestUtils support.
  */
-function add_sets_to_folders(aMsgFolders, aMessageSets) {
+function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
   if ((typeof(aMsgFolders) == "string") || !('length' in aMsgFolders))
     aMsgFolders = [aMsgFolders];
 
@@ -715,6 +750,11 @@ function add_sets_to_folders(aMsgFolders, aMessageSets) {
         folder = iterFolders.next();
       } while (didSomething);
 
+
+      // We have nothing more to do if we aren't support to force the update.
+      if (aDoNotForceUpdate)
+        return;
+
       for (let iFolder = 0; iFolder < aMsgFolders.length; iFolder++) {
         let realFolder = mis.handleUriToRealFolder[aMsgFolders[iFolder]];
         mark_action("messageInjection", "forcing update of folder",
@@ -749,6 +789,8 @@ function add_sets_to_folders(aMsgFolders, aMessageSets) {
     } while (didSomething);
 
     ims.daemon.setMessages(_synthMessagesToFakeRep(popMessages));
+    if (aDoNotForceUpdate)
+      return true;
     ims.pop3Service.GetNewMail(null, asyncUrlListener, mis.inboxFolder,
                                mis.incomingServer);
     return false; // wait for the url listener to be notified
@@ -759,6 +801,12 @@ function add_sets_to_folders(aMsgFolders, aMessageSets) {
 /** singular function name for understandability of single-folder users */
 let add_sets_to_folder = add_sets_to_folders;
 
+/**
+ * Return the nsIMsgFolder associated with a folder handle.  If the folder has
+ *  been created since the last injection and you are using IMAP, you may need
+ *  to first "yield wait_for_async_promises();" for us to be able to provide
+ *  you with a result.
+ */
 function get_real_injection_folder(aFolderHandle) {
   let mis = _messageInjectionSetup;
   if (mis.injectionConfig.mode == "imap") {
@@ -885,11 +933,7 @@ function async_trash_messages(aSynMessageSet) {
 
           // trash folder may not have existed at startup but the deletion
           //  will have created it.
-          if (!_messageInjectionSetup.trashFolder)
-            _messageInjectionSetup.trashFolder =
-              _messageInjectionSetup.rootFolder.getFolderWithFlags(
-                Ci.nsMsgFolderFlags.Trash);
-          let trashFolder = _messageInjectionSetup.trashFolder;
+          let trashFolder = get_real_injection_folder(get_trash_folder());
 
           mark_action("messageInjection",
                       "forcing update of folder so IMAP moved header seen",
@@ -941,8 +985,13 @@ function async_delete_messages(aSynMessageSet) {
  * Empty the trash.
  */
 function async_empty_trash() {
-  _messageInjectionSetup.trashFolder.emptyTrash(null, asyncUrlListener);
-  return false;
+  return async_run({func: function() {
+    let trashHandle = get_trash_folder();
+    yield wait_for_async_promises();
+    let trashFolder = get_real_injection_folder(trashHandle);
+    trashFolder.emptyTrash(null, asyncUrlListener);
+    yield false;
+  }});
 }
 
 /**

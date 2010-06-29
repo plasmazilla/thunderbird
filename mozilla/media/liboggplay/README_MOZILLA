@@ -22,7 +22,11 @@ seek_to_key_frame.patch: Adds oggplay_seek_to_keyframe(), as per bug 463358.
 oggplay_os2.patch: Bug 448918 - add OS/2 support (this patch should be
                    removed when OS/2 support is added upstream)
 
+bug496529.patch: Fix bug 496529.
+
 bug500311.patch: Fix crash during decoder initialization.
+
+faster_seek.patch: Fix for bug 501031, make seeking faster over HTTP.
 
 fix-17ef4ca82df28.patch: Fix oggplay_callback_predetected() to return
                          value interpreted as success upon success.
@@ -35,5 +39,10 @@ handle-read-errors.patch: Make oggplay_initialise() handle closing of stream
 bug515217.patch: Fix crash where presentation thread releases a buffer just
                  before decode thread tries to set that buffer as the last at EOF.
 bug504843.patch: Abort when decoding video excessively large video frames.
+
+fishsound_reset.patch: Fixes bug 516323.
+
+bug520493.patch: Ensure liboggplay returns data when all tracks
+                 are deactivated when a callback reaches EOF.
 
 bug523816.patch: Correct CMML data buffer size calculation.

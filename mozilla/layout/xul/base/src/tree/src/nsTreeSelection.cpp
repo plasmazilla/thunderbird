@@ -276,7 +276,7 @@ nsTreeSelection::~nsTreeSelection()
 NS_INTERFACE_MAP_BEGIN(nsTreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsITreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(TreeSelection)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(TreeSelection)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsTreeSelection)
@@ -653,11 +653,12 @@ NS_IMETHODIMP nsTreeSelection::SetCurrentIndex(PRInt32 aIndex)
   nsCOMPtr<nsIDOMElement> treeElt;
   boxObject->GetElement(getter_AddRefs(treeElt));
 
-  nsCOMPtr<nsIDOMNode> treeDOMNode(do_QueryInterface(treeElt));
-  NS_ENSURE_TRUE(treeDOMNode, NS_ERROR_UNEXPECTED);
+  nsCOMPtr<nsINode> treeDOMNode(do_QueryInterface(treeElt));
+  NS_ENSURE_STATE(treeDOMNode);
 
-  nsRefPtr<nsPLDOMEvent> event = new nsPLDOMEvent(treeDOMNode,
-                                         NS_LITERAL_STRING("DOMMenuItemActive"));
+  nsRefPtr<nsPLDOMEvent> event =
+    new nsPLDOMEvent(treeDOMNode, NS_LITERAL_STRING("DOMMenuItemActive"),
+                     PR_FALSE);
   if (!event)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -838,8 +839,11 @@ nsTreeSelection::FireOnSelectHandler()
   boxObject->GetElement(getter_AddRefs(elt));
   NS_ENSURE_STATE(elt);
 
+  nsCOMPtr<nsINode> node(do_QueryInterface(elt));
+  NS_ENSURE_STATE(node);
+
   nsRefPtr<nsPLDOMEvent> event =
-    new nsPLDOMEvent(elt, NS_LITERAL_STRING("select"));
+    new nsPLDOMEvent(node, NS_LITERAL_STRING("select"), PR_FALSE);
   event->RunDOMEventWhenSafe();
   return NS_OK;
 }

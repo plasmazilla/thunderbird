@@ -58,6 +58,7 @@
 #include "nsIDOMNSHTMLInputElement.h"
 #include "nsIDOMText.h"
 #include "nsIFocusController.h"
+#include "nsFocusManager.h"
 #include "nsIEventListenerManager.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMEventListener.h"
@@ -80,6 +81,7 @@
 #include "nsCRT.h"
 #include "nsXBLEventHandler.h"
 #include "nsEventDispatcher.h"
+#include "nsPresContext.h"
 
 static NS_DEFINE_CID(kDOMScriptObjectFactoryCID,
                      NS_DOM_SCRIPT_OBJECT_FACTORY_CID);
@@ -411,12 +413,15 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
   nsCOMPtr<nsIController> controller;
   nsCOMPtr<nsIFocusController> focusController;
 
+  nsCOMPtr<nsPIDOMWindow> privateWindow;
   nsCOMPtr<nsPIWindowRoot> windowRoot(do_QueryInterface(aTarget));
   if (windowRoot) {
     windowRoot->GetFocusController(getter_AddRefs(focusController));
+    if (windowRoot)
+      privateWindow = do_QueryInterface(windowRoot->GetWindow());
   }
   else {
-    nsCOMPtr<nsPIDOMWindow> privateWindow(do_QueryInterface(aTarget));
+    privateWindow = do_QueryInterface(aTarget);
     if (!privateWindow) {
       nsCOMPtr<nsIContent> elt(do_QueryInterface(aTarget));
       nsCOMPtr<nsIDocument> doc;
@@ -443,7 +448,7 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
 
   NS_LossyConvertUTF16toASCII command(mHandlerText);
   if (focusController)
-    focusController->GetControllerForCommand(command.get(), getter_AddRefs(controller));
+    focusController->GetControllerForCommand(privateWindow, command.get(), getter_AddRefs(controller));
   else
     controller = GetController(aTarget); // We're attached to the receiver possibly.
 
@@ -455,16 +460,28 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
       mMisc == 1) {
     // get the focused element so that we can pageDown only at
     // certain times.
-    nsCOMPtr<nsIDOMElement> focusedElement;
-    focusController->GetFocusedElement(getter_AddRefs(focusedElement));
+
+    nsCOMPtr<nsPIDOMWindow> windowToCheck;
+    if (windowRoot)
+      windowToCheck = do_QueryInterface(windowRoot->GetWindow());
+    else
+      windowToCheck = privateWindow->GetPrivateRoot();
+
+    nsCOMPtr<nsIContent> focusedContent;
+    if (windowToCheck) {
+      nsCOMPtr<nsPIDOMWindow> focusedWindow;
+      focusedContent =
+        nsFocusManager::GetFocusedDescendant(windowToCheck, PR_TRUE, getter_AddRefs(focusedWindow));
+    }
+
     PRBool isLink = PR_FALSE;
-    nsCOMPtr<nsIContent> focusedContent = do_QueryInterface(focusedElement);
     nsIContent *content = focusedContent;
 
     // if the focused element is a link then we do want space to 
-    // scroll down. focused element may be an element in a link,
-    // we need to check the parent node too.
-    if (focusedContent) {
+    // scroll down. The focused element may be an element in a link,
+    // we need to check the parent node too. Only do this check if an
+    // element is focused and has a parent.
+    if (focusedContent && focusedContent->GetParent()) {
       while (content) {
         if (content->Tag() == nsGkAtoms::a &&
             content->IsNodeOfType(nsINode::eHTML)) {
@@ -514,9 +531,6 @@ nsXBLPrototypeHandler::DispatchXULKeyCommand(nsIDOMEvent* aEvent)
 
   aEvent->PreventDefault();
 
-  nsEventStatus status = nsEventStatus_eIgnore;
-  nsXULCommandEvent event(PR_TRUE, NS_XUL_COMMAND, nsnull);
-
   // Copy the modifiers from the key event.
   nsCOMPtr<nsIDOMKeyEvent> keyEvent = do_QueryInterface(aEvent);
   if (!keyEvent) {
@@ -524,21 +538,18 @@ nsXBLPrototypeHandler::DispatchXULKeyCommand(nsIDOMEvent* aEvent)
     return NS_ERROR_FAILURE;
   }
 
-  keyEvent->GetAltKey(&event.isAlt);
-  keyEvent->GetCtrlKey(&event.isControl);
-  keyEvent->GetShiftKey(&event.isShift);
-  keyEvent->GetMetaKey(&event.isMeta);
+  PRBool isAlt = PR_FALSE;
+  PRBool isControl = PR_FALSE;
+  PRBool isShift = PR_FALSE;
+  PRBool isMeta = PR_FALSE;
+  keyEvent->GetAltKey(&isAlt);
+  keyEvent->GetCtrlKey(&isControl);
+  keyEvent->GetShiftKey(&isShift);
+  keyEvent->GetMetaKey(&isMeta);
 
-  nsPresContext *pc = nsnull;
-  nsIDocument *doc = handlerElement->GetCurrentDoc();
-  if (doc) {
-    nsIPresShell *shell = doc->GetPrimaryShell();
-    if (shell) {
-      pc = shell->GetPresContext();
-    }
-  }
-
-  nsEventDispatcher::Dispatch(handlerElement, pc, &event, nsnull, &status);
+  nsContentUtils::DispatchXULCommand(handlerElement, PR_TRUE,
+                                     nsnull, nsnull,
+                                     isControl, isAlt, isShift, isMeta);
   return NS_OK;
 }
 

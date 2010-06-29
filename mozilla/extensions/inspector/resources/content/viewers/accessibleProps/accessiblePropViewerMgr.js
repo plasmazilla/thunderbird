@@ -89,8 +89,19 @@ function accessiblePropViewerMgr(aPaneElm)
   this.inspectInNewView = function accessiblePropViewerMgr_inspectInNewView()
   {
     var tab = this.tabboxElm.selectedTab;
-    var viewrid = tab.id.replace("tab_", "");
-    this.viewers[viewrid].inspectInNewView();
+    var viewerid = tab.id.replace("tab_", "");
+    var viewer = this.viewers[viewerid];
+    if ("inspectInNewView" in viewer)
+      viewer.inspectInNewView();
+  }
+
+  this.doCommand = function accessiblePropViewerMgr_doCommand(aCommandId)
+  {
+    var tab = this.tabboxElm.selectedTab;
+    var viewerid = tab.id.replace("tab_", "");
+    var viewer = this.viewers[viewerid];
+    if ("doCommand" in viewer)
+      viewer.doCommand(aCommandId);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -120,6 +131,7 @@ function accessiblePropViewerMgr(aPaneElm)
 
   this.viewers = {
     "attributes": new attributesViewer(),
+    "actions": new actionViewer(),
     "tablecell": new tableCellViewer()
   };
 
@@ -166,13 +178,6 @@ function attributesViewer()
       trAttrBody.removeChild(trAttrBody.lastChild)
   }
 
-  /**
-   * Prepares 'inspectInNewView' command.
-   */
-  this.inspectInNewView = function attributesViewer_inspectInNewView()
-  {
-  }
-
   //////////////////////////////////////////////////////////////////////////////
   //// private
 
@@ -198,6 +203,112 @@ function attributesViewer()
     trAttrBody.appendChild(ti);
   }
 }
+
+
+/**
+ * Action proeprty view.
+ */
+function actionViewer()
+{
+  /**
+   * Updates the view for the given accessible.
+   *
+   * @param aAccessible
+   *        The given accessible
+   */
+  this.update = function actionViewer_update(aAccessible)
+  {
+    this.mAccessible = aAccessible;
+
+    let count = aAccessible.numActions;
+    if (!count)
+      return false;
+
+    this.updateActionItem(this.mDefaultActionItem, 0);
+
+    for (let idx = 1; idx < count; idx++) {
+      let actionItem = this.mDefaultActionItem.cloneNode(true);
+      this.updateActionItem(actionItem, idx);
+      this.mActionItemContainer.appendChild(actionItem);
+    }
+
+    return true;
+  }
+
+  /**
+   * Clear the view's data.
+   */
+  this.clear = function actionViewer_clear()
+  {
+    this.mAccessible = null;
+
+    let cntr = this.mActionItemContainer;
+    while (cntr.firstChild != cntr.lastChild)
+      cntr.removeChild(cntr.lastChild);
+
+    this.setValues(this.mDefaultActionItem, "", "", "", "", "");
+  }
+
+  /**
+   * Performes a command.
+   */
+  this.doCommand = function actionViewer_doCommand(aCommandId)
+  {
+    this.mAccessible.doAction(aCommandId);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //// private
+
+  this.updateActionItem = function actionViewer_updateActionItem(aActionItem,
+                                                                 aActionIndex)
+  {
+    var index = (aActionIndex + 1) + ".";
+    var name = this.mAccessible.getActionName(aActionIndex);
+    var description = this.mAccessible.getActionDescription(aActionIndex);
+
+    var keysStr = "";
+    try {
+      let keys = this.mAccessible.getKeyBindings(aActionIndex);
+      for (let idx = 0; idx < keys.length; idx++)
+        keysStr += keys.item(idx);
+
+    } catch (e) { }
+
+    let jsCommand = "viewer.doCommand(" + aActionIndex + ");";
+
+    this.setValues(aActionItem, index, name, description, keysStr, jsCommand);
+  }
+
+  this.setValues = function actionViewer_setValues(aActionItem,
+                                                   aIndex, aName, aDescription,
+                                                   aKeyBindings, aJSCommand)
+  {
+    let elm = aActionItem.getElementsByAttribute("prop", "actionIndex")[0];
+    elm.textContent = aIndex;
+
+    elm = aActionItem.getElementsByAttribute("prop", "actionName")[0];
+    elm.textContent = aName;
+
+    elm = aActionItem.getElementsByAttribute("prop", "actionDescription")[0];
+    elm.textContent = aDescription;
+
+    elm = aActionItem.getElementsByAttribute("prop", "actionKeyBindings")[0];
+    elm.textContent = aKeyBindings;
+
+    elm = aActionItem.getElementsByAttribute("prop", "invokeAction")[0];
+    if (aJSCommand)
+      elm.setAttribute("oncommand", aJSCommand)
+    else
+      elm.removeAttribute("oncommand");
+  }
+
+  this.mAccessible = null;
+
+  this.mActionItemContainer = document.getElementById("actionItemContainer");
+  this.mDefaultActionItem = document.getElementById("actionItem");
+}
+
 
 /**
  * Table cell property view. Used to display table cell properties of the

@@ -46,6 +46,7 @@
 #include "nsCOMPtr.h"
 #include "nsCRT.h"
 #include "nsCycleCollectionParticipant.h"
+#include "nsIDTD.h"
 
 class nsIDocument;
 class nsIURI;
@@ -91,9 +92,8 @@ public:
 
   // nsIContentSink
   NS_IMETHOD WillParse(void);
-  NS_IMETHOD WillBuildModel(void);
-  NS_IMETHOD DidBuildModel(void);
-  virtual PRBool ReadyToCallDidBuildModel(PRBool aTerminated);
+  NS_IMETHOD WillBuildModel(nsDTDMode aDTDMode);
+  NS_IMETHOD DidBuildModel(PRBool aTerminated);
   NS_IMETHOD WillInterrupt(void);
   NS_IMETHOD WillResume(void);
   NS_IMETHOD SetParser(nsIParser* aParser);  
@@ -112,8 +112,6 @@ public:
   static PRBool ParsePIData(const nsString &aData, nsString &aHref,
                           nsString &aTitle, nsString &aMedia,
                           PRBool &aIsAlternate);
-
-  virtual nsresult ProcessMETATag(nsIContent* aContent);
 
 protected:
   // Start layout.  If aIgnorePendingSheets is true, this will happen even if

@@ -77,15 +77,14 @@ static void
 ReadDependentCB(const char *aDependentLib)
 {
     wchar_t wideDependentLib[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, aDependentLib, -1, wideDependentLib, MAX_PATH);
+    MultiByteToWideChar(CP_UTF8, 0, aDependentLib, -1, wideDependentLib, MAX_PATH);
 
     HINSTANCE h =
         LoadLibraryExW(wideDependentLib, NULL, MOZ_LOADLIBRARY_FLAGS);
 
-    if (!h) {
-        wprintf(L"Error loading %s\n", wideDependentLib);
+    if (!h)
         return;
-    }
+
     AppendDependentLib(h);
 }
 
@@ -137,11 +136,11 @@ bool ns_isRelPath(wchar_t* path)
     
 }
 
-GetFrozenFunctionsFunc
-XPCOMGlueLoad(const char *aXpcomFile)
+nsresult
+XPCOMGlueLoad(const char *aXpcomFile, GetFrozenFunctionsFunc *func)
 {
     wchar_t xpcomFile[MAXPATHLEN];
-    MultiByteToWideChar(CP_ACP, 0, aXpcomFile,-1,
+    MultiByteToWideChar(CP_UTF8, 0, aXpcomFile,-1,
                         xpcomFile, MAXPATHLEN);
    
     
@@ -163,7 +162,7 @@ XPCOMGlueLoad(const char *aXpcomFile)
         if (lastSlash) {
             *lastSlash = '\0';
             char xpcomDir_narrow[MAXPATHLEN];
-            WideCharToMultiByte(CP_ACP, 0, xpcomDir,-1,
+            WideCharToMultiByte(CP_UTF8, 0, xpcomDir,-1,
                                 xpcomDir_narrow, MAX_PATH, NULL, NULL);
 
             XPCOMGlueLoadDependentLibs(xpcomDir_narrow, ReadDependentCB);
@@ -172,9 +171,10 @@ XPCOMGlueLoad(const char *aXpcomFile)
             sXULLibrary =
                 LoadLibraryExW(xpcomDir, NULL, MOZ_LOADLIBRARY_FLAGS);
 
-#ifdef DEBUG
             if (!sXULLibrary) 
             {
+                DWORD err = GetLastError();
+#ifdef DEBUG
                 LPVOID lpMsgBuf;
                 FormatMessage(
                               FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -188,8 +188,11 @@ XPCOMGlueLoad(const char *aXpcomFile)
                               NULL
                               );
                 wprintf(L"Error loading %s: %s\n", xpcomDir, lpMsgBuf);
+                LocalFree(lpMsgBuf);
+#endif //DEBUG
+                return (err == ERROR_NOT_ENOUGH_MEMORY || err == ERROR_OUTOFMEMORY)
+                    ? NS_ERROR_OUT_OF_MEMORY : NS_ERROR_FAILURE;
             }
-#endif //DEBUG                
         }
     }
     HINSTANCE h =
@@ -197,6 +200,7 @@ XPCOMGlueLoad(const char *aXpcomFile)
 
     if (!h) 
     {
+        DWORD err = GetLastError();
 #ifdef DEBUG
         LPVOID lpMsgBuf;
         FormatMessage(
@@ -204,15 +208,17 @@ XPCOMGlueLoad(const char *aXpcomFile)
                       FORMAT_MESSAGE_FROM_SYSTEM |
                       FORMAT_MESSAGE_IGNORE_INSERTS,
                       NULL,
-                      GetLastError(),
+                      err,
                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                       (LPTSTR) &lpMsgBuf,
                       0,
                       NULL
                       );
         wprintf(L"Error loading %s: %s\n", xpcomFile, lpMsgBuf);
+        LocalFree(lpMsgBuf);
 #endif        
-        return nsnull;
+        return (err == ERROR_NOT_ENOUGH_MEMORY || err == ERROR_OUTOFMEMORY)
+            ? NS_ERROR_OUT_OF_MEMORY : NS_ERROR_FAILURE;
     }
 
     AppendDependentLib(h);
@@ -220,10 +226,14 @@ XPCOMGlueLoad(const char *aXpcomFile)
     GetFrozenFunctionsFunc sym =
         (GetFrozenFunctionsFunc) GetProcAddress(h, "NS_GetFrozenFunctions");
 
-    if (!sym)
+    if (!sym) { // No symbol found.
         XPCOMGlueUnload();
+        return NS_ERROR_NOT_AVAILABLE;
+    }
 
-    return sym;
+    *func = sym;
+
+    return NS_OK;
 }
 
 void

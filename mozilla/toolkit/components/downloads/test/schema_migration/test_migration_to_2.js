@@ -55,8 +55,6 @@ function run_test()
   try {
     // throws when it doesn't exist
     stmt = dbConn.createStatement("SELECT iconURL FROM moz_downloads");
-    // force creation of the statement.
-    stmt.columnCount;
     do_throw("should not get here");
   } catch (e) {
     do_check_eq(Cr.NS_ERROR_FAILURE, e.result);

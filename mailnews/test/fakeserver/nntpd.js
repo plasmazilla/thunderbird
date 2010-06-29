@@ -139,11 +139,14 @@ function hasFlag(flags, flag) {
 function NNTP_RFC977_handler(daemon) {
   this._daemon = daemon;
   this.closing = false;
-  this.group = null;
-  this.articleKey = null;
-  this.extraCommands = "";
+  this.resetTest();
 }
 NNTP_RFC977_handler.prototype = {
+  resetTest : function() {
+    this.extraCommands = "";
+    this.articleKey = null;
+    this.group = null;
+  },
   ARTICLE : function (args) {
      var info = this._selectArticle(args, 220);
      if (info[0] == null)
@@ -182,7 +185,7 @@ NNTP_RFC977_handler.prototype = {
        return info[1];
 
      var response = info[1]+'\n';
-     for (var header in info[0].headers)
+     for (let header in info[0].headers)
        response += header + ": " + info[0].headers[header] + "\n";
      response += ".";
      return response;
@@ -217,7 +220,7 @@ NNTP_RFC977_handler.prototype = {
   },
   LIST : function (args) {
     var response = "215 list of newsgroup follows\n";
-    for (group in this._daemon._groups) {
+    for (let group in this._daemon._groups) {
       var stats = this._daemon.getGroupStats(this._daemon._groups[group]);
       response += group + " " + stats[1] + " " + stats[0] + " " +
                   (hasFlag(group.flags, NNTP_POSTABLE) ? "y" : "n") + "\n";
@@ -269,6 +272,9 @@ NNTP_RFC977_handler.prototype = {
   onError : function (command, args) {
     return "500 command not recognized";
   },
+  onServerFault: function (e) {
+    return "500 internal server error: " + e;
+  },
   onStartup : function () {
     this.closing = false;
     this.group = null;
@@ -287,7 +293,7 @@ NNTP_RFC977_handler.prototype = {
     }
 
     if (this.posting) {
-      if (line[0] == '.')
+      if (line.charAt(0) == '.')
         line = line.substring(1);
 
       this.post += line+'\n';
@@ -295,10 +301,10 @@ NNTP_RFC977_handler.prototype = {
 
     return undefined;
   },
-  postCommand : function (obj) {
+  postCommand : function (reader) {
     if (this.closing)
-      obj.closeSocket();
-    obj.setMultiline(this.posting);
+      reader.closeSocket();
+    reader.setMultiline(this.posting);
   },
 
   /**
@@ -352,7 +358,7 @@ NNTP_RFC977_handler.prototype = {
  */
 function subclass(sub, sup, def) {
   sub.prototype = new sup();
-  for (var obj in def) {
+  for (let obj in def) {
     sub.prototype[obj] = def[obj];
   }
 }

@@ -42,6 +42,9 @@
  * what TZIDs have been dropped from the zones.tab. Those need to be inserted
  * below.
  *
+ * The update process is partially automated in the Makefile, please read its
+ * header.
+ *
  * args: <path-to-zones.tab-file> <moz-root> <version>
  */
 
@@ -71,7 +74,7 @@ function createStream(file, createOutputStream) {
                     0x02 /* PR_WRONLY */ |
                     0x08 /* PR_CREATE_FILE */ |
                     0x20 /* PR_TRUNCATE */,
-                    0700 /* read, write, execute/search by owner */,
+                    parseInt("0700", 8) /* read, write, execute/search by owner */,
                     0 /* unused */);
     } else {
         stream = Components.classes["@mozilla.org/network/file-input-stream;1"]

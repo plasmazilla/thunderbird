@@ -120,11 +120,11 @@ static nsIPrincipal*
 GetPrincipalFromCx(JSContext *cx)
 {
     nsIScriptContext* scriptContext = GetScriptContextFromJSContext(cx);
-    if (scriptContext)
+    if(scriptContext)
     {
         nsCOMPtr<nsIScriptObjectPrincipal> globalData =
             do_QueryInterface(scriptContext->GetGlobalObject());
-        if (globalData)
+        if(globalData)
             return globalData->GetPrincipal();
     }
     return nsnull;
@@ -141,19 +141,19 @@ XPCJSContextStack::Push(JSContext * cx)
         XPCJSContextInfo & e = mStack[mStack.Length() - 2];
         if(e.cx)
         {
-            if (e.cx == cx)
+            if(e.cx == cx)
             {
                 nsIScriptSecurityManager* ssm = XPCWrapper::GetSecurityManager();
-                if (ssm)
+                if(ssm)
                 {
                     nsIPrincipal* globalObjectPrincipal =
                         GetPrincipalFromCx(cx);
-                    if (globalObjectPrincipal)
+                    if(globalObjectPrincipal)
                     {
                         nsIPrincipal* subjectPrincipal = ssm->GetCxSubjectPrincipal(cx);
                         PRBool equals = PR_FALSE;
                         globalObjectPrincipal->Equals(subjectPrincipal, &equals);
-                        if (equals)
+                        if(equals)
                         {
                             return NS_OK;
                         }

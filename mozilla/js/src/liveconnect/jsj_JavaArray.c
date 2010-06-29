@@ -429,10 +429,8 @@ JSObjectOps JavaArray_ops = {
     NULL,                           /* call */
     NULL,                           /* construct */
     NULL,                           /* hasInstance */
-    NULL,                           /* trace */
-    NULL,                           /* clear */
-    jsj_wrapper_getRequiredSlot,    /* getRequiredSlot */
-    jsj_wrapper_setRequiredSlot     /* setRequiredSlot */
+    jsj_TraceObject,                /* trace */
+    NULL                            /* clear */
 };
 
 static JSObjectOps *

@@ -15,6 +15,7 @@ var gRootFolder;
 var gIMAPInbox, gIMAPTrashFolder, gMsgImapInboxFolder;
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
 var gImapInboxOfflineStoreSize;
+var gCurTestNum;
 
 // Adds some messages directly to a mailbox (eg new mail)
 function addMessagesToServer(messages, mailbox, localFolder)
@@ -57,9 +58,6 @@ const gTestArray =
 
 function run_test()
 {
-  // This is before any of the actual tests, so...
-  gTest = 0;
-
   // Add a listener.
   gIMAPDaemon = new imapDaemon();
   gServer = makeServer(gIMAPDaemon, "");
@@ -113,14 +111,14 @@ function run_test()
 
   // Add a couple of messages to the INBOX
   // this is synchronous, afaik
-  gMessageGenerator = new MessageGenerator();
-  gScenarioFactory = new MessageScenarioFactory(gMessageGenerator);
+  let messageGenerator = new MessageGenerator();
+  let scenarioFactory = new MessageScenarioFactory(messageGenerator);
 
   // build up a diverse list of messages
   let messages = [];
-  messages = messages.concat(gMessageGenerator.makeMessage({age: {days: 2, hours: 1}}));
-  messages = messages.concat(gMessageGenerator.makeMessage({age: {days: 8, hours: 1}}));
-  messages = messages.concat(gMessageGenerator.makeMessage({age: {days: 10, hours: 1}}));
+  messages = messages.concat(messageGenerator.makeMessage({age: {days: 2, hours: 1}}));
+  messages = messages.concat(messageGenerator.makeMessage({age: {days: 8, hours: 1}}));
+  messages = messages.concat(messageGenerator.makeMessage({age: {days: 10, hours: 1}}));
 
   addMessagesToServer(messages,
                       gIMAPDaemon.getMailbox("INBOX"), gIMAPInbox);
@@ -140,8 +138,12 @@ function doTest(test)
 
     var testFn = gTestArray[test-1];
     // Set a limit of three seconds; if the notifications haven't arrived by then there's a problem.
-    do_timeout(10000, "if (gCurTestNum == "+test+") \
-      do_throw('Notifications not received in 10000 ms for operation "+testFn.name+", current status is '+gCurrStatus);");
+    do_timeout(10000, function(){
+        if (gCurTestNum == test)
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
+            ", current status is " + gCurrStatus);
+        }
+      );
     try {
     testFn();
     } catch(ex) {dump(ex);}
@@ -152,7 +154,7 @@ function doTest(test)
     // server
     gRootFolder = null;
     gIMAPInbox = null;
-    gMsgImapFolder = null;
+    gMsgImapInboxFolder = null;
     gIMAPTrashFolder = null;
     do_timeout_function(1000, endTest);
   }
@@ -182,6 +184,6 @@ var UrlListener =
     // This can happen with a bunch of synchronous functions grouped together, and
     // can even cause tests to fail because they're still waiting for the listener
     // to return
-    do_timeout(0, "doTest(++gCurTestNum)");
+    do_timeout(0, function(){doTest(++gCurTestNum)});
   }
 };

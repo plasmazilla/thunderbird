@@ -49,7 +49,9 @@
     xmlns:xbl="http://www.mozilla.org/xbl">
 
   <binding id="calendar-editable-item">
-    <content mousethrough="never" tooltip="itemTooltip">
+    <content mousethrough="never"
+             tooltip="itemTooltip"
+             tabindex="-1">
       <xul:vbox flex="1">
         <xul:hbox>
           <xul:box anonid="event-container"
@@ -132,6 +134,10 @@
       <field name="mSelected">false</field>
       <field name="mCalendarView">null</field>
 
+      <property name="parentBox"
+                onget="return this.mParentBox;"
+                onset="this.mParentBox = val;"/>
+
       <property name="selected">
         <getter><![CDATA[
           return this.mSelected;
@@ -178,12 +184,8 @@
         <body><![CDATA[
           var evl = this.eventNameLabel;
           var item = this.mOccurrence;
-
-          if (item.title && item.title != "") {
-            evl.value = item.title;
-          } else {
-            evl.value = calGetString("calendar", "eventUntitled")
-          }
+          evl.value = (item.title ? item.title.replace(/\n/g, ' ') :
+                                    calGetString("calendar", "eventUntitled"));
         ]]></body>
       </method>
 
@@ -215,13 +217,15 @@
           // in the <content> section of this binding, and all that inherit it.
 
           // Event type specific properties
-          if (isEvent(item)) {
+          if (cal.isEvent(item)) {
               if (item.startDate.isDate) {
-                this.setAttribute("allday", "true");
+                  this.setAttribute("allday", "true");
               }
-          } else if (isToDo(item)) {
+              this.setAttribute("itemType", "event");
+          } else if (cal.isToDo(item)) {
               // progress attribute
               this.setAttribute("progress", getProgressAtom(item));
+              this.setAttribute("itemType", "todo");
           }
 
           if (this.calendarView &&
@@ -243,6 +247,11 @@
           // status attribute
           if (item.status) {
               this.setAttribute("status", item.status.toLowerCase());
+          }
+
+          // item class
+          if (item.hasProperty("CLASS")) {
+              this.setAttribute("itemclass", item.getProperty("CLASS"));
           }
 
           // calendar name

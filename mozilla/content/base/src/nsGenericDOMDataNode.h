@@ -43,16 +43,32 @@
 #ifndef nsGenericDOMDataNode_h___
 #define nsGenericDOMDataNode_h___
 
+#include "nsIContent.h"
 #include "nsIDOMCharacterData.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOM3Text.h"
 #include "nsTextFragment.h"
-#include "nsVoidArray.h"
 #include "nsDOMError.h"
 #include "nsIEventListenerManager.h"
 #include "nsGenericElement.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsContentUtils.h"
+
+#ifdef MOZ_SMIL
+#include "nsISMILAttr.h"
+#endif // MOZ_SMIL
+
+// This bit is set to indicate that if the text node changes to
+// non-whitespace, we may need to create a frame for it. This bit must
+// not be set on nodes that already have a frame.
+#define NS_CREATE_FRAME_IF_NON_WHITESPACE (1 << NODE_TYPE_SPECIFIC_BITS_OFFSET)
+
+// This bit is set to indicate that if the text node changes to
+// whitespace, we may need to reframe it (or its ancestors).
+#define NS_REFRAME_IF_WHITESPACE (1 << (NODE_TYPE_SPECIFIC_BITS_OFFSET + 1))
+
+// This bit is set to indicate that the text may be part of a selection.
+#define NS_TEXT_IN_SELECTION (1 << (NODE_TYPE_SPECIFIC_BITS_OFFSET + 2))
 
 class nsIDOMAttr;
 class nsIDOMEventListener;
@@ -156,26 +172,25 @@ public:
   // nsINode methods
   virtual PRUint32 GetChildCount() const;
   virtual nsIContent *GetChildAt(PRUint32 aIndex) const;
-  virtual nsIContent * const * GetChildArray() const;
+  virtual nsIContent * const * GetChildArray(PRUint32* aChildCount) const;
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  PRBool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify);
+  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
   virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
   virtual nsresult DispatchDOMEvent(nsEvent* aEvent, nsIDOMEvent* aDOMEvent,
                                     nsPresContext* aPresContext,
                                     nsEventStatus* aEventStatus);
-  virtual nsresult GetListenerManager(PRBool aCreateIfNotFound,
-                                      nsIEventListenerManager** aResult);
+  virtual nsIEventListenerManager* GetListenerManager(PRBool aCreateIfNotFound);
   virtual nsresult AddEventListenerByIID(nsIDOMEventListener *aListener,
                                          const nsIID& aIID);
   virtual nsresult RemoveEventListenerByIID(nsIDOMEventListener *aListener,
                                             const nsIID& aIID);
   virtual nsresult GetSystemEventGroup(nsIDOMEventGroup** aGroup);
-  virtual nsresult GetContextForEventHandlers(nsIScriptContext** aContext)
+  virtual nsIScriptContext* GetContextForEventHandlers(nsresult* aRv)
   {
-    return nsContentUtils::GetContextForEventHandlers(this, aContext);
+    return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
 
   // Implementation for nsIContent
@@ -217,6 +232,14 @@ public:
   virtual void AppendTextTo(nsAString& aResult);
   virtual void DestroyContent();
   virtual void SaveSubtreeState();
+
+#ifdef MOZ_SMIL
+  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* /*aName*/)
+  {
+    return nsnull;
+  }
+#endif // MOZ_SMIL
+
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const;
   virtual void DumpContent(FILE* out, PRInt32 aIndent, PRBool aDumpAll) const;
@@ -261,7 +284,7 @@ public:
   void ToCString(nsAString& aBuf, PRInt32 aOffset, PRInt32 aLen) const;
 #endif
 
-  NS_DECL_CYCLE_COLLECTION_CLASS(nsGenericDOMDataNode)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsGenericDOMDataNode)
 
 protected:
   /**

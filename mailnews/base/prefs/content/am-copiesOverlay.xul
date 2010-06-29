@@ -49,8 +49,8 @@
 <overlay xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">                                                       
 
-  <script type="application/x-javascript" src="chrome://messenger/content/widgetglue.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/am-copies.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/am-copies.js"/>
 
   <vbox flex="1" id="copiesAndFolders">  
     <!-- stringbundle is used by msgFolderPickerOverlay.js-->     
@@ -126,6 +126,7 @@
                           oncommand="noteSelectionChange('fcc_selectFolder', event)" 
                           observes="broadcaster_doFcc">
                   <menupopup id="msgFccFolderPopup" type="folder" mode="filing"
+                             class="menulist-menupopup"
                              showFileHereLabel="true"
                              fileHereLabel="&filemessageschoosethis.label;"/>
                 </menulist>
@@ -143,18 +144,39 @@
               observes="broadcaster_doFcc"/>
       </hbox>
 
-      <hbox align="center">
-        <checkbox wsm_persist="true" id="identity.doBcc" label="&bccAddress.label;"
+      <grid>
+        <columns>
+          <column/>
+          <column flex="1"/>
+        </columns>
+
+        <rows>
+          <row align="center">
+            <checkbox wsm_persist="true" id="identity.doCc" label="&ccAddress.label;"
+                  accesskey="&ccAddress.accesskey;"
+                  control="identity.doCcList"
+                  oncommand="setupCcTextbox();"
+                  prefattribute="value"
+                  prefstring="mail.identity.%identitykey%.doCc"/>
+            <textbox wsm_persist="true" id="identity.doCcList" flex="1"
+                  aria-labelledby="identity.doCc"
+                  prefstring="mail.identity.%identitykey%.doCcList" class="uri-element"
+                  emptytext="&ccAddressList.emptytext;"/>
+          </row>
+          <row align="center">
+            <checkbox wsm_persist="true" id="identity.doBcc" label="&bccAddress.label;"
                   accesskey="&bccAddress.accesskey;"
                   control="identity.doBccList"
                   oncommand="setupBccTextbox();"
                   prefattribute="value" 
                   prefstring="mail.identity.%identitykey%.doBcc"/>
-
-        <textbox wsm_persist="true" id="identity.doBccList" flex="1"
-                 aria-labelledby="identity.doBcc"
-                 prefstring="mail.identity.%identitykey%.doBccList" class="uri-element"/>
-      </hbox>
+            <textbox wsm_persist="true" id="identity.doBccList" flex="1"
+                  aria-labelledby="identity.doBcc"
+                  prefstring="mail.identity.%identitykey%.doBccList" class="uri-element"
+                  emptytext="&bccAddressList.emptytext;"/>
+          </row>
+        </rows>
+      </grid>
 
     </groupbox>
 
@@ -192,6 +214,7 @@
                         aria-labelledby="draft_selectFolder"
                         oncommand="noteSelectionChange('draft_selectFolder', event)">
                 <menupopup id="msgDraftFolderPopup" type="folder" mode="filing"
+                           class="menulist-menupopup"
                            showFileHereLabel="true"
                            fileHereLabel="&filemessageschoosethis.label;"/>
               </menulist>
@@ -231,6 +254,7 @@
                         aria-labelledby="archive_selectFolder"
                         oncommand="noteSelectionChange('archive_selectFolder', event)">
                 <menupopup id="msgArchivesFolderPopup" type="folder" mode="filing"
+                           class="menulist-menupopup"
                            showFileHereLabel="true"
                            fileHereLabel="&filemessageschoosethis.label;"/>
               </menulist>
@@ -270,6 +294,7 @@
                         aria-labelledby="tmpl_selectFolder"
                         oncommand="noteSelectionChange('tmpl_selectFolder', event)">
                 <menupopup id="msgTemplFolderPopup" type="folder" mode="filing"
+                           class="menulist-menupopup"
                            showFileHereLabel="true"
                            fileHereLabel="&filemessageschoosethis.label;"/>
               </menulist>

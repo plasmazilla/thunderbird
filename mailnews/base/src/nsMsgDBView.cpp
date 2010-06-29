@@ -427,7 +427,8 @@ nsresult nsMsgDBView::FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount)
   nsresult rv = aHdr->GetAccountKey(getter_Copies(accountKey));
 
   // Cache the account manager?
-  nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  nsCOMPtr<nsIMsgAccountManager> accountManager(
+    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIMsgAccount> account;
   nsCOMPtr<nsIMsgIncomingServer> server;
@@ -959,7 +960,13 @@ NS_IMETHODIMP nsMsgDBView::ReloadMessageWithAllParts()
   forceAllParts += (forceAllParts.FindChar('?') == kNotFound) ? "?" : "&";
   forceAllParts.AppendLiteral("fetchCompleteMessage=true");
   nsCOMPtr<nsIMessenger> messenger (do_QueryReferent(mMessengerWeak));
-  return messenger ? messenger->OpenURL(forceAllParts) : NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(messenger, NS_ERROR_FAILURE);
+
+  nsresult rv = messenger->OpenURL(forceAllParts);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  UpdateDisplayMessage(m_currentlyDisplayedViewIndex);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgDBView::ReloadMessage()
@@ -967,7 +974,13 @@ NS_IMETHODIMP nsMsgDBView::ReloadMessage()
   if (m_currentlyDisplayedMsgUri.IsEmpty() || mSuppressMsgDisplay)
     return NS_OK;
   nsCOMPtr<nsIMessenger> messenger (do_QueryReferent(mMessengerWeak));
-  return messenger ? messenger->OpenURL(m_currentlyDisplayedMsgUri) : NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(messenger, NS_ERROR_FAILURE);
+
+  nsresult rv = messenger->OpenURL(m_currentlyDisplayedMsgUri);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  UpdateDisplayMessage(m_currentlyDisplayedViewIndex);
+  return NS_OK;
 }
 
 nsresult nsMsgDBView::UpdateDisplayMessage(nsMsgViewIndex viewPosition)
@@ -1287,7 +1300,7 @@ NS_IMETHODIMP nsMsgDBView::GetCellProperties(PRInt32 aRow, nsITreeColumn *col, n
   nsCString junkScoreStr;
   msgHdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
   if (!junkScoreStr.IsEmpty()) {
-    properties->AppendElement(junkScoreStr.ToInteger((PRInt32*)&rv) == nsIJunkMailPlugin::IS_SPAM_SCORE ?
+    properties->AppendElement(junkScoreStr.ToInteger((PRInt32*)&rv, 10) == nsIJunkMailPlugin::IS_SPAM_SCORE ?
                               kJunkMsgAtom : kNotJunkMsgAtom);
     NS_ASSERTION(NS_SUCCEEDED(rv), "Converting junkScore to integer failed.");
   }
@@ -1630,7 +1643,7 @@ NS_IMETHODIMP nsMsgDBView::GetCellValue(PRInt32 aRow, nsITreeColumn* aCol, nsASt
         // Only need to assing a real value for junk, it's empty already
         // as it should be for non-junk.
         if (!junkScoreStr.IsEmpty() &&
-            (junkScoreStr.ToInteger((PRInt32*)&rv) == nsIJunkMailPlugin::IS_SPAM_SCORE))
+            (junkScoreStr.ToInteger((PRInt32*)&rv, 10) == nsIJunkMailPlugin::IS_SPAM_SCORE))
           aValue.AssignLiteral("messageJunk");
 
         NS_ASSERTION(NS_SUCCEEDED(rv), "Converting junkScore to integer failed.");
@@ -2007,7 +2020,7 @@ NS_IMETHODIMP nsMsgDBView::CycleCell(PRInt32 row, nsITreeColumn* col)
       {
         nsCString junkScoreStr;
         rv = msgHdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
-        if (junkScoreStr.IsEmpty() || (junkScoreStr.ToInteger((PRInt32*)&rv) == nsIJunkMailPlugin::IS_HAM_SCORE))
+        if (junkScoreStr.IsEmpty() || (junkScoreStr.ToInteger((PRInt32*)&rv, 10) == nsIJunkMailPlugin::IS_HAM_SCORE))
           ApplyCommandToIndices(nsMsgViewCommandType::junk, (nsMsgViewIndex *) &row, 1);
         else
           ApplyCommandToIndices(nsMsgViewCommandType::unjunk, (nsMsgViewIndex *) &row, 1);
@@ -2314,7 +2327,8 @@ NS_IMETHODIMP nsMsgDBView::GetURIForViewIndex(nsMsgViewIndex index, nsACString &
     rv = GetFolderForViewIndex(index, getter_AddRefs(folder));
     NS_ENSURE_SUCCESS(rv,rv);
   }
-  if (index == nsMsgViewIndex_None || m_flags[index] & MSG_VIEW_FLAG_DUMMY)
+  if (index == nsMsgViewIndex_None || index >= m_flags.Length() ||
+      m_flags[index] & MSG_VIEW_FLAG_DUMMY)
     return NS_MSG_INVALID_DBVIEW_INDEX;
   return GenerateURIForMsgKey(m_keys[index], folder, result);
 }
@@ -3143,7 +3157,7 @@ nsresult nsMsgDBView::SetMsgHdrJunkStatus(nsIJunkMailPlugin *aJunkPlugin,
         // otherwise, pass the actual user classification
         if (junkScoreStr.IsEmpty())
           oldUserClassification = nsIJunkMailPlugin::UNCLASSIFIED;
-        else if (junkScoreStr.ToInteger((PRInt32*)&rv) == nsIJunkMailPlugin::IS_SPAM_SCORE)
+        else if (junkScoreStr.ToInteger((PRInt32*)&rv, 10) == nsIJunkMailPlugin::IS_SPAM_SCORE)
           oldUserClassification = nsIJunkMailPlugin::JUNK;
         else
           oldUserClassification = nsIJunkMailPlugin::GOOD;
@@ -3386,23 +3400,13 @@ nsMsgDBView::DetermineActionsForJunkChange(PRBool msgsAreJunk,
   rv = server->GetSpamSettings(getter_AddRefs(spamSettings));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // if the spam system is completely disabled we won't do anything
-  // question: is this a valid choice?
-  PRInt32 spamLevel;
-  (void)spamSettings->GetLevel(&spamLevel);
-  if (!spamLevel)
-    return NS_OK;
-
   // When the user explicitly marks a message as junk, we can mark it as read,
   // too. This is independent of the "markAsReadOnSpam" pref, which applies
   // only to automatically-classified messages.
   // Note that this behaviour should match the one in the front end for marking
   // as junk via toolbar/context menu.
-  if (NS_SUCCEEDED(rv))
-  {
-    prefBranch->GetBoolPref("mailnews.ui.junk.manualMarkAsJunkMarksRead",
-                            &changeReadState);
-  }
+  prefBranch->GetBoolPref("mailnews.ui.junk.manualMarkAsJunkMarksRead",
+                          &changeReadState);
 
   // now let's determine whether we'll be taking the second action,
   // the move / deletion (and also determine which of these two)
@@ -3434,9 +3438,22 @@ nsMsgDBView::DetermineActionsForJunkChange(PRBool msgsAreJunk,
     if (!spamFolderURI.IsEmpty())
     {
       rv = GetExistingFolder(spamFolderURI, targetFolder);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      moveMessages = true;
+      if (NS_SUCCEEDED(rv) && *targetFolder)
+      {
+        moveMessages = true;
+      }
+      else
+      {
+        // XXX ToDo: GetOrCreateFolder will only create a folder with localized
+        //           name "Junk" regardless of spamFolderURI. So if someone
+        //           sets the junk folder to an existing folder of a different
+        //           name, then deletes that folder, this will fail to create
+        //           the correct folder.
+        rv = GetOrCreateFolder(spamFolderURI, nsnull /* aListener */);
+        if (NS_SUCCEEDED(rv))
+          rv = GetExistingFolder(spamFolderURI, targetFolder);
+        NS_ASSERTION(NS_SUCCEEDED(rv) && *targetFolder, "GetOrCreateFolder failed");
+      }
     }
     return NS_OK;
   }
@@ -4158,7 +4175,7 @@ NS_IMETHODIMP nsMsgDBView::Sort(nsMsgViewSortTypeValue sortType, nsMsgViewSortOr
   PRUint32 maxSize = (keyOffset + maxLen) * (arraySize - numSoFar);
 
   const PRUint32 maxBlockSize = (PRUint32) 0xf000L;
-  PRUint32 allocSize = PR_MIN(maxBlockSize, maxSize);
+  PRUint32 allocSize = NS_MIN(maxBlockSize, maxSize);
   char *pTemp = (char *) PR_Malloc(allocSize);
   NS_ASSERTION(pTemp, "out of memory, can't sort");
   if (!pTemp)
@@ -4226,9 +4243,9 @@ NS_IMETHODIMP nsMsgDBView::Sort(nsMsgViewSortTypeValue sortType, nsMsgViewSortOr
     if ((PRUint32)(pTemp - pBase) + (keyOffset + actualFieldLen) >= allocSize)
     {
       maxSize = (keyOffset + maxLen) * (arraySize - numSoFar);
-      allocSize = PR_MIN(maxBlockSize, maxSize);
+      allocSize = NS_MIN(maxBlockSize, maxSize);
       // make sure allocSize is big enough for the current value
-      allocSize = PR_MAX(allocSize, keyOffset + actualFieldLen);
+      allocSize = NS_MAX(allocSize, keyOffset + actualFieldLen);
       pTemp = (char *) PR_Malloc(allocSize);
       NS_ASSERTION(pTemp, "out of memory, can't sort");
       if (!pTemp)
@@ -6029,7 +6046,7 @@ nsresult nsMsgDBView::NavigateFromPos(nsMsgNavigationTypeValue motion, nsMsgView
             break;
         case nsMsgNavigationType::nextMessage:
             // return same index and id on next on last message
-            *pResultIndex = PR_MIN(startIndex + 1, lastIndex);
+            *pResultIndex = NS_MIN(startIndex + 1, lastIndex);
             *pResultKey = m_keys[*pResultIndex];
             break;
         case nsMsgNavigationType::previousMessage:
@@ -6450,7 +6467,8 @@ nsresult nsMsgDBView::FindPrevFlagged(nsMsgViewIndex startIndex, nsMsgViewIndex 
 
 PRBool nsMsgDBView::IsValidIndex(nsMsgViewIndex index)
 {
-    return ((index >=0) && (index < (nsMsgViewIndex) m_keys.Length()));
+    return index != nsMsgViewIndex_None &&
+           (index < (nsMsgViewIndex) m_keys.Length());
 }
 
 nsresult nsMsgDBView::OrExtraFlag(nsMsgViewIndex index, PRUint32 orflag)
@@ -6741,6 +6759,12 @@ nsMsgDBView::GetNumSelected(PRUint32 *aNumSelected)
   return rv;
 }
 
+NS_IMETHODIMP nsMsgDBView::GetNumMsgsInView(PRInt32 *aNumMsgs)
+{
+  NS_ENSURE_ARG_POINTER(aNumMsgs);
+  return (m_folder) ? m_folder->GetTotalMessages(PR_FALSE, aNumMsgs) :
+                    NS_ERROR_FAILURE;
+}
 /**
  * @note For the IMAP delete model, this applies to both deleting and 
  *       undeleting a message.
@@ -6780,7 +6804,8 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
         NS_WARN_IF_FALSE(endFirstRange != startRange, 
                          "goofy tree selection state: two ranges are adjacent!");
       }
-      *msgToSelectAfterDelete = PR_MIN(*msgToSelectAfterDelete, startRange);
+      *msgToSelectAfterDelete = NS_MIN(*msgToSelectAfterDelete,
+                                       (nsMsgViewIndex)startRange);
     }
 
     // Multiple selection either using Ctrl, Shift, or one of the affordances
@@ -7072,14 +7097,10 @@ nsresult nsMsgDBView::GetImapDeleteModel(nsIMsgFolder *folder)
 //
 // Can't drop on the thread pane.
 //
-#ifdef MOZILLA_1_9_1_BRANCH
-NS_IMETHODIMP nsMsgDBView::CanDrop(PRInt32 index, PRInt32 orient, PRBool *_retval)
-#else
 NS_IMETHODIMP nsMsgDBView::CanDrop(PRInt32 index,
                                    PRInt32 orient,
                                    nsIDOMDataTransfer *dataTransfer,
                                    PRBool *_retval)
-#endif
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = PR_FALSE;
@@ -7093,13 +7114,9 @@ NS_IMETHODIMP nsMsgDBView::CanDrop(PRInt32 index,
 //
 // Can't drop on the thread pane.
 //
-#ifdef MOZILLA_1_9_1_BRANCH
-NS_IMETHODIMP nsMsgDBView::Drop(PRInt32 row, PRInt32 orient)
-#else
 NS_IMETHODIMP nsMsgDBView::Drop(PRInt32 row,
                                 PRInt32 orient,
                                 nsIDOMDataTransfer *dataTransfer)
-#endif
 {
   return NS_OK;
 }

@@ -77,6 +77,7 @@ public:
     eDOMEvents_load,
     eDOMEvents_beforeunload,
     eDOMEvents_unload,
+    eDOMEvents_hashchange,
     eDOMEvents_abort,
     eDOMEvents_error,
     eDOMEvents_submit,
@@ -170,7 +171,8 @@ public:
     eDOMEvents_MozRotateGestureUpdate,
     eDOMEvents_MozRotateGesture,
     eDOMEvents_MozTapGesture,
-    eDOMEvents_MozPressTapGesture
+    eDOMEvents_MozPressTapGesture,
+    eDOMEvents_MozScrolledAreaChanged
   };
 
   nsDOMEvent(nsPresContext* aPresContext, nsEvent* aEvent);
@@ -188,11 +190,8 @@ public:
   // nsIPrivateDOMEvent interface
   NS_IMETHOD    DuplicatePrivateData();
   NS_IMETHOD    SetTarget(nsIDOMEventTarget* aTarget);
-  NS_IMETHOD    SetCurrentTarget(nsIDOMEventTarget* aCurrentTarget);
-  NS_IMETHOD    SetOriginalTarget(nsIDOMEventTarget* aOriginalTarget);
   NS_IMETHOD_(PRBool)    IsDispatchStopped();
   NS_IMETHOD_(nsEvent*)    GetInternalNSEvent();
-  NS_IMETHOD_(PRBool)    HasOriginalTarget();
   NS_IMETHOD    SetTrusted(PRBool aTrusted);
 
   static PopupControlState GetEventPopupControlState(nsEvent *aEvent);
@@ -201,11 +200,11 @@ public:
 
   static void Shutdown();
 
+  static const char* GetEventName(PRUint32 aEventType);
 protected:
 
   // Internal helper functions
   nsresult SetEventType(const nsAString& aEventTypeArg);
-  static const char* GetEventName(PRUint32 aEventType);
   already_AddRefed<nsIDOMEventTarget> GetTargetFromFrame();
   nsresult ReportWrongPropertyAccessWarning(const char* aPropertyName);
 

@@ -561,9 +561,8 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
       goto done;
     }
 
-    nsCOMPtr<nsIOutputStream> outputStream;
-    rv = NS_NewLocalFileOutputStream(getter_AddRefs(outputStream), mTmpFile, -1, 00600);
-    if (NS_FAILED(rv) || !outputStream)
+    rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mOutFile), mTmpFile, -1, 00600);
+    if (NS_FAILED(rv) || !mOutFile)
     {
       if (m_mime_delivery_state)
       {
@@ -572,16 +571,13 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
         if (sendReport)
         {
           nsAutoString error_msg;
-          nsAutoString path;
-          mTmpFile->GetPath(path);
-          nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_TMP_FILE, error_msg, &path, nsnull);
+          nsMsgBuildMessageWithTmpFile(mTmpFile, error_msg);
           sendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
         }
       }
       rv =  NS_MSG_UNABLE_TO_OPEN_TMP_FILE;
       goto done;
     }
-    mOutFile = do_QueryInterface(outputStream);
 
     nsCOMPtr<nsIURLFetcher> fetcher = do_CreateInstance(NS_URLFETCHER_CONTRACTID, &rv);
     if (NS_FAILED(rv) || !fetcher)
@@ -693,9 +689,8 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
   mTmpFile = do_QueryInterface(tmpFile);
   mDeleteFile = PR_TRUE;
 
-  nsCOMPtr<nsIOutputStream> outputStream;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(outputStream), mTmpFile, -1, 00600);
-  if (NS_FAILED(rv) || !outputStream)
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mOutFile), mTmpFile, -1, 00600);
+  if (NS_FAILED(rv) || !mOutFile)
   {
     if (m_mime_delivery_state)
     {
@@ -704,9 +699,7 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
       if (sendReport)
       {
         nsAutoString error_msg;
-        nsAutoString path;
-        mTmpFile->GetPath(path);
-        nsMsgBuildErrorMessageByID(NS_MSG_UNABLE_TO_OPEN_TMP_FILE, error_msg, &path, nsnull);
+        nsMsgBuildMessageWithTmpFile(mTmpFile, error_msg);
         sendReport->SetMessage(nsIMsgSendReport::process_Current, error_msg.get(), PR_FALSE);
       }
     }
@@ -714,7 +707,6 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
     mTmpFile = nsnull;
     return NS_MSG_UNABLE_TO_OPEN_TMP_FILE;
   }
-  mOutFile = do_QueryInterface(outputStream);
 
   nsCString sourceURISpec;
   mURL->GetSpec(sourceURISpec);

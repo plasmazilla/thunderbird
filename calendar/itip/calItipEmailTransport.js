@@ -327,7 +327,7 @@ calItipEmailTransport.prototype = {
                             "From: " + aIdentity.email + "\r\n" +
                             "To: " + aToList + "\r\n" +
                             "Date: " + (new Date()).toUTCString() + "\r\n" +
-                            encodeMimeHeader("Subject: " + aSubject.replace(/(\n|\r\n)/, "|")) + "\r\n");
+                            "Subject: " + encodeMimeHeader(aSubject.replace(/(\n|\r\n)/, "|")) + "\r\n");
             switch (compatMode) {
                 case 1:
                     mailText += ("Content-class: urn:content-classes:calendarmessage\r\n" +
@@ -374,7 +374,8 @@ calItipEmailTransport.prototype = {
                                      .createInstance(Components.interfaces.nsIProperties);
             var tempFile = dirUtils.get("TmpD", Components.interfaces.nsIFile);
             tempFile.append("itipTemp");
-            tempFile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 0600);
+            tempFile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE,
+                                  parseInt("0600", 8));
 
             var outputStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
                                          .createInstance(Components.interfaces.nsIFileOutputStream);
@@ -384,7 +385,8 @@ calItipEmailTransport.prototype = {
             const MODE_TRUNCATE = 0x20;
             outputStream.init(tempFile,
                               MODE_WRONLY | MODE_CREATE | MODE_TRUNCATE,
-                              0600, 0);
+                              parseInt("0600", 8),
+                              0);
             outputStream.write(mailText, mailText.length);
             outputStream.close();
 

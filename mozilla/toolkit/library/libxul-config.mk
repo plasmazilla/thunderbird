@@ -42,7 +42,7 @@ CPPSRCS += \
 	$(NULL)
 
 ifeq (,$(filter-out WINCE WINNT,$(OS_ARCH)))
-REQUIRES += libreg widget gfx
+REQUIRES += widget gfx
 CPPSRCS += \
 	nsDllMain.cpp \
 	$(NULL)
@@ -65,11 +65,12 @@ LOCAL_INCLUDES += -I$(topsrcdir)/widget/src/windows
 endif
 
 ifneq (,$(filter WINNT OS2,$(OS_ARCH)))
+REQUIRES += libreg
 DEFINES	+= -DZLIB_DLL=1
 endif
 
 ifeq ($(OS_ARCH),OS2)
-REQUIRES += libreg widget gfx
+REQUIRES += widget gfx
 
 CPPSRCS += \
 	dlldeps.cpp \
@@ -90,18 +91,40 @@ LOCAL_INCLUDES += -I$(topsrcdir)/widget/src/os2
 endif
 
 # dependent libraries
+ifdef MOZ_IPC
+STATIC_LIBS += \
+  domplugins_s \
+  mozipc_s \
+  mozipdlgen_s \
+  chromium_s \
+  gfxipc_s \
+  $(NULL)
+
+ifdef MOZ_IPDL_TESTS
+STATIC_LIBS += ipdlunittest_s
+endif
+
+ifeq (Linux,$(OS_ARCH))
+OS_LIBS += -lrt
+endif
+ifeq (WINNT,$(OS_ARCH))
+OS_LIBS += psapi.lib dbghelp.lib
+endif
+endif
+
 STATIC_LIBS += \
 	xpcom_core \
 	ucvutil_s \
 	gkgfx \
-	gfxshared_s \
 	$(NULL)
 
 #ifndef MOZ_EMBEDDING_LEVEL_DEFAULT
+ifndef WINCE
 ifdef MOZ_XPINSTALL
 STATIC_LIBS += \
 	mozreg_s \
 	$(NULL)
+endif
 endif
 #endif
 
@@ -135,7 +158,13 @@ COMPONENT_LIBS += \
 	xmlextras \
 	$(NULL)
 endif
-  
+
+ifdef BUILD_CTYPES
+COMPONENT_LIBS += \
+	jsctypes \
+	$(NULL)
+endif
+
 ifdef MOZ_PLUGINS
 DEFINES += -DMOZ_PLUGINS
 COMPONENT_LIBS += \
@@ -171,6 +200,12 @@ COMPONENT_LIBS += \
         unixproxy \
         $(NULL)
 endif
+endif
+
+ifneq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
+COMPONENT_LIBS += \
+	windowsproxy \
+	$(NULL)
 endif
 
 ifdef MOZ_PERF_METRICS
@@ -358,3 +393,10 @@ endif
 ifdef GC_LEAK_DETECTOR
 EXTRA_DSO_LIBS += boehm
 endif
+
+ifdef MOZ_ENABLE_CANVAS3D
+ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
+EXTRA_DSO_LDOPTS += -framework OpenGL
+endif
+endif
+

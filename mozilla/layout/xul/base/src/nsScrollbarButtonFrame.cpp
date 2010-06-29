@@ -64,13 +64,24 @@ nsIFrame*
 NS_NewScrollbarButtonFrame (nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   return new (aPresShell) nsScrollbarButtonFrame(aPresShell, aContext);
-} // NS_NewScrollBarButtonFrame
+}
+
+NS_IMPL_FRAMEARENA_HELPERS(nsScrollbarButtonFrame)
 
 NS_IMETHODIMP
 nsScrollbarButtonFrame::HandleEvent(nsPresContext* aPresContext, 
                                     nsGUIEvent* aEvent,
                                     nsEventStatus* aEventStatus)
 {  
+  NS_ENSURE_ARG_POINTER(aEventStatus);
+
+  // If a web page calls event.preventDefault() we still want to
+  // scroll when scroll arrow is clicked. See bug 511075.
+  if (!mContent->IsInNativeAnonymousSubtree() &&
+      nsEventStatus_eConsumeNoDefault == *aEventStatus) {
+    return NS_OK;
+  }
+
   // XXX hack until handle release is actually called in nsframe.
   if (aEvent->message == NS_MOUSE_EXIT_SYNTH ||
       aEvent->message == NS_MOUSE_BUTTON_UP)
@@ -230,8 +241,7 @@ nsScrollbarButtonFrame::DoButtonAction(PRBool aSmoothScroll)
   else if (curpos > maxpos)
     curpos = maxpos;
 
-  nsIScrollbarFrame* sb;
-  CallQueryInterface(scrollbar, &sb);
+  nsIScrollbarFrame* sb = do_QueryFrame(scrollbar);
   if (sb) {
     nsIScrollbarMediator* m = sb->GetScrollbarMediator();
     if (m) {

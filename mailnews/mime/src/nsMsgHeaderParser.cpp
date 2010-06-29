@@ -42,6 +42,7 @@
 #include "comi18n.h"
 #include "prmem.h"
 #include <ctype.h>
+#include "nsAlgorithm.h"
 
 nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar ** aOutgoingEmailAddress, PRUnichar ** aOutgoingName,
                           PRUnichar ** aOutgoingFullName, nsIMsgHeaderParser *aParser);
@@ -211,7 +212,9 @@ nsMsgHeaderParser::RemoveDuplicateAddresses(const nsACString &aAddrs,
                                             const nsACString &aOtherAddrs,
                                             nsACString &aResult)
 {
-  aResult.Adopt(msg_remove_duplicate_addresses(aAddrs, aOtherAddrs));
+  nsCString res;
+  res.Adopt(msg_remove_duplicate_addresses(aAddrs, aOtherAddrs));
+  aResult.Assign(res);
   return NS_OK;
 }
 
@@ -439,9 +442,9 @@ static int msg_parse_Header_addresses (const char *line, char **names, char **ad
   addr_start = addr_buf;
   this_start = line;
 
-  /* Skip over extra whitespace or commas before addresses.
-   */
-  while (*line_end && (IS_SPACE(*line_end) || *line_end == ','))
+  /* Skip over extra whitespace, commas or semicolons before addresses. */
+  while (*line_end && (IS_SPACE(*line_end) || *line_end == ',' ||
+                       *line_end == ';'))
     NEXT_CHAR(line_end);
 
   while (*line_end)
@@ -450,10 +453,15 @@ static int msg_parse_Header_addresses (const char *line, char **names, char **ad
     const char *oparen = 0;
     const char *mailbox_start = 0;
     const char *mailbox_end = 0;
+    PRBool in_group = PR_FALSE;
 
-    while (   *line_end
-           && !(   *line_end == ',' && paren_depth <= 0 /* comma is ok inside () */
-                    && (!mailbox_start || mailbox_end)))    /* comma is ok inside <> */
+    while (*line_end &&
+           // comma is ok inside () and <>
+           !(*line_end == ',' && paren_depth <= 0 &&
+             (!mailbox_start || mailbox_end)) &&
+           // semi-colon is also ok inside the same and also as long as we're not in the middle of a group.
+           !(*line_end == ';' && !in_group && paren_depth <= 0 &&
+             (!mailbox_start || mailbox_end)))
     {
       if (*line_end == '\\')
       {
@@ -568,6 +576,21 @@ static int msg_parse_Header_addresses (const char *line, char **names, char **ad
           oparen = 0;
         }
       }
+      else if (*line_end == ':' && !mailbox_start && paren_depth == 0)
+      {
+        // We're now in group format.
+        in_group = PR_TRUE;
+        COPY_CHAR(addr_out, line_end);
+      }
+      else if (*line_end == ';' && in_group && paren_depth == 0)
+      {
+        in_group = PR_FALSE;
+        COPY_CHAR(addr_out, line_end);
+        // We've got to the end of a group, therefore just continue with the loop
+        // so that we avoid moving onto the next char at the end of this cycle of
+        // the loop.
+        continue;
+      }
       else
       {
         /* If we're not inside parens or a <mailbox>, tack this
@@ -586,7 +609,7 @@ static int msg_parse_Header_addresses (const char *line, char **names, char **ad
         }
       }
 
-        NEXT_CHAR(line_end);
+      NEXT_CHAR(line_end);
     }
 
   /* Now we have extracted a single address from the comma-separated
@@ -752,8 +775,9 @@ static int msg_parse_Header_addresses (const char *line, char **names, char **ad
     if (*line_end)
       NEXT_CHAR(line_end);
 
-    /* Skip over extra whitespace or commas between addresses. */
-    while (*line_end && (IS_SPACE(*line_end) || *line_end == ','))
+    /* Skip over extra whitespace, commas or semicolons between addresses. */
+    while (*line_end && (IS_SPACE(*line_end) || *line_end == ',' ||
+                         *line_end == ';'))
       line_end++;
 
     this_start = line_end;
@@ -967,11 +991,12 @@ msg_quote_phrase_or_addr(char *address, PRInt32 length, PRBool addr_p)
     *out++ = '\"';
   *out++ = 0;
 
-  NS_ASSERTION(new_length >= (out - orig_out), "");
+  NS_ASSERTION(new_length >= (out - orig_out), "miscalculated quoted length");
   memcpy(address, orig_out, new_length);
-  PR_FREEIF(orig_out); /* make sure we release the string we allocated */
+  PR_Free(orig_out); /* make sure we release the string we allocated */
 
-  return full_length + unquotable_count + 2;
+  // Return how many bytes we wrote, not counting the null byte.
+  return out - orig_out - 1;
 }
 
 /* msg_unquote_phrase_or_addr
@@ -1272,8 +1297,8 @@ msg_format_Header_addresses (const char *names, const char *addrs,
 
     len1 = (len1 * 2) + 2;  //(N*2) + 2 in case we need to quote it
     len2 = (len2 * 2) + 2;
-    name_maxlen = PR_MAX(name_maxlen, len1);
-    addr_maxlen = PR_MAX(addr_maxlen, len2);
+    name_maxlen = NS_MAX(name_maxlen, len1);
+    addr_maxlen = NS_MAX(addr_maxlen, len2);
     size += len1 + len2 + 10;
   }
 

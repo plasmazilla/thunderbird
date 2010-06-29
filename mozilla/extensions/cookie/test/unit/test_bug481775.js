@@ -11,6 +11,8 @@ function run_test() {
     pb = Cc["@mozilla.org/privatebrowsing;1"].getService(Ci.nsIPrivateBrowsingService);
   } catch (e) {}
 
+  prefs.setBoolPref("browser.privatebrowsing.keep_current_session", true);
+
   // accept all cookies and clear the table
   prefs.setIntPref("network.cookie.lifetimePolicy", 0);
   cs.removeAll();
@@ -53,6 +55,8 @@ function run_test() {
   // check we have the same number of cookies
   var count = getCookieCount();
   do_check_eq(getCookieCount(), count);
+
+  prefs.clearUserPref("browser.privatebrowsing.keep_current_session");
 
   // remove them all
   cs.removeAll();
