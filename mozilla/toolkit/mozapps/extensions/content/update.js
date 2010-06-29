@@ -191,7 +191,8 @@ var gVersionInfoPage = {
     var em = Components.classes["@mozilla.org/extensions/manager;1"]
                        .getService(nsIExtensionManager);
     // Synchronize the app compatibility info for all items.
-    em.update([], 0, nsIExtensionManager.UPDATE_SYNC_COMPATIBILITY, this);
+    em.update([], 0, nsIExtensionManager.UPDATE_SYNC_COMPATIBILITY, this,
+              nsIExtensionManager.UPDATE_WHEN_NEW_APP_INSTALLED);
   },
 
   /////////////////////////////////////////////////////////////////////////////
@@ -204,7 +205,7 @@ var gVersionInfoPage = {
     var em = Components.classes["@mozilla.org/extensions/manager;1"]
                        .getService(nsIExtensionManager);
     // Retrieve the remaining incompatible items.
-    gUpdateWizard.items = em.getIncompatibleItemList(null, null, null,
+    gUpdateWizard.items = em.getIncompatibleItemList(null, null,
                                                      nsIUpdateItem.TYPE_ANY,
                                                      true, { });
     gUpdateWizard.items = gUpdateWizard.items.filter(function(item) {
@@ -304,7 +305,8 @@ var gUpdatePage = {
     var em = Components.classes["@mozilla.org/extensions/manager;1"]
                        .getService(nsIExtensionManager);
     em.update(gUpdateWizard.items, this._totalCount,
-              nsIExtensionManager.UPDATE_CHECK_NEWVERSION, this);
+              nsIExtensionManager.UPDATE_CHECK_NEWVERSION, this,
+              nsIExtensionManager.UPDATE_WHEN_NEW_APP_INSTALLED);
   },
 
   /////////////////////////////////////////////////////////////////////////////

@@ -77,7 +77,9 @@ nsSystemFontsQt::GetSystemFontInfo(const char *aClassName, nsString *aFontName,
     nsString family((PRUnichar*)qFont.family().data());
     *aFontName = quote + family + quote;
     aFontStyle->weight = qFont.weight();
-    aFontStyle->size = qFont.pointSizeF() * float(gfxQtPlatform::DPI()) / 72.0f;
+    // FIXME: Set aFontStyle->stretch correctly!
+    aFontStyle->stretch = NS_FONT_STRETCH_NORMAL;
+    aFontStyle->size = qFont.pointSizeF() * float(gfxPlatform::GetDPI()) / 72.0f;
     return NS_OK;
 }
 

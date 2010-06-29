@@ -48,9 +48,11 @@ class nsGfxCheckboxControlFrame : public nsFormControlFrame,
                                   public nsICheckboxControlFrame
 {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   nsGfxCheckboxControlFrame(nsStyleContext* aContext);
   virtual ~nsGfxCheckboxControlFrame();
-  
+
 #ifdef DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const {
     return MakeFrameName(NS_LITERAL_STRING("CheckboxControl"), aResult);
@@ -68,15 +70,12 @@ public:
   //nsICheckboxControlFrame methods
   NS_IMETHOD OnChecked(nsPresContext* aPresContext, PRBool aChecked);
 
-  NS_IMETHOD QueryInterface(const nsIID& aIID, void** aInstancePtr);
+  NS_DECL_QUERYFRAME
 
 protected:
 
-  PRBool GetCheckboxState();
-
-private:
-  NS_IMETHOD_(nsrefcnt) AddRef() { return NS_OK; }
-  NS_IMETHOD_(nsrefcnt) Release() { return NS_OK; }
+  PRBool IsChecked();
+  PRBool IsIndeterminate();
 };
 
 #endif

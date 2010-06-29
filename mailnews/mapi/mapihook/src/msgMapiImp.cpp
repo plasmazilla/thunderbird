@@ -452,7 +452,7 @@ STDMETHODIMP CMapiImp::ReadMail(unsigned long aSession, unsigned long ulUIParam,
   PRInt32 irv;
   nsCAutoString keyString((char *) lpszMessageID);
   PR_LOG(MAPI, PR_LOG_DEBUG, ("CMapiImp::ReadMail asking for key %s\n", (char *) lpszMessageID));
-  nsMsgKey msgKey = keyString.ToInteger(&irv);
+  nsMsgKey msgKey = keyString.ToInteger(&irv, 10);
   if (irv)
   {
     NS_ASSERTION(PR_FALSE, "invalid lpszMessageID");
@@ -477,7 +477,7 @@ STDMETHODIMP CMapiImp::DeleteMail(unsigned long aSession, unsigned long ulUIPara
 {
   PRInt32 irv;
   nsCAutoString keyString((char *) lpszMessageID);
-  nsMsgKey msgKey = keyString.ToInteger(&irv);
+  nsMsgKey msgKey = keyString.ToInteger(&irv, 10);
   if (irv)
     return SUCCESS_SUCCESS;
   MsgMapiListContext *listContext;
@@ -766,7 +766,7 @@ char *MsgMapiListContext::ConvertBodyToMapiFormat (nsIMsgDBHdr *hdr)
     if (!fileLineStream)
       return nsnull;
     // ### really want to skip past headers...
-    PRUint32 messageOffset;
+    PRUint64 messageOffset;
     PRUint32 lineCount;
     hdr->GetMessageOffset(&messageOffset);
     hdr->GetLineCount(&lineCount);
@@ -894,28 +894,24 @@ MsgMapiListContext::DeleteMessage(nsMsgKey key)
   if (!m_db)
     return FALSE;
   
-  nsAutoTArray<nsMsgKey, 1> messageKeys;      
-  messageKeys.AppendElement(key);
-  
   if ( !IsIMAPHost() )
   {
-    return NS_SUCCEEDED((m_db->DeleteMessages(&messageKeys, nsnull)));
+    return NS_SUCCEEDED((m_db->DeleteMessages(1, &key, nsnull)));
   }
+#if 0 
+  else if ( m_folder->GetIMAPFolderInfoMail() )
+  {
+    nsAutoTArray<nsMsgKey, 1> messageKeys;
+    messageKeys.AppendElement(key);
+
+    (m_folder->GetIMAPFolderInfoMail())->DeleteSpecifiedMessages(pane, messageKeys, nsMsgKey_None);
+    m_db->DeleteMessage(key, nsnull, FALSE);
+    return TRUE;
+  }
+#endif
   else
   {
     return FALSE;
-#if 0 
-    if ( m_folder->GetIMAPFolderInfoMail() )
-    {
-      (m_folder->GetIMAPFolderInfoMail())->DeleteSpecifiedMessages(pane, messageKeys, nsMsgKey_None);
-      m_db->DeleteMessage(key, nsnull, FALSE);
-      return TRUE;
-    }
-    else
-    {
-      return FALSE;
-    }
-#endif
   }
 }
 

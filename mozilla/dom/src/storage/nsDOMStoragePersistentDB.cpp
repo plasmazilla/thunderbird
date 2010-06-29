@@ -243,7 +243,7 @@ nsDOMStoragePersistentDB::Init()
          NS_LITERAL_CSTRING("DELETE FROM webappsstore2"),
          getter_AddRefs(mRemoveAllStatement));
   NS_ENSURE_SUCCESS(rv, rv);
-  
+
   // check the usage for a given owner
   rv = mConnection->CreateStatement(
          NS_LITERAL_CSTRING("SELECT SUM(LENGTH(key) + LENGTH(value)) "
@@ -278,7 +278,7 @@ nsDOMStoragePersistentDB::GetAllKeys(nsDOMStorage* aStorage,
 
     nsSessionStorageEntry* entry = aKeys->PutEntry(key);
     NS_ENSURE_TRUE(entry, NS_ERROR_OUT_OF_MEMORY);
- 
+
     entry->mItem = new nsDOMStorageItem(aStorage, key, EmptyString(), secureInt);
     if (!entry->mItem) {
       aKeys->RawRemoveEntry(entry);
@@ -297,7 +297,8 @@ nsDOMStoragePersistentDB::GetKeyValue(nsDOMStorage* aStorage,
 {
   mozStorageStatementScoper scope(mGetKeyValueStatement);
 
-  nsresult rv = mGetKeyValueStatement->BindUTF8StringParameter(0, aStorage->GetScopeDBKey());
+  nsresult rv = mGetKeyValueStatement->BindUTF8StringParameter(
+                                                  0, aStorage->GetScopeDBKey());
   NS_ENSURE_SUCCESS(rv, rv);
   rv = mGetKeyValueStatement->BindStringParameter(1, aKey);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -342,7 +343,8 @@ nsDOMStoragePersistentDB::SetKey(nsDOMStorage* aStorage,
 
   usage += aKey.Length() + aValue.Length();
 
-  rv = mGetKeyValueStatement->BindUTF8StringParameter(0, aStorage->GetScopeDBKey());
+  rv = mGetKeyValueStatement->BindUTF8StringParameter(0,
+                                                      aStorage->GetScopeDBKey());
   NS_ENSURE_SUCCESS(rv, rv);
   rv = mGetKeyValueStatement->BindStringParameter(1, aKey);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -363,6 +365,7 @@ nsDOMStoragePersistentDB::SetKey(nsDOMStorage* aStorage,
     nsAutoString previousValue;
     rv = mGetKeyValueStatement->GetString(0, previousValue);
     NS_ENSURE_SUCCESS(rv, rv);
+
     usage -= aKey.Length() + previousValue.Length();
 
     mGetKeyValueStatement->Reset();
@@ -377,7 +380,8 @@ nsDOMStoragePersistentDB::SetKey(nsDOMStorage* aStorage,
     NS_ENSURE_SUCCESS(rv, rv);
     rv = mUpdateKeyStatement->BindInt32Parameter(1, aSecure);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mUpdateKeyStatement->BindUTF8StringParameter(2, aStorage->GetScopeDBKey());
+    rv = mUpdateKeyStatement->BindUTF8StringParameter(2,
+                                                      aStorage->GetScopeDBKey());
     NS_ENSURE_SUCCESS(rv, rv);
     rv = mUpdateKeyStatement->BindStringParameter(3, aKey);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -389,10 +393,11 @@ nsDOMStoragePersistentDB::SetKey(nsDOMStorage* aStorage,
     if (usage > aQuota) {
       return NS_ERROR_DOM_QUOTA_REACHED;
     }
-    
+
     mozStorageStatementScoper scopeinsert(mInsertKeyStatement);
-    
-    rv = mInsertKeyStatement->BindUTF8StringParameter(0, aStorage->GetScopeDBKey());
+
+    rv = mInsertKeyStatement->BindUTF8StringParameter(0,
+                                                      aStorage->GetScopeDBKey());
     NS_ENSURE_SUCCESS(rv, rv);
     rv = mInsertKeyStatement->BindStringParameter(1, aKey);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -400,6 +405,7 @@ nsDOMStoragePersistentDB::SetKey(nsDOMStorage* aStorage,
     NS_ENSURE_SUCCESS(rv, rv);
     rv = mInsertKeyStatement->BindInt32Parameter(3, aSecure);
     NS_ENSURE_SUCCESS(rv, rv);
+
     rv = mInsertKeyStatement->Execute();
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -444,7 +450,8 @@ nsDOMStoragePersistentDB::RemoveKey(nsDOMStorage* aStorage,
     mCachedUsage -= aKeyUsage;
   }
 
-  nsresult rv = mRemoveKeyStatement->BindUTF8StringParameter(0, aStorage->GetScopeDBKey());
+  nsresult rv = mRemoveKeyStatement->BindUTF8StringParameter(
+                                                0, aStorage->GetScopeDBKey());
   NS_ENSURE_SUCCESS(rv, rv);
   rv = mRemoveKeyStatement->BindStringParameter(1, aKey);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -462,14 +469,15 @@ nsDOMStoragePersistentDB::ClearStorage(nsDOMStorage* aStorage)
 
   nsresult rv;
 
-  rv = mRemoveStorageStatement->BindUTF8StringParameter(0, aStorage->GetScopeDBKey());
+  rv = mRemoveStorageStatement->BindUTF8StringParameter(
+                                                0, aStorage->GetScopeDBKey());
   NS_ENSURE_SUCCESS(rv, rv);
 
   return mRemoveStorageStatement->Execute();
 }
 
 nsresult
-nsDOMStoragePersistentDB::RemoveOwner(const nsACString& aOwner, 
+nsDOMStoragePersistentDB::RemoveOwner(const nsACString& aOwner,
                                       PRBool aIncludeSubDomains)
 {
   mozStorageStatementScoper scope(mRemoveOwnerStatement);
@@ -496,11 +504,11 @@ nsDOMStoragePersistentDB::RemoveOwner(const nsACString& aOwner,
 
 
 nsresult
-nsDOMStoragePersistentDB::RemoveOwners(const nsStringArray &aOwners, 
-                                       PRBool aIncludeSubDomains, 
+nsDOMStoragePersistentDB::RemoveOwners(const nsTArray<nsString> &aOwners,
+                                       PRBool aIncludeSubDomains,
                                        PRBool aMatch)
 {
-  if (aOwners.Count() == 0) {
+  if (aOwners.Length() == 0) {
     if (aMatch) {
       return NS_OK;
     }
@@ -517,12 +525,12 @@ nsDOMStoragePersistentDB::RemoveOwners(const nsStringArray &aOwners,
     expression.AppendLiteral("DELETE FROM webappsstore2 WHERE scope NOT IN (");
   }
 
-  for (PRInt32 i = 0; i < aOwners.Count(); i++) {
+  for (PRUint32 i = 0; i < aOwners.Length(); i++) {
     if (i)
       expression.AppendLiteral(" UNION ");
 
     expression.AppendLiteral(
-        "SELECT DISTINCT scope FROM webappsstore2 WHERE scope GLOB ?");
+      "SELECT DISTINCT scope FROM webappsstore2 WHERE scope GLOB ?");
   }
   expression.AppendLiteral(");");
 
@@ -532,10 +540,10 @@ nsDOMStoragePersistentDB::RemoveOwners(const nsStringArray &aOwners,
                                              getter_AddRefs(statement));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  for (PRInt32 i = 0; i < aOwners.Count(); i++) {
+  for (PRUint32 i = 0; i < aOwners.Length(); i++) {
     nsCAutoString quotaKey;
     rv = nsDOMStorageDBWrapper::CreateDomainScopeDBKey(
-      NS_ConvertUTF16toUTF8(*aOwners[i]), quotaKey);
+      NS_ConvertUTF16toUTF8(aOwners[i]), quotaKey);
 
     if (!aIncludeSubDomains)
       quotaKey.AppendLiteral(":");
@@ -566,14 +574,15 @@ nsDOMStoragePersistentDB::GetUsage(nsDOMStorage* aStorage, PRInt32 *aUsage)
 
 nsresult
 nsDOMStoragePersistentDB::GetUsage(const nsACString& aDomain,
-                         PRBool aIncludeSubDomains, PRInt32 *aUsage)
+                                   PRBool aIncludeSubDomains,
+                                   PRInt32 *aUsage)
 {
   nsresult rv;
 
   nsCAutoString quotadomainDBKey;
   rv = nsDOMStorageDBWrapper::CreateQuotaDomainDBKey(aDomain,
-                                                        aIncludeSubDomains,
-                                                        quotadomainDBKey);
+                                                     aIncludeSubDomains,
+                                                     quotadomainDBKey);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return GetUsageInternal(quotadomainDBKey, aUsage);
@@ -595,7 +604,7 @@ nsDOMStoragePersistentDB::GetUsageInternal(const nsACString& aQuotaDomainDBKey,
   rv = mGetUsageStatement->BindUTF8StringParameter(0, aQuotaDomainDBKey +
       NS_LITERAL_CSTRING("*"));
   NS_ENSURE_SUCCESS(rv, rv);
-  
+
   PRBool exists;
   rv = mGetUsageStatement->ExecuteStep(&exists);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -604,7 +613,7 @@ nsDOMStoragePersistentDB::GetUsageInternal(const nsACString& aQuotaDomainDBKey,
     *aUsage = 0;
     return NS_OK;
   }
-  
+
   rv = mGetUsageStatement->GetInt32(0, aUsage);
   NS_ENSURE_SUCCESS(rv, rv);
 

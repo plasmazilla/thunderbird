@@ -154,6 +154,7 @@ pref("browser.urlbar.search.timeout", 100);
 pref("browser.urlbar.restrict.history", "^");
 pref("browser.urlbar.restrict.bookmark", "*");
 pref("browser.urlbar.restrict.tag", "+");
+pref("browser.urlbar.restrict.openpage", "%");
 pref("browser.urlbar.restrict.typed", "~");
 pref("browser.urlbar.match.title", "#");
 pref("browser.urlbar.match.url", "@");
@@ -163,9 +164,15 @@ pref("browser.search.param.Google.1.default", "chrome://navigator/content/search
 
 pref("browser.history.grouping", "day");
 pref("browser.sessionhistory.max_entries", 50);
-pref("browser.history_expire_days", 180);
-pref("browser.history_expire_days_min", 90);
-pref("browser.history_expire_sites", 40000);
+
+// Whether history is enabled or not.
+pref("places.history.enabled", true);
+
+// The percentage of system memory that the Places database can use.  Out of the
+// allowed cache size it will at most use the size of the database file.
+// Changes to this value are effective after an application restart.
+// Acceptable values are between 0 and 50.
+pref("places.database.cache_to_memory_percentage", 6);
 
 // the (maximum) number of the recent visits to sample
 // when calculating frecency
@@ -198,6 +205,7 @@ pref("places.frecency.defaultBucketWeight", 10);
 
 // bonus (in percent) for visit transition types for frecency calculations
 pref("places.frecency.embedVisitBonus", 0);
+pref("places.frecency.framedLinkVisitBonus", 0);
 pref("places.frecency.linkVisitBonus", 100);
 pref("places.frecency.typedVisitBonus", 2000);
 pref("places.frecency.bookmarkVisitBonus", 150);
@@ -220,12 +228,16 @@ pref("browser.tabs.tooltippreview.enable", true);
 pref("browser.tabs.tooltippreview.width", 300);
 pref("browser.tabs.autoHide", true);
 pref("browser.tabs.forceHide", false);
+pref("browser.tabs.closeWindowWithLastTab", true);
 pref("browser.tabs.warnOnClose", true);
 pref("browser.tabs.warnOnCloseOther", true);
 pref("browser.tabs.warnOnOpen", true);
 pref("browser.tabs.maxOpenBeforeWarn", 15);
 // 0 = append, 1 = replace
 pref("browser.tabs.loadGroup", 1);
+
+// how many browsers can be saved in the DOM (by the tabbed browser)
+pref("browser.tabs.max_tabs_undo", 3);
 
 // tab width and clipping
 pref("browser.tabs.tabMinWidth", 100);
@@ -290,9 +302,6 @@ pref("offline.startup_state",            0);
 pref("offline.send.unsent_messages",            0);
 pref("offline.download.download_messages",  0);
 
-#ifdef MOZILLA_1_9_1_BRANCH
-pref("browser.formfill.enable",             true);
-#endif
 pref("browser.formfill.expire_days",        180);
 
 // -- folders (Mac: these are binary aliases.)
@@ -307,6 +316,9 @@ pref("spellchecker.dictionaries.download.url", "chrome://branding/locale/brand.p
 // 1 = check multi-line controls [default]
 // 2 = check multi/single line controls
 pref("layout.spellcheckDefault", 1);
+
+// Blocks auto refresh if true
+pref("accessibility.blockautorefresh", false);
 
 // special TypeAheadFind settings
 pref("accessibility.typeaheadfind.flashBar", 0);
@@ -356,7 +368,7 @@ pref("browser.sessionstore.resume_from_crash", true);
 pref("browser.sessionstore.resume_session_once", false);
 
 // minimal interval between two save operations in milliseconds
-pref("browser.sessionstore.interval", 10000);
+pref("browser.sessionstore.interval", 15000);
 // maximum amount of POSTDATA to be saved in bytes per history entry (-1 = all of it)
 // (NB: POSTDATA will be saved either entirely or not at all)
 pref("browser.sessionstore.postdata", 0);
@@ -466,7 +478,7 @@ pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blockl
 //  .. etc ..
 //
 pref("extensions.update.enabled", true);
-pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%");
+pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%");
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                             // Themes every day
 
@@ -560,6 +572,12 @@ pref("dom.disable_window_move_resize", true);
 pref("dom.disable_window_flip",        true);
 // prevent JS from disabling or replacing context menus
 pref("dom.event.contextmenu.enabled",  true);
+
+#ifndef MOZ_IPC
+pref("dom.ipc.plugins.enabled", false);
+#else
+pref("dom.ipc.plugins.enabled", true);
+#endif
 
 // Disables default plugin for Plugin Finder Service
 pref("plugin.default_plugin_disabled", true);

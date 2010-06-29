@@ -87,10 +87,14 @@ CPPSRCS = nsXULRunnerApp.cpp
 ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
 CPPSRCS += nsRegisterGREWin.cpp
 else
-ifneq (,$(filter OS2 Darwin,$(OS_ARCH)))
+ifeq (OS2,$(OS_ARCH))
+CPPSRCS += nsRegisterGREVoid.cpp
+else
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 CPPSRCS += nsRegisterGREVoid.cpp
 else
 CPPSRCS += nsRegisterGREUnix.cpp
+endif
 endif
 endif
 
@@ -104,7 +108,7 @@ TK_LIBS := -framework Cocoa $(TK_LIBS)
 endif
 
 ifndef MOZ_ENABLE_LIBXUL
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (bundle,$(MOZ_FS_LAYOUT))
 LIBS += $(DIST)/bin/XUL
 else
 EXTRA_DSO_LIBS += xul
@@ -122,7 +126,7 @@ LIBS += \
 
 # Add explicit X11 dependency when building against X11 toolkits
 ifneq (,$(filter gtk gtk2 xlib,$(MOZ_WIDGET_TOOLKIT)))
-LIBS += $(XLDFLAGS) $(XLIBS)
+LIBS += $(XLDFLAGS) $(XLIBS) $(XEXT_LIBS) $(XCOMPOSITE_LIBS)
 endif
 
 ifdef MOZ_JPROF
@@ -206,7 +210,8 @@ LDFLAGS += /HEAP:0x40000
 endif
 endif
 
-ifneq (,$(filter-out OS2 WINCE WINNT Darwin BeOS,$(OS_ARCH)))
+ifneq (,$(filter-out OS2 WINCE WINNT BeOS,$(OS_ARCH)))
+ifeq (unix, $(MOZ_FS_LAYOUT))
 
 xulrunner:: $(topsrcdir)/build/unix/mozilla.in $(GLOBAL_DEPS)
 	cat $< | sed -e "s|%MOZAPPDIR%|$(installdir)|" \
@@ -222,12 +227,11 @@ install:: xulrunner
 
 GARBAGE += xulrunner
 endif
+endif
 
 ifneq (,$(filter gtk gtk2,$(MOZ_WIDGET_TOOLKIT)))
 
 ICON_FILES	= \
-		$(DIST)/branding/mozicon50.xpm \
-		$(DIST)/branding/mozicon16.xpm \
 		$(DIST)/branding/document.png \
 		$(NULL)
 
@@ -257,8 +261,6 @@ ifeq ($(OS_ARCH),WINNT)
 	cp $(srcdir)/document.ico  $(DIST)/branding/document.ico
 endif
 ifneq (,$(filter gtk gtk2,$(MOZ_WIDGET_TOOLKIT)))
-	cp $(srcdir)/mozicon16.xpm $(DIST)/branding/mozicon16.xpm
-	cp $(srcdir)/mozicon50.xpm $(DIST)/branding/mozicon50.xpm
 	cp $(srcdir)/document.png $(DIST)/branding/document.png
 endif
 ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
@@ -268,8 +270,6 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 endif
 ifeq ($(OS_ARCH),OS2)
 	cp $(srcdir)/xulrunner-os2.ico   $(DIST)/branding/xulrunner.ico
-	cp $(srcdir)/xulrunner-os2.ico   $(DIST)/branding/app.ico
-	cp $(srcdir)/document-os2.ico  $(DIST)/branding/document.ico
 endif
 
 libs::

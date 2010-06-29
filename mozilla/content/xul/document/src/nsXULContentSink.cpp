@@ -257,7 +257,7 @@ NS_IMPL_ISUPPORTS3(XULContentSinkImpl,
 // nsIContentSink interface
 
 NS_IMETHODIMP 
-XULContentSinkImpl::WillBuildModel(void)
+XULContentSinkImpl::WillBuildModel(nsDTDMode aDTDMode)
 {
 #if FIXME
     if (! mParentContentSink) {
@@ -271,7 +271,7 @@ XULContentSinkImpl::WillBuildModel(void)
 }
 
 NS_IMETHODIMP 
-XULContentSinkImpl::DidBuildModel(void)
+XULContentSinkImpl::DidBuildModel(PRBool aTerminated)
 {
     nsCOMPtr<nsIDocument> doc = do_QueryReferent(mDocument);
     if (doc) {

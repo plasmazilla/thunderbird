@@ -223,7 +223,7 @@ function runTest(testNum) {
         break;
     case 17:
         todo(false, "popup should be closed");
-        checkPopupOpen(false, -1);
+        checkPopupOpen(true, -1);
         checkForm("v ");
         break;
     // backspace
@@ -331,7 +331,7 @@ function runTest(testNum) {
         break;
     case 203:
         // XXX we should ignore this input while popup is open?
-        checkPopupOpen(false, -1);
+        checkPopupOpen(true, -1);
         checkForm("v ");
         break;
     // backspace

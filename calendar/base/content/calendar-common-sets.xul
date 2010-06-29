@@ -60,10 +60,12 @@
               events="calendar_commands"
               oncommandupdate="calendarController.updateCommands()">
     <command id="calendar_new_event_command" oncommand="goDoCommand('calendar_new_event_command')"/>
+    <command id="calendar_new_event_context_command" oncommand="goDoCommand('calendar_new_event_context_command')"/>
     <command id="calendar_modify_event_command" oncommand="goDoCommand('calendar_modify_event_command')"/>
     <command id="calendar_delete_event_command" oncommand="goDoCommand('calendar_delete_event_command')"/>
 
     <command id="calendar_new_todo_command" oncommand="goDoCommand('calendar_new_todo_command')"/>
+    <command id="calendar_new_todo_context_command" oncommand="goDoCommand('calendar_new_todo_context_command')"/>
     <command id="calendar_new_todo_todaypane_command" oncommand="goDoCommand('calendar_new_todo_todaypane_command')"/>
     <command id="calendar_modify_todo_command" oncommand="goDoCommand('calendar_modify_todo_command')"/>
     <command id="calendar_modify_todo_todaypane_command" oncommand="goDoCommand('calendar_modify_todo_todaypane_command')"/>
@@ -185,12 +187,12 @@
                 label="&calendar.context.newevent.label;"
                 accesskey="&calendar.context.newevent.accesskey;"
                 key="calendar-new-event-key"
-                observes="calendar_new_event_command"/>
+                observes="calendar_new_event_context_command"/>
       <menuitem id="calendar-item-context-menu-newtodo-menuitem"
                 label="&calendar.context.newtodo.label;"
                 accesskey="&calendar.context.newtodo.accesskey;"
                 key="calendar-new-todo-key"
-                observes="calendar_new_todo_command"/>
+                observes="calendar_new_todo_context_command"/>
       <menuseparator id="calendar-item-context-menuseparator-adddeletemodify"/>
       <menuitem id="calendar-item-context-menu-cut-menuitem"
                 label="&calendar.context.cutevent.label;"
@@ -243,31 +245,38 @@
     <popup id="calendar-view-context-menu">
       <menuitem id="calendar-view-context-menu-newevent"
                 label="&calendar.context.newevent.label;"
-                observes="calendar_new_event_command"
+                observes="calendar_new_event_context_command"
                 accesskey="&calendar.context.newevent.accesskey;"
                 key="calendar-new-event-key"/>
       <menuitem id="calendar-view-context-menu-newtodo"
                 label="&calendar.context.newtodo.label;"
-                observes="calendar_new_todo_command"
+                observes="calendar_new_todo_context_command"
                 accesskey="&calendar.context.newtodo.accesskey;"
                 key="calendar-new-todo-key"/>
       <!-- These labels are set dynamically, based on the current view -->
       <menuitem id="calendar-view-context-menu-previous"
                 label=""
+                accesskey=""
                 observes="calendar_view_prev_command"
-                label-day="&calendar.prevday.button.tooltip;"
-                label-week="&calendar.prevweek.button.tooltip;"
-                label-multiweek="&calendar.prevweek.button.tooltip;"
-                label-month="&calendar.prevmonth.button.tooltip;"
-                accesskey="&goPreviousCmd.accesskey;"/>
+                label-day="&calendar.prevday.label;"
+                label-week="&calendar.prevweek.label;"
+                label-multiweek="&calendar.prevweek.label;"
+                label-month="&calendar.prevmonth.label;"
+                accesskey-day="&calendar.prevday.accesskey;"
+                accesskey-week="&calendar.prevweek.accesskey;"
+                accesskey-multiweek="&calendar.prevweek.accesskey;"
+                accesskey-month="&calendar.prevmonth.accesskey;"/>
       <menuitem id="calendar-view-context-menu-next"
                 label=""
                 observes="calendar_view_next_command"
-                label-day="&calendar.nextday.button.tooltip;"
-                label-week="&calendar.nextweek.button.tooltip;"
-                label-multiweek="&calendar.nextweek.button.tooltip;"
-                label-month="&calendar.nextmonth.button.tooltip;"
-                accesskey="&goNextCmd.all.accesskey;"/>
+                label-day="&calendar.nextday.label;"
+                label-week="&calendar.nextweek.label;"
+                label-multiweek="&calendar.nextweek.label;"
+                label-month="&calendar.nextmonth.label;"
+                accesskey-day="&calendar.nextday.accesskey;"
+                accesskey-week="&calendar.nextweek.accesskey;"
+                accesskey-multiweek="&calendar.nextweek.accesskey;"
+                accesskey-month="&calendar.nextmonth.accesskey;"/>
       <menuseparator id="calendar-item-context-separator-cutcopypaste"/>
       <!-- Cut and copy doesn't make sense in the views, but only showing paste
            makes it look like something is missing. Disable by default. -->
@@ -316,6 +325,7 @@
       <menuseparator id="calendar-menuseparator-beforemarkcompleted"/>
       <menuitem id="calendar-context-markcompleted"
                 type="checkbox"
+                autocheck="false"
                 label="&calendar.context.markcompleted.label;"
                 accesskey="&calendar.context.markcompleted.accesskey;"
                 observes="calendar_toggle_completed_command"

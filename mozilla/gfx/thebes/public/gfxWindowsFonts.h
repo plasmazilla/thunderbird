@@ -87,7 +87,7 @@ class FontFamily : public gfxFontFamily
 {
 public:
     FontFamily(const nsAString& aName) :
-        gfxFontFamily(aName), mIsBadUnderlineFontFamily(PR_FALSE), mHasStyles(PR_FALSE) { }
+        gfxFontFamily(aName), mIsBadUnderlineFontFamily(PR_FALSE) { }
 
     FontEntry *FindFontEntry(const gfxFontStyle& aFontStyle);
 
@@ -101,14 +101,11 @@ private:
                                             DWORD fontType, LPARAM data);
 
 protected:
-    PRBool FindWeightsForStyle(gfxFontEntry* aFontsForWeights[], const gfxFontStyle& aFontStyle);
+    PRBool FindWeightsForStyle(gfxFontEntry* aFontsForWeights[],
+                               PRBool anItalic, PRInt16 aStretch);
 
 public:
-    nsTArray<nsRefPtr<FontEntry> > mVariations;
     PRPackedBool mIsBadUnderlineFontFamily;
-
-private:
-    PRPackedBool mHasStyles;
 };
 
 class FontEntry : public gfxFontEntry
@@ -120,7 +117,7 @@ public:
         mWindowsFamily(0), mWindowsPitch(0),
         mFontType(aFontType),
         mForceGDI(PR_FALSE), mUnknownCMAP(PR_FALSE),
-        mUnicodeFont(PR_FALSE), mSymbolFont(PR_FALSE), mUserFont(PR_FALSE),
+        mUnicodeFont(PR_FALSE), mSymbolFont(PR_FALSE),
         mCharset(0), mUnicodeRanges(0)
     {
         mUserFontData = aUserFontData;
@@ -128,6 +125,7 @@ public:
         mWeight = aWeight;
         if (IsType1())
             mForceGDI = PR_TRUE;
+        mIsUserFont = aUserFontData != nsnull;
     }
 
     FontEntry(const FontEntry& aFontEntry) :
@@ -139,7 +137,6 @@ public:
         mUnknownCMAP(aFontEntry.mUnknownCMAP),
         mUnicodeFont(aFontEntry.mUnicodeFont),
         mSymbolFont(aFontEntry.mSymbolFont),
-        mUserFont(aFontEntry.mUserFont),
         mCharset(aFontEntry.mCharset),
         mUnicodeRanges(aFontEntry.mUnicodeRanges)
     {
@@ -149,7 +146,6 @@ public:
 
     // create a font entry from downloaded font data
     static FontEntry* LoadFont(const gfxProxyFontEntry &aProxyEntry,
-                               nsISupports *aLoader,
                                const PRUint8 *aFontData,
                                PRUint32 aLength);
 
@@ -299,7 +295,6 @@ public:
     PRPackedBool mUnknownCMAP : 1;
     PRPackedBool mUnicodeFont : 1;
     PRPackedBool mSymbolFont  : 1;
-    PRPackedBool mUserFont    : 1;
 
     std::bitset<256> mCharset;
     std::bitset<128> mUnicodeRanges;
@@ -313,7 +308,8 @@ public:
 
 class gfxWindowsFont : public gfxFont {
 public:
-    gfxWindowsFont(FontEntry *aFontEntry, const gfxFontStyle *aFontStyle);
+    gfxWindowsFont(FontEntry *aFontEntry, const gfxFontStyle *aFontStyle,
+                   cairo_antialias_t anAntialiasOption = CAIRO_ANTIALIAS_DEFAULT);
     virtual ~gfxWindowsFont();
 
     virtual const gfxFont::Metrics& GetMetrics();
@@ -330,6 +326,12 @@ public:
                       gfxContext *aContext, PRBool aDrawToPath, gfxPoint *aBaselineOrigin,
                       Spacing *aSpacing);
 
+    virtual RunMetrics Measure(gfxTextRun *aTextRun,
+                               PRUint32 aStart, PRUint32 aEnd,
+                               BoundingBoxType aBoundingBoxType,
+                               gfxContext *aContextForTightBoundingBox,
+                               Spacing *aSpacing);
+
     virtual PRUint32 GetSpaceGlyph() {
         GetMetrics(); // ensure that the metrics are computed but don't recompute them
         return mSpaceGlyph;
@@ -339,7 +341,8 @@ public:
     FontEntry *GetFontEntry();
 
     static already_AddRefed<gfxWindowsFont>
-    GetOrMakeFont(FontEntry *aFontEntry, const gfxFontStyle *aStyle);
+    GetOrMakeFont(FontEntry *aFontEntry, const gfxFontStyle *aStyle,
+                  PRBool aNeedsBold = PR_FALSE);
 
 protected:
     HFONT MakeHFONT();
@@ -360,6 +363,8 @@ private:
     gfxFont::Metrics *mMetrics;
 
     LOGFONTW mLogFont;
+
+    cairo_antialias_t mAntialiasOption;
 
     virtual PRBool SetupCairoFont(gfxContext *aContext);
 };
@@ -400,7 +405,8 @@ public:
 
     virtual gfxWindowsFont *GetFontAt(PRInt32 i);
 
-    void GroupFamilyListToArrayList(nsTArray<nsRefPtr<FontEntry> > *list);
+    void GroupFamilyListToArrayList(nsTArray<nsRefPtr<FontEntry> > *list,
+                                    nsTArray<PRPackedBool> *aNeedsBold);
     void FamilyListToArrayList(const nsString& aFamilies,
                                const nsCString& aLangGroup,
                                nsTArray<nsRefPtr<FontEntry> > *list);
@@ -427,6 +433,7 @@ private:
 
     nsCString mGenericFamily;
     nsTArray<nsRefPtr<FontEntry> > mFontEntries;
+    nsTArray<PRPackedBool> mFontNeedsBold;
 
     const char *mItemLangGroup;  // used by pref-lang handling code
 

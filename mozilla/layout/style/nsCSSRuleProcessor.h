@@ -49,10 +49,10 @@
 #include "nsCSSStyleSheet.h"
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
+#include "nsCSSRules.h"
 
 struct RuleCascadeData;
 struct nsCSSSelectorList;
-class nsCSSFontFaceRule;
 
 /**
  * The CSS style rule processor provides a mechanism for sibling style
@@ -78,6 +78,7 @@ public:
 
   static void Startup();
   static void FreeSystemMetrics();
+  static PRBool HasSystemMetric(nsIAtom* aMetric);
 
   /*
    * Returns true if the given RuleProcessorData matches one of the

@@ -40,9 +40,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://app/modules/quickSearchManager.js");
-Components.utils.import("resource://app/modules/StringBundle.js");
-
+Components.utils.import("resource:///modules/StringBundle.js");
 
 var gSearchBundle;
 
@@ -54,11 +52,11 @@ var gGlodaCompleteStrings = new StringBundle("chrome://messenger/locale/glodaCom
 var gSearchInputObserversRegistered = false;
 
 /**
- * The quicksearch widget is a UI widget (the #searchInput textbox) which is
+ * The glodasearch widget is a UI widget (the #searchInput textbox) which is
  * outside of the mailTabType's display panel, but acts as though it were within
  * it..  This means we need to use a tab monitor so that we can appropriately
  * update the contents of the textbox.
- * 
+ *
  * Every time a tab is changed, we save the state of the text box and restore
  *  its previous value for the tab we are switching to, as well as whether this
  *  value is a change to the currently-used value (if it is a faceted search) tab.
@@ -72,8 +70,16 @@ var gSearchInputObserversRegistered = false;
  *  faceted search as it's always available).
  */
 
-var QuickSearchTabMonitor = {
+var GlodaSearchBoxTabMonitor = {
+  monitorName: "glodaSearchBox",
+
   onTabTitleChanged: function() {
+  },
+
+  onTabOpened: function GSBTM_onTabOpened(aTab, aFirstTab, aOldTab) {
+    aTab._ext.glodaSearchBox = {
+      value: "",
+    };
   },
 
   onTabSwitched: function (aTab, aOldTab) {
@@ -81,17 +87,16 @@ var QuickSearchTabMonitor = {
     if (!searchInput) // customized out of the way
       return;
 
-    searchInput.showQuickSearchItems(aTab.mode.tabType != glodaFacetTabType)
     // save the current search field value
     if (aOldTab) {
-      aOldTab.searchInputValue = searchInput.value;
-      // XXX search.xml also updates this, so this shouldn't be necessary
-      aOldTab.searchMode = searchInput.searchMode;
+      aOldTab._ext.glodaSearchBox.value = searchInput.value;
     }
-    // load (or clear if there is none) the persisted search field value
-    searchInput.value = aTab.searchInputValue || "";
-    if (aTab.searchMode)
-      searchInput.searchMode = aTab.searchMode;
+    // Load (or clear if there is none) the persisted search field value
+    // (We check first to avoid weird blank field / empty text transitions on
+    // tab change.)
+    let desiredValue = aTab._ext.glodaSearchBox.value || "";
+    if (searchInput.value != desiredValue)
+      searchInput.value = desiredValue;
   }
 };
 

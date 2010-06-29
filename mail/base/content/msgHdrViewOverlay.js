@@ -24,6 +24,7 @@
  *   Mark Banner <bugzilla@standard8.plus.com>
  *   David Ascher <dascher@mozillamessaging.com>
  *   Dan Mosedale <dmose@mozillamessagin.com>
+ *   Joachim Herb <herb@leo.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -248,6 +249,11 @@ function OnLoadMsgHeaderPane()
   // two panels), and then the user upgraded to Tb3, which only has one.
   // Presumably this can also catch cases of extension uninstalls as well.
   let deckElement = document.getElementById('msgHeaderViewDeck')
+
+  // If the selectedIndex was 0, then we were using the compact header, (if we
+  // were coming from TB2, but we'll check that in the feature configurator).
+  deckElement.usedCompactHeader = (deckElement.selectedIndex == 0);
+
   if (deckElement.selectedIndex < 0 ||
       deckElement.selectedIndex >= deckElement.childElementCount) {
     deckElement.selectedIndex = 0;
@@ -268,6 +274,38 @@ function OnLoadMsgHeaderPane()
   event.initEvent('messagepane-loaded', false, true);
   var headerViewElement = document.getElementById("msgHeaderView");
   headerViewElement.dispatchEvent(event);
+
+  var toolbox = document.getElementById("header-view-toolbox");
+  toolbox.customizeDone = function(aEvent) {
+    MailToolboxCustomizeDone(aEvent, "CustomizeHeaderToolbar");
+  };
+
+  var toolbarset = document.getElementById('customToolbars');
+  toolbox.toolbarset = toolbarset;
+
+  // Check whether we did an upgrade to a customizable header pane.
+  // If yes, set the header pane toolbar mode to icons besides text
+  var toolbar = document.getElementById("header-view-toolbar");
+  if (toolbox && toolbar) {
+    if (!toolbox.getAttribute("mode")) {
+
+      /* set toolbox attributes to default values */
+      var mode = toolbox.getAttribute("defaultmode");
+      var align = toolbox.getAttribute("defaultlabelalign");
+      var iconsize = toolbox.getAttribute("defaulticonsize");
+      toolbox.setAttribute("mode", mode);
+      toolbox.setAttribute("labelalign", align);
+      toolbox.setAttribute("iconsize", iconsize);
+      toolbox.ownerDocument.persist(toolbox.id, "mode");
+      toolbox.ownerDocument.persist(toolbox.id, "iconsize");
+      toolbox.ownerDocument.persist(toolbox.id, "labelalign");
+
+      /* set toolbar attributes to default values */
+      iconsize = toolbar.getAttribute("defaulticonsize");
+      toolbar.setAttribute("iconsize", iconsize);
+      toolbar.ownerDocument.persist(toolbar.id, "iconsize");
+    }
+  }
 }
 
 function initToolbarMenu() {
@@ -276,28 +314,7 @@ function initToolbarMenu() {
   let mode = document.getElementById('header-view-toolbar')
                      .getAttribute("mode");
 
-  // Construct the appropriate menuitem nodename, get the node, and check it.
-  document.getElementById("header-toolbar-show-" + mode)
-          .setAttribute("checked", "true");
   return;
-}
-
-function setAndPersistToolbarMode(mode) {
-  let toolbarElement = document.getElementById('header-view-toolbar');
-  toolbarElement.setAttribute('mode', mode);
-  document.persist('header-view-toolbar', 'mode');
-}
-
-function onShowHeaderToolbarContextMenu() {
-  let menuitem = document.getElementById("header-toolbar-always-show-reply");
-  menuitem.setAttribute("checked", Application.prefs.get("mailnews.headers.always_show_reply_sender").value);
-  return true; /*  always want to show the popup */
-}
-
-function setAndPersistReplyToSenderButton(checked) {
-  Application.prefs.setValue("mailnews.headers.always_show_reply_sender",
-                             (checked)? true : false);
-  UpdateReplyButtons();
 }
 
 function OnUnloadMsgHeaderPane()
@@ -571,8 +588,7 @@ var messageHeaderSink = {
     {
       displayAttachmentsForExpandedView();
 
-      gMessageDisplay.messageLoading = false;
-      gMessageDisplay.messageLoaded = true;
+      gMessageDisplay.onLoadCompleted();
 
       for (index in gMessageListeners) {
         if ("onEndAttachments" in gMessageListeners[index])
@@ -829,7 +845,7 @@ function updateExpandedView()
  * reason that we're using two grids at all is to workaround the XUL box
  * model's inability to float elements.
  */
-function syncGridColumnWidths() 
+function syncGridColumnWidths()
 {
   let nameColumn = document.getElementById('expandedHeadersNameColumn');
   let nameColumn2 = document.getElementById('expandedHeaders2NameColumn');
@@ -864,12 +880,12 @@ function updateHeaderValue(headerEntry, headerValue)
 function createNewHeaderView(headerName, label)
 {
   var idName = 'expanded' + headerName + 'Box';
-    
+
   // create new collapsed row
   let newRowNode = document.createElement("row");
   newRowNode.setAttribute("id", 'expanded' + headerName + 'Row');
   newRowNode.collapsed = true;
-    
+
   // create and append the label which contains the header name
   let newLabelNode = document.createElement("label");
   newLabelNode.setAttribute("id", 'expanded' + headerName + 'Label');
@@ -882,7 +898,7 @@ function createNewHeaderView(headerName, label)
   var newHeaderNode = document.createElement("mail-headerfield");
   newHeaderNode.setAttribute('id', idName);
   newHeaderNode.setAttribute('flex', '1');
-  
+
   newRowNode.appendChild(newHeaderNode);
 
   // this new element needs to be inserted into the view...
@@ -1022,14 +1038,14 @@ function HideMessageHeaderPane()
   ClearEditMessageBox();
 }
 
-/** 
+/**
  * Take string of newsgroups separated by commas, split it
  * into newsgroups and send them to the corresponding
  * mail-newsgroups-headerfield element.
- * 
+ *
  * @param headerEntry  the entry data structure for this header
  * @param headerValue  the string value for the header from the message
- */ 
+ */
 function OutputNewsgroups(headerEntry, headerValue)
 {
   headerValue.split(",").forEach(
@@ -1397,7 +1413,7 @@ function SendMailToNode(addressNode)
 /**
  * Takes the email address or newsgroup title button, extracts the address/name
  * we stored in there and copies it to the clipboard.
- * 
+ *
  * @param addressNode  a node which has an "emailAddress" or "newsgroup"
  *                     attribute
  */
@@ -1439,7 +1455,7 @@ function GetNewsgroupServer()
 
 /**
  * Initialize the newsgroup popup, showing/hiding menu items as appropriate.
- * 
+ *
  * @param newsgroupNode a node which has a "newsgroup" attribute
  */
 function setupNewsgroupPopup(newsgroupNode)
@@ -1469,7 +1485,7 @@ function setupNewsgroupPopup(newsgroupNode)
 
 /**
  * Subscribe to a newsgroup based on the newsgroup title button
- * 
+ *
  * @param newsgroupNode a node which has a "newsgroup" attribute
  */
 function SubscribeToNewsgroup(newsgroupNode)
@@ -1510,8 +1526,9 @@ function CopyNewsgroupURL(newsgroupNode)
 
   let ng = newsgroupNode.getAttribute("newsgroup");
 
+  // TODO let backend construct URL and return as attribute
   let url;
-  if (server.socketType != Components.interfaces.nsIMsgIncomingServer.useSSL) {
+  if (server.socketType != Components.interfaces.nsMsgSocketType.SSL) {
     url = "news://" + server.hostName;
     if (server.port != Components.interfaces.nsINntpUrl.DEFAULT_NNTP_PORT)
       url += ":" + server.port;
@@ -2060,6 +2077,7 @@ function ClearAttachmentList()
 
   // clear selection
   var list = document.getElementById('attachmentList');
+  list.selectedItems.length = 0;
 
   while (list.hasChildNodes())
     list.removeChild(list.lastChild);
@@ -2221,17 +2239,17 @@ nsDummyMsgHeader.prototype =
 
 function onShowOtherActionsPopup()
 {
-  // Enable/disable the Show Conversation button.
+  // Enable/disable the Open Conversation button.
   let prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
                              .getService(Components.interfaces.nsIPrefBranch2);
   let glodaEnabled = prefBranch.getBoolPref("mailnews.database.global.indexer.enabled");
 
-  let showConversation = document.getElementById("otherActionsShowConversation");
-  showConversation.disabled = !glodaEnabled;
+  let openConversation = document.getElementById("otherActionsOpenConversation");
+  openConversation.disabled = !glodaEnabled;
   if (glodaEnabled && gFolderDisplay.selectedMessages.length > 0) {
     let message = gFolderDisplay.selectedMessages[0];
     let isMessageIndexed = Gloda.isMessageIndexed(message);
-    showConversation.disabled = !isMessageIndexed;
+    openConversation.disabled = !isMessageIndexed;
   }
 
   if (SelectedMessagesAreRead()) {
@@ -2239,17 +2257,17 @@ function onShowOtherActionsPopup()
     document.getElementById('markAsUnreadMenuItem').removeAttribute('hidden');
   } else {
     document.getElementById('markAsReadMenuItem').removeAttribute('hidden');
-    document.getElementById('markAsUnreadMenuItem').setAttribute('hidden', 
+    document.getElementById('markAsUnreadMenuItem').setAttribute('hidden',
                                                                  true);
   }
 }
 
-function ConversationShower()
+function ConversationOpener()
 {
 }
 
-ConversationShower.prototype = {
-  showConversationForMessages: function(messages) {
+ConversationOpener.prototype = {
+  openConversationForMessages: function(messages) {
     try {
       this._items = [];
       this._msgHdr = messages[0];
@@ -2257,6 +2275,17 @@ ConversationShower.prototype = {
     } catch (e) {
       logException(e);
     }
+  },
+  isSelectedMessageIndexed: function() {
+    let prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
+                               .getService(Components.interfaces.nsIPrefBranch2);
+    let glodaEnabled = prefBranch.getBoolPref("mailnews.database.global.indexer.enabled");
+
+    if (glodaEnabled && gFolderDisplay.selectedMessages.length > 0) {
+      let message = gFolderDisplay.selectedMessages[0];
+      return Gloda.isMessageIndexed(message);
+    }
+    return false;
   },
   onItemsAdded: function(aItems) {
   },
@@ -2285,5 +2314,5 @@ ConversationShower.prototype = {
   }
 }
 
-var gConversationShower = new ConversationShower();
+var gConversationOpener = new ConversationOpener();
 

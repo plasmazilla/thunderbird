@@ -166,6 +166,20 @@ oggplay_seek_cleanup(OggPlay* me, ogg_int64_t milliseconds)
 
   *p = trash;
   
+  if (milliseconds == 0) {
+    for (i = 0; i < me->num_tracks; i++) {
+      OggPlayDecode *track = me->decode_data[i];
+      FishSound *sound_handle;
+      OggPlayAudioDecode *audio_decode;
+      if (track->content_type != OGGZ_CONTENT_VORBIS) {
+        continue;
+      }
+      audio_decode = (OggPlayAudioDecode*)track;
+      sound_handle = audio_decode->sound_handle;
+      fish_sound_reset(sound_handle);
+    }
+  }
+  
   return E_OGGPLAY_OK;
 }
 
@@ -191,21 +205,17 @@ oggplay_take_out_trash(OggPlay *me, OggPlaySeekTrash *trash) {
 
 OggPlayErrorCode
 oggplay_seek_to_keyframe(OggPlay *me,
-                         int* tracks,
-                         int num_tracks,
                          ogg_int64_t milliseconds,
                          ogg_int64_t offset_begin,
                          ogg_int64_t offset_end)
 {
-  long *serial_nos;
-  int i;
   ogg_int64_t eof, time;
 
   if (me == NULL) {
     return E_OGGPLAY_BAD_OGGPLAY;
   }
 
-  if (num_tracks > me->num_tracks || milliseconds < 0)
+  if (milliseconds < 0)
     return E_OGGPLAY_CANT_SEEK;
   
   eof = oggplay_get_duration(me);
@@ -213,22 +223,11 @@ oggplay_seek_to_keyframe(OggPlay *me,
     return E_OGGPLAY_CANT_SEEK;
   }
 
-  // Get the serialnos for the tracks we're seeking.
-  serial_nos = (long*)oggplay_malloc(sizeof(long)*num_tracks);
-  if (!serial_nos) {
-    return E_OGGPLAY_CANT_SEEK;
-  }
-  for (i=0; i<num_tracks; i++) {
-    serial_nos[i] = me->decode_data[tracks[i]]->serialno;
-  }
 
   time = oggz_keyframe_seek_set(me->oggz,
-                                serial_nos,
-                                num_tracks,
                                 milliseconds,
                                 offset_begin,
                                 offset_end);
-  oggplay_free(serial_nos);
 
   if (time == -1) {
     return E_OGGPLAY_CANT_SEEK;

@@ -55,6 +55,7 @@
 #include "nsIMsgHdr.h"
 #include "nsIMsgFilterPlugin.h"
 #include "nsMsgMessageFlags.h"
+#include "nsMsgUtils.h"
 
 extern "C"
 {
@@ -520,7 +521,7 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
       }
       case nsMsgSearchAttrib::Body:
        {
-         nsMsgKey messageOffset;
+         PRUint64 messageOffset;
          PRUint32 lineCount;
          msgToMatch->GetMessageOffset(&messageOffset);
          msgToMatch->GetLineCount(&lineCount);
@@ -603,11 +604,7 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
         // When the junk status is set by the plugin, use junkpercent (if available)
         // Otherwise, use the limits (0 or 100) depending on the junkscore.
         PRUint32 junkPercent;
-#ifdef MOZILLA_INTERNAL_API
-        PRInt32 rv;
-#else
         nsresult rv;
-#endif
         nsCString junkScoreOriginStr;
         nsCString junkPercentStr;
         msgToMatch->GetStringProperty("junkscoreorigin", getter_Copies(junkScoreOriginStr));
@@ -615,7 +612,7 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
         if ( junkScoreOriginStr.Equals(NS_LITERAL_CSTRING("plugin")) &&
             !junkPercentStr.IsEmpty())
         {
-          junkPercent = junkPercentStr.ToInteger(&rv);
+          junkPercent = junkPercentStr.ToInteger(&rv, 10);
           NS_ENSURE_SUCCESS(rv, rv);
         }
         else
@@ -627,7 +624,7 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
             junkPercent = nsIJunkMailPlugin::IS_HAM_SCORE;
           else
           {
-            junkPercent = junkScoreStr.ToInteger(&rv);
+            junkPercent = junkScoreStr.ToInteger(&rv, 10);
             NS_ENSURE_SUCCESS(rv, rv);
           }
         }
@@ -675,9 +672,9 @@ nsresult nsMsgSearchOfflineMail::ProcessSearchTerm(nsIMsgDBHdr *msgToMatch,
           {
             PRUint32 lineCount;
             msgToMatch->GetLineCount(&lineCount);
-            nsMsgKey messageKey;
-            msgToMatch->GetMessageOffset(&messageKey);
-            err = aTerm->MatchArbitraryHeader (scope, messageKey, lineCount,charset, charsetOverride,
+            PRUint64 messageOffset;
+            msgToMatch->GetMessageOffset(&messageOffset);
+            err = aTerm->MatchArbitraryHeader (scope, messageOffset, lineCount,charset, charsetOverride,
                                                 msgToMatch, db, headers, headerSize, Filtering, &result);
           }
           else

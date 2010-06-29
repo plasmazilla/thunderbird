@@ -86,7 +86,6 @@
 #include "nsCSSAnonBoxes.h"
 #include "nsIScrollableView.h"
 #include "nsHTMLContainerFrame.h"
-#include "nsIWidget.h"
 #include "nsIEventStateManager.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMElement.h"
@@ -127,7 +126,15 @@ nsIFrame*
 NS_NewBoxFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRBool aIsRoot, nsIBoxLayout* aLayoutManager)
 {
   return new (aPresShell) nsBoxFrame(aPresShell, aContext, aIsRoot, aLayoutManager);
-} // NS_NewBoxFrame
+}
+
+nsIFrame*
+NS_NewBoxFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
+{
+  return new (aPresShell) nsBoxFrame(aPresShell, aContext);
+}
+
+NS_IMPL_FRAMEARENA_HELPERS(nsBoxFrame)
 
 nsBoxFrame::nsBoxFrame(nsIPresShell* aPresShell,
                        nsStyleContext* aContext,
@@ -161,7 +168,7 @@ nsBoxFrame::~nsBoxFrame()
 
 NS_IMETHODIMP
 nsBoxFrame::SetInitialChildList(nsIAtom*        aListName,
-                                nsIFrame*       aChildList)
+                                nsFrameList&    aChildList)
 {
   nsresult r = nsContainerFrame::SetInitialChildList(aListName, aChildList);
   if (r == NS_OK) {
@@ -199,18 +206,6 @@ nsBoxFrame::Init(nsIContent*      aContent,
   NS_ENSURE_SUCCESS(rv, rv);
 
   MarkIntrinsicWidthsDirty();
-
-  // see if we need a widget
-  if (aParent && aParent->IsBoxFrame()) {
-    if (aParent->ChildrenMustHaveWidgets()) {
-        rv = nsHTMLContainerFrame::CreateViewForFrame(this, nsnull, PR_TRUE);
-        NS_ENSURE_SUCCESS(rv, rv);
-
-        nsIView* view = GetView();
-        if (!view->HasWidget())
-           view->CreateWidget(kWidgetCID);   
-    }
-  }
 
   CacheAttributes();
 
@@ -717,6 +712,7 @@ nsBoxFrame::Reflow(nsPresContext*          aPresContext,
     prefSize = GetPrefSize(state);
     nsSize minSize = GetMinSize(state);
     nsSize maxSize = GetMaxSize(state);
+    // XXXbz isn't GetPrefSize supposed to bounds-check for us?
     prefSize = BoundsCheck(minSize, prefSize, maxSize);
   }
 
@@ -725,23 +721,25 @@ nsBoxFrame::Reflow(nsPresContext*          aPresContext,
 
   if (aReflowState.ComputedHeight() == NS_INTRINSICSIZE) {
     computedSize.height = prefSize.height;
+    // prefSize is border-box, so we need to figure out the right
+    // length to apply our min/max constraints to.
+    nscoord outsideBoxSizing = 0;
+    switch (GetStylePosition()->mBoxSizing) {
+      case NS_STYLE_BOX_SIZING_CONTENT:
+        outsideBoxSizing = aReflowState.mComputedBorderPadding.TopBottom();
+        // fall through
+      case NS_STYLE_BOX_SIZING_PADDING:
+        outsideBoxSizing -= aReflowState.mComputedPadding.TopBottom();
+        break;
+    }
+    computedSize.height -= outsideBoxSizing;
+    // Note: might be negative now, but that's OK because min-width is
+    // never negative.
+    aReflowState.ApplyMinMaxConstraints(nsnull, &computedSize.height);
+    computedSize.height += outsideBoxSizing;
   } else {
     computedSize.height += m.top + m.bottom;
   }
-
-  // handle reflow state min and max sizes
-
-  if (computedSize.width > aReflowState.mComputedMaxWidth)
-    computedSize.width = aReflowState.mComputedMaxWidth;
-
-  if (computedSize.height > aReflowState.mComputedMaxHeight)
-    computedSize.height = aReflowState.mComputedMaxHeight;
-
-  if (computedSize.width < aReflowState.mComputedMinWidth)
-    computedSize.width = aReflowState.mComputedMinWidth;
-
-  if (computedSize.height < aReflowState.mComputedMinHeight)
-    computedSize.height = aReflowState.mComputedMinHeight;
 
   nsRect r(mRect.x, mRect.y, computedSize.width, computedSize.height);
 
@@ -936,8 +934,10 @@ nsBoxFrame::DoLayout(nsBoxLayoutState& aState)
   aState.SetLayoutFlags(0);
 
   nsresult rv = NS_OK;
-  if (mLayoutManager)
+  if (mLayoutManager) {
+    CoordNeedsRecalc(mAscent);
     rv = mLayoutManager->Layout(this, aState);
+  }
 
   aState.SetLayoutFlags(oldFlags);
 
@@ -1028,7 +1028,7 @@ nsBoxFrame::RemoveFrame(nsIAtom*        aListName,
 NS_IMETHODIMP
 nsBoxFrame::InsertFrames(nsIAtom*        aListName,
                          nsIFrame*       aPrevFrame,
-                         nsIFrame*       aFrameList)
+                         nsFrameList&    aFrameList)
 {
    NS_ASSERTION(!aPrevFrame || aPrevFrame->GetParent() == this,
                 "inserting after sibling frame with different parent");
@@ -1038,11 +1038,12 @@ nsBoxFrame::InsertFrames(nsIAtom*        aListName,
    nsBoxLayoutState state(PresContext());
 
    // insert the child frames
-   mFrames.InsertFrames(this, aPrevFrame, aFrameList);
+   const nsFrameList::Slice& newFrames =
+     mFrames.InsertFrames(this, aPrevFrame, aFrameList);
 
    // notify the layout manager
    if (mLayoutManager)
-     mLayoutManager->ChildrenInserted(this, state, aPrevFrame, aFrameList);
+     mLayoutManager->ChildrenInserted(this, state, aPrevFrame, newFrames);
 
 #ifdef DEBUG_LAYOUT
    // if we are in debug make sure our children are in debug as well.
@@ -1059,17 +1060,17 @@ nsBoxFrame::InsertFrames(nsIAtom*        aListName,
 
 NS_IMETHODIMP
 nsBoxFrame::AppendFrames(nsIAtom*        aListName,
-                         nsIFrame*       aFrameList)
+                         nsFrameList&    aFrameList)
 {
    NS_PRECONDITION(!aListName, "We don't support out-of-flow kids");
    nsBoxLayoutState state(PresContext());
 
    // append the new frames
-   mFrames.AppendFrames(this, aFrameList);
+   const nsFrameList::Slice& newFrames = mFrames.AppendFrames(this, aFrameList);
 
    // notify the layout manager
    if (mLayoutManager)
-     mLayoutManager->ChildrenAppended(this, state, aFrameList);
+     mLayoutManager->ChildrenAppended(this, state, newFrames);
 
 #ifdef DEBUG_LAYOUT
    // if we are in debug make sure our children are in debug as well.
@@ -1253,14 +1254,14 @@ public:
       DisplayDebugInfoFor(this, aPt - aBuilder->ToReferenceFrame(mFrame));
     return PR_TRUE;
   }
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx,
-     const nsRect& aDirtyRect);
-  NS_DISPLAY_DECL_NAME("ComboboxFocus")
+  virtual void Paint(nsDisplayListBuilder* aBuilder
+                     nsIRenderingContext* aCtx);
+  NS_DISPLAY_DECL_NAME("XULDebug")
 };
 
 void
 nsDisplayXULDebug::Paint(nsDisplayListBuilder* aBuilder,
-     nsIRenderingContext* aCtx, const nsRect& aDirtyRect)
+                         nsIRenderingContext* aCtx)
 {
   static_cast<nsBoxFrame*>(mFrame)->
     PaintXULDebugOverlay(*aCtx, aBuilder->ToReferenceFrame(mFrame));
@@ -1819,7 +1820,7 @@ nsBoxFrame::CreateViewForFrame(nsPresContext*  aPresContext,
 
     if (aForce) {
       nsIView* parentView;
-      nsIViewManager* viewManager = aPresContext->GetViewManager();
+      nsIViewManager* viewManager = aPresContext->GetPresShell()->GetViewManager();
       NS_ASSERTION(nsnull != viewManager, "null view manager");
 
       // Create a view
@@ -1863,7 +1864,7 @@ nsBoxFrame::CreateViewForFrame(nsPresContext*  aPresContext,
 }
 
 // If you make changes to this function, check its counterparts
-// in nsTextBoxFrame and nsAreaFrame
+// in nsTextBoxFrame and nsXULLabelFrame
 nsresult
 nsBoxFrame::RegUnregAccessKey(PRBool aDoReg)
 {
@@ -2135,18 +2136,6 @@ nsBoxFrame::RelayoutChildAtOrdinal(nsBoxLayoutState& aState, nsIBox* aChild)
   aChild->SetNextSibling(newNextSib);
 
   return NS_OK;
-}
-
-PRBool
-nsBoxFrame::GetWasCollapsed(nsBoxLayoutState& aState)
-{
-  return nsBox::GetWasCollapsed(aState);
-}
-
-void
-nsBoxFrame::SetWasCollapsed(nsBoxLayoutState& aState, PRBool aWas)
-{
-  nsBox::SetWasCollapsed(aState, aWas);
 }
 
 /**

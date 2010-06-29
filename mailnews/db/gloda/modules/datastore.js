@@ -41,38 +41,6 @@
  * for inspiration and idioms (and also a name :).
  */
 
-/* BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
- *  BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
- * BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
- *  BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
- * BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
- * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- *  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- *   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- *    XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XX
- *
- * The following changes have been made to this file on the Thunderbird 3.0.x
- *  branch that are unique and distinct from those on the trunk.
- *
- * - A solution to https://bugzilla.mozilla.org/show_bug.cgi?id=530098 that
- *    does not rev the database schema.  (The bug is about fixing slow deletion
- *    by creating an index we thought already existed).  Due to a failure to
- *    really think ahead about schema revisions, we can't just luck out and
- *    bump the schema rev by 1 and know that thing will work out when people
- *    upgrade to 3.1 because the database will need to get blown away anyways.
- *    (The problem is 3.1 beta 2 is only on schema rev 21).
- *
- *  Our solution is to check for the existence of the index we require on
- *   startup synchronously and make sure we asynchronously add it if it does
- *   not exist.  The synchronous check step is believed to be cheap enough that
- *   it outweighs the implementation effort (and check cost) of using some
- *   other mechanism to capture the state change.  Note that CREATE INDEX
- *   statements can actually append "IF NOT EXISTS" to make them idempotent but
- *   we avoid doing that because if it turns out gloda is disabled, we don't
- *   want to be spinning up the database's async thread.  (The gloda database
- *   gets created even when disabled; it just stays pretty empty.)
- */
-
 const EXPORTED_SYMBOLS = ["GlodaDatastore"];
 
 const Cc = Components.classes;
@@ -80,13 +48,19 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
 
-Cu.import("resource://app/modules/gloda/datamodel.js");
-Cu.import("resource://app/modules/gloda/databind.js");
-Cu.import("resource://app/modules/gloda/collection.js");
+Cu.import("resource:///modules/gloda/datamodel.js");
+Cu.import("resource:///modules/gloda/databind.js");
+Cu.import("resource:///modules/gloda/collection.js");
 
 let PCH_LOG = Log4Moz.repository.getLogger("gloda.ds.pch");
+
+/**
+ * Bug 507414 introduces support for true asynchronous statements.  We can tell
+ * we've got it if there is a mozIStorageAsyncStatement interface.
+ */
+const HAVE_TRUE_ASYNC = "mozIStorageAsyncStatement" in Ci;
 
 /**
  * Commit async handler; hands off the notification to
@@ -476,11 +450,162 @@ CompactionBlockFetcherHandler.prototype = {
     }
   },
   handleError: function gloda_ds_cbfh_handleError(aError) {
-
+    GlodaDatastore._log.error("CompactionBlockFetcherHandler error: " +
+      aError.result + ": " + aError.message);
   },
   handleCompletion: function gloda_ds_cbfh_handleCompletion(aReason) {
     GlodaDatastore._asyncCompleted();
     this.callback(this.idsAndMessageKeys);
+  }
+};
+
+/**
+ * Use this as the callback handler when you have a SQL query that returns a
+ *  single row with a single integer column value, like a COUNT() query.
+ */
+function SingletonResultValueHandler(aCallback) {
+  this.callback = aCallback;
+  this.result = null;
+  GlodaDatastore._pendingAsyncStatements++;
+}
+SingletonResultValueHandler.prototype = {
+  handleResult: function gloda_ds_cbfh_handleResult(aResultSet) {
+    let row;
+    while ((row = aResultSet.getNextRow())) {
+      this.result = row.getInt64(0);
+    }
+  },
+  handleError: function gloda_ds_cbfh_handleError(aError) {
+    GlodaDatastore._log.error("SingletonResultValueHandler error: " +
+      aError.result + ": " + aError.message);
+  },
+  handleCompletion: function gloda_ds_cbfh_handleCompletion(aReason) {
+    GlodaDatastore._asyncCompleted();
+    this.callback(this.result);
+  }
+};
+
+/**
+ * Wrapper that duplicates actions taken on a real statement to an explain
+ *  statement.  Currently only fires an explain statement once.
+ */
+function ExplainedStatementWrapper(aRealStatement, aExplainStatement,
+                                   aSQLString, aExplainHandler) {
+  this.real = aRealStatement;
+  this.explain = aExplainStatement;
+  this.sqlString = aSQLString;
+  this.explainHandler = aExplainHandler;
+  this.done = false;
+}
+ExplainedStatementWrapper.prototype = {
+  bindNullParameter: function(aColIndex) {
+    this.real.bindNullParameter(aColIndex);
+    if (!this.done)
+      this.explain.bindNullParameter(aColIndex);
+  },
+  bindStringParameter: function(aColIndex, aValue) {
+    this.real.bindStringParameter(aColIndex, aValue);
+    if (!this.done)
+      this.explain.bindStringParameter(aColIndex, aValue);
+  },
+  bindInt64Parameter: function(aColIndex, aValue) {
+    this.real.bindInt64Parameter(aColIndex, aValue);
+    if (!this.done)
+      this.explain.bindInt64Parameter(aColIndex, aValue);
+  },
+  bindDoubleParameter: function(aColIndex, aValue) {
+    this.real.bindDoubleParameter(aColIndex, aValue);
+    if (!this.done)
+      this.explain.bindDoubleParameter(aColIndex, aValue);
+  },
+  executeAsync: function wrapped_executeAsync(aCallback) {
+    if (!this.done) {
+      this.explainHandler.sqlEnRoute(this.sqlString);
+      this.explain.executeAsync(this.explainHandler);
+      this.explain.finalize();
+      this.done = true;
+    }
+    return this.real.executeAsync(aCallback);
+  },
+  finalize: function wrapped_finalize() {
+    if (!this.done)
+      this.explain.finalize();
+    this.real.finalize();
+  },
+};
+
+/**
+ * Writes a single JSON document to the provide file path in a streaming
+ *  fashion.  At startup we open an array to place the queries in and at
+ *  shutdown we close it.
+ */
+function ExplainedStatementProcessor(aDumpPath) {
+  let observerService = Cc["@mozilla.org/observer-service;1"]
+                          .getService(Ci.nsIObserverService);
+  observerService.addObserver(this, "quit-application", false);
+
+  this._sqlStack = [];
+  this._curOps = [];
+  this._objsWritten = 0;
+
+  let filePath = Cc["@mozilla.org/file/local;1"]
+                   .createInstance(Ci.nsILocalFile);
+  filePath.initWithPath(aDumpPath);
+
+  this._ostream = Cc["@mozilla.org/network/file-output-stream;1"]
+                 .createInstance(Ci.nsIFileOutputStream);
+  this._ostream.init(filePath, -1, -1, 0);
+
+  let s = '{"queries": [';
+  this._ostream.write(s, s.length);
+}
+ExplainedStatementProcessor.prototype = {
+  sqlEnRoute: function esp_sqlEnRoute(aSQLString) {
+    this._sqlStack.push(aSQLString);
+  },
+  handleResult: function esp_handleResult(aResultSet) {
+    let row;
+    // addr  opcode (s)      p1    p2    p3    p4 (s)   p5   comment (s)
+    while ((row = aResultSet.getNextRow())) {
+      this._curOps.push([
+        row.getInt64(0),  // addr
+        row.getString(1), // opcode
+        row.getInt64(2),  // p1
+        row.getInt64(3),  // p2
+        row.getInt64(4),  // p3
+        row.getString(5), // p4
+        row.getString(6), // p5
+        row.getString(7)  // comment
+      ]);
+    }
+  },
+  handleError: function esp_handleError(aError) {
+    Cu.reportError("Unexpected error in EXPLAIN handler: " + aError);
+  },
+  handleCompletion: function esp_handleCompletion(aReason) {
+    let obj = {
+      sql: this._sqlStack.shift(),
+      operations: this._curOps,
+    };
+    let s = (this._objsWritten++ ? ", " : "") + JSON.stringify(obj, null, 2);
+    this._ostream.write(s, s.length);
+
+    this._curOps = [];
+  },
+
+  observe: function esp_observe(aSubject, aTopic, aData) {
+    if (aTopic == "quit-application")
+      this.shutdown();
+  },
+
+  shutdown: function esp_shutdown() {
+    let s = "]}";
+    this._ostream.write(s, s.length);
+    this._ostream.close();
+
+    let observerService = Cc["@mozilla.org/observer-service;1"]
+                            .getService(Ci.nsIObserverService);
+    observerService.removeObserver(this, "quit-application");
   }
 };
 
@@ -595,7 +720,7 @@ var GlodaDatastore = {
 
   /* ******************* SCHEMA ******************* */
 
-  _schemaVersion: 19,
+  _schemaVersion: 21,
   _schema: {
     tables: {
 
@@ -675,6 +800,8 @@ var GlodaDatastore = {
           deleted: ['deleted'],
         },
 
+        // note: if reordering the columns, you need to change this file's
+        //  row-loading logic as well as msg_search.js's ranking usages.
         fulltextColumns: [
           ["subject", "TEXT"],
           ["body", "TEXT"],
@@ -813,6 +940,12 @@ var GlodaDatastore = {
   asyncConnection: null,
 
   /**
+   * Our "mailnews.database.global.datastore." preferences branch for debug
+   * notification handling.  We register as an observer against this.
+   */
+  _prefBranch: null,
+
+  /**
    * Initialize logging, create the database if it doesn't exist, "upgrade" it
    *  if it does and it's not up-to-date, fill our authoritative folder uri/id
    *  mapping.
@@ -823,6 +956,17 @@ var GlodaDatastore = {
 
     this._json = aNsJSON;
     this._nounIDToDef = aNounIDToDef;
+
+    let prefService = Cc["@mozilla.org/preferences-service;1"].
+                        getService(Ci.nsIPrefService);
+    let branch = prefService.getBranch("mailnews.database.global.datastore.");
+    this._prefBranch = branch.QueryInterface(Ci.nsIPrefBranch2);
+
+    // Not sure the weak reference really makes a difference given that we are a
+    // GC root.
+    branch.addObserver("", this, false);
+    // claim the pref changed so we can centralize our logic there.
+    this.observe(null, "nsPref:changed", "explainToPath");
 
     // Get the path to our global database
     var dirService = Cc["@mozilla.org/file/directory_service;1"].
@@ -844,10 +988,11 @@ var GlodaDatastore = {
     // It does exist, but we (someday) might need to upgrade the schema
     else {
       // (Exceptions may be thrown if the database is corrupt)
-      { // try {
+      try {
         dbConnection = dbService.openUnsharedDatabase(dbFile);
         // see _createDB...
         dbConnection.executeSimpleSQL("PRAGMA cache_size = 8192");
+        dbConnection.executeSimpleSQL("PRAGMA synchronous = FULL");
 
         // Register custom tokenizer to index all language text
         var tokenizer = Cc["@mozilla.org/messenger/fts3tokenizer;1"].
@@ -866,7 +1011,19 @@ var GlodaDatastore = {
         }
       }
       // Handle corrupt databases, other oddities
-      // ... in the future. for now, let us die
+      catch (ex) {
+        if (ex.result == Cr.NS_ERROR_FILE_CORRUPTED) {
+          this._log.warn("Database was corrupt, removing the old one.");
+          dbFile.remove(false);
+          this._log.warn("Removed old database, creating a new one.");
+          dbConnection = this._createDB(dbService, dbFile);
+        }
+        else {
+          this._log.error("Unexpected error when trying to open the database:" +
+                          " " + ex);
+          throw ex;
+        }
+      }
     }
 
     this.syncConnection = dbConnection;
@@ -883,36 +1040,6 @@ var GlodaDatastore = {
     this._populateContactManagedId();
     this._populateIdentityManagedId();
 
-    // BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH BRANCH
-    // -- determine if the index required for fast deletion exists and
-    //  asynchronously cause it to exist if it does not.
-    let indexExistsStmt = this._createSyncStatement(
-      "PRAGMA index_list(messageAttributes)", true);
-    let indexExists = false;
-    try {
-      while (indexExistsStmt.executeStep()) {
-        let indexName = indexExistsStmt.getString(1);
-        if (indexName == "messageAttribFastDeletion") {
-          indexExists = true;
-          break;
-        }
-      }
-    }
-    finally {
-      indexExistsStmt.finalize();
-    }
-    if (!indexExists) {
-      let asyncCreateIndex = this._createAsyncStatement(
-        "CREATE INDEX messageAttribFastDeletion ON " +
-          "messageAttributes(messageID)",
-        /* we will finalize */ true);
-      asyncCreateIndex.executeAsync(this.trackAsync());
-      // (this does not interfere with the asynchronous fellow; it just kills
-      //  off the synchronous side of the house)
-      asyncCreateIndex.finalize();
-    }
-    // FIN FIN FIN FIN FIN FIN FIN FINF IN FIN FIN FIN FIN FIN FIN FIN FIN FIN
-
     // create the timer we use to periodically drop our references to folders
     //  we no longer need XPCOM references to (or more significantly, their
     //  message databases.)
@@ -920,6 +1047,39 @@ var GlodaDatastore = {
       Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
 
     this._log.debug("Completed datastore initialization.");
+  },
+
+  observe: function gloda_ds_observe(aSubject, aTopic, aData) {
+    if(aTopic != "nsPref:changed")
+      return;
+
+    if (aData == "explainToPath") {
+      let explainToPath = null;
+      try {
+        explainToPath = this._prefBranch.getCharPref("explainToPath");
+        if (explainToPath.trim() == "")
+          explainToPath = null;
+      }
+      catch (ex) {
+        // don't care if the pref is not there.
+      }
+
+      // It is conceivable that the name is changing and this isn't a boolean
+      // toggle, so always clean out the explain processor.
+      if (this._explainProcessor) {
+        this._explainProcessor.shutdown();
+        this._explainProcessor = null;
+      }
+
+      if (explainToPath) {
+        this._createAsyncStatement = this._createExplainedAsyncStatement;
+        this._explainProcessor = new ExplainedStatementProcessor(
+                                       explainToPath);
+      }
+      else {
+        this._createAsyncStatement = this._realCreateAsyncStatement;
+      }
+    }
   },
 
   datastoreIsShutdown: false,
@@ -982,7 +1142,13 @@ var GlodaDatastore = {
       //  exist, and it may be advisable to attempt to track and cancel those.
       //  For simplicity we don't currently do this, and I expect this should
       //  not pose a major problem, but those are famous last words.
-      this.asyncConnection.close();
+      // Note: In the HAVE_TRUE_ASYNC case asyncClose does not spin a nested
+      //  event loop, but the thread manager shutdown code will spin the
+      //  async thread's event loop, so it nets out to be the same.
+      if (HAVE_TRUE_ASYNC)
+        this.asyncConnection.asyncClose();
+      else
+        this.asyncConnection.close();
     }
     catch (ex) {
       this._log.debug("Potentially expected exception during connection " +
@@ -1009,6 +1175,15 @@ var GlodaDatastore = {
     //  get this large, then the memory does not get used.
     // Do not forget to update the code in _init if you change this value.
     dbConnection.executeSimpleSQL("PRAGMA cache_size = 8192");
+    // The mozStorage default is NORMAL which shaves off some fsyncs in the
+    //  interest of performance.  Since everything we do after bootstrap is
+    //  async, we do not care about the performance, but we really want the
+    //  correctness.  Bug reports and support avenues indicate a non-zero number
+    //  of corrupt databases.  Note that this may not fix everything; OS X
+    //  also supports an F_FULLSYNC flag enabled by PRAGMA fullfsync that we are
+    //  not enabling that is much more comprehensive.  We can think about
+    //  turning that on after we've seen how this reduces our corruption count.
+    dbConnection.executeSimpleSQL("PRAGMA synchronous = FULL");
     // Register custom tokenizer to index all language text
     var tokenizer = Cc["@mozilla.org/messenger/fts3tokenizer;1"].
                       getService(Ci.nsIFts3Tokenizer);
@@ -1158,10 +1333,17 @@ var GlodaDatastore = {
     // version 19
     // - there was a typo that was resulting in deleted getting set to the
     //  numeric value of the javascript undefined value.  (migrate-able)
+    // version 20
+    // - tokenizer changes to provide for case/accent-folding. (blow away)
+    // version 21
+    // - add the messagesAttribFastDeletion index we thought was already covered
+    //  by an index we removed a while ago (migrate-able)
+    // (version 22-25 GAP being left for incremental, non-explodey change. jump
+    //  the schema to 26 if 22 is the next number but you have an explodey
+    //  change!)
 
-    // 1) Blow away if it's old enough that we can't patch things up below.
-    // 2) Blow away if it's from the future.
-    if (aCurVersion < 18 || aCurVersion > aNewVersion) {
+    // If it's not version 20 or inside our safe bound-range of 25, nuke.
+    if (aCurVersion < 20 || aCurVersion > 25) {
       aDBConnection.close();
       aDBFile.remove(false);
       this._log.warn("Global database has been purged due to schema change.");
@@ -1169,9 +1351,9 @@ var GlodaDatastore = {
     }
 
     this._log.warn("Global database performing schema update.");
-    // version 19
-    aDBConnection.executeSimpleSQL("UPDATE messages set deleted = 1 WHERE " +
-                                   "deleted < 0 or deleted > 1");
+    // version 21
+    aDBConnection.executeSimpleSQL(
+      "CREATE INDEX messageAttribFastDeletion ON messageAttributes(messageID)");
 
     aDBConnection.schemaVersion = aNewVersion;
     return aDBConnection;
@@ -1179,11 +1361,21 @@ var GlodaDatastore = {
 
   _outstandingAsyncStatements: [],
 
-  _createAsyncStatement: function gloda_ds_createAsyncStatement(aSQLString,
+  /**
+   * Unless debugging, this is just _realCreateAsyncStatement, but in some
+   *  debugging modes this is instead the helpful wrapper
+   *  _createExplainedAsyncStatement.
+   */
+  _createAsyncStatement: null,
+
+  _realCreateAsyncStatement: function gloda_ds_createAsyncStatement(aSQLString,
                                                                 aWillFinalize) {
     let statement = null;
     try {
-      statement = this.asyncConnection.createStatement(aSQLString);
+      if (HAVE_TRUE_ASYNC)
+        statement = this.asyncConnection.createAsyncStatement(aSQLString);
+      else
+        statement = this.asyncConnection.createStatement(aSQLString);
     }
     catch(ex) {
        throw("error creating async statement " + aSQLString + " - " +
@@ -1195,6 +1387,37 @@ var GlodaDatastore = {
       this._outstandingAsyncStatements.push(statement);
 
     return statement;
+  },
+
+  /**
+   * The ExplainedStatementProcessor instance used by
+   *  _createExplainedAsyncStatement.  This will be null if
+   *  _createExplainedAsyncStatement is not being used as _createAsyncStatement.
+   */
+  _explainProcessor: null,
+
+  /**
+   * Wrapped version of _createAsyncStatement that EXPLAINs the statement.  When
+   *  used this decorates _createAsyncStatement, in which case we are found at
+   *  that name and the original is at _orig_createAsyncStatement.  This is
+   *  controlled by the explainToPath preference (see |_init|).
+   */
+  _createExplainedAsyncStatement:
+      function gloda_ds__createExplainedAsyncStatement(aSQLString,
+                                                       aWillFinalize) {
+    let realStatement = this._realCreateAsyncStatement(aSQLString,
+                                                       aWillFinalize);
+    // don't wrap transaction control statements.
+    if (aSQLString == "COMMIT" ||
+        aSQLString == "BEGIN TRANSACTION" ||
+        aSQLString == "ROLLBACK")
+      return realStatement;
+
+    let explainSQL = "EXPLAIN " + aSQLString;
+    let explainStatement = this._realCreateAsyncStatement(explainSQL);
+
+    return new ExplainedStatementWrapper(realStatement, explainStatement,
+                                         aSQLString, this._explainProcessor);
   },
 
   _cleanupAsyncStatements: function gloda_ds_cleanupAsyncStatements() {
@@ -1622,20 +1845,13 @@ var GlodaDatastore = {
   },
 
   /**
-   * Map a folder URI to a GlodaFolder instance, creating the mapping if it does
-   *  not yet exist.
+   * Return the default messaging priority for a folder of this type, based
+   * on the folder's flags.
    *
-   * @param aFolder The nsIMsgFolder instance you would like the GlodaFolder
-   *     instance for.
-   * @returns The existing or newly created GlodaFolder instance.
+   * @param {nsIMsgFolder} aFolder
+   * @returns {Number}
    */
-  _mapFolder: function gloda_ds_mapFolderURI(aFolder) {
-    let folderURI = aFolder.URI;
-    if (folderURI in this._folderByURI) {
-      return this._folderByURI[folderURI];
-    }
-
-    let folderID = this._nextFolderId++;
+  getDefaultIndexingPriority: function gloda_ds_getDefaultIndexingPriority(aFolder) {
 
     let indexingPriority = GlodaFolder.prototype.kIndexingDefaultPriority;
     // Do not walk into trash/junk folders.
@@ -1664,9 +1880,42 @@ var GlodaDatastore = {
       indexingPriority = GlodaFolder.prototype.kIndexingFavoritePriority;
     else if (aFolder.flags & Ci.nsMsgFolderFlags.CheckNew)
       indexingPriority = GlodaFolder.prototype.kIndexingCheckNewPriority;
-    let folder = new GlodaFolder(this, folderID, folderURI,
-      GlodaFolder.prototype.kFolderFilthy, aFolder.prettiestName,
-      indexingPriority);
+
+    return indexingPriority;
+  },
+
+  /**
+   * Map a folder URI to a GlodaFolder instance, creating the mapping if it does
+   *  not yet exist.
+   *
+   * @param aFolder The nsIMsgFolder instance you would like the GlodaFolder
+   *     instance for.
+   * @returns The existing or newly created GlodaFolder instance.
+   */
+  _mapFolder: function gloda_ds_mapFolderURI(aFolder) {
+    let folderURI = aFolder.URI;
+    if (folderURI in this._folderByURI) {
+      return this._folderByURI[folderURI];
+    }
+
+    let folderID = this._nextFolderId++;
+
+    // if there's an indexingPriority stored on the folder, just use that
+    let indexingPriority;
+    let stringPrio = aFolder.getStringProperty("indexingPriority");
+    if (stringPrio.length)
+      indexingPriority = parseInt(stringPrio);
+    else
+      // otherwise, fall back to the default for folders of this type
+      indexingPriority = this.getDefaultIndexingPriority(aFolder);
+
+    // If there are messages in the folder, it is filthy.  If there are no
+    //  messages, it can be clean.
+    let dirtyStatus = aFolder.getTotalMessages(false) ?
+                        GlodaFolder.prototype.kFolderFilthy :
+                        GlodaFolder.prototype.kFolderClean;
+    let folder = new GlodaFolder(this, folderID, folderURI, dirtyStatus,
+                                 aFolder.prettiestName, indexingPriority);
 
     this._insertFolderLocationStatement.bindInt64Parameter(0, folder.id);
     this._insertFolderLocationStatement.bindStringParameter(1, folder.uri);
@@ -1699,6 +1948,20 @@ var GlodaDatastore = {
     throw "Got impossible folder ID: " + aFolderID;
   },
 
+  /**
+   * Mark the gloda folder as deleted for any outstanding references to it and
+   *  remove it from our tables so we don't hand out any new references.  The
+   *  latter is especially important in the case a folder with the same name
+   *  is created afterwards; we don't want to confuse the new one with the old
+   *  one!
+   */
+  _killGlodaFolderIntoTombstone:
+      function gloda_ds__killGlodaFolderIntoTombstone(aGlodaFolder) {
+    aGlodaFolder._deleted = true;
+    delete this._folderByURI[aGlodaFolder.uri];
+    delete this._folderByID[aGlodaFolder.id];
+  },
+
   get _updateFolderDirtyStatusStatement() {
     let statement = this._createAsyncStatement(
       "UPDATE folderLocations SET dirtyStatus = ?1 \
@@ -1713,6 +1976,22 @@ var GlodaDatastore = {
     ufds.bindInt64Parameter(1, aFolder.id);
     ufds.bindInt64Parameter(0, aFolder.dirtyStatus);
     ufds.executeAsync(this.trackAsync());
+  },
+
+  get _updateFolderIndexingPriorityStatement() {
+    let statement = this._createAsyncStatement(
+      "UPDATE folderLocations SET indexingPriority = ?1 \
+              WHERE id = ?2");
+    this.__defineGetter__("_updateFolderIndexingPriorityStatement",
+      function() statement);
+    return this._updateFolderIndexingPriorityStatement;
+  },
+
+  updateFolderIndexingPriority: function gloda_ds_updateFolderIndexingPriority(aFolder) {
+    let ufip = this._updateFolderIndexingPriorityStatement;
+    ufip.bindInt64Parameter(1, aFolder.id);
+    ufip.bindInt64Parameter(0, aFolder.indexingPriority);
+    ufip.executeAsync(this.trackAsync());
   },
 
   get _updateFolderLocationStatement() {
@@ -2375,6 +2654,22 @@ var GlodaDatastore = {
                                         aMessageIDs);
   },
 
+  get _countDeletedMessagesStatement() {
+    let statement = this._createAsyncStatement(
+      "SELECT COUNT(*) FROM messages WHERE deleted = 1");
+    this.__defineGetter__("_countDeletedMessagesStatement",
+                          function() statement);
+    return this._countDeletedMessagesStatement;
+  },
+
+  /**
+   * Count how many messages are currently marked as deleted in the database.
+   */
+  countDeletedMessages: function gloda_ds_countDeletedMessages(aCallback) {
+    let cms = this._countDeletedMessagesStatement;
+    cms.executeAsync(new SingletonResultValueHandler(aCallback));
+  },
+
   get _deleteMessageByIDStatement() {
     let statement = this._createAsyncStatement(
       "DELETE FROM messages WHERE id = ?1");
@@ -2846,7 +3141,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintIn
         else if (constraintType === this.kConstraintIn) {
           let clauses = [];
-          for each ([attrID, values] in
+          for each (let [attrID, values] in
               this._convertToDBValuesAndGroupByAttributeID(attrDef,
                                                            constraintValues)) {
             let clausePart;
@@ -2877,7 +3172,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintRanges
         else if (constraintType === this.kConstraintRanges) {
           let clauses = [];
-          for each ([attrID, dbStrings] in
+          for each (let [attrID, dbStrings] in
               this._convertRangesToDBStringsAndGroupByAttributeID(attrDef,
                               constraintValues, valueColumnName)) {
             if (attrID !== undefined)
@@ -2891,7 +3186,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintEquals
         else if (constraintType === this.kConstraintEquals) {
           let clauses = [];
-          for each ([attrID, values] in
+          for each (let [attrID, values] in
               this._convertToDBValuesAndGroupByAttributeID(attrDef,
                                                            constraintValues)) {
             if (attrID !== undefined)
@@ -2979,7 +3274,8 @@ var GlodaDatastore = {
     }
 
     if (aQuery._limit) {
-      sqlString += " LIMIT ?";
+      if (!("limitClauseAlreadyIncluded" in aQuery.options))
+        sqlString += " LIMIT ?";
       boundArgs.push(aQuery._limit);
     }
 

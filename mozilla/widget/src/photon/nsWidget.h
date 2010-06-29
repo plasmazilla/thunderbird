@@ -70,29 +70,14 @@ public:
 
   // nsIWidget
 
-	// create with nsIWidget parent
   inline NS_IMETHOD            Create(nsIWidget *aParent,
+                               nsNativeWidget aNativeParent,
                                const nsRect &aRect,
                                EVENT_CALLBACK aHandleEventFunction,
                                nsIDeviceContext *aContext,
                                nsIAppShell *aAppShell = nsnull,
                                nsIToolkit *aToolkit = nsnull,
-                               nsWidgetInitData *aInitData = nsnull)
-		{
-		return(CreateWidget(aParent, aRect, aHandleEventFunction, aContext, aAppShell, aToolkit, aInitData, nsnull));
-		}
-
-	// create with a native parent
-  inline NS_IMETHOD            Create(nsNativeWidget aParent,
-                               const nsRect &aRect,
-                               EVENT_CALLBACK aHandleEventFunction,
-                               nsIDeviceContext *aContext,
-                               nsIAppShell *aAppShell = nsnull,
-                               nsIToolkit *aToolkit = nsnull,
-                               nsWidgetInitData *aInitData = nsnull)
-		{
-		return(CreateWidget(nsnull, aRect, aHandleEventFunction, aContext, aAppShell, aToolkit, aInitData,aParent));
-		}
+                               nsWidgetInitData *aInitData = nsnull);
 
   NS_IMETHOD Destroy(void);
   inline nsIWidget* GetParent(void)
@@ -156,32 +141,6 @@ public:
 
   NS_IMETHOD WidgetToScreen(const nsRect &aOldRect, nsRect &aNewRect);
   NS_IMETHOD ScreenToWidget(const nsRect &aOldRect, nsRect &aNewRect);
-
-  inline NS_IMETHOD BeginResizingChildren(void)
-		{
-		PtHold();
-		return NS_OK;
-		}
-
-  inline NS_IMETHOD EndResizingChildren(void)
-		{
-		PtRelease();
-		return NS_OK;
-		}
-
-  inline NS_IMETHOD GetPreferredSize(PRInt32& aWidth, PRInt32& aHeight)
-		{
-		aWidth  = mPreferredWidth;
-		aHeight = mPreferredHeight;
-		return (mPreferredWidth != 0 && mPreferredHeight != 0)?NS_OK:NS_ERROR_FAILURE;
-		}
-
-  inline NS_IMETHOD SetPreferredSize(PRInt32 aWidth, PRInt32 aHeight)
-		{
-		mPreferredWidth  = aWidth;
-		mPreferredHeight = aHeight;
-		return NS_OK;
-		}
 
   // Use this to set the name of a widget for normal widgets.. not the same as the nsWindow version
   inline NS_IMETHOD SetTitle(const nsAString& aTitle) { return NS_OK; }
@@ -255,15 +214,6 @@ public:
 
 protected:
   NS_IMETHOD CreateNative(PtWidget_t *parentWindow) { return NS_OK; }
-
-  nsresult CreateWidget(nsIWidget *aParent,
-                        const nsRect &aRect,
-                        EVENT_CALLBACK aHandleEventFunction,
-                        nsIDeviceContext *aContext,
-                        nsIAppShell *aAppShell,
-                        nsIToolkit *aToolkit,
-                        nsWidgetInitData *aInitData,
-                        nsNativeWidget aNativeParent = nsnull);
 
   inline PRBool DispatchWindowEvent(nsGUIEvent* event)
 		{
@@ -339,7 +289,6 @@ protected:
   nsIWidget						*mParent;
   PRBool mShown;
 
-  PRUint32 mPreferredWidth, mPreferredHeight;
   PRBool       mListenForResizes;
    
   // Focus used global variable

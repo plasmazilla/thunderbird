@@ -47,6 +47,23 @@ calendar-category-box:not([categories]) {
   display: none;
 }
 
+.calendar-item-image {
+    list-style-image: url(chrome://calendar/skin/day-box-item-image.png);
+    padding-top: 2px;
+    padding-bottom: 2px;
+    -moz-margin-end: 4px;
+    display: none;
+}
+
+.calendar-item-image[itemType="todo"] {
+    -moz-image-region: rect(0px 11px 11px 0px);
+    display: -moz-box;
+}
+
+.calendar-item-image[itemType="todo"][progress="completed"] {
+    -moz-image-region: rect(0px 22px 11px 11px);
+}
+
 /* Multiday view */
 calendar-event-column {
   background-color: #FFFFFF;
@@ -429,21 +446,6 @@ calendar-month-day-box-item[selected="true"] .calendar-event-selection {
     -moz-margin-end: 4px;
 }
 
-.calendar-month-day-box-item-image {
-    list-style-image: url("chrome://calendar/skin/day-box-item-image.png");
-    -moz-margin-end: 4px;
-    display: none;
-}
-
-.calendar-month-day-box-item-image[type="todo"] {
-    -moz-image-region: rect(0px 11px 11px 0px);
-    display: inline;
-}
-
-.calendar-month-day-box-item-image[type="todo"][progress="completed"] {
-    -moz-image-region: rect(0px 22px 11px 11px);
-}
-
 .labeldaybox-container {
     border-right: 1px solid #D2D2D2;
     border-bottom: 1px solid #D2D2D2;
@@ -579,6 +581,8 @@ calendar-event-box,
 calendar-editable-item,
 calendar-month-day-box-item {
     opacity: 0.99;
+    /* Do not change next line, since it would break item selection */
+    -moz-user-focus: normal;
 }
 
 calendar-event-box[invitation-status="NEEDS-ACTION"],
@@ -657,8 +661,7 @@ tab[calview] > .tab-middle {
     font-weight: normal;
     font-size: 14px;
     color: #2E4E73;
-    padding-top: 5px;
-    margin-top: 5px;
+    margin-bottom: -1px;
 }
 
 .view-header[type="end"] {
@@ -694,11 +697,11 @@ tab[calview] > .tab-middle {
 .today-navigation-button {
     -moz-user-focus: normal;
     -moz-appearance: toolbarbutton;
-    margin-top: 2px;
+    margin-top: 3px;
     -moz-margin-start: 2px;
     -moz-margin-end: 2px;
     margin-bottom: 0px;
-    padding: 4px;
+    padding: 3px;
     padding-bottom: 5px;
     color: #2E4E73;
 }

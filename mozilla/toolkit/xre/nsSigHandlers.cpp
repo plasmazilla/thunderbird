@@ -42,6 +42,10 @@
  * platforms that do not support it.
  */
 
+#include "nsSigHandlers.h"
+
+#ifdef XP_UNIX
+
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,11 +54,16 @@
 #include "prenv.h"
 #include "nsDebug.h"
 
+#if defined(XP_MACOSX)
+#include <ucontext.h>
+#endif
+
 #if defined(LINUX)
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
 #include <stdlib.h> // atoi
+#include <ucontext.h>
 #endif
 
 #if defined(SOLARIS)
@@ -149,6 +158,8 @@ ah_crap_handler(int signum)
   sleep(_gdb_sleep_duration);
 
   printf("Done sleeping...\n");
+
+  _exit(signum);
 }
 #endif // CRAWL_STACK_ON_SIGSEGV
 
@@ -202,7 +213,54 @@ my_glib_log_func(const gchar *log_domain, GLogLevelFlags log_level,
 
 #endif
 
-void InstallUnixSignalHandlers(const char *ProgramName)
+static void fpehandler(int signum, siginfo_t *si, void *context)
+{
+#ifdef XP_MACOSX
+  ucontext_t *uc = (ucontext_t *)context;
+
+// Not available with 10.4 SDK? See bug 533035
+#if 0
+  _STRUCT_FP_CONTROL *ctrl = &uc->uc_mcontext->fs.fpu_fcw;
+  ctrl->invalid = ctrl->denorm = ctrl->zdiv = ctrl->ovrfl = ctrl->undfl = ctrl->precis = 1;
+
+  _STRUCT_FP_STATUS *status = &uc->uc_mcontext->fs.fpu_fsw;
+  status->invalid = status->denorm = status->zdiv = status->ovrfl = status->undfl =
+    status->precis = status->stkflt = status->errsumm = 0;
+
+  __uint32_t *mxcsr = &uc->uc_mcontext->fs.fpu_mxcsr;
+  *mxcsr |= SSE_EXCEPTION_MASK; /* disable all SSE exceptions */
+  *mxcsr &= ~SSE_STATUS_FLAGS; /* clear all pending SSE exceptions */
+#endif
+#endif
+#ifdef LINUX
+  ucontext_t *uc = (ucontext_t *)context;
+
+#if defined(__i386__)
+  /*
+   * It seems that we have no access to mxcsr on Linux. libc
+   * seems to be translating cw/sw to mxcsr.
+   */
+  unsigned long int *cw = &uc->uc_mcontext.fpregs->cw;
+  *cw |= FPU_EXCEPTION_MASK;
+
+  unsigned long int *sw = &uc->uc_mcontext.fpregs->sw;
+  *sw &= ~FPU_STATUS_FLAGS;
+#endif
+#if defined(__amd64__)
+  __uint16_t *cw = &uc->uc_mcontext.fpregs->cwd;
+  *cw |= FPU_EXCEPTION_MASK;
+
+  __uint16_t *sw = &uc->uc_mcontext.fpregs->swd;
+  *sw &= ~FPU_STATUS_FLAGS;
+
+  __uint32_t *mxcsr = &uc->uc_mcontext.fpregs->mxcsr;
+  *mxcsr |= SSE_EXCEPTION_MASK; /* disable all SSE exceptions */
+  *mxcsr &= ~SSE_STATUS_FLAGS; /* clear all pending SSE exceptions */
+#endif
+#endif
+}
+
+void InstallSignalHandlers(const char *ProgramName)
 {
   PL_strncpy(_progname,ProgramName, (sizeof(_progname)-1) );
 
@@ -224,14 +282,20 @@ void InstallUnixSignalHandlers(const char *ProgramName)
   signal(SIGSEGV, abnormal_exit_handler);
   signal(SIGILL,  abnormal_exit_handler);
   signal(SIGABRT, abnormal_exit_handler);
-  signal(SIGFPE,  abnormal_exit_handler);
 
 #elif defined(CRAWL_STACK_ON_SIGSEGV)
-  signal(SIGSEGV, ah_crap_handler);
-  signal(SIGILL, ah_crap_handler);
-  signal(SIGABRT, ah_crap_handler);
-  signal(SIGFPE, ah_crap_handler);
+  if (!getenv("XRE_NO_WINDOWS_CRASH_DIALOG")) {
+    signal(SIGSEGV, ah_crap_handler);
+    signal(SIGILL, ah_crap_handler);
+    signal(SIGABRT, ah_crap_handler);
+  }
 #endif // CRAWL_STACK_ON_SIGSEGV
+
+  /* Install a handler for floating point exceptions and disable them if they occur. */
+  struct sigaction sa, osa;
+  sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
+  sa.sa_sigaction = fpehandler;
+  sigaction(SIGFPE, &sa, &osa);
 
 #if defined(DEBUG) && defined(LINUX)
   const char *memLimit = PR_GetEnv("MOZ_MEM_LIMIT");
@@ -287,3 +351,84 @@ void InstallUnixSignalHandlers(const char *ProgramName)
   }
 #endif
 }
+
+#elif XP_WIN
+
+#include <windows.h>
+
+#ifdef _M_IX86
+/*
+ * WinNT.h prior to SDK7 does not expose the structure of the ExtendedRegisters for ia86.
+ * We known that MxCsr is at offset 0x18 and is a DWORD.
+ */
+#define MXCSR(ctx) (*(DWORD *)(((BYTE *)(ctx)->ExtendedRegisters) + 0x18))
+#endif
+
+#ifdef _M_X64
+#define MXCSR(ctx) (ctx)->MxCsr
+#endif
+
+#if defined(_M_IX86) || defined(_M_X64)
+
+#define X87CW(ctx) (ctx)->FloatSave.ControlWord
+#define X87SW(ctx) (ctx)->FloatSave.StatusWord
+
+/*
+ * SSE traps raise these exception codes, which are defined in internal NT headers
+ * but not winbase.h
+ */
+#define STATUS_FLOAT_MULTIPLE_FAULTS 0xC00002B4
+#define STATUS_FLOAT_MULTIPLE_TRAPS  0xC00002B5
+
+static LPTOP_LEVEL_EXCEPTION_FILTER gFPEPreviousFilter;
+
+LONG __stdcall FpeHandler(PEXCEPTION_POINTERS pe)
+{
+  PEXCEPTION_RECORD e = (PEXCEPTION_RECORD)pe->ExceptionRecord;
+  CONTEXT *c = (CONTEXT*)pe->ContextRecord;
+
+  switch (e->ExceptionCode) {
+    case STATUS_FLOAT_DENORMAL_OPERAND:
+    case STATUS_FLOAT_DIVIDE_BY_ZERO:
+    case STATUS_FLOAT_INEXACT_RESULT:
+    case STATUS_FLOAT_INVALID_OPERATION:
+    case STATUS_FLOAT_OVERFLOW:
+    case STATUS_FLOAT_STACK_CHECK:
+    case STATUS_FLOAT_UNDERFLOW:
+    case STATUS_FLOAT_MULTIPLE_FAULTS:
+    case STATUS_FLOAT_MULTIPLE_TRAPS:
+      X87CW(c) |= FPU_EXCEPTION_MASK; /* disable all FPU exceptions */
+      X87SW(c) &= ~FPU_STATUS_FLAGS;  /* clear all pending FPU exceptions */
+#ifdef _M_IX86
+      if (c->ContextFlags & CONTEXT_EXTENDED_REGISTERS) {
+#endif
+        MXCSR(c) |= SSE_EXCEPTION_MASK; /* disable all SSE exceptions */
+        MXCSR(c) &= ~SSE_STATUS_FLAGS;  /* clear all pending SSE exceptions */
+#ifdef _M_IX86
+      }
+#endif
+      return EXCEPTION_CONTINUE_EXECUTION;
+  }
+  LONG action = EXCEPTION_CONTINUE_SEARCH;
+  if (gFPEPreviousFilter)
+    action = gFPEPreviousFilter(pe);
+
+  return action;
+}
+
+void InstallSignalHandlers(const char *ProgramName)
+{
+  gFPEPreviousFilter = SetUnhandledExceptionFilter(FpeHandler);
+}
+
+#else
+
+void InstallSignalHandlers(const char *ProgramName)
+{
+}
+
+#endif
+
+#else
+#error No signal handling implementation for this platform.
+#endif

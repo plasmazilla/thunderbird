@@ -25,7 +25,7 @@
 #include <assert.h>
 #include "qcmsint.h"
 
-#if defined(_M_IX86) || defined(__i386__)
+#if defined(_M_IX86) || defined(__i386__) || defined(__x86_64__) || defined(_M_AMD64)
 #define X86
 #endif
 
@@ -651,7 +651,7 @@ static void qcms_transform_data_rgb_out_pow(qcms_transform *transform, unsigned 
 
 static void qcms_transform_data_gray_out_lut(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < length; i++) {
 		float out_device_r, out_device_g, out_device_b;
 		unsigned char device = *src++;
@@ -676,7 +676,7 @@ static void qcms_transform_data_gray_out_lut(qcms_transform *transform, unsigned
 
 static void qcms_transform_data_graya_out_lut(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < length; i++) {
 		float out_device_r, out_device_g, out_device_b;
 		unsigned char device = *src++;
@@ -698,7 +698,7 @@ static void qcms_transform_data_graya_out_lut(qcms_transform *transform, unsigne
 
 static void qcms_transform_data_gray_out_precache(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < length; i++) {
 		unsigned char device = *src++;
 		uint16_t gray;
@@ -716,7 +716,7 @@ static void qcms_transform_data_gray_out_precache(qcms_transform *transform, uns
 
 static void qcms_transform_data_graya_out_precache(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < length; i++) {
 		unsigned char device = *src++;
 		unsigned char alpha = *src++;
@@ -799,9 +799,14 @@ void qcms_transform_data_rgb_out_lut_sse_intrin(qcms_transform *transform, unsig
 	}
 }
 #endif
+
+#if defined(_MSC_VER) && defined(_M_AMD64)
+#include <emmintrin.h>
+#endif
+
 static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
         char input_back[32];
 	/* Ensure we have a buffer that's 16 byte aligned regardless of the original
@@ -868,7 +873,7 @@ static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsig
                         , "%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"
 #endif
                       );
-#else
+#elif defined(_MSC_VER) && defined(_M_IX86)
                 __asm {
                       mov      eax, mat
                       mov      ecx, clampMax
@@ -904,6 +909,33 @@ static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsig
                       cvtps2dq xmm1, xmm1
                       movdqa   [ebx], xmm1
                 }
+#elif defined(_MSC_VER) && defined(_M_AMD64)
+                {
+                        __m128 xmm0, xmm1, xmm2, xmm3, xmm5, xmm6, xmm7;
+
+                        xmm1 = _mm_load_ps((__m128*)mat);
+                        xmm2 = _mm_load_ps(((__m128*)mat) + 1);
+                        xmm3 = _mm_load_ps(((__m128*)mat) + 2);
+                        xmm0 = _mm_load_ps((__m128*)input);
+
+                        xmm1 = _mm_mul_ps(xmm1, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(0,0,0,0)));
+                        xmm2 = _mm_mul_ps(xmm2, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(1,1,1,1)));
+                        xmm3 = _mm_mul_ps(xmm3, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(2,2,2,2)));
+
+                        xmm1 = _mm_add_ps(xmm1, _mm_add_ps(xmm2, xmm3));
+
+                        xmm7 = _mm_load_ss(clampMax);
+                        xmm7 = _mm_shuffle_ps(xmm7, xmm7, _MM_SHUFFLE(0,0,0,0));
+                        xmm1 = _mm_min_ps(xmm1, xmm7);
+                        xmm6 = _mm_xor_ps(xmm6, xmm6);
+                        xmm1 = _mm_max_ps(xmm1, xmm6);
+                        xmm5 = _mm_load_ss(&floatScale);
+                        xmm5 = _mm_shuffle_ps(xmm5, xmm5, _MM_SHUFFLE(0,0,0,0));
+                        xmm1 = _mm_mul_ps(xmm1, xmm5);
+                        _mm_store_si128((__m128i*)input, _mm_cvtps_epi32(xmm1));
+                }
+#else
+#error "Unknown platform"
 #endif
 
 		*dest++ = transform->output_table_r->data[output[0]];
@@ -914,7 +946,7 @@ static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsig
 
 static void qcms_transform_data_rgba_out_lut_sse(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
         char input_back[32];
 	/* align input on 16 byte boundary */
@@ -977,7 +1009,7 @@ static void qcms_transform_data_rgba_out_lut_sse(qcms_transform *transform, unsi
                         , "%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"
 #endif
                       );
-#else
+#elif defined(_MSC_VER) && defined(_M_IX86)
                 __asm {
                       mov      eax, mat
                       mov      ecx, clampMax
@@ -1013,6 +1045,33 @@ static void qcms_transform_data_rgba_out_lut_sse(qcms_transform *transform, unsi
                       cvtps2dq xmm1, xmm1
                       movdqa   [ebx], xmm1
                 }
+#elif defined(_MSC_VER) && defined(_M_AMD64)
+                {
+                        __m128 xmm0, xmm1, xmm2, xmm3, xmm5, xmm6, xmm7;
+
+                        xmm1 = _mm_load_ps((__m128*)mat);
+                        xmm2 = _mm_load_ps(((__m128*)mat) + 1);
+                        xmm3 = _mm_load_ps(((__m128*)mat) + 2);
+                        xmm0 = _mm_load_ps((__m128*)input);
+
+                        xmm1 = _mm_mul_ps(xmm1, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(0,0,0,0)));
+                        xmm2 = _mm_mul_ps(xmm2, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(1,1,1,1)));
+                        xmm3 = _mm_mul_ps(xmm3, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(2,2,2,2)));
+
+                        xmm1 = _mm_add_ps(xmm1, _mm_add_ps(xmm2, xmm3));
+
+                        xmm7 = _mm_load_ss(clampMax);
+                        xmm7 = _mm_shuffle_ps(xmm7, xmm7, _MM_SHUFFLE(0,0,0,0));
+                        xmm1 = _mm_min_ps(xmm1, xmm7);
+                        xmm6 = _mm_xor_ps(xmm6, xmm6);
+                        xmm1 = _mm_max_ps(xmm1, xmm6);
+                        xmm5 = _mm_load_ss(&floatScale);
+                        xmm5 = _mm_shuffle_ps(xmm5, xmm5, _MM_SHUFFLE(0,0,0,0));
+                        xmm1 = _mm_mul_ps(xmm1, xmm5);
+                        _mm_store_si128((__m128i*)input, _mm_cvtps_epi32(xmm1));
+                }
+#else
+#error "Unknown platform"
 #endif
 
 		*dest++ = transform->output_table_r->data[output[0]];
@@ -1025,7 +1084,7 @@ static void qcms_transform_data_rgba_out_lut_sse(qcms_transform *transform, unsi
 
 static void qcms_transform_data_rgb_out_lut_precache(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
 	for (i = 0; i < length; i++) {
 		unsigned char device_r = *src++;
@@ -1058,7 +1117,7 @@ static void qcms_transform_data_rgb_out_lut_precache(qcms_transform *transform, 
 
 static void qcms_transform_data_rgba_out_lut_precache(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
 	for (i = 0; i < length; i++) {
 		unsigned char device_r = *src++;
@@ -1093,7 +1152,7 @@ static void qcms_transform_data_rgba_out_lut_precache(qcms_transform *transform,
 
 static void qcms_transform_data_rgb_out_lut(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
 	for (i = 0; i < length; i++) {
 		unsigned char device_r = *src++;
@@ -1125,7 +1184,7 @@ static void qcms_transform_data_rgb_out_lut(qcms_transform *transform, unsigned 
 
 static void qcms_transform_data_rgba_out_lut(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
-	int i;
+	unsigned int i;
 	float (*mat)[4] = transform->matrix;
 	for (i = 0; i < length; i++) {
 		unsigned char device_r = *src++;
@@ -1371,7 +1430,9 @@ static void cpuid(uint32_t fxn, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t 
 #define SSE2_EDX_MASK (1UL << 26)
 static qcms_bool sse2_available(void)
 {
-#ifdef HAS_CPUID
+#if defined(__x86_64__) || defined(_M_AMD64)
+       return true;
+#elif defined(HAS_CPUID)
        static int has_sse2 = -1;
        uint32_t a, b, c, d;
        uint32_t function = 0x00000001;

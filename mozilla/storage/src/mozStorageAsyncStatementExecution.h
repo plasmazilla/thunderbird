@@ -138,21 +138,6 @@ private:
    *
    * @pre mMutex is not held
    *
-   * @param aData
-   *        The statement to execute and then process.
-   * @param aLastStatement
-   *        Indicates if this is the last statement or not.  If it is, we have
-   *        to set the proper state.
-   * @returns true if we should continue to process statements, false otherwise.
-   */
-  bool executeAndProcessStatement(StatementData &aData,
-                                  bool aLastStatement);
-  /**
-   * Executes a given statement until completion, an error occurs, or we are
-   * canceled.  If aLastStatement is true, we should set mState accordingly.
-   *
-   * @pre mMutex is not held
-   *
    * @param aStatement
    *        The statement to execute and then process.
    * @param aLastStatement

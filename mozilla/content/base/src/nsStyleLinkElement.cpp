@@ -57,7 +57,6 @@
 #include "nsISimpleUnicharStreamFactory.h"
 #include "nsNetUtil.h"
 #include "nsUnicharUtils.h"
-#include "nsVoidArray.h"
 #include "nsCRT.h"
 #include "nsXPCOMCIDInternal.h"
 #include "nsUnicharInputStream.h"
@@ -158,7 +157,7 @@ nsStyleLinkElement::SetLineNumber(PRUint32 aLineNumber)
 }
 
 void nsStyleLinkElement::ParseLinkTypes(const nsAString& aTypes,
-                                        nsStringArray& aResult)
+                                        nsTArray<nsString>& aResult)
 {
   nsAString::const_iterator start, done;
   aTypes.BeginReading(start);
@@ -174,7 +173,7 @@ void nsStyleLinkElement::ParseLinkTypes(const nsAString& aTypes,
     if (nsCRT::IsAsciiSpace(*current)) {
       if (inString) {
         ToLowerCase(Substring(start, current), subString);
-        aResult.AppendString(subString);
+        aResult.AppendElement(subString);
         inString = PR_FALSE;
       }
     }
@@ -188,7 +187,7 @@ void nsStyleLinkElement::ParseLinkTypes(const nsAString& aTypes,
   }
   if (inString) {
     ToLowerCase(Substring(start, current), subString);
-    aResult.AppendString(subString);
+    aResult.AppendElement(subString);
   }
 }
 
@@ -251,9 +250,9 @@ nsStyleLinkElement::DoUpdateStyleSheet(nsIDocument *aOldDocument,
     return NS_OK;
   }
 
-  nsCOMPtr<nsIURI> uri;
   PRBool isInline;
-  GetStyleSheetURL(&isInline, getter_AddRefs(uri));
+  
+  nsCOMPtr<nsIURI> uri = GetStyleSheetURL(&isInline);
 
   if (!aForceUpdate && mStyleSheet && !isInline && uri) {
     nsCOMPtr<nsIURI> oldURI;

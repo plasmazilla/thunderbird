@@ -40,8 +40,8 @@ var EXPORTED_SYMBOLS = ["MailUtils"];
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 
-Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
-Components.utils.import("resource://app/modules/MailConsts.js");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/MailConsts.js");
 const MC = MailConsts;
 
 /**
@@ -54,7 +54,7 @@ var MailUtils =
   /**
    * A reference to the root pref branch
    */
-  get _prefBranch MailUtils_get_prefBranch() {
+  get _prefBranch() {
     delete this._prefBranch;
     return this._prefBranch = Cc["@mozilla.org/preferences-service;1"]
                                 .getService(Ci.nsIPrefService)
@@ -70,8 +70,18 @@ var MailUtils =
     let accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
                            .getService(Ci.nsIMsgAccountManager);
     let servers = accountManager.allServers;
-    for each (let server in fixIterator(servers, Ci.nsIMsgIncomingServer))
-      server.rootFolder.subFolders;
+    for each (let server in fixIterator(servers, Ci.nsIMsgIncomingServer)) {
+      // Bug 466311 Sometimes this can throw file not found, we're unsure
+      // why, but catch it and log the fact.
+      try {
+        server.rootFolder.subFolders;
+      }
+      catch (ex) {
+        Cc["@mozilla.org/consoleservice;1"].getService(Ci.nsIConsoleService)
+          .logStringMessage("Discovering folders for account failed with " +
+                            "exception: " + ex);
+      }
+    }
   },
 
   /**
@@ -197,7 +207,7 @@ var MailUtils =
         if (mail3PaneWindow)
           aTabmail = mail3PaneWindow.document.getElementById("tabmail");
       }
-      
+
       if (aTabmail) {
         for each (let [i, msgHdr] in Iterator(aMsgHdrs))
           // Open all the tabs in the background, except for the last one
@@ -294,7 +304,7 @@ var MailUtils =
    * Display this message header in a folder tab in a 3pane window. This is
    * useful when the message needs to be displayed in the context of its folder
    * or thread.
-   * 
+   *
    * @param aMsgHdr the message header to display
    */
   displayMessageInFolderTab: function MailUtils_displayMessageInFolderTab(
@@ -315,5 +325,102 @@ var MailUtils =
           "chrome://messenger/content/", "",
           "all,chrome,dialog=no,status,toolbar", args);
     }
-  }
+  },
+
+  /**
+   * The number of milliseconds to wait between loading of folders in
+   * |setStringPropertyOnFolderAndDescendents|.  We wait at all because
+   * opening msf databases is a potentially expensive synchronous operation that
+   * can approach the order of a second in pathological cases like gmail's
+   * all mail folder.
+   *
+   * If we did not use a timer or otherwise spin the event loop we would
+   * completely lock up the UI.  In theory we would still maintain some degree
+   * of UI responsiveness if we just used postMessage to break up our work so
+   * that the event loop still got a chance to run between our folder openings.
+   * The use of any delay between processing folders is to try and avoid causing
+   * system-wide interactivity problems from dominating the system's available
+   * disk seeks to such an extent that other applications start experiencing
+   * non-trivial I/O waits.
+   *
+   * The specific choice of delay remains an arbitrary one to maintain app
+   * and system responsiveness per the above while also processing as many
+   * folders as quickly as possible.
+   *
+   * This is exposed primarily to allow unit tests to set this to 0 to minimize
+   * throttling.
+   */
+  INTER_FOLDER_PROCESSING_DELAY_MS: 10,
+
+  /**
+   * Set a string property on a folder and all of its descendents, taking care
+   * to avoid locking up the main thread and to avoid leaving folder databases
+   * open.  To avoid locking up the main thread we operate in an asynchronous
+   * fashion; we invoke a callback when we have completed our work.
+   *
+   * Using this function will write the value into the folder cache
+   * (panacea.dat) as well as the folder itself.  Hopefully you want this; if
+   * you do not, keep in mind that the only way to avoid that is to retrieve
+   * the nsIMsgDatabase and then the nsIDbFolderInfo.  You would want to avoid
+   * that as much as possible because once those are exposed to you, XPConnect
+   * is going to hold onto them creating a situation where you are going to be
+   * in severe danger of extreme memory bloat unless you force garbage
+   * collections after every time you close a database.
+   *
+   * @param aPropertyName The name of the property to set.
+   * @param aPropertyValue The (string) value of the property to set.
+   * @param aFolder The parent folder; we set the string property on it and all
+   *     of its descendents.
+   * @param [aCallback] The optional callback to invoke once we finish our work.
+   *     The callback is provided a boolean success value; true means we
+   *     managed to set the values on all folders, false means we encountered a
+   *     problem.
+   */
+  setStringPropertyOnFolderAndDescendents:
+      function MailUtils_setStringPropertyOnFolderAndDescendents(aPropertyName,
+                                                                 aPropertyValue,
+                                                                 aFolder,
+                                                                 aCallback) {
+    // - get all the descendents
+    let allFolders = Cc["@mozilla.org/supports-array;1"].
+                       createInstance(Ci.nsISupportsArray);
+    // we need to add the base folder; it does not get added by ListDescendents
+    allFolders.AppendElement(aFolder);
+    aFolder.ListDescendents(allFolders);
+
+    // - worker function
+    function folder_string_setter_worker() {
+      for each (let folder in fixIterator(allFolders, Ci.nsIMsgFolder)) {
+        // skip folders that can't hold messages, no point setting things there.
+        if (!folder.canFileMessages)
+          continue;
+
+        // set the property; this may open the database...
+        folder.setStringProperty(aPropertyName, aPropertyValue);
+        // force the reference to be forgotten.
+        folder.msgDatabase = null;
+        yield;
+      }
+    }
+    let worker = folder_string_setter_worker();
+
+    // - driver logic
+    let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    function folder_string_setter_driver() {
+      try {
+        worker.next();
+      }
+      catch (ex) {
+        // Any type of exception kills the generator, but only StopIteration
+        // indicates success.
+        timer.cancel();
+        if (aCallback)
+          aCallback(ex == StopIteration);
+      }
+    }
+    // make sure there is at least 100 ms of not us between doing things.
+    timer.initWithCallback(folder_string_setter_driver,
+                           this.INTER_FOLDER_PROCESSING_DELAY_MS,
+                           Ci.nsITimer.TYPE_REPEATING_SLACK);
+  },
 };

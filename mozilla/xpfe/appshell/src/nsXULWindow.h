@@ -46,7 +46,7 @@
 
 // Helper classes
 #include "nsCOMPtr.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsString.h"
 #include "nsWeakReference.h"
 #include "nsCOMArray.h"
@@ -58,7 +58,6 @@
 #include "nsIDOMWindowInternal.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
-#include "nsIWidget.h"
 #include "nsIXULWindow.h"
 #include "nsIPrompt.h"
 #include "nsIAuthPrompt.h"
@@ -75,6 +74,8 @@
      0x44ad,                                          \
    { 0xa7, 0x85, 0xb5, 0xa8, 0x63, 0xcf, 0x55, 0x88 } \
 }
+
+class nsContentShellInfo;
 
 class nsXULWindow : public nsIBaseWindow,
                     public nsIInterfaceRequestor,
@@ -118,14 +119,11 @@ protected:
    PRBool     LoadPositionFromXUL();
    PRBool     LoadSizeFromXUL();
    PRBool     LoadMiscPersistentAttributesFromXUL();
-   nsresult   LoadChromeHidingFromXUL();
-   NS_IMETHOD LoadWindowClassFromXUL();
-   NS_IMETHOD LoadIconFromXUL();
+   void       SyncAttributesToWidget();
    NS_IMETHOD SavePersistentAttributes();
 
    NS_IMETHOD GetWindowDOMWindow(nsIDOMWindowInternal** aDOMWindow);
    NS_IMETHOD GetWindowDOMElement(nsIDOMElement** aDOMElement);
-   NS_IMETHOD GetDOMElementById(char* aID, nsIDOMElement** aDOMElement);
 
    // See nsIDocShellTreeOwner for docs on next two methods
    NS_HIDDEN_(nsresult) ContentShellAdded(nsIDocShellTreeItem* aContentShell,
@@ -161,7 +159,7 @@ protected:
    nsCOMPtr<nsIAuthPrompt> mAuthPrompter;
    nsCOMPtr<nsIXULBrowserWindow> mXULBrowserWindow;
    nsCOMPtr<nsIDocShellTreeItem> mPrimaryContentShell;
-   nsVoidArray             mContentShells; // array of doc shells by id
+   nsTArray<nsContentShellInfo*> mContentShells; // array of doc shells by id
    nsresult                mModalStatus;
    PRPackedBool            mContinueModalLoop;
    PRPackedBool            mDebuting;       // being made visible right now
@@ -171,6 +169,8 @@ protected:
    PRPackedBool            mCenterAfterLoad;
    PRPackedBool            mIsHiddenWindow;
    PRPackedBool            mLockedUntilChromeLoad;
+   PRPackedBool            mIgnoreXULSize;
+   PRPackedBool            mIgnoreXULPosition;
    PRUint32                mContextFlags;
    PRUint32                mBlurSuppressionLevel;
    PRUint32                mPersistentAttributesDirty; // persistentAttributes
@@ -186,7 +186,7 @@ protected:
 NS_DEFINE_STATIC_IID_ACCESSOR(nsXULWindow, NS_XULWINDOW_IMPL_CID)
 
 // nsContentShellInfo
-// Used (in an nsVoidArray) to map shell IDs to nsIDocShellTreeItems.
+// Used to map shell IDs to nsIDocShellTreeItems.
 
 class nsContentShellInfo
 {

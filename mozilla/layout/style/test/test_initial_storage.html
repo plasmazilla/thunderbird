@@ -5,7 +5,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=375363
 -->
 <head>
   <title>Test for parsing, storage, and serialization of CSS '-moz-initial'</title>
-  <script type="text/javascript" src="/MochiKit/MochiKit.js"></script>
+  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="text/javascript" src="property_database.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
@@ -24,25 +24,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=375363
 /** Test for parsing, storage, and serialization of CSS '-moz-initial' **/
 
 var gDeclaration = document.getElementById("testnode").style;
-
-var gKnownFails2 = {
-  "-moz-border-end": true,
-  "-moz-border-radius": true,
-  "-moz-border-start": true,
-  "-moz-column-rule": true,
-  "-moz-outline-radius": true,
-  "background": true,
-  "border": true,
-  "border-bottom": true,
-  "border-left": true,
-  "border-right": true,
-  "border-top": true,
-  "cue": true,
-  "font": true,
-  "list-style": true,
-  "outline": true,
-  "pause": true
-};
 
 function test_property(property)
 {
@@ -82,10 +63,7 @@ function test_property(property)
 
   // We don't care particularly about the whitespace or the placement of
   // semicolons, but for simplicity we'll test the current behavior.
-  var cssTextFunc = is;
-  if (property in gKnownFails2)
-    cssTextFunc = todo_is;
-  cssTextFunc(gDeclaration.cssText, property + ": -moz-initial;",
+  is(gDeclaration.cssText, property + ": -moz-initial;",
     "declaration should serialize to exactly what went in (for -moz-initial)");
 
   gDeclaration.removeProperty(property);

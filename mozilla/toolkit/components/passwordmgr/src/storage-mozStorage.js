@@ -1179,9 +1179,9 @@ LoginManagerStorage_mozStorage.prototype = {
                 try {
                     stmt = this._dbCreateStatement(query, params);
                     stmt.execute();
-        } catch (e) {
+                } catch (e) {
                     // Ignore singular errors, continue trying to update others.
-            this.log("_reencryptBase64Logins caught error: " + e);
+                    this.log("_reencryptBase64Logins caught error: " + e);
                 } finally {
                     stmt.reset();
                 }
@@ -1289,11 +1289,7 @@ LoginManagerStorage_mozStorage.prototype = {
         // Memoize the statements
         if (!wrappedStmt) {
             this.log("Creating new statement for query: " + query);
-            let stmt = this._dbConnection.createStatement(query);
-
-            wrappedStmt = Cc["@mozilla.org/storage/statement-wrapper;1"].
-                          createInstance(Ci.mozIStorageStatementWrapper);
-            wrappedStmt.initialize(stmt);
+            wrappedStmt = this._dbConnection.createStatement(query);
             this._dbStmts[query] = wrappedStmt;
         }
         // Replace parameters, must be done 1 at a time
@@ -1418,12 +1414,9 @@ LoginManagerStorage_mozStorage.prototype = {
     _dbMigrateToVersion2 : function () {
         // Check to see if GUID column already exists.
         let exists = true;
-        try {
+        try { 
             let stmt = this._dbConnection.createStatement(
                            "SELECT guid FROM moz_logins");
-            let wrapped = Cc["@mozilla.org/storage/statement-wrapper;1"].
-                          createInstance(Ci.mozIStorageStatementWrapper);
-            wrapped.initialize(stmt);
             // (no need to execute statement, if it compiled we're good)
             stmt.finalize();
         } catch (e) {
@@ -1486,17 +1479,13 @@ LoginManagerStorage_mozStorage.prototype = {
         let exists = true;
         let query = "SELECT encType FROM moz_logins";
         let stmt;
-        try {
+        try { 
             stmt = this._dbConnection.createStatement(query);
-            let wrapped = Cc["@mozilla.org/storage/statement-wrapper;1"].
-                          createInstance(Ci.mozIStorageStatementWrapper);
-            wrapped.initialize(stmt);
             // (no need to execute statement, if it compiled we're good)
             stmt.finalize();
         } catch (e) {
             exists = false;
         }
-        stmt = null;
 
         // Add the new column and index only if needed.
         if (!exists) {
@@ -1543,7 +1532,7 @@ LoginManagerStorage_mozStorage.prototype = {
                 stmt.reset();
             }
         }
-
+        
     },
 
 
@@ -1566,11 +1555,8 @@ LoginManagerStorage_mozStorage.prototype = {
                        "guid, " +
                        "encType " +
                     "FROM moz_logins";
-        try {
+        try { 
             let stmt = this._dbConnection.createStatement(query);
-            let wrapped = Cc["@mozilla.org/storage/statement-wrapper;1"].
-                          createInstance(Ci.mozIStorageStatementWrapper);
-            wrapped.initialize(stmt);
             // (no need to execute statement, if it compiled we're good)
             stmt.finalize();
         } catch (e) {
@@ -1581,11 +1567,8 @@ LoginManagerStorage_mozStorage.prototype = {
                    "id, " +
                    "hostname " +
                 "FROM moz_disabledHosts";
-        try {
+        try { 
             let stmt = this._dbConnection.createStatement(query);
-            let wrapped = Cc["@mozilla.org/storage/statement-wrapper;1"].
-                          createInstance(Ci.mozIStorageStatementWrapper);
-            wrapped.initialize(stmt);
             // (no need to execute statement, if it compiled we're good)
             stmt.finalize();
         } catch (e) {
@@ -1613,8 +1596,8 @@ LoginManagerStorage_mozStorage.prototype = {
         }
 
         // Finalize all statements to free memory, avoid errors later
-        for (let i = 0; i < this._dbStmts.length; i++)
-            this._dbStmts[i].statement.finalize();
+        for each (let stmt in this._dbStmts)
+            stmt.finalize();
         this._dbStmts = [];
 
         // Close the connection, ignore 'already closed' error

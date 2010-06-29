@@ -27,6 +27,7 @@
  *   David Bienvenu <bienvenu@nventure.com>
  *   Jeremy Morton <bugzilla@game-point.net>
  *   Steffen Wilberg <steffen.wilberg@web.de>
+ *   Joachim Herb <herb@leo.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -43,9 +44,13 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource://gre/modules/folderUtils.jsm");
-Components.utils.import("resource://app/modules/activity/activityModules.js");
-Components.utils.import("resource://app/modules/jsTreeSelection.js");
-Components.utils.import("resource://app/modules/MailConsts.js");
+Components.utils.import("resource:///modules/activity/activityModules.js");
+Components.utils.import("resource:///modules/jsTreeSelection.js");
+Components.utils.import("resource:///modules/MailConsts.js");
+Components.utils.import("resource:///modules/errUtils.js");
+Components.utils.import("resource:///modules/IOUtils.js");
+Components.utils.import("resource:///modules/mailnewsMigrator.js");
+Components.utils.import("resource:///modules/sessionStoreManager.js");
 
 /* This is where functions related to the 3 pane window are kept */
 
@@ -199,15 +204,43 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
   var messagePane = GetMessagePane();
   if (messagePane.parentNode.id != desiredId) {
     ClearAttachmentList();
+    var hdrToolbox = document.getElementById("header-view-toolbox");
+    var hdrToolbar = document.getElementById("header-view-toolbar");
+    var firstPermanentChild = hdrToolbar.firstPermanentChild;
+    var lastPermanentChild = hdrToolbar.lastPermanentChild;
     var messagePaneSplitter = GetThreadAndMessagePaneSplitter();
     var desiredParent = document.getElementById(desiredId);
+
+    // Here the message pane including the header pane is moved to the
+    // new layout by the appendChild() method below.  As described in bug
+    // 519956 only elements in the DOM tree are copied to the new place
+    // whereas javascript class variables of DOM tree elements get lost.
+    // In this case the ToolboxPalette, Toolbarset first/lastPermanentChild
+    // are removed which results in the message header pane not being
+    // customizable any more.  A workaround for this problem is to clone
+    // them first and add them to the DOM tree after the message pane has
+    // been moved.
+    var cloneToolboxPalette;
+    var cloneToolbarset;
+    if (hdrToolbox.palette) {
+      cloneToolboxPalette = hdrToolbox.palette.cloneNode(true);
+    }
+    if (hdrToolbox.toolbarset) {
+      cloneToolbarset = hdrToolbox.toolbarset.cloneNode(true);
+    }
+
     // See Bug 381992. The ctor for the browser element will fire again when we
-    // re-insert the messagePaneBox back into the document.
-    // But the dtor doesn't fire when the element is removed from the document.
-    // Manually call destroy here to avoid a nasty leak.
+    // re-insert the messagePaneBox back into the document.  But the dtor
+    // doesn't fire when the element is removed from the document.  Manually
+    // call destroy here to avoid a nasty leak.
     document.getElementById("messagepane").destroy();
     desiredParent.appendChild(messagePaneSplitter);
     desiredParent.appendChild(messagePane);
+    hdrToolbox.palette  = cloneToolboxPalette;
+    hdrToolbox.toolbarset = cloneToolbarset;
+    hdrToolbar = document.getElementById("header-view-toolbar");
+    hdrToolbar.firstPermanentChild = firstPermanentChild;
+    hdrToolbar.lastPermanentChild = lastPermanentChild;
     messagePaneSplitter.orient = desiredParent.orient;
     if (aMsgWindowInitialized)
     {
@@ -216,6 +249,37 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
       if (gDBView && GetNumSelectedMessages() == 1)
         gDBView.reloadMessage();
     }
+
+    // The quick filter bar gets badly lied to due to standard XUL/XBL problems,
+    //  so we need to generate synthetic notifications after a delay on those
+    //  nodes that care about overflow.  The 'lie' comes in the form of being
+    //  given (at startup) an overflow event with a tiny clientWidth (100), then
+    //  a more tiny resize event (clientWidth = 32), then a resize event that
+    //  claims the entire horizontal space is allocated to us
+    //  (clientWidth = 1036).  It would appear that when the messagepane's XBL
+    //  binding (or maybe the splitter's?) finally activates, the quick filter
+    //  pane gets resized down without any notification.
+    // Our solution tries to be generic and help out any code with an onoverflow
+    //  handler.  We will also generate an onresize notification if it turns out
+    //  that onoverflow is not appropriate (and such a handler is registered).
+    //  This does require that XUL attributes were used to register the handlers
+    //  rather than addEventListener.
+    // The choice of the delay is basically a kludge because something like 10ms
+    //  may be insufficient to ensure we get enqueued after whatever triggers
+    //  the layout discontinuity.  (We need to wait for a paint to happen to
+    //  trigger the XBL binding, and then there may be more complexities...)
+    setTimeout(function UpdateMailPaneConfig_deferredFixup() {
+      let threadPaneBox = document.getElementById("threadPaneBox");
+      let overflowNodes =
+        threadPaneBox.querySelectorAll("[onoverflow]");
+      for (let iNode = 0; iNode < overflowNodes.length; iNode++) {
+        let node = overflowNodes[iNode];
+        if (node.scrollWidth > node.clientWidth)
+          node.onoverflow();
+        else if (node.onresize)
+          node.onresize();
+      }
+    }, 1500);
   }
 }
 
@@ -240,6 +304,8 @@ function AutoConfigWizard(okCallback)
  */
 function OnLoadMessenger()
 {
+  migrateMailnews();
+
   // update the pane config before we exit onload otherwise the user may see a flicker if we poke the document
   // in delayedOnLoadMessenger...
   UpdateMailPaneConfig(false);
@@ -284,7 +350,8 @@ function OnLoadMessenger()
     tabmail.registerTabType(mailTabType);
     // glodaFacetTab* in glodaFacetTab.js
     tabmail.registerTabType(glodaFacetTabType);
-    tabmail.registerTabMonitor(QuickSearchTabMonitor);
+    QuickFilterBarMuxer._init();
+    tabmail.registerTabMonitor(GlodaSearchBoxTabMonitor);
     tabmail.registerTabMonitor(statusMessageCountsMonitor);
     tabmail.openFirstTab();
   }
@@ -293,6 +360,17 @@ function OnLoadMessenger()
   // We also don't want the account wizard to open if any sort of account exists
   if (verifyAccounts(LoadPostAccountWizard, false, AutoConfigWizard))
     LoadPostAccountWizard();
+
+  // Install the light-weight theme handlers
+  let panelcontainer = document.getElementById("tabpanelcontainer");
+  if (panelcontainer) {
+    panelcontainer.addEventListener("InstallBrowserTheme",
+                                    LightWeightThemeWebInstaller, false, true);
+    panelcontainer.addEventListener("PreviewBrowserTheme",
+                                    LightWeightThemeWebInstaller, false, true);
+    panelcontainer.addEventListener("ResetBrowserThemePreview",
+                                    LightWeightThemeWebInstaller, false, true);
+  }
 
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
@@ -310,6 +388,8 @@ function LoadPostAccountWizard()
   MigrateJunkMailSettings();
   MigrateFolderViews();
   MigrateOpenMessageBehavior();
+  Components.utils.import("resource:///modules/mailMigrator.js");
+  MailMigrator.migrateMail();
 
   accountManager.setSpecialFolders();
   accountManager.loadVirtualFolders();
@@ -365,7 +445,7 @@ function LoadPostAccountWizard()
 
       // Next, try loading the search integration module
       // We'll get a null SearchIntegration if we don't have one
-      Components.utils.import("resource://app/modules/SearchIntegration.js");
+      Components.utils.import("resource:///modules/SearchIntegration.js");
 
       // Show the default client dialog only if
       // EITHER: we have at least one account, and we aren't already the default
@@ -469,11 +549,7 @@ function OnUnloadMessenger()
   gPrefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
   gPrefBranch.removeObserver("mail.pane_config.dynamic", MailPrefObserver);
 
-  // - Persist the tab state and then close the tabs. If another 3-pane window
-  //   is open, do not persist tab state.
-  // XXX do not assume there is only ever one 3-pane.
-  if (!FindOther3PaneWindow())
-    persistTabState();
+  sessionStoreManager.unloadingWindow(window);
 
   let tabmail = document.getElementById("tabmail");
   tabmail.closeTabs();
@@ -493,35 +569,15 @@ function OnUnloadMessenger()
 }
 
 /**
- * This currently only happens at window unload.
+ * Called by the session store manager periodically and at shutdown to get
+ * the state of this window for persistence.
  */
-function persistTabState()
+function getWindowStateForSessionPersistence()
 {
   let tabmail = document.getElementById('tabmail');
   let tabsState = tabmail.persistTabs();
-  // build the state like we aren't assuming a single 3-pane
-  let state = {
-    rev: 0,
-    windows: [{
-        type: "3pane",
-        tabs: tabsState
-      }
-    ]
-  };
-  let data = JSON.stringify(state);
-  let file = Components.classes["@mozilla.org/file/directory_service;1"]
-                       .getService(Components.interfaces.nsIProperties)
-                       .get("ProfD", Components.interfaces.nsIFile);
-  file.append("session.json");
-  let foStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
-                   .createInstance(Components.interfaces.nsIFileOutputStream);
-  foStream.init(file, 0x02 | 0x08 | 0x20, 0666, 0);
-  foStream.write(data, data.length);
-  foStream.close();
+  return { type: "3pane", tabs: tabsState };
 }
-
-// XXX provides GlodaUtils, remove once we migrate loadFileToString
-Components.utils.import("resource://app/modules/gloda/utils.js");
 
 /**
  * Attempt to restore our tab states.  This should only be called by
@@ -531,30 +587,19 @@ Components.utils.import("resource://app/modules/gloda/utils.js");
  *                             restored, and will continue to retain focus at
  *                             the end. This is needed if the window was opened
  *                             with a folder or a message as an argument.
+ *
+ * @return true if the restoration was successful, false otherwise.
  */
 function atStartupRestoreTabs(aDontRestoreFirstTab) {
-  let file = Components.classes["@mozilla.org/file/directory_service;1"]
-                       .getService(Components.interfaces.nsIProperties)
-                       .get("ProfD", Components.interfaces.nsIFile);
-  file.append("session.json");
-  if (!file.exists())
-    return false;
+  let state = sessionStoreManager.loadingWindow(window);
+  if (state) {
+    let tabsState = state.tabs;
+    let tabmail = document.getElementById("tabmail");
+    tabmail.restoreTabs(tabsState, aDontRestoreFirstTab);
+    return true;
+  }
 
-  // XXX migrate loadFileToString to MessengerUtils once it exists (it's in
-  //  another patch)
-  let data = GlodaUtils.loadFileToString(file);
-
-  // delete the file before restoring state in case there is something
-  //  crash-inducing about the restoration process.  Also, this avoids weird
-  //  3pane behavior if you open any additional 3panes.
-  file.remove(false);
-
-  let state = JSON.parse(data);
-  let tabsState = state.windows[0].tabs;
-  let tabmail = document.getElementById('tabmail');
-  tabmail.restoreTabs(tabsState, aDontRestoreFirstTab);
-
-  return true;
+  return false;
 }
 
 function loadExtraTabs()
@@ -588,25 +633,6 @@ function loadStartFolder(initialUri)
     var defaultServer = null;
     var startFolder;
     var isLoginAtStartUpEnabled = false;
-
-    if (!initialUri) {
-      // Try to avoid the multiple master password prompts on startup scenario
-      // by prompting for the master password upfront.
-      let token =
-        Components.classes["@mozilla.org/security/pk11tokendb;1"]
-                  .getService(Components.interfaces.nsIPK11TokenDB)
-                  .getInternalKeyToken();
-
-      // Only log in to the internal token if it is already initialized,
-      // otherwise we get a "Change Master Password" dialog.
-      try {
-        if (!token.needsUserInit)
-          token.login(false);
-      }
-      catch (ex) {
-      // If user cancels an exception is expected.
-      }
-    }
 
     // If a URI was explicitly specified, we'll just clobber the default tab
     let loadFolder = !atStartupRestoreTabs(!!initialUri);
@@ -772,30 +798,10 @@ function UpgradeProfileAndBeUglyAboutIt()
 
     if (threadPaneUIVersion < 7)
     {
-      // Mark all imap folders as offline at the very first run of TB v3
-      // We use the threadpane ui version to determine TB profile version
-      let servers = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                      .getService(Components.interfaces.nsIMsgAccountManager).allServers;
-
-      for each (let server in fixIterator(servers, Components.interfaces.nsIMsgIncomingServer))
-      {
-        // If it's not an imap server, or if we haven't set the
-        // offlineDownload flag on the server, then don't set the offline
-        // flags on all the sub-folders.
-        // Note: We need to use instanceof to get the offlineDownload flag.
-        if (!(server instanceof Components.interfaces.nsIImapIncomingServer) ||
-            !server.offlineDownload)
-          continue;
-
-        let allFolders = Components.classes["@mozilla.org/supports-array;1"]
-                          .createInstance(Components.interfaces.nsISupportsArray);
-        server.rootFolder.ListDescendents(allFolders);
-        for each (let folder in fixIterator(allFolders, Components.interfaces.nsIMsgFolder))
-          folder.setFlag(Components.interfaces.nsMsgFolderFlags.Offline);
-      }
-
-      // Open a tab explaining the major changes between 2 and 3.
-      window.setTimeout(openFeatureConfigurator, 300, [true,]);
+      // Open a dialog explaining the major changes from version 2.
+      if (gPrefBranch.getBoolPref("mail.ui.show.migration.on.upgrade"))
+        // But let the main window finish opening first.
+        setTimeout(openFeatureConfigurator, 0, [true,]);
 
       gPrefBranch.setIntPref("mailnews.ui.threadpane.version", 7);
 
@@ -888,7 +894,17 @@ function ClearMessagePane()
   HideMessageHeaderPane();
   gMessageNotificationBar.clearMsgNotifications();
   ClearPendingReadTimer();
-  GetMessagePaneFrame().location.href = "about:blank";
+  try {
+    // This can fail because cloning imap URI's can fail if the username
+    // has been cleared by docshell/base/nsDefaultURIFixup.cpp.
+    let messagePane = GetMessagePaneFrame();
+    // If we don't do this check, no one else does and we do a non-trivial
+    // amount of work.  So do the check.
+    if (messagePane.location.href != "about:blank")
+      messagePane.location.href = "about:blank";
+  } catch(ex) {
+      logException(ex, false, "error clearing message pane");
+  }
 }
 
 /**
@@ -1257,3 +1273,199 @@ function ThreadPaneOnDrop(aEvent) {
   }
 }
 
+var LightWeightThemeWebInstaller = {
+  handleEvent: function (event) {
+    switch (event.type) {
+      case "InstallBrowserTheme":
+      case "PreviewBrowserTheme":
+      case "ResetBrowserThemePreview":
+        // ignore requests from background tabs
+        if (event.target.ownerDocument.defaultView.top != content)
+          return;
+    }
+    switch (event.type) {
+      case "InstallBrowserTheme":
+        this._installRequest(event);
+        break;
+      case "PreviewBrowserTheme":
+        this._preview(event);
+        break;
+      case "ResetBrowserThemePreview":
+        this._resetPreview(event);
+        break;
+      case "pagehide":
+        this._resetPreview();
+        break;
+    }
+  },
+
+  onTabTitleChanged: function (aTab) {
+  },
+
+  onTabSwitched: function (aTab, aOldTab) {
+    this._resetPreview();
+  },
+
+  get _manager () {
+    let temp = {};
+    Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm", temp);
+    delete this._manager;
+    return this._manager = temp.LightweightThemeManager;
+  },
+
+  _installRequest: function (event) {
+    let node = event.target;
+    let data = this._getThemeFromNode(node);
+    if (!data)
+      return;
+
+    if (this._isAllowed(node)) {
+      this._install(data);
+      return;
+    }
+
+    let messengerBundle = document.getElementById("bundle_messenger");
+
+    let buttons = [{
+      label: messengerBundle.getString("lwthemeInstallRequest.allowButton"),
+      accessKey: messengerBundle.getString("lwthemeInstallRequest.allowButton.accesskey"),
+      callback: function () {
+        LightWeightThemeWebInstaller._install(data);
+      }
+    }];
+
+    this._removePreviousNotifications();
+
+    let message =
+      messengerBundle.getFormattedString("lwthemeInstallRequest.message",
+                                         [node.ownerDocument.location.host]);
+
+    let notificationBox = this._getNotificationBox();
+    let notificationBar =
+      notificationBox.appendNotification(message, "lwtheme-install-request", "",
+                                         notificationBox.PRIORITY_INFO_MEDIUM,
+                                         buttons);
+    notificationBar.persistence = 1;
+  },
+
+  _install: function (newTheme) {
+    let previousTheme = this._manager.currentTheme;
+    this._manager.currentTheme = newTheme;
+    if (this._manager.currentTheme &&
+        this._manager.currentTheme.id == newTheme.id)
+      this._postInstallNotification(newTheme, previousTheme);
+  },
+
+  _postInstallNotification: function (newTheme, previousTheme) {
+    function text(id) {
+      return document.getElementById("bundle_messenger")
+                     .getString("lwthemePostInstallNotification." + id);
+    }
+
+    let buttons = [{
+      label: text("undoButton"),
+      accessKey: text("undoButton.accesskey"),
+      callback: function () {
+        LightWeightThemeWebInstaller._manager.forgetUsedTheme(newTheme.id);
+        LightWeightThemeWebInstaller._manager.currentTheme = previousTheme;
+      }
+    }, {
+      label: text("manageButton"),
+      accessKey: text("manageButton.accesskey"),
+      callback: function () {
+        openAddonsMgr("themes");
+      }
+    }];
+
+    this._removePreviousNotifications();
+
+    let notificationBox = this._getNotificationBox();
+    let notificationBar =
+      notificationBox.appendNotification(text("message"),
+                                         "lwtheme-install-notification", "",
+                                         notificationBox.PRIORITY_INFO_MEDIUM,
+                                         buttons);
+    notificationBar.persistence = 1;
+    notificationBar.timeout = Date.now() + 20000; // 20 seconds
+  },
+
+  _removePreviousNotifications: function () {
+    let box = this._getNotificationBox();
+
+    ["lwtheme-install-request",
+     "lwtheme-install-notification"].forEach(function (value) {
+        var notification = box.getNotificationWithValue(value);
+        if (notification)
+          box.removeNotification(notification);
+      });
+  },
+
+  _previewWindow: null,
+  _preview: function (event) {
+    if (!this._isAllowed(event.target))
+      return;
+
+    let data = this._getThemeFromNode(event.target);
+    if (!data)
+      return;
+
+    this._resetPreview();
+
+    this._previewWindow = event.target.ownerDocument.defaultView;
+    this._previewWindow.addEventListener("pagehide", this, true);
+    document.getElementById('tabmail').registerTabMonitor(this);
+
+    this._manager.previewTheme(data);
+  },
+
+  _resetPreview: function (event) {
+    if (!this._previewWindow ||
+        event && !this._isAllowed(event.target))
+      return;
+
+    this._previewWindow.removeEventListener("pagehide", this, true);
+    this._previewWindow = null;
+    document.getElementById('tabmail').unregisterTabMonitor(this);
+
+    this._manager.resetPreview();
+  },
+
+  _isAllowed: function (node) {
+    let pm = Components.classes["@mozilla.org/permissionmanager;1"]
+      .getService(Components.interfaces.nsIPermissionManager);
+
+    let prefs = [["xpinstall.whitelist.add", pm.ALLOW_ACTION],
+                 ["xpinstall.whitelist.add.36", pm.ALLOW_ACTION],
+                 ["xpinstall.blacklist.add", pm.DENY_ACTION]];
+
+    prefs.forEach(function ([pref, permission]) {
+      let hosts = Application.prefs.getValue(pref, "");
+      if (hosts) {
+        hosts.split(",").forEach(function (host) {
+          pm.add(makeURI("http://" + host.trim()), "install", permission);
+        });
+
+        Application.prefs.setValue(pref, "");
+      }
+    });
+
+    let uri = node.ownerDocument.documentURIObject;
+    return pm.testPermission(uri, "install") == pm.ALLOW_ACTION;
+  },
+
+  _getNotificationBox: function () {
+    // Try and get the notification box for the selected tab.
+    let browser = document.getElementById('tabmail').getBrowserForSelectedTab();
+    // The messagepane doesn't have a notification bar yet.
+    if (browser && browser.parentNode.tagName == "notificationbox")
+      return browser.parentNode;
+
+    // Otherwise, default to the global notificationbox
+    return document.getElementById("mail-notification-box");
+  },
+
+  _getThemeFromNode: function (node) {
+    return this._manager.parseTheme(node.getAttribute("data-browsertheme"),
+                                    node.baseURI);
+  }
+}

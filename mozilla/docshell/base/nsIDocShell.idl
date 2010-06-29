@@ -67,10 +67,9 @@ interface nsISHEntry;
 interface nsILayoutHistoryState;
 interface nsISecureBrowserUI;
 interface nsIDOMStorage;
-interface nsIDOMStorage2;
 interface nsIPrincipal;
 
-[scriptable, uuid(dc4daea1-b43d-406f-bd62-c2ee879192ad)]
+[scriptable, uuid(8ADFB831-1053-4A19-884D-BCDAD7277B4B)]
 interface nsIDocShell : nsISupports
 {
   /**
@@ -132,6 +131,7 @@ interface nsIDocShell : nsISupports
   const long INTERNAL_LOAD_FLAGS_FIRST_LOAD              = 0x8;
 
   const long INTERNAL_LOAD_FLAGS_BYPASS_CLASSIFIER       = 0x10;
+  const long INTERNAL_LOAD_FLAGS_FORCE_ALLOW_COOKIES     = 0x20;
 
   /**
    * Loads the given URI.  This method is identical to loadURI(...) except
@@ -257,6 +257,13 @@ interface nsIDocShell : nsISupports
   attribute boolean allowImages;
 
   /**
+   * Attribute that determines whether DNS prefetch is allowed for this subtree
+   * of the docshell tree.  Defaults to true.  Setting this will make it take
+   * effect starting with the next document loaded in the docshell.
+   */
+  attribute boolean allowDNSPrefetch;
+
+  /**
    * Get an enumerator over this docShell and its children.
    *
    * @param aItemType  - Only include docShells of this type, or if typeAll,
@@ -298,24 +305,20 @@ interface nsIDocShell : nsISupports
   attribute float zoom;
 
   /*
-   * XXX Comment here!
+   * The size, in CSS pixels, of the horizontal margins for the <body> of an
+   * HTML document in this docshel; used to implement the marginwidth attribute
+   * on HTML <frame>/<iframe> elements.  A value smaller than zero indicates
+   * that the attribute was not set.
    */
   attribute long marginWidth;
 
   /*
-   * XXX Comment here!
+   * The size, in CSS pixels, of the vertical margins for the <body> of an HTML
+   * document in this docshel; used to implement the marginheight attribute on
+   * HTML <frame>/<iframe> elements.  A value smaller than zero indicates that
+   * the attribute was not set.
    */
   attribute long marginHeight;
-
-  /*
-   * Tells the DocShell that it now has focus or has lost focus
-   */
-  attribute boolean hasFocus;
-
-  /*
-   * Tells the docshell whether the canvas should have focus
-   */
-  attribute boolean canvasHasFocus;
 
   /*
    * Tells the docshell to offer focus to its tree owner.
@@ -426,22 +429,26 @@ interface nsIDocShell : nsISupports
    * If it doesn't already exist, a new one will be created.
    *
    * @param uri the uri of the storage object to retrieve
-   *
-   * @throws
-   *    NS_ERROR_NOT_IMPLEMENTED because it's currently unsupported
    */
-  [noscript]nsIDOMStorage getSessionStorageForURI(in nsIURI uri);
+  nsIDOMStorage getSessionStorageForURI(in nsIURI uri);
+
+  /*
+   * Retrieves the WebApps session storage object for the supplied principal.
+   *
+   * @param principal returns a storage for this principal
+   * @param create If true and a session storage object doesn't
+   *               already exist, a new one will be created.
+   */
+  nsIDOMStorage getSessionStorageForPrincipal(in nsIPrincipal principal,
+                                              in boolean create);
 
   /*
    * Add a WebApps session storage object to the docshell.
    *
-   * @param domain the domain the storage object is associated with
+   * @param principal the principal the storage object is associated with
    * @param storage the storage object to add
-   *
-   * @throws
-   *    NS_ERROR_NOT_IMPLEMENTED because it's currently unsupported
    */
-  [noscript]void addSessionStorage(in ACString aDomain, in nsIDOMStorage storage);
+  void addSessionStorage(in nsIPrincipal principal, in nsIDOMStorage storage);
 
   /**
    * Gets the channel for the currently loaded document, if any. 
@@ -457,8 +464,7 @@ interface nsIDocShell : nsISupports
 
   /**
    * Find out whether the docshell is currently in the middle of a page
-   * transition (after the onunload event has fired, but before the new
-   * document has been set up)
+   * transition. This is set just before the pagehide/unload events fire.
    */
   readonly attribute boolean isInUnload;
 
@@ -482,62 +488,4 @@ interface nsIDocShell : nsISupports
    * and should be treated accordingly.
    **/
   attribute boolean isOffScreenBrowser;    
-};
-
-[scriptable, uuid(460ba822-e664-4c38-9b08-98d2736473d7)]
-interface nsIDocShell_MOZILLA_1_9_1 : nsISupports
-{
-  /*
-   * Retrieves the WebApps session storage object for the supplied principal.
-   *
-   * @param principal returns a storage for this principal
-   * @param create If true and a session storage object doesn't
-   *               already exist, a new one will be created.
-   *
-   * @throws
-   *    NS_ERROR_NOT_IMPLEMENTED because it's currently unsupported
-   */
-  [noscript]nsIDOMStorage getSessionStorageForPrincipal(in nsIPrincipal principal,
-                                              in boolean create);
-};
-
-[scriptable, uuid(B0534FDD-8A6C-4489-8C9E-471D7B2B2596)]
-interface nsIDocShell_MOZILLA_1_9_1_SessionStorage : nsISupports
-{
-  /*
-   * Retrieves the WebApps session storage object for the supplied domain.
-   * If it doesn't already exist, a new one will be created.
-   *
-   * @param uri the uri of the storage object to retrieve
-   */
-  nsIDOMStorage2 getSessionStorageForURI(in nsIURI uri);
-
-  /*
-   * Retrieves the WebApps session storage object for the supplied principal.
-   *
-   * @param principal returns a storage for this principal
-   * @param create If true and a session storage object doesn't
-   *               already exist, a new one will be created.
-   */
-  nsIDOMStorage2 getSessionStorageForPrincipal(in nsIPrincipal principal,
-                                              in boolean create);
-
-  /*
-   * Add a WebApps session storage object to the docshell.
-   *
-   * @param principal the principal the storage object is associated with
-   * @param storage the storage object to add
-   */
-  void addSessionStorage(in nsIPrincipal principal, in nsIDOMStorage2 storage);
-};
-
-[scriptable, uuid(6cf71a12-c7d6-404d-b0b5-15ceae321337)]
-interface nsIDocShell_MOZILLA_1_9_1_dns : nsISupports
-{
-  /**
-   * Attribute that determines whether DNS prefetch is allowed for this subtree
-   * of the docshell tree.  Defaults to true.  Setting this will make it take
-   * effect starting with the next document loaded in the docshell.
-   */
-  attribute boolean allowDNSPrefetch;
 };

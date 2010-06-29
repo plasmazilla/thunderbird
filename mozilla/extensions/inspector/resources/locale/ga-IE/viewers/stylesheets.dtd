@@ -35,5 +35,5 @@
    -
 #endif
    - ***** END LICENSE BLOCK ***** -->
-<!ENTITY styleLocation.label "Stílbhileog">
-<!ENTITY styleRules.label "Rialacha">
+<!ENTITY sheetLocation.label "Stílbhileog">
+<!ENTITY sheetRules.label "Rialacha">

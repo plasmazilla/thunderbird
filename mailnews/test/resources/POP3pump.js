@@ -18,6 +18,8 @@
 // Import the pop3 server scripts
 if (typeof nsMailServer == 'undefined')
   load("../../mailnews/fakeserver/maild.js");
+if (typeof AuthPLAIN == 'undefined')
+  load("../../mailnews/fakeserver/auth.js")
 if (typeof pop3Daemon == 'undefined')
   load("../../mailnews/fakeserver/pop3d.js");
 
@@ -62,7 +64,7 @@ POP3Pump.prototype._urlListener =
     }
 
     // Let OnStopRunningUrl return cleanly before doing anything else.
-    do_timeout(0, "gPOP3Pump._checkBusy();");
+    do_timeout(0, _checkPumpBusy);
   }
 };
 
@@ -89,10 +91,10 @@ POP3Pump.prototype._createPop3ServerAndLocalFolders =
     let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
                     .getService(Ci.nsIMsgAccountManager);
 
-    let incoming = acctMgr.createIncomingServer("fake", "localhost", "pop3");
+    let incoming = acctMgr.createIncomingServer("fred", "localhost", "pop3");
 
     incoming.port = this.kPOP3_PORT;
-    incoming.password = "server";
+    incoming.password = "wilma";
     this.fakeServer = incoming;
   }
   return this.fakeServer;
@@ -107,14 +109,14 @@ POP3Pump.prototype._checkBusy = function _checkBusy()
     // No more tests, let everything finish
     this._server.stop();
     this._finalCleanup = true;
-    do_timeout(20, "gPOP3Pump._checkBusy();");
+    do_timeout(20, _checkPumpBusy);
     return;
   }
 
   if (this._finalCleanup)
   {
     if (gThreadManager.currentThread.hasPendingEvents())
-      do_timeout(20, "gPOP3Pump._checkBusy();");
+      do_timeout(20, _checkPumpBusy);
     else
     {
       // exit this module
@@ -129,7 +131,7 @@ POP3Pump.prototype._checkBusy = function _checkBusy()
       (this._incomingServer instanceof Ci.nsIPop3IncomingServer &&
        this._incomingServer.runningProtocol))
   {
-    do_timeout(20, "gPOP3Pump._checkBusy();");
+    do_timeout(20, _checkPumpBusy);
     return;
   }
 
@@ -212,5 +214,7 @@ POP3Pump.prototype.run = function run()
   this._testNext();
 };
 
-gPOP3Pump = new POP3Pump();
+var gPOP3Pump = new POP3Pump();
 gPOP3Pump._incomingServer = gPOP3Pump._createPop3ServerAndLocalFolders();
+
+function _checkPumpBusy() { gPOP3Pump._checkBusy(); }

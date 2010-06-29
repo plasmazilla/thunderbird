@@ -715,6 +715,23 @@ toolbar[iconsize="small"] #button-archive[disabled] {
   color: black;
 }
 
+
+#mdnBarImage {
+  list-style-image: url("chrome://messenger/skin/icons/warning.png");
+}
+
+#mdnBar {
+  background-color: #FBFBC8;
+  border: 1px solid #DDDDE1;
+  color: black;
+  padding: 0.3em 0.2em;
+  -moz-border-radius-bottomleft: 0.2em;
+  -moz-border-radius-bottomright: 0.2em;
+  -moz-border-radius-topleft: 0.2em;
+  -moz-border-radius-topright: 0.2em;
+}
+
+
 #CustomizeToolbarSheet > #main-box {
   border-top: none !important;
   border-left: 2px solid;
@@ -725,3 +742,18 @@ toolbar[iconsize="small"] #button-archive[disabled] {
   -moz-border-left-colors: ThreeDLightShadow ThreeDHighlight !important;
 }
 
+/* Lightweight themes support */
+
+/* This prevent jumping of the toolbar when going between Default and Persona*/
+#mail-bar3  {
+  padding-bottom: 1px;
+}
+
+#mail-bar3:-moz-lwtheme  {
+  padding-bottom: 0px;
+}
+
+toolbar:-moz-lwtheme {
+  -moz-appearance: none !important;
+  background: none !important;
+}

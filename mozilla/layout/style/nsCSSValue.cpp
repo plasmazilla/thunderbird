@@ -45,6 +45,7 @@
 #include "nsIDocument.h"
 #include "nsContentUtils.h"
 #include "nsIPrincipal.h"
+#include "nsMathUtils.h"
 
 // Paint forcing
 #include "prenv.h"
@@ -124,10 +125,17 @@ nsCSSValue::nsCSSValue(nsCSSValue::Image* aValue)
   mValue.mImage->AddRef();
 }
 
+nsCSSValue::nsCSSValue(nsCSSValueGradient* aValue)
+  : mUnit(eCSSUnit_Gradient)
+{
+  mValue.mGradient = aValue;
+  mValue.mGradient->AddRef();
+}
+
 nsCSSValue::nsCSSValue(const nsCSSValue& aCopy)
   : mUnit(aCopy.mUnit)
 {
-  if (mUnit <= eCSSUnit_DummyInherit) {
+  if (mUnit <= eCSSUnit_RectIsAuto) {
     // nothing to do, but put this important case first
   }
   else if (eCSSUnit_Percent <= mUnit) {
@@ -155,6 +163,10 @@ nsCSSValue::nsCSSValue(const nsCSSValue& aCopy)
     mValue.mImage = aCopy.mValue.mImage;
     mValue.mImage->AddRef();
   }
+  else if (eCSSUnit_Gradient == mUnit) {
+    mValue.mGradient = aCopy.mValue.mGradient;
+    mValue.mGradient->AddRef();
+  }
   else {
     NS_NOTREACHED("unknown unit");
   }
@@ -172,7 +184,7 @@ nsCSSValue& nsCSSValue::operator=(const nsCSSValue& aCopy)
 PRBool nsCSSValue::operator==(const nsCSSValue& aOther) const
 {
   if (mUnit == aOther.mUnit) {
-    if (mUnit <= eCSSUnit_DummyInherit) {
+    if (mUnit <= eCSSUnit_RectIsAuto) {
       return PR_TRUE;
     }
     else if (UnitHasStringValue()) {
@@ -194,11 +206,29 @@ PRBool nsCSSValue::operator==(const nsCSSValue& aOther) const
     else if (eCSSUnit_Image == mUnit) {
       return *mValue.mImage == *aOther.mValue.mImage;
     }
+    else if (eCSSUnit_Gradient == mUnit) {
+      return *mValue.mGradient == *aOther.mValue.mGradient;
+    }
     else {
       return mValue.mFloat == aOther.mValue.mFloat;
     }
   }
   return PR_FALSE;
+}
+
+double nsCSSValue::GetAngleValueInRadians() const
+{
+  double angle = GetFloatValue();
+
+  switch (GetUnit()) {
+  case eCSSUnit_Radian: return angle;
+  case eCSSUnit_Degree: return angle * M_PI / 180.0;
+  case eCSSUnit_Grad:   return angle * M_PI / 200.0;
+
+  default:
+    NS_NOTREACHED("unrecognized angular unit");
+    return 0.0;
+  }
 }
 
 imgIRequest* nsCSSValue::GetImageValue() const
@@ -215,28 +245,16 @@ nscoord nsCSSValue::GetLengthTwips() const
     switch (mUnit) {
     case eCSSUnit_Inch:        
       return NS_INCHES_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Foot:        
-      return NS_FEET_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Mile:        
-      return NS_MILES_TO_TWIPS(mValue.mFloat);
 
     case eCSSUnit_Millimeter:
       return NS_MILLIMETERS_TO_TWIPS(mValue.mFloat);
     case eCSSUnit_Centimeter:
       return NS_CENTIMETERS_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Meter:
-      return NS_METERS_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Kilometer:
-      return NS_KILOMETERS_TO_TWIPS(mValue.mFloat);
 
     case eCSSUnit_Point:
       return NS_POINTS_TO_TWIPS(mValue.mFloat);
     case eCSSUnit_Pica:
       return NS_PICAS_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Didot:
-      return NS_DIDOTS_TO_TWIPS(mValue.mFloat);
-    case eCSSUnit_Cicero:
-      return NS_CICEROS_TO_TWIPS(mValue.mFloat);
     default:
       NS_ERROR("should never get here");
       break;
@@ -255,6 +273,8 @@ void nsCSSValue::DoReset()
     mValue.mURL->Release();
   } else if (eCSSUnit_Image == mUnit) {
     mValue.mImage->Release();
+  } else if (eCSSUnit_Gradient == mUnit) {
+    mValue.mGradient->Release();
   }
   mUnit = eCSSUnit_Null;
 }
@@ -338,6 +358,14 @@ void nsCSSValue::SetImageValue(nsCSSValue::Image* aValue)
   mValue.mImage->AddRef();
 }
 
+void nsCSSValue::SetGradientValue(nsCSSValueGradient* aValue)
+{
+  Reset();
+  mUnit = eCSSUnit_Gradient;
+  mValue.mGradient = aValue;
+  mValue.mGradient->AddRef();
+}
+
 void nsCSSValue::SetAutoValue()
 {
   Reset();
@@ -386,6 +414,12 @@ void nsCSSValue::SetDummyInheritValue()
   mUnit = eCSSUnit_DummyInherit;
 }
 
+void nsCSSValue::SetRectIsAutoValue()
+{
+  Reset();
+  mUnit = eCSSUnit_RectIsAuto;
+}
+
 void nsCSSValue::StartImageLoad(nsIDocument* aDocument) const
 {
   NS_PRECONDITION(eCSSUnit_URL == mUnit, "Not a URL value!");
@@ -409,7 +443,7 @@ PRBool nsCSSValue::IsNonTransparentColor() const
   nsDependentString buf;
   return
     (mUnit == eCSSUnit_Color && NS_GET_A(GetColorValue()) > 0) ||
-    (mUnit == eCSSUnit_String &&
+    (mUnit == eCSSUnit_Ident &&
      !nsGkAtoms::transparent->Equals(GetStringValue(buf))) ||
     (mUnit == eCSSUnit_EnumColor);
 }
@@ -445,15 +479,12 @@ nsCSSValue::URL::URL(nsIURI* aURI, nsStringBuffer* aString, nsIURI* aReferrer,
     mRefCnt(0)
 {
   NS_PRECONDITION(aOriginPrincipal, "Must have an origin principal");
-  
   mString->AddRef();
-  MOZ_COUNT_CTOR(nsCSSValue::URL);
 }
 
 nsCSSValue::URL::~URL()
 {
   mString->Release();
-  MOZ_COUNT_DTOR(nsCSSValue::URL);
 }
 
 PRBool
@@ -491,8 +522,6 @@ nsCSSValue::Image::Image(nsIURI* aURI, nsStringBuffer* aString,
                          nsIDocument* aDocument)
   : URL(aURI, aString, aReferrer, aOriginPrincipal)
 {
-  MOZ_COUNT_CTOR(nsCSSValue::Image);
-
   if (mURI &&
       nsContentUtils::CanLoadImage(mURI, aDocument, aDocument,
                                    aOriginPrincipal)) {
@@ -504,5 +533,36 @@ nsCSSValue::Image::Image(nsIURI* aURI, nsStringBuffer* aString,
 
 nsCSSValue::Image::~Image()
 {
-  MOZ_COUNT_DTOR(nsCSSValue::Image);
+}
+
+nsCSSValueGradientStop::nsCSSValueGradientStop()
+  : mLocation(eCSSUnit_None),
+    mColor(eCSSUnit_Null)
+{
+  MOZ_COUNT_CTOR(nsCSSValueGradientStop);
+}
+
+nsCSSValueGradientStop::nsCSSValueGradientStop(const nsCSSValueGradientStop& aOther)
+  : mLocation(aOther.mLocation),
+    mColor(aOther.mColor)
+{
+  MOZ_COUNT_CTOR(nsCSSValueGradientStop);
+}
+
+nsCSSValueGradientStop::~nsCSSValueGradientStop()
+{
+  MOZ_COUNT_DTOR(nsCSSValueGradientStop);
+}
+
+nsCSSValueGradient::nsCSSValueGradient(PRBool aIsRadial,
+                                       PRBool aIsRepeating)
+  : mIsRadial(aIsRadial),
+    mIsRepeating(aIsRepeating),
+    mBgPosX(eCSSUnit_None),
+    mBgPosY(eCSSUnit_None),
+    mAngle(eCSSUnit_None),
+    mRadialShape(eCSSUnit_None),
+    mRadialSize(eCSSUnit_None),
+    mRefCnt(0)
+{
 }

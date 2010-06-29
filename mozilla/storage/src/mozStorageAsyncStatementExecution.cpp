@@ -236,16 +236,7 @@ AsyncExecuteStatements::bindExecuteAndProcessStatement(StatementData &aData,
 {
   mMutex.AssertNotCurrentThreadOwns();
 
-  // Get the statement; this may actually be creating it so deal with the
-  // possibility of error.
-  sqlite3_stmt *stmt;
-  int rc = aData.getSqliteStatement(&stmt);
-  if (rc != SQLITE_OK) {
-    // XXX We really want to get at the database connection so we can call
-    // sqlite3_errmsg.
-    (void)notifyError(rc, "Problem creating async statement.");
-    return false;
-  }
+  sqlite3_stmt *stmt(aData);
   BindingParamsArray *paramsArray(aData);
 
   // Iterate through all of our parameters, bind them, and execute.
@@ -275,21 +266,6 @@ AsyncExecuteStatements::bindExecuteAndProcessStatement(StatementData &aData,
   }
 
   return continueProcessing;
-}
-
-bool
-AsyncExecuteStatements::executeAndProcessStatement(StatementData &aData,
-                                                   bool aLastStatement)
-{
-  sqlite3_stmt *stmt;
-  int rc = aData.getSqliteStatement(&stmt);
-  if (rc != SQLITE_OK) {
-    // XXX We really want to get at the database connection so we can call
-    // sqlite3_errmsg.
-    (void)notifyError(rc, "Problem creating async statement.");
-    return false;
-  }
-  return executeAndProcessStatement(stmt, aLastStatement);
 }
 
 bool

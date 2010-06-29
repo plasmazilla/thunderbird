@@ -48,7 +48,6 @@
 #include "nsString.h"
 #include "nsCOMPtr.h"
 #include "nsWeakReference.h"
-#include "nsVoidArray.h"
 
 #include "nsIHttpProtocolHandler.h"
 #include "nsIProtocolProxyService.h"
@@ -286,6 +285,7 @@ private:
     nsXPIDLCString mAppVersion;
     nsCString      mPlatform;
     nsCString      mOscpu;
+    nsCString      mDeviceType;
     nsXPIDLCString mSecurity;
     nsCString      mLanguage;
     nsCString      mMisc;

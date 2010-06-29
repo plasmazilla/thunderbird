@@ -62,7 +62,6 @@
 #include "nsMsgFolderFlags.h"
 #include "nsMsgI18N.h"
 #include "nsUnicharUtils.h"
-#include "nsEscape.h"
 #include "nsISupportsObsolete.h"
 #include "nsILineInputStream.h"
 #include "nsNetUtil.h"
@@ -92,6 +91,17 @@
 // efficient file reading size for the current
 // operating system.
 #define HOSTINFO_FILE_BUFFER_SIZE 1024
+
+#ifndef MOZILLA_INTERNAL_API
+/// SortIgnoreCase() is not supported. Define our own private version.
+static int
+CompareCStringIgnoreCase(const nsCString* aString1, const nsCString* aString2, void*)
+{
+  return Compare(*aString1, *aString2, CaseInsensitiveCompare);
+}
+#define SortIgnoreCase() \
+        Sort(CompareCStringIgnoreCase, nsnull)
+#endif
 
 static NS_DEFINE_CID(kSubscribableServerCID, NS_SUBSCRIBABLESERVER_CID);
 
@@ -332,7 +342,7 @@ nsNntpIncomingServer::WriteNewsrcFile()
         if (NS_FAILED(rv)) return rv;
 
         nsCOMPtr<nsIOutputStream> newsrcStream;
-        nsresult rv = NS_NewLocalFileOutputStream(getter_AddRefs(newsrcStream), newsrcFile, -1, 00600);
+        nsresult rv = MsgNewBufferedFileOutputStream(getter_AddRefs(newsrcStream), newsrcFile, -1, 00600);
         if (NS_FAILED(rv))
           return rv;
 
@@ -765,9 +775,7 @@ nsNntpIncomingServer::ContainsNewsgroup(const nsACString &name,
 {
     if (name.IsEmpty()) return NS_ERROR_FAILURE;
     nsCAutoString unescapedName;
-    NS_UnescapeURL(nsCString(name),
-                   esc_FileBaseName|esc_Forced|esc_AlwaysCopy, unescapedName);
-
+    MsgUnescapeString(name, 0, unescapedName);
     *containsGroup = !(mSubscribedNewsgroups.EnumerateForwards(
                        nsCStringArrayEnumFunc(checkIfSubscribedFunction),
                        (void *) &unescapedName));
@@ -832,7 +840,7 @@ nsNntpIncomingServer::WriteHostInfoFile()
   if (!mHostInfoFile)
     return NS_ERROR_UNEXPECTED;
   nsCOMPtr<nsIOutputStream> hostInfoStream;
-  rv = NS_NewLocalFileOutputStream(getter_AddRefs(hostInfoStream), mHostInfoFile, -1, 00600);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(hostInfoStream), mHostInfoFile, -1, 00600);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // todo, missing some formatting, see the 4.x code
@@ -1016,7 +1024,7 @@ nsNntpIncomingServer::AddNewsgroupToList(const char *aName)
     NS_ASSERTION(NS_SUCCEEDED(rv), "newsgroup name conversion failed");
 #endif
     if (NS_FAILED(rv)) {
-        CopyASCIItoUTF16(aName, newsgroupName);
+        CopyASCIItoUTF16(nsDependentCString(aName), newsgroupName);
     }
 
     rv = AddTo(NS_ConvertUTF16toUTF8(newsgroupName),
@@ -1133,7 +1141,7 @@ NS_IMETHODIMP
 nsNntpIncomingServer::AddTo(const nsACString &aName, PRBool addAsSubscribed,
                             PRBool aSubscribable, PRBool changeIfExists)
 {
-    NS_ASSERTION(IsUTF8(aName), "Non-UTF-8 newsgroup name");
+    NS_ASSERTION(MsgIsUTF8(aName), "Non-UTF-8 newsgroup name");
     nsresult rv = EnsureInner();
     NS_ENSURE_SUCCESS(rv,rv);
 
@@ -1258,7 +1266,7 @@ nsNntpIncomingServer::HandleLine(const char* line, PRUint32 line_size)
 
         // newsrc entries are all in UTF-8
 #ifdef DEBUG_jungshik
-    NS_ASSERTION(IsUTF8(nsDependentCString(line)), "newsrc line is not utf-8");
+    NS_ASSERTION(MsgIsUTF8(nsDependentCString(line)), "newsrc line is not utf-8");
 #endif
     nsresult rv = AddTo(nsDependentCString(line), PR_FALSE, PR_TRUE, PR_TRUE);
     NS_ASSERTION(NS_SUCCEEDED(rv),"failed to add line");
@@ -1700,13 +1708,7 @@ nsresult
 nsNntpIncomingServer::AppendIfSearchMatch(nsCString& newsgroupName)
 {
   NS_ConvertUTF8toUTF16 groupName(newsgroupName);
-  // When we move to frozen linkage this should be:
-  //   if (groupName.Find(mSearchValue, CaseInsensitiveCompare) >= 0)
-  nsAString::const_iterator start, end;
-  groupName.BeginReading(start);
-  groupName.EndReading(end);
-  if (FindInReadable(mSearchValue, start, end,
-                     nsCaseInsensitiveStringComparator()))
+  if (groupName.Find(mSearchValue, CaseInsensitiveCompare) != kNotFound)
       mSubscribeSearchResult.AppendCString(newsgroupName);
   return NS_OK;
 }
@@ -1839,26 +1841,18 @@ nsNntpIncomingServer::IsSorted(PRBool *_retval)
 }
 
 NS_IMETHODIMP
-#ifdef MOZILLA_1_9_1_BRANCH
-nsNntpIncomingServer::CanDrop(PRInt32 index, PRInt32 orientation, PRBool *_retval)
-#else
 nsNntpIncomingServer::CanDrop(PRInt32 index,
                               PRInt32 orientation,
                               nsIDOMDataTransfer *dataTransfer,
                               PRBool *_retval)
-#endif
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-#ifdef MOZILLA_1_9_1_BRANCH
-nsNntpIncomingServer::Drop(PRInt32 row, PRInt32 orientation)
-#else
 nsNntpIncomingServer::Drop(PRInt32 row,
                            PRInt32 orientation,
                            nsIDOMDataTransfer *dataTransfer)
-#endif
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -2088,7 +2082,7 @@ nsNntpIncomingServer::GetSocketType(PRInt32 *aSocketType)
       return NS_ERROR_NOT_INITIALIZED;
     rv = mDefPrefBranch->GetIntPref("socketType", aSocketType);
     if (NS_FAILED(rv))
-      *aSocketType = nsIMsgIncomingServer::defaultSocket;
+      *aSocketType = nsMsgSocketType::plain;
   }
 
   // nsMsgIncomingServer::GetSocketType migrates old isSecure to socketType
@@ -2097,13 +2091,13 @@ nsNntpIncomingServer::GetSocketType(PRInt32 *aSocketType)
 
   // Now that we know the socket, make sure isSecure true + socketType 0
   // doesn't mix. Migrate if that's the case here.
-  if (*aSocketType == nsIMsgIncomingServer::defaultSocket)
+  if (*aSocketType == nsMsgSocketType::plain)
   {
     PRBool isSecure = PR_FALSE;
     nsresult rv2 = mPrefBranch->GetBoolPref("isSecure", &isSecure);
     if (NS_SUCCEEDED(rv2) && isSecure)
     {
-      *aSocketType = nsIMsgIncomingServer::useSSL;
+      *aSocketType = nsMsgSocketType::SSL;
       // Don't call virtual method in case overrides call GetSocketType.
       nsMsgIncomingServer::SetSocketType(*aSocketType);
     }
@@ -2124,7 +2118,7 @@ nsNntpIncomingServer::SetSocketType(PRInt32 aSocketType)
     {
       // Must keep isSecure in sync since we migrate based on it... if it's set.
       rv = mPrefBranch->SetBoolPref("isSecure",
-                                    aSocketType == nsIMsgIncomingServer::useSSL);
+                                    aSocketType == nsMsgSocketType::SSL);
       NS_ENSURE_SUCCESS(rv, rv);
     }
   }

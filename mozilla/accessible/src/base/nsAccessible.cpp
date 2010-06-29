@@ -74,6 +74,7 @@
 #include "nsIViewManager.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsIScrollableFrame.h"
+#include "nsFocusManager.h"
 
 #include "nsXPIDLString.h"
 #include "nsUnicharUtils.h"
@@ -84,6 +85,7 @@
 #include "nsIPrefBranch.h"
 #include "nsIURI.h"
 #include "nsITimer.h"
+#include "nsArrayUtils.h"
 #include "nsIMutableArray.h"
 #include "nsIObserverService.h"
 #include "nsIServiceManager.h"
@@ -112,10 +114,10 @@ NS_IMPL_ISUPPORTS1(nsAccessibleDOMStringList, nsIDOMDOMStringList)
 NS_IMETHODIMP
 nsAccessibleDOMStringList::Item(PRUint32 aIndex, nsAString& aResult)
 {
-  if (aIndex >= (PRUint32)mNames.Count()) {
+  if (aIndex >= mNames.Length()) {
     SetDOMStringToNull(aResult);
   } else {
-    mNames.StringAt(aIndex, aResult);
+    aResult = mNames.ElementAt(aIndex);
   }
 
   return NS_OK;
@@ -124,7 +126,7 @@ nsAccessibleDOMStringList::Item(PRUint32 aIndex, nsAString& aResult)
 NS_IMETHODIMP
 nsAccessibleDOMStringList::GetLength(PRUint32 *aLength)
 {
-  *aLength = (PRUint32)mNames.Count();
+  *aLength = mNames.Length();
 
   return NS_OK;
 }
@@ -132,7 +134,7 @@ nsAccessibleDOMStringList::GetLength(PRUint32 *aLength)
 NS_IMETHODIMP
 nsAccessibleDOMStringList::Contains(const nsAString& aString, PRBool *aResult)
 {
-  *aResult = mNames.IndexOf(aString) > -1;
+  *aResult = mNames.Contains(aString);
 
   return NS_OK;
 }
@@ -174,12 +176,6 @@ nsresult nsAccessible::QueryInterface(REFNSIID aIID, void** aInstancePtr)
 
   if (aIID.Equals(NS_GET_IID(nsIAccessible))) {
     *aInstancePtr = static_cast<nsIAccessible*>(this);
-    NS_ADDREF_THIS();
-    return NS_OK;
-  }
-
-  if(aIID.Equals(NS_GET_IID(nsPIAccessible))) {
-    *aInstancePtr = static_cast<nsPIAccessible*>(this);
     NS_ADDREF_THIS();
     return NS_OK;
   }
@@ -265,10 +261,10 @@ nsAccessible::~nsAccessible()
 {
 }
 
-NS_IMETHODIMP nsAccessible::SetRoleMapEntry(nsRoleMapEntry* aRoleMapEntry)
+void
+nsAccessible::SetRoleMapEntry(nsRoleMapEntry* aRoleMapEntry)
 {
   mRoleMapEntry = aRoleMapEntry;
-  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -285,12 +281,43 @@ nsAccessible::GetName(nsAString& aName)
 
   nsCOMPtr<nsIXBLAccessible> xblAccessible(do_QueryInterface(mDOMNode));
   if (xblAccessible) {
-    nsresult rv = xblAccessible->GetAccessibleName(aName);
+    xblAccessible->GetAccessibleName(aName);
     if (!aName.IsEmpty())
       return NS_OK;
   }
 
-  return GetNameInternal(aName);
+  nsresult rv = GetNameInternal(aName);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (!aName.IsEmpty())
+    return NS_OK;
+
+  // In the end get the name from tooltip.
+  nsCOMPtr<nsIContent> content = nsCoreUtils::GetRoleContent(mDOMNode);
+  if (!content)
+    return NS_OK;
+
+  nsIAtom *tooltipAttr = nsnull;
+
+  if (content->IsNodeOfType(nsINode::eHTML))
+    tooltipAttr = nsAccessibilityAtoms::title;
+  else if (content->IsNodeOfType(nsINode::eXUL))
+    tooltipAttr = nsAccessibilityAtoms::tooltiptext;
+  else
+    return NS_OK;
+
+  // XXX: if CompressWhiteSpace worked on nsAString we could avoid a copy.
+  nsAutoString name;
+  if (content->GetAttr(kNameSpaceID_None, tooltipAttr, name)) {
+    name.CompressWhitespace();
+    aName = name;
+    return NS_OK_NAME_FROM_TOOLTIP;
+  }
+
+  if (rv != NS_OK_EMPTY_NAME)
+    aName.SetIsVoid(PR_TRUE);
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsAccessible::GetDescription(nsAString& aDescription)
@@ -310,7 +337,9 @@ NS_IMETHODIMP nsAccessible::GetDescription(nsAString& aDescription)
 
   if (!content->IsNodeOfType(nsINode::eTEXT)) {
     nsAutoString description;
-    nsresult rv = GetTextFromRelationID(nsAccessibilityAtoms::aria_describedby, description);
+    nsresult rv = nsTextEquivUtils::
+      GetTextEquivFromIDRefs(this, nsAccessibilityAtoms::aria_describedby,
+                             description);
     NS_ENSURE_SUCCESS(rv, rv);
 
     if (description.IsEmpty()) {
@@ -324,7 +353,8 @@ NS_IMETHODIMP nsAccessible::GetDescription(nsAString& aDescription)
 
         if (descriptionContent) {
           // We have a description content node
-          AppendFlatStringFromSubtree(descriptionContent, &description);
+          nsTextEquivUtils::
+            AppendTextEquivFromContent(this, descriptionContent, &description);
         }
       }
       if (description.IsEmpty()) {
@@ -453,34 +483,32 @@ nsAccessible::GetKeyboardShortcut(nsAString& aAccessKey)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAccessible::SetParent(nsIAccessible *aParent)
+void
+nsAccessible::SetParent(nsIAccessible *aParent)
 {
   if (mParent != aParent) {
     // Adopt a child -- we allow this now. the new parent
     // may be a dom node which wasn't previously accessible but now is.
     // The old parent's children now need to be invalidated, since 
     // it no longer owns the child, the new parent does
-    nsCOMPtr<nsPIAccessible> privOldParent = do_QueryInterface(mParent);
-    if (privOldParent) {
-      privOldParent->InvalidateChildren();
-    }
+    nsRefPtr<nsAccessible> oldParent = nsAccUtils::QueryAccessible(mParent);
+    if (oldParent)
+      oldParent->InvalidateChildren();
   }
 
   mParent = aParent;
-  return NS_OK;
 }
 
-NS_IMETHODIMP nsAccessible::SetFirstChild(nsIAccessible *aFirstChild)
+void
+nsAccessible::SetFirstChild(nsIAccessible *aFirstChild)
 {
   mFirstChild = aFirstChild;
-
-  return NS_OK;
 }
 
-NS_IMETHODIMP nsAccessible::SetNextSibling(nsIAccessible *aNextSibling)
+void
+nsAccessible::SetNextSibling(nsIAccessible *aNextSibling)
 {
   mNextSibling = aNextSibling;
-  return NS_OK;
 }
 
 nsresult
@@ -492,15 +520,16 @@ nsAccessible::Shutdown()
   // sure none of its children point to this parent
   InvalidateChildren();
   if (mParent) {
-    nsCOMPtr<nsPIAccessible> privateParent(do_QueryInterface(mParent));
-    privateParent->InvalidateChildren();
+    nsRefPtr<nsAccessible> parent(nsAccUtils::QueryAccessible(mParent));
+    parent->InvalidateChildren();
     mParent = nsnull;
   }
 
   return nsAccessNodeWrap::Shutdown();
 }
 
-NS_IMETHODIMP nsAccessible::InvalidateChildren()
+void
+nsAccessible::InvalidateChildren()
 {
   // Document has transformed, reset our invalid children and child count
 
@@ -508,25 +537,29 @@ NS_IMETHODIMP nsAccessible::InvalidateChildren()
   // CacheChildren() is called.
   // Note: we don't want to start creating accessibles at this point,
   // so don't use GetNextSibling() here. (bug 387252)
-  nsAccessible* child = static_cast<nsAccessible*>(mFirstChild.get());
+  nsRefPtr<nsAccessible> child = nsAccUtils::QueryAccessible(mFirstChild);
   while (child) {
     child->mParent = nsnull;
 
     nsCOMPtr<nsIAccessible> next = child->mNextSibling;
     child->mNextSibling = nsnull;
-    child = static_cast<nsAccessible*>(next.get());
+    child = nsAccUtils::QueryAccessible(next);
   }
 
   mAccChildCount = eChildCountUninitialized;
   mFirstChild = nsnull;
-  return NS_OK;
 }
 
-NS_IMETHODIMP nsAccessible::GetParent(nsIAccessible **  aParent)
+NS_IMETHODIMP
+nsAccessible::GetParent(nsIAccessible **aParent)
 {
-  nsresult rv = GetCachedParent(aParent);
-  if (NS_FAILED(rv) || *aParent) {
-    return rv;
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
+
+  nsCOMPtr<nsIAccessible> cachedParent = GetCachedParent();
+  if (cachedParent) {
+    cachedParent.swap(*aParent);
+    return NS_OK;
   }
 
   nsCOMPtr<nsIAccessibleDocument> docAccessible(GetDocAccessible());
@@ -535,26 +568,24 @@ NS_IMETHODIMP nsAccessible::GetParent(nsIAccessible **  aParent)
   return docAccessible->GetAccessibleInParentChain(mDOMNode, PR_TRUE, aParent);
 }
 
-NS_IMETHODIMP nsAccessible::GetCachedParent(nsIAccessible **  aParent)
+already_AddRefed<nsIAccessible>
+nsAccessible::GetCachedParent()
 {
-  *aParent = nsnull;
-  if (!mWeakShell) {
-    // This node has been shut down
-    return NS_ERROR_FAILURE;
-  }
-  NS_IF_ADDREF(*aParent = mParent);
-  return NS_OK;
+  if (IsDefunct())
+    return nsnull;
+
+  nsCOMPtr<nsIAccessible> cachedParent = mParent;
+  return cachedParent.forget();
 }
 
-NS_IMETHODIMP nsAccessible::GetCachedFirstChild(nsIAccessible **  aFirstChild)
+already_AddRefed<nsIAccessible>
+nsAccessible::GetCachedFirstChild()
 {
-  *aFirstChild = nsnull;
-  if (!mWeakShell) {
-    // This node has been shut down
-    return NS_ERROR_FAILURE;
-  }
-  NS_IF_ADDREF(*aFirstChild = mFirstChild);
-  return NS_OK;
+  if (IsDefunct())
+    return nsnull;
+
+  nsCOMPtr<nsIAccessible> cachedFirstChild = mFirstChild;
+  return cachedFirstChild.forget();
 }
 
   /* readonly attribute nsIAccessible nextSibling; */
@@ -624,10 +655,9 @@ NS_IMETHODIMP nsAccessible::GetFirstChild(nsIAccessible * *aFirstChild)
   GetChildCount(&numChildren);  // Make sure we cache all of the children
 
 #ifdef DEBUG
-  nsCOMPtr<nsPIAccessible> firstChild(do_QueryInterface(mFirstChild));
+  nsRefPtr<nsAccessible> firstChild(nsAccUtils::QueryAccessible(mFirstChild));
   if (firstChild) {
-    nsCOMPtr<nsIAccessible> realParent;
-    firstChild->GetCachedParent(getter_AddRefs(realParent));
+    nsCOMPtr<nsIAccessible> realParent = firstChild->GetCachedParent();
     NS_ASSERTION(!realParent || realParent == this,
                  "Two accessibles have the same first child accessible.");
   }
@@ -716,34 +746,33 @@ void nsAccessible::CacheChildren()
 
   if (mAccChildCount == eChildCountUninitialized) {
     mAccChildCount = 0;// Prevent reentry
-    PRBool allowsAnonChildren = PR_FALSE;
-    GetAllowsAnonChildAccessibles(&allowsAnonChildren);
+    PRBool allowsAnonChildren = GetAllowsAnonChildAccessibles();
     nsAccessibleTreeWalker walker(mWeakShell, mDOMNode, allowsAnonChildren);
     // Seed the frame hint early while we're still on a container node.
     // This is better than doing the GetPrimaryFrameFor() later on
     // a text node, because text nodes aren't in the frame map.
     walker.mState.frame = GetFrame();
 
-    nsCOMPtr<nsPIAccessible> privatePrevAccessible;
+    nsRefPtr<nsAccessible> prevAcc;
     PRInt32 childCount = 0;
     walker.GetFirstChild();
     SetFirstChild(walker.mState.accessible);
 
     while (walker.mState.accessible) {
       ++ childCount;
-      privatePrevAccessible = do_QueryInterface(walker.mState.accessible);
-      privatePrevAccessible->SetParent(this);
+      prevAcc = nsAccUtils::QueryAccessible(walker.mState.accessible);
+      prevAcc->SetParent(this);
       walker.GetNextSibling();
-      privatePrevAccessible->SetNextSibling(walker.mState.accessible);
+      prevAcc->SetNextSibling(walker.mState.accessible);
     }
     mAccChildCount = childCount;
   }
 }
 
-NS_IMETHODIMP nsAccessible::GetAllowsAnonChildAccessibles(PRBool *aAllowsAnonChildren)
+PRBool
+nsAccessible::GetAllowsAnonChildAccessibles()
 {
-  *aAllowsAnonChildren = PR_TRUE;
-  return NS_OK;
+  return PR_TRUE;
 }
 
 /* readonly attribute long childCount; */
@@ -790,30 +819,29 @@ NS_IMETHODIMP nsAccessible::GetIndexInParent(PRInt32 *aIndexInParent)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAccessible::TestChildCache(nsIAccessible *aCachedChild)
+void
+nsAccessible::TestChildCache(nsIAccessible *aCachedChild)
 {
-#ifndef DEBUG_A11Y
-  return NS_OK;
-#else
+#ifdef DEBUG_A11Y
   // All cached accessible nodes should be in the parent
   // It will assert if not all the children were created
   // when they were first cached, and no invalidation
   // ever corrected parent accessible's child cache.
-  if (mAccChildCount <= 0) {
-    return NS_OK;
-  }
+  if (mAccChildCount <= 0)
+    return;
+
   nsCOMPtr<nsIAccessible> sibling = mFirstChild;
 
   while (sibling != aCachedChild) {
     NS_ASSERTION(sibling, "[TestChildCache] Never ran into the same child that we started from");
     if (!sibling)
-      return NS_ERROR_FAILURE;
+      return;
 
     nsCOMPtr<nsIAccessible> tempAccessible;
     sibling->GetNextSibling(getter_AddRefs(tempAccessible));
     sibling = tempAccessible;
   }
-  return NS_OK;
+
 #endif
 }
 
@@ -1055,29 +1083,23 @@ NS_IMETHODIMP nsAccessible::GetFocusedChild(nsIAccessible **aFocusedChild)
   return NS_OK;
 }
 
-// nsIAccessible getDeepestChildAtPoint(in long x, in long y)
-NS_IMETHODIMP
-nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
-                                     nsIAccessible **aAccessible)
+// nsAccessible::GetChildAtPoint()
+nsresult
+nsAccessible::GetChildAtPoint(PRInt32 aX, PRInt32 aY, PRBool aDeepestChild,
+                              nsIAccessible **aChild)
 {
-  NS_ENSURE_ARG_POINTER(aAccessible);
-  *aAccessible = nsnull;
-
-  if (!mDOMNode) {
-    return NS_ERROR_FAILURE;  // Already shut down
-  }
-
   // If we can't find the point in a child, we will return the fallback answer:
-  // we return |this| if the point is within it, otherwise nsnull
+  // we return |this| if the point is within it, otherwise nsnull.
+  PRInt32 x = 0, y = 0, width = 0, height = 0;
+  nsresult rv = GetBounds(&x, &y, &width, &height);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCOMPtr<nsIAccessible> fallbackAnswer;
-  PRInt32 x, y, width, height;
-  GetBounds(&x, &y, &width, &height);
-  if (aX >= x && aX < x + width &&
-      aY >= y && aY < y + height) {
+  if (aX >= x && aX < x + width && aY >= y && aY < y + height)
     fallbackAnswer = this;
-  }
+
   if (nsAccUtils::MustPrune(this)) {  // Do not dig any further
-    NS_IF_ADDREF(*aAccessible = fallbackAnswer);
+    NS_IF_ADDREF(*aChild = fallbackAnswer);
     return NS_OK;
   }
 
@@ -1088,7 +1110,7 @@ nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
   // for DOM parent but GetFrameForPoint() should be called for containing block
   // to get an out of flow element.
   nsCOMPtr<nsIAccessibleDocument> accDocument;
-  nsresult rv = GetAccessibleDocument(getter_AddRefs(accDocument));
+  rv = GetAccessibleDocument(getter_AddRefs(accDocument));
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(accDocument, NS_ERROR_FAILURE);
 
@@ -1106,9 +1128,10 @@ nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
 
   nsCOMPtr<nsIPresShell> presShell = presContext->PresShell();
   nsIFrame *foundFrame = presShell->GetFrameForPoint(frame, offset);
-  nsCOMPtr<nsIContent> content;
+
+  nsIContent* content = nsnull;
   if (!foundFrame || !(content = foundFrame->GetContent())) {
-    NS_IF_ADDREF(*aAccessible = fallbackAnswer);
+    NS_IF_ADDREF(*aChild = fallbackAnswer);
     return NS_OK;
   }
 
@@ -1118,7 +1141,7 @@ nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
   nsCOMPtr<nsIDOMNode> relevantNode;
   accService->GetRelevantContentNodeFor(node, getter_AddRefs(relevantNode));
   if (!relevantNode) {
-    NS_IF_ADDREF(*aAccessible = fallbackAnswer);
+    NS_IF_ADDREF(*aChild = fallbackAnswer);
     return NS_OK;
   }
 
@@ -1130,16 +1153,17 @@ nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
     accDocument->GetAccessibleInParentChain(relevantNode, PR_TRUE,
                                             getter_AddRefs(accessible));
     if (!accessible) {
-      NS_IF_ADDREF(*aAccessible = fallbackAnswer);
+      NS_IF_ADDREF(*aChild = fallbackAnswer);
       return NS_OK;
     }
   }
 
   if (accessible == this) {
-    // Manually walk through accessible children and see if
-    // the are within this point.
-    // This takes care of cases where layout won't walk into
-    // things for us, such as image map areas and sub documents
+    // Manually walk through accessible children and see if the are within this
+    // point. Skip offscreen or invisible accessibles. This takes care of cases
+    // where layout won't walk into things for us, such as image map areas and
+    // sub documents (XXX: subdocuments should be handled by methods of
+    // nsOuterDocAccessibles).
     nsCOMPtr<nsIAccessible> child;
     while (NextChild(child)) {
       PRInt32 childX, childY, childWidth, childHeight;
@@ -1147,16 +1171,40 @@ nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
       if (aX >= childX && aX < childX + childWidth &&
           aY >= childY && aY < childY + childHeight &&
           (nsAccUtils::State(child) & nsIAccessibleStates::STATE_INVISIBLE) == 0) {
-        // Don't walk into offscreen or invisible items
-        NS_IF_ADDREF(*aAccessible = child);
+
+        if (aDeepestChild)
+          return child->GetDeepestChildAtPoint(aX, aY, aChild);
+
+        NS_IF_ADDREF(*aChild = child);
         return NS_OK;
       }
     }
-    // Fall through -- the point is in this accessible but not in a child
-    // We are allowed to return |this| as the answer
+
+    // The point is in this accessible but not in a child. We are allowed to
+    // return |this| as the answer.
+    NS_IF_ADDREF(*aChild = accessible);
+    return NS_OK;
   }
 
-  NS_IF_ADDREF(*aAccessible = accessible);
+  // Since DOM node of obtained accessible may be out of flow then we should
+  // ensure obtained accessible is a child of this accessible.
+  nsCOMPtr<nsIAccessible> parent, child(accessible);
+  while (PR_TRUE) {
+    child->GetParent(getter_AddRefs(parent));
+    if (!parent) {
+      // Reached the top of the hierarchy. These bounds were inside an
+      // accessible that is not a descendant of this one.
+      NS_IF_ADDREF(*aChild = fallbackAnswer);      
+      return NS_OK;
+    }
+
+    if (parent == this) {
+      NS_ADDREF(*aChild = (aDeepestChild ? accessible : child));
+      return NS_OK;
+    }
+    child.swap(parent);
+  }
+
   return NS_OK;
 }
 
@@ -1165,43 +1213,27 @@ NS_IMETHODIMP
 nsAccessible::GetChildAtPoint(PRInt32 aX, PRInt32 aY,
                               nsIAccessible **aAccessible)
 {
-  nsresult rv = GetDeepestChildAtPoint(aX, aY, aAccessible);
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_ARG_POINTER(aAccessible);
+  *aAccessible = nsnull;
 
-  if (!*aAccessible || *aAccessible == this)
-    return NS_OK;
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
 
-  // Get direct child containing the deepest child at the given point.
-  nsCOMPtr<nsIAccessible> parent, accessible;
-  accessible.swap(*aAccessible);
+  return GetChildAtPoint(aX, aY, PR_FALSE, aAccessible);
+}
 
-  while (PR_TRUE) {
-    accessible->GetParent(getter_AddRefs(parent));
-    if (!parent) {
-      NS_NOTREACHED("Obtained accessible isn't a child of this accessible.");
+// nsIAccessible getDeepestChildAtPoint(in long x, in long y)
+NS_IMETHODIMP
+nsAccessible::GetDeepestChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                     nsIAccessible **aAccessible)
+{
+  NS_ENSURE_ARG_POINTER(aAccessible);
+  *aAccessible = nsnull;
 
-      // Reached the top of the hierarchy. These bounds were inside an
-      // accessible that is not a descendant of this one.
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
 
-      // If we can't find the point in a child, we will return the fallback
-      // answer: we return |this| if the point is within it, otherwise nsnull.
-      PRInt32 x, y, width, height;
-      GetBounds(&x, &y, &width, &height);
-      if (aX >= x && aX < x + width && aY >= y && aY < y + height)
-        NS_ADDREF(*aAccessible = this);
-
-      return NS_OK;
-    }
-
-    if (parent == this) {
-      // We reached |this|, so |accessible| is the child we want to return.
-      NS_ADDREF(*aAccessible = accessible);
-      return NS_OK;
-    }
-    accessible.swap(parent);
-  }
-
-  return NS_OK;
+  return GetChildAtPoint(aX, aY, PR_TRUE, aAccessible);
 }
 
 void nsAccessible::GetBoundsRect(nsRect& aTotalBounds, nsIFrame** aBoundingFrame)
@@ -1323,7 +1355,7 @@ NS_IMETHODIMP nsAccessible::GetBounds(PRInt32 *x, PRInt32 *y, PRInt32 *width, PR
 
   // We have the union of the rectangle, now we need to put it in absolute screen coords
 
-  nsRect orgRectPixels = aBoundingFrame->GetScreenRectExternal();
+  nsIntRect orgRectPixels = aBoundingFrame->GetScreenRectExternal();
   *x += orgRectPixels.x;
   *y += orgRectPixels.y;
 
@@ -1430,314 +1462,16 @@ nsAccessible::TakeFocus()
     }
   }
 
-  nsCOMPtr<nsIDOMNSHTMLElement> htmlElement(do_QueryInterface(content));
-  if (htmlElement) {
-    // HTML Elements also set the caret position
-    // in order to affect tabbing order
-    return htmlElement->Focus();
-  }
+  nsCOMPtr<nsIDOMElement> element(do_QueryInterface(content));
+  nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
+  if (fm)
+    fm->SetFocus(element, 0);
 
-  content->SetFocus(GetPresContext());
   return NS_OK;
-}
-
-nsresult nsAccessible::AppendStringWithSpaces(nsAString *aFlatString, const nsAString& textEquivalent)
-{
-  // Insert spaces to insure that words from controls aren't jammed together
-  if (!textEquivalent.IsEmpty()) {
-    if (!aFlatString->IsEmpty())
-      aFlatString->Append(PRUnichar(' '));
-    aFlatString->Append(textEquivalent);
-    aFlatString->Append(PRUnichar(' '));
-  }
-  return NS_OK;
-}
-
-nsresult nsAccessible::AppendNameFromAccessibleFor(nsIContent *aContent,
-                                                   nsAString *aFlatString,
-                                                   PRBool aFromValue)
-{
-  nsAutoString textEquivalent, value;
-
-  nsCOMPtr<nsIDOMNode> domNode(do_QueryInterface(aContent));
-  nsCOMPtr<nsIAccessible> accessible;
-  if (domNode == mDOMNode) {
-    accessible = this;
-    if (!aFromValue) {
-      // prevent recursive call GetName()
-      return NS_OK;
-    }
-  }
-  else {
-    nsCOMPtr<nsIAccessibilityService> accService =
-      do_GetService("@mozilla.org/accessibilityService;1");
-    NS_ENSURE_TRUE(accService, NS_ERROR_FAILURE);
-    accService->GetAccessibleInWeakShell(domNode, mWeakShell, getter_AddRefs(accessible));
-  }
-  if (accessible) {
-    if (aFromValue) {
-      accessible->GetValue(textEquivalent);
-    }
-    else {
-      accessible->GetName(textEquivalent);
-    }
-  }
-
-  textEquivalent.CompressWhitespace();
-  return AppendStringWithSpaces(aFlatString, textEquivalent);
-}
-
-/*
- * AppendFlatStringFromContentNode and AppendFlatStringFromSubtree
- *
- * This method will glean useful text, in whatever form it exists, from any content node given to it.
- * It is used by any decendant of nsAccessible that needs to get text from a single node, as
- * well as by nsAccessible::AppendFlatStringFromSubtree, which gleans and concatenates text from any node and
- * that node's decendants.
- */
-
-nsresult nsAccessible::AppendFlatStringFromContentNode(nsIContent *aContent, nsAString *aFlatString)
-{
-  if (aContent->IsNodeOfType(nsINode::eTEXT)) {
-    // If it's a text node, append the text
-    PRBool isHTMLBlock = PR_FALSE;
-    nsCOMPtr<nsIPresShell> shell = GetPresShell();
-    if (!shell) {
-      return NS_ERROR_FAILURE;  
-    }
-
-    nsIContent *parentContent = aContent->GetParent();
-    nsCOMPtr<nsIContent> appendedSubtreeStart(do_QueryInterface(mDOMNode));
-    if (parentContent && parentContent != appendedSubtreeStart) {
-      nsIFrame *frame = shell->GetPrimaryFrameFor(parentContent);
-      if (frame) {
-        // If this text is inside a block level frame (as opposed to span level), we need to add spaces around that 
-        // block's text, so we don't get words jammed together in final name
-        // Extra spaces will be trimmed out later
-        const nsStyleDisplay* display = frame->GetStyleDisplay();
-        if (display->IsBlockOutside() ||
-          display->mDisplay == NS_STYLE_DISPLAY_TABLE_CELL) {
-          isHTMLBlock = PR_TRUE;
-          if (!aFlatString->IsEmpty()) {
-            aFlatString->Append(PRUnichar(' '));
-          }
-        }
-      }
-    }
-    if (aContent->TextLength() > 0) {
-      nsIFrame *frame = shell->GetPrimaryFrameFor(aContent);
-      if (frame) {
-        nsresult rv = frame->GetRenderedText(aFlatString);
-        NS_ENSURE_SUCCESS(rv, rv);
-      } else {
-        //if aContent is an object that is display: none, we have no a frame
-        aContent->AppendTextTo(*aFlatString);
-      }
-      if (isHTMLBlock && !aFlatString->IsEmpty()) {
-        aFlatString->Append(PRUnichar(' '));
-      }
-    }
-    return NS_OK;
-  }
-
-  nsAutoString textEquivalent;
-  if (!aContent->IsNodeOfType(nsINode::eHTML)) {
-    if (aContent->IsNodeOfType(nsINode::eXUL)) {
-      nsCOMPtr<nsIDOMXULLabeledControlElement> labeledEl(do_QueryInterface(aContent));
-      if (labeledEl) {
-        labeledEl->GetLabel(textEquivalent);
-      }
-      else {
-        if (aContent->NodeInfo()->Equals(nsAccessibilityAtoms::label, kNameSpaceID_XUL)) {
-          aContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::value, textEquivalent);
-        }
-        if (textEquivalent.IsEmpty()) {
-          aContent->GetAttr(kNameSpaceID_None,
-                            nsAccessibilityAtoms::tooltiptext, textEquivalent);
-        }
-      }
-      AppendNameFromAccessibleFor(aContent, &textEquivalent, PR_TRUE /* use value */);
-
-      return AppendStringWithSpaces(aFlatString, textEquivalent);
-    }
-    return NS_OK; // Not HTML and not XUL -- we don't handle it yet
-  }
-
-  nsCOMPtr<nsIAtom> tag = aContent->Tag();
-  if (tag == nsAccessibilityAtoms::img) {
-    return AppendNameFromAccessibleFor(aContent, aFlatString);
-  }
-
-  if (tag == nsAccessibilityAtoms::input) {
-    static nsIContent::AttrValuesArray strings[] =
-      {&nsAccessibilityAtoms::button, &nsAccessibilityAtoms::submit,
-       &nsAccessibilityAtoms::reset, &nsAccessibilityAtoms::image, nsnull};
-    if (aContent->FindAttrValueIn(kNameSpaceID_None, nsAccessibilityAtoms::type,
-                                  strings, eIgnoreCase) >= 0) {
-      return AppendNameFromAccessibleFor(aContent, aFlatString);
-    }
-  }
-
-  if (tag == nsAccessibilityAtoms::object && !aContent->GetChildCount()) {
-    // If object has no alternative content children, try title
-    aContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::title, textEquivalent);
-  }
-  else if (tag == nsAccessibilityAtoms::br) {
-    // If it's a line break, insert a space so that words aren't jammed together
-    aFlatString->AppendLiteral("\r\n");
-    return NS_OK;
-  }
-  else if (tag != nsAccessibilityAtoms::a && tag != nsAccessibilityAtoms::area) { 
-    AppendNameFromAccessibleFor(aContent, aFlatString, PR_TRUE /* use value */);
-  }
-
-  textEquivalent.CompressWhitespace();
-  return AppendStringWithSpaces(aFlatString, textEquivalent);
-}
-
-
-nsresult nsAccessible::AppendFlatStringFromSubtree(nsIContent *aContent, nsAString *aFlatString)
-{
-  static PRBool isAlreadyHere; // Prevent recursion which can cause infinite loops
-  if (isAlreadyHere) {
-    return NS_OK;
-  }
-
-  isAlreadyHere = PR_TRUE;
-
-  nsCOMPtr<nsIPresShell> shell = GetPresShell();
-  NS_ENSURE_TRUE(shell, NS_ERROR_FAILURE);
-
-  nsIFrame *frame = shell->GetPrimaryFrameFor(aContent);
-  PRBool isHidden = (!frame || !frame->GetStyleVisibility()->IsVisible());
-  nsresult rv = AppendFlatStringFromSubtreeRecurse(aContent, aFlatString,
-                                                   isHidden);
-
-  isAlreadyHere = PR_FALSE;
-
-  if (NS_SUCCEEDED(rv) && !aFlatString->IsEmpty()) {
-    nsAString::const_iterator start, end;
-    aFlatString->BeginReading(start);
-    aFlatString->EndReading(end);
-
-    PRInt32 spacesToTruncate = 0;
-    while (-- end != start && *end == ' ')
-      ++ spacesToTruncate;
-
-    if (spacesToTruncate > 0)
-      aFlatString->Truncate(aFlatString->Length() - spacesToTruncate);
-  }
-
-  return rv;
 }
 
 nsresult
-nsAccessible::AppendFlatStringFromSubtreeRecurse(nsIContent *aContent,
-                                                 nsAString *aFlatString,
-                                                 PRBool aIsRootHidden)
-{
-  // Depth first search for all text nodes that are decendants of content node.
-  // Append all the text into one flat string
-  PRUint32 numChildren = 0;
-  nsCOMPtr<nsIDOMXULSelectControlElement> selectControlEl(do_QueryInterface(aContent));
-  nsCOMPtr<nsIAtom> tag = aContent->Tag();
-
-  if (!selectControlEl && 
-      tag != nsAccessibilityAtoms::textarea && 
-      tag != nsAccessibilityAtoms::select) {
-    // Don't walk children of elements with options, just get label directly.
-    // Don't traverse the children of a textarea, we want the value, not the
-    // static text node.
-    // Don't traverse the children of a select element, we only want the
-    // current value.
-    numChildren = aContent->GetChildCount();
-  }
-
-  if (numChildren == 0) {
-    // There are no children or they are irrelvant: get the text from the current node
-    AppendFlatStringFromContentNode(aContent, aFlatString);
-    return NS_OK;
-  }
-
-  // There are relevant children: use them to get the text.
-  nsCOMPtr<nsIPresShell> shell = GetPresShell();
-  NS_ENSURE_TRUE(shell, NS_ERROR_FAILURE);
-
-  PRUint32 index;
-  for (index = 0; index < numChildren; index++) {
-    nsCOMPtr<nsIContent> childContent = aContent->GetChildAt(index);
-
-    // Walk into hidden subtree if the the root parent is also hidden. This
-    // happens when the author explictly uses a hidden label or description.
-    if (!aIsRootHidden) {
-      nsIFrame *childFrame = shell->GetPrimaryFrameFor(childContent);
-      if (!childFrame || !childFrame->GetStyleVisibility()->IsVisible())
-        continue;
-    }
-
-    AppendFlatStringFromSubtreeRecurse(childContent, aFlatString,
-                                       aIsRootHidden);
-  }
-
-  return NS_OK;
-}
-
-nsresult nsAccessible::GetTextFromRelationID(nsIAtom *aIDProperty, nsString &aName)
-{
-  // Get DHTML name from content subtree pointed to by ID attribute
-  aName.Truncate();
-  NS_ASSERTION(mDOMNode, "Called from shutdown accessible");
-  nsCOMPtr<nsIContent> content = nsCoreUtils::GetRoleContent(mDOMNode);
-  if (!content)
-    return NS_OK;
-
-  nsAutoString ids;
-  if (!content->GetAttr(kNameSpaceID_None, aIDProperty, ids))
-    return NS_OK;
-
-  ids.CompressWhitespace(PR_TRUE, PR_TRUE);
-
-  nsCOMPtr<nsIDOMDocument> domDoc = do_QueryInterface(content->GetOwnerDoc());
-  NS_ENSURE_TRUE(domDoc, NS_ERROR_FAILURE);
-
-  // Support idlist as in aria-labelledby="id1 id2 id3"
-  while (!ids.IsEmpty()) {
-    nsAutoString id;
-    PRInt32 idLength = ids.FindChar(' ');
-    NS_ASSERTION(idLength != 0, "Should not be 0 because of CompressWhitespace() call above");
-    if (idLength == kNotFound) {
-      id = ids;
-      ids.Truncate();
-    } else {
-      id = Substring(ids, 0, idLength);
-      ids.Cut(0, idLength + 1);
-    }
-
-    if (!aName.IsEmpty()) {
-      aName += ' '; // Need whitespace between multiple labels or descriptions
-    }
-    nsCOMPtr<nsIDOMElement> labelElement;
-    domDoc->GetElementById(id, getter_AddRefs(labelElement));
-    content = do_QueryInterface(labelElement);
-    if (!content) {
-      return NS_OK;
-    }
-    // We have a label content
-    nsresult rv = AppendFlatStringFromSubtree(content, &aName);
-    if (NS_SUCCEEDED(rv)) {
-      aName.CompressWhitespace();
-    }
-  }
-  
-  return NS_OK;
-}
-
-/**
-  * Only called if the element is not a nsIDOMXULControlElement. Initially walks up
-  *   the DOM tree to the form, concatonating label elements as it goes. Then checks for
-  *   labels with the for="controlID" property.
-  */
-nsresult nsAccessible::GetHTMLName(nsAString& aLabel, PRBool aCanAggregateSubtree)
+nsAccessible::GetHTMLName(nsAString& aLabel)
 {
   nsCOMPtr<nsIContent> content = nsCoreUtils::GetRoleContent(mDOMNode);
   if (!content) {
@@ -1748,7 +1482,8 @@ nsresult nsAccessible::GetHTMLName(nsAString& aLabel, PRBool aCanAggregateSubtre
   nsIContent *labelContent = nsCoreUtils::GetHTMLLabelContent(content);
   if (labelContent) {
     nsAutoString label;
-    nsresult rv = AppendFlatStringFromSubtree(labelContent, &label);
+    nsresult rv =
+      nsTextEquivUtils::AppendTextEquivFromContent(this, labelContent, &label);
     NS_ENSURE_SUCCESS(rv, rv);
 
     label.CompressWhitespace();
@@ -1758,25 +1493,7 @@ nsresult nsAccessible::GetHTMLName(nsAString& aLabel, PRBool aCanAggregateSubtre
     }
   }
 
-  PRBool canAggregateName = mRoleMapEntry ?
-                            mRoleMapEntry->nameRule == eNameOkFromChildren :
-                            aCanAggregateSubtree;
-  if (canAggregateName) {
-    // Don't use AppendFlatStringFromSubtree for container widgets like menulist
-    nsresult rv = AppendFlatStringFromSubtree(content, &aLabel);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    if (!aLabel.IsEmpty())
-      return NS_OK;
-  }
-
-  // Still try the title as as fallback method in that case.
-  if (!content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::title,
-                        aLabel)) {
-    aLabel.SetIsVoid(PR_TRUE);
-  }
-
-  return NS_OK;
+  return nsTextEquivUtils::GetNameFromSubtree(this, aLabel);
 }
 
 /**
@@ -1791,7 +1508,8 @@ nsresult nsAccessible::GetHTMLName(nsAString& aLabel, PRBool aCanAggregateSubtre
   *  the control that uses the control="controlID" syntax will use
   *  the child label for its Name.
   */
-nsresult nsAccessible::GetXULName(nsAString& aLabel, PRBool aCanAggregateSubtree)
+nsresult
+nsAccessible::GetXULName(nsAString& aLabel)
 {
   // CASE #1 (via label attribute) -- great majority of the cases
   nsresult rv = NS_OK;
@@ -1835,18 +1553,11 @@ nsresult nsAccessible::GetXULName(nsAString& aLabel, PRBool aCanAggregateSubtree
     if (xulLabel && NS_SUCCEEDED(xulLabel->GetValue(label)) && label.IsEmpty()) {
       // If no value attribute, a non-empty label must contain
       // children that define its text -- possibly using HTML
-      AppendFlatStringFromSubtree(labelContent, &label);
+      nsTextEquivUtils::AppendTextEquivFromContent(this, labelContent, &label);
     }
   }
 
   // XXX If CompressWhiteSpace worked on nsAString we could avoid a copy
-  label.CompressWhitespace();
-  if (!label.IsEmpty()) {
-    aLabel = label;
-    return NS_OK;
-  }
-
-  content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::tooltiptext, label);
   label.CompressWhitespace();
   if (!label.IsEmpty()) {
     aLabel = label;
@@ -1867,15 +1578,10 @@ nsresult nsAccessible::GetXULName(nsAString& aLabel, PRBool aCanAggregateSubtree
     parent = parent->GetParent();
   }
 
-  PRBool canAggregateName = mRoleMapEntry ?
-                            mRoleMapEntry->nameRule == eNameOkFromChildren :
-                            aCanAggregateSubtree;
-
-  return canAggregateName ?
-         AppendFlatStringFromSubtree(content, &aLabel) : NS_OK;
+  return nsTextEquivUtils::GetNameFromSubtree(this, aLabel);
 }
 
-NS_IMETHODIMP
+nsresult
 nsAccessible::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
 {
   NS_ENSURE_ARG_POINTER(aEvent);
@@ -1890,10 +1596,15 @@ nsAccessible::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
   return obsService->NotifyObservers(aEvent, NS_ACCESSIBLE_EVENT_TOPIC, nsnull);
 }
 
-NS_IMETHODIMP nsAccessible::GetFinalRole(PRUint32 *aRole)
+NS_IMETHODIMP
+nsAccessible::GetRole(PRUint32 *aRole)
 {
   NS_ENSURE_ARG_POINTER(aRole);
+
   *aRole = nsIAccessibleRole::ROLE_NOTHING;
+
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
 
   if (mRoleMapEntry) {
     *aRole = mRoleMapEntry->role;
@@ -1923,7 +1634,8 @@ NS_IMETHODIMP nsAccessible::GetFinalRole(PRUint32 *aRole)
         *aRole = nsIAccessibleRole::ROLE_COMBOBOX_LIST;
       }
       else {   // Check to see if combo owns the listbox instead
-        GetAccessibleRelated(nsIAccessibleRelation::RELATION_NODE_CHILD_OF, getter_AddRefs(possibleCombo));
+        possibleCombo = nsRelUtils::
+          GetRelatedAccessible(this, nsIAccessibleRelation::RELATION_NODE_CHILD_OF);
         if (nsAccUtils::Role(possibleCombo) == nsIAccessibleRole::ROLE_COMBOBOX)
           *aRole = nsIAccessibleRole::ROLE_COMBOBOX_LIST;
       }
@@ -1935,17 +1647,12 @@ NS_IMETHODIMP nsAccessible::GetFinalRole(PRUint32 *aRole)
         *aRole = nsIAccessibleRole::ROLE_COMBOBOX_OPTION;
     }
 
-    // gLandmarkRoleMap: can use role of accessible class impl
-    // gEmptyRoleMap and all others: cannot use role of accessible class impl
-    if (mRoleMapEntry != &nsARIAMap::gLandmarkRoleMap) {
-      // We can now expose ROLE_NOTHING when there is a role map entry, which
-      // will cause ATK to use ROLE_UNKNOWN and MSAA to use a BSTR role with
-      // the ARIA role or element's tag. In either case the AT can also use
-      // the object attributes tag and xml-roles to find out more.
+    // We are done if the mapped role trumps native semantics
+    if (mRoleMapEntry->roleRule == kUseMapRole)
       return NS_OK;
-    }
   }
-  return mDOMNode ? GetRole(aRole) : NS_ERROR_FAILURE;  // Node already shut down
+
+  return GetRoleInternal(aRole);
 }
 
 NS_IMETHODIMP
@@ -1998,100 +1705,17 @@ nsAccessible::GetAttributes(nsIPersistentProperties **aAttributes)
   // Expose checkable object attribute if the accessible has checkable state
   if (nsAccUtils::State(this) & nsIAccessibleStates::STATE_CHECKABLE)
     nsAccUtils::SetAccAttr(attributes, nsAccessibilityAtoms::checkable, NS_LITERAL_STRING("true"));
-  
-  // Level/setsize/posinset
+
+  // Group attributes (level/setsize/posinset)
   if (!nsAccUtils::HasAccGroupAttrs(attributes)) {
-    // The role of an accessible can be pointed by ARIA attribute but ARIA
-    // posinset, level, setsize may be skipped. Therefore we calculate here
-    // these properties to map them into description.
-
-    // If accessible is invisible we don't want to calculate group ARIA
-    // attributes for it.
+    // Calculate group attributes based on accessible hierarhy if they weren't
+    // provided by ARIA or by accessible class implementation.
     PRUint32 role = nsAccUtils::Role(this);
-    if ((role == nsIAccessibleRole::ROLE_LISTITEM ||
-         role == nsIAccessibleRole::ROLE_MENUITEM ||
-         role == nsIAccessibleRole::ROLE_CHECK_MENU_ITEM ||
-         role == nsIAccessibleRole::ROLE_RADIO_MENU_ITEM ||
-         role == nsIAccessibleRole::ROLE_RADIOBUTTON ||
-         role == nsIAccessibleRole::ROLE_PAGETAB ||
-         role == nsIAccessibleRole::ROLE_OPTION ||
-         role == nsIAccessibleRole::ROLE_RADIOBUTTON ||
-         role == nsIAccessibleRole::ROLE_OUTLINEITEM) &&
-        0 == (nsAccUtils::State(this) & nsIAccessibleStates::STATE_INVISIBLE)) {
-
-      PRUint32 baseRole = role;
-      if (role == nsIAccessibleRole::ROLE_CHECK_MENU_ITEM ||
-          role == nsIAccessibleRole::ROLE_RADIO_MENU_ITEM)
-        baseRole = nsIAccessibleRole::ROLE_MENUITEM;
-
-      nsCOMPtr<nsIAccessible> parent = GetParent();
-      NS_ENSURE_TRUE(parent, NS_ERROR_FAILURE);
-
-      PRInt32 positionInGroup = 0;
-      PRInt32 setSize = 0;
-
-      nsCOMPtr<nsIAccessible> sibling, nextSibling;
-      parent->GetFirstChild(getter_AddRefs(sibling));
-      NS_ENSURE_TRUE(sibling, NS_ERROR_FAILURE);
-
-      PRBool foundCurrent = PR_FALSE;
-      PRUint32 siblingRole, siblingBaseRole;
-      while (sibling) {
-        sibling->GetFinalRole(&siblingRole);
-
-        siblingBaseRole = siblingRole;
-        if (siblingRole == nsIAccessibleRole::ROLE_CHECK_MENU_ITEM ||
-            siblingRole == nsIAccessibleRole::ROLE_RADIO_MENU_ITEM)
-          siblingBaseRole = nsIAccessibleRole::ROLE_MENUITEM;
-
-        // If sibling is visible and has the same base role.
-        if (siblingBaseRole == baseRole &&
-            !(nsAccUtils::State(sibling) & nsIAccessibleStates::STATE_INVISIBLE)) {
-          ++ setSize;
-          if (!foundCurrent) {
-            ++ positionInGroup;
-            if (sibling == this)
-              foundCurrent = PR_TRUE;
-          }
-        }
-
-        // If the sibling is separator
-        if (siblingRole == nsIAccessibleRole::ROLE_SEPARATOR) {
-          if (foundCurrent) // the our group is ended
-            break;
-
-          // not our group, continue the searching
-          positionInGroup = 0;
-          setSize = 0;
-        }
-
-        sibling->GetNextSibling(getter_AddRefs(nextSibling));
-        sibling = nextSibling;
-      }
-
-      PRInt32 groupLevel = 0;
-      if (role == nsIAccessibleRole::ROLE_OUTLINEITEM) {
-        groupLevel = 1;
-        nsCOMPtr<nsIAccessible> nextParent;
-        while (parent) {
-          parent->GetFinalRole(&role);
-
-          if (role == nsIAccessibleRole::ROLE_OUTLINE)
-            break;
-          if (role == nsIAccessibleRole::ROLE_GROUPING)
-            ++ groupLevel;
-
-          parent->GetParent(getter_AddRefs(nextParent));
-          parent.swap(nextParent);
-        }
-      }
-
-      nsAccUtils::SetAccGroupAttrs(attributes, groupLevel, positionInGroup,
-                                   setSize);
-    }
+    rv = ComputeGroupAttributes(role, attributes);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  // Expose all ARIA attributes
+  // Expose object attributes from ARIA attributes.
   PRUint32 numAttrs = content->GetAttrCount();
   for (PRUint32 count = 0; count < numAttrs; count ++) {
     const nsAttrName *attr = content->GetAttrNameAt(count);
@@ -2111,6 +1735,17 @@ nsAccessible::GetAttributes(nsIPersistentProperties **aAttributes)
       if (content->GetAttr(kNameSpaceID_None, attrAtom, value)) {
         attributes->SetStringProperty(nsDependentCString(attrStr + 5), value, oldValueUnused);
       }
+    }
+  }
+
+  // If there is no aria-live attribute then expose default value of 'live'
+  // object attribute used for ARIA role of this accessible.
+  if (mRoleMapEntry) {
+    nsAutoString live;
+    nsAccUtils::GetAccAttr(attributes, nsAccessibilityAtoms::live, live);
+    if (live.IsEmpty()) {
+      if (nsAccUtils::GetLiveAttrValue(mRoleMapEntry->liveAttRule, live))
+        nsAccUtils::SetAccAttr(attributes, nsAccessibilityAtoms::live, live);
     }
   }
 
@@ -2202,6 +1837,17 @@ nsAccessible::GetAttributesInternal(nsIPersistentProperties *aAttributes)
     nsAccUtils::SetAccAttr(aAttributes, nsAccessibilityAtoms::textIndent,
                            value);
 
+  // Expose draggable object attribute?
+  nsCOMPtr<nsIDOMNSHTMLElement> htmlElement = do_QueryInterface(content);
+  if (htmlElement) {
+    PRBool draggable = PR_FALSE;
+    htmlElement->GetDraggable(&draggable);
+    if (draggable) {
+      nsAccUtils::SetAccAttr(aAttributes, nsAccessibilityAtoms::draggable,
+                             NS_LITERAL_STRING("true"));
+    }
+  }
+
   return NS_OK;
 }
 
@@ -2245,54 +1891,28 @@ nsAccessible::GroupPosition(PRInt32 *aGroupLevel,
   return NS_OK;
 }
 
-PRBool nsAccessible::MappedAttrState(nsIContent *aContent, PRUint32 *aStateInOut,
-                                     nsStateMapEntry *aStateMapEntry)
-{
-  // Return true if we should continue
-  if (!aStateMapEntry->attributeName) {
-    return PR_FALSE;  // Stop looking -- no more states
-  }
-
-  // We only have attribute state mappings for NMTOKEN (and boolean) based
-  // ARIA attributes. According to spec, a value of "undefined" is to be
-  // treated equivalent to "", or the absence of the attribute. We bail out
-  // for this case here.
-  // Note: If this method happens to be called with a non-token based
-  // attribute, for example: aria-label="" or aria-label="undefined", we will
-  // bail out and not explore a state mapping, which is safe.
-  if (!nsAccUtils::HasDefinedARIAToken(aContent, *aStateMapEntry->attributeName)) {
-    return PR_TRUE;
-  }
-  
-  nsAutoString attribValue;
-  if (aContent->GetAttr(kNameSpaceID_None, *aStateMapEntry->attributeName, attribValue)) {
-    if (aStateMapEntry->attributeValue == kBoolState) {
-      // No attribute value map specified in state map entry indicates state cleared
-      if (attribValue.EqualsLiteral("false")) {
-        *aStateInOut &= ~aStateMapEntry->state;
-      }
-      else {
-        *aStateInOut |= aStateMapEntry->state;
-      }
-    }
-    else if (NS_ConvertUTF16toUTF8(attribValue).Equals(aStateMapEntry->attributeValue)) {
-      *aStateInOut |= aStateMapEntry->state;
-    }
-  }
-
-  return PR_TRUE;
-}
-
 NS_IMETHODIMP
 nsAccessible::GetState(PRUint32 *aState, PRUint32 *aExtraState)
 {
   NS_ENSURE_ARG_POINTER(aState);
 
+/* Commenting out as a stop gap fix for bug 525579
+ * We should not flush layout and potentially cause frames deallocation
+ * while tree walking (nsAccessibleTreeWalker)
+  if (!IsDefunct()) {
+    // Flush layout so that all the frame construction, reflow, and styles are
+    // up-to-date since we rely on frames, and styles when calculating state.
+    // We don't flush the display because we don't care about painting.
+    nsCOMPtr<nsIPresShell> presShell = GetPresShell();
+    presShell->FlushPendingNotifications(Flush_Layout);
+  }
+*/
+
   nsresult rv = GetStateInternal(aState, aExtraState);
   NS_ENSURE_A11Y_SUCCESS(rv, rv);
 
   // Apply ARIA states to be sure accessible states will be overriden.
-  GetARIAState(aState);
+  GetARIAState(aState, aExtraState);
 
   if (mRoleMapEntry && mRoleMapEntry->role == nsIAccessibleRole::ROLE_PAGETAB) {
     if (*aState & nsIAccessibleStates::STATE_FOCUSED) {
@@ -2300,10 +1920,8 @@ nsAccessible::GetState(PRUint32 *aState, PRUint32 *aExtraState)
     } else {
       // Expose 'selected' state on ARIA tab if the focus is on internal element
       // of related tabpanel.
-      nsCOMPtr<nsIAccessible> tabPanel;
-      rv = GetAccessibleRelated(nsIAccessibleRelation::RELATION_LABEL_FOR,
-                                getter_AddRefs(tabPanel));
-      NS_ENSURE_SUCCESS(rv, rv);
+      nsCOMPtr<nsIAccessible> tabPanel = nsRelUtils::
+        GetRelatedAccessible(this, nsIAccessibleRelation::RELATION_LABEL_FOR);
 
       if (nsAccUtils::Role(tabPanel) == nsIAccessibleRole::ROLE_PROPERTYPAGE) {
         nsCOMPtr<nsIAccessNode> tabPanelAccessNode(do_QueryInterface(tabPanel));
@@ -2363,35 +1981,8 @@ nsAccessible::GetState(PRUint32 *aState, PRUint32 *aExtraState)
   }
 
   PRUint32 role;
-  rv = GetFinalRole(&role);
+  rv = GetRole(&role);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  if (role == nsIAccessibleRole::ROLE_ENTRY ||
-      role == nsIAccessibleRole::ROLE_COMBOBOX) {
-
-    nsCOMPtr<nsIContent> content = nsCoreUtils::GetRoleContent(mDOMNode);
-    NS_ENSURE_STATE(content);
-
-    nsAutoString autocomplete;
-    if (content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_autocomplete, autocomplete) &&
-        (autocomplete.EqualsIgnoreCase("inline") ||
-         autocomplete.EqualsIgnoreCase("list") ||
-         autocomplete.EqualsIgnoreCase("both"))) {
-      *aExtraState |= nsIAccessibleStates::EXT_STATE_SUPPORTS_AUTOCOMPLETION;
-    }
-
-    // XXX We can remove this hack once we support RDF-based role & state maps
-    if (mRoleMapEntry && mRoleMapEntry->role == nsIAccessibleRole::ROLE_ENTRY) {
-      PRBool isMultiLine = content->AttrValueIs(kNameSpaceID_None, nsAccessibilityAtoms::aria_multiline,
-                                                nsAccessibilityAtoms::_true, eCaseMatters);
-      *aExtraState |= isMultiLine ? nsIAccessibleStates::EXT_STATE_MULTI_LINE :
-                                    nsIAccessibleStates::EXT_STATE_SINGLE_LINE;
-      if (0 == (*aState & nsIAccessibleStates::STATE_READONLY))
-        *aExtraState |= nsIAccessibleStates::EXT_STATE_EDITABLE; // Not readonly
-      else  // We're readonly: make sure editable state wasn't set by impl class
-        *aExtraState &= ~nsIAccessibleStates::EXT_STATE_EDITABLE;
-    }
-  }
 
   // For some reasons DOM node may have not a frame. We tract such accessibles
   // as invisible.
@@ -2424,7 +2015,7 @@ nsAccessible::GetState(PRUint32 *aState, PRUint32 *aExtraState)
 }
 
 nsresult
-nsAccessible::GetARIAState(PRUint32 *aState)
+nsAccessible::GetARIAState(PRUint32 *aState, PRUint32 *aExtraState)
 {
   // Test for universal states first
   nsIContent *content = nsCoreUtils::GetRoleContent(mDOMNode);
@@ -2433,7 +2024,8 @@ nsAccessible::GetARIAState(PRUint32 *aState)
   }
 
   PRUint32 index = 0;
-  while (MappedAttrState(content, aState, &nsARIAMap::gWAIUnivStateMap[index])) {
+  while (nsStateMapEntry::MapToStates(content, aState, aExtraState,
+                                      nsARIAMap::gWAIUnivStateMap[index])) {
     ++ index;
   }
 
@@ -2473,14 +2065,12 @@ nsAccessible::GetARIAState(PRUint32 *aState)
 
   // Note: the readonly bitflag will be overridden later if content is editable
   *aState |= mRoleMapEntry->state;
-  if (MappedAttrState(content, aState, &mRoleMapEntry->attributeMap1) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap2) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap3) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap4) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap5) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap6) &&
-      MappedAttrState(content, aState, &mRoleMapEntry->attributeMap7)) {
-    MappedAttrState(content, aState, &mRoleMapEntry->attributeMap8);
+  if (nsStateMapEntry::MapToStates(content, aState, aExtraState,
+                                   mRoleMapEntry->attributeMap1) &&
+      nsStateMapEntry::MapToStates(content, aState, aExtraState,
+                                   mRoleMapEntry->attributeMap2)) {
+    nsStateMapEntry::MapToStates(content, aState, aExtraState,
+                                 mRoleMapEntry->attributeMap3);
   }
 
   return NS_OK;
@@ -2620,9 +2210,9 @@ nsAccessible::GetKeyBindings(PRUint8 aActionIndex,
 }
 
 /* unsigned long getRole (); */
-NS_IMETHODIMP nsAccessible::GetRole(PRUint32 *aRole)
+nsresult
+nsAccessible::GetRoleInternal(PRUint32 *aRole)
 {
-  NS_ENSURE_ARG_POINTER(aRole);
   *aRole = nsIAccessibleRole::ROLE_NOTHING;
 
   if (IsDefunct())
@@ -2680,6 +2270,8 @@ nsAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
    case eCheckUncheckAction:
      if (states & nsIAccessibleStates::STATE_CHECKED)
        aName.AssignLiteral("uncheck");
+     else if (states & nsIAccessibleStates::STATE_MIXED)
+       aName.AssignLiteral("cycle");
      else
        aName.AssignLiteral("check");
      return NS_OK;
@@ -2701,6 +2293,17 @@ nsAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
 
    case eSwitchAction:
      aName.AssignLiteral("switch");
+     return NS_OK;
+     
+   case eSortAction:
+     aName.AssignLiteral("sort");
+     return NS_OK;
+   
+   case eExpandAction:
+     if (states & nsIAccessibleStates::STATE_COLLAPSED)
+       aName.AssignLiteral("expand");
+     else
+       aName.AssignLiteral("collapse");
      return NS_OK;
   }
 
@@ -2783,117 +2386,172 @@ nsIDOMNode* nsAccessible::GetAtomicRegion()
   return atomicRegion;
 }
 
-/* nsIAccessible getAccessibleRelated(); */
-NS_IMETHODIMP nsAccessible::GetAccessibleRelated(PRUint32 aRelationType, nsIAccessible **aRelated)
+// nsIAccessible getRelationByType()
+NS_IMETHODIMP
+nsAccessible::GetRelationByType(PRUint32 aRelationType,
+                                nsIAccessibleRelation **aRelation)
 {
-  // When adding support for relations, make sure to add them to
-  // appropriate places in nsAccessibleWrap implementations
-  *aRelated = nsnull;
+  NS_ENSURE_ARG_POINTER(aRelation);
+  *aRelation = nsnull;
 
-  // Relationships are defined on the same content node
-  // that the role would be defined on
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
+
+  // Relationships are defined on the same content node that the role would be
+  // defined on.
   nsIContent *content = nsCoreUtils::GetRoleContent(mDOMNode);
-  if (!content) {
-    return NS_ERROR_FAILURE;  // Node already shut down
-  }
+  if (!content)
+    return NS_OK;
 
-  nsCOMPtr<nsIDOMNode> relatedNode;
-  nsAutoString relatedID;
+  nsresult rv;
 
-  // Search for the related DOM node according to the specified "relation type"
   switch (aRelationType)
   {
   case nsIAccessibleRelation::RELATION_LABEL_FOR:
     {
       if (content->Tag() == nsAccessibilityAtoms::label) {
-        nsIAtom *relatedIDAttr = content->IsNodeOfType(nsINode::eHTML) ?
+        nsIAtom *IDAttr = content->IsNodeOfType(nsINode::eHTML) ?
           nsAccessibilityAtoms::_for : nsAccessibilityAtoms::control;
-        content->GetAttr(kNameSpaceID_None, relatedIDAttr, relatedID);
+        rv = nsRelUtils::
+          AddTargetFromIDRefAttr(aRelationType, aRelation, content, IDAttr);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        if (rv != NS_OK_NO_RELATION_TARGET)
+          return NS_OK; // XXX bug 381599, avoid performance problems
       }
-      if (relatedID.IsEmpty()) {
-        relatedNode =
-          do_QueryInterface(nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::aria_labelledby));
-      }
-      break;
+
+      return nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::aria_labelledby);
     }
+
   case nsIAccessibleRelation::RELATION_LABELLED_BY:
     {
-      if (!content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_labelledby, relatedID)) {
-        relatedNode = do_QueryInterface(nsCoreUtils::GetLabelContent(content));
-      }
-      break;
+      rv = nsRelUtils::
+        AddTargetFromIDRefsAttr(aRelationType, aRelation, content,
+                                nsAccessibilityAtoms::aria_labelledby);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (rv != NS_OK_NO_RELATION_TARGET)
+        return NS_OK; // XXX bug 381599, avoid performance problems
+
+      return nsRelUtils::
+        AddTargetFromContent(aRelationType, aRelation,
+                             nsCoreUtils::GetLabelContent(content));
     }
+
   case nsIAccessibleRelation::RELATION_DESCRIBED_BY:
     {
-      if (!content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_describedby, relatedID)) {
-        relatedNode = do_QueryInterface(
-          nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::control, nsAccessibilityAtoms::description));
-      }
-      break;
+      rv = nsRelUtils::
+        AddTargetFromIDRefsAttr(aRelationType, aRelation, content,
+                                nsAccessibilityAtoms::aria_describedby);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (rv != NS_OK_NO_RELATION_TARGET)
+        return NS_OK; // XXX bug 381599, avoid performance problems
+
+      return nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::control,
+                               nsAccessibilityAtoms::description);
     }
+
   case nsIAccessibleRelation::RELATION_DESCRIPTION_FOR:
     {
-      relatedNode =
-        do_QueryInterface(nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::aria_describedby));
+      rv = nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::aria_describedby);
+      NS_ENSURE_SUCCESS(rv, rv);
 
-      if (!relatedNode && content->Tag() == nsAccessibilityAtoms::description &&
+      if (rv != NS_OK_NO_RELATION_TARGET)
+        return NS_OK; // XXX bug 381599, avoid performance problems
+
+      if (content->Tag() == nsAccessibilityAtoms::description &&
           content->IsNodeOfType(nsINode::eXUL)) {
         // This affectively adds an optional control attribute to xul:description,
         // which only affects accessibility, by allowing the description to be
         // tied to a control.
-        content->GetAttr(kNameSpaceID_None,
-                         nsAccessibilityAtoms::control, relatedID);
+        return nsRelUtils::
+          AddTargetFromIDRefAttr(aRelationType, aRelation, content,
+                                 nsAccessibilityAtoms::control);
       }
-      break;
+
+      return NS_OK;
     }
+
   case nsIAccessibleRelation::RELATION_NODE_CHILD_OF:
     {
-      relatedNode =
-        do_QueryInterface(nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::aria_owns));
-      if (!relatedNode && mRoleMapEntry && mRoleMapEntry->role == nsIAccessibleRole::ROLE_OUTLINEITEM) {
-        // This is an ARIA tree that doesn't use owns, so we need to get the parent the hard way
-        nsAccUtils::GetARIATreeItemParent(this, content, aRelated);
-        return NS_OK;
+      rv = nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::aria_owns);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (rv != NS_OK_NO_RELATION_TARGET)
+        return NS_OK; // XXX bug 381599, avoid performance problems
+
+      // This is an ARIA tree or treegrid that doesn't use owns, so we need to
+      // get the parent the hard way.
+      if (mRoleMapEntry &&
+          (mRoleMapEntry->role == nsIAccessibleRole::ROLE_OUTLINEITEM ||
+           mRoleMapEntry->role == nsIAccessibleRole::ROLE_ROW)) {
+
+        nsCOMPtr<nsIAccessible> accTarget;
+        nsAccUtils::GetARIATreeItemParent(this, content,
+                                          getter_AddRefs(accTarget));
+
+        return nsRelUtils::AddTarget(aRelationType, aRelation, accTarget);
       }
-      // If accessible is in its own Window then we should provide NODE_CHILD_OF relation
-      // so that MSAA clients can easily get to true parent instead of getting to oleacc's
-      // ROLE_WINDOW accessible which will prevent us from going up further (because it is
-      // system generated and has no idea about the hierarchy above it).
+
+      // If accessible is in its own Window, or is the root of a document,
+      // then we should provide NODE_CHILD_OF relation so that MSAA clients
+      // can easily get to true parent instead of getting to oleacc's
+      // ROLE_WINDOW accessible which will prevent us from going up further
+      // (because it is system generated and has no idea about the hierarchy
+      // above it).
       nsIFrame *frame = GetFrame();
       if (frame) {
         nsIView *view = frame->GetViewExternal();
         if (view) {
-          nsIScrollableFrame *scrollFrame = nsnull;
-          CallQueryInterface(frame, &scrollFrame);
-          if (scrollFrame || view->GetWidget()) {
-            return GetParent(aRelated);
+          nsIScrollableFrame *scrollFrame = do_QueryFrame(frame);
+          if (scrollFrame || view->GetWidget() || !frame->GetParent()) {
+            nsCOMPtr<nsIAccessible> accTarget;
+            GetParent(getter_AddRefs(accTarget));
+            return nsRelUtils::AddTarget(aRelationType, aRelation, accTarget);
           }
         }
       }
-      break;
+
+      return NS_OK;
     }
+
   case nsIAccessibleRelation::RELATION_CONTROLLED_BY:
     {
-      relatedNode =
-        do_QueryInterface(nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::aria_controls));
-      break;
+      return nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::aria_controls);
     }
+
   case nsIAccessibleRelation::RELATION_CONTROLLER_FOR:
     {
-      content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_controls, relatedID);
-      break;
+      return nsRelUtils::
+        AddTargetFromIDRefsAttr(aRelationType, aRelation, content,
+                                nsAccessibilityAtoms::aria_controls);
     }
+
   case nsIAccessibleRelation::RELATION_FLOWS_TO:
     {
-      content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_flowto, relatedID);
-      break;
+      return nsRelUtils::
+        AddTargetFromIDRefsAttr(aRelationType, aRelation, content,
+                                nsAccessibilityAtoms::aria_flowto);
     }
+
   case nsIAccessibleRelation::RELATION_FLOWS_FROM:
     {
-      relatedNode =
-        do_QueryInterface(nsCoreUtils::FindNeighbourPointingToNode(content, nsAccessibilityAtoms::aria_flowto));
-      break;
+      return nsRelUtils::
+        AddTargetFromNeighbour(aRelationType, aRelation, content,
+                               nsAccessibilityAtoms::aria_flowto);
     }
+
   case nsIAccessibleRelation::RELATION_DEFAULT_BUTTON:
     {
       if (content->IsNodeOfType(nsINode::eHTML)) {
@@ -2903,8 +2561,12 @@ NS_IMETHODIMP nsAccessible::GetAccessibleRelated(PRUint32 aRelationType, nsIAcce
           nsCOMPtr<nsIDOMHTMLFormElement> htmlform;
           control->GetForm(getter_AddRefs(htmlform));
           nsCOMPtr<nsIForm> form(do_QueryInterface(htmlform));
-          if (form)
-            relatedNode = do_QueryInterface(form->GetDefaultSubmitElement());
+          if (form) {
+            nsCOMPtr<nsIContent> formContent =
+              do_QueryInterface(form->GetDefaultSubmitElement());
+            return nsRelUtils::AddTargetFromContent(aRelationType, aRelation,
+                                                    formContent);
+          }
         }
       }
       else {
@@ -2943,37 +2605,33 @@ NS_IMETHODIMP nsAccessible::GetAccessibleRelated(PRUint32 aRelationType, nsIAcce
               }
             }
           }
-          relatedNode = do_QueryInterface(buttonEl);
+          nsCOMPtr<nsIContent> relatedContent(do_QueryInterface(buttonEl));
+          return nsRelUtils::AddTargetFromContent(aRelationType, aRelation,
+                                                  relatedContent);
         }
       }
-      break;
+      return NS_OK;
     }
+
   case nsIAccessibleRelation::RELATION_MEMBER_OF:
     {
-      relatedNode = GetAtomicRegion();
-      break;
+      nsCOMPtr<nsIContent> regionContent = do_QueryInterface(GetAtomicRegion());
+      return nsRelUtils::
+        AddTargetFromContent(aRelationType, aRelation, regionContent);
     }
+
+  case nsIAccessibleRelation::RELATION_SUBWINDOW_OF:
+  case nsIAccessibleRelation::RELATION_EMBEDS:
+  case nsIAccessibleRelation::RELATION_EMBEDDED_BY:
+  case nsIAccessibleRelation::RELATION_POPUP_FOR:
+  case nsIAccessibleRelation::RELATION_PARENT_WINDOW_OF:
+    {
+      return NS_OK_NO_RELATION_TARGET;
+    }
+
   default:
-    return NS_ERROR_NOT_IMPLEMENTED;
+    return NS_ERROR_INVALID_ARG;
   }
-
-  if (!relatedID.IsEmpty()) {
-    // In some cases we need to get the relatedNode from an ID-style attribute
-    nsCOMPtr<nsIDOMDocument> domDoc;
-    mDOMNode->GetOwnerDocument(getter_AddRefs(domDoc));
-    NS_ENSURE_TRUE(domDoc, NS_ERROR_FAILURE);
-    nsCOMPtr<nsIDOMElement> relatedEl;
-    domDoc->GetElementById(relatedID, getter_AddRefs(relatedEl));
-    relatedNode = do_QueryInterface(relatedEl);
-  }
-
-  // Return the corresponding accessible if the related DOM node is found
-  if (relatedNode) {
-    nsCOMPtr<nsIAccessibilityService> accService = GetAccService();
-    NS_ENSURE_TRUE(accService, NS_ERROR_FAILURE);
-    accService->GetAccessibleInWeakShell(relatedNode, mWeakShell, aRelated);
-  }
-  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -3024,16 +2682,12 @@ nsAccessible::GetRelations(nsIArray **aRelations)
   for (PRUint32 relType = nsIAccessibleRelation::RELATION_FIRST;
        relType < nsIAccessibleRelation::RELATION_LAST;
        ++relType) {
-    nsCOMPtr<nsIAccessible> accessible;
-    GetAccessibleRelated(relType, getter_AddRefs(accessible));
 
-    if (accessible) {
-      nsCOMPtr<nsIAccessibleRelation> relation =
-        new nsAccessibleRelationWrap(relType, accessible);
-      NS_ENSURE_TRUE(relation, NS_ERROR_OUT_OF_MEMORY);
+    nsCOMPtr<nsIAccessibleRelation> relation;
+    nsresult rv = GetRelationByType(relType, getter_AddRefs(relation));
 
+    if (NS_SUCCEEDED(rv) && relation)
       relations->AppendElement(relation, PR_FALSE);
-    }
   }
 
   NS_ADDREF(*aRelations = relations);
@@ -3053,48 +2707,9 @@ NS_IMETHODIMP nsAccessible::GetNativeInterface(void **aOutAccessible)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-void nsAccessible::DoCommandCallback(nsITimer *aTimer, void *aClosure)
+nsresult
+nsAccessible::DoCommand(nsIContent *aContent, PRUint32 aActionIndex)
 {
-  NS_ASSERTION(gDoCommandTimer,
-               "How did we get here if there was no gDoCommandTimer?");
-  NS_RELEASE(gDoCommandTimer);
-
-  nsCOMPtr<nsIContent> content =
-    reinterpret_cast<nsIContent*>(aClosure);
-
-  nsIDocument *doc = content->GetDocument();
-  if (!doc)
-    return;
-
-  nsCOMPtr<nsIPresShell> presShell = doc->GetPrimaryShell();
-
-  // Scroll into view.
-  presShell->ScrollContentIntoView(content, NS_PRESSHELL_SCROLL_ANYWHERE,
-                                   NS_PRESSHELL_SCROLL_ANYWHERE);
-
-  // Fire mouse down and mouse up events.
-  PRBool res = nsCoreUtils::DispatchMouseEvent(NS_MOUSE_BUTTON_DOWN, presShell,
-                                               content);
-  if (!res)
-    return;
-
-  nsCoreUtils::DispatchMouseEvent(NS_MOUSE_BUTTON_UP, presShell, content);
-}
-
-/*
- * Use Timer to execute "Click" command of XUL/HTML element (e.g. menuitem, button...).
- *
- * When "Click" is to open a "modal" dialog/window, it won't return untill the
- * dialog/window is closed. If executing "Click" command directly in
- * nsXXXAccessible::DoAction, it will block AT-Tools(e.g. GOK) that invoke
- * "action" of mozilla accessibles direclty.
- */
-nsresult nsAccessible::DoCommand(nsIContent *aContent)
-{
-  nsCOMPtr<nsIContent> content = aContent;
-  if (!content) {
-    content = do_QueryInterface(mDOMNode);
-  }
   if (gDoCommandTimer) {
     // Already have timer going for another command
     NS_WARNING("Doubling up on do command timers doesn't work. This wasn't expected.");
@@ -3102,14 +2717,55 @@ nsresult nsAccessible::DoCommand(nsIContent *aContent)
   }
 
   nsCOMPtr<nsITimer> timer = do_CreateInstance("@mozilla.org/timer;1");
-  if (!timer) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  } 
+  NS_ENSURE_TRUE(timer, NS_ERROR_OUT_OF_MEMORY);
+
+  nsCOMPtr<nsIContent> content = aContent;
+  if (!content)
+    content = do_QueryInterface(mDOMNode);
+
+  // Command closure object memory will be free in DoCommandCallback().
+  nsCommandClosure *closure =
+    new nsCommandClosure(this, content, aActionIndex);
+  NS_ENSURE_TRUE(closure, NS_ERROR_OUT_OF_MEMORY);
 
   NS_ADDREF(gDoCommandTimer = timer);
   return gDoCommandTimer->InitWithFuncCallback(DoCommandCallback,
-                                               (void*)content, 0,
-                                               nsITimer::TYPE_ONE_SHOT);
+                                               static_cast<void*>(closure),
+                                               0, nsITimer::TYPE_ONE_SHOT);
+}
+
+void
+nsAccessible::DoCommandCallback(nsITimer *aTimer, void *aClosure)
+{
+  NS_ASSERTION(gDoCommandTimer,
+               "How did we get here if there was no gDoCommandTimer?");
+  NS_RELEASE(gDoCommandTimer);
+
+  nsCommandClosure *closure = static_cast<nsCommandClosure*>(aClosure);
+  closure->accessible->DispatchClickEvent(closure->content,
+                                          closure->actionIndex);
+  delete closure;
+}
+
+void
+nsAccessible::DispatchClickEvent(nsIContent *aContent, PRUint32 aActionIndex)
+{
+  if (IsDefunct())
+    return;
+
+  nsCOMPtr<nsIPresShell> presShell = GetPresShell();
+
+  // Scroll into view.
+  presShell->ScrollContentIntoView(aContent, NS_PRESSHELL_SCROLL_ANYWHERE,
+                                   NS_PRESSHELL_SCROLL_ANYWHERE);
+
+  // Fire mouse down and mouse up events.
+  PRBool res = nsCoreUtils::DispatchMouseEvent(NS_MOUSE_BUTTON_DOWN, presShell,
+                                               aContent);
+  if (!res)
+    return;
+
+  nsCoreUtils::DispatchMouseEvent(NS_MOUSE_BUTTON_UP, presShell, aContent);
 }
 
 already_AddRefed<nsIAccessible>
@@ -3403,7 +3059,7 @@ nsresult nsAccessible::GetLinkOffset(PRInt32* aStartOffset, PRInt32* aEndOffset)
   return NS_ERROR_FAILURE;
 }
 
-NS_IMETHODIMP
+nsresult
 nsAccessible::AppendTextTo(nsAString& aText, PRUint32 aStartOffset, PRUint32 aLength)
 {
   return NS_OK;
@@ -3422,14 +3078,18 @@ nsAccessible::GetARIAName(nsAString& aName)
   // First check for label override via aria-label property
   nsAutoString label;
   if (content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::aria_label, label)) {
+    label.CompressWhitespace();
     aName = label;
     return NS_OK;
   }
   
   // Second check for label override via aria-labelledby relationship
-  nsresult rv = GetTextFromRelationID(nsAccessibilityAtoms::aria_labelledby, label);
-  if (NS_SUCCEEDED(rv))
+  nsresult rv = nsTextEquivUtils::
+    GetTextEquivFromIDRefs(this, nsAccessibilityAtoms::aria_labelledby, label);
+  if (NS_SUCCEEDED(rv)) {
+    label.CompressWhitespace();
     aName = label;
+  }
 
   return rv;
 }
@@ -3442,10 +3102,10 @@ nsAccessible::GetNameInternal(nsAString& aName)
     return NS_OK;
 
   if (content->IsNodeOfType(nsINode::eHTML))
-    return GetHTMLName(aName, PR_FALSE);
+    return GetHTMLName(aName);
 
   if (content->IsNodeOfType(nsINode::eXUL))
-    return GetXULName(aName, PR_FALSE);
+    return GetXULName(aName);
 
   return NS_OK;
 }
@@ -3562,8 +3222,11 @@ nsAccessible::GetActionRule(PRUint32 aStates)
   if (aStates & nsIAccessibleStates::STATE_UNAVAILABLE)
     return eNoAction;
 
+  nsIContent* content = nsCoreUtils::GetRoleContent(mDOMNode);
+  if (!content)
+    return eNoAction;
+  
   // Check if it's simple xlink.
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
   if (nsCoreUtils::IsXLink(content))
     return eJumpAction;
 
@@ -3573,10 +3236,158 @@ nsAccessible::GetActionRule(PRUint32 aStates)
 
   if (isOnclick)
     return eClickAction;
-
+  
   // Get an action based on ARIA role.
-  if (mRoleMapEntry)
+  if (mRoleMapEntry &&
+      mRoleMapEntry->actionRule != eNoAction)
     return mRoleMapEntry->actionRule;
 
+  // Get an action based on ARIA attribute.
+  if (nsAccUtils::HasDefinedARIAToken(content,
+                                   nsAccessibilityAtoms::aria_expanded))
+    return eExpandAction;
+
   return eNoAction;
+}
+
+nsresult
+nsAccessible::ComputeGroupAttributes(PRUint32 aRole,
+                                     nsIPersistentProperties *aAttributes)
+{
+  // The role of an accessible can be specified by ARIA attribute but ARIA
+  // posinset, level, setsize may be skipped. As well this method is used
+  // for non ARIA accessibles to avoid GetAccessibleInternal() method
+  // implementation in subclasses. For example, it's being used to calculate
+  // group attributes for HTML li elements.
+
+  // If accessible is invisible we don't want to calculate group attributes for
+  // it.
+  if (nsAccUtils::State(this) & nsIAccessibleStates::STATE_INVISIBLE)
+    return NS_OK;
+
+  if (aRole != nsIAccessibleRole::ROLE_LISTITEM &&
+      aRole != nsIAccessibleRole::ROLE_MENUITEM &&
+      aRole != nsIAccessibleRole::ROLE_CHECK_MENU_ITEM &&
+      aRole != nsIAccessibleRole::ROLE_RADIO_MENU_ITEM &&
+      aRole != nsIAccessibleRole::ROLE_RADIOBUTTON &&
+      aRole != nsIAccessibleRole::ROLE_PAGETAB &&
+      aRole != nsIAccessibleRole::ROLE_OPTION &&
+      aRole != nsIAccessibleRole::ROLE_OUTLINEITEM)
+    return NS_OK;
+
+  PRUint32 baseRole = aRole;
+  if (aRole == nsIAccessibleRole::ROLE_CHECK_MENU_ITEM ||
+      aRole == nsIAccessibleRole::ROLE_RADIO_MENU_ITEM)
+    baseRole = nsIAccessibleRole::ROLE_MENUITEM;
+
+  nsCOMPtr<nsIAccessible> parent = GetParent();
+  NS_ENSURE_TRUE(parent, NS_ERROR_FAILURE);
+
+  // Compute 'posinset' and 'setsize' attributes.
+  PRInt32 positionInGroup = 0;
+  PRInt32 setSize = 0;
+
+  nsCOMPtr<nsIAccessible> sibling, nextSibling;
+  parent->GetFirstChild(getter_AddRefs(sibling));
+  NS_ENSURE_STATE(sibling);
+
+  PRBool foundCurrent = PR_FALSE;
+  PRUint32 siblingRole, siblingBaseRole;
+  while (sibling) {
+    siblingRole = nsAccUtils::Role(sibling);
+
+    siblingBaseRole = siblingRole;
+    if (siblingRole == nsIAccessibleRole::ROLE_CHECK_MENU_ITEM ||
+        siblingRole == nsIAccessibleRole::ROLE_RADIO_MENU_ITEM)
+      siblingBaseRole = nsIAccessibleRole::ROLE_MENUITEM;
+
+    // If sibling is visible and has the same base role.
+    if (siblingBaseRole == baseRole &&
+        !(nsAccUtils::State(sibling) & nsIAccessibleStates::STATE_INVISIBLE)) {
+      ++ setSize;
+      if (!foundCurrent) {
+        ++ positionInGroup;
+        if (sibling == this)
+          foundCurrent = PR_TRUE;
+      }
+    }
+
+    // If the sibling is separator
+    if (siblingRole == nsIAccessibleRole::ROLE_SEPARATOR) {
+      if (foundCurrent) // the our group is ended
+        break;
+
+      // not our group, continue the searching
+      positionInGroup = 0;
+      setSize = 0;
+    }
+
+    sibling->GetNextSibling(getter_AddRefs(nextSibling));
+    sibling = nextSibling;
+  }
+
+  // Compute 'level' attribute.
+  PRInt32 groupLevel = 0;
+  if (aRole == nsIAccessibleRole::ROLE_OUTLINEITEM) {
+    // Always expose 'level' attribute for 'outlineitem' accessible. The number
+    // of nested 'grouping' accessibles containing 'outlineitem' accessible is
+    // its level.
+    groupLevel = 1;
+    nsCOMPtr<nsIAccessible> nextParent;
+    while (parent) {
+      PRUint32 parentRole = nsAccUtils::Role(parent);
+
+      if (parentRole == nsIAccessibleRole::ROLE_OUTLINE)
+        break;
+      if (parentRole == nsIAccessibleRole::ROLE_GROUPING)
+        ++ groupLevel;
+
+      parent->GetParent(getter_AddRefs(nextParent));
+      parent.swap(nextParent);
+    }
+  } else if (aRole == nsIAccessibleRole::ROLE_LISTITEM) {
+    // Expose 'level' attribute on nested lists. We assume nested list is a last
+    // child of listitem of parent list. We don't handle the case when nested
+    // lists have more complex structure, for example when there are accessibles
+    // between parent listitem and nested list.
+
+    // Calculate 'level' attribute based on number of parent listitems.
+    nsCOMPtr<nsIAccessible> nextParent;
+    while (parent) {
+      PRUint32 parentRole = nsAccUtils::Role(parent);
+
+      if (parentRole == nsIAccessibleRole::ROLE_LISTITEM)
+        ++ groupLevel;
+      else if (parentRole != nsIAccessibleRole::ROLE_LIST)
+        break;
+
+      parent->GetParent(getter_AddRefs(nextParent));
+      parent.swap(nextParent);
+    }
+
+    if (groupLevel == 0) {
+      // If this listitem is on top of nested lists then expose 'level'
+      // attribute.
+      nsCOMPtr<nsIAccessible> parent = GetParent();
+      parent->GetFirstChild(getter_AddRefs(sibling));
+
+      while (sibling) {
+        nsCOMPtr<nsIAccessible> siblingChild;
+        sibling->GetLastChild(getter_AddRefs(siblingChild));
+        if (nsAccUtils::Role(siblingChild) == nsIAccessibleRole::ROLE_LIST) {
+          groupLevel = 1;
+          break;
+        }
+
+        sibling->GetNextSibling(getter_AddRefs(nextSibling));
+        sibling.swap(nextSibling);
+      }
+    } else
+      groupLevel++; // level is 1-index based
+  }
+
+  nsAccUtils::SetAccGroupAttrs(aAttributes, groupLevel, positionInGroup,
+                               setSize);
+
+  return NS_OK;
 }

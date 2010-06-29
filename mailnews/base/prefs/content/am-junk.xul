@@ -55,11 +55,11 @@
       title="&junkSettings.label;"
       onload="parent.onPanelLoaded('am-junk.xul');">
 
-  <script type="application/x-javascript" src="chrome://messenger/content/AccountManager.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/widgetglue.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/am-junk.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/am-prefs.js"/>
-  <script type="application/x-javascript" src="chrome://messenger/content/amUtils.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/AccountManager.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/am-junk.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/am-prefs.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/amUtils.js"/>
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
   
   <dialogheader title="&junkSettings.label;"/>
@@ -143,6 +143,7 @@
                         aria-labelledby="moveTargetMode0"
                         oncommand="onActionTargetChange(event, 'server.spamActionTargetAccount');">
                 <menupopup id="actionAccountPopup" type="folder"
+                           class="menulist-menupopup"
                            expandFolders="false" mode="filing"/>
               </menulist>
             </row>

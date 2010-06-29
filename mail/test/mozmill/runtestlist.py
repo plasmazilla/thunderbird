@@ -67,11 +67,15 @@ class RunTestListOptions(optparse.OptionParser):
                         help = "Directory of the tests, leave blank for current directory")
         defaults["dir"] = ""
 
+        self.add_option("--symbols-path",
+                        action = "store", type = "string", dest = "symbols",
+                        help = "The path to the symbol files from build_symbols")
+        defaults["symbols"] = ""
+
         self.set_defaults(**defaults);
 
         usage = """\
 Usage instructions for runtestlist.py
-All arguments must be specified.
 """
         self.set_usage(usage)
 
@@ -100,7 +104,7 @@ for directory in f:
     else:
         testDirectory = directory.rstrip()
     args = ["python", "runtest.py", "-t", testDirectory,
-            "--binary", options.binary]
+            "--binary", options.binary, "--symbols-path", options.symbols]
     print args
     outputPipe = subprocess.PIPE
 

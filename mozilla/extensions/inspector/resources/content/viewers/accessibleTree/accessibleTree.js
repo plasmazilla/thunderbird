@@ -51,12 +51,17 @@ var viewer;
 ///////////////////////////////////////////////////////////////////////////////
 //// Global Constants
 
+const kObserverServiceCID = "@mozilla.org/observer-service;1";
 const kAccessibleRetrievalCID = "@mozilla.org/accessibleRetrieval;1";
+
+const nsIObserverService = Components.interfaces.nsIObserverService;
 
 const nsIAccessibleRetrieval = Components.interfaces.nsIAccessibleRetrieval;
 const nsIAccessibleEvent = Components.interfaces.nsIAccessibleEvent;
 const nsIAccessible = Components.interfaces.nsIAccessible;
 const nsIAccessNode = Components.interfaces.nsIAccessNode;
+
+const nsIDOMNode = Components.interfaces.nsIDOMNode;
 
 ///////////////////////////////////////////////////////////////////////////////
 //// Initialization
@@ -112,6 +117,7 @@ AccessibleTreeViewer.prototype =
 
   destroy: function destroy()
   {
+    this.mView.destroy();
     this.mOlBox.view = null;
   },
 
@@ -161,13 +167,19 @@ AccessibleTreeViewer.prototype =
     this.mSelection = this.mView.getDOMNode(idx);
     this.mObsMan.dispatchEvent("selectionChange",
                                { selection: this.mSelection } );
+
+    if (this.mSelection &&
+        this.mSelection.nodeType == nsIDOMNode.ELEMENT_NODE) {
+      var flasher = this.mPane.panelset.flasher;
+      flasher.flashElementOnSelect(this.mSelection);
+    }
   },
 
   getSelectedAccessible: function getSelectedAccessible()
   {
     var idx = this.mTree.currentIndex;
     return this.mView.getAccessible(idx);
-}
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -182,6 +194,11 @@ function inAccTreeView(aDocument)
 
   this.mDocument = aDocument;
   this.mAccDocument = this.mAccService.getAccessibleFor(aDocument);
+
+  this.mObserverService = XPCU.getService(kObserverServiceCID,
+                                          nsIObserverService);
+
+  this.mObserverService.addObserver(this, "accessible-event", false);
 
   var node = this.createNode(this.mAccDocument);
   this.mNodes.push(node);
@@ -296,6 +313,18 @@ function toggleOpenState(aRow)
 
   this.mTree.invalidateRow(aRow);
   this.mTree.rowCountChanged(aRow + 1, this.rowCount - oldCount);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//// inAccTreeView. Public.
+
+/**
+ * Destroy the view.
+ */
+inAccTreeView.prototype.destroy =
+function inAccTreeView_destroy()
+{
+  this.mObserverService.removeObserver(this, "accessible-event");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -452,6 +481,38 @@ function getAccessible(aRow)
     return null;
 
   return node.accessible;
+}
+
+inAccTreeView.prototype.observe =
+function inAccTreeView_observe(aSubject, aTopic, aData)
+{
+  let event = XPCU.QI(aSubject, nsIAccessibleEvent);
+
+  // Update the children if they were changed.
+  if (event.eventType != nsIAccessibleEvent.EVENT_REORDER)
+    return;
+
+  let accessible = event.accessible;
+  if (!accessible)
+    return;
+
+  // Ignore the event if its target is from anther document.
+  let accessnode = XPCU.QI(accessible, nsIAccessNode);
+  let accDocument = accessnode.accessibleDocument;
+  if (accDocument != this.mAccDocument)
+    return;
+
+  for (let idx = 0; idx < this.mNodes.length; idx++) {
+    let node = this.mNodes[idx];
+    if (node.accessible == accessible) {
+      if (node.isOpen) {
+        // Toggle open state twice to update the children.
+        this.toggleOpenState(idx);
+        this.toggleOpenState(idx);
+      }
+      break;
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

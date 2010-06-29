@@ -49,7 +49,6 @@
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsCOMArray.h"
-#include "nsVoidArray.h"
 #include "nsInterfaceHashtable.h"
 #include "nsClassHashtable.h"
 #include "nsHashSets.h"
@@ -270,7 +269,7 @@ private:
   nsCOMPtr<mozIStorageStatement>  mStatement_EnumerateGroups;
 
   nsCOMPtr<nsILocalFile>          mCacheDirectory;
-  PRUint32                        mCacheCapacity;
+  PRUint32                        mCacheCapacity; // in bytes
   PRInt32                         mDeltaCounter;
 
   nsInterfaceHashtable<nsCStringHashKey, nsIWeakReference> mCaches;

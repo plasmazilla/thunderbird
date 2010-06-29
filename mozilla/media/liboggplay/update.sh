@@ -53,9 +53,13 @@ patch -p3 < bug487519.patch
 rm -f src/liboggplay/os2_semaphore.c
 rm -f src/liboggplay/os2_semaphore.h
 patch -p3 < oggplay_os2.patch
+patch -p3 < bug496529.patch
 patch -p3 < bug500311.patch
+patch -p3 < faster_seek.patch
 patch -p3 < fix-17ef4ca82df28.patch
 patch -p3 < handle-read-errors.patch
+patch -p3 < fishsound_reset.patch
 patch -p3 < bug504843.patch
-patch -p3 < bug523816.patch
+patch -p3 < bug520493.patch
 patch -p3 < bug515217.patch
+patch -p3 < bug523816.patch

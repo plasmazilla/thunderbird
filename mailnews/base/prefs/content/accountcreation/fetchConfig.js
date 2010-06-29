@@ -47,7 +47,7 @@ function fetchConfigFromDisk(domain, successCallback, errorCallback)
   {
     try {
       // <TB installdir>/isp/example.com.xml
-      var uri = "resource://gre/isp/" + sanitize.hostname(domain) + ".xml";
+      var uri = "resource:///isp/" + sanitize.hostname(domain) + ".xml";
       var contents = readURLasUTF8(makeNSIURI(uri));
        // Bug 336551 trips over <?xml ... >
       contents = contents.replace(/<\?xml[^>]*\?>/, "");
@@ -58,6 +58,11 @@ function fetchConfigFromDisk(domain, successCallback, errorCallback)
 
 /**
  * Tries to get a configuration from the ISP / mail provider directly.
+ *
+ * Disclaimers:
+ * - To support domain hosters, we cannot use SSL. That means we
+ *   rely on insecure DNS and http, which means the results may be
+ *   forged when under attack. The same is true for guessConfig(), though.
  *
  * @param domain {String}   The domain part of the user's email address
  * @param emailAddress {String}   The user's email address
@@ -70,20 +75,45 @@ function fetchConfigFromDisk(domain, successCallback, errorCallback)
  *         for this domain at this location), so do not unconditionally show this to the user.
  *         The first paramter will be an exception object or error string.
  */
-
 function fetchConfigFromISP(domain, emailAddress, successCallback,
                             errorCallback)
 {
-  let url = "https://autoconfig." + sanitize.hostname(domain) +
-            "/mail/mozilla.xml";
-  let fetch = new FetchHTTP(url, { emailaddress: emailAddress }, false,
-                            function(result)
-                            {
-                              successCallback(readFromXML(result));
-                            },
-                            errorCallback);
-  fetch.start();
-  return fetch;
+  let url1 = "http://autoconfig." + sanitize.hostname(domain) +
+             "/mail/config-v1.1.xml";
+  // .well-known/ <http://tools.ietf.org/html/draft-nottingham-site-meta-04>
+  let url2 = "http://" + sanitize.hostname(domain) +
+             "/.well-known/autoconfig/mail/config-v1.1.xml";
+  let sucAbortable = new SuccessiveAbortable();
+  var time = Date.now();
+  let fetch1 = new FetchHTTP(
+    url1, { emailaddress: emailAddress }, false,
+    function(result)
+    {
+      successCallback(readFromXML(result));
+    },
+    function(e1) // fetch1 failed
+    {
+      ddump("fetchisp 1 <" + url1 + "> took " + (Date.now() - time) +
+          "ms and failed with " + e1);
+      time = Date.now();
+      let fetch2 = new FetchHTTP(
+        url2, { emailaddress: emailAddress }, false,
+        function(result)
+        {
+          successCallback(readFromXML(result));
+        },
+        function(e2)
+        {
+          ddump("fetchisp 2 <" + url2 + "> took " + (Date.now() - time) +
+              "ms and failed with " + e2);
+          errorCallback(e1); // return error for primary call
+        });
+      sucAbortable.current = fetch2;
+      fetch2.start();
+    });
+  sucAbortable.current = fetch1;
+  fetch1.start();
+  return sucAbortable;
 }
 
 /**
@@ -114,6 +144,107 @@ function fetchConfigFromDB(domain, successCallback, errorCallback)
                               successCallback(readFromXML(result));
                             },
                             errorCallback);
+  fetch.start();
+  return fetch;
+}
+
+/**
+ * Does a lookup of DNS MX, to get the server who is responsible for
+ * recieving mail for this domain. Then it takes the domain of that
+ * server, and does another lookup (in ISPDB and possible at ISP autoconfig
+ * server) and if such a config is found, returns that.
+ *
+ * Disclaimers:
+ * - DNS is unprotected, meaning the results could be forged.
+ *   The same is true for fetchConfigFromISP() and guessConfig(), though.
+ * - DNS MX tells us the incoming server, not the mailbox (IMAP) server.
+ *   They are different. This mechnism is only an approximation
+ *   for hosted domains (yourname.com is served by mx.hoster.com and
+ *   therefore imap.hoster.com - that "therefore" is exactly the
+ *   conclusional jump we make here.) and alternative domains
+ *   (e.g. yahoo.de -> yahoo.com).
+ * - We make a look up for the base domain. E.g. if MX is
+ *   mx1.incoming.servers.hoster.com, we look up hoster.com.
+ *   Thanks to nsIEffectiveTLDService, we also get bbc.co.uk right.
+ *
+ * Params @see fetchConfigFromISP()
+ */
+function fetchConfigForMX(domain, successCallback, errorCallback)
+{
+  var domain = sanitize.hostname(domain);
+
+  var sucAbortable = new SuccessiveAbortable();
+  var time = Date.now();
+  sucAbortable.current = getMX(domain,
+    function(mxHostname) // success
+    {
+      ddump("getmx took " + (Date.now() - time) + "ms");
+      var tldServ = Cc["@mozilla.org/network/effective-tld-service;1"]
+                      .getService(Ci.nsIEffectiveTLDService);
+      var sld = tldServ.getBaseDomainFromHost(mxHostname);
+      ddump("base domain " + sld + " for " + mxHostname);
+      if (sld == domain)
+      {
+        errorCallback("MX lookup would be no different from domain");
+        return;
+      }
+      sucAbortable.current = fetchConfigFromDB(sld, successCallback,
+                                               errorCallback);
+    },
+    errorCallback);
+  return sucAbortable;
+}
+
+/**
+ * Queries the DNS MX for the domain
+ *
+ * The current implementation goes to a web service to do the
+ * DNS resolve for us, because Mozilla unfortunately has no implementation
+ * to do it. That's just a workaround. Once bug 545866 is fixed, we make
+ * the DNS query directly on the client. The API of this function should not
+ * change then.
+ *
+ * Returns (in successCallback) the hostname of the MX server.
+ * If there are several entires with different preference values,
+ * only the most preferred (i.e. those with the lowest value)
+ * is returned. If there are several most preferred servers (i.e.
+ * round robin), only one of them is returned.
+ *
+ * @param domain @see fetchConfigFromISP()
+ * @param successCallback {function(hostname {String})
+ *   Called when we found an MX for the domain.
+ *   For |hostname|, see description above.
+ * @param errorCallback @see fetchConfigFromISP()
+ * @returns @see fetchConfigFromISP()
+ */
+function getMX(domain, successCallback, errorCallback)
+{
+  let domain = sanitize.hostname(domain);
+
+  let pref = Cc["@mozilla.org/preferences-service;1"]
+               .getService(Ci.nsIPrefBranch);
+  let url = pref.getCharPref("mailnews.mx_service_url");
+  if (!url)
+    errorCallback("no URL for MX service configured");
+  url += domain;
+
+  let fetch = new FetchHTTP(url, null, false,
+    function(result)
+    {
+      // result is plain text, with one line per server.
+      // So just take the first line
+      ddump("MX query result: \n" + result + "(end)");
+      assert(typeof(result) == "string");
+      let first = result.split("\n")[0];
+      first.toLowerCase().replace(/[^a-z0-9\-_\.]*/g, "");
+      if (first.length == 0)
+      {
+        errorCallback("no MX found");
+        return;
+      }
+      successCallback(first);
+    },
+    errorCallback);
   fetch.start();
   return fetch;
 }

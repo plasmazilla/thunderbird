@@ -1,4 +1,4 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Joachim Herb <herb@leo.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -105,9 +106,6 @@ pref("app.update.url.details", "http://www.mozillamessaging.com/%LOCALE%/%APP%/r
 // User-settable override to app.update.url for testing purposes.
 //pref("app.update.url.override", "");
 
-// Interval: Time between checks for a new version (in seconds)
-//           default=1 day
-pref("app.update.interval", 86400);
 // Interval: Time before prompting the user again to restart to install the
 //           latest download (in seconds) default=1 day
 pref("app.update.nagTimer.restart", 86400);
@@ -153,7 +151,7 @@ pref("extensions.logging.enabled", false);
 //  .. etc ..
 //
 pref("extensions.update.enabled", true);
-pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%");
+pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%");
 
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                             // Themes every day
@@ -177,6 +175,7 @@ pref("extensions.getAddons.search.browseURL", "https://%LOCALE%.add-ons.mozilla.
 pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/10/%OS%/%VERSION%");
 
 pref("xpinstall.whitelist.add", "update.mozilla.org");
+pref("xpinstall.whitelist.add.36", "getpersonas.com");
 pref("xpinstall.whitelist.add.103", "addons.mozilla.org");
 
 pref("mail.shell.checkDefaultClient", true);
@@ -215,6 +214,13 @@ pref("accessibility.typeaheadfind.flashBar", 1);
 
 pref("mail.close_message_window.on_delete", false);
 
+// Number of lines of To/CC/BCC address headers to show before "more"
+// truncates the list.
+pref("mailnews.headers.show_n_lines_before_more", 1);
+
+// Thunderbird wants to show the migration assistant on upgrade by default.
+pref("mail.ui.show.migration.on.upgrade", true);
+
 /////////////////////////////////////////////////////////////////
 // Overrides of the core mailnews.js prefs
 /////////////////////////////////////////////////////////////////
@@ -233,9 +239,6 @@ pref("mailnews.headers.minNumHeaders", 0); // 0 means we ignore this pref
 // 0=no header, 1="<author> wrote:", 2="On <date> <author> wrote:"
 // 3="<author> wrote On <date>:", 4=user specified
 pref("mailnews.reply_header_type", 2);
-
-// This turns off always showing a reply button in the message reader header
-pref("mailnews.headers.always_show_reply_sender", true);
 
 pref("mail.operate_on_msgs_in_collapsed_threads", true);
 pref("mail.warn_on_collapsed_thread_operation", true);
@@ -470,13 +473,18 @@ pref("toolbar.customization.usesheet", false);
 pref("mail.compose.attachment_reminder", true);
 // Words that should trigger a missing attachments warning.
 pref("mail.compose.attachment_reminder_keywords", "chrome://messenger/locale/messengercompose/composeMsgs.properties");
+// When no action is taken on the inline missing attachement notification,
+// show an alert on send?
+pref("mail.compose.attachment_reminder_aggressive", true);
 
 pref("browser.formfill.enable", true);
+#ifdef MOZILLA_1_9_2_BRANCH
 // Override the all.js values so that unit tests pass and we get sane values.
 pref("browser.formfill.expire_days", 180);
 pref("browser.history_expire_days", 180);
 pref("browser.history_expire_days_min", 90);
 pref("browser.history_expire_sites", 40000);
+#endif
 
 // Disable autoplay as we don't handle audio elements in emails very well.
 // See bug 515082.
@@ -492,6 +500,49 @@ pref("mailnews.database.global.logging.console", true);
 
 // page to load to find good header add-ons
 pref("mailnews.migration.header_addons_url","http://live.mozillamessaging.com/%APP%/addons/search?q=header&locale=%LOCALE%&lver=%VERSION%&hver=%VERSION%&os=%OS%");
+
+// Serif fonts look dated.  Switching those language families to sans-serif
+// where we think it makes sense.  Worth investigating for other font families
+// as well, viz bug 520824.  See all.js for the rest of the font families
+// preferences.
+pref("font.default", "sans-serif");
+pref("font.default.x-unicode", "sans-serif");
+pref("font.default.x-western", "sans-serif");
+
+#ifdef XP_MACOSX
+pref("font.name.sans-serif.x-unicode", "Lucida Grande");
+pref("font.name.monospace.x-unicode", "Menlo");
+pref("font.name-list.sans-serif.x-unicode", "Lucida Grande");
+pref("font.name-list.monospace.x-unicode", "Menlo, Monaco");
+pref("font.size.variable.x-unicode", 15);
+pref("font.size.fixed.x-unicode", 12);
+
+pref("font.name.sans-serif.x-western", "Lucida Grande");
+pref("font.name.monospace.x-western", "Menlo");
+pref("font.name-list.sans-serif.x-western", "Lucida Grande");
+pref("font.name-list.monospace.x-western", "Menlo, Monaco");
+pref("font.size.variable.x-western", 15);
+pref("font.size.fixed.x-western", 12);
+#endif
+
+// Since different versions of Windows need different settings, we'll handle
+// this in mailMigrator.js.
+
+// Linux, in other words.  Other OSes may wish to override.
+#ifdef UNIX_BUT_NOT_MAC
+// The font.name-list fallback is defined in case font.name isn't
+// present -- e.g. in case a profile that's been used on Windows Vista or above
+// is used on Linux.
+pref("font.name-list.serif.x-unicode", "serif");
+pref("font.name-list.sans-serif.x-unicode", "sans-serif");
+pref("font.name-list.monospace.x-unicode", "monospace");
+
+pref("font.name-list.serif.x-western", "serif");
+pref("font.name-list.sans-serif.x-western", "sans-serif");
+pref("font.name-list.monospace.x-western", "monospace");
+#endif
+
+pref("mail.font.windows.version", 0);
 
 // What level of warning should we send to the error console?
 pref("mail.wizard.logging.console", "None");

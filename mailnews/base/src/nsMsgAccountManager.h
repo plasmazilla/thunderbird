@@ -56,8 +56,39 @@
 #include "nsCOMArray.h"
 #include "nsInterfaceHashtable.h"
 #include "nsIMsgDatabase.h"
+#include "nsIDBChangeListener.h"
+#include "nsAutoPtr.h"
+#include "nsTObserverArray.h"
 
 class nsIRDFService;
+
+class VirtualFolderChangeListener : public nsIDBChangeListener
+{
+public:
+  VirtualFolderChangeListener();
+  ~VirtualFolderChangeListener() {}
+
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIDBCHANGELISTENER
+
+  nsresult Init();
+  /**
+   * Posts an event to update the summary totals and commit the db.
+   * We post the event to avoid committing each time we're called
+   * in a synchronous loop.
+   */
+  nsresult PostUpdateEvent(nsIMsgFolder *folder, nsIMsgDatabase *db);
+  /// Handles event posted to event queue to batch notifications.
+  void ProcessUpdateEvent(nsIMsgFolder *folder, nsIMsgDatabase *db);
+
+  nsCOMPtr <nsIMsgFolder> m_virtualFolder; // folder we're listening to db changes on behalf of.
+  nsCOMPtr <nsIMsgFolder> m_folderWatching; // folder whose db we're listening to.
+  nsCOMPtr <nsISupportsArray> m_searchTerms;
+  nsCOMPtr <nsIMsgSearchSession> m_searchSession;
+  PRBool m_searchOnMsgStatus;
+  PRBool m_batchingEvents;
+};
+
 
 class nsMsgAccountManager: public nsIMsgAccountManager,
     public nsIObserver,
@@ -88,12 +119,13 @@ private:
   PRBool m_accountsLoaded;
   nsCOMPtr <nsIMsgFolderCache> m_msgFolderCache;
   nsCOMPtr<nsIAtom> kDefaultServerAtom;
+  nsCOMPtr<nsIAtom> mFolderFlagAtom;
   nsCOMPtr<nsISupportsArray> m_accounts;
   nsInterfaceHashtable<nsCStringHashKey, nsIMsgIdentity> m_identities;
   nsInterfaceHashtable<nsCStringHashKey, nsIMsgIncomingServer> m_incomingServers;
   nsCOMPtr<nsIMsgAccount> m_defaultAccount;
   nsCOMArray<nsIIncomingServerListener> m_incomingServerListeners;
-  nsCOMArray<nsIDBChangeListener> m_virtualFolderListeners;
+  nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> > m_virtualFolderListeners;
   nsCOMPtr<nsIMsgFolder> m_folderDoingEmptyTrash;
   nsCOMPtr<nsIMsgFolder> m_folderDoingCleanupInbox;
   PRBool m_emptyTrashInProgress;
@@ -116,6 +148,10 @@ private:
 
   void SetLastServerFound(nsIMsgIncomingServer *server, const nsACString& hostname,
                           const nsACString& username, const PRInt32 port, const nsACString& type);
+
+  // Cache the results of the last call to FolderUriFromDirInProfile
+  nsCOMPtr<nsIFile> m_lastPathLookedUp;
+  nsCString m_lastFolderURIForPath;
 
   /* internal creation routines - updates m_identities and m_incomingServers */
   nsresult createKeyedAccount(const nsCString& key,
@@ -203,9 +239,12 @@ private:
                                   nsISupportsArray *accounts,
                                   nsCString& aResult);
 
-  
+
+  nsresult RemoveFolderFromSmartFolder(nsIMsgFolder *aFolder,
+                                       PRUint32 flagsChanged);
+
   nsresult SetSendLaterUriPref(nsIMsgIncomingServer *server);
- 
+
   nsresult getPrefService();
   nsCOMPtr<nsIPrefBranch> m_prefs;
 

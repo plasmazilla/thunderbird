@@ -54,8 +54,6 @@
 <?xul-overlay href="chrome://messenger/content/baseMenuOverlay.xul"?>
 
 <!DOCTYPE overlay [
-  <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-  %globalDTD;
   <!ENTITY % messengerDTD SYSTEM "chrome://messenger/locale/messenger.dtd">
   %messengerDTD;
   <!ENTITY % msgViewPickerDTD SYSTEM "chrome://messenger/locale/msgViewPickerOverlay.dtd" >
@@ -66,31 +64,23 @@
 
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-<script type="application/x-javascript" src="chrome://messenger/content/mailCommands.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/junkCommands.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mailWindowOverlay.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mailTabs.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/messageDisplay.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/folderDisplay.js"/>
-<script type="application/x-javascript" src="chrome://messenger-newsblog/content/newsblogOverlay.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mail-offline.js"/>
-<script type="application/x-javascript" src="chrome://global/content/printUtils.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/msgViewPickerOverlay.js"/>
-<script type="application/x-javascript" src="chrome://global/content/viewZoomOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailCommands.js"/>
+<script type="application/javascript" src="chrome://messenger/content/junkCommands.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailWindowOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailTabs.js"/>
+<script type="application/javascript" src="chrome://messenger/content/messageDisplay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/folderDisplay.js"/>
+<script type="application/javascript" src="chrome://messenger-newsblog/content/newsblogOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mail-offline.js"/>
+<script type="application/javascript" src="chrome://global/content/printUtils.js"/>
+<script type="application/javascript" src="chrome://messenger/content/msgViewPickerOverlay.js"/>
+<script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 
 <stringbundleset id="stringbundleset">
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
   <stringbundle id="bundle_offlinePrompts" src="chrome://messenger/locale/offline.properties"/>
 </stringbundleset>
 
-#ifdef XP_MACOSX
-<!-- See bug 456311 - Widget: Cocoa bent the way we override the commandsets
-     for globalEditMenuItems and selectEditMenuItems with our own versions
-     which know not to update multiple times while a message is being loaded,
-     so rather than having commandkeys work but beep on 10.4 we just live
-     with the multiple updates on OS X.
--->
-#else
 <!-- Performance optimization...we include utilityOverlay.xul which defines some command sets
      which are updated based on events like focus and select. We have our own custom events
      which we use to optmize when we do command updating. To avoid unnecessary command updating,
@@ -108,7 +98,6 @@
             oncommandupdate="goUpdateSelectEditMenuItems()"/>
 
 <!-- End command set merging -->
-#endif
 
 <commandset id="mailFileMenuItems"
             commandupdater="true"
@@ -268,6 +257,7 @@
   <command id="cmd_forwardAttachment" oncommand="goDoCommand('cmd_forwardAttachment')"/>
   <command id="cmd_editAsNew" oncommand="goDoCommand('cmd_editAsNew')"/>
   <command id="cmd_openMessage" oncommand="goDoCommand('cmd_openMessage')"/>
+  <command id="cmd_openConversation" oncommand="goDoCommand('cmd_openConversation')"/>
   <command id="cmd_moveToFolderAgain" oncommand="goDoCommand('cmd_moveToFolderAgain')"/>
   <command id="cmd_createFilterFromMenu" oncommand="goDoCommand('cmd_createFilterFromMenu')"/>
   <command id="cmd_killThread" oncommand="goDoCommand('cmd_killThread')"/>
@@ -424,6 +414,7 @@
   <key id="key_killThread" key="&killThreadMenu.key;"                oncommand="goDoCommand('cmd_killThread')" />
   <key id="key_killSubthread" key="&killSubthreadMenu.key;"          oncommand="goDoCommand('cmd_killSubthread')" modifiers="shift" />
   <key id="key_openMessage" key="&openMessageWindowCmd.key;"         oncommand="goDoCommand('cmd_openMessage')" modifiers="accel"/>
+  <key id="key_openConversation" key="&openConversationCmd.key;"     oncommand="goDoCommand('cmd_openConversation')" modifiers="accel, shift"/>
 #ifdef XP_MACOSX
   <key id="key_moveToFolderAgain" key="&moveToFolderAgainCmd.key;"   oncommand="goDoCommand('cmd_moveToFolderAgain')" modifiers="alt, accel"/>
 #else
@@ -508,6 +499,10 @@
        key="&addressBookCmd.key;"
        modifiers="accel, shift"
        oncommand="toAddressBook();"/>
+  <key id="key_savedFiles"
+       key="&savedFiles.key;"
+       modifiers="accel"
+       oncommand="openSavedFilesWnd();"/>
 
 #ifdef XP_UNIX
 #ifndef XP_MACOSX
@@ -610,6 +605,10 @@
               label="&contextOpenNewTab.label;"
               accesskey="&contextOpenNewTab.accesskey;"
               oncommand="OpenMessageInNewTab(event);"/>
+    <menuitem id="mailContext-openConversation"
+              label="&contextOpenConversation.label;"
+              accesskey="&contextOpenConversation.accesskey;"
+              oncommand="gConversationOpener.openConversationForMessages(gFolderDisplay.selectedMessages);"/>
     <menuseparator id="mailContext-sep-open2"/>
     <menuitem id="mailContext-archive"
               label="&contextArchive.label;"
@@ -762,8 +761,8 @@
               accesskey="&copyLinkCmd.accesskey;"
               command="cmd_copyLink"/>
     <menuitem id="mailContext-copyimage"
-              label="&copyImageCmd.label;"
-              accesskey="&copyImageCmd.accesskey;"
+              label="&copyImageAllCmd.label;"
+              accesskey="&copyImageAllCmd.accesskey;"
               command="cmd_copyImage"/>
     <menuitem id="mailContext-addemail"
               label="&AddToAddressBook.label;"
@@ -1053,7 +1052,7 @@
         <menuseparator id="editMenuAfterSelectSeparator"/>
         <menu id="menu_find" label="&findMenu.label;" accesskey="&findMenu.accesskey;">
           <menupopup id="menu_FindPopup">
-            <menuitem id="menu_findCmd" label="&findCmd.label;" key="key_find" accesskey="&findCmd.accesskey;" command="cmd_find"/>
+            <menuitem id="menu_findCmd" label="&findCmd.label;" key="key_findAgain" accesskey="&findCmd.accesskey;" command="cmd_find"/>
             <menuitem id="menu_findAgainCmd" label="&findAgainCmd.label;" key="key_findAgain" accesskey="&findAgainCmd.accesskey;" command="cmd_findAgain"/>
             <menuseparator id="editMenuAfterFindSeparator"/>
             <menuitem id="searchMailCmd" label="&searchMailCmd.label;"
@@ -1115,8 +1114,8 @@
           <menupopup id="menu_FolderViewsPopup"
                      onpopupshowing="InitViewFolderViewsMenu(event)">
             <menuitem id="menu_allFolders" value="smart"
-                      label="&smartFolders.label;"
-                      accesskey="&smartFolders.accesskey;"
+                      label="&unifiedFolders.label;"
+                      accesskey="&unifiedFolders.accesskey;"
                       type="radio" name="viewmessages"
                       oncommand="gFolderTreeView.mode = this.value;"/>
             <menuitem id="menu_allFolders" value="all"
@@ -1331,10 +1330,10 @@
           </menu>
           <menuitem id="menu_goForward" label="&goForwardCmd.label;"
                     accesskey="&goForwardCmd.accesskey;" command="cmd_goForward"
-                    chromedir="&locale.dir;" key="key_goForward"/>
+                    key="key_goForward"/>
           <menuitem id="menu_goBack" label="&goBackCmd.label;"
                     accesskey="&goBackCmd.accesskey;" command="cmd_goBack"
-                    chromedir="&locale.dir;" key="key_goBack"/>
+                    key="key_goBack"/>
           <menuseparator id="goNextSeparator"/>
           <menuitem id="goStartPage"
                     label="&startPageCmd.label;"
@@ -1398,6 +1397,10 @@
                       command="cmd_openMessage"
                       accesskey="&openMessageWindowCmd.accesskey;"
                       key="key_openMessage"/>
+            <menuitem id="openConversationMenuitem" label="&openConversationCmd.label;"
+                      command="cmd_openConversation"
+                      accesskey="&openConversationCmd.accesskey;"
+                      key="key_openConversation"/>
             <menu id="openFeedMessage" 
                   label="&openFeedMessage.label;" 
                   accesskey="&openFeedMessage.accesskey;">
@@ -1519,7 +1522,12 @@
                   accesskey="&addressBookCmd.accesskey;"
                   key="key_addressbook"
                   oncommand="toOpenWindowByType('mail:addressbook', 'chrome://messenger/content/addressbook/addressbook.xul');"/>
+        <menuseparator id="devToolsSeparator"/>
 #endif
+        <menuitem id="menu_openSavedFilesWnd" label="&savedFiles.label;"
+                  accesskey="&savedFiles.accesskey;"
+                  key="key_savedFiles"
+                  oncommand="openSavedFilesWnd();"/>
         <menuitem id="addonsManager" label="&addons.label;" accesskey="&addons.accesskey;"
                   oncommand="openAddonsMgr();"/>
         <menuitem id="activityManager" label="&activitymanager.label;"
@@ -1657,7 +1665,6 @@
                    class="toolbarbutton-1"
                    type="menu-button"
                    label="&backButton1.label;"
-                   chromedir="&locale.dir;"
                    oncommand="goDoCommand('cmd_goBack')"
                    tooltiptext="&goBackButton.tooltip;"
                    observes="button_goBack">
@@ -1670,7 +1677,6 @@
                    class="toolbarbutton-1"
                    type="menu-button"
                    label="&goForwardButton1.label;"
-                   chromedir="&locale.dir;"
                    oncommand="goDoCommand('cmd_goForward')"
                    tooltiptext="&goForwardButton.tooltip;"
                    observes="button_goForward">
@@ -1684,14 +1690,12 @@
     <toolbarbutton id="button-previous"
                    class="toolbarbutton-1"
                    label="&previousButton.label;"
-                   chromedir="&locale.dir;"
                    oncommand="goDoCommand('button_previous')"
                    tooltiptext="&previousButton.tooltip;"
                    observes="button_previous"/>
     <toolbarbutton id="button-next"
                    class="toolbarbutton-1"
                    label="&nextButton.label;"
-                   chromedir="&locale.dir;"
                    oncommand="goDoCommand('button_next')"
                    tooltiptext="&nextButton.tooltip;"
                    observes="button_next"/>
@@ -1877,6 +1881,14 @@
     <button id="remoteContentBarButton" label="&loadRemoteContentButton3.label;"
             oncommand="LoadMsgWithRemoteContent();"/>
   </hbox>
+
+  <hbox id="mdnBar" class="msgNotificationBar" align="center">
+    <image id="mdnBarImage"/>
+    <description flex="1" class="msgNotificationBarText">&mdnBarMessage.label;</description>
+    <button label="&mdnBarIgnoreButton.label;" oncommand="IgnoreMDNResponse();"/>
+    <button label="&mdnBarSendButton.label;" oncommand="SendMDNResponse();"/>
+  </hbox>
+
 </deck>
 
 <statusbar class="chromeclass-status" id="status-bar">

@@ -89,8 +89,9 @@
 #include "nsRDFCID.h"
 #include "nsXULContentUtils.h"
 #include "nsString.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsXPIDLString.h"
+#include "nsWhitespaceTokenizer.h"
 #include "nsGkAtoms.h"
 #include "nsXULElement.h"
 #include "jsapi.h"
@@ -100,7 +101,7 @@
 #include "plhash.h"
 #include "nsIDOMClassInfo.h"
 #include "nsPIDOMWindow.h"
-#include "nsThreadUtils.h"
+
 #include "nsNetUtil.h"
 #include "nsXULTemplateBuilder.h"
 #include "nsXULTemplateQueryProcessorRDF.h"
@@ -303,7 +304,7 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsXULTemplateBuilder)
   NS_INTERFACE_MAP_ENTRY(nsIMutationObserver)
   NS_INTERFACE_MAP_ENTRY(nsIObserver)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIXULTemplateBuilder)
-  NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(XULTemplateBuilder)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XULTemplateBuilder)
 NS_INTERFACE_MAP_END
 
 //----------------------------------------------------------------------
@@ -1668,8 +1669,14 @@ nsXULTemplateBuilder::GetTemplateRoot(nsIContent** aResult)
         nsCOMPtr<nsIDOMElement> domElement;
         domDoc->GetElementById(templateID, getter_AddRefs(domElement));
 
-        if (domElement)
-            return CallQueryInterface(domElement, aResult);
+        if (domElement) {
+            nsCOMPtr<nsIContent> content = do_QueryInterface(domElement);
+            NS_ENSURE_STATE(content &&
+                            !nsContentUtils::ContentIsDescendantOf(mRoot,
+                                                                   content));
+            content.forget(aResult);
+            return NS_OK;
+        }
     }
 
 #if 1 // XXX hack to workaround bug with XBL insertion/removal?
@@ -1739,12 +1746,16 @@ nsXULTemplateBuilder::CompileQueries()
     mRoot->GetAttr(kNameSpaceID_None, nsGkAtoms::flags, flags);
 
     // if the dont-test-empty flag is set, containers should not be checked to
-    // see if they are empty
-    if (flags.Find(NS_LITERAL_STRING("dont-test-empty")) >= 0)
+    // see if they are empty. If dont-recurse is set, then don't process the
+    // template recursively and only show one level of results.
+    nsWhitespaceTokenizer tokenizer(flags);
+    while (tokenizer.hasMoreTokens()) {
+      const nsDependentSubstring& token(tokenizer.nextToken());
+      if (token.EqualsLiteral("dont-test-empty"))
         mFlags |= eDontTestEmpty;
-
-    if (flags.Find(NS_LITERAL_STRING("dont-recurse")) >= 0)
+      else if (token.EqualsLiteral("dont-recurse"))
         mFlags |= eDontRecurse;
+    }
 
     nsCOMPtr<nsIDOMNode> rootnode = do_QueryInterface(mRoot);
     nsresult rv =
@@ -2008,15 +2019,9 @@ nsXULTemplateBuilder::CompileTemplate(nsIContent* aTemplate,
                                                getter_AddRefs(aQuerySet->mCompiledQuery));
 
             if (aQuerySet->mCompiledQuery) {
-                nsTemplateRule* rule = new nsTemplateRule(aTemplate, rulenode, aQuerySet);
+                nsTemplateRule* rule = aQuerySet->NewRule(aTemplate, rulenode, aQuerySet);
                 if (! rule)
                     return NS_ERROR_OUT_OF_MEMORY;
-
-                rv = aQuerySet->AddRule(rule);
-                if (NS_FAILED(rv)) {
-                    delete rule;
-                    return rv;
-                }
 
                 rule->SetVars(mRefVariable, memberVariable);
 
@@ -2046,7 +2051,7 @@ nsXULTemplateBuilder::CompileExtendedQuery(nsIContent* aRuleElement,
     // a <conditions> child, an <action> child, and a <bindings> child.
     nsresult rv;
 
-    nsTemplateRule* rule = new nsTemplateRule(aRuleElement, aActionElement, aQuerySet);
+    nsTemplateRule* rule = aQuerySet->NewRule(aRuleElement, aActionElement, aQuerySet);
     if (! rule)
          return NS_ERROR_OUT_OF_MEMORY;
 
@@ -2063,13 +2068,7 @@ nsXULTemplateBuilder::CompileExtendedQuery(nsIContent* aRuleElement,
     rv = CompileConditions(rule, conditions);
     // If the rule compilation failed, then we have to bail.
     if (NS_FAILED(rv)) {
-        delete rule;
-        return rv;
-    }
-
-    rv = aQuerySet->AddRule(rule);
-    if (NS_FAILED(rv)) {
-        delete rule;
+        aQuerySet->RemoveRule(rule);
         return rv;
     }
 
@@ -2203,15 +2202,9 @@ nsXULTemplateBuilder::CompileSimpleQuery(nsIContent* aRuleElement,
         return NS_OK;
     }
 
-    nsTemplateRule* rule = new nsTemplateRule(aRuleElement, aRuleElement, aQuerySet);
+    nsTemplateRule* rule = aQuerySet->NewRule(aRuleElement, aRuleElement, aQuerySet);
     if (! rule)
         return NS_ERROR_OUT_OF_MEMORY;
-
-    rv = aQuerySet->AddRule(rule);
-    if (NS_FAILED(rv)) {
-        delete rule;
-        return rv;
-    }
 
     rule->SetVars(mRefVariable, memberVariable);
 
@@ -2469,15 +2462,15 @@ nsXULTemplateBuilder::AddSimpleRuleBindings(nsTemplateRule* aRule,
     // Crawl the content tree of a "simple" rule, adding a variable
     // assignment for any attribute whose value is "rdf:".
 
-    nsAutoVoidArray elements;
+    nsAutoTArray<nsIContent*, 8> elements;
 
-    if (!elements.AppendElement(aElement))
+    if (elements.AppendElement(aElement) == nsnull)
         return NS_ERROR_OUT_OF_MEMORY;
 
-    while (elements.Count()) {
+    while (elements.Length()) {
         // Pop the next element off the stack
-        PRUint32 i = (PRUint32)(elements.Count() - 1);
-        nsIContent* element = static_cast<nsIContent*>(elements[i]);
+        PRUint32 i = elements.Length() - 1;
+        nsIContent* element = elements[i];
         elements.RemoveElementAt(i);
 
         // Iterate through its attributes, looking for substitutions
@@ -2502,7 +2495,7 @@ nsXULTemplateBuilder::AddSimpleRuleBindings(nsTemplateRule* aRule,
         count = element->GetChildCount();
 
         while (count-- > 0) {
-            if (!elements.AppendElement(element->GetChildAt(count)))
+            if (elements.AppendElement(element->GetChildAt(count)) == nsnull)
                 return NS_ERROR_OUT_OF_MEMORY;
         }
     }

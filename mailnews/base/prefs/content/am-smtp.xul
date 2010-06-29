@@ -2,15 +2,13 @@
 
 <?xml-stylesheet href="chrome://messenger/skin/accountManage.css" type="text/css"?>
 
-<?xul-overlay href="chrome://messenger/content/smtpEditOverlay.xul"?>
-
 <!DOCTYPE page SYSTEM "chrome://messenger/locale/am-advanced.dtd" >
 
 <page xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       title="&smtpServer.label;"
       onload="gSmtpServerListWindow.onLoad();">
-  <script type="application/x-javascript" src="amUtils.js"/>
-  <script type="application/x-javascript" src="am-smtp.js"/>
+  <script type="application/javascript" src="amUtils.js"/>
+  <script type="application/javascript" src="am-smtp.js"/>
   
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
 
@@ -67,8 +65,8 @@
             <textbox id="userNameValue" readonly="true" class="plain"/>
           </row>
           <row align="center">
-              <hbox pack="end"><label id="useSecureAuthenticationLabel" value="&useSecureAuthentication.label;" control="useSecureAuthenticationValue"/></hbox>
-              <textbox id="useSecureAuthenticationValue" readonly="true" class="plain"/>
+              <hbox pack="end"><label value="&authMethod.label;" control="authMethodValue"/></hbox>
+              <textbox id="authMethodValue" readonly="true" class="plain"/>
           </row>
           <row align="center">
             <hbox pack="end">

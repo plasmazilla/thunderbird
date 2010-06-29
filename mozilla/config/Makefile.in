@@ -48,14 +48,15 @@ include $(DEPTH)/config/autoconf.mk
 # headers, so that we can use it to set up the wrapped system headers.
 VISIBILITY_FLAGS =
 
-ifneq (,$(CROSS_COMPILE)$(filter-out WINNT OS2,$(OS_ARCH)))
-ifneq ($(OS_ARCH), WINCE)
 HOST_PROGRAM	= nsinstall$(HOST_BIN_SUFFIX)
+
+ifeq (WINNT,$(HOST_OS_ARCH))
+HOST_CSRCS	= nsinstall_win.c
+else
 HOST_CSRCS	= nsinstall.c pathsub.c
 endif
-endif
 
-PLSRCS		= nfspwd.pl revdepth.pl
+PLSRCS		= nfspwd.pl
 
 TARGETS		= $(HOST_PROGRAM) $(PLSRCS:.pl=) $(SIMPLE_PROGRAMS)
 
@@ -89,6 +90,8 @@ include $(topsrcdir)/config/config.mk
 NO_INSTALL=1
 
 include $(topsrcdir)/config/rules.mk
+
+HOST_CFLAGS += -DUNICODE -D_UNICODE
 
 ifeq ($(OS_CONFIG),SunOS4.1)
 NSPR_CFLAGS	+= -I$(srcdir)/../nsprpub/pr/include/md
@@ -129,7 +132,7 @@ export::
 		-DMOZ_NATIVE_PNG=$(MOZ_NATIVE_PNG) \
 		-DMOZ_NATIVE_JPEG=$(MOZ_NATIVE_JPEG) \
 		$(srcdir)/system-headers | $(PERL) $(topsrcdir)/nsprpub/config/make-system-wrappers.pl system_wrappers
-	$(INSTALL) system_wrappers $(DIST)/include
+	$(INSTALL) system_wrappers $(DIST)
 
 GARBAGE_DIRS += system_wrappers
 endif
@@ -154,7 +157,13 @@ clean clobber realclean clobber_all::
 	cd $(MKDEPEND_DIR); $(MAKE) $@
 endif
 
-PYUNITS := unit-Expression.py unit-Preprocessor.py unit-printprereleasesuffix.py unit-nsinstall.py
+PYUNITS := \
+  unit-Expression.py \
+  unit-Preprocessor.py \
+  unit-nsinstall.py \
+  unit-printprereleasesuffix.py \
+  unit-JarMaker.py \
+  $(NULL)
 
 check:: check-python-modules check-jar-mn
 

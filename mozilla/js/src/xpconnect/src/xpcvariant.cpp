@@ -172,7 +172,7 @@ private:
     };
 
     // Table has tUnk as a state (column) but not as a type (row).
-    static Type StateTable[tTypeCount][tTypeCount-1];
+    static const Type StateTable[tTypeCount][tTypeCount-1];
 
 public:
     static JSBool GetTypeForArray(XPCCallContext& ccx, JSObject* array, 
@@ -185,7 +185,7 @@ public:
 // Current type is the row along the top. 
 // New state is in the box at the intersection.
 
-XPCArrayHomogenizer::Type 
+const XPCArrayHomogenizer::Type 
 XPCArrayHomogenizer::StateTable[tTypeCount][tTypeCount-1] = {
 /*          tNull,tInt ,tDbl ,tBool,tStr ,tID  ,tArr ,tISup */
 /* tNull */{tNull,tVar ,tVar ,tVar ,tStr ,tID  ,tVar ,tISup },
@@ -392,7 +392,7 @@ JSBool XPCVariant::InitializeData(XPCCallContext& ccx)
 
 // static 
 JSBool 
-XPCVariant::VariantDataToJS(XPCCallContext& ccx, 
+XPCVariant::VariantDataToJS(XPCLazyCallContext& lccx, 
                             nsIVariant* variant,
                             JSObject* scope, nsresult* pErr,
                             jsval* pJSVal)
@@ -447,6 +447,7 @@ XPCVariant::VariantDataToJS(XPCCallContext& ccx,
     xpctvar.flags = 0;
     JSBool success;
 
+    JSContext* cx = lccx.GetJSContext();
     switch(type)
     {
         case nsIDataType::VTYPE_INT8:        
@@ -463,7 +464,7 @@ XPCVariant::VariantDataToJS(XPCCallContext& ccx,
             // Easy. Handle inline.
             if(NS_FAILED(variant->GetAsDouble(&xpctvar.val.d)))
                 return JS_FALSE;
-            return JS_NewNumberValue(ccx, xpctvar.val.d, pJSVal);
+            return JS_NewNumberValue(cx, xpctvar.val.d, pJSVal);
         }
         case nsIDataType::VTYPE_BOOL:        
         {
@@ -626,7 +627,7 @@ XPCVariant::VariantDataToJS(XPCCallContext& ccx,
             }
 
             success = 
-                XPCConvert::NativeArray2JS(ccx, pJSVal, 
+                XPCConvert::NativeArray2JS(lccx, pJSVal, 
                                            (const void**)&du.u.array.mArrayValue,
                                            conversionType, pid,
                                            du.u.array.mArrayCount, 
@@ -638,7 +639,7 @@ VARIANT_DONE:
         }        
         case nsIDataType::VTYPE_EMPTY_ARRAY: 
         {
-            JSObject* array = JS_NewArrayObject(ccx, 0, nsnull);
+            JSObject* array = JS_NewArrayObject(cx, 0, nsnull);
             if(!array) 
                 return JS_FALSE;
             *pJSVal = OBJECT_TO_JSVAL(array);
@@ -660,14 +661,14 @@ VARIANT_DONE:
     if(xpctvar.type.TagPart() == TD_PSTRING_SIZE_IS ||
        xpctvar.type.TagPart() == TD_PWSTRING_SIZE_IS)
     {
-        success = XPCConvert::NativeStringWithSize2JS(ccx, pJSVal,
+        success = XPCConvert::NativeStringWithSize2JS(cx, pJSVal,
                                                       (const void*)&xpctvar.val,
                                                       xpctvar.type,
                                                       size, pErr);
     }
     else
     {
-        success = XPCConvert::NativeData2JS(ccx, pJSVal,
+        success = XPCConvert::NativeData2JS(lccx, pJSVal,
                                             (const void*)&xpctvar.val,
                                             xpctvar.type,
                                             &iid, scope, pErr);

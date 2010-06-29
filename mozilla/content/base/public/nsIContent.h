@@ -42,13 +42,11 @@
 #include "nsCaseTreatment.h"
 #include "nsChangeHint.h"
 #include "nsINode.h"
-#include "nsIProgrammingLanguage.h" // for ::JAVASCRIPT
+#include "nsIDocument.h" // for IsInHTMLDocument
 
 // Forward declarations
 class nsIAtom;
-class nsIDocument;
 class nsPresContext;
-class nsVoidArray;
 class nsIDOMEvent;
 class nsIContent;
 class nsIEventListenerManager;
@@ -59,11 +57,21 @@ class nsAttrValue;
 class nsAttrName;
 class nsTextFragment;
 class nsIDocShell;
+#ifdef MOZ_SMIL
+class nsISMILAttr;
+#endif // MOZ_SMIL
+
+enum nsLinkState {
+  eLinkState_Unknown    = 0,
+  eLinkState_Unvisited  = 1,
+  eLinkState_Visited    = 2,
+  eLinkState_NotLink    = 3
+};
 
 // IID for the nsIContent interface
 #define NS_ICONTENT_IID       \
-{ 0x2813b1d9, 0x7fe1, 0x496f, \
- { 0x85, 0x52, 0xa2, 0xc1, 0xc5, 0x6b, 0x15, 0x40 } }
+{ 0x4aaa38b8, 0x6bc1, 0x4d01, \
+  { 0xb6, 0x3d, 0xcd, 0x11, 0xc0, 0x84, 0x56, 0x9e } }
 
 /**
  * A node of content in a document's content model. This interface
@@ -190,14 +198,26 @@ public:
   }
 
   /**
-   * Returns true if and only if there is NOT a path through child lists
-   * from the top of this node's parent chain back to this node.
+   * Returns true if there is NOT a path through child lists
+   * from the top of this node's parent chain back to this node or
+   * if the node is in native anonymous subtree without a parent.
    */
   PRBool IsInAnonymousSubtree() const
   {
-    NS_ASSERTION(!IsInNativeAnonymousSubtree() || GetBindingParent(),
-                 "must have binding parent when in native anonymous subtree");
-    return GetBindingParent() != nsnull;
+    NS_ASSERTION(!IsInNativeAnonymousSubtree() || GetBindingParent() || !GetParent(),
+                 "must have binding parent when in native anonymous subtree with a parent node");
+    return IsInNativeAnonymousSubtree() || GetBindingParent() != nsnull;
+  }
+
+  /**
+   * Return true iff this node is in an HTML document (in the HTML5 sense of
+   * the term, i.e. not in an XHTML/XML document).
+   */
+  inline PRBool IsInHTMLDocument() const
+  {
+    nsIDocument* doc = GetOwnerDoc();
+    return doc && // XXX clean up after bug 335998 lands
+           !doc->IsCaseSensitive();
   }
 
   /**
@@ -390,7 +410,7 @@ public:
    * @returns The name at the given index, or null if the index is
    *          out-of-bounds.
    * @note    The document returned by NodeInfo()->GetDocument() (if one is
-   *          present) is *not* neccesarily the owner document of the element.
+   *          present) is *not* necessarily the owner document of the element.
    * @note    The pointer returned by this function is only valid until the
    *          next call of either GetAttrNameAt or SetAttr on the element.
    */
@@ -453,36 +473,6 @@ public:
    * NOTE: This asserts and returns for elements
    */
   virtual void AppendTextTo(nsAString& aResult) = 0;
-
-  /**
-   * Set the focus on this content.  This is generally something for the event
-   * state manager to do, not ordinary people.  Ordinary people should do
-   * something like nsGenericHTMLElement::SetElementFocus().  This method is
-   * the end result, the point where the content finds out it has been focused.
-   * 
-   * All content elements are potentially focusable.
-   *
-   * @param aPresContext the pres context
-   * @see nsGenericHTMLElement::SetElementFocus()
-   */
-  virtual void SetFocus(nsPresContext* aPresContext)
-  {
-  }
-
-  /**
-   * Remove the focus on this content.  This is generally something for the
-   * event state manager to do, not ordinary people.  Ordinary people should do
-   * something like nsGenericHTMLElement::SetElementFocus().  This method is
-   * the end result, the point where the content finds out it has been focused.
-   * 
-   * All content elements are potentially focusable.
-   *
-   * @param aPresContext the pres context
-   * @see nsGenericHTMLElement::SetElementFocus()
-   */
-  virtual void RemoveFocus(nsPresContext* aPresContext)
-  {
-  }
 
   /**
    * Check if this content is focusable and in the current tab order.
@@ -614,6 +604,40 @@ public:
    * XXXjwatt: IMO IsInteractiveLink would be a better name.
    */
   virtual PRBool IsLink(nsIURI** aURI) const = 0;
+
+  /**
+   * Get the cached state of the link.  If the state is unknown, 
+   * return eLinkState_Unknown.
+   *
+   * @return The cached link state of the link.
+   */
+  virtual nsLinkState GetLinkState() const
+  {
+    return eLinkState_NotLink;
+  }
+
+  /**
+   * Set the cached state of the link.
+   *
+   * @param aState The cached link state of the link.
+   */
+  virtual void SetLinkState(nsLinkState aState)
+  {
+    NS_ASSERTION(aState == eLinkState_NotLink,
+                 "Need to override SetLinkState?");
+  }
+
+  /**
+    * Get a pointer to the full href URI (fully resolved and canonicalized,
+    * since it's an nsIURI object) for link elements.
+    *
+    * @return A pointer to the URI or null if the element is not a link or it
+    *         has no HREF attribute.
+    */
+  virtual already_AddRefed<nsIURI> GetHrefURI() const
+  {
+    return nsnull;
+  }
 
   /**
    * Give this element a chance to fire links that should be fired
@@ -752,19 +776,6 @@ public:
   // PRInt32.  We should really use PRUint32 instead.
   virtual PRInt32 IntrinsicState() const;
 
-  /* The default script type (language) ID for this content.
-     All content must support fetching the default script language.
-   */
-  virtual PRUint32 GetScriptTypeID() const
-  { return nsIProgrammingLanguage::JAVASCRIPT; }
-
-  /* Not all content supports setting a new default language */
-  virtual nsresult SetScriptTypeID(PRUint32 aLang)
-  {
-    NS_NOTREACHED("SetScriptTypeID not implemented");
-    return NS_ERROR_NOT_IMPLEMENTED;
-  }
-
   /**
    * Get the ID of this content node (the atom corresponding to the
    * value of the null-namespace attribute whose name is given by
@@ -844,6 +855,16 @@ public:
    * Saves the form state of this node and its children.
    */
   virtual void SaveSubtreeState() = 0;
+
+#ifdef MOZ_SMIL
+  /*
+   * Returns a new nsISMILAttr that allows the caller to animate the given
+   * attribute on this element.
+   *
+   * The CALLER OWNS the result and is responsible for deleting it.
+   */
+  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* aName) = 0;
+#endif // MOZ_SMIL
 
 private:
   /**

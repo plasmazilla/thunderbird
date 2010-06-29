@@ -344,14 +344,14 @@ function switchToView(aViewType) {
         }
     }
 
-    // Set up the labels for the context menu
+    // Set up the labels and accesskeys for the context menu
     ["calendar-view-context-menu-next",
      "calendar-view-context-menu-previous",
      "calendar-go-menu-next",
-     "calendar-go-menu-previous"].forEach(function(x) setupViewNode(x, "label"));
-
-    ["calendar-go-menu-next",
-     "calendar-go-menu-previous"].forEach(function(x) setupViewNode(x, "accesskey"));
+     "calendar-go-menu-previous"].forEach(function(x) {
+            setupViewNode(x, "label");
+            setupViewNode(x, "accesskey")
+     });
 
     // Set up the labels for the view navigation
     ["previous-view-button",
@@ -535,7 +535,7 @@ var categoryPrefBranch;
 var categoryManagement = {
     QueryInterface: function cM_QueryInterface(aIID) {
         return cal.doQueryInterface(this,
-                                    categoryPrefObserver.prototype,
+                                    categoryManagement.prototype,
                                     aIID,
                                     [Components.interfaces.nsIObserver]);
     },
@@ -842,7 +842,7 @@ cal.navigationBar = {
         }
         if (document.getElementById("modeBroadcaster").getAttribute("mode") == "calendar") {
             document.title = (docTitle ? docTitle + " - " : "") +
-                calGetString("brand", "brandShortName", null, "branding");
+                calGetString("brand", "brandFullName", null, "branding");
         }
         let viewTabs = document.getElementById("view-tabs");
         viewTabs.selectedIndex = getViewDeck().selectedIndex;

@@ -36,6 +36,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+#include <math.h>
 
 /* tokenization of CSS style sheets */
 
@@ -669,168 +670,153 @@ nsCSSScanner::LookAhead(PRUnichar aChar)
   return PR_FALSE;
 }
 
-PRBool
+void
 nsCSSScanner::EatWhiteSpace()
 {
-  PRBool eaten = PR_FALSE;
   for (;;) {
     PRInt32 ch = Read();
     if (ch < 0) {
       break;
     }
-    if ((ch == ' ') || (ch == '\n') || (ch == '\t')) {
-      eaten = PR_TRUE;
-      continue;
+    if ((ch != ' ') && (ch != '\n') && (ch != '\t')) {
+      Pushback(ch);
+      break;
     }
-    Pushback(ch);
-    break;
   }
-  return eaten;
-}
-
-PRBool
-nsCSSScanner::EatNewline()
-{
-  PRInt32 ch = Read();
-  if (ch < 0) {
-    return PR_FALSE;
-  }
-  PRBool eaten = PR_FALSE;
-  if (ch == '\n') {
-    eaten = PR_TRUE;
-  } else {
-    Pushback(ch);
-  }
-  return eaten;
 }
 
 PRBool
 nsCSSScanner::Next(nsCSSToken& aToken)
 {
-  PRInt32 ch = Read();
-  if (ch < 0) {
-    return PR_FALSE;
-  }
-
-  // IDENT
-  if (StartsIdent(ch, Peek()))
-    return ParseIdent(ch, aToken);
-
-  // AT_KEYWORD
-  if (ch == '@') {
-    PRInt32 nextChar = Read();
-    if (nextChar >= 0) {
-      PRInt32 followingChar = Peek();
-      Pushback(nextChar);
-      if (StartsIdent(nextChar, followingChar))
-        return ParseAtKeyword(ch, aToken);
+  for (;;) { // Infinite loop so we can restart after comments.
+    PRInt32 ch = Read();
+    if (ch < 0) {
+      return PR_FALSE;
     }
-  }
 
-  // NUMBER or DIM
-  if ((ch == '.') || (ch == '+') || (ch == '-')) {
-    PRInt32 nextChar = Peek();
-    if (IsDigit(nextChar)) {
+    // IDENT
+    if (StartsIdent(ch, Peek()))
+      return ParseIdent(ch, aToken);
+
+    // AT_KEYWORD
+    if (ch == '@') {
+      PRInt32 nextChar = Read();
+      if (nextChar >= 0) {
+        PRInt32 followingChar = Peek();
+        Pushback(nextChar);
+        if (StartsIdent(nextChar, followingChar))
+          return ParseAtKeyword(ch, aToken);
+      }
+    }
+
+    // NUMBER or DIM
+    if ((ch == '.') || (ch == '+') || (ch == '-')) {
+      PRInt32 nextChar = Peek();
+      if (IsDigit(nextChar)) {
+        return ParseNumber(ch, aToken);
+      }
+      else if (('.' == nextChar) && ('.' != ch)) {
+        nextChar = Read();
+        PRInt32 followingChar = Peek();
+        Pushback(nextChar);
+        if (IsDigit(followingChar))
+          return ParseNumber(ch, aToken);
+      }
+    }
+    if (IsDigit(ch)) {
       return ParseNumber(ch, aToken);
     }
-    else if (('.' == nextChar) && ('.' != ch)) {
-      nextChar = Read();
-      PRInt32 followingChar = Peek();
-      Pushback(nextChar);
-      if (IsDigit(followingChar))
-        return ParseNumber(ch, aToken);
+
+    // ID
+    if (ch == '#') {
+      return ParseRef(ch, aToken);
     }
-  }
-  if (IsDigit(ch)) {
-    return ParseNumber(ch, aToken);
-  }
 
-  // ID
-  if (ch == '#') {
-    return ParseRef(ch, aToken);
-  }
+    // STRING
+    if ((ch == '"') || (ch == '\'')) {
+      return ParseString(ch, aToken);
+    }
 
-  // STRING
-  if ((ch == '"') || (ch == '\'')) {
-    return ParseString(ch, aToken);
-  }
-
-  // WS
-  if (IsWhitespace(ch)) {
-    aToken.mType = eCSSToken_WhiteSpace;
-    aToken.mIdent.Assign(PRUnichar(ch));
-    (void) EatWhiteSpace();
-    return PR_TRUE;
-  }
-  if (ch == '/') {
-    PRInt32 nextChar = Peek();
-    if (nextChar == '*') {
-      (void) Read();
-#if 0
-      // If we change our storage data structures such that comments are
-      // stored (for Editor), we should reenable this code, condition it
-      // on being in editor mode, and apply glazou's patch from bug
-      // 60290.
-      aToken.mIdent.SetCapacity(2);
+    // WS
+    if (IsWhitespace(ch)) {
+      aToken.mType = eCSSToken_WhiteSpace;
       aToken.mIdent.Assign(PRUnichar(ch));
-      aToken.mIdent.Append(PRUnichar(nextChar));
-      return ParseCComment(aToken);
-#endif
-      return SkipCComment() && Next(aToken);
+      EatWhiteSpace();
+      return PR_TRUE;
     }
-  }
-  if (ch == '<') {  // consume HTML comment tags
-    if (LookAhead('!')) {
-      if (LookAhead('-')) {
+    if (ch == '/') {
+      PRInt32 nextChar = Peek();
+      if (nextChar == '*') {
+        (void) Read();
+#if 0
+        // If we change our storage data structures such that comments are
+        // stored (for Editor), we should reenable this code, condition it
+        // on being in editor mode, and apply glazou's patch from bug
+        // 60290.
+        aToken.mIdent.SetCapacity(2);
+        aToken.mIdent.Assign(PRUnichar(ch));
+        aToken.mIdent.Append(PRUnichar(nextChar));
+        return ParseCComment(aToken);
+#endif
+        if (!SkipCComment()) {
+          return PR_FALSE;
+        }
+        continue; // start again at the beginning
+      }
+    }
+    if (ch == '<') {  // consume HTML comment tags
+      if (LookAhead('!')) {
         if (LookAhead('-')) {
+          if (LookAhead('-')) {
+            aToken.mType = eCSSToken_HTMLComment;
+            aToken.mIdent.AssignLiteral("<!--");
+            return PR_TRUE;
+          }
+          Pushback('-');
+        }
+        Pushback('!');
+      }
+    }
+    if (ch == '-') {  // check for HTML comment end
+      if (LookAhead('-')) {
+        if (LookAhead('>')) {
           aToken.mType = eCSSToken_HTMLComment;
-          aToken.mIdent.AssignLiteral("<!--");
+          aToken.mIdent.AssignLiteral("-->");
           return PR_TRUE;
         }
         Pushback('-');
       }
-      Pushback('!');
     }
-  }
-  if (ch == '-') {  // check for HTML comment end
-    if (LookAhead('-')) {
-      if (LookAhead('>')) {
-        aToken.mType = eCSSToken_HTMLComment;
-        aToken.mIdent.AssignLiteral("-->");
-        return PR_TRUE;
-      }
-      Pushback('-');
-    }
-  }
 
-  // INCLUDES ("~=") and DASHMATCH ("|=")
-  if (( ch == '|' ) || ( ch == '~' ) || ( ch == '^' ) ||
-      ( ch == '$' ) || ( ch == '*' )) {
-    PRInt32 nextChar = Read();
-    if ( nextChar == '=' ) {
-      if (ch == '~') {
-        aToken.mType = eCSSToken_Includes;
+    // INCLUDES ("~=") and DASHMATCH ("|=")
+    if (( ch == '|' ) || ( ch == '~' ) || ( ch == '^' ) ||
+        ( ch == '$' ) || ( ch == '*' )) {
+      PRInt32 nextChar = Read();
+      if ( nextChar == '=' ) {
+        if (ch == '~') {
+          aToken.mType = eCSSToken_Includes;
+        }
+        else if (ch == '|') {
+          aToken.mType = eCSSToken_Dashmatch;
+        }
+        else if (ch == '^') {
+          aToken.mType = eCSSToken_Beginsmatch;
+        }
+        else if (ch == '$') {
+          aToken.mType = eCSSToken_Endsmatch;
+        }
+        else if (ch == '*') {
+          aToken.mType = eCSSToken_Containsmatch;
+        }
+        return PR_TRUE;
+      } else if (nextChar >= 0) {
+        Pushback(nextChar);
       }
-      else if (ch == '|') {
-        aToken.mType = eCSSToken_Dashmatch;
-      }
-      else if (ch == '^') {
-        aToken.mType = eCSSToken_Beginsmatch;
-      }
-      else if (ch == '$') {
-        aToken.mType = eCSSToken_Endsmatch;
-      }
-      else if (ch == '*') {
-        aToken.mType = eCSSToken_Containsmatch;
-      }
-      return PR_TRUE;
-    } else if (nextChar >= 0) {
-      Pushback(nextChar);
     }
+    aToken.mType = eCSSToken_Symbol;
+    aToken.mSymbol = ch;
+    return PR_TRUE;
   }
-  aToken.mType = eCSSToken_Symbol;
-  aToken.mSymbol = ch;
-  return PR_TRUE;
 }
 
 PRBool
@@ -850,25 +836,8 @@ nsCSSScanner::NextURL(nsCSSToken& aToken)
   if (IsWhitespace(ch)) {
     aToken.mType = eCSSToken_WhiteSpace;
     aToken.mIdent.Assign(PRUnichar(ch));
-    (void) EatWhiteSpace();
+    EatWhiteSpace();
     return PR_TRUE;
-  }
-  if (ch == '/') {
-    PRInt32 nextChar = Peek();
-    if (nextChar == '*') {
-      (void) Read();
-#if 0
-      // If we change our storage data structures such that comments are
-      // stored (for Editor), we should reenable this code, condition it
-      // on being in editor mode, and apply glazou's patch from bug
-      // 60290.
-      aToken.mIdent.SetCapacity(2);
-      aToken.mIdent.Assign(PRUnichar(ch));
-      aToken.mIdent.Append(PRUnichar(nextChar));
-      return ParseCComment(aToken);
-#endif
-      return SkipCComment() && Next(aToken);
-    }
   }
 
   // Process a url lexical token. A CSS1 url token can contain
@@ -877,55 +846,55 @@ nsCSSScanner::NextURL(nsCSSToken& aToken)
   // apply very well. To simplify the parser and relax some of the
   // requirements on the scanner we parse url's here. If we find a
   // malformed URL then we emit a token of type "InvalidURL" so that
-  // the CSS1 parser can ignore the invalid input. We attempt to eat
-  // the right amount of input data when an invalid URL is presented.
+  // the CSS1 parser can ignore the invalid input.  The parser must
+  // treat an InvalidURL token like a Function token, and process
+  // tokens until a matching parenthesis.
 
   aToken.mType = eCSSToken_InvalidURL;
   nsString& ident = aToken.mIdent;
   ident.SetLength(0);
 
-  if (ch == ')') {
-    Pushback(ch);
-    // empty url spec; just get out of here
-    aToken.mType = eCSSToken_URL;
-  } else {
-    // start of a non-quoted url
-    Pushback(ch);
-    PRBool ok = PR_TRUE;
-    for (;;) {
-      ch = Read();
-      if (ch < 0) break;
-      if (ch == CSS_ESCAPE) {
-        ParseAndAppendEscape(ident);
-      } else if ((ch == '"') || (ch == '\'') || (ch == '(')) {
-        // This is an invalid URL spec
-        ok = PR_FALSE;
-      } else if (IsWhitespace(ch)) {
-        // Whitespace is allowed at the end of the URL
-        (void) EatWhiteSpace();
-        if (LookAhead(')')) {
-          Pushback(')');  // leave the closing symbol
-          // done!
-          break;
-        }
-        // Whitespace is followed by something other than a
-        // ")". This is an invalid url spec.
-        ok = PR_FALSE;
-      } else if (ch == ')') {
-        Pushback(ch);
-        // All done
-        break;
-      } else {
-        // A regular url character.
-        ident.Append(PRUnichar(ch));
-      }
-    }
+  Pushback(ch);
 
-    // If the result of the above scanning is ok then change the token
-    // type to a useful one.
-    if (ok) {
-      aToken.mType = eCSSToken_URL;
+  // start of a non-quoted url (which may be empty)
+  PRBool ok = PR_TRUE;
+  for (;;) {
+    ch = Read();
+    if (ch < 0) break;
+    if (ch == CSS_ESCAPE) {
+      ParseAndAppendEscape(ident);
+    } else if ((ch == '"') || (ch == '\'') || (ch == '(')) {
+      // This is an invalid URL spec
+      ok = PR_FALSE;
+      Pushback(ch); // push it back so the parser can match tokens and
+                    // then closing parenthesis
+      break;
+    } else if (IsWhitespace(ch)) {
+      // Whitespace is allowed at the end of the URL
+        EatWhiteSpace();
+        if (LookAhead(')')) {
+        Pushback(')');  // leave the closing symbol
+        // done!
+        break;
+      }
+      // Whitespace is followed by something other than a
+      // ")". This is an invalid url spec.
+      ok = PR_FALSE;
+      break;
+    } else if (ch == ')') {
+      Pushback(ch);
+      // All done
+      break;
+    } else {
+      // A regular url character.
+      ident.Append(PRUnichar(ch));
     }
+  }
+
+  // If the result of the above scanning is ok then change the token
+  // type to a useful one.
+  if (ok) {
+    aToken.mType = eCSSToken_URL;
   }
   return PR_TRUE;
 }
@@ -991,17 +960,13 @@ nsCSSScanner::ParseAndAppendEscape(nsString& aOutput)
         Pushback(ch);
     }
     return;
-  } else {
-    // "Any character except a hexidecimal digit can be escaped to
-    // remove its special meaning by putting a backslash in front"
-    // -- CSS1 spec section 7.1
-    if (!EatNewline()) { // skip escaped newline
-      (void) Read();
-      if (ch > 0) {
-        aOutput.Append(ch);
-      }
-    }
-    return;
+  } 
+  // "Any character except a hexidecimal digit can be escaped to
+  // remove its special meaning by putting a backslash in front"
+  // -- CSS1 spec section 7.1
+  ch = Read();  // Consume the escaped character
+  if ((ch > 0) && (ch != '\n')) {
+    aOutput.Append(ch);
   }
 }
 
@@ -1104,68 +1069,122 @@ nsCSSScanner::ParseAtKeyword(PRInt32 aChar, nsCSSToken& aToken)
   return GatherIdent(0, aToken.mIdent);
 }
 
+#define CHAR_TO_DIGIT(_c) ((_c) - '0')
+
 PRBool
 nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
 {
-  nsString& ident = aToken.mIdent;
-  ident.SetLength(0);
-  PRBool gotDot = (c == '.');
+  NS_PRECONDITION(c == '.' || c == '+' || c == '-' || IsDigit(c),
+                  "Why did we get called?");
   aToken.mHasSign = (c == '+' || c == '-');
-  if (c != '+') {
-    ident.Append(PRUnichar(c));
-  }
 
-  // Gather up characters that make up the number
-  PRBool gotE = PR_FALSE;
-  for (;;) {
+  // Our sign.
+  PRInt32 sign = c == '-' ? -1 : 1;
+  // Absolute value of the integer part of the mantissa.  This is a double so
+  // we don't run into overflow issues for consumers that only care about our
+  // floating-point value while still being able to express the full PRInt32
+  // range for consumers who want integers.
+  double intPart = 0;
+  // Fractional part of the mantissa.  This is a double so that when we convert
+  // to float at the end we'll end up rounding to nearest float instead of
+  // truncating down (as we would if fracPart were a float and we just
+  // effectively lost the last several digits).
+  double fracPart = 0;
+  // Absolute value of the power of 10 that we should multiply by (only
+  // relevant for numbers in scientific notation).  Has to be a signed integer,
+  // because multiplication of signed by unsigned converts the unsigned to
+  // signed, so if we plan to actually multiply by expSign...
+  PRInt32 exponent = 0;
+  // Sign of the exponent.
+  PRInt32 expSign = 1;
+
+  if (aToken.mHasSign) {
+    NS_ASSERTION(c != '.', "How did that happen?");
     c = Read();
-    if (c < 0) break;
-    if (!gotDot  && !gotE && (c == '.') &&
-        IsDigit(Peek())) {
-      gotDot = PR_TRUE;
-#ifdef MOZ_SVG
-    } else if (!gotE && (c == 'e' || c == 'E')) {
-      if (!IsSVGMode()) {
-        break;
-      }
-      PRInt32 nextChar = Peek();
-      PRInt32 sign = 0;
-      if (nextChar == '-' || nextChar == '+') {
-        sign = Read();
-        nextChar = Peek();
-      }
-      if (IsDigit(nextChar)) {
-        gotE = PR_TRUE;
-        if (sign) {
-          ident.Append(PRUnichar(c));
-          c = sign;
-        }
-      } else {
-        if (sign) {
-          Pushback(sign);
-        }
-        break;
-      }
-#endif
-    } else if (!IsDigit(c)) {
-      break;
-    }
-    ident.Append(PRUnichar(c));
   }
 
-  // Convert number to floating point
+  PRBool gotDot = (c == '.');
+
+  if (!gotDot) {
+    // Parse the integer part of the mantisssa
+    NS_ASSERTION(IsDigit(c), "Why did we get called?");
+    do {
+      intPart = 10*intPart + CHAR_TO_DIGIT(c);
+      c = Read();
+      // The IsDigit check will do the right thing even if Read() returns < 0
+    } while (IsDigit(c));
+
+    gotDot = (c == '.') && IsDigit(Peek());
+  }
+
+  if (gotDot) {
+    // Parse the fractional part of the mantissa.
+    c = Read();
+    NS_ASSERTION(IsDigit(c), "How did we get here?");
+    // Power of ten by which we need to divide our next digit
+    float divisor = 10;
+    do {
+      fracPart += CHAR_TO_DIGIT(c) / divisor;
+      divisor *= 10;
+      c = Read();
+      // The IsDigit check will do the right thing even if Read() returns < 0
+    } while (IsDigit(c));
+  }
+
+  PRBool gotE = PR_FALSE;
+#ifdef MOZ_SVG
+  if (IsSVGMode() && (c == 'e' || c == 'E')) {
+    PRInt32 nextChar = Peek();
+    PRInt32 expSignChar = 0;
+    if (nextChar == '-' || nextChar == '+') {
+      expSignChar = Read();
+      nextChar = Peek();
+    }
+    if (IsDigit(nextChar)) {
+      gotE = PR_TRUE;
+      if (expSignChar == '-') {
+        expSign = -1;
+      }
+
+      c = Read();
+      NS_ASSERTION(IsDigit(c), "Peek() must have lied");
+      do {
+        exponent = 10*exponent + CHAR_TO_DIGIT(c);
+        c = Read();
+        // The IsDigit check will do the right thing even if Read() returns < 0
+      } while (IsDigit(c));
+    } else {
+      if (expSignChar) {
+        Pushback(expSignChar);
+      }
+    }
+  }
+#endif
+
   nsCSSTokenType type = eCSSToken_Number;
-  PRInt32 ec;
-  float value = ident.ToFloat(&ec);
 
   // Set mIntegerValid for all cases (except %, below) because we need
   // it for the "2n" in :nth-child(2n).
   aToken.mIntegerValid = PR_FALSE;
-  if (!gotDot && !gotE) {
-    aToken.mInteger = ident.ToInteger(&ec);
+
+  // Time to reassemble our number.
+  float value = float(sign * (intPart + fracPart));
+  if (gotE) {
+    // pow(), not powf(), because at least wince doesn't have the latter.
+    // And explicitly cast everything to doubles to avoid issues with
+    // overloaded pow() on Windows.
+    value *= pow(10.0, double(expSign * exponent));
+  } else if (!gotDot) {
+    if (intPart > PR_INT32_MAX) {
+      // Just clamp it.
+      intPart = PR_INT32_MAX;
+    }
+    aToken.mInteger = PRInt32(sign * intPart);
     aToken.mIntegerValid = PR_TRUE;
   }
-  ident.SetLength(0);
+
+  nsString& ident = aToken.mIdent;
+  ident.Truncate();
 
   // Look at character that terminated the number
   if (c >= 0) {
@@ -1204,53 +1223,6 @@ nsCSSScanner::SkipCComment()
   REPORT_UNEXPECTED_EOF(PECommentEOF);
   return PR_FALSE;
 }
-
-#if 0
-PRBool
-nsCSSScanner::ParseCComment(nsCSSToken& aToken)
-{
-  nsString& ident = aToken.mIdent;
-  for (;;) {
-    PRInt32 ch = Read();
-    if (ch < 0) break;
-    if (ch == '*') {
-      if (LookAhead('/')) {
-        ident.Append(PRUnichar(ch));
-        ident.Append(PRUnichar('/'));
-        break;
-      }
-    }
-#ifdef COLLECT_WHITESPACE
-    ident.Append(PRUnichar(ch));
-#endif
-  }
-  aToken.mType = eCSSToken_WhiteSpace;
-  return PR_TRUE;
-}
-#endif
-
-#if 0
-PRBool
-nsCSSScanner::ParseEOLComment(nsCSSToken& aToken)
-{
-  nsString& ident = aToken.mIdent;
-  ident.SetLength(0);
-  for (;;) {
-    if (EatNewline()) {
-      break;
-    }
-    PRInt32 ch = Read();
-    if (ch < 0) {
-      break;
-    }
-#ifdef COLLECT_WHITESPACE
-    ident.Append(PRUnichar(ch));
-#endif
-  }
-  aToken.mType = eCSSToken_WhiteSpace;
-  return PR_TRUE;
-}
-#endif // 0
 
 PRBool
 nsCSSScanner::ParseString(PRInt32 aStop, nsCSSToken& aToken)

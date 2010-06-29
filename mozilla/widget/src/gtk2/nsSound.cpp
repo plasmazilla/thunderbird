@@ -61,6 +61,7 @@
 static int esdref = -1;
 static PRLibrary *elib = nsnull;
 static PRLibrary *libcanberra = nsnull;
+static PRLibrary* libasound = nsnull;
 
 // the following from esd.h
 
@@ -100,6 +101,26 @@ static ca_context_destroy_fn ca_context_destroy;
 static ca_context_play_fn ca_context_play;
 static ca_context_change_props_fn ca_context_change_props;
 
+/* we provide a blank error handler to silence ALSA's stderr
+   messages on computers with no sound devices */
+typedef void (*snd_lib_error_handler_t) (const char* file,
+                                         int         line,
+                                         const char* function,
+                                         int         err,
+                                         const char* format,
+                                         ...);
+typedef int (*snd_lib_error_set_handler_fn) (snd_lib_error_handler_t handler);
+
+static void
+quiet_error_handler(const char* file,
+                    int         line,
+                    const char* function,
+                    int         err,
+                    const char* format,
+                    ...)
+{
+}
+
 NS_IMPL_ISUPPORTS2(nsSound, nsISound, nsIStreamLoaderObserver)
 
 ////////////////////////////////////////////////////////////////////////
@@ -110,8 +131,7 @@ nsSound::nsSound()
 
 nsSound::~nsSound()
 {
-    /* see above comment */
-    if (esdref != -1) {
+    if (esdref >= 0) {
         EsdCloseType EsdClose = (EsdCloseType) PR_FindFunctionSymbol(elib, "esd_close");
         if (EsdClose)
             (*EsdClose)(esdref);
@@ -130,23 +150,30 @@ nsSound::Init()
     mInited = PR_TRUE;
 
     if (!elib) {
-        /* we don't need to do esd_open_sound if we are only going to play files
-           but we will if we want to do things like streams, etc */
-        EsdOpenSoundType EsdOpenSound;
-
         elib = PR_LoadLibrary("libesd.so.0");
         if (elib) {
-            EsdOpenSound = (EsdOpenSoundType) PR_FindFunctionSymbol(elib, "esd_open_sound");
+            EsdOpenSoundType EsdOpenSound =
+                (EsdOpenSoundType) PR_FindFunctionSymbol(elib, "esd_open_sound");
             if (!EsdOpenSound) {
                 PR_UnloadLibrary(elib);
                 elib = nsnull;
             } else {
                 esdref = (*EsdOpenSound)("localhost");
-                if (!esdref) {
+                if (esdref < 0) {
                     PR_UnloadLibrary(elib);
                     elib = nsnull;
                 }
             }
+        }
+    }
+
+    if (!libasound) {
+        PRFuncPtr func = PR_FindFunctionSymbolAndLibrary("snd_lib_error_set_handler",
+                                                         &libasound);
+        if (libasound) {
+            snd_lib_error_set_handler_fn snd_lib_error_set_handler =
+                 (snd_lib_error_set_handler_fn) func;
+            snd_lib_error_set_handler(quiet_error_handler);
         }
     }
 
@@ -179,6 +206,10 @@ nsSound::Shutdown()
     if (libcanberra) {
         PR_UnloadLibrary(libcanberra);
         libcanberra = nsnull;
+    }
+    if (libasound) {
+        PR_UnloadLibrary(libasound);
+        libasound = nsnull;
     }
 }
 
@@ -345,7 +376,7 @@ NS_IMETHODIMP nsSound::OnStreamComplete(nsIStreamLoader *aLoader,
             buf[j + 1] = audio[j];
         }
 
-	audio = buf;
+        audio = buf;
     }
 #endif
 
@@ -407,8 +438,11 @@ NS_METHOD nsSound::Play(nsIURL *aURL)
     return rv;
 }
 
-nsresult nsSound::PlaySystemEventSound(const nsAString &aSoundAlias)
+NS_IMETHODIMP nsSound::PlayEventSound(PRUint32 aEventId)
 {
+    if (!mInited)
+        Init();
+
     if (!libcanberra)
         return NS_OK;
 
@@ -450,23 +484,45 @@ nsresult nsSound::PlaySystemEventSound(const nsAString &aSoundAlias)
         g_free(sound_theme_name);
     }
 
-    if (aSoundAlias.Equals(NS_SYSSOUND_ALERT_DIALOG))
-        ca_context_play(ctx, 0, "event.id", "dialog-warning", NULL);
-    else if (aSoundAlias.Equals(NS_SYSSOUND_CONFIRM_DIALOG))
-        ca_context_play(ctx, 0, "event.id", "dialog-question", NULL);
-    else if (aSoundAlias.Equals(NS_SYSSOUND_MAIL_BEEP))
-        ca_context_play(ctx, 0, "event.id", "message-new-email", NULL);
-
+    switch (aEventId) {
+        case EVENT_ALERT_DIALOG_OPEN:
+            ca_context_play(ctx, 0, "event.id", "dialog-warning", NULL);
+            break;
+        case EVENT_CONFIRM_DIALOG_OPEN:
+            ca_context_play(ctx, 0, "event.id", "dialog-question", NULL);
+            break;
+        case EVENT_NEW_MAIL_RECEIVED:
+            ca_context_play(ctx, 0, "event.id", "message-new-email", NULL);
+            break;
+        case EVENT_MENU_EXECUTE:
+            ca_context_play(ctx, 0, "event.id", "menu-click", NULL);
+            break;
+        case EVENT_MENU_POPUP:
+            ca_context_play(ctx, 0, "event.id", "menu-popup", NULL);
+            break;
+    }
     return NS_OK;
 }
 
 NS_IMETHODIMP nsSound::PlaySystemSound(const nsAString &aSoundAlias)
 {
-    if (!mInited)
-        Init();
-
-    if (NS_IsMozAliasSound(aSoundAlias))
-        return PlaySystemEventSound(aSoundAlias);
+    if (NS_IsMozAliasSound(aSoundAlias)) {
+        NS_WARNING("nsISound::playSystemSound is called with \"_moz_\" events, they are obsolete, use nsISound::playEventSound instead");
+        PRUint32 eventId;
+        if (aSoundAlias.Equals(NS_SYSSOUND_ALERT_DIALOG))
+            eventId = EVENT_ALERT_DIALOG_OPEN;
+        else if (aSoundAlias.Equals(NS_SYSSOUND_CONFIRM_DIALOG))
+            eventId = EVENT_CONFIRM_DIALOG_OPEN;
+        else if (aSoundAlias.Equals(NS_SYSSOUND_MAIL_BEEP))
+            eventId = EVENT_NEW_MAIL_RECEIVED;
+        else if (aSoundAlias.Equals(NS_SYSSOUND_MENU_EXECUTE))
+            eventId = EVENT_MENU_EXECUTE;
+        else if (aSoundAlias.Equals(NS_SYSSOUND_MENU_POPUP))
+            eventId = EVENT_MENU_POPUP;
+        else
+            return NS_OK;
+        return PlayEventSound(eventId);
+    }
 
     nsresult rv;
     nsCOMPtr <nsIURI> fileURI;

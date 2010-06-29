@@ -7,15 +7,14 @@
       font-family: "Ahem";
       src: url(../fonts/Ahem.ttf);
     }
-    hbox.textbox-input-box {
-      -moz-box-align: center;
+    hbox {
       height: 128px;
       background-color: white;
     }
     input {
       height: 64px;
       background-color: white;
-      border: none 0px;
+      border: none;
       margin: 0px;
       padding: 0px;
       font-family: "Ahem", sans-serif;
@@ -23,7 +22,7 @@
     }
   </html:style>
 
-  <toolbaritem class="chromeclass-location">
-    <textbox type="autocomplete" value="Ahem"/>
-  </toolbaritem>
+  <hbox align="center">
+    <html:input value="Ahem"/>
+  </hbox>
 </window>

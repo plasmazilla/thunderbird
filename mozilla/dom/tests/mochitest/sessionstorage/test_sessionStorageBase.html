@@ -26,7 +26,7 @@ function checkException(func, exc)
 function startTest()
 {
   sessionStorage.clear();
-
+  
   // Initially check the sessionStorage is empty
   is(sessionStorage.length, 0, "The storage is empty [1]");
   checkException(function() {sessionStorage.key(0);}, INDEX_SIZE_ERR);

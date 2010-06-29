@@ -51,8 +51,5 @@ public:
   nsresult Init();
 
 private:
-  nsresult PrepareCall(nsIJSContextStack ** aJSStack);
-  void FinishCall(nsIJSContextStack * aJSStack);
-
   nsCOMPtr<nsIPrivateBrowsingService> mPBService;
 };

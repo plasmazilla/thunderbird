@@ -43,18 +43,13 @@
 #include "nsString.h"
 #include "nsPresContext.h"
 #include "nsIStyleRule.h"
-#include "nsCRT.h"
 
 #include "nsCOMPtr.h"
 #include "nsStyleSet.h"
 #include "nsIPresShell.h"
-#include "prenv.h"
 
 #include "nsRuleNode.h"
 #include "nsStyleContext.h"
-#include "imgIRequest.h"
-
-#include "nsPrintfCString.h"
 
 #ifdef DEBUG
 // #define NOISY_DEBUG
@@ -197,31 +192,6 @@ nsStyleContext::FindChildWithRules(const nsIAtom* aPseudoTag,
   return result;
 }
 
-
-PRBool nsStyleContext::Equals(const nsStyleContext* aOther) const
-{
-  PRBool  result = PR_TRUE;
-  const nsStyleContext* other = (nsStyleContext*)aOther;
-
-  if (other != this) {
-    if (mParent != other->mParent) {
-      result = PR_FALSE;
-    }
-    else if (mBits != other->mBits) {
-      result = PR_FALSE;
-    }
-    else if (mPseudoTag != other->mPseudoTag) {
-      result = PR_FALSE;
-    }
-    else if (mRuleNode != other->mRuleNode) {
-      result = PR_FALSE;
-    }
-  }
-  return result;
-}
-
-//=========================================================================================================
-
 const void* nsStyleContext::GetStyleData(nsStyleStructID aSID)
 {
   const void* cachedData = mCachedStyleData.GetStyleData(aSID); 
@@ -333,6 +303,9 @@ nsStyleContext::SetStyle(nsStyleStructID aSID, void* aStruct)
     }
   }
   char* dataSlot = resetOrInherit + info.mInheritResetOffset;
+  NS_ASSERTION(!*reinterpret_cast<void**>(dataSlot) ||
+               (mBits & nsCachedStyleData::GetBitForSID(aSID)),
+               "Going to leak style data");
   *reinterpret_cast<void**>(dataSlot) = aStruct;
 }
 
@@ -349,6 +322,10 @@ nsStyleContext::ApplyStyleFixups(nsPresContext* aPresContext)
     if (text->mTextDecoration != NS_STYLE_TEXT_DECORATION_NONE &&
         text->mTextDecoration != NS_STYLE_TEXT_DECORATION_OVERRIDE_ALL)
       mBits |= NS_STYLE_HAS_TEXT_DECORATIONS;
+  }
+
+  if ((mParent && mParent->HasPseudoElementData()) || mPseudoTag) {
+    mBits |= NS_STYLE_HAS_PSEUDO_ELEMENT_DATA;
   }
 
   // Correct tables.
@@ -424,7 +401,7 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aOther)
                        PeekStyleData(eStyleStruct_##struct_));                \
     if (this##struct_) {                                                      \
       const nsStyle##struct_* other##struct_ = aOther->GetStyle##struct_();   \
-      if (compare &&                                                          \
+      if ((compare || nsStyle##struct_::ForceCompare()) &&                    \
           !NS_IsHintSubset(maxHint, hint) &&                                  \
           this##struct_ != other##struct_) {                                  \
         NS_ASSERTION(NS_IsHintSubset(                                         \
@@ -439,7 +416,7 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aOther)
   // We begin by examining those style structs that are capable of
   // causing the maximal difference, a FRAMECHANGE.
   // FRAMECHANGE Structs: Display, XUL, Content, UserInterface,
-  // Visibility, Outline, TableBorder, Table, UIReset, Quotes
+  // Visibility, Outline, TableBorder, Table, Text, UIReset, Quotes
   DO_STRUCT_DIFFERENCE(Display);
   DO_STRUCT_DIFFERENCE(XUL);
   DO_STRUCT_DIFFERENCE(Column);
@@ -450,6 +427,7 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aOther)
   DO_STRUCT_DIFFERENCE(TableBorder);
   DO_STRUCT_DIFFERENCE(Table);
   DO_STRUCT_DIFFERENCE(UIReset);
+  DO_STRUCT_DIFFERENCE(Text);
   DO_STRUCT_DIFFERENCE(List);
   // If the quotes implementation is ever going to change we might not need
   // a framechange here and a reflow should be sufficient.  See bug 35768.
@@ -473,7 +451,6 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aOther)
   DO_STRUCT_DIFFERENCE(Padding);
   DO_STRUCT_DIFFERENCE(Border);
   DO_STRUCT_DIFFERENCE(Position);
-  DO_STRUCT_DIFFERENCE(Text);
   DO_STRUCT_DIFFERENCE(TextReset);
 
   // At this point, we know that the worst kind of damage we could do is
@@ -515,44 +492,6 @@ nsStyleContext::Mark()
 }
 
 #ifdef DEBUG
-
-class URICString : public nsCAutoString {
-public:
-  URICString(nsIURI* aURI) {
-    if (aURI) {
-      aURI->GetSpec(*this);
-    } else {
-      Assign("[none]");
-    }
-  }
-
-  URICString(imgIRequest* aImageRequest) {
-    nsCOMPtr<nsIURI> uri;
-    if (aImageRequest) {
-      aImageRequest->GetURI(getter_AddRefs(uri));
-    }
-    if (uri) {
-      uri->GetSpec(*this);
-    } else {
-      Assign("[none]");
-    }
-  }
-
-  URICString(nsCSSValue::URL* aURI) {
-    if (aURI) {
-      NS_ASSERTION(aURI->mURI, "Must have URI here!");
-      aURI->mURI->GetSpec(*this);
-    } else {
-      Assign("[none]");
-    }
-  }
-  
-  URICString& operator=(const URICString& aOther) {
-    Assign(aOther);
-    return *this;
-  }
-};
-
 void nsStyleContext::List(FILE* out, PRInt32 aIndent)
 {
   // Indent
@@ -598,324 +537,6 @@ void nsStyleContext::List(FILE* out, PRInt32 aIndent)
       child = child->mNextSibling;
     } while (mEmptyChild != child);
   }
-}
-
-static void IndentBy(FILE* out, PRInt32 aIndent) {
-  while (--aIndent >= 0) fputs("  ", out);
-}
-// virtual 
-void nsStyleContext::DumpRegressionData(nsPresContext* aPresContext, FILE* out, PRInt32 aIndent)
-{
-  nsAutoString str;
-
-  // FONT
-  IndentBy(out,aIndent);
-  const nsStyleFont* font = GetStyleFont();
-  fprintf(out, "<font %s %d %d %d />\n", 
-          NS_ConvertUTF16toUTF8(font->mFont.name).get(),
-          font->mFont.size,
-          font->mSize,
-          font->mGenericID);
-
-  // COLOR
-  IndentBy(out,aIndent);
-  const nsStyleColor* color = GetStyleColor();
-  fprintf(out, "<color data=\"%ld\"/>\n", 
-    (long)color->mColor);
-
-  // BACKGROUND
-  IndentBy(out,aIndent);
-  const nsStyleBackground* bg = GetStyleBackground();
-  fprintf(out, "<background data=\"%d %d %d %ld %ld %ld %s\"/>\n",
-    (int)bg->mBackgroundAttachment,
-    (int)bg->mBackgroundFlags,
-    (int)bg->mBackgroundRepeat,
-    (long)bg->mBackgroundColor,
-    // XXX These aren't initialized unless flags are set:
-    (long)bg->mBackgroundXPosition.mCoord, // potentially lossy on some platforms
-    (long)bg->mBackgroundYPosition.mCoord, // potentially lossy on some platforms
-    URICString(bg->mBackgroundImage).get());
- 
-  // SPACING (ie. margin, padding, border, outline)
-  IndentBy(out,aIndent);
-  fprintf(out, "<spacing data=\"");
-
-  const nsStyleMargin* margin = GetStyleMargin();
-  margin->mMargin.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  
-  const nsStylePadding* padding = GetStylePadding();
-  padding->mPadding.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  
-  const nsStyleBorder* border = GetStyleBorder();
-#ifdef NS_COORD_IS_FLOAT
-  const char format [] = "top: %ftw right: %ftw bottom: %ftw left: %ftw";
-#else
-  const char format [] = "top: %dtw right: %dtw bottom: %dtw left: %dtw";
-#endif
-  nsPrintfCString output(format,
-                         border->GetActualBorderWidth(NS_SIDE_TOP),
-                         border->GetActualBorderWidth(NS_SIDE_RIGHT),
-                         border->GetActualBorderWidth(NS_SIDE_BOTTOM),
-                         border->GetActualBorderWidth(NS_SIDE_LEFT));
-  fprintf(out, "%s ", output.get());
-  border->mBorderRadius.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  
-  const nsStyleOutline* outline = GetStyleOutline();
-  outline->mOutlineRadius.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  outline->mOutlineWidth.ToString(str);
-  fprintf(out, "%s", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "%d", (int)border->mFloatEdge);
-  fprintf(out, "\" />\n");
-
-  // LIST
-  IndentBy(out,aIndent);
-  const nsStyleList* list = GetStyleList();
-  fprintf(out, "<list data=\"%d %d %s\" />\n",
-    (int)list->mListStyleType,
-    (int)list->mListStyleType,
-    URICString(list->mListStyleImage).get());
-
-  // POSITION
-  IndentBy(out,aIndent);
-  const nsStylePosition* pos = GetStylePosition();
-  fprintf(out, "<position data=\"");
-  pos->mOffset.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mWidth.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mMinWidth.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mMaxWidth.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mHeight.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mMinHeight.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  pos->mMaxHeight.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "%d ", (int)pos->mBoxSizing);
-  pos->mZIndex.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "\" />\n");
-
-  // TEXT
-  IndentBy(out,aIndent);
-  const nsStyleText* text = GetStyleText();
-  fprintf(out, "<text data=\"%d %d %d %d",
-    (int)text->mTextAlign,
-    (int)text->mTextTransform,
-    (int)text->mWhiteSpace,
-    (int)text->mWordWrap);
-  text->mLetterSpacing.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  text->mLineHeight.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  text->mTextIndent.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  text->mWordSpacing.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "\" />\n");
-  
-  // TEXT RESET
-  IndentBy(out,aIndent);
-  const nsStyleTextReset* textReset = GetStyleTextReset();
-  fprintf(out, "<textreset data=\"%d ",
-    (int)textReset->mTextDecoration);
-  textReset->mVerticalAlign.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "\" />\n");
-
-  // DISPLAY
-  IndentBy(out,aIndent);
-  const nsStyleDisplay* disp = GetStyleDisplay();
-  fprintf(out, "<display data=\"%d %d %f %d %d %d %d %d %d %d %ld %ld %ld %ld %s\" />\n",
-    (int)disp->mPosition,
-    (int)disp->mDisplay,
-    (float)disp->mOpacity,      
-    (int)disp->mFloats,
-    (int)disp->mBreakType,
-    (int)disp->mBreakBefore,
-    (int)disp->mBreakAfter,
-    (int)disp->mOverflowX,
-    (int)disp->mOverflowY,
-    (int)disp->mClipFlags,
-    (long)disp->mClip.x,
-    (long)disp->mClip.y,
-    (long)disp->mClip.width,
-    (long)disp->mClip.height,
-    URICString(disp->mBinding).get()
-    );
-  
-  // VISIBILITY
-  IndentBy(out,aIndent);
-  const nsStyleVisibility* vis = GetStyleVisibility();
-  fprintf(out, "<visibility data=\"%d %d\" />\n",
-    (int)vis->mDirection,
-    (int)vis->mVisible
-    );
-
-  // TABLE
-  IndentBy(out,aIndent);
-  const nsStyleTable* table = GetStyleTable();
-  fprintf(out, "<table data=\"%d %d %d ",
-    (int)table->mLayoutStrategy,
-    (int)table->mFrame,
-    (int)table->mRules);
-  fprintf(out, "%ld %ld ",
-    (long)table->mCols,
-    (long)table->mSpan);
-  fprintf(out, "\" />\n");
-
-  // TABLEBORDER
-  IndentBy(out,aIndent);
-  const nsStyleTableBorder* tableBorder = GetStyleTableBorder();
-  fprintf(out, "<tableborder data=\"%d %d %d %d %d ",
-    (int)tableBorder->mBorderCollapse,
-    (int)tableBorder->mBorderSpacingX,
-    (int)tableBorder->mBorderSpacingY,
-    (int)tableBorder->mCaptionSide,
-    (int)tableBorder->mEmptyCells);
-  fprintf(out, "\" />\n");
-
-  // CONTENT
-  IndentBy(out,aIndent);
-  const nsStyleContent* content = GetStyleContent();
-  fprintf(out, "<content data=\"%ld %ld %ld ",
-    (long)content->ContentCount(),
-    (long)content->CounterIncrementCount(),
-    (long)content->CounterResetCount());
-  // XXX: iterate over the content and counters...
-  content->mMarkerOffset.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "\" />\n");
-
-  // QUOTES
-  IndentBy(out,aIndent);
-  const nsStyleQuotes* quotes = GetStyleQuotes();
-  fprintf(out, "<quotes data=\"%ld ",
-    (long)quotes->QuotesCount());
-  // XXX: iterate over the quotes...
-  fprintf(out, "\" />\n");
-
-  // UI
-  IndentBy(out,aIndent);
-  const nsStyleUserInterface* ui = GetStyleUserInterface();
-  fprintf(out, "<ui data=\"%d %d %d %d\" />\n",
-    (int)ui->mUserInput,
-    (int)ui->mUserModify,
-    (int)ui->mUserFocus, 
-    (int)ui->mCursor);
-
-  // UIReset
-  IndentBy(out,aIndent);
-  const nsStyleUIReset* uiReset = GetStyleUIReset();
-  fprintf(out, "<uireset data=\"%d %d %d\" />\n",
-    (int)uiReset->mUserSelect,
-    (int)uiReset->mIMEMode,
-    (int)uiReset->mWindowShadow);
-
-  // Column
-  IndentBy(out,aIndent);
-  const nsStyleColumn* column = GetStyleColumn();
-  fprintf(out, "<column data=\"%d ",
-    (int)column->mColumnCount);
-  column->mColumnWidth.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  column->mColumnGap.ToString(str);
-  fprintf(out, "%s ", NS_ConvertUTF16toUTF8(str).get());
-  fprintf(out, "%d %d %ld",
-    (int)column->GetComputedColumnRuleWidth(),
-    (int)column->mColumnRuleStyle,
-    (long)column->mColumnRuleColor);
-  fprintf(out, "\" />\n");
-
-  // XUL
-  IndentBy(out,aIndent);
-  const nsStyleXUL* xul = GetStyleXUL();
-  fprintf(out, "<xul data=\"%d %d %d %d %d %d",
-    (int)xul->mBoxAlign,
-    (int)xul->mBoxDirection,
-    (int)xul->mBoxFlex,
-    (int)xul->mBoxOrient,
-    (int)xul->mBoxPack,
-    (int)xul->mBoxOrdinal);
-  fprintf(out, "\" />\n");
-
-#ifdef MOZ_SVG
-  // SVG
-  IndentBy(out,aIndent);
-  const nsStyleSVG* svg = GetStyleSVG();
-  fprintf(out, "<svg data=\"%d ",(int)svg->mFill.mType);
-  if (svg->mFill.mType == eStyleSVGPaintType_Server)
-    fprintf(out, "%s %ld ", URICString(svg->mFill.mPaint.mPaintServer).get(),
-                            (long)svg->mFill.mFallbackColor);
-  else
-    fprintf(out, "%ld ", (long)svg->mFill.mPaint.mColor);
-
-  fprintf(out, "%d ", (int)svg->mStroke.mType);
-  if (svg->mStroke.mType == eStyleSVGPaintType_Server)
-    fprintf(out, "%s %ld ", URICString(svg->mStroke.mPaint.mPaintServer).get(),
-                            (long)svg->mStroke.mFallbackColor);
-  else
-    fprintf(out, "%ld ", (long)svg->mStroke.mPaint.mColor);
-
-  fprintf(out, "%s %s %s ",
-          URICString(svg->mMarkerEnd).get(),
-          URICString(svg->mMarkerMid).get(),
-          URICString(svg->mMarkerStart).get());
-
-  for (PRUint32 i = 0; i < svg->mStrokeDasharrayLength; i++) {
-    svg->mStrokeDasharray[i].ToString(str);
-    fprintf(out,
-            "%s%c",
-            NS_ConvertUTF16toUTF8(str).get(),
-            (i == svg->mStrokeDasharrayLength) ? ' ' : ',');
-  }
-
-  svg->mStrokeDashoffset.ToString(str);
-  fprintf(out, "%f %s %f %f ",
-          svg->mFillOpacity,
-          NS_ConvertUTF16toUTF8(str).get(),
-          svg->mStrokeMiterlimit,
-          svg->mStrokeOpacity);
-  svg->mStrokeWidth.ToString(str);
-  fprintf(out, "%s %d %d %d %d %d %d %d %d %d %d %d\" />\n",
-          NS_ConvertUTF16toUTF8(str).get(),
-          (int)svg->mStrokeDasharrayLength,
-          (int)svg->mClipRule,
-          (int)svg->mColorInterpolation,
-          (int)svg->mColorInterpolationFilters,
-          (int)svg->mFillRule,
-          (int)svg->mPointerEvents,
-          (int)svg->mShapeRendering,
-          (int)svg->mStrokeLinecap,
-          (int)svg->mStrokeLinejoin,
-          (int)svg->mTextAnchor,
-          (int)svg->mTextRendering);
-
-  // SVGReset
-  IndentBy(out,aIndent);
-  const nsStyleSVGReset* svgReset = GetStyleSVGReset();
-
-  fprintf(out, "<svgreset data=\"%ld ", (long)svgReset->mStopColor);
-
-  fprintf(out, "%ld ", (long)svgReset->mFloodColor);
-
-  fprintf(out, "%ld ", (long)svgReset->mLightingColor);
-
-  fprintf(out, "%s %s %s %f %f %d\" />\n",
-          URICString(svgReset->mClipPath).get(),
-          URICString(svgReset->mFilter).get(),
-          URICString(svgReset->mMask).get(),
-          svgReset->mStopOpacity,
-          svgReset->mFloodOpacity,
-          (int)svgReset->mDominantBaseline);
-#endif
-  //#insert new style structs here#
 }
 #endif
 

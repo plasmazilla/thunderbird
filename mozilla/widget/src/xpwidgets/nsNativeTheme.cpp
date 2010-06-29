@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsNativeTheme.h"
+#include "nsIWidget.h"
 #include "nsIDocument.h"
 #include "nsIContent.h"
 #include "nsIFrame.h"
@@ -49,6 +50,7 @@
 #include "nsILookAndFeel.h"
 #include "nsThemeConstants.h"
 #include "nsIComponentManager.h"
+#include "nsIDOMNSHTMLInputElement.h"
 
 nsNativeTheme::nsNativeTheme()
 {
@@ -156,6 +158,42 @@ nsNativeTheme::GetCheckedOrSelected(nsIFrame* aFrame, PRBool aCheckSelected)
 
   return CheckBooleanAttr(aFrame, aCheckSelected ? nsWidgetAtoms::selected
                                                  : nsWidgetAtoms::checked);
+}
+
+PRBool
+nsNativeTheme::IsButtonTypeMenu(nsIFrame* aFrame)
+{
+  if (!aFrame)
+    return PR_FALSE;
+
+  nsIContent* content = aFrame->GetContent();
+  return content->AttrValueIs(kNameSpaceID_None, nsWidgetAtoms::type,
+                              NS_LITERAL_STRING("menu"), eCaseMatters);
+}
+
+PRBool
+nsNativeTheme::GetIndeterminate(nsIFrame* aFrame)
+{
+  if (!aFrame)
+    return PR_FALSE;
+
+  nsIContent* content = aFrame->GetContent();
+
+  if (content->IsNodeOfType(nsINode::eXUL)) {
+    // For a XUL checkbox or radio button, the state of the parent determines
+    // the state
+    return CheckBooleanAttr(aFrame->GetParent(), nsWidgetAtoms::indeterminate);
+  }
+
+  // Check for an HTML input element
+  nsCOMPtr<nsIDOMNSHTMLInputElement> inputElt = do_QueryInterface(content);
+  if (inputElt) {
+    PRBool indeterminate;
+    inputElt->GetIndeterminate(&indeterminate);
+    return indeterminate;
+  }
+
+  return PR_FALSE;
 }
 
 PRBool
@@ -358,7 +396,7 @@ nsNativeTheme::IsSubmenu(nsIFrame* aFrame, PRBool* aLeftOfParent)
   while ((parent = parent->GetParent())) {
     if (parent->GetContent() == parentContent) {
       if (aLeftOfParent) {
-        nsRect selfBounds, parentBounds;
+        nsIntRect selfBounds, parentBounds;
         aFrame->GetWindow()->GetScreenBounds(selfBounds);
         parent->GetWindow()->GetScreenBounds(parentBounds);
         *aLeftOfParent = selfBounds.x < parentBounds.x;

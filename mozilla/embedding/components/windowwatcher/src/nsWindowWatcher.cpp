@@ -86,9 +86,11 @@
 #include "nsIMutableArray.h"
 #include "nsISupportsArray.h"
 #include "nsIDeviceContext.h"
+#include "nsIDOMStorageObsolete.h"
 #include "nsIDOMStorage.h"
-#include "nsIDOMStorage2.h"
 #include "nsPIDOMStorage.h"
+#include "nsIWidget.h"
+#include "nsFocusManager.h"
 
 #include "nsIPrefBranch.h"
 #include "nsIPrefService.h"
@@ -337,7 +339,6 @@ NS_IMPL_QUERY_INTERFACE4(nsWindowWatcher,
 nsWindowWatcher::nsWindowWatcher() :
         mEnumeratorList(),
         mOldestWindow(0),
-        mActiveWindow(0),
         mListLock(0)
 {
 }
@@ -554,7 +555,7 @@ nsWindowWatcher::OpenWindowJSInternal(nsIDOMWindow *aParent,
 
   // Make sure we call CalculateChromeFlags() *before* we push the
   // callee context onto the context stack so that
-  // CalculateChromeFlags() sees the actual caller when doing it's
+  // CalculateChromeFlags() sees the actual caller when doing its
   // security checks.
   chromeFlags = CalculateChromeFlags(features.get(), featuresSpecified,
                                      aDialog, uriToLoadIsChrome,
@@ -766,7 +767,7 @@ nsWindowWatcher::OpenWindowJSInternal(nsIDOMWindow *aParent,
 
   if ((aDialog || windowIsModalContentDialog) && argv) {
     // Set the args on the new window.
-    nsCOMPtr<nsPIDOMWindow_1_9_1> piwin(do_QueryInterface(*_retval));
+    nsCOMPtr<nsPIDOMWindow> piwin(do_QueryInterface(*_retval));
     NS_ENSURE_TRUE(piwin, NS_ERROR_UNEXPECTED);
 
     rv = piwin->SetArguments(argv, callerPrincipal);
@@ -943,21 +944,19 @@ nsWindowWatcher::OpenWindowJSInternal(nsIDOMWindow *aParent,
 
   // Copy the current session storage for the current domain.
   nsCOMPtr<nsPIDOMWindow> piWindow = do_QueryInterface(aParent);
-  nsCOMPtr<nsIDocShell_MOZILLA_1_9_1_SessionStorage> parentDocShell;
+  nsIDocShell* parentDocShell = nsnull;
   if (piWindow)
-    parentDocShell = do_QueryInterface(piWindow->GetDocShell());
+    parentDocShell = piWindow->GetDocShell();
 
   if (subjectPrincipal && parentDocShell) {
-    nsCOMPtr<nsIDOMStorage2> storage;
+    nsCOMPtr<nsIDOMStorage> storage;
     parentDocShell->GetSessionStorageForPrincipal(subjectPrincipal, PR_FALSE,
                                                   getter_AddRefs(storage));
     nsCOMPtr<nsPIDOMStorage> piStorage =
       do_QueryInterface(storage);
     if (piStorage){
       storage = piStorage->Clone();
-      nsCOMPtr<nsIDocShell_MOZILLA_1_9_1_SessionStorage> newDocShell191 =
-        do_QueryInterface(newDocShell);
-      newDocShell191->AddSessionStorage(
+      newDocShell->AddSessionStorage(
         piStorage->Principal(),
         storage);
     }
@@ -1119,32 +1118,20 @@ nsWindowWatcher::SetWindowCreator(nsIWindowCreator *creator)
 NS_IMETHODIMP
 nsWindowWatcher::GetActiveWindow(nsIDOMWindow **aActiveWindow)
 {
-  if (!aActiveWindow)
-    return NS_ERROR_INVALID_ARG;
-
-  *aActiveWindow = mActiveWindow;
-  NS_IF_ADDREF(mActiveWindow);
+  *aActiveWindow = nsnull;
+  nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
+  if (fm)
+    return fm->GetActiveWindow(aActiveWindow);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsWindowWatcher::SetActiveWindow(nsIDOMWindow *aActiveWindow)
 {
-#ifdef DEBUG
-  {
-    nsCOMPtr<nsPIDOMWindow> win(do_QueryInterface(aActiveWindow));
-
-    NS_ASSERTION(!win || win->IsOuterWindow(),
-                 "Uh, the active window must be an outer window!");
-  }
-#endif
-
-  if (FindWindowEntry(aActiveWindow)) {
-    mActiveWindow = aActiveWindow;
-    return NS_OK;
-  }
-  NS_ERROR("invalid active window");
-  return NS_ERROR_FAILURE;
+  nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
+  if (fm)
+    return fm->SetActiveWindow(aActiveWindow);
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1262,24 +1249,20 @@ nsWindowWatcher::FindWindowEntry(nsIDOMWindow *aWindow)
 
 nsresult nsWindowWatcher::RemoveWindow(nsWatcherWindowEntry *inInfo)
 {
-  PRInt32  ctr,
-           count = mEnumeratorList.Count();
+  PRUint32  ctr,
+            count = mEnumeratorList.Length();
   nsresult rv;
 
   {
     // notify the enumerators
     nsAutoLock lock(mListLock);
     for (ctr = 0; ctr < count; ++ctr) 
-      ((nsWatcherWindowEnumerator*)mEnumeratorList[ctr])->WindowRemoved(inInfo);
+      mEnumeratorList[ctr]->WindowRemoved(inInfo);
 
     // remove the element from the list
     if (inInfo == mOldestWindow)
       mOldestWindow = inInfo->mYounger == mOldestWindow ? 0 : inInfo->mYounger;
     inInfo->Unlink();
-
-    // clear the active window, if they're the same
-    if (mActiveWindow == inInfo->mWindow)
-      mActiveWindow = 0;
   }
 
   // a window being removed from us signifies a newly closed window.
@@ -1357,7 +1340,7 @@ PRBool
 nsWindowWatcher::AddEnumerator(nsWatcherWindowEnumerator* inEnumerator)
 {
   // (requires a lock; assumes it's called by someone holding the lock)
-  return mEnumeratorList.AppendElement(inEnumerator);
+  return mEnumeratorList.AppendElement(inEnumerator) != nsnull;
 }
 
 PRBool
@@ -1938,7 +1921,14 @@ nsWindowWatcher::SizeOpenedDocShellItem(nsIDocShellTreeItem *aDocShellItem,
   }
   if (mainWidget) {
     nsCOMPtr<nsIDeviceContext> ctx = mainWidget->GetDeviceContext();
-    devPixelsPerCSSPixel = float(ctx->AppUnitsPerCSSPixel()) / ctx->AppUnitsPerDevPixel();
+    /* we might be called by an extension after mainWidget::OnDestroy() */
+    if (ctx) {
+      PRInt32 unitsPerDevPixel = ctx->AppUnitsPerDevPixel();
+      if (unitsPerDevPixel) {
+        devPixelsPerCSSPixel = float(ctx->AppUnitsPerCSSPixel()) /
+                                     unitsPerDevPixel;
+      }
+    }
   }
 
   /* The current position and size will be unchanged if not specified

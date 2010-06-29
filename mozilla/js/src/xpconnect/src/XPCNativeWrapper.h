@@ -67,7 +67,7 @@ public:
   // NB: Use the following carefully.
   static XPCWrappedNative *SafeGetWrappedNative(JSObject *obj)
   {
-    return static_cast<XPCWrappedNative *>(xpc_GetJSPrivate(obj));
+      return static_cast<XPCWrappedNative *>(xpc_GetJSPrivate(obj));
   }
 
 

@@ -55,6 +55,7 @@
 #include "nsGkAtoms.h"
 #include "nsTHashtable.h"
 #include "nsHashKeys.h"
+#include "nsTArray.h"
 #include "nsITimer.h"
 #include "nsStubDocumentObserver.h"
 #include "nsIParserService.h"
@@ -107,10 +108,6 @@ extern PRLogModuleInfo* gContentSinkLogModuleInfo;
 // 1/2 second fudge factor for window creation
 #define NS_DELAY_FOR_WINDOW_CREATION  500000
 
-// 200 determined empirically to provide good user response without
-// sampling the clock too often.
-#define NS_MAX_TOKENS_DEFLECTED_IN_LOW_FREQ_MODE 200
-
 class nsContentSink : public nsICSSLoaderObserver,
                       public nsIScriptLoaderObserver,
                       public nsSupportsWeakReference,
@@ -137,8 +134,7 @@ class nsContentSink : public nsICSSLoaderObserver,
   NS_HIDDEN_(nsresult) WillResumeImpl(void);
   NS_HIDDEN_(nsresult) DidProcessATokenImpl(void);
   NS_HIDDEN_(void) WillBuildModelImpl(void);
-  NS_HIDDEN_(void) DidBuildModelImpl(void);
-  NS_HIDDEN_(PRBool) ReadyToCallDidBuildModelImpl(PRBool aTerminated);
+  NS_HIDDEN_(void) DidBuildModelImpl(PRBool aTerminated);
   NS_HIDDEN_(void) DropParserAndPerfHint(void);
   PRBool IsScriptExecutingImpl();
 
@@ -149,6 +145,8 @@ class nsContentSink : public nsICSSLoaderObserver,
   virtual void EndUpdate(nsIDocument *aDocument, nsUpdateType aUpdateType);
 
   virtual void UpdateChildCounts() = 0;
+
+  PRBool IsTimeToNotify();
 
 protected:
   nsContentSink();
@@ -245,12 +243,14 @@ protected:
                                        nsIURI **aManifestURI,
                                        CacheSelectionAction *aAction);
 
+public:
   // Searches for the offline cache manifest attribute and calls one
   // of the above defined methods to select the document's application
   // cache, let it be associated with the document and eventually
   // schedule the cache update process.
   void ProcessOfflineManifest(nsIContent *aElement);
 
+protected:
   // Tries to scroll to the URI's named anchor. Once we've successfully
   // done that, further calls to this method will be ignored.
   void ScrollToRef();
@@ -259,10 +259,9 @@ protected:
   // Start layout.  If aIgnorePendingSheets is true, this will happen even if
   // we still have stylesheet loads pending.  Otherwise, we'll wait until the
   // stylesheets are all done loading.
+public:
   void StartLayout(PRBool aIgnorePendingSheets);
-
-  PRBool IsTimeToNotify();
-
+protected:
   void
   FavorPerformanceHint(PRBool perfOverStarvation, PRUint32 starvationDelay);
 
@@ -339,8 +338,6 @@ protected:
   PRUint8 mDeferredLayoutStart : 1;
   // If true, we deferred notifications until sheets load
   PRUint8 mDeferredFlushTags : 1;
-  // If true, we did get a ReadyToCallDidBuildModel call
-  PRUint8 mDidGetReadyToCallDidBuildModelCall : 1;
   // If false, we're not ourselves a document observer; that means we
   // shouldn't be performing any more content model notifications,
   // since we're not longer updating our child counts.

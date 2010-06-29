@@ -57,6 +57,17 @@ function createStatement(dbconn, sql) {
     return wrapper;
 }
 
+/**
+ * Helper function to flush the preferences file. If the application crashes
+ * after a calendar has been created using the prefs registry, then the calendar
+ * won't show up. Writing the prefs helps counteract.
+ */
+function flushPrefs() {
+    Components.classes["@mozilla.org/preferences-service;1"]
+              .getService(Components.interfaces.nsIPrefService)
+              .savePrefFile(null);
+}
+
 function calCalendarManager() {
     this.wrappedJSObject = this;
     this.mObservers = new calListenerBag(Components.interfaces.calICalendarManagerObserver);
@@ -458,6 +469,7 @@ calCalendarManager.prototype = {
                 sortOrderAr.push(s);
             }
             cal.setPref("calendar.list.sortOrder", sortOrderAr.join(" "));
+            flushPrefs();
 
         } finally {
             selectPrefs.reset();
@@ -643,7 +655,7 @@ calCalendarManager.prototype = {
             let wWatcher = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
                                      .getService(Components.interfaces.nsIWindowWatcher);
             wWatcher.openWindow(null,
-                                "chrome://calendar/content/calErrorPrompt.xul",
+                                "chrome://calendar/content/calendar-error-prompt.xul",
                                 "_blank",
                                 "chrome,dialog=yes,alwaysRaised=yes",
                                 paramBlock);
@@ -661,6 +673,7 @@ calCalendarManager.prototype = {
         cal.setPref(getPrefBranchFor(calendar.id) + "uri", calendar.uri.spec);
 
         this.setupCalendar(calendar);
+        flushPrefs();
 
         if (!calendar.getProperty("disabled") && calendar.canRefresh) {
             calendar.refresh();
@@ -700,6 +713,7 @@ calCalendarManager.prototype = {
         let prefService = Components.classes["@mozilla.org/preferences-service;1"]
                                     .getService(Components.interfaces.nsIPrefBranch);
         prefService.deleteBranch(getPrefBranchFor(calendar.id));
+        flushPrefs();
 
         if (this.mCache) {
             delete this.mCache[calendar.id];
@@ -1017,7 +1031,7 @@ calMgrCalendarObserver.prototype = {
                                   .getService(Components.interfaces.nsIWindowWatcher);
             var promptWindow =
                 wWatcher.openWindow
-                    (null, "chrome://calendar/content/calErrorPrompt.xul",
+                    (null, "chrome://calendar/content/calendar-error-prompt.xul",
                      "_blank", "chrome,dialog=yes,alwaysRaised=yes",
                      paramBlock);
             // Will remove paramBlock from announced messages when

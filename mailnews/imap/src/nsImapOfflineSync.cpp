@@ -107,6 +107,9 @@ nsImapOfflineSync::OnStopRunningUrl(nsIURI* url, nsresult exitCode)
     m_curTempFile->Remove(PR_FALSE);
     m_curTempFile = nsnull;
   }
+  // NS_BINDING_ABORTED is used for the user pressing stop, which
+  // should cause us to abort the offline process. Other errors
+  // should allow us to continue.
   if (stopped)
   {
     if (m_listener)
@@ -116,11 +119,16 @@ nsImapOfflineSync::OnStopRunningUrl(nsIURI* url, nsresult exitCode)
   nsCOMPtr<nsIImapUrl> imapUrl = do_QueryInterface(url);
 
   if (imapUrl)
-    nsImapProtocol::LogImapUrl(NS_SUCCEEDED(rv) ? "offline imap url succeeded " : "offline imap url failed ", imapUrl);
-  // NS_BINDING_ABORTED is used for the user pressing stop, which
-  // should cause us to abort the offline process. Other errors
-  // should allow us to continue.
-  if (NS_SUCCEEDED(exitCode))
+    nsImapProtocol::LogImapUrl(NS_SUCCEEDED(rv) ?
+                               "offline imap url succeeded " :
+                               "offline imap url failed ", imapUrl);
+
+  // If we succeeded, or it was an imap move/copy that timed out, clear the
+  // operation.
+  PRBool moveCopy = mCurrentPlaybackOpType == nsIMsgOfflineImapOperation::kMsgCopy ||
+    mCurrentPlaybackOpType == nsIMsgOfflineImapOperation::kMsgMoved;
+  if (NS_SUCCEEDED(exitCode) || exitCode == NS_MSG_ERROR_IMAP_COMMAND_FAILED ||
+      (moveCopy && exitCode == NS_ERROR_NET_TIMEOUT))
   {
     ClearCurrentOps();
     rv = ProcessNextOperation();
@@ -381,7 +389,7 @@ nsImapOfflineSync::ProcessAppendMsgOperation(nsIMsgOfflineImapOperation *current
   nsresult rv = m_currentDB->GetMsgHdrForKey(msgKey, getter_AddRefs(mailHdr)); 
   if (NS_SUCCEEDED(rv) && mailHdr)
   {
-    nsMsgKey messageOffset;
+    PRUint64 messageOffset;
     PRUint32 messageSize;
     mailHdr->GetMessageOffset(&messageOffset);
     mailHdr->GetOfflineMessageSize(&messageSize);
@@ -437,7 +445,7 @@ nsImapOfflineSync::ProcessAppendMsgOperation(nsIMsgOfflineImapOperation *current
                 rv = NS_OK;
                 while (bytesLeft > 0 && NS_SUCCEEDED(rv))
                 {
-                  PRInt32 bytesToRead = PR_MIN(inputBufferSize, bytesLeft);
+                  PRInt32 bytesToRead = NS_MIN(inputBufferSize, bytesLeft);
                   rv = offlineStoreInputStream->Read(inputBuffer, bytesToRead, &bytesRead);
                   if (NS_SUCCEEDED(rv) && bytesRead > 0)
                   {
@@ -452,10 +460,13 @@ nsImapOfflineSync::ProcessAppendMsgOperation(nsIMsgOfflineImapOperation *current
                 outputStream->Close();
                 if (NS_SUCCEEDED(rv))
                 {
-                  m_curTempFile = do_QueryInterface(tmpFile);
+                  nsCOMPtr<nsIFile> cloneTmpFile;
+                  // clone the tmp file to defeat nsIFile's stat/size caching.
+                  tmpFile->Clone(getter_AddRefs(cloneTmpFile));
+                  m_curTempFile = do_QueryInterface(cloneTmpFile);
                   nsCOMPtr<nsIMsgCopyService> copyService = do_GetService(NS_MSGCOPYSERVICE_CONTRACTID);
                   if (copyService)
-                    rv = copyService->CopyFileMessage(tmpFile, destFolder,
+                    rv = copyService->CopyFileMessage(cloneTmpFile, destFolder,
                     /* nsIMsgDBHdr* msgToReplace */ nsnull,
                     PR_TRUE /* isDraftOrTemplate */,
                     0, // new msg flags - are there interesting flags here?

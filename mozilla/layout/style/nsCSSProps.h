@@ -60,6 +60,9 @@
 #define CSS_PROPERTY_APPLIES_TO_FIRST_LINE        (1<<3)
 #define CSS_PROPERTY_APPLIES_TO_FIRST_LETTER_AND_FIRST_LINE \
   (CSS_PROPERTY_APPLIES_TO_FIRST_LETTER | CSS_PROPERTY_APPLIES_TO_FIRST_LINE)
+// Note that 'background-color' is ignored differently from the other
+// properties that have this set, but that's just special-cased.
+#define CSS_PROPERTY_IGNORED_WHEN_COLORS_DISABLED (1<<4)
 
 class nsCSSProps {
 public:
@@ -105,9 +108,19 @@ public:
   static const nsCSSType       kTypeTable[eCSSProperty_COUNT_no_shorthands];
   static const nsStyleStructID kSIDTable[eCSSProperty_COUNT_no_shorthands];
   static const PRInt32* const  kKeywordTableTable[eCSSProperty_COUNT_no_shorthands];
+
 private:
   static const PRUint32        kFlagsTable[eCSSProperty_COUNT];
 
+public:
+  static inline PRBool PropHasFlags(nsCSSProperty aProperty, PRUint32 aFlags)
+  {
+    NS_ASSERTION(0 <= aProperty && aProperty < eCSSProperty_COUNT,
+                 "out of range");
+    return (nsCSSProps::kFlagsTable[aProperty] & aFlags) == aFlags;
+  }
+
+private:
   // A table for shorthand properties.  The appropriate index is the
   // property ID minus eCSSProperty_COUNT_no_shorthands.
   static const nsCSSProperty *const
@@ -115,7 +128,7 @@ private:
 
 public:
   static inline
-  const nsCSSProperty *const SubpropertyEntryFor(nsCSSProperty aProperty) {
+  const nsCSSProperty * SubpropertyEntryFor(nsCSSProperty aProperty) {
     NS_ASSERTION(eCSSProperty_COUNT_no_shorthands <= aProperty &&
                  aProperty < eCSSProperty_COUNT,
                  "out of range");
@@ -123,10 +136,26 @@ public:
                                          eCSSProperty_COUNT_no_shorthands];
   }
 
-  static inline PRBool PropHasFlags(nsCSSProperty aProperty, PRUint32 aFlags)
-  {
-    return (nsCSSProps::kFlagsTable[aProperty] & aFlags) == aFlags;
+  // Returns an eCSSProperty_UNKNOWN-terminated array of the shorthand
+  // properties containing |aProperty|, sorted from those that contain
+  // the most properties to those that contain the least.
+  static const nsCSSProperty * ShorthandsContaining(nsCSSProperty aProperty) {
+    NS_ASSERTION(gShorthandsContainingPool, "uninitialized");
+    NS_ASSERTION(0 <= aProperty && aProperty < eCSSProperty_COUNT_no_shorthands,
+                 "out of range");
+    return gShorthandsContainingTable[aProperty];
   }
+private:
+  // gShorthandsContainingTable is an array of the return values for
+  // ShorthandsContaining (arrays of nsCSSProperty terminated by
+  // eCSSProperty_UNKNOWN) pointing into memory in
+  // gShorthandsContainingPool (which contains all of those arrays in a
+  // single allocation, and is the one pointer that should be |free|d).
+  static nsCSSProperty *gShorthandsContainingTable[eCSSProperty_COUNT_no_shorthands];
+  static nsCSSProperty* gShorthandsContainingPool;
+  static PRBool BuildShorthandsContainingTable();
+
+public:
 
 #define CSSPROPS_FOR_SHORTHAND_SUBPROPERTIES(iter_, prop_)                    \
   for (const nsCSSProperty* iter_ = nsCSSProps::SubpropertyEntryFor(prop_);   \
@@ -141,6 +170,7 @@ public:
   static const PRInt32 kBackgroundOriginKTable[];
   static const PRInt32 kBackgroundPositionKTable[];
   static const PRInt32 kBackgroundRepeatKTable[];
+  static const PRInt32 kBackgroundSizeKTable[];
   static const PRInt32 kBorderCollapseKTable[];
   static const PRInt32 kBorderColorKTable[];
   static const PRInt32 kBorderImageKTable[];
@@ -153,7 +183,7 @@ public:
 #ifdef MOZ_SVG
   static const PRInt32 kDominantBaselineKTable[];
   static const PRInt32 kFillRuleKTable[];
-  static const PRInt32 kPointerEventsKTable[];
+  static const PRInt32 kImageRenderingKTable[];
   static const PRInt32 kShapeRenderingKTable[];
   static const PRInt32 kStrokeLinecapKTable[];
   static const PRInt32 kStrokeLinejoinKTable[];
@@ -194,7 +224,10 @@ public:
   static const PRInt32 kPageMarksKTable[];
   static const PRInt32 kPageSizeKTable[];
   static const PRInt32 kPitchKTable[];
+  static const PRInt32 kPointerEventsKTable[];
   static const PRInt32 kPositionKTable[];
+  static const PRInt32 kRadialGradientShapeKTable[];
+  static const PRInt32 kRadialGradientSizeKTable[];
   static const PRInt32 kSpeakKTable[];
   static const PRInt32 kSpeakHeaderKTable[];
   static const PRInt32 kSpeakNumeralKTable[];

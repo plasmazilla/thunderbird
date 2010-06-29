@@ -93,12 +93,7 @@ private:
   nsRefPtr<BindingParamsArray> mOwningArray;
   Statement *mOwningStatement;
   nsCOMArray<nsIVariant> mParameters;
-  /**
-   * -1 means that the number of parameters is unknown due to the synchronous
-   * statement not being available; any other value is the actual number of
-   * parameters for the statement.
-   */
-  PRInt32 mParamCount;
+  PRUint32 mParamCount;
   bool mLocked;
 };
 

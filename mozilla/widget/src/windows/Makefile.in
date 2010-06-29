@@ -75,17 +75,29 @@ REQUIRES	= xpcom \
 			$(NULL)
 
 CPPSRCS		= \
-	nsWindow.cpp         \
-	nsAppShell.cpp       \
-	nsToolkit.cpp        \
-	nsFilePicker.cpp     \
+	nsWindow.cpp \
+	nsWindowGfx.cpp \
+	nsWindowDbg.cpp \
+	nsAppShell.cpp \
+	nsToolkit.cpp \
+	nsFilePicker.cpp \
 	nsScreenWin.cpp	\
 	nsScreenManagerWin.cpp \
-	nsLookAndFeel.cpp    \
+	nsLookAndFeel.cpp \
 	nsUXThemeData.cpp \
 	nsNativeThemeWin.cpp \
 	nsWinGesture.cpp \
-	$(NULL)
+	nsIdleServiceWin.cpp \
+	nsSound.cpp \
+	nsIMM32Handler.cpp \
+	WindowHook.cpp \
+	nsAccelerometerWin.cpp \
+	WinTaskbar.cpp \
+	TaskbarPreview.cpp \
+	TaskbarTabPreview.cpp \
+	TaskbarWindowPreview.cpp \
+	TaskbarPreviewButton.cpp \
+        $(NULL)
 
 ifdef NS_PRINTING
 CPPSRCS		+= \
@@ -95,7 +107,12 @@ CPPSRCS		+= \
 	$(NULL)
 endif
 
-ifneq ($(OS_ARCH), WINCE)
+ifeq ($(OS_ARCH), WINCE)
+CPPSRCS += \
+	nsWindowCE.cpp \
+	nsClipboardCE.cpp \
+	$(NULL)
+else
 CPPSRCS += \
 	nsKeyboardLayout.cpp \
 	IEnumFE.cpp  \
@@ -107,8 +124,7 @@ CPPSRCS += \
 	nsClipboard.cpp      \
 	nsImageClipboard.cpp \
 	nsBidiKeyboard.cpp   \
-	nsSound.cpp          \
-	nsIdleServiceWin.cpp    \
+	nsTextStore.cpp \
 	$(NULL)
 endif
 
@@ -120,18 +136,31 @@ DEFINES		+= -DMOZ_STATIC_COMPONENT_LIBS
 endif # BUILD_STATIC_LIBS
 
 
-EXPORTS		= nsdefs.h
+EXPORTS		= nsdefs.h WindowHook.h
 
 LOCAL_INCLUDES	= \
 		-I. \
 		-I$(srcdir)/../xpwidgets \
 		-I$(srcdir) \
+		-I$(topsrcdir)/toolkit/xre \
+		-I$(topsrcdir)/toolkit/crashreporter \
 		$(NULL)
 
 FORCE_STATIC_LIB = 1
+
+ifdef WINCE
+EXTRA_DSO_LDOPTS += ddraw.lib
+endif
 
 ifndef WINCE
 ENABLE_CXX_EXCEPTIONS = 1
 endif
 
+ifdef MOZ_IPC
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
+endif
+
 include $(topsrcdir)/config/rules.mk
+
+CXXFLAGS += $(MOZ_CAIRO_CFLAGS)

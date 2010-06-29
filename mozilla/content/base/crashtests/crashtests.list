@@ -9,7 +9,7 @@ load 324871-1.html
 load 325730-1.html
 load 326618-1.html
 load 326646-1.html
-load 326778-1.html
+load 326778-1.xul
 load 326865-1.html
 load 330925-1.xhtml
 load 336381-1.xhtml
@@ -47,4 +47,7 @@ skip load 458637-1.html # sporadically fails -- see bug 473680
 load 472593-1.html
 load 474041-1.svg
 load 483818-1.html
+load 493281-1.html
+load 493281-2.html
 load 490760-1.xhtml
+load 494810-1.html

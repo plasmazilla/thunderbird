@@ -8,6 +8,7 @@
 
   <binding id="menulist-base" extends="chrome://global/content/bindings/general.xml#basecontrol">
     <resources>
+      <stylesheet src="chrome://global/content/menulist.css"/>
       <stylesheet src="chrome://global/skin/menulist.css"/>
     </resources>
   </binding>
@@ -558,11 +559,7 @@
     <handlers>
       <handler event="focus" phase="capturing">
         <![CDATA[
-          if (!this.hasAttribute('focused')) {
-            if (event.originalTarget != this.inputField)
-              this.inputField.focus();
-            this.setAttribute('focused','true');
-          }
+          this.setAttribute('focused','true');
         ]]>
       </handler>
 

@@ -42,17 +42,18 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
 
-Cu.import("resource://app/modules/gloda/datastore.js");
-Cu.import("resource://app/modules/gloda/datamodel.js");
-Cu.import("resource://app/modules/gloda/databind.js");
-Cu.import("resource://app/modules/gloda/collection.js");
-Cu.import("resource://app/modules/gloda/connotent.js");
-Cu.import("resource://app/modules/gloda/query.js");
-Cu.import("resource://app/modules/gloda/utils.js");
+Cu.import("resource:///modules/gloda/datastore.js");
+Cu.import("resource:///modules/gloda/datamodel.js");
+Cu.import("resource:///modules/gloda/databind.js");
+Cu.import("resource:///modules/gloda/collection.js");
+Cu.import("resource:///modules/gloda/connotent.js");
+Cu.import("resource:///modules/gloda/query.js");
+Cu.import("resource:///modules/gloda/utils.js");
 
-Cu.import("resource://app/modules/iteratorUtils.jsm");
+Cu.import("resource:///modules/iteratorUtils.jsm");
+Cu.import("resource:///modules/IOUtils.js");
 
 /**
  * @see |Gloda.BadItemContentsError|
@@ -219,7 +220,7 @@ var Gloda = {
                     .get("TmpD", Ci.nsIFile);
       file.append("chainsaw.ptr");
       if (file.exists()) {
-        let data = GlodaUtils.loadFileToString(file);
+        let data = IOUtils.loadFileToString(file);
         data = data.trim();
         let [host, port] = data.split(":");
         let xf = new Log4Moz.XMLFormatter();
@@ -1940,7 +1941,6 @@ var Gloda = {
         attrOptimizers[iProvider].optimize(aItem, aRawReps, aIsConceptuallyNew,
                                            aCallbackHandle));
     }
-
     this._log.info(" ** done with providers.");
 
     // Iterate over the attributes on the item
@@ -2111,6 +2111,9 @@ var Gloda = {
         removeDBAttribs);
     itemNounDef.dbAttribAdjuster.call(itemNounDef.datastore, aItem,
       addDBAttribs, removeDBAttribs);
+
+    if (!aIsConceptuallyNew && ("_declone" in aOldItem))
+      aOldItem._declone(aItem);
 
     // Cache ramifications...
     if (aDoCache === undefined || aDoCache) {

@@ -130,8 +130,11 @@ nsFontFaceLoader::OnStreamComplete(nsIStreamLoader* aLoader,
   if (!userFontSet) {
     return aStatus;
   }
-  
-  PRBool fontUpdate = userFontSet->OnLoadComplete(mFontEntry, aLoader,
+
+  // The userFontSet is responsible for freeing the downloaded data
+  // (aString) when finished with it; the pointer is no longer valid
+  // after OnLoadComplete returns.
+  PRBool fontUpdate = userFontSet->OnLoadComplete(mFontEntry,
                                                   aString, aStringLen,
                                                   aStatus);
 
@@ -143,7 +146,7 @@ nsFontFaceLoader::OnStreamComplete(nsIStreamLoader* aLoader,
     LOG(("fontdownloader (%p) reflow\n", this));
   }
 
-  return aStatus;
+  return NS_SUCCESS_ADOPTED_DATA;
 }
 
 void
@@ -307,6 +310,9 @@ nsUserFontSet::StartLoad(gfxFontEntry *aFontToLoad,
     nsCOMPtr<nsIStreamListener> listener =
       new nsCrossSiteListenerProxy(streamLoader, principal, channel, 
                                    PR_FALSE, &rv);
+    if (NS_FAILED(rv)) {
+      fontLoader->DropChannel();  // explicitly need to break ref cycle
+    }
     NS_ENSURE_TRUE(listener, NS_ERROR_OUT_OF_MEMORY);
     NS_ENSURE_SUCCESS(rv, rv);
 

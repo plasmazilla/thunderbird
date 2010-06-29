@@ -100,7 +100,7 @@ static const nsMsgKey kAllThreadsTableKey = 0xfffffffd;
 static const nsMsgKey kFirstPseudoKey = 0xfffffff0;
 static const nsMsgKey kIdStartOfFake = 0xffffff80;
 
-PRLogModuleInfo* DBLog;
+static PRLogModuleInfo* DBLog;
 
 NS_IMPL_ISUPPORTS1(nsMsgDBService, nsIMsgDBService)
 
@@ -586,7 +586,7 @@ nsresult nsMsgDatabase::AddHdrToUseCache(nsIMsgDBHdr *hdr, nsMsgKey key)
     mdb_count numHdrs = MSG_HASH_SIZE;
     if (m_mdbAllMsgHeadersTable)
       m_mdbAllMsgHeadersTable->GetCount(GetEnv(), &numHdrs);
-    m_headersInUse = PL_NewDHashTable(&gMsgDBHashTableOps, (void *) nsnull, sizeof(struct MsgHdrHashElement), PR_MAX(MSG_HASH_SIZE, numHdrs));
+    m_headersInUse = PL_NewDHashTable(&gMsgDBHashTableOps, (void *) nsnull, sizeof(struct MsgHdrHashElement), NS_MAX((mdb_count)MSG_HASH_SIZE, numHdrs));
   }
   if (m_headersInUse)
   {
@@ -840,7 +840,8 @@ PRBool nsMsgDatabase::MatchDbName(nsILocalFile *dbName)  // returns PR_TRUE if t
 //----------------------------------------------------------------------
 void nsMsgDatabase::RemoveFromCache(nsMsgDatabase* pMessageDB)
 {
-  GetDBCache()->RemoveElement(pMessageDB);
+  if (m_dbCache)
+    m_dbCache->RemoveElement(pMessageDB);
 }
 
 /**
@@ -854,10 +855,9 @@ void nsMsgDatabase::DumpCache()
   for (PRUint32 i = 0; i < dbCache->Length(); i++)
   {
     db = dbCache->ElementAt(i);
-    PR_LOG(DBLog, PR_LOG_ALWAYS, ("%s - %ld hdrs in use \n",
+    PR_LOG(DBLog, PR_LOG_ALWAYS, ("%s - %ld hdrs in use\n",
       (const char*)db->m_dbName.get(),
       db->m_headersInUse ? db->m_headersInUse->entryCount : 0));
-
   }
 }
 
@@ -921,7 +921,7 @@ nsMsgDatabase::~nsMsgDatabase()
     m_msgReferences = nsnull;
   }
 
-  PR_LOG(DBLog, PR_LOG_ALWAYS, ("closing database    %s \n",
+  PR_LOG(DBLog, PR_LOG_ALWAYS, ("closing database    %s\n",
     (const char*)m_dbName.get()));
 
   RemoveFromCache(this);
@@ -1018,7 +1018,7 @@ NS_IMETHODIMP nsMsgDatabase::Open(nsILocalFile *aFolderName, PRBool aCreate, PRB
   nsCAutoString summaryFilePath;
   summaryFile->GetNativePath(summaryFilePath);
 
-  PR_LOG(DBLog, PR_LOG_ALWAYS, ("nsMsgDatabase::Open(%s, %s, %p, %s) \n",
+  PR_LOG(DBLog, PR_LOG_ALWAYS, ("nsMsgDatabase::Open(%s, %s, %p, %s)\n",
     (const char*)summaryFilePath.get(), aCreate ? "TRUE":"FALSE",
     this, aLeaveInvalidDB ? "TRUE":"FALSE"));
 
@@ -1729,14 +1729,14 @@ NS_IMETHODIMP nsMsgDatabase::DeleteMessage(nsMsgKey key, nsIDBChangeListener *in
 }
 
 
-NS_IMETHODIMP nsMsgDatabase::DeleteMessages(nsTArray<nsMsgKey>* nsMsgKeys, nsIDBChangeListener *instigator)
+NS_IMETHODIMP nsMsgDatabase::DeleteMessages(PRUint32 aNumKeys, nsMsgKey* nsMsgKeys, nsIDBChangeListener *instigator)
 {
   nsresult  err = NS_OK;
 
   PRUint32 kindex;
-  for (kindex = 0; kindex < nsMsgKeys->Length(); kindex++)
+  for (kindex = 0; kindex < aNumKeys; kindex++)
   {
-    nsMsgKey key = nsMsgKeys->ElementAt(kindex);
+    nsMsgKey key = nsMsgKeys[kindex];
     nsCOMPtr <nsIMsgDBHdr> msgHdr;
 
     PRBool hasKey;
@@ -1768,6 +1768,9 @@ nsresult nsMsgDatabase::AdjustExpungedBytesOnDelete(nsIMsgDBHdr *msgHdr)
 
 NS_IMETHODIMP nsMsgDatabase::DeleteHeader(nsIMsgDBHdr *msg, nsIDBChangeListener *instigator, PRBool commit, PRBool notify)
 {
+  if (!msg)
+    return NS_ERROR_NULL_POINTER;
+
   nsMsgHdr* msgHdr = static_cast<nsMsgHdr*>(msg);  // closed system, so this is ok
   nsMsgKey key;
   (void)msg->GetMessageKey(&key);
@@ -3569,6 +3572,40 @@ nsresult nsMsgDatabase::UInt32ToRowCellColumn(nsIMdbRow *row, mdb_token columnTo
   return row->AddColumn(GetEnv(),  columnToken, UInt32ToYarn(&yarn, value));
 }
 
+nsresult nsMsgDatabase::UInt64ToRowCellColumn(nsIMdbRow *row, mdb_token columnToken, PRUint64 value)
+{
+  NS_ENSURE_ARG_POINTER(row);
+  struct mdbYarn yarn;
+  char  yarnBuf[17]; // max string is 16 bytes, + 1 for null.
+
+  yarn.mYarn_Buf = (void *) yarnBuf;
+  yarn.mYarn_Size = sizeof(yarnBuf);
+  yarn.mYarn_Form = 0;
+  yarn.mYarn_Grow = NULL;
+  PR_snprintf((char *) yarn.mYarn_Buf, yarn.mYarn_Size, "%llx", value);
+  yarn.mYarn_Fill = PL_strlen((const char *) yarn.mYarn_Buf);
+  return row->AddColumn(GetEnv(),  columnToken, &yarn);
+}
+
+nsresult
+nsMsgDatabase::RowCellColumnToUInt64(nsIMdbRow *hdrRow, mdb_token columnToken,
+                                     PRUint64 *uint64Result,
+                                     PRUint64 defaultValue)
+{
+  nsresult  err = NS_OK;
+
+  if (uint64Result)
+    *uint64Result = defaultValue;
+  if (hdrRow)  // ### probably should be an error if hdrRow is NULL...
+  {
+    struct mdbYarn yarn;
+    err = hdrRow->AliasCellYarn(GetEnv(), columnToken, &yarn);
+    if (NS_SUCCEEDED(err))
+      YarnToUInt64(&yarn, uint64Result);
+  }
+  return err;
+}
+
 nsresult nsMsgDatabase::CharPtrToRowCellColumn(nsIMdbRow *row, mdb_token columnToken, const char *charPtr)
 {
   if (!row)
@@ -3628,6 +3665,14 @@ nsresult nsMsgDatabase::RowCellColumnToCharPtr(nsIMdbRow *row, mdb_token columnT
   return yarn;
 }
 
+/* static */struct mdbYarn *nsMsgDatabase::UInt64ToYarn(struct mdbYarn *yarn, PRUint64 i)
+{
+  PR_snprintf((char *) yarn->mYarn_Buf, yarn->mYarn_Size, "%llx", i);
+  yarn->mYarn_Fill = PL_strlen((const char *) yarn->mYarn_Buf);
+  yarn->mYarn_Form = 0;
+  return yarn;
+}
+
 /* static */void nsMsgDatabase::YarnTonsString(struct mdbYarn *yarn, nsAString &str)
 {
   const char* buf = (const char*)yarn->mYarn_Buf;
@@ -3652,7 +3697,7 @@ nsresult nsMsgDatabase::RowCellColumnToCharPtr(nsIMdbRow *row, mdb_token columnT
 {
   PRUint32 result;
   char *p = (char *) yarn->mYarn_Buf;
-  PRInt32 numChars = PR_MIN(8, yarn->mYarn_Fill);
+  PRInt32 numChars = NS_MIN((mdb_fill)8, yarn->mYarn_Fill);
   PRInt32 i;
 
   if (numChars > 0)
@@ -3672,6 +3717,33 @@ nsresult nsMsgDatabase::RowCellColumnToCharPtr(nsIMdbRow *row, mdb_token columnT
     *pResult = result;
   }
 }
+
+// WARNING - if yarn is empty, *pResult will not be changed!!!!
+// this is so we can leave default values as they were.
+/* static */void nsMsgDatabase::YarnToUInt64(struct mdbYarn *yarn, PRUint64 *pResult)
+{
+  PRUint64 result;
+  char *p = (char *) yarn->mYarn_Buf;
+  PRInt32 numChars = NS_MIN((mdb_fill)16, yarn->mYarn_Fill);
+  PRInt32 i;
+
+  if (numChars > 0)
+  {
+    for (i = 0, result = 0; i < numChars; i++, p++)
+    {
+      char C = *p;
+
+      PRInt8 unhex = ((C >= '0' && C <= '9') ? C - '0' :
+      ((C >= 'A' && C <= 'F') ? C - 'A' + 10 :
+         ((C >= 'a' && C <= 'f') ? C - 'a' + 10 : -1)));
+       if (unhex < 0)
+         break;
+       result = (result << 4) | unhex;
+    }
+    *pResult = result;
+  }
+}
+
 
 nsresult nsMsgDatabase::GetProperty(nsIMdbRow *row, const char *propertyName, char **result)
 {
@@ -3754,6 +3826,31 @@ nsresult nsMsgDatabase::SetUint32Property(nsIMdbRow *row, const char *propertyNa
   if (err == NS_OK)
   {
     UInt32ToYarn(&yarn, propertyVal);
+    err = row->AddColumn(GetEnv(), property_token, &yarn);
+  }
+  return err;
+}
+
+nsresult nsMsgDatabase::SetUint64Property(nsIMdbRow *row,
+                                          const char *propertyName,
+                                          PRUint64 propertyVal)
+{
+  struct mdbYarn yarn;
+  char  int64StrBuf[100];
+  yarn.mYarn_Buf = int64StrBuf;
+  yarn.mYarn_Size = sizeof(int64StrBuf);
+  yarn.mYarn_Fill = sizeof(int64StrBuf);
+
+  NS_ENSURE_STATE(m_mdbStore); // db might have been closed out from under us.
+  if (!row)
+    return NS_ERROR_NULL_POINTER;
+
+  mdb_token  property_token;
+
+  nsresult err = m_mdbStore->StringToToken(GetEnv(),  propertyName, &property_token);
+  if (err == NS_OK)
+  {
+    UInt64ToYarn(&yarn, propertyVal);
     err = row->AddColumn(GetEnv(), property_token, &yarn);
   }
   return err;
@@ -4540,6 +4637,20 @@ NS_IMETHODIMP nsMsgDatabase::SetUint32AttributeOnPendingHdr(nsIMsgDBHdr *pending
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+nsMsgDatabase::SetUint64AttributeOnPendingHdr(nsIMsgDBHdr *aPendingHdr,
+                                              const char *aProperty,
+                                              PRUint64 aPropertyVal)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+nsMsgDatabase::UpdatePendingAttributes(nsIMsgDBHdr *aNewHdr)
+{
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgDatabase::GetOfflineOpForKey(nsMsgKey msgKey, PRBool create, nsIMsgOfflineImapOperation **offlineOp)
 {
   NS_ASSERTION(PR_FALSE, "overridden by nsMailDatabase");
@@ -5023,7 +5134,7 @@ nsresult nsMsgDatabase::PurgeMessagesOlderThan(PRUint32 daysToKeepHdrs,
 
   if (!hdrsToDelete)
   {
-    DeleteMessages(&keysToDelete, nsnull);
+    DeleteMessages(keysToDelete.Length(), keysToDelete.Elements(), nsnull);
 
     if (keysToDelete.Length() > 10) // compress commit if we deleted more than 10
       Commit(nsMsgDBCommitType::kCompressCommit);
@@ -5098,7 +5209,7 @@ nsresult nsMsgDatabase::PurgeExcessMessages(PRUint32 numHeadersToKeep,
     PRInt32 numKeysToDelete = keysToDelete.Length();
     if (numKeysToDelete > 0)
     {
-      DeleteMessages(&keysToDelete, nsnull);
+      DeleteMessages(keysToDelete.Length(), keysToDelete.Elements(), nsnull);
       if (numKeysToDelete > 10)  // compress commit if we deleted more than 10
         Commit(nsMsgDBCommitType::kCompressCommit);
       else
@@ -5498,7 +5609,7 @@ NS_IMETHODIMP nsMsgDatabase::RefreshCache(const char *aSearchFolderUri, PRUint32
     if (tableRowIndex > 1 && oid.mOid_Id <= prevId)
     {
       NS_ASSERTION(PR_FALSE, "inserting row into cached hits table, not sorted correctly");
-      printf("key %lx is before or equal %lx \n", prevId, oid.mOid_Id);
+      printf("key %lx is before or equal %lx\n", prevId, oid.mOid_Id);
     }
     prevId = oid.mOid_Id;
   }

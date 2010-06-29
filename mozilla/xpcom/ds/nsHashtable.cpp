@@ -188,8 +188,10 @@ PRBool nsHashtable::Exists(nsHashKey *aKey)
 {
     if (mLock) PR_Lock(mLock);
 
-    if (!mHashtable.ops)
+    if (!mHashtable.ops) {
+        if (mLock) PR_Unlock(mLock);
         return PR_FALSE;
+    }
     
     PLDHashEntryHdr *entry =
         PL_DHashTableOperate(&mHashtable, aKey, PL_DHASH_LOOKUP);
@@ -467,18 +469,6 @@ nsISupportsKey::Write(nsIObjectOutputStream* aStream) const
         rv = aStream->WriteObject(mKey, PR_TRUE);
     return rv;
 }
-
-nsIDKey::nsIDKey(nsIObjectInputStream* aStream, nsresult *aResult)
-{
-    *aResult = aStream->ReadID(&mID);
-}
-
-nsresult nsIDKey::Write(nsIObjectOutputStream* aStream) const
-{
-    return aStream->WriteID(mID);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 // Copy Constructor
 // We need to free mStr if the object is passed with mOwnership as OWN. As the 

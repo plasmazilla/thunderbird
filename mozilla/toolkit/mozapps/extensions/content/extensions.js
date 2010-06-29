@@ -48,19 +48,19 @@ const nsIFileProtocolHandler = Components.interfaces.nsIFileProtocolHandler;
 const nsIURL                 = Components.interfaces.nsIURL;
 const nsIAppStartup          = Components.interfaces.nsIAppStartup;
 const nsIBlocklistService    = Components.interfaces.nsIBlocklistService;
+const nsIPrefBranch2         = Components.interfaces.nsIPrefBranch2;
 
 var gView             = null;
 var gExtensionManager = null;
 var gExtensionsView   = null;
 var gExtensionStrings = null;
-var gCurrentTheme     = "classic/1.0";
-var gDefaultTheme     = "classic/1.0";
 var gDownloadManager  = null;
 var gObserverIndex    = -1;
 var gInSafeMode       = false;
 var gCheckCompat      = true;
 var gCheckUpdateSecurity = true;
 var gUpdatesOnly      = false;
+var gPluginUpdateUrl  = null;
 var gAppID            = "";
 var gPref             = null;
 var gPriorityCount    = 0;
@@ -69,6 +69,7 @@ var gPendingActions   = false;
 var gPlugins          = null;
 var gPluginsDS        = null;
 var gSearchDS         = null;
+var gLWThemeDS        = null;
 var gAddonRepository  = null;
 var gShowGetAddonsPane = false;
 var gRetrievedResults = false;
@@ -76,6 +77,21 @@ var gRecommendedAddons = null;
 var gRDF              = null;
 var gPendingInstalls  = {};
 var gNewAddons        = [];
+var gCheckCompatibilityPref;
+
+// The default heavyweight theme for the app.
+var gDefaultTheme     = null;
+// The heavyweight theme currently in use.
+var gCurrentTheme     = null;
+// The heavyweight theme to switch to after the application is restarted.
+// This will be equal to gCurrentTheme if no theme change is pending.
+var gThemeToSelect    = null;
+
+// The lightweight theme to switch to after the application is restarted.
+// This will be equal to LightweightThemeManager.currentTheme if no lightweight
+// theme change is pending or null if lightweight theme should be turned off
+// after the restart.
+var gLWThemeToSelect  = null;
 
 const PREF_EM_CHECK_COMPATIBILITY           = "extensions.checkCompatibility";
 const PREF_EM_CHECK_UPDATE_SECURITY         = "extensions.checkUpdateSecurity";
@@ -86,11 +102,13 @@ const PREF_EXTENSIONS_DSS_ENABLED           = "extensions.dss.enabled";
 const PREF_EXTENSIONS_DSS_SWITCHPENDING     = "extensions.dss.switchPending";
 const PREF_EXTENSIONS_HIDE_INSTALL_BTN      = "extensions.hideInstallButton";
 const PREF_DSS_SKIN_TO_SELECT               = "extensions.lastSelectedSkin";
+const PREF_LWTHEME_TO_SELECT                = "extensions.lwThemeToSelect";
 const PREF_GENERAL_SKINS_SELECTEDSKIN       = "general.skins.selectedSkin";
 const PREF_UPDATE_NOTIFYUSER                = "extensions.update.notifyUser";
 const PREF_GETADDONS_SHOWPANE               = "extensions.getAddons.showPane";
 const PREF_GETADDONS_REPOSITORY             = "extensions.getAddons.repository";
 const PREF_GETADDONS_MAXRESULTS             = "extensions.getAddons.maxResults";
+const PREF_PLUGINS_UPDATEURL                = "plugins.update.url";
 
 const URI_GENERIC_ICON_XPINSTALL      = "chrome://mozapps/skin/xpinstall/xpinstallItemGeneric.png";
 const URI_GENERIC_ICON_THEME          = "chrome://mozapps/skin/extensions/themeGeneric.png";
@@ -105,6 +123,7 @@ const URI_NOTIFICATION_ICON_WARNING   = "chrome://global/skin/icons/warning-16.p
 
 const RDFURI_ITEM_ROOT    = "urn:mozilla:item:root";
 const PREFIX_ITEM_URI     = "urn:mozilla:item:";
+const PREFIX_LWTHEME_URI  = "urn:mozilla:lwtheme:";
 const PREFIX_NS_EM        = "http://www.mozilla.org/2004/em-rdf#";
 const kXULNSURI           = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 const XMLURI_PARSE_ERROR  = "http://www.mozilla.org/newlayout/xml/parsererror.xml"
@@ -118,6 +137,9 @@ const OP_NEEDS_DISABLE                = "needs-disable";
 
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
+Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm");
+
+var gBranchVersion = /^([^\.]+\.[0-9]+[a-z]*).*/gi;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Utility Functions
@@ -142,6 +164,12 @@ function getItemForInternalName(aInternalName) {
   if (id && id instanceof Components.interfaces.nsIRDFResource)
     return document.getElementById(id.ValueUTF8);
   return null;
+}
+
+function getActivedThemeItem() {
+  if (gLWThemeToSelect)
+    return document.getElementById(PREFIX_LWTHEME_URI + gLWThemeToSelect.id);
+  return getItemForInternalName(gThemeToSelect);
 }
 
 function isSafeURI(aURI) {
@@ -300,15 +328,16 @@ function showView(aView) {
                         ["availableUpdateVersion", "?availableUpdateVersion"],
                         ["blocklisted", "?blocklisted"],
                         ["blocklistedsoft", "?blocklistedsoft"],
+                        ["outdated", "?outdated"],
                         ["compatible", "?compatible"],
                         ["description", "?description"],
                         ["downloadURL", "?downloadURL"],
                         ["isDisabled", "?isDisabled"],
-                        ["hidden", "?hidden"],
                         ["homepageURL", "?homepageURL"],
                         ["iconURL", "?iconURL"],
                         ["internalName", "?internalName"],
                         ["locked", "?locked"],
+                        ["lwtheme", "?lwtheme"],
                         ["name", "?name"],
                         ["optionsURL", "?optionsURL"],
                         ["opType", "?opType"],
@@ -321,6 +350,7 @@ function showView(aView) {
                         ["updateURL", "?updateURL"],
                         ["version", "?version"] ] ];
   var displays = [ "richlistitem" ];
+  var direction = "ascending";
 
   var prefURL;
   var showInstallFile = true;
@@ -355,6 +385,7 @@ function showView(aView) {
       var types = [ [ ["searchResult", "true", null] ],
                     [ ["statusMessage", "true", null] ] ];
       var displays = [ "richlistitem", "vbox" ];
+      direction = "natural";
       showCheckUpdatesAll = false;
       document.getElementById("searchfield").disabled = isOffline("offlineSearchMsg");
       break;
@@ -372,7 +403,8 @@ function showView(aView) {
     case "plugins":
       prefURL = PREF_EXTENSIONS_GETMOREPLUGINSURL;
       types = [ [ ["plugin", "true", null] ] ];
-      showCheckUpdatesAll = false;
+      if (!gPluginUpdateUrl)
+        showCheckUpdatesAll = false;
       break;
     case "updates":
       document.getElementById("updates-view").hidden = false;
@@ -419,7 +451,6 @@ function showView(aView) {
                         ["downloadURL", "?downloadURL"],
                         ["incompatibleUpdate", "?incompatibleUpdate"],
                         ["isDisabled", "?isDisabled"],
-                        ["hidden", "?hidden"],
                         ["homepageURL", "?homepageURL"],
                         ["iconURL", "?iconURL"],
                         ["internalName", "?internalName"],
@@ -442,7 +473,7 @@ function showView(aView) {
 
   var showGetMore = false;
   var getMore = document.getElementById("getMore");
-  if (prefURL && !gShowGetAddonsPane) {
+  if (prefURL && gPref.getPrefType(prefURL) != nsIPrefBranch2.PREF_INVALID) {
     try {
       getMore.setAttribute("value", getMore.getAttribute("value" + aView));
       var getMoreURL = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
@@ -457,13 +488,19 @@ function showView(aView) {
 
   var isThemes = aView == "themes";
 
-  if (aView == "themes" || aView == "extensions") {
-    var el = document.getElementById("installFileButton");
-    el.setAttribute("tooltiptext", el.getAttribute(isThemes ? "tooltiptextthemes" :
-                                                              "tooltiptextaddons"));
-    el = document.getElementById("checkUpdatesAllButton");
-    el.setAttribute("tooltiptext", el.getAttribute(isThemes ? "tooltiptextthemes" :
-                                                              "tooltiptextaddons"));
+  if (aView == "themes" || aView == "extensions" || aView == "plugins") {
+    var tooltipAttr = "";
+    if (aView == "extensions")
+      tooltipAttr = "tooltiptextaddons";
+    else
+      tooltipAttr = "tooltiptext" + aView;
+
+    var el = document.getElementById("checkUpdatesAllButton");
+    el.setAttribute("tooltiptext", el.getAttribute(tooltipAttr));
+    if (aView != "plugins") {
+      el = document.getElementById("installFileButton");
+      el.setAttribute("tooltiptext", el.getAttribute(tooltipAttr));
+    }
   }
 
   document.getElementById("installFileButton").hidden = !showInstallFile;
@@ -476,10 +513,13 @@ function showView(aView) {
   document.getElementById("hideUpdateInfoButton").hidden = true;
   document.getElementById("searchPanel").hidden = aView != "search";
 
+  gExtensionsView.setAttribute("sortDirection", direction);
   AddonsViewBuilder.updateView(types, displays, bindingList, null);
 
   if (aView == "updates" || aView == "installs")
     gExtensionsView.selectedItem = gExtensionsView.children[0];
+  else if (isThemes)
+    gExtensionsView.selectedItem = getActivedThemeItem();
 
   if (showSkip) {
     var button = document.getElementById("installUpdatesAllButton");
@@ -526,10 +566,6 @@ function updateLastSelected(aView) {
     viewGroup.setAttribute("last-selected", aView);
 }
 
-function LOG(msg) {
-  dump("*** " + msg + "\n");
-}
-
 function getIDFromResourceURI(aURI)
 {
   if (aURI.substring(0, PREFIX_ITEM_URI.length) == PREFIX_ITEM_URI)
@@ -539,11 +575,7 @@ function getIDFromResourceURI(aURI)
 
 function showProgressBar() {
   var progressBox = document.getElementById("progressBox");
-  var height = document.defaultView.getComputedStyle(progressBox.parentNode, "")
-                       .getPropertyValue("height");
-  progressBox.parentNode.style.height = height;
-  document.getElementById("viewGroup").hidden = true;
-  progressBox.hidden = false;
+  progressBox.parentNode.selectedPanel = progressBox;
 }
 
 function flushDataSource()
@@ -868,6 +900,103 @@ function initSearchDS() {
     retrieveRepositoryAddons(document.getElementById("searchfield").value);
 }
 
+function initLWThemeDS() {
+  gLWThemeDS = Components.classes["@mozilla.org/rdf/datasource;1?name=in-memory-datasource"]
+                         .createInstance(Components.interfaces.nsIRDFDataSource);
+  rebuildLWThemeDS();
+}
+
+function rebuildLWThemeDS() {
+  var rdfCU = Components.classes["@mozilla.org/rdf/container-utils;1"]
+                        .getService(Components.interfaces.nsIRDFContainerUtils);
+  var rootctr = rdfCU.MakeSeq(gLWThemeDS, gRDF.GetResource(RDFURI_ITEM_ROOT));
+  var themes = LightweightThemeManager.usedThemes;
+
+  // Running in a batch stops the template builder from running
+  gLWThemeDS.beginUpdateBatch();
+
+  cleanDataSource(gLWThemeDS, rootctr);
+
+  for (var i = 0; i < themes.length; i++) {
+    var theme = themes[i];
+
+    if (!("id" in theme))
+      continue;
+
+    var themeNode = gRDF.GetResource(PREFIX_LWTHEME_URI + theme.id);
+    rootctr.AppendElement(themeNode);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "name"),
+                      gRDF.GetLiteral(theme.name || ""),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "addonID"),
+                      gRDF.GetLiteral(theme.id),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "isDisabled"),
+                      gRDF.GetLiteral("false"),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "blocklisted"),
+                      gRDF.GetLiteral("false"),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "blocklistedsoft"),
+                      gRDF.GetLiteral("false"),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "compatible"),
+                      gRDF.GetLiteral("true"),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "lwtheme"),
+                      gRDF.GetLiteral("true"),
+                      true);
+    gLWThemeDS.Assert(themeNode,
+                      gRDF.GetResource(PREFIX_NS_EM + "type"),
+                      gRDF.GetIntLiteral(nsIUpdateItem.TYPE_THEME),
+                      true);
+    if (theme.author) {
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "description"),
+                        gRDF.GetLiteral(getExtensionString("lightweightThemeDescription",
+                                                           [theme.author])),
+                        true);
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "creator"),
+                        gRDF.GetLiteral(theme.author),
+                        true);
+    }
+    if (theme.description) {
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "lwdescription"),
+                        gRDF.GetLiteral(theme.description),
+                        true);
+    }
+    if (theme.homepageURL) {
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "homepageURL"),
+                        gRDF.GetLiteral(theme.homepageURL),
+                        true);
+    }
+    if (theme.previewURL) {
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "previewImage"),
+                        gRDF.GetLiteral(theme.previewURL),
+                        true);
+    }
+    if (theme.iconURL) {
+      gLWThemeDS.Assert(themeNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "iconURL"),
+                        gRDF.GetLiteral(theme.iconURL),
+                        true);
+    }
+  }
+
+  gLWThemeDS.endUpdateBatch();
+}
+
 function initPluginsDS()
 {
   gPluginsDS = Components.classes["@mozilla.org/rdf/datasource;1?name=in-memory-datasource"]
@@ -891,12 +1020,6 @@ function rebuildPluginsDS()
   gPluginsDS.beginUpdateBatch();
 
   cleanDataSource(gPluginsDS, rootctr);
-
-  // Locale sensitive sort
-  function compare(a, b) {
-    return String.localeCompare(a.name, b.name);
-  }
-  plugins.sort(compare);
 
   for (var i = 0; i < plugins.length; i++) {
     var plugin = plugins[i];
@@ -965,6 +1088,11 @@ function rebuildPluginsDS()
                         gRDF.GetResource(PREFIX_NS_EM + "blocklistedsoft"),
                         gRDF.GetLiteral(softblocked ? "true" : "false"),
                         true);
+      var outdated = plugin.blocklistState == nsIBlocklistService.STATE_OUTDATED;
+      gPluginsDS.Assert(pluginNode,
+                        gRDF.GetResource(PREFIX_NS_EM + "outdated"),
+                        gRDF.GetLiteral((outdated && gPluginUpdateUrl) ? "true" : "false"),
+                        true);
       gPluginsDS.Assert(pluginNode,
                         gRDF.GetResource(PREFIX_NS_EM + "compatible"),
                         gRDF.GetLiteral("true"),
@@ -1000,16 +1128,27 @@ function Startup()
 {
   gExtensionStrings = document.getElementById("extensionsStrings");
   gPref = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefBranch2);
+                    .getService(nsIPrefBranch2);
   var defaultPref = gPref.QueryInterface(Components.interfaces.nsIPrefService)
                          .getDefaultBranch(null);
   try {
-    gCurrentTheme = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
+    gThemeToSelect = gCurrentTheme = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
     gDefaultTheme = defaultPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
     if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING))
-      gCurrentTheme = gPref.getCharPref(PREF_DSS_SKIN_TO_SELECT);
+      gThemeToSelect = gPref.getCharPref(PREF_DSS_SKIN_TO_SELECT);
   }
   catch (e) { }
+
+  if (gPref.prefHasUserValue(PREF_LWTHEME_TO_SELECT)) {
+    var id = gPref.getCharPref(PREF_LWTHEME_TO_SELECT);
+    if (id)
+      gLWThemeToSelect = LightweightThemeManager.getUsedTheme(id);
+    else
+      gLWThemeToSelect = null;
+  }
+  else {
+    gLWThemeToSelect = LightweightThemeManager.currentTheme;
+  }
 
   gExtensionsView = document.getElementById("extensionsView");
   gExtensionManager = Components.classes["@mozilla.org/extensions/manager;1"]
@@ -1020,13 +1159,22 @@ function Startup()
   gInSafeMode = appInfo.inSafeMode;
   gAppID = appInfo.ID;
 
+  var version = appInfo.version.replace(gBranchVersion, "$1");
+  gCheckCompatibilityPref = PREF_EM_CHECK_COMPATIBILITY + "." + version;
+
   try {
-    gCheckCompat = gPref.getBoolPref(PREF_EM_CHECK_COMPATIBILITY);
+    gCheckCompat = gPref.getBoolPref(gCheckCompatibilityPref);
   } catch(e) { }
 
   try {
     gCheckUpdateSecurity = gPref.getBoolPref(PREF_EM_CHECK_UPDATE_SECURITY);
   } catch(e) { }
+
+  if (gPref.getPrefType(PREF_PLUGINS_UPDATEURL) != gPref.PREF_INVALID) {
+    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
+                              .getService(Components.interfaces.nsIURLFormatter);
+    gPluginUpdateUrl = formatter.formatURLPref(PREF_PLUGINS_UPDATEURL);
+  }
 
   gPref.addObserver(PREF_DSS_SKIN_TO_SELECT, gPrefObserver, false);
   gPref.addObserver(PREF_GENERAL_SKINS_SELECTEDSKIN, gPrefObserver, false);
@@ -1035,8 +1183,6 @@ function Startup()
     gShowGetAddonsPane = gPref.getBoolPref(PREF_GETADDONS_SHOWPANE);
   } catch(e) { }
 
-  // Sort on startup and anytime an add-on is installed or upgraded.
-  gExtensionManager.sortTypeByProperty(nsIUpdateItem.TYPE_ANY, "name", true);
   // Extension Command Updating is handled by a command controller.
   gExtensionsView.controllers.appendController(gExtensionsViewController);
   gExtensionsView.addEventListener("select", onAddonSelect, false);
@@ -1046,6 +1192,8 @@ function Startup()
 
   initPluginsDS();
   gExtensionsView.database.AddDataSource(gPluginsDS);
+  initLWThemeDS();
+  gExtensionsView.database.AddDataSource(gLWThemeDS);
   if (gShowGetAddonsPane)
     initSearchDS();
   gExtensionsView.database.AddDataSource(gExtensionManager.datasource);
@@ -1066,6 +1214,8 @@ function Startup()
   os.addObserver(gDownloadManager, "xpinstall-download-started", false);
   os.addObserver(gAddonsMsgObserver, "addons-message-notification", false);
   os.addObserver(gPluginObserver, "plugins-list-updated", false);
+  os.addObserver(gLWThemeObserver, "lightweight-theme-list-changed", false);
+  os.addObserver(gLWThemeObserver, "lightweight-theme-changed", false);
 
   gObserverIndex = gExtensionManager.addInstallListener(gDownloadManager);
 
@@ -1117,7 +1267,7 @@ function Startup()
         // menuitems that can open a browser window.
         gUpdateContextMenus = gUpdateContextMenusNoBrowser;
 #endif
-        document.getElementById("viewGroup").hidden = true;
+        document.getElementById("topBar").hidden = true;
         document.getElementById("extensionsView").setAttribute("norestart", "");
         showView("updates");
         showMessage(URI_NOTIFICATION_ICON_INFO,
@@ -1171,8 +1321,56 @@ function Startup()
 
   gPref.setBoolPref(PREF_UPDATE_NOTIFYUSER, false);
 
-  if (gUpdatesOnly && gExtensionsView.children.length == 0)
+  if (gUpdatesOnly && gExtensionsView.children.length == 0) {
     window.close();
+    return;
+  }
+
+  // Left/right switches panes, up/down/pageUp/pageDown/home/end switches items in
+  // the current pane, whenever either the radiogroup or the richlistbox is focused.
+  window.addEventListener("keypress", function (event) {
+    if (event.target != viewGroup &&
+        event.target != gExtensionsView)
+      return;
+
+    var contextMenu = document.getElementById("addonContextMenu");
+    if (contextMenu.state == "open" ||
+        contextMenu.state == "showing")
+      return;
+
+    switch (event.keyCode) {
+      case event.DOM_VK_LEFT:
+      case event.DOM_VK_RIGHT:
+        let nextFlag = (event.keyCode == event.DOM_VK_RIGHT);
+        if (getComputedStyle(viewGroup, "").direction == "rtl")
+          nextFlag = !nextFlag;
+        viewGroup.checkAdjacentElement(nextFlag);
+        break;
+      case event.DOM_VK_UP:
+        gExtensionsView._moveByOffsetFromUserEvent(-1, event);
+        break;
+      case event.DOM_VK_DOWN:
+        gExtensionsView._moveByOffsetFromUserEvent(1, event);
+        break;
+      case event.DOM_VK_PAGE_UP:
+        gExtensionsView._moveByOffsetFromUserEvent(gExtensionsView.scrollOnePage(-1), event);
+        break;
+      case event.DOM_VK_PAGE_DOWN:
+        gExtensionsView._moveByOffsetFromUserEvent(gExtensionsView.scrollOnePage(1), event);
+        break;
+      case event.DOM_VK_HOME:
+        gExtensionsView._moveByOffsetFromUserEvent(-gExtensionsView.currentIndex, event);
+        break;
+      case event.DOM_VK_END:
+        gExtensionsView._moveByOffsetFromUserEvent(gExtensionsView.getRowCount() -
+                                                   gExtensionsView.currentIndex - 1, event);
+        break;
+      default:
+        return; // don't consume the event
+    }
+    event.stopPropagation();
+    event.preventDefault();
+  }, true);
 }
 
 function Shutdown()
@@ -1196,6 +1394,8 @@ function Shutdown()
   os.removeObserver(gAddonsMsgObserver, "addons-message-notification");
   os.removeObserver(gDownloadManager, "xpinstall-download-started");
   os.removeObserver(gPluginObserver, "plugins-list-updated");
+  os.removeObserver(gLWThemeObserver, "lightweight-theme-list-changed");
+  os.removeObserver(gLWThemeObserver, "lightweight-theme-changed");
   var currentNotification = document.getElementById("addonsMsg").currentNotification;
   if (currentNotification && currentNotification.value == "addons-no-updates")
     window.removeEventListener("select", noUpdatesDismiss, true);
@@ -1217,7 +1417,7 @@ var TemplateBuilderListener = {
 
     if (gView == "themes") {
       if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING)) {
-        var item = getItemForInternalName(gCurrentTheme);
+        var item = getActivedThemeItem();
         if (item)
           setRestartMessage(item);
       }
@@ -1376,7 +1576,6 @@ XPInstallDownloadManager.prototype = {
   onInstallsCompleted: function()
   {
     gInstalling = false;
-    gExtensionManager.sortTypeByProperty(nsIUpdateItem.TYPE_ANY, "name", true);
     if (gUpdatesOnly) {
       if (this._failed) {
         let continueButton = document.getElementById("continueDialogButton");
@@ -1448,9 +1647,8 @@ UpdateCheckListener.prototype = {
   onUpdateEnded: function() {
     if (!document)
       return;
-    document.getElementById("progressBox").hidden = true;
-    var viewGroup = document.getElementById("viewGroup");
-    viewGroup.hidden = false;
+    var viewGroup = document.getElementById("viewGroup").parentNode;
+    viewGroup.parentNode.selectedPanel = viewGroup;
     gExtensionsView.removeAttribute("update-operation");
     gExtensionsViewController.onCommandUpdate();
     updateOptionalViews();
@@ -1596,6 +1794,13 @@ function onAddonSelect(aEvent)
       }
     }
   }
+}
+
+function onPreviewImageError(aEvent) {
+  var previewImageDeck = document.getElementById("previewImageDeck");
+  var previewImage = document.getElementById("previewImage");
+  previewImageDeck.selectedIndex = 1;
+  previewImage.removeAttribute("src");
 }
 
 /**
@@ -1846,7 +2051,6 @@ function buildContextMenu(aEvent)
 var gExtensionsDNDObserver =
 {
   _ioServ: null,
-  _canDrop: false,
 
   _ensureServices: function ()
   {
@@ -1856,31 +2060,38 @@ var gExtensionsDNDObserver =
   },
 
   // returns a JS object whose properties are used by xpinstall
-  _getDataFromDragSession: function (aDragSession, aPosition)
+  _getDragData: function (dataTransfer, aIndex)
   {
     var fileData = { };
     // if this fails we do not have valid data to drop
     try {
-      var xfer = Components.classes["@mozilla.org/widget/transferable;1"]
-                           .createInstance(Components.interfaces.nsITransferable);
-      xfer.addDataFlavor("text/x-moz-url");
-      xfer.addDataFlavor("application/x-moz-file", "nsIFile");
-      aDragSession.getData(xfer, aPosition);
+      var url = dataTransfer.mozGetDataAt("text/uri-list", aIndex);
+      if (!url) {
+        url = dataTransfer.mozGetDataAt("text/x-moz-url", aIndex);
+        url = url ? url.split("\n")[0] : null;
+        if (!url) {
+          var file = dataTransfer.mozGetDataAt("application/x-moz-file", aIndex);
 
-      var flavour = { }, data = { }, length = { };
-      xfer.getAnyTransferData(flavour, data, length);
-      var selectedFlavour = this.getSupportedFlavours().flavourTable[flavour.value];
-      var xferData = new FlavourData(data.value, length.value, selectedFlavour);
+          var ioService = Components.classes["@mozilla.org/network/io-service;1"]
+                                     .getService(Components.interfaces.nsIIOService);
+          var fileHandler = this._ioServ.getProtocolHandler("file")
+                                .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+          url = fileHandler.getURLSpecFromFile(file);
+        }
+      }
 
-      var fileURL = transferUtils.retrieveURLFromData(xferData.data,
-                                                      xferData.flavour.contentType);
-      fileData.fileURL = fileURL;
+      if (!url) {
+        url = dataTransfer.mozGetDataAt("text/plain", aIndex)
+        if (!url)
+          return null;
+      }
 
-      var uri = this._ioServ.newURI(fileURL, null, null);
-      var url = uri.QueryInterface(nsIURL);
-      fileData.fileName = url.fileName;
+      fileData.fileURL = url;
 
-      switch (url.fileExtension) {
+      var uri = this._ioServ.newURI(url, null, null).QueryInterface(nsIURL);
+      fileData.fileName = uri.fileName;
+
+      switch (uri.fileExtension) {
         case "xpi":
           fileData.type = nsIUpdateItem.TYPE_EXTENSION;
           break;
@@ -1898,31 +2109,16 @@ var gExtensionsDNDObserver =
     return fileData;
   },
 
-  canDrop: function (aEvent, aDragSession) { return this._canDrop; },
-
-  onDragEnter: function (aEvent, aDragSession)
+  onDragOver: function (aEvent)
   {
-    // XXXrstrong - bug 269568, GTK2 drag and drop is returning invalid data for
-    // dragenter and dragover. To workaround this we always set canDrop to true
-    // and just use the xfer data returned in ondrop which is valid.
-#ifndef MOZ_WIDGET_GTK2
-    this._ensureServices();
-
-    var count = aDragSession.numDropItems;
-    for (var i = 0; i < count; ++i) {
-      var fileData = this._getDataFromDragSession(aDragSession, i);
-      if (!fileData) {
-        this._canDrop = false;
-        return;
-      }
-    }
-#endif
-    this._canDrop = true;
+    var types = aEvent.dataTransfer.types;
+    if (types.contains("text/uri-list") ||
+        types.contains("text/x-moz-url") ||
+        types.contains("application/x-moz-file"))
+      aEvent.preventDefault();
   },
 
-  onDragOver: function (aEvent, aFlavor, aDragSession) { },
-
-  onDrop: function(aEvent, aXferData, aDragSession)
+  onDrop: function(aEvent)
   {
     if (!isXPInstallEnabled())
       return;
@@ -1934,9 +2130,10 @@ var gExtensionsDNDObserver =
     var xpiCount = 0;
     var themeCount = 0;
 
-    var count = aDragSession.numDropItems;
+    var dataTransfer = aEvent.dataTransfer; 
+    var count = dataTransfer.mozItemCount;
     for (var i = 0; i < count; ++i) {
-      var fileData = this._getDataFromDragSession(aDragSession, i);
+      var fileData = this._getDragData(dataTransfer, i);
       if (!fileData)
         continue;
 
@@ -1953,16 +2150,6 @@ var gExtensionsDNDObserver =
 
     if (xpiCount > 0)
       InstallTrigger.install(xpinstallObj);
-  },
-  _flavourSet: null,
-  getSupportedFlavours: function ()
-  {
-    if (!this._flavourSet) {
-      this._flavourSet = new FlavourSet();
-      this._flavourSet.appendFlavour("text/x-moz-url");
-      this._flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-    }
-    return this._flavourSet;
   }
 };
 
@@ -1976,7 +2163,7 @@ const gAddonsMsgObserver = {
       gPref.setBoolPref("xpinstall.enabled", true);
       break;
     case "addons-enable-compatibility":
-      gPref.clearUserPref(PREF_EM_CHECK_COMPATIBILITY);
+      gPref.clearUserPref(gCheckCompatibilityPref);
       gCheckCompat = true;
       break;
     case "addons-enable-updatesecurity":
@@ -2017,14 +2204,14 @@ const gPrefObserver = {
   {
     if (aData == PREF_GENERAL_SKINS_SELECTEDSKIN) {
       // Changed as the result of a dynamic theme switch
-      gCurrentTheme = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
+      gThemeToSelect = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
     }
     else if (aData == PREF_DSS_SKIN_TO_SELECT) {
       // Either a new skin has been selected or the switch has been cancelled
       if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING))
-        gCurrentTheme = gPref.getCharPref(PREF_DSS_SKIN_TO_SELECT);
+        gThemeToSelect = gPref.getCharPref(PREF_DSS_SKIN_TO_SELECT);
       else
-        gCurrentTheme = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
+        gThemeToSelect = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
       updateOptionalViews();
       updateGlobalCommands();
     }
@@ -2035,6 +2222,19 @@ const gPluginObserver = {
   observe: function (aSubject, aTopic, aData)
   {
     rebuildPluginsDS();
+  }
+};
+
+const gLWThemeObserver = {
+  observe: function (aSubject, aTopic, aData) {
+    if (aTopic == "lightweight-theme-list-changed") {
+      rebuildLWThemeDS();
+    }
+    else if (aTopic == "lightweight-theme-changed") {
+      gLWThemeToSelect = LightweightThemeManager.currentTheme;
+      if (gPref.prefHasUserValue(PREF_LWTHEME_TO_SELECT))
+          gPref.clearUserPref(PREF_LWTHEME_TO_SELECT);
+    }
   }
 };
 
@@ -2216,6 +2416,10 @@ function updateGlobalCommands() {
     disableInstallUpdate = false;
     disableRestartButton();
   }
+  else if (gView == "plugins") {
+    if (gPluginUpdateUrl)
+      disableUpdateCheck = false;
+  }
   else {
     var children = gExtensionsView.children;
     for (var i = 0; i < children.length; ++i) {
@@ -2258,6 +2462,11 @@ function hideUpdateInfo()
 function checkUpdatesAll() {
   if (isOffline("offlineUpdateMsg2"))
     return;
+  
+  if (gView == "plugins") {
+    openURL(gPluginUpdateUrl);
+    return;
+  }
 
   if (!isXPInstallEnabled())
     return;
@@ -2275,7 +2484,8 @@ function checkUpdatesAll() {
     var listener = new UpdateCheckListener();
     gExtensionManager.update(items, items.length,
                              nsIExtensionManager.UPDATE_CHECK_NEWVERSION,
-                             listener);
+                             listener,
+                             nsIExtensionManager.UPDATE_WHEN_USER_REQUESTED);
   }
   if (gExtensionsView.selectedItem)
     gExtensionsView.selectedItem.focus();
@@ -2423,10 +2633,14 @@ var gExtensionsViewController = {
       return selectedItem.getAttribute("action") == "" ||
              selectedItem.getAttribute("action") == "failed";
     case "cmd_useTheme":
+      if (selectedItem.hasAttribute("lwtheme"))
+        return !gLWThemeToSelect ||
+               selectedItem.getAttribute("addonID") != gLWThemeToSelect.id;
       return selectedItem.type == nsIUpdateItem.TYPE_THEME &&
              !selectedItem.isDisabled &&
              selectedItem.opType != OP_NEEDS_UNINSTALL &&
-             gCurrentTheme != selectedItem.getAttribute("internalName");
+             (gLWThemeToSelect ||
+              gThemeToSelect != selectedItem.getAttribute("internalName"));
     case "cmd_options":
       return selectedItem.type == nsIUpdateItem.TYPE_EXTENSION &&
              !selectedItem.isDisabled &&
@@ -2439,6 +2653,8 @@ var gExtensionsViewController = {
     case "cmd_homepage":
       return selectedItem.getAttribute("homepageURL") != "";
     case "cmd_uninstall":
+      if (selectedItem.hasAttribute("lwtheme"))
+        return true;
       return (selectedItem.type != nsIUpdateItem.TYPE_THEME ||
              selectedItem.type == nsIUpdateItem.TYPE_THEME &&
              selectedItem.getAttribute("internalName") != gDefaultTheme) &&
@@ -2553,27 +2769,46 @@ var gExtensionsViewController = {
 
     cmd_useTheme: function (aSelectedItem)
     {
-      gCurrentTheme = aSelectedItem.getAttribute("internalName");
+      if (aSelectedItem.hasAttribute("lwtheme")) {
+        let newTheme = LightweightThemeManager.getUsedTheme(aSelectedItem.getAttribute("addonID"));
+        LightweightThemeManager.currentTheme = gLWThemeToSelect = newTheme;
 
-      // If choosing the current skin just reset the pending change
-      if (gCurrentTheme == gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN)) {
-        gPref.clearUserPref(PREF_EXTENSIONS_DSS_SWITCHPENDING);
-        gPref.clearUserPref(PREF_DSS_SKIN_TO_SELECT);
-        clearRestartMessage();
-      }
-      else {
-        if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_ENABLED)) {
-          gPref.setCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN, gCurrentTheme);
-        }
-        else {
-          // Theme change will happen on next startup, this flag tells
-          // the Theme Manager that it needs to show "This theme will
-          // be selected after a restart" text in the selected theme
-          // item.
-          gPref.setBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING, true);
-          gPref.setCharPref(PREF_DSS_SKIN_TO_SELECT, gCurrentTheme);
+        if (gPref.prefHasUserValue(PREF_LWTHEME_TO_SELECT)) {
           clearRestartMessage();
           setRestartMessage(aSelectedItem);
+        }
+      }
+      else {
+        gThemeToSelect = aSelectedItem.getAttribute("internalName");
+
+        // If choosing the current skin just reset the pending change
+        if (gThemeToSelect == gCurrentTheme) {
+          if (gPref.prefHasUserValue(PREF_EXTENSIONS_DSS_SWITCHPENDING))
+            gPref.clearUserPref(PREF_EXTENSIONS_DSS_SWITCHPENDING);
+          if (gPref.prefHasUserValue(PREF_DSS_SKIN_TO_SELECT))
+            gPref.clearUserPref(PREF_DSS_SKIN_TO_SELECT);
+          gLWThemeToSelect = LightweightThemeManager.currentTheme = null;
+          clearRestartMessage();
+        }
+        else {
+          if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_ENABLED)) {
+            gPref.setCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN, gThemeToSelect);
+            gLWThemeToSelect = LightweightThemeManager.currentTheme = null;
+          }
+          else {
+            // Theme change will happen on next startup, this flag tells
+            // the Theme Manager that it needs to show "This theme will
+            // be selected after a restart" text in the selected theme
+            // item.
+            gPref.setBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING, true);
+            gPref.setCharPref(PREF_DSS_SKIN_TO_SELECT, gThemeToSelect);
+            if (gLWThemeToSelect) {
+              gLWThemeToSelect = null;
+              gPref.setCharPref(PREF_LWTHEME_TO_SELECT, "");
+            }
+            clearRestartMessage();
+            setRestartMessage(aSelectedItem);
+          }
         }
       }
 
@@ -2646,7 +2881,8 @@ var gExtensionsViewController = {
       var listener = new UpdateCheckListener();
       gExtensionManager.update(items, items.length,
                                nsIExtensionManager.UPDATE_CHECK_NEWVERSION,
-                               listener);
+                               listener,
+                               nsIExtensionManager.UPDATE_WHEN_USER_REQUESTED);
     },
 
     cmd_installUpdate: function (aSelectedItem)
@@ -2676,18 +2912,31 @@ var gExtensionsViewController = {
     {
       // Confirm the uninstall
       var name = aSelectedItem.getAttribute("name");
-      var id = getIDFromResourceURI(aSelectedItem.id);
-      var dependentItems = gExtensionManager.getDependentItemListForID(id, true, { });
+      var dependentItems = [];
+      if (!aSelectedItem.hasAttribute("lwtheme")) {
+        var id = getIDFromResourceURI(aSelectedItem.id);
+        dependentItems = gExtensionManager.getDependentItemListForID(id, true, { });
+      }
       var result = confirmOperation(name, "uninstallTitle", "uninstallQueryMessage",
                                     "uninstallButton", "cancelButton",
                                     "uninstallWarnDependMsg", dependentItems);
       if (!result)
         return;
 
+      if (aSelectedItem.hasAttribute("lwtheme")) {
+        let lwid = aSelectedItem.getAttribute("addonID");
+        LightweightThemeManager.forgetUsedTheme(lwid);
+        if (gLWThemeToSelect && lwid == gLWThemeToSelect.id) {
+          gLWThemeToSelect = LightweightThemeManager.currentTheme;
+          gPref.clearUserPref(PREF_LWTHEME_TO_SELECT);
+        }
+        return;
+      }
+
       if (aSelectedItem.type == nsIUpdateItem.TYPE_THEME) {
         var theme = aSelectedItem.getAttribute("internalName");
         var selectedTheme = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
-        if (theme == gCurrentTheme) {
+        if (theme == gThemeToSelect) {
           if (gPref.getBoolPref(PREF_EXTENSIONS_DSS_SWITCHPENDING)) {
             var item = getItemForInternalName(selectedTheme);
             if (item && item.getAttribute("opType") == OP_NEEDS_UNINSTALL) {

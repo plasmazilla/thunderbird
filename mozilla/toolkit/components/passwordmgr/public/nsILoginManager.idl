@@ -44,7 +44,7 @@ interface nsIDOMHTMLInputElement;
 interface nsIDOMHTMLFormElement;
 interface nsIPropertyBag;
 
-[scriptable, uuid(9c78bfc1-422b-4f4f-ba09-f7eb3c4e72b2)]
+[scriptable, uuid(30534ff7-fb95-45c5-8336-5448638f2aa1)]
 
 interface nsILoginManager : nsISupports {
 
@@ -240,10 +240,6 @@ interface nsILoginManager : nsISupports {
      * @return Success of attempt fill form
      */
     boolean fillForm(in nsIDOMHTMLFormElement aForm);
-};
-
-[scriptable, uuid(44ec4942-3678-11de-b4e6-47765a06a143)]
-interface nsILoginManager_MOZILLA_1_9_1 : nsILoginManager {
 
     /**
      * Search for logins in the login manager. An array is always returned;

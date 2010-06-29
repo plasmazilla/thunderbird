@@ -127,6 +127,7 @@ PlacesController.prototype = {
     case "cmd_redo":
       return PlacesUIUtils.ptm.numberOfRedoItems > 0;
     case "cmd_cut":
+    case "placesCmd_cut":
       var nodes = this._view.getSelectionNodes();
       // If selection includes history nodes there's no reason to allow cut.
       for (var i = 0; i < nodes.length; i++) {
@@ -135,6 +136,7 @@ PlacesController.prototype = {
       }
       // Otherwise fallback to cmd_delete check.
     case "cmd_delete":
+    case "placesCmd_delete":
       return this._hasRemovableSelection(false);
     case "placesCmd_deleteDataHost":
       return this._hasRemovableSelection(false) &&
@@ -142,17 +144,16 @@ PlacesController.prototype = {
     case "placesCmd_moveBookmarks":
       return this._hasRemovableSelection(true);
     case "cmd_copy":
+    case "placesCmd_copy":
       return this._view.hasSelection;
     case "cmd_paste":
+    case "placesCmd_paste":
       return this._canInsert(true) && this._isClipboardDataPasteable();
     case "cmd_selectAll":
       if (this._view.selType != "single") {
-        var result = this._view.getResult();
-        if (result) {
-          var container = asContainer(result.root);
-          if (container.childCount > 0)
+        var rootNode = this._view.getResultNode();
+        if (rootNode.containerOpen && rootNode.childCount > 0)
             return true;
-        }
       }
       return false;
     case "placesCmd_open":
@@ -167,7 +168,7 @@ PlacesController.prototype = {
       return this._canInsert();
     case "placesCmd_new:separator":
       return this._canInsert() &&
-             !asQuery(this._view.getResult().root).queryOptions.excludeItems &&
+             !asQuery(this._view.getResultNode()).queryOptions.excludeItems &&
              this._view.getResult().sortingMode ==
                  Ci.nsINavHistoryQueryOptions.SORT_BY_NONE;
     case "placesCmd_show:info":
@@ -192,6 +193,9 @@ PlacesController.prototype = {
              !PlacesUtils.nodeIsReadOnly(selectedNode) &&
              this._view.getResult().sortingMode ==
                  Ci.nsINavHistoryQueryOptions.SORT_BY_NONE;
+    case "placesCmd_createBookmark":
+      var node = this._view.selectedNode;
+      return node && PlacesUtils.nodeIsURI(node) && node.itemId == -1;
     default:
       return false;
     }
@@ -226,15 +230,19 @@ PlacesController.prototype = {
       PlacesUIUtils.ptm.redoTransaction();
       break;
     case "cmd_cut":
+    case "placesCmd_cut":
       this.cut();
       break;
     case "cmd_copy":
+    case "placesCmd_copy":
       this.copy();
       break;
     case "cmd_paste":
+    case "placesCmd_paste":
       this.paste();
       break;
     case "cmd_delete":
+    case "placesCmd_delete":
       this.remove("Remove Selection");
       break;
     case "placesCmd_deleteDataHost":
@@ -285,6 +293,10 @@ PlacesController.prototype = {
       break;
     case "placesCmd_sortBy:name":
       this.sortFolderByName();
+      break;
+    case "placesCmd_createBookmark":
+      var node = this._view.selectedNode;
+      PlacesUIUtils.showMinimalAddBookmarkUI(PlacesUtils._uri(node.uri), node.title);
       break;
     }
   },
@@ -434,7 +446,7 @@ PlacesController.prototype = {
    */
   _buildSelectionMetadata: function PC__buildSelectionMetadata() {
     var metadata = [];
-    var root = this._view.getResult().root;
+    var root = this._view.getResultNode();
     var nodes = this._view.getSelectionNodes();
     if (nodes.length == 0)
       nodes.push(root); // See the second note above
@@ -531,11 +543,14 @@ PlacesController.prototype = {
     if (selectiontype == "single" && aMetaData.length != 1)
       return false;
 
-    var forceHideRules = aMenuItem.getAttribute("forcehideselection").split("|");
-    for (var i = 0; i < aMetaData.length; ++i) {
-      for (var j=0; j < forceHideRules.length; ++j) {
-        if (forceHideRules[j] in aMetaData[i])
-          return false;
+    var forceHideAttr = aMenuItem.getAttribute("forcehideselection");
+    if (forceHideAttr) {
+      var forceHideRules = forceHideAttr.split("|");
+      for (var i = 0; i < aMetaData.length; ++i) {
+        for (var j=0; j < forceHideRules.length; ++j) {
+          if (forceHideRules[j] in aMetaData[i])
+            return false;
+        }
       }
     }
 
@@ -587,7 +602,7 @@ PlacesController.prototype = {
    *     selection attribute. A menu-item would be hidden if at least one of the
    *     given rules apply to one of the selected nodes. The rules should be
    *     separated with the | character.
-   *  5) The "hideifnoinsetionpoint" attribute may be set on a menu-item to
+   *  5) The "hideifnoinsertionpoint" attribute may be set on a menu-item to
    *     true if it should be hidden when there's no insertion point
    *  6) The visibility state of a menu-item is unchanged if none of these
    *     attribute are set.
@@ -611,7 +626,7 @@ PlacesController.prototype = {
       var item = aPopup.childNodes[i];
       if (item.localName != "menuseparator") {
         // We allow pasting into tag containers, so special case that.
-        var hideIfNoIP = item.getAttribute("hideifnoinsetionpoint") == "true" &&
+        var hideIfNoIP = item.getAttribute("hideifnoinsertionpoint") == "true" &&
                          noIp && !(ip && ip.isTag && item.id == "placesContext_paste");
         var hideIfPB = item.getAttribute("hideifprivatebrowsing") == "true" &&
                        PlacesUIUtils.privateBrowsing.privateBrowsingEnabled;
@@ -993,7 +1008,6 @@ PlacesController.prototype = {
     var nodes = this._view.getSelectionNodes();
     var URIs = [];
     var bhist = PlacesUtils.history.QueryInterface(Ci.nsIBrowserHistory);
-    var resultView = this._view.getResultView();
     var root = this._view.getResultNode();
 
     for (var i = 0; i < nodes.length; ++i) {
@@ -1069,7 +1083,7 @@ PlacesController.prototype = {
 
     NS_ASSERT(aTxnName !== undefined, "Must supply Transaction Name");
 
-    var root = this._view.getResult().root;
+    var root = this._view.getResultNode();
 
     if (PlacesUtils.nodeIsFolder(root)) 
       this._removeRowsFromBookmarks(aTxnName);
@@ -1094,13 +1108,13 @@ PlacesController.prototype = {
    */
   setDataTransfer: function PC_setDataTransfer(aEvent) {
     var dt = aEvent.dataTransfer;
-    var doCopy = dt.effectAllowed == "copyLink" || dt.effectAllowed == "copy";
+    var doCopy = ["copyLink", "copy", "link"].indexOf(dt.effectAllowed) != -1;
 
     var result = this._view.getResult();
     var oldViewer = result.viewer;
     try {
       result.viewer = null;
-      var nodes = this._view.getDragableSelection();
+      var nodes = this._view.getDraggableSelection();
 
       for (var i = 0; i < nodes.length; ++i) {
         var node = nodes[i];
@@ -1501,7 +1515,7 @@ var PlacesControllerDragHelper = {
    */
   onDrop: function PCDH_onDrop(insertionPoint) {
     var dt = this.currentDataTransfer;
-    var doCopy = dt.dropEffect == "copy";
+    var doCopy = ["copy", "link"].indexOf(dt.dropEffect) != -1;
 
     var transactions = [];
     var dropCount = dt.mozItemCount;
@@ -1597,19 +1611,13 @@ var PlacesControllerDragHelper = {
 };
 
 function goUpdatePlacesCommands() {
-  var placesController;
-  try {
-    // Or any other command...
-    placesController = top.document.commandDispatcher
-                          .getControllerForCommand("placesCmd_open");
-  }
-  catch(ex) { return; }
+  // Get the controller for one of the places commands.
+  var placesController = doGetPlacesControllerForCommand("placesCmd_open");
+  if (!placesController)
+    return;
 
   function updatePlacesCommand(aCommand) {
-    var enabled = false;
-    if (placesController)
-      enabled = placesController.isCommandEnabled(aCommand);
-    goSetCommandEnabled(aCommand, enabled);
+    goSetCommandEnabled(aCommand, placesController.isCommandEnabled(aCommand));
   }
 
   updatePlacesCommand("placesCmd_open");
@@ -1624,4 +1632,39 @@ function goUpdatePlacesCommands() {
   updatePlacesCommand("placesCmd_reload");
   updatePlacesCommand("placesCmd_reloadMicrosummary");
   updatePlacesCommand("placesCmd_sortBy:name");
+  updatePlacesCommand("placesCmd_cut");
+  updatePlacesCommand("placesCmd_copy");
+  updatePlacesCommand("placesCmd_paste");
+  updatePlacesCommand("placesCmd_delete");
 }
+
+function doGetPlacesControllerForCommand(aCommand)
+{
+  var placesController = top.document.commandDispatcher
+                            .getControllerForCommand(aCommand);
+  if (!placesController) {
+    // If building commands for a context menu, look for an element in the
+    // current popup.
+    var element = document.popupNode;
+    while (element) {
+      var isContextMenuShown = ("_contextMenuShown" in element) && element._contextMenuShown;
+      // Check for the parent menupopup or the hbox used for toolbars
+      if ((element.localName == "menupopup" || element.localName == "hbox") &&
+          isContextMenuShown) {
+        placesController = element.controllers.getControllerForCommand(aCommand);
+        break;
+      }
+      element = element.parentNode;
+    }
+  }
+
+  return placesController;
+}
+
+function goDoPlacesCommand(aCommand)
+{
+  var controller = doGetPlacesControllerForCommand(aCommand);
+  if (controller && controller.isCommandEnabled(aCommand))
+    controller.doCommand(aCommand);
+}
+

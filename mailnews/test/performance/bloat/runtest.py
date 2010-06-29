@@ -45,7 +45,13 @@ import sys
 import os
 import shutil
 
-import automation
+# The try case handles trunk. The exception case handles MOZILLA_1_9_2_BRANCH.
+try:
+    from automation import Automation
+    automation = Automation()
+except ImportError:
+    import automation
+
 from automationutils import checkForCrashes
 
 class BloatRunTestOptions(optparse.OptionParser):
@@ -207,11 +213,7 @@ for cmd in COMMANDS:
   for envkey in envkeys:
     print >> sys.stderr, "%s=%s"%(envkey, mailnewsEnv[envkey])
 
-  # The try case handles MOZILLA_1_9_1_BRANCH, the except case handles trunk.
-  try:
-    proc = automation.Process(binary, args, env = mailnewsEnv)
-  except TypeError:
-    proc = automation.Process([binary] + args, env = mailnewsEnv)
+  proc = automation.Process([binary] + args, env = mailnewsEnv)
 
   status = proc.wait()
   if status != 0:
@@ -219,7 +221,7 @@ for cmd in COMMANDS:
 
   if checkForCrashes(os.path.join(PROFILE, "minidumps"), options.symbols, cmd['name']):
     print >> sys.stderr, 'TinderboxPrint: ' + cmd['name'] + '<br/><em class="testfail">CRASH</em>'
-    status = -1
+    status = 1
 
   if status != 0:
     sys.exit(status)

@@ -176,6 +176,8 @@ function populateDB(aArray) {
           stmt.params.url = qdata.uri;
           try {
             stmt.execute();
+            // Force a notification so results are updated.
+            histsvc.runInBatchMode({runBatched: function(){}}, null);
           }
           finally {
             stmt.finalize();
@@ -193,6 +195,8 @@ function populateDB(aArray) {
           stmt.params.url = qdata.uri;
           try {
             stmt.execute();
+            // Force a notification so results are updated.
+            histsvc.runInBatchMode({runBatched: function(){}}, null);
           }
           finally {
             stmt.finalize();
@@ -214,27 +218,46 @@ function populateDB(aArray) {
       }
 
       if (qdata.isPageAnnotation) {
-        annosvc.setPageAnnotation(uri(qdata.uri), qdata.annoName, qdata.annoVal,
-                                  qdata.annoFlags, qdata.annoExpiration);
+        if (qdata.removeAnnotation) 
+          annosvc.removePageAnnotation(uri(qdata.uri), qdata.annoName);
+        else {
+          annosvc.setPageAnnotation(uri(qdata.uri),
+                                    qdata.annoName, qdata.annoVal,
+                                    qdata.annoFlags, qdata.annoExpiration);
+        }
       }
 
       if (qdata.isItemAnnotation) {
-        annosvc.setItemAnnotation(qdata.itemId, qdata.annoName, qdata.annoVal,
-                                  qdata.annoFlags, qdata.annoExpiration);
+        if (qdata.removeAnnotation)
+          annosvc.removeItemAnnotation(qdata.itemId, qdata.annoName);
+        else {
+          annosvc.setItemAnnotation(qdata.itemId, qdata.annoName, qdata.annoVal,
+                                    qdata.annoFlags, qdata.annoExpiration);
+        }
       }
 
       if (qdata.isPageBinaryAnnotation) {
-        annosvc.setPageAnnotationBinary(uri(qdata.uri), qdata.annoName,
-                                        qdata.binarydata, qdata.binaryDataLength,
-                                        qdata.annoMimeType, qdata.annoFlags,
-                                        qdata.annoExpiration);
+        if (qdata.removeAnnotation)
+          annosvc.removePageAnnotation(uri(qdata.uri), qdata.annoName);
+        else {
+          annosvc.setPageAnnotationBinary(uri(qdata.uri), qdata.annoName,
+                                          qdata.binarydata,
+                                          qdata.binaryDataLength,
+                                          qdata.annoMimeType, qdata.annoFlags,
+                                          qdata.annoExpiration);
+        }
       }
 
       if (qdata.isItemBinaryAnnotation) {
-        annosvc.setItemAnnotationBinary(qdata.itemId, qdata.annoName,
-                                        qdata.binaryData, qdata.binaryDataLength,
-                                        qdata.annoMimeType, qdata.annoFlags,
-                                        qdata.annoExpiration);
+        if (qdata.removeAnnotation)
+          annosvc.removeItemAnnotation(qdata.itemId, qdata.annoName);
+        else {
+          annosvc.setItemAnnotationBinary(qdata.itemId, qdata.annoName,
+                                          qdata.binaryData,
+                                          qdata.binaryDataLength,
+                                          qdata.annoMimeType, qdata.annoFlags,
+                                          qdata.annoExpiration);
+        }
       }
 
       if (qdata.isFavicon) {
@@ -249,7 +272,9 @@ function populateDB(aArray) {
       }
 
       if (qdata.isFolder) {
-        bmsvc.createFolder(qdata.parentFolder, qdata.title, qdata.index);
+        let folderId = bmsvc.createFolder(qdata.parentFolder, qdata.title, qdata.index);
+        if (qdata.readOnly)
+          bmsvc.setFolderReadonly(folderId, true);
       }
 
       if (qdata.isLivemark) {
@@ -311,6 +336,7 @@ function queryData(obj) {
   this.markPageAsTyped = obj.markPageAsTyped ? obj.markPageAsTyped : false;
   this.hidePage = obj.hidePage ? obj.hidePage : false;
   this.isPageAnnotation = obj.isPageAnnotation ? obj.isPageAnnotation : false;
+  this.removeAnnotation= obj.removeAnnotation ? true : false;
   this.annoName = obj.annoName ? obj.annoName : "";
   this.annoVal = obj.annoVal ? obj.annoVal : "";
   this.annoFlags = obj.annoFlags ? obj.annoFlags : 0;
@@ -342,6 +368,7 @@ function queryData(obj) {
   this.dateAdded = obj.dateAdded ? obj.dateAdded : today;
   this.keyword = obj.keyword ? obj.keyword : "";
   this.visitCount = obj.visitCount ? obj.visitCount : 0;
+  this.readOnly = obj.readOnly ? obj.readOnly : false;
 
   // And now, the attribute for whether or not this object should appear in the
   // resulting query
@@ -440,8 +467,8 @@ function displayResultSet(aRoot) {
   }
 
   for (var i=0; i < aRoot.childCount; ++i) {
-    LOG("Result Set URI: " + aRoot.getChild(i).uri + " Title: " +
-        aRoot.getChild(i).title);
+    LOG("Result Set URI: " + aRoot.getChild(i).uri + "   Title: " +
+        aRoot.getChild(i).title + "   Visit Time: " + aRoot.getChild(i).time);
   }
 }
 
@@ -470,6 +497,59 @@ function check_no_bookmarks() {
   root.containerOpen = true;
   do_check_eq(root.childCount, 0);
   root.containerOpen = false;
+}
+
+/**
+ * Dumps the rows of a table out to the console.
+ *
+ * @param aName
+ *        The name of the table or view to output.
+ */
+function dump_table(aName)
+{
+  let db = Cc["@mozilla.org/browser/nav-history-service;1"].
+           getService(Ci.nsPIPlacesDatabase).
+           DBConnection;
+  let stmt = db.createStatement("SELECT * FROM " + aName);
+
+  dump("\n*** Printing data from " + aName + ":\n");
+  let count = 0;
+  while (stmt.executeStep()) {
+    let columns = stmt.numEntries;
+
+    if (count == 0) {
+      // print the column names
+      for (let i = 0; i < columns; i++)
+        dump(stmt.getColumnName(i) + "\t");
+      dump("\n");
+    }
+
+    // print the row
+    for (let i = 0; i < columns; i++) {
+      switch (stmt.getTypeOfIndex(i)) {
+        case Ci.mozIStorageValueArray.VALUE_TYPE_NULL:
+          dump("NULL\t");
+          break;
+        case Ci.mozIStorageValueArray.VALUE_TYPE_INTEGER:
+          dump(stmt.getInt64(i) + "\t");
+          break;
+        case Ci.mozIStorageValueArray.VALUE_TYPE_FLOAT:
+          dump(stmt.getDouble(i) + "\t");
+          break;
+        case Ci.mozIStorageValueArray.VALUE_TYPE_TEXT:
+          dump(stmt.getString(i) + "\t");
+          break;
+      }
+    }
+    dump("\n");
+
+    count++;
+  }
+  dump("*** There were a total of " + count + " rows of data.\n\n");
+
+  stmt.reset();
+  stmt.finalize();
+  stmt = null;
 }
 
 /**

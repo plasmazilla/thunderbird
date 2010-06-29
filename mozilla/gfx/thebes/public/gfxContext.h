@@ -319,9 +319,9 @@ public:
     gfxSize UserToDevice(const gfxSize& size) const;
 
     /**
-     * Converts a rectangle from user to device coordinates; this has the
-     * same effect as using UserToDevice on both the rectangle's point and
-     * size.
+     * Converts a rectangle from user to device coordinates.  The
+     * resulting rectangle is the minimum device-space rectangle that
+     * encloses the user-space rectangle given.
      */
     gfxRect UserToDevice(const gfxRect& rect) const;
 
@@ -675,6 +675,16 @@ public:
     NS_ASSERTION(!mContext, "Not going to call Restore() on some context!!!");
     mContext = aContext;
     mContext->Save();    
+  }
+
+  void Reset(gfxContext *aContext) {
+    // Do the equivalent of destroying and re-creating this object.
+    NS_PRECONDITION(aContext, "must provide a context");
+    if (mContext) {
+      mContext->Restore();
+    }
+    mContext = aContext;
+    mContext->Save();
   }
 
 private:

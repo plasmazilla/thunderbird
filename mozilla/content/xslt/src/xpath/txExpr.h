@@ -719,7 +719,7 @@ private:
 };
 
 /**
- * Represents an UnaryExpr. Returns the negative value of it's expr.
+ * Represents an UnaryExpr. Returns the negative value of its expr.
 **/
 class UnaryExpr : public Expr {
 
@@ -738,7 +738,7 @@ private:
 
 /**
  * Represents a BooleanExpr, a binary expression that
- * performs a boolean operation between it's lvalue and rvalue.
+ * performs a boolean operation between its lvalue and rvalue.
 **/
 class BooleanExpr : public Expr
 {
@@ -763,7 +763,7 @@ private:
 
 /**
  * Represents a MultiplicativeExpr, a binary expression that
- * performs a multiplicative operation between it's lvalue and rvalue:
+ * performs a multiplicative operation between its lvalue and rvalue:
  *  *   : multiply
  * mod  : modulus
  * div  : divide
@@ -790,8 +790,8 @@ private:
 }; //-- MultiplicativeExpr
 
 /**
- * Represents a RelationalExpr, an expression that compares it's lvalue
- * to it's rvalue using:
+ * Represents a RelationalExpr, an expression that compares its lvalue
+ * to its rvalue using:
  * =  : equal to
  * <  : less than
  * >  : greater than

@@ -74,6 +74,30 @@ must be one of the following:
                          particular platform (i.e. it allows us to get test
                          coverage on the other platforms).
 
+      asserts(count)
+          Loading the test and reference is known to assert exactly
+          count times.
+          NOTE: An asserts() notation with a non-zero count or maxCount
+          suppresses use of a cached canvas for the test with the
+          annotation.  However, if later occurrences of the same test
+          are not annotated, they will use the cached canvas
+          (potentially from the load that asserted).  This allows
+          repeated use of the same test or reference to be annotated
+          correctly (which may be particularly useful when the uses are
+          in different subdirectories that can be tested independently),
+          but does not force them to be, nor does it force suppression
+          of caching for a common reference when it is the test that
+          asserts.
+
+      asserts(minCount-maxCount)
+          Loading the test and reference is known to assert between
+          minCount and maxCount times, inclusive.
+          NOTE: See above regarding canvas caching.
+
+      asserts-if(condition,count)
+      asserts-if(condition,minCount-maxCount)
+          Same as above, but only if condition is true.
+
       Examples of using conditions:
           fails-if(MOZ_WIDGET_TOOLKIT=="windows") ...
           fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") ...
@@ -140,14 +164,31 @@ must be one of the following:
 
    c. <type> is one of the following:
 
-      ==    The test passes if the images of the two renderings are the
-            SAME.
-      !=    The test passes if the images of the two renderings are 
-            DIFFERENT.
-      load  The test passes unconditionally if the page loads.  url_ref
-            must be omitted, and the test cannot be marked as fails or
-            random.  (Used to test for crashes, hangs, assertions, and
-            leaks.)
+      ==     The test passes if the images of the two renderings are the
+             SAME.
+      !=     The test passes if the images of the two renderings are 
+             DIFFERENT.
+      load   The test passes unconditionally if the page loads.  url_ref
+             must be omitted, and the test cannot be marked as fails or
+             random.  (Used to test for crashes, hangs, assertions, and
+             leaks.)
+      script The loaded page records the test's pass or failure status
+             in a JavaScript data structure accessible through the following
+             API.
+
+             getTestCases() returns an array of test result objects
+             representing the results of the tests performed by the page.
+
+             Each test result object has two methods:
+
+             testPassed() returns true if the test result object passed,
+             otherwise it returns false.
+
+             testDescription() returns a string describing the test
+             result.
+
+             url_ref must be omitted. The test may be marked as fails or
+             random. (Used to test the JavaScript Engine.)
 
    d. <url> is either a relative file path or an absolute URL for the
       test page
@@ -157,6 +198,24 @@ must be one of the following:
 
    The only difference between <url> and <url_ref> is that results of
    the test are reported using <url> only.
+
+3. Specification of a url prefix
+
+   url-prefix <string>
+
+   <string> will be prepended to relative <url> and <url_ref> for all following
+   test items in the manifest.
+
+   <string> will not be prepended to the relative path when including another
+   manifest, e.g. include <relative_path>.
+
+   <string> will not be prepended to any <url> or <url_ref> matching the pattern
+   /^\w+:/. This will prevent the prefix from being applied to any absolute url
+   containing a protocol such as data:, about:, or http:.
+
+   While the typical use of url-prefix is expected to be as the first line of
+   a manifest, it is legal to use it anywhere in a manifest. Subsequent uses
+   of url-prefix overwrite any existing values.
 
 This test manifest format could be used by other harnesses, such as ones
 that do not depend on XUL, or even ones testing other layout engines.
@@ -266,6 +325,27 @@ Note that in layout tests it is often enough to trigger layout using
 
 When possible, you should use this technique instead of making your
 test async.
+
+Invalidation Tests
+==================
+
+When a test (or reference) uses reftest-wait, reftest tracks invalidation
+via MozAfterPaint and updates the test image in the same way that
+a regular window would be repainted. Therefore it is possible to test
+invalidation-related bugs by setting up initial content and then
+dynamically modifying it before removing reftest-wait. However, it is
+important to get the timing of these dynamic modifications right so that
+the test doesn't accidentally pass because a full repaint of the window
+was already pending. To help with this, reftest fires one MozReftestInvalidate
+event at the document root element for a reftest-wait test when it is safe to
+make changes that should test invalidation. The event bubbles up to the
+document and window so you can set listeners there too. For example,
+
+function doTest() {
+  document.body.style.border = "";
+  document.documentElement.removeAttribute('class');
+}
+document.addEventListener("MozReftestInvalidate", doTest, false);
 
 Printing Tests
 ==============

@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <title>Canvas test: 2d.path.arcTo.shape.curve1</title>
 <!-- Testing: arcTo() curves in the right kind of shape -->
-<script src="/MochiKit/MochiKit.js"></script>
+<script src="/MochiKit/packed.js"></script>
 <script src="/tests/SimpleTest/SimpleTest.js"></script>
 <link rel="stylesheet" href="/tests/SimpleTest/test.css">
 <body>
@@ -69,8 +69,8 @@ isPixel(ctx, 73,27, 0,255,0,255, "73,27", "0,255,0,255", 0);
 isPixel(ctx, 78,36, 0,255,0,255, "78,36", "0,255,0,255", 0);
 isPixel(ctx, 79,35, 0,255,0,255, "79,35", "0,255,0,255", 0);
 isPixel(ctx, 80,44, 0,255,0,255, "80,44", "0,255,0,255", 0);
-todo_isPixel(ctx, 80,45, 0,255,0,255, "80,45", "0,255,0,255", 0);
-todo_isPixel(ctx, 80,46, 0,255,0,255, "80,46", "0,255,0,255", 0);
+isPixel(ctx, 80,45, 0,255,0,255, "80,45", "0,255,0,255", 0);
+isPixel(ctx, 80,46, 0,255,0,255, "80,46", "0,255,0,255", 0);
 
 SimpleTest.finish();
 

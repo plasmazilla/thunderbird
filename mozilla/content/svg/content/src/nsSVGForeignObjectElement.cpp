@@ -36,9 +36,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsSVGLength.h"
 #include "nsCOMPtr.h"
 #include "nsSVGForeignObjectElement.h"
+#include "nsSVGMatrix.h"
 
 nsSVGElement::LengthInfo nsSVGForeignObjectElement::sLengthInfo[4] =
 {
@@ -100,6 +100,21 @@ NS_IMETHODIMP nsSVGForeignObjectElement::GetWidth(nsIDOMSVGAnimatedLength * *aWi
 NS_IMETHODIMP nsSVGForeignObjectElement::GetHeight(nsIDOMSVGAnimatedLength * *aHeight)
 {
   return mLengthAttributes[HEIGHT].ToDOMAnimatedLength(aHeight, this);
+}
+
+//----------------------------------------------------------------------
+// nsSVGElement methods
+
+/* virtual */ gfxMatrix
+nsSVGForeignObjectElement::PrependLocalTransformTo(const gfxMatrix &aMatrix)
+{
+  // 'transform' attribute:
+  gfxMatrix matrix = nsSVGForeignObjectElementBase::PrependLocalTransformTo(aMatrix);
+  
+  // now translate by our 'x' and 'y':
+  float x, y;
+  GetAnimatedLengthValues(&x, &y, nsnull);
+  return gfxMatrix().Translate(gfxPoint(x, y)) * matrix;
 }
 
 //----------------------------------------------------------------------

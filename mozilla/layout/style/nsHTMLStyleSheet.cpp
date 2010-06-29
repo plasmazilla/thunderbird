@@ -69,6 +69,7 @@
 #include "nsRuleWalker.h"
 #include "nsRuleData.h"
 #include "nsContentErrors.h"
+#include "nsRuleProcessorData.h"
 
 NS_IMPL_ISUPPORTS1(nsHTMLStyleSheet::HTMLColorRule, nsIStyleRule)
 
@@ -109,27 +110,15 @@ nsHTMLStyleSheet::GenericTableRule::List(FILE* out, PRInt32 aIndent) const
 }
 #endif
 
-static void PostResolveCallback(void* aStyleStruct, nsRuleData* aRuleData)
-{
-  nsStyleText* text = (nsStyleText*)aStyleStruct;
-  if (text->mTextAlign == NS_STYLE_TEXT_ALIGN_DEFAULT) {
-    nsStyleContext* parentContext = aRuleData->mStyleContext->GetParent();
-
-    if (parentContext) {
-      const nsStyleText* parentStyleText = parentContext->GetStyleText();
-      PRUint8 parentAlign = parentStyleText->mTextAlign;
-      text->mTextAlign = (NS_STYLE_TEXT_ALIGN_DEFAULT == parentAlign)
-                              ? NS_STYLE_TEXT_ALIGN_CENTER : parentAlign;
-    }
-  }
-}
-
 NS_IMETHODIMP
 nsHTMLStyleSheet::TableTHRule::MapRuleInfoInto(nsRuleData* aRuleData)
 {
   if (aRuleData->mSIDs & NS_STYLE_INHERIT_BIT(Text)) {
-    aRuleData->mCanStoreInRuleTree = PR_FALSE;
-    aRuleData->mPostResolveCallback = &PostResolveCallback;
+    if (aRuleData->mTextData->mTextAlign.GetUnit() == eCSSUnit_Null) {
+      aRuleData->mTextData->mTextAlign.
+        SetIntValue(NS_STYLE_TEXT_ALIGN_MOZ_CENTER_OR_INHERIT,
+                    eCSSUnit_Enumerated);
+    }
   }
   return NS_OK;
 }

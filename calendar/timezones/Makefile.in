@@ -39,8 +39,8 @@
 # HOWTO update the timezones.sqlite:
 #
 # 1. Download latest vzic and Olson database
-#    <http://www.twinsun.com/tz/tz-link.htm>
-#    resp. <ftp://elsie.nci.nih.gov/pub/>
+#    vzic:     <http://code.google.com/p/tzurl/>
+#    Olson DB: <ftp://elsie.nci.nih.gov/pub/>
 #
 #    Modify vzic Makefile to your OLSON_DIR and set *empty* TZID_PREFIX, then
 #    then make vzic and execute to produce zoneinfo.
@@ -76,9 +76,11 @@ ifndef DISABLE_LIGHTNING_INSTALL
 INSTALL_EXTENSION_ID = calendar-timezones@mozilla.org
 endif
 
-ifdef MOZILLA_1_9_1_BRANCH
-THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version-191.txt)
+ifdef MOZILLA_1_9_2_BRANCH
+CALENDAR_VERSION := $(shell cat $(topsrcdir)/calendar/sunbird/config/version-192.txt)
+THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version-192.txt)
 else
+CALENDAR_VERSION := $(shell cat $(topsrcdir)/calendar/sunbird/config/version.txt)
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 endif
 ifdef MOZILLA_1_9_1_BRANCH
@@ -86,7 +88,6 @@ SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version-191.txt)
 else
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
 endif
-CALENDAR_VERSION := $(shell cat $(topsrcdir)/calendar/sunbird/config/version.txt)
 TIMEZONES_VERSION := $(shell cat $(srcdir)/config/version.txt)
 
 DEFINES += -DAB_CD=$(AB_CD) \
@@ -101,7 +102,7 @@ TIMEZONES_SQLITE =  $(srcdir)/timezones.sqlite
 ifneq ($(strip $(update)),)
 libs::
 	echo 'SELECT * FROM tz_data ORDER BY tzid;' | sqlite3 $(TIMEZONES_SQLITE) > $(srcdir)/timezones_before_update.dump
-	$(DIST)/bin/xpcshell -s -w $(srcdir)/update.js $(update) $(srcdir)/$(DEPTH) $(TIMEZONES_VERSION)
+	$(DIST)/bin/run-mozilla.sh $(DIST)/bin/xpcshell -s -w $(srcdir)/update.js $(update) $(srcdir)/$(DEPTH) $(TIMEZONES_VERSION)
 	echo 'SELECT * FROM tz_data ORDER BY tzid;' | sqlite3 $(TIMEZONES_SQLITE) > $(srcdir)/timezones.dump
 endif
 

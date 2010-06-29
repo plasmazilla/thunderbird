@@ -20,7 +20,6 @@
  *
  * Contributor(s):
  *   Mark Finkle <mfinkle@mozilla.com> (original author)
- *   Shawn Wilsher <me@shawnwilsher.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -37,48 +36,34 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "prtypes.h"
-
-/**
- * Because of our branch only interfaces, our ENUMERATE_OBSERVERS macro has to
- * get a little bit more complicated.  This templated struct provides typedefs
- * to make it all easier without complicating the call sites.
- */
-namespace {
-  template <typename T>
-  struct NotificationTypeConverter
-  {
-    typedef T ArrayType;
-    typedef T QIType;
-  };
-  template < >
-  struct NotificationTypeConverter<nsINavHistoryObserver_MOZILLA_1_9_1_ADDITIONS>
-  {
-    typedef nsINavHistoryObserver ArrayType;
-    typedef nsINavHistoryObserver_MOZILLA_1_9_1_ADDITIONS QIType;
-  };
-  template < >
-  struct NotificationTypeConverter<nsINavBookmarkObserver_MOZILLA_1_9_1_ADDITIONS>
-  {
-    typedef nsINavBookmarkObserver ArrayType;
-    typedef nsINavBookmarkObserver_MOZILLA_1_9_1_ADDITIONS QIType;
-  };
-}
-
 // Call a method on each observer in a category cache, then call the same
 // method on the observer array.
 
 #define ENUMERATE_OBSERVERS(canFire, cache, array, type, method)               \
   PR_BEGIN_MACRO                                                               \
   if (canFire) {                                                               \
-    const nsCOMArray<NotificationTypeConverter<type>::ArrayType> &entries =    \
-      cache.GetEntries();                                                      \
-    for (PRInt32 idx = 0; idx < entries.Count(); ++idx) {                      \
-      nsCOMPtr<NotificationTypeConverter<type>::QIType> entry =                \
-       do_QueryInterface(entries[idx]);                                        \
-      if (entry)                                                               \
-        entry->method;                                                         \
-    }                                                                          \
+    const nsCOMArray<type> &entries = cache.GetEntries();                      \
+    for (PRInt32 idx = 0; idx < entries.Count(); ++idx)                        \
+        entries[idx]->method;                                                  \
     ENUMERATE_WEAKARRAY(array, type, method)                                   \
   }                                                                            \
   PR_END_MACRO;
 
+#define PLACES_FACTORY_SINGLETON_IMPLEMENTATION(_className, _sInstance)        \
+  _className * _className::_sInstance = nsnull;                                \
+                                                                               \
+  _className *                                                                 \
+  _className::GetSingleton()                                                   \
+  {                                                                            \
+    if (_sInstance) {                                                          \
+      NS_ADDREF(_sInstance);                                                   \
+      return _sInstance;                                                       \
+    }                                                                          \
+    _sInstance = new _className();                                             \
+    if (_sInstance) {                                                          \
+      NS_ADDREF(_sInstance);                                                   \
+      if (NS_FAILED(_sInstance->Init()))                                       \
+        NS_RELEASE(_sInstance);                                                \
+    }                                                                          \
+    return _sInstance;                                                         \
+  }                                                                            

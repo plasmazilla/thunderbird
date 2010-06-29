@@ -132,42 +132,35 @@ nsIFrame*
 NS_NewTreeBodyFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   return new (aPresShell) nsTreeBodyFrame(aPresShell, aContext);
-} // NS_NewTreeFrame
+}
 
+NS_IMPL_FRAMEARENA_HELPERS(nsTreeBodyFrame)
 
-//
-// QueryInterface
-//
-
-NS_INTERFACE_MAP_BEGIN(nsTreeBodyFrame)
-  NS_INTERFACE_MAP_ENTRY(nsICSSPseudoComparator)
-  NS_INTERFACE_MAP_ENTRY(nsIScrollbarMediator)
-  if (aIID.Equals(NS_GET_IID(nsTreeBodyFrame))) {
-    *aInstancePtr = this;
-    return NS_OK;
-  }
-  else
-NS_INTERFACE_MAP_END_INHERITING(nsLeafBoxFrame)
+NS_QUERYFRAME_HEAD(nsTreeBodyFrame)
+  NS_QUERYFRAME_ENTRY(nsICSSPseudoComparator)
+  NS_QUERYFRAME_ENTRY(nsIScrollbarMediator)
+  NS_QUERYFRAME_ENTRY(nsTreeBodyFrame)
+NS_QUERYFRAME_TAIL_INHERITING(nsLeafBoxFrame)
 
 // Constructor
 nsTreeBodyFrame::nsTreeBodyFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 :nsLeafBoxFrame(aPresShell, aContext),
- mTopRowIndex(0), 
+ mSlots(nsnull),
+ mTopRowIndex(0),
  mHorzPosition(0),
  mHorzWidth(0),
  mAdjustWidth(0),
  mRowHeight(0),
  mIndentation(0),
  mStringWidth(-1),
+ mUpdateBatchNest(0),
+ mRowCount(0),
+ mMouseOverRow(-1),
  mFocused(PR_FALSE),
  mHasFixedRowCount(PR_FALSE),
  mVerticalOverflow(PR_FALSE),
  mHorizontalOverflow(PR_FALSE),
- mReflowCallbackPosted(PR_FALSE),
- mUpdateBatchNest(0),
- mRowCount(0),
- mMouseOverRow(-1),
- mSlots(nsnull)
+ mReflowCallbackPosted(PR_FALSE)
 {
   mColumns = new nsTreeColumns(nsnull);
   NS_NewISupportsArray(getter_AddRefs(mScratchArray));
@@ -178,18 +171,6 @@ nsTreeBodyFrame::~nsTreeBodyFrame()
 {
   mImageCache.EnumerateRead(CancelImageRequest, nsnull);
   delete mSlots;
-}
-
-NS_IMETHODIMP_(nsrefcnt) 
-nsTreeBodyFrame::AddRef(void)
-{
-  return NS_OK;
-}
-
-NS_IMETHODIMP_(nsrefcnt)
-nsTreeBodyFrame::Release(void)
-{
-  return NS_OK;
 }
 
 static void
@@ -370,7 +351,7 @@ nsTreeBodyFrame::EnsureBoxObject()
   if (!mTreeBoxObject) {
     nsIContent* parent = GetBaseElement();
     if (parent) {
-      nsCOMPtr<nsIDOMNSDocument> nsDoc = do_QueryInterface(parent->GetDocument());
+      nsIDocument* nsDoc = parent->GetDocument();
       if (!nsDoc) // there may be no document, if we're called from Destroy()
         return;
       nsCOMPtr<nsIBoxObject> box;
@@ -471,15 +452,20 @@ nsTreeBodyFrame::ReflowFinished()
     if (mTopRowIndex > lastPageTopRow)
       ScrollToRowInternal(parts, lastPageTopRow);
 
-    // make sure that the current selected item is still
-    // visible after the tree changes size.
-    nsCOMPtr<nsITreeSelection> sel;
-    mView->GetSelection(getter_AddRefs(sel));
-    if (sel) {
-      PRInt32 currentIndex;
-      sel->GetCurrentIndex(&currentIndex);
-      if (currentIndex != -1)
-        EnsureRowIsVisibleInternal(parts, currentIndex);
+    nsIContent *treeContent = GetBaseElement();
+    if (treeContent->AttrValueIs(kNameSpaceID_None,
+                                 nsGkAtoms::keepcurrentinview,
+                                 nsGkAtoms::_true, eCaseMatters)) {
+      // make sure that the current selected item is still
+      // visible after the tree changes size.
+      nsCOMPtr<nsITreeSelection> sel;
+      mView->GetSelection(getter_AddRefs(sel));
+      if (sel) {
+        PRInt32 currentIndex;
+        sel->GetCurrentIndex(&currentIndex);
+        if (currentIndex != -1)
+          EnsureRowIsVisibleInternal(parts, currentIndex);
+      }
     }
 
     if (!FullScrollbarsUpdate(PR_FALSE)) {
@@ -663,8 +649,7 @@ nsTreeBodyFrame::GetSelectionRegion(nsIScriptableRegion **aRegion)
   region->Init();
 
   nsRefPtr<nsPresContext> presContext = PresContext();
-  nsRect rect = mRect;
-  rect.ScaleRoundOut(1.0 / presContext->AppUnitsPerCSSPixel());
+  nsIntRect rect = mRect.ToOutsidePixels(presContext->AppUnitsPerCSSPixel());
 
   nsIFrame* rootFrame = presContext->PresShell()->GetRootFrame();
   nsPoint origin = GetOffsetTo(rootFrame);
@@ -864,16 +849,14 @@ static void
 FindScrollParts(nsIFrame* aCurrFrame, nsTreeBodyFrame::ScrollParts* aResult)
 {
   if (!aResult->mColumnsScrollableView) {
-    nsIScrollableFrame* f;
-    CallQueryInterface(aCurrFrame, &f);
+    nsIScrollableFrame* f = do_QueryFrame(aCurrFrame);
     if (f) {
       aResult->mColumnsFrame = aCurrFrame;
       aResult->mColumnsScrollableView = f->GetScrollableView();
     }
   }
   
-  nsIScrollbarFrame *sf = nsnull;
-  CallQueryInterface(aCurrFrame, &sf);
+  nsIScrollbarFrame *sf = do_QueryFrame(aCurrFrame);
   if (sf) {
     if (!aCurrFrame->IsHorizontal()) {
       if (!aResult->mVScrollbar) {
@@ -910,14 +893,12 @@ nsTreeBodyFrame::ScrollParts nsTreeBodyFrame::GetScrollParts()
     FindScrollParts(treeFrame, &result);
     if (result.mHScrollbar) {
       result.mHScrollbar->SetScrollbarMediatorContent(GetContent());
-      nsIFrame* f;
-      CallQueryInterface(result.mHScrollbar, &f);
+      nsIFrame* f = do_QueryFrame(result.mHScrollbar);
       result.mHScrollbarContent = f->GetContent();
     }
     if (result.mVScrollbar) {
       result.mVScrollbar->SetScrollbarMediatorContent(GetContent());
-      nsIFrame* f;
-      CallQueryInterface(result.mVScrollbar, &f);
+      nsIFrame* f = do_QueryFrame(result.mVScrollbar);
       result.mVScrollbarContent = f->GetContent();
     }
   }
@@ -1065,7 +1046,7 @@ nsTreeBodyFrame::AdjustClientCoordsToBoxCoordSpace(PRInt32 aX, PRInt32 aY,
   point -= clientOffset;
 
   nsIView* rootView;
-  presContext->GetViewManager()->GetRootView(rootView);
+  presContext->GetPresShell()->GetViewManager()->GetRootView(rootView);
   NS_ASSERTION(closestView && rootView, "No view?");
   point -= closestView->GetOffsetTo(rootView);
 
@@ -1372,18 +1353,8 @@ nsTreeBodyFrame::CheckTextForBidi(nsAutoString& aText)
   // We could check to see whether the prescontext already has bidi enabled,
   // but usually it won't, so it's probably faster to avoid the call to
   // GetPresContext() when it's not needed.
-  const PRUnichar* text = aText.get();
-  PRUint32 length = aText.Length();
-  PRUint32 i;
-  for (i = 0; i < length; ++i) {
-    PRUnichar ch = text[i];
-    // To simplify things, anything that could be a surrogate or RTL
-    // presentation form is covered just by testing >= 0xD800). It's fine to
-    // enable bidi in rare cases where it actually isn't needed.
-    if (ch >= 0xD800 || IS_IN_BMP_RTL_BLOCK(ch)) {
-      PresContext()->SetBidiEnabled();
-      break;
-    }
+  if (HasRTLChars(aText)) {
+    PresContext()->SetBidiEnabled();
   }
 }
 
@@ -2154,14 +2125,15 @@ nsTreeBodyFrame::GetTwistyRect(PRInt32 aRowIndex,
   }
 
   if (useTheme) {
-    nsSize minTwistySize(0,0);
+    nsIntSize minTwistySizePx(0,0);
     PRBool canOverride = PR_TRUE;
     theme->GetMinimumWidgetSize(&aRenderingContext, this, twistyDisplayData->mAppearance,
-                                &minTwistySize, &canOverride);
+                                &minTwistySizePx, &canOverride);
 
-    // GMWS() returns size in pixels, we need to convert it back to twips
-    minTwistySize.width = aPresContext->DevPixelsToAppUnits(minTwistySize.width);
-    minTwistySize.height = aPresContext->DevPixelsToAppUnits(minTwistySize.height);
+    // GMWS() returns size in pixels, we need to convert it back to app units
+    nsSize minTwistySize;
+    minTwistySize.width = aPresContext->DevPixelsToAppUnits(minTwistySizePx.width);
+    minTwistySize.height = aPresContext->DevPixelsToAppUnits(minTwistySizePx.height);
 
     if (aTwistyRect.width < minTwistySize.width || !canOverride)
       aTwistyRect.width = minTwistySize.width;
@@ -2203,11 +2175,11 @@ nsTreeBodyFrame::GetImage(PRInt32 aRowIndex, nsTreeColumn* aCol, PRBool aUseCont
     imgIRequest *imgReq = entry.request;
     imgReq->GetImageStatus(&status);
     imgReq->GetImage(aResult); // We hand back the image here.  The GetImage call addrefs *aResult.
-    PRUint32 numFrames = 1;
+    PRBool animated = PR_FALSE;
     if (*aResult)
-      (*aResult)->GetNumFrames(&numFrames);
+      (*aResult)->GetAnimated(&animated);
 
-    if ((!(status & imgIRequest::STATUS_LOAD_COMPLETE)) || numFrames > 1) {
+    if ((!(status & imgIRequest::STATUS_LOAD_COMPLETE)) || animated) {
       // We either aren't done loading, or we're animating. Add our row as a listener for invalidations.
       nsCOMPtr<imgIDecoderObserver> obs;
       imgReq->GetDecoderObserver(getter_AddRefs(obs));
@@ -2663,7 +2635,9 @@ nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
     // Save last values, we will need them.
     PRInt32 lastDropRow = mSlots->mDropRow;
     PRInt16 lastDropOrient = mSlots->mDropOrient;
+#ifndef XP_MACOSX
     PRInt16 lastScrollLines = mSlots->mScrollLines;
+#endif
 
     // Find out the current drag action
     PRUint32 lastDragAction = mSlots->mDragAction;
@@ -2738,9 +2712,14 @@ nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
           }
         }
 
+        NS_ASSERTION(aEvent->eventStructType == NS_DRAG_EVENT, "wrong event type");
+        nsDragEvent* dragEvent = static_cast<nsDragEvent*>(aEvent);
+        nsContentUtils::SetDataTransferInEvent(dragEvent);
+
         PRBool canDropAtNewLocation = PR_FALSE;
-        mView->CanDrop(mSlots->mDropRow, mSlots->mDropOrient, &canDropAtNewLocation);
-      
+        mView->CanDrop(mSlots->mDropRow, mSlots->mDropOrient,
+                       dragEvent->dataTransfer, &canDropAtNewLocation);
+
         if (canDropAtNewLocation) {
           // Invalidate row at the new location.
           mSlots->mDropAllowed = canDropAtNewLocation;
@@ -2769,7 +2748,11 @@ nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
       rv = mView->GetParentIndex(parentIndex, &parentIndex);
     }
 
-    mView->Drop(mSlots->mDropRow, mSlots->mDropOrient);
+    NS_ASSERTION(aEvent->eventStructType == NS_DRAG_EVENT, "wrong event type");
+    nsDragEvent* dragEvent = static_cast<nsDragEvent*>(aEvent);
+    nsContentUtils::SetDataTransferInEvent(dragEvent);
+
+    mView->Drop(mSlots->mDropRow, mSlots->mDropOrient, dragEvent->dataTransfer);
     mSlots->mDropRow = -1;
     mSlots->mDropOrient = -1;
     *aEventStatus = nsEventStatus_eConsumeNoDefault; // already handled the drop
@@ -3546,6 +3529,7 @@ nsTreeBodyFrame::PaintImage(PRInt32              aRowIndex,
           nsRect(destRect.TopLeft(), imageDestSize));
 
     nsLayoutUtils::DrawImage(&aRenderingContext, image,
+        nsLayoutUtils::GetGraphicsFilterForFrame(this),
         wholeImageDest, destRect, destRect.TopLeft(), aDirtyRect);
   }
 
@@ -3786,6 +3770,7 @@ nsTreeBodyFrame::PaintProgressMeter(PRInt32              aRowIndex,
       nsSize size(width*nsIDeviceContext::AppUnitsPerCSSPixel(),
                   height*nsIDeviceContext::AppUnitsPerCSSPixel());
       nsLayoutUtils::DrawImage(&aRenderingContext, image,
+          nsLayoutUtils::GetGraphicsFilterForFrame(this),
           nsRect(meterRect.TopLeft(), size), meterRect, meterRect.TopLeft(), aDirtyRect);
     } else {
       aRenderingContext.FillRect(meterRect);
@@ -3805,6 +3790,7 @@ nsTreeBodyFrame::PaintProgressMeter(PRInt32              aRowIndex,
       nsSize size(width*nsIDeviceContext::AppUnitsPerCSSPixel(),
                   height*nsIDeviceContext::AppUnitsPerCSSPixel());
       nsLayoutUtils::DrawImage(&aRenderingContext, image,
+          nsLayoutUtils::GetGraphicsFilterForFrame(this),
           nsRect(meterRect.TopLeft(), size), meterRect, meterRect.TopLeft(), aDirtyRect);
     }
   }
@@ -4134,7 +4120,9 @@ nsTreeBodyFrame::ScrollInternal(const ScrollParts& aParts, PRInt32 aRow)
   // See if we have a transparent background or a background image.  
   // If we do, then we cannot blit.
   const nsStyleBackground* background = GetStyleBackground();
-  if (background->mBackgroundImage || background->IsTransparent() || 
+  if (background->BottomLayer().mImage.GetType() != eBackgroundImage_Null ||
+      background->mImageCount > 1 ||
+      NS_GET_A(background->mBackgroundColor) < 255 ||
       PR_ABS(delta)*mRowHeight >= mRect.height) {
     Invalidate();
   } else {
@@ -4142,7 +4130,26 @@ nsTreeBodyFrame::ScrollInternal(const ScrollParts& aParts, PRInt32 aRow)
     if (widget) {
       nscoord rowHeightAsPixels =
         PresContext()->AppUnitsToDevPixels(mRowHeight);
-      widget->Scroll(0, -delta*rowHeightAsPixels, nsnull);
+      nsIntPoint deltaPt = nsIntPoint(0, -delta*rowHeightAsPixels);
+
+      nsIntRect bounds;
+      widget->GetBounds(bounds);
+      bounds.x = bounds.y = 0;
+      nsTArray<nsIntRect> destRects;
+      destRects.AppendElement(bounds);
+
+      // No plugins have a tree widget as a parent so we don't need
+      // configurations here.
+      nsTArray<nsIWidget::Configuration> emptyConfigurations;
+      widget->Scroll(deltaPt, destRects, emptyConfigurations);
+      nsIntRect invalid = bounds;
+      if (deltaPt.y < 0) {
+        invalid.y = bounds.height + deltaPt.y;
+        invalid.height = -deltaPt.y;
+      } else {
+        invalid.height = deltaPt.y;
+      }
+      widget->Invalidate(invalid, PR_FALSE);
     }
   }
 
@@ -4169,15 +4176,37 @@ nsTreeBodyFrame::ScrollHorzInternal(const ScrollParts& aParts, PRInt32 aPosition
   PRInt32 delta = aPosition - mHorzPosition;
   mHorzPosition = aPosition;
 
-  // See if we have a background image.  If we do, then we cannot blit.
+  // See if we have a transparent background or a background image.  
+  // If we do, then we cannot blit.
   const nsStyleBackground* background = GetStyleBackground();
-  if (background->mBackgroundImage || background->IsTransparent() || 
+  if (background->BottomLayer().mImage.GetType() != eBackgroundImage_Null ||
+      background->mImageCount > 1 ||
+      NS_GET_A(background->mBackgroundColor) < 255 ||
       PR_ABS(delta) >= mRect.width) {
     Invalidate();
   } else {
     nsIWidget* widget = nsLeafBoxFrame::GetView()->GetWidget();
     if (widget) {
-      widget->Scroll(PresContext()->AppUnitsToDevPixels(-delta), 0, nsnull);
+      nsIntPoint deltaPt(PresContext()->AppUnitsToDevPixels(-delta), 0);
+
+      nsIntRect bounds;
+      widget->GetBounds(bounds);
+      bounds.x = bounds.y = 0;
+      nsTArray<nsIntRect> destRects;
+      destRects.AppendElement(bounds);
+
+      // No plugins have a tree widget as a parent so we don't need
+      // configurations here.
+      nsTArray<nsIWidget::Configuration> emptyConfigurations;
+      widget->Scroll(deltaPt, destRects, emptyConfigurations);
+      nsIntRect invalid = bounds;
+      if (deltaPt.x < 0) {
+        invalid.x = bounds.width + deltaPt.x;
+        invalid.width = -deltaPt.x;
+      } else {
+        invalid.width = deltaPt.x;
+      }
+      widget->Invalidate(invalid, PR_FALSE);
     }
   }
 
@@ -4190,16 +4219,11 @@ nsTreeBodyFrame::ScrollHorzInternal(const ScrollParts& aParts, PRInt32 aPosition
 }
 
 NS_IMETHODIMP
-nsTreeBodyFrame::ScrollbarButtonPressed(nsISupports* aScrollbar, PRInt32 aOldIndex, PRInt32 aNewIndex)
+nsTreeBodyFrame::ScrollbarButtonPressed(nsIScrollbarFrame* aScrollbar, PRInt32 aOldIndex, PRInt32 aNewIndex)
 {
-  // Determine which scrollbar we're talking about 
-  nsIScrollbarFrame* sf = nsnull;
-  CallQueryInterface(aScrollbar, &sf);
-  NS_ASSERTION(sf, "scrollbar has no frame");
-
   ScrollParts parts = GetScrollParts();
 
-  if (sf == parts.mVScrollbar) {
+  if (aScrollbar == parts.mVScrollbar) {
     if (aNewIndex > aOldIndex)
       ScrollToRowInternal(parts, mTopRowIndex+1);
     else if (aNewIndex < aOldIndex)
@@ -4214,26 +4238,21 @@ nsTreeBodyFrame::ScrollbarButtonPressed(nsISupports* aScrollbar, PRInt32 aOldInd
 }
   
 NS_IMETHODIMP
-nsTreeBodyFrame::PositionChanged(nsISupports* aScrollbar, PRInt32 aOldIndex, PRInt32& aNewIndex)
+nsTreeBodyFrame::PositionChanged(nsIScrollbarFrame* aScrollbar, PRInt32 aOldIndex, PRInt32& aNewIndex)
 {
   ScrollParts parts = GetScrollParts();
   
   if (aOldIndex == aNewIndex)
     return NS_OK;
 
-  // Determine which scrollbar we're talking about 
-  nsIScrollbarFrame* sf = nsnull;
-  CallQueryInterface(aScrollbar, &sf);
-  NS_ASSERTION(sf, "scrollbar has no frame");
-
   // Vertical Scrollbar 
-  if (parts.mVScrollbar == sf) {
+  if (parts.mVScrollbar == aScrollbar) {
     nscoord rh = nsPresContext::AppUnitsToIntCSSPixels(mRowHeight);
 
     nscoord newrow = aNewIndex/rh;
     ScrollInternal(parts, newrow);
   // Horizontal Scrollbar
-  } else if (parts.mHScrollbar == sf) {
+  } else if (parts.mHScrollbar == aScrollbar) {
     ScrollHorzInternal(parts, aNewIndex);
   }
 
@@ -4254,26 +4273,23 @@ nsTreeBodyFrame::GetPseudoStyleContext(nsIAtom* aPseudoElement)
 NS_IMETHODIMP
 nsTreeBodyFrame::PseudoMatches(nsIAtom* aTag, nsCSSSelector* aSelector, PRBool* aResult)
 {
-  if (aSelector->mTag == aTag) {
-    // Iterate the pseudoclass list.  For each item in the list, see if
-    // it is contained in our scratch array.  If we have a miss, then
-    // we aren't a match.  If all items in the pseudoclass list are
-    // present in the scratch array, then we have a match.
-    nsPseudoClassList* curr = aSelector->mPseudoClassList;
-    while (curr) {
-      PRInt32 index;
-      mScratchArray->GetIndexOf(curr->mAtom, &index);
-      if (index == -1) {
-        *aResult = PR_FALSE;
-        return NS_OK;
-      }
-      curr = curr->mNext;
+  NS_ABORT_IF_FALSE(aSelector->mLowercaseTag == aTag,
+                   "should not have been called");
+  // Iterate the pseudoclass list.  For each item in the list, see if
+  // it is contained in our scratch array.  If we have a miss, then
+  // we aren't a match.  If all items in the pseudoclass list are
+  // present in the scratch array, then we have a match.
+  nsPseudoClassList* curr = aSelector->mPseudoClassList;
+  while (curr) {
+    PRInt32 index;
+    mScratchArray->GetIndexOf(curr->mAtom, &index);
+    if (index == -1) {
+      *aResult = PR_FALSE;
+      return NS_OK;
     }
-    *aResult = PR_TRUE;
+    curr = curr->mNext;
   }
-  else 
-    *aResult = PR_FALSE;
-
+  *aResult = PR_TRUE;
   return NS_OK;
 }
 
@@ -4543,11 +4559,8 @@ nsTreeBodyFrame::FireRowCountChangedEvent(PRInt32 aIndex, PRInt32 aCount)
   if (!content)
     return;
 
-  nsCOMPtr<nsIDOMNode> node(do_QueryInterface(content));
-
-  nsCOMPtr<nsIDOMDocument> domDoc;
-  node->GetOwnerDocument(getter_AddRefs(domDoc));
-  nsCOMPtr<nsIDOMDocumentEvent> domEventDoc(do_QueryInterface(domDoc));
+  nsCOMPtr<nsIDOMDocumentEvent> domEventDoc =
+    do_QueryInterface(content->GetOwnerDoc());
   if (!domEventDoc)
     return;
 
@@ -4586,7 +4599,7 @@ nsTreeBodyFrame::FireRowCountChangedEvent(PRInt32 aIndex, PRInt32 aCount)
 
   privateEvent->SetTrusted(PR_TRUE);
 
-  nsRefPtr<nsPLDOMEvent> plevent = new nsPLDOMEvent(node, event);
+  nsRefPtr<nsPLDOMEvent> plevent = new nsPLDOMEvent(content, event);
   if (!plevent)
     return;
 
@@ -4602,11 +4615,8 @@ nsTreeBodyFrame::FireInvalidateEvent(PRInt32 aStartRowIdx, PRInt32 aEndRowIdx,
   if (!content)
     return;
 
-  nsCOMPtr<nsIDOMNode> node(do_QueryInterface(content));
-
-  nsCOMPtr<nsIDOMDocument> domDoc;
-  node->GetOwnerDocument(getter_AddRefs(domDoc));
-  nsCOMPtr<nsIDOMDocumentEvent> domEventDoc(do_QueryInterface(domDoc));
+  nsCOMPtr<nsIDOMDocumentEvent> domEventDoc =
+    do_QueryInterface(content->GetOwnerDoc());
   if (!domEventDoc)
     return;
 
@@ -4677,7 +4687,7 @@ nsTreeBodyFrame::FireInvalidateEvent(PRInt32 aStartRowIdx, PRInt32 aEndRowIdx,
 
   privateEvent->SetTrusted(PR_TRUE);
 
-  nsRefPtr<nsPLDOMEvent> plevent = new nsPLDOMEvent(node, event);
+  nsRefPtr<nsPLDOMEvent> plevent = new nsPLDOMEvent(content, event);
   if (plevent)
     plevent->PostDOMEvent();
 }

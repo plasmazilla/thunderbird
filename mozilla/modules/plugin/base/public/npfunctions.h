@@ -45,10 +45,6 @@
 #define NP_LOADDS
 #endif
 
-#ifndef GENERATINGCFM
-#define GENERATINGCFM 0
-#endif
-
 #include "npapi.h"
 #include "npruntime.h"
 
@@ -65,6 +61,8 @@ typedef void         (* NP_LOADDS NPP_StreamAsFileProcPtr)(NPP instance, NPStrea
 typedef void         (* NP_LOADDS NPP_PrintProcPtr)(NPP instance, NPPrint* platformPrint);
 typedef int16_t      (* NP_LOADDS NPP_HandleEventProcPtr)(NPP instance, void* event);
 typedef void         (* NP_LOADDS NPP_URLNotifyProcPtr)(NPP instance, const char* url, NPReason reason, void* notifyData);
+/* Any NPObjects returned to the browser via NPP_GetValue should be retained
+   by the plugin on the way out. The browser is responsible for releasing. */
 typedef NPError      (* NP_LOADDS NPP_GetValueProcPtr)(NPP instance, NPPVariable variable, void *ret_value);
 typedef NPError      (* NP_LOADDS NPP_SetValueProcPtr)(NPP instance, NPNVariable variable, void *value);
 
@@ -79,6 +77,8 @@ typedef NPError      (*NPN_NewStreamProcPtr)(NPP instance, NPMIMEType type, cons
 typedef int32_t      (*NPN_WriteProcPtr)(NPP instance, NPStream* stream, int32_t len, void* buffer);
 typedef NPError      (*NPN_DestroyStreamProcPtr)(NPP instance, NPStream* stream, NPReason reason);
 typedef void         (*NPN_StatusProcPtr)(NPP instance, const char* message);
+/* Browser manages the lifetime of the buffer returned by NPN_UserAgent, don't
+   depend on it sticking around and don't free it. */
 typedef const char*  (*NPN_UserAgentProcPtr)(NPP instance);
 typedef void*        (*NPN_MemAllocProcPtr)(uint32_t size);
 typedef void         (*NPN_MemFreeProcPtr)(void* ptr);
@@ -190,8 +190,6 @@ typedef struct _NPNetscapeFuncs {
 } NPNetscapeFuncs;
 
 #ifdef XP_MACOSX
-/* Don't use this, it is going away. */
-typedef NPError (* NPP_MainEntryProcPtr)(NPNetscapeFuncs*, NPPluginFuncs*, NPP_ShutdownProcPtr*);
 /*
  * Mac OS X version(s) of NP_GetMIMEDescription(const char *)
  * These can be called to retreive MIME information from the plugin dynamically
@@ -256,7 +254,7 @@ typedef struct _NPPluginData {   /* Alternate OS2 Plugin interface */
 NPError OSCALL NP_GetPluginData(NPPluginData * pPluginData);
 #endif
 NPError OSCALL NP_GetEntryPoints(NPPluginFuncs* pFuncs);
-NPError OSCALL NP_Initialize(NPNetscapeFuncs* pFuncs);
+NPError OSCALL NP_Initialize(NPNetscapeFuncs* bFuncs);
 NPError OSCALL NP_Shutdown();
 char*          NP_GetMIMEDescription();
 #ifdef __cplusplus
@@ -276,6 +274,7 @@ NP_EXPORT(char*)   NP_GetPluginVersion();
 NP_EXPORT(char*)   NP_GetMIMEDescription();
 #ifdef XP_MACOSX
 NP_EXPORT(NPError) NP_Initialize(NPNetscapeFuncs* bFuncs);
+NP_EXPORT(NPError) NP_GetEntryPoints(NPPluginFuncs* pFuncs);
 #else
 NP_EXPORT(NPError) NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs);
 #endif

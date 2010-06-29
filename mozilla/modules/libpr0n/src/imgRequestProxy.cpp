@@ -118,7 +118,7 @@ nsresult imgRequestProxy::Init(imgRequest *request, nsILoadGroup *aLoadGroup, im
   }
   mLoadGroup = aLoadGroup;
 
-  // Note: AddProxy won't send all the On* notifications immediatly
+  // Note: AddProxy won't send all the On* notifications immediately
   request->AddProxy(this);
 
   return NS_OK;
@@ -341,7 +341,7 @@ NS_IMETHODIMP imgRequestProxy::GetMimeType(char **aMimeType)
   if (!type)
     return NS_ERROR_FAILURE;
 
-  *aMimeType = nsCRT::strdup(type);
+  *aMimeType = NS_strdup(type);
 
   return NS_OK;
 }
@@ -437,14 +437,14 @@ NS_IMETHODIMP imgRequestProxy::GetHasTransferredData(PRBool* hasData)
 
 /** imgIContainerObserver methods **/
 
-void imgRequestProxy::FrameChanged(imgIContainer *container, gfxIImageFrame *newframe, nsIntRect * dirtyRect)
+void imgRequestProxy::FrameChanged(imgIContainer *container, nsIntRect * dirtyRect)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::FrameChanged");
 
   if (mListener && !mCanceled) {
     // Hold a ref to the listener while we call it, just in case.
     nsCOMPtr<imgIDecoderObserver> kungFuDeathGrip(mListener);
-    mListener->FrameChanged(container, newframe, dirtyRect);
+    mListener->FrameChanged(container, dirtyRect);
   }
 }
 
@@ -472,7 +472,7 @@ void imgRequestProxy::OnStartContainer(imgIContainer *image)
   }
 }
 
-void imgRequestProxy::OnStartFrame(gfxIImageFrame *frame)
+void imgRequestProxy::OnStartFrame(PRUint32 frame)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::OnStartFrame");
 
@@ -483,18 +483,18 @@ void imgRequestProxy::OnStartFrame(gfxIImageFrame *frame)
   }
 }
 
-void imgRequestProxy::OnDataAvailable(gfxIImageFrame *frame, const nsIntRect * rect)
+void imgRequestProxy::OnDataAvailable(PRBool aCurrentFrame, const nsIntRect * rect)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::OnDataAvailable");
 
   if (mListener && !mCanceled) {
     // Hold a ref to the listener while we call it, just in case.
     nsCOMPtr<imgIDecoderObserver> kungFuDeathGrip(mListener);
-    mListener->OnDataAvailable(this, frame, rect);
+    mListener->OnDataAvailable(this, aCurrentFrame, rect);
   }
 }
 
-void imgRequestProxy::OnStopFrame(gfxIImageFrame *frame)
+void imgRequestProxy::OnStopFrame(PRUint32 frame)
 {
   LOG_FUNC(gImgLog, "imgRequestProxy::OnStopFrame");
 

@@ -65,7 +65,7 @@ var emailRE = /^[-_a-z0-9\'+*$^&%=~!?{}]+(?:\.[-_a-z0-9\'+*$^&%=~!?{}]+)*@(?:[-a
 var domainRE = /^((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$|(\[?(\d{1,3}\.){3}\d{1,3}\]?)$/i
 const kHighestPort = 65535;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
 
 let gSmtpManager = Cc["@mozilla.org/messengercompose/smtp;1"]
                    .getService(Ci.nsISmtpService);
@@ -195,6 +195,7 @@ EmailConfigWizard.prototype =
   onBack : function()
   {
     this._disableConfigDetails(true);
+    _hide("popimap_radio_area");
     this.hideConfigDetails();
     this.clearConfigDetails();
 
@@ -206,6 +207,7 @@ EmailConfigWizard.prototype =
     _hide("back_button");
     document.getElementById("advanced_settings").disabled = true;
     _hide("advanced_settings");
+    window.sizeToContent();
   },
 
   /* Helper method that enables or disabled all the account information inputs
@@ -363,10 +365,41 @@ EmailConfigWizard.prototype =
     this._incomingState = "";
   },
 
+  // The IMAP vs. POP dropdown (not radio), settable during manual edit.
+  // In the normal result screen, it's not editable and people use the
+  // radios instead.
   setIncomingProtocol : function()
   {
     this._userChangedIncomingProtocol = true;
     this._incomingState = "";
+  },
+
+  // IMAP vs. POP3 radio (not *dropdown*) changed
+  setIncomingProtocolRadio : function()
+  {
+    let newTypeSelected = document.getElementById("popimap_radiogroup")
+                                  .selectedItem.value;
+    var config = this._currentConfig;
+    // this is also called when we set the fields programmatically
+    if (newTypeSelected == config.incoming.type ||
+        !config.incomingAlternatives || !config.incomingAlternatives.length)
+      return;
+    let alternates = config.incomingAlternatives.filter(function(c) {
+      return c.type != config.incoming.type;
+    });
+    if (alternates.length == 0)
+      return;
+
+    // re-add current incoming server to alternatives
+    config.incomingAlternatives.unshift(config.incoming);
+    // find alternative config which matches newly selected protocol
+    for each (let alt in config.incomingAlternatives) {
+      if (alt.type == newTypeSelected) {
+        config.incoming = alt;
+        break;
+      }
+    }
+    this.foundConfig(config);
   },
 
   setPort : function(eltId)
@@ -416,45 +449,67 @@ EmailConfigWizard.prototype =
   findConfig : function(domain, email)
   {
     gEmailWizardLogger.info("findConfig()");
-    this.startSpinner("all", "looking_up_settings");
     if (this._probeAbortable)
     {
       gEmailWizardLogger.info("aborting existing config search");
       this._probeAbortable.cancel();
     }
+    this.startSpinner("all", "looking_up_settings_disk");
     var me = this;
-    this._probeAbortable = 
-      fetchConfigFromDisk(
-        domain,
-        function(config) // success
-        {
-          me.foundConfig(config);
-          me.stopSpinner("found_settings");
-          me._probeAbortable = null;
-        },
-        function(e) // fetchConfigFromDisk failed
-        {
-          gEmailWizardLogger.info("fetchConfigFromDisk failed: " + e);
-          me.startSpinner("all", "looking_up_settings");
-          me._probeAbortable = 
-            fetchConfigFromDB(
-              domain,
+    this._probeAbortable = fetchConfigFromDisk(domain,
+      function(config) // success
+      {
+        me.foundConfig(config);
+        me.stopSpinner("found_settings_disk");
+        me._probeAbortable = null;
+      },
+      function(e) // fetchConfigFromDisk failed
+      {
+        gEmailWizardLogger.info("fetchConfigFromDisk failed: " + e);
+        me.startSpinner("all", "looking_up_settings_isp");
+        me._probeAbortable = fetchConfigFromISP(domain, email,
+          function(config) // success
+          {
+            me.foundConfig(config);
+            me.stopSpinner("found_settings_isp");
+            me.showEditButton();
+            me._probeAbortable = null;
+          },
+          function(e) // fetchConfigFromISP failed
+          {
+            gEmailWizardLogger.info("fetchConfigFromISP failed: " + e);
+            me.startSpinner("all", "looking_up_settings_db");
+            me._probeAbortable = fetchConfigFromDB(domain,
               function(config) // success
               {
                 me.foundConfig(config);
-                me.stopSpinner("found_settings");
+                me.stopSpinner("found_settings_db");
                 me.showEditButton();
                 me._probeAbortable = null;
               },
               function(e) // fetchConfigFromDB failed
               {
                 gEmailWizardLogger.info("fetchConfigFromDB failed: " + e);
-                var initialConfig = new AccountConfig();
-                me._prefillConfig(initialConfig);
-                me.startSpinner("all", "looking_up_settings")
-                me._guessConfig(domain, initialConfig, 'both');
+                me.startSpinner("all", "looking_up_settings_db");
+                me._probeAbortable = fetchConfigForMX(domain,
+                  function(config) // success
+                  {
+                    me.foundConfig(config);
+                    me.stopSpinner("found_settings_db");
+                    me.showEditButton();
+                    me._probeAbortable = null;
+                  },
+                  function(e) // fetchConfigForMX failed
+                  {
+                    gEmailWizardLogger.info("fetchConfigForMX failed: " + e);
+                    var initialConfig = new AccountConfig();
+                    me._prefillConfig(initialConfig);
+                    me.startSpinner("all", "looking_up_settings_guess")
+                    me._guessConfig(domain, initialConfig, "both");
+                  });
               });
           });
+      });
   },
 
   _guessConfig : function(domain, initialConfig, which)
@@ -491,7 +546,7 @@ EmailConfigWizard.prototype =
                                     me._outgoingState);
             if (me._incomingState == 'done' && me._outgoingState == 'done')
             {
-              me.stopSpinner("found_settings");
+              me.stopSpinner("found_settings_guess");
               _hide("stop_button");
               _show("edit_button");
             }
@@ -500,7 +555,7 @@ EmailConfigWizard.prototype =
               if (me._outgoingState == "failed")
                 me.stopSpinner("failed_to_find_settings");
               else
-                me.stopSpinner("found_settings");
+                me.stopSpinner("found_settings_guess");
               me.editConfigDetails();
             }
             else if (me._outgoingState == 'done' && me._incomingState != 'probing')
@@ -508,7 +563,7 @@ EmailConfigWizard.prototype =
               if (me._incomingState == "failed")
                 me.stopSpinner("failed_to_find_settings");
               else
-                me.stopSpinner("found_settings");
+                me.stopSpinner("found_settings_guess");
               me.editConfigDetails();
             }
             if (me._outgoingState != 'probing' &&
@@ -772,10 +827,12 @@ EmailConfigWizard.prototype =
     if (!this._verifiedConfig)
       this.verifyConfig(function(successfulConfig) // success
                         {
-                          // the incoming auth might have changed, so we
+                          // the auth might have changed, so we
                           // should back-port it to the current config.
                           me._currentConfigFilledIn.incoming.auth =
                               successfulConfig.incoming.auth;
+                          me._currentConfigFilledIn.outgoing.auth =
+                              successfulConfig.outgoing.auth;
                           me.finish();
                         },
                         function(e) // failure
@@ -884,7 +941,8 @@ EmailConfigWizard.prototype =
     }
     else
     {
-      config.outgoing.username = document.getElementById("username").value;
+      if (!config.outgoing.username)
+        config.outgoing.username = document.getElementById("username").value;
       config.outgoing.hostname =
         sanitize.hostname(document.getElementById("outgoing_server").value);
       document.getElementById("outgoing_server").value =
@@ -1011,7 +1069,6 @@ EmailConfigWizard.prototype =
     _hide("settingsbox");
     document.getElementById("create_button").disabled = true;
     _hide("create_button");
-    window.sizeToContent();
   },
 
   /* Clears out the config details information, this is really only meant to be
@@ -1044,8 +1101,11 @@ EmailConfigWizard.prototype =
       let menuitem = menulist.insertItemAt(0, hostname, hostname);
       menuitem.hostname = hostname;
     }
+    this._currentConfig.incomingAlternatives = [];
+    this._currentConfig.outgoingAlternatives = [];
 
     this._disableConfigDetails(false);
+    _hide("popimap_radio_area");
     this._setIncomingStatus("failed");
     this._setOutgoingStatus("failed");
     document.getElementById("advanced_settings").disabled = false;
@@ -1124,6 +1184,29 @@ EmailConfigWizard.prototype =
         config.incoming.socketType;
       document.getElementById("incoming_protocol").value =
         sanitize.translate(config.incoming.type, { "imap" : 1, "pop3" : 2});
+      document.getElementById("popimap_radiogroup").value =
+        config.incoming.type;
+
+      // en/disable IMAP vs. POP radiogroup
+      let haveOther = false;
+      if (config.incomingAlternatives && config.incomingAlternatives.length)
+      {
+        let alternates = config.incomingAlternatives.filter(function(c) {
+          return c.type != config.incoming.type;
+        });
+        haveOther = alternates.length > 0;
+      }
+      let popImapRadiogroup = document.getElementById("popimap_radio_area");
+      let wasHidden = popImapRadiogroup.hidden;
+      popImapRadiogroup.hidden = !haveOther;
+      // Hide "(recommended)" behind IMAP, if POP3 was first choice from XML,
+      // and not just selected by user later.
+      if (!config._imapRecommendedToggled)
+        document.getElementById("imap_recommended").hidden =
+            config.incoming.type == "pop3";
+      config._imapRecommendedToggled = true;
+      if (wasHidden == haveOther) // hidden changed, so resize
+        window.sizeToContent();
 
       if (config.incoming._inprogress)
       {
@@ -1308,6 +1391,7 @@ EmailConfigWizard.prototype =
             : "";
     } catch(ex) {
       gEmailWizardLogger.error("missing string for " + msgName);
+      logException(new Exception("missing string for name: " + msgName));
     }
 
     let title = document.getElementById("config_status_title");
@@ -1334,7 +1418,7 @@ EmailConfigWizard.prototype =
   {
     gEmailWizardLogger.info("_startProbingIncoming: " + config.incoming.hostname +
                             " probe = " + this._probeAbortable);
-    this.startSpinner("incoming", "looking_up_settings");
+    this.startSpinner("incoming", "looking_up_settings_guess");
 
     config.incoming._inprogress = true;
     // User entered hostname, we may want to probe port and protocol and socketType
@@ -1355,7 +1439,7 @@ EmailConfigWizard.prototype =
     {
       gEmailWizardLogger.info("restarting probe: " + domain);
       this._probeAbortable.restart(domain, config, "incoming",
-                                   config.incoming.protocol,
+                                   config.incoming.type,
                                    config.incoming.port,
                                    config.incoming.socketType);
     }
@@ -1369,7 +1453,7 @@ EmailConfigWizard.prototype =
   {
     gEmailWizardLogger.info("_startProbingOutgoing: " + config.outgoing.hostname +
                             " probe = " + this._probeAbortable);
-    this.startSpinner("outgoing", "looking_up_settings");
+    this.startSpinner("outgoing", "looking_up_settings_guess");
 
     config.outgoing._inprogress = true;
     // User entered hostname, we want to probe port and protocol and socketType
@@ -1382,7 +1466,8 @@ EmailConfigWizard.prototype =
     {
       gEmailWizardLogger.info("restarting probe: " + config.outgoing.hostname);
       this._probeAbortable.restart(config.outgoing.hostname, config, "outgoing",
-                                   "smtp", config.outgoing.port);
+                                   "smtp", config.outgoing.port,
+                                   config.outgoing.socketType);
     }
     else
     {

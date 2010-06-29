@@ -39,15 +39,18 @@
 #ifndef _nsAccessibleTreeWalker_H_
 #define _nsAccessibleTreeWalker_H_
 
-/* For documentation of the accessibility architecture,  * see http://lxr.mozilla.org/seamonkey/source/accessible/accessible-docs.html
+/* For documentation of the accessibility architecture, see
+ * http://www.mozilla.org/access/architecture
  */
 
 #include "nsCOMPtr.h"
 #include "nsIDocument.h"
 #include "nsIAccessible.h"
+#include "nsIDOMNode.h"
 #include "nsIDOMNodeList.h"
 #include "nsIAccessibilityService.h"
 #include "nsIWeakReference.h"
+#include "nsIFrame.h"
 
 enum { eSiblingsUninitialized = -1, eSiblingsWalkFrames = -2 };
 
@@ -57,7 +60,7 @@ struct WalkState {
   nsCOMPtr<nsIDOMNodeList> siblingList;
   nsIContent *parentContent; // For walking normal DOM
   WalkState *prevState;
-  nsIFrame *frame;     // Helps avoid GetPrimaryFrameFor() calls
+  nsWeakFrame frame;       // Helps avoid GetPrimaryFrameFor() calls
   PRInt32 siblingIndex;    // Holds a state flag or an index into the siblingList
   PRBool isHidden;         // Don't enter subtree if hidden
 };
@@ -108,12 +111,12 @@ protected:
 
   /**
    * Push current state on top of stack. State stack is used to navigate down to
-   * DOM/frame subtree duiring searching of accessible children.
+   * DOM/frame subtree during searching of accessible children.
    */
   NS_IMETHOD PushState();
 
   /**
-   * Pop state from stack and makes it current.
+   * Pop state from stack and make it current.
    */
   NS_IMETHOD PopState();
 

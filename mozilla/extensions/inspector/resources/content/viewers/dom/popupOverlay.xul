@@ -82,13 +82,6 @@
   </menupopup>
 
   <menupopup id="mppView">
-    <menuitem id="item:flashSelected"
-              class="menuitem-iconic" 
-              type="checkbox" 
-              label="&cmdFlashSelected.label;"
-              accesskey="&cmdFlashSelected.accesskey;"
-              observes="cmd:flashSelected"/>
-              
     <menuitem id="item:toggleAnonMpp"
               class="menuitem-iconic"
               type="checkbox"

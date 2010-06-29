@@ -57,10 +57,6 @@
 %charsetDTD;
 <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
 %customizeToolbarDTD;
-#ifdef MOZILLA_1_9_1_BRANCH
-<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-%globalDTD;
-#endif
 ]>
 
 <window id="msgcomposeWindow"
@@ -72,6 +68,7 @@
         onfocus="EditorOnFocus()"
         title="&msgComposeWindow.title;"
         windowtype="msgcompose"
+        toggletoolbar="true"
         persist="screenX screenY width height sizemode"> 
 
 <stringbundleset id="stringbundleset">
@@ -81,23 +78,23 @@
   <stringbundle id="brandBundle"        src="chrome://branding/locale/brand.properties"/>
 </stringbundleset>
 
-<script type="application/x-javascript" src="chrome://global/content/printUtils.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/accountUtils.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/widgetglue.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/mailCore.js"/>
-<script type="application/x-javascript" src="chrome://global/content/inlineSpellCheckUI.js"/>
-<script type="application/x-javascript" src="chrome://editor/content/editor.js"/>
-<script type="application/x-javascript" src="chrome://messenger/content/messengercompose/MsgComposeCommands.js"/>
+<script type="application/javascript" src="chrome://global/content/printUtils.js"/>
+<script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
+<script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
+<script type="application/javascript" src="chrome://messenger/content/mailCore.js"/>
+<script type="application/javascript" src="chrome://global/content/inlineSpellCheckUI.js"/>
+<script type="application/javascript" src="chrome://editor/content/editor.js"/>
+<script type="application/javascript" src="chrome://messenger/content/messengercompose/MsgComposeCommands.js"/>
 
 <!-- drag and drop -->
-<script type="application/x-javascript" src="chrome://messenger/content/addressbook/abDragDrop.js"/>
-<script type="application/x-javascript" src="chrome://global/content/nsDragAndDrop.js"/>
+<script type="application/javascript" src="chrome://messenger/content/addressbook/abDragDrop.js"/>
+<script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
 
 <!-- move needed functions into a single js file -->
-<script type="application/x-javascript" src="chrome://messenger/content/messengercompose/addressingWidgetOverlay.js"/>
-<script type="application/x-javascript" src="chrome://global/content/charsetOverlay.js"/>
-<script type="application/x-javascript" src="chrome://global/content/globalOverlay.js"/>
-<script type="application/x-javascript" src="chrome://communicator/content/utilityOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/messengercompose/addressingWidgetOverlay.js"/>
+<script type="application/javascript" src="chrome://global/content/charsetOverlay.js"/>
+<script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
+<script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
 
 <commandset id="composeCommands">
   <commandset id="msgComposeCommandUpdate"
@@ -202,10 +199,13 @@
 
   <!-- Edit Menu -->
   <key id="key_undo" key="&undoCmd.key;" modifiers="accel"/>
-#ifdef XP_MACOSX
-  <key id="key_redo" key="&undoCmd.key;" modifiers="accel,shift"/>
+  <key id="key_redo"
+#ifdef XP_UNIX
+       key="&undoCmd.key;"
+       modifiers="accel,shift"/>
 #else
-  <key id="key_redo" key="&redoCmd.key;" modifiers="accel"/>
+       key="&redoCmd.key;"
+       modifiers="accel"/>
 #endif
   <key id="key_cut" key="&cutCmd.key;" modifiers="accel"/>
   <key id="key_copy" key="&copyCmd.key;" modifiers="accel"/>
@@ -720,7 +720,7 @@
           <label id="attachmentBucketText" value="&attachments.label;" crop="right"
                  accesskey="&attachments.accesskey;" control="attachmentBucket"/>
           <listbox seltype="multiple" id="attachmentBucket" flex="1" rows="4"
-                   style="-moz-user-focus: none;"
+                   tabindex="0"
                    context="msgComposeAttachmentContext"
                    onkeypress="if (event.keyCode == 8 || event.keyCode == 46) RemoveSelectedAttachment();"
                    onclick="AttachmentBucketClicked(event);"/>
@@ -800,12 +800,11 @@
 
   </vbox>
   </hbox>
-  <panel id="customizeToolbarSheetPopup" noautohide="true">
+  <panel id="customizeToolbarSheetPopup"
+         noautohide="true"
+         onpopupshown="this.moveTo(this.boxObject.screenX + (window.innerWidth - this.boxObject.width) / 2, this.boxObject.screenY);">
     <iframe id="customizeToolbarSheetIFrame"
             style="&dialog.style;"
-#ifdef MOZILLA_1_9_1_BRANCH
-            chromedir="&locale.dir;"
-#endif
             hidden="true"/>
   </panel>
 

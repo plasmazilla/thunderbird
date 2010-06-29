@@ -85,10 +85,14 @@ function promptPasswordPS(aParent, aDialogTitle, aText, aPassword, aCheckMsg,
 }
 
 function run_test() {
-  var handler = new SMTP_RFC2822_handler(new smtpDaemon(), "PLAIN", kUsername,
-                                         kValidPassword);
+  var handler = new SMTP_RFC2821_handler(new smtpDaemon());
   handler.dropOnAuthFailure = true;
   server = new nsMailServer(handler);
+  // Username needs to match signons.txt
+  handler.kUsername = kUsername;
+  handler.kPassword = kValidPassword;
+  handler.kAuthRequired = true;
+  handler.kAuthSchemes = [ "PLAIN", "LOGIN" ]; // make match expected transaction below
 
   // Passwords File (generated from Mozilla 1.8 branch).
   var signons = do_get_file("../../mailnews/data/signons-mailnews1.8.txt");
@@ -116,10 +120,8 @@ function run_test() {
   // This time with auth
   test = "Auth sendMailMessage";
 
-  smtpServer.authMethod = 1;
-  smtpServer.useSecAuth = false;
-  smtpServer.trySecAuth = false;
-  smtpServer.trySSL = false;
+  smtpServer.authMethod = Ci.nsMsgAuthMethod.passwordCleartext;
+  smtpServer.socketType = Ci.nsMsgSocketType.plain;
   smtpServer.username = kUsername;
 
   dump("Send\n");

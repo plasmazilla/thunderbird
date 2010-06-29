@@ -44,7 +44,7 @@
  * Command-specific code. This stuff should be called by the widgets
  */
 
-Components.utils.import("resource://gre/modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/iteratorUtils.jsm");
 
 //NOTE: gMessengerBundle and gBrandBundle must be defined and set
 //      for this Overlay to work properly
@@ -1007,7 +1007,8 @@ function setupXFVirtualFolderSearch(folderUrisToSearch, searchTerms, searchOnlin
 
     gSearchSession = Components.classes[searchSessionContractID].createInstance(Components.interfaces.nsIMsgSearchSession);
 
-    gMailSession = Components.classes[mailSessionContractID].getService(Components.interfaces.nsIMsgMailSession);
+    gMailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
+                             .getService(Components.interfaces.nsIMsgMailSession);
 
   for (i in folderUrisToSearch)
     {

@@ -67,13 +67,11 @@ nsresult XPCOMGlueStartup(const char* xpcomFile)
     if (!xpcomFile)
         xpcomFile = XPCOM_DLL;
     
+    nsresult rv = XPCOMGlueLoad(xpcomFile, &func);
+    if (NS_FAILED(rv))
+        return rv;
 
-    func = XPCOMGlueLoad(xpcomFile);
-
-    if (!func)
-        return NS_ERROR_FAILURE;
-
-    nsresult rv = (*func)(&xpcomFunctions, nsnull);
+    rv = (*func)(&xpcomFunctions, nsnull);
     if (NS_FAILED(rv)) {
         XPCOMGlueUnload();
         return rv;
@@ -82,10 +80,26 @@ nsresult XPCOMGlueStartup(const char* xpcomFile)
     return NS_OK;
 }
 
-#if defined(XP_WIN) || defined(XP_OS2)
-#define READ_TEXTMODE "t"
+#if defined(XP_WIN)
+#define READ_TEXTMODE L"rt"
+#elif defined(XP_OS2)
+#define READ_TEXTMODE "rt"
 #else
-#define READ_TEXTMODE
+#define READ_TEXTMODE "r"
+#endif
+
+#ifdef XP_WIN
+inline FILE *TS_tfopen (const char *path, const wchar_t *mode)
+{
+    wchar_t wPath[MAX_PATH];
+    MultiByteToWideChar(CP_UTF8, 0, path, -1, wPath, MAX_PATH);
+    return _wfopen(wPath, mode);
+}
+#else
+inline FILE *TS_tfopen (const char *path, const char *mode)
+{
+    return fopen(path, mode);
+}
 #endif
 
 void
@@ -95,7 +109,7 @@ XPCOMGlueLoadDependentLibs(const char *xpcomDir, DependentLibsCallback cb)
     sprintf(buffer, "%s" XPCOM_FILE_PATH_SEPARATOR XPCOM_DEPENDENT_LIBS_LIST,
             xpcomDir);
 
-    FILE *flist = fopen(buffer, "r" READ_TEXTMODE);
+    FILE *flist = TS_tfopen(buffer, READ_TEXTMODE);
     if (!flist)
         return;
 

@@ -39,6 +39,6 @@
 <!-- Catalan Translation: Projecte Mozilla en català - Softcatalà - http://www.softcatala.org/projectes/mozilla/ -->
 
 
-<!ENTITY styleLocation.label "Full d'estil">
-<!ENTITY styleRules.label "Regles">
+<!ENTITY sheetLocation.label "Full d'estil">
+<!ENTITY sheetRules.label "Regles">
 

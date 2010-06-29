@@ -10,8 +10,10 @@
      *  Interface for a set of viewer panels.
      * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
      * REQUIRED IMPORTS:
+     *   chrome://inspector/content/Flasher.js
      *   chrome://inspector/content/ViewerRegistry.js
      *   chrome://inspector/content/jsutil/events/ObserverManager.js
+     *   chrome://inspector/content/jsutil/system/PrefUtils.js
      **************************************************************** -->
 
   <binding id="panelset" extends="chrome://inspector/content/inspector.xml#base">
@@ -35,11 +37,15 @@
                 onget="return this.mFocusedPanel;"/>
       <property name="stringBundle" readonly="true"
                 onget="return this.mStringBundle;"/>
-      
+      <property name="flasher" readonly="true"
+                onget="return this.mFlasher;"/>
+
       <method name="initialize">
         <body><![CDATA[
           this.mRegistry = new ViewerRegistry();
           this.mRegistry.load(kViewerRegURL, this);
+
+          this.mFlasher = new DOMIFlasher();
         ]]></body>
       </method>
 
@@ -62,8 +68,8 @@
             panels[i].addObserver("viewerChange", this);
             panels[i].addObserver("subjectChange", this);
           }
-      
-          this.setViewerCmdAttributeOnAll("disabled", "true");
+
+          this.updateViewerCommandsFor(null, null);
           this.updateAllCommands();
           
           this.mInitialized = true;
@@ -80,15 +86,10 @@
       <method name="onViewerChange">
         <parameter name="aEvent"/>
         <body><![CDATA[
-          if (aEvent.oldViewer)
-            // disable all commands for for the old viewer
-            this.setViewerCmdAttribute(aEvent.oldViewer.uid,
-                                       "disabled", "true");
-
-          if (aEvent.newViewer)
-            // enable all commands for for the new viewer
-            this.setViewerCmdAttribute(aEvent.newViewer.uid,
-                                       "disabled", "false");
+          // Update commands for the new viewer of the primary panel (currently
+          // driven viewers don't have own commands).
+          this.updateViewerCommandsFor(aEvent.newViewer.uid,
+                                       aEvent.oldViewer ? aEvent.oldViewer.uid : null);
         ]]></body>
       </method>
 
@@ -192,32 +193,37 @@
 
       <!-- ////////////// VIEWER-SPECIFIC COMMANDS /////////////////// -->
 
-      <method name="setViewerCmdAttribute">
-        <parameter name="aEntryUid"/>
-        <parameter name="aAttr"/>
-        <parameter name="aValue"/>
+      <!-- Update viewer specific commands states in accordance with the current
+        viewer. -->
+      <method name="updateViewerCommandsFor">
+        <parameter name="aNewViewerUid"/>
+        <parameter name="aOldViewerUid"/>
         <body><![CDATA[
-          var cmds = document.getElementById(this.getAttribute("viewercommandset"));
-          if (!cmds) return;
-          
-          var els = cmds.getElementsByAttribute("viewer", aEntryUid);
-          for (var i = 0; i < els.length; i++) {
-            if (els[i].hasAttribute("exclusive"))
-              if (aValue == false || aValue == "false")
-                els[i].removeAttribute(aAttr);
-              else
-                els[i].setAttribute(aAttr, aValue);
+          let cmdsetElId = this.getAttribute("viewercommandset");
+          let cmdsetEl = document.getElementById(cmdsetElId);
+          if (!cmdsetEl) {
+            return;
           }
-        ]]></body>
-      </method>
 
-      <method name="setViewerCmdAttributeOnAll">
-        <parameter name="aAttr"/>
-        <parameter name="aValue"/>
-        <body><![CDATA[
-          var count = this.mRegistry.getEntryCount();
-          for (var i = 0; i < count; i++) {
-            this.setViewerCmdAttribute(this.mRegistry.getEntryProperty(i, "uid"), aAttr, aValue);
+          let cmdEls = cmdsetEl.getElementsByAttribute("viewer", "*");
+          for (let idx = 0; idx < cmdEls.length; idx++) {
+            let cmdEl = cmdEls[idx];
+
+            if (!aNewViewerUid && !aOldViewerUid) {
+              cmdEl.setAttribute("disabled", "true");
+              continue;
+            }
+
+            let viewerUids = cmdEl.getAttribute("viewer");
+            let viewerUidArray = viewerUids.split(/\s/);
+
+            if (aNewViewerUid && viewerUidArray.indexOf(aNewViewerUid) != -1) {
+              cmdEl.removeAttribute("disabled");
+
+            } else if (aOldViewerUid &&
+                     viewerUidArray.indexOf(aOldViewerUid) != -1) {
+              cmdEl.setAttribute("disabled", "true");
+            }
           }
         ]]></body>
       </method>
@@ -447,6 +453,11 @@
       <constructor><![CDATA[
         this.mStringBundle = document.getAnonymousNodes(this)[0];
       ]]></constructor>
+
+      <destructor>
+        this.mFlasher.destroy();
+        this.mFlasher = null;
+      </destructor>
     </implementation>
     
     <handlers>

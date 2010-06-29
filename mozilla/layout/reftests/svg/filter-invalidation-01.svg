@@ -17,7 +17,7 @@ function hide_red_rect()
 }
 
 document.addEventListener("MozReftestInvalidate", hide_red_rect, false);
-setTimeout(hide_red_rect, 1000)
+setTimeout(hide_red_rect, 5000)
 
   //]]></script>
   <rect width="100%" height="100%" fill="lime"/>

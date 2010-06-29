@@ -700,23 +700,23 @@ NS_IMETHODIMP nsMsgIncomingServer::GetServerRequiresPasswordForBiff(PRBool *aSer
 }
 
 // This sets m_password if we find a password in the pw mgr.
-void nsMsgIncomingServer::GetPasswordWithoutUI()
+nsresult nsMsgIncomingServer::GetPasswordWithoutUI()
 {
   nsresult rv;
   nsCOMPtr<nsILoginManager> loginMgr(do_GetService(NS_LOGINMANAGER_CONTRACTID,
                                                    &rv));
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS(rv, rv);
 
   // Get the current server URI
   nsCString currServerUri;
   rv = GetLocalStoreType(currServerUri);
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS(rv, rv);
 
   currServerUri.AppendLiteral("://");
 
   nsCString temp;
   rv = GetHostName(temp);
-  NS_ENSURE_SUCCESS(rv, );
+  NS_ENSURE_SUCCESS(rv, rv);
 
   currServerUri.Append(temp);
 
@@ -727,13 +727,19 @@ void nsMsgIncomingServer::GetPasswordWithoutUI()
   rv = loginMgr->FindLogins(&numLogins, currServer, EmptyString(),
                             currServer, &logins);
 
+  // Login manager can produce valid fails, e.g. NS_ERROR_ABORT when a user
+  // cancels the master password dialog. Therefore handle that here, but don't
+  // warn about it.
+  if (NS_FAILED(rv))
+    return rv;
+
   // Don't abort here, if we didn't find any or failed, then we'll just have
   // to prompt.
-  if (NS_SUCCEEDED(rv) && numLogins > 0)
+  if (numLogins > 0)
   {
     nsCString serverCUsername;
     rv = GetUsername(serverCUsername);
-    NS_ENSURE_SUCCESS(rv, );
+    NS_ENSURE_SUCCESS(rv, rv);
 
     NS_ConvertUTF8toUTF16 serverUsername(serverCUsername);
 
@@ -741,13 +747,13 @@ void nsMsgIncomingServer::GetPasswordWithoutUI()
     for (PRUint32 i = 0; i < numLogins; ++i)
     {
       rv = logins[i]->GetUsername(username);
-      NS_ENSURE_SUCCESS(rv, );
+      NS_ENSURE_SUCCESS(rv, rv);
 
       if (username.Equals(serverUsername))
       {
         nsString password;
         rv = logins[i]->GetPassword(password);
-        NS_ENSURE_SUCCESS(rv, );
+        NS_ENSURE_SUCCESS(rv, rv);
 
         m_password = NS_LossyConvertUTF16toASCII(password);
         break;
@@ -755,6 +761,7 @@ void nsMsgIncomingServer::GetPasswordWithoutUI()
     }
     NS_FREE_XPCOM_ISUPPORTS_POINTER_ARRAY(numLogins, logins);
   }
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -770,7 +777,12 @@ nsMsgIncomingServer::GetPasswordWithUI(const nsAString& aPromptMessage, const
     // let's see if we have the password in the password manager and
     // can avoid this prompting thing. This makes it easier to get embedders
     // to get up and running w/o a password prompting UI.
-    GetPasswordWithoutUI();
+    rv = GetPasswordWithoutUI();
+    // If GetPasswordWithoutUI returns NS_ERROR_ABORT, the most likely case
+    // is the user canceled getting the master password, so just return
+    // straight away, as they won't want to get prompted again.
+    if (rv == NS_ERROR_ABORT)
+      return NS_MSG_PASSWORD_PROMPT_CANCELLED;
   }
   if (m_password.IsEmpty())
   {
@@ -993,11 +1005,7 @@ nsMsgIncomingServer::Equals(nsIMsgIncomingServer *server, PRBool *_retval)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // compare the server keys
-#ifdef MOZILLA_INTERNAL_API
   *_retval = key1.Equals(key2, nsCaseInsensitiveCStringComparator());
-#else
-  *_retval = key1.Equals(key2, CaseInsensitiveCompare);
-#endif
 
   return rv;
 }
@@ -1173,19 +1181,12 @@ nsMsgIncomingServer::InternalSetHostName(const nsACString& aHostname, const char
   PRInt32 colonPos = hostname.FindChar(':');
   if (colonPos != -1)
   {
-    nsCAutoString portString(StringTail(hostname, hostname.Length() - colonPos));
+    nsCAutoString portString(Substring(hostname, colonPos));
     hostname.SetLength(colonPos);
-#ifdef MOZILLA_INTERNAL_API
-    PRInt32 err;
-    PRInt32 port = portString.ToInteger(&err);
-    if (!err)
-      SetPort(port);
-#else
     nsresult err;
-    PRInt32 port = portString.ToInteger(&err);
+    PRInt32 port = portString.ToInteger(&err, 10);
     if (NS_SUCCEEDED(err))
       SetPort(port);
-#endif
   }
   return SetCharValue(prefName, hostname);
 }
@@ -1249,11 +1250,7 @@ nsMsgIncomingServer::SetRealHostName(const nsACString& aHostname)
   rv = InternalSetHostName(aHostname, "realhostname");
 
   // A few things to take care of if we're changing the hostname.
-#ifdef MOZILLA_INTERNAL_API
   if (!aHostname.Equals(oldName, nsCaseInsensitiveCStringComparator()))
-#else
-  if (!aHostname.Equals(oldName, CaseInsensitiveCompare))
-#endif
     rv = OnUserOrHostNameChanged(oldName, aHostname);
   return rv;
 }
@@ -1375,7 +1372,7 @@ nsMsgIncomingServer::GetPort(PRInt32 *aPort)
   PRInt32 socketType;
   rv = GetSocketType(&socketType);
   NS_ENSURE_SUCCESS(rv, rv);
-  PRBool useSSLPort = (socketType == nsIMsgIncomingServer::useSSL);
+  PRBool useSSLPort = (socketType == nsMsgSocketType::SSL);
   return protocolInfo->GetDefaultServerPort(useSSLPort, aPort);
 }
 
@@ -1391,7 +1388,7 @@ nsMsgIncomingServer::SetPort(PRInt32 aPort)
   PRInt32 socketType;
   rv = GetSocketType(&socketType);
   NS_ENSURE_SUCCESS(rv, rv);
-  PRBool useSSLPort = (socketType == nsIMsgIncomingServer::useSSL);
+  PRBool useSSLPort = (socketType == nsMsgSocketType::SSL);
 
   PRInt32 defaultPort;
   protocolInfo->GetDefaultServerPort(useSSLPort, &defaultPort);
@@ -1642,15 +1639,14 @@ nsMsgIncomingServer::GetIsSecure(PRBool *aIsSecure)
   PRInt32 socketType;
   nsresult rv = GetSocketType(&socketType);
   NS_ENSURE_SUCCESS(rv,rv);
-  *aIsSecure = (socketType == nsIMsgIncomingServer::alwaysUseTLS ||
-                socketType == nsIMsgIncomingServer::useSSL);
+  *aIsSecure = (socketType == nsMsgSocketType::alwaysSTARTTLS ||
+                socketType == nsMsgSocketType::SSL);
   return NS_OK;
 }
 
 // use the convenience macros to implement the accessors
 NS_IMPL_SERVERPREF_STR(nsMsgIncomingServer, Username, "userName")
-NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, UseSecAuth, "useSecAuth")
-NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, LogonFallback, "logon_fallback")
+NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, AuthMethod, "authMethod")
 NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, BiffMinutes, "check_time")
 NS_IMPL_SERVERPREF_STR(nsMsgIncomingServer, Type, "type")
 // in 4.x, this was "mail.pop3_gets_new_mail" for pop and
@@ -1686,6 +1682,8 @@ NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, Hidden, "hidden")
 
 NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, ArchiveGranularity, "archive_granularity")
 
+NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, ArchiveKeepFolderStructure, "archive_keep_folder_structure")
+
 NS_IMETHODIMP nsMsgIncomingServer::GetSocketType(PRInt32 *aSocketType)
 {
   if (!mPrefBranch)
@@ -1700,7 +1698,7 @@ NS_IMETHODIMP nsMsgIncomingServer::GetSocketType(PRInt32 *aSocketType)
     rv = mPrefBranch->GetBoolPref("isSecure", &isSecure);
     if (NS_SUCCEEDED(rv) && isSecure)
     {
-      *aSocketType = nsIMsgIncomingServer::useSSL;
+      *aSocketType = nsMsgSocketType::SSL;
       // don't call virtual method in case overrides call GetSocketType
       nsMsgIncomingServer::SetSocketType(*aSocketType);
     }
@@ -1710,7 +1708,7 @@ NS_IMETHODIMP nsMsgIncomingServer::GetSocketType(PRInt32 *aSocketType)
         return NS_ERROR_NOT_INITIALIZED;
       rv = mDefPrefBranch->GetIntPref("socketType", aSocketType);
       if (NS_FAILED(rv))
-        *aSocketType = nsIMsgIncomingServer::defaultSocket;
+        *aSocketType = nsMsgSocketType::plain;
     }
   }
   return rv;
@@ -1721,19 +1719,21 @@ NS_IMETHODIMP nsMsgIncomingServer::SetSocketType(PRInt32 aSocketType)
   if (!mPrefBranch)
     return NS_ERROR_NOT_INITIALIZED;
 
-  PRInt32 socketType = nsIMsgIncomingServer::defaultSocket;
+  PRInt32 socketType = nsMsgSocketType::plain;
   mPrefBranch->GetIntPref("socketType", &socketType);
 
   nsresult rv = mPrefBranch->SetIntPref("socketType", aSocketType);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRBool isSecureOld = (socketType == nsIMsgIncomingServer::alwaysUseTLS ||
-                        socketType == nsIMsgIncomingServer::useSSL);
-  PRBool isSecureNew = (aSocketType == nsIMsgIncomingServer::alwaysUseTLS ||
-                        aSocketType == nsIMsgIncomingServer::useSSL);
-  if ((isSecureOld != isSecureNew) && m_rootFolder)
-    m_rootFolder->NotifyBoolPropertyChanged(NS_NewAtom("isSecure"),
+  PRBool isSecureOld = (socketType == nsMsgSocketType::alwaysSTARTTLS ||
+                        socketType == nsMsgSocketType::SSL);
+  PRBool isSecureNew = (aSocketType == nsMsgSocketType::alwaysSTARTTLS ||
+                        aSocketType == nsMsgSocketType::SSL);
+  if ((isSecureOld != isSecureNew) && m_rootFolder) {
+    nsCOMPtr <nsIAtom> isSecureAtom = MsgGetAtom("isSecure");
+    m_rootFolder->NotifyBoolPropertyChanged(isSecureAtom,
                                             isSecureOld, isSecureNew);
+  }
   return NS_OK;
 }
 
@@ -1753,7 +1753,7 @@ nsMsgIncomingServer::GetPasswordPromptRequired(PRBool *aPasswordIsRequired)
 
   // If the password is empty, check to see if it is stored and to be retrieved
   if (m_password.IsEmpty())
-    GetPasswordWithoutUI();
+    (void)GetPasswordWithoutUI();
 
   *aPasswordIsRequired = m_password.IsEmpty();
   return rv;
@@ -1832,6 +1832,54 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
     newFilter->SetTemporary(PR_TRUE);
     // check if we're supposed to move junk mail to junk folder; if so,
     // add filter action to do so.
+
+    /*
+     * We don't want this filter to activate on messages that have
+     *  been marked by the user as not spam. This occurs when messages that
+     *  were marked as good are moved back into the inbox. But to
+     *  do this with a filter, we have to add a boolean term. That requires
+     *  that we rewrite the existing filter search terms to group them.
+     */
+
+    // get the list of search terms from the filter
+    nsCOMPtr<nsISupportsArray> searchTerms;
+    rv = newFilter->GetSearchTerms(getter_AddRefs(searchTerms));
+    NS_ENSURE_SUCCESS(rv, rv);
+    PRUint32 count = 0;
+    searchTerms->Count(&count);
+    if (count > 1) // don't need to group a single term
+    {
+      // beginGrouping the first term, and endGrouping the last term
+      nsCOMPtr<nsIMsgSearchTerm> firstTerm(do_QueryElementAt(searchTerms,
+                                                             0, &rv));
+      NS_ENSURE_SUCCESS(rv,rv);
+      firstTerm->SetBeginsGrouping(PR_TRUE);
+
+      nsCOMPtr<nsIMsgSearchTerm> lastTerm(do_QueryElementAt(searchTerms,
+                                                            count - 1, &rv));
+      NS_ENSURE_SUCCESS(rv,rv);
+      lastTerm->SetEndsGrouping(PR_TRUE);
+    }
+
+    // Create a new term, checking if the user set junk status. The term will
+    // search for junkscoreorigin != "user"
+    nsCOMPtr<nsIMsgSearchTerm> searchTerm;
+    rv = newFilter->CreateTerm(getter_AddRefs(searchTerm));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    searchTerm->SetAttrib(nsMsgSearchAttrib::JunkScoreOrigin);
+    searchTerm->SetOp(nsMsgSearchOp::Isnt);
+    searchTerm->SetBooleanAnd(PR_TRUE);
+
+    nsCOMPtr<nsIMsgSearchValue> searchValue;
+    searchTerm->GetValue(getter_AddRefs(searchValue));
+    NS_ENSURE_SUCCESS(rv, rv);
+    searchValue->SetAttrib(nsMsgSearchAttrib::JunkScoreOrigin);
+    searchValue->SetStr(NS_LITERAL_STRING("user"));
+    searchTerm->SetValue(searchValue);
+
+    searchTerms->InsertElementAt(searchTerm, count);
+
     PRBool moveOnSpam, markAsReadOnSpam;
     spamSettings->GetMoveOnSpam(&moveOnSpam);
     if (moveOnSpam)
@@ -2190,5 +2238,5 @@ nsMsgIncomingServer::SetForcePropertyEmpty(const char *aPropertyName, PRBool aVa
  nsCAutoString nameEmpty(aPropertyName);
  nameEmpty.Append(NS_LITERAL_CSTRING(".empty"));
  return SetCharValue(nameEmpty.get(),
-   aValue ? NS_LITERAL_CSTRING("true") : EmptyCString());
+   aValue ? NS_LITERAL_CSTRING("true") : NS_LITERAL_CSTRING(""));
 }

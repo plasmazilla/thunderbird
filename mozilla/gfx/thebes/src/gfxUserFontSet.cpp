@@ -15,11 +15,12 @@
  * The Original Code is thebes gfx code.
  *
  * The Initial Developer of the Original Code is Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2008
+ * Portions created by the Initial Developer are Copyright (C) 2008-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *   John Daggett <jdaggett@mozilla.com>
+ *   Jonathan Kew <jfkthame@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -44,8 +45,9 @@
 #include "gfxPlatform.h"
 #include "nsReadableUtils.h"
 #include "nsUnicharUtils.h"
-#include "nsVoidArray.h"
 #include "prlong.h"
+
+#include "woff.h"
 
 #ifdef PR_LOGGING
 static PRLogModuleInfo *gUserFontsLog = PR_NewLogModule("userfonts");
@@ -64,8 +66,7 @@ gfxProxyFontEntry::gfxProxyFontEntry(const nsTArray<gfxFontFaceSrc>& aFontFaceSr
              PRUint32 aStretch, 
              PRUint32 aItalicStyle, 
              gfxSparseBitSet *aUnicodeRanges)
-    : gfxFontEntry(NS_LITERAL_STRING("Proxy")), mIsLoading(PR_FALSE),
-      mFamily(aFamily)
+    : gfxFontEntry(NS_LITERAL_STRING("Proxy"), aFamily), mIsLoading(PR_FALSE)
 {
     mIsProxy = PR_TRUE;
     mSrcList = aFontFaceSrcList;
@@ -73,41 +74,13 @@ gfxProxyFontEntry::gfxProxyFontEntry(const nsTArray<gfxFontFaceSrc>& aFontFaceSr
     mWeight = aWeight;
     mStretch = aStretch;
     mItalic = (aItalicStyle & (FONT_STYLE_ITALIC | FONT_STYLE_OBLIQUE)) != 0;
+    mIsUserFont = PR_TRUE;
 }
 
 gfxProxyFontEntry::~gfxProxyFontEntry()
 {
 
 }
-
-
-PRBool
-gfxMixedFontFamily::FindWeightsForStyle(gfxFontEntry* aFontsForWeights[], 
-                                        const gfxFontStyle& aFontStyle)
-{
-    PRBool italic = (aFontStyle.style & (FONT_STYLE_ITALIC | FONT_STYLE_OBLIQUE)) != 0;
-    PRBool matchesSomething;
-
-    for (PRUint32 j = 0; j < 2; j++) {
-        matchesSomething = PR_FALSE;
-        PRUint32 numFonts = mAvailableFonts.Length();
-        // build up an array of weights that match the italicness we're looking for
-        for (PRUint32 i = 0; i < numFonts; i++) {
-            gfxFontEntry *fe = mAvailableFonts[i];
-            PRUint32 weight = fe->mWeight/100;
-            if (fe->mItalic == italic) {
-                aFontsForWeights[weight] = fe;
-                matchesSomething = PR_TRUE;
-            }
-        }
-        if (matchesSomething)
-            break;
-        italic = !italic;
-    }
-
-    return matchesSomething;
-}
-
 
 gfxUserFontSet::gfxUserFontSet()
 {
@@ -117,7 +90,6 @@ gfxUserFontSet::gfxUserFontSet()
 
 gfxUserFontSet::~gfxUserFontSet()
 {
-
 }
 
 void
@@ -199,36 +171,109 @@ gfxUserFontSet::FindFontEntry(const nsAString& aName,
     return nsnull;
 }
 
+// Given a buffer of downloaded font data, do any necessary preparation
+// to make it into usable OpenType.
+// May return the original pointer unchanged, or a newly-allocated
+// block (in which case the passed-in block is NS_Free'd).
+// aLength is updated if necessary to the new length of the data.
+// Returns NULL and NS_Free's the incoming data in case of errors.
+const PRUint8*
+PrepareOpenTypeData(const PRUint8* aData, PRUint32* aLength)
+{
+    switch(gfxFontUtils::DetermineFontDataType(aData, *aLength)) {
+    
+    case GFX_USERFONT_OPENTYPE:
+        // nothing to do
+        return aData;
+        
+    case GFX_USERFONT_WOFF: {
+        PRUint32 status = eWOFF_ok;
+        PRUint32 bufferSize = woffGetDecodedSize(aData, *aLength, &status);
+        if (WOFF_FAILURE(status)) {
+            break;
+        }
+        PRUint8* decodedData = static_cast<PRUint8*>(NS_Alloc(bufferSize));
+        if (!decodedData) {
+            break;
+        }
+        woffDecodeToBuffer(aData, *aLength,
+                           decodedData, bufferSize,
+                           aLength, &status);
+        // replace original data with the decoded version
+        NS_Free((void*)aData);
+        aData = decodedData;
+        if (WOFF_FAILURE(status)) {
+            // something went wrong, discard the data and return NULL
+            break;
+        }
+        // success, return the decoded data
+        return aData;
+    }
 
+    // xxx - add support for other wrappers here
+
+    default:
+        NS_WARNING("unknown font format");
+        break;
+    }
+
+    // discard downloaded data that couldn't be used
+    NS_Free((void*)aData);
+
+    return nsnull;
+}
+
+// This is called when a font download finishes.
+// Ownership of aFontData passes in here, and the font set must
+// ensure that it is eventually deleted via NS_Free().
 PRBool 
 gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
-                               nsISupports *aLoader,
                                const PRUint8 *aFontData, PRUint32 aLength, 
                                nsresult aDownloadStatus)
 {
     NS_ASSERTION(aFontToLoad->mIsProxy, "trying to load font data for wrong font entry type");
 
-    if (!aFontToLoad->mIsProxy)
+    if (!aFontToLoad->mIsProxy) {
+        NS_Free((void*)aFontData);
         return PR_FALSE;
+    }
 
     gfxProxyFontEntry *pe = static_cast<gfxProxyFontEntry*> (aFontToLoad);
 
     // download successful, make platform font using font data
     if (NS_SUCCEEDED(aDownloadStatus)) {
-        gfxFontEntry *fe = 
-            gfxPlatform::GetPlatform()->MakePlatformFont(pe, aLoader,
-                                                         aFontData, aLength);
+        gfxFontEntry *fe = nsnull;
+
+        // Unwrap/decompress or otherwise munge the downloaded data
+        // to make a usable sfnt structure.
+        // This may cause aFontData to point to a new buffer, or be NULL.
+        aFontData = PrepareOpenTypeData(aFontData, &aLength);
+        if (aFontData &&
+            gfxFontUtils::ValidateSFNTHeaders(aFontData, aLength)) {
+            // Here ownership of aFontData is passed to the platform,
+            // which will delete it when no longer required
+            fe = gfxPlatform::GetPlatform()->MakePlatformFont(pe,
+                                                              aFontData,
+                                                              aLength);
+            aFontData = nsnull; // the platform may have freed the data now!
+        } else {
+            // the data was unusable, so just discard it
+            // (error will be reported below, if logging is enabled)
+            if (aFontData) {
+                NS_Free((void*)aFontData);
+            }
+        }
+
         if (fe) {
-            pe->mFamily->ReplaceFontEntry(pe, fe);
+            static_cast<gfxMixedFontFamily*>(pe->mFamily)->ReplaceFontEntry(pe, fe);
             IncrementGeneration();
 #ifdef PR_LOGGING
             if (LOG_ENABLED()) {
                 nsCAutoString fontURI;
                 pe->mSrcList[pe->mSrcIndex].mURI->GetSpec(fontURI);
-
-                LOG(("userfonts (%p) [src %d] loaded uri: (%s) for (%s) gen: %8.8x\n", 
-                     this, pe->mSrcIndex, fontURI.get(), 
-                     NS_ConvertUTF16toUTF8(pe->mFamily->Name()).get(), 
+                LOG(("userfonts (%p) [src %d] loaded uri: (%s) for (%s) gen: %8.8x\n",
+                     this, pe->mSrcIndex, fontURI.get(),
+                     NS_ConvertUTF16toUTF8(pe->mFamily->Name()).get(),
                      PRUint32(mGeneration)));
             }
 #endif
@@ -238,21 +283,24 @@ gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
             if (LOG_ENABLED()) {
                 nsCAutoString fontURI;
                 pe->mSrcList[pe->mSrcIndex].mURI->GetSpec(fontURI);
-                LOG(("userfonts (%p) [src %d] failed uri: (%s) for (%s) error making platform font\n", 
-                     this, pe->mSrcIndex, fontURI.get(), 
+                LOG(("userfonts (%p) [src %d] failed uri: (%s) for (%s) error making platform font\n",
+                     this, pe->mSrcIndex, fontURI.get(),
                      NS_ConvertUTF16toUTF8(pe->mFamily->Name()).get()));
             }
 #endif
         }
     } else {
         // download failed
+        if (aFontData) {
+            NS_Free((void*)aFontData);
+        }
 #ifdef PR_LOGGING
         if (LOG_ENABLED()) {
             nsCAutoString fontURI;
             pe->mSrcList[pe->mSrcIndex].mURI->GetSpec(fontURI);
-            LOG(("userfonts (%p) [src %d] failed uri: (%s) for (%s) error %8.8x downloading font data\n", 
-                 this, pe->mSrcIndex, fontURI.get(), 
-                 NS_ConvertUTF16toUTF8(pe->mFamily->Name()).get(), 
+            LOG(("userfonts (%p) [src %d] failed uri: (%s) for (%s) error %8.8x downloading font data\n",
+                 this, pe->mSrcIndex, fontURI.get(),
+                 NS_ConvertUTF16toUTF8(pe->mFamily->Name()).get(),
                  aDownloadStatus));
         }
 #endif
@@ -302,7 +350,7 @@ gfxUserFontSet::LoadNext(gfxProxyFontEntry *aProxyEntry)
                      NS_ConvertUTF16toUTF8(currSrc.mLocalName).get(), 
                      NS_ConvertUTF16toUTF8(aProxyEntry->mFamily->Name()).get(), 
                      PRUint32(mGeneration)));
-                aProxyEntry->mFamily->ReplaceFontEntry(aProxyEntry, fe);
+                static_cast<gfxMixedFontFamily*>(aProxyEntry->mFamily)->ReplaceFontEntry(aProxyEntry, fe);
                 return STATUS_LOADED;
             } else {
                 LOG(("userfonts (%p) [src %d] failed local: (%s) for (%s)\n", 
@@ -361,9 +409,9 @@ gfxUserFontSet::LoadNext(gfxProxyFontEntry *aProxyEntry)
     LOG(("userfonts (%p) failed all src for (%s)\n", 
                this, NS_ConvertUTF16toUTF8(aProxyEntry->mFamily->Name()).get()));            
 
-    gfxMixedFontFamily *family = aProxyEntry->mFamily;
+    gfxMixedFontFamily *family = static_cast<gfxMixedFontFamily*>(aProxyEntry->mFamily);
 
-    aProxyEntry->mFamily->RemoveFontEntry(aProxyEntry);
+    family->RemoveFontEntry(aProxyEntry);
 
     // no more faces?  remove the entire family
     if (family->mAvailableFonts.Length() == 0) {

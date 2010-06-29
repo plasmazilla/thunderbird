@@ -60,12 +60,12 @@ class AutoFallback;
 class AutoSetInstantiatingToFalse;
 
 enum PluginSupportState {
-  ePluginUnsupported,  // The plugin is not supported (not installed, say)
-  ePluginDisabled,     // The plugin has been explicitly disabled by the
-                       // user.
+  ePluginUnsupported,  // The plugin is not supported (e.g. not installed)
+  ePluginDisabled,     // The plugin has been explicitly disabled by the user
   ePluginBlocklisted,  // The plugin is blocklisted and disabled
-  ePluginOtherState    // Something else (e.g. not a plugin at all as far
-                       // as we can tell).
+  ePluginOutdated,     // The plugin is considered outdated, but not disabled
+  ePluginOtherState,   // Something else (e.g. uninitialized or not a plugin)
+  ePluginCrashed
 };
 
 /**
@@ -90,6 +90,7 @@ class nsObjectLoadingContent : public nsImageLoadingContent
                              , public nsIStreamListener
                              , public nsIFrameLoaderOwner
                              , public nsIObjectLoadingContent
+                             , public nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH
                              , public nsIInterfaceRequestor
                              , public nsIChannelEventSink
 {
@@ -115,6 +116,7 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     NS_DECL_NSISTREAMLISTENER
     NS_DECL_NSIFRAMELOADEROWNER
     NS_DECL_NSIOBJECTLOADINGCONTENT
+    NS_DECL_NSIOBJECTLOADINGCONTENT_MOZILLA_1_9_2_BRANCH
     NS_DECL_NSIINTERFACEREQUESTOR
     NS_DECL_NSICHANNELEVENTSINK
 
@@ -419,7 +421,7 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     PRBool                      mUserDisabled  : 1;
     PRBool                      mSuppressed    : 1;
     // A specific state that caused us to fallback
-    PluginSupportState          mPluginState;
+    PluginSupportState          mFallbackReason;
 
     friend class nsAsyncInstantiateEvent;
 };

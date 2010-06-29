@@ -54,6 +54,11 @@
 #include "nsWeakReference.h"
 #include "nsICSSStyleRule.h"
 
+#ifdef MOZ_SMIL
+#include "nsISMILAttr.h"
+#include "nsSMILAnimationController.h"
+#endif
+
 class nsSVGSVGElement;
 class nsSVGLength2;
 class nsSVGNumber2;
@@ -62,6 +67,8 @@ class nsSVGAngle;
 class nsSVGBoolean;
 class nsSVGEnum;
 struct nsSVGEnumMapping;
+class nsSVGViewBox;
+class nsSVGPreserveAspectRatio;
 class nsSVGString;
 
 typedef nsStyledElement nsSVGElementBase;
@@ -132,27 +139,47 @@ public:
   // nsnull for outer <svg> or SVG without an <svg> parent (invalid SVG).
   nsSVGSVGElement* GetCtx();
 
+  /**
+   * Returns aMatrix post-multiplied by the transform from the userspace
+   * established by this element to the userspace established by its parent.
+   */
+  virtual gfxMatrix PrependLocalTransformTo(const gfxMatrix &aMatrix);
+
   virtual void DidChangeLength(PRUint8 aAttrEnum, PRBool aDoSetAttr);
   virtual void DidChangeNumber(PRUint8 aAttrEnum, PRBool aDoSetAttr);
   virtual void DidChangeInteger(PRUint8 aAttrEnum, PRBool aDoSetAttr);
   virtual void DidChangeAngle(PRUint8 aAttrEnum, PRBool aDoSetAttr);
   virtual void DidChangeBoolean(PRUint8 aAttrEnum, PRBool aDoSetAttr);
   virtual void DidChangeEnum(PRUint8 aAttrEnum, PRBool aDoSetAttr);
-  virtual void DidChangeString(PRUint8 aAttrEnum, PRBool aDoSetAttr);
+  virtual void DidChangeViewBox(PRBool aDoSetAttr);
+  virtual void DidChangePreserveAspectRatio(PRBool aDoSetAttr);
+  virtual void DidChangeString(PRUint8 aAttrEnum) {}
+
+  void DidAnimateLength(PRUint8 aAttrEnum);
 
   void GetAnimatedLengthValues(float *aFirst, ...);
   void GetAnimatedNumberValues(float *aFirst, ...);
   void GetAnimatedIntegerValues(PRInt32 *aFirst, ...);
 
+#ifdef MOZ_SMIL
+  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* aName);
+  void AnimationNeedsResample();
+  void FlushAnimations();
+#endif
+
   virtual void RecompileScriptEventListeners();
 
+  void GetStringBaseValue(PRUint8 aAttrEnum, nsAString& aResult) const;
+  void SetStringBaseValue(PRUint8 aAttrEnum, const nsAString& aValue);
+
 protected:
-  virtual nsresult BeforeSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                 const nsAString* aValue, PRBool aNotify);
   virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
                                 const nsAString* aValue, PRBool aNotify);
   virtual PRBool ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
                                 const nsAString& aValue, nsAttrValue& aResult);
+  static nsresult ReportAttributeParseFailure(nsIDocument* aDocument,
+                                              nsIAtom* aAttribute,
+                                              const nsAString& aValue);
 
   // Hooks for subclasses
   virtual PRBool IsEventName(nsIAtom* aName);
@@ -309,6 +336,10 @@ protected:
   virtual AngleAttributesInfo GetAngleInfo();
   virtual BooleanAttributesInfo GetBooleanInfo();
   virtual EnumAttributesInfo GetEnumInfo();
+  // We assume all viewboxes and preserveAspectRatios are alike
+  // so we don't need to wrap the class
+  virtual nsSVGViewBox *GetViewBox();
+  virtual nsSVGPreserveAspectRatio *GetPreserveAspectRatio();
   virtual StringAttributesInfo GetStringInfo();
 
   static nsSVGEnumMapping sSVGUnitTypesMap[];
@@ -323,10 +354,6 @@ private:
   nsresult
   ParseIntegerOptionalInteger(const nsAString& aValue,
                               PRUint32 aIndex1, PRUint32 aIndex2);
-
-  static nsresult ReportAttributeParseFailure(nsIDocument* aDocument,
-                                              nsIAtom* aAttribute,
-                                              const nsAString& aValue);
 
   void ResetOldStyleBaseType(nsISVGValue *svg_value);
 

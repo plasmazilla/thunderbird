@@ -57,9 +57,6 @@
   <!ENTITY cmdToggleProcessingInstructions.label "Afficher les instructions de traitement">
   <!ENTITY cmdToggleProcessingInstructions.accesskey "h">
 
-  <!ENTITY cmdFlashSelected.label "Faire clignoter l'élément sélectionné">
-  <!ENTITY cmdFlashSelected.accesskey "F">
-
   <!ENTITY cmdToggleAttributes.label "Afficher les attributs">
   <!ENTITY cmdToggleAttributes.accesskey "t">
 

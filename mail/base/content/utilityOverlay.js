@@ -228,7 +228,11 @@ function buildHelpMenu()
 #ifdef MOZ_UPDATER
   var updates =
       Components.classes["@mozilla.org/updates/update-service;1"].
+#ifdef MOZILLA_1_9_2_BRANCH
+      getService(Components.interfaces.nsIApplicationUpdateService2);
+#else
       getService(Components.interfaces.nsIApplicationUpdateService);
+#endif
   var um =
       Components.classes["@mozilla.org/updates/update-manager;1"].
       getService(Components.interfaces.nsIUpdateManager);
@@ -236,9 +240,9 @@ function buildHelpMenu()
   // Disable the UI if the update enabled pref has been locked by the
   // administrator or if we cannot update for some other reason.
   var checkForUpdates = document.getElementById("checkForUpdates");
-  var canUpdate = updates.canUpdate;
-  checkForUpdates.setAttribute("disabled", !canUpdate);
-  if (!canUpdate)
+  var canCheckForUpdates = updates.canCheckForUpdates;
+  checkForUpdates.setAttribute("disabled", !canCheckForUpdates);
+  if (!canCheckForUpdates)
     return;
 
   var strings = document.getElementById("bundle_messenger");
@@ -341,19 +345,18 @@ function openContentTab(url)
                         tabParams: {contentPage: url} });
 }
 
-function openFeatureConfigurator() {
-  let mail3PaneWindow = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                                  .getService(Components.interfaces.nsIWindowMediator)
-                                  .getMostRecentWindow("mail:3pane");
-  const url = "chrome://messenger/content/featureConfigurator.xhtml";
-  if (mail3PaneWindow) {
-    mail3PaneWindow.focus();
-    mail3PaneWindow.document.getElementById("tabmail")
-                            .openTab("chromeTab", {chromePage: url});
-  } else {
-    window.openDialog("chrome://messenger/content/", "_blank",
-                      "chrome,dialog=no,all", null,
-                      { tabType: "chromeTab",
-                        tabParams: {chromePage: url} });
-  }
+/**
+ * Open the Migration Assistant.
+ *
+ * @param aIsUpgrade whether this is being opened as a result of upgrading
+ *     from an earlier version of Thunderbird.
+ */
+function openFeatureConfigurator(aIsUpgrade) {
+  let options = "chrome,dialog=yes,all,centerscreen,width=704,height=416";
+  if (aIsUpgrade)
+    options += ",modal";
+  window.openDialog("chrome://messenger/content/featureConfigurator.xhtml",
+                    "_blank", options,
+                    // Below are window.arguments for featureConfigurator.js
+                    window, aIsUpgrade);
 }

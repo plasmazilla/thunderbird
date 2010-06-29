@@ -50,8 +50,6 @@
 #include "nsIDOMNode.h"
 #include "nsRect.h"
 #include "nsPoint.h"
-#include "nsIWidget.h"
-#include "nsIImage.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIIOService.h"
 #include "nsNetUtil.h"
@@ -94,7 +92,6 @@ nsDragService::nsDragService()
   mNativeDragView = nil;
   mNativeDragEvent = nil;
 }
-
 
 nsDragService::~nsDragService()
 {
@@ -162,10 +159,9 @@ static nsresult SetUpDragClipboard(nsISupportsArray* aTransferableArray)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-
 NSImage*
 nsDragService::ConstructDragImage(nsIDOMNode* aDOMNode,
-                                  nsRect* aDragRect,
+                                  nsIntRect* aDragRect,
                                   nsIScriptableRegion* aRegion)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
@@ -269,7 +265,7 @@ nsDragService::InvokeDragSession(nsIDOMNode* aDOMNode, nsISupportsArray* aTransf
   if (NS_FAILED(SetUpDragClipboard(aTransferableArray)))
     return NS_ERROR_FAILURE;
 
-  nsRect dragRect(0, 0, 20, 20);
+  nsIntRect dragRect(0, 0, 20, 20);
   NSImage* image = ConstructDragImage(aDOMNode, &dragRect, aDragRgn);
   if (!image) {
     // if no image was returned, just draw a rectangle
@@ -326,7 +322,6 @@ nsDragService::InvokeDragSession(nsIDOMNode* aDOMNode, nsISupportsArray* aTransf
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
-
 
 NS_IMETHODIMP
 nsDragService::GetData(nsITransferable* aTransferable, PRUint32 aItemIndex)
@@ -471,7 +466,6 @@ nsDragService::GetData(nsITransferable* aTransferable, PRUint32 aItemIndex)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-
 NS_IMETHODIMP
 nsDragService::IsDataFlavorSupported(const char *aDataFlavor, PRBool *_retval)
 {
@@ -544,7 +538,6 @@ nsDragService::IsDataFlavorSupported(const char *aDataFlavor, PRBool *_retval)
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
-
 NS_IMETHODIMP
 nsDragService::GetNumDropItems(PRUint32* aNumItems)
 {
@@ -574,7 +567,6 @@ nsDragService::GetNumDropItems(PRUint32* aNumItems)
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
-
 
 NS_IMETHODIMP
 nsDragService::EndDragSession(PRBool aDoneDrag)

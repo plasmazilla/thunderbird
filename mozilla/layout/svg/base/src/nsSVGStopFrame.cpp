@@ -51,13 +51,20 @@ typedef nsFrame  nsSVGStopFrameBase;
 class nsSVGStopFrame : public nsSVGStopFrameBase
 {
   friend nsIFrame*
-  NS_NewSVGStopFrame(nsIPresShell*   aPresShell, nsIContent*     aContent,
-                     nsIFrame*       aParentFrame, nsStyleContext* aContext);
+  NS_NewSVGStopFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGStopFrame(nsStyleContext* aContext) : nsSVGStopFrameBase(aContext) {}
 
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   // nsIFrame interface:
+#ifdef DEBUG
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+#endif
+
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
 
   NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
@@ -88,8 +95,23 @@ public:
 //----------------------------------------------------------------------
 // Implementation
 
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGStopFrame)
+
 //----------------------------------------------------------------------
 // nsIFrame methods:
+
+#ifdef DEBUG
+NS_IMETHODIMP
+nsSVGStopFrame::Init(nsIContent* aContent,
+                     nsIFrame* aParent,
+                     nsIFrame* aPrevInFlow)
+{
+  nsCOMPtr<nsIDOMSVGStopElement> grad = do_QueryInterface(aContent);
+  NS_ASSERTION(grad, "Content doesn't support nsIDOMSVGStopElement");
+
+  return nsSVGStopFrameBase::Init(aContent, aParent, aPrevInFlow);
+}
+#endif /* DEBUG */
 
 /* virtual */ void
 nsSVGStopFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
@@ -123,14 +145,7 @@ nsSVGStopFrame::AttributeChanged(PRInt32         aNameSpaceID,
 // -------------------------------------------------------------------------
 
 nsIFrame* NS_NewSVGStopFrame(nsIPresShell*   aPresShell,
-                             nsIContent*     aContent,
-                             nsIFrame*       aParentFrame,
                              nsStyleContext* aContext)
 {
-  nsCOMPtr<nsIDOMSVGStopElement> grad = do_QueryInterface(aContent);
-  NS_ASSERTION(grad, "NS_NewSVGStopFrame -- Content doesn't support nsIDOMSVGStopElement");
-  if (!grad)
-    return nsnull;
-
   return new (aPresShell) nsSVGStopFrame(aContext);
 }

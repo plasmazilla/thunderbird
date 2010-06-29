@@ -103,7 +103,6 @@
 #include "nsIHTMLContentSink.h"
 #include "nsIParser.h"
 #include "prprf.h"
-#include "nsVoidArray.h"
 #include "nsIBrowserGlue.h"
 #include "nsIObserverService.h"
 #include "nsISupportsPrimitives.h"
@@ -356,8 +355,6 @@ public:
 
   // nsIContentSink (superclass of nsIHTMLContentSink)
   NS_IMETHOD WillParse() { return NS_OK; }
-  NS_IMETHOD WillBuildModel() { return NS_OK; }
-  NS_IMETHOD DidBuildModel() { return NS_OK; }
   NS_IMETHOD WillInterrupt() { return NS_OK; }
   NS_IMETHOD WillResume() { return NS_OK; }
   NS_IMETHOD SetParser(nsIParser* aParser) { return NS_OK; }

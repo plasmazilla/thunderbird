@@ -46,12 +46,18 @@ include $(DEPTH)/config/autoconf.mk
 # least one module from search/ on all platforms
 DIRS    = compose preferences addrbook migration activity search
 
-ifneq (,$(filter windows gtk2 mac cocoa, $(MOZ_WIDGET_TOOLKIT)))
+ifneq (,$(filter windows gtk2 cocoa, $(MOZ_WIDGET_TOOLKIT)))
 DIRS += shell
 endif
 
 ifdef MOZ_SAFE_BROWSING
 DIRS += phishing 
+endif
+
+ifndef MOZILLA_1_9_2_BRANCH
+ifndef MOZ_PLACES
+DIRS += history
+endif
 endif
 
 DIRS += build

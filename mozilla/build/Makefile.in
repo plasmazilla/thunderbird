@@ -99,6 +99,9 @@ libs:: bloatcycle.html
 	$(INSTALL) $< $(DIST)/bin/res
 
 ifeq ($(OS_ARCH),Darwin)
+libs:: $(topsrcdir)/tools/rb/fix-macosx-stack.pl $(topsrcdir)/tools/rb/fix_macosx_stack.py
+	$(INSTALL) $^ $(DIST)/bin
+
 # Basic unit tests for some stuff in the unify script
 check::
 # build ppc/i386 binaries, and unify them
@@ -157,5 +160,10 @@ check::
         else \
           echo "TEST-PASS | build/ | unify unified files with differing line ordering!"; \
         fi
+endif
+
+ifeq ($(OS_ARCH),Linux)
+libs:: $(topsrcdir)/tools/rb/fix-linux-stack.pl
+	$(INSTALL) $< $(DIST)/bin
 endif
 endif # ENABLE_TESTS

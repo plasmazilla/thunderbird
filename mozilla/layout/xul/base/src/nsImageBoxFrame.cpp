@@ -58,7 +58,6 @@
 #include "nsPresContext.h"
 #include "nsIRenderingContext.h"
 #include "nsIPresShell.h"
-#include "nsIImage.h"
 #include "nsIDocument.h"
 #include "nsIHTMLDocument.h"
 #include "nsStyleConsts.h"
@@ -159,7 +158,9 @@ nsIFrame*
 NS_NewImageBoxFrame (nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   return new (aPresShell) nsImageBoxFrame (aPresShell, aContext);
-} // NS_NewTitledButtonFrame
+}
+
+NS_IMPL_FRAMEARENA_HELPERS(nsImageBoxFrame)
 
 NS_IMETHODIMP
 nsImageBoxFrame::AttributeChanged(PRInt32 aNameSpaceID,
@@ -182,10 +183,10 @@ nsImageBoxFrame::AttributeChanged(PRInt32 aNameSpaceID,
 
 nsImageBoxFrame::nsImageBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext):
   nsLeafBoxFrame(aShell, aContext),
-  mUseSrcAttr(PR_FALSE),
-  mSuppressStyleCheck(PR_FALSE),
   mIntrinsicSize(0,0),
-  mLoadFlags(nsIRequest::LOAD_NORMAL)
+  mLoadFlags(nsIRequest::LOAD_NORMAL),
+  mUseSrcAttr(PR_FALSE),
+  mSuppressStyleCheck(PR_FALSE)
 {
   MarkIntrinsicWidthsDirty();
 }
@@ -323,16 +324,16 @@ public:
 
   // Doesn't handle HitTest because nsLeafBoxFrame already creates an
   // event receiver for us
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx,
-     const nsRect& aDirtyRect);
+  virtual void Paint(nsDisplayListBuilder* aBuilder,
+                     nsIRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("XULImage")
 };
 
 void nsDisplayXULImage::Paint(nsDisplayListBuilder* aBuilder,
-     nsIRenderingContext* aCtx, const nsRect& aDirtyRect)
+                              nsIRenderingContext* aCtx)
 {
   static_cast<nsImageBoxFrame*>(mFrame)->
-    PaintImage(*aCtx, aDirtyRect, aBuilder->ToReferenceFrame(mFrame));
+    PaintImage(*aCtx, mVisibleRect, aBuilder->ToReferenceFrame(mFrame));
 }
 
 NS_IMETHODIMP
@@ -379,6 +380,7 @@ nsImageBoxFrame::PaintImage(nsIRenderingContext& aRenderingContext,
   if (imgCon) {
     PRBool hasSubRect = !mUseSrcAttr && (mSubRect.width > 0 || mSubRect.height > 0);
     nsLayoutUtils::DrawSingleImage(&aRenderingContext, imgCon,
+        nsLayoutUtils::GetGraphicsFilterForFrame(this),
         rect, dirty, hasSubRect ? &mSubRect : nsnull);
   }
 }
@@ -542,8 +544,7 @@ NS_IMETHODIMP nsImageBoxFrame::OnStopDecode(imgIRequest *request,
 }
 
 NS_IMETHODIMP nsImageBoxFrame::FrameChanged(imgIContainer *container,
-                                            gfxIImageFrame *newframe,
-                                            nsRect * dirtyRect)
+                                            nsIntRect *dirtyRect)
 {
   nsBoxLayoutState state(PresContext());
   this->Redraw(state);
@@ -590,12 +591,11 @@ NS_IMETHODIMP nsImageBoxListener::OnStopDecode(imgIRequest *request,
 }
 
 NS_IMETHODIMP nsImageBoxListener::FrameChanged(imgIContainer *container,
-                                               gfxIImageFrame *newframe,
-                                               nsRect * dirtyRect)
+                                               nsIntRect *dirtyRect)
 {
   if (!mFrame)
     return NS_ERROR_FAILURE;
 
-  return mFrame->FrameChanged(container, newframe, dirtyRect);
+  return mFrame->FrameChanged(container, dirtyRect);
 }
 

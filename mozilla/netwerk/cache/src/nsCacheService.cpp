@@ -155,15 +155,15 @@ private:
     PRBool                  mHaveProfile;
     
     PRBool                  mDiskCacheEnabled;
-    PRInt32                 mDiskCacheCapacity;
+    PRInt32                 mDiskCacheCapacity; // in kilobytes
     nsCOMPtr<nsILocalFile>  mDiskCacheParentDirectory;
 
     PRBool                  mOfflineCacheEnabled;
-    PRInt32                 mOfflineCacheCapacity;
+    PRInt32                 mOfflineCacheCapacity; // in kilobytes
     nsCOMPtr<nsILocalFile>  mOfflineCacheParentDirectory;
     
     PRBool                  mMemoryCacheEnabled;
-    PRInt32                 mMemoryCacheCapacity;
+    PRInt32                 mMemoryCacheCapacity; // in kilobytes
 
     PRBool                  mInPrivateBrowsing;
 };
@@ -181,7 +181,7 @@ nsCacheProfilePrefObserver::Install()
     NS_ENSURE_SUCCESS(rv, rv);
     NS_ENSURE_ARG(observerService);
     
-    for (int i=0; i<NS_ARRAY_LENGTH(observerList); i++) {
+    for (unsigned int i=0; i<NS_ARRAY_LENGTH(observerList); i++) {
         rv = observerService->AddObserver(this, observerList[i], PR_FALSE);
         if (NS_FAILED(rv)) 
             rv2 = rv;
@@ -191,7 +191,7 @@ nsCacheProfilePrefObserver::Install()
     nsCOMPtr<nsIPrefBranch2> branch = do_GetService(NS_PREFSERVICE_CONTRACTID);
     if (!branch) return NS_ERROR_FAILURE;
 
-    for (int i=0; i<NS_ARRAY_LENGTH(prefList); i++) {
+    for (unsigned int i=0; i<NS_ARRAY_LENGTH(prefList); i++) {
         rv = branch->AddObserver(prefList[i], this, PR_FALSE);
         if (NS_FAILED(rv))
             rv2 = rv;
@@ -231,7 +231,7 @@ nsCacheProfilePrefObserver::Remove()
     nsCOMPtr<nsIObserverService> obs =
             do_GetService("@mozilla.org/observer-service;1");
     if (obs) {
-        for (int i=0; i<NS_ARRAY_LENGTH(observerList); i++) {
+        for (unsigned int i=0; i<NS_ARRAY_LENGTH(observerList); i++) {
             obs->RemoveObserver(this, observerList[i]);
         }
     }
@@ -240,7 +240,7 @@ nsCacheProfilePrefObserver::Remove()
     nsCOMPtr<nsIPrefBranch2> prefs =
            do_GetService(NS_PREFSERVICE_CONTRACTID);
     if (prefs) {
-        for (int i=0; i<NS_ARRAY_LENGTH(prefList); i++) {
+        for (unsigned int i=0; i<NS_ARRAY_LENGTH(prefList); i++) {
             // remove cache pref observers
             prefs->RemoveObserver(prefList[i], this);
         }
@@ -449,13 +449,11 @@ nsCacheProfilePrefObserver::ReadPrefs(nsIPrefBranch* branch)
                 }
             }
         }
-#if DEBUG
-        if (!directory) {
-            // use current process directory during development
+        // use file cache in build tree only if asked, to avoid cache dir litter
+        if (!directory && PR_GetEnv("NECKO_DEV_ENABLE_DISK_CACHE")) {
             rv = NS_GetSpecialDirectory(NS_XPCOM_CURRENT_PROCESS_DIR,
                                         getter_AddRefs(directory));
         }
-#endif
         if (directory)
             mDiskCacheParentDirectory = do_QueryInterface(directory, &rv);
     }
@@ -945,12 +943,6 @@ NS_IMETHODIMP nsCacheService::VisitEntries(nsICacheVisitor *visitor)
 NS_IMETHODIMP nsCacheService::EvictEntries(nsCacheStoragePolicy storagePolicy)
 {
     return  EvictEntriesForClient(nsnull, storagePolicy);
-}
-
-NS_IMETHODIMP nsCacheService::CreateTemporaryClientID(nsCacheStoragePolicy storagePolicy,
-                                                      nsACString &clientID)
-{
-    return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 /**
@@ -2023,13 +2015,13 @@ nsCacheService::DeactivateAndClearEntry(PLDHashTable *    table,
 void
 nsCacheService::DoomActiveEntries()
 {
-    nsAutoVoidArray array;
+    nsAutoTArray<nsCacheEntry*, 8> array;
 
     mActiveEntries.VisitEntries(RemoveActiveEntry, &array);
 
-    PRUint32 count = array.Count();
+    PRUint32 count = array.Length();
     for (PRUint32 i=0; i < count; ++i)
-        DoomEntry_Internal((nsCacheEntry *) array[i]);
+        DoomEntry_Internal(array[i]);
 }
 
 
@@ -2042,7 +2034,7 @@ nsCacheService::RemoveActiveEntry(PLDHashTable *    table,
     nsCacheEntry * entry = ((nsCacheEntryHashTableEntry *)hdr)->cacheEntry;
     NS_ASSERTION(entry, "### active entry = nsnull!");
 
-    nsVoidArray * array = (nsVoidArray *) arg;
+    nsTArray<nsCacheEntry*> * array = (nsTArray<nsCacheEntry*> *) arg;
     NS_ASSERTION(array, "### array = nsnull!");
     array->AppendElement(entry);
 

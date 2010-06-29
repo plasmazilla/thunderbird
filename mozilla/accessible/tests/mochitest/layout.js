@@ -4,20 +4,22 @@
  * @param aIdentifier        [in] accessible identifier
  * @param aX                 [in] x coordinate of the point relative accessible
  * @param aY                 [in] y coordinate of the point relative accessible
- * @param aTakeDeepestChild  [in] points whether deepest or nearest child should
+ * @param aFindDeepestChild  [in] points whether deepest or nearest child should
  *                           be returned
  * @param aChildIdentifier   [in] expected child accessible
  */
-function testChildAtPoint(aIdentifier, aX, aY, aTakeDeepestChild,
+function testChildAtPoint(aIdentifier, aX, aY, aFindDeepestChild,
                           aChildIdentifier)
 {
   var childAcc = getAccessible(aChildIdentifier);
-  if (!childAcc)
-    return;
+  var actualChildAcc = getChildAtPoint(aIdentifier, aX, aY, aFindDeepestChild);
 
-  var actualChildAcc = getChildAtPoint(aIdentifier, aX, aY, aTakeDeepestChild);
-  is(childAcc, actualChildAcc,
-     "Wrong child accessible at the point (" + aX + ", " + aY + ") of accessible '" + prettyName(aIdentifier)) + "'";  
+  var msg = "Wrong " + (aFindDeepestChild ? "deepest" : "direct");
+  msg += " child accessible [" + prettyName(actualChildAcc);
+  msg += "] at the point (" + aX + ", " + aY + ") of accessible [";
+  msg += prettyName(aIdentifier) + "]";
+
+  is(childAcc, actualChildAcc, msg);
 }
 
 /**
@@ -26,11 +28,11 @@ function testChildAtPoint(aIdentifier, aX, aY, aTakeDeepestChild,
  * @param aIdentifier        [in] accessible identifier
  * @param aX                 [in] x coordinate of the point relative accessible
  * @param aY                 [in] y coordinate of the point relative accessible
- * @param aTakeDeepestChild  [in] points whether deepest or nearest child should
+ * @param aFindDeepestChild  [in] points whether deepest or nearest child should
  *                           be returned
  * @return                   the child accessible at the given point
  */
-function getChildAtPoint(aIdentifier, aX, aY, aTakeDeepestChild)
+function getChildAtPoint(aIdentifier, aX, aY, aFindDeepestChild)
 {
   var nodeObj = { value: null };
   var acc = getAccessible(aIdentifier, null, nodeObj);
@@ -39,17 +41,39 @@ function getChildAtPoint(aIdentifier, aX, aY, aTakeDeepestChild)
   if (!acc || !node)
     return;
 
-  var deltaX = node.boxObject.screenX;
-  var deltaY = node.boxObject.screenY;
+  var [deltaX, deltaY] = getScreenCoords(node);
 
   var x = deltaX + aX;
   var y = deltaY + aY;
 
   try {
-    if (aTakeDeepestChild)
+    if (aFindDeepestChild)
       return acc.getDeepestChildAtPoint(x, y);
     return acc.getChildAtPoint(x, y);
   } catch (e) {  }
 
   return null;
+}
+
+/**
+ * Return DOM node coordinates relative screen as pair (x, y).
+ */
+function getScreenCoords(aNode)
+{
+  if (aNode instanceof nsIDOMXULElement)
+    return [node.boxObject.screenX, node.boxObject.screenY];
+
+  // Ugly hack until bug 486200 is fixed.
+  const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+  var descr = document.createElementNS(XUL_NS, "description");
+  descr.setAttribute("value", "helper description");
+  aNode.parentNode.appendChild(descr);
+  var descrBoxObject = descr.boxObject;
+  var descrRect = descr.getBoundingClientRect();
+  var deltaX = descrBoxObject.screenX - descrRect.left;
+  var deltaY = descrBoxObject.screenY - descrRect.top;
+  aNode.parentNode.removeChild(descr);
+
+  var rect = aNode.getBoundingClientRect();
+  return [rect.left + deltaX, rect.top + deltaY];
 }

@@ -40,7 +40,7 @@
 #define GFX_PLATFORM_H
 
 #include "prtypes.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 
 #include "nsIObserver.h"
 
@@ -60,6 +60,7 @@ struct gfxFontStyle;
 class gfxUserFontSet;
 class gfxFontEntry;
 class gfxProxyFontEntry;
+class gfxPlatformFontList;
 class nsIURI;
 
 // pref lang id's for font prefs
@@ -156,12 +157,20 @@ public:
      */
     virtual nsresult GetFontList(const nsACString& aLangGroup,
                                  const nsACString& aGenericFamily,
-                                 nsStringArray& aListOfFonts);
+                                 nsTArray<nsString>& aListOfFonts);
 
     /**
      * Rebuilds the any cached system font lists
      */
     virtual nsresult UpdateFontList();
+
+    /**
+     * Create the platform font-list object (gfxPlatformFontList concrete subclass)
+     */
+    virtual gfxPlatformFontList *CreatePlatformFontList() {
+        NS_NOTREACHED("oops, this platform doesn't have a gfxPlatformFontList implementation");
+        return nsnull;
+    }
 
     /**
      * Font name resolver, this returns actual font name(s) by the callback
@@ -202,15 +211,15 @@ public:
 
     /**
      * Activate a platform font.  (Needed to support @font-face src url().)
-     * aFontData must persist as long as a reference is held to aLoader.
+     * aFontData is a NS_Malloc'ed block that must be freed by this function
+     * (or responsibility passed on) when it is no longer needed; the caller
+     * will NOT free it.
      * Ownership of the returned gfxFontEntry is passed to the caller,
      * who must either AddRef() or delete.
      */
     virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           nsISupports *aLoader,
                                            const PRUint8 *aFontData,
-                                           PRUint32 aLength)
-    { return nsnull; }
+                                           PRUint32 aLength);
 
     /**
      * Whether to allow downloadable fonts via @font-face rules
@@ -294,9 +303,26 @@ public:
      */
     static qcms_transform* GetCMSRGBATransform();
 
+    /**
+     * Return display DPI
+     */
+    static PRInt32 GetDPI() {
+        if (sDPI < 0) {
+            gfxPlatform::GetPlatform()->InitDisplayCaps();
+        }
+        NS_ASSERTION(sDPI > 0, "Something is wrong");
+        return sDPI;
+    }
+
 protected:
     gfxPlatform() { }
     virtual ~gfxPlatform();
+
+    /**
+     * Initialize any needed display metrics (such as DPI)
+     */
+    virtual void InitDisplayCaps();
+    static PRInt32 sDPI;
 
 private:
     virtual qcms_profile* GetPlatformCMSOutputProfile();

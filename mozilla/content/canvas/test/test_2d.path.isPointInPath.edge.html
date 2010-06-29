@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <title>Canvas test: 2d.path.isPointInPath.edge</title>
 <!-- Testing: isPointInPath() counts points on the path as being inside -->
-<script src="/MochiKit/MochiKit.js"></script>
+<script src="/MochiKit/packed.js"></script>
 <script src="/tests/SimpleTest/SimpleTest.js"></script>
 <link rel="stylesheet" href="/tests/SimpleTest/test.css">
 <body>
@@ -15,7 +15,7 @@ var canvas = document.getElementById('c');
 var ctx = canvas.getContext('2d');
 
 ctx.rect(0, 0, 20, 20);
-todo(ctx.isPointInPath(0, 0) === true, "ctx.isPointInPath(0, 0) === true");
+ok(ctx.isPointInPath(0, 0) === true, "ctx.isPointInPath(0, 0) === true");
 ok(ctx.isPointInPath(10, 0) === true, "ctx.isPointInPath(10, 0) === true");
 ok(ctx.isPointInPath(20, 0) === true, "ctx.isPointInPath(20, 0) === true");
 ok(ctx.isPointInPath(20, 10) === true, "ctx.isPointInPath(20, 10) === true");

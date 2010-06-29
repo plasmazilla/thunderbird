@@ -82,6 +82,7 @@ function StyleRulesViewer() // implements inIViewer
   this.mRuleBoxObject = this.mRuleTree.treeBoxObject;
   this.mPropsTree = document.getElementById("olStyleProps");
   this.mPropsBoxObject = this.mPropsTree.treeBoxObject;
+  this.mFocusedTree = null;
 }
 
 StyleRulesViewer.prototype =
@@ -135,29 +136,33 @@ StyleRulesViewer.prototype =
   isCommandEnabled: function SRVr_IsCommandEnabled(aCommand)
   {
     var rule = this.getSelectedRule();
-    // if no rule is selected, nothing is enabled
-    if (!rule)
-      return false;
+    var fileURI = rule && rule.parentStyleSheet && rule.parentStyleSheet.href;
+    // XXX can't edit resource: stylesheets because of bug 343508, and
+    // CSSFontFaceRules because of bug 443978
+    var isEditable = !(/^resource:/.test(fileURI) ||
+                       rule instanceof CSSFontFaceRule);
 
-    //XXX can't edit resource: stylesheets because of bug 343508
-    var isEditable = !(rule && rule.parentStyleSheet &&
-                       /^resource:/.test(rule.parentStyleSheet.href));
+    var propFocus = this.mFocusedTree == this.mPropsTree;
+    var propCount = this.mPropsTree.view.selection.count;
 
     switch (aCommand) {
       // ppStylePropsContext
+      // The first three of these are context-sensitive; until they are
+      // supported for the rule pane, they are meaningless when it has focus.
       case "cmdEditCopy":
-        return this.mPropsTree.view.selection.count > 0;
+        return propFocus && propCount > 0;
       case "cmdEditDelete":
-      case "cmdTogglePriority":
-        return isEditable && this.mPropsTree.view.selection.count > 0;
+        return isEditable && propFocus && propCount > 0;
       case "cmdEditInsert":
-        return isEditable && this.mRuleTree.view.selection.count == 1;
+        return isEditable && propFocus;
+      case "cmdTogglePriority":
+        return isEditable && propCount > 0;
       case "cmdEditEdit":
-        return isEditable && this.mPropsTree.view.selection.count == 1;
+        return isEditable && propCount == 1;
       // ppStyleRulesContext
       case "cmdCopySelectedFileURI":
       case "cmdViewSelectedFileURI":
-        return rule.parentStyleSheet && rule.parentStyleSheet.href;
+        return fileURI;
     }
     return false;
   },
@@ -308,8 +313,10 @@ StyleRulesViewer.prototype =
     viewer.pane.panelset.updateAllCommands();
   },
 
-  onCreateRulePopup: function SRVr_OnCreateRulePopup()
+  onTreeFocus: function SRVr_OnTreeFocus(aTree)
   {
+    this.mFocusedTree = aTree;
+    viewer.pane.panelset.updateAllCommands();
   },
 
   onPopupShowing: function SRVr_OnPopupShowing(aCommandSetId)

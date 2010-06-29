@@ -96,14 +96,14 @@ static PRLogModuleInfo *MsgDockCountsLogModule = nsnull;
 
 // HACK: this code is copied from nsToolkit.mm in order to deal with
 // version checks below.  This should be tidied once we are not on
-// MOZILLA_1_9_1_BRANCH or MOZILLA_1_9_2_BRANCH
+// MOZILLA_1_9_2_BRANCH.
 #define MAC_OS_X_VERSION_10_4_HEX 0x00001040
 #define MAC_OS_X_VERSION_10_5_HEX 0x00001050
-long OSXVersion()
+int OSXVersion()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
-  static long gOSXVersion = 0x0;
+  static SInt32 gOSXVersion = 0x0;
   if (gOSXVersion == 0x0)
   {
     if (::Gestalt(gestaltSystemVersion, &gOSXVersion) != noErr)
@@ -202,7 +202,8 @@ static void openMailWindow(const nsCString& aUri)
     FocusAppNative();
     nsCOMPtr<nsIDOMWindowInternal> domWindow;
     topMostMsgWindow->GetDomWindow(getter_AddRefs(domWindow));
-    domWindow->Focus();
+    if (domWindow)
+      domWindow->Focus();
   }
   else
   {
@@ -224,6 +225,7 @@ nsMessengerOSXIntegration::nsMessengerOSXIntegration()
   mNewMailReceivedAtom = do_GetAtom("NewMailReceived");
   mTotalUnreadMessagesAtom = do_GetAtom("TotalUnreadMessages");
   mUnreadTotal = 0;
+  mNewTotal = 0;
   mOnlyCountInboxes = PR_TRUE;
   mOnLeopardOrLater = OnLeopardOrLater();
   mDoneInitialCount = PR_FALSE;
@@ -503,6 +505,15 @@ nsMessengerOSXIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aFolder,
       PRInt32 numNewMessages = 0;
       childFolder->GetNumNewMessages(PR_TRUE, &numNewMessages);
       FillToolTipInfo(childFolder, numNewMessages);
+
+      mNewTotal += numNewMessages;
+      BadgeDockIcon();
+    }
+    else if (aNewValue == nsIMsgFolder::nsMsgBiffState_NoMail)
+    {
+      // reset new message total
+      mNewTotal = 0;
+      BadgeDockIcon();
     }
   }
   else if (mNewMailReceivedAtom == aProperty)
@@ -512,6 +523,9 @@ nsMessengerOSXIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aFolder,
     NS_ENSURE_SUCCESS(rv, rv);
 
     FillToolTipInfo(aFolder, aNewValue);
+
+    mNewTotal += aNewValue;
+    BadgeDockIcon();
   }
   else if (mTotalUnreadMessagesAtom == aProperty)
   {
@@ -590,14 +604,18 @@ nsMessengerOSXIntegration::BounceDockIcon()
 nsresult
 nsMessengerOSXIntegration::RestoreDockIcon()
 {
+#ifdef MOZILLA_1_9_2_BRANCH
   // Use the Leopard API if possible.
   if (mOnLeopardOrLater)
   {
+#endif
     id tile = [[NSApplication sharedApplication] dockTile];
     [tile setBadgeLabel: nil];
+#ifdef MOZILLA_1_9_2_BRANCH
   }
   else // 10.4
     RestoreApplicationDockTileImage();
+#endif
 
   return NS_OK;
 }
@@ -605,8 +623,15 @@ nsMessengerOSXIntegration::RestoreDockIcon()
 nsresult
 nsMessengerOSXIntegration::BadgeDockIcon()
 {
-  // If unread count is less than one, we should restore the original dock icon.
-  if (mUnreadTotal < 1)
+  // Use either unread messages as the count, or new messages as the count, depending on the preference
+  nsresult rv;
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  PRBool useNewCount = PR_FALSE;
+  prefBranch->GetBoolPref("mail.biff.use_new_count_in_mac_dock", &useNewCount);
+
+  // If count is less than one, we should restore the original dock icon.
+  if ((!useNewCount && mUnreadTotal < 1) || (useNewCount && mNewTotal < 1))
   {
     RestoreDockIcon();
     return NS_OK;
@@ -616,7 +641,6 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   // Extensions might wish to transform "1000" into "100+" or some
   // other short string. Getting back the empty string will cause
   // nothing to be drawn and us to return early.
-  nsresult rv;
   nsCOMPtr<nsIObserverService> os
     (do_GetService("@mozilla.org/observer-service;1", &rv));
   if (NS_FAILED(rv))
@@ -634,7 +658,12 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   }
 
   nsAutoString total;
-  total.AppendInt(mUnreadTotal);
+
+  if (useNewCount)
+    total.AppendInt(mNewTotal);
+  else
+    total.AppendInt(mUnreadTotal);
+
   str->SetData(total);
   os->NotifyObservers(str, "before-unread-count-display",
                       total.get());
@@ -646,12 +675,15 @@ nsMessengerOSXIntegration::BadgeDockIcon()
     return NS_OK;
   }
 
+#ifdef MOZILLA_1_9_2_BRANCH
   // On 10.5 or later, we can use the new API for this.
   if (mOnLeopardOrLater)
   {
+#endif
     id tile = [[NSApplication sharedApplication] dockTile];
     [tile setBadgeLabel:[NSString stringWithFormat:@"%S", total.get()]];
     return NS_OK;
+#ifdef MOZILLA_1_9_2_BRANCH
   }
 
   // On 10.4 we have to draw this manually, clearing any existing badge artifacts first.
@@ -771,6 +803,7 @@ nsMessengerOSXIntegration::BadgeDockIcon()
   ::CGContextFlush(context);
   ::EndCGContextForApplicationDockTile(context);
   return NS_OK;
+#endif
 }
 
 NS_IMETHODIMP

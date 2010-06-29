@@ -536,9 +536,9 @@ var nsBrowserContentHandler = {
     });
   },
 
-  helpInfo: "  -browser <url>       Open a browser window.\n" +
-            "  -url <url>           Open the specified url.\n" +
-            "  -chrome <url>        Open the specified chrome.\n",
+  helpInfo: "  -browser <url>     Open a browser window.\n" +
+            "  -url <url>         Open the specified url.\n" +
+            "  -chrome <url>      Open the specified chrome.\n",
 
   /* nsICommandLine */
   length: 1,
@@ -681,7 +681,6 @@ var Module = {
     registerType("image/bmp");
     registerType("image/x-icon");
     registerType("image/vnd.microsoft.icon");
-    registerType("image/x-xbitmap");
     registerType("application/http-index-format");
 
     var catMan = Components.classes["@mozilla.org/categorymanager;1"]

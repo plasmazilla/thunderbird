@@ -38,4 +38,8 @@
 <!ENTITY eventType.label "Type d'événement">
 <!ENTITY eventTime.label "Heure">
 <!ENTITY eventNodeName.label "Nom du nœud">
+<!ENTITY isWatched.label "Est observé">
 <!ENTITY clearEventList.label "Effacer la liste des événements">
+<!ENTITY chooseEventsToWatch.label "Choisir les événements à observer">
+<!ENTITY selectAll.label "Tout sélectionner">
+<!ENTITY unselectAll.label "Tout désélectionner">

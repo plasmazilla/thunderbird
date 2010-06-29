@@ -82,7 +82,7 @@ _TEST_FILES	= \
     test_removeOwnersAPISessionOnly.html \
     test_storageConstructor.html \
     $(NULL)
-
+    
 _CHROME_FILES = \
     test_localStorageFromChrome.xhtml \
     $(NULL)

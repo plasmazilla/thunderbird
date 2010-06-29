@@ -52,11 +52,18 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // nsIAccessible
-  NS_IMETHOD GetRole(PRUint32 *aRole);
   NS_IMETHOD GetValue(nsAString& aValue);
+  NS_IMETHOD GetNumActions(PRUint8 *aCount);
+  NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
+  NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsIAccessibleValue
   NS_DECL_NSIACCESSIBLEVALUE
+
+  // nsAccessible
+  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRBool GetAllowsAnonChildAccessibles();
 
 protected:
   already_AddRefed<nsIContent> GetSliderNode();
@@ -77,8 +84,8 @@ class nsXULThumbAccessible : public nsAccessibleWrap
 public:
   nsXULThumbAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
 
-  // nsIAccessible
-  NS_IMETHOD GetRole(PRUint32 *aRole);
+  // nsAccessible
+  virtual nsresult GetRoleInternal(PRUint32 *aRole);
 };
 
 #endif

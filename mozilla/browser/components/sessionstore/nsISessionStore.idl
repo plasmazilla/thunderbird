@@ -20,6 +20,7 @@
  *
  * Contributor(s):
  *   Dietrich Ayala <dietrich@mozilla.com>
+ *   Michael Kraft <morac99-firefox@yahoo.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -58,7 +59,7 @@ interface nsIDOMNode;
  * |getBrowser().tabContainer| such as e.g. |getBrowser().selectedTab|.
  */
 
-[scriptable, uuid(91f6d650-898d-11dd-ad8b-0800200c9a66)]
+[scriptable, uuid(70592a0d-87d3-459c-8db7-dcb8d47af78e)]
 interface nsISessionStore : nsISupports
 {
   /**
@@ -139,6 +140,38 @@ interface nsISessionStore : nsISupports
   nsIDOMNode undoCloseTab(in nsIDOMWindow aWindow, in unsigned long aIndex);
 
   /**
+   * @param aWindow is the browser window associated with the closed tab.
+   * @param aIndex  is the index of the closed tab to be removed (FIFO ordered).
+   */
+  nsIDOMNode forgetClosedTab(in nsIDOMWindow aWindow, in unsigned long aIndex);
+
+  /**
+   * Get the number of restore-able windows
+   */
+  unsigned long getClosedWindowCount();
+
+  /**
+   * Get closed windows data
+   *
+   * @returns a JSON string representing the list of closed windows.
+   */
+  AString getClosedWindowData();
+
+  /**
+   * @param aIndex is the index of the windows to be restored (FIFO ordered).
+   * @returns the nsIDOMWindow object of the reopened window
+   */
+  nsIDOMWindow undoCloseWindow(in unsigned long aIndex);
+
+  /**
+   * @param aIndex  is the index of the closed window to be removed (FIFO ordered).
+   *
+   * @throws NS_ERROR_INVALID_ARG
+   *   when aIndex does not map to a closed window
+   */
+  nsIDOMNode forgetClosedWindow(in unsigned long aIndex);
+
+  /**
    * @param aWindow is the window to get the value for.
    * @param aKey    is the value's name.
    * 
@@ -184,26 +217,4 @@ interface nsISessionStore : nsISupports
    * @param aName is the name of the attribute to save/restore for all tabbrowser tabs.
    */
   void persistTabAttribute(in AString aName);
-};
-
-[scriptable, uuid(7f750b1a-35b7-11de-b025-b7deb5eac8bf)]
-interface nsISessionStore_MOZILLA_1_9_1 : nsISessionStore
-{
-  /**
-   * Get the number of restore-able windows
-   */
-  unsigned long getClosedWindowCount();
-
-  /**
-   * Get closed windows data
-   *
-   * @returns a JSON string representing the list of closed windows.
-   */
-  AString getClosedWindowData();
-
-  /**
-   * @param aIndex is the index of the windows to be restored (FIFO ordered).
-   * @returns the nsIDOMWindow object of the reopened window
-   */
-  nsIDOMWindow undoCloseWindow(in unsigned long aIndex);
 };

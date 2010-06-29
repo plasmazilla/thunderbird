@@ -48,6 +48,11 @@ include $(topsrcdir)/config/rules.mk
 
 _TEST_FILES = \
   test_404.html \
+  test_close.html \
+  close_worker.js \
+  test_closeOnGC.html \
+  closeOnGC_worker.js \
+  closeOnGC_server.sjs \
   test_errorPropagation.html \
   errorPropagation_worker1.js \
   errorPropagation_worker2.js \
@@ -61,6 +66,8 @@ _TEST_FILES = \
   importScripts_worker_imported4.js \
   test_json.html \
   json_worker.js \
+  test_location.html \
+  location_worker.js \
   test_longThread.html \
   longThread_worker.js \
   test_navigator.html \

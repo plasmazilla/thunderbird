@@ -22,6 +22,10 @@
   
     <command id="cmdToggleBrowser" oncommand="inspector.toggleBrowser(true)"/>
 
+    <command id="cmdFlashOnSelect"
+             viewer="dom accessibleTree"
+             oncommand="inspector.toggleFlashOnSelect();"/>
+
     <command id="cmdEditUndo" global="true" oncommand="inspector.doViewerCommand('cmdEditUndo');"/>
     <command id="cmdEditRedo" global="true" oncommand="inspector.doViewerCommand('cmdEditRedo');"/>
     <command id="cmdEditCut" global="true" oncommand="inspector.doViewerCommand('cmdEditCut');"/>

@@ -20,7 +20,7 @@
  *
  * Contributor(s):
  *   Andrew Sutherland <asutherland@asutherland.org>
- *   David Ascerh <dascher@mozillamessaging.com>
+ *   David Ascher <dascher@mozillamessaging.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -44,7 +44,7 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/gloda/log4moz.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
 
 const LOG = Log4Moz.repository.getLogger("gloda.connotent");
 
@@ -86,7 +86,7 @@ function mimeMsgToContentAndMeta(aMimeMsg, folder) {
 
 function mimeMsgToContentSnippetAndMeta(aMimeMsg, folder, length) {
   let [content, meta] = mimeMsgToContentAndMeta(aMimeMsg, folder);
-  
+
   let text = content.getContentSnippet(length + 1);
   if (length && text.length > length)
     text = text.substring(0, length-1) + "\u2026"; // ellipsis

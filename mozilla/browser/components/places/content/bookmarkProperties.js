@@ -219,6 +219,7 @@ var BookmarkPropertiesPanel = {
 
           if ("keyword" in dialogInfo) {
             this._keyword = dialogInfo.keyword;
+            this._isAddKeywordDialog = true;
             if ("postData" in dialogInfo)
               this._postData = dialogInfo.postData;
             if ("charSet" in dialogInfo)
@@ -282,7 +283,7 @@ var BookmarkPropertiesPanel = {
           break;
 
         case "folder":
-          if (PlacesUtils.livemarks.isLivemark(this._itemId)) {
+          if (PlacesUtils.itemIsLivemark(this._itemId)) {
             this._itemType = LIVEMARK_CONTAINER;
             this._feedURI = PlacesUtils.livemarks.getFeedURI(this._itemId);
             this._siteURI = PlacesUtils.livemarks.getSiteURI(this._itemId);
@@ -367,6 +368,10 @@ var BookmarkPropertiesPanel = {
       if (this._itemType == BOOKMARK_ITEM) {
         this._element("locationField")
             .addEventListener("input", this, false);
+        if (this._isAddKeywordDialog) {
+          this._element("keywordField")
+              .addEventListener("input", this, false);
+        }
       }
       else if (this._itemType == LIVEMARK_CONTAINER) {
         this._element("feedLocationField")
@@ -374,10 +379,6 @@ var BookmarkPropertiesPanel = {
         this._element("siteLocationField")
             .addEventListener("input", this, false);
       }
-
-      // Set on document to get the event before an autocomplete popup could
-      // be hidden on Enter.
-      document.addEventListener("keypress", this, true);
     }
 
     window.sizeToContent();
@@ -388,31 +389,11 @@ var BookmarkPropertiesPanel = {
   handleEvent: function BPP_handleEvent(aEvent) {
     var target = aEvent.target;
     switch (aEvent.type) {
-      case "keypress":
-        function canAcceptDialog(aElement) {
-          // on Enter we accept the dialog unless:
-          // - the folder tree is focused
-          // - an expander is focused
-          // - an autocomplete (eg. tags) popup is open
-          // - a menulist is open
-          // - a multiline textbox is focused
-          return aElement.localName != "tree" &&
-                 aElement.className != "expander-up" &&
-                 aElement.className != "expander-down" &&
-                 !aElement.popupOpen &&
-                 !aElement.open &&
-                 !(aElement.localName == "textbox" &&
-                   aElement.getAttribute("multiline") == "true");
-        }
-        if (aEvent.keyCode == KeyEvent.DOM_VK_RETURN &&
-            canAcceptDialog(target))
-          document.documentElement.acceptDialog();
-        break;
-
       case "input":
         if (target.id == "editBMPanel_locationField" ||
             target.id == "editBMPanel_feedLocationField" ||
-            target.id == "editBMPanel_siteLocationField") {
+            target.id == "editBMPanel_siteLocationField" ||
+            target.id == "editBMPanel_keywordField") {
           // Check uri fields to enable accept button if input is valid
           document.documentElement
                   .getButton("accept").disabled = !this._inputIsValid();
@@ -495,7 +476,6 @@ var BookmarkPropertiesPanel = {
     // currently registered EventListener on the EventTarget has no effect.
     this._element("tagsSelectorRow")
         .removeEventListener("DOMAttrModified", this, false);
-    document.removeEventListener("keypress", this, true);
     this._element("folderTreeRow")
         .removeEventListener("DOMAttrModified", this, false);
     this._element("locationField")
@@ -536,6 +516,8 @@ var BookmarkPropertiesPanel = {
   _inputIsValid: function BPP__inputIsValid() {
     if (this._itemType == BOOKMARK_ITEM &&
         !this._containsValidURI("locationField"))
+      return false;
+    if (this._isAddKeywordDialog && !this._element("keywordField").value.length)
       return false;
 
     // Feed Location has to be a valid URI;

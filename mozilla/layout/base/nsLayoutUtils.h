@@ -59,6 +59,9 @@ class nsIFontMetrics;
 #include "nsIView.h"
 #include "nsIFrame.h"
 #include "nsThreadUtils.h"
+#include "nsIPresShell.h"
+#include "nsIPrincipal.h"
+#include "gfxPattern.h"
 
 class nsBlockFrame;
 class nsTextFragment;
@@ -115,6 +118,14 @@ public:
   {
     return GetClosestFrameOfType(aFrame, nsGkAtoms::pageFrame);
   }
+
+  /**
+   * Given a frame which is the primary frame for an element,
+   * return the frame that has the non-psuedoelement style context for
+   * the content.
+   * This is aPrimaryFrame itself except for tableOuter frames.
+   */
+  static nsIFrame* GetStyleFrame(nsIFrame* aPrimaryFrame);
 
   /**
    * IsGeneratedContentFor returns PR_TRUE if aFrame is the outermost
@@ -248,9 +259,25 @@ public:
 
   /**
    * Like IsProperAncestorFrame, but looks across document boundaries.
+   *
+   * Just like IsAncestorFrameCrossDoc, except that it returns false when
+   * aFrame == aAncestorFrame.
    */
   static PRBool IsProperAncestorFrameCrossDoc(nsIFrame* aAncestorFrame, nsIFrame* aFrame,
                                               nsIFrame* aCommonAncestor = nsnull);
+
+  /**
+   * IsAncestorFrameCrossDoc checks whether aAncestorFrame is an ancestor
+   * of aFrame or equal to aFrame, looking across document boundaries.
+   * @param aCommonAncestor nsnull, or a common ancestor of aFrame and
+   * aAncestorFrame. If non-null, this can bound the search and speed up
+   * the function.
+   *
+   * Just like IsProperAncestorFrameCrossDoc, except that it returns true when
+   * aFrame == aAncestorFrame.
+   */
+  static PRBool IsAncestorFrameCrossDoc(nsIFrame* aAncestorFrame, nsIFrame* aFrame,
+                                        nsIFrame* aCommonAncestor = nsnull);
 
   /**
     * GetFrameFor returns the root frame for a view
@@ -327,12 +354,6 @@ public:
   // Combine aNewBreakType with aOrigBreakType, but limit the break types
   // to NS_STYLE_CLEAR_LEFT, RIGHT, LEFT_AND_RIGHT.
   static PRUint8 CombineBreakType(PRUint8 aOrigBreakType, PRUint8 aNewBreakType);
-
-  /**
-   * @return PR_TRUE if aFrame is the CSS initial containing block for
-   * its pres-shell
-   */
-  static PRBool IsInitialContainingBlock(nsIFrame* aFrame);
 
   /**
    * Get the coordinates of a given DOM mouse event, relative to a given
@@ -463,6 +484,7 @@ public:
   static nsRect RoundGfxRectToAppRect(const gfxRect &aRect, float aFactor);
 
 
+  enum { PAINT_IN_TRANSFORM = 0x01 };
   /**
    * Given aFrame, the root frame of a stacking context, paint it and its
    * descendants to aRenderingContext. 
@@ -471,29 +493,33 @@ public:
    * to pixel-aligned coordinates
    * @param aDirtyRegion the region that must be painted, in the coordinates
    * of aFrame
-   * @param aBackground paint the dirty area with this color before drawing
+   * @param aBackstop paint the dirty area with this color before drawing
    * the actual content; pass NS_RGBA(0,0,0,0) to draw no background
+   * @param aFlags if PAINT_IN_TRANSFORM is set, then we assume
+   * this is inside a transform or SVG foreignObject.
    */
   static nsresult PaintFrame(nsIRenderingContext* aRenderingContext, nsIFrame* aFrame,
-                             const nsRegion& aDirtyRegion, nscolor aBackground);
+                             const nsRegion& aDirtyRegion, nscolor aBackstop,
+                             PRUint32 aFlags = 0);
 
   /**
    * @param aRootFrame the root frame of the tree to be displayed
    * @param aMovingFrame a frame that has moved
-   * @param aPt the amount by which aMovingFrame has moved and the rect will
-   * be copied
-   * @param aCopyRect a rectangle that will be copied, relative to aRootFrame
-   * @param aRepaintRegion a subregion of aCopyRect+aDelta that must be repainted
-   * after doing the bitblt
+   * @param aPt the amount by which aMovingFrame has moved
+   * @param aUpdateRect a rectangle that bounds the area to be updated,
+   * relative to aRootFrame
+   * @param aRepaintRegion output: a subregion of aUpdateRect that must be
+   * repainted after doing the blit
+   * @param aBlitRegion output: a subregion of aUpdateRect that should
+   * be repainted by blitting
    * 
-   * Ideally this function would actually have the rect-to-copy as an output
-   * rather than an input, but for now, scroll bitblitting is limited to
-   * the whole of a single widget, so we cannot choose the rect.
+   * If the caller does a bitblt copy of aBlitRegion-aPt to aBlitRegion,
+   * and then repaints aRepaintRegion, then the area aUpdateRect will be
+   * correctly up to date. aBlitRegion and aRepaintRegion do not intersect
+   * and are both contained within aUpdateRect.
    * 
-   * This function assumes that the caller will do a bitblt copy of aCopyRect
-   * to aCopyRect+aPt. It computes a region that must be repainted in order
-   * for the resulting rendering to be correct. Frame geometry must have
-   * already been adjusted for the scroll/copy operation.
+   * Frame geometry must have already been adjusted for the scroll/copy
+   * operation before this function is called.
    * 
    * Conceptually it works by computing a display list in the before-state
    * and a display list in the after-state and analyzing them to find the
@@ -502,25 +528,31 @@ public:
    * efficient), so we use some unfortunately tricky techniques to get by
    * with just the after-list.
    * 
-   * The output region consists of:
+   * We compute the "visible moving area", a region that contains all
+   * moving content that is visible, either before or after scrolling,
+   * intersected with aUpdateRect.
+   *
+   * The aRepaintRegion region consists of the visible moving area
+   * intersected with the union of the following areas:
    * a) any visible background-attachment:fixed areas in the after-move display
    * list
    * b) any visible areas of the before-move display list corresponding to
    * frames that will not move (translated by aDelta)
    * c) any visible areas of the after-move display list corresponding to
    * frames that did not move
-   * d) except that if the same display list element is visible in b) and c)
-   * for a frame that did not move and paints a uniform color within its
-   * bounds, then the intersection of its old and new bounds can be excluded
-   * when it is processed by b) and c).
    * 
-   * We may return a larger region if computing the above region precisely is
-   * too expensive.
+   * aBlitRegion is the visible moving area minus aRepaintRegion.
+   * 
+   * We may return a larger region for aRepaintRegion and/or aBlitRegion
+   * if computing the above regions precisely is too expensive.  (However,
+   * they will never intersect, since the regions that may be computed
+   * imprecisely are really the "visible moving area" and aRepaintRegion.)
    */
   static nsresult ComputeRepaintRegionForCopy(nsIFrame* aRootFrame,
                                               nsIFrame* aMovingFrame,
                                               nsPoint aDelta,
-                                              const nsRect& aCopyRect,
+                                              const nsRect& aUpdateRect,
+                                              nsRegion* aBlitRegion,
                                               nsRegion* aRepaintRegion);
 
   /**
@@ -783,6 +815,28 @@ public:
   static PRBool GetFirstLineBaseline(const nsIFrame* aFrame, nscoord* aResult);
 
   /**
+   * Just like GetFirstLineBaseline, except also returns the top and
+   * bottom of the line with the baseline.
+   *
+   * Returns true if a line was found (and fills in aResult).
+   * Otherwise returns false.
+   */
+  struct LinePosition {
+    nscoord mTop, mBaseline, mBottom;
+
+    LinePosition operator+(nscoord aOffset) const {
+      LinePosition result;
+      result.mTop = mTop + aOffset;
+      result.mBaseline = mBaseline + aOffset;
+      result.mBottom = mBottom + aOffset;
+      return result;
+    }
+  };
+  static PRBool GetFirstLinePosition(const nsIFrame* aFrame,
+                                     LinePosition* aResult);
+
+
+  /**
    * Derive a baseline of |aFrame| (measured from its top border edge)
    * from its last in-flow line box (not descending into anything with
    * 'overflow' not 'visible', potentially including aFrame itself).
@@ -812,6 +866,11 @@ public:
    */
   static nsIFrame* GetClosestLayer(nsIFrame* aFrame);
 
+  /**
+   * Gets the graphics filter for the frame
+   */
+  static gfxPattern::GraphicsFilter GetGraphicsFilterForFrame(nsIFrame* aFrame);
+
   /* N.B. The only difference between variants of the Draw*Image
    * functions below is the type of the aImage argument.
    */
@@ -832,13 +891,7 @@ public:
    */
   static nsresult DrawImage(nsIRenderingContext* aRenderingContext,
                             imgIContainer*       aImage,
-                            const nsRect&        aDest,
-                            const nsRect&        aFill,
-                            const nsPoint&       aAnchor,
-                            const nsRect&        aDirty);
-
-  static nsresult DrawImage(nsIRenderingContext* aRenderingContext,
-                            nsIImage*            aImage,
+                            gfxPattern::GraphicsFilter aGraphicsFilter,
                             const nsRect&        aDest,
                             const nsRect&        aFill,
                             const nsPoint&       aAnchor,
@@ -880,12 +933,7 @@ public:
    */
   static nsresult DrawSingleImage(nsIRenderingContext* aRenderingContext,
                                   imgIContainer*       aImage,
-                                  const nsRect&        aDest,
-                                  const nsRect&        aDirty,
-                                  const nsRect*        aSourceArea = nsnull);
-
-  static nsresult DrawSingleImage(nsIRenderingContext* aRenderingContext,
-                                  nsIImage*            aImage,
+                                  gfxPattern::GraphicsFilter aGraphicsFilter,
                                   const nsRect&        aDest,
                                   const nsRect&        aDirty,
                                   const nsRect*        aSourceArea = nsnull);
@@ -980,6 +1028,65 @@ public:
    * @param aFrame The nsIFrame object, which uses text fragment data.
    */
   static nsTextFragment* GetTextFragmentForPrinting(const nsIFrame* aFrame);
+
+  /**
+   * Return whether aFrame is an inline frame in the first part of an {ib}
+   * split.
+   */
+  static PRBool FrameIsInFirstPartOfIBSplit(const nsIFrame* aFrame) {
+    return (aFrame->GetStateBits() & NS_FRAME_IS_SPECIAL) &&
+      !aFrame->GetFirstContinuation()->
+        GetProperty(nsGkAtoms::IBSplitSpecialPrevSibling);
+  }
+
+  /**
+   * Return whether aFrame is an inline frame in the last part of an {ib}
+   * split.
+   */
+  static PRBool FrameIsInLastPartOfIBSplit(const nsIFrame* aFrame) {
+    return (aFrame->GetStateBits() & NS_FRAME_IS_SPECIAL) &&
+      !aFrame->GetFirstContinuation()->
+        GetProperty(nsGkAtoms::IBSplitSpecialSibling);
+  }
+
+  /**
+   * Obtain a gfxASurface from the given DOM element, if possible.
+   * This obtains the most natural surface from the element; that
+   * is, the one that can be obtained with the fewest conversions.
+   *
+   * The flags below can modify the behaviour of this function.  The
+   * result is returned as a SurfaceFromElementResult struct, also
+   * defined below.
+   *
+   * Currently, this will do:
+   *  - HTML Canvas elements: will return the underlying canvas surface
+   *  - HTML Video elements: will return the current video frame
+   *  - Image elements: will return the image
+   *
+   * The above results are modified by the below flags (copying,
+   * forcing image surface, etc.).
+   */
+
+  enum {
+    /* Always create a new surface for the result */
+    SFE_WANT_NEW_SURFACE   = 1 << 0,
+    /* When creating a new surface, create an image surface */
+    SFE_WANT_IMAGE_SURFACE = 1 << 1
+  };
+
+  struct SurfaceFromElementResult {
+    /* mSurface will contain the resulting surface, or will be NULL on error */
+    nsRefPtr<gfxASurface> mSurface;
+    /* The size of the surface */
+    gfxIntSize mSize;
+    /* The principal associated with the element whose surface was returned */
+    nsCOMPtr<nsIPrincipal> mPrincipal;
+    /* Whether the element was "write only", that is, the bits should not be exposed to content */
+    PRBool mIsWriteOnly;
+  };
+
+  static SurfaceFromElementResult SurfaceFromElement(nsIDOMElement *aElement,
+                                                     PRUint32 aSurfaceFlags = 0);
 };
 
 class nsAutoDisableGetUsedXAssertions
@@ -1021,6 +1128,20 @@ public:
 
   nsCOMPtr<nsIContent> mContent;
   nsCOMPtr<nsIAtom> mAttrName;
+};
+
+class nsReflowFrameRunnable : public nsRunnable
+{
+public:
+  nsReflowFrameRunnable(nsIFrame* aFrame,
+                        nsIPresShell::IntrinsicDirty aIntrinsicDirty,
+                        nsFrameState aBitToAdd);
+
+  NS_DECL_NSIRUNNABLE
+
+  nsWeakFrame mWeakFrame;
+  nsIPresShell::IntrinsicDirty mIntrinsicDirty;
+  nsFrameState mBitToAdd;
 };
 
 #endif // nsLayoutUtils_h__

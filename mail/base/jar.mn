@@ -9,6 +9,7 @@ messenger.jar:
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/addressbook/addressbook.css
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/messengercompose/messengercompose.css
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/smime/msgCompSMIMEOverlay.css
+% style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/messageHeader.css
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/primaryToolbar.css
     content/messenger/mailWindow.js                 (content/mailWindow.js)
     content/messenger/messageDisplay.js             (content/messageDisplay.js)
@@ -52,8 +53,19 @@ messenger.jar:
 *   content/messenger/aboutDialog.js                (content/aboutDialog.js)
 *   content/messenger/aboutRights.xhtml             (content/aboutRights.xhtml)
     content/messenger/featureConfigurator.xhtml     (content/featureConfigurator.xhtml)
-*   content/messenger/featureConfigurator.js        (content/featureConfigurator.js)
+    content/messenger/featureConfigurator.js        (content/featureConfigurator.js)
     content/messenger/featureConfigurator.css       (content/featureConfigurator.css)
+    content/messenger/featureConfigurators/subpage.css              (content/featureConfigurators/subpage.css)
+    content/messenger/featureConfigurators/autosync.js              (content/featureConfigurators/autosync.js)
+    content/messenger/featureConfigurators/autosync.xhtml           (content/featureConfigurators/autosync.xhtml)
+    content/messenger/featureConfigurators/extensions.js            (content/featureConfigurators/extensions.js)
+    content/messenger/featureConfigurators/compactheader.js         (content/featureConfigurators/compactheader.js)
+    content/messenger/featureConfigurators/compactheader.xhtml      (content/featureConfigurators/compactheader.xhtml)
+    content/messenger/featureConfigurators/folderpanecolumns.js     (content/featureConfigurators/folderpanecolumns.js)
+    content/messenger/featureConfigurators/folderpanecolumns.xhtml  (content/featureConfigurators/folderpanecolumns.xhtml)
+    content/messenger/featureConfigurators/introduction.xhtml       (content/featureConfigurators/introduction.xhtml)
+    content/messenger/featureConfigurators/toolbar.js               (content/featureConfigurators/toolbar.js)
+    content/messenger/featureConfigurators/toolbar.xhtml            (content/featureConfigurators/toolbar.xhtml)
 *   content/messenger/systemIntegrationDialog.xul   (content/systemIntegrationDialog.xul)
 *   content/messenger/systemIntegrationDialog.js    (content/systemIntegrationDialog.js)
     content/messenger/folderPane.js                 (content/folderPane.js)
@@ -77,6 +89,7 @@ messenger.jar:
 *   content/messenger/configEditorOverlay.xul       (content/configEditorOverlay.xul)
     content/messenger/composerOverlay.css           (content/composerOverlay.css)
     content/messenger/threadPane.js                 (content/threadPane.js)
+    content/messenger/threadPaneColumnPicker.xml    (content/threadPaneColumnPicker.xml)
     content/messenger/protovis-r2.6-modded.js       (content/protovis-r2.6-modded.js)
 #ifdef XP_MACOSX
     content/messenger/macMenuOverlay.xul            (content/macMenuOverlay.xul)
@@ -94,6 +107,10 @@ messenger.jar:
     content/messenger/glodaFacetBindings.css        (content/glodaFacetBindings.css)
     content/messenger/glodaFacetBindings.xml        (content/glodaFacetBindings.xml)
     content/messenger/glodaFacetVis.js              (content/glodaFacetVis.js)
+    content/messenger/quickFilterBar.xul            (content/quickFilterBar.xul)
+    content/messenger/quickFilterBar.js             (content/quickFilterBar.js)
+    content/messenger/quickFilterBar.css            (content/quickFilterBar.css)
+    content/messenger/downloadsOverlay.xul          (content/downloadsOverlay.xul)
 # the following files are mail-specific overrides
 *+  content/messenger/license.html                  (/mozilla/toolkit/content/license.html)
 % override chrome://global/content/license.html chrome://messenger/content/license.html
@@ -106,3 +123,4 @@ comm.jar:
 
 toolkit.jar:
 % overlay chrome://global/content/customizeToolbar.xul chrome://messenger/content/customizeToolbarOverlay.xul
+% overlay chrome://mozapps/content/downloads/downloads.xul chrome://messenger/content/downloadsOverlay.xul

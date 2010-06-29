@@ -71,12 +71,9 @@ WIN_LIBS=                                       \
 #include "nsString.h"
 #include "nsIServiceManager.h"
 #include "nsReadableUtils.h"
-#include "nsIWidget.h"
 #include "nsIPrintSettings.h"
 #include "nsIPrintSettingsWin.h"
 #include "nsIPrintOptions.h"
-#include "nsWidgetsCID.h"
-static NS_DEFINE_IID(kPrinterEnumeratorCID, NS_PRINTER_ENUMERATOR_CID);
 
 #include "nsRect.h"
 
@@ -513,7 +510,7 @@ static HWND CreateControl(LPCTSTR          aType,
                           HWND             aHdlg, 
                           int              aId, 
                           const nsAString& aStr, 
-                          const nsRect&    aRect)
+                          const nsIntRect& aRect)
 {
   nsCAutoString str;
   if (NS_FAILED(NS_CopyUnicodeToNative(aStr, str)))
@@ -541,7 +538,7 @@ static HWND CreateRadioBtn(HINSTANCE        aHInst,
                            HWND             aHdlg, 
                            int              aId, 
                            const char*      aStr, 
-                           const nsRect&    aRect)
+                           const nsIntRect& aRect)
 {
   nsString cStr;
   cStr.AssignWithConversion(aStr);
@@ -554,7 +551,7 @@ static HWND CreateGroupBox(HINSTANCE        aHInst,
                            HWND             aHdlg, 
                            int              aId, 
                            const nsAString& aStr, 
-                           const nsRect&    aRect)
+                           const nsIntRect& aRect)
 {
   return CreateControl("BUTTON", BS_GROUPBOX, aHInst, aHdlg, aId, aStr, aRect);
 }
@@ -619,7 +616,7 @@ static UINT CALLBACK PrintHookProc(HWND hdlg, UINT uiMsg, WPARAM wParam, LPARAM 
 
     PRInt16 howToEnableFrameUI = (PRInt16)printDlg->lCustData;
 
-    HINSTANCE hInst = (HINSTANCE)::GetWindowLong(hdlg, GWL_HINSTANCE);
+    HINSTANCE hInst = (HINSTANCE)::GetWindowLongPtr(hdlg, GWLP_HINSTANCE);
     if (hInst == NULL) return 0L;
 
     // Start by getting the local rects of several of the controls
@@ -665,7 +662,7 @@ static UINT CALLBACK PrintHookProc(HWND hdlg, UINT uiMsg, WPARAM wParam, LPARAM 
     int y         = top+(rad1Rect.top-dlgRect.top);     // starting pos of first radio
     int rbWidth   = dlgRect.right - rad1Rect.left - 5;  // measure from rb left to the edge of the groupbox
                                                         // (5 is arbitrary)
-    nsRect rect;
+    nsIntRect rect;
 
     // Create and position the radio buttons
     //
@@ -705,7 +702,7 @@ static UINT CALLBACK PrintHookProc(HWND hdlg, UINT uiMsg, WPARAM wParam, LPARAM 
     }
 
     // Here we figure out the old height of the dlg
-    // then figure it's gap from the old grpbx to the bottom
+    // then figure its gap from the old grpbx to the bottom
     // then size the dlg
     RECT pr, cr; 
     ::GetWindowRect(hdlg, &pr);
@@ -831,9 +828,8 @@ static HGLOBAL CreateGlobalDevModeAndInit(LPCWSTR aPrintName, nsIPrintSettings* 
 // helper
 static PRUnichar * GetDefaultPrinterNameFromGlobalPrinters()
 {
-  nsresult rv;
   PRUnichar * printerName = nsnull;
-  nsCOMPtr<nsIPrinterEnumerator> prtEnum = do_GetService(kPrinterEnumeratorCID, &rv);
+  nsCOMPtr<nsIPrinterEnumerator> prtEnum = do_GetService("@mozilla.org/gfx/printerenumerator;1");
   if (prtEnum) {
     prtEnum->GetDefaultPrinterName(&printerName);
   }
@@ -1120,7 +1116,7 @@ static BOOL APIENTRY PropSheetCallBack(HWND hdlg, UINT uiMsg, UINT wParam, LONG 
     PRInt16 howToEnableFrameUI = gFrameSelectedRadioBtn;
     gFrameSelectedRadioBtn     = 0;
 
-    HINSTANCE hInst = (HINSTANCE)::GetWindowLong(hdlg, GWL_HINSTANCE);
+    HINSTANCE hInst = (HINSTANCE)::GetWindowLongPtr(hdlg, GWLP_HINSTANCE);
     if (hInst == NULL) return 0L;
 
     // Get default font for the dialog & then its font metrics
@@ -1202,7 +1198,7 @@ static BOOL APIENTRY PropSheetCallBack(HWND hdlg, UINT uiMsg, UINT wParam, LONG 
 static HPROPSHEETPAGE ExtendPrintDialog(HWND aHWnd, char* aTitle)
 {
   // The resource "OPTPROPSHEET" comes out of the widget/build/widget.rc file
-  HINSTANCE hInst = (HINSTANCE)::GetWindowLong(aHWnd, GWL_HINSTANCE);
+  HINSTANCE hInst = (HINSTANCE)::GetWindowLongPtr(aHWnd, GWLP_HINSTANCE);
   PROPSHEETPAGE psp;
   memset(&psp, 0, sizeof(PROPSHEETPAGE));
   psp.dwSize      = sizeof(PROPSHEETPAGE);

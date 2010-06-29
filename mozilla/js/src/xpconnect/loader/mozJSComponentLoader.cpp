@@ -83,7 +83,7 @@
 #include "prmem.h"
 #include "plbase64.h"
 
-#if defined(MOZ_SHARK) || defined(MOZ_CALLGRIND) || defined(MOZ_VTUNE)
+#if defined(MOZ_SHARK) || defined(MOZ_CALLGRIND) || defined(MOZ_VTUNE) || defined(MOZ_TRACEVIS)
 #include "jsdbgapi.h"
 #endif
 
@@ -291,6 +291,10 @@ static JSFunctionSpec gGlobalFun[] = {
     {"stopVtune",       js_StopVtune,      0,0,0},
     {"pauseVtune",      js_PauseVtune,     0,0,0},
     {"resumeVtune",     js_ResumeVtune,    0,0,0},
+#endif
+#ifdef MOZ_TRACEVIS
+    {"initEthogram",     js_InitEthogram,      0,0,0},
+    {"shutdownEthogram", js_ShutdownEthogram,  0,0,0},
 #endif
     {nsnull,nsnull,0,0,0}
 };
@@ -777,7 +781,8 @@ mozJSComponentLoader::LoadModule(nsILocalFile* aComponentFile,
 #endif
 
     JSObject *jsModuleObj;
-    if (!JS_ValueToObject(cx, retval, &jsModuleObj)) {
+    if (!JS_ValueToObject(cx, retval, &jsModuleObj) ||
+        !jsModuleObj) {
         /* XXX report error properly */
         return NS_ERROR_FAILURE;
     }
@@ -950,23 +955,6 @@ mozJSComponentLoader::StartFastLoad(nsIFastLoadService *flSvc)
 
                 nsCOMPtr<nsIFastLoadReadControl>
                     readControl(do_QueryInterface(mFastLoadInput));
-                if (readControl) {
-                    // Verify checksum, using the FastLoadService's
-                    // checksum cache to avoid computing more than once
-                    // per session.
-                    PRUint32 checksum;
-                    rv = readControl->GetChecksum(&checksum);
-                    if (NS_SUCCEEDED(rv)) {
-                        PRUint32 verified;
-                        rv = flSvc->ComputeChecksum(mFastLoadFile,
-                                                    readControl, &verified);
-                        if (NS_SUCCEEDED(rv) && verified != checksum) {
-                            LOG(("Incorrect checksum detected"));
-                            rv = NS_ERROR_FAILURE;
-                        }
-                    }
-                }
-
                 if (NS_SUCCEEDED(rv)) {
                     /* Get the JS bytecode version number and validate it. */
                     PRUint32 version;
@@ -1036,6 +1024,8 @@ mozJSComponentLoader::StartFastLoad(nsIFastLoadService *flSvc)
                                                   kFastLoadWriteDelay,
                                                   nsITimer::TYPE_ONE_SHOT);
     } else {
+        // Note, that since CloseFastLoad nulls out mFastLoadTimer,
+        // SetDelay() will only be called on a timer that hasn't fired.
         rv = mFastLoadTimer->SetDelay(kFastLoadWriteDelay);
     }
 
@@ -1179,7 +1169,7 @@ mozJSComponentLoader::GlobalForLocation(nsILocalFile *aComponent,
 #ifdef XPCONNECT_STANDALONE
     localFile->GetNativePath(nativePath);
 #else
-    NS_GetURLSpecFromFile(aComponent, nativePath);
+    NS_GetURLSpecFromActualFile(aComponent, nativePath);
 #endif
 
     // Before compiling the script, first check to see if we have it in

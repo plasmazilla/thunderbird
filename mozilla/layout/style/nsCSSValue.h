@@ -49,6 +49,7 @@
 #include "nsAutoPtr.h"
 #include "nsCRTGlue.h"
 #include "nsStringBuffer.h"
+#include "nsTArray.h"
 
 class imgIRequest;
 class nsIDocument;
@@ -97,10 +98,13 @@ enum nsCSSUnit {
                                   //       only in temporary values
   eCSSUnit_DummyInherit = 8,      // (n/a) a fake but specified value, used
                                   //       only in temporary values
+  eCSSUnit_RectIsAuto   = 9,      // (n/a) 'auto' for an entire rect()
   eCSSUnit_String       = 10,     // (PRUnichar*) a string value
-  eCSSUnit_Attr         = 11,     // (PRUnichar*) a attr(string) value
-  eCSSUnit_Local_Font   = 12,     // (PRUnichar*) a local font name
-  eCSSUnit_Font_Format  = 13,     // (PRUnichar*) a font format name
+  eCSSUnit_Ident        = 11,     // (PRUnichar*) a string value
+  eCSSUnit_Families     = 12,     // (PRUnichar*) a string value
+  eCSSUnit_Attr         = 13,     // (PRUnichar*) a attr(string) value
+  eCSSUnit_Local_Font   = 14,     // (PRUnichar*) a local font name
+  eCSSUnit_Font_Format  = 15,     // (PRUnichar*) a font format name
   eCSSUnit_Array        = 20,     // (nsCSSValue::Array*) a list of values
   eCSSUnit_Counter      = 21,     // (nsCSSValue::Array*) a counter(string,[string]) value
   eCSSUnit_Counters     = 22,     // (nsCSSValue::Array*) a counters(string,string[,string]) value
@@ -109,6 +113,7 @@ enum nsCSSUnit {
 
   eCSSUnit_URL          = 30,     // (nsCSSValue::URL*) value
   eCSSUnit_Image        = 31,     // (nsCSSValue::Image*) value
+  eCSSUnit_Gradient     = 32,     // (nsCSSValueGradient*) value
   eCSSUnit_Integer      = 50,     // (int) simple value
   eCSSUnit_Enumerated   = 51,     // (int) value has enumerated meaning
   eCSSUnit_EnumColor    = 80,     // (int) enumerated color (kColorKTable)
@@ -119,28 +124,21 @@ enum nsCSSUnit {
   // Length units - fixed
   // US English
   eCSSUnit_Inch         = 100,    // (float) 0.0254 meters
-  eCSSUnit_Foot         = 101,    // (float) 12 inches
-  eCSSUnit_Mile         = 102,    // (float) 5280 feet
 
   // Metric
   eCSSUnit_Millimeter   = 207,    // (float) 1/1000 meter
   eCSSUnit_Centimeter   = 208,    // (float) 1/100 meter
-  eCSSUnit_Meter        = 210,    // (float) Standard length
-  eCSSUnit_Kilometer    = 213,    // (float) 1000 meters
 
   // US Typographic
   eCSSUnit_Point        = 300,    // (float) 1/72 inch
   eCSSUnit_Pica         = 301,    // (float) 12 points == 1/6 inch
-
-  // European Typographic
-  eCSSUnit_Didot        = 400,    // (float) 15 didots == 16 points
-  eCSSUnit_Cicero       = 401,    // (float) 12 didots
 
   // Length units - relative
   // Font relative measure
   eCSSUnit_EM           = 800,    // (float) == current font size
   eCSSUnit_XHeight      = 801,    // (float) distance from top of lower case x to baseline
   eCSSUnit_Char         = 802,    // (float) number of characters, used for width with monospace font
+  eCSSUnit_RootEM       = 803,    // (float) == root element font size
 
   // Screen relative measure
   eCSSUnit_Pixel        = 900,    // (float) CSS pixel unit
@@ -159,6 +157,8 @@ enum nsCSSUnit {
   eCSSUnit_Milliseconds = 3001     // (float) 1/1000 second
 };
 
+struct nsCSSValueGradient;
+
 class nsCSSValue {
 public:
   struct Array;
@@ -174,7 +174,7 @@ public:
   explicit nsCSSValue(nsCSSUnit aUnit = eCSSUnit_Null)
     : mUnit(aUnit)
   {
-    NS_ASSERTION(aUnit <= eCSSUnit_DummyInherit, "not a valueless unit");
+    NS_ASSERTION(aUnit <= eCSSUnit_RectIsAuto, "not a valueless unit");
   }
 
   nsCSSValue(PRInt32 aValue, nsCSSUnit aUnit) NS_HIDDEN;
@@ -184,6 +184,7 @@ public:
   nsCSSValue(Array* aArray, nsCSSUnit aUnit) NS_HIDDEN;
   explicit nsCSSValue(URL* aValue) NS_HIDDEN;
   explicit nsCSSValue(Image* aValue) NS_HIDDEN;
+  explicit nsCSSValue(nsCSSValueGradient* aValue) NS_HIDDEN;
   nsCSSValue(const nsCSSValue& aCopy) NS_HIDDEN;
   ~nsCSSValue() { Reset(); }
 
@@ -199,7 +200,7 @@ public:
   PRBool    IsLengthUnit() const
     { return eCSSUnit_Inch <= mUnit && mUnit <= eCSSUnit_Pixel; }
   PRBool    IsFixedLengthUnit() const  
-    { return eCSSUnit_Inch <= mUnit && mUnit <= eCSSUnit_Cicero; }
+    { return eCSSUnit_Inch <= mUnit && mUnit <= eCSSUnit_Pica; }
   PRBool    IsRelativeLengthUnit() const  
     { return eCSSUnit_EM <= mUnit && mUnit <= eCSSUnit_Pixel; }
   PRBool    IsAngularUnit() const  
@@ -231,6 +232,16 @@ public:
     NS_ASSERTION(eCSSUnit_Number <= mUnit, "not a float value");
     return mValue.mFloat;
   }
+
+  float GetAngleValue() const
+  {
+    NS_ASSERTION(eCSSUnit_Degree <= mUnit &&
+                 mUnit <= eCSSUnit_Radian, "not an angle value");
+    return mValue.mFloat;
+  }
+
+  // Converts any angle to radians.
+  double GetAngleValueInRadians() const;
 
   nsAString& GetStringValue(nsAString& aBuffer) const
   {
@@ -268,6 +279,12 @@ public:
                  "not a URL value");
     return mUnit == eCSSUnit_URL ?
       mValue.mURL->mURI : mValue.mImage->mURI;
+  }
+
+  nsCSSValueGradient* GetGradientValue() const
+  {
+    NS_ASSERTION(mUnit == eCSSUnit_Gradient, "not a gradient value");
+    return mValue.mGradient;
   }
 
   URL* GetURLStructValue() const
@@ -311,6 +328,7 @@ public:
   NS_HIDDEN_(void)  SetArrayValue(nsCSSValue::Array* aArray, nsCSSUnit aUnit);
   NS_HIDDEN_(void)  SetURLValue(nsCSSValue::URL* aURI);
   NS_HIDDEN_(void)  SetImageValue(nsCSSValue::Image* aImage);
+  NS_HIDDEN_(void)  SetGradientValue(nsCSSValueGradient* aGradient);
   NS_HIDDEN_(void)  SetAutoValue();
   NS_HIDDEN_(void)  SetInheritValue();
   NS_HIDDEN_(void)  SetInitialValue();
@@ -319,6 +337,7 @@ public:
   NS_HIDDEN_(void)  SetSystemFontValue();
   NS_HIDDEN_(void)  SetDummyValue();
   NS_HIDDEN_(void)  SetDummyInheritValue();
+  NS_HIDDEN_(void)  SetRectIsAutoValue();
   NS_HIDDEN_(void)  StartImageLoad(nsIDocument* aDocument)
                                    const;  // Not really const, but pretending
 
@@ -352,10 +371,30 @@ public:
     nsCOMPtr<nsIURI> mReferrer;
     nsCOMPtr<nsIPrincipal> mOriginPrincipal;
 
-    void AddRef() { ++mRefCnt; }
-    void Release() { if (--mRefCnt == 0) delete this; }
+    void AddRef() {
+      if (mRefCnt == PR_UINT32_MAX) {
+        NS_WARNING("refcount overflow, leaking nsCSSValue::URL");
+        return;
+      }
+      ++mRefCnt;
+      NS_LOG_ADDREF(this, mRefCnt, "nsCSSValue::URL", sizeof(*this));
+    }
+    void Release() {
+      if (mRefCnt == PR_UINT32_MAX) {
+        NS_WARNING("refcount overflow, leaking nsCSSValue::URL");
+        return;
+      }
+      --mRefCnt;
+      NS_LOG_RELEASE(this, mRefCnt, "nsCSSValue::URL");
+      if (mRefCnt == 0)
+        delete this;
+    }
   protected:
     nsrefcnt mRefCnt;
+
+    // not to be implemented
+    URL(const URL& aOther);
+    URL& operator=(const URL& aOther);
   };
 
   struct Image : public URL {
@@ -371,9 +410,27 @@ public:
 
     nsCOMPtr<imgIRequest> mRequest; // null == image load blocked or somehow failed
 
-    // Override AddRef/Release so we delete ourselves via the right pointer.
-    void AddRef() { ++mRefCnt; }
-    void Release() { if (--mRefCnt == 0) delete this; }
+    // Override AddRef and Release to not only log ourselves correctly, but
+    // also so that we delete correctly without a virtual destructor
+    void AddRef() {
+      if (mRefCnt == PR_UINT32_MAX) {
+        NS_WARNING("refcount overflow, leaking nsCSSValue::Image");
+        return;
+      }
+      ++mRefCnt;
+      NS_LOG_ADDREF(this, mRefCnt, "nsCSSValue::Image", sizeof(*this));
+    }
+
+    void Release() {
+      if (mRefCnt == PR_UINT32_MAX) {
+        NS_WARNING("refcount overflow, leaking nsCSSValue::Image");
+        return;
+      }
+      --mRefCnt;
+      NS_LOG_RELEASE(this, mRefCnt, "nsCSSValue::Image");
+      if (mRefCnt == 0)
+        delete this;
+    }
   };
 
 private:
@@ -393,7 +450,102 @@ protected:
     Array*     mArray;
     URL*       mURL;
     Image*     mImage;
+    nsCSSValueGradient* mGradient;
   }         mValue;
+};
+
+struct nsCSSValueGradientStop {
+public:
+  nsCSSValueGradientStop() NS_HIDDEN;
+  // needed to keep bloat logs happy when we use the nsTArray in nsCSSValueGradient
+  nsCSSValueGradientStop(const nsCSSValueGradientStop& aOther) NS_HIDDEN;
+  ~nsCSSValueGradientStop() NS_HIDDEN;
+
+  nsCSSValue mLocation;
+  nsCSSValue mColor;
+
+  PRBool operator==(const nsCSSValueGradientStop& aOther) const
+  {
+    return (mLocation == aOther.mLocation &&
+            mColor == aOther.mColor);
+  }
+
+  PRBool operator!=(const nsCSSValueGradientStop& aOther) const
+  {
+    return !(*this == aOther);
+  }
+};
+
+struct nsCSSValueGradient {
+  nsCSSValueGradient(PRBool aIsRadial,
+                     PRBool aIsRepeating) NS_HIDDEN;
+
+  // true if gradient is radial, false if it is linear
+  PRPackedBool mIsRadial;
+  PRPackedBool mIsRepeating;
+  // line position and angle
+  nsCSSValue mBgPosX;
+  nsCSSValue mBgPosY;
+  nsCSSValue mAngle;
+
+  // Only meaningful if mIsRadial is true
+  nsCSSValue mRadialShape;
+  nsCSSValue mRadialSize;
+
+  nsTArray<nsCSSValueGradientStop> mStops;
+
+  PRBool operator==(const nsCSSValueGradient& aOther) const
+  {
+    if (mIsRadial != aOther.mIsRadial ||
+        mIsRepeating != aOther.mIsRepeating ||
+        mBgPosX != aOther.mBgPosX ||
+        mBgPosY != aOther.mBgPosY ||
+        mAngle != aOther.mAngle ||
+        mRadialShape != aOther.mRadialShape ||
+        mRadialSize != aOther.mRadialSize)
+      return PR_FALSE;
+
+    if (mStops.Length() != aOther.mStops.Length())
+      return PR_FALSE;
+
+    for (PRUint32 i = 0; i < mStops.Length(); i++) {
+      if (mStops[i] != aOther.mStops[i])
+        return PR_FALSE;
+    }
+
+    return PR_TRUE;
+  }
+
+  PRBool operator!=(const nsCSSValueGradient& aOther) const
+  {
+    return !(*this == aOther);
+  }
+
+  void AddRef() {
+    if (mRefCnt == PR_UINT32_MAX) {
+      NS_WARNING("refcount overflow, leaking nsCSSValue::Gradient");
+      return;
+    }
+    ++mRefCnt;
+    NS_LOG_ADDREF(this, mRefCnt, "nsCSSValue::Gradient", sizeof(*this));
+  }
+  void Release() {
+    if (mRefCnt == PR_UINT32_MAX) {
+      NS_WARNING("refcount overflow, leaking nsCSSValue::Gradient");
+      return;
+    }
+    --mRefCnt;
+    NS_LOG_RELEASE(this, mRefCnt, "nsCSSValue::Gradient");
+    if (mRefCnt == 0)
+      delete this;
+  }
+
+private:
+  nsrefcnt mRefCnt;
+
+  // not to be implemented
+  nsCSSValueGradient(const nsCSSValueGradient& aOther);
+  nsCSSValueGradient& operator=(const nsCSSValueGradient& aOther);
 };
 
 struct nsCSSValue::Array {
@@ -492,7 +644,9 @@ private:
 #undef CSSVALUE_LIST_FOR_EXTRA_VALUES
 
 private:
-  Array(const Array& aOther); // not to be implemented
+  // not to be implemented
+  Array(const Array& aOther);
+  Array& operator=(const Array& aOther);
 };
 
 #endif /* nsCSSValue_h___ */

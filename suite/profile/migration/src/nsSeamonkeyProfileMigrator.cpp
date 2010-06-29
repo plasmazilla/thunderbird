@@ -92,7 +92,8 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems,
   }
   if (!mSourceProfile) {
     GetSourceProfile(aProfile);
-    if (!mSourceProfile) return NS_ERROR_FAILURE;
+    if (!mSourceProfile)
+      return NS_ERROR_FAILURE;
   }
 
   NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
@@ -292,7 +293,6 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("browser.fixup.hide_user_pass",            Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.frames.enabled",                  Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.history.grouping",                String),
-  MAKESAMETYPEPREFTRANSFORM("browser.history_expire_days",             Int),
   MAKESAMETYPEPREFTRANSFORM("browser.link.open_external",              Int),
   MAKESAMETYPEPREFTRANSFORM("browser.link.open_newwindow",             Int),
   MAKESAMETYPEPREFTRANSFORM("browser.open.dir",                        String),

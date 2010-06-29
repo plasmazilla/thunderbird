@@ -38,32 +38,24 @@
 #ifndef nsICheckControlFrame_h___
 #define nsICheckControlFrame_h___
 
-#include "nsISupports.h"
+#include "nsQueryFrame.h"
+class nsStyleContext;
 class nsPresContext;
 
-// 1e616b1d-e2c0-4456-bbec-399f72f7e9ad
-#define NS_ICHECKBOXCONTROLFRAME_IID \
-{ 0x1e616b1d, 0xe2c0, 0x4456,        \
-  { 0xbb, 0xec, 0x39, 0x9f, 0x72, 0xf7, 0xe9, 0xad } }
-
 /** 
-  * nsICheckboxControlFrame: additional interfaces exposed by
-  * a check-box control.
-  * @see nsFormControlFrame and its base classes for more info
+  * nsICheckControlFrame is the common interface radio buttons.
+  * @see nsFromControlFrame and its base classes for more info
   */
-class nsICheckboxControlFrame : public nsISupports {
-
+class nsICheckboxControlFrame
+{
 public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_ICHECKBOXCONTROLFRAME_IID)
-
+  NS_DECL_QUERYFRAME_TARGET(nsICheckboxControlFrame)
+  
   /**
    * Called by content when checkbox "checked" changes
    */
   NS_IMETHOD OnChecked(nsPresContext* aPresContext, PRBool aChecked) = 0;
 };
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsICheckboxControlFrame,
-                              NS_ICHECKBOXCONTROLFRAME_IID)
 
 #endif
 

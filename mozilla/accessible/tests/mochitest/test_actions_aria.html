@@ -43,6 +43,11 @@
           events: CLICK_EVENTS
         },
         {
+          ID: "checkbox_mixed",
+          actionName: "cycle",
+          events: CLICK_EVENTS
+        },
+        {
           ID: "combobox_collapsed",
           actionName: "open",
           events: CLICK_EVENTS
@@ -96,6 +101,21 @@
           ID: "treeitem",
           actionName: "activate",
           events: CLICK_EVENTS
+        },
+        {
+          ID: "sortable",
+          actionName: "sort",
+          events: CLICK_EVENTS
+        },
+        {
+          ID: "expandable",
+          actionName: "expand",
+          events: CLICK_EVENTS
+        },
+        {
+          ID: "collapseable",
+          actionName: "collapse",
+          events: CLICK_EVENTS
         }
       ];
       testActions(actionsArray);
@@ -126,6 +146,8 @@
 
   <div id="checkbox_checked" role="checkbox" aria-checked="true">Checkbox</div>
 
+  <div id="checkbox_mixed" role="checkbox" aria-checked="mixed">Checkbox</div>
+
   <div id="combobox_collapsed" role="combobox">
     <div id="option" role="option">Option of collapsed combobox</div>
   </div>
@@ -155,5 +177,14 @@
   <div role="tree">
     <div id="treeitem" role="treeitem">Treeitem</div>
   </div>
+
+  <div role="grid">
+    <div id="sortable" role="columnheader" aria-sort="ascending">
+      Columnheader
+    </div>
+  </div>
+  
+  <div id="expandable" aria-expanded="false">collapsed</div>
+  <div id="collapseable" aria-expanded="true">expanded</div>
 </body>
 </html>

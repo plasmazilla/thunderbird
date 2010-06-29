@@ -68,8 +68,6 @@ public:
   }
 
   operator const nsCOMPtr<T>() const { return GetValue(); }
-  template <typename Q>
-  operator const nsCOMPtr<Q>() const { return do_QueryInterface(GetValue()); }
 
 protected:
   const nsCOMPtr<T> GetValue() const {

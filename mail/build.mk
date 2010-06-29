@@ -41,6 +41,14 @@ ifndef LIBXUL_SDK
 include $(topsrcdir)/toolkit/toolkit-tiers.mk
 endif
 
+## storage backfork.
+# this is temporary until we branch for MOZILLA_1_9_2_BRANCH
+# replace toolkit's storage with our own
+tier_gecko_dirs := $(patsubst storage,../storage-backport,$(tier_gecko_dirs))
+# necko also has a dependency...
+tier_necko_dirs := $(patsubst storage/public,../storage-backport/public,$(tier_necko_dirs))
+
+
 TIERS += app
 
 ifdef MOZ_EXTENSIONS
@@ -60,14 +68,11 @@ ifdef MOZ_COMPOSER
 tier_app_dirs += editor/ui
 endif
 
-ifdef MOZ_BRANDING_DIRECTORY
 tier_app_dirs += $(MOZ_BRANDING_DIRECTORY)
-else
-tier_app_dirs += mail/branding/nightly
-endif
 
 tier_app_dirs += \
 	mailnews/base \
+	mailnews/mime/public \
 	mailnews \
 	$(NULL)
 
@@ -105,7 +110,7 @@ include $(topsrcdir)/mailnews/testsuite-targets.mk
 
 MOZMILLDIR=$(DEPTH)/mozilla/_tests/mozmill
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 # Mac options
 APP_NAME = $(MOZ_APP_DISPLAYNAME)
 ifdef MOZ_DEBUG
@@ -122,12 +127,15 @@ endif
 mozmill::
 	cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= $(PYTHON) \
 	runtestlist.py --list=mozmilltests.list --binary=$(PROGRAM) \
-	--dir=$(topsrcdir)/mail/test/mozmill \
+	--dir=$(call core_abspath,$(topsrcdir))/mail/test/mozmill \
+	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
 	$(MOZMILL_EXTRA)
 
 mozmill-one::
 	cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= $(PYTHON) runtest.py \
-	--test=$(topsrcdir)/mail/test/mozmill/$(SOLO_TEST) --binary=$(PROGRAM) \
+	--test=$(call core_abspath,$(topsrcdir))/mail/test/mozmill/$(SOLO_TEST) \
+	--binary=$(PROGRAM) \
+	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
 	$(MOZMILL_EXTRA)
 endif # ENABLE_TESTS
 

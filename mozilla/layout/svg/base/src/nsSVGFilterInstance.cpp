@@ -37,7 +37,6 @@
 #include "nsSVGFilterInstance.h"
 #include "nsSVGUtils.h"
 #include "nsIDOMSVGUnitTypes.h"
-#include "nsSVGMatrix.h"
 #include "gfxPlatform.h"
 #include "nsSVGFilterPaintCallback.h"
 #include "nsSVGFilterElement.h"
@@ -96,18 +95,14 @@ nsSVGFilterInstance::UserSpaceToFilterSpace(const gfxRect& aRect) const
   return r;
 }
 
-already_AddRefed<nsIDOMSVGMatrix>
+gfxMatrix
 nsSVGFilterInstance::GetUserSpaceToFilterSpaceTransform() const
 {
-  nsCOMPtr<nsIDOMSVGMatrix> filterTransform;
   gfxFloat widthScale = mFilterSpaceSize.width / mFilterRect.Width();
   gfxFloat heightScale = mFilterSpaceSize.height / mFilterRect.Height();
-  NS_NewSVGMatrix(getter_AddRefs(filterTransform),
-                  widthScale, 0.0f,
-                  0.0f, heightScale,
-                  -mFilterRect.X() * widthScale,
-                  -mFilterRect.Y() * heightScale);
-  return filterTransform.forget();
+  return gfxMatrix(widthScale, 0.0f,
+                   0.0f, heightScale,
+                   -mFilterRect.X() * widthScale, -mFilterRect.Y() * heightScale);
 }
 
 void
@@ -155,20 +150,11 @@ nsSVGFilterInstance::BuildSources()
   mSourceAlpha.mImage.mFilterPrimitiveSubregion = filterRegion;
 
   nsIntRect sourceBoundsInt;
-  if (mTargetBBox) {
-    float x, y, w, h;
-    mTargetBBox->GetX(&x);
-    mTargetBBox->GetY(&y);
-    mTargetBBox->GetWidth(&w);
-    mTargetBBox->GetHeight(&h);
-
-    gfxRect sourceBounds = UserSpaceToFilterSpace(gfxRect(x, y, w, h));
-
-    sourceBounds.RoundOut();
-    // Detect possible float->int overflow
-    if (NS_FAILED(nsSVGUtils::GfxRectToIntRect(sourceBounds, &sourceBoundsInt)))
-      return NS_ERROR_FAILURE;
-  }
+  gfxRect sourceBounds = UserSpaceToFilterSpace(mTargetBBox);
+  sourceBounds.RoundOut();
+  // Detect possible float->int overflow
+  if (NS_FAILED(nsSVGUtils::GfxRectToIntRect(sourceBounds, &sourceBoundsInt)))
+    return NS_ERROR_FAILURE;
 
   mSourceColorAlpha.mResultBoundingBox = sourceBoundsInt;
   mSourceAlpha.mResultBoundingBox = sourceBoundsInt;
@@ -200,11 +186,12 @@ nsSVGFilterInstance::BuildPrimitives()
   for (i = 0; i < mPrimitives.Length(); ++i) {
     PrimitiveInfo* info = &mPrimitives[i];
     nsSVGFE* filter = info->mFE;
-    nsAutoTArray<nsSVGString*,2> sources;
-    filter->GetSourceImageNames(&sources);
+    nsAutoTArray<nsSVGStringInfo,2> sources;
+    filter->GetSourceImageNames(sources);
  
     for (PRUint32 j=0; j<sources.Length(); ++j) {
-      const nsString& str = sources[j]->GetAnimValue();
+      nsAutoString str;
+      sources[j].mString->GetAnimValue(str, sources[j].mElement);
       PrimitiveInfo* sourceInfo;
 
       if (str.EqualsLiteral("SourceGraphic")) {
@@ -231,8 +218,10 @@ nsSVGFilterInstance::BuildPrimitives()
 
     ComputeFilterPrimitiveSubregion(info);
 
-    ImageAnalysisEntry* entry =
-      imageTable.PutEntry(filter->GetResultImageName()->GetAnimValue());
+    nsAutoString str;
+    filter->GetResultImageName().GetAnimValue(str, filter);
+
+    ImageAnalysisEntry* entry = imageTable.PutEntry(str);
     if (entry) {
       entry->mInfo = info;
     }
@@ -347,12 +336,7 @@ nsSVGFilterInstance::BuildSourceImages()
     offscreen->SetDeviceOffset(gfxPoint(-mSurfaceRect.x, -mSurfaceRect.y));
   
     nsSVGRenderState tmpState(offscreen);
-    nsCOMPtr<nsIDOMSVGMatrix> userSpaceToFilterSpaceTransform
-      = GetUserSpaceToFilterSpaceTransform();
-    if (!userSpaceToFilterSpaceTransform)
-      return NS_ERROR_OUT_OF_MEMORY;
-    gfxMatrix userSpaceToFilterSpace =
-      nsSVGUtils::ConvertSVGMatrixToThebes(userSpaceToFilterSpaceTransform);
+    gfxMatrix userSpaceToFilterSpace = GetUserSpaceToFilterSpaceTransform();
 
     gfxRect r(neededRect.x, neededRect.y, neededRect.width, neededRect.height);
     gfxMatrix m = userSpaceToFilterSpace;
@@ -375,8 +359,7 @@ nsSVGFilterInstance::BuildSourceImages()
     // space to device space and back again). However, that would make the
     // code more complex while being hard to get right without introducing
     // subtle bugs, and in practice it probably makes no real difference.)
-    gfxMatrix deviceToFilterSpace =
-      nsSVGUtils::ConvertSVGMatrixToThebes(GetFilterSpaceToDeviceSpaceTransform()).Invert();
+    gfxMatrix deviceToFilterSpace = GetFilterSpaceToDeviceSpaceTransform().Invert();
     tmpState.GetGfxContext()->Multiply(deviceToFilterSpace);
     mPaintCallback->Paint(&tmpState, mTargetFrame, &dirty);
 

@@ -152,12 +152,16 @@ function process_cp_pre_genericize(fndecl)
 
           let i;
           for (i in xrange(stack.length - 1, -1, -1)) {
-            if (TREE_CODE(stack[i]) != NOP_EXPR)
-              break;
+            if (TREE_CODE(stack[i]) == NOP_EXPR ||
+                TREE_CODE(stack[i]) == COMPOUND_EXPR)
+              continue;
+            
+            break;
           }
           let assign = stack[i];
           switch (TREE_CODE(assign)) {
           case VAR_DECL:
+          case COND_EXPR:
             break;
             
           case INIT_EXPR:
@@ -167,11 +171,12 @@ function process_cp_pre_genericize(fndecl)
             break;
 
           case CALL_EXPR:
+          case AGGR_INIT_EXPR:
             assign = stack[i + 1];
             break;
             
           default:
-            error("Unrecognized assignment from operator new: " + TREE_CODE(assign), getLocation());
+            error("Unrecognized assignment from operator new: %s. Tree code stack: %s".format(TREE_CODE(assign), [TREE_CODE(s) for each (s in stack)].join(",")), getLocation());
             return;
           }
           
@@ -184,7 +189,7 @@ function process_cp_pre_genericize(fndecl)
 
           let r = isStack(destType);
           if (r)
-            error("constructed object of type '%s' not on the stack: %s".format(destType.name, r), getLocation());
+            warning("constructed object of type '%s' not on the stack: %s".format(destType.name, r), getLocation());
         }
       }
     }

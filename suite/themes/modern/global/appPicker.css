@@ -6,15 +6,17 @@
   font-weight: bold;
 }
 
-#app-picker-list {
-  height: 224px;
-}
-
-#app-picker-item {
+.listitem-iconic {
   border-bottom: 1px dotted #C7D0D9;
 }
 
-#app-picker-item-image,
-#app-picker-item-cell {
+#content-icon,
+.listcell-icon {
+  margin: 5px;
+  width: 32px;
+  height: 32px;
+}
+
+.listcell-label {
   padding: 5px;
 }

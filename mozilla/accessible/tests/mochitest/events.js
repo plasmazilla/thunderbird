@@ -1,9 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Constants
 
+const EVENT_DOCUMENT_LOAD_COMPLETE =
+  nsIAccessibleEvent.EVENT_DOCUMENT_LOAD_COMPLETE;
 const EVENT_DOM_DESTROY = nsIAccessibleEvent.EVENT_DOM_DESTROY;
 const EVENT_FOCUS = nsIAccessibleEvent.EVENT_FOCUS;
 const EVENT_NAME_CHANGE = nsIAccessibleEvent.EVENT_NAME_CHANGE;
+const EVENT_SCROLLING_START = nsIAccessibleEvent.EVENT_SCROLLING_START;
+const EVENT_STATE_CHANGE = nsIAccessibleEvent.EVENT_STATE_CHANGE;
 const EVENT_REORDER = nsIAccessibleEvent.EVENT_REORDER;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,10 +87,19 @@ function unregisterA11yEventListener(aEventType, aEventHandler)
 const INVOKER_ACTION_FAILED = 1;
 
 /**
+ * Common invoker checker (see eventSeq of eventQueue).
+ */
+function invokerChecker(aEventType, aTarget)
+{
+  this.type = aEventType;
+  this.target = aTarget;
+}
+
+/**
  * Creates event queue for the given event type. The queue consists of invoker
  * objects, each of them generates the event of the event type. When queue is
  * started then every invoker object is asked to generate event after timeout.
- * When event is caught then current invoker object is asked to check wether
+ * When event is caught then current invoker object is asked to check whether
  * event was handled correctly.
  *
  * Invoker interface is:
@@ -118,6 +131,7 @@ const INVOKER_ACTION_FAILED = 1;
  *     // var checker = {
  *     //   type getter: function() {}, // DOM or a11y event type
  *     //   target getter: function() {}, // DOM node or accessible
+ *     //   phase getter: function() {}, // DOM event phase (false - bubbling)
  *     //   check: function(aEvent) {},
  *     //   getID: function() {}
  *     // };
@@ -157,6 +171,14 @@ function eventQueue(aEventType)
     // see bug 474952.
     window.setTimeout(function(aQueue) { aQueue.processNextInvoker(); }, 500,
                       this);
+  }
+
+  /**
+   * This function is called when all events in the queue were handled.
+   * Override it if you need to be notified of this.
+   */
+  this.onFinish = function eventQueue_finish()
+  {
   }
 
   // private
@@ -212,6 +234,7 @@ function eventQueue(aEventType)
     if (testFailed || this.mIndex == this.mInvokers.length - 1) {
       listenA11yEvents(false);
 
+      this.onFinish();
       SimpleTest.finish();
       return;
     }
@@ -264,26 +287,10 @@ function eventQueue(aEventType)
       // We wait for events in order specified by eventSeq variable.
       var idx = this.mEventSeqIdx + 1;
 
-      if (gA11yEventDumpID) { // debug stuff
+      var matched = this.compareEvents(idx, aEvent);
+      this.dumpEventToDOM(aEvent, idx, matched);
 
-        if (aEvent instanceof nsIDOMEvent) {
-          var info = "Event type: " + aEvent.type;
-          info += ". Target: " + prettyName(aEvent.originalTarget);
-          dumpInfoToDOM(info);
-        }
-
-        var currType = this.getEventType(idx);
-        var currTarget = this.getEventTarget(idx);
-
-        var info = "Event queue processing. Expected event type: ";
-        info += (typeof currType == "string") ?
-          currType : eventTypeToString(currType);
-        info += ". Target: " + prettyName(currTarget);
-
-        dumpInfoToDOM(info);
-      }
-
-      if (this.compareEvents(idx, aEvent)) {
+      if (matched) {
         this.checkEvent(idx, aEvent);
         invoker.wasCaught[idx] = true;
 
@@ -313,7 +320,9 @@ function eventQueue(aEventType)
   this.setEventHandler = function eventQueue_setEventHandler(aInvoker)
   {
     this.mEventSeq = ("eventSeq" in aInvoker) ?
-      aInvoker.eventSeq : [[this.mDefEventType, aInvoker.DOMNode]];
+      aInvoker.eventSeq :
+      [ new invokerChecker(this.mDefEventType, aInvoker.DOMNode) ];
+
     this.mEventSeqIdx = -1;
 
     if (this.mEventSeq) {
@@ -321,10 +330,15 @@ function eventQueue(aEventType)
 
       for (var idx = 0; idx < this.mEventSeq.length; idx++) {
         var eventType = this.getEventType(idx);
-        if (typeof eventType == "string") // DOM event
-          document.addEventListener(eventType, this, true);
-        else // A11y event
+        if (typeof eventType == "string") {
+          // DOM event
+          var target = this.getEventTarget(idx);
+          target.ownerDocument.addEventListener(eventType, this,
+                                                this.getEventPhase(idx));
+        } else {
+          // A11y event
           addA11yEventListener(eventType, this);
+        }
       }
     }
   }
@@ -334,10 +348,16 @@ function eventQueue(aEventType)
     if (this.mEventSeq) {
       for (var idx = 0; idx < this.mEventSeq.length; idx++) {
         var eventType = this.getEventType(idx);
-        if (typeof eventType == "string") // DOM event
-          document.removeEventListener(eventType, this, true);
-        else // A11y event
+        if (typeof eventType == "string") {
+          // DOM event
+          var target = this.getEventTarget(idx);
+          target.ownerDocument.removeEventListener(eventType, this,
+                                                   this.getEventPhase(idx));
+        }
+        else {
+          // A11y event
           removeA11yEventListener(eventType, this);
+        }
       }
 
       this.mEventSeq = null;
@@ -346,20 +366,21 @@ function eventQueue(aEventType)
 
   this.getEventType = function eventQueue_getEventType(aIdx)
   {
-    var eventItem = this.mEventSeq[aIdx];
-    if ("type" in eventItem)
-      return eventItem.type;
-
-    return eventItem[0];
+    return this.mEventSeq[aIdx].type;
   }
 
   this.getEventTarget = function eventQueue_getEventTarget(aIdx)
   {
-    var eventItem = this.mEventSeq[aIdx];
-    if ("target" in eventItem)
-      return eventItem.target;
+    return this.mEventSeq[aIdx].target;
+  }
 
-    return eventItem[1];
+  this.getEventPhase = function eventQueue_getEventPhase(aIdx)
+  {
+     var eventItem = this.mEventSeq[aIdx];
+    if ("phase" in eventItem)
+      return eventItem.phase;
+
+    return true;
   }
 
   this.compareEvents = function eventQueue_compareEvents(aIdx, aEvent)
@@ -406,6 +427,32 @@ function eventQueue(aEventType)
 
     var invoker = this.getInvoker();
     return invoker.getID();
+  }
+
+  this.dumpEventToDOM = function eventQueue_dumpEventToDOM(aOrigEvent,
+                                                           aExpectedEventIdx,
+                                                           aMatch)
+  {
+    if (!gA11yEventDumpID) // debug stuff
+      return;
+
+    // Dump DOM event information. Skip a11y event since it is dumped by
+    // gA11yEventObserver.
+    if (aOrigEvent instanceof nsIDOMEvent) {
+      var info = "Event type: " + aOrigEvent.type;
+      info += ". Target: " + prettyName(aOrigEvent.originalTarget);
+      dumpInfoToDOM(info);
+    }
+
+    var currType = this.getEventType(aExpectedEventIdx);
+    var currTarget = this.getEventTarget(aExpectedEventIdx);
+
+    var info = "EQ: " + (aMatch ? "matched" : "expected") + " event, type: ";
+    info += (typeof currType == "string") ?
+      currType : eventTypeToString(currType);
+    info += ". Target: " + prettyName(currTarget);
+
+    dumpInfoToDOM(info);
   }
 
   this.mDefEventType = aEventType;

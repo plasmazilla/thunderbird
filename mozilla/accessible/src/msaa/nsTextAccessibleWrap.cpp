@@ -45,7 +45,6 @@
 #include "nsPresContext.h"
 #include "nsIPresShell.h"
 #include "nsIRenderingContext.h"
-#include "nsIWidget.h"
 #include "nsIComponentManager.h"
 
 // --------------------------------------------------------
@@ -127,9 +126,9 @@ __try {
 
   accessible->GetBounds(&docX, &docY, &docWidth, &docHeight);
 
-  nsRect unclippedRect(x, y, width, height);
-  nsRect docRect(docX, docY, docWidth, docHeight);
-  nsRect clippedRect;
+  nsIntRect unclippedRect(x, y, width, height);
+  nsIntRect docRect(docX, docY, docWidth, docHeight);
+  nsIntRect clippedRect;
 
   clippedRect.IntersectRect(unclippedRect, docRect);
 
@@ -212,9 +211,6 @@ nsresult nsTextAccessibleWrap::GetCharacterExtents(PRInt32 aStartOffset, PRInt32
   nsIFrame *frame = GetFrame();
   NS_ENSURE_TRUE(frame, NS_ERROR_FAILURE);
 
-  nsIWidget *widget = frame->GetWindow();
-  NS_ENSURE_TRUE(widget, NS_ERROR_FAILURE);
-  
   nsPoint startPoint, endPoint;
   nsIFrame *startFrame = GetPointFromOffset(frame, aStartOffset, PR_TRUE, startPoint);
   nsIFrame *endFrame = GetPointFromOffset(frame, aEndOffset, PR_FALSE, endPoint);
@@ -222,11 +218,11 @@ nsresult nsTextAccessibleWrap::GetCharacterExtents(PRInt32 aStartOffset, PRInt32
     return E_FAIL;
   }
   
-  nsRect sum(0, 0, 0, 0);
+  nsIntRect sum(0, 0, 0, 0);
   nsIFrame *iter = startFrame;
   nsIFrame *stopLoopFrame = endFrame->GetNextContinuation();
   for (; iter != stopLoopFrame; iter = iter->GetNextContinuation()) {
-    nsRect rect = iter->GetScreenRectExternal();
+    nsIntRect rect = iter->GetScreenRectExternal();
     nscoord start = (iter == startFrame) ? presContext->AppUnitsToDevPixels(startPoint.x) : 0;
     nscoord end = (iter == endFrame) ? presContext->AppUnitsToDevPixels(endPoint.x) :
                                        rect.width;

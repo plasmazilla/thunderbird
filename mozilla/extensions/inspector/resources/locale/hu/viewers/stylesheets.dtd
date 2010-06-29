@@ -36,7 +36,7 @@
 #endif
    - ***** END LICENSE BLOCK ***** -->
 
-<!ENTITY styleLocation.label "Stíluslap">
-<!ENTITY styleRules.label "Szabálykészletek">
+<!ENTITY sheetLocation.label "Stíluslap">
+<!ENTITY sheetRules.label "Szabálykészletek">
 
 

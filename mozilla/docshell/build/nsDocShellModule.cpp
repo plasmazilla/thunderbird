@@ -42,7 +42,7 @@
 
 #include "nsDocShellCID.h"
 
-#include "nsWebShell.h"
+#include "nsDocShell.h"
 #include "nsDefaultURIFixup.h"
 #include "nsWebNavigationInfo.h"
 
@@ -100,7 +100,7 @@ Shutdown(nsIModule* aSelf)
 }
 
 // docshell
-NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsWebShell, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsDocShell, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDefaultURIFixup)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsWebNavigationInfo, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsClassifierCallback)
@@ -119,11 +119,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(PlatformLocalHandlerApp_t)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDBusHandlerApp)
 #endif 
 
-#if defined(XP_MAC) || defined(XP_MACOSX)
-#include "nsInternetConfigService.h"
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsInternetConfigService)
-#endif
-
 // session history
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsSHEntry)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsSHTransaction)
@@ -132,19 +127,12 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsSHistory)
 // download history
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDownloadHistory)
 
-// Currently no-one is instantiating docshell's directly because
-// nsWebShell is still our main "shell" class. nsWebShell is a subclass
-// of nsDocShell. Once migration is complete, docshells will be the main
-// "shell" class and this module will need to register the docshell as
-// a component
-//NS_GENERIC_FACTORY_CONSTRUCTOR(nsDocShell)
-
 static const nsModuleComponentInfo gDocShellModuleInfo[] = {
   // docshell
-    { "WebShell", 
-      NS_WEB_SHELL_CID,
-      "@mozilla.org/webshell;1",
-      nsWebShellConstructor
+    { "DocShell", 
+      NS_DOCSHELL_CID,
+      "@mozilla.org/docshell;1",
+      nsDocShellConstructor
     },
     { "Default keyword fixup", 
       NS_DEFAULTURIFIXUP_CID,
@@ -216,6 +204,11 @@ static const nsModuleComponentInfo gDocShellModuleInfo[] = {
       NS_ABOUT_MODULE_CONTRACTID_PREFIX "neterror",
       nsAboutRedirector::Create
     },
+    { "about:memory",
+      NS_ABOUT_REDIRECTOR_MODULE_CID,
+      NS_ABOUT_MODULE_CONTRACTID_PREFIX "memory",
+      nsAboutRedirector::Create
+    },
 
     // uriloader
   { "Netscape URI Loader Service", NS_URI_LOADER_CID, NS_URI_LOADER_CONTRACTID, nsURILoaderConstructor, },
@@ -240,10 +233,6 @@ static const nsModuleComponentInfo gDocShellModuleInfo[] = {
 #ifdef MOZ_ENABLE_DBUS
   { "DBus Handler App", NS_DBUSHANDLERAPP_CID,
       NS_DBUSHANDLERAPP_CONTRACTID, nsDBusHandlerAppConstructor},
-#endif
-#if defined(XP_MAC) || defined(XP_MACOSX)
-  { "Internet Config Service", NS_INTERNETCONFIGSERVICE_CID, NS_INTERNETCONFIGSERVICE_CONTRACTID,
-    nsInternetConfigServiceConstructor, },
 #endif
         
     // session history

@@ -104,7 +104,7 @@ function run_test() {
   acctMgr.setSpecialFolders();
 
   var account = acctMgr.createAccount();
-  incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
+  var incomingServer = acctMgr.createIncomingServer("test", "localhost", "pop3");
 
   var smtpServer = getBasicSmtpServer();
   identity = getSmtpIdentity(kSender, smtpServer);
@@ -162,7 +162,9 @@ function run_test() {
 
     server.performTest();
 
-    do_timeout(10000, "if (!finished) do_throw('Notifications of message send/copy not received');");
+    do_timeout(10000, function()
+        {if (!finished) do_throw('Notifications of message send/copy not received');}
+      );
 
     do_test_pending();
 

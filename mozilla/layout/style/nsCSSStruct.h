@@ -308,12 +308,13 @@ struct nsCSSColor : public nsCSSStruct  {
 
   nsCSSValue      mColor;
   nsCSSValue      mBackColor;
-  nsCSSValue      mBackImage;
-  nsCSSValue      mBackRepeat;
-  nsCSSValue      mBackAttachment;
-  nsCSSValuePair  mBackPosition;
-  nsCSSValue      mBackClip;
-  nsCSSValue      mBackOrigin;
+  nsCSSValueList* mBackImage;
+  nsCSSValueList* mBackRepeat;
+  nsCSSValueList* mBackAttachment;
+  nsCSSValuePairList* mBackPosition;
+  nsCSSValuePairList* mBackSize;
+  nsCSSValueList* mBackClip;
+  nsCSSValueList* mBackOrigin;
   nsCSSValue      mBackInlinePolicy;
 private:
   nsCSSColor(const nsCSSColor& aOther); // NOT IMPLEMENTED
@@ -321,6 +322,11 @@ private:
 
 struct nsRuleDataColor : public nsCSSColor {
   nsRuleDataColor() {}
+
+  // A little bit of a hack here:  now that background-image is
+  // represented by a value list, attribute mapping code needs a place
+  // to store one item in a value list in order to map a simple value.
+  nsCSSValueList mTempBackImage;
 private:
   nsRuleDataColor(const nsRuleDataColor& aOther); // NOT IMPLEMENTED
 };
@@ -365,6 +371,7 @@ struct nsCSSDisplay : public nsCSSStruct  {
   nsCSSRect  mClip;
   nsCSSValue mOverflowX;
   nsCSSValue mOverflowY;
+  nsCSSValue mPointerEvents;
   nsCSSValue mVisibility;
   nsCSSValue mOpacity;
   nsCSSValueList *mTransform; // List of Arrays containing transform information
@@ -676,12 +683,12 @@ struct nsCSSSVG : public nsCSSStruct {
   nsCSSValue mFilter;
   nsCSSValue mFloodColor;
   nsCSSValue mFloodOpacity;
+  nsCSSValue mImageRendering;
   nsCSSValue mLightingColor;
   nsCSSValue mMarkerEnd;
   nsCSSValue mMarkerMid;
   nsCSSValue mMarkerStart;
   nsCSSValue mMask;
-  nsCSSValue mPointerEvents;
   nsCSSValue mShapeRendering;
   nsCSSValue mStopColor;
   nsCSSValue mStopOpacity;

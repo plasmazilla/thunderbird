@@ -192,12 +192,6 @@ enum nsPluginManagerVariable {
     nsPluginManagerVariable_SupportsXEmbed            = 14
 };
 
-enum nsPluginInstancePeerVariable {
-    nsPluginInstancePeerVariable_NetscapeWindow      = 3
-//    nsPluginInstancePeerVariable_JavaClass              = 5,
-//    nsPluginInstancePeerVariable_TimerInterval          = 7
-};
-
 enum nsPluginInstanceVariable {
     nsPluginInstanceVariable_WindowlessBool          = 3,
     nsPluginInstanceVariable_TransparentBool         = 4,
@@ -210,7 +204,12 @@ enum nsPluginInstanceVariable {
 #ifdef XP_MACOSX
     , nsPluginInstanceVariable_DrawingModel          = 20
 #endif
+    , nsPluginInstanceVariable_WindowlessLocalBool   = 21
 };
+
+#ifdef OJI
+typedef nsPluginInstanceVariable nsPluginInstancePeerVariable;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -337,31 +336,19 @@ struct nsPluginEvent {
 
 #elif defined(XP_WIN)
     uint16      event;
+#if defined(_WIN64)
+    uint64      wParam;
+    uint64      lParam;
+#else
     uint32      wParam;
     uint32      lParam;
+#endif /* _WIN64 */
 
 #elif defined(XP_UNIX) && defined(MOZ_X11)
     XEvent      event;
 #else
     void        *event;
 #endif
-};
-
-/*
- *  Non-standard event types that can be passed to HandleEvent
- *  (These need to be kept in sync with the events defined in npapi.h.)
- */
-enum nsPluginEventType {
-#ifdef XP_MACOSX
-    nsPluginEventType_GetFocusEvent = (osEvt + 16),
-    nsPluginEventType_LoseFocusEvent,
-    nsPluginEventType_AdjustCursorEvent,
-    nsPluginEventType_MenuCommandEvent,
-    nsPluginEventType_ClippingChangedEvent,
-    nsPluginEventType_ScrollingBeginsEvent,
-    nsPluginEventType_ScrollingEndsEvent,
-#endif /* XP_MACOSX */
-    nsPluginEventType_Idle                 = 0
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -397,15 +384,10 @@ enum nsPluginReason {
 
 // Classes that must be implemented by the plugin DLL:
 class nsIPlugin;                        // plugin class (MIME-type handler)
-class nsIEventHandler;                  // event handler interface
 class nsIPluginInstance;                // plugin instance
 
 // Classes that are implemented by the browser:
-class nsIPluginManager;                 // minimum browser requirements
-class nsIFileUtilities;                 // file utilities (accessible from nsIPluginManager)
-class nsIPluginInstancePeer;            // parts of nsIPluginInstance implemented by the browser
-class nsIWindowlessPluginInstancePeer;  // subclass of nsIPluginInstancePeer for windowless plugins
-class nsIPluginTagInfo;                 // describes html tag (accessible from nsIPluginInstancePeer)
+class nsIPluginTagInfo;                 // describes html tag
 ////////////////////////////////////////////////////////////////////////////////
 
 #if !defined(__LP64__)

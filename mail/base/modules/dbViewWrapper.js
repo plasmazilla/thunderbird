@@ -42,9 +42,9 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://app/modules/mailViewManager.js");
-Cu.import("resource://app/modules/searchSpec.js");
-Cu.import("resource://app/modules/virtualFolderWrapper.js");
+Cu.import("resource:///modules/mailViewManager.js");
+Cu.import("resource:///modules/searchSpec.js");
+Cu.import("resource:///modules/virtualFolderWrapper.js");
 
 const nsMsgFolderFlags = Ci.nsMsgFolderFlags;
 const nsMsgViewType = Ci.nsMsgViewType;
@@ -915,13 +915,7 @@ DBViewWrapper.prototype = {
    *  updateFolder to complete?  The historical heuristic is:
    * - Virtual folders get shown immediately (and updateFolder has no
    *   meaning for them anyways.)
-   * - A folder for which "manyHeadersToDownload" is true waits on
-   *   updateFolder.  It will return true if the database does not yet exist
-   *   (presumably because the user has never looked in the folder), or if the
-   *   database exists and the number of total messages (current and pending)
-   *   is <= 0 (which I presume means no messages or a bunch pending
-   *   deletion?)
-   *   If _underlyingFolders == null, we failed to open the database,
+   * - If _underlyingFolders == null, we failed to open the database,
    *   so we need to wait for UpdateFolder to reparse the folder (in the
    *   local folder case).
    * - Wait on updateFolder if our poor man's security via
@@ -939,8 +933,7 @@ DBViewWrapper.prototype = {
   shouldShowMessagesForFolderImmediately:
       function DBViewWrapper_showShowMessagesForFolderImmediately() {
     return (this.isVirtual ||
-            !(this.displayedFolder.manyHeadersToDownload ||
-              this._underlyingFolders == null ||
+            !(this._underlyingFolders == null ||
               this.listener.shouldDeferMessageDisplayUntilAfterServerConnect));
   },
   /**
@@ -1088,11 +1081,16 @@ DBViewWrapper.prototype = {
     if (this.isSingleFolder) {
       dbView.open(this._underlyingFolders[0], sortType, sortOrder, viewFlags,
                   outCount);
-      // but if it's a virtual folder, we need to tell the db view about the
-      //  the display (virtual) folder so it can store all the view-specific
+      // If there are any search terms, we need to tell the db view about the
+      //  the display (/virtual) folder so it can store all the view-specific
       //  data there (things like the active mail view and such that go in
-      //  dbFolderInfo.)
-      if (this.isVirtual)
+      //  dbFolderInfo.)  This also goes for cases where the quick search is
+      //  active; the C++ code explicitly nulls out the view folder for no
+      //  good/documented reason, so we need to set it again if we want changes
+      //  made with the quick filter applied.  (We don't just change the C++
+      //  code because there could be SeaMonkey fallout.)  See bug 502767 for
+      //  info about the quick-search part of the problem.
+      if (this.search.hasSearchTerms)
         dbView.viewFolder = this.displayedFolder;
     }
     // when we're dealing with a multi-folder virtual folder, we just tell the
@@ -1298,7 +1296,7 @@ DBViewWrapper.prototype = {
    * - The 'limbo' set of flags because we currently lack a view but will have
    *    one soon (and then we will apply the flags).
    */
-  get _viewFlags DBViewWrapper_get__viewFlags() {
+  get _viewFlags() {
     if (this.__viewFlags != null)
       return this.__viewFlags;
     if (this.dbView)
@@ -1317,7 +1315,7 @@ DBViewWrapper.prototype = {
    *    so re-generate the view.  Nor can it handle a change involving
    *    kUnreadOnly.
    */
-  set _viewFlags DBViewWrapper_set__viewFlags(aViewFlags) {
+  set _viewFlags(aViewFlags) {
     if (this._viewUpdateDepth || !this.dbView)
       this.__viewFlags = aViewFlags;
     else {

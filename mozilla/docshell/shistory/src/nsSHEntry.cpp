@@ -535,14 +535,14 @@ nsSHEntry::GetWindowState(nsISupports **aState)
 }
 
 NS_IMETHODIMP
-nsSHEntry::SetViewerBounds(const nsRect &aBounds)
+nsSHEntry::SetViewerBounds(const nsIntRect &aBounds)
 {
   mViewerBounds = aBounds;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsSHEntry::GetViewerBounds(nsRect &aBounds)
+nsSHEntry::GetViewerBounds(nsIntRect &aBounds)
 {
   aBounds = mViewerBounds;
   return NS_OK;
@@ -749,6 +749,15 @@ nsSHEntry::CharacterDataChanged(nsIDocument* aDocument,
                                 CharacterDataChangeInfo* aInfo)
 {
   DocumentMutated();
+}
+
+void
+nsSHEntry::AttributeWillChange(nsIDocument* aDocument,
+                               nsIContent* aContent,
+                               PRInt32 aNameSpaceID,
+                               nsIAtom* aAttribute,
+                               PRInt32 aModType)
+{
 }
 
 void

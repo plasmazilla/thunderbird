@@ -151,6 +151,18 @@ extern JSD_PUBLIC_API(void)
 JSD_DebuggerOff(JSDContext* jsdc);
 
 /*
+ * Pause JSD for this JSDContext
+ */
+extern JSD_PUBLIC_API(void)
+JSD_DebuggerPause(JSDContext* jsdc);
+
+/*
+ * Unpause JSD for this JSDContext
+ */
+extern JSD_PUBLIC_API(void)
+JSD_DebuggerUnpause(JSDContext* jsdc);
+
+/*
 * Get the Major Version (initial JSD release used major version = 1)
 */
 extern JSD_PUBLIC_API(uintN)
@@ -1335,6 +1347,13 @@ JSD_GetValueConstructor(JSDContext* jsdc, JSDValue* jsdval);
 */
 extern JSD_PUBLIC_API(const char*)
 JSD_GetValueClassName(JSDContext* jsdc, JSDValue* jsdval);
+
+/*
+* Get the script for the given value if the given value represents a
+* scripted function.  Otherwise, return null.
+*/
+extern JSD_PUBLIC_API(JSDScript*)
+JSD_GetScriptForValue(JSDContext* jsdc, JSDValue* jsdval);
 
 /**************************************************/
 

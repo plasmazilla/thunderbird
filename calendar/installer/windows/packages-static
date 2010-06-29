@@ -10,7 +10,9 @@
 
 #filter substitution
 
+#ifdef MOZILLA_1_9_2_BRANCH
 bin/.autoreg
+#endif
 
 [@AB_CD@]
 bin\chrome\@AB_CD@.jar
@@ -28,7 +30,12 @@ bin\update.locale
 bin\updater.ini
 
 [xpcom]
+bin\components\components.list
+#ifdef MOZILLA_1_9_2_BRANCH
 bin\js3250.dll
+#else
+bin\mozjs.dll
+#endif
 bin\plc4.dll
 bin\plds4.dll
 bin\xpcom.dll
@@ -70,12 +77,18 @@ bin\components\commandhandler.xpt
 bin\components\commandlines.xpt
 bin\components\composer.xpt
 bin\components\content_base.xpt
+#ifndef MOZILLA_1_9_2_BRANCH
+bin\components\content_canvas.xpt
+#endif
+bin\components\content_events.xpt
 bin\components\content_html.xpt
 bin\components\content_htmldoc.xpt
 bin\components\content_xmldoc.xpt
 bin\components\content_xslt.xpt
 bin\components\content_xtf.xpt
+#ifdef MOZILLA_1_9_2_BRANCH
 bin\components\contentprefs.xpt
+#endif
 bin\components\cookie.xpt
 bin\components\docshell_base.xpt
 bin\components\dom.xpt
@@ -119,7 +132,9 @@ bin\components\jar.xpt
 bin\components\jsd3250.dll
 bin\components\jsdservice.xpt
 bin\components\layout_base.xpt
+#ifdef NS_PRINTING
 bin\components\layout_printing.xpt
+#endif
 bin\components\layout_xul.xpt
 bin\components\layout_xul_tree.xpt
 bin\components\locale.xpt
@@ -217,7 +232,11 @@ bin\components\nsPostUpdateWin.js
 bin\components\nsProgressDialog.js
 bin\components\nsProxyAutoConfig.js
 bin\components\nsTryToClose.js
+#ifdef MOZ_UPDATER
 bin\components\nsUpdateService.js
+bin\components\nsUpdateServiceStub.js
+#endif
+bin\components\nsUpdateTimerManager.js
 bin\components\nsURLFormatter.js
 bin\components\nsWebHandlerApp.js
 bin\components\pluginGlue.js

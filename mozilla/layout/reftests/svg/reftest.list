@@ -7,11 +7,19 @@ include sizing/reftest.list
 
 include filters/reftest.list
 
+# smil / animation tests
+# disabled because SMIL is not built by default
+# include smil/reftest.list
+
 # Mozilla only tests (i.e. those containing XUL/XBL/etc.)
 include moz-only/reftest.list
 
+== clip-01.svg pass.svg
+== clip-02a.svg clip-02-ref.svg
+== clip-02b.svg clip-02-ref.svg
 == clipPath-and-shape-rendering-01.svg clipPath-and-shape-rendering-01-ref.svg
 == clipPath-basic-01.svg pass.svg
+== clipPath-winding-01.svg pass.svg
 == clip-surface-clone-01.svg clip-surface-clone-01-ref.svg
 == conditions-01.svg pass.svg
 == currentColor-01.svg pass.svg
@@ -25,6 +33,7 @@ include moz-only/reftest.list
 == dynamic-gradient-contents-01.svg pass.svg
 == dynamic-link-style-01.svg pass.svg
 == dynamic-marker-01.svg pass.svg
+== dynamic-marker-02.svg dynamic-marker-02-ref.svg
 == dynamic-mask-contents-01.svg pass.svg
 == dynamic-pattern-01.svg pass.svg
 == dynamic-pattern-02.svg pass.svg
@@ -34,6 +43,7 @@ include moz-only/reftest.list
 == dynamic-rect-02.svg dynamic-rect-02-ref.svg
 == dynamic-rect-03.svg dynamic-rect-03-ref.svg
 == dynamic-rect-04.xhtml pass.svg
+== dynamic-rect-05.svg pass.svg
 == dynamic-reflow-01.svg dynamic-reflow-01-ref.svg
 == dynamic-small-object-scaled-up-01.svg pass.svg
 == dynamic-small-object-scaled-up-02.svg pass.svg
@@ -44,8 +54,10 @@ include moz-only/reftest.list
 == dynamic-textPath-01.svg dynamic-textPath-01-ref.svg
 == dynamic-use-01.svg pass.svg
 == dynamic-use-02.svg pass.svg
+== linked-pattern-01.svg pass.svg
 == use-01-extref.svg pass.svg
 == use-02-extref.svg use-02-extref-ref.svg
+== use-children.svg pass.svg
 == fallback-color-01a.svg pass.svg
 == fallback-color-01b.svg pass.svg
 == fallback-color-02a.svg fallback-color-02-ref.svg
@@ -57,6 +69,7 @@ include moz-only/reftest.list
 == filter-foreignObject-01.svg pass.svg
 == filter-invalidation-01.svg pass.svg
 == filter-translated-01.svg filter-translated-01-ref.svg
+== filters-and-group-opacity.svg filters-and-group-opacity-ref.svg
 == foreignObject-01.svg pass.svg
 == foreignObject-02.svg foreignObject-02-ref.svg
 == foreignObject-ancestor-style-change-01.svg foreignObject-ancestor-style-change-01-ref.svg
@@ -65,12 +78,20 @@ include moz-only/reftest.list
 == foreignObject-move-repaint-01.svg pass.svg
 == foreignObject-overflow-01.svg pass.svg
 == getElementById-a-element-01.svg pass.svg
+== gradient-live-01a.svg gradient-live-01-ref.svg
+== gradient-live-01b.svg gradient-live-01-ref.svg
+== gradient-live-01c.svg gradient-live-01-ref.svg
+== gradient-live-01d.svg gradient-live-01-ref.svg
 fails == inline-in-xul-basic-01.xul pass.svg
+== image-fill-01.svg pass.svg
 == image-scaling-01.svg pass.svg
 == image-scaling-02.svg pass.svg
 == invalid-text-01.svg pass.svg
 == linearGradient-basic-01.svg pass.svg
 == linearGradient-basic-02.svg pass.svg
+== markers-and-group-opacity.svg markers-and-group-opacity-ref.svg
+== marker-attribute-01.svg pass.svg
+== mask-containing-masked-content-01.svg pass.svg
 # Bug 456323
 # == mask-transformed-01.svg mask-transformed-01-ref.svg
 == nested-viewBox-01.svg pass.svg
@@ -82,7 +103,11 @@ fails == inline-in-xul-basic-01.xul pass.svg
 # skip the next test on cocoa, since behaviour depends on the -minor- version of the 10.4 OS.
 # See bugs 379610 and 432298.
 random-if(MOZ_WIDGET_TOOLKIT=="cocoa") == opacity-and-gradient-01.svg pass.svg
+== opacity-and-gradient-02.svg opacity-and-gradient-02-ref.svg
 == opacity-and-pattern-01.svg pass.svg
+== pattern-live-01a.svg pattern-live-01-ref.svg
+== pattern-live-01b.svg pattern-live-01-ref.svg
+== pattern-live-01c.svg pattern-live-01-ref.svg
 == pseudo-classes-01.svg pass.svg
 == pseudo-classes-02.svg pseudo-classes-02-ref.svg
 == radialGradient-basic-01.svg pass.svg
@@ -108,4 +133,5 @@ random-if(MOZ_WIDGET_TOOLKIT=="gtk2") == text-font-weight-01.svg text-font-weigh
 == text-style-01c.svg text-style-01-ref.svg
 == text-style-01d.svg text-style-01-ref.svg
 == text-style-01e.svg text-style-01-ref.svg
+== thin-stroke-01.svg pass.svg
 == viewport-percent-graphic-user-01.svg pass.svg

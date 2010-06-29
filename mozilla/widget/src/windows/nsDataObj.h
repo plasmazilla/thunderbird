@@ -51,8 +51,7 @@
 #include "nsIURI.h"
 #include "nsIInputStream.h"
 #include "nsIChannel.h"
-#include "nsTArray.h"
-#include "nsVoidArray.h"
+#include "nsTPtrArray.h"
 
 // XXX for older version of PSDK where IAsyncOperation and related stuff is not available
 // but thisdefine  should be removed when parocles config is updated
@@ -226,7 +225,6 @@ class nsDataObj : public IDataObject,
 
 		virtual HRESULT GetFile ( FORMATETC& aFE, STGMEDIUM& aSTG );
 		virtual HRESULT GetText ( const nsACString& aDF, FORMATETC& aFE, STGMEDIUM & aSTG );
-		virtual HRESULT GetBitmap ( const nsACString& inFlavor, FORMATETC&  FE, STGMEDIUM&  STM);
 		virtual HRESULT GetDib ( const nsACString& inFlavor, FORMATETC &, STGMEDIUM & aSTG );
 		virtual HRESULT GetMetafilePict(FORMATETC&  FE, STGMEDIUM&  STM);
 
@@ -236,11 +234,11 @@ class nsDataObj : public IDataObject,
     virtual HRESULT GetFileDescriptor ( FORMATETC& aFE, STGMEDIUM& aSTG, PRBool aIsUnicode ) ;
     virtual HRESULT GetFileContents ( FORMATETC& aFE, STGMEDIUM& aSTG ) ;
     virtual HRESULT GetPreferredDropEffect ( FORMATETC& aFE, STGMEDIUM& aSTG );
-   
-		virtual HRESULT SetBitmap(FORMATETC&  FE, STGMEDIUM&  STM);
-		virtual HRESULT SetDib   (FORMATETC&  FE, STGMEDIUM&  STM);
-		virtual HRESULT SetText  (FORMATETC&  FE, STGMEDIUM&  STM);
-		virtual HRESULT SetMetafilePict(FORMATETC&  FE, STGMEDIUM&  STM);
+
+    virtual HRESULT SetBitmap(FORMATETC&  FE, STGMEDIUM&  STM);
+    virtual HRESULT SetDib   (FORMATETC&  FE, STGMEDIUM&  STM);
+    virtual HRESULT SetText  (FORMATETC&  FE, STGMEDIUM&  STM);
+    virtual HRESULT SetMetafilePict(FORMATETC&  FE, STGMEDIUM&  STM);
 
       // Provide the structures needed for an internet shortcut by the shell
     virtual HRESULT GetFileDescriptorInternetShortcutA ( FORMATETC& aFE, STGMEDIUM& aSTG ) ;
@@ -254,7 +252,7 @@ class nsDataObj : public IDataObject,
 
     nsresult ExtractShortcutURL ( nsString & outURL ) ;
     nsresult ExtractShortcutTitle ( nsString & outTitle ) ;
-    
+
       // munge our HTML data to win32's CF_HTML spec. Will null terminate
     nsresult BuildPlatformHTML ( const char* inOurHTML, char** outPlatformHTML ) ;
 
@@ -265,7 +263,7 @@ class nsDataObj : public IDataObject,
 
 		ULONG        m_cRef;              // the reference count
 
-    nsVoidArray mDataFlavors;
+    nsTArray<nsCString> mDataFlavors;
 
     nsITransferable  * mTransferable; // nsDataObj owns and ref counts nsITransferable, 
                                       // the nsITransferable does know anything about the nsDataObj
@@ -318,7 +316,7 @@ class nsDataObj : public IDataObject,
 
   private:
 
-    // Drag and drop helper data for implementing drag and drop image support 
+    // Drag and drop helper data for implementing drag and drop image support.
     typedef struct {
       FORMATETC   fe;
       STGMEDIUM   stgm;
@@ -326,11 +324,8 @@ class nsDataObj : public IDataObject,
 
     nsTArray <LPDATAENTRY> mDataEntryList;
 
-    HRESULT FindFORMATETC(FORMATETC *pfe, LPDATAENTRY *ppde, BOOL fAdd);
-    HRESULT AddRefStgMedium(STGMEDIUM *pstgmIn, STGMEDIUM *pstgmOut,
-                            BOOL fCopyIn);
-    IUnknown* GetCanonicalIUnknown(IUnknown *punk);
-    HGLOBAL GlobalClone(HGLOBAL hglobIn);
+    PRBool LookupArbitraryFormat(FORMATETC *aFormat, LPDATAENTRY *aDataEntry, BOOL aAddorUpdate);
+    PRBool CopyMediumData(STGMEDIUM *aMediumDst, STGMEDIUM *aMediumSrc, LPFORMATETC aFormat, BOOL aSetData);
 };
 
 

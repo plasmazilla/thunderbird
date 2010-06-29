@@ -47,7 +47,6 @@
 #include "nsIDOMMouseListener.h"
 
 class nsString;
-class nsISupportsArray;
 class nsITimer;
 class nsSliderFrame;
 
@@ -116,6 +115,8 @@ public:
 class nsSliderFrame : public nsBoxFrame
 {
 public:
+  NS_DECL_FRAMEARENA_HELPERS
+
   friend class nsSliderMediator;
 
   nsSliderFrame(nsIPresShell* aShell, nsStyleContext* aContext);
@@ -135,11 +136,11 @@ public:
 
   // nsIFrame overrides
   NS_IMETHOD  AppendFrames(nsIAtom*        aListName,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
 
   NS_IMETHOD  InsertFrames(nsIAtom*        aListName,
                            nsIFrame*       aPrevFrame,
-                           nsIFrame*       aFrameList);
+                           nsFrameList&    aFrameList);
 
   NS_IMETHOD  RemoveFrame(nsIAtom*        aListName,
                           nsIFrame*       aOldFrame);
@@ -168,7 +169,7 @@ public:
                          nsEventStatus* aEventStatus);
 
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
-                                 nsIFrame*       aChildList);
+                                 nsFrameList&    aChildList);
 
   virtual nsIAtom* GetType() const;
 
@@ -192,8 +193,9 @@ public:
                          nsEventStatus*  aEventStatus);
 
   NS_IMETHOD HandleMultiplePress(nsPresContext* aPresContext,
-                         nsGUIEvent *    aEvent,
-                         nsEventStatus*  aEventStatus)  { return NS_OK; }
+                                 nsGUIEvent *    aEvent,
+                                 nsEventStatus*  aEventStatus,
+                                 PRBool aControlHeld)  { return NS_OK; }
 
   NS_IMETHOD HandleDrag(nsPresContext* aPresContext,
                         nsGUIEvent *    aEvent,
@@ -233,6 +235,9 @@ private:
     (static_cast<nsSliderFrame*>(aData))->Notify();
   }
  
+  nsPoint mDestinationPoint;
+  nsRefPtr<nsSliderMediator> mMediator;
+
   float mRatio;
 
   nscoord mDragStart;
@@ -241,8 +246,6 @@ private:
   PRInt32 mCurPos;
 
   nscoord mChange;
-  nsPoint mDestinationPoint;
-  nsRefPtr<nsSliderMediator> mMediator;
 
   // true if an attribute change has been caused by the user manipulating the
   // slider. This allows notifications to tell how a slider's current position

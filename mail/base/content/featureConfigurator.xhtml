@@ -50,7 +50,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml"
     xmlns:html="http://www.w3.org/1999/xhtml"
     xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-    version="-//W3C//DTD XHTML 1.1//EN" xml:lang="en">
+    version="-//W3C//DTD XHTML 1.1//EN" xml:lang="en"
+    windowtype="mailnews:featureconfigurator">
 <head>
   <!-- Themes -->
   <link rel="stylesheet"
@@ -66,98 +67,17 @@
       src="chrome://messenger/content/jquery-ui.js"></script>
   <title>&featureConfigurator.title;</title>
 </head>
-<body id="body" onload="reachOutAndTouchFrame()">
-<div id="content">
-  <h1>&featureConfigurator.heading;</h1>
-  <p>&featureConfigurator.para1;</p>
-  <p>&featureConfigurator.para2;</p>
-  <form>
-    <h2 class="withstatus">&featureConfigurator.imap.heading;</h2>
-    <div id="imap_status" class="status">
-      <span id="all-synced" class="status">&featureConfigurator.imap.status.all;</span>
-      <span id="none-synced" class="status">&featureConfigurator.imap.status.none;</span>
-      <span id="some-synced" class="status">&featureConfigurator.imap.status.some;</span>
-    </div>
-    <div class="feature">
-      <div class="row">
-        <div class="explanation pro">
-          <div class="benefits">&featureConfigurator.benefits.label;</div>
-          &featureConfigurator.syncBenefits.para;
-        </div>
-        <div class="explanation con">
-          <div class="disadvantage">&featureConfigurator.alternative.label;</div>
-          &featureConfigurator.syncAlternative.para;
-        </div>
-      </div>
-      <div class="row">
-        <div class="sync_button pro">
-          <span id="sync-all" class="button">&featureConfigurator.syncAll.button;</span>
-        </div>
-        <div class="sync_button con">
-          <span id="sync-none" class="button">&featureConfigurator.syncNone.button;</span>
-        </div>
-      </div>
-      <p class="explanation"><span class="other">&featureConfigurator.advancedUsers.label;</span>
-        &featureConfigurator.advancedUsers.para;
-        <ul id="account_list"/>
-      </p>
-    </div>
-    <h2 class="withstatus">&featureConfigurator.toolbar.heading;</h2>
-    <div id="toolbar_status" class="status">
-      <span id="using-new-toolbar" class="status">&featureConfigurator.toolbar.new.status;</span>
-      <span id="using-original-toolbar" class="status">&featureConfigurator.toolbar.original.status;</span>
-    </div>
-    <div class="feature">
-      <div class="row">
-        <p class="explanation pro"><div class="benefits">&featureConfigurator.benefits.label;</div>
-          &featureConfigurator.toolbarBenefits.para;
-        </p>
-        <p class="explanation con"><div class="disadvantage">&featureConfigurator.alternative.label;</div>
-          &featureConfigurator.toolbarAlternative.para;
-        </p>
-      </div>
-      <div class="row">
-        <div class="sync_button pro">
-          <span class="button" id="useNewToolbar" tabindex="0">&featureConfigurator.useNewToolbar.button;</span>
-        </div>
-        <div class="sync_button pro">
-          <span class="button" id="useOriginalToolbar" tabindex="0">&featureConfigurator.useOriginalToolbar.button;</span>
-        </div>
-      </div>
-    </div>
-    <h2 class="withstatus">&featureConfigurator.smartFolders.heading;</h2>
-    <div id="foldermode_status" class="status">
-      <span id="using-smart-folders" class="status">&featureConfigurator.smartFolders.smart.status;</span>
-      <span id="using-all-folders" class="status">&featureConfigurator.smartFolders.all.status;</span>
-    </div>
-    <div class="feature">
-      <div class="row">
-        <p class="explanation pro"><div class="benefits">&featureConfigurator.benefits.label;</div>
-          &featureConfigurator.smartFolderBenefits.para;
-        </p>
-        <p class="explanation con">
-          <div class="disadvantage">&featureConfigurator.alternative.label;</div>
-          &featureConfigurator.smartFolderAlternative.para;
-        </p>
-      </div>
-      <div class="row">
-        <div class="sync_button pro">
-          <span class="button" id="useSmartFolders" tabindex="0">&featureConfigurator.useSmartFolders.button;</span>
-        </div>
-        <div class="sync_button pro">
-          <span class="button" id="useAllFolders" tabindex="0">&featureConfigurator.useAllFolders.button;</span>
-        </div>
-      </div>
-    </div>
-    <h2>&featureConfigurator.collapsedHeaders.heading;</h2>
-    <div class="feature">
-      <!-- odd line breaks to avoid adding whitespace in rendered HTML -->
-      <p class="explanation">&featureConfigurator.headerParaBeforeLink;<a
-        id="header_addons">&featureConfigurator.headerParaLinkName;</a
-        >&featureConfigurator.headerParaAfterLink;
-      </p>
-    </div>
-  </form>
+<body id="body" onload="onLoad()">
+<div class="content">
+  <iframe class="content" type="content" id="contentFrame"/>
+</div>
+<div id="buttons">
+  <button id="prevButton" onclick="FeatureConfigurator.previousButton(event)"
+          >&featureConfigurator.previousButton;</button>
+  <button id="nextButton" onclick="FeatureConfigurator.nextButton(event)"
+          >&featureConfigurator.nextButton;</button>
+  <button id="closeButton" onclick="FeatureConfigurator.closeButton(event)"
+          >&featureConfigurator.closeButton;</button>
 </div>
 </body>
 </html>

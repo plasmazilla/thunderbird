@@ -56,12 +56,14 @@
 
 
   // Alphabetical list of generic atoms
-ACCESSIBILITY_ATOM(_empty, "")
 ACCESSIBILITY_ATOM(button, "button")
+ACCESSIBILITY_ATOM(col, "col")
+ACCESSIBILITY_ATOM(_empty, "")
 ACCESSIBILITY_ATOM(_false, "false")
 ACCESSIBILITY_ATOM(image, "image")
 ACCESSIBILITY_ATOM(password, "password")
 ACCESSIBILITY_ATOM(reset, "reset")
+ACCESSIBILITY_ATOM(row, "row")
 ACCESSIBILITY_ATOM(submit, "submit")
 ACCESSIBILITY_ATOM(_true, "true")
 ACCESSIBILITY_ATOM(_undefined, "undefined")
@@ -162,9 +164,11 @@ ACCESSIBILITY_ATOM(_class, "class")
 ACCESSIBILITY_ATOM(cycles, "cycles") // used for XUL cycler attribute
 ACCESSIBILITY_ATOM(curpos, "curpos") // XUL
 ACCESSIBILITY_ATOM(data, "data")
+ACCESSIBILITY_ATOM(draggable, "draggable")
 ACCESSIBILITY_ATOM(droppable, "droppable")   // XUL combo box
 ACCESSIBILITY_ATOM(editable, "editable")
 ACCESSIBILITY_ATOM(_for, "for")
+ACCESSIBILITY_ATOM(headers, "headers")   // HTML table
 ACCESSIBILITY_ATOM(hidden, "hidden")   // XUL tree columns
 ACCESSIBILITY_ATOM(href, "href") // XUL, XLink
 ACCESSIBILITY_ATOM(increment, "increment") // XUL
@@ -178,6 +182,7 @@ ACCESSIBILITY_ATOM(multiline, "multiline") // XUL
 ACCESSIBILITY_ATOM(name, "name")
 ACCESSIBILITY_ATOM(onclick, "onclick")
 ACCESSIBILITY_ATOM(readonly, "readonly")
+ACCESSIBILITY_ATOM(scope, "scope") // HTML table
 ACCESSIBILITY_ATOM(simple, "simple") // XLink
 ACCESSIBILITY_ATOM(src, "src")
 ACCESSIBILITY_ATOM(selected, "selected")
@@ -195,10 +200,17 @@ ACCESSIBILITY_ATOM(textAlign, "text-align")
 ACCESSIBILITY_ATOM(textIndent, "text-indent")
 
   // Alphabetical list of text attributes (AT API)
+ACCESSIBILITY_ATOM(color, "color")
 ACCESSIBILITY_ATOM(backgroundColor, "background-color")
+ACCESSIBILITY_ATOM(fontFamily, "font-family")
+ACCESSIBILITY_ATOM(fontStyle, "font-style")
+ACCESSIBILITY_ATOM(fontWeight, "font-weight")
 ACCESSIBILITY_ATOM(fontSize, "font-size")
 ACCESSIBILITY_ATOM(invalid, "invalid")
 ACCESSIBILITY_ATOM(language, "language")
+ACCESSIBILITY_ATOM(textLineThroughStyle, "text-line-through-style")
+ACCESSIBILITY_ATOM(textUnderlineStyle, "text-underline-style")
+ACCESSIBILITY_ATOM(textPosition, "text-position")
 
   // ARIA (DHTML accessibility) attributes
   // Also add to nsARIAMap.cpp and nsARIAMap.h
@@ -211,7 +223,6 @@ ACCESSIBILITY_ATOM(aria_busy, "aria-busy")
 ACCESSIBILITY_ATOM(aria_checked, "aria-checked")
 ACCESSIBILITY_ATOM(aria_controls, "aria-controls")
 ACCESSIBILITY_ATOM(aria_describedby, "aria-describedby")
-ACCESSIBILITY_ATOM(aria_droppable, "aria-droppable")
 ACCESSIBILITY_ATOM(aria_disabled, "aria-disabled")
 ACCESSIBILITY_ATOM(aria_dropeffect, "aria-dropeffect")
 ACCESSIBILITY_ATOM(aria_expanded, "aria-expanded")
@@ -249,8 +260,10 @@ ACCESSIBILITY_ATOM(tableCellIndex, "table-cell-index")
 ACCESSIBILITY_ATOM(containerAtomic, "container-atomic")
 ACCESSIBILITY_ATOM(containerBusy, "container-busy")
 ACCESSIBILITY_ATOM(containerLive, "container-live")
+ACCESSIBILITY_ATOM(containerLiveRole, "container-live-role")
 ACCESSIBILITY_ATOM(containerRelevant, "container-relevant")
 ACCESSIBILITY_ATOM(level, "level")
+ACCESSIBILITY_ATOM(live, "live")
 ACCESSIBILITY_ATOM(lineNumber, "line-number")
 ACCESSIBILITY_ATOM(posinset, "posinset") 
 ACCESSIBILITY_ATOM(setsize, "setsize")

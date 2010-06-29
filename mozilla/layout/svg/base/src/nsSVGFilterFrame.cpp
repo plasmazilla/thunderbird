@@ -36,8 +36,6 @@
 
 #include "nsSVGFilterFrame.h"
 #include "nsIDocument.h"
-#include "nsISVGValueUtils.h"
-#include "nsSVGMatrix.h"
 #include "nsSVGOuterSVGFrame.h"
 #include "nsGkAtoms.h"
 #include "nsSVGUtils.h"
@@ -51,16 +49,12 @@
 #include "nsSVGFilterInstance.h"
 
 nsIFrame*
-NS_NewSVGFilterFrame(nsIPresShell* aPresShell, nsIContent* aContent, nsStyleContext* aContext)
+NS_NewSVGFilterFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
-  nsCOMPtr<nsIDOMSVGFilterElement> filter = do_QueryInterface(aContent);
-  if (!filter) {
-    NS_ERROR("Can't create frame! Content is not an SVG filter");
-    return nsnull;
-  }
-
   return new (aPresShell) nsSVGFilterFrame(aContext);
 }
+
+NS_IMPL_FRAMEARENA_HELPERS(nsSVGFilterFrame)
 
 static nsIntRect
 MapDeviceRectToFilterSpace(const gfxMatrix& aMatrix,
@@ -108,7 +102,7 @@ nsAutoFilterInstance::nsAutoFilterInstance(nsIFrame *aTarget,
                                            const nsIntRect *aDirtyInputRect,
                                            const nsIntRect *aOverrideSourceBBox)
 {
-  CallQueryInterface(aTarget, &mTarget);
+  mTarget = do_QueryFrame(aTarget);
 
   nsSVGFilterElement *filter =
     static_cast<nsSVGFilterElement*>(aFilterFrame->GetContent());
@@ -118,20 +112,12 @@ nsAutoFilterInstance::nsAutoFilterInstance(nsIFrame *aTarget,
   PRUint16 primitiveUnits =
     filter->mEnumAttributes[nsSVGFilterElement::PRIMITIVEUNITS].GetAnimValue();
 
-  nsCOMPtr<nsIDOMSVGRect> bbox;
+  gfxRect bbox;
   if (aOverrideSourceBBox) {
-    NS_NewSVGRect(getter_AddRefs(bbox),
-                  aOverrideSourceBBox->x, aOverrideSourceBBox->y,
-                  aOverrideSourceBBox->width, aOverrideSourceBBox->height);
+    bbox = gfxRect(aOverrideSourceBBox->x, aOverrideSourceBBox->y,
+                   aOverrideSourceBBox->width, aOverrideSourceBBox->height);
   } else {
     bbox = nsSVGUtils::GetBBox(aTarget);
-  }
-
-  if (!bbox &&
-       (filterUnits == nsIDOMSVGUnitTypes::SVG_UNIT_TYPE_OBJECTBOUNDINGBOX ||
-        primitiveUnits == nsIDOMSVGUnitTypes::SVG_UNIT_TYPE_OBJECTBOUNDINGBOX)) {
-    // XXX dispatch error console warning?
-    return;
   }
 
   // Get the filter region (in the filtered element's user space):
@@ -156,7 +142,7 @@ nsAutoFilterInstance::nsAutoFilterInstance(nsIFrame *aTarget,
     return;
   }
 
-  nsCOMPtr<nsIDOMSVGMatrix> userToDeviceSpace = nsSVGUtils::GetCanvasTM(aTarget);
+  gfxMatrix userToDeviceSpace = nsSVGUtils::GetCanvasTM(aTarget);
   
   // Calculate filterRes (the width and height of the pixel buffer of the
   // temporary offscreen surface that we'll paint into):
@@ -197,16 +183,14 @@ nsAutoFilterInstance::nsAutoFilterInstance(nsIFrame *aTarget,
 
   // Convert the dirty rects to filter space, and create our nsSVGFilterInstance:
 
-  nsCOMPtr<nsIDOMSVGMatrix> filterToUserSpace, filterToDeviceSpace;
-  NS_NewSVGMatrix(getter_AddRefs(filterToUserSpace),
-                  filterRegion.Width() / filterRes.width, 0.0f,
-                  0.0f, filterRegion.Height() / filterRes.height,
-                  filterRegion.X(), filterRegion.Y());
-  userToDeviceSpace->Multiply(filterToUserSpace, getter_AddRefs(filterToDeviceSpace));
+  gfxMatrix filterToUserSpace(filterRegion.Width() / filterRes.width, 0.0f,
+                              0.0f, filterRegion.Height() / filterRes.height,
+                              filterRegion.X(), filterRegion.Y());
+  gfxMatrix filterToDeviceSpace = filterToUserSpace * userToDeviceSpace;
   
   // filterToDeviceSpace is always invertible
-  gfxMatrix deviceToFilterSpace
-    = nsSVGUtils::ConvertSVGMatrixToThebes(filterToDeviceSpace).Invert();
+  gfxMatrix deviceToFilterSpace = filterToDeviceSpace;
+  deviceToFilterSpace.Invert();
 
   nsIntRect dirtyOutputRect =
     MapDeviceRectToFilterSpace(deviceToFilterSpace, filterRes, aDirtyOutputRect);
@@ -223,12 +207,6 @@ nsAutoFilterInstance::nsAutoFilterInstance(nsIFrame *aTarget,
 
 nsAutoFilterInstance::~nsAutoFilterInstance()
 {
-  if (!mTarget)
-    return;
-
-  mTarget->SetMatrixPropagation(PR_TRUE);
-  mTarget->NotifySVGChanged(nsISVGChildFrame::SUPPRESS_INVALIDATION |
-                            nsISVGChildFrame::TRANSFORM_CHANGED);
 }
 
 nsresult
@@ -254,8 +232,7 @@ nsSVGFilterFrame::FilterPaint(nsSVGRenderState *aContext,
 static nsresult
 TransformFilterSpaceToDeviceSpace(nsSVGFilterInstance *aInstance, nsIntRect *aRect)
 {
-  gfxMatrix m = nsSVGUtils::ConvertSVGMatrixToThebes(
-    aInstance->GetFilterSpaceToDeviceSpaceTransform());
+  gfxMatrix m = aInstance->GetFilterSpaceToDeviceSpaceTransform();
   gfxRect r(aRect->x, aRect->y, aRect->width, aRect->height);
   r = m.TransformBounds(r);
   r.RoundOut();
@@ -329,6 +306,19 @@ nsSVGFilterFrame::GetFilterBBox(nsIFrame *aTarget, const nsIntRect *aSourceBBox)
   return nsIntRect();
 }
   
+#ifdef DEBUG
+NS_IMETHODIMP
+nsSVGFilterFrame::Init(nsIContent* aContent,
+                       nsIFrame* aParent,
+                       nsIFrame* aPrevInFlow)
+{
+  nsCOMPtr<nsIDOMSVGFilterElement> filter = do_QueryInterface(aContent);
+  NS_ASSERTION(filter, "Content is not an SVG filter");
+
+  return nsSVGFilterFrameBase::Init(aContent, aParent, aPrevInFlow);
+}
+#endif /* DEBUG */
+
 nsIAtom *
 nsSVGFilterFrame::GetType() const
 {

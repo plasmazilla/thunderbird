@@ -48,8 +48,9 @@
 <!ENTITY mnView.accesskey "Z">
   <!ENTITY cmdToggleBrowser.label "Prehliadač">
   <!ENTITY cmdToggleBrowser.accesskey "P">
+  <!ENTITY cmdFlashOnSelect.label "Zvýrazniť vybraný prvok">
+  <!ENTITY cmdFlashOnSelect.accesskey "v">
   <!ENTITY cmdToggleSearch.label "Výsledky hľadania">
-  
 <!ENTITY browserPanel.label "Prehliadač">
   
 <!ENTITY inspectNewWindow.label "Preskúmať v novom okne">

@@ -43,8 +43,6 @@
     %brandDTD;
     <!ENTITY % creditsDTD SYSTEM "chrome://messenger/locale/credits.dtd">
     %creditsDTD;
-    <!ENTITY % licenseDTD SYSTEM "chrome://global/locale/license.dtd">
-    %licenseDTD;
   ]
 >
 
@@ -155,8 +153,8 @@
       }
     </style>
 
-    <script type="application/x-javascript" src="chrome://global/content/globalOverlay.js"></script>
-    <script type="application/x-javascript">
+    <script type="application/javascript" src="chrome://global/content/globalOverlay.js"></script>
+    <script type="application/javascript">
     <![CDATA[
 
       var gCreditsInterval = -1;
@@ -189,22 +187,6 @@
           clearInterval(gCreditsInterval);
           setTimeout(function() { cb.scrollTop = 0 }, 10000);
         }
-      }
-
-      function openLicense()
-      {
-        var fileLocator =
-            Components.classes["@mozilla.org/file/directory_service;1"].
-            getService(Components.interfaces.nsIProperties);
-        var appDir = fileLocator.get("XCurProcD", Components.interfaces.nsIFile);
-        appDir.append("license.html");
-        var protocolSvc =
-            Components.classes["@mozilla.org/uriloader/external-protocol-service;1"].
-            getService(Components.interfaces.nsIExternalProtocolService);
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"].
-                        getService(Components.interfaces.nsIIOService);
-        var uri = ioService.newFileURI(appDir);
-        protocolSvc.loadUrl(uri);
       }
 
     ]]>
@@ -254,6 +236,7 @@
             <li>Josh Geenen</li>
             <li>Bron Gondwana</li>
             <li>Ovidiu Grigorescu</li>
+            <li>Joachim Herb</li>
             <li>Jo Hermans</li>
             <li>Ludovic Hirlimann</li>
             <li>David Humphrey</li>
@@ -261,12 +244,11 @@
             <li>Robert Kaiser</li>
             <li>Makoto Kato</li>
             <li>Ronald Killmer</li>
-            <li>Phil Lacy</li>
-            <li>Yuen Hoe Lim</li>
             <li>Nick Kreeger</li>
             <li>Gary Kwong</li>
             <li>Phil Lacy</li>
             <li>John Lilly</li>
+            <li>Yuen Hoe Lim</li>
             <li>Boying Lu</li>
             <li>Scott MacGregor</li>
             <li>Tony Mechelynck</li>
@@ -308,6 +290,7 @@
             <li>Shawn Wilsher</li>
             <li>Blake Winton</li>
             <li>Marco Zehe</li>
+            <li>Jennifer Zickerman</li>
           </ul>
           </div>
 
@@ -327,13 +310,6 @@
         </div>
 
         <p id="gecko" class="center">&credit.poweredByGecko;</p>
-
-        <p class="footnote">
-          &brandFullName;&trade; &license.part0; &copy;1998-2010 &license.part1;
-          <a href="" link="http://www.mozilla.org/credits/" onclick="visitLink(event); event.preventDefault();">&license.contrib;</a>,
-          &license.part2;
-          <a href="" onclick="openLicense(); event.preventDefault();">license</a>
-          &license.part3;</p>
 
         <p class="footnote">
           Mozilla Thunderbird&trade; and the Thunderbird logo are trademarks of the Mozilla

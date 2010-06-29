@@ -48,7 +48,6 @@
 #include "nsCRT.h"
 #include "prmem.h"
 #include "nsPrintfCString.h"
-#include "nsVoidArray.h"
 #include "nsIDateTimeFormat.h"
 #include "nsDateTimeFormatCID.h"
 #include "nsQuickSort.h"
@@ -58,9 +57,12 @@
 #include "nsISimpleEnumerator.h"
 #include "nsAutoPtr.h"
 #include "nsIMutableArray.h"
+#include "nsTArray.h"
 
 #include "nsWildCard.h"
 
+class nsIDOMDataTransfer;
+ 
 #define NS_FILECOMPLETE_CID { 0xcb60980e, 0x18a5, 0x4a77, \
                             { 0x91, 0x10, 0x81, 0x46, 0x61, 0x4c, 0xa7, 0xf0 } }
 #define NS_FILECOMPLETE_CONTRACTID "@mozilla.org/autocomplete/search;1?name=file"
@@ -75,7 +77,7 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIAUTOCOMPLETERESULT
 
-  nsStringArray mValues;
+  nsTArray<nsString> mValues;
   nsAutoString mSearchString;
   PRUint16 mSearchResult;
 };
@@ -115,7 +117,7 @@ nsFileResult::nsFileResult(const nsAString& aSearchString,
       nextFile->GetLeafName(fileName);
       if (StringBeginsWith(fileName, prefix)) {
         fileName.Insert(parent, 0);
-        mValues.AppendString(fileName);
+        mValues.AppendElement(fileName);
         if (mSearchResult == RESULT_NOMATCH && fileName.Equals(mSearchString))
           mSearchResult = RESULT_IGNORED;
         else
@@ -155,13 +157,13 @@ NS_IMETHODIMP nsFileResult::GetErrorDescription(nsAString & aErrorDescription)
 NS_IMETHODIMP nsFileResult::GetMatchCount(PRUint32 *aMatchCount)
 {
   NS_ENSURE_ARG_POINTER(aMatchCount);
-  *aMatchCount = mValues.Count();
+  *aMatchCount = mValues.Length();
   return NS_OK;
 }
 
 NS_IMETHODIMP nsFileResult::GetValueAt(PRInt32 index, nsAString & aValue)
 {
-  mValues.StringAt(index, aValue);
+  aValue = mValues[index];
   return NS_OK;
 }
 
@@ -251,7 +253,7 @@ protected:
   PRInt16 mSortType;
   PRInt32 mTotalRows;
 
-  nsVoidArray mCurrentFilters;
+  nsTArray<PRUnichar*> mCurrentFilters;
 
   PRPackedBool mShowHiddenFiles;
   PRPackedBool mDirectoryFilter;
@@ -284,8 +286,8 @@ nsFileView::nsFileView() :
 
 nsFileView::~nsFileView()
 {
-  PRInt32 count = mCurrentFilters.Count();
-  for (PRInt32 i = 0; i < count; ++i)
+  PRUint32 count = mCurrentFilters.Length();
+  for (PRUint32 i = 0; i < count; ++i)
     NS_Free(mCurrentFilters[i]);
 }
 
@@ -481,8 +483,8 @@ nsFileView::SetDirectory(nsIFile* aDirectory)
 NS_IMETHODIMP
 nsFileView::SetFilter(const nsAString& aFilterString)
 {
-  PRInt32 filterCount = mCurrentFilters.Count();
-  for (PRInt32 i = 0; i < filterCount; ++i)
+  PRUint32 filterCount = mCurrentFilters.Length();
+  for (PRUint32 i = 0; i < filterCount; ++i)
     NS_Free(mCurrentFilters[i]);
   mCurrentFilters.Clear();
 
@@ -673,14 +675,15 @@ nsFileView::IsSorted(PRBool* aIsSorted)
 }
 
 NS_IMETHODIMP
-nsFileView::CanDrop(PRInt32 aIndex, PRInt32 aOrientation, PRBool* aCanDrop)
+nsFileView::CanDrop(PRInt32 aIndex, PRInt32 aOrientation,
+                    nsIDOMDataTransfer* dataTransfer, PRBool* aCanDrop)
 {
   *aCanDrop = PR_FALSE;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFileView::Drop(PRInt32 aRow, PRInt32 aOrientation)
+nsFileView::Drop(PRInt32 aRow, PRInt32 aOrientation, nsIDOMDataTransfer* dataTransfer)
 {
   return NS_OK;
 }
@@ -867,7 +870,7 @@ nsFileView::FilterFiles()
   mTotalRows = count;
   mFileList->Count(&count);
   mFilteredFiles->Clear();
-  PRInt32 filterCount = mCurrentFilters.Count();
+  PRUint32 filterCount = mCurrentFilters.Length();
 
   nsCOMPtr<nsIFile> file;
   for (PRUint32 i = 0; i < count; ++i) {
@@ -883,15 +886,15 @@ nsFileView::FilterFiles()
     }
     
     if (!isHidden) {
-      for (PRInt32 j = 0; j < filterCount; ++j) {
+      for (PRUint32 j = 0; j < filterCount; ++j) {
         PRBool matched = PR_FALSE;
-        if (!nsCRT::strcmp((const PRUnichar*) mCurrentFilters.ElementAt(j),
+        if (!nsCRT::strcmp(mCurrentFilters.ElementAt(j),
                            NS_LITERAL_STRING("..apps").get()))
         {
           file->IsExecutable(&matched);
         } else
           matched = (NS_WildCardMatch(ucsLeafName.get(),
-                                      (const PRUnichar*) mCurrentFilters.ElementAt(j),
+                                      mCurrentFilters.ElementAt(j),
                                       PR_TRUE) == MATCH);
 
         if (matched) {

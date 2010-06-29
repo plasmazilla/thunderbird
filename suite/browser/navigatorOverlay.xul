@@ -67,7 +67,7 @@
     <!-- File Menu -->
     <key id="key_newNavigator"/>
     <key id="key_newNavigatorTab" key="&tabCmd.commandkey;" modifiers="accel" command="cmd_newNavigatorTab"/>
-    <key id="key_restoreTab" key="&recentTabs.commandkey;" modifiers="accel,shift" oncommand="gBrowser.restoreTab(0);"/>
+    <key id="key_restoreTab" key="&recentTabs.commandkey;" modifiers="accel,shift" oncommand="gBrowser.undoCloseTab(0);"/>
     <key id="key_restoreWindow" key="&recentWindows.commandkey;" modifiers="accel,shift" oncommand="undoCloseWindow();"/>
     <key id="key_newBlankPage"/>
     <key id="focusURLBar"      key="&openCmd.commandkey;" oncommand="ShowAndSelectContentsOfURLBar();"
@@ -143,7 +143,7 @@
     <command id="cmd_newEditorTemplate"/>
     <command id="cmd_newEditorDraft"/> -->
     <command id="Browser:OpenFile"  oncommand="BrowserOpenFileWindow();"/>
-    <command id="Browser:SavePage" oncommand="saveDocument(window.content.document);"/>
+    <command id="Browser:SavePage" oncommand="saveDocument(window.content.document, true);"/>
     <command id="Browser:EditPage" oncommand="editPageOrFrame();" observes="isImage"/>
     <command id="Browser:UploadFile" oncommand="BrowserUploadFile();"/>
     <command id="Browser:Open" oncommand="BrowserOpenWindow();"/>
@@ -323,10 +323,18 @@
             <menuitem id="menu_newEditor"    command="cmd_newEditor"/>
           </menupopup>
         </menu>
-        <menuitem label="&openCmd.label;" accesskey="&openCmd.accesskey;" key="openLocationKb" command="Browser:Open"/>
-        <menuitem label="&openFileCmd.label;" accesskey="&openFileCmd.accesskey;" key="openFileKb" command="Browser:OpenFile"/>
+        <menuitem id="menu_openLocation"
+                  label="&openCmd.label;"
+                  accesskey="&openCmd.accesskey;"
+                  key="openLocationKb"
+                  command="Browser:Open"/>
+        <menuitem id="menu_openFile"
+                  label="&openFileCmd.label;"
+                  accesskey="&openFileCmd.accesskey;"
+                  key="openFileKb"
+                  command="Browser:OpenFile"/>
         <menu label="&recentTabs.label;" accesskey="&recentTabs.accesskey;" id="menu_recentTabs">
-          <menupopup id="menu_recentTabsPopup" onpopupshowing="updateRecentTabs(this);" oncommand="gBrowser.restoreTab(event.target.value);"/>
+          <menupopup id="menu_recentTabsPopup" onpopupshowing="updateRecentTabs(this);" oncommand="gBrowser.undoCloseTab(event.target.value);"/>
         </menu>
         <menu label="&recentWindows.label;" accesskey="&recentWindows.accesskey;" id="menu_recentWindows">
           <menupopup id="menu_recentWindowsPopup" onpopupshowing="updateRecentWindows(this);" oncommand="undoCloseWindow(event.target.value);"/>
@@ -353,7 +361,7 @@
     </menu>
 
     <menu id="menu_Edit">
-      <menupopup id="menu_Edit_Popup">
+      <menupopup id="menu_EditPopup">
         <menuitem id="menu_undo"/>
         <menuitem id="menu_redo"/>
         <menuseparator/>
@@ -404,8 +412,15 @@
         <menu id="menu_UseStyleSheet" label="&useStyleSheetMenu.label;" accesskey="&useStyleSheetMenu.accesskey;" disabled="false" observes="isImage">
           <menupopup onpopupshowing="stylesheetFillPopup(this);"
                      oncommand="stylesheetSwitchAll(window.content, event.target.getAttribute('data')); setStyleDisabled(false);" type="radio">
-            <menuitem label="&useStyleSheetNone.label;" accesskey="&useStyleSheetNone.accesskey;" oncommand="setStyleDisabled(true); event.stopPropagation();" type="radio"/>
-            <menuitem label="&useStyleSheetPersistentOnly.label;" accesskey="&useStyleSheetPersistentOnly.accesskey;" type="radio"/>
+            <menuitem id="menu_pageStyleNoStyle"
+                      label="&useStyleSheetNone.label;"
+                      accesskey="&useStyleSheetNone.accesskey;"
+                      oncommand="setStyleDisabled(true); event.stopPropagation();"
+                      type="radio"/>
+            <menuitem id="menu_pageStylePersistentOnly"
+                      label="&useStyleSheetPersistentOnly.label;"
+                      accesskey="&useStyleSheetPersistentOnly.accesskey;"
+                      type="radio"/>
           </menupopup>
         </menu>
         <menu id="charsetMenu" observes="isImage"/>
@@ -441,15 +456,40 @@
       </menupopup>
     </menu>
 
-    <menu accesskey="&goMenu.accesskey;" label="&goMenu.label;" oncommand="gotoHistoryIndex(event);">
-      <menupopup id="goPopup" onpopupshowing="updateGoMenu(event);">
-        <menuitem label="&goBackCmd.label;"    accesskey="&goBackCmd.accesskey;"    key="goBackKb"    command="Browser:Back"/>
-        <menuitem label="&goForwardCmd.label;" accesskey="&goForwardCmd.accesskey;" key="goForwardKb" command="Browser:Forward"/>
-        <menuitem label="&goUpCmd.label;"      accesskey="&goUpCmd.accesskey;"      key="goUpKb"      command="Browser:Up"/>
-        <menuitem label="&goHomeCmd.label;"    accesskey="&goHomeCmd.accesskey;"    command="Browser:Home" key="goHome"/>
+    <menu id="history-menu"
+          label="&goMenu.label;"
+          accesskey="&goMenu.accesskey;"
+          oncommand="gotoHistoryIndex(event);">
+      <menupopup id="goPopup"
+                 onpopupshowing="updateGoMenu(event);">
+        <menuitem id="historyMenuBack"
+                  label="&goBackCmd.label;"
+                  accesskey="&goBackCmd.accesskey;"
+                  key="goBackKb"
+                  command="Browser:Back"/>
+        <menuitem id="historyMenuForward"
+                  label="&goForwardCmd.label;"
+                  accesskey="&goForwardCmd.accesskey;"
+                  key="goForwardKb"
+                  command="Browser:Forward"/>
+        <menuitem id="historyMenuUp"
+                  label="&goUpCmd.label;"
+                  accesskey="&goUpCmd.accesskey;"
+                  key="goUpKb"
+                  command="Browser:Up"/>
+        <menuitem id="historyMenuHome"
+                  label="&goHomeCmd.label;"
+                  accesskey="&goHomeCmd.accesskey;"
+                  command="Browser:Home"
+                  key="goHome"/>
         <menuseparator/>
-        <menuitem label="&historyCmd.label;" accesskey="&historyCmd.accesskey;" oncommand="toHistory()" key="key_gotoHistory"/>
-        <menuseparator hidden="true"/>
+        <menuitem id="menu_showAllHistory"
+                  label="&historyCmd.label;"
+                  accesskey="&historyCmd.accesskey;"
+                  oncommand="toHistory()"
+                  key="key_gotoHistory"/>
+        <menuseparator id="startHistorySeparator" hidden="true"/>
+        <menuseparator id="endHistorySeparator" hidden="true"/>
       </menupopup>
     </menu>
     

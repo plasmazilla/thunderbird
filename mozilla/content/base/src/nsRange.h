@@ -53,8 +53,6 @@
 #include "prmon.h"
 #include "nsStubMutationObserver.h"
 
-class nsVoidArray;
-
 // -------------------------------------------------------------------------------
 
 class nsRangeUtils : public nsIRangeUtils
@@ -75,7 +73,6 @@ public:
 // -------------------------------------------------------------------------------
 
 class nsRange : public nsIRange,
-                public nsIDOMRange,
                 public nsIDOMNSRange,
                 public nsStubMutationObserver
 {
@@ -95,8 +92,11 @@ public:
   NS_DECL_NSIDOMNSRANGE
   
   // nsIRange interface
-  virtual nsINode* GetCommonAncestor();
+  virtual nsINode* GetCommonAncestor() const;
   virtual void Reset();
+  virtual nsresult SetStart(nsINode* aParent, PRInt32 aOffset);
+  virtual nsresult SetEnd(nsINode* aParent, PRInt32 aOffset);
+  virtual nsresult CloneRange(nsIRange** aNewRange) const;
   
   // nsIMutationObserver methods
   virtual void CharacterDataChanged(nsIDocument* aDocument,
@@ -126,6 +126,11 @@ private:
    *                  May be null to indicate the caller doesn't want a fragment.
    */
   nsresult CutContents(nsIDOMDocumentFragment** frag);
+
+  /**
+   * Guts of cloning a range.  Addrefs the new range.
+   */
+  nsresult DoCloneRange(nsIRange** aNewRange) const;
 
   static nsresult CloneParentsBetween(nsIDOMNode *aAncestor,
                                       nsIDOMNode *aNode,

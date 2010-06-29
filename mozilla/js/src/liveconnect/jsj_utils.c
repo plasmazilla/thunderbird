@@ -417,10 +417,10 @@ jsj_LogError(const char *error_msg)
 JSErrorFormatString jsj_ErrorFormatString[JSJ_Err_Limit] = {
 #if JSJ_HAS_DFLT_MSG_STRINGS
 #define MSG_DEF(name, number, count, format) \
-    { format, count } ,
+    { format, count, JSEXN_ERR } ,
 #else
 #define MSG_DEF(name, number, count, format) \
-    { NULL, count } ,
+    { NULL, count, JSEXN_ERR } ,
 #endif
 #include "jsj.msg"
 #undef MSG_DEF
@@ -510,4 +510,20 @@ jsj_SetJavaJSJEnv(JSJavaThreadState* java_jsj_env)
     JSJavaThreadState *old_jsj_env = the_java_jsj_env;
     the_java_jsj_env = java_jsj_env;
     return old_jsj_env;
+}
+
+void
+jsj_TraceObject(JSTracer *trc, JSObject *obj)
+{
+    JSContext *cx;
+    JSObject *obj2;
+
+    cx = trc->context;
+    obj2 = JS_GetPrototype(cx, obj);
+    if (obj2)
+        JS_CALL_OBJECT_TRACER(trc, obj2, "__proto__");
+
+    obj2 = JS_GetParent(cx, obj);
+    if (obj2)
+        JS_CALL_OBJECT_TRACER(trc, obj2, "__parent__");
 }

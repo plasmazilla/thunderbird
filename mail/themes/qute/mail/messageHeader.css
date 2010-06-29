@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Joachim Herb <herb@leo.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -40,6 +41,7 @@
   ======================================================================= */
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
 
 /* ::::: for the entire area ::::: */
 .main-header-area {
@@ -69,7 +71,8 @@
   -moz-box-align: baseline;
 }
 
-#expandedHeadersTopBox {
+/* Select the div element in the html namespace. */
+html|div#expandedHeadersTopBox {
   /* Ensure that the space between the from row and the one after is
      identical to the spacing between the subsequent header lines. */
   -moz-box-align: end;
@@ -93,6 +96,11 @@
   -moz-appearance: none;
   padding: 0;
   border-bottom-width: 0;
+}
+
+/* We use pixels here because the height of the button is in pixels. */
+#expandedHeaderRows {
+  padding-top: 14px;
 }
 
 #expandedsubjectBox > .headerValue {
@@ -195,8 +203,8 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
 .msgHeaderView-button {
   -moz-appearance: button;
   min-height: 1ex;
-  -moz-margin-start: 0;
-  -moz-margin-end: 4px;
+  -moz-margin-start: 2px;
+  -moz-margin-end: 2px;
   margin-top: 1px;
   margin-bottom: 2px;
   vertical-align: middle;
@@ -223,22 +231,13 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
 /* toolbar[mode="text"] is necessary so that we end up with more specificity
  * than the !important rule in toolkit's toolbar.css.
  */
-toolbar[mode="text"] > .msgHeaderView-button .toolbarbutton-text
-{
+toolbar[mode="text"] .msgHeaderView-button .toolbarbutton-text,
+toolbar[mode="text"] toolbarpaletteitem .msgHeaderView-button .toolbarbutton-text {
   margin: 0 !important;
-  -moz-padding-start: 3px !important;
-  -moz-padding-end: 4px !important;
   padding-top: 1px !important;
-  padding-bottom: 2px !important;
-}
-
-/* Force the icons to be horizontally in line with the text, rather than
- * vertically.
- */
-toolbar[mode="full"] > .msgHeaderView-button,
-toolbar[mode="full"] > .msgHeaderView-button > .toolbarbutton-menubutton-button
-{
-  -moz-box-orient: horizontal;
+  padding-bottom: 0px !important;
+  -moz-padding-start: 0px !important;
+  -moz-padding-end: 0px !important;
 }
 
 /* For unclear reasons, toolkit's toolbarbutton.css forces a margin of 0,
@@ -248,27 +247,64 @@ toolbar[mode="full"] > .msgHeaderView-button > .toolbarbutton-menubutton-button
  * The second selector is a descendent selector rather than a child selector
  * so that we effect both buttons and menubuttons.
  */
-toolbar[mode="full"] > .msgHeaderView-button .toolbarbutton-text {
+
+toolbox[labelalign="end"] toolbar[mode="full"] toolbarpaletteitem .msgHeaderView-button .toolbarbutton-text,
+toolbox[labelalign="end"] toolbar[mode="full"] .msgHeaderView-button .toolbarbutton-text {
   -moz-margin-start: 2px !important;
+}
+
+toolbarpaletteitem > #hdrReplyToSenderButton {
+  display: -moz-box;
+}
+
+.hdrReplyToSenderButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 96px 24px 72px);
+}
+
+toolbar[iconsize="small"] .hdrReplyToSenderButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
+  -moz-image-region: rect(0px 64px 16px 48px);
 }
 
 .hdrReplyButton {
   /* important required to override -moz-appearance from msgHdrView-button */
   -moz-appearance: dualbutton !important;
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
-  -moz-image-region: rect(0px 64px 16px 48px);
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 96px 24px 72px);
   -moz-margin-end: 0 !important;
   
   /* Need to override both rules from messenger.css and msgHeaderView-button */
   padding: 0 !important;
 }
 
+toolbar[iconsize="small"] .hdrReplyButton {
+  /* important required to override -moz-appearance from msgHdrView-button */
+  /*-moz-appearance: dualbutton !important; */
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
+  -moz-image-region: rect(0px 64px 16px 48px);
+  /*-moz-margin-end: 0 !important;
+  
+  /* Need to override both rules from messenger.css and msgHeaderView-button */
+  /*padding: 0 !important;*/
+}
+
 .hdrReplyAllButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 120px 24px 96px);
+}
+
+toolbar[iconsize="small"] .hdrReplyAllButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 80px 16px 64px);
 }
 
 .hdrReplyListButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 168px 24px 144px);
+}
+
+toolbar[iconsize="small"] .hdrReplyListButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 112px 16px 96px);
 }
@@ -286,20 +322,31 @@ toolbar[mode="full"] > .msgHeaderView-button .toolbarbutton-text {
 }
 
 .hdrForwardButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 144px 24px 120px);
+}
+
+toolbar[iconsize="small"] .hdrForwardButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 96px 16px 80px);
 }
 
-/* This icon isn't visually that meaningful, and we'd rather save horizontal
- * space in full mode.  */
-toolbar:not([mode="full"]) > .hdrArchiveButton {
+.hdrArchiveButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 480px 24px 456px);
+}
+
+toolbar[iconsize="small"] .hdrArchiveButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 320px 16px 304px);
 }
 
-/* This icon isn't visually that meaningful, and we'd rather save horizontal
- * space in full mode.  */
-toolbar:not([mode="full"]) > .hdrJunkButton {
+.hdrJunkButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 216px 24px 192px);
+}
+
+toolbar[iconsize="small"] .hdrJunkButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 144px 16px 128px);
 }
@@ -310,12 +357,54 @@ toolbar:not([mode="full"]) > .hdrJunkButton {
 }
 
 .hdrTrashButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 192px 24px 168px);
+}
+
+toolbar[iconsize="small"] .hdrTrashButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 128px 16px 112px);
 }
 
-.hdrTrashButton > .toolbarbutton-icon {
-  -moz-margin-end: 0px;
+#header-view-toolbar toolbarpaletteitem toolbarseparator,
+#header-view-toolbar toolbarseparator {
+  height: 30px;
+  -moz-margin-start: 1px; /* make it symetrical */
+}
+
+#header-view-toolbar toolbarspacer {
+  height: 24px;
+}
+
+#header-view-toolbar {
+  -moz-box-pack: end;
+}
+
+window[toolboxId="header-view-toolbox"] #smallicons,
+window[toolboxId="header-view-toolbox"] button[icon="add"] {
+  display: none;
+}
+
+window[toolboxId="header-view-toolbox"] #modelist menuitem:first-child {
+  display: none;
+}
+
+window[toolboxId="header-view-toolbox"] #wrapper-spring {
+  display: none;
+}
+
+#header-view-toolbox[doCustomization] {
+  background: grey;
+}
+
+#header-view-toolbox[doCustomization] #header-view-toolbar {
+  min-width: 100px;
+  min-height: 10px;
+}
+
+.msgHeaderView-button,
+toolbarpaletteitem .msgHeaderView-button {
+  min-height: 27px;
 }
 
 .msgHeaderView-flat-button {
@@ -595,8 +684,16 @@ mail-newsgroups-headerfield {
 mail-headerfield > .headerValue {
   -moz-user-focus: normal;
   -moz-user-select: text;
+  word-wrap: break-word;
 }
 
-#expandedHeaderView[show_header_mode="all"] mail-headerfield > .headerValue {
-  word-wrap: break-word;
+/* This is a workaround for #562608 to make the buttons smaller */
+.hdrArchiveButton > .button-box > .button-icon {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
+  -moz-image-region: rect(0px 320px 16px 304px);
+}
+
+.hdrTrashButton > .button-box > .button-icon {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
+  -moz-image-region: rect(0px 128px 16px 112px);
 }

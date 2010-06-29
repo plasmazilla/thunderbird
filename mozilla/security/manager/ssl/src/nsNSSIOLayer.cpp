@@ -110,7 +110,8 @@
                        //file.
 
 NSSCleanupAutoPtrClass(CERTCertificate, CERT_DestroyCertificate)
-NSSCleanupAutoPtrClass(char, PR_FREEIF)
+NSSCleanupAutoPtrClass(char, PL_strfree)
+NSSCleanupAutoPtrClass(void, PR_FREEIF)
 NSSCleanupAutoPtrClass_WithParam(PRArenaPool, PORT_FreeArena, FalseParam, PR_FALSE)
 
 /* SSM_UserCertChoice: enum for cert choice info */
@@ -219,6 +220,7 @@ nsNSSSocketInfo::nsNSSSocketInfo()
     mHasCleartextPhase(PR_FALSE),
     mHandshakeInProgress(PR_FALSE),
     mAllowTLSIntoleranceTimeout(PR_TRUE),
+    mRememberClientAuthCertificate(PR_FALSE),
     mHandshakeStartTime(0),
     mPort(0)
 {
@@ -268,14 +270,14 @@ nsNSSSocketInfo::SetHandshakePending(PRBool aHandshakePending)
 nsresult
 nsNSSSocketInfo::SetHostName(const char* host)
 {
-  mHostName.Adopt(host ? nsCRT::strdup(host) : 0);
+  mHostName.Adopt(host ? NS_strdup(host) : 0);
   return NS_OK;
 }
 
 nsresult
 nsNSSSocketInfo::GetHostName(char **host)
 {
-  *host = (mHostName) ? nsCRT::strdup(mHostName) : nsnull;
+  *host = (mHostName) ? NS_strdup(mHostName) : nsnull;
   return NS_OK;
 }
 
@@ -828,6 +830,11 @@ void nsSSLIOLayerHelpers::Cleanup()
   if (mTLSIntolerantSites) {
     delete mTLSIntolerantSites;
     mTLSIntolerantSites = nsnull;
+  }
+
+  if (mTLSTolerantSites) {
+    delete mTLSTolerantSites;
+    mTLSTolerantSites = nsnull;
   }
 
   if (mRenegoUnrestrictedSites) {
@@ -1562,7 +1569,7 @@ nsPSMRememberCertErrorsTable::GetHostPortKey(nsNSSSocketInfo* infoObject,
   rv = infoObject->GetPort(&port);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  result.Assign(hostName.get());
+  result.Assign(hostName);
   result.Append(':');
   result.AppendInt(port);
 
@@ -1628,6 +1635,18 @@ nsPSMRememberCertErrorsTable::LookupCertErrorBits(nsNSSSocketInfo* infoObject,
   status->mIsUntrusted = bits.mIsUntrusted;
 }
 
+void
+nsSSLIOLayerHelpers::getSiteKey(nsNSSSocketInfo *socketInfo, nsCSubstring &key)
+{
+  PRInt32 port;
+  socketInfo->GetPort(&port);
+
+  nsXPIDLCString host;
+  socketInfo->GetHostName(getter_Copies(host));
+
+  key = host + NS_LITERAL_CSTRING(":") + nsPrintfCString("%d", port);
+}
+
 // Call this function to report a site that is possibly TLS intolerant.
 // This function will return true, if the given socket is currently using TLS.
 PRBool
@@ -1635,28 +1654,48 @@ nsSSLIOLayerHelpers::rememberPossibleTLSProblemSite(PRFileDesc* ssl_layer_fd, ns
 {
   PRBool currentlyUsesTLS = PR_FALSE;
 
+  nsCAutoString key;
+  getSiteKey(socketInfo, key);
+
   SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_TLS, &currentlyUsesTLS);
-  if (!currentlyUsesTLS)
+  if (!currentlyUsesTLS) {
+    // We were not using TLS but failed with an intolerant error using
+    // a different protocol. To give TLS a try on next connection attempt again
+    // drop this site from the list of intolerant sites. TLS failure might be 
+    // caused only by a traffic congestion while the server is TLS tolerant.
+    removeIntolerantSite(key);
     return PR_FALSE;
+  }
 
   PRBool enableSSL3 = PR_FALSE;
   SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_SSL3, &enableSSL3);
   PRBool enableSSL2 = PR_FALSE;
   SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_SSL2, &enableSSL2);
-  if (enableSSL3 || enableSSL2)
-  {
+  if (enableSSL3 || enableSSL2) {
     // Add this site to the list of TLS intolerant sites.
-    PRInt32 port;
-    nsXPIDLCString host;
-    socketInfo->GetPort(&port);
-    socketInfo->GetHostName(getter_Copies(host));
-    nsCAutoString key;
-    key = host + NS_LITERAL_CSTRING(":") + nsPrintfCString("%d", port);
-
     addIntolerantSite(key);
   }
   
   return currentlyUsesTLS;
+}
+
+void
+nsSSLIOLayerHelpers::rememberTolerantSite(PRFileDesc* ssl_layer_fd, 
+                                          nsNSSSocketInfo *socketInfo)
+{
+  PRBool usingSecurity = PR_FALSE;
+  PRBool currentlyUsesTLS = PR_FALSE;
+  SSL_OptionGet(ssl_layer_fd, SSL_SECURITY, &usingSecurity);
+  SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_TLS, &currentlyUsesTLS);
+  if (!usingSecurity || !currentlyUsesTLS) {
+    return;
+  }
+
+  nsCAutoString key;
+  getSiteKey(socketInfo, key);
+
+  nsAutoLock lock(mutex);
+  nsSSLIOLayerHelpers::mTLSTolerantSites->Put(key);
 }
 
 static PRStatus PR_CALLBACK
@@ -1933,6 +1972,7 @@ PRDescIdentity nsSSLIOLayerHelpers::nsSSLIOLayerIdentity;
 PRIOMethods nsSSLIOLayerHelpers::nsSSLIOLayerMethods;
 PRLock *nsSSLIOLayerHelpers::mutex = nsnull;
 nsCStringHashSet *nsSSLIOLayerHelpers::mTLSIntolerantSites = nsnull;
+nsCStringHashSet *nsSSLIOLayerHelpers::mTLSTolerantSites = nsnull;
 nsPSMRememberCertErrorsTable *nsSSLIOLayerHelpers::mHostsWithCertErrors = nsnull;
 nsCStringHashSet *nsSSLIOLayerHelpers::mRenegoUnrestrictedSites = nsnull;
 PRBool nsSSLIOLayerHelpers::mTreatUnsafeNegotiationAsBroken = PR_FALSE;
@@ -2145,6 +2185,15 @@ nsresult nsSSLIOLayerHelpers::Init()
 
   mTLSIntolerantSites->Init(1);
 
+  mTLSTolerantSites = new nsCStringHashSet();
+  if (!mTLSTolerantSites)
+    return NS_ERROR_OUT_OF_MEMORY;
+
+  // Initialize the tolerant site hashtable to 16 items at the start seems
+  // reasonable as most servers are TLS tolerant. We just want to lower 
+  // the rate of hashtable array reallocation.
+  mTLSTolerantSites->Init(16);
+
   mRenegoUnrestrictedSites = new nsCStringHashSet();
   if (!mRenegoUnrestrictedSites)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -2154,7 +2203,7 @@ nsresult nsSSLIOLayerHelpers::Init()
   mTreatUnsafeNegotiationAsBroken = PR_FALSE;
   
   mHostsWithCertErrors = new nsPSMRememberCertErrorsTable();
-  if (!mHostsWithCertErrors)
+  if (!mHostsWithCertErrors || !mHostsWithCertErrors->mErrorHosts.IsInitialized())
     return NS_ERROR_OUT_OF_MEMORY;
 
   return NS_OK;
@@ -2163,7 +2212,15 @@ nsresult nsSSLIOLayerHelpers::Init()
 void nsSSLIOLayerHelpers::addIntolerantSite(const nsCString &str)
 {
   nsAutoLock lock(mutex);
-  nsSSLIOLayerHelpers::mTLSIntolerantSites->Put(str);
+  // Remember intolerant site only if it is not known as tolerant
+  if (!mTLSTolerantSites->Contains(str))
+    nsSSLIOLayerHelpers::mTLSIntolerantSites->Put(str);
+}
+
+void nsSSLIOLayerHelpers::removeIntolerantSite(const nsCString &str)
+{
+  nsAutoLock lock(mutex);
+  nsSSLIOLayerHelpers::mTLSIntolerantSites->Remove(str);
 }
 
 PRBool nsSSLIOLayerHelpers::isKnownAsIntolerantSite(const nsCString &str)
@@ -2992,7 +3049,8 @@ if (!hasRemembered)
 
     /* Get CN and O of the subject and O of the issuer */
     char *ccn = CERT_GetCommonName(&serverCert->subject);
-    charCleaner ccnCleaner(ccn);
+    void *v = ccn;
+    voidCleaner ccnCleaner(v);
     NS_ConvertUTF8toUTF16 cn(ccn);
 
     PRInt32 port;
@@ -3503,7 +3561,7 @@ nsSSLIOLayerSetOptions(PRFileDesc *fd, PRBool forSTARTTLS,
                                     infoObject)) {
     return NS_ERROR_FAILURE;
   }
-
+  
   if (nsSSLIOLayerHelpers::isRenegoUnrestrictedSite(nsDependentCString(host))) {
     if (SECSuccess != SSL_OptionSet(fd, SSL_REQUIRE_SAFE_NEGOTIATION, PR_FALSE)) {
       return NS_ERROR_FAILURE;

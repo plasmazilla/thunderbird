@@ -186,10 +186,9 @@ SyntheticPartLeaf.prototype = {
 };
 
 /**
- * A part that indicates that tells us to produce NO output in a multipart
- *  section.  So if our separator is "--BOB", we might produce
- *  "--BOB\n--BOB--\n" instead of having some headers and actual content in
- *  there.
+ * A part that tells us to produce NO output in a multipart section.  So if our
+ *  separator is "--BOB", we might produce "--BOB\n--BOB--\n" instead of having
+ *  some headers and actual content in there.
  * This is not a good idea and probably not legal either, but it happens and
  *  we need to test for it.
  */
@@ -448,7 +447,10 @@ SyntheticMessage.prototype = {
    *     e-mail address (sans wrapping greater-than/less-than).
    */
   _formatMailFromNameAndAddress: function(aNameAndAddress) {
-    return '"' + aNameAndAddress[0] + '" ' +
+    // if the name is encoded, do not put it in quotes!
+    return (aNameAndAddress[0][0] == "=" ?
+              (aNameAndAddress[0] + " ") :
+              ('"' + aNameAndAddress[0] + '" ')) +
            '<' + aNameAndAddress[1] + '>';
   },
 

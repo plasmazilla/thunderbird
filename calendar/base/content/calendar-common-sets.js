@@ -44,6 +44,7 @@ var calendarController = {
     commands: {
         // Common commands
         "calendar_new_event_command": true,
+        "calendar_new_event_context_command": true,
         "calendar_modify_event_command": true,
         "calendar_delete_event_command": true,
 
@@ -51,6 +52,7 @@ var calendarController = {
         "calendar_delete_focused_item_command": true,
 
         "calendar_new_todo_command": true,
+        "calendar_new_todo_context_command": true,
         "calendar_new_todo_todaypane_command": true,
         "calendar_modify_todo_command": true,
         "calendar_modify_todo_todaypane_command": true,
@@ -141,6 +143,7 @@ var calendarController = {
     isCommandEnabled: function cC_isCommandEnabled(aCommand) {
         switch (aCommand) {
             case "calendar_new_event_command":
+            case "calendar_new_event_context_command":
                 return this.writable && this.calendars_support_events;
             case "calendar_modify_focused_item_command":
                 return this.item_selected;
@@ -151,6 +154,7 @@ var calendarController = {
             case "calendar_delete_event_command":
                 return this.selected_items_writable;
             case "calendar_new_todo_command":
+            case "calendar_new_todo_context_command":
             case "calendar_new_todo_todaypane_command":
                 return this.writable && this.calendars_support_tasks;
             case "calendar_modify_todo_command":
@@ -177,7 +181,7 @@ var calendarController = {
             case "calendar_task_category_command":
             case "calendar_general-progress_command":
             case "calendar_general-priority_command":
-                return this.isCalendarInForeground() &&
+                return (this.isCalendarInForeground() || this.todo_tasktree_focused) &&
                        this.writable &&
                        this.todo_items_selected &&
                        this.todo_items_writable;
@@ -284,8 +288,19 @@ var calendarController = {
         switch (aCommand) {
             // Common Commands
             case "calendar_new_event_command":
-                createEventWithDialog(getSelectedCalendar());
+                createEventWithDialog(getSelectedCalendar(),
+                                      getDefaultStartDate(currentView().selectedDay));
                 break;
+            case "calendar_new_event_context_command": {
+                let newStart = currentView().selectedDateTime;
+                if (!newStart) {
+                    newStart = getDefaultStartDate(currentView().selectedDay);
+                }
+                createEventWithDialog(getSelectedCalendar(), newStart,
+                                      null, null, null,
+                                      newStart.isDate == true);
+                break;
+            }
             case "calendar_modify_event_command":
                 editSelectedEvents();
                 break;
@@ -331,21 +346,31 @@ var calendarController = {
             case "calendar_new_todo_command":
                 createTodoWithDialog(getSelectedCalendar(),
                                      null, null, null,
-                                     currentView().selectedDay);
+                                     getDefaultStartDate(currentView().selectedDay));
                 break;
+            case "calendar_new_todo_context_command": {
+                let initialDate = currentView().selectedDateTime;
+                if (!initialDate || initialDate.isDate) {
+                    initialDate = getDefaultStartDate(currentView().selectedDay);
+                }
+                createTodoWithDialog(getSelectedCalendar(),
+                                     null, null, null,
+                                     initialDate);
+                break;
+            }
             case "calendar_new_todo_todaypane_command":
                 createTodoWithDialog(getSelectedCalendar(),
                                      null, null, null,
-                                     agendaListbox.today.start);
+                                     getDefaultStartDate(agendaListbox.today.start));
                 break;
             case "calendar_delete_todo_command":
                 deleteToDoCommand();
                 break;
             case "calendar_modify_todo_command":
-                modifyTaskFromContext(null, currentView().selectedDay);
+                modifyTaskFromContext(null, getDefaultStartDate(currentView().selectedDay));
                 break;
             case "calendar_modify_todo_todaypane_command":
-                modifyTaskFromContext(null, agendaListbox.today.start);
+                modifyTaskFromContext(null, getDefaultStartDate(agendaListbox.today.start));
                 break;
 
             case "calendar_new_calendar_command":
@@ -632,7 +657,7 @@ var calendarController = {
     /**
      * Returns a boolean indicating that tasks are selected.
      */
-    get todo_items_selected cC_todo_items_selected() {
+    get todo_items_selected() {
         var selectedTasks = getSelectedTasks();
         return (selectedTasks.length > 0);
     },
@@ -641,7 +666,7 @@ var calendarController = {
      * Returns a boolean indicating that at least one task in the selection is
      * on a calendar that is writable.
      */
-    get todo_items_writable cC_todo_items_writable() {
+    get todo_items_writable() {
         var selectedTasks = getSelectedTasks();
         for each (var task in selectedTasks) {
             if (isCalendarWritable(task.calendar)) {

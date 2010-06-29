@@ -280,12 +280,12 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 }
 
 .folderview-cycler[dir="prev"],
-.folderview-cycler[dir="next"][chromedir="rtl"] {
+.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
   list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-left.png");
 }
 
 .folderview-cycler[dir="next"],
-.folderview-cycler[dir="prev"][chromedir="rtl"] {
+.folderview-cycler[dir="prev"]:-moz-locale-dir(rtl) {
   list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-right.png");
 }
 
@@ -350,7 +350,7 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   background-color: Highlight;
 }
 
-.tabmail-tab[type="message"]  .tab-icon-image {
+.tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/server.png");
   -moz-image-region: rect(0 16px 16px 0);
 }

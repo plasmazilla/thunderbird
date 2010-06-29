@@ -12,6 +12,7 @@
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>      
   <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>      
 
+<button id="button1" label="One"/>
 <menulist id="list">
   <menupopup id="popup" onpopupshowing="return false;">
     <menuitem id="i1" label="One"/>
@@ -21,7 +22,7 @@
     <menuitem id="i4" label="Four"/>
   </menupopup>
 </menulist>
-<button id="button" label="OK"/>
+<button id="button2" label="Two"/>
 
 <script class="testbody" type="application/javascript">
 <![CDATA[
@@ -71,7 +72,12 @@ function differentPressed()
 {
   keyCheck($("list"), "O", 1, "different letter pressed");
 
-  synthesizeKeyExpectEvent("VK_TAB", { }, $("button"), "focus", "focus after menulist");
+  if (navigator.platform.indexOf("Mac") == -1) {
+    $("button1").focus();
+    synthesizeKeyExpectEvent("VK_TAB", { }, $("list"), "focus", "focus to menulist");
+    synthesizeKeyExpectEvent("VK_TAB", { }, $("button2"), "focus", "focus to button");
+    is(document.activeElement, $("button2"), "tab from menulist focused button");
+  }
 
   SimpleTest.finish();
 }

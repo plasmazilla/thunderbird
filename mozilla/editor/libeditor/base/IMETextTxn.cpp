@@ -69,7 +69,7 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(IMETextTxn)
     *aInstancePtr = (void*)(IMETextTxn*)this;
     NS_ADDREF_THIS();
     return NS_OK;
-  }
+  } else
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 
 NS_IMETHODIMP IMETextTxn::Init(nsIDOMCharacterData     *aElement,
@@ -318,6 +318,8 @@ NS_IMETHODIMP IMETextTxn::CollapseTextSelection(void)
 
           if(nsIPrivateTextRange::TEXTRANGE_CARETPOSITION == textRangeType)
           {
+             NS_ASSERTION(selectionStart == selectionEnd,
+                          "nsEditor doesn't support wide caret");
              // Set the caret....
              result = selection->Collapse(mElement,
                       mOffset+selectionStart);
@@ -341,21 +343,38 @@ NS_IMETHODIMP IMETextTxn::CollapseTextSelection(void)
              if(NS_FAILED(result))
                 break;
 
-             newRange->SetStart(mElement,mOffset+selectionStart);
+             result = newRange->SetStart(mElement,mOffset+selectionStart);
              NS_ASSERTION(NS_SUCCEEDED(result), "Cannot SetStart");
              if(NS_FAILED(result))
                 break;
 
-             newRange->SetEnd(mElement,mOffset+selectionEnd);
+             result = newRange->SetEnd(mElement,mOffset+selectionEnd);
              NS_ASSERTION(NS_SUCCEEDED(result), "Cannot SetEnd");
              if(NS_FAILED(result))
                 break;
 
-             imeSel->AddRange(newRange);
+             result = imeSel->AddRange(newRange);
              NS_ASSERTION(NS_SUCCEEDED(result), "Cannot AddRange");
              if(NS_FAILED(result))
                 break;
 
+             nsCOMPtr<nsISelectionPrivate> imeSelPriv(
+                                             do_QueryInterface(imeSel));
+             if (imeSelPriv) {
+               nsTextRangeStyle textRangeStyle;
+               result = textRange->GetRangeStyle(&textRangeStyle);
+               NS_ASSERTION(NS_SUCCEEDED(result),
+                            "nsIPrivateTextRange::GetRangeStyle failed");
+               if (NS_FAILED(result))
+                 break;
+               result = imeSelPriv->SetTextRangeStyle(newRange, textRangeStyle);
+               NS_ASSERTION(NS_SUCCEEDED(result),
+                 "nsISelectionPrivate::SetTextRangeStyle failed");
+               if (NS_FAILED(result))
+                 break;
+             } else {
+               NS_WARNING("IME selection doesn't have nsISelectionPrivate");
+             }
           } // if GetRangeEnd
         } // for textRangeListLength
         if(! setCaret) {

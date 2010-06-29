@@ -227,7 +227,7 @@ nsContextMenu.prototype = {
         this.showItem( "frame", this.inFrame );
         this.showItem( "frame-sep", this.inFrame );
         if (this.inFrame)
-          goSetMenuValue( "saveframeas", this.autoDownload ? "valueSave" : "valueSaveAs" );
+          goSetMenuValue( "context-saveframe", this.autoDownload ? "valueSave" : "valueSaveAs" );
         var blocking = true;
         if (this.popupURL)
           try {
@@ -320,8 +320,6 @@ nsContextMenu.prototype = {
 
         // Copy image location depends on whether we're on an image.
         this.showItem( "context-copyimage", this.onImage );
-        // Copy Image Location (regression fix for bug 469481)
-        this.showItem( "context-copyimageurl", this.onImage );
         this.showItem( "context-copyvideourl", this.onVideo );
         this.showItem( "context-copyaudiourl", this.onAudio );
         if (this.onVideo)
@@ -343,6 +341,7 @@ nsContextMenu.prototype = {
         this.showItem( "context-media-unmute", onMedia && this.target.muted );
         this.showItem( "context-media-showcontrols", onMedia && !this.target.controls );
         this.showItem( "context-media-hidecontrols", onMedia && this.target.controls );
+        this.showItem( "context-video-fullscreen", this.onVideo );
         // Disable them when there isn't a valid media source loaded.
         if (onMedia) {
           var hasError = this.target.error != null;
@@ -352,6 +351,8 @@ nsContextMenu.prototype = {
           this.setItemAttr( "context-media-unmute", "disabled", hasError );
           this.setItemAttr( "context-media-showcontrols", "disabled", hasError );
           this.setItemAttr( "context-media-hidecontrols", "disabled", hasError );
+          if (this.onVideo)
+            this.setItemAttr( "context-video-fullscreen",  "disabled", hasError );
         }
         this.showItem( "context-media-sep-commands", onMedia );
     },
@@ -610,9 +611,17 @@ nsContextMenu.prototype = {
          return elem.ownerDocument.defaultView.getComputedStyle( elem, '' ).getPropertyValue( prop );
     },
     // Returns a "url"-type computed style attribute value, with the url() stripped.
-    getComputedURL: function( elem, prop ) {
-         var url = elem.ownerDocument.defaultView.getComputedStyle( elem, '' ).getPropertyCSSValue( prop );
-         return ( url.primitiveType == CSSPrimitiveValue.CSS_URI ) ? url.getStringValue() : null;
+    getComputedURL: function( aElem, aProp ) {
+      var url = aElem.ownerDocument.defaultView
+                     .getComputedStyle( aElem, "" )
+                     .getPropertyCSSValue( aProp );
+      if ( url instanceof CSSPrimitiveValue )
+        url = [ url ];
+
+      for ( var i = 0; i < url.length; i++ )
+        if ( url[i].primitiveType == CSSPrimitiveValue.CSS_URI )
+          return url[i].getStringValue();
+      return null;
     },
     // Returns true iff clicked on link is saveable.
     isLinkSaveable : function ( link ) {
@@ -750,6 +759,14 @@ nsContextMenu.prototype = {
         }
         openTopWin( viewURL, this.target.ownerDocument.defaultView );
     },
+    // Full screen video playback
+    fullScreenVideo: function () {
+        var isPaused = this.target.paused && this.target.currentTime > 0;
+        this.target.pause();
+
+        openDialog( "chrome://communicator/content/fullscreen-video.xhtml",
+                    "", "chrome,dialog=no", this.target, isPaused );
+    },
     // Change current window to the URL of the background image.
     viewBGImage : function () {
         urlSecurityCheck( this.bgImageURL, this.target.nodePrincipal,
@@ -782,7 +799,7 @@ nsContextMenu.prototype = {
     },    
     // Save URL of clicked-on frame.
     saveFrame : function () {
-        saveDocument( this.target.ownerDocument );
+        saveDocument( this.target.ownerDocument, true );
     },
     // Save URL of clicked-on link.
     saveLink : function () {
@@ -844,7 +861,8 @@ nsContextMenu.prototype = {
             if (aStatusCode == NS_ERROR_SAVE_LINK_AS_TIMEOUT) {
               // Do it the old fashioned way, which will pick the best filename
               // it can without waiting.
-              saveURL(linkURL, linkText, null, true, doc.documentURIObject);
+              saveURL(linkURL, linkText, null, true, true,
+                      doc.documentURIObject);
             }
             if (this.extListener)
               this.extListener.onStopRequest(aRequest, aContext, aStatusCode);
@@ -904,13 +922,13 @@ nsContextMenu.prototype = {
         if (this.onCanvas)
           // Bypass cache, since it's a data: URL.
           saveImageURL( this.target.toDataURL(), "canvas.png", "SaveImageTitle",
-                        true, null );
+                        true, true, null );
         else if (this.onImage)
-          saveImageURL( this.mediaURL, null, "SaveImageTitle", false,
+          saveImageURL( this.mediaURL, null, "SaveImageTitle", false, true,
                         this.target.ownerDocument.documentURIObject );
         else if (this.onVideo || this.onAudio) {
           var dialogTitle = this.onVideo ? "SaveVideoTitle" : "SaveAudioTitle";
-          saveURL( this.mediaURL, null, dialogTitle, false,
+          saveURL( this.mediaURL, null, dialogTitle, false, true,
                    this.target.ownerDocument.documentURIObject );
         }
     },

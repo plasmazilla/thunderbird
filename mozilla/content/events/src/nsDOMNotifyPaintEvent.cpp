@@ -39,29 +39,20 @@
 #include "nsDOMNotifyPaintEvent.h"
 #include "nsContentUtils.h"
 #include "nsClientRect.h"
+#include "nsPaintRequest.h"
+#include "nsIFrame.h"
 
 nsDOMNotifyPaintEvent::nsDOMNotifyPaintEvent(nsPresContext* aPresContext,
-                                             nsNotifyPaintEvent* aEvent)
-  : nsDOMEvent(aPresContext, aEvent ? aEvent :
-               new nsNotifyPaintEvent(PR_FALSE, 0, nsRegion(), nsRegion()))
-{  
-  if (aEvent) {
-    mEventIsInternal = PR_FALSE;
-  }
-  else
-  {
-    mEventIsInternal = PR_TRUE;
-    mEvent->time = PR_Now();
-  }
-}
-
-nsDOMNotifyPaintEvent::~nsDOMNotifyPaintEvent()
+                                             nsEvent* aEvent,
+                                             PRUint32 aEventType,
+                                             nsInvalidateRequestList* aInvalidateRequests)
+: nsDOMEvent(aPresContext, aEvent)
 {
-  if (mEventIsInternal) {
-    if (mEvent->eventStructType == NS_NOTIFYPAINT_EVENT) {
-      delete static_cast<nsNotifyPaintEvent*>(mEvent);
-      mEvent = nsnull;
-    }
+  if (mEvent) {
+    mEvent->message = aEventType;
+  }
+  if (aInvalidateRequests) {
+    mInvalidateRequests.SwapElements(aInvalidateRequests->mRequests);
   }
 }
 
@@ -76,13 +67,15 @@ NS_IMPL_RELEASE_INHERITED(nsDOMNotifyPaintEvent, nsDOMEvent)
 nsRegion
 nsDOMNotifyPaintEvent::GetRegion()
 {
-  nsNotifyPaintEvent* event = static_cast<nsNotifyPaintEvent*>(mEvent);
-
   nsRegion r;
-  if (nsContentUtils::IsCallerTrustedForRead()) {
-    r.Or(event->sameDocRegion, event->crossDocRegion);
-  } else {
-    r = event->sameDocRegion;
+  PRBool isTrusted = nsContentUtils::IsCallerTrustedForRead();
+  for (PRUint32 i = 0; i < mInvalidateRequests.Length(); ++i) {
+    if (!isTrusted &&
+        (mInvalidateRequests[i].mFlags & nsIFrame::INVALIDATE_CROSS_DOC))
+      continue;
+
+    r.Or(r, mInvalidateRequests[i].mRect);
+    r.SimplifyOutward(10);
   }
   return r;
 }
@@ -99,7 +92,7 @@ nsDOMNotifyPaintEvent::GetBoundingClientRect(nsIDOMClientRect** aResult)
   if (!mPresContext)
     return NS_OK;
 
-  rect->SetLayoutRect(GetRegion().GetBounds(), mPresContext);
+  rect->SetLayoutRect(GetRegion().GetBounds());
   return NS_OK;
 }
 
@@ -117,20 +110,47 @@ nsDOMNotifyPaintEvent::GetClientRects(nsIDOMClientRectList** aResult)
     if (!rect)
       return NS_ERROR_OUT_OF_MEMORY;
     
-    rect->SetLayoutRect(*rgnRect, mPresContext);
+    rect->SetLayoutRect(*rgnRect);
     rectList->Append(rect);
   }
 
-  *aResult = rectList.forget().get();
+  rectList.forget(aResult);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMNotifyPaintEvent::GetPaintRequests(nsIDOMPaintRequestList** aResult)
+{
+  nsRefPtr<nsPaintRequestList> requests = new nsPaintRequestList();
+  if (!requests)
+    return NS_ERROR_OUT_OF_MEMORY;
+
+  PRBool isTrusted = nsContentUtils::IsCallerTrustedForRead();
+  for (PRUint32 i = 0; i < mInvalidateRequests.Length(); ++i) {
+    if (!isTrusted &&
+        (mInvalidateRequests[i].mFlags & nsIFrame::INVALIDATE_CROSS_DOC))
+      continue;
+
+    nsRefPtr<nsPaintRequest> r = new nsPaintRequest();
+    if (!r)
+      return NS_ERROR_OUT_OF_MEMORY;
+    r->SetRequest(mInvalidateRequests[i]);
+    requests->Append(r);
+  }
+
+  requests.forget(aResult);
   return NS_OK;
 }
 
 nsresult NS_NewDOMNotifyPaintEvent(nsIDOMEvent** aInstancePtrResult,
                                    nsPresContext* aPresContext,
-                                   nsNotifyPaintEvent *aEvent) 
+                                   nsEvent *aEvent,
+                                   PRUint32 aEventType,
+                                   nsInvalidateRequestList* aInvalidateRequests) 
 {
   nsDOMNotifyPaintEvent* it =
-    new nsDOMNotifyPaintEvent(aPresContext, aEvent);
+    new nsDOMNotifyPaintEvent(aPresContext, aEvent, aEventType,
+                              aInvalidateRequests);
   if (nsnull == it) {
     return NS_ERROR_OUT_OF_MEMORY;
   }

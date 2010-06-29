@@ -254,7 +254,7 @@ nsScreenManagerGtk :: Init()
 // Returns the screen that contains the rectangle. If the rect overlaps
 // multiple screens, it picks the screen with the greatest area of intersection.
 //
-// The coordinates are in pixels (not twips) and in screen coordinates.
+// The coordinates are in pixels (not app units) and in screen coordinates.
 //
 NS_IMETHODIMP
 nsScreenManagerGtk :: ScreenForRect ( PRInt32 aX, PRInt32 aY,
@@ -276,13 +276,13 @@ nsScreenManagerGtk :: ScreenForRect ( PRInt32 aX, PRInt32 aY,
     // walk the list of screens and find the one that has the most
     // surface area.
     PRUint32 area = 0;
-    nsRect   windowRect(aX, aY, aWidth, aHeight);
+    nsIntRect windowRect(aX, aY, aWidth, aHeight);
     for (PRInt32 i = 0, i_end = mCachedScreenArray.Count(); i < i_end; ++i) {
       PRInt32  x, y, width, height;
       x = y = width = height = 0;
       mCachedScreenArray[i]->GetRect(&x, &y, &width, &height);
       // calculate the surface area
-      nsRect screenRect(x, y, width, height);
+      nsIntRect screenRect(x, y, width, height);
       screenRect.IntersectRect(screenRect, windowRect);
       PRUint32 tempArea = screenRect.width * screenRect.height;
       if (tempArea >= area) {
@@ -342,13 +342,26 @@ nsScreenManagerGtk :: GetNumberOfScreens(PRUint32 *aNumberOfScreens)
 NS_IMETHODIMP
 nsScreenManagerGtk :: ScreenForNativeWidget (void *aWidget, nsIScreen **outScreen)
 {
-  // I don't know how to go from GtkWindow to nsIScreen, especially
-  // given xinerama and stuff, so let's just do this
-  gint x, y, width, height, depth;
-  x = y = width = height = 0;
+  nsresult rv;
+  rv = EnsureInit();
+  if (NS_FAILED(rv)) {
+    NS_ERROR("nsScreenManagerGtk::EnsureInit() failed from ScreenForNativeWidget\n");
+    return rv;
+  }
 
-  gdk_window_get_geometry(GDK_WINDOW(aWidget), &x, &y, &width, &height,
-                          &depth);
-  gdk_window_get_origin(GDK_WINDOW(aWidget), &x, &y);
-  return ScreenForRect(x, y, width, height, outScreen);
+  if (mCachedScreenArray.Count() > 1) {
+    // I don't know how to go from GtkWindow to nsIScreen, especially
+    // given xinerama and stuff, so let's just do this
+    gint x, y, width, height, depth;
+    x = y = width = height = 0;
+
+    gdk_window_get_geometry(GDK_WINDOW(aWidget), &x, &y, &width, &height,
+                            &depth);
+    gdk_window_get_origin(GDK_WINDOW(aWidget), &x, &y);
+    rv = ScreenForRect(x, y, width, height, outScreen);
+  } else {
+    rv = GetPrimaryScreen(outScreen);
+  }
+
+  return rv;
 }

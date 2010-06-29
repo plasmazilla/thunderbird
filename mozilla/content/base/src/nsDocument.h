@@ -49,6 +49,7 @@
 #include "nsWeakReference.h"
 #include "nsWeakPtr.h"
 #include "nsVoidArray.h"
+#include "nsTArray.h"
 #include "nsHashSets.h"
 #include "nsIDOMXMLDocument.h"
 #include "nsIDOM3Document.h"
@@ -109,11 +110,13 @@
 #include "nsContentUtils.h"
 #include "nsThreadUtils.h"
 #include "nsIDocumentViewer.h"
+#include "nsIDOMXPathNSResolver.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsILoadContext.h"
 #include "nsIProgressEventSink.h"
 #include "nsISecurityEventSink.h"
 #include "nsIChannelEventSink.h"
+#include "imgIRequest.h"
 
 #define XML_DECLARATION_BITS_DECLARATION_EXISTS   (1 << 0)
 #define XML_DECLARATION_BITS_ENCODING_EXISTS      (1 << 1)
@@ -132,18 +135,10 @@ class nsIFormControl;
 struct nsRadioGroupStruct;
 class nsOnloadBlocker;
 class nsUnblockOnloadEvent;
-struct PLEvent;
 class nsChildContentList;
-
-PR_BEGIN_EXTERN_C
-/* Note that these typedefs declare functions, not pointer to
-   functions.  That's the only way in which they differ from
-   PLHandleEventProc and PLDestroyEventProc. */
-typedef void*
-(EventHandlerFunc)(PLEvent* self);
-typedef void
-(EventDestructorFunc)(PLEvent* self);
-PR_END_EXTERN_C
+#ifdef MOZ_SMIL
+class nsSMILAnimationController;
+#endif // MOZ_SMIL
 
 /**
  * Hashentry using a PRUint32 key and a cheap set of nsIContent* owning
@@ -191,7 +186,7 @@ class nsUint32ToContentHashEntry : public PLDHashEntryHdr
     PRBool IsEmpty() { return mValOrHash == nsnull; }
 
   private:
-    typedef unsigned long PtrBits;
+    typedef PRUptrdiff PtrBits;
     typedef nsTHashtable<nsISupportsHashKey> HashSet;
     /** Get the hash pointer (or null if we're not a hash) */
     HashSet* GetHashSet()
@@ -264,10 +259,11 @@ public:
   /**
    * Returns the element if we know the element associated with this
    * id. Otherwise returns null.
-   * @param aIsNotInDocument if non-null, we set the output to true
-   * if we know for sure the element is not in the document.
    */
-  nsIContent* GetIdContent(PRBool* aIsNotInDocument = nsnull);
+  nsIContent* GetIdContent();
+  /**
+   * Append all the elements with this id to aElements
+   */
   void AppendAllIdContent(nsCOMArray<nsIContent>* aElements);
   /**
    * This can fire ID change callbacks.
@@ -280,7 +276,6 @@ public:
    * @return true if this map entry should be removed
    */
   PRBool RemoveIdContent(nsIContent* aContent);
-  void FlagIDNotInDocument();
 
   PRBool HasContentChangeCallback() { return mChangeCallbacks != nsnull; }
   void AddContentChangeCallback(nsIDocument::IDTargetObserver aCallback, void* aData);
@@ -325,8 +320,7 @@ public:
 private:
   void FireChangeCallbacks(nsIContent* aOldContent, nsIContent* aNewContent);
 
-  // The single element ID_NOT_IN_DOCUMENT, or empty to indicate we
-  // don't know what element(s) have this key as an ID.
+  // empty if there are no nodes with this ID.
   // The content nodes are stored addrefed.
   nsSmallVoidArray mIdContentList;
   // NAME_NOT_VALID if this id cannot be used as a 'name'
@@ -582,6 +576,7 @@ class nsDocument : public nsIDocument,
                    public nsIRadioGroupContainer,
                    public nsIDOMNodeSelector,
                    public nsIApplicationCacheContainer,
+                   public nsIDOMXPathNSResolver,
                    public nsStubMutationObserver,
                    public nsIDocument_MOZILLA_1_9_2_BRANCH
 {
@@ -664,7 +659,7 @@ public:
 
   /**
    * Create a new presentation shell that will use aContext for
-   * it's presentation context (presentation context's <b>must not</b> be
+   * its presentation context (presentation context's <b>must not</b> be
    * shared among multiple presentation shell's).
    */
   virtual nsresult CreateShell(nsPresContext* aContext,
@@ -774,13 +769,13 @@ public:
   virtual void EndUpdate(nsUpdateType aUpdateType);
   virtual void BeginLoad();
   virtual void EndLoad();
+
+  virtual void SetReadyStateInternal(ReadyState rs);
+  virtual ReadyState GetReadyStateEnum();
+
   virtual void ContentStatesChanged(nsIContent* aContent1,
                                     nsIContent* aContent2,
                                     PRInt32 aStateMask);
-
-  virtual void AttributeWillChange(nsIContent* aChild,
-                                   PRInt32 aNameSpaceID,
-                                   nsIAtom* aAttribute);
 
   virtual void StyleRuleChanged(nsIStyleSheet* aStyleSheet,
                                 nsIStyleRule* aOldStyleRule,
@@ -809,28 +804,27 @@ public:
   // nsINode
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
   virtual nsIContent *GetChildAt(PRUint32 aIndex) const;
-  virtual nsIContent * const * GetChildArray() const;
+  virtual nsIContent * const * GetChildArray(PRUint32* aChildCount) const;
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
   virtual PRUint32 GetChildCount() const;
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  PRBool aNotify);
   virtual nsresult AppendChildTo(nsIContent* aKid, PRBool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify);
+  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
   virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
   virtual nsresult DispatchDOMEvent(nsEvent* aEvent, nsIDOMEvent* aDOMEvent,
                                     nsPresContext* aPresContext,
                                     nsEventStatus* aEventStatus);
-  virtual nsresult GetListenerManager(PRBool aCreateIfNotFound,
-                                      nsIEventListenerManager** aResult);
+  virtual nsIEventListenerManager* GetListenerManager(PRBool aCreateIfNotFound);
   virtual nsresult AddEventListenerByIID(nsIDOMEventListener *aListener,
                                          const nsIID& aIID);
   virtual nsresult RemoveEventListenerByIID(nsIDOMEventListener *aListener,
                                             const nsIID& aIID);
   virtual nsresult GetSystemEventGroup(nsIDOMEventGroup** aGroup);
-  virtual nsresult GetContextForEventHandlers(nsIScriptContext** aContext)
+  virtual nsIScriptContext* GetContextForEventHandlers(nsresult* aRv)
   {
-    return nsContentUtils::GetContextForEventHandlers(this, aContext);
+    return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
   {
@@ -920,6 +914,7 @@ public:
   NS_DECL_NSIMUTATIONOBSERVER_CONTENTINSERTED
   NS_DECL_NSIMUTATIONOBSERVER_CONTENTREMOVED
   NS_DECL_NSIMUTATIONOBSERVER_ATTRIBUTECHANGED
+  NS_DECL_NSIMUTATIONOBSERVER_ATTRIBUTEWILLCHANGE
 
   // nsIScriptObjectPrincipal
   virtual nsIPrincipal* GetPrincipal();
@@ -954,6 +949,7 @@ public:
   virtual NS_HIDDEN_(void) NotifyURIVisitednessChanged(nsIURI* aURI);
 
   NS_HIDDEN_(void) ClearBoxObjectFor(nsIContent* aContent);
+  NS_IMETHOD GetBoxObjectFor(nsIDOMElement* aElement, nsIBoxObject** aResult);
 
   virtual NS_HIDDEN_(nsresult) GetXBLChildNodesFor(nsIContent* aContent,
                                                    nsIDOMNodeList** aResult);
@@ -978,13 +974,18 @@ public:
   virtual NS_HIDDEN_(void)
     EnumerateExternalResources(nsSubDocEnumFunc aCallback, void* aData);
 
+#ifdef MOZ_SMIL
+  nsSMILAnimationController* GetAnimationController();
+#endif // MOZ_SMIL
+
   virtual void SuppressEventHandling(PRUint32 aIncrease);
 
   virtual void UnsuppressEventHandlingAndFireEvents(PRBool aFireEvents);
   
   void DecreaseEventSuppression() { --mEventsSuppressed; }
 
-  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDocument, nsIDocument)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(nsDocument,
+                                                         nsIDocument)
 
   /**
    * Utility method for getElementsByClassName.  aRootNode is the node (either
@@ -1008,6 +1009,8 @@ public:
   void MaybeInitializeFinalizeFrameLoaders();
 
   void MaybeEndOutermostXBLUpdate();
+
+  virtual void MaybePreLoadImage(nsIURI* uri);
 
   virtual nsISupports* GetCurrentContentSink();
 
@@ -1082,8 +1085,9 @@ protected:
     return kNameSpaceID_None;
   }
 
-  // Dispatch an event to the ScriptGlobalObject for this document
-  void DispatchEventToWindow(nsEvent *aEvent);
+  void DispatchPageTransition(nsPIDOMEventTarget* aDispatchTarget,
+                              const nsAString& aType,
+                              PRBool aPersisted);
 
   // nsContentList match functions for GetElementsByClassName
   static PRBool MatchClassNames(nsIContent* aContent, PRInt32 aNamespaceID,
@@ -1105,7 +1109,7 @@ protected:
   nsCString mReferrer;
   nsString mLastModified;
 
-  nsVoidArray mCharSetObservers;
+  nsTArray<nsIObserver*> mCharSetObservers;
 
   PLDHashTable *mSubDocuments;
 
@@ -1154,8 +1158,8 @@ protected:
    * 1) Attribute changes affect the table immediately (removing and adding
    *    entries as needed).
    * 2) Removals from the DOM affect the table immediately
-   * 3) Additions to the DOM always update existing entries, but only add new
-   *    ones if IdTableIsLive() is true.
+   * 3) Additions to the DOM always update existing entries for names, and add
+   *    new ones for IDs.
    */
   nsTHashtable<nsIdentifierMapEntry> mIdentifierMap;
 
@@ -1163,14 +1167,8 @@ protected:
 
   // True if the document has been detached from its content viewer.
   PRPackedBool mIsGoingAway:1;
-  // True if our content viewer has been removed from the docshell
-  // (it may still be displayed, but in zombie state). Form control data
-  // has been saved.
-  PRPackedBool mRemovedFromDocShell:1;
   // True if the document is being destroyed.
   PRPackedBool mInDestructor:1;
-  // True if the document "page" is not hidden
-  PRPackedBool mVisible:1;
   // True if document has ever had script handling object.
   PRPackedBool mHasHadScriptHandlingObject:1;
   // True if this is a regular (non-XHTML) HTML document
@@ -1196,22 +1194,6 @@ protected:
   PRUint8 mXMLDeclarationBits;
 
   PRUint8 mDefaultElementType;
-
-  PRBool IdTableIsLive() const {
-    // live if we've had over 63 misses
-    return (mIdMissCount & 0x40) != 0;
-  }
-  void SetIdTableLive() {
-    mIdMissCount = 0x40;
-  }
-  PRBool IdTableShouldBecomeLive() {
-    NS_ASSERTION(!IdTableIsLive(),
-                 "Shouldn't be called if table is already live!");
-    ++mIdMissCount;
-    return IdTableIsLive();
-  }
-
-  PRUint8 mIdMissCount;
 
   nsInterfaceHashtable<nsVoidPtrHashKey, nsPIBoxObject> *mBoxObjectTable;
 
@@ -1265,6 +1247,7 @@ private:
 
   PRUint32 mOnloadBlockCount;
   nsCOMPtr<nsIRequest> mOnloadBlocker;
+  ReadyState mReadyState;
   
   // A map from unvisited URI hashes to content elements
   nsTHashtable<nsUint32ToContentHashEntry> mLinkMap;
@@ -1282,6 +1265,18 @@ private:
     mPendingTitleChangeEvent;
 
   nsExternalResourceMap mExternalResourceMap;
+
+  // All images in process of being preloaded
+  nsCOMArray<imgIRequest> mPreloadingImages;
+
+#ifdef MOZ_SMIL
+  nsAutoPtr<nsSMILAnimationController> mAnimationController;
+#endif // MOZ_SMIL
+
+#ifdef DEBUG
+protected:
+  PRBool mWillReparent;
+#endif
 };
 
 #define NS_DOCUMENT_INTERFACE_TABLE_BEGIN(_class)                             \

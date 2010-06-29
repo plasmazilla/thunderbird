@@ -130,17 +130,17 @@ nsApplicationAccessible::GetName(nsAString& aName)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsApplicationAccessible::GetRole(PRUint32 *aRole)
+nsresult
+nsApplicationAccessible::GetRoleInternal(PRUint32 *aRole)
 {
   *aRole = nsIAccessibleRole::ROLE_APP_ROOT;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsApplicationAccessible::GetFinalRole(PRUint32 *aFinalRole)
+nsApplicationAccessible::GetRole(PRUint32 *aRole)
 {
-  return GetRole(aFinalRole);
+  return GetRoleInternal(aRole);
 }
 
 nsresult
@@ -236,20 +236,21 @@ nsApplicationAccessible::CacheChildren()
 
     nsCOMPtr<nsIWeakReference> childWeakRef;
     nsCOMPtr<nsIAccessible> accessible;
-    nsCOMPtr<nsPIAccessible> previousAccessible;
+    nsRefPtr<nsAccessible> prevAcc;
     PRBool hasMoreElements;
-    while(NS_SUCCEEDED(enumerator->HasMoreElements(&hasMoreElements))
-          && hasMoreElements) {
+
+    while(NS_SUCCEEDED(enumerator->HasMoreElements(&hasMoreElements)) &&
+          hasMoreElements) {
       enumerator->GetNext(getter_AddRefs(childWeakRef));
       accessible = do_QueryReferent(childWeakRef);
       if (accessible) {
-        if (previousAccessible)
-          previousAccessible->SetNextSibling(accessible);
+        if (prevAcc)
+          prevAcc->SetNextSibling(accessible);
         else
           SetFirstChild(accessible);
 
-        previousAccessible = do_QueryInterface(accessible);
-        previousAccessible->SetParent(this);
+        prevAcc = nsAccUtils::QueryAccessible(accessible);
+        prevAcc->SetParent(this);
       }
     }
 

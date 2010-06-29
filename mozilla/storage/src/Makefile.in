@@ -43,6 +43,9 @@ VPATH   = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
+# FIXME: bug 419893
+NO_PROFILE_GUIDED_OPTIMIZE = 1
+
 MODULE           = storage
 LIBRARY_NAME     = storage_s
 MODULE_NAME      = mozStorageModule
@@ -56,12 +59,7 @@ REQUIRES = xpcom \
            js \
            xpconnect \
            necko \
-           locale \
            $(NULL)
-
-ifdef NS_TRACE_MALLOC
-REQUIRES += tracemalloc
-endif
 
 EXPORTS_NAMESPACES = mozilla/storage
 

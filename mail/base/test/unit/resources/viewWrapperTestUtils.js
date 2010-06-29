@@ -35,10 +35,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://app/modules/dbViewWrapper.js");
-Components.utils.import("resource://app/modules/mailViewManager.js");
-Components.utils.import("resource://app/modules/quickSearchManager.js");
-Components.utils.import("resource://app/modules/virtualFolderWrapper.js");
+Components.utils.import("resource:///modules/dbViewWrapper.js");
+Components.utils.import("resource:///modules/mailViewManager.js");
+Components.utils.import("resource:///modules/virtualFolderWrapper.js");
+
+var gInbox;
 
 /**
  * Do initialization for xpcshell-tests; not used by
@@ -51,9 +52,9 @@ function initViewWrapperTestUtils(aInjectionConfig) {
   async_test_runner_register_helper(VWTU_testHelper);
   register_message_injection_listener(VWTU_testHelper);
   if (aInjectionConfig)
-    configure_message_injection(aInjectionConfig);
+    gInbox = configure_message_injection(aInjectionConfig);
   else
-    configure_message_injection({mode: "local"});
+    gInbox = configure_message_injection({mode: "local"});
 }
 
 // something less sucky than do_check_true
@@ -243,12 +244,6 @@ function async_view_set_mail_view(aViewWrapper, aMailViewIndex, aData) {
   return false;
 }
 
-function async_view_quick_search(aViewWrapper, aSearchMode, aSearchString) {
-  aViewWrapper.listener.pendingLoad = true;
-  aViewWrapper.search.quickSearch(aSearchMode, aSearchString);
-  return false;
-}
-
 function async_view_refresh(aViewWrapper) {
   aViewWrapper.listener.pendingLoad = true;
   aViewWrapper.refresh();
@@ -286,8 +281,10 @@ function async_view_end_update(aViewWrapper) {
  *  so code can look clean.
  *
  * @param aViewWrapper Required when you want us to operate asynchronously.
+ * @param aDontEmptyTrash This function will empty the trash after deleting the
+ *                        folder, unless you set this parameter to true.
  */
-function async_delete_folder(aFolder, aViewWrapper) {
+function async_delete_folder(aFolder, aViewWrapper, aDontEmptyTrash) {
   VWTU_testHelper.active_real_folders.splice(
     VWTU_testHelper.active_real_folders.indexOf(aFolder), 1);
   // deleting tries to be helpful and move the folder to the trash...
@@ -312,7 +309,8 @@ function async_delete_folder(aFolder, aViewWrapper) {
   // ...so now the stupid folder is in the stupid trash
   // let's empty the trash, then, shall we?
   // (for local folders it doesn't matter who we call this on.)
-  aFolder.emptyTrash(null, null);
+  if (!aDontEmptyTrash)
+    aFolder.emptyTrash(null, null);
   return false;
 }
 var delete_folder = async_delete_folder;

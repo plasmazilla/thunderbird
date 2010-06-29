@@ -93,25 +93,31 @@ function getBoolPref ( prefname, def )
 
 // Change focus for this browser window to |aElement|, without focusing the
 // window itself.
-function focusElement(aElement) {
-  // This is a redo of the fix for jag bug 91884
-  var ww = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
-                     .getService(Components.interfaces.nsIWindowWatcher);
-  if (window == ww.activeWindow)
-    aElement.focus();
-  else {
-    // set the element in command dispatcher so focus will restore properly
-    // when the window does become active
-    var cmdDispatcher = document.commandDispatcher;
-    if (aElement instanceof Window) {
-      cmdDispatcher.focusedWindow = aElement;
-      cmdDispatcher.focusedElement = null;
-    }
-    else if (aElement instanceof Element) {
-      cmdDispatcher.focusedWindow = aElement.ownerDocument.defaultView;
-      cmdDispatcher.focusedElement = aElement;
-    }
+function focusElement(aElement)
+{
+  var msg;
+
+  // if a content window, focus the <browser> instead as window.focus()
+  // raises the window
+  if (aElement instanceof Window) {
+    var browser = getBrowserFromContentWindow(aElement);
+    if (!browser)
+      throw "aElement is not a content window";
+    browser.focus();
+    msg = "focusElement(content) is deprecated. Use gBrowser.selectedBrowser.focus() instead.";
   }
+  else {
+    aElement.focus();
+    msg = "focusElement(element) is deprecated. Use element.focus() instead.";
+  }
+
+  var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+                              .createInstance(Components.interfaces.nsIScriptError);
+  scriptError.init(msg, document.location.href, null, null, 
+                   null, scriptError.warningFlag, "chrome javascript");
+  Components.classes["@mozilla.org/consoleservice;1"]
+            .getService(Components.interfaces.nsIConsoleService)
+            .logMessage(scriptError);
 }
 
 // openUILink handles clicks on UI elements that cause URLs to load.
@@ -249,16 +255,24 @@ function openUILinkIn( url, where, allowThirdPartyFixup, postData, referrerUrl )
     loadInBackground = !loadInBackground;
     // fall through
   case "tab":
-    var browser = w.getBrowser();
-    browser.loadOneTab(url, referrerUrl, null, postData, loadInBackground,
-                       allowThirdPartyFixup || false);
+    let browser = w.getBrowser();
+    browser.loadOneTab(url, {
+                       referrerURI: referrerUrl,
+                       postData: postData,
+                       inBackground: loadInBackground,
+                       allowThirdPartyFixup: allowThirdPartyFixup});
     break;
   }
 
-  // Call focusElement(w.content) instead of w.content.focus() to make sure
-  // that we don't raise the old window, since the URI we just loaded may have
+  // If this window is active, focus the target window. Otherwise, focus the
+  // content but don't raise the window, since the URI we just loaded may have
   // resulted in a new frontmost window (e.g. "javascript:window.open('');").
-  focusElement(w.content);
+  var fm = Components.classes["@mozilla.org/focus-manager;1"].
+             getService(Components.interfaces.nsIFocusManager);
+  if (window == fm.activeWindow)
+    w.content.focus();
+  else
+    w.gBrowser.selectedBrowser.focus();
 }
 
 // Used as an onclick handler for UI elements with link-like behavior.
@@ -446,6 +460,15 @@ function openReleaseNotes()
   openUILinkIn(relnotesURL, "tab");
 }
 
+/**
+ * Opens the troubleshooting information (about:support) page for this version
+ * of the application.
+ */
+function openTroubleshootingPage()
+{
+  openUILinkIn("about:support", "tab");
+}
+
 #ifdef MOZ_UPDATER
 /**
  * Opens the update manager and checks for updates to the application.
@@ -521,6 +544,7 @@ function buildHelpMenu()
     }
   }
   checkForUpdates.label = getStringWithUpdateName("updatesItem_" + key);
+  checkForUpdates.accessKey = strings.getString("updatesItem_" + key + ".accesskey");
   if (um.activeUpdate && updates.isDownloading)
     checkForUpdates.setAttribute("loading", "true");
   else
@@ -613,8 +637,12 @@ function openNewTabWith(aURL, aDocument, aPostData, aEvent,
   // open link in new tab
   var referrerURI = aDocument ? aDocument.documentURIObject : aReferrer;
   var browser = top.document.getElementById("content");
-  return browser.loadOneTab(aURL, referrerURI, originCharset, aPostData,
-                            loadInBackground, aAllowThirdPartyFixup || false);
+  return browser.loadOneTab(aURL, {
+                            referrerURI: referrerURI,
+                            charset: originCharset,
+                            postData: aPostData,
+                            inBackground: loadInBackground,
+                            allowThirdPartyFixup: aAllowThirdPartyFixup});
 }
 
 function openNewWindowWith(aURL, aDocument, aPostData, aAllowThirdPartyFixup,

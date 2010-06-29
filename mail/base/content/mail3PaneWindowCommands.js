@@ -190,6 +190,7 @@ var DefaultController =
       case "cmd_renameFolder":
       case "cmd_sendUnsentMsgs":
       case "cmd_openMessage":
+      case "cmd_openConversation":
       case "button_print":
       case "cmd_print":
       case "cmd_printpreview":
@@ -297,7 +298,13 @@ var DefaultController =
         return selectedMessages.length == 1 && selectedMessages[0].folder &&
                selectedMessages[0].folder.server.canHaveFilters;
       }
+      case "cmd_openConversation":
+      {
+        return (gFolderDisplay.selectedMessages.length == 1) &&
+               gConversationOpener.isSelectedMessageIndexed();
+      }
       case "cmd_saveAsFile":
+        return GetNumSelectedMessages() > 0;
       case "cmd_saveAsTemplate":
         if (GetNumSelectedMessages() > 1)
           return false;   // else fall thru
@@ -363,7 +370,12 @@ var DefaultController =
       case "button_file":
       case "cmd_file":
       case "cmd_archive":
-        return (gFolderDisplay.selectedCount > 0 );
+        let selectedMessages = gFolderDisplay.selectedMessages;
+        let archiveKfs =  selectedMessages.length > 0 && selectedMessages[0].folder &&
+           selectedMessages[0].folder.server.archiveKeepFolderStructure;
+        if (!archiveKfs)
+          return gFolderDisplay.selectedCount > 0;
+        // Otherwise, we fall through to checking if we're an archive folder.
       case "button_archive":
         return gFolderDisplay.selectedCount > 0 && gFolderDisplay.displayedFolder &&
           !gFolderDisplay.displayedFolder.isSpecialFolder(
@@ -521,7 +533,11 @@ var DefaultController =
           if (loadedFolder && !loadedFolder.canDeleteMessages)
             return false;
         }
-        return pref.getCharPref("mail.last_msg_movecopy_target_uri") &&
+        let targetURI = pref.getCharPref("mail.last_msg_movecopy_target_uri");
+        if (!targetURI)
+          return false;
+        let targetFolder = MailUtils.getFolderForURI(targetURI);
+        return targetFolder && targetFolder.filePath.exists() &&
                GetNumSelectedMessages() > 0;
       case "cmd_fullZoomReduce":
       case "cmd_fullZoomEnlarge":
@@ -701,6 +717,9 @@ var DefaultController =
       case "cmd_openMessage":
         MsgOpenSelectedMessages();
         return;
+      case "cmd_openConversation":
+        gConversationOpener.openConversationForMessages(gFolderDisplay.selectedMessages);
+        return;
       case "cmd_printSetup":
         PrintUtils.showPageSetup();
         return;
@@ -800,6 +819,8 @@ var DefaultController =
         filterFolderForJunk();
         return;
       case "cmd_deleteJunk":
+        // Even though deleteJunkInFolder returns a value, we don't want to let
+        // it get past us
         deleteJunkInFolder();
         return;
       case "cmd_emptyTrash":

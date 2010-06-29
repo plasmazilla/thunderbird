@@ -85,6 +85,8 @@
 #include "nsThreadUtils.h"
 #include "prthread.h"
 #include "private/pprthred.h"
+#include "nsTArray.h"
+#include "prio.h"
 
 #include "nsInt64.h"
 #include "nsManifestLineReader.h"
@@ -329,9 +331,9 @@ private:
     ~PLDHashTableEnumeratorImpl();
     void ReleaseElements();
 
-    nsVoidArray   mElements;
-    PRInt32       mCount, mCurrent;
-    PRMonitor*    mMonitor;
+    nsTArray<nsISupports*> mElements;
+    PRInt32                mCount, mCurrent;
+    PRMonitor*             mMonitor;
 
     struct Closure {
         PRBool                        succeeded;
@@ -401,9 +403,7 @@ void
 PLDHashTableEnumeratorImpl::ReleaseElements()
 {
     for (PRInt32 i = 0; i < mCount; i++) {
-        nsISupports *supports = reinterpret_cast<nsISupports *>
-                                                (mElements[i]);
-        NS_IF_RELEASE(supports);
+        NS_IF_RELEASE(mElements[i]);
     }
 }
 
@@ -476,7 +476,7 @@ PLDHashTableEnumeratorImpl::CurrentItem(nsISupports **retval)
     if (!mCount || mCurrent == mCount)
         return NS_ERROR_FAILURE;
 
-    *retval = reinterpret_cast<nsISupports *>(mElements[mCurrent]);
+    *retval = mElements[mCurrent];
     if (*retval)
         NS_ADDREF(*retval);
 
@@ -1164,9 +1164,9 @@ ClassIDWriter(PLDHashTable *table,
                (location   ? location   : ""));
 
     if (contractID)
-        PR_Free(contractID);
+        NS_Free(contractID);
     if (className)
-        PR_Free(className);
+        NS_Free(className);
 
     return PL_DHASH_NEXT;
 }
@@ -1427,7 +1427,7 @@ nsComponentManagerImpl::GetClassObject(const nsCID &aClass, const nsIID &aIID,
         char *buf = aClass.ToString();
         PR_LogPrint("nsComponentManager: GetClassObject(%s)", buf);
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
 
@@ -1450,6 +1450,9 @@ nsComponentManagerImpl::GetClassObjectByContractID(const char *contractID,
                                                    const nsIID &aIID,
                                                    void **aResult)
 {
+    NS_ENSURE_ARG_POINTER(aResult);
+    NS_ENSURE_ARG_POINTER(contractID);
+
     nsresult rv;
 
     nsCOMPtr<nsIFactory> factory;
@@ -1460,8 +1463,6 @@ nsComponentManagerImpl::GetClassObjectByContractID(const char *contractID,
         PR_LogPrint("nsComponentManager: GetClassObject(%s)", contractID);
     }
 #endif
-
-    PR_ASSERT(aResult != nsnull);
 
     rv = FindFactory(contractID, strlen(contractID), getter_AddRefs(factory));
     if (NS_FAILED(rv)) return rv;
@@ -1483,13 +1484,8 @@ nsComponentManagerImpl::GetClassObjectByContractID(const char *contractID,
 NS_IMETHODIMP
 nsComponentManagerImpl::ContractIDToClassID(const char *aContractID, nsCID *aClass)
 {
-    NS_PRECONDITION(aContractID != nsnull, "null ptr");
-    if (!aContractID)
-        return NS_ERROR_NULL_POINTER;
-
-    NS_PRECONDITION(aClass != nsnull, "null ptr");
-    if (!aClass)
-        return NS_ERROR_NULL_POINTER;
+    NS_ENSURE_ARG_POINTER(aContractID);
+    NS_ENSURE_ARG_POINTER(aClass);
 
     nsresult rv = NS_ERROR_FACTORY_NOT_REGISTERED;
 
@@ -1507,7 +1503,7 @@ nsComponentManagerImpl::ContractIDToClassID(const char *aContractID, nsCID *aCla
                ("nsComponentManager: ContractIDToClassID(%s)->%s", aContractID,
                 NS_SUCCEEDED(rv) ? buf : "[FAILED]"));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
     return rv;
@@ -1537,7 +1533,7 @@ nsComponentManagerImpl::CLSIDToContractID(const nsCID &aClass,
                ("nsComponentManager: CLSIDToContractID(%s)->%s", buf,
                 NS_SUCCEEDED(rv) ? *aContractID : "[FAILED]"));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
     return rv;
@@ -1619,7 +1615,7 @@ nsComponentManagerImpl::CreateInstance(const nsCID &aClass,
                ("nsComponentManager: CreateInstance(%s) %s", buf,
                 NS_SUCCEEDED(rv) ? "succeeded" : "FAILED"));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
 
@@ -1641,6 +1637,8 @@ nsComponentManagerImpl::CreateInstanceByContractID(const char *aContractID,
                                                    const nsIID &aIID,
                                                    void **aResult)
 {
+    NS_ENSURE_ARG_POINTER(aContractID);
+
     // test this first, since there's no point in creating a component during
     // shutdown -- whether it's available or not would depend on the order it
     // occurs in the list
@@ -2000,6 +1998,7 @@ NS_IMETHODIMP
 nsComponentManagerImpl::RegisterService(const char* aContractID,
                                         nsISupports* aService)
 {
+    NS_ENSURE_ARG_POINTER(aContractID);
 
     nsAutoMonitor mon(mMon);
 
@@ -2466,7 +2465,7 @@ nsComponentManagerImpl::RegisterFactory(const nsCID &aClass,
                ("nsComponentManager: RegisterFactory(%s, %s)", buf,
                 (aContractID ? aContractID : "(null)")));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
     nsFactoryEntry *entry = nsnull;
@@ -2631,7 +2630,7 @@ nsComponentManagerImpl::RegisterComponentCommon(const nsCID &aClass,
                 contractID ? contractID : "(null)",
                 aRegistryName, aType));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
     if (entry && !aReplace) {
@@ -2829,7 +2828,7 @@ nsComponentManagerImpl::UnregisterFactory(const nsCID &aClass,
         PR_LOG(nsComponentManagerLog, PR_LOG_WARNING,
                ("nsComponentManager: UnregisterFactory(%s)", buf));
         if (buf)
-            PR_Free(buf);
+            NS_Free(buf);
     }
 #endif
     nsFactoryEntry *old;
@@ -2925,13 +2924,97 @@ nsComponentManagerImpl::AutoRegisterImpl(nsIFile   *inDirSpec,
     return rv;
 }
 
+static const char kNL[] = "\r\n";
+
+class ArrayCaseInsensitiveCStringComparator {
+public:
+    PRBool Equals(const char *a, const char *b) const {
+        return PL_strcasecmp(a, b) == 0;
+    }
+};
+
+struct ComponentsList {
+    ComponentsList()
+        : mCompString(nsnull), mCompList(128)
+    {
+    }
+
+    nsresult InitFromFile(PRFileDesc *fd)
+    {
+        PRFileInfo info;
+        if (PR_SUCCESS != PR_GetOpenFileInfo(fd, &info))
+            return NS_ErrorAccordingToNSPR();
+
+        nsAutoArrayPtr<char> buf(new char[info.size + 1]);
+        if (!buf)
+            return NS_ERROR_OUT_OF_MEMORY;
+
+        PRInt32 read = 0;
+        while (read < info.size) {
+            PRInt32 n = PR_Read(fd, buf + read, info.size - read);
+            if (n < 0)
+                return NS_ErrorAccordingToNSPR();
+
+            read += n;
+            if (n == 0)
+                break;
+        }
+
+        buf[read] = '\0';
+
+        mCompString = buf.forget();
+
+        char *c = mCompString;
+        while (char *token = NS_strtok(kNL, &c)) {
+            if (token[0] == '#')
+                continue;
+
+            mCompList.AppendElement(token);
+        }
+
+        return NS_OK;
+    }
+
+    ~ComponentsList() {
+        delete [] mCompString;
+    }
+
+    PRBool HasComponent(const char *name) {
+        return mCompList.Contains(name, ArrayCaseInsensitiveCStringComparator());
+    }
+
+    char *mCompString;
+    nsTArray<char*> mCompList;
+};
+
 nsresult
 nsComponentManagerImpl::AutoRegisterDirectory(nsIFile *inDirSpec,
                           nsCOMArray<nsILocalFile>    &aLeftovers,
                           nsTArray<DeferredModule>    &aDeferred)
 {
+    nsresult rv;
+
+    nsAutoPtr<ComponentsList> compList;
+    nsCOMPtr<nsIFile> compListFile;
+    inDirSpec->Clone(getter_AddRefs(compListFile));
+    if (compListFile) {
+        nsCOMPtr<nsILocalFile> lfComponentsList = do_QueryInterface(compListFile);
+        lfComponentsList->AppendNative(NS_LITERAL_CSTRING("components.list"));
+        PRFileDesc* fd;
+        if (NS_SUCCEEDED(lfComponentsList->OpenNSPRFileDesc(PR_RDONLY,
+                                                            0400, &fd)))
+        {
+            compList = new ComponentsList;
+            rv = compList->InitFromFile(fd);
+            PR_Close(fd);
+
+            if (NS_FAILED(rv))
+                compList = nsnull;
+        }
+    }
+
     nsCOMPtr<nsISimpleEnumerator> entries;
-    nsresult rv = inDirSpec->GetDirectoryEntries(getter_AddRefs(entries));
+    rv = inDirSpec->GetDirectoryEntries(getter_AddRefs(entries));
     if (NS_FAILED(rv))
         return rv;
 
@@ -2954,6 +3037,12 @@ nsComponentManagerImpl::AutoRegisterDirectory(nsIFile *inDirSpec,
         if (isDir)
             AutoRegisterDirectory(lf, aLeftovers, aDeferred);
         else {
+            if (compList) {
+                nsCAutoString leafName;
+                lf->GetNativeLeafName(leafName);
+                if (!compList->HasComponent(leafName.get()))
+                    continue;
+            }
             rv = AutoRegisterComponent(lf, aDeferred);
             if (NS_FAILED(rv))
                 aLeftovers.AppendObject(lf);
@@ -3458,6 +3547,7 @@ NS_IMETHODIMP
 nsComponentManagerImpl::IsContractIDRegistered(const char *aClass,
                                                PRBool *_retval)
 {
+    NS_ENSURE_ARG_POINTER(aClass);
     nsFactoryEntry *entry = GetFactoryEntry(aClass, strlen(aClass));
 
     if (entry)

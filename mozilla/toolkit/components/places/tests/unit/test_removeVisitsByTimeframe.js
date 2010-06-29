@@ -67,7 +67,7 @@ var gTests = [
       var frecency = getFrecencyForURI(TEST_URI);
 
       print("Remove visits using timerange outside the URI's visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 10, NOW);
 
       print("URI should still exist in moz_places.");
@@ -119,7 +119,7 @@ var gTests = [
       var frecency = getFrecencyForURI(TEST_URI);
 
       print("Remove visits using timerange outside the URI's visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 10, NOW);
 
       print("URI should still exist in moz_places.");
@@ -165,7 +165,7 @@ var gTests = [
       var frecency = getFrecencyForURI(TEST_URI);
 
       print("Remove the 5 most recent visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 4, NOW);
 
       print("URI should still exist in moz_places.");
@@ -218,7 +218,7 @@ var gTests = [
       var frecency = getFrecencyForURI(TEST_URI);
 
       print("Remove the 5 most recent visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 4, NOW);
 
       print("URI should still exist in moz_places.");
@@ -262,7 +262,7 @@ var gTests = [
       }
 
       print("Remove all visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 10, NOW);
 
       print("URI should no longer exist in moz_places.");
@@ -298,7 +298,7 @@ var gTests = [
       }
 
       print("Remove all visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 10, NOW);
 
       print("URI should still exist in moz_places.");
@@ -343,7 +343,7 @@ var gTests = [
                            "bookmark title");
 
       print("Remove all visits.");
-      histsvc.QueryInterface(Ci.nsIBrowserHistory_MOZILLA_1_9_1_ADDITIONS).
+      histsvc.QueryInterface(Ci.nsIBrowserHistory).
         removeVisitsByTimeframe(NOW - 10, NOW);
 
       print("URI should still exist in moz_places.");

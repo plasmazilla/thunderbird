@@ -642,19 +642,12 @@ function test_bind_multiple_rows_by_name()
   stmt.finalize();
 }
 
-/**
- * When we have a synchronous statement available, we should see an immediate
- * exception when we attempt to bind outside the allowed range.
- */
-function test_bind_out_of_bounds_have_sync_statement()
+function test_bind_out_of_bounds()
 {
   let stmt = getOpenedDatabase().createStatement(
     "INSERT INTO test (id) " +
     "VALUES (?)"
   );
-
-  // force us to have a synchronous statement so that this works...
-  let ignoredState = stmt.state;
 
   let array = stmt.newBindingParamsArray();
   let bp = array.newBindingParams();
@@ -687,53 +680,6 @@ function test_bind_out_of_bounds_have_sync_statement()
 
   // Run the next test.
   run_next_test();
-}
-
-/**
- * If we have no synchronous statement available then the binding error will
- * happen asynchronously.
- */
-function test_bind_out_of_bounds_no_sync_statement()
-{
-  let stmt = getOpenedDatabase().createStatement(
-    "INSERT INTO test (id) " +
-    "VALUES (?)"
-  );
-
-  let array = stmt.newBindingParamsArray();
-  let bp = array.newBindingParams();
-
-  // Check variant binding.
-  bp.bindByIndex(1, INTEGER);
-  array.addParams(bp);
-  stmt.bindParameters(array);
-
-  stmt.executeAsync({
-    _errorObtained: false,
-    handleResult: function(aResultSet)
-    {
-      do_throw("Unexpected call to handleResult!");
-    },
-    handleError: function(aError)
-    {
-      print("Error code " + aError.result + " with message '" +
-            aError.message + "' returned.");
-      this._errorObtained = true;
-      do_check_eq(aError.result, Ci.mozIStorageError.RANGE);
-    },
-    handleCompletion: function(aReason)
-    {
-      print("handleCompletion(" + aReason +
-            ") for test_bind_bogus_type_by_index");
-      do_check_eq(Ci.mozIStorageStatementCallback.REASON_ERROR, aReason);
-      do_check_true(this._errorObtained);
-
-      // Run the next test.
-      run_next_test();
-    }
-  });
-
-  stmt.finalize();
 }
 
 function test_bind_no_such_name()
@@ -1075,8 +1021,7 @@ var tests =
   test_finalized_statement_does_not_crash,
   test_bind_multiple_rows_by_index,
   test_bind_multiple_rows_by_name,
-  test_bind_out_of_bounds_have_sync_statement,
-  test_bind_out_of_bounds_no_sync_statement,
+  test_bind_out_of_bounds,
   test_bind_no_such_name,
   test_bind_bogus_type_by_index,
   test_bind_bogus_type_by_name,

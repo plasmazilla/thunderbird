@@ -44,17 +44,16 @@
 #include "nsPrimitiveHelpers.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIServiceManager.h"
-#include "nsIImage.h"
 #include "nsImageToPixbuf.h"
 #include "nsStringStream.h"
 
-#include <gtk/gtkclipboard.h>
-#include <gtk/gtkinvisible.h>
+#include "imgIContainer.h"
+
+#include <gtk/gtk.h>
 
 // For manipulation of the X event queue
 #include <X11/Xlib.h>
 #include <gdk/gdkx.h>
-#include <gtk/gtkmain.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -241,22 +240,17 @@ nsClipboard::SetData(nsITransferable *aTransferable,
 
                 nsCOMPtr<nsISupports> primitiveData;
                 ptrPrimitive->GetData(getter_AddRefs(primitiveData));
-                nsCOMPtr<nsIImage> image(do_QueryInterface(primitiveData));
+                nsCOMPtr<imgIContainer> image(do_QueryInterface(primitiveData));
                 if (!image) // Not getting an image for an image mime type!?
                     continue;
 
-                if (NS_FAILED(image->LockImagePixels(PR_FALSE)))
-                    continue;
                 GdkPixbuf* pixbuf = nsImageToPixbuf::ImageToPixbuf(image);
-                if (!pixbuf) {
-                    image->UnlockImagePixels(PR_FALSE);
+                if (!pixbuf)
                     continue;
-                }
 
                 GtkClipboard *aClipboard = gtk_clipboard_get(GetSelectionAtom(aWhichClipboard));
                 gtk_clipboard_set_image(aClipboard, pixbuf);
                 g_object_unref(pixbuf);
-                image->UnlockImagePixels(PR_FALSE);
                 continue;
             }
 

@@ -58,8 +58,6 @@ var composeHelper = null;
 var gMsgNo = 0;
 var gMsgHdr = null;
 
-const nsIDocShell191 = Components.interfaces.nsIDocShell_MOZILLA_1_9_1_dns;
-
 // These two constants are used to build the message body.
 const msgBody = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n' +
 '<html>\n' +
@@ -151,8 +149,7 @@ function checkComposeWindow(replyType) {
   }
 
   // Check the prefetch in the compose window.
-  if (replyWindow.e("content-frame").docShell.QueryInterface(nsIDocShell191)
-                 .allowDNSPrefetch)
+  if (replyWindow.e("content-frame").docShell.allowDNSPrefetch)
     throw new Error("DNS Prefetch on compose window is not disabled (" +
                     errMsg + ")");
 
@@ -161,8 +158,7 @@ function checkComposeWindow(replyType) {
 
 function test_dnsPrefetch_message() {
   // Now we have started up, simply check that DNS prefetch is disabled
-  if (mc.e("messagepane").docShell.QueryInterface(nsIDocShell191)
-                         .allowDNSPrefetch)
+  if (mc.e("messagepane").docShell.allowDNSPrefetch)
     throw new Error("DNS Prefetch on messagepane is not disabled at startup");
 
   be_in_folder(folder);
@@ -172,8 +168,7 @@ function test_dnsPrefetch_message() {
   addMsgToFolder(folder);
 
   // Now we've got a message selected, check again.
-  if (mc.e("messagepane").docShell.QueryInterface(nsIDocShell191)
-                         .allowDNSPrefetch)
+  if (mc.e("messagepane").docShell.allowDNSPrefetch)
     throw new Error("DNS Prefetch on messagepane is not disabled after selecting message");
 }
 
@@ -182,8 +177,7 @@ function test_dnsPrefetch_standaloneMessage() {
   assert_selected_and_displayed(msgc, gMsgHdr);
 
   // Check the docshell.
-  if (mc.e("messagepane").docShell.QueryInterface(nsIDocShell191)
-                         .allowDNSPrefetch)
+  if (mc.e("messagepane").docShell.allowDNSPrefetch)
     throw new Error("DNS Prefetch on messagepane is not disabled in standalone message window.");
 
   close_message_window(msgc);
@@ -212,9 +206,18 @@ function test_dnsPrefetch_contentTab() {
 
   // XXX this should be a check for DNS prefetch being enabled, but bug 545407
   // needs fixing for that to work.
-  if (mc.tabmail.getBrowserForSelectedTab().docShell
-        .QueryInterface(nsIDocShell191).allowDNSPrefetch)
-    throw new Error("DNS prefetch unexpectedly enabled, has bug 545407 been fixed?");
+  var versionChecker =
+    Components.classes["@mozilla.org/xpcom/version-comparator;1"]
+              .getService(Components.interfaces.nsIVersionComparator);
+
+  if (versionChecker.compare(mc.window.Application.version, "3.2a1pre") >= 0) {
+    if (!mc.tabmail.getBrowserForSelectedTab().docShell.allowDNSPrefetch)
+      throw new Error("DNS prefetch unexpectedly disabled in content tabs");
+  }
+  else {
+    if (mc.tabmail.getBrowserForSelectedTab().docShell.allowDNSPrefetch)
+      throw new Error("DNS prefetch unexpectedly enabled2, has bug 545407 been fixed?" + mc.window.Application.version);
+  }
 
   mc.tabmail.closeTab(newTab);
 

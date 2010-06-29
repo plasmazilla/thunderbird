@@ -48,6 +48,8 @@
    (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,1))
 #define NS_SUCCESS_CHROME_ACCESS_ONLY \
    (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,2))
+#define NS_SUCCESS_ALLOW_SLIM_WRAPPERS \
+   (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,3))
 %}
 
 /**
@@ -177,7 +179,5 @@ interface nsIXPCScriptable : nsISupports
     JSObjectPtr innerObject(in nsIXPConnectWrappedNative wrapper,
                             in JSContextPtr cx, in JSObjectPtr obj);
 
-    // This method is called if the WANT_POSTCREATE bit is set in
-    // scriptableFlags.
     void postCreatePrototype(in JSContextPtr cx, in JSObjectPtr proto);
 };

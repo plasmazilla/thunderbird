@@ -56,11 +56,6 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(EditAggregateTxn, EditTxn)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(EditAggregateTxn)
-  if (aIID.Equals(EditAggregateTxn::GetCID())) {
-    *aInstancePtr = static_cast<EditAggregateTxn*>(this);
-    NS_ADDREF_THIS();
-    return NS_OK;
-  }
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 
 NS_IMETHODIMP EditAggregateTxn::DoTransaction(void)

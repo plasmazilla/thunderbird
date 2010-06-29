@@ -60,7 +60,7 @@
 #include "nsPropertyTable.h"
 #include "nsGkAtoms.h"
 #include "nsIDocument.h"
-#include "nsInterfaceHashtable.h"
+#include "nsRefPtrHashtable.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsChangeHint.h"
 // This also pulls in gfxTypes.h, which we cannot include directly.
@@ -68,6 +68,10 @@
 #include "nsRegion.h"
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
+#include "nsThreadUtils.h"
+#include "nsContentUtils.h"
+#include "nsIWidget.h"
+#include "mozilla/TimeStamp.h"
 
 class nsImageLoader;
 #ifdef IBMBIDI
@@ -82,7 +86,6 @@ class nsIContent;
 class nsIFontMetrics;
 class nsIFrame;
 class nsFrameManager;
-class nsIImage;
 class nsILinkHandler;
 class nsStyleContext;
 class nsIAtom;
@@ -92,11 +95,12 @@ class nsILookAndFeel;
 class nsICSSPseudoComparator;
 class nsIAtom;
 struct nsStyleBackground;
-template <class T> class nsRunnableMethod;
+struct nsStyleBorder;
 class nsIRunnable;
 class gfxUserFontSet;
 class nsUserFontSet;
 struct nsFontFaceRuleContainer;
+class nsObjectFrame;
 
 #ifdef MOZ_REFLOW_PERF
 class nsIRenderingContext;
@@ -145,10 +149,22 @@ enum nsLayoutPhase {
 };
 #endif
 
+class nsInvalidateRequestList {
+public:
+  struct Request {
+    nsRect   mRect;
+    PRUint32 mFlags;
+  };
+
+  nsTArray<Request> mRequests;
+};
+
 /* Used by nsPresContext::HasAuthorSpecifiedRules */
 #define NS_AUTHOR_SPECIFIED_BACKGROUND      (1 << 0)
 #define NS_AUTHOR_SPECIFIED_BORDER          (1 << 1)
 #define NS_AUTHOR_SPECIFIED_PADDING         (1 << 2)
+
+class nsRootPresContext;
 
 // An interface for presentation contexts. Presentation contexts are
 // objects that provide an outer context for a presentation shell.
@@ -194,9 +210,13 @@ public:
 
   nsIPresShell* GetPresShell() const { return mShell; }
 
-  // Find the prescontext for the root of the view manager hierarchy that contains
-  // this prescontext.
-  nsPresContext* RootPresContext();
+  /**
+   * Return the presentation context for the root of the view manager
+   * hierarchy that contains this presentation context, or nsnull if it can't
+   * be found (e.g. it's detached).
+   */
+  nsRootPresContext* GetRootPresContext();
+  virtual PRBool IsRoot() { return PR_FALSE; }
 
   nsIDocument* Document() const
   {
@@ -206,7 +226,6 @@ public:
       return mDocument;
   }
 
-  nsIViewManager* GetViewManager() { return GetPresShell()->GetViewManager(); } 
 #ifdef _IMPL_NS_LAYOUT
   nsStyleSet* StyleSet() { return GetPresShell()->StyleSet(); }
 
@@ -276,7 +295,7 @@ public:
   void* AllocateFromShell(size_t aSize)
   {
     if (mShell)
-      return mShell->AllocateFrame(aSize);
+      return mShell->AllocateMisc(aSize);
     return nsnull;
   }
 
@@ -284,7 +303,7 @@ public:
   {
     NS_ASSERTION(mShell, "freeing after shutdown");
     if (mShell)
-      mShell->FreeFrame(aSize, aFreeChunk);
+      mShell->FreeMisc(aSize, aFreeChunk);
   }
 
   /**
@@ -378,41 +397,46 @@ public:
   PRBool GetFocusRingOnAnything() const { return mFocusRingOnAnything; }
   PRUint8 GetFocusRingStyle() const { return mFocusRingStyle; }
 
+  /**
+   * The types of image load types that the pres context needs image
+   * loaders to track invalidation for.
+   */
+  enum ImageLoadType {
+    BACKGROUND_IMAGE,
+    BORDER_IMAGE,
+    IMAGE_LOAD_TYPE_COUNT
+  };
 
   /**
-   * Set up observers so that aTargetFrame will be invalidated when
-   * aImage loads, where aImage is its background image.  Only a single
-   * image will be tracked per frame.
+   * Set the list of image loaders that track invalidation for a
+   * specific frame and type of image.  This list will replace any
+   * previous list for that frame and image type (and null will remove
+   * any previous list).
    */
-  NS_HIDDEN_(imgIRequest*) LoadImage(imgIRequest* aImage,
-                                     nsIFrame* aTargetFrame);
+  NS_HIDDEN_(void) SetImageLoaders(nsIFrame* aTargetFrame,
+                                   ImageLoadType aType,
+                                   nsImageLoader* aImageLoaders);
+
   /**
-   * Set up observers so that aTargetFrame will be invalidated or
-   * reflowed (as appropriate) when aImage loads, where aImage is its
-   * *border* image.  Only a single image will be tracked per frame.
+   * Make an appropriate SetImageLoaders call (including potentially
+   * with null aImageLoaders) given that aFrame draws its background
+   * based on aStyleBackground.
    */
-  NS_HIDDEN_(imgIRequest*) LoadBorderImage(imgIRequest* aImage,
-                                           nsIFrame* aTargetFrame);
+  NS_HIDDEN_(void) SetupBackgroundImageLoaders(nsIFrame* aFrame,
+                                               const nsStyleBackground*
+                                                 aStyleBackground);
 
-private:
-  typedef nsInterfaceHashtable<nsVoidPtrHashKey, nsImageLoader> ImageLoaderTable;
+  /**
+   * Make an appropriate SetImageLoaders call (including potentially
+   * with null aImageLoaders) given that aFrame draws its border
+   * based on aStyleBorder.
+   */
+  NS_HIDDEN_(void) SetupBorderImageLoaders(nsIFrame* aFrame,
+                                           const nsStyleBorder* aStyleBorder);
 
-  NS_HIDDEN_(imgIRequest*) DoLoadImage(ImageLoaderTable& aTable,
-                                       imgIRequest* aImage,
-                                       nsIFrame* aTargetFrame,
-                                       PRBool aReflowOnLoad);
-
-  NS_HIDDEN_(void) DoStopImageFor(ImageLoaderTable& aTable,
-                                  nsIFrame* aTargetFrame);
-public:
-
-  NS_HIDDEN_(void) StopBackgroundImageFor(nsIFrame* aTargetFrame)
-  { DoStopImageFor(mImageLoaders, aTargetFrame); }
-  NS_HIDDEN_(void) StopBorderImageFor(nsIFrame* aTargetFrame)
-  { DoStopImageFor(mBorderImageLoaders, aTargetFrame); }
   /**
    * This method is called when a frame is being destroyed to
-   * ensure that the image load gets disassociated from the prescontext
+   * ensure that the image loads get disassociated from the prescontext
    */
   NS_HIDDEN_(void) StopImagesFor(nsIFrame* aTargetFrame);
 
@@ -459,9 +483,6 @@ public:
    */
   PRBool IsPaginated() const { return mPaginated; }
   
-  PRBool GetRenderedPositionVaryingContent() const { return mRenderedPositionVaryingContent; }
-  void SetRenderedPositionVaryingContent() { mRenderedPositionVaryingContent = PR_TRUE; }
-
   /**
    * Sets whether the presentation context can scroll for a paginated
    * context.
@@ -562,6 +583,21 @@ public:
   { return NSAppUnitsToIntPixels(aAppUnits,
              float(mDeviceContext->AppUnitsPerDevPixel())); }
 
+  PRInt32 CSSPixelsToDevPixels(PRInt32 aPixels)
+  { return AppUnitsToDevPixels(CSSPixelsToAppUnits(aPixels)); }
+
+  float CSSPixelsToDevPixels(float aPixels)
+  {
+    return NSAppUnitsToFloatPixels(CSSPixelsToAppUnits(aPixels),
+                                   float(mDeviceContext->AppUnitsPerDevPixel()));
+  }
+
+  PRInt32 DevPixelsToIntCSSPixels(PRInt32 aPixels)
+  { return AppUnitsToIntCSSPixels(DevPixelsToAppUnits(aPixels)); }
+
+  float DevPixelsToFloatCSSPixels(PRInt32 aPixels)
+  { return AppUnitsToFloatCSSPixels(DevPixelsToAppUnits(aPixels)); }
+
   // If there is a remainder, it is rounded to nearest app units.
   nscoord GfxUnitsToAppUnits(gfxFloat aGfxUnits) const
   { return mDeviceContext->GfxUnitsToAppUnits(aGfxUnits); }
@@ -580,7 +616,7 @@ public:
                           mDeviceContext->AppUnitsPerInch()); }
 
   // Margin-specific version, since they often need TwipsToAppUnits
-  nsMargin TwipsToAppUnits(const nsMargin &marginInTwips) const
+  nsMargin TwipsToAppUnits(const nsIntMargin &marginInTwips) const
   { return nsMargin(TwipsToAppUnits(marginInTwips.left), 
                     TwipsToAppUnits(marginInTwips.top),
                     TwipsToAppUnits(marginInTwips.right),
@@ -738,12 +774,8 @@ public:
   /* Helper function that ensures that this prescontext is shown in its
      docshell if it's the most recent prescontext for the docshell.  Returns
      whether the prescontext is now being shown.
-
-     @param aUnsuppressFocus If this is false, then focus will not be
-     unsuppressed when PR_TRUE is returned.  It's the caller's responsibility
-     to unsuppress focus in that case.
   */
-  NS_HIDDEN_(PRBool) EnsureVisible(PRBool aUnsuppressFocus);
+  NS_HIDDEN_(PRBool) EnsureVisible();
   
 #ifdef MOZ_REFLOW_PERF
   NS_HIDDEN_(void) CountReflows(const char * aName,
@@ -790,13 +822,68 @@ public:
   // user font set is changed and fonts become unavailable).
   void UserFontSetUpdated();
 
-  void NotifyInvalidation(const nsRect& aRect, PRBool aIsCrossDoc);
+  PRBool MayHavePaintEventListener();
+  void NotifyInvalidation(const nsRect& aRect, PRUint32 aFlags);
   void FireDOMPaintEvent();
+  PRBool IsDOMPaintEventPending() {
+    return !mInvalidateRequests.mRequests.IsEmpty();
+  }
 
   void ClearMozAfterPaintEvents() {
-    mSameDocDirtyRegion.SetEmpty();
-    mCrossDocDirtyRegion.SetEmpty();
+    mInvalidateRequests.mRequests.Clear();
   }
+
+  /**
+   * Notify the prescontext that the presshell is about to reflow a reflow root.
+   * The single argument indicates whether this reflow should be interruptible.
+   * If aInterruptible is false then CheckForInterrupt and HasPendingInterrupt
+   * will always return false. If aInterruptible is true then CheckForInterrupt
+   * will return true when a pending event is detected.  This is for use by the
+   * presshell only.  Reflow code wanting to prevent interrupts should use
+   * InterruptPreventer.
+   */
+  void ReflowStarted(PRBool aInterruptible);
+
+  /**
+   * A class that can be used to temporarily disable reflow interruption.
+   */
+  class InterruptPreventer;
+  friend class InterruptPreventer;
+  class NS_STACK_CLASS InterruptPreventer {
+  public:
+    InterruptPreventer(nsPresContext* aCtx) :
+      mCtx(aCtx),
+      mInterruptsEnabled(aCtx->mInterruptsEnabled),
+      mHasPendingInterrupt(aCtx->mHasPendingInterrupt)
+    {
+      mCtx->mInterruptsEnabled = PR_FALSE;
+      mCtx->mHasPendingInterrupt = PR_FALSE;
+    }
+    ~InterruptPreventer() {
+      mCtx->mInterruptsEnabled = mInterruptsEnabled;
+      mCtx->mHasPendingInterrupt = mHasPendingInterrupt;
+    }
+
+  private:
+    nsPresContext* mCtx;
+    PRBool mInterruptsEnabled;
+    PRBool mHasPendingInterrupt;
+  };
+    
+  /**
+   * Check for interrupts. This may return true if a pending event is
+   * detected. Once it has returned true, it will keep returning true
+   * until ReflowStarted is called. In all cases where this returns true,
+   * the passed-in frame (which should be the frame whose reflow will be
+   * interrupted if true is returned) will be passed to
+   * nsIPresShell::FrameNeedsToContinueReflow.
+   */
+  PRBool CheckForInterrupt(nsIFrame* aFrame);
+  /**
+   * Returns true if CheckForInterrupt has returned true since the last
+   * ReflowStarted call. Cannot itself trigger an interrupt check.
+   */
+  PRBool HasPendingInterrupt() { return mHasPendingInterrupt; }
 
 protected:
   friend class nsRunnableMethod<nsPresContext>;
@@ -804,6 +891,10 @@ protected:
   NS_HIDDEN_(void) SysColorChangedInternal();
 
   NS_HIDDEN_(void) SetImgAnimations(nsIContent *aParent, PRUint16 aMode);
+#ifdef MOZ_SMIL
+  NS_HIDDEN_(void) SetSMILAnimations(nsIDocument *aDoc, PRUint16 aNewMode,
+                                     PRUint16 aOldMode);
+#endif // MOZ_SMIL
   NS_HIDDEN_(void) GetDocumentColorPreferences();
 
   NS_HIDDEN_(void) PreferenceChanged(const char* aPrefName);
@@ -821,6 +912,8 @@ protected:
     mPostedFlushUserFontSet = PR_FALSE;
     FlushUserFontSet();
   }
+
+  PRBool HavePendingInputEvent();
 
   // Can't be inline because we can't include nsStyleSet.h.
   PRBool HasCachedStyleData();
@@ -845,8 +938,9 @@ protected:
   nsILinkHandler*       mLinkHandler;   // [WEAK]
   nsIAtom*              mLangGroup;     // [STRONG]
 
-  ImageLoaderTable      mImageLoaders;
-  ImageLoaderTable      mBorderImageLoaders;
+  nsRefPtrHashtable<nsVoidPtrHashKey, nsImageLoader>
+                        mImageLoaders[IMAGE_LOAD_TYPE_COUNT];
+
   nsWeakPtr             mContainer;
 
   float                 mTextZoom;      // Text zoom, defaults to 1.0
@@ -866,8 +960,7 @@ protected:
 
   nsPropertyTable       mPropertyTable;
 
-  nsRegion              mSameDocDirtyRegion;
-  nsRegion              mCrossDocDirtyRegion;
+  nsInvalidateRequestList mInvalidateRequests;
 
   // container for per-context fonts (downloadable, SVG, etc.)
   nsUserFontSet*        mUserFontSet;
@@ -908,6 +1001,12 @@ protected:
 
   nscoord               mBorderWidthTable[3];
 
+  PRUint32              mInterruptChecksToSkip;
+
+  mozilla::TimeStamp    mReflowStartTime;
+
+  unsigned              mHasPendingInterrupt : 1;
+  unsigned              mInterruptsEnabled : 1;
   unsigned              mUseDocumentFonts : 1;
   unsigned              mUseDocumentColors : 1;
   unsigned              mUnderlineLinks : 1;
@@ -918,7 +1017,6 @@ protected:
   unsigned              mDrawColorBackground : 1;
   unsigned              mNeverAnimate : 1;
   unsigned              mIsRenderingOnlySelection : 1;
-  unsigned              mNoTheme : 1;
   unsigned              mPaginated : 1;
   unsigned              mCanPaginatedScroll : 1;
   unsigned              mDoScaledTwips : 1;
@@ -930,7 +1028,6 @@ protected:
   unsigned              mPendingThemeChanged : 1;
   unsigned              mPendingMediaFeatureValuesChanged : 1;
   unsigned              mPrefChangePendingNeedsReflow : 1;
-  unsigned              mRenderedPositionVaryingContent : 1;
 
   // Is the current mUserFontSet valid?
   unsigned              mUserFontSetDirty : 1;
@@ -954,7 +1051,7 @@ protected:
 
 protected:
 
-  ~nsPresContext() NS_HIDDEN;
+  virtual ~nsPresContext() NS_HIDDEN;
 
   // these are private, use the list in nsFont.h if you want a public list
   enum {
@@ -978,6 +1075,56 @@ public:
   }
 #endif
 
+};
+
+class nsRootPresContext : public nsPresContext {
+public:
+  nsRootPresContext(nsIDocument* aDocument, nsPresContextType aType) NS_HIDDEN;
+  virtual ~nsRootPresContext();
+
+  /**
+   * Registers a plugin to receive geometry updates (position and clip
+   * region) so it can update its widget.
+   * Callers must call UnregisterPluginForGeometryUpdates before
+   * the aPlugin frame is destroyed.
+   */
+  void RegisterPluginForGeometryUpdates(nsObjectFrame* aPlugin);
+  /**
+   * Stops a plugin receiving geometry updates (position and clip
+   * region). If the plugin was not already registered, this does
+   * nothing.
+   */
+  void UnregisterPluginForGeometryUpdates(nsObjectFrame* aPlugin);
+
+  /**
+   * Iterate through all plugins that are registered for geometry updates
+   * and update their position and clip region to match the current frame
+   * tree. Only frames at or under aChangedRoot can have changed their
+   * geometry.
+   */
+  void UpdatePluginGeometry(nsIFrame* aChangedRoot);
+
+  /**
+   * Iterate through all plugins that are registered for geometry updates
+   * and compute their position and clip region according to the
+   * current frame tree. Only frames at or under aChangedRoot can have
+   * changed their geometry. The computed positions and clip regions are
+   * appended to aConfigurations.
+   */
+  void GetPluginGeometryUpdates(nsIFrame* aChangedRoot,
+                                nsTArray<nsIWidget::Configuration>* aConfigurations);
+
+  /**
+   * When all geometry updates have been applied, call this function
+   * in case the nsObjectFrames have work to do after the widgets
+   * have been updated.
+   */
+  void DidApplyPluginGeometryUpdates();
+
+  virtual PRBool IsRoot() { return PR_TRUE; }
+
+private:
+  nsTHashtable<nsPtrHashKey<nsObjectFrame> > mRegisteredPlugins;
 };
 
 #ifdef DEBUG
@@ -1019,11 +1166,10 @@ struct nsAutoLayoutPhase {
                      "constructing frames in the middle of a paint");
         NS_ASSERTION(mPresContext->mLayoutPhaseCount[eLayoutPhase_Reflow] == 0,
                      "constructing frames in the middle of reflow");
-        // The nsXBLService::LoadBindings call in ConstructFrameInternal
-        // makes us hit this one too often to be an NS_ASSERTION,
-        // despite how scary it is.
-        NS_WARN_IF_FALSE(mPresContext->mLayoutPhaseCount[eLayoutPhase_FrameC] == 0,
-                         "recurring into frame construction");
+        NS_ASSERTION(mPresContext->mLayoutPhaseCount[eLayoutPhase_FrameC] == 0,
+                     "recurring into frame construction");
+        NS_ASSERTION(!nsContentUtils::IsSafeToRunScript(),
+                     "constructing frames and scripts are not blocked");
         break;
       default:
         break;

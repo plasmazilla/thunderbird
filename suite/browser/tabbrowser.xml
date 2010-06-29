@@ -86,7 +86,7 @@
                           xbl:inherits="oncommand=onnewtab"/>
             <xul:menuitem label="&undoCloseTab.label;" accesskey="&undoCloseTab.accesskey;" tbattr="tabbrowser-undoclosetab"
                           oncommand="var tabbrowser = this.parentNode.parentNode.parentNode.parentNode;
-                                     tabbrowser.restoreTab(0);"/>
+                                     tabbrowser.undoCloseTab(0);"/>
             <xul:menuseparator/>
             <xul:menuitem label="&bookmarkGroup.label;" accesskey="&bookmarkGroup.accesskey;"
                           tbattr="tabbrowser-multiple"
@@ -128,6 +128,10 @@
       <children/>
     </content>
     <implementation implements="nsIObserver">
+      <field name="mSessionStore" readonly="true">
+        Components.classes["@mozilla.org/suite/sessionstore;1"]
+                   .getService(Components.interfaces.nsISessionStore);
+      </field>
       <field name="mPrefs" readonly="true">
         Components.classes['@mozilla.org/preferences-service;1']
                   .getService(Components.interfaces.nsIPrefService)
@@ -165,6 +169,9 @@
         null
       </field>
       <field name="mProgressListeners">
+        []
+      </field>
+      <field name="mTabsProgressListeners">
         []
       </field>
       <field name="mTabListeners">
@@ -365,20 +372,34 @@
               if (aMaxTotalProgress > 0)
                 this.mTab.setAttribute("progress", Math.floor(aCurTotalProgress * 9.9 / aMaxTotalProgress));
 
-              if (this.mBlank || this.mTabBrowser.mCurrentTab != this.mTab)
+              if (this.mBlank)
                 return;
 
-              this.mTabBrowser.mProgressListeners.forEach(
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifyProgressChange(element) {
+                    try {
+                      element.onProgressChange(aWebProgress, aRequest,
+                                               aCurSelfProgress, aMaxSelfProgress,
+                                               aCurTotalProgress, aMaxTotalProgress);
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                );
+              }
+
+              this.mTabBrowser.mTabsProgressListeners.forEach(
                 function notifyProgressChange(element) {
                   try {
-                    element.onProgressChange(aWebProgress, aRequest,
+                    element.onProgressChange(this.mBrowser, aWebProgress, aRequest,
                                              aCurSelfProgress, aMaxSelfProgress,
                                              aCurTotalProgress, aMaxTotalProgress);
                   } catch (e) {
                     Components.utils.reportError(e);
                   }
                 }
-              );
+              , this);
             },
 
             onStateChange : function(aWebProgress, aRequest, aStateFlags, aStatus)
@@ -464,19 +485,32 @@
                   this.mTabBrowser.mIsBusy = false;
               }
 
-              if (oldBlank || this.mTabBrowser.mCurrentTab != this.mTab)
+              if (oldBlank)
                 return;
 
-              this.mTabBrowser.mProgressListeners.forEach(
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifyStateChange(element) {
+                    try {
+                      element.onStateChange(aWebProgress, aRequest,
+                                            aStateFlags, aStatus);
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                );
+              }
+
+              this.mTabBrowser.mTabsProgressListeners.forEach(
                 function notifyStateChange(element) {
                   try {
-                    element.onStateChange(aWebProgress, aRequest,
-                                          aStateFlags, aStatus);
+                    element.onStateChange(this.mBrowser, aWebProgress,
+                                          aRequest, aStateFlags, aStatus);
                   } catch (e) {
                     Components.utils.reportError(e);
                   }
                 }
-              );
+              , this);
             },
 
             // The first location change is gotoIndex called from mInstallSH,
@@ -503,51 +537,118 @@
                   this.mBrowser.userTypedValue = null;
               }
 
-              if (this.mBlank || this.mTabBrowser.mCurrentTab != this.mTab)
+              if (this.mBlank)
                 return;
 
-              this.mTabBrowser.mProgressListeners.forEach(
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifyLocationChange(element) {
+                    try {
+                      element.onLocationChange(aWebProgress, aRequest, aLocation);
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                );
+              }
+
+              this.mTabBrowser.mTabsProgressListeners.forEach(
                 function notifyLocationChange(element) {
                   try {
-                    element.onLocationChange(aWebProgress, aRequest, aLocation);
+                    element.onLocationChange(this.mBrowser, aWebProgress, aRequest, aLocation);
                   } catch (e) {
                     Components.utils.reportError(e);
                   }
                 }
-              );
+              , this);
             },
 
             onStatusChange : function(aWebProgress, aRequest, aStatus, aMessage)
             {
-              if (this.mBlank || this.mTabBrowser.mCurrentTab != this.mTab)
+              if (this.mBlank)
                 return;
 
-              this.mTabBrowser.mProgressListeners.forEach(
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifyStatusChange(element) {
+                    try {
+                      element.onStatusChange(aWebProgress, aRequest,
+                                             aStatus, aMessage);
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                );
+              }
+
+              this.mTabBrowser.mTabsProgressListeners.forEach(
                 function notifyStatusChange(element) {
                   try {
-                    element.onStatusChange(aWebProgress, aRequest,
+                    element.onStatusChange(this.mBrowser, aWebProgress, aRequest,
                                            aStatus, aMessage);
                   } catch (e) {
                     Components.utils.reportError(e);
                   }
                 }
-              );
+              , this);
             },
 
             onSecurityChange : function(aWebProgress, aRequest, aState)
             {
-              if (this.mTabBrowser.mCurrentTab != this.mTab)
-                return;
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifySecurityChange(element) {
+                    try {
+                      element.onSecurityChange(aWebProgress, aRequest, aState);
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                );
+              }
 
-              this.mTabBrowser.mProgressListeners.forEach(
+              this.mTabBrowser.mTabsProgressListeners.forEach(
                 function notifySecurityChange(element) {
                   try {
-                    element.onSecurityChange(aWebProgress, aRequest, aState);
+                    element.onSecurityChange(this.mBrowser, aWebProgress, aRequest, aState);
                   } catch (e) {
                     Components.utils.reportError(e);
                   }
                 }
-              );
+              , this);
+            },
+
+            onRefreshAttempted : function(aWebProgress, aURI, aDelay, aSameURI)
+            {
+              var allowRefresh = true;
+              if (this.mTabBrowser.mCurrentTab == this.mTab) {
+                this.mTabBrowser.mProgressListeners.forEach(
+                  function notifyRefreshAttempted(element) {
+                    if (element && "onRefreshAttempted" in element) {
+                      try {
+                        if (!element.onRefreshAttempted(aWebProgress, aURI, aDelay, aSameURI))
+                          allowRefresh = false;
+                      } catch (e) {
+                        Components.utils.reportError(e);
+                      }
+                    }
+                  }
+                );
+              }
+
+              this.mTabBrowser.mProgressListeners.forEach(
+                function notifyRefreshAttempted(element) {
+                  if (element && "onRefreshAttempted" in element) {
+                    try {
+                      if (!element.onRefreshAttempted(this.mBrowser, aWebProgress, aURI, aDelay, aSameURI))
+                        allowRefresh = false;
+                    } catch (e) {
+                      Components.utils.reportError(e);
+                    }
+                  }
+                }
+              , this);
+              return allowRefresh;
             },
 
             setIcon : function(aURI)
@@ -565,6 +666,7 @@
             QueryInterface : function(aIID)
             {
               if (aIID.equals(Components.interfaces.nsIWebProgressListener) ||
+                  aIID.equals(Components.interfaces.nsIWebProgressListener2) ||
                   aIID.equals(Components.interfaces.nsISupportsWeakReference) ||
                   aIID.equals(Components.interfaces.nsISupports))
                 return this;
@@ -805,8 +907,8 @@
               menuItems[i].setAttribute("disabled", disabled);
 
             var undoItem = document.getAnonymousElementByAttribute(this, "tbattr", "tabbrowser-undoclosetab");
-            undoItem.setAttribute("disabled", this.savedBrowsers.length == 0);
-            undoItem.hidden = this.mPrefs.getIntPref("browser.sessionstore.max_tabs_undo") <= 0;
+            undoItem.setAttribute("disabled", this.mSessionStore.getClosedTabCount(window) == 0);
+            undoItem.hidden = this.mPrefs.getIntPref("browser.tabs.max_tabs_undo") <= 0 && this.mPrefs.getIntPref("browser.sessionstore.max_tabs_undo") <= 0;
           ]]>
         </body>
       </method>
@@ -969,15 +1071,13 @@
             }
 
             function setFocus(element) {
-              document.commandDispatcher.suppressFocusScroll = true;
+              const nsIFocusManager = Components.interfaces.nsIFocusManager;
               if (element instanceof Window)
                 element.focus();
               else
-                element.ownerDocument.defaultView
-                       .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                       .getInterface(Components.interfaces.nsIDOMWindowUtils)
-                       .focus(element);
-              document.commandDispatcher.suppressFocusScroll = false;
+                Components.classes["@mozilla.org/focus-manager;1"]
+                          .getService(nsIFocusManager)
+                          .setFocus(element, nsIFocusManager.FLAG_NOSCROLL);
             }
 
             // Use setTimeout to avoid focus outline ghosting.
@@ -1326,12 +1426,18 @@
       <method name="getUndoList">
         <body>
           <![CDATA[
-            var list = [];
-            for (var i = 0; i < this.savedBrowsers.length; i++) {
-              var hist = this.savedBrowsers[i].history;
-              list.push(hist.getEntryAtIndex(hist.index, false).title);
-            }
-            return list;
+            return JSON.parse(this.mSessionStore.getClosedTabData(window))
+                       .map(function(aTabData) { return aTabData.title; });
+          ]]>
+        </body>
+      </method>
+
+      <method name="undoCloseTab">
+        <parameter name="aIndex"/>
+        <body>
+          <![CDATA[
+            if (this.mSessionStore.getClosedTabCount(window))
+              return this.mSessionStore.undoCloseTab(window, aIndex);
           ]]>
         </body>
       </method>
@@ -1381,6 +1487,9 @@
             this.mTabListeners[position] = tabListener;
             this.mTabFilters[position] = filter;
 
+            if (savedData.pos < position)
+              this.moveTabTo(position, savedData.pos);
+
             if (this.mTabs.length == 2 &&
                 !this.mTabs[0].linkedBrowser.webNavigation.sessionHistory.count)
               this.removeTab(this.mTabs[0]); // only one tab => selected anyway
@@ -1410,6 +1519,13 @@
             if (ds.contentViewer && !ds.contentViewer.permitUnload())
               return;
 
+            aTab.tabData = {
+              pos: this.getTabIndex(aTab),
+              panel: oldBrowser.parentNode.id,
+              title: oldBrowser.contentDocument.title ||
+                     this.getTitleForURI(oldBrowser.currentURI) ||
+                     this.mStringBundle.getString("tabs.untitled")
+            }
             // We're committed to closing the tab now.
             // Dispatch a notification.
             // We dispatch it before any teardown so that event listeners can
@@ -1419,15 +1535,16 @@
             aTab.dispatchEvent(event);
 
             var l = this.mTabs.length;
-            if (l == 1) {
-              // add a new blank tab to replace the one we're about to close
-              // (this ensures that the remaining tab is as good as new)
-              this.addTab("about:blank");
-              l++;
-            }
-            else if (l == 2) {
-              if (this.mPrefs.getBoolPref("browser.tabs.autoHide"))
-                this.mStrip.collapsed = true;
+            switch (l) {
+              case 1:
+                // add a new blank tab to replace the one we're about to close
+                // (this ensures that the remaining tab is as good as new)
+                this.addTab("about:blank");
+                l++;
+                // fall through
+              case 2:
+                if (this.mPrefs.getBoolPref("browser.tabs.autoHide"))
+                  this.mStrip.collapsed = true;
             }
 
             var index = this.getTabIndex(aTab);
@@ -1483,7 +1600,7 @@
             // Save the tab for undo.
             // Even though we navigate to about:blank, it costs more RAM than
             // really closing the tab.  The pref controls how far you can undo
-            var maxUndoDepth = this.mPrefs.getIntPref("browser.sessionstore.max_tabs_undo");
+            var maxUndoDepth = this.mPrefs.getIntPref("browser.tabs.max_tabs_undo");
             var oldSH = oldBrowser.webNavigation.sessionHistory;
             var inOnLoad = oldBrowser.docShell.isExecutingOnLoadHandler;
             if (maxUndoDepth <= 0 || oldSH.count == 0 || aDisableUndo || inOnLoad) {
@@ -1513,7 +1630,9 @@
             //    into bfcache - allows for saving of JS modifications
             //    and also saves RAM by allowing bfcache to evict the full page
 
-            this.savedBrowsers.unshift({browser: oldBrowser, history: oldSH, tabData: aTab.tabData || {} });
+            aTab.tabData.browser = oldBrowser;
+            aTab.tabData.history = oldSH;
+            this.savedBrowsers.unshift(aTab.tabData);
 
             var newSH = Components.classes["@mozilla.org/browser/shistory;1"]
                                   .createInstance(Components.interfaces.nsISHistoryInternal);
@@ -1530,7 +1649,10 @@
 
             // remove overflow from the undo stack
             if (this.savedBrowsers.length > maxUndoDepth) {
-              var deadBrowser = this.savedBrowsers.pop().browser;
+              var tabData = this.savedBrowsers.pop();
+              var deadBrowser = tabData.browser;
+              delete tabData.browser;
+              delete tabData.history;
               deadBrowser.parentNode.destroy();
               deadBrowser.destroy();
 
@@ -1539,6 +1661,29 @@
               this.mPanelContainer.removeChild(deadBrowser.parentNode);
               this.mTabBox.selectedPanel = this.selectedTab.linkedBrowser.parentNode;
             }
+          ]]>
+        </body>
+      </method>
+
+      <method name="forgetSavedBrowser">
+        <parameter name="aIndex"/>
+        <body>
+          <![CDATA[
+            if (aIndex >= this.savedBrowsers.length || aIndex < 0)
+              return false;
+
+            var tabData = this.savedBrowsers.splice(aIndex, 1)[0];
+            var deadBrowser = tabData.browser;
+            delete tabData.browser;
+            delete tabData.history;
+            deadBrowser.parentNode.destroy();
+            deadBrowser.destroy();
+
+            // The pagehide event that this removal triggers is safe
+            // because the browser is no longer current at this point
+            this.mPanelContainer.removeChild(deadBrowser.parentNode);
+            this.mTabBox.selectedPanel = this.selectedTab.linkedBrowser.parentNode;
+            return true;
           ]]>
         </body>
       </method>
@@ -1575,13 +1720,11 @@
         <parameter name="aMask"/>
         <body>
           <![CDATA[
-/* Enable this _after_ MOZILLA_1_9_1_BRANCH.
             if (!aListener)
               throw Components.results.NS_ERROR_INVALID_ARG;
 
             if (this.mProgressListeners.indexOf(aListener) != -1)
               throw Components.results.NS_ERROR_FAILURE;
-*/
 
             // push() does not disturb possibly ongoing iterations.
             this.mProgressListeners.push(aListener);
@@ -1593,14 +1736,46 @@
         <parameter name="aListener"/>
         <body>
           <![CDATA[
-/* Enable this _after_ MOZILLA_1_9_1_BRANCH.
             if (this.mProgressListeners.indexOf(aListener) == -1)
               throw Components.results.NS_ERROR_FAILURE;
-*/
 
             // Create a new array, not to disturb possibly ongoing iterations.
             this.mProgressListeners =
               this.mProgressListeners.filter(
+                function removeListener(element) {
+                  return element != aListener;
+                }
+              );
+         ]]>
+        </body>
+      </method>
+
+      <method name="addTabsProgressListener">
+        <parameter name="aListener"/>
+        <body>
+          <![CDATA[
+            if (!aListener)
+              throw Components.results.NS_ERROR_INVALID_ARG;
+
+            if (this.mTabsProgressListeners.indexOf(aListener) != -1)
+              throw Components.results.NS_ERROR_FAILURE;
+
+            // push() does not disturb possibly ongoing iterations.
+            this.mTabsProgressListeners.push(aListener);
+          ]]>
+        </body>
+      </method>
+
+      <method name="removeTabsProgressListener">
+        <parameter name="aListener"/>
+        <body>
+          <![CDATA[
+            if (this.mTabsProgressListeners.indexOf(aListener) == -1)
+              throw Components.results.NS_ERROR_FAILURE;
+
+            // Create a new array, not to disturb possibly ongoing iterations.
+            this.mTabsProgressListeners =
+              this.mTabsProgressListeners.filter(
                 function removeListener(element) {
                   return element != aListener;
                 }
@@ -1765,6 +1940,9 @@
         <parameter name="aDragSession"/>
         <body>
           <![CDATA[
+            document.getAnonymousElementByAttribute(this, "class",
+                                                    "tab-drop-indicator-bar")
+                    .collapsed = true;
             var newIndex = this.getDropIndex(aEvent);
             var tabIndex;
             if (aDragSession.sourceNode &&
@@ -2276,7 +2454,10 @@
 
             // Wipe out savedBrowsers since history is gone
             while (this.savedBrowsers.length) {
-              var deadBrowser = this.savedBrowsers.pop().browser;
+              var tabData = this.savedBrowsers.pop();
+              var deadBrowser = tabData.browser;
+              delete tabData.browser;
+              delete tabData.history;
               deadBrowser.parentNode.destroy();
               deadBrowser.destroy();
 
@@ -2362,6 +2543,10 @@
           var os = Components.classes["@mozilla.org/observer-service;1"]
                              .getService(Components.interfaces.nsIObserverService);
           os.removeObserver(this, "browser:purge-session-history");
+          this.savedBrowsers.forEach(function(aTabData) {
+            delete aTabData.browser;
+            delete aTabData.history;
+          });
         ]]>
       </destructor>
     </implementation>

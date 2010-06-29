@@ -99,10 +99,6 @@ mail-newsgroups-headerfield {
   -moz-binding: url("chrome://messenger/content/mailWidgets.xml#mail-newsgroups-headerfield");
 }
 
-mail-multi-more-indicator {
-  -moz-binding: url("chrome://messenger/content/mailWidgets.xml#mail-multi-more-indicator");
-}
-
 mail-headerfield {
   -moz-binding: url("chrome://messenger/content/mailWidgets.xml#mail-headerfield");
 }
@@ -245,6 +241,10 @@ menupopup[type="folder"] {
   -moz-binding: url("chrome://messenger/content/addressbook/addrbookWidgets.xml#addrbooks-menupopup");
 }
 
+#threadCols > treecolpicker {
+  -moz-binding: url("chrome://messenger/content/threadPaneColumnPicker.xml#threadPaneColumnPicker");
+}
+
 /**
  * Toolboxes default to overflow: visible, and we need to override that to
  * prevent the toolbox from causing its containing box (the entire content
@@ -260,4 +260,16 @@ menupopup[type="folder"] {
  */
 #mail-bar3 {
   overflow-x: hidden;
+}
+
+/* Lightweight themes support */
+
+#messengerWindow:-moz-lwtheme {
+  background-repeat: no-repeat;
+  background-position: top right;
+}
+
+#status-bar[lwthemefooter="true"] {
+  background-repeat: no-repeat;
+  background-position: bottom left;
 }

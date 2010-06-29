@@ -48,6 +48,8 @@
 <!ENTITY mnView.accesskey "A">
 <!ENTITY cmdToggleBrowser.label "Navigateur">
 <!ENTITY cmdToggleBrowser.accesskey "N">
+<!ENTITY cmdFlashOnSelect.label "Faire clignoter l'élément sélectionné">
+<!ENTITY cmdFlashOnSelect.accesskey "F">
 <!ENTITY cmdToggleSearch.label "Résultats de la recherche">
 
 <!ENTITY browserPanel.label "Navigateur">

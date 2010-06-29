@@ -103,7 +103,7 @@ thead {
 
 /* last modified */
 th:last-child {
-  text-align: center !important;
+  text-align: center;
 }
 
 th:hover > a {

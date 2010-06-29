@@ -43,9 +43,8 @@ VPATH		= @srcdir@
 include $(DEPTH)/config/autoconf.mk
 
 MODULE		= msgbase
-LIBRARY_NAME	= mailnews
-ifeq ($(OS_ARCH),WINNT)
 LIBRARY_NAME	= msgbase
+ifeq ($(OS_ARCH),WINNT)
 RESFILE		= mail.res
 endif
 META_COMPONENT = mail
@@ -132,6 +131,6 @@ ifeq ($(OS_ARCH),WINNT)
 OS_LIBS	+= $(call EXPAND_LIBNAME,shell32)
 endif
 
-ifneq (,$(filter cocoa mac, $(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 OS_LIBS += -framework Carbon
 endif

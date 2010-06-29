@@ -606,10 +606,7 @@ function EditorSharedStartup()
 
   // Disable DNS Prefetching on the docshell - we don't need it for composer
   // type windows.
-  GetCurrentEditorElement()
-    .docShell
-    .QueryInterface(Components.interfaces.nsIDocShell_MOZILLA_1_9_1_dns)
-    .allowDNSPrefetch = false;
+  GetCurrentEditorElement().docShell.allowDNSPrefetch = false;
 
   // Set up the mime type and register the commands.
   if (IsHTMLEditor())

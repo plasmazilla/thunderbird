@@ -265,7 +265,7 @@ nsresult nsEudoraMailbox::ImportMailbox( PRUint32 *pBytes, PRBool *pAbort, const
     IMPORT_LOG0( "Reading euroda toc file: ");
     DUMP_FILENAME( tocFile, PR_TRUE);
 
-                rv = NS_NewLocalFileOutputStream(getter_AddRefs(mailOutputStream), pDst);
+                rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mailOutputStream), pDst);
                 NS_ENSURE_SUCCESS(rv, rv);
     // Read the toc and import the messages
     rv = ImportMailboxUsingTOC( pBytes, pAbort, srcInputStream, tocFile, mailOutputStream, pMsgCount);
@@ -442,13 +442,6 @@ nsresult nsEudoraMailbox::ImportMailboxUsingTOC(
     // again using just the mailbox.
     IMPORT_LOG0( "*** Error importing mailbox using TOC: ");
 //    DUMP_FILENAME(pMail, PR_TRUE);
-
-    // Close the destination and truncate it. We don't need to bother
-    // to reopen it because the nsIFileSpec implementation will open
-    // before writing if necessary (and yes legacy importing code already
-    // relies on this behavior).
-//    pDst->CloseStream();
-//    pDst->Truncate(0);
 
     // Reset pBytes back to where it was before we imported this mailbox.
     // This will likely result in a funky progress bar which will move
@@ -1177,7 +1170,6 @@ PRInt32  nsEudoraMailbox::IsEudoraFromSeparator( const char *pChar, PRInt32 maxL
   }
 
   return( -1);
-
 }
 
 PRInt32 nsEudoraMailbox::AsciiToLong( const char *pChar, PRInt32 len)
@@ -1367,4 +1359,3 @@ nsresult nsEudoraMailbox::FillMailBuffer( ReadFileState *pState, SimpleBufferTon
 
   return( NS_OK);
 }
-

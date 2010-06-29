@@ -231,7 +231,7 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
         rv = file->GetParent(getter_AddRefs(parent));
         
         if (parent && NS_SUCCEEDED(rv)) {
-            net_GetURLSpecFromFile(parent, url);
+            net_GetURLSpecFromDir(parent, url);
             if (NS_FAILED(rv)) return rv;
             parentStr.Assign(url);
         }
@@ -302,13 +302,8 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
                          "  border: 0;\n"
                          "}\n"
                          "th {\n"
-                         "  text-align: left;\n"
+                         "  text-align: start;\n"
                          "  white-space: nowrap;\n"
-                         "}\n"
-                         // Bug 475986 makes this necessary, otherwise
-                         // "text-align: start" would be fine
-                         "body[dir=\"rtl\"] th {\n"
-                         "  text-align: right;\n"
                          "}\n"
                          "th > a {\n"
                          "  color: inherit;\n"
@@ -320,11 +315,7 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
                          "  display: none;\n"
                          "  width: .8em;\n"
                          "  -moz-margin-end: -.8em;\n"
-                         "  text-align: right;\n"
-                         "}\n"
-                         // Bug 299837 will enable us to use "text-align: end" here
-                         "body[dir=\"rtl\"] table[order] > thead > tr > th::after {\n"
-                         "  text-align: left;\n"
+                         "  text-align: end;\n"
                          "}\n"
                          "table[order=\"asc\"] > thead > tr > th::after {\n"
                          "  content: \"\\2193\"; /* DOWNWARDS ARROW (U+2193) */\n"
@@ -357,12 +348,9 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
                          "  -moz-padding-end: 1em;\n"
                          "}\n"
                          "td:first-child + td {\n"
-                         "  text-align: right;\n"
+                         "  text-align: end;\n"
                          "  -moz-padding-end: 1em;\n"
                          "  white-space: nowrap;\n"
-                         "}\n"
-                         "body[dir=\"rtl\"] td:first-child + td {\n"
-                         "  text-align: left;\n"
                          "}\n"
                          "/* date */\n"
                          "td:first-child + td + td {\n"
@@ -930,6 +918,10 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
         escFlags = esc_Forced | esc_OnlyASCII | esc_AlwaysCopy | esc_FileBaseName | esc_Colon | esc_Directory;
     }
     NS_EscapeURL(utf8UnEscapeSpec.get(), utf8UnEscapeSpec.Length(), escFlags, escapeBuf);
+    // esc_Directory does not escape the semicolons, so if a filename
+    // contains semicolons we need to manually escape them.
+    // This replacement should be removed in bug #473280
+    escapeBuf.ReplaceSubstring(";", "%3b");
     NS_ConvertUTF8toUTF16 utf16URI(escapeBuf);
     nsString htmlEscapedURL;
     htmlEscapedURL.Adopt(nsEscapeHTML2(utf16URI.get(), utf16URI.Length()));

@@ -35,34 +35,33 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/***************************************************************
-* StylesheetsViewer --------------------------------------------
-*  The viewer for the stylesheets loaded by a document.
-* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+/*****************************************************************************
+* StyleSheetsViewer ----------------------------------------------------------
+*  The viewer for the style sheets loaded by a document.
+* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 * REQUIRED IMPORTS:
 *   chrome://inspector/content/jsutil/xpcom/XPCU.js
-****************************************************************/
+*****************************************************************************/
 
-//////////// global variables /////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//// Global Variables
 
 var viewer;
 
-//////////// global constants ////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////
+window.addEventListener("load", StyleSheetsViewer_initialize, false);
 
-window.addEventListener("load", StylesheetsViewer_initialize, false);
-
-function StylesheetsViewer_initialize()
+function StyleSheetsViewer_initialize()
 {
-  viewer = new StylesheetsViewer();
+  viewer = new StyleSheetsViewer();
   viewer.initialize(parent.FrameExchange.receiveData(window));
 }
 
-////////////////////////////////////////////////////////////////////////////
-//// class StylesheetsViewer
+//////////////////////////////////////////////////////////////////////////////
+//// Class StyleSheetsViewer
 
-function StylesheetsViewer()
+function StyleSheetsViewer()
 {
   this.mURL = window.location;
   this.mObsMan = new ObserverManager(this);
@@ -71,24 +70,24 @@ function StylesheetsViewer()
   this.mOlBox = this.mTree.treeBoxObject;
 }
 
-StylesheetsViewer.prototype = 
+StyleSheetsViewer.prototype =
 {
   ////////////////////////////////////////////////////////////////////////////
   //// Initialization
-  
+
   mSubject: null,
   mPane: null,
   mView: null,
-  
+
   ////////////////////////////////////////////////////////////////////////////
-  //// interface inIViewer
+  //// Interface inIViewer
 
   get uid() { return "stylesheets"; },
   get pane() { return this.mPane; },
   get selection() { return this.mSelection; },
 
   get subject() { return this.mSubject; },
-  set subject(aObject) 
+  set subject(aObject)
   {
     this.mView = new StyleSheetsView(aObject);
     this.mOlBox.view = this.mView;
@@ -96,46 +95,54 @@ StylesheetsViewer.prototype =
     this.mView.selection.select(0);
   },
 
-  initialize: function(aPane)
+  initialize: function SSVr_Initialize(aPane)
   {
     this.mPane = aPane;
     aPane.notifyViewerReady(this);
   },
 
-  destroy: function()
+  destroy: function SSVr_Destroy()
   {
     this.mOlBox.view = null;
   },
 
-  isCommandEnabled: function(aCommand)
+  isCommandEnabled: function SSVr_IsCommandEnabled(aCommand)
   {
     return false;
   },
-  
-  getCommand: function(aCommand)
+
+  getCommand: function SSVr_GetCommand(aCommand)
   {
     return null;
   },
-  
-  ////////////////////////////////////////////////////////////////////////////
-  //// event dispatching
-
-  addObserver: function(aEvent, aObserver) { this.mObsMan.addObserver(aEvent, aObserver); },
-  removeObserver: function(aEvent, aObserver) { this.mObsMan.removeObserver(aEvent, aObserver); },
 
   ////////////////////////////////////////////////////////////////////////////
-  //// stuff
-  
-  onItemSelected: function()
+  //// Event Dispatching
+
+  addObserver: function SSVr_AddObserver(aEvent, aObserver)
+  {
+    this.mObsMan.addObserver(aEvent, aObserver);
+  },
+
+  removeObserver: function SSVr_RemoveObserver(aEvent, aObserver)
+  {
+    this.mObsMan.removeObserver(aEvent, aObserver);
+  },
+
+  ////////////////////////////////////////////////////////////////////////////
+  //// Stuff
+
+  onItemSelected: function SSVr_OnItemSelected()
   {
     var idx = this.mTree.currentIndex;
     this.mSelection = this.mView.getSheet(idx);
-    this.mObsMan.dispatchEvent("selectionChange", { selection: this.mSelection } );
+    this.mObsMan.dispatchEvent("selectionChange",
+                               { selection: this.mSelection });
   }
 
 };
 
-////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 //// StyleSheetsView
 
 function StyleSheetsView(aDocument)
@@ -146,32 +153,32 @@ function StyleSheetsView(aDocument)
   this.mOpen = [];
   this.mChildCount = [];
   this.mRowCount = 0;
-      
+
   var ss = aDocument.styleSheets;
-  for (var i = 0; i < ss.length; ++i)
+  for (let i = 0; i < ss.length; ++i)
     this.insertSheet(ss[i], 0, -1);
 }
 
 StyleSheetsView.prototype = new inBaseTreeView();
 
-StyleSheetsView.prototype.getSheet = 
-function(aRow)
+StyleSheetsView.prototype.getSheet =
+function SSV_GetSheet(aRow)
 {
   return this.mSheets[aRow];
 }
 
-StyleSheetsView.prototype.insertSheet = 
-function(aSheet, aLevel, aRow)
+StyleSheetsView.prototype.insertSheet =
+function SSV_InsertSheet(aSheet, aLevel, aRow)
 {
   var row = aRow < 0 ? this.mSheets.length : aRow;
-  
+
   this.mSheets[row] = aSheet;
   this.mLevels[row] = aLevel;
   this.mOpen[row] = false;
-  
+
   var count = 0;
   var rules = aSheet.cssRules;
-  for (var i = 0; i < rules.length; ++i) {
+  for (let i = 0; i < rules.length; ++i) {
     if (rules[i].type == CSSRule.IMPORT_RULE)
       ++count;
   }
@@ -179,72 +186,60 @@ function(aSheet, aLevel, aRow)
   ++this.mRowCount;
 }
 
-StyleSheetsView.prototype.shiftDataDown = 
-function(aRow, aDiff)
-{
-  for (var i = this.mRowCount+aDiff-1; i >= aRow ; --i) {
-    this.mSheets[i] = this.mSheets[i-aDiff];
-    this.mLevels[i] = this.mLevels[i-aDiff];
-    this.mOpen[i] = this.mOpen[i-aDiff];
-    this.mChildCount[i] = this.mChildCount[i-aDiff];
-  }
-}
+//////////////////////////////////////////////////////////////////////////////
+//// Interface nsITreeView
 
-StyleSheetsView.prototype.shiftDataUp = 
-function(aRow, aDiff)
+StyleSheetsView.prototype.getCellText =
+function SSV_GetCellText(aRow, aCol)
 {
-  for (var i = aRow; i < this.mRowCount; ++i) {
-    this.mSheets[i] = this.mSheets[i+aDiff];
-    this.mLevels[i] = this.mLevels[i+aDiff];
-    this.mOpen[i] = this.mOpen[i+aDiff];
-    this.mChildCount[i] = this.mChildCount[i+aDiff];
+  var rule = this.mSheets[aRow];
+  if (aCol.id == "olcHref") {
+    if (rule.href)
+      return rule.href;
+    // fall back for style elements
+    if (rule.ownerNode && rule.ownerNode.ownerDocument)
+      return rule.ownerNode.ownerDocument.documentURI;
   }
-}
-
-StyleSheetsView.prototype.getCellText = 
-function(aRow, aCol) 
-{
-  if (aCol.id == "olcHref")
-    return this.mSheets[aRow].href;
-  else if (aCol.id == "olcRules")
+  else if (aCol.id == "olcRules") {
     return this.mSheets[aRow].cssRules.length;
+  }
   return "";
 }
 
-StyleSheetsView.prototype.getLevel = 
-function(aRow) 
+StyleSheetsView.prototype.getLevel =
+function SSV_GetLevel(aRow)
 {
   return this.mLevels[aRow];
 }
 
-StyleSheetsView.prototype.isContainer = 
-function(aRow) 
+StyleSheetsView.prototype.isContainer =
+function SSV_IsContainer(aRow)
 {
   return this.mChildCount[aRow] > 0;
 }
 
-StyleSheetsView.prototype.isContainerEmpty = 
-function(aRow) 
+StyleSheetsView.prototype.isContainerEmpty =
+function SSV_IsContainerEmpty(aRow)
 {
   return !this.isContainer(aRow);
 }
 
-StyleSheetsView.prototype.getParentIndex = 
-function(aRow) 
+StyleSheetsView.prototype.getParentIndex =
+function SSV_GetParentIndex(aRow)
 {
   var baseLevel = this.mLevels[aRow];
-  for (var i = aRow-1; i >= 0; --i) {
+  for (let i = aRow - 1; i >= 0; --i) {
     if (this.mLevels[i] < baseLevel)
       return i;
   }
   return -1;
 }
 
-StyleSheetsView.prototype.hasNextSibling = 
-function(aRow) 
+StyleSheetsView.prototype.hasNextSibling =
+function SSV_HasNextSibling(aRow, aAfter)
 {
   var baseLevel = this.mLevels[aRow];
-  for (var i = aRow+1; i < this.mRowCount; ++i) {
+  for (let i = aAfter + 1; i < this.mRowCount; ++i) {
     if (this.mLevels[i] < baseLevel)
       break;
     if (this.mLevels[i] == baseLevel)
@@ -253,37 +248,57 @@ function(aRow)
   return false;
 }
 
-StyleSheetsView.prototype.isContainerOpen = 
-function(aRow) 
+StyleSheetsView.prototype.isContainerOpen =
+function SSV_IsContainerOpen(aRow)
 {
   return this.mOpen[aRow];
 }
 
-StyleSheetsView.prototype.toggleOpenState = 
-function(aRow) 
+StyleSheetsView.prototype.toggleOpenState =
+function SSV_ToggleOpenState(aRow)
 {
-  var oldRowCount = this.mRowCount;
+  var changeCount = 0;
   if (this.mOpen[aRow]) {
     var baseLevel = this.mLevels[aRow];
-    var count = 0;
-    for (var i = aRow+1; i < this.mRowCount; ++i) {
+    for (let i = aRow + 1; i < this.mRowCount; ++i) {
       if (this.mLevels[i] <= baseLevel)
         break;
-      ++count;
+      ++changeCount;
     }
-    this.shiftDataUp(aRow+1, count);
-    this.mRowCount -= count;
+    // shift data up
+    this.mSheets.splice(aRow + 1, changeCount);
+    this.mLevels.splice(aRow + 1, changeCount);
+    this.mOpen.splice(aRow + 1, changeCount);
+    this.mChildCount.splice(aRow + 1, changeCount);
+    changeCount = -changeCount;
+    this.mRowCount += changeCount;
   } else {
-    this.shiftDataDown(aRow+1, this.mChildCount[aRow]);
-    
+    // for quick access
     var rules = this.mSheets[aRow].cssRules;
-    for (changeCount = 0; changeCount < rules.length; ++changeCount) {
-      if (rules[changeCount].type == CSSRule.IMPORT_RULE)
-        this.insertSheet(rules[changeCount].styleSheet, this.mLevels[aRow]+1, aRow+changeCount+1);
+    var level = this.mLevels[aRow] + 1;
+    var childCount = this.mChildCount[aRow];
+    // shift data down
+    for (let i = this.mRowCount - 1; i > aRow; --i) {
+      this.mSheets[i + childCount] = this.mSheets[i];
+      this.mLevels[i + childCount] = this.mLevels[i];
+      this.mOpen[i + childCount] = this.mOpen[i];
+      this.mChildCount[i + childCount] = this.mChildCount[i];
+    }
+    // fill in new rows
+    for (let i = 0; i < rules.length; ++i) {
+      if (rules[i].type == CSSRule.IMPORT_RULE) {
+        ++changeCount;
+        this.insertSheet(rules[i].styleSheet, level, aRow + changeCount);
+      }
+      else if (rules[i].type != CSSRule.CHARSET_RULE) {
+        // only @charset and other @imports may precede @import, so exit now
+        break;
+      }
     }
   }
-  
+
   this.mOpen[aRow] = !this.mOpen[aRow];
-  this.mTree.rowCountChanged(aRow+1, this.mRowCount - oldRowCount);
+  this.mTree.rowCountChanged(aRow + 1, changeCount);
+  this.mTree.invalidateRow(aRow);
 }
 

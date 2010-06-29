@@ -73,6 +73,8 @@ CHECK_VARS := \
  SHORT_LIBNAME \
  XPI_PKGNAME \
  INSTALL_EXTENSION_ID \
+ SHARED_LIBRARY_NAME \
+ STATIC_LIBRARY_NAME \
  $(NULL)
 
 # checks for internal spaces or trailing spaces in the variable
@@ -80,6 +82,8 @@ CHECK_VARS := \
 check-variable = $(if $(filter-out 0 1,$(words $($(x))z)),$(error Spaces are not allowed in $(x)))
 
 $(foreach x,$(CHECK_VARS),$(check-variable))
+
+core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURDIR)/$(1)))
 
 # FINAL_TARGET specifies the location into which we copy end-user-shipped
 # build products (typelibs, components, chrome).
@@ -149,8 +153,12 @@ MOZ_UNICHARUTIL_LIBS = $(LIBXUL_DIST)/lib/$(LIB_PREFIX)unicharutil_s.$(LIB_SUFFI
 MOZ_WIDGET_SUPPORT_LIBS    = $(DIST)/lib/$(LIB_PREFIX)widgetsupport_s.$(LIB_SUFFIX)
 
 ifdef MOZ_MEMORY
-ifneq ($(OS_ARCH),WINNT)
-JEMALLOC_LIBS = $(MKSHLIB_FORCE_ALL) $(call EXPAND_LIBNAME,jemalloc) $(MKSHLIB_UNFORCE_ALL)
+ifneq (,$(filter-out WINNT WINCE,$(OS_ARCH)))
+ifdef MOZILLA_1_9_2_BRANCH
+JEMALLOC_LIBS = $(MKSHLIB_FORCE_ALL) $(call EXPAND_LIBNAME_PATH,jemalloc,$(DIST)/lib) $(MKSHLIB_UNFORCE_ALL)
+else
+JEMALLOC_LIBS = $(MKSHLIB_FORCE_ALL) $(call EXPAND_MOZLIBNAME,jemalloc) $(MKSHLIB_UNFORCE_ALL)
+endif # ! MOZILLA_1_9_2_BRANCH
 endif
 endif
 
@@ -229,6 +237,9 @@ else
   endif
 endif
 
+ifndef MOZILLA_1_9_2_BRANCH
+MOZALLOC_LIB = $(call EXPAND_MOZLIBNAME,mozalloc)
+endif
 
 # append debug flags 
 # (these might have been above when processing MOZ_DBGRINFO_MODULES)
@@ -248,11 +259,9 @@ else # ! MOZ_DEBUG
 # We don't build a static CRT when building a custom CRT,
 # it appears to be broken. So don't link to jemalloc if
 # the Makefile wants static CRT linking.
-ifndef MOZILLA_1_9_1_BRANCH
 ifeq ($(MOZ_MEMORY)_$(USE_STATIC_LIBS),1_)
 # Disable default CRT libs and add the right lib path for the linker
 OS_LDFLAGS += $(MOZ_MEMORY_LDFLAGS)
-endif
 endif
 
 # MOZ_DEBUG_SYMBOLS generates debug symbols in separate PDB files.
@@ -261,8 +270,13 @@ endif
 ifdef MOZ_DEBUG_SYMBOLS
 OS_CXXFLAGS += -Zi -UDEBUG -DNDEBUG
 OS_CFLAGS += -Zi -UDEBUG -DNDEBUG
-OS_LDFLAGS += -DEBUG -OPT:REF -OPT:nowin98
-endif
+OS_LDFLAGS += -DEBUG -OPT:REF
+ifdef MOZILLA_1_9_2_BRANCH
+# This breaks builds on VC10, but mozilla-1.9.2 doesn't build with VC10 anyway,
+# so this isn't a big loss.
+OS_LDFLAGS += -OPT:NOWIN98
+endif # MOZILLA_1_9_2_BRANCH
+endif # MOZ_DEBUG_SYMBOLS
 
 ifdef MOZ_QUANTIFY
 # -FIXED:NO is needed for Quantify to work, but it increases the size
@@ -364,6 +378,18 @@ DSO_PIC_CFLAGS=
 endif
 endif
 
+ifndef SHARED_LIBRARY_NAME
+ifdef LIBRARY_NAME
+SHARED_LIBRARY_NAME=$(LIBRARY_NAME)
+endif
+endif
+
+ifndef STATIC_LIBRARY_NAME
+ifdef LIBRARY_NAME
+STATIC_LIBRARY_NAME=$(LIBRARY_NAME)
+endif
+endif
+
 # This comes from configure
 ifdef MOZ_PROFILE_GUIDED_OPTIMIZE_DISABLE
 NO_PROFILE_GUIDED_OPTIMIZE = 1
@@ -409,7 +435,6 @@ DEFINES += \
 		-D_IMPL_NS_COM \
 		-DEXPORT_XPT_API \
 		-DEXPORT_XPTC_API \
-		-D_IMPL_NS_COM_OBSOLETE \
 		-D_IMPL_NS_GFX \
 		-D_IMPL_NS_WIDGET \
 		-DIMPL_XREAPI \
@@ -482,18 +507,22 @@ XPIDL_COMPILE 	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpidl$(BIN_SUFFIX)
 XPIDL_LINK	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpt_link$(BIN_SUFFIX)
 endif
 
-REQ_INCLUDES	= -I$(srcdir) -I. $(foreach d,$(REQUIRES),-I$(DIST)/include/$d) -I$(DIST)/include 
-ifdef LIBXUL_SDK
-REQ_INCLUDES_SDK = $(foreach d,$(REQUIRES),-I$(LIBXUL_SDK)/include/$d) -I$(LIBXUL_SDK)/include
-endif
-
-INCLUDES	= $(LOCAL_INCLUDES) $(REQ_INCLUDES) $(REQ_INCLUDES_SDK) -I$(PUBLIC) $(OS_INCLUDES)
-
-ifndef MOZILLA_INTERNAL_API
-INCLUDES	+= -I$(LIBXUL_DIST)/sdk/include
-endif
+INCLUDES = \
+  $(LOCAL_INCLUDES) \
+  -I$(srcdir) \
+  -I. \
+  -I$(DIST)/include -I$(DIST)/include/nsprpub \
+  $(if $(LIBXUL_SDK),-I$(LIBXUL_SDK)/include -I$(LIBXUL_SDK)/include/nsprpub) \
+  $(OS_INCLUDES) \
+  $(NULL)
 
 include $(topsrcdir)/config/static-checking-config.mk
+
+ifdef MOZ_SHARK
+OS_CFLAGS += -F/System/Library/PrivateFrameworks
+OS_CXXFLAGS += -F/System/Library/PrivateFrameworks
+OS_LDFLAGS += -F/System/Library/PrivateFrameworks -framework CHUD
+endif # ifdef MOZ_SHARK
 
 CFLAGS		= $(OS_CFLAGS)
 CXXFLAGS	= $(OS_CXXFLAGS)
@@ -567,8 +596,12 @@ OS_COMPILE_CMFLAGS += -fobjc-exceptions
 OS_COMPILE_CMMFLAGS += -fobjc-exceptions
 endif
 
-COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(XCFLAGS) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CFLAGS)
-COMPILE_CXXFLAGS = $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(XCFLAGS) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS)  $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
+COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CFLAGS)
+ifdef MOZILLA_1_9_2_BRANCH
+COMPILE_CXXFLAGS = $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
+else
+COMPILE_CXXFLAGS = $(STL_FLAGS) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
+endif
 COMPILE_CMFLAGS = $(OS_COMPILE_CMFLAGS)
 COMPILE_CMMFLAGS = $(OS_COMPILE_CMMFLAGS)
 
@@ -596,19 +629,12 @@ endif
 
 # Default location of include files
 IDL_DIR		= $(DIST)/idl
-ifdef MODULE
-PUBLIC		= $(DIST)/include/$(MODULE)
-else
-PUBLIC		= $(DIST)/include
-endif
 
 XPIDL_FLAGS = -I$(srcdir) -I$(IDL_DIR)
 ifdef LIBXUL_SDK
 XPIDL_FLAGS += -I$(LIBXUL_SDK)/idl
 endif
 
-SDK_PUBLIC  = $(DIST)/sdk/include
-SDK_IDL_DIR = $(DIST)/sdk/idl
 SDK_LIB_DIR = $(DIST)/sdk/lib
 SDK_BIN_DIR = $(DIST)/sdk/bin
 
@@ -629,6 +655,12 @@ ELF_DYNSTR_GC	= echo
 else
 ELF_DYNSTR_GC	= :
 endif
+
+ifndef MOZILLA_1_9_2_BRANCH
+ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
+OS_LIBS += $(MOZ_QT_LIBS)
+endif
+endif # ! MOZILLA_1_9_2_BRANCH
 
 ifndef CROSS_COMPILE
 ifdef USE_ELF_DYNSTR_GC
@@ -704,18 +736,6 @@ endif
 endif
 endif
 
-# Flags needed to link against the component library
-ifdef MOZ_COMPONENTLIB
-MOZ_COMPONENTLIB_EXTRA_DSO_LIBS = mozcomps xpcom_compat
-
-# Tell the linker where NSS is, if we're building crypto
-ifeq ($(OS_ARCH),Darwin)
-ifeq (,$(findstring crypto,$(MOZ_META_COMPONENTS)))
-MOZ_COMPONENTLIB_EXTRA_LIBS = $(foreach library, $(patsubst -l%, $(LIB_PREFIX)%$(DLL_SUFFIX), $(filter -l%, $(NSS_LIBS))), -dylib_file @executable_path/$(library):$(DIST)/bin/$(library))
-endif
-endif
-endif
-
 # If we're building a component on MSVC, we don't want to generate an
 # import lib, because that import lib will collide with the name of a
 # static version of the same library.
@@ -758,21 +778,17 @@ ifeq ($(OS_ARCH),Darwin)
 ifndef NSDISTMODE
 NSDISTMODE=absolute_symlink
 endif
-PWD := $(shell pwd)
+PWD := $(CURDIR)
 endif
 
 ifdef NSINSTALL_BIN
 NSINSTALL	= $(CYGWIN_WRAPPER) $(NSINSTALL_BIN)
 else
-ifeq (WINNT,$(CROSS_COMPILE)$(OS_ARCH))
-NSINSTALL	= $(CYGWIN_WRAPPER) $(MOZ_TOOLS_DIR)/bin/nsinstall
-else
 ifeq (OS2,$(CROSS_COMPILE)$(OS_ARCH))
 NSINSTALL	= $(MOZ_TOOLS_DIR)/nsinstall
 else
-NSINSTALL	= $(CONFIG_TOOLS)/nsinstall
+NSINSTALL	= $(CONFIG_TOOLS)/nsinstall$(HOST_BIN_SUFFIX)
 endif # OS2
-endif # WINNT
 endif # NSINSTALL_BIN
 
 
@@ -796,11 +812,6 @@ INSTALL		= $(NSINSTALL) -R
 endif # absolute_symlink
 endif # copy
 endif # WINNT/OS2
-
-ifeq (,$(filter-out WINCE,$(OS_ARCH)))
-NSINSTALL	= $(CYGWIN_WRAPPER) nsinstall
-INSTALL     = $(CYGWIN_WRAPPER) nsinstall 
-endif
 
 # Use nsinstall in copy mode to install files on the system
 SYSINSTALL	= $(NSINSTALL) -t
@@ -843,13 +854,19 @@ MAKE_JARS_FLAGS += -c $(topsrcdir)/$(relativesrcdir)/en-US
 endif
 endif
 
-ifeq (,$(filter WINCE WINNT OS2,$(OS_ARCH)))
-RUN_TEST_PROGRAM = $(DIST)/bin/run-mozilla.sh
-endif
-
-ifeq ($(OS_ARCH),OS2)
+ifdef WINCE
+ifndef MOZILLA_1_9_2_BRANCH
+RUN_TEST_PROGRAM = $(PYTHON) $(MOZILLA_SRCDIR)/build/mobile/devicemanager-run-test.py
+endif # ! MOZILLA_1_9_2_BRANCH
+else
+ifeq (OS2,$(OS_ARCH))
 RUN_TEST_PROGRAM = $(MOZILLA_SRCDIR)/build/os2/test_os2.cmd "$(DIST)"
-endif
+else
+ifneq (WINNT,$(OS_ARCH))
+RUN_TEST_PROGRAM = $(DIST)/bin/run-mozilla.sh
+endif # ! WINNT
+endif # ! OS2
+endif # ! WINCE
 
 ifdef TIERS
 DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_dirs))

@@ -15,13 +15,14 @@
  * The Original Code is thebes gfx code.
  *
  * The Initial Developer of the Original Code is Mozilla Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2006
+ * Portions created by the Initial Developer are Copyright (C) 2006-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *   Vladimir Vukicevic <vladimir@pobox.com>
  *   Masayuki Nakano <masayuki@d-toybox.com>
  *   John Daggett <jdaggett@mozilla.com>
+ *   Jonathan Kew <jfkthame@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -40,6 +41,8 @@
 #ifndef GFX_ATSUIFONTS_H
 #define GFX_ATSUIFONTS_H
 
+#ifndef __LP64__ /* ATSUI not available on 64-bit */
+
 #include "cairo.h"
 #include "gfxTypes.h"
 #include "gfxFont.h"
@@ -51,7 +54,6 @@
 class gfxAtsuiFontGroup;
 
 class MacOSFontEntry;
-class MacOSFamilyEntry;
 
 #define kLiGothicBadCharUnicode  0x775B // ATSUI failure on 10.6 (bug 532346)
 #define kLiGothicBadCharGlyph    3774   // the expected glyph for this char
@@ -69,7 +71,7 @@ public:
     float GetCharWidth(PRUnichar c, PRUint32 *aGlyphID = nsnull);
     float GetCharHeight(PRUnichar c);
 
-    ATSUFontID GetATSUFontID();
+    ATSFontRef GetATSFontRef();
 
     cairo_font_face_t *CairoFontFace() { return mFontFace; }
     cairo_scaled_font_t *CairoScaledFont() { return mScaledFont; }
@@ -147,7 +149,7 @@ public:
         return static_cast<gfxAtsuiFont*>(static_cast<gfxFont*>(mFonts[aFontIndex]));
     }
 
-    PRBool HasFont(ATSUFontID fid);
+    PRBool HasFont(ATSFontRef aFontRef);
 
     inline gfxAtsuiFont* WhichFontSupportsChar(nsTArray< nsRefPtr<gfxFont> >& aFontList, 
                                                PRUint32 aCh)
@@ -169,9 +171,9 @@ public:
     void UpdateFontList();
 
 protected:
-    static PRBool FindATSUFont(const nsAString& aName,
-                               const nsACString& aGenericName,
-                               void *closure);
+    static PRBool FindATSFont(const nsAString& aName,
+                              const nsACString& aGenericName,
+                              void *closure);
 
     PRUint32 GuessMaximumStringLength();
 
@@ -204,10 +206,13 @@ protected:
     void InitFontList();
     
     // cache the most recent pref font to avoid general pref font lookup
-    nsRefPtr<MacOSFamilyEntry>    mLastPrefFamily;
+    nsRefPtr<gfxFontFamily>       mLastPrefFamily;
     nsRefPtr<gfxAtsuiFont>        mLastPrefFont;
     eFontPrefLang                 mLastPrefLang;       // lang group for last pref font
     PRBool                        mLastPrefFirstFont;  // is this the first font in the list of pref fonts for this lang group?
     eFontPrefLang                 mPageLang;
 };
+
+#endif /* not __LP64__ */
+
 #endif /* GFX_ATSUIFONTS_H */

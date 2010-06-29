@@ -104,20 +104,15 @@ enum nsCSSTokenType {
 };
 
 struct nsCSSToken {
-  nsCSSTokenType  mType;
-  PRPackedBool    mIntegerValid; // for number and dimension
-  PRPackedBool    mHasSign; // for number, percentage, and dimension
   nsAutoString    mIdent NS_OKONHEAP;
   float           mNumber;
   PRInt32         mInteger;
+  nsCSSTokenType  mType;
   PRUnichar       mSymbol;
+  PRPackedBool    mIntegerValid; // for number and dimension
+  PRPackedBool    mHasSign; // for number, percentage, and dimension
 
   nsCSSToken();
-
-  PRBool IsDimension() {
-    return PRBool((eCSSToken_Dimension == mType) ||
-                  ((eCSSToken_Number == mType) && (mNumber == 0.0f)));
-  }
 
   PRBool IsSymbol(PRUnichar aSymbol) {
     return PRBool((eCSSToken_Symbol == mType) && (mSymbol == aSymbol));
@@ -211,19 +206,14 @@ protected:
   PRInt32 Read();
   PRInt32 Peek();
   PRBool LookAhead(PRUnichar aChar);
-  PRBool EatWhiteSpace();
-  PRBool EatNewline();
-
+  void EatWhiteSpace();
+  
   void ParseAndAppendEscape(nsString& aOutput);
   PRBool ParseIdent(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseAtKeyword(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseNumber(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseRef(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseString(PRInt32 aChar, nsCSSToken& aResult);
-#if 0
-  PRBool ParseCComment(nsCSSToken& aResult);
-  PRBool ParseEOLComment(nsCSSToken& aResult);
-#endif
   PRBool SkipCComment();
 
   PRBool GatherIdent(PRInt32 aChar, nsString& aIdent);

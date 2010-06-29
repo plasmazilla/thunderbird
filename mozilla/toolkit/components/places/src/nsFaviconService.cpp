@@ -66,7 +66,11 @@
 #include "plbase64.h"
 #include "nsPlacesTables.h"
 #include "mozIStoragePendingStatement.h"
+#include "mozIStorageStatementCallback.h"
+#include "mozIStorageError.h"
 #include "nsPlacesTables.h"
+#include "nsIPrefService.h"
+#include "nsPlacesMacros.h"
 
 // For favicon optimization
 #include "imgITools.h"
@@ -74,15 +78,18 @@
 
 #define FAVICON_BUFFER_INCREMENT 8192
 
-#define MAX_FAVICON_CACHE_SIZE 512
+#define MAX_FAVICON_CACHE_SIZE 256
 #define FAVICON_CACHE_REDUCE_COUNT 64
 
 #define CONTENT_SNIFFING_SERVICES "content-sniffing-services"
 
-// If favicon is bigger than this size we will try to optimize it into a
-// 16x16 png. An uncompressed 16x16 RGBA image is 1024 bytes, and almost all
-// sensible 16x16 icons are under 1024 bytes.
-#define OPTIMIZED_FAVICON_SIZE 1024
+
+// Default value for mOptimizedIconDimension
+#define OPTIMIZED_FAVICON_DIMENSION 16
+
+// Most icons will be smaller than this rough estimate of the size of an
+// uncompressed 16x16 RGBA image of the same dimensions.
+#define MAX_ICON_FILESIZE(s) ((PRUint32) s*s*4)
 
 /**
  * The maximum time we will keep a favicon around.  We always ask the cache, if
@@ -90,7 +97,7 @@
  * is more in the future than this.
  * Currently set to one week from now.
  */
-#define MAX_FAVICON_EXPIRATION PRTime(7 * 24 * 60 * 60 * PR_USEC_PER_SEC)
+#define MAX_FAVICON_EXPIRATION ((PRTime)7 * 24 * 60 * 60 * PR_USEC_PER_SEC)
 
 class FaviconLoadListener : public nsIStreamListener,
                             public nsIInterfaceRequestor,
@@ -118,20 +125,34 @@ private:
   nsCString mData;
 };
 
+// Used to notify a topic to system observers on async execute completion.
+// Will throw on error.
+class ExpireFaviconsStatementCallbackNotifier : public mozIStorageStatementCallback
+{
+public:
+  ExpireFaviconsStatementCallbackNotifier(bool *aExpirationRunning);
+  NS_DECL_ISUPPORTS
+  NS_DECL_MOZISTORAGESTATEMENTCALLBACK
 
-nsFaviconService* nsFaviconService::gFaviconService;
+private:
+  bool *mExpirationRunning;
+};
 
-NS_IMPL_ISUPPORTS2(
+PLACES_FACTORY_SINGLETON_IMPLEMENTATION(nsFaviconService, gFaviconService)
+
+NS_IMPL_ISUPPORTS1(
   nsFaviconService
 , nsIFaviconService
-, nsIObserver
 )
 
 // nsFaviconService::nsFaviconService
 
-nsFaviconService::nsFaviconService() : mFailedFaviconSerial(0)
+nsFaviconService::nsFaviconService() : mExpirationRunning(false)
+                                     , mOptimizedIconDimension(OPTIMIZED_FAVICON_DIMENSION)
+                                     , mFailedFaviconSerial(0)
 {
-  NS_ASSERTION(! gFaviconService, "ATTEMPTING TO CREATE TWO FAVICON SERVICES!");
+  NS_ASSERTION(!gFaviconService,
+               "Attempting to create two instances of the service!");
   gFaviconService = this;
 }
 
@@ -140,7 +161,8 @@ nsFaviconService::nsFaviconService() : mFailedFaviconSerial(0)
 
 nsFaviconService::~nsFaviconService()
 {
-  NS_ASSERTION(gFaviconService == this, "Deleting a non-singleton favicon service");
+  NS_ASSERTION(gFaviconService == this,
+               "Deleting a non-singleton instance of the service");
   if (gFaviconService == this)
     gFaviconService = nsnull;
 }
@@ -203,8 +225,12 @@ nsFaviconService::Init()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // failed favicon cache
-  if (! mFailedFavicons.Init(256))
+  if (! mFailedFavicons.Init(MAX_FAVICON_CACHE_SIZE))
     return NS_ERROR_OUT_OF_MEMORY;
+
+  nsCOMPtr<nsIPrefBranch> pb = do_GetService(NS_PREFSERVICE_CONTRACTID);
+  if (pb)
+    pb->GetIntPref("places.favicons.optimizeToDimension", &mOptimizedIconDimension);
 
   return NS_OK;
 }
@@ -229,49 +255,55 @@ nsFaviconService::InitTables(mozIStorageConnection* aDBConn)
   return NS_OK;
 }
 
-nsresult
+NS_IMETHODIMP
 nsFaviconService::ExpireAllFavicons()
 {
-  // Remove all references to favicons.  We would love to not have to do this
-  // because it could result in copying almost all of the moz_places into
-  // memory for some sync in the future.  We mitigate this some by checking for
-  // non-null favicon ids, but views do not use indexes when querying.
-  nsCOMPtr<mozIStorageStatement> removeReferences;
+  mExpirationRunning = true;
+
+  // Remove all references to favicons.
+  // We do this in 2 steps, first we null-out all favicons in the disk table,
+  // then we do the same in the temp table.  This is because the view UPDATE
+  // trigger does not allow setting a NULL value to prevent dataloss.
+  nsCOMPtr<mozIStorageStatement> removeOnDiskReferences;
   nsresult rv = mDBConn->CreateStatement(NS_LITERAL_CSTRING(
-      "UPDATE moz_places_view "
+      "UPDATE moz_places "
       "SET favicon_id = NULL "
-      "WHERE favicon_id <> NULL"
-    ), getter_AddRefs(removeReferences));
+      "WHERE favicon_id NOT NULL"
+    ), getter_AddRefs(removeOnDiskReferences));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Remove all favicons
+  nsCOMPtr<mozIStorageStatement> removeTempReferences;
+  rv = mDBConn->CreateStatement(NS_LITERAL_CSTRING(
+      "UPDATE moz_places_temp "
+      "SET favicon_id = NULL "
+      "WHERE favicon_id NOT NULL"
+    ), getter_AddRefs(removeTempReferences));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Remove all favicons.
+  // We run async, so be sure to not remove any favicon that could have been
+  // created in the meantime.
   nsCOMPtr<mozIStorageStatement> removeFavicons;
   rv = mDBConn->CreateStatement(NS_LITERAL_CSTRING(
-      "DELETE FROM moz_favicons"
+      "DELETE FROM moz_favicons WHERE id NOT IN ("
+        "SELECT favicon_id FROM moz_places_temp WHERE favicon_id NOT NULL "
+        "UNION ALL "
+        "SELECT favicon_id FROM moz_places WHERE favicon_id NOT NULL "
+      ")"
     ), getter_AddRefs(removeFavicons));
   NS_ENSURE_SUCCESS(rv, rv);
 
   mozIStorageStatement *stmts[] = {
-    removeReferences,
+    removeOnDiskReferences,
+    removeTempReferences,
     removeFavicons
   };
   nsCOMPtr<mozIStoragePendingStatement> ps;
-  rv = mDBConn->ExecuteAsync(stmts, NS_ARRAY_LENGTH(stmts), nsnull,
+  nsCOMPtr<ExpireFaviconsStatementCallbackNotifier> callback =
+    new ExpireFaviconsStatementCallbackNotifier(&mExpirationRunning);
+  rv = mDBConn->ExecuteAsync(stmts, NS_ARRAY_LENGTH(stmts), callback,
                              getter_AddRefs(ps));
   NS_ENSURE_SUCCESS(rv, rv);
-
-  return NS_OK;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//// nsIObserver
-
-NS_IMETHODIMP
-nsFaviconService::Observe(nsISupports *aSubject, const char *aTopic,
-                          const PRUnichar *aData)
-{
-  if (strcmp(aTopic, NS_CACHESERVICE_EMPTYCACHE_TOPIC_ID) == 0)
-    (void)ExpireAllFavicons();
 
   return NS_OK;
 }
@@ -286,6 +318,9 @@ nsFaviconService::SetFaviconUrlForPage(nsIURI* aPageURI, nsIURI* aFaviconURI)
 {
   NS_ENSURE_ARG(aPageURI);
   NS_ENSURE_ARG(aFaviconURI);
+
+  if (mExpirationRunning)
+    return NS_OK;
 
   PRBool hasData;
   nsresult rv = SetFaviconUrlForPageInternal(aPageURI, aFaviconURI, &hasData);
@@ -427,7 +462,7 @@ nsFaviconService::UpdateBookmarkRedirectFavicon(nsIURI* aPageURI,
   NS_ENSURE_ARG_POINTER(aFaviconURI);
 
   nsNavBookmarks* bookmarks = nsNavBookmarks::GetBookmarksService();
-  NS_ENSURE_TRUE(bookmarks, NS_ERROR_UNEXPECTED);
+  NS_ENSURE_TRUE(bookmarks, NS_ERROR_OUT_OF_MEMORY);
 
   nsCOMPtr<nsIURI> bookmarkURI;
   nsresult rv = bookmarks->GetBookmarkedURIFor(aPageURI,
@@ -484,6 +519,9 @@ nsFaviconService::SetAndLoadFaviconForPage(nsIURI* aPageURI,
   NS_ENSURE_ARG(aPageURI);
   NS_ENSURE_ARG(aFaviconURI);
 
+  if (mExpirationRunning)
+    return NS_OK;
+
 #ifdef LAZY_ADD
   nsNavHistory* historyService = nsNavHistory::GetHistoryService();
   NS_ENSURE_TRUE(historyService, NS_ERROR_OUT_OF_MEMORY);
@@ -503,20 +541,28 @@ nsFaviconService::DoSetAndLoadFaviconForPage(nsIURI* aPageURI,
                                              nsIURI* aFaviconURI,
                                              PRBool aForceReload)
 {
+  if (mExpirationRunning)
+    return NS_OK;
+
   nsCOMPtr<nsIURI> page(aPageURI);
 
-  // don't load favicons when history is disabled
-  nsNavHistory* history = nsNavHistory::GetHistoryService();
-  NS_ENSURE_TRUE(history, NS_ERROR_FAILURE);
-  if (history->IsHistoryDisabled()) {
-    // history is disabled - check to see if this favicon could be for a
-    // bookmark
+  nsNavHistory *history = nsNavHistory::GetHistoryService();
+  NS_ENSURE_TRUE(history, NS_ERROR_OUT_OF_MEMORY);
+
+  PRBool canAdd;
+  nsresult rv = history->CanAddURI(page, &canAdd);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // If history is disabled or the page isn't addable to history, only load
+  // favicons if the page is bookmarked.
+  if (!canAdd || history->IsHistoryDisabled()) {
+    // Check to see whether this favicon is for a bookmark.
     nsNavBookmarks* bookmarks = nsNavBookmarks::GetBookmarksService();
-    NS_ENSURE_TRUE(bookmarks, NS_ERROR_UNEXPECTED);
+    NS_ENSURE_TRUE(bookmarks, NS_ERROR_OUT_OF_MEMORY);
 
     nsCOMPtr<nsIURI> bookmarkURI;
-    nsresult rv = bookmarks->GetBookmarkedURIFor(aPageURI,
-                                                 getter_AddRefs(bookmarkURI));
+    rv = bookmarks->GetBookmarkedURIFor(aPageURI,
+                                        getter_AddRefs(bookmarkURI));
     NS_ENSURE_SUCCESS(rv, rv);
     if (! bookmarkURI) {
       // page is not bookmarked, don't save favicon
@@ -532,7 +578,7 @@ nsFaviconService::DoSetAndLoadFaviconForPage(nsIURI* aPageURI,
 
   // check the failed favicon cache
   PRBool previouslyFailed;
-  nsresult rv = IsFailedFavicon(aFaviconURI, &previouslyFailed);
+  rv = IsFailedFavicon(aFaviconURI, &previouslyFailed);
   NS_ENSURE_SUCCESS(rv, rv);
   if (previouslyFailed) {
     if (aForceReload)
@@ -540,13 +586,6 @@ nsFaviconService::DoSetAndLoadFaviconForPage(nsIURI* aPageURI,
     else
       return NS_OK; // ignore previously failed favicons
   }
-
-  // filter out bad URLs
-  PRBool canAdd;
-  rv = history->CanAddURI(page, &canAdd);
-  NS_ENSURE_SUCCESS(rv, rv);
-  if (! canAdd)
-    return NS_OK; // ignore favicons for this url
 
   // If have an image loaded in the main frame, that image will get set as its
   // own favicon. It would be nice to store a resampled version of the image,
@@ -634,6 +673,7 @@ nsFaviconService::DoSetAndLoadFaviconForPage(nsIURI* aPageURI,
 
   rv = channel->SetNotificationCallbacks(listenerRequestor);
   NS_ENSURE_SUCCESS(rv, rv);
+
   rv = channel->AsyncOpen(listener, nsnull);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -655,6 +695,9 @@ nsFaviconService::SetFaviconData(nsIURI* aFaviconURI, const PRUint8* aData,
 {
   NS_ENSURE_ARG(aFaviconURI);
 
+  if (mExpirationRunning)
+    return NS_OK;
+
   nsresult rv;
   PRUint32 dataLen = aDataLen;
   const PRUint8* data = aData;
@@ -664,7 +707,7 @@ nsFaviconService::SetFaviconData(nsIURI* aFaviconURI, const PRUint8* aData,
   // If the page provided a large image for the favicon (eg, a highres image
   // or a multiresolution .ico file), we don't want to store more data than
   // needed.
-  if (aDataLen > OPTIMIZED_FAVICON_SIZE) {
+  if (aDataLen > MAX_ICON_FILESIZE(mOptimizedIconDimension)) {
     rv = OptimizeFaviconImage(aData, aDataLen, aMimeType, newData, newMimeType);
     if (NS_SUCCEEDED(rv) && newData.Length() < aDataLen) {
       data = reinterpret_cast<PRUint8*>(const_cast<char*>(newData.get())),
@@ -726,11 +769,11 @@ nsFaviconService::SetFaviconDataFromDataURL(nsIURI* aFaviconURI,
                                             PRTime aExpiration)
 {
   NS_ENSURE_ARG(aFaviconURI);
-
-  nsresult rv;
+  if (mExpirationRunning)
+    return NS_OK;
 
   nsCOMPtr<nsIURI> dataURI;
-  rv = NS_NewURI(getter_AddRefs(dataURI), aDataURL);
+  nsresult rv = NS_NewURI(getter_AddRefs(dataURI), aDataURL);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // use the data: protocol handler to convert the data
@@ -901,10 +944,11 @@ nsFaviconService::GetFaviconImageForPage(nsIURI* aPageURI, nsIURI** _retval)
 
 // nsFaviconService::GetFaviconLinkForIcon
 
-NS_IMETHODIMP
+nsresult
 nsFaviconService::GetFaviconLinkForIcon(nsIURI* aFaviconURI,
                                         nsIURI** aOutputURI)
 {
+  NS_ENSURE_ARG(aFaviconURI);
   NS_ENSURE_ARG_POINTER(aOutputURI);
 
   nsCAutoString spec;
@@ -932,8 +976,7 @@ ExpireFailedFaviconsCallback(nsCStringHashKey::KeyType aKey,
 NS_IMETHODIMP
 nsFaviconService::AddFailedFavicon(nsIURI* aFaviconURI)
 {
-  if (!aFaviconURI)
-    return NS_OK;
+  NS_ENSURE_ARG(aFaviconURI);
 
   nsCAutoString spec;
   nsresult rv = aFaviconURI->GetSpec(spec);
@@ -959,8 +1002,7 @@ nsFaviconService::AddFailedFavicon(nsIURI* aFaviconURI)
 NS_IMETHODIMP
 nsFaviconService::RemoveFailedFavicon(nsIURI* aFaviconURI)
 {
-  if (!aFaviconURI)
-    return NS_OK;
+  NS_ENSURE_ARG(aFaviconURI);
 
   nsCAutoString spec;
   nsresult rv = aFaviconURI->GetSpec(spec);
@@ -977,12 +1019,7 @@ nsFaviconService::RemoveFailedFavicon(nsIURI* aFaviconURI)
 NS_IMETHODIMP
 nsFaviconService::IsFailedFavicon(nsIURI* aFaviconURI, PRBool* _retval)
 {
-  NS_ENSURE_ARG_POINTER(_retval);
-  if (!aFaviconURI) {
-    *_retval = PR_FALSE;
-    return NS_OK;
-  }
-
+  NS_ENSURE_ARG(aFaviconURI);
   nsCAutoString spec;
   nsresult rv = aFaviconURI->GetSpec(spec);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1075,7 +1112,9 @@ nsFaviconService::OptimizeFaviconImage(const PRUint8* aData, PRUint32 aDataLen,
 
   // scale and recompress
   nsCOMPtr<nsIInputStream> iconStream;
-  rv = imgtool->EncodeScaledImage(container, aNewMimeType, 16, 16,
+  rv = imgtool->EncodeScaledImage(container, aNewMimeType,
+                                  mOptimizedIconDimension,
+                                  mOptimizedIconDimension,
                                   getter_AddRefs(iconStream));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1291,4 +1330,61 @@ FaviconLoadListener::OnChannelRedirect(nsIChannel* oldChannel,
   return NS_OK;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//// ExpireFaviconsStatementCallbackNotifier
 
+NS_IMPL_ISUPPORTS1(ExpireFaviconsStatementCallbackNotifier,
+                   mozIStorageStatementCallback)
+
+ExpireFaviconsStatementCallbackNotifier::ExpireFaviconsStatementCallbackNotifier(bool *aExpirationRunning)
+  : mExpirationRunning(aExpirationRunning)
+{
+  NS_ASSERTION(mExpirationRunning, "Pointer to bool mExpirationRunning can't be null");
+}
+
+NS_IMETHODIMP
+ExpireFaviconsStatementCallbackNotifier::HandleCompletion(PRUint16 aReason)
+{
+  *mExpirationRunning = false;
+
+  // We should dispatch only if expiration has been successful.
+  if (aReason != mozIStorageStatementCallback::REASON_FINISHED)
+    return NS_OK;
+
+  nsCOMPtr<nsIObserverService> observerService =
+    do_GetService("@mozilla.org/observer-service;1");
+  if (observerService) {
+    (void)observerService->NotifyObservers(nsnull,
+                                           NS_PLACES_FAVICONS_EXPIRED_TOPIC_ID,
+                                           nsnull);
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+ExpireFaviconsStatementCallbackNotifier::HandleError(mozIStorageError *aError)
+{
+  PRInt32 result;
+  nsresult rv = aError->GetResult(&result);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCAutoString message;
+  rv = aError->GetMessage(message);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCAutoString warnMsg;
+  warnMsg.Append("An error occured while executing an async statement: ");
+  warnMsg.Append(result);
+  warnMsg.Append(" ");
+  warnMsg.Append(message);
+  NS_WARNING(warnMsg.get());
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+ExpireFaviconsStatementCallbackNotifier::HandleResult(mozIStorageResultSet *aResultSet)
+{
+  NS_ASSERTION(PR_FALSE, "You cannot use this statement callback to get async statements resultset");
+  return NS_OK;
+}

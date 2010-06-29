@@ -221,8 +221,7 @@ __try {
       else {
         // If a frame is a scrollable frame, then it has one window for the client area,
         // not an extra parent window for just the scrollbars
-        nsIScrollableFrame *scrollFrame = nsnull;
-        CallQueryInterface(frame, &scrollFrame);
+        nsIScrollableFrame *scrollFrame = do_QueryFrame(frame);
         if (scrollFrame) {
           hwnd = (HWND)scrollFrame->GetScrolledFrame()->GetWindow()->GetNativeData(NS_NATIVE_WINDOW);
           NS_ASSERTION(hwnd, "No window handle for window");
@@ -393,19 +392,17 @@ __try {
       // use the ARIA owns property to calculate that if it's present.
       PRInt32 numChildren = 0;
 
-      PRUint32 currentRole = 0;
-      rv = xpAccessible->GetFinalRole(&currentRole);
-      if (NS_SUCCEEDED(rv) &&
-          currentRole == nsIAccessibleRole::ROLE_OUTLINEITEM) {
+      PRUint32 currentRole = nsAccUtils::Role(xpAccessible);
+      if (currentRole == nsIAccessibleRole::ROLE_OUTLINEITEM) {
         nsCOMPtr<nsIAccessible> child;
         xpAccessible->GetFirstChild(getter_AddRefs(child));
         while (child) {
-          child->GetFinalRole(&currentRole);
+          currentRole = nsAccUtils::Role(child);
           if (currentRole == nsIAccessibleRole::ROLE_GROUPING) {
             nsCOMPtr<nsIAccessible> groupChild;
             child->GetFirstChild(getter_AddRefs(groupChild));
             while (groupChild) {
-              groupChild->GetFinalRole(&currentRole);
+              currentRole = nsAccUtils::Role(groupChild);
               numChildren +=
                 (currentRole == nsIAccessibleRole::ROLE_OUTLINEITEM);
               nsCOMPtr<nsIAccessible> nextGroupChild;
@@ -482,7 +479,7 @@ __try {
 #endif
 
   PRUint32 xpRole = 0, msaaRole = 0;
-  if (NS_FAILED(xpAccessible->GetFinalRole(&xpRole)))
+  if (NS_FAILED(xpAccessible->GetRole(&xpRole)))
     return E_FAIL;
 
   msaaRole = gWindowsRoleMap[xpRole].msaaRole;
@@ -522,15 +519,21 @@ __try {
     nsAutoString roleString;
     if (msaaRole != ROLE_SYSTEM_CLIENT &&
         !content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::role, roleString)) {
+      nsIDocument * document = content->GetCurrentDoc();
+      if (!document)
+        return E_FAIL;
+
       nsINodeInfo *nodeInfo = content->NodeInfo();
       nodeInfo->GetName(roleString);
-      nsAutoString nameSpaceURI;
-      nodeInfo->GetNamespaceURI(nameSpaceURI);
-      if (!nameSpaceURI.IsEmpty()) {
-        // Only append name space if different from that of current document
+
+      // Only append name space if different from that of current document.
+      if (!nodeInfo->NamespaceEquals(document->GetDefaultNamespaceID())) {
+        nsAutoString nameSpaceURI;
+        nodeInfo->GetNamespaceURI(nameSpaceURI);
         roleString += NS_LITERAL_STRING(", ") + nameSpaceURI;
       }
     }
+
     if (!roleString.IsEmpty()) {
       pvarRole->vt = VT_BSTR;
       pvarRole->bstrVal = ::SysAllocString(roleString.get());
@@ -993,13 +996,8 @@ __try {
 
   pvarEndUpAt->vt = VT_EMPTY;
 
-  if (xpRelation) {
-    nsresult rv = GetAccessibleRelated(xpRelation,
-                                       getter_AddRefs(xpAccessibleResult));
-    if (rv == NS_ERROR_NOT_IMPLEMENTED) {
-      return E_NOTIMPL;
-    }
-  }
+  if (xpRelation)
+    xpAccessibleResult = nsRelUtils::GetRelatedAccessible(this, xpRelation);
 
   if (xpAccessibleResult) {
     pvarEndUpAt->pdispVal = NativeAccessible(xpAccessibleResult);
@@ -1288,7 +1286,7 @@ __try {
   *aRole = 0;
 
   PRUint32 xpRole = 0;
-  nsresult rv = GetFinalRole(&xpRole);
+  nsresult rv = GetRole(&xpRole);
   if (NS_FAILED(rv))
     return GetHRESULT(rv);
 
@@ -1296,6 +1294,15 @@ __try {
                "MSAA role map skewed");
 
   *aRole = gWindowsRoleMap[xpRole].ia2Role;
+
+  // Special case, if there is a ROLE_ROW inside of a ROLE_TREE_TABLE, then call
+  // the IA2 role a ROLE_OUTLINEITEM.
+  if (xpRole == nsIAccessibleRole::ROLE_ROW) {
+    nsCOMPtr<nsIAccessible> parent = GetParent();
+    if (nsAccUtils::Role(parent) == nsIAccessibleRole::ROLE_TREE_TABLE)
+      *aRole = ROLE_SYSTEM_OUTLINEITEM;
+  }
+
   return S_OK;
 
 } __except(nsAccessNodeWrap::FilterA11yExceptions(::GetExceptionCode(), GetExceptionInformation())) { }
@@ -1631,9 +1638,9 @@ NS_IMETHODIMP nsAccessibleWrap::GetNativeInterface(void **aOutAccessible)
   return NS_OK;
 }
 
-// nsPIAccessible
+// nsAccessible
 
-NS_IMETHODIMP
+nsresult
 nsAccessibleWrap::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
 {
   NS_ENSURE_ARG(aEvent);
@@ -1922,7 +1929,7 @@ void nsAccessibleWrap::UpdateSystemCaret()
   }
 
   nsIWidget *widget;
-  nsRect caretRect = caretAccessible->GetCaretRect(&widget);        
+  nsIntRect caretRect = caretAccessible->GetCaretRect(&widget);
   HWND caretWnd; 
   if (caretRect.IsEmpty() || !(caretWnd = (HWND)widget->GetNativeData(NS_NATIVE_WINDOW))) {
     return;

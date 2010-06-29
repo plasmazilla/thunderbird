@@ -103,10 +103,9 @@ public:
             PRInt32 aKeyUsage);
 
   /**
-   * Remove all keys belonging to this storage.
-   */
-  nsresult
-  ClearStorage(nsDOMStorage* aStorage);
+    * Remove all keys belonging to this storage.
+    */
+  nsresult ClearStorage(nsDOMStorage* aStorage);
 
   /**
    * Removes all keys added by a given domain.
@@ -119,7 +118,8 @@ public:
    * list.
    */
   nsresult
-  RemoveOwners(const nsStringArray& aOwners, PRBool aIncludeSubDomains, PRBool aMatch);
+  RemoveOwners(const nsTArray<nsString>& aOwners,
+               PRBool aIncludeSubDomains, PRBool aMatch);
 
   /**
    * Removes all keys from storage. Used when clearing storage.
@@ -128,14 +128,14 @@ public:
   RemoveAll();
 
   /**
-   * Returns usage for a storage using its GetQuotaDomainDBKey() as a key.
-   */
+    * Returns usage for a storage using its GetQuotaDomainDBKey() as a key.
+    */
   nsresult
   GetUsage(nsDOMStorage* aStorage, PRInt32 *aUsage);
 
   /**
-   * Returns usage of the domain and optionaly by any subdomain.
-   */
+    * Returns usage of the domain and optionaly by any subdomain.
+    */
   nsresult
   GetUsage(const nsACString& aDomain, PRBool aIncludeSubDomains, PRInt32 *aUsage);
 

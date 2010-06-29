@@ -99,9 +99,9 @@ var progressListener = {
         percentPrint = replaceInsert( percentPrint, 1, 100 );
         dialog.progressText.setAttribute("value", percentPrint);
 
-        var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"].
-                     getService(Components.interfaces.nsIWindowMediator);
-        if (wm && wm.getMostRecentWindow(null) == window) {
+        var fm = Components.classes["@mozilla.org/focus-manager;1"]
+                     .getService(Components.interfaces.nsIFocusManager);
+        if (fm && fm.activeWindow == window) {
           // This progress dialog is the currently active window. In
           // this case we need to make sure that some other window
           // gets focus before we close this dialog to work around the

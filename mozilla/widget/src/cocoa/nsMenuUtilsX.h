@@ -40,7 +40,7 @@
 #define nsMenuUtilsX_h_
 
 #include "nscore.h"
-#include "nsGUIEvent.h"
+#include "nsEvent.h"
 #include "nsMenuBaseX.h"
 
 #import <Cocoa/Cocoa.h>
@@ -55,8 +55,8 @@ extern "C" MenuRef _NSGetCarbonMenu(NSMenu* aMenu);
 // Namespace containing utility functions used in our native menu implementation.
 namespace nsMenuUtilsX
 {
-  nsEventStatus DispatchCommandTo(nsIContent* aTargetContent);
-  NSString*     CreateTruncatedCocoaLabel(const nsString& itemLabel); // returned object is not retained
+  void          DispatchCommandTo(nsIContent* aTargetContent);
+  NSString*     GetTruncatedCocoaLabel(const nsString& itemLabel);
   PRUint8       GeckoModifiersForNodeAttribute(const nsString& modifiersAttribute);
   unsigned int  MacModifiersForGeckoModifiers(PRUint8 geckoModifiers);
   nsMenuBarX*   GetHiddenWindowMenuBar(); // returned object is not retained

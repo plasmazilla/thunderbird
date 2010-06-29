@@ -39,15 +39,17 @@
 #ifndef nsEventDispatcher_h___
 #define nsEventDispatcher_h___
 
-#include "nsGUIEvent.h"
+#include "nsCOMPtr.h"
+#include "nsEvent.h"
 
 class nsIContent;
 class nsIDocument;
 class nsPresContext;
+class nsIDOMEvent;
 class nsPIDOMEventTarget;
 class nsIScriptGlobalObject;
 class nsEventTargetChainItem;
-
+template<class E> class nsCOMArray;
 
 /**
  * About event dispatching:
@@ -129,11 +131,13 @@ public:
   nsEventChainPreVisitor(nsPresContext* aPresContext,
                          nsEvent* aEvent,
                          nsIDOMEvent* aDOMEvent,
-                         nsEventStatus aEventStatus = nsEventStatus_eIgnore)
+                         nsEventStatus aEventStatus,
+                         PRBool aIsInAnon)
   : nsEventChainVisitor(aPresContext, aEvent, aDOMEvent, aEventStatus),
     mCanHandle(PR_TRUE), mForceContentDispatch(PR_FALSE),
-    mRelatedTargetIsInAnon(PR_FALSE), mWantsWillHandleEvent(PR_FALSE),
-    mParentTarget(nsnull), mEventTargetAtParent(nsnull) {}
+    mRelatedTargetIsInAnon(PR_FALSE), mOriginalTargetIsInAnon(aIsInAnon),
+    mWantsWillHandleEvent(PR_FALSE), mParentTarget(nsnull),
+    mEventTargetAtParent(nsnull) {}
 
   void Reset() {
     mItemFlags = 0;
@@ -165,7 +169,12 @@ public:
    * element which is anonymous for events.
    */
   PRPackedBool          mRelatedTargetIsInAnon;
-  
+
+  /**
+   * PR_TRUE if the original target of the event is inside anonymous content.
+   * This is set before calling PreHandleEvent on event targets.
+   */
+  PRPackedBool          mOriginalTargetIsInAnon;
 
   /**
    * Whether or not nsPIDOMEventTarget::WillHandleEvent will be
@@ -221,6 +230,10 @@ public:
    * In other words, aEvent->target is only a property of the event and it has
    * nothing to do with the construction of the event target chain.
    * Neither aTarget nor aEvent is allowed to be nsnull.
+   *
+   * If aTargets is non-null, event target chain will be created, but
+   * event won't be handled. In this case aEvent->message should be
+   * NS_EVENT_TYPE_NULL.
    * @note Use this method when dispatching an nsEvent.
    */
   static nsresult Dispatch(nsISupports* aTarget,
@@ -228,7 +241,8 @@ public:
                            nsEvent* aEvent,
                            nsIDOMEvent* aDOMEvent = nsnull,
                            nsEventStatus* aEventStatus = nsnull,
-                           nsDispatchingCallback* aCallback = nsnull);
+                           nsDispatchingCallback* aCallback = nsnull,
+                           nsCOMArray<nsPIDOMEventTarget>* aTargets = nsnull);
 
   /**
    * Dispatches an event.

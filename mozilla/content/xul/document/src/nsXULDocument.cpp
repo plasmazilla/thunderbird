@@ -125,7 +125,8 @@
 #include "nsIXULWindow.h"
 #include "nsXULPopupManager.h"
 #include "nsCCUncollectableMarker.h"
-#include "ImageErrors.h"
+#include "nsURILoader.h"
+#include "nsCSSFrameConstructor.h"
 
 //----------------------------------------------------------------------
 //
@@ -222,8 +223,10 @@ nsRefMapEntry::RemoveContent(nsIContent* aContent)
 
 nsXULDocument::nsXULDocument(void)
     : nsXMLDocument("application/vnd.mozilla.xul+xml"),
+      mDocDirection(Direction_Uninitialized),
       mState(eState_Master),
-      mResolutionPhase(nsForwardReference::eStart)
+      mResolutionPhase(nsForwardReference::eStart),
+      mDocLWTheme(Doc_Theme_Uninitialized)
 {
 
     // NOTE! nsDocument::operator new() zeroes out all members, so don't
@@ -259,6 +262,10 @@ nsXULDocument::~nsXULDocument()
     }
 
     delete mTemplateBuilderTable;
+
+    nsContentUtils::UnregisterPrefCallback("intl.uidirection.",
+                                           nsXULDocument::DirectionChanged,
+                                           this);
 
     if (--gRefCnt == 0) {
         NS_IF_RELEASE(gRDFService);
@@ -335,7 +342,7 @@ TraverseObservers(nsIURI* aKey, nsIObserver* aData, void* aContext)
 }
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsXULDocument, nsXMLDocument)
-    NS_ASSERTION(!nsCCUncollectableMarker::InGeneration(tmp->GetMarkedCCGeneration()),
+    NS_ASSERTION(!nsCCUncollectableMarker::InGeneration(cb, tmp->GetMarkedCCGeneration()),
                  "Shouldn't traverse nsXULDocument!");
     // XXX tmp->mForwardReferences?
     // XXX tmp->mContextStack?
@@ -959,8 +966,9 @@ nsXULDocument::ExecuteOnBroadcastHandlerFor(nsIContent* aBroadcaster,
 }
 
 void
-nsXULDocument::AttributeWillChange(nsIContent* aContent, PRInt32 aNameSpaceID,
-                                   nsIAtom* aAttribute)
+nsXULDocument::AttributeWillChange(nsIDocument* aDocument,
+                                   nsIContent* aContent, PRInt32 aNameSpaceID,
+                                   nsIAtom* aAttribute, PRInt32 aModType)
 {
     NS_ABORT_IF_FALSE(aContent, "Null content!");
     NS_PRECONDITION(aAttribute, "Must have an attribute that's changing!");
@@ -972,7 +980,8 @@ nsXULDocument::AttributeWillChange(nsIContent* aContent, PRInt32 aNameSpaceID,
         RemoveElementFromRefMap(aContent);
     }
     
-    nsXMLDocument::AttributeWillChange(aContent, aNameSpaceID, aAttribute);
+    nsXMLDocument::AttributeWillChange(aDocument, aContent, aNameSpaceID,
+                                       aAttribute, aModType);
 }
 
 void
@@ -1021,36 +1030,35 @@ nsXULDocument::AttributeChanged(nsIDocument* aDocument,
                         = do_QueryReferent(bl->mListener);
                     nsCOMPtr<nsIContent> l = do_QueryInterface(listenerEl);
                     if (l) {
-                        PRBool possibleCycle = PR_FALSE;
-                        for (PRUint32 j = 0; j < mDelayedAttrChangeBroadcasts.Length(); ++j) {
-                            if (mDelayedAttrChangeBroadcasts[j].mListener == listenerEl &&
-                                mDelayedAttrChangeBroadcasts[j].mAttrName == aAttribute) {
-                                possibleCycle = PR_TRUE;
-                                break;
+                        nsAutoString currentValue;
+                        PRBool hasAttr = l->GetAttr(kNameSpaceID_None,
+                                                    aAttribute,
+                                                    currentValue);
+                        // We need to update listener only if we're
+                        // (1) removing an existing attribute,
+                        // (2) adding a new attribute or
+                        // (3) changing the value of an attribute.
+                        PRBool needsAttrChange =
+                            attrSet != hasAttr || !value.Equals(currentValue);
+                        nsDelayedBroadcastUpdate delayedUpdate(domele,
+                                                               listenerEl,
+                                                               aAttribute,
+                                                               value,
+                                                               attrSet,
+                                                               needsAttrChange);
+
+                        PRUint32 index =
+                            mDelayedAttrChangeBroadcasts.IndexOf(delayedUpdate,
+                                0, nsDelayedBroadcastUpdate::Comparator());
+                        if (index != mDelayedAttrChangeBroadcasts.NoIndex) {
+                            if (mHandlingDelayedAttrChange) {
+                                NS_WARNING("Broadcasting loop!");
+                                continue;
                             }
+                            mDelayedAttrChangeBroadcasts.RemoveElementAt(index);
                         }
 
-                        if (possibleCycle) {
-                            NS_WARNING("Broadcasting loop!");
-                        } else {
-                            nsAutoString currentValue;
-                            PRBool hasAttr = l->GetAttr(kNameSpaceID_None,
-                                                        aAttribute,
-                                                        currentValue);
-                            // We need to update listener only if we're
-                            // (1) removing an existing attribute,
-                            // (2) adding a new attribute or
-                            // (3) changing the value of an attribute.
-                            PRBool needsAttrChange =
-                                attrSet != hasAttr || !value.Equals(currentValue);
-                            nsDelayedBroadcastUpdate delayedUpdate(domele,
-                                                                   listenerEl,
-                                                                   aAttribute,
-                                                                   value,
-                                                                   attrSet,
-                                                                   needsAttrChange);
-                            mDelayedAttrChangeBroadcasts.AppendElement(delayedUpdate);
-                        }
+                        mDelayedAttrChangeBroadcasts.AppendElement(delayedUpdate);
                     }
                 }
             }
@@ -1957,7 +1965,6 @@ nsXULDocument::CloneNode(PRBool aDeep, nsIDOMNode** aReturn)
 nsresult
 nsXULDocument::Init()
 {
-    SetIdTableLive();
     mRefMap.Init();
 
     nsresult rv = nsXMLDocument::Init();
@@ -1996,6 +2003,10 @@ nsXULDocument::Init()
         }
     }
 
+    nsContentUtils::RegisterPrefCallback("intl.uidirection.",
+                                         nsXULDocument::DirectionChanged,
+                                         this);
+
 #ifdef PR_LOGGING
     if (! gXULLog)
         gXULLog = PR_NewLogModule("nsXULDocument");
@@ -2008,19 +2019,6 @@ nsXULDocument::Init()
 nsresult
 nsXULDocument::StartLayout(void)
 {
-    if (!GetRootContent()) {
-#ifdef PR_LOGGING
-        if (PR_LOG_TEST(gXULLog, PR_LOG_WARNING)) {
-            nsCAutoString urlspec;
-            mDocumentURI->GetSpec(urlspec);
-
-            PR_LOG(gXULLog, PR_LOG_WARNING,
-                   ("xul: unable to layout '%s'; no root content", urlspec.get()));
-        }
-#endif
-        return NS_OK;
-    }
-
     nsPresShellIterator iter(this);
     nsCOMPtr<nsIPresShell> shell;
     while ((shell = iter.GetNextShell())) {
@@ -3840,9 +3838,10 @@ nsXULDocument::CreateTemplateBuilder(nsIContent* aElement)
     // Check if need to construct a tree builder or content builder.
     PRBool isTreeBuilder = PR_FALSE;
 
-    nsIDocument *document = aElement->GetOwnerDoc();
-    NS_ASSERTION(document, "no document");
-    NS_ENSURE_TRUE(document, NS_ERROR_UNEXPECTED);
+    // return successful if the element is not is a document, as an inline
+    // script could have removed it
+    nsIDocument *document = aElement->GetCurrentDoc();
+    NS_ENSURE_TRUE(document, NS_OK);
 
     PRInt32 nameSpaceID;
     nsIAtom* baseTag = document->BindingManager()->
@@ -3948,10 +3947,8 @@ nsXULDocument::OverlayForwardReference::Resolve()
     nsresult rv;
     nsCOMPtr<nsIContent> target;
 
-    PRBool notify = PR_FALSE;
     nsIPresShell *shell = mDocument->GetPrimaryShell();
-    if (shell)
-        shell->GetDidInitialReflow(&notify);
+    PRBool notify = shell && shell->DidInitialReflow();
 
     nsAutoString id;
     mOverlay->GetAttr(kNameSpaceID_None, nsGkAtoms::id, id);
@@ -4445,6 +4442,8 @@ nsXULDocument::InsertElement(nsIContent* aParent, nsIContent* aChild, PRBool aNo
     if (!posStr.IsEmpty()) {
         nsCOMPtr<nsIDOMDocument> domDocument(
                do_QueryInterface(aParent->GetDocument()));
+        if (!domDocument) return NS_ERROR_FAILURE;
+
         nsCOMPtr<nsIDOMElement> domElement;
 
         char* str = ToNewCString(posStr);
@@ -4546,8 +4545,7 @@ NS_IMETHODIMP
 nsXULDocument::CachedChromeStreamListener::OnStartRequest(nsIRequest *request,
                                                           nsISupports* acontext)
 {
-    // XXX need a proper cancel-but-run-onload-handlers return code (bug 475344)
-    return NS_IMAGELIB_ERROR_LOAD_ABORTED;
+    return NS_ERROR_PARSED_DATA_CACHED;
 }
 
 
@@ -4653,4 +4651,130 @@ nsXULDocument::GetFocusController(nsIFocusController** aFocusController)
         NS_IF_ADDREF(*aFocusController = windowPrivate->GetRootFocusController());
     } else
         *aFocusController = nsnull;
+}
+
+PRBool
+nsXULDocument::IsDocumentRightToLeft()
+{
+    if (mDocDirection == Direction_Uninitialized) {
+        mDocDirection = Direction_LeftToRight; // default to ltr on failure
+
+        // setting the localedir attribute on the root element forces a
+        // specific direction for the document.
+        nsIContent* content = GetRootContent();
+        if (content) {
+            static nsIContent::AttrValuesArray strings[] =
+                {&nsGkAtoms::ltr, &nsGkAtoms::rtl, nsnull};
+            switch (content->FindAttrValueIn(kNameSpaceID_None, nsGkAtoms::localedir,
+                                             strings, eCaseMatters)) {
+                case 0: mDocDirection = Direction_LeftToRight; return PR_FALSE;
+                case 1: mDocDirection = Direction_RightToLeft; return PR_TRUE;
+                default: break;// otherwise, not a valid value, so fall through
+            }
+        }
+
+        // otherwise, get the locale from the chrome registry and
+        // look up the intl.uidirection.<locale> preference
+        nsCOMPtr<nsIXULChromeRegistry> reg =
+            do_GetService(NS_CHROMEREGISTRY_CONTRACTID);
+        if (reg) {
+            nsCAutoString package;
+            PRBool isChrome;
+            if (NS_SUCCEEDED(mDocumentURI->SchemeIs("chrome", &isChrome)) &&
+                isChrome) {
+                mDocumentURI->GetHostPort(package);
+            }
+            else {
+                // use the 'global' package for about and resource uris.
+                // otherwise, just default to left-to-right.
+                PRBool isAbout, isResource;
+                if (NS_SUCCEEDED(mDocumentURI->SchemeIs("about", &isAbout)) &&
+                    isAbout) {
+                    package.AssignLiteral("global");
+                }
+                else if (NS_SUCCEEDED(mDocumentURI->SchemeIs("resource", &isResource)) &&
+                    isResource) {
+                    package.AssignLiteral("global");
+                }
+                else {
+                    return PR_FALSE;
+                }
+            }
+
+            nsCAutoString locale;
+            reg->GetSelectedLocale(package, locale);
+            if (locale.Length() >= 2) {
+                // first check the intl.uidirection.<locale> preference,
+                // and if that is not set, check the same preference but
+                // with just the first two characters of the locale. If
+                // that isn't set, default to left-to-right.
+                nsCAutoString prefString =
+                    NS_LITERAL_CSTRING("intl.uidirection.") + locale;
+                nsAdoptingCString dir = nsContentUtils::GetCharPref(prefString.get());
+                if (dir.IsEmpty()) {
+                    PRInt32 hyphen = prefString.FindChar('-');
+                    if (hyphen >= 1) {
+                        nsCAutoString shortPref(Substring(prefString, 0, hyphen));
+                        dir = nsContentUtils::GetCharPref(shortPref.get());
+                    }
+                }
+
+                mDocDirection = dir.EqualsLiteral("rtl") ?
+                                Direction_RightToLeft : Direction_LeftToRight;
+            }
+        }
+    }
+
+    return (mDocDirection == Direction_RightToLeft);
+}
+
+int
+nsXULDocument::DirectionChanged(const char* aPrefName, void* aData)
+{
+  // reset the direction and reflow the document. This will happen if
+  // the direction isn't actually being used, but that doesn't really
+  // matter too much
+  nsXULDocument* doc = (nsXULDocument *)aData;
+  if (doc)
+      doc->ResetDocumentDirection();
+
+  nsIPresShell *shell = doc->GetPrimaryShell();
+  if (shell) {
+      shell->FrameConstructor()->
+          PostRestyleEvent(doc->GetRootContent(), eReStyle_Self, NS_STYLE_HINT_NONE);
+  }
+
+  return 0;
+}
+
+int
+nsXULDocument::GetDocumentLWTheme()
+{
+    if (mDocLWTheme == Doc_Theme_Uninitialized) {
+        mDocLWTheme = Doc_Theme_None; // No lightweight theme by default
+
+        nsIContent* content = GetRootContent();
+        nsAutoString hasLWTheme;
+        if (content &&
+            content->GetAttr(kNameSpaceID_None, nsGkAtoms::lwtheme, hasLWTheme) &&
+            !(hasLWTheme.IsEmpty()) &&
+            hasLWTheme.EqualsLiteral("true")) {
+            mDocLWTheme = Doc_Theme_Neutral;
+            nsAutoString lwTheme;
+            content->GetAttr(kNameSpaceID_None, nsGkAtoms::lwthemetextcolor, lwTheme);
+            if (!(lwTheme.IsEmpty())) {
+                if (lwTheme.EqualsLiteral("dark"))
+                    mDocLWTheme = Doc_Theme_Dark;
+                else if (lwTheme.EqualsLiteral("bright"))
+                    mDocLWTheme = Doc_Theme_Bright;
+            }
+        }
+    }
+    return mDocLWTheme;
+}
+
+NS_IMETHODIMP
+nsXULDocument::GetBoxObjectFor(nsIDOMElement* aElement, nsIBoxObject** aResult)
+{
+    return nsDocument::GetBoxObjectFor(aElement, aResult);
 }

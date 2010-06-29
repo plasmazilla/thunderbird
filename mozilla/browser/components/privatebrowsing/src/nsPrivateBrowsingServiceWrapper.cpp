@@ -39,6 +39,16 @@
 #include "jsapi.h"
 #include "nsIJSContextStack.h"
 
+class JSStackGuard
+{
+public:
+  JSStackGuard();
+  ~JSStackGuard();
+
+private:
+  nsCOMPtr<nsIJSContextStack> mJSStack;
+};
+
 NS_IMPL_ISUPPORTS2(nsPrivateBrowsingServiceWrapper, nsIPrivateBrowsingService, nsIObserver)
 
 nsresult
@@ -49,26 +59,24 @@ nsPrivateBrowsingServiceWrapper::Init()
   return rv;
 }
 
-nsresult
-nsPrivateBrowsingServiceWrapper::PrepareCall(nsIJSContextStack ** aJSStack)
+JSStackGuard::JSStackGuard()
+  : mJSStack(nsnull)
 {
-  nsresult rv = CallGetService("@mozilla.org/js/xpc/ContextStack;1", aJSStack);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsresult rv;
+  mJSStack = do_GetService("@mozilla.org/js/xpc/ContextStack;1", &rv);
 
-  if (*aJSStack) {
-    rv = (*aJSStack)->Push(nsnull);
+  if (NS_SUCCEEDED(rv) && mJSStack) {
+    rv = mJSStack->Push(nsnull);
     if (NS_FAILED(rv))
-      *aJSStack = nsnull;
+      mJSStack = nsnull;
   }
-  return rv;
 }
 
-void
-nsPrivateBrowsingServiceWrapper::FinishCall(nsIJSContextStack * aJSStack)
+JSStackGuard::~JSStackGuard()
 {
-  if (aJSStack) {
+  if (mJSStack) {
     JSContext *cx;
-    aJSStack->Pop(&cx);
+    mJSStack->Pop(&cx);
     NS_ASSERTION(cx == nsnull, "JSContextStack mismatch");
   }
 }
@@ -78,23 +86,15 @@ nsPrivateBrowsingServiceWrapper::GetPrivateBrowsingEnabled(PRBool *aPrivateBrows
 {
   if (!aPrivateBrowsingEnabled)
     return NS_ERROR_NULL_POINTER;
-  nsCOMPtr<nsIJSContextStack> jsStack;
-  nsresult rv = PrepareCall(getter_AddRefs(jsStack));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = mPBService->GetPrivateBrowsingEnabled(aPrivateBrowsingEnabled);
-  FinishCall(jsStack);
-  return rv;
+  JSStackGuard guard;
+  return mPBService->GetPrivateBrowsingEnabled(aPrivateBrowsingEnabled);
 }
 
 NS_IMETHODIMP
 nsPrivateBrowsingServiceWrapper::SetPrivateBrowsingEnabled(PRBool aPrivateBrowsingEnabled)
 {
-  nsCOMPtr<nsIJSContextStack> jsStack;
-  nsresult rv = PrepareCall(getter_AddRefs(jsStack));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = mPBService->SetPrivateBrowsingEnabled(aPrivateBrowsingEnabled);
-  FinishCall(jsStack);
-  return rv;
+  JSStackGuard guard;
+  return mPBService->SetPrivateBrowsingEnabled(aPrivateBrowsingEnabled);
 }
 
 NS_IMETHODIMP
@@ -102,34 +102,22 @@ nsPrivateBrowsingServiceWrapper::GetAutoStarted(PRBool *aAutoStarted)
 {
   if (!aAutoStarted)
     return NS_ERROR_NULL_POINTER;
-  nsCOMPtr<nsIJSContextStack> jsStack;
-  nsresult rv = PrepareCall(getter_AddRefs(jsStack));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = mPBService->GetAutoStarted(aAutoStarted);
-  FinishCall(jsStack);
-  return rv;
+  JSStackGuard guard;
+  return mPBService->GetAutoStarted(aAutoStarted);
 }
 
 NS_IMETHODIMP
 nsPrivateBrowsingServiceWrapper::RemoveDataFromDomain(const nsACString & aDomain)
 {
-  nsCOMPtr<nsIJSContextStack> jsStack;
-  nsresult rv = PrepareCall(getter_AddRefs(jsStack));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = mPBService->RemoveDataFromDomain(aDomain);
-  FinishCall(jsStack);
-  return rv;
+  JSStackGuard guard;
+  return mPBService->RemoveDataFromDomain(aDomain);
 }
 
 NS_IMETHODIMP
 nsPrivateBrowsingServiceWrapper::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *aData)
 {
-  nsCOMPtr<nsIJSContextStack> jsStack;
-  nsresult rv = PrepareCall(getter_AddRefs(jsStack));
-  NS_ENSURE_SUCCESS(rv, rv);
+  JSStackGuard guard;
   nsCOMPtr<nsIObserver> observer(do_QueryInterface(mPBService));
   NS_ENSURE_TRUE(observer, NS_ERROR_FAILURE);
-  rv = observer->Observe(aSubject, aTopic, aData);
-  FinishCall(jsStack);
-  return rv;
+  return observer->Observe(aSubject, aTopic, aData);
 }

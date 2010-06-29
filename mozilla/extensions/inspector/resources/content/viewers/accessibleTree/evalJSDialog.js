@@ -40,6 +40,9 @@ var gAcc = window.arguments[0];
 var gInputArea = null;
 var gOutputArea = null;
 
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+
 function load()
 {
   gInputArea = document.getElementById("JSInputArea");
@@ -51,6 +54,11 @@ function execute()
   if (!gAcc)
     return;
 
+  for (var idx = 0; idx < gAccInterfaces.length; idx++) {
+    if (gAcc instanceof gAccInterfaces[idx])
+      gAcc.QueryInterface(gAccInterfaces[idx]);
+  }
+
   gOutputArea.value = "";
 
   var expr = gInputArea.value;
@@ -61,6 +69,22 @@ function execute()
       output(ex);
   }
 }
+
+var gAccInterfaces =
+[
+  Ci.nsIAccessible,
+  Ci.nsIAccessibleDocument,
+  Ci.nsIAccessibleEditableText,
+  Ci.nsIAccessibleHyperLink,
+  Ci.nsIAccessibleHyperText,
+  Ci.nsIAccessibleImage,
+  Ci.nsIAccessibleSelectable,
+  Ci.nsIAccessibleTable,
+  Ci.nsIAccessibleTableCell,
+  Ci.nsIAccessibleText,
+  Ci.nsIAccessibleValue,
+  Ci.nsIAccessNode,
+];
 
 function output(aValue)
 {

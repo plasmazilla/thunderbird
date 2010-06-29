@@ -50,10 +50,10 @@
 #include "nsDOMScriptObjectHolder.h"
 #include "nsIMutableArray.h"
 #include "nsVariant.h"
-
-
-#ifdef NS_DEBUG
+#include "nsIDOMBeforeUnloadEvent.h"
+#include "nsPIDOMEventTarget.h"
 #include "nsIJSContextStack.h"
+#ifdef NS_DEBUG
 #include "nsDOMJSUtils.h"
 
 #include "nspr.h" // PR_fprintf
@@ -138,6 +138,25 @@ void
 nsJSEventListener::SetEventName(nsIAtom* aName)
 {
   mEventName = aName;
+}
+
+nsresult
+nsJSEventListener::GetJSVal(const nsAString& aEventName, jsval* aJSVal)
+{
+  nsCOMPtr<nsPIDOMEventTarget> target = do_QueryInterface(mTarget);
+  if (target && mContext) {
+    nsAutoString eventString = NS_LITERAL_STRING("on") + aEventName;
+    nsCOMPtr<nsIAtom> atomName = do_GetAtom(eventString);
+    nsScriptObjectHolder funcval(mContext);
+    nsresult rv = mContext->GetBoundEventHandler(mTarget, mScopeObject,
+                                                 atomName, funcval);
+    NS_ENSURE_SUCCESS(rv, rv);
+    jsval funval =
+      OBJECT_TO_JSVAL(static_cast<JSObject*>(static_cast<void*>(funcval)));
+    *aJSVal = funval;
+    return NS_OK;
+  }
+  return NS_ERROR_FAILURE;
 }
 
 nsresult
@@ -251,18 +270,13 @@ nsJSEventListener::HandleEvent(nsIDOMEvent* aEvent)
     if (vrv)
       vrv->GetDataType(&dataType);
     if (eventString.EqualsLiteral("onbeforeunload")) {
-      nsCOMPtr<nsIPrivateDOMEvent> priv(do_QueryInterface(aEvent));
-      NS_ENSURE_TRUE(priv, NS_ERROR_UNEXPECTED);
-
-      nsEvent *event = priv->GetInternalNSEvent();
-      NS_ENSURE_TRUE(event && event->message == NS_BEFORE_PAGE_UNLOAD,
-                     NS_ERROR_UNEXPECTED);
-
-      nsBeforePageUnloadEvent *beforeUnload =
-        static_cast<nsBeforePageUnloadEvent *>(event);
+      nsCOMPtr<nsIDOMBeforeUnloadEvent> beforeUnload = do_QueryInterface(aEvent);
+      NS_ENSURE_STATE(beforeUnload);
 
       if (dataType != nsIDataType::VTYPE_VOID) {
         aEvent->PreventDefault();
+        nsAutoString text;
+        beforeUnload->GetReturnValue(text);
 
         // Set the text in the beforeUnload event as long as it wasn't
         // already set (through event.returnValue, which takes
@@ -274,8 +288,9 @@ nsJSEventListener::HandleEvent(nsIDOMEvent* aEvent)
              dataType == nsIDataType::VTYPE_WSTRING_SIZE_IS ||
              dataType == nsIDataType::VTYPE_CSTRING ||
              dataType == nsIDataType::VTYPE_ASTRING)
-            && beforeUnload->text.IsEmpty()) {
-          vrv->GetAsDOMString(beforeUnload->text);
+            && text.IsEmpty()) {
+          vrv->GetAsDOMString(text);
+          beforeUnload->SetReturnValue(text);
         }
       }
     } else if (dataType == nsIDataType::VTYPE_BOOL) {
