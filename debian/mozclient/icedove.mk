@@ -25,6 +25,14 @@ include debian/mozclient/thunderbird.mk
 makebuilddir/$(DEB_MOZ_APPLICATION):: debian/stamp-icedove-branding
 debian/stamp-icedove-branding:
 	cp -af debian/icedove-branding $(BRANDING_DIR)
+	cp debian/app-icons/icedove16.png $(BRANDING_DIR)/mailicon16.png
+	cp debian/app-icons/icedove22.png $(BRANDING_DIR)/mailicon22.png
+	cp debian/app-icons/icedove24.png $(BRANDING_DIR)/mailicon24.png
+	cp debian/app-icons/icedove32.png $(BRANDING_DIR)/mailicon32.png
+	cp debian/app-icons/icedove48.png $(BRANDING_DIR)/mailicon48.png
+	cp debian/app-icons/icedove256.png $(BRANDING_DIR)/mailicon256.png
+	cp debian/app-icons/icedove48.png $(BRANDING_DIR)/content/icon48.png
+	cp debian/app-icons/icedove64.png $(BRANDING_DIR)/content/icon64.png
 	cp debian/preview.png mail/themes/gnomestripe/mail/preview.png
 	touch $@
 

@@ -1,6 +1,13 @@
+debian/app-icons/icedove128.png
+debian/app-icons/icedove16.png
+debian/app-icons/icedove22.png
+debian/app-icons/icedove24.png
+debian/app-icons/icedove256.png
+debian/app-icons/icedove32.png
+debian/app-icons/icedove48.png
+debian/app-icons/icedove64.png
 debian/icedove-branding/background.png
 debian/icedove-branding/content/about-credits.png
 debian/icedove-branding/content/about.png
-debian/icedove-branding/content/icon48.png
-debian/icedove-branding/content/icon64.png
+debian/icedove-branding/content/featureConfigurator.jpg
 debian/preview.png
