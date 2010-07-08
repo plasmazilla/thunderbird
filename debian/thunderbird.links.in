@@ -22,7 +22,6 @@ usr/share/@DEB_MOZ_APPLICATION@/components/FeedProcessor.js usr/lib/@DEB_MOZ_APP
 usr/share/@DEB_MOZ_APPLICATION@/components/nsAbLDAPAttributeMap.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsAbLDAPAttributeMap.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsHelperAppDlg.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsHelperAppDlg.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsDownloadManagerUI.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsDownloadManagerUI.js
-usr/share/@DEB_MOZ_APPLICATION@/components/nsProgressDialog.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsProgressDialog.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsContentDispatchChooser.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsContentDispatchChooser.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsHandlerService.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsHandlerService.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsWebHandlerApp.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsWebHandlerApp.js
@@ -33,7 +32,8 @@ usr/share/@DEB_MOZ_APPLICATION@/components/nsProxyAutoConfig.js usr/lib/@DEB_MOZ
 usr/share/@DEB_MOZ_APPLICATION@/components/nsAddonRepository.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsAddonRepository.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsExtensionManager.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsExtensionManager.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsBlocklistService.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsBlocklistService.js
-usr/share/@DEB_MOZ_APPLICATION@/components/nsUpdateService.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsUpdateService.js
+usr/share/@DEB_MOZ_APPLICATION@/components/nsUpdateTimerManager.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsUpdateTimerManager.js
+usr/share/@DEB_MOZ_APPLICATION@/components/nsFormAutoComplete.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsFormAutoComplete.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsURLFormatter.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsURLFormatter.js
 usr/share/@DEB_MOZ_APPLICATION@/components/jsconsole-clhandler.js usr/lib/@DEB_MOZ_APPLICATION@/components/jsconsole-clhandler.js
 usr/share/@DEB_MOZ_APPLICATION@/components/nsTryToClose.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsTryToClose.js
@@ -63,3 +63,6 @@ usr/share/@DEB_MOZ_APPLICATION@/components/storage-mozStorage.js usr/lib/@DEB_MO
 usr/share/@DEB_MOZ_APPLICATION@/components/mailContentHandler.js usr/lib/@DEB_MOZ_APPLICATION@/components/mailContentHandler.js
 usr/share/@DEB_MOZ_APPLICATION@/components/msgAsyncPrompter.js usr/lib/@DEB_MOZ_APPLICATION@/components/msgAsyncPrompter.js
 usr/share/@DEB_MOZ_APPLICATION@/components/NetworkGeolocationProvider.js usr/lib/@DEB_MOZ_APPLICATION@/components/NetworkGeolocationProvider.js
+usr/share/@DEB_MOZ_APPLICATION@/components/GPSDGeolocationProvider.js usr/lib/@DEB_MOZ_APPLICATION@/components/GPSDGeolocationProvider.js
+usr/share/@DEB_MOZ_APPLICATION@/components/nsINIProcessor.js usr/lib/@DEB_MOZ_APPLICATION@/components/nsINIProcessor.js
+usr/share/@DEB_MOZ_APPLICATION@/components/components.list usr/lib/@DEB_MOZ_APPLICATION@/components/components.list
