@@ -42,7 +42,7 @@
 <!ENTITY validation.crlnextupdate.label "পরবর্তী আপডেট">
 <!ENTITY validation.crlautoupdateenabled.label "স্বয়ংক্রিয় আপডেট">
 <!ENTITY validation.crlautoupdatestatus.label "স্বয়ংক্রিয় আপডেটের অবস্থা">
-<!ENTITY validation.deletecrl.label "অপসারণ (D)">
+<!ENTITY validation.deletecrl.label "মুছে ফেলা হবে (D)">
 <!ENTITY validation.deletecrl.accesskey "D">
 <!ENTITY validation.updatecrl.label "আপডেট (U)">
 <!ENTITY validation.updatecrl.accesskey "U">

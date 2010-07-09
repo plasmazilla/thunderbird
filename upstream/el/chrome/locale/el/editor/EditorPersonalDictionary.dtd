@@ -20,6 +20,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s):
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -34,10 +35,7 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-<!-- Window title -->
-
 <!ENTITY windowTitle.label "Προσωπικό λεξικό">
-
 <!ENTITY wordEditField.label "Νέα λέξη:">
 <!ENTITY wordEditField.accessKey "Ν">
 <!ENTITY AddButton.label "Προσθήκη">
@@ -48,6 +46,5 @@
 <!ENTITY ReplaceButton.accessKey "κ">
 <!ENTITY RemoveButton.label "Αφαίρεση">
 <!ENTITY RemoveButton.accessKey "φ">
-
 <!ENTITY CloseButton.label "Κλείσιμο">
 <!ENTITY CloseButton.accessKey "Κ">

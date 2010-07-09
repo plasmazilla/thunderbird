@@ -1,3 +1,5 @@
 <!ENTITY brandShortName "Thunderbird">
-<!ENTITY brandFullName "Mozilla Thunderbird">
-<!ENTITY vendorShortName "Mozilla">
+<!ENTITY brandFullName "Mozilla Thunderbird Alpha 2">
+<!ENTITY vendorShortName "Mozilla Thunderbird">
+<!ENTITY  logoTrademark         "Mozilla Thunderbird и логотата на Thunderbird 
+                                 са търговски марки на Mozilla Foundation.">

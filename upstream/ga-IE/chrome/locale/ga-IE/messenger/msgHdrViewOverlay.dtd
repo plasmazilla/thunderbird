@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
 <!ENTITY otherActionsButton.label "Gníomhartha eile">
-<!ENTITY otherActionsShowConversation.label "taispeáin sa chomhrá">
-<!ENTITY otherActionsShowConversation.accesskey "c">
+<!ENTITY otherActionsOpenConversation.label "oscail i gcomhrá">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow.label "oscail i bhfuinneog nua">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "n">
 <!ENTITY otherActionsOpenInNewTab.label "oscail i gcluasín nua">

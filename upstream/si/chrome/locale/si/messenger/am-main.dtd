@@ -7,9 +7,9 @@
 <!ENTITY identityDesc.label "සෑම ගිණුමකටම හැඳුනුමක් ඇත, අනෙකුත් පුද්ගලයින් ඔබගේ ලිපි කියවන විටදී එම තොරතුරු දකි.">
 <!ENTITY name.label "ඔබේ නම:">
 <!ENTITY name.accesskey "Y">
-<!ENTITY email.label "වි.තැපැල් ලිපිනය:">
+<!ENTITY email.label "ඊමේල් ලිපිනය:">
 <!ENTITY email.accesskey "E">
-<!ENTITY replyTo.label "පිළිතුරු ලබන ලිපිනය:">
+<!ENTITY replyTo.label "පිලිතුරු ලබන ලිපිනය:">
 <!ENTITY replyTo.accesskey "s">
 <!ENTITY organization.label "ආයතනය:">
 <!ENTITY organization.accesskey "O">
@@ -17,7 +17,7 @@
 <!ENTITY signatureText.accesskey "x">
 <!ENTITY signatureHtml.label "HTML භාවිතා කරන්න (e.g., &lt;b&gt;bold&lt;/b&gt;)">
 <!ENTITY signatureHtml.accesskey "L">
-<!ENTITY signatureFile.label "අත්සන ගොණුවකින් අමුණන්න (පාඨ, HTML, හෝ image):">
+<!ENTITY signatureFile.label "අත්සන ගොනුවකින් අමුණන්න (text, HTML, or image):">
 <!ENTITY signatureFile.accesskey "t">
 <!ENTITY edit.label "සැකසුම්...">
 <!ENTITY choose.label "තෝරන්න...">

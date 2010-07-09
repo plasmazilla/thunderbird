@@ -1,5 +1,5 @@
 <!ENTITY pluginWizard.title "خدمة إيجاد الملحقات">
-<!ENTITY pluginWizard.firstPage.title "مرحبا في &pluginWizard.title;">
+<!ENTITY pluginWizard.firstPage.title "مرحبًا في &pluginWizard.title;">
 
 <!ENTITY pluginWizard.checkingForPlugins.description.label "يبحث &brandShortName; عن الملحقات المتوفّرة…">
 
@@ -23,3 +23,20 @@
 <!ENTITY missingPlugin.label "انقر هنا لتنزيل الملحق.">
 <!ENTITY disabledPlugin.label "ملحق هذا المحتوى قد عُطّل. انقر هنا لإدارة ملحقاتك.">
 <!ENTITY blockedPlugin.label "لقد مُنع هذا الملحق من أجل حمايتك.">
+
+<!-- LOCALIZATION NOTE (reloadPlugin.pre): include a starting space as needed -->
+<!-- LOCALIZATION NOTE (reloadPlugin.middle): avoid leading/trailing spaces, this text is a link -->
+<!-- LOCALIZATION NOTE (reloadPlugin.post): include a trailing space as needed -->
+
+<!ENTITY reloadPlugin.pre                                    "">
+<!ENTITY reloadPlugin.middle                                 "أعِد تحميل الصفحة">
+<!ENTITY reloadPlugin.post                                   " للمحاولة من جديد.">
+
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+
+<!ENTITY report.please                                       "أرسِل بلاغًا بالانهيار">
+<!ENTITY report.submitting                                   "يرسل البلاغ…">
+<!ENTITY report.submitted                                    "أُرسِل البلاغ.">
+<!ENTITY report.disabled                                     "التبليغ عن الانهيارات معطل.">
+<!ENTITY report.failed                                       "فشل الإرسال.">
+<!ENTITY report.unavailable                                  "لا يوجد بلاغ متاح.">

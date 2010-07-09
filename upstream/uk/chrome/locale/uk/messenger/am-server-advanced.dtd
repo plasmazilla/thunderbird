@@ -4,7 +4,7 @@
 <!ENTITY serverDirectory.accesskey "I">
 <!ENTITY usingSubscription.label "Показувати тільки теки на які підписані">
 <!ENTITY usingSubscription.accesskey "П">
-<!ENTITY dualUseFolders.label "Сервер підтримує теки, що містять вкладені теки і повідомлення">
+<!ENTITY dualUseFolders.label "Сервер підтримує теки, що містять вкладені теки і листи">
 <!ENTITY dualUseFolders.accesskey "С">
 <!ENTITY useIdle.label "Використовувати команду IDLE, якщо її підтримує сервер">
 <!ENTITY useIdle.accesskey "р">

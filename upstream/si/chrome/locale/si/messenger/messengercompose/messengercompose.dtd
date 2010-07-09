@@ -253,7 +253,7 @@
 <!ENTITY openAttachment.accesskey "O">
 <!ENTITY delete.label "මකන්න">
 <!ENTITY delete.accesskey "D">
-<!ENTITY removeAttachment.label "ඇමුණුම ඉවත් කරන්න">
+<!ENTITY removeAttachment.label "Remove Attachment">
 <!ENTITY removeAttachment.accesskey "M">
 <!ENTITY renameAttachment.label "යළි නම්-කරන්න…">
 <!ENTITY renameAttachment.accesskey "R">

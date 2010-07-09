@@ -43,8 +43,8 @@
 <!ENTITY password.value "රහස්පදය">
 <!ENTITY checkbox.value "සළකුණු කොටුව">
 <!ENTITY radio.value "වරණ බොත්තම">
-<!ENTITY submit.value "Submit බොත්තම">
-<!ENTITY reset.value "Reset බොත්තම">
+<!ENTITY submit.value "Submit Button">
+<!ENTITY reset.value "Reset Button">
 <!ENTITY file.value "ගොනුනු">
 <!ENTITY hidden.value "සැඟවුණු">
 <!ENTITY image.value "රූප">

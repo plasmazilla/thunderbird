@@ -5,7 +5,7 @@
 <!ENTITY move.label "Færa ruslpóst í:">
 <!ENTITY move.accesskey "F">
 <!ENTITY junkFolderOn.label "&quot;Ruslpóst&quot; mappa á:">
-<!ENTITY junkFolderOn.accesskey "m">
+<!ENTITY junkFolderOn.accesskey "R">
 <!ENTITY otherFolder.label "Annað:">
 <!ENTITY otherFolder.accesskey "A">
 <!ENTITY purge1.label "Eyða sjálfkrafa ruslpósti eldri en">

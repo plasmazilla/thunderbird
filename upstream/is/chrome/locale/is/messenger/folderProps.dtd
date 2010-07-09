@@ -44,13 +44,16 @@
 <!ENTITY folderCharsetTab.accesskey "e">
 <!ENTITY folderCharsetOverride.label "Beita sjálfgefinni stafatöflu á allan póst í möppu (stafatafla hvers pósts og sjálfvirk uppgötvun stafatöflu verður hunsuð)">
 <!ENTITY folderCharsetOverride.accesskey "a">
-<!ENTITY folderRebuildSummaryFile.label "Endurbyggja yfirlit">
-<!ENTITY folderRebuildSummaryFile.accesskey "r">
-<!ENTITY folderRebuildSummaryFileTip.label "Endurbyggja yfirlitsskrá">
- 
+<!ENTITY folderRebuildSummaryFileTip2.label "Endurbyggja yfirlitsskrá">
+<!ENTITY folderRebuildSummaryFile2.label "Laga möppu">
+<!ENTITY folderRebuildSummaryFile2.accesskey "L">
+<!ENTITY folderRebuildSummaryFile.explanation "Stundum getur komið fyrir að yfirlitsskrá möppu (.msf) skemmist og póstur virðist vera týndur eða póst sem hefur verið eytt birtist áfram; ef þú endurbyggir möppuna er venjulega hægt að laga þessi vandamál.">
+<!ENTITY folderIncludeInGlobalSearch.label "Nota póst í þessari möppu með í víðtækum leitarniðurstöðum">
+<!ENTITY folderIncludeInGlobalSearch.accesskey "v">
+
      
 <!ENTITY retention.label "Varðveislureglur">
-<!ENTITY retentionUseAccount.label "Nota stillingar míns reiknings">
+<!ENTITY retentionUseAccount.label "Nota sömu stillingar og eru á mínum reikningi">
 <!ENTITY retentionUseAccount.accesskey "N">
 <!ENTITY daysOld.label "daga gömlum">
 <!ENTITY message.label "bréfunum	">
@@ -68,8 +71,8 @@
 <!ENTITY retentionApplyToFlagged.label "Alltaf geyma stjörnumerkt bréf">
 <!ENTITY retentionApplyToFlagged.accesskey "e">
 <!ENTITY folderSynchronizationTab.label "Samstilling">
-<!ENTITY folderCheckForNewMessages.label "Athuga hvort nýr póstur sé í þessari möppu">
-<!ENTITY folderCheckForNewMessages.accesskey "A">
+<!ENTITY folderCheckForNewMessages2.label "Alltaf athuga þessa möppu, þegar náð er í nýjan póst fyrir þennan reikning">
+<!ENTITY folderCheckForNewMessages2.accesskey "t">
 <!ENTITY offlineFolder.check.label "Velja þessa möppu fyrir ótengda notkun">
 <!ENTITY offlineFolder.check.accesskey "s">
 <!ENTITY offlineFolder.button.label "Niðurhala núna">

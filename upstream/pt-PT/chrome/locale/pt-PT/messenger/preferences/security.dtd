@@ -1,5 +1,5 @@
-<!ENTITY itemJunk.label          "Lixo Electrónico">
-<!ENTITY itemPhishing.label      "Mensagens de Engodo">
+<!ENTITY itemJunk.label          "Lixo electrónico">
+<!ENTITY itemPhishing.label      "Mensagens de engodo">
 <!ENTITY itemPasswords.label     "Senhas">
 <!ENTITY itemAntiVirus.label     "Anti-vírus">
 <!ENTITY itemCookies.label       "Conteúdo web">
@@ -30,10 +30,10 @@
 
 <!-- Passwords -->
 <!ENTITY savedPasswords.intro "O &brandShortName; pode guardar os nomes de utilizador e senhas de todas as suas contas. Não é necessário re-escrever as suas informações.">
-<!ENTITY useMasterPassword.label "Usar uma Senha Mestra">
+<!ENTITY useMasterPassword.label "Usar uma senha mestra">
 <!ENTITY useMasterPassword.accesskey "u">
-<!ENTITY masterPassword.intro "Ao ser definida, a Senha Mestra protege todas as suas senhas - mas terá que que a fornecer uma vez por sessão.">
-<!ENTITY changeMasterPassword.label     "Mudar Senha Mestra…">
+<!ENTITY masterPassword.intro "Ao ser definida, a senha mestra protege todas as suas senhas - mas terá que que a fornecer uma vez por sessão.">
+<!ENTITY changeMasterPassword.label     "Mudar senha mestra…">
 <!ENTITY changeMasterPassword.accesskey "M">
 <!ENTITY savedPasswords.label           "Senhas guardadas…">
 <!ENTITY savedPasswords.accesskey       "S">
@@ -54,6 +54,6 @@
 <!ENTITY askEachTime.label              "perguntar-me sempre">
 <!ENTITY cookieExceptions.label         "Excepções…">
 <!ENTITY cookieExceptions.accesskey     "E">
-<!ENTITY showCookies.label              "Mostrar Cookies…">
+<!ENTITY showCookies.label              "Mostrar cookies…">
 <!ENTITY showCookies.accesskey          "s">
 

@@ -6,9 +6,14 @@
 <!ENTITY fccMailFolder.accesskey "ض">
 <!ENTITY fccReplyFollowsParent.label "ضع الرّدود في دليل الرّسالة التّي يتم الرّد عليها">
 <!ENTITY fccReplyFollowsParent.accesskey "ع">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "أرسِل Cc للعناوين التالية:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.emptytext "افصل بين العناوين بفاصلة">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "أرسِل Bcc للعناوين التالية:">
 <!ENTITY bccAddress.accesskey "B">
+<!ENTITY bccAddressList.emptytext "افصل بين العناوين بفاصلة">
 <!ENTITY saveMessageDlg.label "أظهِر حوار تأكيد عندما تُحفظ الرسائل">
 <!ENTITY saveMessageDlg.accesskey "ظ">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->

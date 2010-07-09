@@ -5,13 +5,12 @@
 
 <!-- LOCALIZATION NOTE (glodaFacetView.loading.label): Label that appears when
      the search results take a long time to appear. -->
-<!ENTITY glodaFacetView.loading.label "&#8230; ਖੋਜ ਜਾਰੀ">
+<!ENTITY glodaFacetView.loading.label "ਖੋਜ ਜਾਰੀ ਹੈ&#8230;">
 
 <!-- LOCALIZATION NOTE (glodaFacetView.empty.label): Label that appears when
      there are no results that match the search query. -->
-<!ENTITY glodaFacetView.empty.label "ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਮਿਲਦਾ ਕੋਈ ਸੁਨੇਹਾ ਨਹੀਂ">
+<!ENTITY glodaFacetView.empty.label "ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਮਿਲਦਾ ਕੋਈ ਸੁਨੇਹਾ ਨਹੀਂ ਹੈ">
 
 <!-- LOCALIZATION NOTE (glodaFacetView.pageMore.label): Label at the bottom
      of the results list to show more hits. -->
-<!ENTITY glodaFacetView.pageMore.label "&#187; ਹੋਰ">
-
+<!ENTITY glodaFacetView.pageMore.label "ਹੋਰ &#187;">

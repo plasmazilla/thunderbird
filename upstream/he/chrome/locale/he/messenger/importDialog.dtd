@@ -49,7 +49,6 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importAll.accesskey      "כ">
 <!ENTITY importMail.label         "דואר">
 <!ENTITY importMail.accesskey     "ד">
-
 <!ENTITY importAddressbook.label  "ספרי כתובות">
 <!ENTITY importAddressbook.accesskey "כ">
 <!ENTITY importSettings.label     "הגדרות">

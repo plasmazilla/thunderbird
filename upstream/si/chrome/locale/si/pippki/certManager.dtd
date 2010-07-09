@@ -57,7 +57,7 @@
 <!ENTITY certmgr.editcert.edittrust           "විශ්වාස සිටුවම් සකසන්න:">
 <!ENTITY certmgr.editcert.trustssl            "මෙම සහතිකයෙන් වෙබ් අඩවි හදුනාගත හැක.">
 <!ENTITY certmgr.editcert.trustemail          "මෙම සහතිකයෙන් තැපැල් පරිශීලකයින් හදුනාගත හැක.">
-<!ENTITY certmgr.editcert.trustobjsign        "මෙම සහතිකයෙන් මෘදුකාංග සාදන්නන් හදුනාගත හැක.">
+<!ENTITY certmgr.editcert.trustobjsign        "මෙම සහතිකයෙන් මෘදුකිංග සාදන්නන් හදුනාගත හැක.">
 <!ENTITY certmgr.editsslcert.edittrust        "සහතිකයේ විශ්වාස සිටුවම් සකසන්න:">
 <!ENTITY certmgr.editsslcert.dotrust          "මෙම සහතිකයෙහි සත්‍යාපනය විශ්වාස කරන්න.">
 <!ENTITY certmgr.editsslcert.donttrust        "මෙම සහතිකයෙහි සත්‍යාපනය විශ්වාස නොකරන්න.">
@@ -78,10 +78,10 @@
 <!ENTITY certmgr.tab.ca                       "අධිකාරීන්">
 <!ENTITY certmgr.tab.orphan2                  "වෙනත්">
 <!ENTITY certmgr.ca.mycas                     "CA ඔබ විසින් කළමණාකරනය කරයි">
-<!ENTITY certmgr.mine                         "මෙම ආයතන වලින් ඔබව හදුනාගත හැකි සහතික ඔබ සතුව ඇත:">
-<!ENTITY certmgr.others                       "මෙම පුද්ගලයින් හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සතුව ඇත:">
-<!ENTITY certmgr.websites2                    "මෙම සේවාදායක හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සතුව ඇත:">
-<!ENTITY certmgr.cas                          "මෙම සහතික අධිකාරීන් හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සතුව ඇත:">
+<!ENTITY certmgr.mine                         "මෙම ආතන වලින් ඔබව හදුනාගත හැකි සහතික ඔබ සතුව ඇත:">
+<!ENTITY certmgr.others                       "මෙම පුද්ගලයින් හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සහුව ඇත:">
+<!ENTITY certmgr.websites2                    "මෙම සේවාදායක හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සහුව ඇත:">
+<!ENTITY certmgr.cas                          "මෙම සහතික අධිකාරීන් හදුනාගත හැකි සහතික ඇතුළත් ගොනුවක් ඔබ සහුව ඇත:">
 <!ENTITY certmgr.orphans                      "වෙනත් කිසිදු ප්‍රභේදයකට අයත් නොවන ගොනුවක් තුළ ඇති ඔබේ සහතික:">
 
 <!ENTITY certmgr.detail.general_tab.title     "පොදු">
@@ -100,7 +100,7 @@
 <!ENTITY certmgr.certname                     "සහතික නාමය">
 <!ENTITY certmgr.certserver                   "සේවාදායකය">
 <!ENTITY certmgr.typesofoverrides             "හැරදැමීම්">
-<!ENTITY certmgr.override_lifetime            "ආයුකාලය">
+<!ENTITY certmgr.override_lifetime            "ආයුකාළය">
 <!ENTITY certmgr.editca.label                 "CA විශ්වාසය සකසන්න">
 <!ENTITY certmgr.editca.accesskey             "d">
 <!ENTITY certmgr.add.label                    "එක් කරන්න">

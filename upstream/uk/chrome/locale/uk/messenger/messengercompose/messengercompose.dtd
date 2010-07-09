@@ -1,15 +1,15 @@
 <!--LOCALIZATION NOTE messengercompose.dtd Main UI for message composition -->
-<!ENTITY msgComposeWindow.title "Створення повідомлення: (без теми)">
+<!ENTITY msgComposeWindow.title "Написання листа: (без теми)">
 
 <!-- File Menu -->
 <!ENTITY fileMenu.label "Файл"> 
 <!ENTITY fileMenu.accesskey "Ф">
 <!ENTITY newMenu.label "Створити">
 <!ENTITY newMenu.accesskey "С">
-<!ENTITY newMessage.label "Повідомлення">
+<!ENTITY newMessage.label "Лист">
 <!ENTITY newMessage.key "M">
 <!ENTITY newMessageCmd2.key "N">
-<!ENTITY newMessage.accesskey "П">
+<!ENTITY newMessage.accesskey "Л">
 <!ENTITY newContact.label "Контакт адресної книги…">
 <!ENTITY newContact.accesskey "К">
 <!ENTITY attachMenu.label "Вкласти">
@@ -92,8 +92,8 @@
 <!ENTITY viewMenu.accesskey "В">
 <!ENTITY viewToolbarsMenuNew.label "Панелі інструментів"> 
 <!ENTITY viewToolbarsMenuNew.accesskey "н"> 
-<!ENTITY showCompositionToolbarCmd.label "Панель інструментів складання листа">
-<!ENTITY showCompositionToolbarCmd.accesskey "о">
+<!ENTITY showCompositionToolbarCmd.label "Панель інструментів написання листа">
+<!ENTITY showCompositionToolbarCmd.accesskey "н">
 <!ENTITY showFormattingBarCmd.label "Панель форматування">
 <!ENTITY showFormattingBarCmd.accesskey "ф">
 <!ENTITY showTaskbarCmd.label "Рядок стану">
@@ -117,7 +117,7 @@
 <!ENTITY checkSpellingCmd2.accesskey "г">
 <!ENTITY enableInlineSpellChecker.label "Перевірка орфографії при наборі тексту">
 <!ENTITY enableInlineSpellChecker.accesskey "б">
-<!ENTITY quoteCmd.label "Цитувати повідомлення">
+<!ENTITY quoteCmd.label "Цитувати лист">
 <!ENTITY quoteCmd.accesskey "Ц">
 
 <!--LOCALIZATION NOTE attachVCard.label Don't translate the term 'vCard' -->
@@ -188,12 +188,12 @@
 <!ENTITY saveButton.label "Зберегти">
 
 <!-- Mail Toolbar Tooltips -->
-<!ENTITY sendButton.tooltip "Відіслати це повідомлення зараз"> 
-<!ENTITY sendlaterButton.tooltip "Відіслати це повідомлення пізніше"> 
-<!ENTITY quoteButton.tooltip "Цитувати попереднє повідомлення"> 
+<!ENTITY sendButton.tooltip "Відіслати цього листа зараз"> 
+<!ENTITY sendlaterButton.tooltip "Відіслати цей лист пізніше"> 
+<!ENTITY quoteButton.tooltip "Цитувати попереднй лист"> 
 <!ENTITY addressButton.tooltip "Вибрати адресата з адресної книги"> 
-<!ENTITY attachButton.tooltip "Вкласти файл в це повідомлення"> 
-<!ENTITY saveButton.tooltip "Зберегти це повідомлення"> 
+<!ENTITY attachButton.tooltip "Вкласти файл в цей лист"> 
+<!ENTITY saveButton.tooltip "Зберегти цей лист"> 
 <!ENTITY cutButton.tooltip              "Вирізати">
 <!ENTITY copyButton.tooltip             "Копіювати">
 <!ENTITY pasteButton.tooltip            "Вставити">
@@ -205,8 +205,8 @@
 <!ENTITY ccAddr.label "Копія:"> 
 <!ENTITY bccAddr.label "Прих. копія:"> 
 <!ENTITY replyAddr.label "Зворотна адреса:"> 
-<!ENTITY newsgroupsAddr.label "Конференція:"> 
-<!ENTITY followupAddr.label "Відповідь в конференцію:"> 
+<!ENTITY newsgroupsAddr.label "Група новин:"> 
+<!ENTITY followupAddr.label "Followup-To:"> 
 <!ENTITY subject.label "Тема:">
 <!ENTITY subject.accesskey "Т">
 <!ENTITY attachments.label "Вкладення:">

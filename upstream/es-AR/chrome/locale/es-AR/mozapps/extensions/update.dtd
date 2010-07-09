@@ -14,8 +14,8 @@
                                            de estos agregados disponibles.">
 
 <!ENTITY checking.wizard.title "Buscando agregados compatibles">
-<!ENTITY checking.top.label "Buscando actualizaciones para agregados incompatibles…">
-<!ENTITY checking.status "Ésto puede tomar unos pocos minutos…">
+<!ENTITY checking.top.label "Buscando actualizaciones para agregados incompatibles...">
+<!ENTITY checking.status "Ésto puede tomar unos pocos minutos...">
 
 <!ENTITY found.wizard.title "Agregados compatibles encontrados">
 <!ENTITY found.top.label "Seleccione los agregados que desee instalar:">
@@ -25,7 +25,7 @@
 <!ENTITY found.enableXPInstall.accesskey "A">
 
 <!ENTITY installing.wizard.title "Instalar agregados compatibles">
-<!ENTITY installing.top.label "Descargando e instalando actualizaciones a sus agregados…">
+<!ENTITY installing.top.label "Descargando e instalando actualizaciones a sus agregados...">
 
 <!ENTITY noupdates.wizard.title "No se encontraron agregados compatibles">
 <!ENTITY noupdates.intro.desc "&brandShortName; no pudo encontrar actualizaciones para sus
@@ -49,7 +49,7 @@
 <!ENTITY versioninfo.wizard.title "Verificando compatibilidad de agregados">
 <!ENTITY versioninfo.top.label "Verificando la compatilibildad de los agregados con esta
                                            versión de &brandShortName;.">
-<!ENTITY versioninfo.waiting "Ésto puede tomar unos minutos…">
+<!ENTITY versioninfo.waiting "Ésto puede tomar unos minutos...">
 
 <!ENTITY installerrors.wizard.title "Problemas instalando actualizaciones">
 <!ENTITY installerrors.intro.label "&brandShortName; encontró problemas al actualizar
@@ -59,5 +59,5 @@
 <!ENTITY clickFinish.label "Haga clic en Finalizar para continuar iniciando &brandShortName;.">
 <!ENTITY  clickFinish.labelMac            "Haga clic en Done para continuar iniciando &brandShortName;.">
 <!ENTITY enableChecking.label "Permitir a &brandShortName; buscar actualizaciones.">
-<!ENTITY details.label "Detalles…">
+<!ENTITY details.label "Detalles...">
 <!ENTITY details.accesskey "D">

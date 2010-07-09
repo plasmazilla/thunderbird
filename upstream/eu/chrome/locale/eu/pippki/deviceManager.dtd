@@ -48,9 +48,9 @@
 <!ENTITY devmgr.button.login.label "Hasi saioa">
 <!ENTITY devmgr.button.login.accesskey "s">
 <!ENTITY devmgr.button.logout.label "Amaitu saioa">
-<!ENTITY devmgr.button.logout.accesskey "U">
+<!ENTITY devmgr.button.logout.accesskey "u">
 <!ENTITY devmgr.button.changepw.label "Aldatu pasahitza">
-<!ENTITY devmgr.button.changepw.accesskey "P">
+<!ENTITY devmgr.button.changepw.accesskey "p">
 <!ENTITY devmgr.button.load.label "Kargatu">
 <!ENTITY devmgr.button.load.accesskey "K">
 <!ENTITY devmgr.button.unload.label "Deskargatu">

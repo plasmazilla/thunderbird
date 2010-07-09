@@ -3,7 +3,6 @@
 <!ENTITY titleSeparator.label " - ">
 <!-- File Menu -->
 
-<!ENTITY more.label "المزيد">
 <!ENTITY newFolderCmd.label "مجلد…">
 <!ENTITY newFolderCmd.accesskey "م">
 <!ENTITY closeTabCmd.label "أغلق اللسان">
@@ -138,8 +137,8 @@
 
 <!ENTITY folderView.label "المجلدات">
 <!ENTITY folderView.accesskey "د">
-<!ENTITY smartFolders.label "الذكية">
-<!ENTITY smartFolders.accesskey "ذ">
+<!ENTITY unifiedFolders.label "الموحّدة">
+<!ENTITY unifiedFolders.accesskey "ح">
 <!ENTITY allFolders.label "الكل">
 <!ENTITY allFolders.accesskey "ك">
 <!ENTITY unreadFolders.label "غير مقروء">
@@ -241,15 +240,15 @@ If shift key is needed with your locale popular keyboard for them,
 you can use these alternative items. Otherwise, their values should be empty.  -->
 
 
-<!ENTITY fullZoomEnlargeCmd.label "قرّب">
+<!ENTITY fullZoomEnlargeCmd.label "كبّر">
 <!ENTITY fullZoomEnlargeCmd.accesskey "ر">
 <!ENTITY fullZoomEnlargeCmd.commandkey "+">
 <!-- + is above this key on many keyboards -->
 <!ENTITY fullZoomEnlargeCmd.commandkey2 "=">
 <!ENTITY fullZoomEnlargeCmd.commandkey3 "">
 
-<!ENTITY fullZoomReduceCmd.label "بعّد">
-<!ENTITY fullZoomReduceCmd.accesskey "ع">
+<!ENTITY fullZoomReduceCmd.label "صغّر">
+<!ENTITY fullZoomReduceCmd.accesskey "ص">
 <!ENTITY fullZoomReduceCmd.commandkey "-">
 <!ENTITY fullZoomReduceCmd.commandkey2 "">
 
@@ -258,10 +257,10 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fullZoomResetCmd.commandkey "0">
 <!ENTITY fullZoomResetCmd.commandkey2 "">
 
-<!ENTITY fullZoomToggleCmd.label "قرّب النص فقط">
+<!ENTITY fullZoomToggleCmd.label "كبّر النص فقط">
 <!ENTITY fullZoomToggleCmd.accesskey "ص">
-<!ENTITY fullZoom.label "قرّب">
-<!ENTITY fullZoom.accesskey "ق">
+<!ENTITY fullZoom.label "كبّر">
+<!ENTITY fullZoom.accesskey "ك">
 
 <!ENTITY pageSourceCmd.label "مصدر الرسالة">
 <!ENTITY pageSourceCmd.accesskey "ص">
@@ -420,6 +419,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "افتح الرسالة">
 <!ENTITY openMessageWindowCmd.accesskey "ف">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "افتح في محادثة">
+<!ENTITY openConversationCmd.accesskey "ث">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "افتح رسالة التلقيم">
 <!ENTITY openFeedMessage.accesskey "ف">
 <!ENTITY openFeedWebPageInWindow.label "صفحة وب في نافذة جديدة">
@@ -439,6 +441,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "ض">
 <!ENTITY activitymanager.label "مدير النشاطات">
 <!ENTITY activitymanager.accesskey "ش">
+<!ENTITY savedFiles.label "الملفات المحفوظة">
+<!ENTITY savedFiles.accesskey "ظ">
+<!ENTITY savedFiles.key "j">
 <!ENTITY messengerCmd.label "البريد و مجموعات الأخبار">
 <!ENTITY messengerCmd.accesskey "ب">
 <!ENTITY addressBookCmd.label "دفتر العناوين">
@@ -538,7 +543,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextRemove.label "احذف">
 <!ENTITY folderContextRemove.accesskey "ذ">
 <!ENTITY folderContextCompact.label "ادمج">
-<!ENTITY folderContextCompact.accesskey "د">
+<!ENTITY folderContextCompact.accesskey "C">
 <!ENTITY folderContextEmptyTrash.label "أفرغ المهملات">
 <!ENTITY folderContextEmptyTrash.accesskey "ف">
 <!ENTITY folderContextEmptyJunk.label "أفرِغ السُخام">
@@ -629,6 +634,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "ج">
 <!ENTITY contextOpenNewTab.label "افتح الرسالة في لسان جديد">
 <!ENTITY contextOpenNewTab.accesskey "ل">
+<!ENTITY contextOpenConversation.label "افتح الرسالة في محادثة">
+<!ENTITY contextOpenConversation.accesskey "ث">
 <!ENTITY contextEditAsNew.label "حرّر كجديدة…">
 <!ENTITY contextEditAsNew.accesskey "ح">
 <!ENTITY contextArchive.label "أرشيف">
@@ -658,6 +665,52 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "معاينة الطباعة">
 <!ENTITY contextPrintPreview.accesskey "ع">
 
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "صفّر الأعمدة إلى المبدئيات">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "طبّق الأعمدة على…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "مجلد…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "مجلد وكل ما بداخله…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "هذا المجلد">
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "شغّل">
 <!ENTITY contextPlay.accesskey "ش">
@@ -684,9 +737,35 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "تجاهَل التحذير">
 <!ENTITY reportPhishingError1.label "لا يبدو على هذه الرسالة أنها خدعة.">
 
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "مُرسِل هذه الرسالة طلب تنبيهه عند قراءتك لهذه الرسالة. هل تريد تنبيهه؟">
+<!ENTITY mdnBarIgnoreButton.label "تجاهَل الطلب">
+<!ENTITY mdnBarSendButton.label "أرسِل التنبيه">
+
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "ابحث في جميع الرسائل">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "يبحث في كل الرسائل… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "أضِف إلى دفتر العناوين…">
@@ -727,8 +806,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "ل">
 <!ENTITY copyLinkCmd.label "انسخ موقع الرابط">
 <!ENTITY copyLinkCmd.accesskey "ن">
-<!ENTITY copyImageCmd.label "انسخ مكان الصورة">
-<!ENTITY copyImageCmd.accesskey "م">
+<!ENTITY copyImageAllCmd.label "انسخ الصورة">
+<!ENTITY copyImageAllCmd.accesskey "ص">
 <!ENTITY copyEmailCmd.label "انسخ البريد الإلكتروني">
 <!ENTITY copyEmailCmd.accesskey "ي">
 <!ENTITY stopCmd.label "أوقِف">

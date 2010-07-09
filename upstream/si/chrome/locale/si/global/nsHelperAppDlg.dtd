@@ -1,4 +1,4 @@
-<!ENTITY caption.label         "#1 විවෘත කරයි">
+<!ENTITY caption.label         "Opening #1">
 
 <!-- Localization note: The default intro text has 3 "inserts":
         #1 - replaced with the descriptive text that describes the mime type
@@ -18,26 +18,26 @@
 <!ENTITY intro.sniffed.label "#4 has detected that the file &quot;#3&quot; is likely to be of type #2 (#1). The file is located at:">
 <!ENTITY intro.sniffed.noDesc.label "#4 has detected that the file &quot;#3&quot; is likely to be of type #2. The file is located at:">
 
-<!ENTITY prompt.label          "#1 මෙම ගොනුවට කුමක් කළ යුතුද?">
+<!ENTITY prompt.label          "What should #1 do with this file?">
 
-<!ENTITY alwaysHandle.label     "මේ ආකාරයේ ගොනු සඳහා සෑම විටම මෙම ක්‍රියාව කරන්න">
+<!ENTITY alwaysHandle.label     "Always perform this action when handling files of this type">
 <!ENTITY alwaysHandle.accesskey "A">
 
-<!ENTITY saveToDisk.label      "ඩිස්කයට සුරකින්න">
+<!ENTITY saveToDisk.label      "Save it to disc">
 <!ENTITY saveToDisk.accesskey  "S">
 
-<!ENTITY useSystemDefault.label        "පෙරනිමි යෙදුම සමඟ විවෘත කරන්න (#1)">
-<!ENTITY useSystemDefault.noDesc.label "පෙරනිමි යෙදුම සමඟ විවෘත කරන්න">
+<!ENTITY useSystemDefault.label        "Open it with the default application (#1)">
+<!ENTITY useSystemDefault.noDesc.label "Open it with the default application">
 <!ENTITY useSystemDefault.accesskey    "O">
 
 <!-- LOCALIZATION NOTE:  do not localize "#1" -->
-<!ENTITY openUsing.label       "මේ සමඟ විවෘත කරන්න">
+<!ENTITY openUsing.label       "Open it with">
 <!ENTITY openUsing.accesskey   "w">
 
-<!ENTITY chooseApp.label       "තෝරන්න...">
+<!ENTITY chooseApp.label       "Choose...">
 <!ENTITY chooseApp.accesskey   "C">
 
-<!ENTITY chooseAppFilePickerTitle "සහායක යෙදුම තෝරන්න">
+<!ENTITY chooseAppFilePickerTitle "Choose Helper Application">
 
-<!ENTITY badApp                 "ඔබ සඳහන් කළ යෙදුම The application you specified (&quot;#1&quot;) සොයාගත නොහැකිය.  ගොනුනම පරීක්ෂා කරන්න හෝ වෙනත් යෙදුමක් තෝරන්න.">
-<!ENTITY badApp.title           "යෙදුම හමු නොවීය">
+<!ENTITY badApp                 "The application you specified (&quot;#1&quot;) could not be found.  Check the file name or select another application.">
+<!ENTITY badApp.title           "Application not found">

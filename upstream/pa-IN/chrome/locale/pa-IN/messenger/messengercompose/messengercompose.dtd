@@ -65,8 +65,8 @@
 <!ENTITY pasteCmd.label "ਚੇਪੋ">
 <!ENTITY pasteCmd.key "V">
 <!ENTITY pasteCmd.accesskey "p">
-<!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY pasteNoFormattingCmd.key "V">
+<!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY editRewrapCmd.label "ਮੁੜ-ਸਮੇਟੋ">
 <!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "w">
@@ -223,13 +223,13 @@
 <!ENTITY smiley7Cmd.label "Undecided">
 <!ENTITY smiley8Cmd.label "ਹੈਰਾਨ">
 <!ENTITY smiley9Cmd.label "ਚੁੰਮਣ">
-<!ENTITY smiley10Cmd.label "ਚੀਕਦਾ">
-<!ENTITY smiley11Cmd.label "ਸ਼ਾਂਤ">
+<!ENTITY smiley10Cmd.label "Yell">
+<!ENTITY smiley11Cmd.label "Cool">
 <!ENTITY smiley12Cmd.label "Money-Mouth">
 <!ENTITY smiley13Cmd.label "Foot-in-Mouth">
-<!ENTITY smiley14Cmd.label "ਬੇਕਸੂਰ">
+<!ENTITY smiley14Cmd.label "Innocent">
 <!ENTITY smiley15Cmd.label "ਰੋਂਦਾ">
-<!ENTITY smiley16Cmd.label "ਦੰਦ ਜੁੜੇ">
+<!ENTITY smiley16Cmd.label "Lips-are-Sealed">
 
 <!-- Message Pane Context Menu -->
 <!ENTITY spellCheckNoSuggestions.label "ਕੋਈ ਸੁਝਾਅ ਨਹੀਂ ਲੱਭਿਆ">
@@ -265,3 +265,4 @@
 
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "ਸੰਪਰਕ">
+

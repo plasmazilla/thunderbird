@@ -79,7 +79,7 @@
 <!ENTITY ScreenName.label               "ਸਕਰੀਨ ਨਾਂ:">
 <!ENTITY ScreenName.accesskey           "S">
 
-<!ENTITY allowRemoteContent1.label      "ਰਿਮੋਟ ਸਮੱਗਰੀ ਮਨਜ਼ੂਰ">
+<!ENTITY allowRemoteContent1.label      "Allow remote content.">
 <!ENTITY allowRemoteContent1.accesskey  "r">
 <!ENTITY allowRemoteContent1.tooltip    "HTML ਸੁਨੇਹਿਆਂ ਵਿੱਚ, ਰਿਮੋਟ ਸਰੋਤ ਤੋਂ ਚਿੱਤਰ ਇੰਬੈੱਡ ਕਰਨਾ ਸੰਭਵ ਹੈ। ਇੰਝ ਦੇ ਸੁਨੇਹੇ ਨੂੰ ਖੋਲ੍ਹਣ ਨਾਲ ਇੱਕ ਬਾਹਰੀ ਸਰੋਤ ਨਾਲ ਕੁਨੈਕਸ਼ਨ ਬਣਾਇਆ ਜਾਵੇਗਾ। ਇਸ ਨਾਲ ਇਹ ਪਤਾ ਲੱਗ ਸਕਦਾ ਹੈ ਕਿ ਸੁਨੇਹਿਆਂ ਪੜ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ। ਇਸ ਦੀ ਚੋਣ ਕਰਨ ਨਾਲ ਇਸ ਸੰਪਰਕ ਤੋਂ HTML ਸੁਨੇਹਿਆਂ ਵਿੱਚ ਬਾਹਰੀ ਇੰਬੈੱਡ ਕੀਤੇ ਚਿੱਤਰ ਮਨਜ਼ੂਰ ਹੋਣਗੇ">
 
@@ -156,17 +156,16 @@
 
 <!ENTITY Photo.tab                      "ਫੋਟੋ">
 <!ENTITY Photo.accesskey                "o">
-<!ENTITY PhotoDesc.label                "ਹੇਠ ਦਿੱਤਿਆਂ ਵਿੱਚ ਇੱਕ ਚੁਣੋ:">
-<!ENTITY GenericPhoto.label             "ਫੋਟੋ ਬਣਾਓ">
+<!ENTITY PhotoDesc.label                "ਹੇਠ ਦਿੱਤੀਆਂ 'ਚੋਂ ਚੁਣੋ:">
+<!ENTITY GenericPhoto.label             "ਆਮ ਫੋਟੋ">
 <!ENTITY GenericPhoto.accesskey         "G">
 <!ENTITY DefaultPhoto.label             "ਡਿਫਾਲਟ">
-<!ENTITY PhotoFile.label                "ਇਹ ਕੰਪਿਊਟਰ ਉੱਤੇ">
+<!ENTITY PhotoFile.label                "ਇਸ ਕੰਪਿਊਟਰ ਉੱਤੇ">
 <!ENTITY PhotoFile.accesskey            "n">
 <!ENTITY BrowsePhoto.label              "ਝਲਕ">
 <!ENTITY BrowsePhoto.accesskey          "r">
-<!ENTITY PhotoURL.label                 "ਵੈੱਬ ਤੋਂ">
+<!ENTITY PhotoURL.label                 "ਵੈੱਬ ਉੱਤੇ">
 <!ENTITY PhotoURL.accesskey             "b">
-<!ENTITY PhotoURL.emptytext             "ਫੋਟੋ ਦਾ ਵੈੱਬ ਐਡਰੈੱਸ ਲਿਖੋ ਜਾਂ ਚੇਪੋ">
+<!ENTITY PhotoURL.emptytext             "Paste or type the web address of a photo">
 <!ENTITY UpdatePhoto.label              "ਅੱਪਡੇਟ">
 <!ENTITY UpdatePhoto.accesskey          "u">
-

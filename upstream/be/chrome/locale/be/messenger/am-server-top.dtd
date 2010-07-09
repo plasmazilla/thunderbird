@@ -1,4 +1,4 @@
-<!ENTITY securitySettings.label "Наладкі бяспекі">
+<!ENTITY securitySettings.label "Наладжванні бяспекі">
 <!ENTITY serverSettings.label "Наладжванні паслугача">
 <!ENTITY serverType.label "Тып паслугача:">
 <!ENTITY serverName.label "Назва паслугача:">
@@ -17,8 +17,8 @@
 <!ENTITY connectionSecurityType-1.label "STARTTLS, калі даступна">
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
-<!ENTITY useSecAuth.label "Ужываць бяспечнае апазнаванне">
-<!ENTITY useSecAuth.accesskey "б">
+<!ENTITY authMethod.label "Метад апазнавання:">
+<!ENTITY authMethod.accesskey "з">
 <!ENTITY leaveOnServer.label "Пакідаць лісты на паслугачы">
 <!ENTITY leaveOnServer.accesskey "п">
 <!ENTITY headersOnly.label "Атрымліваць толькі загалоўкі">

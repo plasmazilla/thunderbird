@@ -55,7 +55,7 @@
 
 <!ENTITY columnChooser.tooltip "Kliek om kolomme te kies wat vertoon moet word">
 <!ENTITY threadColumn.tooltip "Kliek om die boodskapdrade te vertoon">
-<!ENTITY fromColumn.tooltip "Kliek om te rangskik vanaf">
+<!ENTITY fromColumn.tooltip "Kliek om volgens afsender te rangskik">
 <!ENTITY recipientColumn.tooltip "Kliek om volgens ontvanger te rangskik">
 <!ENTITY subjectColumn.tooltip "Kliek om volgens onderwerp te rangskik">
 <!ENTITY dateColumn.tooltip "Kliek om volgens datum te rangskik">

@@ -12,7 +12,7 @@
 <!ENTITY moveToSent.label "Mover para a minha pasta &quot;Enviados&quot;">
 <!ENTITY moveToSent.accesskey "V">
 <!ENTITY requestMDN.label "Quando recebo um pedido de um recibo de leitura:">
-<!ENTITY returnSome.label "Permitir Recibos de Leitura para algumas mensagens">
+<!ENTITY returnSome.label "Permitir recibos de leitura para algumas mensagens">
 <!ENTITY returnSome.accesskey "r">
 <!ENTITY never.label "Nunca enviar um recibo de leitura">
 <!ENTITY never.accesskey "N">
@@ -24,4 +24,4 @@
 <!ENTITY otherCases.accesskey "o">
 <!ENTITY askMe.label "Perguntar-me">
 <!ENTITY alwaysSend.label "Enviar sempre">
-<!ENTITY neverSend.label "Nunca Enviar">
+<!ENTITY neverSend.label "Nunca enviar">

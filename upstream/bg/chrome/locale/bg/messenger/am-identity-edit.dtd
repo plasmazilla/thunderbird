@@ -1,4 +1,4 @@
-<!ENTITY identityDialog.style "width: 67ch;">
+<!ENTITY identityDialog.style "width: 100ch;">
 <!ENTITY identityTitle.label "Настройки на самоличност">
 <!ENTITY identityListDesc.label "Настройки за тази самоличност:">
 

@@ -46,7 +46,7 @@
 <!ENTITY bccField2.label "falið afrit ">
 <!ENTITY newsgroupsField2.label "fréttahópar ">
 <!ENTITY followupToField2.label "eftirfylgni-við ">
-<!ENTITY tagsHdr2.label "tög ">
+<!ENTITY tagsHdr2.label "flokkar ">
 <!ENTITY dateField2.label "dagsetning ">
 <!ENTITY userAgentField2.label "kennistrengur forrits ">
 <!ENTITY referencesField2.label "tilvitnanir ">
@@ -56,19 +56,19 @@
 <!ENTITY editMessageDescription.label "Þetta eru tölvupóstsdrög">
 <!ENTITY editMessageButton.label "Breyta…">
 <!ENTITY hdrArchiveButton.label "safna">
-<!ENTITY hdrArchiveButton.tooltip "setja þennan póst í safn">
+<!ENTITY hdrArchiveButton.tooltip "setja póst í safn">
 <!ENTITY hdrReplyButton.label "svara">
-<!ENTITY hdrReplyButton.tooltip "svara þessum pósti">
+<!ENTITY hdrReplyButton.tooltip "svara pósti">
 <!ENTITY hdrReplyAllButton.label "svara öllum">
 <!ENTITY hdrReplyAllButton.tooltip "svara sendanda og öllum viðtakendum">
 <!ENTITY hdrReplyListButton.label "svara póstlista">
 <!ENTITY hdrReplyListButton.tooltip "svara póstlista">
 <!ENTITY hdrForwardButton.label "áframsenda">
-<!ENTITY hdrForwardButton.tooltip "áframsenda þennan póst">
+<!ENTITY hdrForwardButton.tooltip "áframsenda póst">
 <!ENTITY hdrJunkButton.label "ruslpóstur">
 <!ENTITY hdrJunkButton.tooltip "merkja póst sem ruslpóst">
 <!ENTITY hdrTrashButton.label "eyða">
-<!ENTITY hdrTrashButton.tooltip "eyða þessum pósti">
+<!ENTITY hdrTrashButton.tooltip "eyða pósti">
 <!ENTITY hdrViewToolbarShowFull.label "Sýna myndir og texta">
 <!ENTITY hdrViewToolbarShowFull.accesskey "a">
 <!ENTITY hdrViewToolbarShowIcons.label "Sýna aðeins myndir">
@@ -78,8 +78,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Alltaf sýna svar til sendanda">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "r">
 <!ENTITY otherActionsButton.label "aðrar aðgerðir">
-<!ENTITY otherActionsShowConversation.label "sýna í samtali">
-<!ENTITY otherActionsShowConversation.accesskey "s">
+<!ENTITY otherActionsOpenConversation.label "opna í samtali">
+<!ENTITY otherActionsOpenConversation.accesskey "s">
 <!ENTITY otherActionsOpenInNewWindow.label "opna í nýjum glugga">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "g">
 <!ENTITY otherActionsOpenInNewTab.label "opna í nýjum flipa">

@@ -9,3 +9,5 @@
 <!ENTITY folderRestriction2.label   "Lejoni dosjen tuaj të re të përmbajë:">
 <!ENTITY foldersOnly.label          "Vetëm Dosje">
 <!ENTITY messagesOnly.label         "Vetëm Mesazhe">
+<!ENTITY accept.label               "Krijo Dosje">
+<!ENTITY accept.accesskey           "D">

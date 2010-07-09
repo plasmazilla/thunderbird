@@ -19,6 +19,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s): Neil Rashbrook <neil@parkwaycc.co.uk>
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -33,10 +34,8 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY windowTitle.label "Ιδιότητες πεδίου φόρμας">
 <!ENTITY windowTitleImage.label "Ιδιότητες εικόνας φόρμας">
-
 <!ENTITY InputType.label "Τύπος πεδίου">
 <!ENTITY InputType.accesskey "Τ">
 <!ENTITY text.value "Κείμενο">
@@ -49,7 +48,6 @@
 <!ENTITY hidden.value "Κρυφό">
 <!ENTITY image.value "Εικόνα">
 <!ENTITY button.value "Κουμπί">
-
 <!ENTITY InputSettings.label "Ρυθμίσεις Πεδίου">
 <!ENTITY InputName.label "Όνομα πεδίου:">
 <!ENTITY InputName.accesskey "δ">
@@ -77,6 +75,5 @@
 <!ENTITY AccessKey.accesskey "Κ">
 <!ENTITY Accept.label "Αποδεκτοί τύποι:">
 <!ENTITY Accept.accesskey "Α">
-
 <!ENTITY ImageProperties.label "Ιδιότητες εικόνας...">
 <!ENTITY ImageProperties.accesskey "τ">

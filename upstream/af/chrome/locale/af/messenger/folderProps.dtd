@@ -45,12 +45,15 @@
 <!ENTITY folderCharsetTab.accesskey "e">
 <!ENTITY folderCharsetOverride.label "Pas verstek op alle boodskappe in die vouer toe (individuele boodskappe se karakterenkoderingopstelling en outospeur sal geïgnoreer word)">
 <!ENTITY folderCharsetOverride.accesskey "P">
-<!ENTITY folderRebuildSummaryFile.label "Herbou indeks">
-<!ENTITY folderRebuildSummaryFile.accesskey "H">
-<!ENTITY folderRebuildSummaryFileTip.label "Herbou opsomminglêer">
+<!ENTITY folderRebuildSummaryFileTip2.label "Herbou opsomminglêerindeks">
+<!ENTITY folderRebuildSummaryFile2.label "Herstel vouer">
+<!ENTITY folderRebuildSummaryFile2.accesskey "r">
+<!ENTITY folderRebuildSummaryFile.explanation "Soms raak die vouerindekslêer (.msf) beskadig en boodskappe lyk of dit weg is, of geskrapte boodskappe wys steeds; herstel van die vouer kan dalk sulke probleme oplos.">
+<!ENTITY folderIncludeInGlobalSearch.label "Sluit boodskappe in dié gids in by die globale soekresultate">
+<!ENTITY folderIncludeInGlobalSearch.accesskey "g">
      
 <!ENTITY retention.label "Behoubeleid">
-<!ENTITY retentionUseAccount.label "Gebruik my rekeninginstellings">
+<!ENTITY retentionUseAccount.label "Gebruik my rekeningopstelling">
 <!ENTITY retentionUseAccount.accesskey "G">
 <!ENTITY daysOld.label "dae oud">
 <!ENTITY message.label "boodskappe">
@@ -69,8 +72,8 @@
 <!ENTITY retentionApplyToFlagged.accesskey "H">
 
 <!ENTITY folderSynchronizationTab.label "Sinchronisasie">
-<!ENTITY folderCheckForNewMessages.label "Kontroleer hierdie vouer vir nuwe boodskappe">
-<!ENTITY folderCheckForNewMessages.accesskey "K">
+<!ENTITY folderCheckForNewMessages2.label "Wanneer nuwe boodskappe verkry word vir dié rekening, kontroleer altyd dié gids">
+<!ENTITY folderCheckForNewMessages2.accesskey "W">
 
 <!ENTITY offlineFolder.check.label "Kies hierdie vouer vir aflyngebruik">
 <!ENTITY offlineFolder.check.accesskey "K">

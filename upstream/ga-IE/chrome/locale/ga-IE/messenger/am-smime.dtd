@@ -10,11 +10,11 @@
 <!ENTITY encryptionCert.message "Úsáid an teastas seo chun teachtaireachtaí a sheoltar chugat a chriptiú agus a dhíchriptiú:">
 <!ENTITY digitalSign.certificate.button "Roghnaigh…">
 <!ENTITY digitalSign.certificate.accesskey "S">
-<!ENTITY digitalSign.certificate_clear.button "Bánaigh">
+<!ENTITY digitalSign.certificate_clear.button "Glan">
 <!ENTITY digitalSign.certificate_clear.accesskey "C">
 <!ENTITY encryption.certificate.button "Roghnaigh…">
 <!ENTITY encryption.certificate.accesskey "t">
-<!ENTITY encryption.certificate_clear.button "Bánaigh">
+<!ENTITY encryption.certificate_clear.button "Glan">
 <!ENTITY encryption.certificate_clear.accesskey "l">
 <!ENTITY signingGroupTitle.label "Síniú Digiteach">
 <!ENTITY signMessage.label "Sínigh teachtaireachtaí go digiteach (mar réamhshocrú)">

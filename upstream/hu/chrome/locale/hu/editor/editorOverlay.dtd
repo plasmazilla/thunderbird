@@ -137,7 +137,7 @@
 <!ENTITY insertHTMLCmd.accesskey "H">
 <!ENTITY insertCharsCmd.label "Karakterek és szimbólumok...">
 <!ENTITY insertCharsCmd.accesskey "K">
-<!ENTITY insertBreakAllCmd.label "Sortörés a kép(ek) alatt">
+<!ENTITY insertBreakAllCmd.label "Sortörés a képek alatt">
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->

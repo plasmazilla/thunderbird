@@ -76,11 +76,11 @@
 <!ENTITY previewCmd.label "Перегляд сторінки">
 <!ENTITY previewCmd.accesskey "г">
 <!ENTITY sendPageCmd.label "Відіслати сторінку…">
-<!ENTITY sendPageCmd.accesskey "c">
+<!ENTITY sendPageCmd.accesskey "с">
 <!ENTITY printSetupCmd.label "Параметри сторінки…">
 <!ENTITY printSetupCmd.accesskey "а">
 <!ENTITY printCmd.label "Друк…">
-<!ENTITY printCmd.accesskey "P">
+<!ENTITY printCmd.accesskey "Д">
 <!ENTITY printCmd.key "P">
 <!ENTITY closeCmd.label "Закрити">
 <!ENTITY closeCmd.accesskey "З">
@@ -108,7 +108,7 @@
 <!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.key2 "VK_F3">
 <!ENTITY findPrevCmd.label "Знайти попередній збіг">
-<!ENTITY findPrevCmd.accesskey "v">
+<!ENTITY findPrevCmd.accesskey "п">
 <!ENTITY findPrevCmd.key "G">
 <!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY enableInlineSpellChecker.label "Перевірка орфографії під час набору">
@@ -204,16 +204,16 @@
 <!ENTITY size-smallCmd.accesskey "н">
 <!ENTITY size-mediumCmd.label "середній">
 <!ENTITY size-mediumCmd.accesskey "р">
-<!ENTITY size-largeCmd.label "великий">
+<!ENTITY size-largeCmd.label "крупний">
 <!ENTITY size-largeCmd.accesskey "п">
-<!ENTITY size-x-largeCmd.label "крупний">
+<!ENTITY size-x-largeCmd.label "великий">
 <!ENTITY size-x-largeCmd.accesskey "л">
 <!ENTITY size-xx-largeCmd.label "величезний">
 <!ENTITY size-xx-largeCmd.accesskey "ч">
 
 <!-- Font Style SubMenu -->
 <!ENTITY fontStyleMenu.label "Стиль тексту">
-<!ENTITY fontStyleMenu.accesskey "Р">
+<!ENTITY fontStyleMenu.accesskey "С">
 <!ENTITY styleBoldCmd.label "Напівжирний">
 <!ENTITY styleBoldCmd.accesskey "Н">
 <!ENTITY styleBoldCmd.key "B">
@@ -333,27 +333,27 @@
 <!ENTITY decreaseIndent.key "[">
 
 <!ENTITY grid.label "Сітка">
-<!ENTITY grid.accesskey "і">
+<!ENTITY grid.accesskey "С">
 
 <!ENTITY pageProperties.label "Заголовок і властивості сторінки…">
 <!ENTITY pageProperties.accesskey "З">
 <!ENTITY colorsAndBackground.label "Колір і тло сторінки…">
-<!ENTITY colorsAndBackground.accesskey "тло">
+<!ENTITY colorsAndBackground.accesskey "т">
 
 <!-- Table Menu -->
 <!ENTITY tableMenu.label "Таблиця">
-<!ENTITY tableMenu.accesskey "b">
+<!ENTITY tableMenu.accesskey "Т">
 
 <!-- Select Submenu -->
 <!ENTITY tableSelectMenu.label "Виділити">
-<!ENTITY tableSelectMenu.accesskey "S">
+<!ENTITY tableSelectMenu.accesskey "д">
 
 <!ENTITY tableSelectMenu2.label "Виділити таблицю">
-<!ENTITY tableSelectMenu2.accesskey "S">
+<!ENTITY tableSelectMenu2.accesskey "д">
 <!ENTITY tableInsertMenu2.label "Вставити таблицю">
-<!ENTITY tableInsertMenu2.accesskey "I">
+<!ENTITY tableInsertMenu2.accesskey "с">
 <!ENTITY tableDeleteMenu2.label "Вилучити таблицю">
-<!ENTITY tableDeleteMenu2.accesskey "D">
+<!ENTITY tableDeleteMenu2.accesskey "л">
 
 <!-- Insert SubMenu -->
 <!ENTITY tableInsertMenu.label "Вставити">

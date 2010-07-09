@@ -6,6 +6,10 @@
 <!ENTITY checking.title "Nuashonruithe á seiceáil">
 <!ENTITY updateCheck.label "Leaganacha nua de &brandShortName; á lorg…">
 
+<!ENTITY pluginupdatesfound.title "Aimsíodh nuashonruithe le haghaidh forlíontán">
+<!ENTITY pluginupdatesfound.label "Aimsíodh leagan nua de roinnt de do chuid fhorlíontán.">
+<!ENTITY pluginupdateslink.label "Taispeáin conas do chuid fhorlíontán a nuashonrú.">
+
 <!ENTITY noupdatesfound.title "Ní bhfuarthas nuashonruithe">
 <!ENTITY noupdatesautoenabled.intro "Níl nuashonrú ar bith le fáil. Seiceálfaidh &brandShortName; ó am go chéile an bhfuil nuashonruithe nua ann.">
 <!ENTITY noupdatesautodisabled.intro "Níl nuashonruithe ar fáil. Lorg arís iad níos déanaí, nó cumasaigh seiceáil nuashonruithe uathoibríoch &brandShortName;.">
@@ -23,8 +27,8 @@
 
 <!ENTITY license.instructions "Má ghlacann tú le coinníollacha an chomhaontaithe seo, cliceáil Glacaim Leis thíos chun leanúint le suiteáil an nuashonraithe.">
 
-<!ENTITY license.titleText "Comhaontú um an gCeadúnas Earra Bhoig">
-<!ENTITY license.introText "Téarmaí agus coinníollacha úsáide an phacáiste seo.">
+<!ENTITY license.titleText "Comhaontú um an gCeadúnas Bogearra">
+<!ENTITY license.introText "Téarmaí agus coinníollacha úsáide an bhogearra seo.">
 <!ENTITY license.instructionText "Léigh an comhaontú um cheadúnas earra bhoig seo a leanas, le do thoil. Úsáid an scrollbharra chun an chuid eile den chomhaontú seo a léamh.">
 <!ENTITY license.accept "Glacaim leis an Chomhaontú um Cheadúnas">
 <!ENTITY license.accept.accesskey "c">

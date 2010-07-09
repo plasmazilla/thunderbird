@@ -1,6 +1,6 @@
 <!ENTITY doNotDownloadPop3Movemail.label "ਡਿਸਕ ਥਾਂ ਬਚਾਉਣ ਲਈ ਡਾਊਨਲੋਡ ਨਾ ਕਰੋ:">
-<!ENTITY doNotDownloadNntp.label "ਡਿਸਕ ਥਾਂ ਬਚਾਉਣ ਲਈ, ਆਫਲਾਈਨ ਵਰਤੋਂ ਲਈ ਡਾਊਨਲੋਡ ਨਾ ਕਰੋ:">
-<!ENTITY doNotDownloadImap.label "ਡਿਸਕ ਥਾਂ ਬਚਾਉਣ ਲਈ, ਸਰਵਰ ਤੋਂ ਸੁਨੇਹੇ ਡਾਊਨਲੋਡ ਕਰਨ ਅਤੇ ਆਫਲਾਈਨ ਵਰਤੋਂ ਲਈ ਲੋਕਲ ਕਾਪੀ ਰੱਖਣ ਲਈ ਤੁਸੀਂ ਉਮਰ ਜਾਂ ਸਾਈਜ਼ ਉੱਤੇ ਪਾਬੰਦੀ ਲਾ ਸਕਦੇ ਹੋ।">
+<!ENTITY doNotDownloadNntp.label "To save disk space, do not download for offline use:">
+<!ENTITY doNotDownloadImap.label "To save disk space, downloading messages from the server and keeping local copies for offline use can be restricted by age or size.">
 <!ENTITY allFoldersOffline.label "ਇਸ ਅਕਾਊਂਟ ਲਈ ਇਸ ਕੰਪਿਊਟਰ ਉੱਤੇ ਸੁਨੇਹੇ ਰੱਖੋ">
 <!ENTITY allFoldersOffline.accesskey "o">
 <!ENTITY offlineNotDownload.label "ਇਸ ਤੋਂ ਵੱਡੇ ਸੁਨੇਹੇ">
@@ -43,9 +43,9 @@
 
   &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
 -->
-<!ENTITY allAutosync.label               "ਪੁਰਾਣੇ (ਉਮਰ) ਹੋਣ ਦੀ ਪਰਵਾਹ ਕੀਤੇ ਬਿਨਾਂ ਸਭ ਸੁਨੇਹੇ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
+<!ENTITY allAutosync.label               "ਸਭ ਸੁਨੇਹੇ ਲੋਕਲ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ, ਪੁਰਾਣੇ ਹੋਣ ਦੀ ਪਰਵਾਹ ਕੀਤੇ ਬਗੈਰ">
 <!ENTITY allAutosync.accesskey           "c">
-<!ENTITY ageAutosyncBefore.label         "ਸਭ ਤੋਂ ਤਾਜ਼ਾ ਡਾਊਨਲੋਡ ਕਰੋ">
+<!ENTITY ageAutosyncBefore.label         "ਸਭ ਤੋਂ ਤਾਜ਼ਾ ਸੈਕਰੋਨਾਈਜ਼">
 <!ENTITY ageAutosync.accesskey           "z">
 <!ENTITY ageAutosyncMiddle.label         "">
 <!ENTITY dayAgeInterval.label            "ਦਿਨ">
@@ -53,4 +53,3 @@
 <!ENTITY monthAgeInterval.label          "ਮਹੀਨੇ">
 <!ENTITY yearAgeInterval.label           "ਸਾਲ">
 <!ENTITY ageAutosyncAfter.label          "">
-

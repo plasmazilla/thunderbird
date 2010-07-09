@@ -6,6 +6,10 @@
 <!ENTITY  checking.title                  "Comprovació d'actualitzacions">
 <!ENTITY  updateCheck.label               "S'estan cercant versions més noves del &brandShortName;…">
 
+<!ENTITY  pluginupdatesfound.title        "Cerca actualitzacions dels connectors">
+<!ENTITY  pluginupdatesfound.label        "S'han trobat noves versions d'un o més dels vostres connectors.">
+<!ENTITY  pluginupdateslink.label         "Consulteu com actualitzar els vostres connectors.">
+
 <!ENTITY  noupdatesfound.title            "No s'ha trobat cap actualització">
 <!ENTITY  noupdatesautoenabled.intro      "No hi ha cap actualització disponible. El &brandShortName; comprovarà periòdicament si hi ha noves actualitzacions.">
 <!ENTITY  noupdatesautodisabled.intro     "No hi ha cap actualització disponible. Torneu-ho a provar més endavant o habiliteu la comprovació d'actualitzacions automàtica del &brandShortName;.">
@@ -18,7 +22,7 @@
 <!ENTITY  incompatibleCheck.title         "S'està comprovant la compatibilitat dels complements">
 <!ENTITY  incompatibleCheck.label         "S'estan cercant versions més noves dels vostres complements…">
 
-<!ENTITY  clickHere.label                 "Feu clic aquí per a més informació general quant a aquesta actualització">
+<!ENTITY  clickHere.label                 "Feu clic ací per a més informació general quant a aquesta actualització">
 
 <!ENTITY  evangelism.desc 	          "És molt recomanable que apliqueu aquesta actualització en el &brandShortName; tan aviat com sigui possible.">
 
@@ -55,7 +59,7 @@
                                            El &brandShortName; ho tornarà a provar baixant una actualització completa.">                                  
 
 <!ENTITY  finishedPage.title        	  "L'actualització està preparada per a poder instaŀlar-la">
-<!ENTITY  finishedPage.text		  "L'actualització s'instaŀlarà la propera vegada que el &brandShortName; s'iniciï. Podeu 
+<!ENTITY  finishedPage.text		  "L'actualització s'instaŀlarà la propera vegada que s'iniciï el &brandShortName;. Podeu 
                                            reiniciar el &brandShortName; ara, o continuar treballant i reiniciar-lo més endavant.">
 
 <!ENTITY  finishedBackgroundPage.text         "S'ha baixat una actualització de seguretat i estabilitat del &brandShortName; i està preparada per a poder instaŀlar-la.">

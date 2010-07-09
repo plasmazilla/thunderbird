@@ -33,10 +33,10 @@
 <!ENTITY openUsing.label "Abrir con">
 <!ENTITY openUsing.accesskey "o">
 
-<!ENTITY chooseApp.label "Seleccionar…">
+<!ENTITY chooseApp.label "Seleccionar...">
 <!ENTITY chooseApp.accesskey "c">
 
-<!ENTITY chooseAppFilePickerTitle "Elegir aplicación">
+<!ENTITY chooseAppFilePickerTitle "Escoger aplicación">
 
 <!ENTITY badApp "La aplicación que especificó [&quot;#1&quot;] no pudo ser encontrada. Verifique el nombre del archivo o elija otra aplicación.">
-<!ENTITY badApp.title "Aplicación no encontrada">
+<!ENTITY badApp.title "Aplicación no hallada">

@@ -60,7 +60,7 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importTitle.label "&brandShortName; Flytja inn póst">
 <!ENTITY importShortDesc.label "Flytja inn póst, nafnaskrár, stillingar, eða síur frá öðrum forritum">
 <!ENTITY importDescription1.label "Þessi hjálpargluggi flytur inn póst, nafnaskrár, stillingar, og/eða síur úr öðrum póstforritum og algengum nafnaskrám og setur inn í &brandShortName;.">
-<!ENTITY importDescription2.label "Um leið og efnið hefur verið flutt inn, geturðu haft aðgang að því með &brandShortName;.">
+<!ENTITY importDescription2.label "Um leið og efnið hefur verið flutt inn, færðu aðgang að því í með &brandShortName;.">
 <!ENTITY selectDescription.label "Veldu tegund skráar til að flytja inn:">
 <!ENTITY selectDescription.accesskey "V">
 <!ENTITY back.label "&lt; Til baka">

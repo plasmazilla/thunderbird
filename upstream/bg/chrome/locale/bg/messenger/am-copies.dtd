@@ -6,9 +6,14 @@
 <!ENTITY fccMailFolder.accesskey "О">
 <!ENTITY fccReplyFollowsParent.label "Оставя отговорите в папката на отговореното писмо">
 <!ENTITY fccReplyFollowsParent.accesskey "г">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Копие (Cc) до тези адреси:">
+<!ENTITY ccAddress.accesskey "К">
+<!ENTITY ccAddressList.emptytext "Разделяне на адресите със запетая">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "Скрито копие (Bcc) до тези адреси:">
 <!ENTITY bccAddress.accesskey "С">
+<!ENTITY bccAddressList.emptytext "Разделяне на адресите със запетая">
 <!ENTITY saveMessageDlg.label "Иска се потвърждение при запазване на писмата">
 <!ENTITY saveMessageDlg.accesskey "И">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->

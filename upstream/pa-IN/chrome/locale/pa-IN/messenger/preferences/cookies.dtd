@@ -1,6 +1,6 @@
 <!ENTITY window.width                      "36em">
 
-<!ENTITY cookiesonsystem.label             "ਤੁਹਾਡੇ ਕੰਪਿਊਟਰ ਉੱਤੇ ਹੇਠ ਦਿੱਤੇ ਕੂਕੀਜ਼ ਸਟੋਰ ਕੀਤੇ ਜਾ ਰਹੇ ਹਨ:">
+<!ENTITY cookiesonsystem.label             "ਅੱਗੇ ਦਿੱਤੇ ਕੂਕੀਜ਼ ਤੁਹਾਡੇ ਕੰਪਿਊਟਰ ਉੱਤੇ ਸਟੋਰ ਕੀਤੇ ਗਏ ਹਨ:">
 <!ENTITY cookiename.label                  "ਕੂਕੀਜ਼ ਨਾਂ">
 <!ENTITY cookiedomain.label                "ਸਾਈਟ">
 <!ENTITY button.removecookie.label         "ਕੂਕੀਜ਼ ਹਟਾਓ">
@@ -12,7 +12,7 @@
 <!ENTITY props.value.label                 "ਸਮੱਗਰੀ:">
 <!ENTITY props.domain.label                "ਹੋਸਟ:">
 <!ENTITY props.path.label                  "ਪਾਥ:">
-<!ENTITY props.secure.label                "ਭੇਜਿਆ:">
+<!ENTITY props.secure.label                "ਭੇਜਿਆ ਇਸ ਵਾਸਤੇ:">
 <!ENTITY props.expires.label               "ਮਿਆਦ:">
 
 <!ENTITY window.title                      "ਕੂਕੀਜ਼">
@@ -23,6 +23,6 @@
 <!ENTITY filter.label                      "ਖੋਜ:">
 <!ENTITY filter.accesskey                  "S">
 
-<!ENTITY button.close.label                " ਬੰਦ ਕਰੋ">
+<!ENTITY button.close.label                "ਬੰਦ ਕਰੋ">
 <!ENTITY button.close.accesskey            "C">
 

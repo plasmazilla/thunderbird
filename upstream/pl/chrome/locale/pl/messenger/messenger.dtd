@@ -107,7 +107,7 @@
 <!ENTITY folderPropsNewsgroupCmd.label     "Właściwości grupy dyskusyjnej…">
 <!ENTITY folderPropsCmd.accesskey          "i">
 <!ENTITY accountManagerCmd.label           "Konfiguracja kont…">
-<!ENTITY accountManagerCmd.accesskey       "g">
+<!ENTITY accountManagerCmd.accesskey       "n">
 <!ENTITY accountManagerCmdUnix.accesskey   "g">
 <!ENTITY undoDeleteMsgCmd.label            "Cofnij usunięcie wiadomości">
 <!ENTITY redoDeleteMsgCmd.label            "Ponownie usuń wiadomość">
@@ -141,8 +141,8 @@
 
 <!ENTITY folderView.label          "Foldery">
 <!ENTITY folderView.accesskey      "F">
-<!ENTITY smartFolders.label        "Pogrupowane">
-<!ENTITY smartFolders.accesskey    "P">
+<!ENTITY unifiedFolders.label      "Pogrupowane">
+<!ENTITY unifiedFolders.accesskey  "P">
 <!ENTITY allFolders.label          "Wszystkie">
 <!ENTITY allFolders.accesskey      "W">
 <!ENTITY unreadFolders.label       "Nieprzeczytane">
@@ -418,6 +418,9 @@
 <!ENTITY openMessageWindowCmd.label        "Otwórz wiadomość">
 <!ENTITY openMessageWindowCmd.accesskey    "z">
 <!ENTITY openMessageWindowCmd.key          "o">
+<!ENTITY openConversationCmd.label         "Otwórz wątek w karcie">
+<!ENTITY openConversationCmd.accesskey     "k">
+<!ENTITY openConversationCmd.key           "o">
 <!ENTITY openFeedMessage.label             "Otwórz artykuł">
 <!ENTITY openFeedMessage.accesskey         "z">
 <!ENTITY openFeedWebPageInWindow.label     "Strona w nowym oknie">
@@ -437,6 +440,9 @@
 <!ENTITY addons.accesskey                  "D">
 <!ENTITY activitymanager.label             "Menedżer aktywności">
 <!ENTITY activitymanager.accesskey         "M">
+<!ENTITY savedFiles.label                  "Zapisane pliki">
+<!ENTITY savedFiles.accesskey              "Z">
+<!ENTITY savedFiles.key                    "j">
 <!ENTITY messengerCmd.label                "Poczta i grupy dyskusyjne">
 <!ENTITY messengerCmd.accesskey            "P">
 <!ENTITY addressBookCmd.label              "Książka adresowa">
@@ -447,15 +453,15 @@
 <!ENTITY deleteJunk.label                  "Usuń niechciane wiadomości z folderu">
 <!ENTITY deleteJunk.accesskey              "e">
 <!ENTITY errorConsoleCmd.label             "Konsola błędów">
-<!ENTITY errorConsoleCmd.accesskey         "n">
+<!ENTITY errorConsoleCmd.accesskey         "s">
 <!ENTITY filtersCmd.label                  "Filtrowanie wiadomości…">
 <!ENTITY filtersCmd.accesskey              "F">
 <!ENTITY filtersApply.label                "Zastosuj filtry w bieżącym folderze">
-<!ENTITY filtersApply.accesskey            "Z">
+<!ENTITY filtersApply.accesskey            "b">
 <!ENTITY filtersApplyToSelection.label     "Zastosuj filtry do wybranych wiadomości">
 <!ENTITY filtersApplyToSelection.accesskey "w">
 <!ENTITY filtersApplyToMessage.label       "Zastosuj filtry do wiadomości">
-<!ENTITY filtersApplyToMessage.accesskey   "s">
+<!ENTITY filtersApplyToMessage.accesskey   "w">
 
 <!-- Mail Toolbar -->
 <!ENTITY getMsgButton.label     "Pobierz">
@@ -529,6 +535,8 @@
 <!ENTITY folderContextOpenNewWindow.accesskey   "O">
 <!ENTITY folderContextOpenNewTab.label          "Otwórz w nowej karcie">
 <!ENTITY folderContextOpenNewTab.accesskey      "w">
+<!ENTITY contextOpenConversation.label          "Otwórz wiadomość w karcie">
+<!ENTITY contextOpenConversation.accesskey      "O">
 <!ENTITY folderContextNew.label                 "Nowy podfolder…">
 <!ENTITY folderContextNew.accesskey             "N">
 <!ENTITY folderContextRename.label              "Zmień nazwę">
@@ -652,6 +660,13 @@
 <!ENTITY contextPrintPreview.label     "Podgląd wydruku">
 <!ENTITY contextPrintPreview.accesskey "g">
 
+<!-- Thread Pane Column Picker -->
+<!ENTITY columnPicker.resetToInbox.label             "Przywróć domyślne">
+<!ENTITY columnPicker.applyTo.label                  "Zastosuj ustawienia do…">
+<!ENTITY columnPicker.applyToFolder.label            "Folderu">
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Folderu i wszystkich folderów w nim zawartych">
+<!ENTITY columnPicker.thisFolder.label               "Tego folderu">
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label       "Odtwórz">
 <!ENTITY contextPlay.accesskey   "O">
@@ -676,12 +691,16 @@
 <!ENTITY removePhishingBarButton1.label "Zignoruj ostrzeżenie" >
 <!ENTITY reportPhishingError1.label     "Ta wiadomość nie wygląda na próbę oszustwa.">
 
-<!-- Search Bar -->
-<!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Wyszukiwanie we wszystkich wiadomościach">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label      "Nadawca tej wiadomości poprosił o potwierdzenie doręczenia wiadomości. Czy wysłać potwierdzenie doręczenia wiadomości?">
+<!ENTITY mdnBarIgnoreButton.label "Zignoruj prośbę">
+<!ENTITY mdnBarSendButton.label   "Prześlij potwierdzenie">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "więcej"><!-- ENTITY more.label "i inni" FIXME -->
+<!-- Quick Search Bar -->
+<!ENTITY quickSearchCmd.key                 "k">
+<!ENTITY searchAllMessages.label.base       "Wyszukiwanie wiadomości… #1">
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!ENTITY searchAllMessages.keyLabel2.mac    "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label             "Dodaj adres do książki adresowej">
@@ -722,8 +741,8 @@
 <!ENTITY selectAllCmd.accesskey      "a">
 <!ENTITY copyLinkCmd.label           "Kopiuj adres odnośnika">
 <!ENTITY copyLinkCmd.accesskey       "s">
-<!ENTITY copyImageCmd.label          "Kopiuj adres obrazka">
-<!ENTITY copyImageCmd.accesskey      "b">
+<!ENTITY copyImageAllCmd.label       "Kopiuj obrazek">
+<!ENTITY copyImageAllCmd.accesskey   "K">
 <!ENTITY copyEmailCmd.label          "Kopiuj adres e-mail">
 <!ENTITY copyEmailCmd.accesskey      "e">
 <!ENTITY stopCmd.label               "Zatrzymaj">

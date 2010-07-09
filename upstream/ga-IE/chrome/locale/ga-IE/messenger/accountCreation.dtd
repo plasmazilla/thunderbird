@@ -22,6 +22,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "IMAP - Faigh do chuid fillteán agus teachtaireachtaí ó ríomhairí éagsúla">
+<!ENTITY pop.description "POP - Íosluchtaigh teachtaireachtaí go dtí an ríomhaire seo, fillteáin logánta amháin">
+<!ENTITY recommended-appendix.label "(molta)">
 
 <!ENTITY manualSetup.label "Socrú De Láimh…">
 <!ENTITY manualSetup.accesskey "S">

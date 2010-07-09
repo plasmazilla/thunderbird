@@ -137,8 +137,8 @@
 
 <!ENTITY folderView.label "Carpetes">
 <!ENTITY folderView.accesskey "p">
-<!ENTITY smartFolders.label "Inteŀligent">
-<!ENTITY smartFolders.accesskey "I">
+<!ENTITY unifiedFolders.label "Unificades">
+<!ENTITY unifiedFolders.accesskey "n">
 <!ENTITY allFolders.label "Totes">
 <!ENTITY allFolders.accesskey "o">
 <!ENTITY unreadFolders.label "Per llegir">
@@ -419,6 +419,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "Obre el missatge">
 <!ENTITY openMessageWindowCmd.accesskey "O">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Obre'l en la conversa">
+<!ENTITY openConversationCmd.accesskey "s">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Obre el missatge del canal">
 <!ENTITY openFeedMessage.accesskey "O">
 <!ENTITY openFeedWebPageInWindow.label "Pàgina web en una nova finestra">
@@ -439,6 +442,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "m">
 <!ENTITY activitymanager.label "Gestor d'activitat">
 <!ENTITY activitymanager.accesskey "a">
+<!ENTITY savedFiles.label "Fitxers desats">
+<!ENTITY savedFiles.accesskey "d">
+<!ENTITY savedFiles.key "j">
 <!ENTITY messengerCmd.label "Missatgeria">
 <!ENTITY messengerCmd.accesskey "M">
 <!ENTITY addressBookCmd.label "Llibreta d'adreces">
@@ -498,7 +504,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY newMsgButton.tooltip "Crea un nou missatge">
 <!ENTITY replyButton.tooltip "Respon el missatge">
 <!ENTITY replyAllButton.tooltip "Respon al remitent i a tots els destinataris">
-<!ENTITY replyListButton.tooltip "Respon a una llista de destinataris">
+<!ENTITY replyListButton.tooltip "Respon a una llista de correu">
 <!ENTITY forwardButton.tooltip "Reenvia el missatge seleccionat">
 <!ENTITY fileButton.tooltip "Mou el missatge seleccionat">
 <!ENTITY archiveButton.tooltip "Arxiva els missatges seleccionats">
@@ -627,6 +633,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "f">
 <!ENTITY contextOpenNewTab.label "Obre el missatge en una pestanya nova">
 <!ENTITY contextOpenNewTab.accesskey "t">
+<!ENTITY contextOpenConversation.label "Obre el missatge en la conversa">
+<!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextEditAsNew.label "Edita'l com si fos nou…">
 <!ENTITY contextEditAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Arxiva">
@@ -656,6 +664,52 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "Exemple d'impressió">
 <!ENTITY contextPrintPreview.accesskey "e">
 
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "Restaura les columnes per defecte">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Aplica els canvis a…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "La carpeta…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "La carpeta i al seu contingut…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "Aquesta carpeta">
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "Reprodueix">
 <!ENTITY contextPlay.accesskey "R">
@@ -680,12 +734,36 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "Ignora l'avís">
 <!ENTITY reportPhishingError1.label "Aquest missatge no sembla ser fraudulent">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "més">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "El remitent d'aquest missatge ha soŀlicitat ser notificat quan llegiu aquest missatge. Voleu notificar el remitent?"> 
+<!ENTITY mdnBarIgnoreButton.label "Ignora la soŀlicitud">
+<!ENTITY mdnBarSendButton.label "Envia la notificació">
 
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Cerca tots els missatges">
+
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Cerca tots els missatges… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Afegeix a la llibreta d'adreces…">
@@ -726,8 +804,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "a">
 <!ENTITY copyLinkCmd.label "Copia l'enllaç">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY copyImageCmd.label "Copia la ubicació de la imatge">
-<!ENTITY copyImageCmd.accesskey "o">
+<!ENTITY copyImageAllCmd.label "Copia la imatge">
+<!ENTITY copyImageAllCmd.accesskey "o">
 <!ENTITY copyEmailCmd.label "Copia l'adreça electrònica">
 <!ENTITY copyEmailCmd.accesskey "e">
 <!ENTITY stopCmd.label "Atura">

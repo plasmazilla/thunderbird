@@ -1,5 +1,3 @@
-<!--LOCALIZATION NOTE msgViewPickerOverlay.dtd UI for showing various views on a folder -->
-
 <!ENTITY viewPicker.label "Προβολή:">
 <!ENTITY viewPicker.accesskey "β">
 <!ENTITY viewAll.label "Όλα">

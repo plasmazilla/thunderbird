@@ -6,9 +6,14 @@
 <!ENTITY fccMailFolder.accesskey "G">
 <!ENTITY fccReplyFollowsParent.label "Gorde erantzunak erantzuten ari den mezuaren karpetan">
 <!ENTITY fccReplyFollowsParent.accesskey "d">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Bidali kopia (Cc) helbide hauetara:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.emptytext "Helbideak komaz banandu">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "Bidali ezkutuko kopia (Bcc) helbide hauetara:">
 <!ENTITY bccAddress.accesskey "B">
+<!ENTITY bccAddressList.emptytext "Helbideak komaz banandu">
 <!ENTITY saveMessageDlg.label "Erakutsi berresteko elkarrizketa-koadroa mezuak gordetzean">
 <!ENTITY saveMessageDlg.accesskey "s">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->

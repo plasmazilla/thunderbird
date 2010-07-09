@@ -37,11 +37,11 @@
    - ***** END LICENSE BLOCK ***** -->
 
 <!ENTITY WindowTitle.label              "Avansearre eigenskippen">
-<!ENTITY AttName.label                  "Attribút: ">
+<!ENTITY AttName.label                  "Attribuut: ">
 <!ENTITY AttValue.label                 "Wearde: ">
 <!ENTITY PropertyName.label             "Eigenskip: ">
 <!ENTITY currentattributesfor.label     "Aktuele attributen foar: ">
-<!ENTITY tree.attributeHeader.label     "Attribút">
+<!ENTITY tree.attributeHeader.label     "Attribuut">
 <!ENTITY tree.propertyHeader.label      "Eigenskip">
 <!ENTITY tree.valueHeader.label         "Wearde">
 <!ENTITY tabHTML.label                  "HTML-attributen">

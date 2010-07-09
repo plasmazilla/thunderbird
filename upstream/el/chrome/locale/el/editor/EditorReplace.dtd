@@ -21,6 +21,7 @@
    -
    - Contributor(s):
    -   Akkana Peck
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -35,9 +36,6 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-<!-- extracted from EdReplace.xul -->
-
-
 <!ENTITY replaceDialog.title "Εύρεση και Αντικατάσταση">
 <!ENTITY findField.label "Εύρεση του κειμένου:">
 <!ENTITY findField.accesskey "κ">

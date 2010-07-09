@@ -1,57 +1,48 @@
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
 %brandDTD;
 
-<!ENTITY loadError.label "Problem loading page">
-<!ENTITY retry.label "Try Again">
+<!ENTITY loadError.label "Kan nie die bladsy laai nie">
+<!ENTITY retry.label "Probeer weer">
 <!-- Specific error messages -->
 
 
-<!ENTITY connectionFailure.title "Unable to connect">
+<!ENTITY connectionFailure.title "Kan nie koppel nie">
 <!ENTITY connectionFailure.longDesc "&sharedLongDesc;">
 
-<!ENTITY deniedPortAccess.title "This address is restricted">
+<!ENTITY deniedPortAccess.title "Hierdie adres het beperkings op">
 <!ENTITY deniedPortAccess.longDesc "">
 
-<!ENTITY dnsNotFound.title "Server not found">
-<!ENTITY dnsNotFound.longDesc "
-<ul>
-  <li>Check the address for typing errors such as
-    <strong>ww</strong>.example.com instead of
-    <strong>www</strong>.example.com</li>
-  <li>If you are unable to load any pages, check your computer's network
-    connection.</li>
-  <li>If your computer or network is protected by a firewall or proxy, make sure
-    that &brandShortName; is permitted to access the Web.</li>
-</ul>
-">
+<!ENTITY dnsNotFound.title "Bediener nie gevind nie">
+<!ENTITY dnsNotFound.longDesc "<ul> <li>Kontroleer die adres vir tikfoute soos 
+<strong>ww</strong>.example.com in plaas van 
+<strong>www</strong>.example.com</li> 
+<li>Indien u nie bladsye kan laai nie, kontroleer u rekenaar se 
+netwerkverbinding.</li> 
+<li>Indien u rekenaar of netwerk deur 'n brandmuur of instaanbediener beskerm word, maak seker dat 
+&brandShortName; toegelaat word om toegang tot die web te verkry.</li> 
+</ul>">
 
-<!ENTITY fileNotFound.title "File not found">
-<!ENTITY fileNotFound.longDesc "
-<ul>
-  <li>Check the file name for capitalization or other typing errors.</li>
-  <li>Check to see if the file was moved, renamed or deleted.</li>
-</ul>
-">
+<!ENTITY fileNotFound.title "Lêer nie gevind nie">
+<!ENTITY fileNotFound.longDesc "<ul> 
+<li>Kontroleer die lêernaam vir bokas of onderkas of ander tikfoute.</li> 
+<li>Kontroleer of die lêer verskuif, hernoem of geskrap is.</li> 
+</ul>">
 
-<!ENTITY generic.title "Oops.">
-<!ENTITY generic.longDesc "
-<p>&brandShortName; can't load this page for some reason.</p>
-">
+<!ENTITY generic.title "Oeps.">
+<!ENTITY generic.longDesc "<p>&brandShortName; kan om een of ande rrede nie dié bladsy laai nie.</p>">
 
-<!ENTITY malformedURI.title "The address isn't valid">
-<!ENTITY malformedURI.longDesc "
-<ul>
-  <li>Web addresses are usually written like
-    <strong>http://www.example.com/</strong></li>
-  <li>Make sure that you're using forward slashes (i.e.
-    <strong>/</strong>).</li>
-</ul>
-">
+<!ENTITY malformedURI.title "Die adres is ongeldig">
+<!ENTITY malformedURI.longDesc "<ul> 
+<li>Webadresse word gewoonlik só geskryf 
+<strong>http://www.voorbeeld.com/</strong></li> 
+<li>Maak seker u gebruik vorentoe-skuinsstrepe (d.i. 
+<strong>/</strong>).</li> 
+</ul>">
 
-<!ENTITY netInterrupt.title "The connection was interrupted">
+<!ENTITY netInterrupt.title "Die verbinding is onderbreek">
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
-<!ENTITY netOffline.title "Offline mode">
+<!ENTITY netOffline.title "Aflynmodus">
 <!ENTITY netOffline.longDesc "<ul> 
 <li>Sit &brandShortName; in aanlynmodus, en probeer weer.</li> 
 </ul>">
@@ -66,54 +57,44 @@
 <li>Kontak die webwerf se eienaar om hom oor die probleem in te lig.</li> 
 </ul>">
 
-<!ENTITY netReset.title "The connection was reset">
+<!ENTITY netReset.title "Die verbinding is teruggestel">
 <!ENTITY netReset.longDesc "&sharedLongDesc;">
 
-<!ENTITY netTimeout.title "The connection has timed out">
+<!ENTITY netTimeout.title "Die verbinding het uitgetel">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "The address wasn't understood">
-<!ENTITY protocolNotFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
+<!ENTITY protocolNotFound.title "Die adres is nie verstaan nie">
+<!ENTITY protocolNotFound.longDesc "<ul> 
+<li>Dalk moet u ander sagteware installeer om hierdie adres te open.</li>
+</ul>">
 
-<!ENTITY proxyConnectFailure.title "The proxy server is refusing connections">
-<!ENTITY proxyConnectFailure.longDesc "
-<ul>
-  <li>Check the proxy settings to make sure that they are correct.</li>
-  <li>Contact your network administrator to make sure the proxy server is
-    working.</li>
-</ul>
-">
+<!ENTITY proxyConnectFailure.title "Die instaanbediener weier verbindings">
+<!ENTITY proxyConnectFailure.longDesc "<ul> 
+<li>Kontroleer die instaanopstelling om te verseker dat dit korrek is.</li> 
+<li>Kontak u netwerkadministrateur om te verseker dat die instaanbediener 
+werk.</li>
+</ul>">
 
-<!ENTITY proxyResolveFailure.title "Unable to find the proxy server">
-<!ENTITY proxyResolveFailure.longDesc "
-<ul>
-  <li>Check the proxy settings to make sure that they are correct.</li>
-  <li>Check to make sure your computer has a working network connection.</li>
-  <li>If your computer or network is protected by a firewall or proxy, make sure
-    that &brandShortName; is permitted to access the Web.</li>
-</ul>
-">
+<!ENTITY proxyResolveFailure.title "Kan nie die instaanbediener vind nie">
+<!ENTITY proxyResolveFailure.longDesc "<ul> 
+<li>Kontroleer die instaanopstelling om te verseker dat dit korrek is.</li> 
+<li>Kontroleer of u rekenaar 'n werkende netwerkverbinding het.</li> 
+<li>Indien u rekenaar of netwerk deur 'n brandmuur of instaanbediener beskerm word, 
+maak seker dat &brandShortName; toegelaat word om toegang tot die web te verkry.</li> 
+</ul>">
 
-<!ENTITY redirectLoop.title "The page isn't redirecting properly">
-<!ENTITY redirectLoop.longDesc "
-<ul>
-  <li>This problem can sometimes be caused by disabling or refusing to accept
-    cookies.</li>
-</ul>
-">
+<!ENTITY redirectLoop.title "Die bladsy herverwys nie behoorlik nie">
+<!ENTITY redirectLoop.longDesc "<ul> 
+<li>Hierdie probleem kan soms veroorsaak word deur koekies te deaktiveer of 
+te weier om koekies te aanvaar.</li> 
+</ul>">
 
-<!ENTITY unknownSocketType.title "Unexpected response from server">
-<!ENTITY unknownSocketType.longDesc "
-<ul>
-  <li>Check to make sure your system has the Personal Security Manager
-    installed.</li>
-  <li>This might be due to a non-standard configuration on the server.</li>
-</ul>
-">
+<!ENTITY unknownSocketType.title "Onverwagse respons vanaf bediener">
+<!ENTITY unknownSocketType.longDesc "<ul> 
+<li>Kontroleer of die persoonlike sekuriteitbestuurder op u rekenaar 
+geïnstalleer is.</li> 
+<li>Dit kan wees vanweë 'n niestandaard-opstelling op die bediener.</li> 
+</ul>">
 
 <!ENTITY nssFailure2.title "Kon nie beveilig koppel nie">
 <!ENTITY nssFailure2.longDesc "<ul> 
@@ -122,48 +103,40 @@
 </ul>">
 
 <!ENTITY nssBadCert.title "Kon nie beveilig koppel nie">
-<!ENTITY nssBadCert.longDesc2 "
-<ul>
-  <li>This could be a problem with the server's configuration, or it could be
-someone trying to impersonate the server.</li>
-  <li>If you have connected to this server successfully in the past, the error may
-be temporary, and you can try again later.</li>
-</ul>
-">
+<!ENTITY nssBadCert.longDesc2 "<ul> 
+<li>Dit kan 'n probleem wees met die bediener se opstelling, of dit is dalk 
+iemand wat voorgee om die bediener te wees.</li> 
+<li>Indien u in die verlede suksesvol aan dié bediener gekoppel het, kan die fout 
+tydelik wees. Probeer gerus later.</li> 
+</ul>">
 
-<!ENTITY sharedLongDesc "
-<ul>
-  <li>The site could be temporarily unavailable or too busy. Try again in a few
-    moments.</li>
-  <li>If you are unable to load any pages, check your computer's network
-    connection.</li>
-  <li>If your computer or network is protected by a firewall or proxy, make sure
-    that &brandShortName; is permitted to access the Web.</li>
-</ul>
-">
+<!ENTITY sharedLongDesc "<ul> 
+<li>Die werf is moontlik tydelik onbeskikbaar of te besig. Probeer weer oor 'n paar 
+sekondes.</li> 
+<li>Indien u geen bladsye kan laai nie, kontroleer u rekenaar se 
+netwerkverbinding.</li> 
+<li>Indien u rekenaar of netwerk deur 'n brandmuur of instaanbediener beskerm word, 
+maak seker dat &brandShortName; toegelaat word om toegang tot die web te verkry.</li>
+</ul>">
 
 <!ENTITY malwareBlocked.title "Vermoedelik 'n aanvalswerf!">
 <!ENTITY malwareBlocked.longDesc "<p>Aanvalswerwe probeer programme installeer wat private inligting steel, u rekenaar gebruik om ander aan te val, of u stelsel beskadig.</p> 
 <p>Webwerfeienaars wat meen dat hul werf foutief as 'n aanvalswerf aangegee is, kan 'n <a href='http://www.stopbadware.org/home/reviewinfo'>hersiening aanvra</a>.</p>">
 
 <!ENTITY phishingBlocked.title "Moontlike webnamaaksel!">
-<!ENTITY phishingBlocked.longDesc "
-<p>Entering any personal information on this page may result in identity theft or other fraud.</p>
-<p>These types of web forgeries are used in scams known as phishing attacks, in which fraudulent web pages and emails are used to imitate sources you may trust.</p>
-">
+<!ENTITY phishingBlocked.longDesc "<p>As u enige persoonlike inligting op hierdie bladsy intik, kan dit lei tot identiteitdiefstal of ander bedrog.</p> 
+<p>Hierdie soort kwaadwillige na-apery word gebruik in slap rieme genaamd uitvissing, waarin bedrieglike webwerwe en e-posse gebruik word om bronne na te aap wat u vertrou.</p>">
 
-<!ENTITY securityOverride.linkText "Or you can add an exception…">
-<!ENTITY securityOverride.getMeOutOfHereButton "Get me out of here!">
-<!ENTITY securityOverride.exceptionButtonLabel "Add Exception…">
+<!ENTITY securityOverride.linkText "Of u kan 'n uitsondering byvoeg…">
+<!ENTITY securityOverride.getMeOutOfHereButton "Eina! Laat ek weg wees!">
+<!ENTITY securityOverride.exceptionButtonLabel "Voeg uitsondering by…">
 <!-- LOCALIZATION NOTE (securityOverride.warningText) - Do not translate the
 contents of the <xul:button> tags.  The only language content is the label= field,
 which uses strings already defined above. The button is included here (instead of
 netError.xhtml) because it exposes functionality specific to thunderbird. -->
 
 
-<!ENTITY securityOverride.warningText "
-<p>You should not add an exception if you are using an internet connection that you do not trust completely or if you are not used to seeing a warning for this server.</p>
-
-<xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='getMeOutOfHereButton' label='&securityOverride.getMeOutOfHereButton;'/>
-<xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='exceptionDialogButton' label='&securityOverride.exceptionButtonLabel;'/>
-">
+<!ENTITY securityOverride.warningText "<p>U moenie 'n uitsondering byvoeg as u 'n internetverbinding gebruik wat u nie heeltemal vertrou nie of as u nie gewoonlik 'n waarskuwing vir hierdie bediener ontvang nie.</p> 
+ 
+<xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='getMeOutOfHereButton' label='&securityOverride.getMeOutOfHereButton;'/> 
+<xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='exceptionDialogButton' label='&securityOverride.exceptionButtonLabel;'/>">

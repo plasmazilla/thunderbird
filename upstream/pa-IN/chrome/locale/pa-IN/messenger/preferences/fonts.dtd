@@ -23,11 +23,11 @@
 <!ENTITY  font.langGroup.latin1                   "ਪੱਛਮੀ">
 <!ENTITY  font.langGroup.latin2                   "ਕੇਂਦਰੀ ਯੂਰਪੀ">
 <!ENTITY  font.langGroup.japanese                 "ਜਾਪਾਨੀ">
-<!ENTITY  font.langGroup.trad-chinese             "ਪੁਰਾਤਨ ਚੀਨੀ (ਤਾਈਵਾਨ)">
-<!ENTITY  font.langGroup.simpl-chinese            "ਸਧਾਰਨ ਚੀਨੀ">
-<!ENTITY  font.langGroup.trad-chinese-hk          "ਪੁਰਾਤਨ ਚੀਨੀ (ਹਾਂਗਕਾਂਗ)">
-<!ENTITY  font.langGroup.korean                   "ਕੋਰੀਆਈ">
-<!ENTITY  font.langGroup.cyrillic                 "ਸਿਰਲਿਕ">
+<!ENTITY  font.langGroup.trad-chinese             "Traditional Chinese (Taiwan)">
+<!ENTITY  font.langGroup.simpl-chinese            "Simplified Chinese">
+<!ENTITY  font.langGroup.trad-chinese-hk          "Traditional Chinese (Hong Kong)">
+<!ENTITY  font.langGroup.korean                   "Korean">
+<!ENTITY  font.langGroup.cyrillic                 "Cyrillic">
 <!ENTITY  font.langGroup.baltic                   "ਬਾਲਟਿਕ">
 <!ENTITY  font.langGroup.el                       "ਗਰੀਕ">
 <!ENTITY  font.langGroup.turkish                  "ਤੁਰਕ">
@@ -38,10 +38,10 @@
 <!ENTITY  font.langGroup.arabic                   "ਅਰਬੀ">
 <!ENTITY  font.langGroup.devanagari               "ਦੇਵਨਾਗਰੀ">
 <!ENTITY  font.langGroup.tamil                    "ਤਾਮਿਲ">
-<!ENTITY  font.langGroup.armenian                 "ਅਰਮੀਨੀਆਈ">
+<!ENTITY  font.langGroup.armenian                 "Armenian">
 <!ENTITY  font.langGroup.bengali                  "ਬੰਗਾਲੀ">
-<!ENTITY  font.langGroup.canadian                 "ਯੂਨੀਫਾਈਡ ਕੈਨੇਡੀਆਈ ਸਲੇਬਰੀ">
-<!ENTITY  font.langGroup.ethiopic                 "ਇਥੋਪੀਆਈ">
+<!ENTITY  font.langGroup.canadian                 "Unified Canadian Syllabary">
+<!ENTITY  font.langGroup.ethiopic                 "Ethiopic">
 <!ENTITY  font.langGroup.georgian                 "ਜਾਰਜੀਆਈ">
 <!ENTITY  font.langGroup.gujarati                 "ਗੁਜਰਾਤੀ">
 <!ENTITY  font.langGroup.gurmukhi                 "ਗੁਰਮੁਖੀ">
@@ -59,18 +59,18 @@
 
 <!-- fonts in message -->
 <!ENTITY  fontControl.label                       "ਫੋਂਟ ਕੰਟਰੋਲ">
-<!ENTITY  useFixedWidthForPlainText.label         "ਪਲੇਨ ਟੈਕਸਟ ਸੁਨੇਹਿਆਂ ਲਈ ਸਥਿਰ ਚੌੜਾਈ ਫੋਂਟ ਵਰਤੋਂ">
+<!ENTITY  useFixedWidthForPlainText.label         "Use fixed width font for plain text messages">
 <!ENTITY  fixedWidth.accesskey                    "x">
-<!ENTITY  useDocumentFonts.label                  "ਸੁਨੇਹਿਆਂ ਨੂੰ ਹੋਰ ਫੋਂਟ ਵਰਤਣ ਦੀ ਇਜ਼ਾਜ਼ਤ ਦਿਓ">
+<!ENTITY  useDocumentFonts.label                  "Allow messages to use other fonts">
 <!ENTITY  useDocumentFonts.accesskey              "o">
 
 <!-- Language settings -->
 <!ENTITY sendDefaultCharset.label         "ਜਾ ਰਹੀ ਮੇਲ:">
 <!ENTITY sendDefaultCharset.accesskey     "u">
 <!ENTITY languagesTitle1.label            "ਅੱਖਰ ਇੰਕੋਡਿੰਗ">
-<!ENTITY composingDescription.label       "ਭੇਜੇ ਜਾਣ ਵਾਲੇ ਅਤੇ ਆਉਣ ਵਾਲੇ ਪੱਤਰਾਂ ਲਈ ਡਿਫਾਲਟ ਅੱਖਰ ਇੰਕੋਡਿੰਗ ਸੈੱਟ ਕਰੋ">
+<!ENTITY composingDescription.label       "Set the default character encodings for sending and receiving mail">
 
 <!ENTITY viewDefaultCharsetList.label     "ਆਉਣ ਵਾਲੀ ਮੇਲ:">
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
-<!ENTITY replyInDefaultCharset2.label     "ਜਦੋਂ ਵੀ ਸੰਭਵ ਹੋਵੇ, ਜਵਾਬ ਵਿੱਚ ਡਿਫਾਲਟ ਅੱਖਰ ਇੰਕੋਡਿੰਗ ਵਰਤੋਂ">
+<!ENTITY replyInDefaultCharset2.label     "When possible, use the default character encoding in replies">
 <!ENTITY replyInDefaultCharset2.accesskey "h">

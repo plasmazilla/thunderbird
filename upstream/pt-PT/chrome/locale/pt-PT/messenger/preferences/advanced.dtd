@@ -8,7 +8,7 @@
 
 <!ENTITY enableGlodaSearch.label       "Activar pesquisa global e indexador">
 <!ENTITY enableGlodaSearch.accesskey   "i">
-<!ENTITY systemIntegration.label          "Integração do Sistema">
+<!ENTITY systemIntegration.label          "Integração do sistema">
 <!ENTITY alwaysCheckDefault.label      "Ao iniciar, verificar se o &brandShortName; é o programa de correio pré-definido">
 <!ENTITY alwaysCheckDefault.accesskey  "o">
 <!ENTITY searchIntegration.label       "Permitir &searchIntegration.engineName; para pesquisar mensagens">
@@ -70,7 +70,7 @@
 <!ENTITY proxiesConfigure.label "Indique como é que o &brandShortName; se liga à internet.">
 <!ENTITY connectionsInfo.caption "Ligação">
 <!ENTITY offlineInfo.caption "Modo Desligado">
-<!ENTITY offlineInfo.label "Configurar o Modo Desligado.">
+<!ENTITY offlineInfo.label "Configurar o modo desligado.">
 <!ENTITY showOffline.label "Desligado...">
 <!ENTITY showOffline.accesskey "D">
 
@@ -88,7 +88,7 @@
 <!ENTITY useCacheBefore.label            "Usar até">
 <!ENTITY useCacheBefore.accesskey        "U">
 <!ENTITY useCacheAfter.label             "MB de espaço para a cache">
-<!ENTITY clearCacheNow.label             "Limpar Agora">
+<!ENTITY clearCacheNow.label             "Limpar agora">
 <!ENTITY clearCacheNow.accesskey         "L">
 
 <!-- Certificates -->
@@ -98,9 +98,9 @@
 <!ENTITY certs.ask                       "Perguntar-me de cada vez">
 <!ENTITY certs.ask.accesskey             "P">
 
-<!ENTITY viewCertificates.label "Ver Certificados">
+<!ENTITY viewCertificates.label "Ver certificados">
 <!ENTITY viewCertificates.accesskey "e">
-<!ENTITY viewCRLs.label "Listas de Revogação">
+<!ENTITY viewCRLs.label "Listas de revogação">
 <!ENTITY viewCRLs.accesskey "r">
 <!ENTITY validation.label "Validação">
 <!ENTITY validation.accesskey "i">

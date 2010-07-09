@@ -23,7 +23,7 @@
 
 <!ENTITY spellCheck.label                     "යැවීමට පෙර අක්ෂර වින්‍යාසය පරීක්ෂා කරන්න">
 <!ENTITY spellCheck.accesskey                 "C">
-<!ENTITY spellCheckInline.label               "ලියන විටදීම අක්ෂර වින්‍යාස පරීක්ෂාව සබල කරන්න">
+<!ENTITY spellCheckInline.label               "ලියන විටදීම අක්ෂර වින්‍යාස පරීක්ෂාව බලැති කරන්න">
 <!ENTITY spellCheckInline1.accesskey           "k">
 <!ENTITY languagePopup.label                  "භාෂාව:">
 <!ENTITY languagePopup.accessKey              "g">
@@ -33,26 +33,26 @@
 <!ENTITY warnOnSendAccelKey.accesskey         "i">
 <!ENTITY autoSave.label                       "සෑම විනාඩි ">
 <!ENTITY autoSave.accesskey                   "u">
-<!ENTITY autoSaveEnd.label                    "කට වරක් ස්වයංව සුරකින්න">
+<!ENTITY autoSaveEnd.label                    "ට වරක් ස්වයංව සුරකින්න">
 <!-- LOCALIZATION NOTE (wrapOutMsg.label): This will concatenate with "xxx characters", using a number and (char.label). -->
 
 <!ENTITY emailCollectionPicker.label           "ලිපි යවන ලිපින ස්වයංක්‍රීයවම එක් කරන්නේ මගේ:">
 <!ENTITY emailCollectionPicker.accesskey       "t">
-<!ENTITY addressingTitle.label                 "ලිපින ස්වයංපූර්ණය">
+<!ENTITY addressingTitle.label                 "ලිපින ස්වයං-පූර්ණය">
 <!ENTITY autocompleteText.label                "ලිපින යෙදීමේදී, ගැලපෙන යෙදීම් බලන්නේ:">
 <!ENTITY addressingEnable.label                "ස්ථානීය (Local) ලිපින පොත්">
 <!ENTITY addressingEnable.accesskey            "A">
-<!ENTITY directories.label                     "නාමාවලි (Directories) සේවාදායකය:">
+<!ENTITY directories.label                     "ඩිරෙක්ටරි සේවාදායකය:">
 <!ENTITY directories.accesskey                 "D">
 <!ENTITY directoriesNone.label                 "කිසිවක් නැත">
-<!ENTITY editDirectories.label                 "නාමාවලි (Directories) සැකසුම්...">
+<!ENTITY editDirectories.label                 "ඩිරෙක්ටරි සැකසුම්...">
 <!ENTITY editDirectories.accesskey             "E">
 
 <!ENTITY sendOptionsDescription.label          "පාඨ හැඩතල හැසිරීම් වින්‍යාස කිරීම">
 <!ENTITY sendOptions.label                     "යැවීම් විකල්ප...">
 <!ENTITY sendOptions.accesskey                 "S">
 
-<!ENTITY attachmentReminder.label              "මඟහැරුණු ඇමුණුම් සඳහා පරීක්ෂා කරන්න">
+<!ENTITY attachmentReminder.label              "මඟහැරුනු ඇමුණුම් සඳහා පරීක්ෂා කරන්න">
 <!ENTITY attachmentReminder.accesskey          "m">
 <!ENTITY attachmentReminderOptions.label       "මූලපද (Keywords)…">
 <!ENTITY attachmentReminderOptions.accesskey   "K">

@@ -50,5 +50,5 @@
 <!ENTITY makeUrlRelative.tooltip "Canvia entre URL relatiu i absolut. Per canviar-ho, cal que deseu primer la pàgina.">
 
 <!-- Shared by Link and Image dialogs -->
-<!ENTITY LinkURLEditField.label "Introduïu la ubicació d'una pàgina web, un fitxer local, o seleccioneu una àncora o encapçalament de la llista:">
+<!ENTITY LinkURLEditField.label "Introduïu la ubicació d'una pàgina web, un fitxer local, o seleccioneu un objectiu amb nom o capçalera de la llista emergent:">
 <!ENTITY LinkURLEditField.accessKey "u">

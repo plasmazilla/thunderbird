@@ -82,17 +82,17 @@
 <!ENTITY findPrevCmd.accesskey "S">
 <!ENTITY viewMenu.label "Tampilan">
 <!ENTITY viewMenu.accesskey "T">
-<!ENTITY viewToolbarsMenuNew.label "Toolbar">
+<!ENTITY viewToolbarsMenuNew.label "Bilah Alat">
 <!ENTITY viewToolbarsMenuNew.accesskey "T">
-<!ENTITY showCompositionToolbarCmd.label "Toolbar Komposisi">
+<!ENTITY showCompositionToolbarCmd.label "Bilah Alat Komposisi">
 <!ENTITY showCompositionToolbarCmd.accesskey "K">
-<!ENTITY showFormattingBarCmd.label "Bar Format">
+<!ENTITY showFormattingBarCmd.label "Bilah Format">
 <!ENTITY showFormattingBarCmd.accesskey "F">
-<!ENTITY showTaskbarCmd.label "Bar Status">
+<!ENTITY showTaskbarCmd.label "Bilah Status">
 <!ENTITY showTaskbarCmd.accesskey "S">
 <!ENTITY customizeToolbar.label "Suka-suka…">
 <!ENTITY customizeToolbar.accesskey "S">
-<!ENTITY addressSidebar.label "Bar Samping Daftar Kenalan">
+<!ENTITY addressSidebar.label "Bilah Samping Daftar Kenalan">
 <!ENTITY addressSidebar.accesskey "K">
 <!ENTITY formatMenu.label "Format">
 <!ENTITY formatMenu.accesskey "o">

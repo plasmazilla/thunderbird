@@ -11,7 +11,7 @@
 <!ENTITY importDialog.windowTitle "Importo">
 <!ENTITY  window.width            "40em">
 <!ENTITY  window.macWidth         "45em">
-<!ENTITY importHome.label        "Shtëpie">
+<!ENTITY importHome.label        "Banese">
 <!ENTITY importHome.accesskey    "t">
 <!ENTITY importWork.label        "Pune">
 <!ENTITY importWork.accesskey    "N">

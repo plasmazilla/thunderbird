@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "r">
 
 <!ENTITY otherActionsButton.label "alte acțiuni">
-<!ENTITY otherActionsShowConversation.label "arată ca conversație">
-<!ENTITY otherActionsShowConversation.accesskey "c">
+<!ENTITY otherActionsOpenConversation.label "open in conversation">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow.label "deschide într-o fereastră nouă">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "d">
 <!ENTITY otherActionsOpenInNewTab.label "deschide într-o filă nouă">

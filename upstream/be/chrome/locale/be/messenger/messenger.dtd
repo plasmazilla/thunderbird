@@ -1,5 +1,5 @@
 <!ENTITY messengerWindow.title "Пошта і Навінакупы">
-<!ENTITY titledefault.label "&brandShortName;">
+<!ENTITY titledefault.label "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!ENTITY newFolderCmd.label "Папка…">
 <!ENTITY newFolderCmd.accesskey "П">
@@ -52,7 +52,7 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "П">
 <!ENTITY synchronizeOfflineCmd.label "Загрузіць і сінхранізаваць зараз…">
 <!ENTITY synchronizeOfflineCmd.accesskey "с">
-<!ENTITY settingsOfflineCmd.label "Наладкі працы па-за сеткаю…">
+<!ENTITY settingsOfflineCmd.label "Наладжванні працы па-за сеткаю…">
 <!ENTITY settingsOfflineCmd.accesskey "Н">
 <!ENTITY downloadSelectedCmd.label "Атрымаць вылучаныя лісты">
 <!ENTITY downloadSelectedCmd.accesskey "л">
@@ -124,8 +124,8 @@
 <!ENTITY showMessageCmd.accesskey "ш">
 <!ENTITY folderView.label "Папкі">
 <!ENTITY folderView.accesskey "П">
-<!ENTITY smartFolders.label "Зграбныя">
-<!ENTITY smartFolders.accesskey "З">
+<!ENTITY unifiedFolders.label "Аб'яднаныя">
+<!ENTITY unifiedFolders.accesskey "я">
 <!ENTITY allFolders.label "Усе">
 <!ENTITY allFolders.accesskey "У">
 <!ENTITY unreadFolders.label "Непрачытаныя">
@@ -387,6 +387,9 @@
 <!ENTITY openMessageWindowCmd.label "Адчыніць ліст">
 <!ENTITY openMessageWindowCmd.accesskey "А">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Адкрыць у гутарцы">
+<!ENTITY openConversationCmd.accesskey "т">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Адкрыць ліст з жывільніка">
 <!ENTITY openFeedMessage.accesskey "ж">
 <!ENTITY openFeedWebPageInWindow.label "Старонку Сеціва ў новым акне">
@@ -407,6 +410,9 @@
 <!ENTITY addons.accesskey "д">
 <!ENTITY activitymanager.label "Кіраўнік дзейнасці">
 <!ENTITY activitymanager.accesskey "д">
+<!ENTITY savedFiles.label "Захаваныя файлы">
+<!ENTITY savedFiles.accesskey "ф">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Сіты лістоў…">
 <!ENTITY filtersCmd.accesskey "С">
 <!ENTITY filtersApply.label "Ужыць сіты на папцы">
@@ -572,6 +578,8 @@
 <!ENTITY contextOpenNewWindow.accesskey "А">
 <!ENTITY contextOpenNewTab.label "Адчыніць ліст у новай устаўцы">
 <!ENTITY contextOpenNewTab.accesskey "у">
+<!ENTITY contextOpenConversation.label "Адкрыць ліст у гутарцы">
+<!ENTITY contextOpenConversation.accesskey "г">
 <!ENTITY contextEditAsNew.label "Рэдагаваць як новы…">
 <!ENTITY contextEditAsNew.accesskey "Р">
 <!ENTITY contextArchive.label "Архіў">
@@ -600,6 +608,11 @@
 <!ENTITY contextPrint.accesskey "Д">
 <!ENTITY contextPrintPreview.label "Папярэдні прагляд друку">
 <!ENTITY contextPrintPreview.accesskey "п">
+<!ENTITY columnPicker.resetToInbox.label "Узнавіць змоўчныя слупкі">
+<!ENTITY columnPicker.applyTo.label "Ужыць слупкі…">
+<!ENTITY columnPicker.applyToFolder.label "Папка…">
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Папка і яе нашчадкі…">
+<!ENTITY columnPicker.thisFolder.label "Гэтая папка">
 <!ENTITY contextPlay.label "Граць">
 <!ENTITY contextPlay.accesskey "Г">
 <!ENTITY contextPause.label "Прыпыніць">
@@ -616,9 +629,13 @@
 <!ENTITY phishingBarMessage2.label "Гэты ліст можа быць ашукай.">
 <!ENTITY removePhishingBarButton1.label "Ігнараваць папярэджанне">
 <!ENTITY reportPhishingError1.label "Гэты ліст не падобны на ашуку.">
-<!ENTITY more.label "больш">
+<!ENTITY mdnBarMessage.label "Адпраўнік гэтага ліста просіць паведаміць яму, што вы прачыталі гэты ліст. Вы хочаце паведаміць адпраўніку аб прачытанні?">
+<!ENTITY mdnBarIgnoreButton.label "Ігнараваць запыт">
+<!ENTITY mdnBarSendButton.label "Даслаць квіток">
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Пошук усіх лістоў">
+<!ENTITY searchAllMessages.label.base "Шукаць усе лісты… #1">
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;⌘K&gt;">
 <!ENTITY AddToAddressBook.label "Дадаць у адрасную кнігу…">
 <!ENTITY AddToAddressBook.accesskey "к">
 <!ENTITY AddDirectlyToAddressBook.label "Дадаць у адрасную кнігу">
@@ -655,8 +672,8 @@
 <!ENTITY selectAllCmd.accesskey "у">
 <!ENTITY copyLinkCmd.label "Капіяваць месцазнаходжанне спасылкі">
 <!ENTITY copyLinkCmd.accesskey "с">
-<!ENTITY copyImageCmd.label "Капіяваць месцазнаходжанне малюнка">
-<!ENTITY copyImageCmd.accesskey "м">
+<!ENTITY copyImageAllCmd.label "Капіяваць малюнак">
+<!ENTITY copyImageAllCmd.accesskey "м">
 <!ENTITY copyEmailCmd.label "Капіяваць адрас э-пошты">
 <!ENTITY copyEmailCmd.accesskey "э">
 <!ENTITY stopCmd.label "Прыпыніць">

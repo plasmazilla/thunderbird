@@ -20,4 +20,4 @@
 <!ENTITY serverPort.label "Portë: ">
 <!ENTITY userName.label   "Emër Përdoruesi: ">
 <!ENTITY connectionSecurity.label "Siguri Lidhjeje: ">
-<!ENTITY useSecureAuthentication.label   "Mirëfilltësim i Sigurt: ">
+<!ENTITY authMethod.label   "Metodë Mirëfilltësimi: ">

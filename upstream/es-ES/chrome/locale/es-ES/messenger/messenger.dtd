@@ -56,7 +56,7 @@
 <!ENTITY settingsOfflineCmd.accesskey "e">
 <!ENTITY downloadSelectedCmd.label "Descargar mensajes seleccionados">
 <!ENTITY downloadSelectedCmd.accesskey "l">
-<!ENTITY downloadStarredCmd.label "Descargar mensajes estrellados">
+<!ENTITY downloadStarredCmd.label "Descargar mensajes con estrella">
 <!ENTITY downloadStarredCmd.accesskey "a">
 <!ENTITY printCmd.label "Imprimir…">
 <!ENTITY printCmd.accesskey "I">
@@ -124,8 +124,8 @@
 <!ENTITY showMessageCmd.accesskey "e">
 <!ENTITY folderView.label "Carpetas">
 <!ENTITY folderView.accesskey "p">
-<!ENTITY smartFolders.label "Inteligentes">
-<!ENTITY smartFolders.accesskey "I">
+<!ENTITY unifiedFolders.label "Unificadas">
+<!ENTITY unifiedFolders.accesskey "n">
 <!ENTITY allFolders.label "Todas">
 <!ENTITY allFolders.accesskey "T">
 <!ENTITY unreadFolders.label "Con no leídos">
@@ -186,11 +186,11 @@
 <!ENTITY collapseAllThreadsCmd.label "Contraer todas las conversaciones">
 <!ENTITY collapseAllThreadsCmd.accesskey "C">
 <!ENTITY collapseAllThreadsCmd.key "\">
-<!ENTITY unreadMsgsCmd.label "No leídos">
+<!ENTITY unreadMsgsCmd.label "Mensajes no leídos">
 <!ENTITY unreadMsgsCmd.accesskey "n">
-<!ENTITY threadsWithUnreadCmd.label "Conversaciones con no leídos">
+<!ENTITY threadsWithUnreadCmd.label "Conversaciones con m. no leídos">
 <!ENTITY threadsWithUnreadCmd.accesskey "o">
-<!ENTITY watchedThreadsWithUnreadCmd.label "Conversaciones observadas con no leídos">
+<!ENTITY watchedThreadsWithUnreadCmd.label "Conversaciones observadas con m. no leídos">
 <!ENTITY watchedThreadsWithUnreadCmd.accesskey "v">
 <!ENTITY ignoredThreadsCmd.label "Conversaciones ignoradas">
 <!ENTITY ignoredThreadsCmd.accesskey "I">
@@ -264,7 +264,7 @@
 <!ENTITY nextUnreadMsgCmd.label "Mensaje no leído">
 <!ENTITY nextUnreadMsgCmd.accesskey "n">
 <!ENTITY nextUnreadMsgCmd.key "n">
-<!ENTITY nextStarredMsgCmd.label "Mensaje estrellado">
+<!ENTITY nextStarredMsgCmd.label "Mensaje con estrella">
 <!ENTITY nextStarredMsgCmd.accesskey "S">
 <!ENTITY nextUnreadThread.label "Conversación no leída">
 <!ENTITY nextUnreadThread.accesskey "v">
@@ -283,7 +283,7 @@
 <!ENTITY goBackCmd.label "Atrás">
 <!ENTITY goBackCmd.accesskey "t">
 <!ENTITY goBackCmd.commandKey "[">
-<!ENTITY prevStarredMsgCmd.label "Mensaje estrellado">
+<!ENTITY prevStarredMsgCmd.label "Mensaje con estrella">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY startPageCmd.label "Página de inicio del correo">
 <!ENTITY startPageCmd.accesskey "P">
@@ -387,6 +387,9 @@
 <!ENTITY openMessageWindowCmd.label "Abrir mensaje">
 <!ENTITY openMessageWindowCmd.accesskey "A">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Abrir en la conversación">
+<!ENTITY openConversationCmd.accesskey "b">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Abrir mensaje del canal">
 <!ENTITY openFeedMessage.accesskey "A">
 <!ENTITY openFeedWebPageInWindow.label "Página web en ventana nueva">
@@ -407,6 +410,9 @@
 <!ENTITY addons.accesskey "m">
 <!ENTITY activitymanager.label "Administrador de actividad">
 <!ENTITY activitymanager.accesskey "A">
+<!ENTITY savedFiles.label "Archivos guardados">
+<!ENTITY savedFiles.accesskey "h">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Filtros de mensajes…">
 <!ENTITY filtersCmd.accesskey "f">
 <!ENTITY filtersApply.label "Ejecutar filtros en la carpeta">
@@ -499,7 +505,7 @@
 <!ENTITY folderContextCompact.accesskey "C">
 <!ENTITY folderContextEmptyTrash.label "Vaciar papelera">
 <!ENTITY folderContextEmptyTrash.accesskey "v">
-<!ENTITY folderContextEmptyJunk.label "Vaciar carpeta de correo basura">
+<!ENTITY folderContextEmptyJunk.label "Vacíar correo basura">
 <!ENTITY folderContextEmptyJunk.accesskey "s">
 <!ENTITY folderContextSendUnsentMessages.label "Enviar mensajes pendientes">
 <!ENTITY folderContextSendUnsentMessages.accesskey "n">
@@ -544,7 +550,7 @@
 <!ENTITY totalColumn.label "Total">
 <!ENTITY readColumn.label "Leído">
 <!ENTITY receivedColumn.label "Recibido">
-<!ENTITY starredColumn.label "Estrellado">
+<!ENTITY starredColumn.label "Con estrella">
 <!ENTITY locationColumn.label "Ubicación">
 <!ENTITY idColumn.label "Orden de recepción">
 <!ENTITY attachmentColumn.label "Adjuntos">
@@ -572,6 +578,8 @@
 <!ENTITY contextOpenNewWindow.accesskey "A">
 <!ENTITY contextOpenNewTab.label "Abrir el mensaje en pestaña nueva">
 <!ENTITY contextOpenNewTab.accesskey "b">
+<!ENTITY contextOpenConversation.label "Abrir mensaje en la conversación">
+<!ENTITY contextOpenConversation.accesskey "c">
 <!ENTITY contextEditAsNew.label "Editar como nuevo…">
 <!ENTITY contextEditAsNew.accesskey "e">
 <!ENTITY contextArchive.label "Archivar">
@@ -600,6 +608,11 @@
 <!ENTITY contextPrint.accesskey "i">
 <!ENTITY contextPrintPreview.label "Vista preliminar">
 <!ENTITY contextPrintPreview.accesskey "V">
+<!ENTITY columnPicker.resetToInbox.label "Restaurar las columnas por defecto">
+<!ENTITY columnPicker.applyTo.label "Aplicar columnas a…">
+<!ENTITY columnPicker.applyToFolder.label "Carpeta…">
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Carpeta y sus subcarpetas…">
+<!ENTITY columnPicker.thisFolder.label "Esta carpeta">
 <!ENTITY contextPlay.label "Reproducir">
 <!ENTITY contextPlay.accesskey "P">
 <!ENTITY contextPause.label "Pausar">
@@ -616,9 +629,13 @@
 <!ENTITY phishingBarMessage2.label "Este mensaje puede ser fraudulento.">
 <!ENTITY removePhishingBarButton1.label "Ignorar advertencia">
 <!ENTITY reportPhishingError1.label "Este mensaje no parece ser fraudulento.">
-<!ENTITY more.label "más">
+<!ENTITY mdnBarMessage.label "El remitente de este mensaje ha solicitado ser notificado cuando se lea este mensaje. ¿Desea notificar al remitente?">
+<!ENTITY mdnBarIgnoreButton.label "Ignorar solicitud">
+<!ENTITY mdnBarSendButton.label "Enviar acuse de recibo">
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Buscar todos los mensajes">
+<!ENTITY searchAllMessages.label.base "Buscar en todos los mensajes… #1">
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;⌘K&gt;">
 <!ENTITY AddToAddressBook.label "Añadir a la libreta de direcciones…">
 <!ENTITY AddToAddressBook.accesskey "b">
 <!ENTITY AddDirectlyToAddressBook.label "Añadir a la libreta de direcciones">
@@ -655,8 +672,8 @@
 <!ENTITY selectAllCmd.accesskey "S">
 <!ENTITY copyLinkCmd.label "Copiar la dirección del enlace">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY copyImageCmd.label "Copiar la dirección de la imagen">
-<!ENTITY copyImageCmd.accesskey "I">
+<!ENTITY copyImageAllCmd.label "Copiar imagen">
+<!ENTITY copyImageAllCmd.accesskey "i">
 <!ENTITY copyEmailCmd.label "Copiar dirección de correo electrónico">
 <!ENTITY copyEmailCmd.accesskey "E">
 <!ENTITY stopCmd.label "Parar">

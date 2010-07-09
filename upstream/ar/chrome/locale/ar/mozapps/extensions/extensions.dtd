@@ -22,13 +22,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "ل">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "ابحث عن تحديثات لإضافاتك">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "ابحث عن تحديثات لسِماتك">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "ابحث عن تحديثات لملحقاتك">
 <!ENTITY cmd.installLocalFile.label "ثبّت…">
 <!ENTITY cmd.installLocalFile.accesskey "ب">
 <!ENTITY cmd.installFileAddon.tooltip "ثبّت إضافة">
 <!ENTITY cmd.installFileTheme.tooltip "ثبّت سِمة">
-<!ENTITY cmd.installUpdatesAll.label "ثبّت التحديثات">
-<!ENTITY cmd.installUpdatesAll.accesskey "ث">
-<!ENTITY cmd.installUpdatesAll.tooltip "ثبّت التحديثات المختارة">
+<!ENTITY cmd.installUpdatesAll2.label     "ثبّت التحديثات">
+<!ENTITY cmd.installUpdatesAll2.accesskey "ح">
+<!ENTITY cmd.installUpdatesAll2.tooltip   "ثبّت التحديثات المختارة">
 <!ENTITY cmd.restartApp2.label "أعِد تشغيل &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "ش">
 <!ENTITY cmd.restartApp2.tooltip "أعِد تشغيل &brandShortName; لتطبيق التغييرات">
@@ -95,7 +96,7 @@
 <!ENTITY cancelUpgrade.accesskey "غ">
 <!-- Only displayed in the selected Add-on's context menu -->
 
-<!ENTITY cmd.homepage.label "اذهب إلى الصفحة الرئيسية">
+<!ENTITY cmd.homepage.label "اذهب للصفحة الرئيسية">
 <!ENTITY cmd.homepage.accesskey "ذ">
 <!ENTITY cmd.about2.label "عنْ هذه الإضافة">
 <!ENTITY cmd.about.accesskey "ع">
@@ -113,6 +114,7 @@
 <!ENTITY needsDependencies.label "يتطلب عناصر إضافية.">
 <!ENTITY blocklisted.label "عُطِّل لحمايتك.">
 <!ENTITY softBlocklisted.label "معروفة بأنها قد تسبب مشكلات في الأمن أو في الثبات.">
+<!ENTITY outdated.label                   "هناك إصدارة متاحة أحدث وأكثر أمانًا.">
 <!ENTITY toBeDisabled.label "ستُعطّل هذه الإضافة عند إعادة تشغيل &brandShortName;.">
 <!ENTITY toBeEnabled.label "ستُفعّل هذه الإضافة عند إعادة تشغيل &brandShortName;.">
 <!ENTITY toBeInstalled.label "ستُثبّت هذه الإضافة عند إعادة تشغيل &brandShortName;.">
@@ -127,7 +129,7 @@
 <!ENTITY browseAddons.label "تصفّح كل الإضافات">
 <!ENTITY searchFailed.label "لا يستطيع  &brandShortName; جلب الإضافات">
 <!ENTITY recommendedHeader.label "مُزكّاة">
-<!ENTITY recommendedThrobber.label "يجلب الإضافات المُزكاة">
+<!ENTITY recommendedThrobber.label "يجلب الإضافات المُزكّاة">
 <!ENTITY searchThrobber.label "البحث في الإضافات">
 <!ENTITY resetSearch.label "امسح النتائج">
 <!ENTITY noSearchResults.label "كل النتائج إما مُثبّتة أو غير متوافقة.">
@@ -136,9 +138,9 @@
 <!ENTITY emptySearch.button "موافق">
 <!ENTITY cancelSearch.button "ألغِ">
 <!ENTITY searchFailed.button "موافق">
-<!ENTITY searchResultHomepage.value "اعرف المزيد">
+<!ENTITY searchResultHomepage.value "تعلّم المزيد">
 <!ENTITY searchBox.label "ابحث في كل الإضافات">
-<!ENTITY recommendedResults.label "طالع كل الإضافات المزكّاة">
+<!ENTITY recommendedResults.label "طالع كل الإضافات المُزكّاة">
 <!ENTITY searchResultConnecting.label "يتّصل…">
 <!ENTITY searchResultInstalling.label "يُثبّت…">
 <!ENTITY searchResultFailed.label "فشل التّثبيت">

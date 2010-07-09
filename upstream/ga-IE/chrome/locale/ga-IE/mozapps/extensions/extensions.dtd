@@ -22,13 +22,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "C">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Lorgaíonn nuashonruithe le haghaidh do Bhreiseán">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Aimsíonn nuashonruithe do do chuid Téamaí">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Lorgaíonn nuashonruithe le haghaidh do Fhorlíontán">
 <!ENTITY cmd.installLocalFile.label "Suiteáil…">
 <!ENTITY cmd.installLocalFile.accesskey "s">
 <!ENTITY cmd.installFileAddon.tooltip "Suiteáil Breiseán">
 <!ENTITY cmd.installFileTheme.tooltip "Suiteáil Téama">
-<!ENTITY cmd.installUpdatesAll.label "Suiteáil Nuashonruithe">
-<!ENTITY cmd.installUpdatesAll.accesskey "S">
-<!ENTITY cmd.installUpdatesAll.tooltip "Suiteálann na nuashonruithe roghnaithe">
+<!ENTITY cmd.installUpdatesAll2.label "Suiteáil Nuashonruithe">
+<!ENTITY cmd.installUpdatesAll2.accesskey "S">
+<!ENTITY cmd.installUpdatesAll2.tooltip "Suiteáil na nuashonruithe roghnaithe">
 <!ENTITY cmd.restartApp2.label "Atosaigh &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "A">
 <!ENTITY cmd.restartApp2.tooltip "Atosaigh &brandShortName; leis na hathruithe a chur i bhfeidhm">
@@ -54,7 +55,7 @@
 <!ENTITY cmd.options.accesskey "R">
 <!ENTITY cmd.options.tooltip "Socraigh Roghanna na hEisínteachta roghnaithe">
 <!ENTITY cmd.optionsUnix.label "Sainroghanna">
-<!ENTITY cmd.optionsUnix.accesskey "R">
+<!ENTITY cmd.optionsUnix.accesskey "S">
 <!ENTITY cmd.optionsUnix.tooltip "Cuir Sainroghanna na hEisínteachta roghnaithe in eagar">
 <!ENTITY cmd.enable.label "Cumasaigh">
 <!ENTITY cmd.enable.accesskey "C">
@@ -113,6 +114,7 @@
 <!ENTITY needsDependencies.label "Míreanna breise de dhíth.">
 <!ENTITY blocklisted.label "Díchumasaithe ar mhaithe le do chosaint.">
 <!ENTITY softBlocklisted.label "Tá sé ar eolas go bhfuil sé ina údar le fadhbanna slándála nó cobhsaíochta.">
+<!ENTITY outdated.label "Tá leagan nua níos sláine le fáil.">
 <!ENTITY toBeDisabled.label "Díchumasófar an Breiseán seo nuair a atosófar &brandShortName;.">
 <!ENTITY toBeEnabled.label "Cumasófar an Breiseán seo nuair a atosófar &brandShortName;.">
 <!ENTITY toBeInstalled.label "Déanfar suiteáil ar an mBreiseán seo nuair a atosófar &brandShortName;.">

@@ -39,3 +39,5 @@
 <!ENTITY renameFolderDialog.title "Aldatu izena karpetari">
 <!ENTITY rename.label "Idatzi karpetaren izen berria:">
 <!ENTITY rename.accesskey "I">
+<!ENTITY accept.label "Berrizendatu">
+<!ENTITY accept.accesskey "r">

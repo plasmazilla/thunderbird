@@ -1,9 +1,9 @@
 <!--LOCALIZATION NOTE askSendFormat.dtd UI for dialog that asks the user, which format to use for sending a message -->
-<!ENTITY windowTitle.label "Формат вихідного повідомлення">
+<!ENTITY windowTitle.label "Формат вихідних листів">
 
 <!ENTITY recipient.label "Деякі з адресатів не можуть одержувати листа у форматі HTML.">
 
-<!ENTITY question.label "Перетворити повідомлення в текстове або відіслати в HTML?">
+<!ENTITY question.label "Перетворити лист у текстовий чи відіслати в HTML?">
 
 <!ENTITY plainTextAndHtml.label "Відіслати в текстовому форматі і в HTML">
 <!ENTITY plainTextAndHtml.accesskey "і">

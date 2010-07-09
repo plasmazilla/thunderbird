@@ -40,7 +40,7 @@
 <!ENTITY cmd.clearList.label              "ලැයිස්තුව මකන්න">
 <!ENTITY cmd.clearList.tooltip            "සම්පූර්‍ණ, අහෝසි කළ සහ අසමත් වූ බාගැනීම් ලැයිස්තුවෙන් ඉවත් කිරීම">
 <!ENTITY cmd.clearList.accesskey          "C">
-<!ENTITY cmd.copyDownloadLink.label       "බාගැනිමේ සඳිය පිටපත් කරන්න">
+<!ENTITY cmd.copyDownloadLink.label       "බාගැනිමේ සබැඳිය පිටපත් කරන්න">
 <!ENTITY cmd.copyDownloadLink.accesskey   "L">
 <!ENTITY cmd.goToDownloadPage.label       "බාගැනිමේ පිටුවට යන්න">
 <!ENTITY cmd.goToDownloadPage.accesskey   "G">

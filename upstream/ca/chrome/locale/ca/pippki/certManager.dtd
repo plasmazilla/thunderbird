@@ -50,10 +50,10 @@
 <!ENTITY certmgr.ca.mycas "CA gestionades per l'usuari">
 
 <!ENTITY certmgr.mine "Teniu certificats d'aquestes organitzacions que us identifiquen:">
-<!ENTITY certmgr.others "Teniu certificats instaŀlats que identifiquen aquesta gent:">
-<!ENTITY certmgr.websites2 "Teniu certificats instaŀlats que identifiquen aquests servidors:">
-<!ENTITY certmgr.cas "Teniu certificats instaŀlats que identifiquen aquestes entitats certificadores:">
-<!ENTITY certmgr.orphans "Teniu certificats instaŀlats que no coincideixen amb cap de les altres categories:">
+<!ENTITY certmgr.others "Teniu certificats al fitxer que identifiquen aquesta gent:">
+<!ENTITY certmgr.websites2 "Teniu certificats al fitxer que identifiquen aquests servidors:">
+<!ENTITY certmgr.cas "Teniu certificats al fitxer que identifiquen aquestes entitats certificadores:">
+<!ENTITY certmgr.orphans "Teniu certificats al fitxer que no coincideixen amb cap de les altres categories:">
 
 <!ENTITY certmgr.detail.general_tab.title "General">
 <!ENTITY certmgr.detail.general_tab.accesskey "G">

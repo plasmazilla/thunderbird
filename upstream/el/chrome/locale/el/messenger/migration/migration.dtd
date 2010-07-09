@@ -1,12 +1,9 @@
-
 <!ENTITY migrationWizard.title "Βοηθός εισαγωγής">
-
-<!ENTITY importFromWin.label "Import Options, Account Settings, Address Book, Filters and other data from:">
-<!ENTITY importFromNonWin.label "Import Preferences, Account Settings, Address Book, Filters, and other data from:">
-
+<!ENTITY importFromWin.label "Εισαγωγή επιλογών, ρυθμίσεων, ευρετηρίων, φίλτρων και άλλων δεδομένων από:">
+<!ENTITY importFromNonWin.label "Εισαγωγή προτιμήσεων, ρυθμίσεων, ευρετηρίων, φίλτρων και άλλων δεδομένων από:">
 <!ENTITY importFromNothing.label "Να μην εισαχθεί τίποτα">
 <!ENTITY importFromNothing.accesskey "τ">
-<!ENTITY importFromSeamonkey2.label     "Netscape 6, 7, Mozilla 1.x or SeaMonkey">
+<!ENTITY importFromSeamonkey2.label "Netscape 6, 7, Mozilla 1.x or SeaMonkey">
 <!ENTITY importFromSeamonkey2.accesskey "s">
 <!ENTITY importFromNetscape4.label "Netscape 4.x">
 <!ENTITY importFromNetscape4.accesskey "4">
@@ -16,16 +13,12 @@
 <!ENTITY importFromOutlook.accesskey "O">
 <!ENTITY importFromEudora.label "Eudora">
 <!ENTITY importFromEudora.accesskey "E">
-
 <!ENTITY importSource.title "Εισαγωγή ρυθμίσεων και δεδομένων">
 <!ENTITY importItems.title "Αντικείμενα προς εισαγωγή">
 <!ENTITY importItems.label "Επιλέξτε ποια αντικείμενα θα εισαχθούν:">
-
 <!ENTITY migrating.title "Εισαγωγή...">
 <!ENTITY migrating.label "Τα ακόλουθα αντικείμενα εισάγονται αυτήν τη στιγμή...">
-
 <!ENTITY selectProfile.title "Επιλογή προφίλ">
 <!ENTITY selectProfile.label "Τα ακόλουθα προφίλ είναι διαθέσιμα για εισαγωγή από:">
-
 <!ENTITY done.title "Η εισαγωγή ολοκληρώθηκε">
 <!ENTITY done.label "Τα ακόλουθα στοιχεία εισήχθησαν επιτυχώς:">

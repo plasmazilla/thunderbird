@@ -59,7 +59,7 @@
 <!ENTITY pausedMsg "Pengunduhan Dihentikan Sementara">
 <!ENTITY progressMsg "#1KB dari #2KB (pada #3KB/detik)">
 <!ENTITY unknownTime "Tidak Diketahui">
-<!ENTITY longTimeFormat "#1:#2:#3">
-<!ENTITY shortTimeFormat "#2:#3">
+<!ENTITY longTimeFormat "#1.#2.#3">
+<!ENTITY shortTimeFormat "#2.#3">
 <!ENTITY completeMsg "Selesai, #2 KB diunduh (selama #1)">
 <!ENTITY percentMsg "#1&#037;">

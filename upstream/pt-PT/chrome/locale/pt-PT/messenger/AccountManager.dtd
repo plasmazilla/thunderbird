@@ -1,6 +1,6 @@
 <!-- extracted from AccountManager.xul -->
 
-<!ENTITY accountManagerTitle.label "Configuração de Conta">
+<!ENTITY accountManagerTitle.label "Configuração de conta">
 
 <!ENTITY accountActionsButton.label "Acções da conta">
 <!ENTITY accountActionsButton.accesskey "A">
@@ -22,5 +22,5 @@
      1em = The height of the font.
      XUL/FE DEVELOPERS: DO NOT MODIFY THIS VALUE. It represents the correct size of
      this window for en-US. -->
-<!ENTITY accountManager.size "width: 130ch; height: 50em;">
+<!ENTITY accountManager.size "width: 110ch; height: 50em;">
 <!ENTITY accountTree.width "width: 39ch;">

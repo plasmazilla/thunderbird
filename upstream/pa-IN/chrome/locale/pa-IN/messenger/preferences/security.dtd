@@ -2,9 +2,10 @@
 <!ENTITY itemPhishing.label      "ਈਮੇਲ ਘਪਲੇ">
 <!ENTITY itemPasswords.label     "ਪਾਸਵਰਡ">
 <!ENTITY itemAntiVirus.label     "ਐਟੀ-ਵਾਈਰਸ">
-<!ENTITY itemCookies.label       "ਵੈੱਬ ਸਮੱਗਰੀ">
+<!ENTITY itemCookies.label       "Web Content">
+
 <!-- Junk Mail Controls -->
-<!ENTITY junkMail.intro "ਆਪਣੀ ਡਿਫਾਲਟ ਜੰਕ ਮੇਲ ਸੈਟਿੰਗ ਸੈੱਟ ਕਰੋ। ਅਕਾਊਂਟ-ਖਾਸ ਜੰਕ ਮੇਲ ਸੈਟਿੰਗ ਨੂੰ ਅਕਾਊਂਟ ਸੈਟਿੰਗ ਵਿੱਚ ਜਾ ਕੇ ਸੰਰਚਿਤ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ।">
+<!ENTITY junkMail.intro "Set your default junk mail settings. Account-specific junk mail settings can be configured in Account Settings.">
 <!ENTITY manualMark.label "ਜਦੋਂ ਮੈਂ ਸੁਨੇਹੇ ਨੂੰ ਜੰਕ ਨਿਸ਼ਾਨਬੱਧ ਕਰਾਂ ਤਾਂ:">
 <!ENTITY manualMark.accesskey "W">
 <!ENTITY manualMarkModeMove.label "ਉਹਨਾਂ ਨੂੰ ਅਕਾਊਂਟ ਦੇ &quot;ਜੰਕ (Junk)&quot; ਫੋਲਡਰ ਵਿੱਚ ਭੇਜੋ">
@@ -21,7 +22,7 @@
 <!ENTITY resetTrainingData.accesskey "D">
 
 <!-- Phishing Detector -->
-<!ENTITY phishingDetector1.intro  "&brandShortName; ਤੁਹਾਨੂੰ ਧੋਖਾ ਦੇਣ ਦੇਣ ਲਈ ਵਰਤਿਆ ਜਾਂਦੀਆਂ ਆਮ ਤਕਨੀਕਾਂ ਦੀ ਖੋਜ ਕਰਕੇ ਸ਼ੱਕੀ ਈਮੇਲਾਂ ਲਈ ਸੁਨੇਹਿਆਂ ਦੀ ਪੜਤਾਲ ਕਰ ਸਕਦਾ ਹੈ।">
+<!ENTITY phishingDetector1.intro  "&brandShortName; can analyze messages for suspected email scams by looking for common techniques used to deceive you.">
 <!ENTITY enablePhishingDetector1.label    "ਮੈਨੂੰ ਸਾਵਧਾਨ ਕਰੋ, ਜੇ ਸੁਨੇਹਾ, ਜੋ ਮੈਂ ਪੜ੍ਹ ਰਿਹਾ ਹੋਵਾਂ, ਸ਼ੱਕੀ ਈਮੇਲ ਘਪਲਾ ਹੋਵੇ।">
 <!ENTITY enablePhishingDetector1.accesskey  "e">
 <!ENTITY useDownloadedList.label "ਸ਼ੱਕੀ ਈਮੇਲ ਘਪਲੇ ਦੀ ਡਾਊਨਲੋਡ ਕੀਤੀ ਲਿਸਟ ਵਰਤੋਂ">
@@ -38,20 +39,19 @@
 <!ENTITY savedPasswords.accesskey       "S">
 
 <!-- Anti Virus -->
-<!ENTITY antiVirus.intro      "&brandShortName; ਐਂਟੀ-ਵਾਈਰਸ ਸਾਫਟਵੇਅਰ ਨੂੰ ਆ ਰਹੇ ਸੁਨੇਹਿਆਂ ਨੂੰ ਵਾਈਰਸ ਲਈ ਚੈੱਕ ਕਰਨ ਲਈ ਮੱਦਦਗਾਰ ਹੈ, ਇਸ ਤੋਂ ਪਹਿਲਾਂ ਕਿ ਉਹ ਲੋਕਲੀ ਸਟੋਰ ਕੀਤੇ ਜਾਣ।">
-<!ENTITY antiVirus.label      "ਐਂਟੀ ਵਾਈਰਸ ਕਲਾਇਟ ਨੂੰ ਇੱਕਲੇ ਇੱਕਲੇ ਆਉਣ ਵਾਲੇ ਸੁਨੇਹਿਆਂ ਸ਼ੱਕੀ ਹਾਲਤ ਲਈ ਅੱਡ ( quarantine) ਕਰਨ ਦੇਣਾ ਮਨਜ਼ੂਰ">
-<!ENTITY antiVirus.accesskey  "l">
-
+<!ENTITY antiVirus.intro      "&brandShortName; can make it easy for anti-virus software to analyze incoming mail messages for viruses before they are stored locally.">
+<!ENTITY antiVirus.label      "Allow anti-virus clients to quarantine individual incoming messages">
+<!ENTITY antiVirus.accesskey  "A">
 
 <!-- Cookies -->
-<!ENTITY cookies.intro                  "&brandShortName; ਤੁਹਾਨੂੰ ਬਲੌਗ, ਨਿਊਜ਼ ਫੀਡ ਅਤੇ ਹੋਰ ਵੈੱਬ ਸਾਈਟਾਂ ਤੋਂ ਕੂਕੀਜ਼ ਸੈੱਟ ਕਰਨ ਲਈ  ਚੋਣ ਦਿੰਦਾ ਹੈ।">
+<!ENTITY cookies.intro                  "&brandShortName; lets you specify which blogs, news feeds, and other web sites are allowed to set cookies.">
 <!ENTITY acceptCookies.label            "ਸਾਈਟਾਂ ਤੋਂ ਕੂਕੀਜ਼ ਮਨਜ਼ੂਰ">
 <!ENTITY acceptCookies.accesskey        "c">
-<!ENTITY keepUntil.label                "ਰੱਖੋ ਉਦੋਂ ਤੱਕ:">
+<!ENTITY keepUntil.label                "ਰੱਖੋ ਜਦੋਂ ਤੱਕ:">
 <!ENTITY keepUntil.accesskey            "K">
 <!ENTITY expire.label                   "ਉਹਨਾਂ ਦੀ ਮਿਆਦ ਹੈ">
-<!ENTITY close.label                    "ਮੈਂ &brandShortName; ਬੰਦ ਕਰਾਂ">
-<!ENTITY askEachTime.label              "ਮੈਨੂੰ ਹਰ ਵਾਰ ਪੁੱਛੋ">
+<!ENTITY close.label                    "ਜਦੋਂ ਮੈਂ &brandShortName; ਬੰਦ ਕਰੋ">
+<!ENTITY askEachTime.label              "ਹਰ ਵਾਰ ਪੁੱਛੋ">
 <!ENTITY cookieExceptions.label         "ਛੋਟ…">
 <!ENTITY cookieExceptions.accesskey     "E">
 <!ENTITY showCookies.label              "ਕੂਕੀਜ਼ ਵੇਖੋ…">

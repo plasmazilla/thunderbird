@@ -10,7 +10,7 @@
 <!ENTITY other.label "Друго…">
 
 <!ENTITY saveFile.label "Save File">
-<!ENTITY saveFile.accesskey "s">
+<!ENTITY saveFile.accesskey "S">
 
 <!ENTITY rememberChoice.label "Запомняне на операцията за този тип файлове.">
 <!ENTITY rememberChoice.accesskey "я">

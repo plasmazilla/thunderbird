@@ -14,9 +14,9 @@
 <!ENTITY newAddressBookCmd.accesskey                    "А">
 <!ENTITY newLDAPDirectoryCmd.label                      "Каталог LDAP…">
 <!ENTITY newLDAPDirectoryCmd.accesskey                  "л">
-<!ENTITY newMessageCmd.label                            "Повідомлення">
+<!ENTITY newMessageCmd.label                            "Лист">
 <!ENTITY newMessageCmd.key                              "M">
-<!ENTITY newMessageCmd.accesskey                        "П">
+<!ENTITY newMessageCmd.accesskey                        "Л">
 <!-- LOCALIZATION NOTE (osxAddressBook) : These entities are only used on Mac -->
 <!ENTITY osxAddressBook.label                           "Використовувати адресну книгу Mac OS X">
 <!ENTITY osxAddressBook.accesskey                       "О">
@@ -122,19 +122,19 @@
 <!ENTITY newlistButton.accesskey                        "С">
 <!ENTITY editButton2.label                              "Редагувати">
 <!ENTITY editButton2.accesskey                          "Р">
-<!ENTITY newmsgButton.label                             "Повідомлення">
-<!ENTITY newmsgButton.accesskey                         "П">
-<!ENTITY newIM.label                                    "Миттєве повідомлення">
-<!ENTITY newIM.accesskey                                "М">
+<!ENTITY newmsgButton.label                             "Лист">
+<!ENTITY newmsgButton.accesskey                         "Л">
+<!ENTITY newIM.label                                    "Звісточку">
+<!ENTITY newIM.accesskey                                "З">
 <!ENTITY deleteButton2.label                            "Вилучити">
 <!ENTITY deleteButton2.accesskey                        "В">
 
 <!-- Address Book Toolbar Tooltips -->
 <!ENTITY newContactButton.tooltip                       "Створити нову картку в адресній книзі">
-<!ENTITY newlistButton.tooltip                          "Створення нового списку розсилки">
+<!ENTITY newlistButton.tooltip                          "Створенити новий список розсилки">
 <!ENTITY editButton2.tooltip                            "Змінити властивості виділеного елемента">
-<!ENTITY newmsgButton.tooltip                           "Створення повідомлення">
-<!ENTITY newIM.tooltip                                  "Відіслати миттєве повідомлення або почати бесіду">
+<!ENTITY newmsgButton.tooltip                           "Написати листа">
+<!ENTITY newIM.tooltip                                  "Відіслати звісточку чи почати бесіду">
 <!ENTITY deleteButton2.tooltip                           "Вилучити обраний елемент">
 
 <!-- Dir Tree header -->

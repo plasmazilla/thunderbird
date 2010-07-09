@@ -23,3 +23,16 @@
 <!ENTITY missingPlugin.label                                 "Klik hjir om de ynstekker yn te laden.">
 <!ENTITY disabledPlugin.label                                "De ynstekker foar dizze ynhâld is útskeakele. Klik hjir om jo ynstekkers te behearjen.">
 <!ENTITY blockedPlugin.label                                 "Dizze ynstekker is blokkearre foar jo beskerming.">
+<!-- LOCALIZATION NOTE (reloadPlugin.pre): include a trailing space as needed -->
+<!-- LOCALIZATION NOTE (reloadPlugin.middle): avoid leading/trailing spaces, this text is a link -->
+<!-- LOCALIZATION NOTE (reloadPlugin.post): include a starting space as needed -->
+<!ENTITY reloadPlugin.pre                                    "">
+<!ENTITY reloadPlugin.middle                                 "Side op 'e nij lade">
+<!ENTITY reloadPlugin.post                                   " om nochris te probearjen.">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Stjoer ûngelokrapport">
+<!ENTITY report.submitting                                   "Rapport ferstjoere…">
+<!ENTITY report.submitted                                    "Ungelokrapport ferstjoerd.">
+<!ENTITY report.disabled                                     "Ungelokrapport ferstjoere útskeakel.">
+<!ENTITY report.failed                                       "Ferstjoeren mislearre.">
+<!ENTITY report.unavailable                                  "Gjin rapport beskikber.">

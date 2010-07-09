@@ -2,9 +2,6 @@
 <!ENTITY aboutButton.label "&lt; Atzera">
 <!ENTITY aboutButton.accesskey "A">
 <!ENTITY aboutVersion "bertsioa">
-<!ENTITY copyrightText "&#169;1998-2009 Contributors. All Rights Reserved. Mozilla Thunderbird and the 
-Thunderbird logos are trademarks of the Mozilla Foundation.  All rights 
-reserved.">
 <!ENTITY aboutMenu.label "Honi buruz">
 <!ENTITY aboutMenu.accesskey "o">
 <!ENTITY aboutCredits.label "Kredituak">

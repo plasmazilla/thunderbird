@@ -1,7 +1,4 @@
-<!--LOCALIZATION NOTE msgViewPickerOverlay.dtd UI for showing various views on a folder -->
-
 <!ENTITY mailViewSetupTitle.label "Ρύθμιση προβολής μηνύματος">
 <!ENTITY mailViewHeading.label "Όνομα προβολής μηνύματος:">
 <!ENTITY mailViewHeading.accesskey "ρ">
 <!ENTITY searchTermCaption.label "Οταν επιλεχθεί αυτή η προβολή, να εμφανίζονται μόνο τα μηνύματα που ταιριάζουν:">
-

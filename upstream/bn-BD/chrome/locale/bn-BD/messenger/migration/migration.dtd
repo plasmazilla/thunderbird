@@ -6,8 +6,8 @@
 
 <!ENTITY importFromNothing.label "কোনো কিছু ইমপোর্ট করা হবে না (D)">
 <!ENTITY importFromNothing.accesskey "D">
-<!ENTITY importFromSeamonkey2.label "নেটস্কেপ 6, 7, মজিলা 1.x বা SeaMonkey (S)">
-<!ENTITY importFromSeamonkey2.accesskey "s">
+<!ENTITY importFromSeamonkey2.label "নেটস্কেপ 6, 7, মোজিলা 1.x বা সিমাংকি (S)">
+<!ENTITY importFromSeamonkey2.accesskey "S">
 <!ENTITY importFromNetscape4.label "নেটস্কেপ 4.x (4)">
 <!ENTITY importFromNetscape4.accesskey "4">
 <!ENTITY importFromOExpress.label "আউটলুক এক্সপ্রেস (u)">

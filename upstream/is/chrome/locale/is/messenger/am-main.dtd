@@ -1,6 +1,6 @@
 <!-- extracted from am-main.xul -->
 
-<!ENTITY accountTitle.label "Stillingar notanda">
+<!ENTITY accountTitle.label "Stillingar reiknings">
 <!ENTITY accountName.label "Heiti reiknings:">
 <!ENTITY accountName.accesskey "H">
 <!ENTITY identityTitle.label "Sjálfgefið auðkenni">

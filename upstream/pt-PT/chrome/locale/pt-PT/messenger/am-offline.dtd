@@ -34,7 +34,7 @@
 <!ENTITY offlineImapAdvancedOffline.label "Avançado…">
 <!ENTITY offlineImapAdvancedOffline.accesskey "A">
 <!ENTITY syncGroupTitle.label "Sincronização de mensagem">
-<!ENTITY diskspaceGroupTitle.label "Espaço em Disco">
+<!ENTITY diskspaceGroupTitle.label "Espaço em disco">
 
 <!-- LOCALIZATION NOTE: (ageAutosyncBefore.label, ageAutosyncMiddle.label, ageAutosyncAfter.label):
   The entities ageAutosyncBefore.label, ageAutosyncMiddle.label, and ageAutosyncAfter.label appear

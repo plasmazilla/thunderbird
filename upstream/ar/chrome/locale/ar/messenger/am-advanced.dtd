@@ -20,4 +20,4 @@
 <!ENTITY serverPort.label "المَنفذ:">
 <!ENTITY userName.label "اسم المستخدم:">
 <!ENTITY connectionSecurity.label "أمن الاتصال:">
-<!ENTITY useSecureAuthentication.label "مصادقة آمنة:">
+<!ENTITY authMethod.label   "طريقة الاستيثاق: ">

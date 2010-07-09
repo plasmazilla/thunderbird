@@ -1,9 +1,7 @@
-<!ENTITY aboutDialog.title "Tentang &brandFullName;">
-<!ENTITY aboutButton.label "&lt; Kembali">
-<!ENTITY aboutButton.accesskey "K">
-<!ENTITY aboutVersion "versi">
-<!ENTITY copyrightText "©1998-2008 Kontributor. Hak Cipta Dilindungi Undang-Undang. Mozilla Thunderbird dan logo
-                                 Thunderbird adalah merek dagang Yayasan Mozilla. Hak Cipta Dilindungi Undang-Undang.">
+<!ENTITY aboutDialog.title      "Tentang &brandFullName;">
+<!ENTITY aboutButton.label      "&lt; Kembali">
+<!ENTITY aboutButton.accesskey  "K">
+<!ENTITY aboutVersion           "versi">
 <!ENTITY aboutMenu.label        "Tentang">
 <!ENTITY aboutMenu.accesskey    "T">
 <!ENTITY aboutCredits.label     "Kredit">
@@ -14,4 +12,5 @@
 <!ENTITY aboutContributors.accesskey "K">
 <!ENTITY aboutLicense.label      "Lisensi">
 <!ENTITY aboutLicense.accesskey  "L">
+
 <!ENTITY cmdCloseMac.commandKey "w">

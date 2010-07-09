@@ -24,8 +24,8 @@
 <!ENTITY connectionSecurityType-1.label "STARTTLS، إن كان متاحًا">
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
-<!ENTITY useSecAuth.label "استخدم استيثاقًا آمنًا">
-<!ENTITY useSecAuth.accesskey "س">
+<!ENTITY authMethod.label "طريقة الاستيثاق:">
+<!ENTITY authMethod.accesskey "ق">
 <!ENTITY leaveOnServer.label "اترك الرسائل على الخادوم">
 <!ENTITY leaveOnServer.accesskey "ر">
 <!ENTITY headersOnly.label "نزِّل الترويسات فقط">

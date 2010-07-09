@@ -36,18 +36,18 @@
    - ***** END LICENSE BLOCK ***** -->
 
 <!ENTITY print.label "Inprimatu...">
-<!ENTITY print.accesskey "P">
+<!ENTITY print.accesskey "p">
 <!ENTITY pageSetup.label "Prestatu orria...">
 <!ENTITY pageSetup.accesskey "u">
 <!ENTITY page.label "Orria:">
 <!ENTITY page.accesskey "a">
 <!ENTITY of.label "-">
 <!ENTITY scale.label "Eskala:">
-<!ENTITY scale.accesskey "S">
+<!ENTITY scale.accesskey "s">
 <!ENTITY portrait.label "Bertikala">
 <!ENTITY portrait.accesskey "t">
 <!ENTITY landscape.label "Horizontala">
-<!ENTITY landscape.accesskey "L">
+<!ENTITY landscape.accesskey "l">
 <!ENTITY close.label "Itxi">
 <!ENTITY close.accesskey "I">
 <!ENTITY p30.label "&#037;30">

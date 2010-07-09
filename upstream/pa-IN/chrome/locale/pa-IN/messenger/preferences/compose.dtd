@@ -29,21 +29,21 @@
 <!ENTITY languagePopup.accessKey              "g">
 <!ENTITY downloadDictionaries.label           "ਹੋਰ ਡਿਕਸ਼ਨਰੀਆਂ ਡਾਊਨਲੋਡ ਕਰੋ">
 
-<!ENTITY warnOnSendAccelKey.label             "ਜਦੋਂ ਕੀਬੋਰਡ ਸ਼ਾਰਟਕੱਟ ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਭੇਜਣਾ ਹੋਵੇ ਤਾਂ ਸੁਨੇਹਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਪੁਸ਼ਟੀ ਕਰੋ">
+<!ENTITY warnOnSendAccelKey.label             "Confirm when using keyboard shortcut to send message">
 <!ENTITY warnOnSendAccelKey.accesskey         "i">
 <!ENTITY autoSave.label                       "ਆਪਣੇ ਆਪ ਸੰਭਾਲੋ ਹਰੇਕ">
 <!ENTITY autoSave.accesskey                   "u">
 <!ENTITY autoSaveEnd.label                    "ਮਿੰਟ">
 
-<!ENTITY emailCollectionPicker.label           "ਮੇਰੇ ਲਈ ਭੇਜਣ ਵਾਲੇ ਈਮੇਲ ਐਡਰੈੱਸ ਆਟੋਮੈਟਿਕ ਹੀ ਸ਼ਾਮਲ ਕਰੋ:">
+<!ENTITY emailCollectionPicker.label           "Automatically add outgoing e-mail addresses to my:">
 <!ENTITY emailCollectionPicker.accesskey       "t">
 <!ENTITY addressingTitle.label                 "ਐਡਰੈੱਸ ਆਟੋਮੈਟਿਕ ਹੀ ਪੂਰਾ ਕਰੋ">
-<!ENTITY autocompleteText.label                "ਜਦੋਂ ਸੁਨੇਹੇ ਵਿੱਚ ਐਡਰੈਸ ਦੇਣਾ ਹੋਵੇ ਤਾਂ ਰਲਦੀਆਂ ਐਂਟਰੀਆਂ ਲਈ ਖੋਜੋ ਇੱਥੇ:">
+<!ENTITY autocompleteText.label                "When addressing messages, look for matching entries in:">
 <!ENTITY addressingEnable.label                "ਲੋਕਲ ਐਡਰੈੱਸ ਬੁੱਕ">
 <!ENTITY addressingEnable.accesskey            "A">
 <!ENTITY directories.label                     "ਡਾਇਰੈਕਟਰੀ ਸਰਵਰ:">
 <!ENTITY directories.accesskey                 "D">
-<!ENTITY directoriesNone.label                 "ਕੋਈ ਨਹੀਂ">
+<!ENTITY directoriesNone.label                 "ਕੋਈ ਨਹੀ">
 <!ENTITY editDirectories.label                 "ਡਾਇਰੈਕਟਰੀਆਂ ਸੋਧ…">
 <!ENTITY editDirectories.accesskey             "E">
 

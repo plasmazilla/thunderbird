@@ -132,8 +132,8 @@
 
 <!ENTITY folderView.label "Mappen">
 <!ENTITY folderView.accesskey "M">
-<!ENTITY smartFolders.label "Tûk">
-<!ENTITY smartFolders.accesskey "T">
+<!ENTITY unifiedFolders.label "Sammele">
+<!ENTITY unifiedFolders.accesskey "S">
 <!ENTITY allFolders.label "Alles">
 <!ENTITY allFolders.accesskey "A">
 <!ENTITY unreadFolders.label "Net lêzen">
@@ -364,13 +364,13 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY moveToFolderAgain.label "Op 'e nij ferpleatse">
 <!ENTITY moveToFolderAgain.accesskey "i">
 <!ENTITY moveToFolderAgainCmd.key "m">
-<!ENTITY killThreadMenu.label "Konversaasje negearje">
+<!ENTITY killThreadMenu.label "Petear negearje">
 <!ENTITY killThreadMenu.accesskey "n">
 <!ENTITY killThreadMenu.key "k">
-<!ENTITY killSubthreadMenu.label "Subkonversaasje negearje">
+<!ENTITY killSubthreadMenu.label "Subpetear negearje">
 <!ENTITY killSubthreadMenu.accesskey "S">
 <!ENTITY killSubthreadMenu.key "k">
-<!ENTITY watchThreadMenu.label "Konversaasje folgje">
+<!ENTITY watchThreadMenu.label "Petear folgje">
 <!ENTITY watchThreadMenu.accesskey "f">
 <!ENTITY watchThreadMenu.key "w">
 <!ENTITY fileHereMenu.label "Hjir bewarje">
@@ -394,7 +394,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY markAsReadCmd.label "As lêzen">
 <!ENTITY markAsReadCmd.accesskey "z">
 <!ENTITY markAsReadCmd.key "m">
-<!ENTITY markThreadAsReadCmd.label "Konversaasje as lêzen">
+<!ENTITY markThreadAsReadCmd.label "Petear as lêzen">
 <!ENTITY markThreadAsReadCmd.accesskey "K">
 <!ENTITY markThreadAsReadCmd.key "r">
 <!ENTITY markReadByDateCmd.label "As lêzen op datum…">
@@ -417,6 +417,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "Berjocht iepenje">
 <!ENTITY openMessageWindowCmd.accesskey "i">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Iepenje yn Petearen">
+<!ENTITY openConversationCmd.accesskey "s">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Iepen feedberjocht">
 <!ENTITY openFeedMessage.accesskey "I">
 <!ENTITY openFeedWebPageInWindow.label "Webside yn nij skerm">
@@ -441,6 +444,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "T">
 <!ENTITY activitymanager.label "Aktiviteitebehearder">
 <!ENTITY activitymanager.accesskey "a">
+<!ENTITY savedFiles.label "Bewarre bestannen">
+<!ENTITY savedFiles.accesskey "t">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Berjochtefilters…">
 <!ENTITY filtersCmd.accesskey "B">
 <!ENTITY filtersApply.label "Filters tapasse op map">
@@ -605,7 +611,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser.tooltip "Klik om te toanen kolommen te selektearjen">
-<!ENTITY threadColumn.tooltip "Klik om berjochtkonversaasjes te toanen">
+<!ENTITY threadColumn.tooltip "Klik om berjochtpetearen te toanen">
 <!ENTITY fromColumn.tooltip "Klik om te sortearjen op fan">
 <!ENTITY recipientColumn.tooltip "Klik om te sortearjen op ûntfanger">
 <!ENTITY subjectColumn.tooltip "Klik om te sortearjen op ûnderwerp">
@@ -616,8 +622,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY statusColumn.tooltip "Klik om te sortearjen op steat">
 <!ENTITY sizeColumn.tooltip "Klik om te sortearjen op grutte">
 <!ENTITY junkStatusColumn.tooltip "Klik om te sortearjen op net-winske-berjochtsteat">
-<!ENTITY unreadColumn.tooltip "Oantal net lêzen berjochten yn konversaasje">
-<!ENTITY totalColumn.tooltip "Totaal oantal berjochten yn konversaasje">
+<!ENTITY unreadColumn.tooltip "Oantal net lêzen berjochten yn petear">
+<!ENTITY totalColumn.tooltip "Totaal oantal berjochten yn petear">
 <!ENTITY readColumn.tooltip "Klik om te sortearjen op lêzen">
 <!ENTITY receivedColumn.tooltip "Klik om te sortearjen op ûntfangstdatum">
 <!ENTITY starredColumn.tooltip "Klik om te sortearjen op stjer">
@@ -630,6 +636,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "f">
 <!ENTITY contextOpenNewTab.label "Berjocht iepenje yn nij ljepblêd">
 <!ENTITY contextOpenNewTab.accesskey "l">
+<!ENTITY contextOpenConversation.label "Berjocht iepenje yn Petear">
+<!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextEditAsNew.label "As nij bewurkje…">
 <!ENTITY contextEditAsNew.accesskey "b">
 <!ENTITY contextArchive.label "Argivearje">
@@ -659,6 +667,53 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "Ofdrukfoarbyld">
 <!ENTITY contextPrintPreview.accesskey "d">
 
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "Kolommen tebeksette nei standert">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Kolommen tapasse op…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "Map…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Map en submappen…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "Dizze map">
+
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "Spylje">
 <!ENTITY contextPlay.accesskey "S">
@@ -683,12 +738,39 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "Warskôging negearje">
 <!ENTITY reportPhishingError1.label "Dit berjocht liket gjin e-mailscam.">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "mear">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "De ôfstjoerder fan dit berjocht hat om in notifikaasje frege as jo dit berjocht lêze. Wolle jo dit de ôfstjoerder witte litte?">
+<!ENTITY mdnBarIgnoreButton.label "Fersyk negearje">
+<!ENTITY mdnBarSendButton.label "Untfangst ferstjoere">
 
 <!-- Quick Search Bar -->
+<!-- LOCALIZATION NOTE (quickSearchCmd.key):
+     This is actually the key used for the global message search box; we have
+     not changed 
+     -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Sykje alle berjochten">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Sykje alle berjochten… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Tafoegje oan adresboek…">
@@ -729,8 +811,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "A">
 <!ENTITY copyLinkCmd.label "Keppelingslokaasje kopiearje">
 <!ENTITY copyLinkCmd.accesskey "k">
-<!ENTITY copyImageCmd.label "Ofbyldingslokaasje kopiearje">
-<!ENTITY copyImageCmd.accesskey "o">
+<!ENTITY copyImageAllCmd.label "Ofbylding kopiearje">
+<!ENTITY copyImageAllCmd.accesskey "o">
 <!ENTITY copyEmailCmd.label "E-mailadres kopiearje">
 <!ENTITY copyEmailCmd.accesskey "m">
 <!ENTITY stopCmd.label "Stop">

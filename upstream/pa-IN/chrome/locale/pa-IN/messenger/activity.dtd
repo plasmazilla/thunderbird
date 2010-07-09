@@ -4,7 +4,7 @@ file names and tall enough to hint that there are more activities in the list --
 <!ENTITY window.width2                    "485">
 <!ENTITY window.height                    "300">
 
-<!ENTITY activity.title                  "ਐਕਟੀਵਿਟੀ ਮੈਨੇਜਰ">
+<!ENTITY activity.title                  "ਐਕਟਵਿਟੀ ਮੈਨੇਜਰ">
 
 <!ENTITY cmd.pause.label                  "ਵਿਰਾਮ">
 <!ENTITY cmd.pause.accesskey              "P">
@@ -12,7 +12,7 @@ file names and tall enough to hint that there are more activities in the list --
 <!ENTITY cmd.resume.accesskey             "R">
 <!ENTITY cmd.cancel.label                 "ਰੱਦ ਕਰੋ">
 <!ENTITY cmd.cancel.accesskey             "C">
-<!ENTITY cmd.undo.label                   "ਪਰਤਾਓ">
+<!ENTITY cmd.undo.label                   "ਵਾਪਿਸ">
 <!ENTITY cmd.undo.accesskey               "U">
 <!ENTITY cmd.recover.label                "ਰੀਕਵਰ">
 <!ENTITY cmd.recover.accesskey            "v">
@@ -25,7 +25,7 @@ file names and tall enough to hint that there are more activities in the list --
 <!ENTITY cmd.close2.commandkey            "j">
 <!ENTITY cmd.close2Unix.commandkey        "y">
 <!ENTITY cmd.clearList.label              "ਲਿਸਟ ਸਾਫ਼ ਕਰੋ">
-<!ENTITY cmd.clearList.tooltip            "ਲਿਸਟ ਵਿੱਚੋਂ ਪੂਰੀਆਂ ਹੋਈਆਂ, ਰੱਦ ਕੀਤੀਆਂ, ਅਤੇ ਫੇਲ੍ਹ ਹੋਈਆਂ ਆਈਟਮਾਂ ਹਟਾਓ">
+<!ENTITY cmd.clearList.tooltip            "ਲਿਸਟ ਵਿੱਚੋਂ ਪੂਰੀਆਂ ਹੋਈਆਂ, ਰੱਦ ਕੀਤੀਆਂ ਜਾਂ ਫੇਲ੍ਹ ਹੋਈਆਂ ਆਈਟਮਾਂ ਹਟਾਓ">
 <!ENTITY cmd.clearList.accesskey          "C">
 <!ENTITY cmd.find.commandkey              "f">
 <!ENTITY cmd.search.commandkey            "k">

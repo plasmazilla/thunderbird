@@ -46,3 +46,5 @@
 <!ENTITY folderRestriction2.label "Ceadaigh iad seo a leanas a bheith san fhillteán nua:">
 <!ENTITY foldersOnly.label "Fillteáin Amháin">
 <!ENTITY messagesOnly.label "Teachtaireachtaí Amháin">
+<!ENTITY accept.label "Cruthaigh Fillteán">
+<!ENTITY accept.accesskey "r">

@@ -1,48 +1,10 @@
-<!-- ***** BEGIN LICENSE BLOCK *****
- Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
- The contents of this file are subject to the Mozilla Public License Version
- 1.1 (the "License"); you may not use this file except in compliance with
- the License. You may obtain a copy of the License at
- http://www.mozilla.org/MPL/
-
- Software distributed under the License is distributed on an "AS IS" basis,
- WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- for the specific language governing rights and limitations under the
- License.
-
- The Original Code is Mozilla Communicator client code, released
- March 31, 1998.
-
- The Initial Developer of the Original Code is
- Netscape Communications Corporation.
- Portions created by the Initial Developer are Copyright (C) 1998-1999
- the Initial Developer. All Rights Reserved.
-
- Contributor(s):
-
- Alternatively, the contents of this file may be used under the terms of
- either the GNU General Public License Version 2 or later (the "GPL"), or
- the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- in which case the provisions of the GPL or the LGPL are applicable instead
- of those above. If you wish to allow use of your version of this file only
- under the terms of either the GPL or the LGPL, and not to allow others to
- use your version of this file under the terms of the MPL, indicate your
- decision by deleting the provisions above and replace them with the notice
- and other provisions required by the GPL or the LGPL. If you do not delete
- the provisions above, a recipient may use your version of this file under
- the terms of any one of the MPL, the GPL or the LGPL.
-
- ***** END LICENSE BLOCK ***** -->
-
+<!--null-->
 <!ENTITY toField2.label "προς ">
 <!ENTITY fromField2.label "από ">
 <!ENTITY senderField2.label "αποστολέας ">
 <!ENTITY organizationField2.label "οργανισμός ">
 <!ENTITY replyToField2.label "απάντηση-σε ">
-
 <!ENTITY subjectField2.label "θέμα ">
-<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
 <!ENTITY ccField2.label "cc ">
 <!ENTITY bccField2.label "bcc ">
 <!ENTITY newsgroupsField2.label "ομάδες συζήτησης ">
@@ -54,29 +16,45 @@
 <!ENTITY messageIdField2.label "message-id ">
 <!ENTITY inReplyToField2.label "σε απάντηση του ">
 <!ENTITY originalWebsite2.label "ιστοσελίδα ">
-
-
-
 <!ENTITY editMessageDescription.label "Αυτό είναι ένα πρόχειρο μήνυμα">
 <!ENTITY editMessageButton.label "Επεξεργασία…">
-
-
+<!ENTITY hdrArchiveButton.label "αρχειοθέτηση">
+<!ENTITY hdrArchiveButton.tooltip "αρχειοθέτηση αυτού του μηνύματος">
 <!ENTITY hdrReplyButton.label "απάντηση">
-<!ENTITY hdrForwardButton.label "προώθηση">
-<!ENTITY hdrJunkButton.label "ανεπιθύμητο">
-
+<!ENTITY hdrReplyButton.tooltip "απάντηση σε αυτό το μήνυμα">
 <!ENTITY hdrReplyAllButton.label "απάντηση σε όλους">
-
-
-
+<!ENTITY hdrReplyAllButton.tooltip "απάντηση στον αποστολέα και σε όλους τους παραλήπτες">
+<!ENTITY hdrReplyListButton.label "απάντηση στη λίστα">
+<!ENTITY hdrReplyListButton.tooltip "απάντηση στη λίστα αλληλογραφίας">
+<!ENTITY hdrForwardButton.label "προώθηση">
+<!ENTITY hdrForwardButton.tooltip "προώθηση του μηνύματος">
+<!ENTITY hdrJunkButton.label "ανεπιθύμητο">
+<!ENTITY hdrJunkButton.tooltip "σημειώση του μηνύματος ως ανεπιθύμητο">
+<!ENTITY hdrTrashButton.label "διαγραφή">
+<!ENTITY hdrTrashButton.tooltip "διαγραφή αυτού του μηνύματος">
+<!ENTITY hdrViewToolbarShowFull.label "Προβολή εικονιδίων και κειμένου">
+<!ENTITY hdrViewToolbarShowFull.accesskey "β">
+<!ENTITY hdrViewToolbarShowIcons.label "Προβολή μόνο εικονιδίων">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "μ">
+<!ENTITY hdrViewToolbarShowText.label "Προβολή μόνο κειμένου">
+<!ENTITY hdrViewToolbarShowText.accesskey "κ">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Πάντα προβολή του Απάντηση στον αποστολέα">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "ν">
 <!ENTITY otherActionsButton.label "άλλες ενέργειες">
+<!ENTITY otherActionsOpenInNewWindow.label "άνοιγμα σε νέο παράθυρο">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "π">
+<!ENTITY otherActionsOpenInNewTab.label "άνοιγμα σε νέα καρτέλα">
+<!ENTITY otherActionsOpenInNewTab.accesskey "κ">
+<!ENTITY markAsReadMenuItem.label "σημείωση ως αναγνωσμένο">
+<!ENTITY markAsReadMenuItem.accesskey "γ">
+<!ENTITY markAsUnreadMenuItem.label "σημείωση ως μη αναγνωσμένο">
+<!ENTITY markAsUnreadMenuItem.accesskey "μ">
 <!ENTITY saveAsMenuItem.label "αποθήκευση ως…">
 <!ENTITY saveAsMenuItem.accesskey "θ">
 <!ENTITY viewSourceMenuItem.label "προβολή κώδικα…">
 <!ENTITY viewSourceMenuItem.accesskey "β">
-
-
-
+<!ENTITY otherActionsPrint.label "εκτύπωση…">
+<!ENTITY otherActionsPrint.accesskey "π">
 <!ENTITY openAttachmentCmd.label "Άνοιγμα">
 <!ENTITY openAttachmentCmd.accesskey "ο">
 <!ENTITY saveAsAttachmentCmd.label "Αποθήκευση ως....">
@@ -89,46 +67,12 @@
 <!ENTITY detachAllAttachmentsCmd.accesskey "σ">
 <!ENTITY deleteAllAttachmentsCmd.label "Διαγραφή όλων...">
 <!ENTITY deleteAllAttachmentsCmd.accesskey "α">
-
 <!ENTITY copyLinkCmd.label "Αντιγραφή τοποθεσίας δεσμού">
 <!ENTITY copyLinkCmd.accesskey "γ">
-
 <!ENTITY CopyMessageId.label "Αντιγραφή Message-ID">
 <!ENTITY OpenMessageForMsgId.label "Άνοιγμα Message για ID">
 <!ENTITY OpenBrowserWithMsgId.label "Άνοιγμα Browser με Message-ID">
 
-
-<!ENTITY hdrReplyListButton.label "απάντηση στη λίστα">
-
-<!ENTITY otherActionsOpenInNewTab.label "άνοιγμα σε νέα καρτέλα">
-<!ENTITY otherActionsOpenInNewTab.accesskey "κ">
-<!ENTITY otherActionsOpenInNewWindow.label "άνοιγμα σε νέο παράθυρο">
-<!ENTITY otherActionsOpenInNewWindow.accesskey "π">
-<!ENTITY otherActionsPrint.label "εκτύπωση…">
-<!ENTITY otherActionsPrint.accesskey "π">
-
-<!ENTITY hdrArchiveButton.label "αρχειοθέτηση">
-<!ENTITY hdrArchiveButton.tooltip "αρχειοθέτηση αυτού του μηνύματος">
-<!ENTITY hdrForwardButton.tooltip "προώθηση αυτού του μηνύματος">
-<!ENTITY hdrJunkButton.label "ανεπιθύμητο">
-<!ENTITY hdrReplyAllButton.tooltip "απάντηση στον αποστολέα και όλους τους παραλήπτες">
-<!ENTITY hdrReplyButton.tooltip "απάντηση σε αυτό το μήνυμα">
-<!ENTITY hdrReplyListButton.tooltip "απάντηση στη λίστα αλληλογραφίας">
-<!ENTITY hdrTrashButton.label "διαγραφή">
-<!ENTITY hdrTrashButton.tooltip "διαγραφή αυτού του μηνύματος">
-<!ENTITY hdrViewToolbarAlwaysReplySender.label "Προβολή πάντοτε της απάντησης στον αποστολέα">
-<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "σ">
-<!ENTITY hdrViewToolbarShowFull.label "Προβολή εικονιδίων και κειμένου">
-<!ENTITY hdrViewToolbarShowFull.accesskey "δ">
-<!ENTITY hdrViewToolbarShowIcons.label "Προβολή μόνο εικονιδίων">
-<!ENTITY hdrViewToolbarShowIcons.accesskey "ι">
-<!ENTITY hdrViewToolbarShowText.label "Προβολή μόνο κειμένου">
-<!ENTITY hdrViewToolbarShowText.accesskey "κ">
-<!ENTITY markAsReadMenuItem.label "σημείωση ως αναγνωσμένο">
-<!ENTITY markAsReadMenuItem.accesskey "γ">
-<!ENTITY markAsUnreadMenuItem.label "σημείωση ως μη αναγνωσμένο">
-<!ENTITY markAsUnreadMenuItem.accesskey "μ">
-<!ENTITY otherActionsShowConversation.label "προβολή σε συνομιλία">
-<!ENTITY otherActionsShowConversation.accesskey "σ">
-<!ENTITY hdrJunkButton.tooltip "σημείωση αυτού του μηνύματος ως ανεπιθύμητο">
+<!ENTITY otherActionsOpenConversation.label "άνοιγμα σε συζήτηση">
+<!ENTITY otherActionsOpenConversation.accesskey "υ">
 

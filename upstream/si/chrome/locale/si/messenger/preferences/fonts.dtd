@@ -58,10 +58,10 @@
 <!ENTITY  useDefaultFontSansSerif.label           "Sans-serif">
 
 <!-- fonts in message -->
-<!ENTITY  fontControl.label                       "ෆොන්ට (Font) පාලක">
-<!ENTITY  useFixedWidthForPlainText.label         "සාමාන්‍ය පාඨ ලිපි සඳහා ස්ථිර පළලක් සහිත ෆොන්ට (fixed width font) භාවිතා කරන්න">
+<!ENTITY  fontControl.label                       "ෆොන්ට පාලනය">
+<!ENTITY  useFixedWidthForPlainText.label         "සාමාන්‍ය පාඨ ලිපි සඳහා ස්ථිර පළල ෆොන්ට (fixed width font) භාවිතා කරන්න">
 <!ENTITY  fixedWidth.accesskey                    "x">
-<!ENTITY  useDocumentFonts.label                  "ලිපිවලට වෙනත් අකුරු භාවිතා කිරීමට ඉඩදෙන්න">
+<!ENTITY  useDocumentFonts.label                  "වෙනත් අකුරු භාවිතා කිරීමට ලිපි බලැති කරන්න">
 <!ENTITY  useDocumentFonts.accesskey              "o">
 
 <!-- Language settings -->
@@ -72,5 +72,5 @@
 
 <!ENTITY viewDefaultCharsetList.label     "ලැබෙන ලිපි:">
 <!ENTITY viewDefaultCharsetList.accesskey "I">
-<!ENTITY replyInDefaultCharset2.label     "පිළිතුරු ලිවීමේදී හැකි විට පෙරනිමි අනුලකුණු කේතනය භාවිතා කරන්න">
+<!ENTITY replyInDefaultCharset2.label     "හැකි විටදී, පිළිතුරු ලිවීමෙිදී පෙරනිමි අනුලකුණු කේතනය භාවිතා කරන්න">
 <!ENTITY replyInDefaultCharset2.accesskey "h">

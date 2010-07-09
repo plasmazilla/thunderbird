@@ -14,7 +14,7 @@
 <!ENTITY manageSubscriptions.accesskey "I">
 
 <!-- entities from defaults/isp/rss.rdf -->
-<!ENTITY feeds.accountName "Fontes de notícias e Blogs">
+<!ENTITY feeds.accountName "Fontes de notícias e blogs">
 <!ENTITY feeds.wizardShortName "Fontes">
-<!ENTITY feeds.wizardLongName "Fontes de notícias e Blogs">
+<!ENTITY feeds.wizardLongName "Fontes de notícias e blogs">
 <!ENTITY feeds.wizardLongName.accesskey "F">

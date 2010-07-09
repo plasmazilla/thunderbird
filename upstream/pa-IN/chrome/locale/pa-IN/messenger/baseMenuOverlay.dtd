@@ -9,7 +9,7 @@
 <!ENTITY releaseCmd.accesskey "R">
 <!ENTITY whatsNewCmd.label "ਨਵਾਂ ਕੀ ਹੈ">
 <!ENTITY whatsNewCmd.accesskey "W">
-<!ENTITY featureConfiguratorCmd.label "ਮਾਈਗਰੇਟ ਸਹਾਇਕ">
+<!ENTITY featureConfiguratorCmd.label "ਮਾਈਗਰੇਸ਼ਨ ਸਹਾਇਕ">
 <!ENTITY featureConfiguratorCmd.accesskey "M">
 <!ENTITY openHelp.label "ਮੱਦਦ ਸਮੱਗਰੀ">
 <!ENTITY openHelp.accesskey "H">
@@ -21,4 +21,3 @@
 <!ENTITY updateCmd.label "…ਅੱਪਡੇਟ ਲਈ ਚੈੱਕ ਕਰੋ">
 <!ENTITY aboutMenuCmd.label "&brandShortName; ਬਾਰੇ">
 <!ENTITY aboutMenuCmd.accesskey "A">
-

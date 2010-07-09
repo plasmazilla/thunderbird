@@ -20,6 +20,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s):
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -34,9 +35,7 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY windowTitle.label "Ιδιότητες επώνυμης άγκυρας">
 <!ENTITY anchorNameEditField.label "Όνομα άγκυρας:">
 <!ENTITY anchorNameEditField.accessKey "μ">
 <!ENTITY nameInput.tooltip "Καταχωρίστε ένα μοναδικό όνομα για αυτόν το named anchor (προορισμό)">
-

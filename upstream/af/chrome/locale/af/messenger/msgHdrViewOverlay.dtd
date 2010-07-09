@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "a">
 
 <!ENTITY otherActionsButton.label "ander aksies">
-<!ENTITY otherActionsShowConversation.label "wys in gesprek">
-<!ENTITY otherActionsShowConversation.accesskey "g">
+<!ENTITY otherActionsOpenConversation.label "open in gesprek">
+<!ENTITY otherActionsOpenConversation.accesskey "g">
 <!ENTITY otherActionsOpenInNewWindow.label "open in nuwe venster">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "n">
 <!ENTITY otherActionsOpenInNewTab.label "open in nuwe oortjie">

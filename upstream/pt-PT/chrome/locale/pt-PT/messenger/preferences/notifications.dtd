@@ -1,8 +1,8 @@
-<!ENTITY notificationsDialog2.title "Personalizar Novo Alerta de Correio">
+<!ENTITY notificationsDialog2.title "Personalizar novo alerta de correio">
 <!ENTITY window.width "30em">
 
 <!ENTITY alertCustomization.intro "Escolha os campos que devem aparecer nos alertas:">
-<!ENTITY previewText.label "Resumo da Mensagem">
+<!ENTITY previewText.label "Resumo da mensagem">
 <!ENTITY previewText.accesskey "M">
 <!ENTITY subject.label "Assunto">
 <!ENTITY subject.accesskey "A">

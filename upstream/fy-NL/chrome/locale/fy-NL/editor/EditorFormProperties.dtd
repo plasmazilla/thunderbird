@@ -44,7 +44,7 @@
 <!ENTITY FormAction.accesskey "A">
 <!ENTITY FormMethod.label "Metoade:">
 <!ENTITY FormMethod.accesskey "M">
-<!ENTITY FormEncType.label "Kodearring:">
+<!ENTITY FormEncType.label "Kodearing:">
 <!ENTITY FormEncType.accesskey "K">
 <!ENTITY FormTarget.label "Doelframe:">
 <!ENTITY FormTarget.accesskey "D">

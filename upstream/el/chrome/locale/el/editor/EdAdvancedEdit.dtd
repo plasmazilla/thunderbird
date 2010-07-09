@@ -21,6 +21,7 @@
    -
    - Contributor(s):
    -   Ben Goodger
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -35,7 +36,6 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY WindowTitle.label "Επεξεργασία ειδικών γνωρισμάτων">
 <!ENTITY AttName.label "Όνομα: ">
 <!ENTITY AttValue.label "Τιμή: ">
@@ -47,6 +47,5 @@
 <!ENTITY tabHTML.label "Χαρακτηριστικά HTML ">
 <!ENTITY tabCSS.label "Inline Style">
 <!ENTITY tabJSE.label "Γεγονότα Javascript">
-
 <!ENTITY editAttribute.label "Πατήστε σε ένα αρχείο για να τροποποιήσετε την τιμή του">
 <!ENTITY removeAttribute.label "Αφαίρεση γνωρίσματος">

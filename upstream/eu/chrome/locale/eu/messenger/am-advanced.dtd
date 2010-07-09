@@ -20,4 +20,4 @@
 <!ENTITY serverPort.label "Ataka: ">
 <!ENTITY userName.label "Erabiltzaile-izena: ">
 <!ENTITY connectionSecurity.label "Konexioaren segurtasuna: ">
-<!ENTITY useSecureAuthentication.label "Autentifikazio segurua: ">
+<!ENTITY authMethod.label "Autentifikazio metodoa:">

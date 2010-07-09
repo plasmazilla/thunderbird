@@ -1,4 +1,4 @@
-<!ENTITY caption.label "يجري فتح #1">
+<!ENTITY caption.label "يفتح #1">
 <!-- Localization note: The default intro text has 3 "inserts":
         #1 - replaced with the descriptive text that describes the mime type
              (e.g., "MSWord Document")
@@ -20,7 +20,7 @@
 
 <!ENTITY prompt.label "ماذا يجب على #1 أن يفعل بهذا الملفّ؟">
 
-<!ENTITY alwaysHandle.label "قم دائمًا بهذا الإجراء لمعالجة هذا النوع من الملفات">
+<!ENTITY alwaysHandle.label "قم دائما بهذا الإجراء لمعالجة هذا النوع من الملفات">
 <!ENTITY alwaysHandle.accesskey "ق">
 
 <!ENTITY saveToDisk.label "احفظه على القرص">

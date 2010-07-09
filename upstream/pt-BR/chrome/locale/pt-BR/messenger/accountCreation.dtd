@@ -2,7 +2,7 @@
 <!ENTITY name.label                      "Seu nome:">
 <!ENTITY name.accesskey                  "S">
 <!ENTITY name.emptytext                  "Primeiro Último">
-<!ENTITY name.text                       "Nome que será mostrado aos outros">
+<!ENTITY name.text                       "Seu nome da forma que será exibido aos outros">
 <!ENTITY email.label                     "Endereço de email:">
 <!ENTITY email.accesskey                 "E">
 <!ENTITY email.emptytext                 "email@exemplo.com.br">
@@ -22,6 +22,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP - Accesse pastas e mensagens a partir de vários computadores">
+<!ENTITY pop.description                 "POP - Receba todas as mensagens neste computador, pastas são somente locais">
+<!ENTITY recommended-appendix.label      "(recomendado)">
 
 <!ENTITY manualSetup.label               "Configuração manual…">
 <!ENTITY manualSetup.accesskey           "O">

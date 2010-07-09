@@ -9,7 +9,7 @@
 <!ENTITY releaseCmd.accesskey "П">
 <!ENTITY whatsNewCmd.label "Що нового">
 <!ENTITY whatsNewCmd.accesskey "Щ">
-<!ENTITY featureConfiguratorCmd.label "Помічник мігранта">
+<!ENTITY featureConfiguratorCmd.label "Помічник з міграції">
 <!ENTITY featureConfiguratorCmd.accesskey "м">
 <!ENTITY openHelp.label "Зміст">
 <!ENTITY openHelp.accesskey "З">

@@ -56,7 +56,7 @@
 <!ENTITY originalWebsite2.label "nettstad">
 
 <!ENTITY editMessageDescription.label "Dette er eit meldingsutkast">
-<!ENTITY editMessageButton.label "Rediger …">
+<!ENTITY editMessageButton.label "Endre …">
 <!ENTITY hdrArchiveButton.label "arkiver">
 <!ENTITY hdrArchiveButton.tooltip "arkiver denne meldinga">
 <!ENTITY hdrReplyButton.label "svar">
@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "A">
 
 <!ENTITY otherActionsButton.label "andre handlingar">
-<!ENTITY otherActionsShowConversation.label "vis i samtale">
-<!ENTITY otherActionsShowConversation.accesskey "v">
+<!ENTITY otherActionsOpenConversation.label "Opne i samtale">
+<!ENTITY otherActionsOpenConversation.accesskey "n">
 <!ENTITY otherActionsOpenInNewWindow.label "opne i nytt vindauge">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "o">
 <!ENTITY otherActionsOpenInNewTab.label "opne i ny fane">

@@ -1,4 +1,4 @@
-<!ENTITY loadError.label "페이지 읽기 에러">
+<!ENTITY loadError.label "페이지 읽기 오류">
 <!ENTITY retry.label "재시도">
 <!ENTITY connectionFailure.title "연결 실패">
 <!ENTITY connectionFailure.longDesc "<p>사이트는 유효한 것으로 보이나 접속할 수 없습니다.</p><ul><li>사이트가 일시적으로 사용할 수 없는 경우입니까? 나중에 다시 시도해 보시기 바랍니다.</li><li>다른 사이트에도 접속할 수 없습니까?  컴퓨터의 네트워크 접속 상태를 확인해 보시기 바랍니다.</li><li>컴퓨터 또는 네트워크가 방화벽이나 프록시로 보호되고 있습니까? 설정이 잘못 되어있다면 웹 접속이 막힐 수도 있습니다.</li></ul>">
@@ -30,7 +30,7 @@
 <!ENTITY redirectLoop.longDesc "<p>브라우저가 요청한 항목 가져오기 시도를 중단했습니다. 해당 사이트가 완료할 수 없는 방식으로 요청에 대한 페이지를 자동으로 바꾸고 있습니다.</p><ul><li>이 사이트에서 요구하는 쿠키를 사용하지 않거나 차단했습니까?</li><li><em>주의</em>: 사이트의 쿠키 받아들이는 것으로 문제가 해결되지 않는다면, 이 문제는 사용자 컴퓨터의 문제가 아니라 서버 설정 문제로 보입니다.</li></ul>">
 <!ENTITY unknownSocketType.title "부정확한 응답">
 <!ENTITY unknownSocketType.longDesc "<p>해당 사이트가 네트워크 요청에 예기치 않은 방식으로 반응했기 때문에 브라우저는 계속할 수 없습니다.</p>">
-<!ENTITY contentEncodingError.title "컨텐츠 인코딩 오류">
+<!ENTITY contentEncodingError.title "콘텐츠 인코딩 오류">
 <!ENTITY contentEncodingError.longDesc "<p>보려는 페이지가 유효하지 않거나 지원하지 않는 압축 형식을 사용하므로 해당 페이지를 표시할 수 없습니다.</p><ul><li>본 웹 사이트 관리자에게 이 문제를 알려 주시기 바랍니다.</li></ul>">
 
 

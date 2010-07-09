@@ -45,7 +45,7 @@
 <!ENTITY reuseExpRadio0.accesskey      "н">
 <!ENTITY reuseExpRadio1.label          "вже існуючому вікні">
 <!ENTITY reuseExpRadio1.accesskey      "у">
-<!ENTITY closeMsgWindowOnDelete.label  "Закривати вікно повідомлення по стиранню">
+<!ENTITY closeMsgWindowOnDelete.label  "Закривати вікно листа по стиранню">
 <!ENTITY closeMsgWindowOnDelete.accesskey "З">
 
 <!-- Update -->

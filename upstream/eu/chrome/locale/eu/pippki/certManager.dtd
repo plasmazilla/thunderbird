@@ -104,9 +104,9 @@
 <!ENTITY certmgr.serial "Serie-zenbakia:">
 
 <!ENTITY certmgr.close.label "Itxi">
-<!ENTITY certmgr.close.accesskey "X">
+<!ENTITY certmgr.close.accesskey "x">
 <!ENTITY certmgr.view2.label "Ikusi...">
-<!ENTITY certmgr.view2.accesskey "K">
+<!ENTITY certmgr.view2.accesskey "k">
 <!ENTITY certmgr.edit2.label "Editatu…">
 <!ENTITY certmgr.edit2.accesskey "E">
 <!ENTITY certmgr.editca.label "Editatu AZren fidagarritasuna">
@@ -124,9 +124,9 @@
 <!ENTITY certmgr.restore2.label "Inportatu…">
 <!ENTITY certmgr.restore2.accesskey "n">
 <!ENTITY certmgr.details.label "Ziurtagiri-eremuak">
-<!ENTITY certmgr.details.accesskey "M">
+<!ENTITY certmgr.details.accesskey "m">
 <!ENTITY certmgr.fields.label "Eremuaren balioa">
-<!ENTITY certmgr.fields.accesskey "I">
+<!ENTITY certmgr.fields.accesskey "i">
 <!ENTITY certmgr.hierarchy.label "Ziurtagiri-hierarkia">
 <!ENTITY certmgr.hierarchy.accesskey "Z">
 <!ENTITY certmgr.addException.label "Gehitu salbuespena…">
@@ -144,4 +144,4 @@
 <!ENTITY exceptionMgr.certstatus.viewCert "Ikusi…">
 <!ENTITY exceptionMgr.certstatus.accesskey "I">
 <!ENTITY exceptionMgr.permanent.label "Gorde betirako salbuespen hau">
-<!ENTITY exceptionMgr.permanent.accesskey "B">
+<!ENTITY exceptionMgr.permanent.accesskey "b">

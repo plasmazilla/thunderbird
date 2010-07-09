@@ -3,5 +3,5 @@
 <!ENTITY date.heading "Noiz bidalia">
 <!ENTITY noReports.label "Ez da bidali hutsegite-txostenik.">
 <!ENTITY noConfig.label "Aplikazio hau ez da konfiguratu hutsegite-txostenak bistaratzeko. Horretarako <code>breakpad.reportURL</code> hobespena ezarri behar da.">
-<!ENTITY clearReports.label "Ezabatu txostenak">
+<!ENTITY clearAllReports.label "Ezabatu txosten guztiak">
 

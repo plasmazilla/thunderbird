@@ -51,4 +51,5 @@
 <!ENTITY weekAgeInterval.label "Seachtain">
 <!ENTITY monthAgeInterval.label "Mí">
 <!ENTITY yearAgeInterval.label "Bliain">
-<!ENTITY ageAutosyncAfter.label "is déanaí">
+<!ENTITY ageAutosyncAfter.label "is déanaí
+">

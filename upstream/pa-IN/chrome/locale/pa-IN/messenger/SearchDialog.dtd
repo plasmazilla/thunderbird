@@ -3,7 +3,7 @@
 <!ENTITY searchHeading.accesskey     "h">
 <!ENTITY searchSubfolders.label      "ਅਧੀਨ-ਫੋਲਡਰ ਵਿੱਚ ਖੋਜ।">
 <!ENTITY searchSubfolders.accesskey  "e">
-<!ENTITY searchOnServer.label        "ਸਰਵਰ ਉੱਤੇ ਖੋਜ ਕਰੋ">
+<!ENTITY searchOnServer.label        "ਖੋਜ ਸਰਵਰ ਉੱਤੇ ਕਰੋ">
 <!ENTITY searchOnServer.accesskey    "u">
 <!ENTITY resetButton.label           "ਸਾਫ਼ ਕਰੋ">
 <!ENTITY resetButton.accesskey       "C">
@@ -20,6 +20,7 @@
 <!ENTITY closeCmd.key                "W"> 
 <!ENTITY openInFolder.label          "ਫੋਲਡਰ ਵਿੱਚ ਖੋਲ੍ਹੋ">
 <!ENTITY openInFolder.accesskey      "r">
+
 <!ENTITY saveAsVFButton.label      "ਖੋਜ ਫੋਲਡਰ ਵਾਂਗ ਸੰਭਾਲੋ">
 <!ENTITY saveAsVFButton.accesskey  "a">
 
@@ -44,7 +45,7 @@
 <!ENTITY accountColumn.label "ਅਕਾਊਂਟ">
 <!ENTITY statusColumn.label "ਹਾਲਤ">
 <!ENTITY sizeColumn.label "ਸਾਈਜ਼">
-<!ENTITY junkStatusColumn.label "ਜੰਕ ਹਾਲਤ">
+<!ENTITY junkStatusColumn.label "ਜੰਕ ਸਥਿਤੀ">
 <!ENTITY unreadColumn.label "ਨਾ-ਪੜੇ">
 <!ENTITY totalColumn.label "ਕੁੱਲ">
 <!ENTITY readColumn.label "ਪੜੇ">
@@ -56,7 +57,7 @@
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser.tooltip "ਵੇਖਣ ਲਈ ਕਾਲਮ ਚੁਣਨ ਲਈ ਇੱਥੇ ਦਬਾਓ">
 <!ENTITY threadColumn.tooltip "ਸੁਨੇਹਾ ਮਾਮਲੇ ਵੇਖਣ ਲਈ ਇੱਥੇ ਦਬਾਓ"> 
-<!ENTITY fromColumn.tooltip "ਵਲੋਂ ਲੜੀਬੱਧ ਕਰਨ ਲਈ ਇੱਥੇ ਦਬਾਓ">
+<!ENTITY fromColumn.tooltip "ਵਲੋਂ ਰਾਹੀਂ ਲੜੀਬੱਧ ਕਰਨ ਥਈ ਕਲਿੱਕ ਕਰੋ">
 <!ENTITY recipientColumn.tooltip "ਪ੍ਰਾਪਤ ਕਰਨ ਵਾਲੇ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY subjectColumn.tooltip "ਵਿਸ਼ੇ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY dateColumn.tooltip "ਮਿਤੀ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
@@ -69,7 +70,7 @@
 <!ENTITY unreadColumn.tooltip "ਮਾਮਲੇ ਵਿੱਚ ਕੁੱਲ ਨਾ ਪੜ੍ਹੇ ਸੁਨੇਹੇ">
 <!ENTITY totalColumn.tooltip "ਮਾਮਲੇ ਵਿੱਚ ਕੁੱਲ ਸੁਨੇਹਿਆਂ ਦੀ ਗਿਣਤੀ">
 <!ENTITY readColumn.tooltip "ਪੜ੍ਹਨ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
-<!ENTITY receivedColumn.tooltip "ਮਿਲਣ ਮਿਤੀ ਦੇ ਮੁਤਾਬਕ ਲੜੀਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
+<!ENTITY receivedColumn.tooltip "Click to sort by date received">
 <!ENTITY starredColumn.tooltip "ਤਾਰੇ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY locationColumn.tooltip "ਸਥਿਤੀ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">
 <!ENTITY idColumn.tooltip "ਪ੍ਰਾਪਤ ਕ੍ਰਮ ਰਾਹੀਂ ਕ੍ਰਮਬੱਧ ਕਰਨ ਲਈ ਦਬਾਓ">

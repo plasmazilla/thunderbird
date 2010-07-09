@@ -9,7 +9,7 @@
 <!ENTITY viewNotDeleted.label "Не вилучені">
 <!ENTITY viewNotDeleted.accesskey "в">
 <!ENTITY viewTags.label "Мітки">
-<!ENTITY viewTags.accesskey "з">
+<!ENTITY viewTags.accesskey "М">
 <!ENTITY viewCustomViews.label "Користувацькі представлення">
 <!ENTITY viewCustomViews.accesskey "К">
 <!ENTITY viewVirtualFolder.label "Зберегти представлення як теку…">

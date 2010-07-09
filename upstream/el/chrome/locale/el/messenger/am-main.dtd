@@ -1,5 +1,3 @@
-<!-- extracted from am-main.xul -->
-
 <!ENTITY accountTitle.label "Οδηγός λογαριασμού">
 <!ENTITY accountName.label "Όνομα λογαριασμού:">
 <!ENTITY accountName.accesskey "ν">
@@ -15,7 +13,7 @@
 <!ENTITY organization.accesskey "Ο">
 <!ENTITY signatureText.label "Κείμενο υπογραφής:">
 <!ENTITY signatureText.accesskey "μ">
-<!ENTITY signatureHtml.label "Χρήση HTML (e.g., &lt;b&gt;bold&lt;/b&gt;)">
+<!ENTITY signatureHtml.label "Χρήση HTML (π.χ., &lt;b&gt;bold&lt;/b&gt;)">
 <!ENTITY signatureHtml.accesskey "L">
 <!ENTITY signatureFile.label "Επισύναψη υπογραφής από αρχείο (κείμενο, HTML, ή εικόνα):">
 <!ENTITY signatureFile.accesskey "ψ">
@@ -24,14 +22,10 @@
 <!ENTITY choose.accesskey "λ">
 <!ENTITY editVCard.label "Επεξεργασία καρτέλας...">
 <!ENTITY editVCard.accesskey "ξ">
-<!-- LOCALIZATION NOTE (attachVCard.label) : do not translate "vCard" in below line -->
 <!ENTITY attachVCard.label "Επισύναψη της vCard μου στα μηνύματα">
 <!ENTITY attachVCard.accesskey "v">
-
 <!ENTITY manageIdentities.label "Διαχείριση ταυτοτήτων...">
 <!ENTITY manageIdentities.accesskey "Δ">
-<!-- LOCALIZATION NOTE (smtpName.label) : do not translate "SMTP" in below line -->
-
 <!ENTITY smtpName.label "Διακομιστής εξερχομένων (SMTP):">
 <!ENTITY smtpName.accesskey "χ">
 <!ENTITY smtpDefaultServer.label "Χρήση προεπιλεγμένου διακομιστή">

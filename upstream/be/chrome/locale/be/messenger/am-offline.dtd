@@ -37,7 +37,7 @@
 <!ENTITY allAutosync.label "Сінхранізаваць усе лісты незалежна ад узросту">
 <!ENTITY allAutosync.accesskey "с">
 <!ENTITY ageAutosyncBefore.label "Сінхранізаваць найбольш новыя">
-<!ENTITY ageAutosync.accesskey "z">
+<!ENTITY ageAutosync.accesskey "й">
 <!ENTITY ageAutosyncMiddle.label "">
 <!ENTITY dayAgeInterval.label "Дзён">
 <!ENTITY weekAgeInterval.label "Тыдняў">

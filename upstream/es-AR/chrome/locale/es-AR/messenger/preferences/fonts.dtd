@@ -4,11 +4,11 @@
 <!ENTITY  window.unixWidth                        "41em">
 
 <!ENTITY  language.label                          "Tipografías para:">
-<!ENTITY  language.accesskey                      "g">
+<!ENTITY  language.accesskey                      "t">
 
 <!ENTITY  size.label                             "Tamaño:">
-<!ENTITY  proportionalSize.accesskey              "T">
-<!ENTITY  sizeMono.accesskey                      "a">
+<!ENTITY  proportionalSize.accesskey              "e">
+<!ENTITY  sizeMono.accesskey                      "i">
 
 <!ENTITY  proportional.label                      "Proporcional:">
 <!ENTITY  proportional.accesskey                  "P">
@@ -50,7 +50,7 @@
 
 <!-- Minimum font size -->
 <!ENTITY minSize.label                            "Tamaño mínimo de fuente:">
-<!ENTITY minSize.accesskey                        "f">
+<!ENTITY minSize.accesskey                        "a">
 <!ENTITY minSize.none                             "Ninguno">
 
 <!-- default font type -->

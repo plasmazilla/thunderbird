@@ -25,7 +25,7 @@
 	1, do not translate two of "&quot;"
 	2, Use localized full name instead of "John Smith"
 -->
-<!ENTITY fullnameExample.label "(ਜਿਵੇਂ ਕਿ &quot;ਜਰਨੈਲ ਸਿੰਘ &quot;)">
+<!ENTITY fullnameExample.label "(ਜਿਵੇਂ, &quot;ਜਰਨੈਲ ਸਿੰਘ &quot;)">
 <!ENTITY fullnameLabel.label "ਤੁਹਾਡਾ ਨਾਂ:">
 <!ENTITY fullnameLabel.accesskey "Y">
 
@@ -42,7 +42,7 @@
 <!ENTITY incomingServerLabel.label "ਲਿਆਉਣ ਵਾਲਾ ਸਰਵਰ:">
 <!ENTITY incomingServerLabel.accesskey "S">
 <!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
-<!ENTITY newsServerNameDesc.label "ਆਪਣੇ ਖਬਰ ਸਰਵਰ ਦਾ ਨਾਂ ਦਿਉ (NNTP) (ਜਿਵੇਂ ਕਿ &quot;news.example.net&quot;)">
+<!ENTITY newsServerNameDesc.label "ਆਪਣੇ ਖਬਰ ਸਰਵਰ ਦਾ ਨਾਂ ਦਿਉ (NNTP) (ਜਿਵੇਂ, &quot;news.example.net&quot;)">
 
 <!-- LOCALIZATION NOTE (smtpServerDesc.label) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
 <!ENTITY smtpServerDesc.label "ਆਪਣੇ ਬਾਹਰ ਭੇਜਣ ਵਾਲੇ ਸਰਵਰ ਦਾ ਨਾਂ ਦਿਉ (SMTP) (ਜਿਵੇਂ,  &quot;smtp.example.net&quot;)">
@@ -67,8 +67,7 @@
      text after the "&quot;" entity in haveSmtp1.suffix, if required grammatically.
 -->
 <!ENTITY haveSmtp1.prefix "ਤੁਹਾਡਾ ਮੌਜੂਦਾ ਭੇਜਣ ਵਾਲਾ ਸਰਵਰ (SMTP), &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot;, ਵਰਤਿਆ ਜਾਵੇਗਾ। ਤੁਸੀਂ ਅਕਾਊਂਟ ਸੈਟਿੰਗ ਵਿੱਚ ਭੇਜਣ ਵਾਲੀ ਸਰਵਰ ਸੈਟਿੰਗ ਬਦਲ ਸਕਦੇ ਹੋ।">
-
+<!ENTITY haveSmtp1.suffix2 "&quot;, will be used. You can change outgoing servers in the account settings.">
 <!-- Entities for Login page -->
 
 <!ENTITY loginTitle.label "ਯੂਜ਼ਰ ਲਾਗਇਨ ਨਾਂ">
@@ -85,19 +84,19 @@
      text after the "&quot;" entity in haveSmtp2.suffix, if required grammatically.
 -->
 <!ENTITY haveSmtp2.prefix "ਤੁਹਾਡਾ ਮੌਜੂਦਾ ਭੇਜਣ ਵਾਲਾ (SMTP) ਯੂਜ਼ਰ ਨਾਂ, &quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot;, ਵਰਤਿਆ ਜਾਵੇਗਾ। ਤੁਸੀਂ ਅਕਾਊਂਟ ਸੈਟਿੰਗ ਵਿੱਚ ਜਾ ਕੇ ਭੇਜਣ ਵਾਲੇ ਸਰਵਰ ਬਦਲ ਸਕਦੇ ਹੋ।">
+<!ENTITY haveSmtp2.suffix2 "&quot;, will be used. You can change outgoing servers in the account settings.">
 <!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp3.suffix, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "ਤੁਹਾਡਾ ਭੇਜਣ ਵਾਲਾ (SMTP) ਸਰਵਰ, &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, ਤੁਹਾਡੇ ਆਉਣ ਵਾਲੇ ਸਰਵਰ ਦੇ ਵਾਂਗ ਹੀ ਹੈ, ਤੁਹਾਡਾ ਯੂਜ਼ਰ ਨਾਂ ਇਸ ਨੂੰ ਵਰਤਣ ਲਈ ਵਰਤਿਆ ਜਾਵੇਗਾ। ਤੁਸੀਂ ਅਕਾਊਂਟ ਸੈਟਿੰਗ ਵਿੱਚ ਭੇਜਣ ਵਾਲੇ ਸਰਵਰ ਨੂੰ ਬਦਲ ਸਕਦੇ ਹੋ।">
+<!ENTITY haveSmtp3.suffix2 "&quot;, is identical to your incoming server, your incoming user name will be used to access it. You can change outgoing servers in the account settings.">
 
 <!-- Entities for Account name page -->
 
 <!ENTITY accnameTitle.label "ਅਕਾਊਂਟ ਨਾਂ">
 <!-- LOCALIZATION NOTE (accnameDesc.label) : do not translate any "&quot;" in below line -->
-<!ENTITY accnameDesc.label "ਨਾਂ ਦਿਉ, ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਇਸ ਅਕਾਊਂਟ ਨੂੰ ਸੰਬੋਧਨ ਕਰੋਗੇ (ਜਿਵੇਂ ਕਿ, &quot;ਕੰਮ ਅਕਾਊਂਟ&quot;, &quot;ਘਰ ਅਕਾਊਂਟ&quot; ਜਾਂ &quot;ਨਿਊਜ਼ ਅਕਾਊਂਟ&quot;)">
+<!ENTITY accnameDesc.label "ਨਾਂ ਦਿਉ, ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਇਸ ਅਕਾਊਂਟ ਨੂੰ ਸੰਬੋਧਨ ਕਰੋਗੇ (ਉਦਾਹਰਨ ਲਈ, &quot;ਕੰਮ ਅਕਾਊਂਟ&quot;, &quot;ਘਰ ਅਕਾਊਂਟ&quot; ਜਾਂ &quot;ਨਿਊਜ਼ ਅਕਾਊਂਟ&quot;)">
 <!ENTITY accnameLabel.label "ਅਕਾਊਂਟ ਨਾਂ:">
 <!ENTITY accnameLabel.accesskey "A">
 
@@ -116,3 +115,4 @@
 <!ENTITY deferStorage.accesskey "G">
 <!ENTITY clickFinish.label "ਮੁਕੰਮਲ ਨੂੰ ਸੈਟਿੰਗ ਸੰਭਾਲਣ ਅਤੇ ਅਕਾਊਂਟ ਸਹਾਇਕ ਨੂੰ ਬੰਦ ਕਰਨ ਲਈ ਇਸਤੇਮਾਲ ਕਰੋ">
 <!ENTITY clickFinish.labelMac "ਇਹ ਸੈਟਿੰਗ ਸੰਭਾਲਣ ਅਤੇ ਅਕਾਊਂਟ ਸਹਾਇਕ ਨੂੰ ਬੰਦ ਕਰਨ ਵਾਸਤੇ ਮੁਕੰਮਲ ਨੂੰ ਕਲਿੱਕ ਕਰੋ।">
+

@@ -2,7 +2,7 @@
 <!ENTITY requestReceipt.label          "ලිපි යැවීමේදී, සෑම විටම ලදුපතක් ඉල්ලුම් කරන්න">
 <!ENTITY requestReceipt.accesskey      "W">
 <!ENTITY receiptArrive.label           "ලදුපතක් ලැබුන විටදී:">
-<!ENTITY leaveIt.label                 "එය මාගේ &quot;ලදලිපි&quot; හි තබන්න">
+<!ENTITY leaveIt.label                 "එය මාගේ ලදලිපි හි තබන්න">
 <!ENTITY leaveIt.accesskey             "I">
 <!ENTITY moveToSent.label              "එය මාගේ &quot;යැවූලිපි&quot; ෆෝල්ඩරයට යවන්න">
 <!ENTITY moveToSent.accesskey          "M">

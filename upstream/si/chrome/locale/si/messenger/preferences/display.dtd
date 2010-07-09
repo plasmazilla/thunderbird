@@ -1,5 +1,5 @@
 <!ENTITY itemFormatting.label             "හැඩගැසුම්">
-<!ENTITY itemTags.label                   "ටැග">
+<!ENTITY itemTags.label                   "ටැග්ස්">
 
 <!ENTITY style.label                      "විලාසය:">
 <!ENTITY style.accesskey                  "y">
@@ -28,7 +28,7 @@
 <!ENTITY convertEmoticons.accesskey       "D">
 
 <!-- labels -->
-<!ENTITY displayTagsText.label            "ඔබගේ ලිපි ප්‍රමුඛතාවයට හා වර්ගීකරණයට ටැග භාවිතා කළ හැකිය.">
+<!ENTITY displayTagsText.label            "ඔබගේ ලිපි ප්‍රමුඛතාවයට හා වර්ගීකරණයට ටැග්ස් භාවිතා කළ හැකිය.">
 <!ENTITY addTagButton.label               "එක් කරන්න">
 <!ENTITY addTagButton.accesskey           "A">
 <!ENTITY editTagButton.label              "සැකසුම්">

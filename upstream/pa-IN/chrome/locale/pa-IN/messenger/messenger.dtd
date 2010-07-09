@@ -137,8 +137,8 @@
 
 <!ENTITY folderView.label "ਫੋਲਡਰ">
 <!ENTITY folderView.accesskey "F">
-<!ENTITY smartFolders.label "Smart">
-<!ENTITY smartFolders.accesskey "S">
+<!ENTITY unifiedFolders.label "Unified">
+<!ENTITY unifiedFolders.accesskey "n">
 <!ENTITY allFolders.label "ਸਭ">
 <!ENTITY allFolders.accesskey "A">
 <!ENTITY unreadFolders.label "ਨਾ-ਪੜ੍ਹੇ">
@@ -224,7 +224,7 @@
 <!ENTITY bodyAsPlaintext.label "ਪਲੇਨ ਟੈਕਸਟ">
 <!ENTITY bodyAsPlaintext.accesskey "P">
 
-<!ENTITY bodyMenuFeed.label "ਸੁਨੇਹਾ ਬਾਡੀ ਫੀਡ ਇੰਝ ਕਰੋ">
+<!ENTITY bodyMenuFeed.label "Feed Message Body As">
 <!ENTITY bodyMenuFeed.accesskey "B">
 <!ENTITY viewFeedWebPage.label "ਵੈੱਬ ਪੇਜ਼">
 <!ENTITY viewFeedWebPage.accesskey "W">
@@ -338,7 +338,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyToAllMsgCmd.label "ਸਭ ਨੂੰ ਜਵਾਬ">
 <!ENTITY replyToAllMsgCmd.accesskey  "p">
 <!ENTITY replyToAllMsgCmd.key  "r">
-<!ENTITY replyToListMsgCmd.label "ਲਿਸਟ ਨੂੰ ਜਵਾਬ ਦਿਓ">
+<!ENTITY replyToListMsgCmd.label "ਲਿਸਟ ਨੂੰ ਜਵਾਬ">
 <!ENTITY replyToListMsgCmd.accesskey  "L">
 <!ENTITY replyToListMsgCmd.key  "l">
 <!ENTITY forwardMsgCmd.label "ਅੱਗੇ">
@@ -419,13 +419,16 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "ਸੁਨੇਹਾ ਖੋਲ੍ਹੋ">
 <!ENTITY openMessageWindowCmd.accesskey "O">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "ਚਰਚਾ ਦੇ ਰੂਪ 'ਚ ਖੋਲ੍ਹੋ">
+<!ENTITY openConversationCmd.accesskey "s">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "ਫੀਡ ਸੁਨੇਹੇ ਖੋਲ੍ਹੋ">
 <!ENTITY openFeedMessage.accesskey "O">
 <!ENTITY openFeedWebPageInWindow.label "ਨਵੀਂ ਵਿੰਡੋ ਵਿੱਚ ਵੈੱਬ ਪੇਜ਼">
 <!ENTITY openFeedWebPageInWindow.accesskey "W">
 <!ENTITY openFeedSummaryInWindow.label "ਨਵੀਂ ਵਿੰਡੋ ਵਿੱਚ ਸੰਖੇਪ">
 <!ENTITY openFeedSummaryInWindow.accesskey "S">
-<!ENTITY openFeedWebPageInMP.label "ਸੁਨੇਹਾ ਪੇਜ਼ ਵਿੱਚ ਵੈੱਬ ਪੇਜ਼ ਅਤੇ ਸੰਖੇਪ ਨੂੰ ਬਦਲੋ">
+<!ENTITY openFeedWebPageInMP.label "ਸੁਨੇਹਾ ਬਾਹੀ ਵਿੱਚ ਵੈੱਬ ਪੇਜ਼ ਅਤੇ ਸੰਖੇਪ ਬਦਲੋ">
 <!ENTITY openFeedWebPageInMP.accesskey "T">
 
 <!-- Windows Menu -->
@@ -438,6 +441,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "d">
 <!ENTITY activitymanager.label "ਐਕਟੀਵਿਟੀ ਮੈਨੇਜਰ">
 <!ENTITY activitymanager.accesskey "a">
+<!ENTITY savedFiles.label "ਸੰਭਾਲੀਆਂ ਫਾਇਲਾਂ">
+<!ENTITY savedFiles.accesskey "l">
+<!ENTITY savedFiles.key "j">
 <!ENTITY messengerCmd.label "ਮੇਲ &amp; ਨਿਊਜ਼ਗਰੁੱਪ">
 <!ENTITY messengerCmd.accesskey "m">
 <!ENTITY addressBookCmd.label "ਐਡਰੈੱਸ ਬੁੱਕ">
@@ -480,7 +486,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkButton.label "ਜੰਕ">
 <!ENTITY notJunkButton.label "ਜੰਕ ਨਹੀਂ">
 <!ENTITY addressBookButton.label "ਐਡਰੈੱਸ ਬੁੱਕ">
-<!ENTITY glodaSearch.title "Global Search">
+<!ENTITY glodaSearch.title "ਗਲੋਬਲ ਖੋਜ">
 <!ENTITY searchItem.title "ਤੁਰੰਤ ਖੋਜ">
 <!ENTITY mailViewsToolbarItem.title "ਮੇਲ ਝਲਕ">
 <!ENTITY folderLocationToolbarItem.title "ਫੋਲਡਰ ਟਿਕਾਣਾ">
@@ -565,9 +571,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY SearchNameOrEmail.label "ਨਾਂ ਜਾਂ ਈਮੇਲ ਰੱਖਦਾ ਹੈ:">
 <!ENTITY SearchNameOrEmail.accesskey "N">
 
-
 <!-- Gloda Search Bar -->
-<!ENTITY glodaSearchBar.emptyText "ਸੁਨੇਹੇ ਖੋਜ…">
+<!ENTITY glodaSearchBar.emptyText "…ਸੁਨੇਹੇ ਖੋਜ">
+
 
 <!-- Quick Search Menu Bar -->
 <!ENTITY searchSubjectMenu.label "ਵਿਸ਼ਾ">
@@ -598,6 +604,10 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY locationColumn.label "ਟਿਕਾਣਾ">
 <!ENTITY idColumn.label "ਮਿਲਣ ਕ੍ਰਮ">
 <!ENTITY attachmentColumn.label "ਅਟੈਚਮੈਂਟ">
+<!-- LOCALIZATION NOTE (glodaScoreColumn.label): provides the numerical
+     score assigned to the message as a result of the search.  The column
+     primarily exists to be sorted by, and its contents will probably have
+     little meaning for most users. -->
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser.tooltip "ਵੇਖਾਉਣ ਲਈ ਕਾਲਮ ਚੁਣਨ ਵਾਸਤੇ ਕਲਿੱਕ ਕਰੋ">
@@ -626,10 +636,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "W">
 <!ENTITY contextOpenNewTab.label "ਸੁਨੇਹਾ ਨਵੀਂ ਟੈਬ ਵਿੱਚ ਖੋਲ੍ਹੋ">
 <!ENTITY contextOpenNewTab.accesskey "T">
+<!ENTITY contextOpenConversation.label "ਸੁਨੇਹਾ ਚਰਚਾ ਦੇ ਰੂਪ ਵਿੱਚ ਖੋਲ੍ਹੋ">
+<!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextEditAsNew.label "…ਨਵੇਂ ਵਾਂਗ ਸੋਧੋ">
-<!ENTITY contextEditAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Archive">
 <!ENTITY contextArchive.accesskey "h">
+<!ENTITY contextEditAsNew.accesskey "E">
 <!ENTITY contextReplySender.label "ਕੇਵਲ ਭੇਜਣ ਵਾਲੇ ਨੂੰ ਜਵਾਬ ਦਿਓ">
 <!ENTITY contextReplySender.accesskey "R">
 <!ENTITY contextReplyNewsgroup.label "ਨਿਊਜ਼ਗਰੁੱਪ ਨੂੰ ਜਵਾਬ">
@@ -655,6 +667,51 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "ਪਰਿੰਟ ਝਲਕ">
 <!ENTITY contextPrintPreview.accesskey "v">
 
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "ਕਾਲਮ ਡਿਫਾਲਟ ਲਈ ਮੁੜ-ਸੈੱਟ ਕਰੋ">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "ਕਾਲਮ ਲਾਗੂ ਕਰੋ…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "ਫੋਲਡਰ…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "ਫੋਲਡਰ ਅਤੇ ਇਸ ਦੇ ਅੰਦਰੂਨੀ…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "ਇਹ ਫੋਲਡਰ">
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "ਚਲਾਓ">
 <!ENTITY contextPlay.accesskey "P">
@@ -671,7 +728,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkInfoButton.label "?">
 
 <!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "ਤੁਹਾਡੀ ਪਰਾਈਵੇਸੀ ਨੂੰ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ &brandShortName; ਨੇ ਇਹ ਸੁਨੇਹੇ ਵਿੱਚ ਰਿਮੋਟ ਸਮੱਗਰੀ ਨੂੰ ਰੋਕ ਦਿੱਤਾ ਹੈ।">
+<!ENTITY remoteContentMessage2.label "ਤੁਹਾਡੀ ਪਰਾਈਵੇਸੀ ਸੁਰੱਖਿਅਤ ਰੱਖਣ ਲਈ, &brandShortName; ਨੇ ਇਸ ਸੁਨੇਹੇ ਵਿੱਚ ਰਿਮੋਟ ਸਮੱਗਰੀ ਉੱਤੇ ਪਾਬੰਦੀ ਲਗਾ ਦਿੱਤੀ ਹੈ।">
 <!ENTITY loadRemoteContentButton3.label "ਰਿਮੋਟ ਸਮੱਗਰੀ ਵੇਖੋ">
 
 <!-- Phishing Bar -->
@@ -679,13 +736,31 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "ਚੇਤਾਵਨੀ ਅਣਡਿੱਠੀ">
 <!ENTITY reportPhishingError1.label "ਇਹ ਸੁਨੇਹਾ ਇੱਕ ਘਪਲਾ ਹੋ ਸਕਦਾ ਹੈ।">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "ਹੋਰ">
 
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "ਸਭ ਸੁਨੇਹਿਆਂ ਵਿੱਚ ਖੋਜ">
-
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "ਸਭ ਸੁਨੇਹੇ ਖੋਜੋ… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "…ਐਡਰੈੱਸ ਬੁੱਕ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ">
 <!ENTITY AddToAddressBook.accesskey "B">
@@ -695,9 +770,10 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY EditContact.accesskey "E">
 <!ENTITY ViewContact.label "ਸੰਪਰਕ ਵੇਖੋ">
 <!ENTITY ViewContact.accesskey "V">
-<!ENTITY SubscribeToNewsgroup.label "ਨਿਊਜ਼ਗਰੁੱਪ ਲਈ ਮੈਂਬਰ ਬਣੋ">
+
+<!ENTITY SubscribeToNewsgroup.label "ਨਿਊਜ਼ਗਰੁੱਪ ਦੇ ਮੈਂਬਰ ਬਣੋ">
 <!ENTITY SubscribeToNewsgroup.accesskey "N">
-<!ENTITY SendMessageTo.label "...ਨੂੰ ਸੁਨੇਹੇ ਲਿਖੋ">
+<!ENTITY SendMessageTo.label "ਸੁਨੇਹਾ ਲਿਖੋ">
 <!ENTITY SendMessageTo.accesskey "s">
 <!ENTITY CopyEmailAddress.label "ਈਮੇਲ ਐਡਰੈੱਸ ਕਾਪੀ ਕਰੋ">
 <!ENTITY CopyEmailAddress.accesskey "C">
@@ -710,6 +786,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY reportPhishingURL.label "ਈਮੇਲ ਘਪਲੇ ਦੀ ਰਿਪੋਰਟ ਦਿਓ">
 <!ENTITY reportPhishingURL.accesskey "o">
 
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "The sender of this message has asked to be notified when you read this message. Do you wish to notify the sender?">
+<!ENTITY mdnBarIgnoreButton.label "Ignore Request">
+<!ENTITY mdnBarSendButton.label "Send Receipt">
+
 <!-- Content Pane Context Menu -->
 <!ENTITY saveLinkAsCmd.label "…ਲਿੰਕ ਇੰਝ ਸੰਭਾਲੋ">
 <!ENTITY saveLinkAsCmd.accesskey "k">
@@ -719,25 +800,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY cutCmd.accesskey "u">
 <!ENTITY copyCmd.label "ਕਾਪੀ ਕਰੋ">
 <!ENTITY copyCmd.accesskey "C">
-<!ENTITY pasteCmd.label "Paste">
+<!ENTITY pasteCmd.label "ਚੇਪੋ">
 <!ENTITY pasteCmd.accesskey "P">
 <!ENTITY selectAllCmd.label "ਸਭ ਚੁਣੋ">
 <!ENTITY selectAllCmd.accesskey "A">
 <!ENTITY copyLinkCmd.label "ਲਿੰਕ ਟਿਕਾਣਾ ਕਾਪੀ ਕਰੋ">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY copyImageCmd.label "ਚਿੱਤਰ ਟਿਕਾਣਾ ਕਾਪੀ ਕਰੋ">
-<!ENTITY copyImageCmd.accesskey "o">
+<!ENTITY copyImageAllCmd.label "ਚਿੱਤਰ ਕਾਪੀ ਕਰੋ">
+<!ENTITY copyImageAllCmd.accesskey "I">
 <!ENTITY copyEmailCmd.label "ਈਮੇਲ ਐਡਰੈੱਸ ਕਾਪੀ ਕਰੋ">
 <!ENTITY copyEmailCmd.accesskey "E">
 <!ENTITY stopCmd.label "ਰੋਕੋ">
 <!ENTITY stopCmd.accesskey "S">
 <!ENTITY reloadCmd.label "ਮੁੜ-ਲੋਡ ਕਰੋ">
 <!ENTITY reloadCmd.accesskey "R">
-<!ENTITY openInBrowser.label "ਬਰਾਊਜ਼ਰ ਵਿੱਚ  ਖੋਲ੍ਹੋ">
+<!ENTITY openInBrowser.label "ਬਰਾਊਜ਼ਰ 'ਚ ਖੋਲ੍ਹੋ">
 <!ENTITY openInBrowser.accesskey "O">
 <!ENTITY openLinkInBrowser.label "ਲਿੰਕ ਬਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ">
 <!ENTITY openLinkInBrowser.accesskey "O">
-
 <!-- Statusbar -->
 <!ENTITY statusText.label "ਮੁਕੰਮਲ">
 

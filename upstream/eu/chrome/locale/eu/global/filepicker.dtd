@@ -1,5 +1,5 @@
 <!ENTITY lookInMenuList.label "Bilatu hemen:">
-<!ENTITY lookInMenuList.accesskey "L">
+<!ENTITY lookInMenuList.accesskey "l">
 <!ENTITY textInput.label "Fitxategi izena:">
 <!ENTITY textInput.accesskey "n">
 <!ENTITY filterMenuList.label "Mota honetako fitxategiak:">
@@ -8,7 +8,7 @@
 <!ENTITY size.label "Tamaina">
 <!ENTITY lastModified.label "Azken aldaketa">
 <!ENTITY showHiddenFiles.label "Erakutsi ezkutuko fitxategi eta direktorioak">
-<!ENTITY showHiddenFiles.accesskey "S">
+<!ENTITY showHiddenFiles.accesskey "s">
 
 <!ENTITY noPermissionError.label "Ez duzu direktorio hau ikusteko baimenik.">
 

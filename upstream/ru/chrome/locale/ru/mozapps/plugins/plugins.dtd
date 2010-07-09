@@ -16,3 +16,12 @@
 <!ENTITY missingPlugin.label "Нажмите здесь, чтобы загрузить плагин.">
 <!ENTITY disabledPlugin.label "Плагин для этого содержимого был отключён. Для управления вашими плагинами щёлкните здесь.">
 <!ENTITY blockedPlugin.label "Этот плагин был заблокирован в целях вашей безопасности.">
+<!ENTITY reloadPlugin.pre "Вы можете попробовать ">
+<!ENTITY reloadPlugin.middle "перезагрузить эту страницу">
+<!ENTITY reloadPlugin.post ".">
+<!ENTITY report.please "Отправить сообщение о падении">
+<!ENTITY report.submitting "Идёт отправка сообщения…">
+<!ENTITY report.submitted "Сообщение о падении отправлено.">
+<!ENTITY report.disabled "Отправка сообщений о падении отключена.">
+<!ENTITY report.failed "Отправка не удалась.">
+<!ENTITY report.unavailable "Нет доступных сообщений.">

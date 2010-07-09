@@ -22,6 +22,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "IMAP - Toegang tot gidse en boodskappe vanaf verskeie rekenaars">
+<!ENTITY pop.description "POP - Alle boodskappe word afgelaai op hierdie rekenaar; gidse bestaan slegs plaaslik">
+<!ENTITY recommended-appendix.label "(aanbeveel)">
 
 <!ENTITY manualSetup.label "Handmatige opstelling…">
 <!ENTITY manualSetup.accesskey "o">
@@ -70,6 +73,6 @@
 <!ENTITY insecureServer.tooltip.title "Let wel! Dit is 'n onbeveiligde bediener.">
 <!ENTITY insecureServer.tooltip.details "Kliek sirkel vir meer besonderhede.">
 
-<!ENTITY insecureUnencrypted.description "U e-pos en stawing word ongeënkripteerd gestuur, en u wagwoord (en u boodskap) kan dus maklik deur ander mense gelees word. &brandShortName; sal u u e-pos laat kry, maar u moet eintlik u e-posverskaffer kontak om die bediener met 'n beveiligde verbinding op te stel.">
+<!ENTITY insecureUnencrypted.description "U e-pos en magtiging word ongeënkripteerd gestuur, en u wagwoord (en u boodskap) kan dus maklik deur ander mense gelees word. &brandShortName; sal u u e-pos laat kry, maar u moet eintlik u e-posverskaffer kontak om die bediener met 'n beveiligde verbinding op te stel.">
 <!ENTITY insecureSelfSigned.description "Die bediener gebruik 'n sertifikaat wat ons nie kan vertrou nie, daarom kan ons nie seker wees dat iemand nié die verkeer tussen &brandShortName; en u bediener onderskep nie. &brandShortName; sal u u e-pos laat kry, maar u moet eintlik u e-posverskaffer kontak om die bediener met 'n vertroude sertifikaat op te stel.">
 <!ENTITY secureServer.description "Baie geluk! Dit is 'n beveiligde bediener.">

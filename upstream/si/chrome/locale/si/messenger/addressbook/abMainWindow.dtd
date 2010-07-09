@@ -38,7 +38,7 @@
 <!-- Edit Menu -->
 <!ENTITY editMenu.label                                 "සැකසුම්">
 <!ENTITY editMenu.accesskey                             "e">
-<!ENTITY undoCmd.label                                  "අහෝසි කරන්න">
+<!ENTITY undoCmd.label                                  "අහෝසි.">
 <!ENTITY undoCmd.key                                    "Z">
 <!ENTITY undoCmd.accesskey                              "u">
 <!ENTITY redoCmd.label                                  "යළි කරන්න">

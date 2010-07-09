@@ -39,7 +39,7 @@
 <!ENTITY contact.heading             "සබඳතාවය">
 <!ENTITY home.heading                "නිවස">
 <!ENTITY other.heading               "වෙනත්">
-<!ENTITY phone.heading               "දුරකථනය">
+<!ENTITY phone.heading               "දුරකතනය">
 <!ENTITY work.heading                "කාර්යාලය">
 <!-- Special Box Headings, for mailing lists -->
 <!ENTITY description.heading         "විස්තරය">

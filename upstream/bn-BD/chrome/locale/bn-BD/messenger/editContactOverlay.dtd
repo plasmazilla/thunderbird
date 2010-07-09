@@ -1,10 +1,10 @@
-<!ENTITY editContactPanelDeleteContact.label "Delete">
+<!ENTITY editContactPanelDeleteContact.label "মুছে ফেলুন (l)">
 <!ENTITY editContactPanelDeleteContact.accesskey "l">
 
-<!ENTITY editContactName.label "নাম (N):">
+<!ENTITY editContactName.label "নাম: (N)">
 <!ENTITY editContactName.accesskey "N">
 
-<!ENTITY editContactEmail.label "ই-মেইল (E):">
+<!ENTITY editContactEmail.label "ই-মেইল: (E)">
 <!ENTITY editContactEmail.accesskey "E">
 
 <!ENTITY editContactPanelCancel.label "বাতিল (C)">

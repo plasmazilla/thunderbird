@@ -1,4 +1,3 @@
-<!-- FIXME: localize -->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -36,33 +35,33 @@
    -
    - ***** END LICENSE BLOCK ***** -->
 
-<!ENTITY  validation.crlmanager.label             "Manage CRLs">
-<!ENTITY  validation.crlmanager.description       "These Certificate Revocation Lists (CRL) are stored in your certificate database:">
-<!ENTITY  validation.crlname.label                "Name">
-<!ENTITY  validation.crllastupdate.label          "Last Update">
-<!ENTITY  validation.crlnextupdate.label          "Next Update">
-<!ENTITY  validation.crlautoupdateenabled.label   "Auto Update">
-<!ENTITY  validation.crlautoupdatestatus.label    "Auto Update Status">
-<!ENTITY  validation.deletecrl.label              "Delete">
-<!ENTITY  validation.deletecrl.accesskey          "D">
-<!ENTITY  validation.updatecrl.label              "Update">
-<!ENTITY  validation.updatecrl.accesskey          "U">
-<!ENTITY  validation.advanced.label               "Settings">
-<!ENTITY  validation.advanced.accesskey           "S">
+<!ENTITY  validation.crlmanager.label             "Керування CRLs">
+<!ENTITY  validation.crlmanager.description       "Ці списки відкликаних сертифікатів (CRL) зберігаються у вашій базі сертифікатів:">
+<!ENTITY  validation.crlname.label                "Назва">
+<!ENTITY  validation.crllastupdate.label          "Востаннє оновлено">
+<!ENTITY  validation.crlnextupdate.label          "Наступне оновлення">
+<!ENTITY  validation.crlautoupdateenabled.label   "Авто-оновлення">
+<!ENTITY  validation.crlautoupdatestatus.label    "Стан авто-оновлення">
+<!ENTITY  validation.deletecrl.label              "Усунути">
+<!ENTITY  validation.deletecrl.accesskey          "У">
+<!ENTITY  validation.updatecrl.label              "Оновити">
+<!ENTITY  validation.updatecrl.accesskey          "О">
+<!ENTITY  validation.advanced.label               "Настройки">
+<!ENTITY  validation.advanced.accesskey           "Н">
 
-<!ENTITY  validation.crl.autoupdate.title         "Automatic CRL Update Preferences">
-<!ENTITY  validation.crl.autoupdate.enable.label  "Enable Automatic Update for this CRL">
-<!ENTITY  validation.crl.autoupdate.time.label1   "Update">
-<!ENTITY  validation.crl.autoupdate.time.label2   "Day(s) before Next Update date">
-<!ENTITY  validation.crl.autoupdate.freq.label1   "Update every">
-<!ENTITY  validation.crl.autoupdate.freq.label2   "Day(s)">
-<!ENTITY  validation.crl.autoupdate.url.label     "CRL would be imported From:">
-<!ENTITY  crl.import.status.title                 "CRL Import Status">
-<!ENTITY  crl.import.success.message              "The Certificate Revocation List (CRL) was successfully imported.">
-<!ENTITY  crl.issuer.label                        "CRL Issued By:">
-<!ENTITY  crl.issuer.org.label                    "Organization: ">
-<!ENTITY  crl.issuer.orgunit.label                "Unit: ">
-<!ENTITY  crl.import.nextupdate.label             "Next Update On: ">
-<!ENTITY  crl.autoupdate.fail.cnt.label           "Previous Consecutive Update Failures: ">
-<!ENTITY  crl.autoupdate.fail.reason.label        "Details of Last Update Failure: ">
-<!ENTITY  edit.button                             "Settings">
+<!ENTITY  validation.crl.autoupdate.title         "Налаштування оновлення CRL">
+<!ENTITY  validation.crl.autoupdate.enable.label  "Дозволити автоматичне оновелння цього CRL">
+<!ENTITY  validation.crl.autoupdate.time.label1   "Оновити">
+<!ENTITY  validation.crl.autoupdate.time.label2   "Днів до наступної дати оновлення">
+<!ENTITY  validation.crl.autoupdate.freq.label1   "Оновлювати кожні">
+<!ENTITY  validation.crl.autoupdate.freq.label2   "Дні">
+<!ENTITY  validation.crl.autoupdate.url.label     "CRL буде імпортовано з:">
+<!ENTITY  crl.import.status.title                 "Стан імпорту CRL">
+<!ENTITY  crl.import.success.message              "Список відкликаних сертифікатів (CRL) було успішно імпортовано.">
+<!ENTITY  crl.issuer.label                        "CRL випущений:">
+<!ENTITY  crl.issuer.org.label                    "Організація: ">
+<!ENTITY  crl.issuer.orgunit.label                "Підрозділ: ">
+<!ENTITY  crl.import.nextupdate.label             "Наступне оновлення о: ">
+<!ENTITY  crl.autoupdate.fail.cnt.label           "Попередні послідовні відмови оновлення: ">
+<!ENTITY  crl.autoupdate.fail.reason.label        "Подробиці останньої відмови оновлення: ">
+<!ENTITY  edit.button                             "Настройки">

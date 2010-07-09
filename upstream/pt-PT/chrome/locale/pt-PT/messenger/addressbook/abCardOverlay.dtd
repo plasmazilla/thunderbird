@@ -67,9 +67,9 @@
 <!ENTITY NickName.label "Alcunha:">
 <!ENTITY NickName.accesskey "u">
 
-<!ENTITY PrimaryEmail.label "Correio Electrónico:">
+<!ENTITY PrimaryEmail.label "Correio electrónico:">
 <!ENTITY PrimaryEmail.accesskey "E">
-<!ENTITY SecondEmail.label "Correio Electrónico alternativo:">
+<!ENTITY SecondEmail.label "Correio electrónico alternativo:">
 <!ENTITY SecondEmail.accesskey "n">
 <!ENTITY PreferMailFormat.label "Prefere receber mensagens formatadas como:">
 <!ENTITY PreferMailFormat.accesskey "a">
@@ -108,7 +108,7 @@ mensagens HTML deste contacto.">
 <!ENTITY HomeCity.accesskey "e">
 <!ENTITY HomeState.label "Estado/Província:">
 <!ENTITY HomeState.accesskey "a">
-<!ENTITY HomeZipCode.label "Código Postal:">
+<!ENTITY HomeZipCode.label "Código postal:">
 <!ENTITY HomeZipCode.accesskey "s">
 <!ENTITY HomeCountry.label "País:">
 <!ENTITY HomeCountry.accesskey "P">
@@ -138,11 +138,11 @@ mensagens HTML deste contacto.">
 <!ENTITY WorkCity.accesskey "a">
 <!ENTITY WorkState.label "Estado/Província:">
 <!ENTITY WorkState.accesskey "v">
-<!ENTITY WorkZipCode.label "Código Postal:">
+<!ENTITY WorkZipCode.label "Código postal:">
 <!ENTITY WorkZipCode.accesskey "g">
 <!ENTITY WorkCountry.label "País:">
 <!ENTITY WorkCountry.accesskey "s">
-<!ENTITY WorkWebPage.label "Página Web:">
+<!ENTITY WorkWebPage.label "Página web:">
 <!ENTITY WorkWebPage.accesskey "b">
 
 <!ENTITY Other.tab "Outro">

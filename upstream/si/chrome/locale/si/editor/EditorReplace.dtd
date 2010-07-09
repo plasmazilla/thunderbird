@@ -38,10 +38,10 @@
 
 <!-- extracted from EdReplace.xul -->
 
-<!ENTITY replaceDialog.title "සොයා ආදේශ කරන්න (Find and Replace)">
+<!ENTITY replaceDialog.title "Find and Replace">
 <!ENTITY findField.label "පාඨ :">
 <!ENTITY findField.accesskey "n">
-<!ENTITY replaceField.label "මෙය ආදේශ කරන්න:">
+<!ENTITY replaceField.label "Replace with:">
 <!ENTITY replaceField.accesskey "e">
 <!ENTITY caseSensitiveCheckbox.label "Match upper/lower case">
 <!ENTITY caseSensitiveCheckbox.accesskey "c">
@@ -51,11 +51,11 @@
 <!ENTITY backwardsCheckbox.accesskey "b">
 <!ENTITY findNextButton.label "ඊළඟ ගැලපුම සොයන්න">
 <!ENTITY findNextButton.accesskey "F">
-<!ENTITY replaceButton.label "ආදේශ කරන්න">
+<!ENTITY replaceButton.label "Replace">
 <!ENTITY replaceButton.accesskey "R">
-<!ENTITY replaceAndFindButton.label "සොයා ආදේශ කරන්න">
+<!ENTITY replaceAndFindButton.label "Replace and Find">
 <!ENTITY replaceAndFindButton.accesskey "d">
-<!ENTITY replaceAllButton.label "සියල්ලට ආදේශ කරන්න">
+<!ENTITY replaceAllButton.label "Replace All">
 <!ENTITY replaceAllButton.accesskey "A">
 <!ENTITY closeButton.label "වහන්න">
 

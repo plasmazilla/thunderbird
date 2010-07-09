@@ -1,8 +1,11 @@
 <!ENTITY updateWizard.title "Hugbúnaðaruppfærsla">
 <!ENTITY window.width "36em">
 <!ENTITY window.macWidth "45em">
-<!ENTITY checking.title "Athuga uppfærslur">
+<!ENTITY checking.title "Athuga með uppfærslur">
 <!ENTITY updateCheck.label "Leita að nýrri útgáfu af &brandShortName;…">
+<!ENTITY pluginupdatesfound.title "Fann uppfærslur fyrir tengiforrit">
+<!ENTITY pluginupdatesfound.label "Nýrri útgáfur af einu eða fleiri tengiforriti fundust.">
+<!ENTITY pluginupdateslink.label "Smelltu á til að sjá hvernig þú uppfærir tengiforrit.">
 <!ENTITY noupdatesfound.title "Engar uppfærslur fundust">
 <!ENTITY noupdatesautoenabled.intro "Engar uppfærslur eru til. &brandShortName; mun athuga
                                            reglulega hvort til eru uppfærslur.">
@@ -48,7 +51,7 @@
 <!ENTITY errorpatching.title "Uppfærsla mistókst">
 <!ENTITY errorpatching.intro "Ekki var hægt að setja inn bótar uppfærslu. 
                                            &brandShortName; mun reyna að ná í heildaruppfærslu.">
-<!ENTITY finishedPage.title "Uppfærsla tilbúin til uppsetningar">
+<!ENTITY finishedPage.title "Uppfærsla tilbúin fyrir uppsetningu">
 <!ENTITY finishedPage.text "Uppfærslan verður sett inn í næsta skipti sem &brandShortName; verður endurræstur. Þú 
                                            getur endurræst &brandShortName; núna, eða haldið áfram að vinna og endurræst seinna.">
 <!ENTITY finishedBackgroundPage.text "Búið er að niðurhala öryggis- og stöðugleikauppfærslu fyrir &brandShortName;

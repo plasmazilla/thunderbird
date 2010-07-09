@@ -32,7 +32,7 @@
 <!ENTITY orientation.label "Drejtim:">
 <!ENTITY portrait.label "Portret">
 <!ENTITY portrait.accesskey  "P">
-<!ENTITY printBG.label "Sfond Shtypjeje (ngjyra &amp; figurë)">
+<!ENTITY printBG.label "Sfond Shtypjeje (ngjyra &amp; pamje)">
 <!ENTITY printBG.accesskey   "S">
 <!ENTITY printSetup.title "Rregullime Faqeje">
 <!ENTITY scale.label "Shkallë:">

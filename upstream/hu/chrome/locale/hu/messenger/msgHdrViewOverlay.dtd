@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "V">
 
 <!ENTITY otherActionsButton.label "egyéb művelet">
-<!ENTITY otherActionsShowConversation.label "beszélgetés megjelenítése">
-<!ENTITY otherActionsShowConversation.accesskey "b">
+<!ENTITY otherActionsOpenConversation.label "megnyitás beszélgetésben">
+<!ENTITY otherActionsOpenConversation.accesskey "b">
 <!ENTITY otherActionsOpenInNewWindow.label "megnyitás új ablakban">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "a">
 <!ENTITY otherActionsOpenInNewTab.label "megnyitás új lapon">

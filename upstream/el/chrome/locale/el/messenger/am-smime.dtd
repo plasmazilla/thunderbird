@@ -8,14 +8,6 @@
 <!ENTITY alwaysEncryptMessage.label "Πάντα (απενεργοποίηση αποστολής  εκτός και αν όλοι οι παραλήπτες έχουν πιστοποιητικό)">
 <!ENTITY alwaysEncryptMessage.accesskey "τ">
 <!ENTITY encryptionCert.message "Χρήση του ακόλουθου πιστοποιητικού για αποκρυπτογράφηση-κρυπτογράφηση εισερχομένων:">
-
-
-<!ENTITY signingGroupTitle.label "Ψηφιακή υπογραφή">
-<!ENTITY signMessage.label "Ψηφιακή υπογραφή μηνυμάτων">
-<!ENTITY signMessage.accesskey "Ψ">
-<!ENTITY signingCert.message "Χρήση του ακόλουθου προσωπικού πιστοποιητικού για ψηφιακή υπογραφή μηνυμάτων:">
-
-<!ENTITY certificates.label "Πιστοποιητικά">
 <!ENTITY digitalSign.certificate.button "Επιλογή…">
 <!ENTITY digitalSign.certificate.accesskey "λ">
 <!ENTITY digitalSign.certificate_clear.button "Εκκαθάριση">
@@ -24,9 +16,12 @@
 <!ENTITY encryption.certificate.accesskey "π">
 <!ENTITY encryption.certificate_clear.button "Εκκαθάριση">
 <!ENTITY encryption.certificate_clear.accesskey "Ε">
-
+<!ENTITY signingGroupTitle.label "Ψηφιακή υπογραφή">
+<!ENTITY signMessage.label "Ψηφιακή υπογραφή μηνυμάτων">
+<!ENTITY signMessage.accesskey "Ψ">
+<!ENTITY signingCert.message "Χρήση του ακόλουθου προσωπικού πιστοποιητικού για ψηφιακή υπογραφή μηνυμάτων:">
+<!ENTITY certificates.label "Πιστοποιητικά">
 <!ENTITY manageCerts.label "Προβολή πιστοποιητικών">
 <!ENTITY manageCerts.accesskey "β">
 <!ENTITY manageDevices.label "Συσκευές ασφαλείας">
 <!ENTITY manageDevices.accesskey "υ">
-

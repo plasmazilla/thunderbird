@@ -1,7 +1,7 @@
 <!-- Entities for AccountWizard -->
 
 <!ENTITY windowTitle.label "Treoraí na gCuntas">
-<!ENTITY accountWizard.size "width: 52em; height: 38em;">
+<!ENTITY accountWizard.size "width: 56em; height: 38em;">
 <!-- Entities for Account Type page -->
 
 
@@ -107,5 +107,5 @@
 <!ENTITY deferStorageDesc.label 'Díthiceáil an ticbhosca seo chun ríomhphost an chuntais seo a stóráil ina chomhadlann féin. Cuntas barrléibhéil a bheidh ann ansin, nó seachas sin is cuid de Bhosca Isteach Uilíoch an chuntais "Fillteáin Logánta" a bheidh ann.'>
 <!ENTITY deferStorage.label "Úsáid an Bosca Isteach Uilíoch (stóráil post sna Fillteáin Logánta)">
 <!ENTITY deferStorage.accesskey "U">
-<!ENTITY clickFinish.label "Cliceáil Críochnaigh chun na socruithe seo a shábháil agus scor de Dhraoi na gCuntas.">
-<!ENTITY clickFinish.labelMac "Cliceáil Déanta chun na socruithe seo a shábháil agus scor de Dhraoi na gCuntas.">
+<!ENTITY clickFinish.label "Cliceáil Críochnaigh chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">
+<!ENTITY clickFinish.labelMac "Cliceáil Déanta chun na socruithe seo a shábháil agus scor de Threoraí na gCuntas.">

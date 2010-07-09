@@ -47,7 +47,7 @@
 <!-- Values for resetpassword.xul -->
 <!ENTITY resetPasswordButtonLabel "Op 'e nij inisjalisearje">
 <!ENTITY resetPassword.title  "Haadwachtwurd op 'e nij inisjalisearje">
-<!ENTITY resetPassword.text  "As jo jo haadwachtwurd op 'e nij ynstelle, sille al jo bewarre web- en e-mailwachtwurden, formuliergegevens, persoanlijke sertifikaten en privee-kaaien fergetten wurde. Binne jo wis dat jo jo haadwachtwurd op 'e nij inisjalisearje wolle?">
+<!ENTITY resetPassword.text  "As jo jo haadwachtwurd op 'e nij ynstelle sille, al jo bewarre web- en e-mailwachtwurden, formuliergegevens, persoanlijke sertifikaten en privee-kaaien fergetten wurde. Binne jo wis dat jo jo haadwachtwurd op 'e nij inisjalisearje wolle?">
 
 <!-- Values for getpassword.xul -->
 <!ENTITY getPassword.title  "Fier haadwachtwurd yn">

@@ -1,7 +1,7 @@
 <!-- Feed Properties Dialog -->
 <!ENTITY window.title             "පෝෂක ලක්ෂණ">
 
-<!ENTITY feedFolder.label         "ලිපි (articles) තැන්පත් කරන්නේ මෙතුළ: ">
+<!ENTITY feedFolder.label         "ලිපි (articles) තැන්පත් කරන්ාන් මෙතුළ: ">
 <!ENTITY feedFolder.accesskey     "S">
 
 <!ENTITY feedLocation.label       "පෝෂක URL: ">

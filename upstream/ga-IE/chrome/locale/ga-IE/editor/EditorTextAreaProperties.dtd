@@ -57,7 +57,7 @@
 
 <!ENTITY TextAreaWrap.label "Mód Timfhillte:">
 <!ENTITY TextAreaWrap.accessKey "M">
-<!ENTITY WrapDefault.value "Réamhshocraithe">
+<!ENTITY WrapDefault.value "Réamhshocrú">
 <!ENTITY WrapOff.value "Múchta">
 <!ENTITY WrapHard.value "Crua">
 <!ENTITY WrapSoft.value "Bog">

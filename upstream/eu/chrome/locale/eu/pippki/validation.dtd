@@ -47,7 +47,7 @@
 <!ENTITY validation.updatecrl.label "Eguneratu">
 <!ENTITY validation.updatecrl.accesskey "E">
 <!ENTITY validation.advanced.label "Ezarpenak">
-<!ENTITY validation.advanced.accesskey "Z">
+<!ENTITY validation.advanced.accesskey "z">
 
 <!ENTITY validation.crl.autoupdate.title "CRL eguneraketa automatikoaren hobespenak">
 <!ENTITY validation.crl.autoupdate.enable.label "Gaitu eguneraketa automatikoa CRL honentzat">

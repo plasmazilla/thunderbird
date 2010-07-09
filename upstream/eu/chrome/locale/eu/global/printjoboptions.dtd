@@ -28,7 +28,7 @@
 
 <!ENTITY fontsGroup.label "Letra-tipoak:">
 <!ENTITY downloadFonts.label "Letra-tipoak inprimagailura deskargatu?">
-<!ENTITY downloadFonts.accesskey "D">
+<!ENTITY downloadFonts.accesskey "d">
 
 <!ENTITY edgeMarginInput.label "Paperaren ertza eta marjinaren arteko distantzia (hazbeteak)">
 <!ENTITY topInput.label "Goian:">
@@ -36,6 +36,6 @@
 <!ENTITY bottomInput.label "Behean:">
 <!ENTITY bottomInput.accesskey "B">
 <!ENTITY leftInput.label "Ezkerra:">
-<!ENTITY leftInput.accesskey "Z">
+<!ENTITY leftInput.accesskey "z">
 <!ENTITY rightInput.label "Eskuina:">
-<!ENTITY rightInput.accesskey "S">
+<!ENTITY rightInput.accesskey "s">

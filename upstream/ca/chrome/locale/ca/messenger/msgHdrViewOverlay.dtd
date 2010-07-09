@@ -67,7 +67,7 @@
 <!ENTITY hdrReplyAllButton.label "respon a tots">
 <!ENTITY hdrReplyAllButton.tooltip "respon al remitent i a tots els destinataris">
 <!ENTITY hdrReplyListButton.label "respon a la llista">
-<!ENTITY hdrReplyListButton.tooltip "respon a la llista de distribució">
+<!ENTITY hdrReplyListButton.tooltip "respon a la llista de correu">
 <!ENTITY hdrForwardButton.label "reenvia">
 <!ENTITY hdrForwardButton.tooltip "reenvia aquest missatge">
 <!ENTITY hdrJunkButton.label "brossa">
@@ -85,8 +85,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "r">
 
 <!ENTITY otherActionsButton.label "altres accions">
-<!ENTITY otherActionsShowConversation.label "obre la conversa">
-<!ENTITY otherActionsShowConversation.accesskey "c">
+<!ENTITY otherActionsOpenConversation.label "obre la conversa">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow.label "obre en una altra finestra">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "f">
 <!ENTITY otherActionsOpenInNewTab.label "obre en una altra pestanya">

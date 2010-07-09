@@ -23,3 +23,16 @@
 <!ENTITY blockedPlugin.label                                 "ඔබගේ ආරක්‍ෂාව සඳහා මෙම ප්ලගීනය අවහිර කර ඇත.">
 
 <!ENTITY missingPlugin.label                                 "ප්ලගීන ලබා ගැනීමට මෙහි ක්ලික් කරන්න.">
+<!-- LOCALIZATION NOTE (reloadPlugin.pre): include a trailing space as needed -->
+<!-- LOCALIZATION NOTE (reloadPlugin.middle): avoid leading/trailing spaces, this text is a link -->
+<!-- LOCALIZATION NOTE (reloadPlugin.post): include a starting space as needed -->
+<!ENTITY reloadPlugin.pre                                    "">
+<!ENTITY reloadPlugin.middle                                 "Reload the page">
+<!ENTITY reloadPlugin.post                                   " to try again.">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Send crash report">
+<!ENTITY report.submitting                                   "Sending report…">
+<!ENTITY report.submitted                                    "Crash report sent.">
+<!ENTITY report.disabled                                     "Crash reporting disabled.">
+<!ENTITY report.failed                                       "Submission failed.">
+<!ENTITY report.unavailable                                  "No report available.">

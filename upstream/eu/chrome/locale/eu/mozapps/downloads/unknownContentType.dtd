@@ -6,11 +6,11 @@
 <!ENTITY actionQuestion.label "Zer egin behar du &brandShortName;(e)k fitxategi honekin?">
 
 <!ENTITY openWith.label "Ireki honekin">
-<!ENTITY openWith.accesskey "i">
+<!ENTITY openWith.accesskey "I">
 <!ENTITY other.label "Besterik…">
 
 <!ENTITY saveFile.label "Gorde fitxategia">
-<!ENTITY saveFile.accesskey "g">
+<!ENTITY saveFile.accesskey "G">
 
 <!ENTITY rememberChoice.label "Egin hau automatikoki hau bezelako fitxategiekin aurrerantzean.">
 <!ENTITY rememberChoice.accesskey "a">
@@ -18,7 +18,7 @@
 <!ENTITY whichIsA.label "hau da:">
 
 <!ENTITY chooseHandlerMac.label "Aukeratu…">
-<!ENTITY chooseHandlerMac.accesskey "K">
+<!ENTITY chooseHandlerMac.accesskey "k">
 <!ENTITY chooseHandler.label "Arakatu…">
 <!ENTITY chooseHandler.accesskey "A">
 

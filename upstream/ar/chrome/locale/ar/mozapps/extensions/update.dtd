@@ -19,7 +19,7 @@
 <!ENTITY found.enableXPInstall.label "اسمح للمواقع بتثبيت برمجيات">
 <!ENTITY found.enableXPInstall.accesskey "س">
 
-<!ENTITY installing.wizard.title "يجري تثبيت الإضافات المتوافقة">
+<!ENTITY installing.wizard.title "يثبّت الإضافات المتوافقة">
 <!ENTITY installing.top.label "ينزّل ويثبّت تحديثات لإضافاتك…">
 
 <!ENTITY noupdates.wizard.title "لا توجد إضافات متوافقة">
@@ -35,8 +35,8 @@
 <!ENTITY adminDisabled.wizard.title "تعذّر التماس التحديثات">
 <!ENTITY adminDisabled.warning.label "تعذّر التماس تحديثات للإضافات غير المتوافقة لأن تثبيت برمجيات &brandShortName; معطل. رجاءً اتصل بمدير نظامك للمساعدة.">
 
-<!ENTITY versioninfo.wizard.title "يجري فحص توافقية الإضافات">
-<!ENTITY versioninfo.top.label "يجري فحص توافقية إضافاتك مع هذا الإصدار من &brandShortName;.">
+<!ENTITY versioninfo.wizard.title "يفحص توافقية الإضافات">
+<!ENTITY versioninfo.top.label "يفحص توافقية إضافاتك مع هذا الإصدار من &brandShortName;.">
 <!ENTITY versioninfo.waiting "قد يستغرق هذا بضع دقائق…">
 
 <!ENTITY installerrors.wizard.title "حدثت أخطاء أثناء تثبيت التحديثات">

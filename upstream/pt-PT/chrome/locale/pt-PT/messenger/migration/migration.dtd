@@ -1,8 +1,8 @@
 
 <!ENTITY migrationWizard.title          "Assistente de Importação">
 
-<!ENTITY importFromWin.label            "Opcões de Importação, Configurações de Conta, Livros de Endereços e outros dados a partir de:">
-<!ENTITY importFromNonWin.label         "Preferências de Importação, Configurações de Conta, Livros de Endereços e outros dados a partir de:">
+<!ENTITY importFromWin.label            "Opcões de importação, configurações de conta, livros de endereços e outros dados a partir de:">
+<!ENTITY importFromNonWin.label         "Preferências de importação, configurações de conta, livros de endereços e outros dados a partir de:">
 
 <!ENTITY importFromNothing.label        "Não importar nada">
 <!ENTITY importFromNothing.accesskey    "N">
@@ -17,8 +17,8 @@
 <!ENTITY importFromEudora.label         "Eudora">
 <!ENTITY importFromEudora.accesskey     "E">
 
-<!ENTITY importSource.title             "Importar Configurações e Pastas de Correio a partir de">
-<!ENTITY importItems.title              "Items a Importar">
+<!ENTITY importSource.title             "Importar configurações e pastas de correio a partir de">
+<!ENTITY importItems.title              "Items a importar">
 <!ENTITY importItems.label              "Seleccione quais os itens a importar:">
 
 <!ENTITY migrating.title                "A importar...">
@@ -27,5 +27,5 @@
 <!ENTITY selectProfile.title            "Seleccione o perfil">
 <!ENTITY selectProfile.label            "Os seguintes perfis estão disponíveis para importar a partir de:">
 
-<!ENTITY done.title                     "Importação Terminada">
+<!ENTITY done.title                     "Importação terminada">
 <!ENTITY done.label                     "Os items seguintes foram importados com sucesso:">

@@ -164,7 +164,7 @@
 <!ENTITY addressBookCmd.label "Adresboek">
 <!ENTITY addressBookCmd.accesskey "A">
 <!ENTITY addressBookCmd.key "B">
-<!ENTITY accountManagerCmd.label "Rekeninginstellings…">
+<!ENTITY accountManagerCmd.label "Rekeningopstelling…">
 <!ENTITY accountManagerCmd.accesskey "R">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "Opsies…">

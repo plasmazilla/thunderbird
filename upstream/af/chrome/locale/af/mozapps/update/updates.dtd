@@ -6,6 +6,10 @@
 <!ENTITY checking.title "Kontroleer vir bywerkings">
 <!ENTITY updateCheck.label "Soek tans vir jonger weergawes van &brandShortName;…">
 
+<!ENTITY pluginupdatesfound.title "Opdaterings vir inproppe is gevind">
+<!ENTITY pluginupdatesfound.label "Nuwer weergawes van een of meer van u inproppe is gevind.">
+<!ENTITY pluginupdateslink.label "Leer hoe om u inproppe op te gradeer.">
+
 <!ENTITY noupdatesfound.title "Geen bywerkings gevind nie">
 <!ENTITY noupdatesautoenabled.intro "Daar is geen bywerkings beskikbaar nie. &brandShortName; kan nou en dan 
 kontroleer vir bywerkings.">
@@ -58,8 +62,8 @@ nou die volledige pakket af.">
 besoek en die jongste weergawe af te laai:">
                                            
 <!ENTITY errorpatching.title "Bywerking het misluk">
-<!ENTITY errorpatching.intro "Die gedeeltelike bywerking kon nie toegepas word nie. &brandShortName; sal 
-weer probeer om die volledige bywerking af te laai.">
+<!ENTITY errorpatching.intro "Die gedeeltelike bywerking kon nie toegepas word nie. 
+&brandShortName; sal weer probeer deur 'n volledige bywerking af te laai.">
 
 <!ENTITY finishedPage.title "Bywerking gereed om geïnstalleer te word">
 <!ENTITY finishedPage.text "Die bywerking sal geïnstalleer word wanneer &brandShortName; weer begin. U 

@@ -14,10 +14,10 @@
 <!ENTITY smaller.label                    "Менший">
 <!ENTITY color.label                      "Колір:">
 <!ENTITY color.accesskey                  "К">
-<!ENTITY displayWidth.label               "Повідомлення в текстовому форматі">
-<!ENTITY displayText.label                "Використовувати наступні параметри відображення цитат в повідомленнях текстового формату:">
+<!ENTITY displayWidth.label               "Лист у текстовому форматі">
+<!ENTITY displayText.label                "Використовувати наступні параметри відображення цитат в листах текстового формату:">
 <!ENTITY colors.label                     "Кольори">
-<!ENTITY overrideColors.label             "Використовувати наступні кольори при відображенні повідомлень:">
+<!ENTITY overrideColors.label             "Використовувати наступні кольори при відображенні листів:">
 <!ENTITY textColor.label                  "Колір тексту:">
 <!ENTITY textColor.accesskey              "т">
 <!ENTITY backgroundColor.label            "Колір фону:">
@@ -28,7 +28,7 @@
 <!ENTITY convertEmoticons.accesskey    "б">
 
 <!-- labels -->
-<!ENTITY displayTagsText.label     "Мітки використовують для сортування та встановлення пріоритетів повідомленням.">
+<!ENTITY displayTagsText.label     "Мітки використовують для сортування та зазначення пріоритетів листів.">
 <!ENTITY addTagButton.label        "Додати">
 <!ENTITY addTagButton.accesskey    "Д">
 <!ENTITY editTagButton.label       "Змінити">

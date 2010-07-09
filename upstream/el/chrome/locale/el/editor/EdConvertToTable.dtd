@@ -20,6 +20,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s):
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -34,9 +35,6 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-<!-- Window title -->
-
-
 <!ENTITY windowTitle.label "Μετατροπή σε πίνακα">
 <!ENTITY instructions1.label "O composer θα δημιουργεί μια νέα γραμμή πίνακα για κάθε παράγραφο στην επιλογή.">
 <!ENTITY instructions2.label "Επιλέξτε το χαρακτήρα που θα χωρίζει την επιλογή σε στήλες:">

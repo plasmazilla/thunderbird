@@ -23,6 +23,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP - גישה לתיקיות והודעות ממספר מחשבים">
+<!ENTITY pop.description                 "POP - הורדה של כל ההודעות למחשב זה, תיקיות הן מקומיות בלבד">
+<!ENTITY recommended-appendix.label      "(מומלץ)">
 
 <!ENTITY manualSetup.label               "הגדרה ידנית…">
 <!ENTITY manualSetup.accesskey           "י">

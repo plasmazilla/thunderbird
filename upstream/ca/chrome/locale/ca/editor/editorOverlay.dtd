@@ -99,7 +99,6 @@
 <!ENTITY pasteAs.accesskey "a">
 <!ENTITY publishSettings.label "Paràmetres del lloc de publicació…">
 <!ENTITY publishSettings.accesskey "b">
-
 <!ENTITY pasteAsQuotationCmd.label "Enganxa com a citació">
 <!ENTITY pasteAsQuotationCmd.accesskey "g">
 <!ENTITY pasteAsQuotationCmd.key "o">
@@ -129,7 +128,7 @@
 <!ENTITY insertLinkCmd.label "Enllaç…">
 <!ENTITY insertLinkCmd.accesskey "l">
 <!ENTITY insertLinkCmd.key "l">
-<!ENTITY insertAnchorCmd.label "Àncora…">
+<!ENTITY insertAnchorCmd.label "Àncora anomenada…">
 <!ENTITY insertAnchorCmd.accesskey "a">
 <!ENTITY insertImageCmd.label "Imatge…">
 <!ENTITY insertImageCmd.accesskey "I">
@@ -472,7 +471,7 @@
 <!ENTITY SourceMode.label "Codi font">
 <!ENTITY HTMLSourceMode.accesskey "H">
 <!ENTITY HTMLSourceMode.tooltip "Edita el codi HTML">
-<!ENTITY PreviewMode.label "Visualització prèvia">
+<!ENTITY PreviewMode.label "Previsualització">
 <!ENTITY PreviewMode.accesskey "p">
 <!ENTITY PreviewMode.tooltip "Visualitza'l en WYSIWYG (com al navegador)">
 

@@ -20,7 +20,7 @@
     <strong>www</strong>.foarbyld.com</li>
   <li>Kontrolearje jo netwurkferbining as jo gjin inkele side lade
     kinne.</li>
-  <li>Gean nei oft &brandShortName; tagong hat ta it web of dat jo 
+  <li>Gean nei oft &brandShortName; tagong hat ta it web of jo 
     kompjûter of netwurk befeilige is troch in brânmuorre of proxytsjinner.</li>
 </ul>
 ">
@@ -39,7 +39,7 @@
 <p>&brandShortName; kin om ien of oare reden dizze side net lade.</p>
 ">
 
-<!ENTITY malformedURI.title "It adres is net jildich">
+<!ENTITY malformedURI.title "It adres jildt net">
 <!ENTITY malformedURI.longDesc "
 <ul>
   <li>Webadressen hawwe gewoanwei de foarm
@@ -55,11 +55,11 @@
 <!ENTITY netOffline.title "Offline-moadus">
 <!ENTITY netOffline.longDesc "
 <ul>
-  <li>Finkje &quot;Sûnder ferbining wurkje&quot; yn it menu Bestân út en probearje it op 'e nij.</li>
+  <li>Finkje &quot;Offline werken&quot; yn it menu Bestân út en besykje it op 'e nij.</li>
 </ul>
 ">
 
-<!ENTITY contentEncodingError.title "Ynhâldkodearringsflater">
+<!ENTITY contentEncodingError.title "Ynhâld Kodearings Flater">
 <!ENTITY contentEncodingError.longDesc "
 <ul>
   <li>Nim kontakt op mei de webstee-eigners om se te ynformearjen oer dit probleem.</li>
@@ -73,7 +73,7 @@
 </ul>
 ">
 
-<!ENTITY netReset.title "De ferbining waard op 'e nij inisjalisearre">
+<!ENTITY netReset.title "De ferbining waard op 'e nij ynisjalisearre">
 <!ENTITY netReset.longDesc "&sharedLongDesc;">
 
 <!ENTITY netTimeout.title "De wachttiid foar de ferbining is ferstrutsen">
@@ -100,7 +100,7 @@
 <ul>
   <li>Kontrolearje oft jo proxy-ynstellings goed binne.</li>
   <li>Gean nei oft jo kompjûter op in wurkjend netwurk oansletten is.</li>
-  <li>Gean nei oft &brandShortName; tagong hat ta it web of dat jo 
+  <li>Gean nei oft &brandShortName; tagong hat ta it web of jo 
     kompjûter of netwurk befeilige is troch in brânmuorre of proxytsjinner.</li>
 </ul>
 ">
@@ -116,7 +116,7 @@
 <!ENTITY unknownSocketType.title "Unferwacht antwurd fan de tsjinner">
 <!ENTITY unknownSocketType.longDesc "
 <ul>
-  <li>Gean nei oft de persoanlike befeiligingsbehearder ynstallearre is op
+  <li>Gean nei oft de persoanlike befeiligingsbeheerder ynstallearre is op
     jo systeem.</li>
   <li>Dit kin it gefolch wêze fan in net-standert konfiguraasje fan de tsjinner.</li>
 </ul>
@@ -130,7 +130,7 @@
 </ul>
 ">
 
-<!ENTITY nssBadCert.title "Feilige ferbining mislearre">
+<!ENTITY nssBadCert.title "Feilige Ferbining Mislearre">
 <!ENTITY nssBadCert.longDesc2 "
 <ul>
 <li>Dit koe in probleem wêze mei de konfiguraasje fan de tsjinner, of it kin iets wêze wat probeart de tsjinner as in oar foar te dwaan.</li>
@@ -148,16 +148,16 @@
 </ul>
 ">
 
-<!ENTITY malwareBlocked.title "Fertochte oanfalside!">
+<!ENTITY malwareBlocked.title "Fertochte Oanfal Side!">
 <!ENTITY malwareBlocked.longDesc "<p>
-Oanfalsides probearje om programmatuer te ynstallearjen dy't privee-ynformaasje stêle kinne, jo kompjûter brûke om oaren oan te fallen, of jo systeem skansearje.</p>
+Oanfal sides probearje om programmatuer te ynstallearjen dy't privee-ynformaasje stêle kinne, jo komjûter brûke om oaren oan te fallen, of jo systeem skansearje.</p>
 <p>Jo soenen dizze side net besykje!</p>
 ">
 
-<!ENTITY phishingBlocked.title "Fertochte webferfalsking!">
+<!ENTITY phishingBlocked.title "Fertochte Web Ferfalsking!">
 <!ENTITY phishingBlocked.longDesc "
 <p>It ynfieren fan persoanlike ynformaasje op dizze side kin resultearje yn identeitsstellerij of oare fraude.</p>
-<p>Dizze typen fan webferfalsking wurde brûkt yn scams bekend as phishing oanfallen, weryn frauduleuse websides en e-mails brûkt wurde om boarnes dy't jo fertrouwe te imitearjen.</p>
+<p>Dizze typen fan webferfalsking wurde brûkt yn scams bekend as phishing oanfallen, weryn frauduleuse websides en emails brûkt wurde om boarnes dy't jo fertrouwe te imitearjen.</p>
 ">
 
 <!ENTITY securityOverride.linkText "Of jo kinne in útsûndering tafoegje...">
@@ -170,7 +170,7 @@ which uses strings already defined above. The button is included here (instead o
 netError.xhtml) because it exposes functionality specific to firefox. -->
 
 <!ENTITY securityOverride.warningText "
-<p>Jo soene net in útsûndering tafoegje moatte as jo in ynternetferbining hawwe dy't jo net folslein fertrouwe, of as it net normaal is dat jo in warskôging sjogge foar dizze tsjinner.</p>
+<p>Jo soene net in útsûndering tafoegje moatte as jo in ynternet ferbining hawwe dy't jo net folslein fertrouwe, of as it net normaal is dat jo in warskôging sjogge foar dizze tsjinner.</p>
 
 <xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='getMeOutOfHereButton' label='&securityOverride.getMeOutOfHereButton;'/>
 <xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='exceptionDialogButton' label='&securityOverride.exceptionButtonLabel;'/>

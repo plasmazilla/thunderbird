@@ -17,10 +17,10 @@
 <!ENTITY displayWidth.label               "ਸਧਾਰਨ ਟੈਕਸਟ ਸੁਨੇਹੇ">
 <!ENTITY displayText.label	       "ਜਦੋਂ ਕਾਮਿਆਂ ਸਮੇਤ ਸਧਾਰਨ ਟੈਕਸਟ ਸੁਨੇਹੇ ਵੇਖਾਏ ਜਾਣ:">
 <!ENTITY colors.label                     "ਰੰਗ">
-<!ENTITY overrideColors.label             "ਜਦੋਂ ਸੁਨੇਹੇ ਵੇਖਾਏ ਜਾਣ ਤਾਂ ਹੇਠ ਦਿੱਤੇ ਰੰਗ ਵੇਖੋ:">
+<!ENTITY overrideColors.label             "ਜਦੋਂ ਸੁਨੇਹੇ ਵੇਖਾਏ ਜਾਣ ਤਾਂ ਹੇਠ ਦਿੱਤੇ ਰੰਗ ਵੇਖਾਓ:">
 
 <!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
-<!ENTITY convertEmoticons.label           "ਭਾਵਨਾ-ਆਈਕਾਨ ਨੂੰ ਚਿੱਤਰਾਂ ਵਾਂਗ ਵੇਖੋ">
+<!ENTITY convertEmoticons.label           "ਭਾਵਨਾ-ਆਈਕਾਨ ਨੂੰ ਚਿੱਤਰਾਂ ਵਾਂਗ ਵੇਖਾਓ">
 <!ENTITY convertEmoticons.accesskey       "D">
 <!ENTITY  textColor.label                 "ਟੈਕਸਟ ਰੰਗ:">
 <!ENTITY  textColor.accesskey             "T">
@@ -43,5 +43,4 @@
 <!ENTITY defaultSize.label       "ਸਾਈਜ਼:">
 <!ENTITY defaultSize.accesskey   "S">
 <!ENTITY fontOptions.accesskey   "A">
-<!ENTITY fontOptions.label       "ਤਕਨੀਕੀ…">
-
+<!ENTITY fontOptions.label       "ਤਕਨੀਕੀ...">

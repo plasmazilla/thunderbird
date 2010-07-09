@@ -38,73 +38,73 @@
 <!-- These strings are for use specifically in the editor's image and form image dialogs. -->
 
 <!-- Window title -->
-<!ENTITY windowTitle.label "Ofbyldingseigenskippen">
+<!ENTITY windowTitle.label "Afbeeldingseigenschappen">
 
-<!ENTITY pixelsPopup.value "piksels">
+<!ENTITY pixelsPopup.value "pixels">
 
 <!-- These are in the Location tab panel -->
-<!ENTITY locationEditField.label "Ofbyldingslokaasje:">
+<!ENTITY locationEditField.label "Afbeeldingslocatie:">
 <!ENTITY locationEditField.accessKey "f">
-<!ENTITY locationEditField.tooltip "Typ de bestânsnamme of -lokaasje fan de ôfbylding">
+<!ENTITY locationEditField.tooltip "Typ de bestandsnaam of -locatie van de afbeelding">
 <!ENTITY title.label "Tooltip:">
 <!ENTITY title.accessKey "T">
-<!ENTITY title.tooltip "It HTML-attribút ‘title’ dat ferskynt as swevende tip">
-<!ENTITY altText.label "Alternative tekst:">
+<!ENTITY title.tooltip "Het HTML-attribuut ‘title’ dat verschijnt als zwevende tip">
+<!ENTITY altText.label "Alternatieve tekst:">
 <!ENTITY altText.accessKey "A">
-<!ENTITY altTextEditField.tooltip "Typ de tekst dy't ferskynt yn stee fan de ôfbylding">
-<!ENTITY noAltText.label "Gjin alternative tekst brûke">
+<!ENTITY altTextEditField.tooltip "Typ de tekst die verschijnt in plaats van de afbeelding">
+<!ENTITY noAltText.label "Geen alternatieve tekst gebruiken">
 <!ENTITY noAltText.accessKey "G">
 
-<!ENTITY previewBox.label "Ofbyldingsfoarbyld">
+<!ENTITY previewBox.label "Afbeeldingsvoorbeeld">
 
 <!-- These controls are in the Dimensions tab panel -->
 <!-- actualSize.label should be same as actualSizeRadio.label + ":" -->
-<!ENTITY actualSize.label "Werklike ôfmjittings:">
-<!ENTITY actualSizeRadio.label "Werklike ôfmjittings">
+<!ENTITY actualSize.label "Werkelijke afmetingen:">
+<!ENTITY actualSizeRadio.label "Werkelijke afmetingen">
 <!ENTITY actualSizeRadio.accessKey "W">
-<!ENTITY actualSizeRadio.tooltip "De ôfbylding syn oarspronklike ôfmjittings weromjaan">
-<!ENTITY customSizeRadio.label "Oanpaste ôfmjittings">
+<!ENTITY actualSizeRadio.tooltip "De afbeelding tot zijn orginele afmetingen terugbrengen">
+<!ENTITY customSizeRadio.label "Aangepaste afmetingen">
 <!ENTITY customSizeRadio.accessKey "n">
-<!ENTITY customSizeRadio.tooltip "De ôfbyldingsôfmjittings lykas op de side feroarje">
-<!ENTITY heightEditField.label "Hichte:">
+<!ENTITY customSizeRadio.tooltip "De afbeeldingsafmetingen zoals in de pagina veranderen">
+<!ENTITY heightEditField.label "Hoogte:">
 <!ENTITY heightEditField.accessKey "H">
 <!ENTITY widthEditField.label "Breedte:">
 <!ENTITY widthEditField.accessKey "B">
-<!ENTITY constrainCheckbox.label "Ferhâldings oanhâlde">
+<!ENTITY constrainCheckbox.label "Verhoudingen behouden">
 <!ENTITY constrainCheckbox.accessKey "e">
-<!ENTITY constrainCheckbox.tooltip "De ôfbyldingsferhâldings oanhâlde">
+<!ENTITY constrainCheckbox.tooltip "De afbeeldingsverhoudingen behouden">
 
 <!-- These controls are in the Image Map box of the expanded area -->
-<!ENTITY imagemapBox.label "Ofbyldingsmap">
-<!ENTITY removeImageMapButton.label "Fuortsmite">
-<!ENTITY removeImageMapButton.accessKey "F">
+<!ENTITY imagemapBox.label "Afbeeldingsmap">
+<!ENTITY removeImageMapButton.label "Verwijderen">
+<!ENTITY removeImageMapButton.accessKey "V">
 <!ENTITY editImageMapButton.label "Bewurkje…">
-<!ENTITY editImageMapButton.tooltip "Meitsje klikbere hotspots foar dizze ôfbylding">
+<!ENTITY editImageMapButton.tooltip "Meitsje klibere hotspots foar dizze ôfbylding">
 
 <!-- These are the options for image alignment -->
-<!ENTITY alignment.label "Tekst útlynje by de ôfbylding lâns">
-<!ENTITY bottomPopup.value "Underoan">
-<!ENTITY topPopup.value "Boppe-oan">
-<!ENTITY centerPopup.value "Yn 'e midden">
-<!ENTITY wrapRightPopup.value "Rjochts útlynje">
-<!ENTITY wrapLeftPopup.value "Links útlynje">
+<!ENTITY alignment.label "Tekst uitlijnen langs afbeelding">
+<!ENTITY bottomPopup.value "Onderaan">
+<!ENTITY topPopup.value "Bovenaan">
+<!ENTITY centerPopup.value "In het midden">
+<!ENTITY wrapRightPopup.value "Rechts uitlijnen">
+<!ENTITY wrapLeftPopup.value "Links uitlijnen">
 
 <!-- These controls are in the Spacing Box -->
-<!ENTITY spacingBox.label "Marzjes">
-<!ENTITY leftRightEditField.label "Links en rjochts">
+<!ENTITY spacingBox.label "Marges">
+<!ENTITY leftRightEditField.label "Links en rechts">
 <!ENTITY leftRightEditField.accessKey "s">
-<!ENTITY topBottomEditField.label "Boppe en ûnder:">
-<!ENTITY topBottomEditField.accessKey "û">
-<!ENTITY borderEditField.label "Folle râne:">
+<!ENTITY topBottomEditField.label "Boven en onder:">
+<!ENTITY topBottomEditField.accessKey "o">
+<!ENTITY borderEditField.label "Volle rand:">
 <!ENTITY borderEditField.accessKey "r">
 
 <!-- These controls are in the Link Box -->
-<!ENTITY showImageLinkBorder.label "In râne werjaan om de keppelingsôfbylding">
+<!ENTITY showImageLinkBorder.label "Een rand weergeven om de koppelingsafbeelding">
 <!ENTITY showImageLinkBorder.accessKey "d">
 
 <!-- These tabs are currently used in the image input dialog -->
 <!ENTITY imageInputTab.label "Formulier">
-<!ENTITY imageLocationTab.label "Lokaasje">
-<!ENTITY imageDimensionsTab.label "Ofmjittings">
-<!ENTITY imageAppearanceTab.label "Uterlik">
-<!ENTITY imageLinkTab.label "Keppeling">
+<!ENTITY imageLocationTab.label "Locatie">
+<!ENTITY imageDimensionsTab.label "Afmetingen">
+<!ENTITY imageAppearanceTab.label "Uiterlijk">
+<!ENTITY imageLinkTab.label "Koppeling">

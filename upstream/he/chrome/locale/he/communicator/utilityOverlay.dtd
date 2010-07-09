@@ -43,6 +43,7 @@
 <!ENTITY closeCmd.label "סגור">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "ג">
+
 <!ENTITY quitApplicationCmd.label "יציאה">
 <!ENTITY quitApplicationCmd.key "Q">
 <!ENTITY quitApplicationCmd.accesskey "צ">

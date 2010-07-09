@@ -7,21 +7,21 @@
 <!ENTITY fpDialog.title "Gorde fitxategia">
 
 <!ENTITY fileCheck.label "Inprimatu fitxategira">
-<!ENTITY fileCheck.accesskey "F">
+<!ENTITY fileCheck.accesskey "f">
 <!ENTITY propertiesButton.label "Propietateak…">
 <!ENTITY propertiesButton.accesskey "o">
 <!ENTITY descText.label "Inprimagailuaren deskribapena:">
 <!ENTITY printer.label "Inprimagailua">
 <!ENTITY printerInput.label "Inprimagailuaren izena:">
-<!ENTITY printerInput.accesskey "N">
+<!ENTITY printerInput.accesskey "n">
 
 <!ENTITY printrangeGroup.label "Inprimaketa bitartea">
 <!ENTITY allpagesRadio.label "Orri guztiak">
-<!ENTITY allpagesRadio.accesskey "G">
+<!ENTITY allpagesRadio.accesskey "g">
 <!ENTITY rangeRadio.label "Orriak">
 <!ENTITY rangeRadio.accesskey "O">
 <!ENTITY frompageInput.label "Nondik">
-<!ENTITY frompageInput.accesskey "n">
+<!ENTITY frompageInput.accesskey "N">
 <!ENTITY topageInput.label "nora">
 <!ENTITY topageInput.accesskey "r">
 <!ENTITY selectionRadio.label "Hautapena">
@@ -29,7 +29,7 @@
 
 <!ENTITY copies.label "Kopiak">
 <!ENTITY numCopies.label "Kopia kopurua:">
-<!ENTITY numCopies.accesskey "k">
+<!ENTITY numCopies.accesskey "K">
 
 <!ENTITY printframeGroup.label "Inprimatu markoak">
 <!ENTITY aslaidoutRadio.label "Pantailan dauden bezala">
@@ -37,4 +37,4 @@
 <!ENTITY selectedframeRadio.label "Hautatutako markoa">
 <!ENTITY selectedframeRadio.accesskey "m">
 <!ENTITY eachframesepRadio.label "Marko bakoitza bere aldetik">
-<!ENTITY eachframesepRadio.accesskey "B">
+<!ENTITY eachframesepRadio.accesskey "b">

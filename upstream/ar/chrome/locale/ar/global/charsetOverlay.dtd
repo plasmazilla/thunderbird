@@ -1,7 +1,7 @@
 <!-- extracted from charsetOverlay.xul -->
 <!ENTITY charsetMenu.label "ترميز المحارف">
 <!ENTITY charsetMenu.accesskey "ت">
-<!ENTITY charsetMenuAutodet.label "اكتشف آليًا">
+<!ENTITY charsetMenuAutodet.label "اكتشف آليا">
 <!ENTITY charsetMenuAutodet.accesskey "ك">
 <!ENTITY charsetMenuMore.label "ترميزات أخرى">
 <!ENTITY charsetMenuMore.accesskey "م">

@@ -101,9 +101,9 @@
 
 <!-- Used in both Table and Cell panels  -->
 <!ENTITY size.label                       "විශාලත්වය">
-<!ENTITY pixels.label                     "පික්සල">
+<!ENTITY pixels.label                     "පික්සෙල්">
 <!ENTITY backgroundColor.label            "පසුතල රූපය:">
 <!ENTITY backgroundColor.accessKey        "B">
-<!ENTITY AlignLeft.label                  "වම">
+<!ENTITY AlignLeft.label                  "වය">
 <!ENTITY AlignCenter.label                "මැද">
 <!ENTITY AlignRight.label                 "දකුණ">
