@@ -158,6 +158,24 @@ debian/stamp-autotools-files-moz:
 install/$(DEB_MOZ_APPLICATION)::
 	install -d -m 755 debian/tmp/usr/share/pixmaps
 	install -m 644 $(TB_ICON) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm
+ifeq ($(DEB_MOZ_NAME),icedove)
+# Install icons
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/16x16/apps
+	install -m 644 debian/app-icons/icedove16.png \
+		debian/icedove/usr/share/icons/hicolor/16x16/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/32x32/apps
+	install -m 644 debian/app-icons/icedove32.png \
+		debian/icedove/usr/share/icons/hicolor/32x32/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/64x64/apps
+	install -m 644 debian/app-icons/icedove64.png \
+		debian/icedove/usr/share/icons/hicolor/64x64/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/128x128/apps
+	install -m 644 debian/app-icons/icedove128.png \
+		debian/icedove/usr/share/icons/hicolor/128x128/apps/icedove.png
+	install -d -m 755 debian/icedove/usr/share/icons/hicolor/scalable/apps
+	install -m 644 debian/app-icons/icedovebig.svg \
+		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
+endif
 
 install/$(DEB_MOZ_APPLICATION)-dev::
 	find debian/tmp/usr/share/idl/icedove -type f -name '*.idl' -exec chmod a-x {} \;
