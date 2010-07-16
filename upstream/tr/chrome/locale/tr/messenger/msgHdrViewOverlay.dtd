@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "G">
 
 <!ENTITY otherActionsButton.label "Diğer eylemler">
-<!ENTITY otherActionsShowConversation.label "Konuşma içinde göster">
-<!ENTITY otherActionsShowConversation.accesskey "K">
+<!ENTITY otherActionsOpenConversation.label "open in conversation">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow.label "Yeni pencerede aç">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "Y">
 <!ENTITY otherActionsOpenInNewTab.label "Yeni sekmede aç">

@@ -3,6 +3,11 @@
 <!ENTITY  window.macWidth                 "39em">
 <!ENTITY  noupdatesautoenabled.intro      "යාවත් කිරීමට කිසිවක් නොමැත. &brandShortName; වරින් වර යාවත් කිරීම් ඇත් දැයි සොයනු ඇත.">
 <!ENTITY  noupdatesautodisabled.intro     "යාවත් කිරීමට කිසිවක් නොමැත. කරුණාකර පසුව පරික්‍ෂා කරන්න හෝ &brandShortName; හි ස්වයංක්‍රීය යාවත් කිරීම් පරික්‍ෂාව සක්‍රීය කරන්න.">
+
+<!ENTITY  pluginupdatesfound.title        "ප්ලගීන සඳහා යාවත්කාල කිරීම් හමු වුණි">
+<!ENTITY  pluginupdatesfound.label        "ඔබගේ ප්ලගීන එකක් හෝ වැඩි ගණනක් සඳහා නව අනුවාදයන් (versions) හමු වුණි.">
+<!ENTITY  pluginupdateslink.label         "ඔබගේ ප්ලගීන යාවත්කාල කරන ආකාරය බලන්න.">
+
 <!ENTITY  checking.title                  "යාවත්කාල කිරීම් සඳහා පරික්ෂා කිරීම">
 <!ENTITY  noupdatesfound.title            "යාවත්කාල කිරීම් හමු නොවුනි">
 <!ENTITY  clickHere.label                 "මෙම යාවත්කාල කිරීම පිළිබද තවත් තොරතුරු දක්වන්න">

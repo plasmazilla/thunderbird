@@ -19,6 +19,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s): Neil Rashbrook <neil@parkwaycc.co.uk>
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -33,11 +34,8 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY windowTitle.label "Ιδιότητες φόρμας">
-
 <!ENTITY Settings.label "Ρυθμίσεις">
-
 <!ENTITY FormName.label "Όνομα φόρμας:">
 <!ENTITY FormName.accesskey "ν">
 <!ENTITY FormAction.label "URL Ενέργειας:">
@@ -48,6 +46,5 @@
 <!ENTITY FormEncType.accesskey "ω">
 <!ENTITY FormTarget.label "Πλαίσιο στόχου:">
 <!ENTITY FormTarget.accesskey "χ">
-
 <!ENTITY RemoveForm.label "Απομάκρυνση φόρμας">
 <!ENTITY RemoveForm.accesskey "π">

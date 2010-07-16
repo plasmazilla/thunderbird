@@ -124,8 +124,8 @@
 <!ENTITY showMessageCmd.accesskey "A">
 <!ENTITY folderView.label "Cartelle">
 <!ENTITY folderView.accesskey "a">
-<!ENTITY smartFolders.label "Smart">
-<!ENTITY smartFolders.accesskey "S">
+<!ENTITY unifiedFolders.label "Unificate">
+<!ENTITY unifiedFolders.accesskey "n">
 <!ENTITY allFolders.label "Tutte">
 <!ENTITY allFolders.accesskey "T">
 <!ENTITY unreadFolders.label "Con messaggi non letti">
@@ -387,6 +387,9 @@
 <!ENTITY openMessageWindowCmd.label "Apri messaggio">
 <!ENTITY openMessageWindowCmd.accesskey "A">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Apri nella conversazione">
+<!ENTITY openConversationCmd.accesskey "s">
+<!ENTITY openConversationCmd.key "A">
 <!ENTITY openFeedMessage.label "Apri il messaggio">
 <!ENTITY openFeedMessage.accesskey "A">
 <!ENTITY openFeedWebPageInWindow.label "Pagina web in una nuova finestra">
@@ -407,6 +410,9 @@
 <!ENTITY addons.accesskey "c">
 <!ENTITY activitymanager.label "Registro attività">
 <!ENTITY activitymanager.accesskey "v">
+<!ENTITY savedFiles.label "File salvati">
+<!ENTITY savedFiles.accesskey "l">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Filtri…">
 <!ENTITY filtersCmd.accesskey "F">
 <!ENTITY filtersApply.label "Esegui filtri nella cartella selezionata">
@@ -465,7 +471,7 @@
 <!ENTITY forwardButton.tooltip "Inoltra il messaggio selezionato">
 <!ENTITY fileButton.tooltip "Sposta il messaggio selezionato">
 <!ENTITY archiveButton.tooltip "Archivia i messaggi selezionati">
-<!ENTITY nextButton.tooltip "Vai al prossimo messaggio non letto">
+<!ENTITY nextButton.tooltip "Vai al messaggio successivo non letto">
 <!ENTITY previousButton.tooltip "Vai al precedente messaggio non letto ">
 <!ENTITY goForwardButton.tooltip "Avanti di un messaggio">
 <!ENTITY goBackButton.tooltip "Indietro di un messaggio">
@@ -572,6 +578,8 @@
 <!ENTITY contextOpenNewWindow.accesskey "f">
 <!ENTITY contextOpenNewTab.label "Apri il messaggio in una nuova scheda">
 <!ENTITY contextOpenNewTab.accesskey "u">
+<!ENTITY contextOpenConversation.label "Apri il messaggio nella conversazione">
+<!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextEditAsNew.label "Modifica come nuovo…">
 <!ENTITY contextEditAsNew.accesskey "o">
 <!ENTITY contextArchive.label "Archivia">
@@ -590,7 +598,7 @@
 <!ENTITY contextForwardAsAttachment.accesskey "I">
 <!ENTITY contextMoveMsgMenu.label "Sposta in">
 <!ENTITY contextMoveMsgMenu.accesskey "S">
-<!ENTITY contextMoveCopyMsgRecentMenu.label "Cartelle recenti">
+<!ENTITY contextMoveCopyMsgRecentMenu.label "Recenti">
 <!ENTITY contextMoveCopyMsgRecentMenu.accesskey "r">
 <!ENTITY contextCopyMsgMenu.label "Copia in">
 <!ENTITY contextCopyMsgMenu.accesskey "n">
@@ -600,6 +608,11 @@
 <!ENTITY contextPrint.accesskey "P">
 <!ENTITY contextPrintPreview.label "Anteprima di stampa">
 <!ENTITY contextPrintPreview.accesskey "A">
+<!ENTITY columnPicker.resetToInbox.label "Ripristina le colonne predefinite">
+<!ENTITY columnPicker.applyTo.label "Visualizza le stesse colonne anche per…">
+<!ENTITY columnPicker.applyToFolder.label "Cartella…">
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Cartella e sottocartelle…">
+<!ENTITY columnPicker.thisFolder.label "questa cartella">
 <!ENTITY contextPlay.label "Riproduci">
 <!ENTITY contextPlay.accesskey "R">
 <!ENTITY contextPause.label "Pausa">
@@ -616,9 +629,13 @@
 <!ENTITY phishingBarMessage2.label "Questo messaggio potrebbe essere una frode.">
 <!ENTITY removePhishingBarButton1.label "Ignorare l'avviso">
 <!ENTITY reportPhishingError1.label "Questo messaggio non sembra essere una frode.">
-<!ENTITY more.label "altri">
+<!ENTITY mdnBarMessage.label "Il mittente chiede una conferma di lettura, inviare la ricevuta?">
+<!ENTITY mdnBarIgnoreButton.label "Ignora la richiesta">
+<!ENTITY mdnBarSendButton.label "Invia la ricevuta">
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Ricerca globale">
+<!ENTITY searchAllMessages.label.base "Cerca in tutti i messaggi… #1">
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;⌘K&gt;">
 <!ENTITY AddToAddressBook.label "Aggiungi in rubrica…">
 <!ENTITY AddToAddressBook.accesskey "A">
 <!ENTITY AddDirectlyToAddressBook.label "Aggiungi a rubrica">
@@ -655,8 +672,8 @@
 <!ENTITY selectAllCmd.accesskey "S">
 <!ENTITY copyLinkCmd.label "Copia indirizzo">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY copyImageCmd.label "Copia indirizzo immagine">
-<!ENTITY copyImageCmd.accesskey "o">
+<!ENTITY copyImageAllCmd.label "Copia immagine">
+<!ENTITY copyImageAllCmd.accesskey "I">
 <!ENTITY copyEmailCmd.label "Copia indirizzo e-mail">
 <!ENTITY copyEmailCmd.accesskey "i">
 <!ENTITY stopCmd.label "Interrompi">

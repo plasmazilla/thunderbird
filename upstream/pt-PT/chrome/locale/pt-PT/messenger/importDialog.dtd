@@ -49,8 +49,8 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importAll.accesskey      "t">
 <!ENTITY importMail.label         "Correio">
 <!ENTITY importMail.accesskey     "C">
-<!ENTITY importAddressbook.label  "Livros de Endereços">
-<!ENTITY importAddressbook.accesskey "A">
+<!ENTITY importAddressbook.label  "Livros de endereços">
+<!ENTITY importAddressbook.accesskey "ç">
 <!ENTITY importSettings.label     "Definições">
 <!ENTITY importSettings.accesskey "D">
 <!ENTITY importFilters.label      "Filtros">
@@ -59,11 +59,11 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY window.width "40em">
 <!ENTITY window.macWidth "45em">
 
-<!ENTITY importTitle.label "&brandShortName; Assistente de Importação do Correio">
-<!ENTITY importShortDesc.label "Importar Correio, Livros de Endereços e Configurações de outros programas">
+<!ENTITY importTitle.label "Assistente de importação do correio do &brandShortName;">
+<!ENTITY importShortDesc.label "Importar correio, livros de endereços e configurações de outros programas">
 
-<!ENTITY importDescription1.label "Este assistente vai importar mensagens de correio, entradas do Livro de Endereços, e/ou personalizações de outros programas de correio e formatos de livros de endereços comuns para o Correio do &brandShortName;.">
-<!ENTITY importDescription2.label "Ao serem importadas, poderá aceder a elas a partir do Correio e/ou Livro de Endereços do &brandShortName;.">
+<!ENTITY importDescription1.label "Este assistente vai importar mensagens de correio, entradas do livro de endereços, e/ou personalizações de outros programas de correio e formatos de livros de endereços comuns para o correio do &brandShortName;.">
+<!ENTITY importDescription2.label "Ao serem importadas, poderá aceder a elas a partir do correio e/ou livro de endereços do &brandShortName;.">
 
 <!ENTITY selectDescription.label "Por favor seleccione o programa do qual deseja importar:">
 <!ENTITY selectDescription.accesskey "P">
@@ -80,8 +80,8 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 
 <!ENTITY FieldDiscInputText1.label "O Netscape Communicator 4.x tem um endereço de correio para cada cartão, enquanto que o &brandShortName; tem dois (Casa e Trabalho).">
 <!ENTITY FieldDiscInputText2.label "Seleccione a categoria na qual você quer guardar os endereços de correio guardados:">
-<!ENTITY FieldDiscWarning.label  "Esta categoria será usada para todas as entradas seleccionadas no Livro de Endereços: ">
+<!ENTITY FieldDiscWarning.label  "Esta categoria será usada para todas as entradas seleccionadas no livro de endereços: ">
 <!ENTITY importHome.label        "Casa">
-<!ENTITY importHome.accesskey    "H">
+<!ENTITY importHome.accesskey    "C">
 <!ENTITY importWork.label        "Trabalho">
 <!ENTITY importWork.accesskey    "T">

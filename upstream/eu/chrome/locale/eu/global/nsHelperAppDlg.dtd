@@ -21,14 +21,14 @@
 <!ENTITY prompt.label "Zer egin behar du #1-(e)k fitxategi honekin?">
 
 <!ENTITY alwaysHandle.label "Beti ekintza hau egin mota honetako fitxategi bat aukeratzerakoan">
-<!ENTITY alwaysHandle.accesskey "A">
+<!ENTITY alwaysHandle.accesskey "a">
 
 <!ENTITY saveToDisk.label "Gorde fitxategi hau diskoan">
-<!ENTITY saveToDisk.accesskey "D">
+<!ENTITY saveToDisk.accesskey "d">
 
 <!ENTITY useSystemDefault.label "Ireki fitxategi hauek lehenetsitako aplikazioa erabiliz (#1)">
 <!ENTITY useSystemDefault.noDesc.label "Ireki lehenetsitako aplikazioa erabiliz">
-<!ENTITY useSystemDefault.accesskey "O">
+<!ENTITY useSystemDefault.accesskey "o">
 
 <!ENTITY openUsing.label "Ireki hau erabiliz">
 <!ENTITY openUsing.accesskey "h">

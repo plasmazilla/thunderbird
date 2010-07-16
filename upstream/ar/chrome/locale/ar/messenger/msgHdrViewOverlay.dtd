@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "ر">
 
 <!ENTITY otherActionsButton.label "إجراءات أخرى">
-<!ENTITY otherActionsShowConversation.label "أظهِر في المحادثة">
-<!ENTITY otherActionsShowConversation.accesskey "ث">
+<!ENTITY otherActionsOpenConversation.label "افتح في محادثة">
+<!ENTITY otherActionsOpenConversation.accesskey "ث">
 <!ENTITY otherActionsOpenInNewWindow.label "افتح في نافذة جديدة">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "ن">
 <!ENTITY otherActionsOpenInNewTab.label "افتح في لسان جديد">

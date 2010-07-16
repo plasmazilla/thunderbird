@@ -87,9 +87,9 @@ conexión a esa fuente externa. Ésto puede permitir el rastreo del
 mensaje que se está leyendo. Marcando esta caja permitirá ese contenido externo
 incrustado en mensajes HTML de este contacto.">
 
-<!ENTITY WorkPhone.label "Trabajo:">
+<!ENTITY WorkPhone.label "Teléfono del trabajo:">
 <!ENTITY WorkPhone.accesskey "j">
-<!ENTITY HomePhone.label "Casa:">
+<!ENTITY HomePhone.label "Teléfono particular:">
 <!ENTITY HomePhone.accesskey "C">
 <!ENTITY FaxNumber.label "Fax:">
 <!ENTITY FaxNumber.accesskey "x">
@@ -106,7 +106,7 @@ incrustado en mensajes HTML de este contacto.">
 <!ENTITY HomeAddress2.accesskey         "">
 <!ENTITY HomeCity.label "Ciudad:">
 <!ENTITY HomeCity.accesskey             "u">
-<!ENTITY HomeState.label "Provincia/Estado:">
+<!ENTITY HomeState.label "Provincia/estado:">
 <!ENTITY HomeState.accesskey            "S">
 <!ENTITY HomeZipCode.label "Código postal:">
 <!ENTITY HomeZipCode.accesskey          "g">
@@ -136,7 +136,7 @@ incrustado en mensajes HTML de este contacto.">
 <!ENTITY WorkAddress2.accesskey         "">
 <!ENTITY WorkCity.label "Ciudad:">
 <!ENTITY WorkCity.accesskey             "i">
-<!ENTITY WorkState.label "Provincia/Estado:">
+<!ENTITY WorkState.label "Provincia/estado:">
 <!ENTITY WorkState.accesskey            "v">
 <!ENTITY WorkZipCode.label "Código postal:">
 <!ENTITY WorkZipCode.accesskey          "P">

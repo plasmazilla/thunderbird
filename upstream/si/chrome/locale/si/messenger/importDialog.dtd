@@ -59,13 +59,13 @@ LOCALIZATION NOTE : Do not translate any of the occurances of the word
 <!ENTITY  window.macWidth         "45em">
 
 <!ENTITY importTitle.label        "&brandShortName; ලිපි ආයාත කිරීම් විශාරද">
-<!ENTITY importShortDesc.label    "වෙනත් යෙදුම් වෙතින් ලිපි, ලිපින පොත්, සැකසුම් සහ පෙරහන් ආයාත කිරීම">
+<!ENTITY importShortDesc.label    "වෙනත් යෙඳුම් වෙතින් ලිපි, ලිපින පොත්, සැකසුම්, සහ පෙරහන් ආයාත කිරීම">
 
-<!ENTITY importDescription1.label "මෙම විශාරද ක්‍රියාවලිය වෙනත් යෙදුම් වෙතින් ලිපි, ලිපින පොත් ඇතුළත් කිරීම්, මනාපයන් හා/හෝ පෙරහන් සහ පොදු ලිපින පොත් හැඩගැසුම් &brandShortName; වෙතට ආයාත කරනු ඇත.">
+<!ENTITY importDescription1.label "මෙම විශාරද ක්‍රියාවලිය වෙනත් යෙඳුම් වෙතින් ලිපි, ලිපින පොත්, සැකසුම්, සහ පෙරහන් &brandShortName; තුළට ආයාත කරයි.">
 
-<!ENTITY importDescription2.label "ආයාත කළ පසු, ඔබට ඒවාට &brandShortName; ලිපි හා/හෝ ලිපින පොත් තුළින් ප්‍රවේශ විය හැකිය.">
+<!ENTITY importDescription2.label "ආයාත කළ පසු, ඒවා &brandShortName; තුළ ලිපි හා/හෝ ලිපින පොත් ලෙස භාවිතා තඛ හැකිය.">
 
-<!ENTITY selectDescription.label  "ආයාත කළ යුත්තේ කවර යෙදුමින්දැයි තෝරන්න:">
+<!ENTITY selectDescription.label  "ඔබ ආයාත කරන්නේ කවර වැඩසටහනින්දැයි තෝරන්න :">
 <!ENTITY selectDescription.accesskey "P">
 
 <!ENTITY back.label               "&lt; පසුපසට">

@@ -42,6 +42,7 @@
 <!-- LOCALIZATION NOTE (directoriesText.label) : do not translate "LDAP" in below line -->
 <!ENTITY directoriesText.label     "LDAP ඩිරෙක්ටරි සේවාදායකයක් තෝරන්න:">
 <!ENTITY directoriesText.accesskey "S">
+<!-- LOCALIZATION NOTE (autocomplete.title) : do not translate "LDAP" in below line -->
 <!ENTITY addDirectory.label        "එක් කරන්න">
 <!ENTITY addDirectory.accesskey    "a">
 <!ENTITY editDirectory.label       "සැකසුම්">

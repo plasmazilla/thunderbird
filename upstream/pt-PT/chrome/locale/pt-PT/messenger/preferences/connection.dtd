@@ -1,16 +1,16 @@
-<!ENTITY connectionsDialog.title "Configurações da Ligação">
+<!ENTITY connectionsDialog.title "Configurações da ligação">
 <!ENTITY window.width "42em">
 
-<!ENTITY proxyTitle.label "Configurar Proxies para Aceder à Internet">
+<!ENTITY proxyTitle.label "Configurar proxies para aceder à internet">
 <!ENTITY noProxyTypeRadio.label "Sem proxy">
 <!ENTITY noProxyTypeRadio.accesskey "y">
 <!ENTITY systemTypeRadio.label "Usar definições do proxy do sistema">
 <!ENTITY systemTypeRadio.accesskey "u">
 <!ENTITY WPADTypeRadio.label "Detectar configurações automaticamente para esta rede">
 <!ENTITY WPADTypeRadio.accesskey "d">
-<!ENTITY manualTypeRadio.label "Configuração Manual do proxy:">
+<!ENTITY manualTypeRadio.label "Configuração manual do proxy:">
 <!ENTITY manualTypeRadio.accesskey "m">
-<!ENTITY autoTypeRadio.label "URL de Configuração Automatica do proxy:">
+<!ENTITY autoTypeRadio.label "URL de configuração automática do proxy:">
 <!ENTITY autoTypeRadio.accesskey "U">
 <!ENTITY reload.label "Actualizar">
 <!ENTITY reload.accesskey "a">

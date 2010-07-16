@@ -4,9 +4,14 @@
 <!ENTITY sendingPrefix.label "Kur dërgohen mesazhe, automatikisht: ">
 <!ENTITY fccMailFolder.label "Vendos një kopje në:">
 <!ENTITY fccMailFolder.accesskey "k">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Cc këto vendndodhje email:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.emptytext "Ndajini vendndodhjet me presje">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "Bcc për këto vendndodhje email:">
 <!ENTITY bccAddress.accesskey "B">
+<!ENTITY bccAddressList.emptytext "Ndajini vendndodhjet me presje">
 <!ENTITY saveMessageDlg.label "Shfaq dialog ripohimi kur ruhen mesazhe">
 <!ENTITY saveMessageDlg.accesskey "q">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->
@@ -37,4 +42,3 @@
 <!ENTITY archiveInOtherFolder.accesskey "r">
 
 <!ENTITY keepArchives.label "Arkivat e mesazheve mbaji te:">
-

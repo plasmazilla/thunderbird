@@ -1,9 +1,9 @@
-<!ENTITY messengerStartPage.label " Página Inicial do &brandShortName;">
-<!ENTITY enableStartPage.label "Quando o &brandShortName; é iniciado, mostrar a Página Inicial na área de mensagens">
+<!ENTITY messengerStartPage.label " Página inicial do &brandShortName;">
+<!ENTITY enableStartPage.label "Quando o &brandShortName; é iniciado, mostrar a página inicial na área de mensagens">
 <!ENTITY enableStartPage.accesskey "Q">
 <!ENTITY location.label "Localização:">
 <!ENTITY location1.accesskey "z">
-<!ENTITY useDefault.label "Restaurar Pré-definições">
+<!ENTITY useDefault.label "Restaurar pré-definições">
 <!ENTITY useDefault.accesskey "R">
 
 <!ENTITY bounceSystemDockIcon.label "Animar o ícone">

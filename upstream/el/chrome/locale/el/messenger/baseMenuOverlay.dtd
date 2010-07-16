@@ -1,27 +1,19 @@
-<!-- Help Menu -->
 <!ENTITY helpMenu.label "Βοήθεια">
 <!ENTITY helpMenu.accesskey "Β">
-<!-- LOCALIZATION NOTE some localizations of Windows use "?"
-                       for the help button in the menubar but Gnome does not.   -->
 <!ENTITY helpMenuWin.label "Βοήθεια">
 <!ENTITY helpMenuWin.accesskey "Β">
 <!ENTITY releaseCmd.label "Σημειώσεις έκδοσης">
 <!ENTITY releaseCmd.accesskey "μ">
+<!ENTITY whatsNewCmd.label "Τι νέο υπάρχει;">
+<!ENTITY whatsNewCmd.accesskey "ν">
+<!ENTITY featureConfiguratorCmd.label "Βοηθός εισαγωγής">
+<!ENTITY featureConfiguratorCmd.accesskey "Θ">
 <!ENTITY openHelp.label "Περιεχόμενα βοήθειας">
 <!ENTITY openHelp.accesskey "χ">
 <!ENTITY openHelp.commandkey "VK_F1">
 <!ENTITY openHelpMac.label "Βοήθεια &brandShortName;">
-<!ENTITY openHelpMac2.commandkey   "?">
-<!ENTITY openHelpMac2.modifiers    "accel">
-
+<!ENTITY openHelpMac2.commandkey "?">
+<!ENTITY openHelpMac2.modifiers "accel">
 <!ENTITY updateCmd.label "Έλεγχος για ενημερώσεις…">
-
-
-<!ENTITY whatsNewCmd.label "Τι νέο">
-<!ENTITY whatsNewCmd.accesskey "ν">
-
 <!ENTITY aboutMenuCmd.label "Περί &brandShortName;">
-<!ENTITY aboutMenuCmd.accesskey "ε">
-<!ENTITY featureConfiguratorCmd.label "Βοηθός εισαγωγής">
-<!ENTITY featureConfiguratorCmd.accesskey "θ">
-
+<!ENTITY aboutMenuCmd.accesskey "ρ">

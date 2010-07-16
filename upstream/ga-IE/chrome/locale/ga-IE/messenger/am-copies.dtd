@@ -6,9 +6,14 @@
 <!ENTITY fccMailFolder.accesskey "P">
 <!ENTITY fccReplyFollowsParent.label "Cuir freagraí i bhfillteán na teachtaireachta atá á freagairt">
 <!ENTITY fccReplyFollowsParent.accesskey "c">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Cc na seoltaí ríomhphoist seo:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.emptytext "Seoltaí scartha ag camóga">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "Bcc na seoltaí ríomhphoist seo:">
 <!ENTITY bccAddress.accesskey "B">
+<!ENTITY bccAddressList.emptytext "Seoltaí scartha ag camóga">
 <!ENTITY saveMessageDlg.label "Taispeáin dialóg dhearbhaithe agus teachtaireachtaí á sábháil">
 <!ENTITY saveMessageDlg.accesskey "t">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->

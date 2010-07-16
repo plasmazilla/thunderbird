@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "ש">
 
 <!ENTITY otherActionsButton.label "פעולות אחרות">
-<!ENTITY otherActionsShowConversation.label "הצג בשיחה">
-<!ENTITY otherActionsShowConversation.accesskey "ש">
+<!ENTITY otherActionsOpenConversation.label "פתח בדיון">
+<!ENTITY otherActionsOpenConversation.accesskey "ד">
 <!ENTITY otherActionsOpenInNewWindow.label "פתח בחלון חדש">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "ח">
 <!ENTITY otherActionsOpenInNewTab.label "פתח בלשונית חדשה">

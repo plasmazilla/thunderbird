@@ -1,8 +1,9 @@
-<!-- for SearchDialog.xul -->
 <!ENTITY searchHeading.label "Αναζήτηση σε:">
 <!ENTITY searchHeading.accesskey "ζ">
 <!ENTITY searchSubfolders.label "Αναζήτηση σε υποφακέλους">
 <!ENTITY searchSubfolders.accesskey "ν">
+<!ENTITY searchOnServer.label "Εκτέλεση αναζήτησης στο διακομιστή">
+<!ENTITY searchOnServer.accesskey "κ">
 <!ENTITY resetButton.label "Εκκαθάριση">
 <!ENTITY resetButton.accesskey "θ">
 <!ENTITY openButton.label "Άνοιγμα">
@@ -16,14 +17,10 @@
 <!ENTITY fileButton.label "Αρχειοθέτηση">
 <!ENTITY fileButton.accesskey "χ">
 <!ENTITY closeCmd.key "W">
+<!ENTITY openInFolder.label "Άνοιγμα σε φάκελο">
+<!ENTITY openInFolder.accesskey "φ">
 <!ENTITY saveAsVFButton.label "Αποθήκευση ως φάκελος αναζήτησης">
 <!ENTITY saveAsVFButton.accesskey "φ">
-<!ENTITY searchOnServer.label        "Εκτέλεση αναζήτησης στο διακομιστή">
-<!ENTITY searchOnServer.accesskey    "κ">
-
-
-<!-- for ABSearchDialog.xul -->
-
 <!ENTITY abSearchHeading.label "Αναζήτηση σε:">
 <!ENTITY abSearchHeading.accesskey "ν">
 <!ENTITY propertiesButton.label "Ιδιότητες">
@@ -31,12 +28,6 @@
 <!ENTITY composeButton.label "Σύνταξη">
 <!ENTITY composeButton.accesskey "Σ">
 <!ENTITY abSearchDialogTitle.label "Προχωρημένη έρευνα Ευρετηρίου διευθύνσεων">
-
-<!ENTITY openInFolder.label          "Άνοιγμα σε φάκελο">
-<!ENTITY openInFolder.accesskey      "φ">
-
-<!-- Thread Pane -->
-
 <!ENTITY threadColumn.label "Αλληλουχία">
 <!ENTITY fromColumn.label "Από">
 <!ENTITY recipientColumn.label "Παραλήπτης">
@@ -55,8 +46,6 @@
 <!ENTITY starredColumn.label "Με αστέρι">
 <!ENTITY locationColumn.label "Τοποθεσία">
 <!ENTITY idColumn.label "Σειρά παραλαβής">
-<!-- Thread Pane Tooltips -->
-
 <!ENTITY columnChooser.tooltip "Πατήστε για να επιλέξετε τις στήλες για εμφάνιση">
 <!ENTITY threadColumn.tooltip "Πατήστε για την εμφάνιση αλληλουχιών μηνυμάτων">
 <!ENTITY fromColumn.tooltip "Πατήστε για ταξινόμηση κατά αποστολέα">

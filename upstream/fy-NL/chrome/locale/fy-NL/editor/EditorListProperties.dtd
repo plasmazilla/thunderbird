@@ -41,7 +41,7 @@
 
 <!ENTITY ListType.label "Listtype">
 <!ENTITY bulletStyle.label "Opsommingsstyl:">
-<!ENTITY startingNumber.label "Begjinne by:">
+<!ENTITY startingNumber.label "Starte by:">
 <!ENTITY startingNumber.accessKey "S">
 <!ENTITY none.value "Gjin">
 <!ENTITY bulletList.value "Opsommingslist (net nûmere)">

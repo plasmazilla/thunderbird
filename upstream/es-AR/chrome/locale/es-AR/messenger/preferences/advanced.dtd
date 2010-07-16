@@ -18,13 +18,13 @@
 <!ENTITY configEditDesc.label          "Configuración avanzada">
 <!ENTITY configEdit.label              "Editor de configuración…">
 <!ENTITY configEdit.accesskey          "g">
-<!ENTITY returnReceiptsInfo.label      "Determine cómo &brandShortName; maneja los acuses de recibo">
-<!ENTITY showReturnReceipts.label      "Acuses de recibo…">
-<!ENTITY showReturnReceipts.accesskey  "r">
+<!ENTITY returnReceiptsInfo.label      "Determine cómo &brandShortName; maneja los avisos de recepción">
+<!ENTITY showReturnReceipts.label      "Avisos de recepción…">
+<!ENTITY showReturnReceipts.accesskey  "R">
 
 <!-- Display and Reading Settings -->
-<!ENTITY reading.caption                "Lectura">
-<!ENTITY display.caption                "Apariencia">
+<!ENTITY reading.caption                "Reading">
+<!ENTITY display.caption                "Display">
 <!ENTITY showCondensedAddresses.label  "Mostrar solamente el nombre para las personas de mi libreta de direcciones">
 <!ENTITY showCondensedAddresses.accesskey "p">
 
@@ -54,7 +54,7 @@
 <!ENTITY enableAppUpdate.accesskey      "T">
 <!ENTITY enableAddonsUpdate.label    "Agregados instalados">
 <!ENTITY enableAddonsUpdate.accesskey "i">
-<!ENTITY whenUpdatesFound.label         "Cuando se encuentren actualizaciones para &brandShortName;">
+<!ENTITY whenUpdatesFound.label         "Cuando se encuentren actualizaciones para &brandShortName;,">
 <!ENTITY modeAskMe.label                "Preguntarme qué hacer">
 <!ENTITY modeAskMe.accesskey            "h">
 <!ENTITY modeAutomatic.label            "Descargar e instalar automáticamente la actualización">
@@ -102,7 +102,7 @@
 <!ENTITY viewCertificates.accesskey     "a">
 <!ENTITY viewCRLs.label                 "Listas de revocación">
 <!ENTITY viewCRLs.accesskey             "e">
-<!ENTITY validation.label               "Autenticación">
-<!ENTITY validation.accesskey           "c">
+<!ENTITY validation.label               "Validación">
+<!ENTITY validation.accesskey           "d">
 <!ENTITY viewSecurityDevices.label      "Dispositivos de seguridad">
 <!ENTITY viewSecurityDevices.accesskey  "u">

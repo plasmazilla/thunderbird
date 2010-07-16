@@ -22,6 +22,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "IMAP - Atzitu karpetak eta mezuak hainbat ordenagailutatik">
+<!ENTITY pop.description "POP - Deskargatu mezu guztiak ordenagailu honetan; karpetak lokalak dira soilik">
+<!ENTITY recommended-appendix.label "(gomendatua)">
 
 <!ENTITY manualSetup.label "Eskuzko konfigurazioa…">
 <!ENTITY manualSetup.accesskey "k">

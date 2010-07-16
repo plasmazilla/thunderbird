@@ -2,7 +2,7 @@
 
 <!ENTITY menu_securityEncryptRequire.label "Dulkóða póst">
 <!ENTITY menu_securityEncryptRequire.accesskey "u">
-<!ENTITY menu_securitySign.label "Setja rafræna undirskrift á þennan póst">
+<!ENTITY menu_securitySign.label "Setja rafræna undirskrift á póst">
 <!ENTITY menu_securitySign.accesskey "r">
 <!ENTITY menu_securityStatus.label "Skoða öryggisupplýsingar">
 <!ENTITY menu_securityStatus.accesskey "i">

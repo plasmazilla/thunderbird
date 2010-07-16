@@ -17,7 +17,7 @@
 <!ENTITY found.top.label "Hautatu instalatu nahi dituzun gehigarriak:">
 <!ENTITY found.disabledXPinstall.label "Eguneraketa hauek ezin dira instalatu software instalazioa ezgaituta dagoelako. Ezarpen hau behean alda dezakezu.">
 <!ENTITY found.enableXPInstall.label "Baimendu webguneek softwarea instalatzea">
-<!ENTITY found.enableXPInstall.accesskey "A">
+<!ENTITY found.enableXPInstall.accesskey "a">
 
 <!ENTITY installing.wizard.title "Gehigarri bateragarriak instalatzen">
 <!ENTITY installing.top.label "Gehigarrien eguneraketak deskargatu eta instalatzen...">

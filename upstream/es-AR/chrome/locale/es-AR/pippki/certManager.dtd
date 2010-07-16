@@ -57,13 +57,13 @@
 <!ENTITY certmgr.detail.prettyprint_tab.title "Detalles">
 <!ENTITY certmgr.detail.prettyprint_tab.accesskey "D">
 
-<!ENTITY certmgr.pending.label                "Actualmente verificando certificado…">
+<!ENTITY certmgr.pending.label                "Actualmente verificando certificado...">
 <!ENTITY certmgr.subjectinfo.label "Expedido a">
 <!ENTITY certmgr.issuerinfo.label "Expedido por">
 <!ENTITY certmgr.validity.label "Validez">                                         
 <!ENTITY certmgr.fingerprints.label "Huella digital">
 <!ENTITY certmgr.certdetail.title "Detalle del certificado">
-<!ENTITY certmgr.certdetail.cn "Nombre Común (CN)">
+<!ENTITY certmgr.certdetail.cn "Nombre Comun (CN)">
 <!ENTITY certmgr.certdetail.o "Organización (O)">
 <!ENTITY certmgr.certdetail.ou "Unidad Organizacional (OU)">
 <!ENTITY certmgr.certdetail.serialnumber "Número de serie">
@@ -127,7 +127,7 @@
 <!ENTITY certmgr.details.accesskey            "f">
 <!ENTITY certmgr.fields.label "Valor del campo">
 <!ENTITY certmgr.fields.accesskey             "V">
-<!ENTITY certmgr.hierarchy.label "Jerarquía de certificados">
+<!ENTITY certmgr.hierarchy.label "Jerarquía de Certificados">
 <!ENTITY certmgr.hierarchy.accesskey          "C">
 <!ENTITY certmgr.addException.label           "Agregar excepción…">
 <!ENTITY certmgr.addException.accesskey       "x">

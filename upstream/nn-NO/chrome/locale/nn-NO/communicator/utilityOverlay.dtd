@@ -3,12 +3,12 @@
 <!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
 
 <!ENTITY fileMenu.label          "Fil">
-<!ENTITY fileMenu.accesskey        "f">
+<!ENTITY fileMenu.accesskey        "F">
 <!ENTITY newMenu.label            "Ny">
 <!ENTITY newMenu.accesskey          "N">
 
-<!ENTITY editMenu.label          "Rediger">
-<!ENTITY editMenu.accesskey        "R">
+<!ENTITY editMenu.label          "Endre">
+<!ENTITY editMenu.accesskey        "E">
 <!ENTITY undoCmd.label            "Angre">
 <!ENTITY undoCmd.key            "Z">
 <!ENTITY undoCmd.accesskey          "A">
@@ -20,7 +20,7 @@
 <!ENTITY cutCmd.accesskey          "u">
 <!ENTITY copyCmd.label            "Kopier">
 <!ENTITY copyCmd.key            "C">
-<!ENTITY copyCmd.accesskey          "k">
+<!ENTITY copyCmd.accesskey          "K">
 <!ENTITY pasteCmd.label            "Lim inn">
 <!ENTITY pasteCmd.key            "V">
 <!ENTITY pasteCmd.accesskey          "L">

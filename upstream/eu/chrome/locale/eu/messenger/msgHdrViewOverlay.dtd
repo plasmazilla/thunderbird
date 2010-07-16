@@ -73,7 +73,7 @@
 <!ENTITY hdrTrashButton.tooltip "ezabatu mezua">
 
 <!ENTITY hdrViewToolbarShowFull.label "Erakutsi ikonoak eta testua">
-<!ENTITY hdrViewToolbarShowFull.accesskey "e">
+<!ENTITY hdrViewToolbarShowFull.accesskey "E">
 <!ENTITY hdrViewToolbarShowIcons.label "Erakutsi ikonoak soilik">
 <!ENTITY hdrViewToolbarShowIcons.accesskey "i">
 <!ENTITY hdrViewToolbarShowText.label "Erakutsi testua soilik">
@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "r">
 
 <!ENTITY otherActionsButton.label "bestelako ekintzak">
-<!ENTITY otherActionsShowConversation.label "erakutsi hizketaldian">
-<!ENTITY otherActionsShowConversation.accesskey "h">
+<!ENTITY otherActionsOpenConversation.label "ireki hizketaldian">
+<!ENTITY otherActionsOpenConversation.accesskey "h">
 <!ENTITY otherActionsOpenInNewWindow.label "ireki leiho berrian">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "h">
 <!ENTITY otherActionsOpenInNewTab.label "ireki fitxa berrian">

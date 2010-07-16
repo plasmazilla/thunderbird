@@ -45,9 +45,12 @@
 <!ENTITY folderCharsetTab.accesskey              "Z">
 <!ENTITY folderCharsetOverride.label             "Standard allen Nachrichten im Ordner zuweisen (individuelle Zeichenkodierung und autom. Bestimmung werden ignoriert)">
 <!ENTITY folderCharsetOverride.accesskey         "S">
-<!ENTITY folderRebuildSummaryFile.label          "Index neu erstellen">
-<!ENTITY folderRebuildSummaryFile.accesskey      "x">
-<!ENTITY folderRebuildSummaryFileTip.label       "Zusammenfassungsdatei (*.msf) neu erstellen">
+<!ENTITY folderRebuildSummaryFileTip2.label      "Zusammenfassungsdatei (*.msf) neu erstellen">
+<!ENTITY folderRebuildSummaryFile2.label         "Reparieren">
+<!ENTITY folderRebuildSummaryFile2.accesskey     "R">
+<!ENTITY folderRebuildSummaryFile.explanation    "Die Zusammenfassungsdatei (*.msf) wird manchmal beschädigt, dadurch fehlen scheinbar Nachrichten oder gelöschte Nachrichten werden weiterhin aufgelistet. Reparieren der Zusammenfassungsdatei kann die Probleme meist beheben.">
+<!ENTITY folderIncludeInGlobalSearch.label       "Nachrichten dieses Ordners für die globale Suche indizieren">
+<!ENTITY folderIncludeInGlobalSearch.accesskey   "N">
 
 <!ENTITY retention.label "Speicherplatz">
 <!ENTITY retentionUseAccount.label "Einstellungen des Kontos verwenden">
@@ -69,8 +72,8 @@
 <!ENTITY retentionApplyToFlagged.accesskey "z">
 
 <!ENTITY folderSynchronizationTab.label          "Synchronisation">
-<!ENTITY folderCheckForNewMessages.label         "Diesen Ordner auf neue Nachrichten überprüfen">
-<!ENTITY folderCheckForNewMessages.accesskey     "D">
+<!ENTITY folderCheckForNewMessages2.label        "Diesen Ordner auf neue Nachrichten überprüfen, wenn Nachrichten für dieses Konto empfangen werden">
+<!ENTITY folderCheckForNewMessages2.accesskey    "D">
 
 <!ENTITY offlineFolder.check.label               "Diesen Ordner zum Offline-Lesen auswählen">
 <!ENTITY offlineFolder.check.accesskey           "O">
@@ -83,7 +86,7 @@
 <!ENTITY offlineNewsgroup.button.accesskey       "h">
 
 <!ENTITY folderProps.name.label                  "Name des Ordners:">
-<!ENTITY folderProps.name.accesskey              "N">
+<!ENTITY folderProps.name.accesskey              "O">
 <!ENTITY folderProps.location.label              "Adresse:">
 <!ENTITY folderProps.location.accesskey          "A">
 

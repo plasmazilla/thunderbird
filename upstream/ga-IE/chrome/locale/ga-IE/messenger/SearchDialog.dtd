@@ -53,7 +53,7 @@
 <!ENTITY idColumn.label "Ord Fála">
 <!-- Thread Pane Tooltips -->
 
-<!ENTITY columnChooser.tooltip "Cliceáil chun colúin a roghnú le cur ar taispeáin">
+<!ENTITY columnChooser.tooltip "Cliceáil chun colúin a roghnú le cur ar taispeáint">
 <!ENTITY threadColumn.tooltip "Cliceáil chun snáitheanna na dteachtaireachtaí a thaispeáint">
 <!ENTITY fromColumn.tooltip "Cliceáil chun sórtáil de réir Ó">
 <!ENTITY recipientColumn.tooltip "Cliceáil chun sórtáil de réir faighteora">

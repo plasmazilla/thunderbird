@@ -23,9 +23,10 @@
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Gjeni Përditësime për Temat tuaja">
 <!ENTITY cmd.installFileAddon.tooltip     "Instaloni një Shtesë">
 <!ENTITY cmd.installFileTheme.tooltip     "Instaloni një Temë">
-<!ENTITY cmd.installUpdatesAll.label      "Instalo Përditësimet">
-<!ENTITY cmd.installUpdatesAll.accesskey  "I">
-<!ENTITY cmd.installUpdatesAll.tooltip    "Instalon përditësimet e përzgjedhur">
+
+<!ENTITY cmd.installUpdatesAll2.label      "Instalo Përditësimet">
+<!ENTITY cmd.installUpdatesAll2.accesskey  "I">
+<!ENTITY cmd.installUpdatesAll2.tooltip    "Instalon përditësimet e përzgjedhur">
 <!ENTITY cmd.skip.label                   "Anashkaloje">
 <!ENTITY cmd.skip.accesskey               "A">
 <!ENTITY cmd.skip.tooltip                 "Anashkalo këto përditësime">
@@ -163,3 +164,7 @@
 <!ENTITY blocklist.blocked.label          "Bllokuar">
 <!ENTITY blocklist.checkbox.label         "Çaktivizoje">
 <!ENTITY softBlocklisted.label            "E njohur si shkak problemesh qëndrueshmërie ose sigurie.">
+
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Gjen Përditësime për Shtojcat tuaja">
+<!ENTITY outdated.label                   "Është i passhëm një version më i ri, më i sigurt.">
+

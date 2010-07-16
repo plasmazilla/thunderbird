@@ -16,7 +16,7 @@
 <!ENTITY optionsGroup.label "Valkostir">
 <!ENTITY printBG.label "Prenta bakgrunn (liti og myndir)">
 <!ENTITY printBG.accesskey "b">
-<!ENTITY advanced.tab "Spássía og haus/fótur">
+<!ENTITY advanced.tab "Spássía og síðuhaus/síðufótur">
 <!ENTITY marginGroup.label "Spássía (#1)">
 <!ENTITY marginUnits.inches "tommur">
 <!ENTITY marginUnits.metric "millimetrar">
@@ -28,16 +28,16 @@
 <!ENTITY marginLeft.accesskey "V">
 <!ENTITY marginRight.label "Hægri:">
 <!ENTITY marginRight.accesskey "r">
-<!ENTITY headerFooter.label "Hausar og fætur">
+<!ENTITY headerFooter.label "Síðuhausar og síðufætur">
 <!ENTITY hfLeft.label "Vinstri:">
 <!ENTITY hfCenter.label "Miðja:">
 <!ENTITY hfRight.label "Hægri:">
-<!ENTITY headerLeft.tip "Vinstri haus">
-<!ENTITY headerCenter.tip "Miðju haus">
-<!ENTITY headerRight.tip "Hægri haus">
-<!ENTITY footerLeft.tip "Vinstri fótur">
-<!ENTITY footerCenter.tip "Miðju fótur">
-<!ENTITY footerRight.tip "Hægri fótur">
+<!ENTITY headerLeft.tip "Vinstri síðuhaus">
+<!ENTITY headerCenter.tip "Miðju síðuhaus">
+<!ENTITY headerRight.tip "Hægri síðuhaus">
+<!ENTITY footerLeft.tip "Vinstri síðufótur">
+<!ENTITY footerCenter.tip "Miðju síðufótur">
+<!ENTITY footerRight.tip "Hægri síðufótur">
 <!ENTITY hfTitle "Titill">
 <!ENTITY hfURL "Slóð">
 <!ENTITY hfDateAndTime "Dagsetning/Tími">
@@ -46,4 +46,4 @@
 <!ENTITY hfBlank "--tómt--">
 <!ENTITY hfCustom "Sérsniðið…">
 <!ENTITY customPrompt.title "Sérsniðið…">
-<!ENTITY customPrompt.prompt "Sláðu inn sérsniðinn haus/fót texta">
+<!ENTITY customPrompt.prompt "Sláðu inn sérsniðinn síðuhaus/síðufót texta">

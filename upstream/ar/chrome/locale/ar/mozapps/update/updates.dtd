@@ -3,8 +3,12 @@
 <!ENTITY window.width "36em">
 <!ENTITY window.macWidth "39em">
 
-<!ENTITY checking.title "يجري التماس التحديثات">
-<!ENTITY  updateCheck.label               "يجري البحث عن إصدارات أحدث من &brandShortName;…">
+<!ENTITY checking.title "يلتمس التحديثات">
+<!ENTITY  updateCheck.label               "يبحث عن إصدارات أحدث من &brandShortName;…">
+
+<!ENTITY  pluginupdatesfound.title        "عُثر على تحديثات لملحقاتك">
+<!ENTITY  pluginupdatesfound.label        "عُثر على إصدارات أحدث من إحدى ملحقاتك أو من عدد منها.">
+<!ENTITY  pluginupdateslink.label         "تعلّم كيفية ترقية ملحقاتك.">
 
 <!ENTITY noupdatesfound.title "لم يُعثر على تحديثات">
 <!ENTITY noupdatesautoenabled.intro "لا تحديثات جديدة. سوف يلتمس &brandShortName; التحديثات بشكل دوري.">
@@ -15,9 +19,8 @@
 <!ENTITY  manualUpdate.desc               "هناك تحديث أمن وثبات متاح، ولكنك لا تملك صلاحيات النظام اللازمة لتثبيته. الرجاء التواصل مع مدير نظامك، أو حاول مجددًا باستخدام حساب يملك الصلاحيات لتثبيت البرنامج على هذا الحاسوب.">
 <!ENTITY  manualUpdateGetMsg.label        "يمكنك دائمًا الحصول على أحدث نسخة من &brandShortName; في:">
 
-
-<!ENTITY  incompatibleCheck.title         "يجري التحقق من توافق الإضافة">
-<!ENTITY  incompatibleCheck.label         "يجري البحث عن إصدارات أحدث من إضافاتك…">
+<!ENTITY  incompatibleCheck.title         "يتحقق من توافق الإضافة">
+<!ENTITY  incompatibleCheck.label         "يبحث عن إصدارات أحدث من إضافاتك…">
 <!ENTITY  incompatibleList.title          "عُثر على إضافات غير متوافقة">
 
 <!ENTITY clickHere.label "اعرض المزيد من التّفاصيل عن هذا التّحديث">
@@ -34,7 +37,7 @@
 <!ENTITY license.decline "لا أوافق على شروط اتفاقية الترخيص">
 <!ENTITY license.decline.accesskey "ل">
 
-<!ENTITY downloading.title "يجري تنزيل التّحديث">
+<!ENTITY downloading.title "ينزّل التّحديث">
 <!ENTITY downloading.intro "يُنزّل التحديثات…">
 <!ENTITY connecting.label "يتّصل بخادوم التحديثات…">
 <!ENTITY verificationFailedText.label "لم يتمكّن &brandShortName; من التّحقق من تكامل التحديث المتزايد الذي نزّله، لذلك فإنّه ينزّل تحديثا كاملا الآن.">

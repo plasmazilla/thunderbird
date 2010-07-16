@@ -117,8 +117,8 @@
 <!ENTITY redoDefaultCmd.accesskey "W">
 
 <!-- View Menu -->
-<!ENTITY showMessengerToolbarCmd.label "Nachrichten-Symbolleiste">
-<!ENTITY showMessengerToolbarCmd.accesskey "o">
+<!ENTITY showMessengerToolbarCmd.label "Hauptsymbolleiste">
+<!ENTITY showMessengerToolbarCmd.accesskey "H">
 <!ENTITY customizeToolbar.label "Anpassen…">
 <!ENTITY customizeToolbar.accesskey "A">
 
@@ -135,8 +135,8 @@
 
 <!ENTITY folderView.label "Ordner">
 <!ENTITY folderView.accesskey "d">
-<!ENTITY smartFolders.label "Gruppiert">
-<!ENTITY smartFolders.accesskey "G">
+<!ENTITY unifiedFolders.label "Gruppiert">
+<!ENTITY unifiedFolders.accesskey "G">
 <!ENTITY allFolders.label "Alle">
 <!ENTITY allFolders.accesskey "A">
 <!ENTITY unreadFolders.label "Ungelesene">
@@ -417,6 +417,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "Öffnen">
 <!ENTITY openMessageWindowCmd.accesskey "Ö">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "In Themenbaum anzeigen">
+<!ENTITY openConversationCmd.accesskey "b">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Feed-Artikel öffnen als">
 <!ENTITY openFeedMessage.accesskey "ö">
 <!ENTITY openFeedWebPageInWindow.label "Webseite in neuem Fenster">
@@ -435,12 +438,15 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY messengerCmd.label "Nachrichten &amp; Newsgruppen">
 <!ENTITY messengerCmd.accesskey "N">
 <!ENTITY addressBookCmd.label "Adressbuch">
-<!ENTITY addressBookCmd.accesskey "A">
+<!ENTITY addressBookCmd.accesskey "b">
 <!ENTITY addressBookCmd.key "B">
 <!ENTITY addons.label "Add-ons">
-<!ENTITY addons.accesskey "d">
+<!ENTITY addons.accesskey "A">
 <!ENTITY activitymanager.label "Aktivitäten">
 <!ENTITY activitymanager.accesskey "v">
+<!ENTITY savedFiles.label "Gespeicherte Dateien">
+<!ENTITY savedFiles.accesskey "G">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Filter…">
 <!ENTITY filtersCmd.accesskey "F">
 <!ENTITY filtersApply.label "Filter auf Ordner anwenden">
@@ -448,7 +454,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY filtersApplyToSelection.label "Filter auf gewählte Nachrichten anwenden">
 <!ENTITY filtersApplyToSelection.accesskey "g">
 <!ENTITY filtersApplyToMessage.label "Filter auf Nachricht anwenden">
-<!ENTITY filtersApplyToMessage.accesskey "t">
+<!ENTITY filtersApplyToMessage.accesskey "N">
 <!ENTITY runJunkControls.label "Junk-Filter auf Ordner anwenden">
 <!ENTITY runJunkControls.accesskey "J">
 <!ENTITY deleteJunk.label "Junk in diesem Ordner löschen">
@@ -564,7 +570,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextSettings.accesskey "E">
 
 <!-- Search Bar -->
-<!ENTITY SearchNameOrEmail.label "Name oder E-Mail enthält:">
+<!ENTITY SearchNameOrEmail.label "Name oder E-Mail-Adresse enthält:">
 <!ENTITY SearchNameOrEmail.accesskey "N">
 
 <!-- Gloda Search Bar -->
@@ -627,6 +633,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "F">
 <!ENTITY contextOpenNewTab.label "In neuem Tab öffnen">
 <!ENTITY contextOpenNewTab.accesskey "T">
+<!ENTITY contextOpenConversation.label "In Themenbaum anzeigen">
+<!ENTITY contextOpenConversation.accesskey "b">
 <!ENTITY contextEditAsNew.label "Als neu bearbeiten">
 <!ENTITY contextEditAsNew.accesskey "b">
 <!ENTITY contextArchive.label "Archivieren">
@@ -656,6 +664,53 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "Druckvorschau">
 <!ENTITY contextPrintPreview.accesskey "v">
 
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "Standardspalten wiederherstellen">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Spalteneinstellungen übernehmen für…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "Ordner…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Ordner und alle Unterordner…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "Diesen Ordner">
+
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "Abspielen">
 <!ENTITY contextPlay.accesskey "A">
@@ -680,12 +735,39 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "Warnung ignorieren">
 <!ENTITY reportPhishingError1.label "Diese Nachricht ist scheinbar kein Betrugsversuch">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "mehr">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "Der Absender dieser Nachricht hat eine Empfangsbestätigung angefordert. Soll der Absender informiert werden, dass Sie die Nachricht jetzt lesen?">
+<!ENTITY mdnBarIgnoreButton.label "Anforderung ignorieren">
+<!ENTITY mdnBarSendButton.label "Bestätigung senden">
 
 <!-- Quick Search Bar -->
+<!-- LOCALIZATION NOTE (quickSearchCmd.key):
+     This is actually the key used for the global message search box; we have
+     not changed
+     -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "In allen Konten suchen">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Global in allen Konten suchen… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Strg+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Zu Adressbuch hinzufügen…">
@@ -726,8 +808,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "m">
 <!ENTITY copyLinkCmd.label "Link-Adresse kopieren">
 <!ENTITY copyLinkCmd.accesskey "L">
-<!ENTITY copyImageCmd.label "Grafikadresse kopieren">
-<!ENTITY copyImageCmd.accesskey "G">
+<!ENTITY copyImageAllCmd.label "Grafik kopieren">
+<!ENTITY copyImageAllCmd.accesskey "G">
 <!ENTITY copyEmailCmd.label "E-Mail-Adresse kopieren">
 <!ENTITY copyEmailCmd.accesskey "d">
 <!ENTITY stopCmd.label "Stopp">

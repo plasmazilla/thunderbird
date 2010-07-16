@@ -2,15 +2,12 @@
 <!ENTITY aboutButton.label "&lt; À propos de &brandShortName;">
 <!ENTITY aboutButton.accesskey "o">
 <!ENTITY aboutVersion "version">
-<!ENTITY copyrightText "&#169;1998-2009 Les contributeurs. Tous droits réservés. Mozilla Thunderbird
-                                    et les logos Thunderbird sont des marques déposées de la Mozilla Foundation.
-                                    Tous droits réservés.">
 <!ENTITY aboutMenu.label "À propos de">
 <!ENTITY aboutCredits.label "Crédits">
 <!ENTITY aboutCredits.accesskey "d">
 <!ENTITY aboutMenu.accesskey "r">
-<!ENTITY aboutRights.label "vos droits">
-<!ENTITY aboutRights.accesskey "v">
+<!ENTITY aboutRights.label "Vos droits">
+<!ENTITY aboutRights.accesskey "V">
 <!ENTITY aboutContributors.label "Contributeurs">
 <!ENTITY aboutContributors.accesskey "C">
 <!ENTITY aboutLicense.label "Licence">

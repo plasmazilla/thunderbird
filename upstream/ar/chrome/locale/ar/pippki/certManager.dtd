@@ -143,5 +143,5 @@
 <!ENTITY exceptionMgr.certstatus.caption "حالة الشهادة">
 <!ENTITY exceptionMgr.certstatus.viewCert "اعرض…">
 <!ENTITY exceptionMgr.certstatus.accesskey "ع">
-<!ENTITY exceptionMgr.permanent.label "احفظ هذا الاستثناء دائمًا">
+<!ENTITY exceptionMgr.permanent.label "احفظ هذا الاستثناء دائما">
 <!ENTITY exceptionMgr.permanent.accesskey "د">

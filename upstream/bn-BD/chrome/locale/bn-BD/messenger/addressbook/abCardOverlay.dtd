@@ -96,7 +96,7 @@
 <!ENTITY PagerNumber.label "পেজার (g):">
 <!ENTITY PagerNumber.accesskey "g">
 <!ENTITY CellularNumber.label "মোবাইল (M):">
-<!ENTITY CellularNumber.accesskey "m">
+<!ENTITY CellularNumber.accesskey "M">
 
 <!ENTITY Home.tab "ব্যক্তিগত">
 <!ENTITY Home.accesskey "P">
@@ -129,7 +129,7 @@
 <!ENTITY Department.label "বিভাগ (m):">
 <!ENTITY Department.accesskey "m">
 <!ENTITY Company.label "প্রতিষ্ঠান (O):">
-<!ENTITY Company.accesskey "o">
+<!ENTITY Company.accesskey "O">
 <!ENTITY WorkAddress.label "ঠিকানা (A):">
 <!ENTITY WorkAddress.accesskey "A">
 <!ENTITY WorkAddress2.label "">
@@ -158,18 +158,18 @@
 <!ENTITY Notes.label "নোট (N):">
 <!ENTITY Notes.accesskey "N">
 
-<!ENTITY Photo.tab "Photo">
+<!ENTITY Photo.tab "ছবি">
 <!ENTITY Photo.accesskey "o">
-<!ENTITY PhotoDesc.label "Pick one of the following:">
-<!ENTITY GenericPhoto.label "Generic Photo">
+<!ENTITY PhotoDesc.label "নিচের যেকোনো একটি বেছে নিন:">
+<!ENTITY GenericPhoto.label "সাধারণ ছবি (G)">
 <!ENTITY GenericPhoto.accesskey "G">
-<!ENTITY DefaultPhoto.label "Default">
-<!ENTITY PhotoFile.label "On this Computer">
+<!ENTITY DefaultPhoto.label "ডিফল্ট">
+<!ENTITY PhotoFile.label "এই কম্পিউটারে (n)">
 <!ENTITY PhotoFile.accesskey "n">
-<!ENTITY BrowsePhoto.label "Browse">
+<!ENTITY BrowsePhoto.label "ব্রাউজ (r)">
 <!ENTITY BrowsePhoto.accesskey "r">
-<!ENTITY PhotoURL.label "On the Web">
+<!ENTITY PhotoURL.label "ওয়েবে (b)">
 <!ENTITY PhotoURL.accesskey "b">
-<!ENTITY PhotoURL.emptytext "Paste or type the web address of a photo">
-<!ENTITY UpdatePhoto.label "Update">
-<!ENTITY UpdatePhoto.accesskey "u">
+<!ENTITY PhotoURL.emptytext "ছবির ওয়েব ঠিকানা লিখুন বা প্রতিলেপন করুন">
+<!ENTITY UpdatePhoto.label "হালনাগাদ (U)">
+<!ENTITY UpdatePhoto.accesskey "U">

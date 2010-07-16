@@ -1,12 +1,7 @@
-<!-- these things need to move into utilityOverlay.xul -->
-<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
-
-
 <!ENTITY fileMenu.label "Αρχείο">
 <!ENTITY fileMenu.accesskey "Α">
 <!ENTITY newMenu.label "Νέο">
 <!ENTITY newMenu.accesskey "Ν">
-
 <!ENTITY editMenu.label "Επεξεργασία">
 <!ENTITY editMenu.accesskey "Ε">
 <!ENTITY undoCmd.label "Αναίρεση">
@@ -33,29 +28,21 @@
 <!ENTITY preferencesCmd.accesskey "ο">
 <!ENTITY preferencesCmdUnix.label "Προτιμήσεις">
 <!ENTITY preferencesCmdUnix.accesskey "ρ">
-
 <!ENTITY viewMenu.label "Προβολή">
 <!ENTITY viewMenu.accesskey "ρ">
 <!ENTITY viewToolbarsMenu.label "Εργαλειοθήκες">
 <!ENTITY viewToolbarsMenu.accesskey "γ">
 <!ENTITY showTaskbarCmd.label "Εργαλειοθήκη εργασιών">
 <!ENTITY showTaskbarCmd.accesskey "σ">
-
 <!ENTITY proxy.label "Ρύθμιση διαμεσολαβητή...">
 <!ENTITY proxy.accesskey "δ">
-
 <!ENTITY closeCmd.label "Κλείσιμο">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "Κ">
-
-
-
 <!ENTITY quitApplicationCmd.label "Έξοδος">
 <!ENTITY quitApplicationCmd.key "Q">
 <!ENTITY quitApplicationCmd.accesskey "ξ">
-
 <!ENTITY quitApplicationCmdUnix.label "Κλείσιμο">
 <!ENTITY quitApplicationCmdUnix.accesskey "Κ">
-
 <!ENTITY quitApplicationCmdMac.label "Κλείσιμο &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey "λ">

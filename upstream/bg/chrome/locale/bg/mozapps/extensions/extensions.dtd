@@ -22,13 +22,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "о">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Проверка за обновени добавки">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Проверка за обновени теми">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Проверка за обновяния на вашите приставки">
 <!ENTITY cmd.installLocalFile.label "Инсталиране…">
 <!ENTITY cmd.installLocalFile.accesskey "И">
 <!ENTITY cmd.installFileAddon.tooltip "Инсталиране на добавка">
 <!ENTITY cmd.installFileTheme.tooltip "Инсталиране на тема">
-<!ENTITY cmd.installUpdatesAll.label "Инсталиране на обновявания">
-<!ENTITY cmd.installUpdatesAll.accesskey "о">
-<!ENTITY cmd.installUpdatesAll.tooltip "Инсталиране на избраните обновявания">
+<!ENTITY cmd.installUpdatesAll2.label "Инсталиране на обновявания">
+<!ENTITY cmd.installUpdatesAll2.accesskey "о">
+<!ENTITY cmd.installUpdatesAll2.tooltip "Инсталиране на избраните обновявания">
 <!ENTITY cmd.restartApp2.label "Рестартиране на &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "Р">
 <!ENTITY cmd.restartApp2.tooltip "Рестартирайте &brandShortName;, за да се задействат промените">
@@ -113,6 +114,7 @@
 <!ENTITY needsDependencies.label "Изисква допълнителни елементи.">
 <!ENTITY blocklisted.label "Изключен за ваша защита.">
 <!ENTITY softBlocklisted.label "Известни с причиняването си на проблеми по безопасността и устойчивостта.">
+<!ENTITY outdated.label "Налична е по-нова и по-безопасна версия.">
 <!ENTITY toBeDisabled.label "Добавката ще бъде изключена при рестартиране на &brandShortName;.">
 <!ENTITY toBeEnabled.label "Добавката ще бъде включена при рестартиране на &brandShortName;.">
 <!ENTITY toBeInstalled.label "Добавката ще бъде инсталирана при рестартиране на &brandShortName;.">

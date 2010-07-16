@@ -1,13 +1,14 @@
-<!ENTITY doNotDownloadPop3Movemail.label "ඩිස්කයේ ඉඩ ඉතිරි කර ගැනීම සඳහා බාගත නොකරන්න:">
+<!ENTITY doNotDownloadPop3Movemail.label "ඩිස්කයේ ඉඩ ඉතිරි කර ගැනීම සඳහා භාගත නොකරන්න:">
 <!ENTITY doNotDownloadNntp.label "ඩිස්කයේ ඉඩ ඉතිරි කිරීමට, අසම්බන්ධිතව භාවිතා කිරීම සඳහා බාගත නොකරන්න:">
-<!ENTITY doNotDownloadImap.label "ඩිස්කයේ ඉඩ ඉතිරි කර ගැනීම සඳහා, ලිපි සේවාදායකයෙන් ලබාගෙන සමීප පිටපත් (local copies) තබා ගැනීම වයස සහ විශාලත්වය (age or size) අනුව සීමා කළ හැකිය.">
-<!ENTITY allFoldersOffline.label "මෙම පරිගණකයේ මෙම ගිණුම සඳහා ලිපි තබාගන්න">
+<!ENTITY doNotDownloadImap.label "ඩිස්කයේ ඉඩ ඉතිරි කිරීම සඳහා, අසම්බන්ධිතව භාවිතා කිරීමට ලිපි බාගත කර සමීප පිටපත් (local copies) තබා ගැනීම ලිපියේ වයස හා ප්‍රමාණය අනුව සීමා කළ හැකිය.">
+<!-- <!ENTITY doNotDownload.label "ඩිස්කයේ ඉඩ ඉතිරි කිරීමට, අසම්බන්ධිතව භාවිතා කිරීම සඳහා භාගත නොකරන්න:"> -->
+<!ENTITY allFoldersOffline.label "මෙම පරිගණකහේ මෙම ගිණුම සඳහා ලිපි තබාගන්න">
 <!ENTITY allFoldersOffline.accesskey "o">
-<!ENTITY offlineNotDownload.label "වඩා විශාල ලිපි">
+<!ENTITY offlineNotDownload.label "">
 <!ENTITY offlineNotDownload.accesskey "M">
-<!ENTITY autosyncNotDownload.label "කිලෝබයිට් (KB)">
+<!ENTITY autosyncNotDownload.label "විශාල ලිපි බාගත නොකරන්න">
 <!ENTITY autosyncNotDownload.accesskey "m">
-<!ENTITY kb.label "කට වඩා විශාල ලිපි බාගත නොකරන්න">
+<!ENTITY kb.label "kB ට වඩා විශාල ලිපි">
 <!ENTITY daysOld.label "ට වඩා පැරණි">
 <!ENTITY message.label "ලිපි">
 <!ENTITY nntpNotDownloadRead.label "ලිපි කියවීම">
@@ -15,17 +16,17 @@
 <!ENTITY nntpDownloadMsg.label "ට වඩා වැඩි ලිපි මකන්න">
 <!ENTITY nntpDownloadMsg.accesskey "e">
 <!ENTITY retentionCleanup.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය">
-<!ENTITY retentionCleanupImap.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, සමීප පිටපත්(local copies) සහ සේවාදායකයේ මුල් ලිපි (originals on the remote server)යන ආකාර දෙකේම පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය.">
+<!ENTITY retentionCleanupImap.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, සමීප පිටපත්(local copies)  සහ  සේවාදායකයේ මුල් ලිපි (originals on the remote server)යන ආකාර දෙකේම පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය.">
 <!ENTITY retentionCleanupPop.label "ඩිස්කයේ ඉඩ ලබා ගැනීම සඳහා, සේවාදායකයේ මුල් ලිපි (originals on the remote server) ඇතුළු පැරණි ලිපි සම්පූර්ණයෙන්ම මකා දැමිය හැකිය.">
 <!ENTITY retentionKeepMsg.label "දින ">
 <!ENTITY retentionKeepMsg.accesskey "m">
-<!ENTITY retentionKeepAll.label "කිසිඳු ලිපියක් මකන්න එපා">
+<!ENTITY retentionKeepAll.label "කිසිඳු ලිපියක් නොමකන්න">
 <!ENTITY retentionKeepAll.accesskey "a">
-<!ENTITY retentionKeepRecent.label "මෙම ආසන්නතම ලිපි ප්‍රමාණය හැර සියල්ල මකන්න">
+<!ENTITY retentionKeepRecent.label "මෙම ආසන්නතම ලිපිය හැර සියල්ල මකන්න">
 <!ENTITY retentionKeepRecent.accesskey "b">
 <!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
 <!ENTITY retentionKeepUnreadHidden.label "කියවූ ලිපි සෑමවිටම මකන්න (කාළ සැකසුම් නොසලකන්න)">
-<!ENTITY retentionApplyToFlagged.label "තරු යෙදූ ලිපි සෑම විටම තබාගන්න">
+<!ENTITY retentionApplyToFlagged.label "සෑම විටම තරුයෙදූ ලිපි තබන්න">
 <!ENTITY retentionApplyToFlagged.accesskey "e">
 <!ENTITY nntpRemoveMsgBody.label "Remove bodies from messages more than">
 <!ENTITY nntpRemoveMsgBody.accesskey "o">
@@ -42,9 +43,9 @@
 
   &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
 -->
-<!ENTITY allAutosync.label               "කාළය (age) පිළිබඳ නොසලකා සියළු ලිපි සම්මුහුර්තකරණය (Synchronize) කරන්න">
+<!ENTITY allAutosync.label               "කාළය නොසලකා සියළු ලිපි සම්මුහුර්ත (Synchronize)  කරන්න">
 <!ENTITY allAutosync.accesskey           "c">
-<!ENTITY ageAutosyncBefore.label         "ඉතාම ආසන්න ඒවා සම්මුහුර්තකරණය (Synchronize) කරන්න">
+<!ENTITY ageAutosyncBefore.label         "මෑතකාලීන ලිපි සම්මුහුර්ත (Synchronize) කරන්න">
 <!ENTITY ageAutosync.accesskey           "z">
 <!ENTITY ageAutosyncMiddle.label         "">
 <!ENTITY dayAgeInterval.label            "දින">
@@ -52,5 +53,4 @@
 <!ENTITY monthAgeInterval.label          "මාස">
 <!ENTITY yearAgeInterval.label           "අවුරුදු">
 <!ENTITY ageAutosyncAfter.label          "">
-
 

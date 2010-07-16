@@ -1,7 +1,7 @@
 <!--LOCALIZATION NOTE msgCompSecurityInfo.dtd UI for viewing security status when composing a message -->
 
 <!ENTITY title.label "Segurança da mensagem">
-<!ENTITY subject.plaintextWarning "Tenha em atenção: As linhas de Assunto do correio electrónico nunca são cifradas.">
+<!ENTITY subject.plaintextWarning "Tenha em atenção: As linhas de assunto do correio electrónico nunca são cifradas.">
 <!ENTITY status.heading "O conteúdo das sua mensagem será enviado da seguinte maneira:">
 <!ENTITY status.signed "Assinada Digitalmente:">
 <!ENTITY status.encrypted "Cifrado:">

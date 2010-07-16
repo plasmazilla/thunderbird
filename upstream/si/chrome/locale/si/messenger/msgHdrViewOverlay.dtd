@@ -52,45 +52,45 @@
 <!ENTITY userAgentField2.label "User-Agent: ">
 <!ENTITY referencesField2.label "References: ">
 <!ENTITY messageIdField2.label "Message-ID: ">
-<!ENTITY inReplyToField2.label "In-Reply-To: ">
+<!ENTITY inReplyToField2.label "පිළිතුරු මෙයට: ">
 <!ENTITY originalWebsite2.label "වෙබ් අඩවිය: ">
 
 <!ENTITY editMessageDescription.label "මෙය කෙටුම්පත් කරන ලිපියකි">
-<!ENTITY editMessageButton.label "සැකසීම...">
+<!ENTITY editMessageButton.label "සැකසීම…">
 <!ENTITY hdrArchiveButton.label "සංරක්ෂණය">
-<!ENTITY hdrArchiveButton.tooltip "මෙම ලිපිය සංරක්ෂණය කරන්න">
+<!ENTITY hdrArchiveButton.tooltip "මෙම ලිපි සංරක්ෂණය කරන්න">
 <!ENTITY hdrReplyButton.label "පිළිතුරු">
-<!ENTITY hdrReplyButton.tooltip "මෙම ලිපියට පිළිතුරු">
+<!ENTITY hdrReplyButton.tooltip "මෙම ලිපියට පිළිතුරු යවන්න">
 <!ENTITY hdrReplyAllButton.label "සැමට පිළිතුරු">
-<!ENTITY hdrReplyAllButton.tooltip "ලිපිය එවූ සහ ලැබූ සියළු (sender and all recipients) අයට පිළිතුරු යවන්න">
+<!ENTITY hdrReplyAllButton.tooltip "එවන්නාට සහ සියළු ලබන්නන්ට පිළිතුරු යවන්න">
 <!ENTITY hdrReplyListButton.label "ලැයිස්තුවට පිළිතුරු">
-<!ENTITY hdrReplyListButton.tooltip "ලැයිස්තුවට (mailing list) පිළිතුරු යවන්න">
+<!ENTITY hdrReplyListButton.tooltip "ලැයිස්තුවට පිළිතුරු යවන්න">
 <!ENTITY hdrForwardButton.label "යොමු කරන්න">
 <!ENTITY hdrForwardButton.tooltip "මෙම ලිපිය යොමු කරන්න">
 <!ENTITY hdrJunkButton.label "නිසරු (junk)">
-<!ENTITY hdrJunkButton.tooltip "මෙම ලිපිය නිසරු සේ සළකුණු කරන්න">
+<!ENTITY hdrJunkButton.tooltip "මෙම ලිපිය නිසරු සේ ලකුණු කරන්න">
 <!ENTITY hdrTrashButton.label "මකන්න">
 <!ENTITY hdrTrashButton.tooltip "මෙම ලිපිය මකන්න">
 
-<!ENTITY hdrViewToolbarShowFull.label "අයිකන සහ පාඨ පෙන්වීම">
+<!ENTITY hdrViewToolbarShowFull.label "අයිකන සහ පාඨ පෙන්වන්න">
 <!ENTITY hdrViewToolbarShowFull.accesskey "a">
 <!ENTITY hdrViewToolbarShowIcons.label "අයිකන පමණක් පෙන්වන්න">
 <!ENTITY hdrViewToolbarShowIcons.accesskey "I">
 <!ENTITY hdrViewToolbarShowText.label "පාඨ පමණක් පෙන්වන්න">
 <!ENTITY hdrViewToolbarShowText.accesskey "T">
-<!ENTITY hdrViewToolbarAlwaysReplySender.label "සෑමවිටම එවන්නාට පිළිතුර පෙන්වන්න">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "සැමවිටම එවන්නාට පිළිතුර පෙන්වන්න">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
 <!ENTITY otherActionsButton.label "වෙනත් ක්‍රියාවන්">
-<!ENTITY otherActionsShowConversation.label "ලිපි හුවමාරුවේදී පෙන්වන්න">
-<!ENTITY otherActionsShowConversation.accesskey "c">
+<!ENTITY otherActionsOpenConversation.label "open in conversation">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow.label "නව කවුළුවක විවෘත කරන්න">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "w">
 <!ENTITY otherActionsOpenInNewTab.label "නව ටැබයක විවෘත කරන්න">
 <!ENTITY otherActionsOpenInNewTab.accesskey "t">
-<!ENTITY markAsReadMenuItem.label "කියවූ සේ සළකුණු කරන්න">
+<!ENTITY markAsReadMenuItem.label "කියවූ සේ ලකුණු කරන්න">
 <!ENTITY markAsReadMenuItem.accesskey "r">
-<!ENTITY markAsUnreadMenuItem.label "නොකියවූ සේ සළකුණු කරන්න">
+<!ENTITY markAsUnreadMenuItem.label "නොකියවූ සේ ලකුණු කරන්න">
 <!ENTITY markAsUnreadMenuItem.accesskey "r">
 <!ENTITY saveAsMenuItem.label "සුරකින අයුර…">
 <!ENTITY saveAsMenuItem.accesskey "S">
@@ -115,6 +115,6 @@
 <!ENTITY copyLinkCmd.label        "ඈදුමේ ස්ථානය කොපි කරන්න">
 <!ENTITY copyLinkCmd.accesskey		"C">
 
-<!ENTITY CopyMessageId.label "Message-ID කොපි කරන්න">
+<!ENTITY CopyMessageId.label "Copy Message-ID">
 <!ENTITY OpenMessageForMsgId.label "Open Message For ID">
 <!ENTITY OpenBrowserWithMsgId.label "Open Browser With Message-ID">

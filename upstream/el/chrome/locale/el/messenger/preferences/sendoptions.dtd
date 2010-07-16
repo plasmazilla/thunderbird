@@ -1,6 +1,6 @@
 <!ENTITY dialog.title "Επιλογές αποστολής">
 <!ENTITY sendMail.title "Μορφή κειμένου">
-<!ENTITY sendMaildesc.label "Κατά την αποστολή μηνυμάτων σε μορφή HTML  και ένας από τους παραλήπτες δεν είναι στη λίστα που επιθυμούν HTML:">
+<!ENTITY sendMaildesc.label "Κατά την αποστολή μηνυμάτων σε μορφή HTML και αν δεν επιθυμούν HTML όλοι οι παραλήπτες:">
 <!ENTITY askMe.label "Ερώτηση για το τι να κάνω">
 <!ENTITY askMe.accesskey "ρ">
 <!ENTITY convertPlain.label "Μετατροπή του μηνύματος σε απλό κείμενο">
@@ -10,7 +10,6 @@
 <!ENTITY sendBoth.label "Αποστολή και σε HTML και σε απλό κείμενο">
 <!ENTITY sendBoth.accesskey "κ">
 <!ENTITY override.label "Σημείωση: Χρήση του ευρετηρίου διευθύνσεων για τον καθορισμό προτιμώμενης μορφής κειμένου για τους παραλήπτες.">
-
 <!ENTITY domaindesc.label "Όταν στέλνετε ένα μήνυμα σε μια διεύθυνση που ανήκει τους παρακάτω τομείς,  ο &brandShortName; επιλέγει αυτόματα τη σωστή μορφοποίηση για τον ανάλογο τομέα. ">
 <!ENTITY HTMLTab.label "Τομείς HTML">
 <!ENTITY HTMLTab.accesskey "H">
@@ -24,7 +23,6 @@
 <!ENTITY DeleteHtmlDomain.accesskey "Δ">
 <!ENTITY DeletePlainText.label "Διαγραφή">
 <!ENTITY DeletePlainText.accesskey "γ">
-
 <!ENTITY add.htmltitle "Προσθήκη ονόματος τομέα HTML">
 <!ENTITY add.htmldomain "Όνομα τομέα HTML">
 <!ENTITY add.plaintexttitle "Προσθήκη ονόματος τομέα απλού κειμένου">

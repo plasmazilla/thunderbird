@@ -12,7 +12,7 @@
 <!ENTITY saveFile.label "احفظ الملف">
 <!ENTITY saveFile.accesskey "ح">
 
-<!ENTITY rememberChoice.label "افعل هذا آليًا مع الملفات من هذا النوع من الآن فصاعدًا.">
+<!ENTITY rememberChoice.label "افعل هذا آليا مع الملفات من هذا النوع من الآن فصاعدا.">
 <!ENTITY rememberChoice.accesskey "ف">
 
 <!ENTITY whichIsA.label "الذي هو:">

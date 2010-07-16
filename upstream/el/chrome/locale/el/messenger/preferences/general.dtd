@@ -1,5 +1,3 @@
-
-
 <!ENTITY messengerStartPage.label "Αρχική σελίδα &brandShortName;">
 <!ENTITY enableStartPage.label "Όταν ξεκινάει ο  &brandShortName; να εμφανίζεται η αρχική σελίδα στην περιοχή μηνύματος">
 <!ENTITY enableStartPage.accesskey "τ">
@@ -7,10 +5,8 @@
 <!ENTITY location1.accesskey "ο">
 <!ENTITY useDefault.label "Επαναφορά προεπιλογών">
 <!ENTITY useDefault.accesskey "π">
-
 <!ENTITY bounceSystemDockIcon.label "Κίνηση του εικονιδίου στον πίνακα εφαρμογών">
 <!ENTITY bounceSystemDockIcon.accesskey "ι">
-
 <!ENTITY newMessagesArrive.label "Όταν φθάνουν νέα μηνύματα:">
 <!ENTITY playSound.label "Αναπαραγωγή ενός ήχου">
 <!ENTITY playSound1.accesskey "π">
@@ -18,7 +14,6 @@
 <!ENTITY showAnimatedAlert.accesskey "φ">
 <!ENTITY customizeMailAlert.label "Προσαρμογή…">
 <!ENTITY customizeMailAlert.accesskey "μ">
-
 <!ENTITY play.label "Αναπαραγωγή">
 <!ENTITY play.accesskey "π">
 <!ENTITY systemsound.label "Προεπιλεγμένος ήχος συστήματος για νέο μήνυμα">
@@ -29,7 +24,6 @@
 <!ENTITY customsound.accesskey "Χ">
 <!ENTITY browse.label "Εξερεύνηση…">
 <!ENTITY browse.accesskey "ξ">
-
 <!ENTITY addonsMgr.label "Πρόσθετα">
 <!ENTITY manageAddonsDescWin.label "Αλλαγή επιλογών για τα πρόσθετα σας">
 <!ENTITY manageAddonsDescUnix2.label "Αλλαγή προτιμήσεων για τα πρόσθετα σας">

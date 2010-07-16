@@ -35,10 +35,10 @@
 
  ***** END LICENSE BLOCK ***** -->
 
-<!ENTITY newDirectoryTitle.label "Directoria das Propriedades do Servidor">
+<!ENTITY newDirectoryTitle.label "Directoria das propriedades do servidor">
 <!ENTITY directoryName.label "Nome: ">
 <!ENTITY directoryName.accesskey "n">
-<!ENTITY directoryHostname.label "Nome do Servidor: ">
+<!ENTITY directoryHostname.label "Nome do servidor: ">
 <!ENTITY directoryHostname.accesskey "s">
 <!ENTITY directoryBaseDN.label "Base DN: ">
 <!ENTITY directoryBaseDN.accesskey "b">
@@ -53,7 +53,7 @@
 <!ENTITY Advanced.tab "Avançadas">
 <!ENTITY portNumber.label "Número da porta: ">
 <!ENTITY portNumber.accesskey "m">
-<!ENTITY searchFilter.label "Procurar Filtro: ">
+<!ENTITY searchFilter.label "Procurar filtro: ">
 <!ENTITY searchFilter.accesskey "p">
 <!ENTITY scope.label "Scope: ">
 <!ENTITY scope.accesskey "c">

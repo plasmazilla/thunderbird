@@ -18,13 +18,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "f">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Leita að uppfærðum íbótum">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Leita að uppfærðum þemum">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Leitar að uppfærslum fyrir tengiforrit">
 <!ENTITY cmd.installLocalFile.label "Setja inn…">
 <!ENTITY cmd.installLocalFile.accesskey "n">
 <!ENTITY cmd.installFileAddon.tooltip "Setja  íbót">
 <!ENTITY cmd.installFileTheme.tooltip "Setja inn þema">
-<!ENTITY cmd.installUpdatesAll.label "Setja inn uppfærslur">
-<!ENTITY cmd.installUpdatesAll.accesskey "S">
-<!ENTITY cmd.installUpdatesAll.tooltip "Setur upp allar valdar uppfærslur">
+<!ENTITY cmd.installUpdatesAll2.label "Setja inn uppfærslur">
+<!ENTITY cmd.installUpdatesAll2.accesskey "S">
+<!ENTITY cmd.installUpdatesAll2.tooltip "Setja inn valdar uppfærslur">
 <!ENTITY cmd.restartApp2.label "Endurræsa &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "r">
 <!ENTITY cmd.restartApp2.tooltip "Endurræsa &brandShortName; til að virkja breytingar">
@@ -52,13 +53,13 @@
 <!ENTITY cmd.optionsUnix.tooltip "Breyta stillingum fyrir valda viðbót">
 <!ENTITY cmd.enable.label "Gera virkt">
 <!ENTITY cmd.enable.accesskey "G">
-<!ENTITY cmd.enable.tooltip "Virkja viðbót þegar &brandShortName; er endurræst">
+<!ENTITY cmd.enable.tooltip "Virkja viðbót þegar &brandShortName; er endurræstur">
 <!ENTITY cmd.disable.label "Gera óvirkt">
 <!ENTITY cmd.disable.accesskey "e">
-<!ENTITY cmd.disable.tooltip "Gera viðbót óvirka þegar &brandShortName; er endurræst">
+<!ENTITY cmd.disable.tooltip "Gera viðbót óvirka þegar &brandShortName; er endurræstur">
 <!ENTITY cmd.uninstall.label "Taka út">
 <!ENTITY cmd.uninstall2.accesskey "T">
-<!ENTITY cmd.uninstall2.tooltip "Taka út viðbót þegar &brandShortName; er endurræst">
+<!ENTITY cmd.uninstall2.tooltip "Taka út viðbót þegar &brandShortName; er endurræstur">
 <!ENTITY cmd.cancelUninstall.label "Hætta við að taka út">
 <!ENTITY cmd.cancelUninstall.accesskey "H">
 <!ENTITY cmd.cancelUninstall.tooltip "Hætta við að taka út viðbót">
@@ -104,6 +105,7 @@
 <!ENTITY needsDependencies.label "Þarfnast fleiri hluta.">
 <!ENTITY blocklisted.label "Gert óvirkt þér til verndunar.">
 <!ENTITY softBlocklisted.label "Er þekkt fyrir að valda öryggisvandræðum eða hruni.">
+<!ENTITY outdated.label "Nýrri og öruggari útgáfa er fáanleg.">
 <!ENTITY toBeDisabled.label "Þessi viðbót verður gerð óvirk þegar &brandShortName; er endurræstur.">
 <!ENTITY toBeEnabled.label "Þessi viðbót verður gerð virk þegar &brandShortName; er endurræstur.">
 <!ENTITY toBeInstalled.label "Þessi viðbót verður sett upp þegar &brandShortName; er endurræstur.">
@@ -149,7 +151,7 @@
 <!ENTITY installIncompatibleUpdate.label "Athuga samhæfni…">
 <!ENTITY installFinishing.label "Uppsetning…">
 <!ENTITY installFailure.label "Uppsetning tókst ekki.">
-<!ENTITY progressStatus.label "Athuga uppfærslur">
+<!ENTITY progressStatus.label "Athuga með uppfærslur">
 <!ENTITY eula.title "Leyfisskilmálar notanda">
 <!ENTITY eula.width "560px">
 <!ENTITY eula.height "400px">

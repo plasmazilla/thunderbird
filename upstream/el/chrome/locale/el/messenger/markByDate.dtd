@@ -20,6 +20,7 @@
    -
    - Contributor(s):
    -   Frank Schoenheit <frank.schoenheit@gmx.de>
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -34,9 +35,8 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY messageMarkByDate.label "Σημείωση μηνυμάτων ως αναγνωσμένα κατά ημερομηνία:">
 <!ENTITY markByDateLower.label "Από:">
 <!ENTITY markByDateLower.accesskey "π">
-<!ENTITY markByDateUpper.label "Πρός:">
+<!ENTITY markByDateUpper.label "Προς:">
 <!ENTITY markByDateUpper.accesskey "ρ">

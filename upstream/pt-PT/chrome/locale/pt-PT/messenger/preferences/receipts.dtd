@@ -1,4 +1,4 @@
-<!ENTITY dialog.title "Recibos de Leitura">
+<!ENTITY dialog.title "Recibos de leitura">
 <!ENTITY requestReceipt.label "Ao enviar mensagens, pedir sempre um recibo de leitura">
 <!ENTITY requestReceipt.accesskey "O">
 <!ENTITY receiptArrive.label "Quando chega um recibo:">
@@ -9,7 +9,7 @@
 <!ENTITY requestMDN.label "Quando recebo um pedido de um recibo de leitura:">
 <!ENTITY never.label "Nunca enviar um recibo de leitura">
 <!ENTITY never.accesskey "n">
-<!ENTITY returnSome.label "Permitir Recibos de Leitura para algumas mensagens">
+<!ENTITY returnSome.label "Permitir recibos de leitura para algumas mensagens">
 <!ENTITY returnSome.accesskey "e">
 <!ENTITY notInToCc.label "Se não estiver na mensagem em Para ou Cc:">
 <!ENTITY notInToCc.accesskey "s">
@@ -19,4 +19,4 @@
 <!ENTITY otherCases.accesskey "a">
 <!ENTITY askMe.label "Perguntar-me">
 <!ENTITY alwaysSend.label "Enviar sempre">
-<!ENTITY neverSend.label "Nunca Enviar">
+<!ENTITY neverSend.label "Nunca enviar">

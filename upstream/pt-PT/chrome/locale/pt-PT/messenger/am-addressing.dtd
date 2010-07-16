@@ -6,12 +6,12 @@
 <!-- LOCALIZATION NOTE (override.label) : do not translate "LDAP" in below line -->
 <!ENTITY useGlobal.label "Usar as preferências do meu servidor global LDAP para esta conta">
 <!ENTITY useGlobal.accesskey "L">
-<!ENTITY editDirectories.label "Editar Directorias...">
+<!ENTITY editDirectories.label "Editar directorias...">
 <!ENTITY editDirectories.accesskey "E">
 <!-- LOCALIZATION NOTE (directories.label) : do not translate "LDAP" in below line -->
 <!ENTITY directories.label "Usar um servidor LDAP diferente:">
 <!ENTITY directories.accesskey "r">
-<!ENTITY directoriesNone.label "None">
+<!ENTITY directoriesNone.label "Nenhum">
 
 <!-- am-addressing.xul -->
 

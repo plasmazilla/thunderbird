@@ -17,7 +17,7 @@
 <!-- Entities for Identity page -->
 
 <!ENTITY identityTitle.label "හැඳුනුම">
-<!ENTITY identityDesc.label "සෑම ගිණුමකටම හැඳුනුමක් ඇත. එහි, අන් අය ඔබගේ ලිපි ලැබී‌මේදී ඔබව හඳුනාගැනීම සදහා අවශ්‍ය තොරතූරු ඇත.">
+<!ENTITY identityDesc.label "සෑම ගිණූමකටම හැඳුනුමක් ඇත. එහි, අන්අය ඔබගේ ලිපි ලැබී‌මේදී ඔබව හඳුනාගැනීම සදහා අවශ්‍ය තොරතූරු ඇත.">
 
 <!-- LOCALIZATION NOTE (fullnameDesc.label) : do not translate two of "&quot;" in below line -->
 <!ENTITY fullnameDesc.label "ඔබ ලිපි යැවීමේදී &quot;යවන්නා&quot;  තීරුව තූළ ඔබ‌ගේ නම සදහන් විය යුතූ ආකාරය මෙහි ඇතුළත් කරන්න.">
@@ -91,7 +91,7 @@
      text after the "&quot;" entity in haveSmtp3.suffix, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "ඔබගේ යැවුම් (SMTP) සේවාදායකය, &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, ඔබගේ එවුම් සේවාදායක‌යටම සමාන වේ, ඔබගේ  එවුම් පරිශීලක නම මෙයට ඇතූලු වීම සඳහා භාවිතා කරයි. ඔබ‌ට යැවුම් සේවාදායක ‌වෙනස් කිරීමට ‌මෙනු තිරු‌වේ ‌&quot;මෙවලම්&quot; හි &quot;ගිණූම සකස් කීරීම&quot; යට‌තේ සිදු කළ හැකිය.">
+<!ENTITY haveSmtp3.suffix2 "&quot;, ඔබගේ එවුම් සේවාදායක‌යටම සමාන වේ, ඔබගේ  එවුම් පරිශීලක නම මෙයට ඇතූලු වීම සඳහා භිවිතා කරයි. ඔබ‌ට යැවුම් සේවාදායක ‌වෙනස් කිරීමට ‌මෙනු තිරු‌වේ ‌මෙවලම් හි ගිණූම් සකස් කීරීම් යට‌තේ සිදු කළ හැකිය.">
 
 <!-- Entities for Account name page -->
 
@@ -115,4 +115,4 @@
 <!ENTITY deferStorage.label "Use Global Inbox (store mail in Local Folders)">
 <!ENTITY deferStorage.accesskey "G">
 <!ENTITY clickFinish.label "නිමි ‌බොත්තම මත ක්ලික් කිරී‌මෙන් ‌මෙම ‌තොරතූරු සුරැකීමට හා ගිණුම් විශාරද ක්‍රියාවලියෙන් ඔබට ඉවත්විය හැකිය.">
-<!ENTITY clickFinish.labelMac "&quot;කළා&quot; බොත්තම මත ක්ලික් කිරී‌මෙන් ‌මෙම ‌තොරතූරු සුරැකීමට හා ගිණුම් විශාරද ක්‍රියාවලියෙන් ඔබට ඉවත්විය හැකිය.">
+<!ENTITY clickFinish.labelMac "කළා බොත්තම මත ක්ලික් කිරී‌මෙන් ‌මෙම ‌තොරතූරු සුරැකීමට හා ගිණුම් විශාරද ක්‍රියාවලියෙන් ඔබට ඉවත්විය හැකිය.">

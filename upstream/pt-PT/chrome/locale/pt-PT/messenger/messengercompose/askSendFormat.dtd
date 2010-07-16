@@ -5,11 +5,11 @@
 
 <!ENTITY question.label "Deseja converter a mensagem para formato de texto ou enviá-la em HTML?">
 
-<!ENTITY plainTextAndHtml.label "Enviar em Formato de Texto e HTML">
+<!ENTITY plainTextAndHtml.label "Enviar em formato de texto e HTML">
 <!ENTITY plainTextAndHtml.accesskey "a">
-<!ENTITY plainTextOnly.label "Enviar apenas em Formato de Texto">
+<!ENTITY plainTextOnly.label "Enviar apenas em formato de texto">
 <!ENTITY plainTextOnly.accesskey "X">
-<!ENTITY htmlOnly.label "Enviar apenas em Formato HTML">
+<!ENTITY htmlOnly.label "Enviar apenas em formato HTML">
 <!ENTITY htmlOnly.accesskey "H">
 
 <!ENTITY send.label "Enviar">

@@ -31,10 +31,10 @@
 <!ENTITY saveAsCmd.accesskey "i">
 <!ENTITY saveAsFileCmd.label "Skrá…">
 <!ENTITY saveAsFileCmd.accesskey "S">
-<!ENTITY saveAsDraftCmd.label "Uppkast">
-<!ENTITY saveAsDraftCmd.accesskey "U">
-<!ENTITY saveAsTemplateCmd.label "Forsnið">
-<!ENTITY saveAsTemplateCmd.accesskey "F">
+<!ENTITY saveAsDraftCmd.label "Drög">
+<!ENTITY saveAsDraftCmd.accesskey "D">
+<!ENTITY saveAsTemplateCmd.label "Sniðmát">
+<!ENTITY saveAsTemplateCmd.accesskey "t">
 <!ENTITY sendNowCmd.label "Senda núna">
 <!ENTITY sendCmd.keycode "VK_RETURN">
 <!ENTITY sendNowCmd.accesskey "d">
@@ -171,7 +171,7 @@
 <!ENTITY addressBookCmd.label "Nafnaskrá">
 <!ENTITY addressBookCmd.accesskey "N">
 <!ENTITY addressBookCmd.key "B">
-<!ENTITY accountManagerCmd.label "Stillingar notanda…">
+<!ENTITY accountManagerCmd.label "Stillingar reiknings…">
 <!ENTITY accountManagerCmd.accesskey "S">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "Valkostir…">

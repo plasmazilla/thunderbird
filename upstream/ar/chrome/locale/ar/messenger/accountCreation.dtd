@@ -22,6 +22,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP - للوصول إلى المجلدات والرسائل من عدة أجهزة">
+<!ENTITY pop.description                 "POP - لتنزيل كافة الرسائل على هذا الجهاز، والمجلدات يجب أن تكون محلية">
+<!ENTITY recommended-appendix.label      "(مُزكّى)">
 
 <!ENTITY manualSetup.label               "إعداد يدويّ…">
 <!ENTITY manualSetup.accesskey           "و">

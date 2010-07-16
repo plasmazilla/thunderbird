@@ -20,18 +20,19 @@
 <!-- Command Bar items -->
 <!ENTITY cmd.checkUpdatesAll.label        "Hľadať aktualizácie">
 <!ENTITY cmd.checkUpdatesAll.accesskey    "H">
-<!ENTITY cmd.checkUpdatesAllAddon.tooltip "Hľadanie aktualizácií doplnkov">
-<!ENTITY cmd.checkUpdatesAllTheme.tooltip "Hľadanie aktualizácií tém">
+<!ENTITY cmd.checkUpdatesAllAddon.tooltip "Vyhľadanie aktualizácií doplnkov">
+<!ENTITY cmd.checkUpdatesAllTheme.tooltip "Vyhľadanie aktualizácií tém">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Vyhľadanie aktualizácií zásuvných modulov">
 <!ENTITY cmd.installLocalFile.label       "Nainštalovať">
 <!ENTITY cmd.installLocalFile.accesskey   "N">
 <!ENTITY cmd.installFileAddon.tooltip     "Nainštaluje doplnky">
 <!ENTITY cmd.installFileTheme.tooltip     "Nainštaluje témy">
-<!ENTITY cmd.installUpdatesAll.label      "Nainštalovať aktualizácie">
-<!ENTITY cmd.installUpdatesAll.accesskey  "N">
-<!ENTITY cmd.installUpdatesAll.tooltip    "Nainštaluje vybrané aktualizácie">
-<!ENTITY cmd.restartApp2.label             "Reštartovať &brandShortName;">
-<!ENTITY cmd.restartApp2.accesskey         "R">
-<!ENTITY cmd.restartApp2.tooltip           "Zmeny sa prejavia až po reštarte aplikácie &brandShortName;">
+<!ENTITY cmd.installUpdatesAll2.label     "Nainštalovať aktualizácie">
+<!ENTITY cmd.installUpdatesAll2.accesskey "N">
+<!ENTITY cmd.installUpdatesAll2.tooltip   "Nainštalovať vybrané aktualizácie">
+<!ENTITY cmd.restartApp2.label            "Reštartovať &brandShortName;">
+<!ENTITY cmd.restartApp2.accesskey        "R">
+<!ENTITY cmd.restartApp2.tooltip          "Zmeny sa prejavia až po reštarte aplikácie &brandShortName;">
 <!ENTITY cmd.skip.label                   "Preskočiť">
 <!ENTITY cmd.skip.accesskey               "P">
 <!ENTITY cmd.skip.tooltip                 "Preskočiť tieto aktualizácie">
@@ -111,8 +112,9 @@
 <!-- Status Messsages -->
 <!ENTITY insecureUpdate.label             "Neposkytuje zabezpečené aktualizácie.">
 <!ENTITY needsDependencies.label          "Vyžaduje ďalšie doplnky.">
-<!ENTITY blocklisted.label                "Zakázané z dôvodu vašej ochrany.">
+<!ENTITY blocklisted.label                "Zakázaný pre vašu bezpečnosť.">
 <!ENTITY softBlocklisted.label            "Spôsobuje problémy s bezpečnosťou alebo stabilitou.">
+<!ENTITY outdated.label                   "Je dostupná novšia a bezpečnejšia verzia.">
 <!ENTITY toBeDisabled.label               "Tento doplnok bude zakázaný po reštarte aplikácie &brandShortName;">
 <!ENTITY toBeEnabled.label                "Tento doplnok bude povolený po reštarte aplikácie &brandShortName;">
 <!ENTITY toBeInstalled.label              "Tento doplnok bude nainštalovaný po reštarte aplikácie &brandShortName;">

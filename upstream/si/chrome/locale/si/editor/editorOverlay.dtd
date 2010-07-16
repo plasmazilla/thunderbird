@@ -77,7 +77,7 @@
 <!ENTITY previewCmd.accesskey "w">
 <!ENTITY sendPageCmd.label "පිටුව යවන්න...">
 <!ENTITY sendPageCmd.accesskey "d">
-<!ENTITY printSetupCmd.label "පිටු සැකසුම...">
+<!ENTITY printSetupCmd.label "පිටු සැකසීම...">
 <!ENTITY printSetupCmd.accesskey "u">
 <!ENTITY printCmd.label "මුද්‍රණය...">
 <!ENTITY printCmd.accesskey "P">
@@ -103,7 +103,7 @@
 <!ENTITY pasteAsQuotationCmd.label "උපුටා ගැනීමක් සේ අලවන්න">
 <!ENTITY pasteAsQuotationCmd.accesskey "Q">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY findCmd.label "සොයා ආදේශ කරන්න...">
+<!ENTITY findCmd.label "සෙවීම සහ ප්‍රතිස්ථාපනය කිරීම...">
 <!ENTITY findCmd.accesskey "F">
 <!ENTITY findCmd.key "F">
 <!ENTITY findCmd.key2 "VK_F19">
@@ -129,11 +129,11 @@
 <!ENTITY insertLinkCmd.label "ඈඳුම්...">
 <!ENTITY insertLinkCmd.accesskey "L">
 <!ENTITY insertLinkCmd.key "L">
-<!ENTITY insertAnchorCmd.label "නම්කළ නැංගුරම (Named Anchor)...">
+<!ENTITY insertAnchorCmd.label "නම්කළ නැංගූරම (Named Anchor)...">
 <!ENTITY insertAnchorCmd.accesskey "A">
 <!ENTITY insertImageCmd.label "රූප...">
 <!ENTITY insertImageCmd.accesskey "I">
-<!ENTITY insertHLineCmd.label "තිරස් ඉර">
+<!ENTITY insertHLineCmd.label "තිරස් ඉරි">
 <!ENTITY insertHLineCmd.accesskey "o">
 <!ENTITY insertTableCmd.label "වගු...">
 <!ENTITY insertTableCmd.accesskey "T">
@@ -141,7 +141,7 @@
 <!ENTITY insertHTMLCmd.accesskey "H">
 <!ENTITY insertCharsCmd.label "අකුරු සහ සළකුණු...">
 <!ENTITY insertCharsCmd.accesskey "C">
-<!ENTITY insertBreakAllCmd.label "රූපයට පහළින් කඩන්න">
+<!ENTITY insertBreakAllCmd.label "අනුරුවට පහළින් කඩන්න">
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
@@ -155,7 +155,7 @@
 <!ENTITY editLinkCmd.label "නව සකසනය තුළ සබැඳිය සකසන්න">
 <!ENTITY editLinkCmd.accesskey "i">
 <!-- (Toplevel Edit menu uses utilityOverlay) -->
-<!ENTITY undoCmd.label "අහෝසි කරන්න">
+<!ENTITY undoCmd.label "අහෝසි.">
 <!ENTITY undoCmd.accesskey "U">
 <!ENTITY redoCmd.label "යළි කරන්න">       
 <!ENTITY redoCmd.accesskey "R">
@@ -259,7 +259,7 @@
 
 <!ENTITY formatRemoveStyles.key "Y">
 <!ENTITY formatRemoveLinks.key "K">
-<!ENTITY formatRemoveNamedAnchors.label "නම්කළ නැංගුරම් ඉවත් කරන්න">
+<!ENTITY formatRemoveNamedAnchors.label "නම්කළ නැංගූරම් ඉවත්කිරීම">
 <!ENTITY formatRemoveNamedAnchors.accesskey "R">
 <!ENTITY formatRemoveNamedAnchors.key "A">
 
@@ -313,7 +313,7 @@
 <!ENTITY alignMenu.accesskey "A">
 <!ENTITY alignLeft.label "වම">
 <!ENTITY alignLeft.accesskey "L">
-<!ENTITY alignLeft.tooltip "වමට පෙළගැස්ම">
+<!ENTITY alignLeft.tooltip "වමට පෙළගැස්මA">
 <!ENTITY alignCenter.label "මැද">
 <!ENTITY alignCenter.accesskey "C">
 <!ENTITY alignCenter.tooltip "මැදට පෙළගැස්ම">
@@ -409,13 +409,13 @@
 
 
 <!-- Toolbar-only items -->
-<!ENTITY menuBar.tooltip "මෙනු තීරුව">
+<!ENTITY menuBar.tooltip "මෙනු තෘරුව">
 <!ENTITY compositionToolbar.tooltip "සකසන මෙවලම්තීරුව">
 <!ENTITY formatToolbar.tooltip "හැඩතල මෙවලම්තීරුව">
 <!ENTITY newToolbarCmd.tooltip "නව සකසන පිටුවක් සෑදීම">
 <!ENTITY openToolbarCmd.label "විවෘත කරන්න">
-<!ENTITY openToolbarCmd.tooltip "ස්ථානීය (local) ගොනුවක් විවෘත කිරීම">
-<!ENTITY saveToolbarCmd.tooltip "ගොනුව ස්ථානීයව සුරැකීම">
+<!ENTITY openToolbarCmd.tooltip "පෙදෙසි (local) ගොනුවක් විවෘත කිරීම">
+<!ENTITY saveToolbarCmd.tooltip "ගොනුව පෙදෙසි (local) ස්ථානයකට සුරැකීම">
 <!ENTITY publishToolbarCmd.tooltip "ගොනුව දුරස්ථ ස්ථානයකට උඩුගත කිරීම">
 <!ENTITY previewToolbarCmd.label "පිරික්සීම">
 <!ENTITY previewToolbarCmd.tooltip "මෙම පිටුව නෙවිගේටරයට පූරණය කරන්න">
@@ -433,8 +433,8 @@
 <!ENTITY tableToolbarCmd.tooltip "නව වතුවක් ඇතුළු කිරීම හෝ කෝරාගත් වගුවක ලක්ෂණ සැකසීම">
 <!ENTITY linkToolbarCmd.label "සබැඳි">
 <!ENTITY linkToolbarCmd.tooltip "නව සබැඳියන් එක් කිරීම හෝ කෝරාගත් සබැඳියක ලක්ෂණ සැකසීම">
-<!ENTITY anchorToolbarCmd.label "නැංගුරම">
-<!ENTITY anchorToolbarCmd.tooltip "නව නම්කළ නැංගුරමක් (named anchor) ඇතුලත් කිරීම හෝ තෝරාගත් එකක ලක්ෂණ සැකසීම">
+<!ENTITY anchorToolbarCmd.label "නැංගූරම">
+<!ENTITY anchorToolbarCmd.tooltip "නව නම්කළ නැංගූරමක් (named anchor) ඇතුලත් කිරීම හෝ තෝරාගත් එකක ලක්ෂණ සැකසීම">
 <!ENTITY TextColorButton.tooltip "පාඨ සඳහා වර්ණ තේරීම">
 <!ENTITY BackgroundColorButton.tooltip "පසුබිම සඳහා වර්ණ තේරීම">
 <!ENTITY throbber.tooltip "&vendorShortName; මුල් පිටුවට යන්න">
@@ -451,7 +451,7 @@
 <!ENTITY outdentToolbarCmd.tooltip "Outdent text (වමට ගෙනයාමට)">
 <!ENTITY indentToolbarCmd.tooltip "Indent text (දකුණට ගෙනයාමට)">
 <!ENTITY AlignPopupButton.tooltip "පාඨ පෙළගැසුම තේරීම">
-<!ENTITY InsertPopupButton.tooltip "ඈඳුමක්, නැංගුරමක්, රූපයක් , තිරස් රේඛාවක් හෝ වගුවක් ඇතුලත් කිරීම">
+<!ENTITY InsertPopupButton.tooltip "ඈඳුමක්, නැංගූරමක්, රූපයක් , තිරස් රේඛාවක් හෝ වගුවක් ඇතුලත් කිරීම">
 <!ENTITY alignLeftButton.tooltip "වම් මාර්ජීනය ඔස්සේ පාඨ පෙළගස්සන්න">
 <!ENTITY alignCenterButton.tooltip "පාඨ පෙළගැස්ම හරි මැදින්">
 <!ENTITY alignRightButton.tooltip "දකුණු මාර්ජීනය ඔස්සේ පාඨ පෙළගස්සන්න">

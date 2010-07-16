@@ -11,7 +11,7 @@
 <!ENTITY accountTypeMail.label "Tölvupóstsreikningur">
 <!ENTITY accountTypeMail.accesskey "T">
 <!ENTITY accountTypeNews.label "Fréttareikningur">
-<!ENTITY accountTypeNews.accesskey "F">
+<!ENTITY accountTypeNews.accesskey "r">
 <!-- Entities for Identity page -->
 
 <!ENTITY identityTitle.label "Auðkenni">
@@ -63,7 +63,7 @@
 <!ENTITY usernameExample.label "(til dæmis, &quot;jonjonsson&quot;).">
 <!ENTITY usernameLabel.label "Innsent notandanafn:">
 <!ENTITY usernameLabel.accesskey "I">
-<!ENTITY usernameSmtpDesc.label "Sláðu inn það notandanafn sem þú fékkst frá þjónustuveitu fyrir útsendanpóst (þetta er venjulega það sama og fyrir innkomin póst).">
+<!ENTITY usernameSmtpDesc.label "Sláðu inn það notandanafn sem þú fékkst frá þjónustuveitu fyrir útsendan póst (þetta er venjulega það sama og fyrir innkomin póst).">
 <!ENTITY usernameSmtpLabel.label "Útsent notandanafn:">
 <!ENTITY usernameSmtpLabel.accesskey "o">
 <!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix2) : Do not translate "SMTP" and "&quot;" in

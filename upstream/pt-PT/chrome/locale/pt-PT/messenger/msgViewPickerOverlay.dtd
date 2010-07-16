@@ -4,9 +4,9 @@
 <!ENTITY viewPicker.accesskey "v">
 <!ENTITY viewAll.label "Todos">
 <!ENTITY viewAll.accesskey "T">
-<!ENTITY viewUnread.label "Não Lidas">
+<!ENTITY viewUnread.label "Não lidas">
 <!ENTITY viewUnread.accesskey "N">
-<!ENTITY viewNotDeleted.label "Não Eliminado">
+<!ENTITY viewNotDeleted.label "Não eliminado">
 <!ENTITY viewNotDeleted.accesskey "E">
 <!ENTITY viewTags.label "Etiquetas">
 <!ENTITY viewTags.accesskey "E">

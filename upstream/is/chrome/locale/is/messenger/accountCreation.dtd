@@ -20,6 +20,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "IMAP - Aðgangur að möppum og póstum frá mörgum tölvum">
+<!ENTITY pop.description "POP - Hala niður öllum póstum í þessa tölvu, möppur eru aðeins staðbundnar">
+<!ENTITY recommended-appendix.label "(mælt með)">
 <!ENTITY manualSetup.label "Handvirk uppsetning…">
 <!ENTITY manualSetup.accesskey "H">
 <!ENTITY cancel.label "Hætta við">
@@ -33,7 +36,7 @@
 <!-- LOCALIZATION NOTE (retest.label): This is the text that is
      displayed on the button which will re-guess the account configuration,
      taking into account the settings the user has changed. -->
-<!ENTITY retest.label "Prufa aftur stillingar">
+<!ENTITY retest.label "Prófa aftur stillingar">
 <!ENTITY retest.accesskey "P">
 <!ENTITY edit.label "Breyta">
 <!ENTITY edit.accesskey "B">

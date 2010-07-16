@@ -1,6 +1,6 @@
 <!ENTITY window.title "Síureglur">
-<!ENTITY filterName.label "Síunafn:">
-<!ENTITY filterName.accesskey "S">
+<!ENTITY filterName.label "Nafn síu:">
+<!ENTITY filterName.accesskey "s">
 <!ENTITY junk.label "Ruslpóstur">
 <!ENTITY notJunk.label "Ekki ruslpóstur">
 <!ENTITY lowestPriorityCmd.label "Lægst">

@@ -10,5 +10,5 @@
 <!ENTITY chooseFoldersButton.label "Вибрати…">
 <!ENTITY chooseFoldersButton.accesskey "В">
 
-<!ENTITY searchOnline.label "Пошук онлайн (дає актуальні результати для тек IMAP і Конференцій, але збільшує час відкриття теки)">
+<!ENTITY searchOnline.label "Пошук онлайн (дає актуальні результати для тек IMAP та груп новин, але збільшує час відкриття теки)">
 <!ENTITY searchOnline.accesskey "П">

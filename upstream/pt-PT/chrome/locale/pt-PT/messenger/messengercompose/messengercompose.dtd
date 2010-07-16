@@ -10,7 +10,7 @@
 <!ENTITY newMessage.key "m">
 <!ENTITY newMessageCmd2.key "n">
 <!ENTITY newMessage.accesskey "M">
-<!ENTITY newContact.label "Contacto do Livro de Endereços...">
+<!ENTITY newContact.label "Contacto do livro de endereços...">
 <!ENTITY newContact.accesskey "c">
 <!ENTITY attachMenu.label "Anexar">
 <!ENTITY attachMenu.accesskey "x">
@@ -51,7 +51,7 @@
 <!ENTITY editMenu.label "Editar">
 <!ENTITY editMenu.accesskey "e">
 <!ENTITY undoCmd.label "Anular">
-<!ENTITY undoCmd.key "u">
+<!ENTITY undoCmd.key "z">
 <!ENTITY undoCmd.accesskey "u">
 <!ENTITY redoCmd.label "Refazer">
 <!ENTITY redoCmd.key "y">
@@ -90,9 +90,9 @@
 <!-- View Menu -->
 <!ENTITY viewMenu.label "Ver">
 <!ENTITY viewMenu.accesskey "v">
-<!ENTITY viewToolbarsMenuNew.label "Barras de Ferramentas">
+<!ENTITY viewToolbarsMenuNew.label "Barras de ferramentas">
 <!ENTITY viewToolbarsMenuNew.accesskey "B">
-<!ENTITY showCompositionToolbarCmd.label "Barra de Ferramentas de Composição">
+<!ENTITY showCompositionToolbarCmd.label "Barra de ferramentas de composição">
 <!ENTITY showCompositionToolbarCmd.accesskey "o">
 <!ENTITY showFormattingBarCmd.label "Barra de formatação">
 <!ENTITY showFormattingBarCmd.accesskey "F">
@@ -126,7 +126,7 @@
 
 <!ENTITY returnReceiptMenu.label "Recibo de leitura">
 <!ENTITY returnReceiptMenu.accesskey "o">
-<!ENTITY dsnMenu.label "Notificação do Estado da Entrega">
+<!ENTITY dsnMenu.label "Notificação do estado da entrega">
 <!ENTITY dsnMenu.accesskey "N">
 <!ENTITY outputFormatMenu.label "Formatação">
 <!ENTITY outputFormatMenu.accesskey "f">
@@ -158,10 +158,10 @@
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Ferramentas">
 <!ENTITY tasksMenu.accesskey "F">
-<!ENTITY messengerCmd.label "Correio e Grupos de Discussão">
+<!ENTITY messengerCmd.label "Correio e Grupos de discussão">
 <!ENTITY messengerCmd.accesskey "g">
 <!ENTITY messengerCmd.commandkey "1">
-<!ENTITY addressBookCmd.label "Livro de Endereços">
+<!ENTITY addressBookCmd.label "Livro de endereços">
 <!ENTITY addressBookCmd.accesskey "i">
 <!ENTITY addressBookCmd.key "B">
 <!ENTITY accountManagerCmd.label "Definições de contas...">
@@ -205,7 +205,7 @@
 <!ENTITY ccAddr.label "Cc:">
 <!ENTITY bccAddr.label "Bcc:">
 <!ENTITY replyAddr.label "Responder Para:">
-<!ENTITY newsgroupsAddr.label "Grupo de Discussão:">
+<!ENTITY newsgroupsAddr.label "Grupo de discussão:">
 <!ENTITY followupAddr.label "Reenviar Para:">
 <!ENTITY subject.label "Assunto:">
 <!ENTITY subject.accesskey "S">
@@ -233,9 +233,9 @@
 
 <!-- Message Pane Context Menu -->
 <!ENTITY spellCheckNoSuggestions.label "Sem sugestões">
-<!ENTITY spellCheckIgnoreWord.label "Ignorar Palavra">
+<!ENTITY spellCheckIgnoreWord.label "Ignorar palavra">
 <!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "Adicionar ao Dicionário">
+<!ENTITY spellCheckAddToDictionary.label "Adicionar ao dicionário">
 <!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY undo.label "Anular">
 <!ENTITY undo.accesskey "U">
@@ -254,7 +254,7 @@
 <!ENTITY delete.accesskey "L">
 <!ENTITY removeAttachment.label "Remover anexo">
 <!ENTITY removeAttachment.accesskey "M">
-<!ENTITY renameAttachment.label "Mudar Nome…">
+<!ENTITY renameAttachment.label "Mudar nome…">
 <!ENTITY renameAttachment.accesskey "M">
 <!ENTITY selectAll.label "Seleccionar tudo">
 <!ENTITY selectAll.accesskey "S">

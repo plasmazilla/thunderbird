@@ -13,7 +13,7 @@
 <!ENTITY smaller.label "Minna">
 <!ENTITY color.label "Litur:">
 <!ENTITY color.accesskey "L">
-<!ENTITY displayWidth.label "Ósniðnir textapóstar">
+<!ENTITY displayWidth.label "Ósniðinn textapóstur">
 <!ENTITY displayText.label "Þegar birtur er ósniðinn texti með tilvitnun:">
 <!ENTITY colors.label "Litir">
 <!ENTITY overrideColors.label "Við birtingu á póstum, nota eftirfarandi liti:">

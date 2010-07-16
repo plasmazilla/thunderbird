@@ -62,10 +62,10 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importTitle.label        "&brandShortName; ਇੰਪੋਰਟ ਸਹਾਇਕ">
 <!ENTITY importShortDesc.label    "ਹੋਰ ਪਰੋਗਰਾਮਾਂ ਤੋਂ ਮੇਲ, ਐਡਰੈੱਸਬੁੱਕ, ਸੈਟਿੰਗ ਅਤੇ ਫਿਲਟਰ ਇੰਪੋਰਟ ਕਰੋ">
 
-<!ENTITY importDescription1.label "ਇਹ ਸਹਾਇਕ ਤੁਹਾਨੂੰ ਹੋਰ ਮੇਲ ਪਰੋਗਰਾਮਾਂ ਅਤੇ ਆਮ ਐਡਰੈੱਸਬੁੱਕ ਫਰਾਮੈਟਾਂ ਤੋਂ ਮੇਲ ਸੁਨੇਹੇ, ਐਡਰੈੱਸ ਬੁੱਕ ਐਂਟਰੀਆਂ, ਪਸੰਦ ਅਤੇ/ਜਾਂ ਫਿਲਟਰਾਂ ਨੂੰ &brandShortName; ਵਿੱਚ ਇੰਪੋਰਟ ਕਰਨ ਲਈ ਸਹਾਇਕ ਹੈ।">
-<!ENTITY importDescription2.label "ਇੱਕ ਵਾਰ ਜਦੋਂ ਉਹ ਇੰਪੋਰਟ ਕੀਤੇ ਜਾਣਗੇ ਤਾਂ ਤੁਸੀਂ ਉਹਨਾਂ ਨੂੰ &brandShortName; ਰਾਹੀਂ ਵਰਤ ਸਕਦੇ ਹੋ।">
+<!ENTITY importDescription1.label "This wizard will import mail messages, address book entries, preferences, and/or filters from other mail programs and common address book formats into &brandShortName;.">
+<!ENTITY importDescription2.label "Once they have been imported, you will be able to access them from within &brandShortName;.">
 
-<!ENTITY selectDescription.label  "ਫਾਇਲ ਦੀ ਕਿਸਮ ਚੁਣੋ, ਜੋ ਕਿ ਤੁਸੀਂ ਇੰਪੋਰਟ ਕਰਨੀ ਚਾਹੁੰਦੇ ਹੋ:">
+<!ENTITY selectDescription.label  "Please select the type of file that you would like to import:">
 <!ENTITY selectDescription.accesskey "P">
 
 <!ENTITY back.label               "&lt; ਪਿੱਛੇ">

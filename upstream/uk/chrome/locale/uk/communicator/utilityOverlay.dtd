@@ -49,7 +49,7 @@
 <!ENTITY closeCmd.accesskey    "к">
 
 <!ENTITY quitApplicationCmd.label  "Вихід">
-<!ENTITY quitApplicationCmd.key    "и">
+<!ENTITY quitApplicationCmd.key    "Q">
 <!ENTITY quitApplicationCmd.accesskey  "х">
 
 <!ENTITY quitApplicationCmdUnix.label  "Вихід">

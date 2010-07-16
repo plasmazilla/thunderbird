@@ -64,7 +64,7 @@
 <!ENTITY progress    "ප්‍රගතිය:">
 
 <!-- Label for the "keep dialog" checkbox -->
-<!ENTITY keep "බාගත කිරීම අවසන් වූ පසුවත් මෙම කවුළුව විවෘතව තබන්න.">
+<!ENTITY keep "download කිරීම අවසන් වූ පසුවත් මෙම කවුළුව විවෘතව තබන්න.">
 
 <!-- Button labels -->
 <!ENTITY cancel "එපා"> 
@@ -78,7 +78,7 @@
 
 <!-- LOCALIZATION NOTE (pausedMsg):
     This string is used to indicate that the download is paused -->
-<!ENTITY pausedMsg "බාගත කිරීම අත්හිටුවන ලදි">
+<!ENTITY pausedMsg "බාගත කිරීම අත්හිට වන ලදි">
 
 <!-- LOCALIZATION NOTE (progressMsg):
 
@@ -93,7 +93,7 @@
 <!-- LOCALIZATION NOTE (unknownTime):
     
     This string is used when the time remaining is unknown. -->
-<!ENTITY unknownTime "නොදනී">
+<!ENTITY unknownTime "නෙදනී">
 
 <!-- LOCALIZATION NOTE (longTimeFormat):
 

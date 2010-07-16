@@ -15,10 +15,23 @@
 <!ENTITY pluginWizard.installPluginsPage.title               "Installation des plugins">
 <!ENTITY pluginWizard.installPluginsPage.description.label   "Des plugins sont en cours d'installation par &brandShortName;…">
 
-<!ENTITY pluginWizard.finalPage.description.label            "&brandShortName; a terminé d'installer les plugins manquants :">
+<!ENTITY pluginWizard.finalPage.description.label            "&brandShortName; a terminé l'installation des plugins manquants :">
 
 <!ENTITY pluginWizard.finalPage.moreInfo.label               "En savoir plus sur les plugins ou rechercher manuellement les plugins manquants.">
 <!ENTITY pluginWizard.finalPage.restart.label                "&brandShortName; doit être redémarré pour que le(s) plugin(s) fonctionne(nt).">
 <!ENTITY missingPlugin.label                                 "Cliquez ici pour télécharger le plugin.">
 <!ENTITY disabledPlugin.label                                "Le plugin pour ce contenu a été désactivé. Cliquez ici pour gérer vos plugins.">
 <!ENTITY blockedPlugin.label                                 "Ce plugin a été bloqué pour votre protection.">
+<!-- LOCALIZATION NOTE (reloadPlugin.pre): include a trailing space as needed -->
+<!-- LOCALIZATION NOTE (reloadPlugin.middle): avoid leading/trailing spaces, this text is a link -->
+<!-- LOCALIZATION NOTE (reloadPlugin.post): include a starting space as needed -->
+<!ENTITY reloadPlugin.pre                                    " ">
+<!ENTITY reloadPlugin.middle                                 "Actualiser la page">
+<!ENTITY reloadPlugin.post                                   " pour essayer à nouveau.">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Envoyer un rapport de plantage">
+<!ENTITY report.submitting                                   "Envoi du rapport…">
+<!ENTITY report.submitted                                    "Rapport de plantage envoyé.">
+<!ENTITY report.disabled                                     "Rapport de plantage désactivé.">
+<!ENTITY report.failed                                       "Échec de l'envoi.">
+<!ENTITY report.unavailable                                  "Pas de rapport disponible.">

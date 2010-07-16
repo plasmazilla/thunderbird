@@ -1,5 +1,5 @@
 <!ENTITY dialog.title "Βεβαιώσεις ανάγνωσης">
-<!ENTITY requestReceipt.label "Κατά την αποστολή μηνυμάτων να ζητιέται πάντα βεβαίωση">
+<!ENTITY requestReceipt.label "Κατά την αποστολή μηνυμάτων να ζητείται πάντα βεβαίωση">
 <!ENTITY requestReceipt.accesskey "Κ">
 <!ENTITY receiptArrive.label "Μετά την επιστροφή μιας βεβαίωσης">
 <!ENTITY leaveIt.label "Να παραμένει στο φάκελο 'Εισερχόμενα'">

@@ -50,7 +50,7 @@
 <!ENTITY deleteButton.label "Eyða notanda…">
 <!ENTITY deleteButton.accesskey "E">
 <!-- manager entities -->
-<!ENTITY pmDescription.label "&brandShortName; geymir upplýsingar um stillingar, og aðra hluti í notandastillingum.">
+<!ENTITY pmDescription.label "&brandShortName; geymir fyrir þig upplýsingar um stillingar, og aðra hluti í notandastillingum.">
 <!ENTITY offlineState.label "Vinna ótengdur">
 <!ENTITY offlineState.accesskey "n">
 <!ENTITY autoSelect.label "Ekki spyrja í ræsingu">

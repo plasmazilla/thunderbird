@@ -22,13 +22,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey    "F">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "尋找附加元件的更新檔">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "尋找佈景主題的更新檔">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "尋找外掛程式的更新檔">
 <!ENTITY cmd.installLocalFile.label       "安裝…">
 <!ENTITY cmd.installLocalFile.accesskey   "n">
 <!ENTITY cmd.installFileAddon.tooltip     "安裝附加元件">
 <!ENTITY cmd.installFileTheme.tooltip     "安裝佈景主題">
-<!ENTITY cmd.installUpdatesAll.label      "安裝更新">
-<!ENTITY cmd.installUpdatesAll.accesskey  "I">
-<!ENTITY cmd.installUpdatesAll.tooltip    "安裝已選的更新">
+<!ENTITY cmd.installUpdatesAll2.label     "安裝更新">
+<!ENTITY cmd.installUpdatesAll2.accesskey "I">
+<!ENTITY cmd.installUpdatesAll2.tooltip   "安裝選擇的更新">
 <!ENTITY cmd.restartApp2.label            "重開 &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey        "R">
 <!ENTITY cmd.restartApp2.tooltip          "重新啟動 &brandShortName; 完成安裝程序">
@@ -113,6 +114,7 @@
 <!ENTITY needsDependencies.label          "需要額外的項目。">
 <!ENTITY blocklisted.label                "為了保護您的電腦，此項目已停用。">
 <!ENTITY softBlocklisted.label            "已知會造成程式不穩定或是安全性問題。">
+<!ENTITY outdated.label                   "找到更新且更安全的版本。">
 <!ENTITY toBeDisabled.label               "重新啟動 &brandShortName; 後此附加元件會被停用。">
 <!ENTITY toBeEnabled.label                "重新啟動 &brandShortName; 後此附加元件會被啟用。">
 <!ENTITY toBeInstalled.label              "重新啟動 &brandShortName; 後此附加元件會被安裝。">

@@ -42,7 +42,7 @@
 <!ENTITY setPassword.newPassword.label "كلمة السرّ الجّديدة:">
 <!ENTITY setPassword.reenterPassword.label "كلمة السرّ الجّديدة (مرّة ثانية):">
 <!ENTITY setPassword.meter.label "مقياس جودة كلمة السرّ">
-<!ENTITY setPassword.meter.loading "يجري التّحميل">
+<!ENTITY setPassword.meter.loading "يحمّل">
 <!-- Values for resetpassword.xul -->
 
 <!ENTITY resetPasswordButtonLabel "صفّر">
@@ -68,7 +68,7 @@
 <!ENTITY pref.security.general.manageCert.label "أدِر الشّهادات">
 <!-- Downloading a cert -->
 
-<!ENTITY downloadCert.title "يجري تنزيل الشّهادات">
+<!ENTITY downloadCert.title "ينزّل الشّهادات">
 <!ENTITY downloadCert.message1 "يُطلب منك الوثوق بسلطة شهادات جديدة..">
 <!ENTITY downloadCert.trustSSL "ثِق في سلطة الشّهادات هذه لتعريف مواقع وِب.">
 <!ENTITY downloadCert.trustEmail "ثِق في سلطة الشّهادات هذه لتعريف مستخدمي البريد الإلكتروني.">
@@ -116,8 +116,8 @@
 <!ENTITY serverCrlNextupdate.message "رجاءً التمس المساعدة من مدير نظامك">
 <!-- Strings for the CreateCertInfo dialog  -->
 
-<!ENTITY createCertInfo.title "يجري توليد مفتاح سري">
-<!ENTITY createCertInfo.msg1 "يجري توليد المفتاح… قد يستغرق هذا بضعة دقائق…">
+<!ENTITY createCertInfo.title "يولّد مفتاحا سريّا">
+<!ENTITY createCertInfo.msg1 "يولّد المفتاح… قد يستغرق هذا بضعة دقائق…">
 <!ENTITY createCertInfo.msg2 "من فضلك انتظر…">
 <!-- Form Signing confirmation prompt -->
 

@@ -47,10 +47,10 @@
 <!ENTITY certmgr.ca.mycas                     "CA’s beheard troch jo">
 
 <!ENTITY certmgr.mine                         "Jo ha sertifikaten fan dizze organisaasjes dy't jo identifisearje:">
-<!ENTITY certmgr.others                       "Jo ha sertifikaten argivearre dy't dizze persoanen identifisearje:">
-<!ENTITY certmgr.websites2                    "Jo ha sertifikaten argivearre dy't dizze tsjinners identifisearje:">
-<!ENTITY certmgr.cas                          "Jo ha sertifikaten argivearre dy't dizze sertifikaasje-autoriteiten identifisearje:">
-<!ENTITY certmgr.orphans                      "Jo hawwe sertifikaten argivearre dy't net passe yn ien fan de oare kategoriën:">
+<!ENTITY certmgr.others                       "Jo ha sertifikaten archifearre dy't dizze persoanen identifisearje:">
+<!ENTITY certmgr.websites2                    "Jo ha sertifikaten archifearre dy't dizze tsjinners identifisearje:">
+<!ENTITY certmgr.cas                          "Jo ha sertifikaten archifearre dy't dizze sertifikaasje-autoriteiten identifisearje:">
+<!ENTITY certmgr.orphans                      "Jo hawwe sertifikaten archifearre dy't net passe yn ien fan de oare kategoriën:">
 
 <!ENTITY certmgr.detail.general_tab.title     "Algemien">
 <!ENTITY certmgr.detail.general_tab.accesskey "A">
@@ -87,10 +87,10 @@
 
 <!ENTITY certmgr.deletecert.title             "Sertifikaat fuortsmite">
 <!ENTITY certmgr.deletecert.beforename        "Jo ha frege om dit sertifikaat fuort te smiten:">
-<!ENTITY certmgr.deletecert.aftername         "Binne jo wis dat jo dit sertifikaat fuortsmitte wolle?">
+<!ENTITY certmgr.deletecert.aftername         "Witte jo seker dat jo dit sertifikaat fuortsmitte wolle?">
 <!ENTITY certmgr.deleteusercert.title         "Jo sertifikaat fuortsmite">
 <!ENTITY certmgr.deleteusercert.beforename    "Jo ha frege om dit sertifikaat fuort te smiten:">
-<!ENTITY certmgr.deleteusercert.aftername     "Als jo dit sertifikaat fuortsmiten ha, sille jo gjin e-mail lêze kinne dy't dermei fersifere is.">
+<!ENTITY certmgr.deleteusercert.aftername     "Als jo dit sertifikaat fuortsmiten ha, sille jo gjin mail lêze kinne die dermei fersleutele is.">
 
 <!ENTITY certmgr.certname 					  "Sertifikaatnamme">
 <!ENTITY certmgr.certserver                   "Tsjinner">
@@ -132,16 +132,16 @@
 <!ENTITY certmgr.addException.label           "Foech útsûndering ta…">
 <!ENTITY certmgr.addException.accesskey       "t">
 
-<!ENTITY exceptionMgr.title                   "Foech feilichheidsútsûndering ta">
-<!ENTITY exceptionMgr.exceptionButton         "Befestich feilichheidsútsûndering">
+<!ENTITY exceptionMgr.title                   "Foech Feilichheidsútsûndering ta">
+<!ENTITY exceptionMgr.exceptionButton         "Befestich Feilichheidsútsûndering">
 <!ENTITY exceptionMgr.exceptionButtonAccess   "B">
-<!ENTITY exceptionMgr.supplementalWarning     "Legitime banken, winkels, en oare publike sides sille net freegje om dit te dwaan.">
+<!ENTITY exceptionMgr.supplementalWarning     "Legitieme banken, winkels, en oare publieke sides sille net freegje om dit te dwaan.">
 <!ENTITY exceptionMgr.certlocation.caption2   "Tsjinner">
 <!ENTITY exceptionMgr.certlocation.url        "Lokaasje:">
-<!ENTITY exceptionMgr.certlocation.download   "Krij sertifikaat">
+<!ENTITY exceptionMgr.certlocation.download   "Krij Sertifikaat">
 <!ENTITY exceptionMgr.certlocation.accesskey  "K">
-<!ENTITY exceptionMgr.certstatus.caption      "Sertifikaatsteat">
+<!ENTITY exceptionMgr.certstatus.caption      "Sertifikaat Steat">
 <!ENTITY exceptionMgr.certstatus.viewCert     "Toan…">
 <!ENTITY exceptionMgr.certstatus.accesskey    "T">
-<!ENTITY exceptionMgr.permanent.label         "Dizze útsûndering permanint bewarje">
+<!ENTITY exceptionMgr.permanent.label         "Dizze útsûndering permanent bewarje">
 <!ENTITY exceptionMgr.permanent.accesskey     "p">

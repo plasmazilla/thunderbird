@@ -22,6 +22,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP - A mappák és üzenetek elérése több számítógépről">
+<!ENTITY pop.description                 "POP - Minden üzenet letöltése erre a számítógépre, a mappák helyben vannak">
+<!ENTITY recommended-appendix.label      "(ajánlott)">
 
 <!ENTITY manualSetup.label               "Kézi beállítás...">
 <!ENTITY manualSetup.accesskey           "K">

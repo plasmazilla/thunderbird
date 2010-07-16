@@ -3,7 +3,6 @@
 <!ENTITY menu_securityEncryptRequire.label "ਇਹ ਸੁਨੇਹਾ ਇਕ੍ਰਿਪਟ">
 <!ENTITY menu_securityEncryptRequire.accesskey "E">
 
-
 <!ENTITY menu_securitySign.label "ਇਹ ਸੁਨੇਹਾ ਡਿਜ਼ੀਟਲ ਦਸਤਖਤੀ">
 <!ENTITY menu_securitySign.accesskey "S">
 

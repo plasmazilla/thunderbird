@@ -20,6 +20,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s):
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -34,8 +35,6 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-<!-- Window title -->
-
 <!ENTITY windowTitle.label "Χρώματα και φόντο σελίδας">
 <!ENTITY pageColors.label "Χρώματα σελίδας">
 <!ENTITY defaultColorsRadio.label "Προεπιλεγμένα χρώματα">
@@ -44,7 +43,6 @@
 <!ENTITY customColorsRadio.label "Χρήση προσαρμοσμένων χρωμάτων:">
 <!ENTITY customColorsRadio.accessKey "π">
 <!ENTITY customColorsRadio.tooltip "Αυτές οι ρυθμίσεις χρωμάτων υποκαθιστούν τις ρυθμίσεις του περιηγητή">
-
 <!ENTITY normalText.label "Κανονικό κείμενο">
 <!ENTITY normalText.accessKey "ν">
 <!ENTITY linkText.label "Κείμενο διασύνδεσης">

@@ -7,8 +7,8 @@
 <!ENTITY about.license.afterLink "를 참고하시기 바랍니다.">
 <!ENTITY about.relnotes.beforeLink "현재 버전에 대해">
 <!ENTITY about.relnotes.linkTitle "제품 소개서">
-<!ENTITY about.relnotes.afterLink "를 참고하세요.">
+<!ENTITY about.relnotes.afterLink "를 참고하십시오.">
 <!ENTITY about.buildconfig.beforeLink "현재 버전에 대한">
 <!ENTITY about.buildconfig.linkTitle "빌드 설정">
-<!ENTITY about.buildconfig.afterLink "을 참고하세요.">
+<!ENTITY about.buildconfig.afterLink "을 참고하십시오.">
 <!ENTITY about.buildIdentifier "빌드 지시자: ">

@@ -46,7 +46,7 @@
 <!ENTITY caseSensitiveCheckbox.label "Maiuskula/minuskulekin bat egin">
 <!ENTITY caseSensitiveCheckbox.accesskey "b">
 <!ENTITY wrapCheckbox.label "Bildu ingurukoak">
-<!ENTITY wrapCheckbox.accesskey "b">
+<!ENTITY wrapCheckbox.accesskey "B">
 <!ENTITY backwardsCheckbox.label "Bilatu atzeraka">
 <!ENTITY backwardsCheckbox.accesskey "B">
 <!ENTITY findNextButton.label "Bilatu hurrengoa">

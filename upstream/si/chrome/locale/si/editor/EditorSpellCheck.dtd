@@ -39,7 +39,7 @@
 <!ENTITY windowTitle.label "අක්ෂර වින්‍යාස පරීක්ෂාව">
 
 <!ENTITY misspelledWord.label "අක්ෂර වැරදි වචනය:">
-<!ENTITY wordEditField.label "මෙය ආදේශ කරන්න:">
+<!ENTITY wordEditField.label "Replace with:">
 <!ENTITY wordEditField.accessKey "w">
 <!ENTITY checkwordButton.label "වචන පරීක්ෂාව">
 <!ENTITY checkwordButton.accessKey "k">
@@ -49,9 +49,9 @@
 <!ENTITY ignoreButton.accessKey "I">
 <!ENTITY ignoreAllButton.label "සියල්ල නොසලකා හරින්න">
 <!ENTITY ignoreAllButton.accessKey "n">
-<!ENTITY replaceButton.label "ආදේශ කරන්න">
+<!ENTITY replaceButton.label "Replace">
 <!ENTITY replaceButton.accessKey "R">
-<!ENTITY replaceAllButton.label "සියල්ලට ආදේශ කරන්න">
+<!ENTITY replaceAllButton.label "Replace All">
 <!ENTITY replaceAllButton.accessKey "A">
 <!ENTITY stopButton.label "නවතන්න">
 <!ENTITY stopButton.accessKey "t">

@@ -2,7 +2,6 @@
 <!ENTITY aboutButton.label "&lt; Terug">
 <!ENTITY aboutButton.accesskey "T">
 <!ENTITY aboutVersion "weergawe">
-<!ENTITY copyrightText "&#169;1998-2009 Bydraers. Alle regte voorbehou. Mozilla Thunderbird en die Thunderbird-logo's is handelsmerke van die Mozilla Stigting.  Alle regte voorbehou.">
 <!ENTITY aboutMenu.label "Aangaande">
 <!ENTITY aboutMenu.accesskey "A">
 <!ENTITY aboutCredits.label "Erkenning">

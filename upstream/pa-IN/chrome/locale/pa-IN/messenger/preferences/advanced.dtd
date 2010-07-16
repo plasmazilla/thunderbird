@@ -89,20 +89,19 @@
 
   &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
 -->
-<!ENTITY useCacheBefore.label            "ਕੈਸ਼ ਲਈ">
+<!ENTITY useCacheBefore.label            "ਕੈਸ ਲਈ">
 <!ENTITY useCacheBefore.accesskey        "U">
 <!ENTITY useCacheAfter.label             "MB ਥਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ">
 <!ENTITY clearCacheNow.label             "ਹੁਣੇ ਸਾਫ਼ ਕਰੋ">
 <!ENTITY clearCacheNow.accesskey         "C">
 
 <!-- Certificates -->
-<!ENTITY certSelection.description       "ਜਦੋਂ ਸਰਵਰ ਮੇਰੇ ਨਿੱਜੀ ਸਰਟੀਫਿਕੇਟ ਲਈ ਮੰਗ ਕਰੇ:">
-<!ENTITY certs.auto                      "ਇੱਕ ਆਟੋਮੈਟਿਕ ਹੀ ਚੁਣੋ">
-<!ENTITY certs.auto.accesskey            "m">
-<!ENTITY certs.ask                       "ਮੈਨੂੰ ਹਮੇਸ਼ਾ ਹੀ ਪੁੱਛੋ">
-<!ENTITY certs.ask.accesskey             "A">
-
 <!-- Certificates -->
+<!ENTITY certSelection.description       "When a server requests my personal certificate:">
+<!ENTITY certs.auto                      "ਆਟੋਮੈਟਿਕ ਹੀ ਇੱਕ ਚੁਣੋ">
+<!ENTITY certs.auto.accesskey            "m">
+<!ENTITY certs.ask                       "ਹਰ ਵਾਰ ਮੈਨੂੰ ਪੁੱਛੋ">
+<!ENTITY certs.ask.accesskey             "A">
 <!ENTITY viewCertificates.label         "ਸਰਟੀਫਿਕੇਟ ਵੇਖੋ">
 <!ENTITY viewCertificates.accesskey     "C">
 <!ENTITY viewCRLs.label                 "ਮਨਸੂਖ ਲਿਸਟ">

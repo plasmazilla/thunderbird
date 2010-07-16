@@ -8,7 +8,6 @@
 <!ENTITY receiptArrive.label "Όταν φτάνει μια βεβαίωση:">
 <!ENTITY leaveIt.label "Να παραμένει στα εισερχόμενα">
 <!ENTITY leaveIt.accesskey "ι">
-<!-- LOCALIZATION NOTE moveToSent.label Translate: 'Sent' according to Netscape glossary -->
 <!ENTITY moveToSent.label "Μετακίνηση στο φάκελο των απεσταλμένων">
 <!ENTITY moveToSent.accesskey "Μ">
 <!ENTITY requestMDN.label "Όταν γίνεται λήψη αιτήματος βεβαίωση ανάγνωσης:">

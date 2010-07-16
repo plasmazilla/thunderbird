@@ -45,6 +45,6 @@
 <!ENTITY add.label "Gehitu">
 <!ENTITY add.accessKey "G">
 <!ENTITY moveUp.label "Mugitu gora">
-<!ENTITY moveUp.accessKey "O">
+<!ENTITY moveUp.accessKey "o">
 <!ENTITY moveDown.label "Mugitu behera">
-<!ENTITY moveDown.accessKey "B">
+<!ENTITY moveDown.accessKey "b">

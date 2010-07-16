@@ -20,16 +20,16 @@
 <!ENTITY biffEnd.label "minutos">
 <!ENTITY connectionSecurity.label "Seguridad de la conexión:">
 <!ENTITY connectionSecurity.accesskey "u">
-<!ENTITY connectionSecurityType-0.label "Ninguna">
+<!ENTITY connectionSecurityType-0.label "None">
 <!ENTITY connectionSecurityType-1.label "STARTTLS, si está disponible">
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
-<!ENTITY useSecAuth.label "Utilizar autenticación segura">
-<!ENTITY useSecAuth.accesskey "i">
+<!ENTITY authMethod.label "Método de autenticación:">
+<!ENTITY authMethod.accesskey "i">
 <!ENTITY leaveOnServer.label "Dejar los mensajes en el servidor.">
 <!ENTITY leaveOnServer.accesskey "a">
 <!ENTITY headersOnly.label "Descargar sólo los encabezados">
-<!ENTITY headersOnly.accesskey "f">
+<!ENTITY headersOnly.accesskey "e">
 <!ENTITY deleteByAgeFromServer.label "Borrar mensajes del servidor tras">
 <!ENTITY deleteByAgeFromServer.accesskey "o">
 <!ENTITY daysEnd.label "días">
@@ -68,7 +68,7 @@
 <!ENTITY abbreviateOn.label "Nombres completos (Por ejemplo, 'netscape.public.mozilla.mail-news')">
 <!ENTITY abbreviateOff.label "Nombres abreviados (Por ejemplo,'n.p.m.mail-news')">
 <!ENTITY advancedButton.label "Avanzadas…">
-<!ENTITY advancedButton.accesskey "v">
+<!ENTITY advancedButton.accesskey "z">
 <!ENTITY serverDefaultCharset.label "Codificación de caracteres predeterminada:">
 <!ENTITY localFolderPicker.label "Seleccione directorio local">
 <!ENTITY browseFolder.label "Examinar…">

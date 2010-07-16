@@ -1,12 +1,12 @@
-<!ENTITY systemIntegration.title  "පද්ධති ඒකාබද්ධ කිරීම (Integration)">
-<!ENTITY defaultClient.intro  "&brandShortName; පහත ඒවි සඳහා පෙරනිමි (default) වැඩසටහන වේ:">
+<!ENTITY systemIntegration.title  "පද්ධති ඒකාබද්ධ කිරීම">
+<!ENTITY defaultClient.intro  "&brandShortName; පෙරනිමි සේවාග්‍රාහකය ලෙස භාවිතා කරන්න:">
 
-<!ENTITY email.label "වි-තැපැල්">
+<!ENTITY email.label "වි.තැපැල්">
 <!ENTITY newsgroups.label "පුවත්සමූහ">
-<!ENTITY feeds.label "පෝෂත (Feeds)">
+<!ENTITY feeds.label "පෝෂක">
 
-<!ENTITY checkOnStartup.label "මෙම පරීක්ෂාව &brandShortName; ආරම්භ කරන සෑමවිටම කරන්න ">
+<!ENTITY checkOnStartup.label " &brandShortName; අරඹන විට මෙම පරීක්ෂාව කරන්න">
 <!ENTITY checkOnStartup.accesskey "A">
 
-<!ENTITY searchIntegration.label "ලිපි පරීක්ෂාව සඳහා &searchIntegration.engineName; ට ඉඩ දෙන්න">
+<!ENTITY searchIntegration.label "&searchIntegration.engineName; ට ලිපි සෙවීමට ඉඩදෙන්න">
 <!ENTITY searchIntegration.accesskey "S">

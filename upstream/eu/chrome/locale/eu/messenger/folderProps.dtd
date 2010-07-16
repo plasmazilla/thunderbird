@@ -45,9 +45,12 @@
 <!ENTITY folderCharsetTab.accesskey "K">
 <!ENTITY folderCharsetOverride.label "Aplikatu lehenetsitakoa karpetako mezu guztiei (banakako mezuen karaktere-kodeketako ezarpenei eta detekzio automatikoari ezikusi egingo zaie)">
 <!ENTITY folderCharsetOverride.accesskey "A">
-<!ENTITY folderRebuildSummaryFile.label "Berreraiki indizea">
-<!ENTITY folderRebuildSummaryFile.accesskey "B">
-<!ENTITY folderRebuildSummaryFileTip.label "Berreraiki laburpen-fitxategia">
+<!ENTITY folderRebuildSummaryFileTip2.label "Berreraiki laburpen-fitxategiaren indizea">
+<!ENTITY folderRebuildSummaryFile2.label "Konpondu karpeta">
+<!ENTITY folderRebuildSummaryFile2.accesskey "K">
+<!ENTITY folderRebuildSummaryFile.explanation "Batzutan karpetaren indize-fitxategia (.msf) kaltetu egiten da eta mezuak faltan daudela edo ezabatutako mezuak oraindik erakusten direla eman lezake; karpeta konpontzeak arazo hauek desagerraraz ditzake.">
+<!ENTITY folderIncludeInGlobalSearch.label "Sartu karpeta honetako mezuak bilaketa globalaren emaitzetan">
+<!ENTITY folderIncludeInGlobalSearch.accesskey "g">
      
 <!ENTITY retention.label "Gordetze-politika">
 <!ENTITY retentionUseAccount.label "Erabili nire kontu-ezarpenak">
@@ -69,8 +72,8 @@
 <!ENTITY retentionApplyToFlagged.accesskey "e">
 
 <!ENTITY folderSynchronizationTab.label "Sinkronizazioa">
-<!ENTITY folderCheckForNewMessages.label "Egiaztatu karpeta honek mezu berriak dituen">
-<!ENTITY folderCheckForNewMessages.accesskey "E">
+<!ENTITY folderCheckForNewMessages2.label "Kontu honetarako mezu berriak eskuratzean, egiaztatu beti karpeta hau">
+<!ENTITY folderCheckForNewMessages2.accesskey "K">
 
 <!ENTITY offlineFolder.check.label "Hautatu karpeta hau lineaz kanpo erabiltzeko">
 <!ENTITY offlineFolder.check.accesskey "H">

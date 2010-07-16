@@ -10,7 +10,7 @@
 <!ENTITY serverName.accesskey "S">
 <!ENTITY userName.label "පරිශීලක නම:">
 <!ENTITY userName.accesskey "N">
-<!ENTITY port.label "විවරය (Port):">
+<!ENTITY port.label "තොට (Port):">
 <!ENTITY port.accesskey "P">
 <!ENTITY serverPortDefault.label "පෙරනිමි:">
 <!-- LOCALIZATION NOTE (biffStart.label) : translate below 2 line with grammer dependency
@@ -20,16 +20,16 @@
 -->
 <!ENTITY biffStart.label "සෑම විනාඩි  ">
 <!ENTITY biffStart.accesskey "">
-<!ENTITY biffEnd.label "කට වරක් අලුත් ලිපි ලබාගන්න">
+<!ENTITY biffEnd.label "වරක් අලුත් ලිපි ලබාගන්න">
 <!ENTITY connectionSecurity.label "සම්බන්ධතාවයේ ආරක්ෂාව:">
 <!ENTITY connectionSecurity.accesskey "u">
 <!ENTITY connectionSecurityType-0.label "කිසිවිටෙක එපා">
 <!ENTITY connectionSecurityType-1.label "STARTTLS, තිබේ නම්">
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
-<!ENTITY useSecAuth.label "ආරක්ෂිත සත්‍යාපනය භාවිතා කරන්න">
-<!ENTITY useSecAuth.accesskey "i">
-<!ENTITY leaveOnServer.label "සේවාදායකය තුළ ලිපි ඉතිරි කරන්නේ">
+<!ENTITY authMethod.label "සත්‍යාපන ක්‍රමය:">
+<!ENTITY authMethod.accesskey "i">
+<!ENTITY leaveOnServer.label "සේවාදායකය තුළ ලිපි ඉතිරි කරන්න">
 <!ENTITY leaveOnServer.accesskey "g">
 <!ENTITY headersOnly.label "ශීර්ෂයන් පමණක් ලබා ගන්න">
 <!ENTITY headersOnly.accesskey "f">
@@ -38,21 +38,21 @@
 <!ENTITY daysEnd.label "">
 <!ENTITY deleteOnServer2.label "මම ලිපි මකන තුරු">
 <!ENTITY deleteOnServer2.accesskey "d">
-<!ENTITY downloadOnBiff.label "ස්වයංක්‍රීයව අලුත් ලිපි බාගත කරන්න">
+<!ENTITY downloadOnBiff.label "ස්වයංක්‍රීයව අලුත් ලිපි භාගත කරන්න">
 <!ENTITY downloadOnBiff.accesskey "m">
 <!ENTITY username.label "ඔබගේ පිරුම් නම">
 <!-- LOCALIZATION NOTE (popServerTitle.label) : do not translate "POP" in below line -->
-<!ENTITY deleteMessagePrefix.label "මම ලිපියක් මකන විට එය:">
-<!ENTITY modelMoveToTrash.label "&quot;මැකූලිපි&quot; ෆෝල්ඩරයට දමන්න">
+<!ENTITY deleteMessagePrefix.label "මම ලිපියක් මකන විට:">
+<!ENTITY modelMoveToTrash.label "එය මැකූලිපි ෆෝල්ඩරයට දමන්න">
 <!ENTITY modelMoveToTrash.accesskey "o">
-<!ENTITY modelMarkDeleted.label "මැකූ ලෙස ලකුණු කරන්න">
+<!ENTITY modelMarkDeleted.label "එය මැකූ ලෙස ලකුණු කරන්න">
 <!ENTITY modelMarkDeleted.accesskey "k">
-<!ENTITY modelDeleteImmediately.label "එසැනින්ම ඉවත් කරන්න">
+<!ENTITY modelDeleteImmediately.label "එය එසැනින්ම ඉවත් කරන්න">
 <!ENTITY modelDeleteImmediately.accesskey "d">
 <!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
-<!ENTITY expungeOnExit.label "පිටවීමේදී &quot;ලදලිපි&quot; ෆෝල්ඩරය පිරිසිදු (&quot;Expunge&quot;) කරන්න ">
+<!ENTITY expungeOnExit.label "පිටවීමේදී ලදලිපි ෆෝල්ඩරයේ මැකූලිපි ඉවත් කරන්න (&quot;Expunge&quot;)">
 <!ENTITY expungeOnExit.accesskey "E">
-<!ENTITY emptyTrashOnExit.label "පිටවීමේදී &quot;ඉවතලූලිපි&quot; ෆෝල්ඩරය හිස් කරන්න">
+<!ENTITY emptyTrashOnExit.label "පිටවීමේදී මැකූලිපි ෆෝල්ඩරය හිස් කරන්න">
 <!ENTITY emptyTrashOnExit.accesskey "x">
 <!ENTITY loginAtStartup.label "ආරම්භයේදී අලුත් ලිපි ලබාගන්න"> 
 <!ENTITY loginAtStartup.accesskey "C">
@@ -63,8 +63,8 @@
 <!ENTITY maxMessagesStart.label " ">
 <!ENTITY maxMessagesStart.accesskey "m">
 <!-- LOCALIZATION NOTE (maxMessagesEnd.label) : see note for maxMessagesStart.label -->
-<!ENTITY maxMessagesEnd.label "ට වඩා වැඩි ලිපි බාගත කිරීමට පෙර විමසන්න">
-<!ENTITY alwaysAuthenticate.label "මෙම  සේවාදායකයට සම්බන්ධ වීමේදී සෑමවිටම අනන්‍යතාවය තහවුරු කරවාගන්න">
+<!ENTITY maxMessagesEnd.label "ට වඩා වැඩි ලිපි භාගත කිරීමට පෙර විමසන්න">
+<!ENTITY alwaysAuthenticate.label "ෙම සේවාදායකයට සම්බන්ධ වීමේදී සෑමවිටම අනන්‍යතාවය තහවුරු කරවාගන්න">
 <!ENTITY alwaysAuthenticate.accesskey "w">
 <!ENTITY newsrcFilePath.label "newsrc file:">
 <!ENTITY localPath.label "ස්ථානීය ඩිරෙක්ටරිය (Local directory):">
@@ -77,6 +77,6 @@
 <!ENTITY localFolderPicker.label "ස්ථානීය ෆෝල්ඩරය තෝරන්න">
 <!ENTITY browseFolder.label "පිරික්සන්න...">
 <!ENTITY browseFolder.accesskey "B">
-<!ENTITY newsrcPicker.label "Select newsrc File">
+<!ENTITY newsrcPicker.label " newsrc ගොනුව තෝරන්න">
 <!ENTITY browseNewsrc.label "පිරික්සන්න...">
 <!ENTITY browseNewsrc.accesskey "e">

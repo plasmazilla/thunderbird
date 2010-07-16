@@ -1,4 +1,4 @@
-<!ENTITY window.title "Sobre o Lixo Electrónico">
+<!ENTITY window.title "Sobre o lixo electrónico">
 <!ENTITY window.width "450">
 <!ENTITY info1a.label "O &brandShortName; detecta automaticamente as mensagens que chegam e que parecem lixo electrónico (também conhecidas como spam). mensagens que o &brandShortName; pense que é lixo electrónico apresentam um ícone Lixo">
 <!ENTITY info1b.label ".">

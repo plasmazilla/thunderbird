@@ -42,11 +42,11 @@
 <!ENTITY errColumn.label "Zutabea:">
 
 <!ENTITY all.label "Denak">
-<!ENTITY all.accesskey "A">
+<!ENTITY all.accesskey "a">
 <!ENTITY errors.label "Erroreak">
-<!ENTITY errors.accesskey "R">
+<!ENTITY errors.accesskey "r">
 <!ENTITY warnings.label "Abisuak">
-<!ENTITY warnings.accesskey "B">
+<!ENTITY warnings.accesskey "b">
 <!ENTITY messages.label "Mezuak">
 <!ENTITY messages.accesskey "M">
 <!ENTITY clear.label "Garbitu">
@@ -60,9 +60,9 @@
 <!ENTITY copyCmd.accesskey "K">
 <!ENTITY copyCmd.commandkey "C">
 <!ENTITY sortFirst.label "Lehenengotik > Azkenekora">
-<!ENTITY sortFirst.accesskey "l">
+<!ENTITY sortFirst.accesskey "L">
 <!ENTITY sortLast.label "Azkenekotik > Lehenengora">
-<!ENTITY sortLast.accesskey "a">
+<!ENTITY sortLast.accesskey "A">
 <!ENTITY closeCmd.commandkey "w">
 <!ENTITY focus1.commandkey "l">
 <!ENTITY focus2.commandkey "d">

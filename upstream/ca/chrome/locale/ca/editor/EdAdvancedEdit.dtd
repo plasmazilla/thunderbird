@@ -49,7 +49,7 @@
 <!ENTITY tree.valueHeader.label "Valor">
 <!ENTITY tabHTML.label "Atributs de l'HTML">
 <!ENTITY tabCSS.label "Estil en línia">
-<!ENTITY tabJSE.label "Esdeveniments del JavaScript">
+<!ENTITY tabJSE.label "Incidències del JavaScript">
 
 <!ENTITY editAttribute.label "Feu clic a un element per editar-ne el valor">
 <!ENTITY removeAttribute.label "Suprimeix l'atribut">

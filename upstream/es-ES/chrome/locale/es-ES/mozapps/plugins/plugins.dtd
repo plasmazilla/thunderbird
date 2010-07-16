@@ -16,3 +16,12 @@
 <!ENTITY missingPlugin.label "Pulsar aquí para descargar el plugin.">
 <!ENTITY disabledPlugin.label "Se ha desactivado el plugin para este contenido. Pulse aquí para administrar sus plugins.">
 <!ENTITY blockedPlugin.label "Se ha bloqueado este plugin para su protección.">
+<!ENTITY reloadPlugin.pre "">
+<!ENTITY reloadPlugin.middle "Recargue la página">
+<!ENTITY reloadPlugin.post " para volver a intentarlo.">
+<!ENTITY report.please "Enviar informe de fallo">
+<!ENTITY report.submitting "Enviando informe.">
+<!ENTITY report.submitted "Informe de fallo enviado.">
+<!ENTITY report.disabled "Informes de fallo desactivados.">
+<!ENTITY report.failed "Envío fallido.">
+<!ENTITY report.unavailable "No hay informe disponible.">

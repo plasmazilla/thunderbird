@@ -19,6 +19,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s): Neil Rashbrook <neil@parkwaycc.co.uk>
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -33,11 +34,8 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY windowTitle.label "Ιδιότητες πεδίου κειμένου">
-
 <!ENTITY Settings.label "Ρυθμίσεις">
-
 <!ENTITY TextAreaName.label "Όνομα Πεδίου:">
 <!ENTITY TextAreaName.accessKey "δ">
 <!ENTITY TextAreaRows.label "Γραμμές:">
@@ -54,7 +52,6 @@
 <!ENTITY TextAreaAccessKey.accessKey "β">
 <!ENTITY InitialText.label "Αρχικό κείμενο:">
 <!ENTITY InitialText.accessKey "χ">
-
 <!ENTITY TextAreaWrap.label "Κατάσταση αναδίπλωσης:">
 <!ENTITY TextAreaWrap.accessKey "δ">
 <!ENTITY WrapDefault.value "Προεπιλεγμένο">

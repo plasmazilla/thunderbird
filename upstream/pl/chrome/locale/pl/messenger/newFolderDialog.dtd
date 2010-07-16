@@ -23,6 +23,7 @@
    -    Fabian Guisset <hidday@geocities.com>
    -    Marek Wawoczny <gmbh@mozillapl.org> (Polish translation)
    -    Piotr Bartecki <pbartecki@mozillapl.org> (Polish translation)
+   -    Stefan Plewako <splewako@aviary.pl> (Polish translation)
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -42,8 +43,10 @@
 <!ENTITY name.label               "Nazwa:">
 <!ENTITY name.accesskey           "n">
 <!ENTITY description.label        "Utwórz nowy folder w:">
-<!ENTITY description.accesskey    "u">
+<!ENTITY description.accesskey    "z">
 <!ENTITY folderRestriction1.label "Ten serwer ogranicza foldery do dwóch specjalnych rodzajów.">
 <!ENTITY folderRestriction2.label "Nowy folder może zawierać:">
 <!ENTITY foldersOnly.label        "Tylko foldery">
 <!ENTITY messagesOnly.label       "Tylko wiadomości">
+<!ENTITY accept.label             "Utwórz folder">
+<!ENTITY accept.accesskey         "U">

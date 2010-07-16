@@ -6,6 +6,10 @@
 <!ENTITY  checking.title                  "Söker efter uppdateringar">
 <!ENTITY  updateCheck.label               "Söker efter nyare versioner av &brandShortName;…">
 
+<!ENTITY  pluginupdatesfound.title        "Hittade uppdateringar till insticksmoduler">
+<!ENTITY  pluginupdatesfound.label        "En ny version av en eller flera av dina instickmoduler hittades.">
+<!ENTITY  pluginupdateslink.label         "Läs om hur du uppgraderar dina instickmoduler.">
+
 <!ENTITY  noupdatesfound.title            "Inga uppdateringar hittades">
 <!ENTITY  noupdatesautoenabled.intro      "Det finns inga uppdateringar att hämta. &brandShortName; kommer
                                            regelbundet att söka efter uppdateringar.">
@@ -14,7 +18,7 @@
 
 <!ENTITY  manualUpdate.title              "Kan inte uppdatera">
 <!ENTITY  manualUpdate.desc               "En rekommenderad säkerhets- och stabilitetsuppdatering är tillgänglig, men
-                                           du har inte dom systemrättigheter som krävs för att installera den. Kontakta
+                                           du har inte de systemrättigheter som krävs för att installera den. Kontakta
                                            systemadministratören eller försök igen från ett konto som har rättighet att
                                            installera programvara på den här datorn.">
 <!ENTITY  manualUpdateGetMsg.label        "Du kan alltid hämta den senaste versionen av &brandShortName; från:">

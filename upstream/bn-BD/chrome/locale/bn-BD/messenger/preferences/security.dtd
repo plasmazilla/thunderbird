@@ -2,7 +2,7 @@
 <!ENTITY itemPhishing.label "ইমেইল জালিয়াতি">
 <!ENTITY itemPasswords.label "পাসওয়ার্ড">
 <!ENTITY itemAntiVirus.label "এন্টি-ভাইরাস">
-<!ENTITY itemCookies.label "Web Content">
+<!ENTITY itemCookies.label "ওয়েবের বিষয়বস্তু">
 <!-- Junk Mail Controls -->
 
 <!ENTITY junkMail.intro "আপনার ডিফল্ট অপ্রয়োজনীয় মেইলের সেটিং নির্ধারণ করুন। একাউন্ট অনুযায়ী অপ্রয়োজনীয় মেইলের বৈশিষ্ট্য নির্ধারণ করতে  একাউন্ট সেটিং এ যান।">
@@ -44,16 +44,16 @@
 <!ENTITY antiVirus.accesskey "A">
 <!-- Cookies -->
 
-<!ENTITY cookies.intro "&brandShortName; lets you specify which blogs, news feeds, and other web sites are allowed to set cookies.">
-<!ENTITY acceptCookies.label "Accept cookies from sites">
+<!ENTITY cookies.intro "&brandShortName; দিয়ে আপনি  ব্লগ, নিউজ ফিড, অন্যান্য ওয়েব সাইটে কুকি সেট করতে পারেন।">
+<!ENTITY acceptCookies.label "সাইট থেকে কুকি গ্রহন (c)">
 <!ENTITY acceptCookies.accesskey "c">
-<!ENTITY keepUntil.label "Keep until:">
+<!ENTITY keepUntil.label "ধরে রাখুন (K):">
 <!ENTITY keepUntil.accesskey "K">
-<!ENTITY expire.label "they expire">
-<!ENTITY close.label "I close &brandShortName;">
-<!ENTITY askEachTime.label "ask me every time">
-<!ENTITY cookieExceptions.label "Exceptions…">
+<!ENTITY expire.label "মেয়াদ শেষ হবে">
+<!ENTITY close.label "&brandShortName; বন্ধ করেছি">
+<!ENTITY askEachTime.label "প্রতিবার জিজ্ঞেস করা হবে">
+<!ENTITY cookieExceptions.label "এক্সেপশন… (E)">
 <!ENTITY cookieExceptions.accesskey "E">
-<!ENTITY showCookies.label "Show Cookies…">
+<!ENTITY showCookies.label "কুকি প্রদর্শন… (S)">
 <!ENTITY showCookies.accesskey "S">
 

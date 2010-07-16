@@ -1,6 +1,6 @@
 <!ENTITY about.version                "version">
 
-<!ENTITY about.copy.beforeLink        "Copyright &copy; 1998-2009 Les">
+<!ENTITY about.copy.beforeLink        "Copyright &copy; 1998-2010 Les">
 <!ENTITY about.copy.linkTitle         "contributeurs">
 <!ENTITY about.copy.afterLink         "du projet Mozilla.">
 
@@ -16,4 +16,4 @@
 <!ENTITY about.buildconfig.linkTitle  "configuration de compilation">
 <!ENTITY about.buildconfig.afterLink  "utilisée pour cette version.">
 
-<!ENTITY about.buildIdentifier        "Identifiant de compilation : ">
+<!ENTITY about.buildIdentifier        "Identifiant de compilation : ">

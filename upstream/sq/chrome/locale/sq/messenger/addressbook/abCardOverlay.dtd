@@ -53,7 +53,7 @@
 <!ENTITY HomePhone.label                "Banese:">
 <!ENTITY HomePhone.accesskey            "B">
 <!ENTITY FaxNumber.label                "Faks:">
-<!ENTITY FaxNumber.accesskey            "a">
+<!ENTITY FaxNumber.accesskey            "s">
 <!ENTITY PagerNumber.label              "Faques:">
 <!ENTITY PagerNumber.accesskey          "q">
 <!ENTITY CellularNumber.label           "Celular:">
@@ -118,8 +118,6 @@
 <!ENTITY Notes.accesskey                "h">
 <!ENTITY In.label                       "">
 <!ENTITY YearsOld.label                 "">
-
-
 <!ENTITY Photo.tab                      "Foto">
 <!ENTITY Photo.accesskey                "f">
 <!ENTITY PhotoDesc.label                "Zgjidhni një nga vijueset:">

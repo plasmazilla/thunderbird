@@ -22,6 +22,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "﻿IMAP - e-posta dizin ve iletilere birden çok bilgisayardan ulaşın">
+<!ENTITY pop.description "POP - Tüm iletileri bu bilgisayara indirin, sadece yerel dizinler kullanılabilir">
+<!ENTITY recommended-appendix.label "(tavsiye edilen)">
 
 <!ENTITY manualSetup.label "Elle ayarla…">
 <!ENTITY manualSetup.accesskey "l">

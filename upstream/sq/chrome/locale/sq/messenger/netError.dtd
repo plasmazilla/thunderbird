@@ -155,7 +155,7 @@
 <p>Këto lloje sajesash web përdoren në mashtrime të njohura si sulme karremëzimi, me të cilat faqe web dhe email-e mashtrues përdoren për të imituar burime të cilave u zini besë.</p>
 ">
 
-<!ENTITY securityOverride.linkText "Ose mund të shotni një përjashtim…">
+<!ENTITY securityOverride.linkText "Ose mund të shtoni një përjashtim…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Hiqmë prej këtej!">
 <!ENTITY securityOverride.exceptionButtonLabel "Shtoni Përjashtim…">
 

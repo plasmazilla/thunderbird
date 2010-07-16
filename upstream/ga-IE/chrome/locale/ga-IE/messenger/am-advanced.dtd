@@ -20,4 +20,4 @@
 <!ENTITY serverPort.label "Port: ">
 <!ENTITY userName.label "Ainm Úsáideora: ">
 <!ENTITY connectionSecurity.label "Slándáil an Cheangail: ">
-<!ENTITY useSecureAuthentication.label "Fíordheimhniú slán:">
+<!ENTITY authMethod.label "Modh fíordheimhnithe: ">

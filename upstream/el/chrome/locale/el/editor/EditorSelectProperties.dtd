@@ -19,6 +19,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s): Neil Rashbrook <neil@parkwaycc.co.uk>
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -33,9 +34,7 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-
 <!ENTITY windowTitle.label "Ιδιότητες λίστας επιλογής">
-
 <!ENTITY Select.label "Λίστα επιλογής">
 <!ENTITY SelectName.label "Όνομα λίστας:">
 <!ENTITY SelectName.accesskey "λ">
@@ -47,13 +46,11 @@
 <!ENTITY SelectDisabled.accesskey "ε">
 <!ENTITY SelectTabIndex.label "Κατάλογος στηλοθέτη:">
 <!ENTITY SelectTabIndex.accesskey "σ">
-
 <!ENTITY OptGroup.label "Ομάδα επιλογής">
 <!ENTITY OptGroupLabel.label "Ετικέτα:">
 <!ENTITY OptGroupLabel.accesskey "τ">
 <!ENTITY OptGroupDisabled.label "Απενεργοποιημένο">
 <!ENTITY OptGroupDisabled.accesskey "π">
-
 <!ENTITY Option.label "Επιλογή">
 <!ENTITY OptionText.label "Κείμενο:">
 <!ENTITY OptionText.accesskey "μ">
@@ -63,11 +60,9 @@
 <!ENTITY OptionSelected.accesskey "λ">
 <!ENTITY OptionDisabled.label "Απενεργοποιημένο">
 <!ENTITY OptionDisabled.accesskey "γ">
-
 <!ENTITY TextHeader.label "Κείμενο">
 <!ENTITY ValueHeader.label "Τιμή">
 <!ENTITY SelectedHeader.label "Επιλεγμένο">
-
 <!ENTITY AddOption.label "Προσθήκη επιλογής">
 <!ENTITY AddOption.accesskey "θ">
 <!ENTITY AddOptGroup.label "Προσθήκη ομάδας">

@@ -56,8 +56,8 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importFilters.label "Scagairí">
 <!ENTITY importFilters.accesskey "S">
 
-<!ENTITY window.width "40em">
-<!ENTITY window.macWidth "45em">
+<!ENTITY window.width "48em">
+<!ENTITY window.macWidth "54em">
 
 <!ENTITY importTitle.label "Treoraí Iompórtála &brandShortName;">
 <!ENTITY importShortDesc.label "Iompórtáil Teachtaireachtaí, Leabhair Seoltaí, Socruithe agus Scagairí ó ríomhchláir eile">

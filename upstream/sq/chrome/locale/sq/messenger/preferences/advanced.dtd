@@ -1,7 +1,7 @@
 <!ENTITY itemGeneral.label             "Të përgjithshme">
 <!ENTITY itemDisplay.label             "Lexim &amp; Paraqitje">
 <!ENTITY itemUpdate.label              "Përditësim">
-<!ENTITY itemNetworking.label          "Hapësirë në Rrjet &amp; Disku">
+<!ENTITY itemNetworking.label          "Hapësirë në Rrjet &amp; Disk">
 <!ENTITY itemCertificates.label        "Dëshmi">
 
 <!-- General Settings -->
@@ -25,7 +25,7 @@
 
 <!-- Display and Reading Settings -->
 <!ENTITY reading.caption                "Lexim">
-<!ENTITY display.caption                "Shfaqje">
+<!ENTITY display.caption                "Paraqitje">
 <!ENTITY showCondensedAddresses.label  "Shfaq emra ekrani vetëm për persona në librin tim të vendndodhjeve">
 <!ENTITY showCondensedAddresses.accesskey "q">
 

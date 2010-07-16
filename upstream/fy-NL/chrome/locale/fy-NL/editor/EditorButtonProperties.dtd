@@ -41,7 +41,7 @@
 <!ENTITY ButtonType.label "Type">
 <!ENTITY ButtonType.accesskey "T">
 <!ENTITY submit.value "Ferstjoere">
-<!ENTITY reset.value "Wiskje">
+<!ENTITY reset.value "Wisse">
 <!ENTITY button.value "Knop">
 
 <!ENTITY ButtonName.label "Namme:">

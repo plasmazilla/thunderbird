@@ -1,114 +1,93 @@
-<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the
-Migration Assistant page. It should match featureConfiguratorCmd.label in
-baseMenuOverlay.dtd -->
+<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the Migration Assistant page. It should match featureConfiguratorCmd.label in baseMenuOverlay.dtd -->
 <!ENTITY featureConfigurator.title "מסייע המעבר">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
-<!ENTITY featureConfigurator.heading "תכונות של Thunderbird 3 שכדאי להכיר">
+<!-- LOCALIZATION NOTE (featureConfigurator.heading1): Heading for the page -->
+<!ENTITY featureConfigurator.heading1 "תכונות חדשות של &brandShortName; שכדאי להכיר">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
-is important: we tried for a tone that promotes the new features (which we
-believe are good and worth users learning about), but also emphasizing that we
-think it's important to preserve user choice. -->
-<!ENTITY featureConfigurator.para1 "Thunderbird 3 כולל תכונות חדשות ורבות עוצמה ואנו בהחלט גאים בהן, וחושבים שמרבית האנשים יאהבו אותן. ייתכן ודעתם של אחרים שונה משלנו, ולכן דאגנו שיהיה פשוט לשלוט ולבצע התאמה אישית ל־Thunderbird.">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.1): The tone of this paragraph is important: we tried for a tone that promotes the new features (which we believe are good and worth users learning about), but also emphasizing that we think it's important to preserve user choice. -->
+<!ENTITY featureConfigurator.para.1 "גרסה חדשה זו של &brandShortName; כוללת תכונות חדשות ורבות עוצמה שאנו מאד מתגאים בהן, וחושבים שרוב האנשים יאהבו. הטעם והצרכים של אנשים משתנה מאדם לאדם, ולכן דאגנו שיהיה קל לשלוט ולבצע התאמה אישית ב־&brandShortName;.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
-that this page is active (the buttons change the UI), and that they can get
-back to it if they change their mind later.-->
-<!ENTITY featureConfigurator.para2 "השתמש בדף זה כדי לשנות את ההגדרות הללו. תוכל תמיד לחזור למסייע המעבר דרך תפריט העזרה.">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.2): This paragraph explains that this page is active (the buttons change the UI), and that they can get back to it if they change their mind later.-->
+<!ENTITY featureConfigurator.para.2 "השתמש בדף זה כדי לקבוע את ההגדרות החדשות. ניתן לחזור בכל עת למסייע המעבר דרך תפריט העזרה.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.imap.heading): Heading for the
-IMAP synchronization feature. The words should probably echo the word used
-in the per-account dialog.-->
-<!ENTITY featureConfigurator.imap.heading "סנכרון הודעות IMAP">
+<!ENTITY featureConfigurator.toolbar.new "סרגל כפתורי הודעה">
+<!ENTITY featureConfigurator.toolbar.new.status.explanation "סרגל כלים נקי עם כל כפתורי ההודעה בקצות אצבעותיך.">
 
-<!ENTITY featureConfigurator.imap.status.all "כל תיקיות ה־IMAP שלך מוגדרות לסנכרון">
+<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original): The word 'original' is chosen deliberately to be neutral, vs. 'old' which in English at least had a negative connotation.-->
+<!ENTITY featureConfigurator.toolbar.original "השאר את הכפתורים הרגילים בסרגל">
+<!ENTITY featureConfigurator.toolbar.original.status.explanation "השאר את הכפתורים המותאמים אישית בסרגל בנוסף לכפתורי ההודעה החדשים.">
 
-<!ENTITY featureConfigurator.imap.status.none "אף אחת מתיקיות ה־IMAP שלך מוגדרת לסנכרון.">
-
-<!ENTITY featureConfigurator.imap.status.some "חלק מתיקיות ה־IMAP שלך מוגדרות לסנכרון">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.benefits.label): The heading here
-is intended to explain why we've implemented this and picked it as a default.-->
-<!ENTITY featureConfigurator.benefits.label "יתרונות">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.alternative.label): The heading here
-is intended to explain why it might not be the right default for some users.-->
-<!ENTITY featureConfigurator.alternative.label "אלטרנטיבות">
-
-<!ENTITY featureConfigurator.syncBenefits.para "אפשרות זו מאפשרת לך לקרוא דואר גם כאשר אינך מחובר לרשת, ומאפשרת לך למצוא הודעות תוך התבססות על מילים שהן מכילות ולא רק שמות ונושאים.">
-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird יוריד את כל ההודעות שלך למחשב זה. כבה זאת במידה ואין ברשותך מספיק שטח דיסק פנוי או שאתה משלם על תעבורת רשת.">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
-<!ENTITY featureConfigurator.syncAll.button "סנכרן הכל">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.syncNone.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
-<!ENTITY featureConfigurator.syncNone.button "אל תסנכרן דבר">
-
-<!ENTITY featureConfigurator.advancedUsers.label "משתמשים מתקדמים:">
-<!ENTITY featureConfigurator.advancedUsers.para "ניתן לבצע התאמה אישית להגדרה זו לפי חשבון ולפי תיקייה:">
 
 <!ENTITY featureConfigurator.toolbar.heading "סרגל כלים חדש">
-<!ENTITY featureConfigurator.toolbar.new.status "שימוש בסרגל הכלים החדש.">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original.status): The
-word 'original' is chosen deliberately to be neutral, vs. 'old' which in
-English at least had a negative connotation.-->
-<!ENTITY featureConfigurator.toolbar.original.status "שימוש בסרגל הכלים המקורי.">
 
 <!ENTITY featureConfigurator.toolbarBenefits.para "ממשק נקי יותר מאשר ברירת המחדל הקודמת, המשאיר מקום לתיבת חיפוש עשירה יותר, כמו גם לתוספות.">
-<!ENTITY featureConfigurator.toolbarAlternative.para "במידה ואתה מעדיף את סרגל הכלים הישן, אינך מעוניין לבצע התאמה אישית מחדש או שאינך משתמש בחלונית ההודעה בפריסה שלך.">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.useOriginalToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useOriginalToolbar.button "השתמש בסרגל הכלים המקורי">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.useNewToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useNewToolbar.button "השתמש בסרגל הכלים החדש">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.heading): The
-words here should echo the name of the mode shown in the folder pane.-->
-<!ENTITY featureConfigurator.smartFolders.heading "מצב תיקיות חכמות">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.smart.status): This
-shows that the current mode in the folder pane is the Smart Folders mode.-->
-<!ENTITY featureConfigurator.smartFolders.smart.status "שימוש במצב &quot;תיקיות חכמות&quot;.">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.all.status): This
-shows that the current mode in the folder pane is not the Smart Folders mode.-->
-<!ENTITY featureConfigurator.smartFolders.all.status "לא משתמש במצב  &quot;תיקיות חכמות&quot;.">
-
-<!ENTITY featureConfigurator.smartFolderBenefits.para "למשתמשים בעלי מספר חשבונות, תצוגה זו מקבצת תיקיות כגון תיקיות הדואר הנכנס יחדיו, כך שתתקבל תצוגה מאוחדת של כל הדואר שלך.">
-<!ENTITY featureConfigurator.smartFolderAlternative.para "במידה ואתה מעדיף לפצל את המידע שלך בין חשבונות, כנראה שתעדיף את מצב &quot;כל התיקיות&quot;.">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.useSmartFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useSmartFolders.button "השתמש במצב &quot;תיקיות חכמות&quot;">
-
-<!-- LOCALIZATION NOTE (featureConfigurator.useAllFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useAllFolders.button "השתמש במצב &quot;כל התיקיות&quot;">
 
 <!ENTITY featureConfigurator.collapsedHeaders.heading "כותרים מקופלים">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
-of the paragraph before the beginning of the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 כולל תצוגת כותרי הודעות מפורטת, הכוללת כפתורים לפעולות הקשורות להודעות. עיצובים אלטרנטיבים זמינים בתור ">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.heading): The heading for the Folder Columns page. -->
+<!ENTITY featureConfigurator.folderColumns.heading "עמודות תיקיות מתקדמות">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
-the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaLinkName "תוספות">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.weak): The paragraph to display if the user hadn't previously used the folder columns feature. -->
+<!ENTITY featureConfigurator.folderColumns.para.weak "ההרחבה עמודות תיקיות מתקמות מחליפה את מה שהיה במקור העדפה מתקדמת.  כדי לשמור על ספירת הודעות זהה ושטח דיסק של כל תיקייה, ייתכן ותרצה להתקין הרחבה זו. ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaAfterLink): The part of
-the paragraph after the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaAfterLink ".">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.strong): The paragraph to display if the user had previously used the folder columns feature. -->
+<!ENTITY featureConfigurator.folderColumns.para.strong "שמנו לב שאתה משתמש בעמודות תיקיות מתקדמות. תכונה זו הועברה להרחבה משלה, ואנו ממליצים שתתקין אותה מכאן.">
 
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.install): The text for the button that will install the Extra Folder Columns addon. -->
+<!ENTITY featureConfigurator.folderColumns.install "התקן את Extra Columns…">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.heading): The heading for the Disk space page. -->
+<!ENTITY featureConfigurator.autoSync.heading "שטח דיסק">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.para): The paragraph that explains why the user would want to turn on autosync. -->
+<!ENTITY featureConfigurator.autoSync.para " גרסה חדשה זו של &brandShortName; מגיעה עם יכולות חיפוש חדשות ומשופרות.  כדי להשתמש בתכונה זו יהיה עליך להוריד את כל הודעות הדואר שלך.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.on): The label for the radio button for synchronizing all the accounts. -->
+<!ENTITY featureConfigurator.autoSync.on "סנכרן">
+<!ENTITY featureConfigurator.autoSync.on.explanation "פעולה זו תשפר את זמן טעינת ההודעות ותספק תוצאות חיפוש משופרות.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.off): The label for the radio button that will synchronize none of the accounts. -->
+<!ENTITY featureConfigurator.autoSync.off "אל תסנכרן">
+<!ENTITY featureConfigurator.autoSync.off.explanation "פעולה זו משמעותה טעינה איטית יותר של הודעות, ותוצאות חיפוש חלקיות.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.some): The label for the radio button that will let you customize the synchronize for each account. -->
+<!ENTITY featureConfigurator.autoSync.some "סינכרון לחשבונות מסויימים">
+<!ENTITY featureConfigurator.autoSync.some.explanation "ביצוע התאמה אישית לצרכי הסנכרון שלך לפי חשבון ותיקייה.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installing): The text to display while installing the addon. -->
+<!ENTITY featureConfigurator.addOn.installing "מתקין…">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installed): The text to display after the user installs the addon from the configurator. -->
+<!ENTITY featureConfigurator.addOn.installed "מותקן">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.alreadyInstalled): The label to display when the addon is already installed. -->
+<!ENTITY featureConfigurator.addOn.alreadyInstalled "הרחבה זו כבר מותקנת.">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.heading): The heading for the Compact Header page. -->
+<!ENTITY featureConfigurator.collapsedHeaders.heading "Compact Header">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.weak): The paragraph to display if the user hadn't previously used the collapsed headers feature. -->
+<!ENTITY featureConfigurator.collapsedHeaders.para.weak "The compact message reader view has been moved into its own extension where it is now getting much more attention and options.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.strong): The paragraph to display if the user had previously used the collapsed headers feature. -->
+<!ENTITY featureConfigurator.collapsedHeaders.para.strong "We noticed that you were using the compact message reader header.  This function has moved into its own extension and we recommend you install it here if you would like to continue using it.">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.install): The text for the button that will install the Compact Headers addon. -->
+<!ENTITY featureConfigurator.collapsedHeaders.install "התקן את Compact Header…">
+
+
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.currentSize): The label for the current amount of disk space your accounts are consuming. -->
+<!ENTITY featureConfigurator.diskSpace.currentSize "סה״כ תפוסת דואר אלקטרוני:">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.freeSpace): The label for the current amount of free space available on your hard disk. -->
+<!ENTITY featureConfigurator.diskSpace.freeSpace "שטח פנוי:">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.requireSpace): The label for the required amount of free space to synchronize all of your IMAP accounts. -->
+<!ENTITY featureConfigurator.diskSpace.requireSpace "נדרש:">
+
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.warning): The label shown when your estimated available hard disk space if you chose autosync would be less than 50MB or if we estimate turning on autosync would use more than 50% of your free space. -->
+<!ENTITY featureConfigurator.diskSpace.warning "שטח דיסק נמוך!">
+
+
+<!ENTITY featureConfigurator.previousButton "קודם">
+<!ENTITY featureConfigurator.nextButton "הבא">
+<!ENTITY featureConfigurator.closeButton "סגירה">

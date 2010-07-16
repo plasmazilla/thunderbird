@@ -159,7 +159,7 @@
 <!ENTITY PhotoDesc.label "Roghnaigh ceann de na rudaí seo a leanas:">
 <!ENTITY GenericPhoto.label "Grianghraf Ginearálta">
 <!ENTITY GenericPhoto.accesskey "G">
-<!ENTITY DefaultPhoto.label "Réamhshocraithe">
+<!ENTITY DefaultPhoto.label "Réamhshocrú">
 <!ENTITY PhotoFile.label "Ar an ríomhaire seo">
 <!ENTITY PhotoFile.accesskey "n">
 <!ENTITY BrowsePhoto.label "Brabhsáil">

@@ -45,9 +45,12 @@
 <!ENTITY folderCharsetTab.accesskey "З">
 <!ENTITY folderCharsetOverride.label "Прилагане подразбиращото се знаковото кодиране за всички писма в папката (индивидуалните настройки и автоматичното разпознаване се пренебрегва)">
 <!ENTITY folderCharsetOverride.accesskey "П">
-<!ENTITY folderRebuildSummaryFile.label "Възстановяване">
-<!ENTITY folderRebuildSummaryFile.accesskey "ъ">
-<!ENTITY folderRebuildSummaryFileTip.label "Възстановяване на файла резюме">
+<!ENTITY folderRebuildSummaryFileTip2.label "Възстановяване индекса на файла резюме">
+<!ENTITY folderRebuildSummaryFile2.label "Поправка на папка">
+<!ENTITY folderRebuildSummaryFile2.accesskey "П">
+<!ENTITY folderRebuildSummaryFile.explanation "Понякога файлът с индексите на папките (.msf) се поврежда и това предизвиква писма да иглеждат изчезнали или изтрити писма да продължават да се изобразяват. Поправката на папката би коригирала подобни проблеми.">
+<!ENTITY folderIncludeInGlobalSearch.label "Включване писмата от тази папка в резултатите от общото търсене">
+<!ENTITY folderIncludeInGlobalSearch.accesskey "о">
      
 <!ENTITY retention.label "Правила за запазване">
 <!ENTITY retentionUseAccount.label "Използване настройките на регистрацията">
@@ -69,8 +72,8 @@
 <!ENTITY retentionApplyToFlagged.accesskey "е">
 
 <!ENTITY folderSynchronizationTab.label "Синхронизация">
-<!ENTITY folderCheckForNewMessages.label "Проверка на папката за нови писма">
-<!ENTITY folderCheckForNewMessages.accesskey "П">
+<!ENTITY folderCheckForNewMessages2.label "When getting new messages for this account, always check this folder">
+<!ENTITY folderCheckForNewMessages2.accesskey "c">
 
 <!ENTITY offlineFolder.check.label "Избор на папката за употреба без връзка">
 <!ENTITY offlineFolder.check.accesskey "И">

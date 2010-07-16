@@ -2,7 +2,7 @@
 <!ENTITY name.label                      "Ваше ім’я:">
 <!ENTITY name.accesskey                  "і">
 <!ENTITY name.emptytext                  "Ім’я Прізвище">
-<!ENTITY name.text                       "Ваше ім’я, так як його будуть бачити інші">
+<!ENTITY name.text                       "Ваше ім’я, яким його бачитимуть інші">
 <!ENTITY email.label                     "Поштова адреса:">
 <!ENTITY email.accesskey                 "а">
 <!ENTITY email.emptytext                 "email@example.com">
@@ -22,6 +22,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP — Доступ до тек та листів з різних комп’ютерів">
+<!ENTITY pop.description                 "POP — Завантаження всіх листів на цей комп’ютер, теки лише локальні">
+<!ENTITY recommended-appendix.label      "(рекомендовано)">
 
 <!ENTITY manualSetup.label               "Вручну…">
 <!ENTITY manualSetup.accesskey           "В">

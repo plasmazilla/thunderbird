@@ -1,5 +1,5 @@
 <!-- Feed Properties Dialog -->
-<!ENTITY window.title "Propriedades da Fonte">
+<!ENTITY window.title "Propriedades da fonte">
 
 <!ENTITY feedFolder.label "Armazenar itens em: ">
 <!ENTITY feedFolder.accesskey "A">

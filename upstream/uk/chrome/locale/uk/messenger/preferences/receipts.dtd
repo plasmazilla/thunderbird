@@ -1,5 +1,5 @@
 <!ENTITY dialog.title                  "Сповіщення про доставку">
-<!ENTITY requestReceipt.label          "Завжди запрошувати сповіщення при надсиланні повідомлень">
+<!ENTITY requestReceipt.label          "Завжди просити сповіщення при надсиланні листів">
 <!ENTITY requestReceipt.accesskey      "з">
 <!ENTITY receiptArrive.label           "При отриманні сповіщення:">
 <!ENTITY leaveIt.label                 "Залишати його в теці «Вхідні»">
@@ -9,7 +9,7 @@
 <!ENTITY requestMDN.label              "При отриманні запиту на сповіщення:">
 <!ENTITY never.label                   "Ніколи не висилати сповіщення про доставку">
 <!ENTITY never.accesskey               "Н">
-<!ENTITY returnSome.label              "Висилати сповіщення для деяких повідомлень">
+<!ENTITY returnSome.label              "Висилати сповіщення для деяких листів">
 <!ENTITY returnSome.accesskey          "с">
 <!ENTITY notInToCc.label               "Якщо я не знаходжуся в списку «Кому» або «Копія»:">
 <!ENTITY notInToCc.accesskey           "Я">

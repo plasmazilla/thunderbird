@@ -48,4 +48,4 @@
 <!ENTITY borderEditField.label "දාරය:">
 <!ENTITY borderEditField.accessKey "B">
 <!ENTITY borderEditField.tooltip "වගුවේ දාරය සඳහා අගයක් ඇතුළු කරන්න, හෝ දාරයක් නැති වගුවක් සඳහා (0) ඇතුළු කරන්න">
-<!ENTITY pixels.label "පික්සල">
+<!ENTITY pixels.label "පික්සෙල්">

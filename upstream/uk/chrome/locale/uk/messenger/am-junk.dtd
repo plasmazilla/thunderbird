@@ -16,5 +16,5 @@
 <!ENTITY whitelist.label "Не позначати пошту спамом, якщо відправник перебуває в: ">
 <!ENTITY whitelist.accesskey "і">
 
-<!ENTITY ispHeaders.label "Вірити полям заголовків повідомлень, встановлених: ">
+<!ENTITY ispHeaders.label "Вірити полям заголовків листів, встановлених: ">
 <!ENTITY ispHeaders.accesskey "р">

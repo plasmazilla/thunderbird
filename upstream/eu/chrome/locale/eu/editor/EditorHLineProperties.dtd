@@ -54,7 +54,7 @@
 <!ENTITY rightRadio.accessKey "s">
 
 <!ENTITY threeDShading.label "3D itzala nabarmentzea">
-<!ENTITY threeDShading.accessKey "I">
+<!ENTITY threeDShading.accessKey "i">
 <!ENTITY saveSettings.label "Lehenetsi">
 <!ENTITY saveSettings.accessKey "L">
 <!ENTITY saveSettings.tooltip "Gorde ezarpen hauek lerro horizontal berriak sartzean erabiltzeko">

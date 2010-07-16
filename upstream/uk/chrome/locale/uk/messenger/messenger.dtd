@@ -1,4 +1,4 @@
-<!ENTITY messengerWindow.title "Пошта і конференції">
+<!ENTITY messengerWindow.title "Пошта та новини">
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " — ">
 
@@ -15,7 +15,7 @@
 <!ENTITY newOtherAccountsCmd.accesskey "І">
 <!ENTITY newEmailAccountCmd.label "Поштовий обліковий запис…">
 <!ENTITY newEmailAccountCmd.accesskey "П">
-<!ENTITY openMessageFileCmd.label "Відкрити збережене повідомлення…">
+<!ENTITY openMessageFileCmd.label "Відкрити збережений лист…">
 <!ENTITY openMessageFileCmd.accesskey "з">
 <!ENTITY openAttachmentCmd.label "Вкладення">
 <!ENTITY openAttachmentCmd.accesskey "е">
@@ -27,15 +27,15 @@
 <!ENTITY saveAsTemplateCmd.label "Шаблон">
 <!ENTITY saveAsTemplateCmd.accesskey "Ш">
 <!ENTITY getNewMsgCmd.key "t">
-<!ENTITY getNewMsgForCmd.label "Отримати нові повідомлення">
+<!ENTITY getNewMsgForCmd.label "Отримати нові листи для">
 <!ENTITY getNewMsgForCmd.accesskey "в">
-<!ENTITY getAllNewMsgCmdPopupMenu.label "Всі облікові записи">
-<!ENTITY getAllNewMsgCmdPopupMenu.accesskey "A">
-<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.label "Поточний обліковий запис">
+<!ENTITY getAllNewMsgCmdPopupMenu.label "Всіх облікових записів">
+<!ENTITY getAllNewMsgCmdPopupMenu.accesskey "В">
+<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.label "Поточного облікового запису">
 <!ENTITY getNewMsgCurrentAccountCmdPopupMenu.accesskey "П">
-<!ENTITY getNextNMsgCmd.label "Отримати наступні 500 повідомлень конференцій">
+<!ENTITY getNextNMsgCmd.label "Отримати наступні 500 листів">
 <!ENTITY getNextNMsgCmd.accesskey "5">
-<!ENTITY sendUnsentCmd.label "Відіслати невідіслані повідомлення">
+<!ENTITY sendUnsentCmd.label "Відіслати невідіслані листи">
 <!ENTITY sendUnsentCmd.accesskey "л">
 <!ENTITY subscribeCmd.label "Підписатися…">
 <!ENTITY subscribeCmd.accesskey "д">
@@ -56,9 +56,9 @@
 <!ENTITY synchronizeOfflineCmd.accesskey "З">
 <!ENTITY settingsOfflineCmd.label "Налаштування автономного режиму…">
 <!ENTITY settingsOfflineCmd.accesskey "л">
-<!ENTITY downloadSelectedCmd.label "Завантажити виділені повідомлення">
-<!ENTITY downloadSelectedCmd.accesskey "п">
-<!ENTITY downloadStarredCmd.label "Завантажити повідомлення з зірочкою">
+<!ENTITY downloadSelectedCmd.label "Завантажити виділені листи">
+<!ENTITY downloadSelectedCmd.accesskey "л">
+<!ENTITY downloadStarredCmd.label "Завантажити листи із зірочкою">
 <!ENTITY downloadStarredCmd.accesskey "ч">
 <!ENTITY printCmd.label "Друк…">
 <!ENTITY printCmd.accesskey "у">
@@ -69,17 +69,17 @@
 <!ENTITY printSetupCmd.accesskey "П">
 
 <!-- Edit Menu -->
-<!ENTITY deleteMsgCmd.label "Вилучити повідомлення">
+<!ENTITY deleteMsgCmd.label "Вилучити лист">
 <!ENTITY deleteMsgCmd.accesskey "и">
-<!ENTITY undeleteMsgCmd.label "Відновити повідомлення">
+<!ENTITY undeleteMsgCmd.label "Повернути лист">
 <!ENTITY undeleteMsgCmd.accesskey "п">
-<!ENTITY cancelNewsMsgCmd.label "Скасувати повідомлення">
+<!ENTITY cancelNewsMsgCmd.label "Скасувати лист">
 <!ENTITY cancelNewsMsgCmd.accesskey "С">
-<!ENTITY deleteMsgsCmd.label "Вилучити обрані повідомлення">
+<!ENTITY deleteMsgsCmd.label "Вилучити обрані листи">
 <!ENTITY deleteMsgsCmd.accesskey "В">
-<!ENTITY undeleteMsgsCmd.label "Відновити обрані повідомлення">
+<!ENTITY undeleteMsgsCmd.label "Повернути обрані листи">
 <!ENTITY undeleteMsgsCmd.accesskey "б">
-<!ENTITY cancelNewsMsgsCmd.label "Скасувати обрані повідомлення">
+<!ENTITY cancelNewsMsgsCmd.label "Скасувати обрані листи">
 <!ENTITY cancelNewsMsgsCmd.accesskey "о">
 <!ENTITY deleteFolderCmd.label "Вилучити теку">
 <!ENTITY deleteFolderCmd.accesskey "В">
@@ -89,23 +89,23 @@
 <!ENTITY selectMenu.accesskey "и">
 <!ENTITY all.label "Всі">
 <!ENTITY all.accesskey "В">
-<!ENTITY selectThreadCmd.label "Обговорення">
-<!ENTITY selectThreadCmd.accesskey "О">
+<!ENTITY selectThreadCmd.label "Гілку">
+<!ENTITY selectThreadCmd.accesskey "Г">
 <!ENTITY selectThreadCmd.key "a">
-<!ENTITY selectFlaggedCmd.label "Відзначені повідомлення">
+<!ENTITY selectFlaggedCmd.label "Позначені листи">
 <!ENTITY selectFlaggedCmd.accesskey "П">
 <!ENTITY menuFavoriteFolder.label "Улюблена тека">
 <!ENTITY menuFavoriteFolder.accesskey "У">
 <!ENTITY folderPropsCmd.label "Властивості…">
 <!ENTITY folderPropsFolderCmd.label "Властивості теки…">
-<!ENTITY folderPropsNewsgroupCmd.label "Властивості конференції…">
+<!ENTITY folderPropsNewsgroupCmd.label "Властивості групи новин…">
 <!ENTITY folderPropsCmd.accesskey "т">
-<!ENTITY undoDeleteMsgCmd.label "Скасувати вилучення повідомлення">
-<!ENTITY redoDeleteMsgCmd.label "Повторити вилучення повідомлення">
-<!ENTITY undoMoveMsgCmd.label "Скасувати переміщення повідомлення">
-<!ENTITY redoMoveMsgCmd.label "Повторити переміщення повідомлення">
-<!ENTITY undoCopyMsgCmd.label "Скасувати копіювання повідомлення">
-<!ENTITY redoCopyMsgCmd.label "Повторити копіювання повідомлення">
+<!ENTITY undoDeleteMsgCmd.label "Скасувати вилучення листа">
+<!ENTITY redoDeleteMsgCmd.label "Повторити вилучення листа">
+<!ENTITY undoMoveMsgCmd.label "Скасувати переміщення листа">
+<!ENTITY redoMoveMsgCmd.label "Повторити переміщення листа">
+<!ENTITY undoCopyMsgCmd.label "Скасувати копіювання листа">
+<!ENTITY redoCopyMsgCmd.label "Повторити копіювання листа">
 <!ENTITY undoMarkAllCmd.label "Скасувати помітку всіх як прочитаних">
 <!ENTITY redoMarkAllCmd.label "Повторити помітку всіх як прочитаних">
 <!ENTITY undoDefaultCmd.label "Скасувати">
@@ -127,13 +127,13 @@
 <!ENTITY messagePaneWide.accesskey "Ш">
 <!ENTITY messagePaneVertical.label "Вертикальне">
 <!ENTITY messagePaneVertical.accesskey "В">
-<!ENTITY showMessageCmd.label "Область перегляду повідомлень">
+<!ENTITY showMessageCmd.label "Область перегляду листів">
 <!ENTITY showMessageCmd.accesskey "О">
 
 <!ENTITY folderView.label "Теки">
 <!ENTITY folderView.accesskey "Т">
-<!ENTITY smartFolders.label "Тямущі">
-<!ENTITY smartFolders.accesskey "щ">
+<!ENTITY unifiedFolders.label "Об’єднані">
+<!ENTITY unifiedFolders.accesskey "є">
 <!ENTITY allFolders.label "Всі">
 <!ENTITY allFolders.accesskey "В">
 <!ENTITY unreadFolders.label "Непрочитані">
@@ -161,7 +161,7 @@
 <!ENTITY sortByStatusCmd.label "за станом">
 <!ENTITY sortByStatusCmd.accesskey "т">
 <!ENTITY sortByTagsCmd.label "за мітками">
-<!ENTITY sortByTagsCmd.accesskey "п">
+<!ENTITY sortByTagsCmd.accesskey "м">
 <!ENTITY sortByJunkStatusCmd.label "за ознакою спаму">
 <!ENTITY sortByJunkStatusCmd.accesskey "с">
 <!ENTITY sortBySubjectCmd.label "за темою">
@@ -178,32 +178,32 @@
 <!ENTITY sortAscending.accesskey "з">
 <!ENTITY sortDescending.label "За спаданням">
 <!ENTITY sortDescending.accesskey "м">
-<!ENTITY sortThreaded.label "За обговореннями">
-<!ENTITY sortThreaded.accesskey "о">
-<!ENTITY sortUnthreaded.label "Не за обговореннями">
+<!ENTITY sortThreaded.label "За гілками">
+<!ENTITY sortThreaded.accesskey "г">
+<!ENTITY sortUnthreaded.label "Не за гілками">
 <!ENTITY sortUnthreaded.accesskey "Н">
 <!ENTITY groupBySort.label "Групувати за методом сортування">
 <!ENTITY groupBySort.accesskey "Г">
-<!ENTITY msgsMenu.label "Повідомлення">
-<!ENTITY msgsMenu.accesskey "П">
-<!ENTITY threads.label "Обговорення">
-<!ENTITY threads.accesskey "О">
+<!ENTITY msgsMenu.label "Лист">
+<!ENTITY msgsMenu.accesskey "Л">
+<!ENTITY threads.label "Гілки">
+<!ENTITY threads.accesskey "Г">
 <!ENTITY allMsgsCmd.label "Всі">
 <!ENTITY allMsgsCmd.accesskey "В">
-<!ENTITY expandAllThreadsCmd.label "Розвернути всі обговорення">
+<!ENTITY expandAllThreadsCmd.label "Розгорнути всі гілки">
 <!ENTITY expandAllThreadsCmd.accesskey "Р">
 <!ENTITY expandAllThreadsCmd.key "*">
-<!ENTITY collapseAllThreadsCmd.label "Згорнути всі обговорення">
+<!ENTITY collapseAllThreadsCmd.label "Згорнути всі гілки">
 <!ENTITY collapseAllThreadsCmd.accesskey "З">
 <!ENTITY collapseAllThreadsCmd.key "\">
 <!ENTITY unreadMsgsCmd.label "Непрочитані">
 <!ENTITY unreadMsgsCmd.accesskey "Н">
-<!ENTITY threadsWithUnreadCmd.label "Обговорення з непрочитаними повідомленнями">
-<!ENTITY threadsWithUnreadCmd.accesskey "О">
-<!ENTITY watchedThreadsWithUnreadCmd.label "Відстежувані обговорення з непрочитаними повідомленнями">
+<!ENTITY threadsWithUnreadCmd.label "Гілки з непрочитаними листами">
+<!ENTITY threadsWithUnreadCmd.accesskey "Г">
+<!ENTITY watchedThreadsWithUnreadCmd.label "Відстежувані гілки з непрочитаними листами">
 <!ENTITY watchedThreadsWithUnreadCmd.accesskey "с">
-<!ENTITY ignoredThreadsCmd.label "Пропущені обговорення">
-<!ENTITY ignoredThreadsCmd.accesskey "П">
+<!ENTITY ignoredThreadsCmd.label "Зігноровані гілки">
+<!ENTITY ignoredThreadsCmd.accesskey "З">
 
 <!ENTITY headersMenu.label "Заголовки">
 <!ENTITY headersMenu.accesskey "З">
@@ -211,7 +211,7 @@
 <!ENTITY headersAllCmd.accesskey "В">
 <!ENTITY headersNormalCmd.label "Звичайні">
 <!ENTITY headersNormalCmd.accesskey "З">
-<!ENTITY bodyMenu.label "Тіло повідомлення">
+<!ENTITY bodyMenu.label "Тіло листа">
 <!ENTITY bodyMenu.accesskey "Т">
 <!ENTITY bodyAllowHTML.label "У вигляді початкового HTML">
 <!ENTITY bodyAllowHTML.accesskey "и">
@@ -229,7 +229,7 @@
 <!ENTITY viewFeedSummaryFeedPropsPref.label "Default Format">
 <!ENTITY viewFeedSummaryFeedPropsPref.accesskey "D">
 
-<!ENTITY viewAttachmentsInlineCmd.label "Показувати вкладення в тілі повідомлення">
+<!ENTITY viewAttachmentsInlineCmd.label "Показувати вкладення">
 <!ENTITY viewAttachmentsInlineCmd.accesskey "П">
 
 <!-- LOCALIZATION NOTE :
@@ -259,14 +259,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fullZoom.label                 "Масштаб">
 <!ENTITY fullZoom.accesskey             "ш">
 
-<!ENTITY pageSourceCmd.label "Повний код повідомлення">
+<!ENTITY pageSourceCmd.label "Повний код листа">
 <!ENTITY pageSourceCmd.accesskey "п">
 <!ENTITY pageSourceCmd.key "u">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Знайти">
 <!ENTITY findMenu.accesskey "З">
-<!ENTITY findCmd.label "Знайти в цьому повідомленні…">
+<!ENTITY findCmd.label "Знайти в цьому листі…">
 <!ENTITY findCmd.accesskey "З">
 <!ENTITY findCmd.key "f">
 <!ENTITY findAgainCmd.label "Знайти наступне">
@@ -275,7 +275,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY findAgainCmd.key2 "VK_F3">
 <!ENTITY findPrevCmd.key "g">
 <!ENTITY findPrevCmd.key2 "VK_F3">
-<!ENTITY searchMailCmd.label "Пошук повідомлень…">
+<!ENTITY searchMailCmd.label "Пошук листів…">
 <!ENTITY searchMailCmd.accesskey "П">
 <!ENTITY searchMailCmd.key "f">
 <!ENTITY searchAddressesCmd.label "Пошук адрес…">
@@ -284,25 +284,25 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Go Menu -->
 <!ENTITY goMenu.label "Перехід">
 <!ENTITY goMenu.accesskey "П">
-<!ENTITY nextMenu.label "Наступне">
+<!ENTITY nextMenu.label "Наступний">
 <!ENTITY nextMenu.accesskey "Н">
-<!ENTITY nextMsgCmd.label "Повідомлення">
-<!ENTITY nextMsgCmd.accesskey "П">
+<!ENTITY nextMsgCmd.label "Лист">
+<!ENTITY nextMsgCmd.accesskey "т">
 <!ENTITY nextMsgCmd.key "f">
-<!ENTITY nextUnreadMsgCmd.label "Непрочитане повідомлення">
+<!ENTITY nextUnreadMsgCmd.label "Непрочитаний лист">
 <!ENTITY nextUnreadMsgCmd.accesskey "Н">
 <!ENTITY nextUnreadMsgCmd.key "n">
-<!ENTITY nextStarredMsgCmd.label "Повідомлення з зіркою">
+<!ENTITY nextStarredMsgCmd.label "Лист з зіркою">
 <!ENTITY nextStarredMsgCmd.accesskey "З">
-<!ENTITY nextUnreadThread.label "Непрочитане обговорення">
+<!ENTITY nextUnreadThread.label "Непрочитана гілка">
 <!ENTITY nextUnreadThread.accesskey "Н">
 <!ENTITY nextUnreadThread.key "t">
-<!ENTITY prevMenu.label "Попереднє">
+<!ENTITY prevMenu.label "Попередній">
 <!ENTITY prevMenu.accesskey "П">
-<!ENTITY prevMsgCmd.label "Повідомлення">
-<!ENTITY prevMsgCmd.accesskey "о">
+<!ENTITY prevMsgCmd.label "Лист">
+<!ENTITY prevMsgCmd.accesskey "с">
 <!ENTITY prevMsgCmd.key "b">
-<!ENTITY prevUnreadMsgCmd.label "Непрочитане повідомлення">
+<!ENTITY prevUnreadMsgCmd.label "Непрочитаний лист">
 <!ENTITY prevUnreadMsgCmd.accesskey "Н">
 <!ENTITY prevUnreadMsgCmd.key "p">
 <!ENTITY goForwardCmd.label "Вперед">
@@ -311,19 +311,19 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.label "Назад">
 <!ENTITY goBackCmd.accesskey "д">
 <!ENTITY goBackCmd.commandKey "[">
-<!ENTITY prevStarredMsgCmd.label "Повідомлення з зіркою">
+<!ENTITY prevStarredMsgCmd.label "Лист з зіркою">
 <!ENTITY prevStarredMsgCmd.accesskey "З">
 <!ENTITY startPageCmd.label "Початкова сторінка">
 <!ENTITY startPageCmd.accesskey "ч">
 
 <!-- Message Menu -->
-<!ENTITY msgMenu.label "Повідомлення">
-<!ENTITY msgMenu.accesskey "м">
-<!ENTITY newMsgCmd.label "Створити повідомлення">
+<!ENTITY msgMenu.label "Лист">
+<!ENTITY msgMenu.accesskey "Л">
+<!ENTITY newMsgCmd.label "Написати листа">
 <!ENTITY newMsgCmd.accesskey "т">
-<!ENTITY newNewMsgCmd.label "Повідомлення">
-<!ENTITY newNewMsgCmd.accesskey "П">
-<!ENTITY archiveMsgCmd.label "Архів">
+<!ENTITY newNewMsgCmd.label "Лист">
+<!ENTITY newNewMsgCmd.accesskey "Л">
+<!ENTITY archiveMsgCmd.label "Архівувати">
 <!ENTITY archiveMsgCmd.accesskey "А">
 <!ENTITY archiveMsgCmd.key  "а">
 <!ENTITY replyMsgCmd.label "Відповісти">
@@ -331,8 +331,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyMsgCmd.key  "r">
 <!ENTITY replySenderCmd.label "Відповісти відправнику">
 <!ENTITY replySenderCmd.accesskey "і">
-<!ENTITY replyNewsgroupCmd.label "Відповісти в конференцію">
-<!ENTITY replyNewsgroupCmd.accesskey  "к">
+<!ENTITY replyNewsgroupCmd.label "Відповісти у групу новин">
+<!ENTITY replyNewsgroupCmd.accesskey  "г">
 <!ENTITY replyToAllMsgCmd.label "Відповісти всім">
 <!ENTITY replyToAllMsgCmd.accesskey  "с">
 <!ENTITY replyToAllMsgCmd.key  "r">
@@ -344,11 +344,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY forwardMsgCmd.key  "l">
 <!ENTITY forwardAsMenu.label "Переслати як">
 <!ENTITY forwardAsMenu.accesskey "к">
-<!ENTITY forwardAsInline.label "Частина повідомлення">
+<!ENTITY forwardAsInline.label "Частина листа">
 <!ENTITY forwardAsInline.accesskey "Ч">
 <!ENTITY forwardAsAttachmentCmd.label "Вкладення">
 <!ENTITY forwardAsAttachmentCmd.accesskey "В">
-<!ENTITY editMsgAsNewCmd.label "Редагувати повідомлення як нове">
+<!ENTITY editMsgAsNewCmd.label "Редагувати лист як новий">
 <!ENTITY editMsgAsNewCmd.accesskey "Р">
 <!ENTITY editMsgAsNewCmd.key "e">
 <!ENTITY createFilter.label "Створити фільтр…">
@@ -357,28 +357,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY moveMsgToMenu.accesskey "е">
 <!ENTITY moveCopyMsgRecentMenu.label "Нещодавні">
 <!ENTITY moveCopyMsgRecentMenu.accesskey "Н">
-<!ENTITY copyMessageLocation.label "Копіювати адресу повідомлення">
+<!ENTITY copyMessageLocation.label "Копіювати адресу листа">
 <!ENTITY copyMessageLocation.accesskey "а">
 <!ENTITY copyMsgToMenu.label "Копіювати у">
 <!ENTITY copyMsgToMenu.accesskey "у">
 <!ENTITY moveToFolderAgain.label "Перенести ще раз">
 <!ENTITY moveToFolderAgain.accesskey "щ">
 <!ENTITY moveToFolderAgainCmd.key "m">
-<!ENTITY killThreadMenu.label "Пропустити обговорення">
+<!ENTITY killThreadMenu.label "Пропустити гілку">
 <!ENTITY killThreadMenu.accesskey "у">
 <!ENTITY killThreadMenu.key "k">
 <!ENTITY killSubthreadMenu.label "Ігнорувати гілку">
 <!ENTITY killSubthreadMenu.accesskey "І">
 <!ENTITY killSubthreadMenu.key "k">
-<!ENTITY watchThreadMenu.label "Відстежувати обговорення">
+<!ENTITY watchThreadMenu.label "Відстежувати гілку">
 <!ENTITY watchThreadMenu.accesskey "ж">
 <!ENTITY watchThreadMenu.key "w">
 <!ENTITY fileHereMenu.label "Помістити сюди">
 <!ENTITY fileHereMenu.accesskey "П">
 <!ENTITY copyHereMenu.label "Копіювати сюди">
 <!ENTITY copyHereMenu.accesskey "К">
-<!ENTITY tagMenu.label "Мітка">
-<!ENTITY tagMenu.accesskey "М">
+<!ENTITY tagMenu.label "Помітити">
+<!ENTITY tagMenu.accesskey "м">
 <!ENTITY tagCmd0.key "0">
 <!ENTITY tagCmd1.key "1">
 <!ENTITY tagCmd2.key "2">
@@ -394,7 +394,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY markAsReadCmd.label "Прочитаним">
 <!ENTITY markAsReadCmd.accesskey "ч">
 <!ENTITY markAsReadCmd.key "m">
-<!ENTITY markThreadAsReadCmd.label "Обговорення прочитаним">
+<!ENTITY markThreadAsReadCmd.label "Гілку прочитаною">
 <!ENTITY markThreadAsReadCmd.accesskey "г">
 <!ENTITY markThreadAsReadCmd.key "r">
 <!ENTITY markReadByDateCmd.label "Прочитаним за датою…">
@@ -414,9 +414,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY markAsNotJunkCmd.key "j">
 <!ENTITY recalculateJunkScoreCmd.label "Відфільтрувати спам">
 <!ENTITY recalculateJunkScoreCmd.accesskey "а">
-<!ENTITY openMessageWindowCmd.label "Відкрити повідомлення">
+<!ENTITY openMessageWindowCmd.label "Відкрити лист">
 <!ENTITY openMessageWindowCmd.accesskey "В">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Відкрити у Бесіді">
+<!ENTITY openConversationCmd.accesskey "Б">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Open Feed Message">
 <!ENTITY openFeedMessage.accesskey "O">
 <!ENTITY openFeedWebPageInWindow.label "Web Page in New Window">
@@ -432,7 +435,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Tools Menu -->
 <!ENTITY tasksMenu.label "Інструменти">
 <!ENTITY tasksMenu.accesskey "І">
-<!ENTITY messengerCmd.label "Пошта і конференції">
+<!ENTITY messengerCmd.label "Пошта та новини">
 <!ENTITY messengerCmd.accesskey "п">
 <!ENTITY addressBookCmd.label "Адресна книга">
 <!ENTITY addressBookCmd.accesskey "А">
@@ -441,17 +444,20 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "Д">
 <!ENTITY activitymanager.label "Менеджер діяльності">
 <!ENTITY activitymanager.accesskey "д">
-<!ENTITY filtersCmd.label "Фільтри повідомлень…">
+<!ENTITY savedFiles.label "Збережені файли">
+<!ENTITY savedFiles.accesskey "З">
+<!ENTITY savedFiles.key "j">
+<!ENTITY filtersCmd.label "Фільтри листів…">
 <!ENTITY filtersCmd.accesskey "Ф">
 <!ENTITY filtersApply.label "Застосувати фільтри до теки">
 <!ENTITY filtersApply.accesskey "З">
-<!ENTITY filtersApplyToSelection.label "Застосувати фільтри до виділених повідомлень">
+<!ENTITY filtersApplyToSelection.label "Застосувати фільтри до виділених листів">
 <!ENTITY filtersApplyToSelection.accesskey "с">
-<!ENTITY filtersApplyToMessage.label "Застосувати фільтри до повідомлення">
+<!ENTITY filtersApplyToMessage.label "Застосувати фільтри до листа">
 <!ENTITY filtersApplyToMessage.accesskey "З">
 <!ENTITY runJunkControls.label "Відфільтрувати спам в теці">
 <!ENTITY runJunkControls.accesskey "л">
-<!ENTITY deleteJunk.label "Вилучити з теки повідомлення помічені як спам">
+<!ENTITY deleteJunk.label "Вилучити з теки листи помічені як спам">
 <!ENTITY deleteJunk.accesskey "с">
 <!ENTITY importCmd.label "Імпорт…">
 <!ENTITY importCmd.accesskey "І">
@@ -551,7 +557,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextSendUnsentMessages.accesskey "і">
 <!ENTITY folderContextUnsubscribe.label "Відписатися">
 <!ENTITY folderContextUnsubscribe.accesskey "д">
-<!ENTITY folderContextMarkNewsgroupRead.label "Позначити конференцію як прочитану">
+<!ENTITY folderContextMarkNewsgroupRead.label "Позначити групу новин як прочитану">
 <!ENTITY folderContextMarkNewsgroupRead.accesskey "з">
 <!ENTITY folderContextMarkMailFolderRead.label "Відзначити всі повідомлення в теці прочитаними">
 <!ENTITY folderContextMarkMailFolderRead.accesskey "ч">
@@ -583,7 +589,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveAsVirtualFolderMenu.label "Зберегти результати пошуку як теку…">
 
 <!-- Thread Pane -->
-<!ENTITY threadColumn.label "Обговорення">
+<!ENTITY threadColumn.label "Гілка">
 <!ENTITY fromColumn.label "Від">
 <!ENTITY recipientColumn.label "Одержувачі">
 <!ENTITY subjectColumn.label "Тема">
@@ -605,39 +611,41 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser.tooltip "Натисніть, щоб обрати колонки для відображення">
-<!ENTITY threadColumn.tooltip "Натисніть тут, щоб переглянути обговорення">
+<!ENTITY threadColumn.tooltip "Натисніть тут, щоб переглянути гілку">
 <!ENTITY fromColumn.tooltip "Натисніть, щоб відсортувати за відправником">
-<!ENTITY recipientColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за адресатом">
-<!ENTITY subjectColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за темою">
-<!ENTITY dateColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за датою">
-<!ENTITY priorityColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за важливістю">
-<!ENTITY tagsColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за мітками">
-<!ENTITY accountColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за обліковим записом">
-<!ENTITY statusColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за станом">
-<!ENTITY sizeColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за розміром">
-<!ENTITY junkStatusColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за ознакою спаму">
-<!ENTITY unreadColumn.tooltip "Кількість непрочитаних повідомлень в обговоренні">
-<!ENTITY totalColumn.tooltip "Загальне число повідомлень в обговоренні">
-<!ENTITY readColumn.tooltip "Натисніть тут, щоб відсортувати прочитані повідомлення">
+<!ENTITY recipientColumn.tooltip "Натисніть тут, щоб відсортувати листи за адресатом">
+<!ENTITY subjectColumn.tooltip "Натисніть тут, щоб відсортувати листи за темою">
+<!ENTITY dateColumn.tooltip "Натисніть тут, щоб відсортувати листи за датою">
+<!ENTITY priorityColumn.tooltip "Натисніть тут, щоб відсортувати листи за важливістю">
+<!ENTITY tagsColumn.tooltip "Натисніть тут, щоб відсортувати листи за мітками">
+<!ENTITY accountColumn.tooltip "Натисніть тут, щоб відсортувати листи за обліковим записом">
+<!ENTITY statusColumn.tooltip "Натисніть тут, щоб відсортувати листи за станом">
+<!ENTITY sizeColumn.tooltip "Натисніть тут, щоб відсортувати листи за розміром">
+<!ENTITY junkStatusColumn.tooltip "Натисніть тут, щоб відсортувати листи за ознакою спаму">
+<!ENTITY unreadColumn.tooltip "Кількість непрочитаних листів у гілці">
+<!ENTITY totalColumn.tooltip "Загальне число листів у гілці">
+<!ENTITY readColumn.tooltip "Натисніть тут, щоб відсортувати прочитані листи">
 <!ENTITY receivedColumn.tooltip "Клацніть щоб сортувати за датою отримання">
-<!ENTITY starredColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення за зірочкою">
-<!ENTITY locationColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення по їх розташуванню">
-<!ENTITY idColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення по порядку отримання">
-<!ENTITY attachmentColumn.tooltip "Натисніть тут, щоб відсортувати повідомлення по наявності вкладень">
+<!ENTITY starredColumn.tooltip "Натисніть тут, щоб відсортувати листи за зірочкою">
+<!ENTITY locationColumn.tooltip "Натисніть тут, щоб відсортувати листи по їх розташуванню">
+<!ENTITY idColumn.tooltip "Натисніть тут, щоб відсортувати листи по порядку отримання">
+<!ENTITY attachmentColumn.tooltip "Натисніть тут, щоб відсортувати листи по наявності вкладень">
 
 <!-- Thread Pane Context Menu -->
-<!ENTITY contextOpenNewWindow.label "Відкрити повідомлення в новому вікні">
+<!ENTITY contextOpenNewWindow.label "Відкрити лист в новому вікні">
 <!ENTITY contextOpenNewWindow.accesskey "н">
-<!ENTITY contextOpenNewTab.label "Відкрити повідомлення в новій вкладці">
-<!ENTITY contextOpenNewTab.accesskey "в">
-<!ENTITY contextEditAsNew.label "Редагувати як нове…">
+<!ENTITY contextOpenNewTab.label "Відкрити лист в новій вкладці">
+<!ENTITY contextOpenNewTab.accesskey "к">
+<!ENTITY contextOpenConversation.label "Відкрити лист в бесіді">
+<!ENTITY contextOpenConversation.accesskey "б">
+<!ENTITY contextEditAsNew.label "Редагувати як новий…">
 <!ENTITY contextEditAsNew.accesskey "Р">
-<!ENTITY contextArchive.label "Архів">
+<!ENTITY contextArchive.label "Архівувати">
 <!ENTITY contextArchive.accesskey "х">
 <!ENTITY contextReplySender.label "Відповісти відправнику">
 <!ENTITY contextReplySender.accesskey "В">
-<!ENTITY contextReplyNewsgroup.label "Відповісти в конференцію">
-<!ENTITY contextReplyNewsgroup.accesskey "к">
+<!ENTITY contextReplyNewsgroup.label "Відповісти в групу новин">
+<!ENTITY contextReplyNewsgroup.accesskey "г">
 <!ENTITY contextReplyAll.label "Відповісти всім">
 <!ENTITY contextReplyAll.accesskey "В">
 <!ENTITY contextReplyList.label "Відповісти списку">
@@ -648,8 +656,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextForwardAsAttachment.accesskey "к">
 <!ENTITY contextMoveMsgMenu.label "Перемістити у">
 <!ENTITY contextMoveMsgMenu.accesskey "е">
-<!ENTITY contextMoveCopyMsgRecentMenu.label "Нещодавні">
-<!ENTITY contextMoveCopyMsgRecentMenu.accesskey "щ">
+<!ENTITY contextMoveCopyMsgRecentMenu.label "Недавні">
+<!ENTITY contextMoveCopyMsgRecentMenu.accesskey "д">
 <!ENTITY contextCopyMsgMenu.label "Копіювати в">
 <!ENTITY contextCopyMsgMenu.accesskey "о">
 <!ENTITY contextSaveAs.label "Зберегти як…">
@@ -658,6 +666,53 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrint.accesskey "у">
 <!ENTITY contextPrintPreview.label "Попередній перегляд">
 <!ENTITY contextPrintPreview.accesskey "г">
+
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "Скинути стовпчики на типові">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Застосувати стовпчики до…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "Теки…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Теки та нащадків…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "Цієї теки">
+
 
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "Грати">
@@ -679,16 +734,43 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY loadRemoteContentButton3.label "Показати віддалений вміст">
 
 <!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Це повідомлення може бути шахрайським.">
-<!ENTITY removePhishingBarButton1.label "Зігнорувати попередження">
-<!ENTITY reportPhishingError1.label "Це повідомлення наче не шахрайське.">
+<!ENTITY phishingBarMessage2.label "Цей лист може бути шахрайським.">
+<!ENTITY removePhishingBarButton1.label "Зігнорувати лист">
+<!ENTITY reportPhishingError1.label "Цей лист наче не шахрайський.">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "та інші">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "Відправник цього листа бажав отримати звістку коли ви його прочитаєте. Чи бажаєте ви сповістити відправника?">
+<!ENTITY mdnBarIgnoreButton.label "Зігнорувати запит">
+<!ENTITY mdnBarSendButton.label "Послати звістку про отримання">
 
 <!-- Quick Search Bar -->
+<!-- LOCALIZATION NOTE (quickSearchCmd.key):
+     This is actually the key used for the global message search box; we have
+     not changed 
+     -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Шукати серед усіх повідомлень">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Шукати серед усіх листів… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Додати в адресну книгу…">
@@ -719,18 +801,18 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveLinkAsCmd.accesskey "п">
 <!ENTITY saveImageAsCmd.label "Зберегти зображення як…">
 <!ENTITY saveImageAsCmd.accesskey "З">
-<!ENTITY cutCmd.label "Cut">
-<!ENTITY cutCmd.accesskey "u">
+<!ENTITY cutCmd.label "Вирізати">
+<!ENTITY cutCmd.accesskey "р">
 <!ENTITY copyCmd.label "Копіювати">
 <!ENTITY copyCmd.accesskey "К">
-<!ENTITY pasteCmd.label "Paste">
-<!ENTITY pasteCmd.accesskey "P">
-<!ENTITY selectAllCmd.label "Вибрати всі">
+<!ENTITY pasteCmd.label "Вставити">
+<!ENTITY pasteCmd.accesskey "т">
+<!ENTITY selectAllCmd.label "Вибрати все">
 <!ENTITY selectAllCmd.accesskey "В">
 <!ENTITY copyLinkCmd.label "Копіювати адресу посилання">
 <!ENTITY copyLinkCmd.accesskey "п">
-<!ENTITY copyImageCmd.label "Копіювати адресу малюнка">
-<!ENTITY copyImageCmd.accesskey "м">
+<!ENTITY copyImageAllCmd.label "Копіювати зображення">
+<!ENTITY copyImageAllCmd.accesskey "К">
 <!ENTITY copyEmailCmd.label "Копюівати email адресу">
 <!ENTITY copyEmailCmd.accesskey "e">
 <!ENTITY stopCmd.label "Зупинити">
@@ -749,7 +831,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY minimizeWindow.label "Згорнути вікно">
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Помістити все на передній план">
-<!ENTITY zoomWindow.label "Розвернути вікно">
+<!ENTITY zoomWindow.label "Розгорнути вікно">
 
 <!-- Mac OS X Application Menu (Cocoa widgets) -->
 <!ENTITY preferencesCmdMac.label        "Налаштування…">

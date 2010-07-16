@@ -1,4 +1,4 @@
-<!ENTITY window.title "Фільтри повідомлень">
+<!ENTITY window.title "Фільтри листів">
 <!ENTITY nameColumn.label "Назва фільтру">
 <!ENTITY activeColumn.label "Включений">
 <!ENTITY newButton.label "Створити…">
@@ -23,7 +23,7 @@
 <!ENTITY folderPickerPrefix.label "Запустити вибрані фільтр(и) в теці:">
 <!ENTITY folderPickerPrefix.accesskey "а">
 <!ENTITY choosethis.label "вибрати цю теку">
-<!ENTITY choosethisnewsserver.label "вибрати цей сервер конференцій">
+<!ENTITY choosethisnewsserver.label "вибрати цей сервер новин">
 <!ENTITY helpButton.label "Довідка">
 <!ENTITY helpButton.accesskey "Д">
 <!ENTITY closeCmd.key "W"> 

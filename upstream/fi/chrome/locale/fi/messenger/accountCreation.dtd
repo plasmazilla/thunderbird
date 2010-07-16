@@ -22,6 +22,9 @@
 <!ENTITY imap.label                      "IMAP">
 <!ENTITY pop.label                       "POP">
 <!ENTITY smtp.label                      "SMTP">
+<!ENTITY imap.description                "IMAP - Mahdollisuus lukea viestejä usealta tietokoneelta">
+<!ENTITY pop.description                 "POP - Lataa viestit tälle tietokoneelle, kansiot olemassa vain tällä tietokoneella">
+<!ENTITY recommended-appendix.label      "(suositeltu)">
 
 <!ENTITY manualSetup.label               "Manuaaliasetukset…">
 <!ENTITY manualSetup.accesskey           "M">

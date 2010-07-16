@@ -22,6 +22,7 @@
    - Contributor(s):
    -   Fabian Guisset <hidday@geocities.com>
    -   
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -45,3 +46,5 @@
 <!ENTITY folderRestriction2.label "Дазволіць вашай новай папцы змяшчаць:">
 <!ENTITY foldersOnly.label "Толькі папкі">
 <!ENTITY messagesOnly.label "Толькі лісты">
+<!ENTITY accept.label "Стварыць папку">
+<!ENTITY accept.accesskey "т">

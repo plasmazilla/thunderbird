@@ -6,12 +6,8 @@
 <!ENTITY serverDescription.accesskey "C">
 <!ENTITY serverPort.label "Port:">
 <!ENTITY serverPort.accesskey "P">
-<!ENTITY alwaysUseUsername.label "Úsáid ainm agus focal faire">
-<!ENTITY alwaysUseUsername.accesskey "A">
 <!ENTITY userName.label "Ainm an Úsáideora:">
 <!ENTITY userName.accesskey "m">
-<!ENTITY useSecAuth.label "Úsáid fíordheimhniú daingean">
-<!ENTITY useSecAuth.accesskey "i">
 <!ENTITY connectionSecurity.label "Slándáil an cheangail:">
 <!ENTITY connectionSecurity.accesskey "n">
 <!ENTITY connectionSecurityType-0.label "Gan sonrú">
@@ -20,3 +16,5 @@
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
 <!ENTITY smtpEditTitle.label "Freastalaí SMTP">
 <!ENTITY serverPortDefault.label "Réamhshocrú:">
+<!ENTITY authMethod.label "Modh fíordheimhnithe:">
+<!ENTITY authMethod.accesskey "i">

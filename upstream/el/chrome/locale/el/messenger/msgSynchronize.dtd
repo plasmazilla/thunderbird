@@ -1,8 +1,6 @@
-<!-- extracted from MsgSynchronize.xul and msgSelectOffline.xul-->
-
 <!ENTITY MsgSynchronize.label "Λήψη και συγχρονισμός Μηνυμάτων">
 <!ENTITY MsgSelect.label "Αντικείμενα για χρήση χωρίς σύνδεση">
-<!ENTITY MsgSyncDesc.label "Αν έχετε ήδη επιλέξει φακέλους αλληλογραφίας και συζητήσεων για εργασία χωρίς σύνδεση, μπορείτε να κάνετε λήψη ή και να τους συγχρονίσετε τώρα.Αλλιώς χρησιμοποιήστε το κουμπί &quot;Select&quot; για να επιλέξετε φακέλους. ">
+<!ENTITY MsgSyncDesc.label "Αν έχετε ήδη επιλέξει φακέλους αλληλογραφίας και συζητήσεων για εργασία χωρίς σύνδεση, μπορείτε να κάνετε λήψη ή και να τους συγχρονίσετε τώρα.Αλλιώς χρησιμοποιήστε το κουμπί &quot;Επιλογή&quot; για να επιλέξετε φακέλους. ">
 <!ENTITY MsgSyncDirections.label "Λήψη ή/και συγχρονισμός των ακόλουθων:">
 <!ENTITY syncTypeMail.label "Μηνύματα Αλληλογραφίας">
 <!ENTITY syncTypeMail.accesskey "Μ">

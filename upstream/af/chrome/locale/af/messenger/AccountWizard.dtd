@@ -60,7 +60,7 @@
 -->
 
 <!ENTITY haveSmtp1.prefix "U bestaande uitgaande bediener (SMTP), &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot;, sal gebruik word. U kan die uitgaande bedieners in die rekeninginstellings wysig.">
+<!ENTITY haveSmtp1.suffix2 "&quot;, sal gebruik word. U kan die uitgaande bedieners in die rekeningopstelling wysig.">
 <!-- Entities for Login page -->
 
 
@@ -78,13 +78,13 @@
      text after the "&quot;" entity in haveSmtp2.suffix2, if required grammatically.
 -->
 <!ENTITY haveSmtp2.prefix "U bestaande uitgaande (SMTP) gebruikernaam, &quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot;, sal gebruik word. U kan die uitgaande bedieners in die rekeninginstellings wysig.">
+<!ENTITY haveSmtp2.suffix2 "&quot;, sal gebruik word. U kan die uitgaande bedieners in die rekeningopstelling wysig.">
 <!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix2) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix2 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp3.suffix2, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "U uitgaande bediener (SMTP), &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, is identies aan u inkomende bediener, en u inkomende gebruikernaam sal gebruik word om toegang daartoe te kry. U kan die uitgaande bedieners in die rekeninginstellings wysig.">
+<!ENTITY haveSmtp3.suffix2 "&quot;, is identies aan u inkomende bediener, en u inkomende gebruikernaam sal gebruik word om toegang daartoe te kry. U kan die uitgaande bedieners in die rekeningopstelling wysig.">
 <!-- Entities for Account name page -->
 
 

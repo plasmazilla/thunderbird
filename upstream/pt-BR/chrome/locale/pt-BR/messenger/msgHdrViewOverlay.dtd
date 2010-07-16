@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "S">
 
 <!ENTITY otherActionsButton.label "outras ações">
-<!ENTITY otherActionsShowConversation.label "exibir na conversação">
-<!ENTITY otherActionsShowConversation.accesskey "e">
+<!ENTITY otherActionsOpenConversation.label "abrir na conversação">
+<!ENTITY otherActionsOpenConversation.accesskey "r">
 <!ENTITY otherActionsOpenInNewWindow.label "abrir em nova janela">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "a">
 <!ENTITY otherActionsOpenInNewTab.label "abrir em nova aba">

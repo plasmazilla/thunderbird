@@ -38,13 +38,13 @@
 
    <!-- Window title -->
 <!ENTITY windowTitle.label "Tekens ynfoegje">
-<!ENTITY category.label "Kategory">
+<!ENTITY category.label "Kategorie">
 <!ENTITY letter.label "Letter:">
 <!ENTITY letter.accessKey "L">
 <!ENTITY character.label "Teken:">
 <!ENTITY character.accessKey "T">
-<!ENTITY accentUpper.label "Haadletters mei aksint">
-<!ENTITY accentLower.label "Lytse letters mei aksint">
+<!ENTITY accentUpper.label "Hadletters mei aksent">
+<!ENTITY accentLower.label "Lytse letters mei aksent">
 <!ENTITY otherUpper.label "Oare haadletters">
 <!ENTITY otherLower.label "Oare lytse letters">
 <!ENTITY commonSymbols.label "Algemiene symboalen">

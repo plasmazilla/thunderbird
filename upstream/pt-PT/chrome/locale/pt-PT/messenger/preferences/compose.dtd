@@ -27,7 +27,7 @@
 <!ENTITY spellCheckInline1.accesskey "V">
 <!ENTITY languagePopup.label "Idioma:">
 <!ENTITY languagePopup.accessKey "i">
-<!ENTITY downloadDictionaries.label "Transferir mais Dicionários">
+<!ENTITY downloadDictionaries.label "Transferir mais dicionários">
 
 <!ENTITY warnOnSendAccelKey.label "Confirmar quando usar atalhos do teclado para enviar mensagem">
 <!ENTITY warnOnSendAccelKey.accesskey "i">
@@ -37,14 +37,14 @@
 
 <!ENTITY emailCollectionPicker.label "Ao enviar adicionar automaticamente endereços ao:">
 <!ENTITY emailCollectionPicker.accesskey "t">
-<!ENTITY addressingTitle.label "Completar Endereços Automaticamente">
+<!ENTITY addressingTitle.label "Completar endereços automaticamente">
 <!ENTITY autocompleteText.label "Ao endereçar mensagens, verificar por equivalências no:">
-<!ENTITY addressingEnable.label "Livro de Endereços Local">
+<!ENTITY addressingEnable.label "Livro de endereços local">
 <!ENTITY addressingEnable.accesskey "L">
-<!ENTITY directories.label "Servidor de Directoria:">
+<!ENTITY directories.label "Servidor de directoria:">
 <!ENTITY directories.accesskey "D">
 <!ENTITY directoriesNone.label "None">
-<!ENTITY editDirectories.label "Editar Directorias...">
+<!ENTITY editDirectories.label "Editar directorias...">
 <!ENTITY editDirectories.accesskey "E">
 
 <!ENTITY sendOptionsDescription.label "Configurar o comportamento do formato de texto.">

@@ -18,8 +18,8 @@
 <!ENTITY biffStart.label "Kontrollo për mesazhe të rinj çdo ">
 <!ENTITY biffStart.accesskey "k">
 <!ENTITY biffEnd.label "minuta">
-<!ENTITY useSecAuth.label "Përdor mirëfilltësim të sigurt">
-<!ENTITY useSecAuth.accesskey "g">
+<!ENTITY authMethod.label "Metodë mirëfilltësimi:">
+<!ENTITY authMethod.accesskey "m">
 <!ENTITY leaveOnServer.label "Lëri mesazhet në shërbyes">
 <!ENTITY leaveOnServer.accesskey "n">
 <!ENTITY headersOnly.label "Sill vetëm titujt">
@@ -30,7 +30,7 @@
 <!ENTITY deleteOnServer2.label "Derisa t'i fshij ata">
 <!ENTITY deleteOnServer2.accesskey "d">
 <!ENTITY downloadOnBiff.label "Shkarko mesazhe të rinj vetvetiu">
-<!ENTITY downloadOnBiff.accesskey "m">
+<!ENTITY downloadOnBiff.accesskey "k">
 
 <!ENTITY username.label "Emri Juaj për Hyrje">
 <!ENTITY deleteMessagePrefix.label "Kur fshij një mesazh:">
@@ -62,8 +62,8 @@
 <!ENTITY abbreviateOn.label "Emra të plotë (Për shembull, 'netscape.public.mozilla.mail-news')">
 <!ENTITY abbreviateOff.label "Emra të shkurtuar (Për shembull, 'n.p.m.mail-news')">
 <!ENTITY advancedButton.label "Të mëtejshëm…">
+<!ENTITY advancedButton.accesskey "m">
 <!ENTITY serverDefaultCharset.label "Kodim Parazgjedhje Shkronjash:">
-<!ENTITY advancedButton.accesskey "K">
 <!ENTITY localFolderPicker.label "Përzgjidhni Drejtori Vendore">
 <!ENTITY browseFolder.label "Shfletoni…">
 <!ENTITY browseFolder.accesskey "S">

@@ -6,7 +6,7 @@
 <!ENTITY mainWindow.titlemodifier "&brandFullName;">
 <!-- LOCALIZATION NOTE (mainWindow.titlemodifierseparator) : DONT_TRANSLATE -->
 <!ENTITY mainWindow.titlemodifierseparator " - ">
-<!ENTITY mainWindow.preface "Frumkóði fyrir: ">
+<!ENTITY mainWindow.preface "Upprunalega frá: ">
 <!ENTITY fileMenu.label "Skrá">
 <!ENTITY fileMenu.accesskey "S">
 <!ENTITY savePageCmd.label "Vista síðu sem…">

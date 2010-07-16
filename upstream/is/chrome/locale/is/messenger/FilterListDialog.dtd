@@ -1,6 +1,6 @@
 <!ENTITY window.title "Póstsíur">
-<!ENTITY nameColumn.label "Síunafn">
-<!ENTITY activeColumn.label "Virkt">
+<!ENTITY nameColumn.label "Nafn síu">
+<!ENTITY activeColumn.label "Virk">
 <!ENTITY newButton.label "Ný…">
 <!ENTITY newButton.accesskey "N">
 <!ENTITY editButton.label "Breyta…">

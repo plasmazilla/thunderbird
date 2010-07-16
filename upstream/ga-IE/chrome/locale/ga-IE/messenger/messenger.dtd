@@ -132,8 +132,8 @@
 
 <!ENTITY folderView.label "Fillteáin">
 <!ENTITY folderView.accesskey "F">
-<!ENTITY smartFolders.label "Cliste">
-<!ENTITY smartFolders.accesskey "S">
+<!ENTITY unifiedFolders.label "Aontaithe">
+<!ENTITY unifiedFolders.accesskey "n">
 <!ENTITY allFolders.label "Uile">
 <!ENTITY allFolders.accesskey "U">
 <!ENTITY unreadFolders.label "Neamhléite">
@@ -418,6 +418,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "Oscail Teachtaireacht">
 <!ENTITY openMessageWindowCmd.accesskey "O">
 <!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openConversationCmd.label "Oscail i gComhrá">
+<!ENTITY openConversationCmd.accesskey "s">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Oscail an Teachtaireacht Fhotha">
 <!ENTITY openFeedMessage.accesskey "O">
 <!ENTITY openFeedWebPageInWindow.label "Leathanach Gréasáin i bhFuinneog Nua">
@@ -442,6 +445,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "B">
 <!ENTITY activitymanager.label "Bainisteoir Gníomhaíochta">
 <!ENTITY activitymanager.accesskey "m">
+<!ENTITY savedFiles.label "Comhaid Shábháilte">
+<!ENTITY savedFiles.accesskey "l">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Scagairí Teachtaireachta…">
 <!ENTITY filtersCmd.accesskey "S">
 <!ENTITY filtersApply.label "Rith Scagairí ar an Fhillteán">
@@ -605,7 +611,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY attachmentColumn.label "Iatáin">
 <!-- Thread Pane Tooltips -->
 
-<!ENTITY columnChooser.tooltip "Cliceáil chun colúin a roghnú le cur ar taispeáin">
+<!ENTITY columnChooser.tooltip "Cliceáil chun colúin a roghnú le cur ar taispeáint">
 <!ENTITY threadColumn.tooltip "Cliceáil chun snáitheanna na dteachtaireachtaí a thaispeáint">
 <!ENTITY fromColumn.tooltip "Cliceáil chun sórtáil de réir Ó">
 <!ENTITY recipientColumn.tooltip "Cliceáil chun sórtáil de réir faighteora">
@@ -630,7 +636,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.label "Oscail Teachtaireacht i bhFuinneog Nua">
 <!ENTITY contextOpenNewWindow.accesskey "T">
 <!ENTITY contextOpenNewTab.label "Oscail Teachtaireacht i gCluaisín Nua">
-<!ENTITY contextOpenNewTab.accesskey "T">
+<!ENTITY contextOpenNewTab.accesskey "C">
+<!ENTITY contextOpenConversation.label "Oscail Teachtaireacht i gComhrá">
+<!ENTITY contextOpenConversation.accesskey "r">
 <!ENTITY contextEditAsNew.label "Cuir in Eagar mar Nua…">
 <!ENTITY contextEditAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Cuir sa chartlann">
@@ -659,7 +667,54 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrint.accesskey "P">
 <!ENTITY contextPrintPreview.label "Réamhamharc Priontála">
 <!ENTITY contextPrintPreview.accesskey "r">
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+
+<!ENTITY columnPicker.resetToInbox.label "Fill ar cholúin réamhshocraithe">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Cuir colúin i bhfeidhm ar…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "Fillteán…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Fillteán agus fofhillteáin…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "An fillteán seo">
 <!-- Media (video/audio) controls -->
+
 
 <!ENTITY contextPlay.label "Seinn">
 <!ENTITY contextPlay.accesskey "S">
@@ -683,13 +738,40 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY phishingBarMessage2.label "Meastar gur camscéim í an teachtaireacht seo.">
 <!ENTITY removePhishingBarButton1.label "Tabhair neamhaird ar rabhadh">
 <!ENTITY reportPhishingError1.label "Ní camscéim ríomhphoist é seo.">
-<!-- Message Header Button Box (to show hidden email addresses) -->
+<!-- MDN Bar -->
 
-<!ENTITY more.label "tuilleadh">
+<!ENTITY mdnBarMessage.label "D'iarr seoltóir na teachtaireachta seo go seolfaí fógra chuige nuair a léifidh tú an teachtaireacht. An bhfuil fonn ort fógra a thabhairt don seoltóir?">
+<!ENTITY mdnBarIgnoreButton.label "Déan Neamhaird De">
+<!ENTITY mdnBarSendButton.label "Seol Admháil Léite">
 <!-- Quick Search Bar -->
+<!-- LOCALIZATION NOTE (quickSearchCmd.key):
+     This is actually the key used for the global message search box; we have
+     not changed 
+     -->
 
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Cuardaigh gach teachtaireacht">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Cuardaigh gach teachtaireacht… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 <!-- Message Header Context Menu -->
 
 <!ENTITY AddToAddressBook.label "Cuir sa Leabhar Seoltaí…">
@@ -730,8 +812,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "U">
 <!ENTITY copyLinkCmd.label "Cóipeáil Suíomh an Naisc">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY copyImageCmd.label "Cóipeáil Suíomh na hÍomhá">
-<!ENTITY copyImageCmd.accesskey "I">
+<!ENTITY copyImageAllCmd.label "Cóipeáil an Íomhá">
+<!ENTITY copyImageAllCmd.accesskey "I">
 <!ENTITY copyEmailCmd.label "Cóipeáil an Seoladh Ríomhphoist">
 <!ENTITY copyEmailCmd.accesskey "E">
 <!ENTITY stopCmd.label "Stad">

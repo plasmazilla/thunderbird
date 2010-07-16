@@ -15,4 +15,18 @@
 <!ENTITY pluginWizard.firstPage.title "Mirë se vini te &pluginWizard.title;">
 <!ENTITY missingPlugin.label                                 "Për shkarkimin e shtojcës, klikoni këtu.">
 <!ENTITY disabledPlugin.label                                "Shtojca për këtë përmbajtje është e çaktivizuar. Për administrimin e shtojcave tuaja, klikoni këtu.">
-<!ENTITY blockedPlugin.label                                 "Kjo shtojcë është bblokuar, me qëllim mbrojtjen tuaj.">
+<!ENTITY blockedPlugin.label                                 "Kjo shtojcë është bllokuar, me qëllim mbrojtjen tuaj.">
+<!-- LOCALIZATION NOTE (reloadPlugin.pre): include a trailing space as needed -->
+<!-- LOCALIZATION NOTE (reloadPlugin.middle): avoid leading/trailing spaces, this text is a link -->
+<!-- LOCALIZATION NOTE (reloadPlugin.post): include a starting space as needed -->
+<!ENTITY reloadPlugin.pre                                    "">
+<!ENTITY reloadPlugin.middle                                 "Ringarkoje faqen">
+<!ENTITY reloadPlugin.post                                   " të riprovojë.">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Dërgo njoftim vithisje">
+<!ENTITY report.submitting                                   "Po dërgohet njoftimi…">
+<!ENTITY report.submitted                                    "Njoftimi i vithisjes u dërgua.">
+<!ENTITY report.disabled                                     "Noftimi i vithisjeve është çaktivizuar.">
+<!ENTITY report.failed                                       "Parashtrimi dështoi.">
+<!ENTITY report.unavailable                                  "Nuk njoftim.">
+

@@ -6,5 +6,5 @@
 <!ENTITY checkbox.label   "සළකුණු කරන්න"> 
 <!ENTITY copyCmd.label    "පිටපත් කරන්න">
 <!ENTITY copyCmd.accesskey "C">
-<!ENTITY selectAllCmd.label "සියල්ල තෝරන්න">
+<!ENTITY selectAllCmd.label "සිල්ල තෝරන්න">
 <!ENTITY selectAllCmd.accesskey "A">

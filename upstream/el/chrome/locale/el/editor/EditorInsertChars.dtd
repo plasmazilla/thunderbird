@@ -20,6 +20,7 @@
    - the Initial Developer. All Rights Reserved.
    -
    - Contributor(s):
+   -   
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -34,19 +35,16 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
-<!-- Window title -->
-
-
 <!ENTITY windowTitle.label "Εισαγωγή χαρακτήρα">
 <!ENTITY category.label "Κατηγορία">
 <!ENTITY letter.label "Γράμμα:">
 <!ENTITY letter.accessKey "Γ">
 <!ENTITY character.label "Χαρακτήρας">
 <!ENTITY character.accessKey "Χ">
-<!ENTITY accentUpper.label "Accent Uppercase">
-<!ENTITY accentLower.label "Accent Lowercase">
-<!ENTITY otherUpper.label "Άλλα Κεφαλαία">
-<!ENTITY otherLower.label "Άλλα Πεζά">
-<!ENTITY commonSymbols.label "Κοινά Σύμβολα">
+<!ENTITY accentUpper.label "Τονισμένο κεφαλαίο">
+<!ENTITY accentLower.label "Τονισμένο πεζό">
+<!ENTITY otherUpper.label "Άλλα κεφαλαία">
+<!ENTITY otherLower.label "Άλλα πεζά">
+<!ENTITY commonSymbols.label "Κοινά σύμβολα">
 <!ENTITY insertButton.label "Εισαγωγή">
 <!ENTITY closeButton.label "Κλείσιμο">

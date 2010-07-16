@@ -13,7 +13,7 @@
 <!ENTITY profileCreationIntro.text "إذا أنشأت عدّة ملفّات شخصيّة، يمكنك التّمييز بينها من خلال اسم الملفّ الشّخصي. يمكنك استخدام الاسم المزود هنا أو اسم من عندك.">
 <!ENTITY profilePrompt.label "أدخل اسم الملف الشخصي الجديد:">
 <!ENTITY profilePrompt.accesskey "س">
-<!ENTITY profileDirectoryExplanation.text "إعدادات المستخدم الخاصة بك، وتفضيلاتك وغير ذلك من البيانات المتعلقة بالمستخدم سيتم تخزينها في:">
+<!ENTITY profileDirectoryExplanation.text "إعدادات المستخدم الخاصة بك، وتفضيلاتك وغير ذلك من البيانات المتعلقة بالمستخدم ستُخزّن في:">
 <!ENTITY profileDefaultName "المستخدم المبدئي">
 <!ENTITY button.choosefolder.label "اختر مجلدا…">
 <!ENTITY button.choosefolder.accesskey "خ">

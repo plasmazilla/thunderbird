@@ -1,114 +1,89 @@
-<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the
-Migration Assistant page. It should match featureConfiguratorCmd.label in
-baseMenuOverlay.dtd -->
-<!ENTITY featureConfigurator.title "ਮਾਈਗਰੇਟ ਸਹਾਇਕ">
+<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the Migration Assistant page. It should match featureConfiguratorCmd.label in baseMenuOverlay.dtd -->
+<!ENTITY featureConfigurator.title "ਮਾਈਗਰੇਸ਼ਨ ਸਹਾਇਕ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
-<!ENTITY featureConfigurator.heading "ਥੰਡਰਬਰਡ ੩ ਫੀਚਰ, ਜਿਸ ਬਾਰੇ ਜਾਣਨਾ ਬਹੁਤ ਵਧੀਆ ਰਹੇਗਾ">
+<!-- LOCALIZATION NOTE (featureConfigurator.heading1): Heading for the page -->
+<!ENTITY featureConfigurator.heading1 "ਨਵੇਂ &brandShortName; ਫੀਚਰ, ਜਿੰਨ੍ਹਾਂ ਨੂੰ ਤੁਸੀਂ ਜਾਣਨਾ ਚਾਹੁੰਦੇ ਹੋ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
-is important: we tried for a tone that promotes the new features (which we
-believe are good and worth users learning about), but also emphasizing that we
-think it's important to preserve user choice. -->
-<!ENTITY featureConfigurator.para1 "ਥੰਡਰਬਰਡ ੩ ਵਿੱਚ ਬਹੁਤ ਹੀ ਤਾਕਤਵਰ ਨਵੇਂ ਫੀਚਰ ਹਨ, ਜਿੰਨ੍ਹਾਂ ਉੱਤੇ ਸਾਨੂੰ ਮਾਣ ਹੈ ਅਤੇ ਉਮੀਦ ਹੈ ਕਿ ਬਹੁਤੇ ਲੋਕ ਪਸੰਦ ਕਰਨਗੇ। ਲੋਕਾਂ ਦੀ ਪਸੰਦ ਅਤੇ ਲੋੜਾਂ ਅੱਡ ਅੱਡ ਹੁੰਦੀਆਂ ਨੇ, ਅਸੀਂ ਥੰਡਰਬਰਡ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨਾ ਅਤੇ ਕਸਟਮਾਈਜ਼ ਕਰਨਾ ਸੌਖਾ ਬਣਾਇਆ ਹੈ।">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.1): The tone of this paragraph is important: we tried for a tone that promotes the new features (which we believe are good and worth users learning about), but also emphasizing that we think it's important to preserve user choice. -->
+<!ENTITY featureConfigurator.para.1 "This new version of &brandShortName; includes powerful new features which we're quite proud of, and think most people will love. People's tastes and needs vary, so we made it easy to control and customize &brandShortName;.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
-that this page is active (the buttons change the UI), and that they can get
-back to it if they change their mind later.-->
-<!ENTITY featureConfigurator.para2 "ਇਹ ਨਵੀਂ ਸੈਟਿੰਗ ਦੀ ਸੰਰਚਨਾ ਲਈ ਇਹ ਪੇਜ਼ ਵਰਤੋਂ। ਤੁਸੀਂ ਬਾਅਦ ਵਿੱਚ ਵੀ ਮੱਦਦ ਮੇਨੂ ਵਿੱਚ ਮਾਈਗਰੇਸ਼ਨ ਸਹਾਇਕ ਨੂੰ ਖੋਲ ਸਕਦੇ ਹੋ।">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.2): This paragraph explains that this page is active (the buttons change the UI), and that they can get back to it if they change their mind later.-->
+<!ENTITY featureConfigurator.para.2 "Use this page to configure these new settings. You can always get back to the Migration Assistant from the Help menu.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.imap.heading): Heading for the
-IMAP synchronization feature. The words should probably echo the word used
-in the per-account dialog.-->
-<!ENTITY featureConfigurator.imap.heading "IMAP ਸੁਨੇਹੇ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
+<!ENTITY featureConfigurator.toolbar.heading "New Message Toolbar">
+<!ENTITY featureConfigurator.toolbar.new "Message Buttons Toolbar">
+<!ENTITY featureConfigurator.toolbar.new.status.explanation "A clean toolbar with all your messaging buttons at your fingertips.">
 
-<!ENTITY featureConfigurator.imap.status.all "All of your IMAP folders are set to &quot;synchronize&quot;.">
+<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original.status): The word 'original' is chosen deliberately to be neutral, vs. 'old' which in English at least had a negative connotation.-->
+<!ENTITY featureConfigurator.toolbar.original "Keep your original Toolbar buttons">
+<!ENTITY featureConfigurator.toolbar.original.status.explanation "Keep any custom toolbar buttons in addition to the new Message Buttons.">
 
-<!ENTITY featureConfigurator.imap.status.none "None of your IMAP folders are set to &quot;synchronize&quot;.">
+<!ENTITY featureConfigurator.toolbarBenefits.para "Message actions such as reply and forward have moved from the toolbar and onto the message header itself. This ties the action buttons directly to the message, which leaves more room in the toolbar for the richer search textbox, as well as add-ons.">
 
-<!ENTITY featureConfigurator.imap.status.some "Some of your IMAP folders are set to &quot;synchronize&quot;.">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installing): The text to display while installing the addon. -->
+<!ENTITY featureConfigurator.addOn.installing "ਇੰਸਟਾਲ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.benefits.label): The heading here
-is intended to explain why we've implemented this and picked it as a default.-->
-<!ENTITY featureConfigurator.benefits.label "ਫਾਇਦੇ">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installed): The text to display after the user installs the addon from the configurator. -->
+<!ENTITY featureConfigurator.addOn.installed "ਇੰਸਟਾਲ ਹੈ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.alternative.label): The heading here
-is intended to explain why it might not be the right default for some users.-->
-<!ENTITY featureConfigurator.alternative.label "ਬਦਲ">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.alreadyInstalled): The label to display when the addon is already installed. -->
+<!ENTITY featureConfigurator.addOn.alreadyInstalled "ਇਹ ਇਕਸਟੈਨਸ਼ਨ ਪਹਿਲਾਂ ਹੀ ਇੰਸਟਾਲ ਹੈ।">
 
-<!ENTITY featureConfigurator.syncBenefits.para "Lets you read your mail when you're not connected to the internet, and lets you find messages based on the words they contain, not just the subjects and names.">
-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird will download all your mail onto this computer. Turn it off if you're low on disk space, or you have to pay for network traffic.">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.heading): The heading for the Compact Header page. -->
+<!ENTITY featureConfigurator.collapsedHeaders.heading "Compact Header">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
-<!ENTITY featureConfigurator.syncAll.button "ਸਭ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.weak): The paragraph to display if the user hadn't previously used the collapsed headers feature. -->
+<!ENTITY featureConfigurator.collapsedHeaders.para.weak "The compact message reader view has been moved into its own extension where it is now getting much more attention and options.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.syncNone.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
-<!ENTITY featureConfigurator.syncNone.button "ਕੋਈ ਵੀ ਸੈਕਰੋਨਾਈਜ਼ ਨਾ ਕਰੋ">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.strong): The paragraph to display if the user had previously used the collapsed headers feature. -->
+<!ENTITY featureConfigurator.collapsedHeaders.para.strong "We noticed that you were using the compact message reader header.  This function has moved into its own extension and we recommend you install it here if you would like to continue using it.">
 
-<!ENTITY featureConfigurator.advancedUsers.label "ਮਾਹਰ ਯੂਜ਼ਰ:">
-<!ENTITY featureConfigurator.advancedUsers.para "ਤੁਸੀਂ ਹਰ ਅਕਾਊਂਟ ਅਤੇ ਹਰ ਫੋਲਡਰ ਲਈ ਵੀ ਕਸਟਮਾਈਜ਼ ਕਰ ਸਕਦੇ ਹੋ:">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.install): The text for the button that will install the Compact Headers addon. -->
+<!ENTITY featureConfigurator.collapsedHeaders.install "Install Compact Header…">
 
-<!ENTITY featureConfigurator.toolbar.heading "ਨਵੀਂ ਟੂਲਬਾਰ">
-<!ENTITY featureConfigurator.toolbar.new.status "ਨਵੀਂ ਟੂਲਬਾਰ ਦੀ ਵਰਤੋਂ ਕਰਕੇ">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.heading): The heading for the Folder Columns page. -->
+<!ENTITY featureConfigurator.folderColumns.heading "Advanced Folder Columns">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original.status): The
-word 'original' is chosen deliberately to be neutral, vs. 'old' which in
-English at least had a negative connotation.-->
-<!ENTITY featureConfigurator.toolbar.original.status "ਅਸਲੀ ਟੂਲਬਾਰ ਦੀ ਵਰਤੋਂ।">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.weak): The paragraph to display if the user hadn't previously used the folder columns feature. -->
+<!ENTITY featureConfigurator.folderColumns.para.weak "The Extra Folder Columns extension replaces what was initially an advanced preference.  To keep tabs on the exact count of messages and disk space each folder is using you'll want to install this extension.">
 
-<!ENTITY featureConfigurator.toolbarBenefits.para "ਸਾਫ਼ ਇੰਟਰਫੇਸ, ਜੋ ਕਿ ਪਿਛਲੇ ਡਿਫਾਲਟ ਦੀ ਬਜਾਏ ਵੱੱਧ ਥਾਂ ਦਿੰਦਾ ਹੈ, ਜਿਸ ਨਾਲ ਖੋਜ ਟੈਕਸਟ ਬਾਕਸ ਲਈ ਹੋਰ ਥਾਂ ਹੈ, ਨਾਲ ਹੀ ਨਾਲ ਐਡ-ਆਨ ਲਈ ਵੀ।">
-<!ENTITY featureConfigurator.toolbarAlternative.para "If you like the old toolbar configuration better, you don't want to re-customize it, or you don't use the message pane in your layout.">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.strong): The paragraph to display if the user had previously used the folder columns feature. -->
+<!ENTITY featureConfigurator.folderColumns.para.strong "We noticed that you were using the Advanced Folder columns.  This feature has moved into its own extension, and we recommend you install here.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.useOriginalToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useOriginalToolbar.button "ਅਸਲੀ ਟੂਲਬਾਰ ਵਰਤੋਂ">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.install): The text for the button that will install the Extra Folder Columns addon. -->
+<!ENTITY featureConfigurator.folderColumns.install "ਵਾਧੂ ਕਾਲਮ ਇੰਸਟਾਲ ਕਰੋ…">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.useNewToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useNewToolbar.button "ਨਵੀਂ ਟੂਲਬਾਰ ਵਰਤੋਂ">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.heading): The heading for the Disk space page. -->
+<!ENTITY featureConfigurator.autoSync.heading "ਡਿਸਕ ਥਾਂ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.heading): The
-words here should echo the name of the mode shown in the folder pane.-->
-<!ENTITY featureConfigurator.smartFolders.heading "ਸਮਾਰਟ ਫੋਲਡਰ ਮੋਡ">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.para): The paragraph that explains why the user would want to turn on autosync. -->
+<!ENTITY featureConfigurator.autoSync.para "This new version of &brandShortName; comes with a new and better search functionality.  To experience this new search you'll need to synchronize your email messages.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.smart.status): This
-shows that the current mode in the folder pane is the Smart Folders mode.-->
-<!ENTITY featureConfigurator.smartFolders.smart.status "&quot;smart folders&quot; ਮੋਡ ਦੀ ਵਰਤੋਂ।">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.on): The label for the radio button for synchronizing all the accounts. -->
+<!ENTITY featureConfigurator.autoSync.on "ਸੈਕਰੋਨਾਈਜ਼">
+<!ENTITY featureConfigurator.autoSync.on.explanation "You'll see faster message loading and better search results.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.all.status): This
-shows that the current mode in the folder pane is not the Smart Folders mode.-->
-<!ENTITY featureConfigurator.smartFolders.all.status "&quot;smart folders&quot; ਮੋਡ ਦੀ ਵਰਤੋਂ ਨਾ ਕਰਕੇ">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.off): The label for the radio button that will synchronize none of the accounts. -->
+<!ENTITY featureConfigurator.autoSync.off "ਸੈਕਰੋਨਾਈਜ਼ ਨਾ ਕਰੋ">
+<!ENTITY featureConfigurator.autoSync.off.explanation "This will mean slower message loading and incomplete search results.">
 
-<!ENTITY featureConfigurator.smartFolderBenefits.para "ਕਈ ਅਕਾਊਂਟ ਰੱਖਣ ਵਾਲੇ ਯੂਜ਼ਰਾਂ ਲਈ ਇਹ ਝਲਕ ਫੋਲਡਰਾਂ ਨੂੰ ਇਨ-ਬਾਕਸ ਵਿੱਚ ਇੱਕਠੇ ਵੇਖਾਉਂਦਾ ਹੈ, ਇਸ ਨਾਲ ਤੁਸੀਂ ਆਪਣੇ ਸਭ ਮੇਲਾਂ ਲਈ ਝਲਕ ਇੱਕਠੀ ਵੇਖ ਸਕਦੇ ਹੋ।">
-<!ENTITY featureConfigurator.smartFolderAlternative.para "If you like splitting information across accounts then you'll prefer the &quot;All Folders&quot; mode.">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.some): The label for the radio button that will let you customize the synchronize for each account. -->
+<!ENTITY featureConfigurator.autoSync.some "Per Account Synchronization">
+<!ENTITY featureConfigurator.autoSync.some.explanation "Customize your synchronization needs per account and folder.">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.useSmartFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useSmartFolders.button "&quot;smart folders&quot; ਮੋਡ ਵਰਤੋਂ">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.currentSize): The label for the current amount of disk space your accounts are consuming. -->
+<!ENTITY featureConfigurator.diskSpace.currentSize "ਤੁਹਾਡੀ ਮੌਜੂਦਾ ਕੁੱਲ ਈਮੇਲ ਵਰਤੋਂ:">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.useAllFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
-<!ENTITY featureConfigurator.useAllFolders.button "&quot;ਸਭ ਫੋਲਡਰ (all folders)&quot; ਮੋਡ ਵਰਤੋਂ">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.freeSpace): The label for the current amount of free space available on your hard disk. -->
+<!ENTITY featureConfigurator.diskSpace.freeSpace "ਖਾਲੀ ਥਾਂ:">
 
-<!ENTITY featureConfigurator.collapsedHeaders.heading "ਹੈੱਡਰ ਸਮੇਟੇ">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.requireSpace): The label for the required amount of free space to synchronize all of your IMAP accounts. -->
+<!ENTITY featureConfigurator.diskSpace.requireSpace "ਲੋੜੀਦੀ:">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
-of the paragraph before the beginning of the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 has improved the detailed message header view, including buttons for message-related actions. There are alternative designs available as ">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.warning): The label shown when your estimated available hard disk space if you chose autosync would be less than 50MB or if we estimate turning on autosync would use more than 50% of your free space. -->
+<!ENTITY featureConfigurator.diskSpace.warning "ਤੁਹਾਡੇ ਕੋਲ ਘੱਟ ਖਾਲੀ ਥਾਂ ਹੈ!">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
-the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaLinkName "ਐਡ-ਆਨ">
 
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaAfterLink): The part of
-the paragraph after the link to the AMO search page.-->
-<!ENTITY featureConfigurator.headerParaAfterLink ".">
-
+<!ENTITY featureConfigurator.previousButton "ਪਿੱਛੇ">
+<!ENTITY featureConfigurator.nextButton "ਅੱਗੇ">
+<!ENTITY featureConfigurator.closeButton "ਬੰਦ ਕਰੋ">

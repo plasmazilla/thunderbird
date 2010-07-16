@@ -64,7 +64,7 @@
 <!ENTITY smiley8Cmd.tooltip "Setja inn undrandi andlit">
 <!ENTITY smiley9Cmd.label "Kyssa">
 <!ENTITY smiley9Cmd.accesskey "K">
-<!ENTITY smiley9Cmd.tooltip "Setja inn kissandi andlit">
+<!ENTITY smiley9Cmd.tooltip "Setja inn kyssandi andlit">
 <!ENTITY smiley10Cmd.label "Öskra">
 <!ENTITY smiley10Cmd.accesskey "Ö">
 <!ENTITY smiley10Cmd.tooltip "Setja inn öskrandi andlit">

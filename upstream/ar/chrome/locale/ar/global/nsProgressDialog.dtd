@@ -55,7 +55,7 @@
 <!-- This is used when the download percentage is unknown -->
 
 <!ENTITY unknownSavingTitle "يحفظ #1">
-<!ENTITY unknownOpeningTitle "يجري فتح #1">
+<!ENTITY unknownOpeningTitle "يفتح #1">
 <!-- Labels on other fields -->
 
 <!ENTITY status "الحالة:">

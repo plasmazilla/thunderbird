@@ -22,13 +22,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "V">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Vind bywerkings vir u byvoegings">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Vind bywerkings vir u temas">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Vind bywerkings vir u inproppe">
 <!ENTITY cmd.installLocalFile.label "Installeer…">
 <!ENTITY cmd.installLocalFile.accesskey "n">
 <!ENTITY cmd.installFileAddon.tooltip "Installeer 'n byvoegings">
 <!ENTITY cmd.installFileTheme.tooltip "Installeer 'n tema">
-<!ENTITY cmd.installUpdatesAll.label "Installeer bywerkings">
-<!ENTITY cmd.installUpdatesAll.accesskey "I">
-<!ENTITY cmd.installUpdatesAll.tooltip "Installeer die gekose bywerkings">
+<!ENTITY cmd.installUpdatesAll2.label "Installeer bywerkings">
+<!ENTITY cmd.installUpdatesAll2.accesskey "I">
+<!ENTITY cmd.installUpdatesAll2.tooltip "Installeer die gekose bywerkings">
 <!ENTITY cmd.restartApp2.label "Herbegin &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "H">
 <!ENTITY cmd.restartApp2.tooltip "Herbegin &brandShortName; om veranderinge toe te pas">
@@ -54,7 +55,7 @@
 <!ENTITY cmd.options.accesskey "O">
 <!ENTITY cmd.options.tooltip "Stel opsies vir die geselekteerde uitbreiding">
 <!ENTITY cmd.optionsUnix.label "Voorkeure">
-<!ENTITY cmd.optionsUnix.accesskey "r">
+<!ENTITY cmd.optionsUnix.accesskey "V">
 <!ENTITY cmd.optionsUnix.tooltip "Wysig voorkeure vir die geselekteerde uitbreiding">
 <!ENTITY cmd.enable.label "Aktiveer">
 <!ENTITY cmd.enable.accesskey "A">
@@ -113,6 +114,7 @@
 <!ENTITY needsDependencies.label "Vereis bykomende items.">
 <!ENTITY blocklisted.label "Gedeaktiveer vir u beskerming.">
 <!ENTITY softBlocklisted.label "Het vantevore sekuriteit- of stabiliteitprobleme opgelewer.">
+<!ENTITY outdated.label "'n Nuwer, veiliger weergawe is beskikbaar.">
 <!ENTITY toBeDisabled.label "Hierdie byvoeging sal gedeaktiveer word wanneer &brandShortName; herbegin word.">
 <!ENTITY toBeEnabled.label "Hierdie byvoeging sal geaktiveer word wanneer &brandShortName; herbegin word.">
 <!ENTITY toBeInstalled.label "Hierdie byvoeging sal geïnstalleer word wanneer &brandShortName; herbegin word.">
@@ -127,7 +129,7 @@
 <!ENTITY browseAddons.label "Blaai deur alle byvoegings">
 <!ENTITY searchFailed.label "&brandShortName; kon nie byvoegings verkry nie">
 <!ENTITY recommendedHeader.label "Aanbeveel">
-<!ENTITY recommendedThrobber.label "Verkry aanbevole byvoegings">
+<!ENTITY recommendedThrobber.label "Verkry tans aanbevole byvoegings">
 <!ENTITY searchThrobber.label "Deursoek tans byvoegings">
 <!ENTITY resetSearch.label "Maak resultate skoon">
 <!ENTITY noSearchResults.label "Alle resultate is reeds geïnstalleer of is onversoenbaar.">

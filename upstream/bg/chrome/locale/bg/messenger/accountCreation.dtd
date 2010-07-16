@@ -22,6 +22,9 @@
 <!ENTITY imap.label "IMAP">
 <!ENTITY pop.label "POP">
 <!ENTITY smtp.label "SMTP">
+<!ENTITY imap.description "IMAP - достъп до папки и писма от много компютри">
+<!ENTITY pop.description "POP - изтегляне на всички писма на този компютър, папките са само местни">
+<!ENTITY recommended-appendix.label "(препоръчително)">
 
 <!ENTITY manualSetup.label "Ръчна настройка…">
 <!ENTITY manualSetup.accesskey "н">

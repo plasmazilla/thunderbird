@@ -47,7 +47,7 @@
 <!ENTITY caseSensitiveCheckbox.accesskey "P">
 <!ENTITY wrapCheckbox.label "Fara hring">
 <!ENTITY wrapCheckbox.accesskey "h">
-<!ENTITY backwardsCheckbox.label "Leita afturábak">
+<!ENTITY backwardsCheckbox.label "Leita aftur á bak">
 <!ENTITY backwardsCheckbox.accesskey "b">
 <!ENTITY findNextButton.label "Leita að næsta">
 <!ENTITY findNextButton.accesskey "L">

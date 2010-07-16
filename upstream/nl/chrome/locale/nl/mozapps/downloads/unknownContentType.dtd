@@ -12,7 +12,7 @@
 <!ENTITY saveFile.label             "Bestand opslaan">
 <!ENTITY saveFile.accesskey         "s">
 
-<!ENTITY rememberChoice.label       "Dit vanaf nu automatisch doen voor dit type bestanden.">
+<!ENTITY rememberChoice.label       "Dit vanaf nu automatisch doen voor dit type bestanden">
 <!ENTITY rememberChoice.accesskey   "a">
 
 <!ENTITY whichIsA.label             "Dit is een:">

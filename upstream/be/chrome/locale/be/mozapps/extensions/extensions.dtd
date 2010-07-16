@@ -15,13 +15,14 @@
 <!ENTITY cmd.checkUpdatesAll.accesskey "З">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Знайсці абнаўленні вашых дадаткаў">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Знайсці абнаўленні вашых тэмаў">
+<!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Знайсці абнаўленні вашых убудоваў">
 <!ENTITY cmd.installLocalFile.label "Усталяваць…">
 <!ENTITY cmd.installLocalFile.accesskey "с">
 <!ENTITY cmd.installFileAddon.tooltip "Усталяваць дадатак">
 <!ENTITY cmd.installFileTheme.tooltip "Усталяваць тэму">
-<!ENTITY cmd.installUpdatesAll.label "Усталяваць абнаўленні">
-<!ENTITY cmd.installUpdatesAll.accesskey "У">
-<!ENTITY cmd.installUpdatesAll.tooltip "Усталяваць вылучаныя абнаўленні">
+<!ENTITY cmd.installUpdatesAll2.label "Усталяваць абнаўленні">
+<!ENTITY cmd.installUpdatesAll2.accesskey "У">
+<!ENTITY cmd.installUpdatesAll2.tooltip "Усталяваць вылучаныя абнаўленні">
 <!ENTITY cmd.restartApp2.label "Перазапусціць &brandShortName;">
 <!ENTITY cmd.restartApp2.accesskey "П">
 <!ENTITY cmd.restartApp2.tooltip "Перазапусціць &brandShortName;, каб ужыць змяненні">
@@ -97,6 +98,7 @@
 <!ENTITY needsDependencies.label "Патрабуюцца дадатковыя адзінкі">
 <!ENTITY blocklisted.label "Забаронена дзеля вашай аховы.">
 <!ENTITY softBlocklisted.label "Вядомы тым, што выклікае праблемы ўстойлівасці і бяспекі.">
+<!ENTITY outdated.label "Даступна навейшая і бяспечнейшая версія">
 <!ENTITY toBeDisabled.label "Гэты дадатак будзе забаронены падчас перазапуску &brandShortName;.">
 <!ENTITY toBeEnabled.label "Гэты дадатак будзе дазволены падчас перазапуску &brandShortName;.">
 <!ENTITY toBeInstalled.label "Гэты дадатак будзе ўсталяваны падчас перазапуску &brandShortName;.">

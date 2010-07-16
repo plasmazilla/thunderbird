@@ -131,9 +131,9 @@
 <!ENTITY showMessageCmd.accesskey "M">
 
 <!ENTITY folderView.label "Mapper">
-<!ENTITY folderView.accesskey "M">
-<!ENTITY smartFolders.label "Smart">
-<!ENTITY smartFolders.accesskey "S">
+<!ENTITY folderView.accesskey "p">
+<!ENTITY unifiedFolders.label "Samlede">
+<!ENTITY unifiedFolders.accesskey "S">
 <!ENTITY allFolders.label "Alle">
 <!ENTITY allFolders.accesskey "A">
 <!ENTITY unreadFolders.label "Ulæste">
@@ -260,7 +260,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fullZoom.accesskey             "Z">
 
 <!ENTITY pageSourceCmd.label "Kildekode">
-<!ENTITY pageSourceCmd.accesskey "K">
+<!ENTITY pageSourceCmd.accesskey "e">
 <!ENTITY pageSourceCmd.key "u">
 
 <!-- Search Menu -->
@@ -290,7 +290,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY nextMsgCmd.accesskey "M">
 <!ENTITY nextMsgCmd.key "f">
 <!ENTITY nextUnreadMsgCmd.label "Ulæste meddelelse">
-<!ENTITY nextUnreadMsgCmd.accesskey "U">
+<!ENTITY nextUnreadMsgCmd.accesskey "l">
 <!ENTITY nextUnreadMsgCmd.key "n">
 <!ENTITY nextStarredMsgCmd.label "Stjernemarkerede meddelelse">
 <!ENTITY nextStarredMsgCmd.accesskey "S">
@@ -416,14 +416,17 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY recalculateJunkScoreCmd.accesskey "F">
 <!ENTITY openMessageWindowCmd.label "Åbn meddelelse">
 <!ENTITY openMessageWindowCmd.accesskey "Å">
-<!ENTITY openMessageWindowCmd.key "o">
+<!ENTITY openMessageWindowCmd.key "Å">
+<!ENTITY openConversationCmd.label "Vis korrespondance i tråd">
+<!ENTITY openConversationCmd.accesskey "o">
+<!ENTITY openConversationCmd.key "o">
 <!ENTITY openFeedMessage.label "Åbn feed-meddelelse">
 <!ENTITY openFeedMessage.accesskey "b">
 <!ENTITY openFeedWebPageInWindow.label "Som hjemmeside i et nyt vindue">
 <!ENTITY openFeedWebPageInWindow.accesskey "h">
 <!ENTITY openFeedSummaryInWindow.label "Som sammendrag i et nyt vindue">
 <!ENTITY openFeedSummaryInWindow.accesskey "S">
-<!ENTITY openFeedWebPageInMP.label "Skift mellem hjemmeside og sammendrag i meddelelsesruden.">
+<!ENTITY openFeedWebPageInMP.label "Skift mellem hjemmeside og sammendrag i meddelelsesruden">
 <!ENTITY openFeedWebPageInMP.accesskey "k">
 
 <!-- Windows Menu -->
@@ -441,6 +444,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "T">
 <!ENTITY activitymanager.label "Aktivitet">
 <!ENTITY activitymanager.accesskey "v">
+<!ENTITY savedFiles.label "Gemte filer">
+<!ENTITY savedFiles.accesskey "G">
+<!ENTITY savedFiles.key "j">
 <!ENTITY filtersCmd.label "Meddelelsesfiltre…">
 <!ENTITY filtersCmd.accesskey "f">
 <!ENTITY filtersApply.label "Kør filtre på mappe">
@@ -630,6 +636,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewWindow.accesskey "n">
 <!ENTITY contextOpenNewTab.label "Åbn meddelelsen i et nyt faneblad">
 <!ENTITY contextOpenNewTab.accesskey "b">
+<!ENTITY contextOpenConversation.label "Åbn meddelelsen i korrespondancevisning">
+<!ENTITY contextOpenConversation.accesskey "Å">
 <!ENTITY contextEditAsNew.label "Rediger som ny…">
 <!ENTITY contextEditAsNew.accesskey "y">
 <!ENTITY contextArchive.label "Arkiver">
@@ -659,6 +667,53 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPrintPreview.label "Vis udskrift">
 <!ENTITY contextPrintPreview.accesskey "d">
 
+<!-- Thread Pane Column Picker -->
+<!-- LOCALIZATION NOTE (columnPicker.resetToInbox.label):
+   This option in the thread pane column picker causes us to reset the
+   customizations for the thread pane columns in this folder to their default.
+  -->
+<!ENTITY columnPicker.resetToInbox.label "Nulstil kolonner til standard">
+<!-- LOCALIZATION NOTE (columnPicker.applyTo.label):
+   This option in the thread pane column picker pops up a sub-menu containing
+   the "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" options.  This item indicates
+   a desire to apply the currently displayed set of columns to some other
+   folder(s).  The sub-menu items indicate whether we want to apply it to just
+   a folder or also its children.
+  -->
+<!ENTITY columnPicker.applyTo.label "Anvend kolonner i…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolder.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolderAndChildren.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a single folder
+   that the user selects using the same widget as the move to/copy to
+   mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolder.label "Mappe…">
+<!-- LOCALIZATION NOTE (columnPicker.applyToFolderAndChildren.label):
+   This option in the thread pane column picker is found on a sub-menu beneath
+   the "columnPicker.applyTo.label" alongside
+   "columnPicker.applyToFolder.label".  It indicates a desire to
+   apply the currently display thread pane column settings to a folder and all
+   of its descendents.  The user selects the folder using the same widget as the
+   move to/copy to mechanism (via a series of popups).
+  -->
+<!ENTITY columnPicker.applyToFolderAndChildren.label "Mappe og dens undermapper…">
+<!-- LOCALIZATION NOTE (columnPicker.thisFolder.label):
+   This is used in the folder selection widget for the
+   "columnPicker.applyToFolder.label" and
+   "columnPicker.applyToFolderAndChildren.label" menu options.  Whenever
+   a folder has children, it results in a menu popup; the first menu item
+   in that popup is given this label to indicate that that folder should be
+   selected.  For example, if folder "A" has two children, "B" and "C", then
+   when the user hovers over "A", a new popup menu will be displayed whose
+   items are "This folder", "B", and "C".  This is the equivalent of the
+   "File here" option for the move to/copy to widge.t
+  -->
+<!ENTITY columnPicker.thisFolder.label "Denne mappe">
+
+
 <!-- Media (video/audio) controls -->
 <!ENTITY contextPlay.label "Afspil">
 <!ENTITY contextPlay.accesskey "A">
@@ -683,12 +738,39 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY removePhishingBarButton1.label "Ikke-svindel">
 <!ENTITY reportPhishingError1.label "Denne meddelelse ser ikke ud til at være mailsvindel.">
 
-<!-- Message Header Button Box (to show hidden email addresses) -->
-<!ENTITY more.label "flere">
+<!-- MDN Bar -->
+<!ENTITY mdnBarMessage.label "Afsenderen af denne meddelelse har bedt om en kvittering, når du læser meddelelsen. Vil du sende en kvittering til afsenderen?">
+<!ENTITY mdnBarIgnoreButton.label "Send ikke kvittering">
+<!ENTITY mdnBarSendButton.label "Send kvittering">
 
 <!-- Quick Search Bar -->
+<!-- LOCALIZATION NOTE (quickSearchCmd.key):
+     This is actually the key used for the global message search box; we have
+     not changed 
+     -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY searchAllMessages.label "Søg i alle meddelelser">
+<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+     This is the base of the empty text for the global search box.  We replace
+     #1 with the contents of the appropriate
+     searchAllMessages.keyLabel2.* value for the platform.
+     The goal is to convey to the user that typing in the box will allow them
+     to search for messages globally and that there is a hotkey they can press
+     to get to the box faster.  If the global indexer is disabled, the search
+     box will be collapsed and the user will never see this message.
+     -->
+<!ENTITY searchAllMessages.label.base "Søg i alle meddelelser… #1">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+     The description of the key-binding to get into the global search box on
+     windows and linux (which use the control key).  We use the key defined in
+     the quickSearchCmd.key entity defined above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+     The description of the key-binding to get into the global search box on mac
+     systems.  We use the key defined in the quickSearchCmd.key entity defined
+     above, the letter should match it.
+     -->
+<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "Føj til adressebog…">
@@ -729,8 +811,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY selectAllCmd.accesskey "t">
 <!ENTITY copyLinkCmd.label "Kopier linkadresse">
 <!ENTITY copyLinkCmd.accesskey "o">
-<!ENTITY copyImageCmd.label "Kopier billedadresse">
-<!ENTITY copyImageCmd.accesskey "p">
+<!ENTITY copyImageAllCmd.label "Kopier billedadresse">
+<!ENTITY copyImageAllCmd.accesskey "p">
 <!ENTITY copyEmailCmd.label "Kopier mailadresse">
 <!ENTITY copyEmailCmd.accesskey "m">
 <!ENTITY stopCmd.label "Stop">
@@ -763,3 +845,5 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Vis alle">
+
+

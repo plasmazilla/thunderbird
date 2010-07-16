@@ -37,7 +37,7 @@
 
 
 <!-- Window title -->
-<!ENTITY windowTitle.label      "Konvertearje nei tabel">
+<!ENTITY windowTitle.label      "Konfertearje nei tabel">
 <!ENTITY instructions1.label    "Composer makket in nije tabelrige foar elke alinea yn de seleksje.">
 <!ENTITY instructions2.label    "Kies it teken dat brûkt wurdt om de seleksje yn kolommen te ferdielen:">
 <!ENTITY commaRadio.label       "Komma">
@@ -45,4 +45,4 @@
 <!ENTITY otherRadio.label       "Oar teken:">
 <!ENTITY deleteCharCheck.label  "Skiedingsteken fuortsmite">
 <!ENTITY collapseSpaces.label   "Ekstra spaasjes negearje">
-<!ENTITY collapseSpaces.tooltip "Mear spaasjes nei in skiedingsteken konvertearje">
+<!ENTITY collapseSpaces.tooltip "Mear spaasjes nei in skiedingsteken konfertearje">

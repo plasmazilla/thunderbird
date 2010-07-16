@@ -46,8 +46,8 @@
 <!ENTITY letter.accessKey "L">
 <!ENTITY character.label "Caràcter:">
 <!ENTITY character.accessKey "C">
-<!ENTITY accentUpper.label "Majúscules accentuades">
-<!ENTITY accentLower.label "Minúscules accentuades">
+<!ENTITY accentUpper.label "Accentua les majúscules">
+<!ENTITY accentLower.label "Accentua les minúscules">
 <!ENTITY otherUpper.label "Altres majúscules">
 <!ENTITY otherLower.label "Altres minúscules">
 <!ENTITY commonSymbols.label "Símbols comuns">

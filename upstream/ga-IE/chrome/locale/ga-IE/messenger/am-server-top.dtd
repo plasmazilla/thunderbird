@@ -24,8 +24,8 @@
 <!ENTITY connectionSecurityType-1.label "STARTTLS, má tá sé ar fáil">
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
-<!ENTITY useSecAuth.label "Úsáid fíordheimhniú daingean">
-<!ENTITY useSecAuth.accesskey "i">
+<!ENTITY authMethod.label "Modh fíordheimhnithe:">
+<!ENTITY authMethod.accesskey "i">
 <!ENTITY leaveOnServer.label "Fág teachtaireachtaí ar an bhfreastalaí">
 <!ENTITY leaveOnServer.accesskey "g">
 <!ENTITY headersOnly.label "Ná faigh ach na ceanntásca">

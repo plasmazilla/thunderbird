@@ -6,12 +6,8 @@
 <!ENTITY serverDescription.accesskey "L">
 <!ENTITY serverPort.label "Gátt:">
 <!ENTITY serverPort.accesskey "G">
-<!ENTITY alwaysUseUsername.label "Notandanafn og lykilorð">
-<!ENTITY alwaysUseUsername.accesskey "N">
 <!ENTITY userName.label "Notandanafn:">
 <!ENTITY userName.accesskey "o">
-<!ENTITY useSecAuth.label "Nota öruggt auðkenni">
-<!ENTITY useSecAuth.accesskey "i">
 <!ENTITY connectionSecurity.label "Öryggi tengingar:">
 <!ENTITY connectionSecurity.accesskey "Ö">
 <!ENTITY connectionSecurityType-0.label "Ekkert">
@@ -20,3 +16,5 @@
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
 <!ENTITY smtpEditTitle.label "SMTP þjónn">
 <!ENTITY serverPortDefault.label "Sjálfgefið:">
+<!ENTITY authMethod.label "Auðkennisaðferð:">
+<!ENTITY authMethod.accesskey "i">

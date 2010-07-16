@@ -4,7 +4,6 @@
  Χρειάζεται να σημειώνετε και την επιθυμητή και την ανεπιθύμητη αλληλογραφία.">
 <!ENTITY level.label "Ενεργοποίηση προσαρμοζόμενων ελέγχων ανεπιθυμήτων για αυτό το λογαριασμό">
 <!ENTITY level.accesskey "Ε">
-
 <!ENTITY move.label "Μετακίνηση νέων ανεπιθύμητων μηνυμάτων στο:">
 <!ENTITY move.accesskey "ν">
 <!ENTITY junkFolderOn.label "φάκελο &quot;Ανεπιθύμητα&quot; σε:">
@@ -14,10 +13,7 @@
 <!ENTITY purge1.label "Αυτόματη διαγραφή ανεπιθύμητης αλληλογραφίας παλαιότερης από">
 <!ENTITY purge1.accesskey "υ">
 <!ENTITY purge2.label "ημέρες">
-
 <!ENTITY whitelist.label "Να μην είναι ανεπιθύμητα τα μηνύματα που ο αποστολέας τους είναι στο ευρετήριο διευθύνσεων μου: ">
 <!ENTITY whitelist.accesskey "μ">
-
 <!ENTITY ispHeaders.label "Να είναι έμπιστες οι κεφαλίδες ανεπιθυμήτων που καθορίζονται από: ">
 <!ENTITY ispHeaders.accesskey "φ">
-

@@ -2,9 +2,6 @@
 <!ENTITY aboutButton.label      "&lt; Vissza">
 <!ENTITY aboutButton.accesskey  "V">
 <!ENTITY aboutVersion           "verzió">
-<!ENTITY copyrightText          "&#169;1998-2009 A közreműködők. Minden jog fenntartva. A Mozilla Thunderbird és a
-                                 Thunderbird logók a Mozilla Foundation védjegyei.  Minden jog
-                                 fenntartva.">
 <!ENTITY aboutMenu.label        "Névjegy">
 <!ENTITY aboutMenu.accesskey    "N">
 <!ENTITY aboutCredits.label     "Köszönetnyilvánítás">

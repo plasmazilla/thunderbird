@@ -46,7 +46,7 @@
 <!ENTITY submit.value "Ferstjoerknop">
 <!ENTITY reset.value "Wiskknop">
 <!ENTITY file.value "Bestân">
-<!ENTITY hidden.value "Ferburgen">
+<!ENTITY hidden.value "Ferstoppe">
 <!ENTITY image.value "Ofbylding">
 <!ENTITY button.value "Knop">
 
@@ -57,13 +57,13 @@
 <!ENTITY GroupName.accesskey "n">
 <!ENTITY InputValue.label "Fjildwearde:">
 <!ENTITY InputValue.accesskey "F">
-<!ENTITY InitialValue.label "Inisjele wearde:">
+<!ENTITY InitialValue.label "Ynisjele wearde:">
 <!ENTITY InitialValue.accesskey "w">
-<!ENTITY InputChecked.label "Inisjeel oanfinkt">
+<!ENTITY InputChecked.label "Ynisjeel oanfinkt">
 <!ENTITY InputChecked.accesskey "o">
-<!ENTITY InputSelected.label "Inisjeel selektearre">
+<!ENTITY InputSelected.label "Ynisjeel selektearre">
 <!ENTITY InputSelected.accesskey "s">
-<!ENTITY InputReadOnly.label "Allinnich lêze">
+<!ENTITY InputReadOnly.label "Allinnic lêze">
 <!ENTITY InputReadOnly.accesskey "l">
 <!ENTITY InputDisabled.label "Utskeakele">
 <!ENTITY InputDisabled.accesskey "U">

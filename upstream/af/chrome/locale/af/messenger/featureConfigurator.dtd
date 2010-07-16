@@ -1,114 +1,89 @@
-<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the
-Migration Assistant page. It should match featureConfiguratorCmd.label in
-baseMenuOverlay.dtd -->
+<!-- LOCALIZATION NOTE (featureConfigurator.title): Title for the Migration Assistant page. It should match featureConfiguratorCmd.label in baseMenuOverlay.dtd -->
 <!ENTITY featureConfigurator.title "Migrasieassistent">
-<!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
+<!-- LOCALIZATION NOTE (featureConfigurator.heading1): Heading for the page -->
 
-<!ENTITY featureConfigurator.heading "Kenmerke van Thunderbird 3 waarvan u moet weet">
-<!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
-is important: we tried for a tone that promotes the new features (which we
-believe are good and worth users learning about), but also emphasizing that we
-think it's important to preserve user choice. -->
+<!ENTITY featureConfigurator.heading1 "Nuwe &brandShortName;-kenmerke waarvan u moet weet">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.1): The tone of this paragraph is important: we tried for a tone that promotes the new features (which we believe are good and worth users learning about), but also emphasizing that we think it's important to preserve user choice. -->
 
-<!ENTITY featureConfigurator.para1 "Thunderbird 3 kom met kragtige nuwe kenmerke waaroor ons nogal trots is en glo dat baie mense van sal hou. Mense se smake en behoeftes verskil, en daarom maak ons dit maklik om Thunderbird te beheer en te doelmaak.">
-<!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
-that this page is active (the buttons change the UI), and that they can get
-back to it if they change their mind later.-->
+<!ENTITY featureConfigurator.para.1 "Dié nuwe weergawe van &brandShortName; kom met kragtige nuwe kenmerke waaroor ons nogal trots is en glo dat baie mense van sal hou. Mense se smake en behoeftes verskil, en daarom maak ons dit maklik om &brandShortName; te beheer en te doelmaak.">
+<!-- LOCALIZATION NOTE (featureConfigurator.para.2): This paragraph explains that this page is active (the buttons change the UI), and that they can get back to it if they change their mind later.-->
 
-<!ENTITY featureConfigurator.para2 "Gebruik hierdie bladsy op hierdie nuwe instellings op te stel. U kan altyd die Migrasieassistent op die Hulp-kieslys kry.">
-<!-- LOCALIZATION NOTE (featureConfigurator.imap.heading): Heading for the
-IMAP synchronization feature. The words should probably echo the word used
-in the per-account dialog.-->
+<!ENTITY featureConfigurator.para.2 "Gebruik hierdie bladsy op hierdie nuwe instellings op te stel. U kan altyd die Migrasieassistent op die Hulp-kieslys kry.">
 
-<!ENTITY featureConfigurator.imap.heading "Sinchroniseer IMAP-boodskappe">
+<!ENTITY featureConfigurator.toolbar.heading "Nuwe boodskapnutsbalk">
+<!ENTITY featureConfigurator.toolbar.new "Boodskapknoppienutsbalk">
+<!ENTITY featureConfigurator.toolbar.new.status.explanation "'n Eenvoudige nutsbalk met al die boodskapknoppies byderhand.">
+<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original): The word 'original' is chosen deliberately to be neutral, vs. 'old' which in English at least had a negative connotation.-->
 
-<!ENTITY featureConfigurator.imap.status.all "Al jou IMAP-vouers is ingestel om te &quot;sinchroniseer&quot;.">
+<!ENTITY featureConfigurator.toolbar.original "Behou die oorspronklike nutsbalkknoppies">
+<!ENTITY featureConfigurator.toolbar.original.status.explanation "Behou enige pasgemaakte nutsbalkknoppies afgesien van die nuwe boodskapknoppies.">
 
-<!ENTITY featureConfigurator.imap.status.none "Geen van jou IMAP-vouers is ingestel om te &quot;sinchroniseer&quot; nie.">
+<!ENTITY featureConfigurator.toolbarBenefits.para "Boodskapaksies soos antwoord en aanstuur het geskuif vanaf die nutsbalk na die boodskapkop. Dit assosieer die aksieknoppies direk met die boodskap, wat meer ruimte laat in die nutsbalk vir 'n ryker soekboksie, asook vir byvoegings.">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installing): The text to display while installing the addon. -->
 
-<!ENTITY featureConfigurator.imap.status.some "Sommige van jou IMAP-vouers is ingestel om te &quot;sinchroniseer&quot;.">
-<!-- LOCALIZATION NOTE (featureConfigurator.benefits.label): The heading here
-is intended to explain why we've implemented this and picked it as a default.-->
+<!ENTITY featureConfigurator.addOn.installing "Installeer tans…">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.installed): The text to display after the user installs the addon from the configurator. -->
 
-<!ENTITY featureConfigurator.benefits.label "Voordele">
-<!-- LOCALIZATION NOTE (featureConfigurator.alternative.label): The heading here
-is intended to explain why it might not be the right default for some users.-->
+<!ENTITY featureConfigurator.addOn.installed "Geïnstalleer">
+<!-- LOCALIZATION NOTE (featureConfigurator.addOn.alreadyInstalled): The label to display when the addon is already installed. -->
 
-<!ENTITY featureConfigurator.alternative.label "Alternatief">
+<!ENTITY featureConfigurator.addOn.alreadyInstalled "Dié uitbreiding is reeds geïnstalleer.">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.heading): The heading for the Compact Header page. -->
 
-<!ENTITY featureConfigurator.syncBenefits.para "Stel mens in staat om jou pos te lees terwyl mens nie aan die internet gekoppel is nie, en boodskappe te vind gebaseer op wat daarin staan, en nie net die onderwerpreëls en name nie.">
-<!ENTITY featureConfigurator.syncAlternative.para "Thunderbird sal al jou pos na hierdie rekenaar aflaai. Skakel dit af as u min skyfspasie het, of as u vir netwerkverkeer moet betaal.">
-<!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
+<!ENTITY featureConfigurator.collapsedHeaders.heading "Kompakte Kop">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.weak): The paragraph to display if the user hadn't previously used the collapsed headers feature. -->
 
-<!ENTITY featureConfigurator.syncAll.button "sinchroniseer alle">
-<!-- LOCALIZATION NOTE (featureConfigurator.syncNone.button): The choice of
-lower case is intentional, but may be overriden if that doesn't make sense
-because of a specific language context.-->
+<!ENTITY featureConfigurator.collapsedHeaders.para.weak "Die Kompakte Boodskapleesaansig is geskuif na 'n eie uitbreiding waar dit nou meer aandag en keuses geniet.">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.strong): The paragraph to display if the user had previously used the collapsed headers feature. -->
 
-<!ENTITY featureConfigurator.syncNone.button "moenie enige sinchroniseer nie">
+<!ENTITY featureConfigurator.collapsedHeaders.para.strong "Ons het gemerk dat u die Kompakte Boodskapleesaansigkop gebruik het.  Dié funksie is geskuif na 'n eie uitbreiding en ons beveel aan dat u dit hier installeer as u wil voortgaan om dit te gebruik.">
+<!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.install): The text for the button that will install the Compact Headers addon. -->
 
-<!ENTITY featureConfigurator.advancedUsers.label "Gevorderde gebruikers:">
-<!ENTITY featureConfigurator.advancedUsers.para "U kan dit per rekening en per vouer doelmaak:">
+<!ENTITY featureConfigurator.collapsedHeaders.install "Installeer Kompakte Kop…">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.heading): The heading for the Folder Columns page. -->
 
-<!ENTITY featureConfigurator.toolbar.heading "Nuwe nutsbalk">
-<!ENTITY featureConfigurator.toolbar.new.status "Met gebruik van die nuwe nutsbalk.">
-<!-- LOCALIZATION NOTE (featureConfigurator.toolbar.original.status): The
-word 'original' is chosen deliberately to be neutral, vs. 'old' which in
-English at least had a negative connotation.-->
+<!ENTITY featureConfigurator.folderColumns.heading "Gevorderde Vouerkolomme">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.weak): The paragraph to display if the user hadn't previously used the folder columns feature. -->
 
-<!ENTITY featureConfigurator.toolbar.original.status "Met gebruik van die oorspronklike nutsbalk.">
+<!ENTITY featureConfigurator.folderColumns.para.weak "Die Ekstra vouerkolomme-uitbreiding vervang wat aanvanklik 'n gevorderde keuse was.  Installeer gerus hierdie uitbreiding om tred te hou met die presiese aantal boodskappe en die skyfspasie wat elke vouer gebruik.">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.para.strong): The paragraph to display if the user had previously used the folder columns feature. -->
 
-<!ENTITY featureConfigurator.toolbarBenefits.para "'n Skoner koppelvlak as die vorige verstek, wat meer plek laat vir die ryker soekfunksie en byvoegings.">
-<!ENTITY featureConfigurator.toolbarAlternative.para "As u meer van die ou nutsbalk hou, as u dit nie van voor af wil saamstel nie, of as u nie die boodskappaneel gebruik nie.">
-<!-- LOCALIZATION NOTE (featureConfigurator.useOriginalToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
+<!ENTITY featureConfigurator.folderColumns.para.strong "Ons het gemerk dat u die Gevorderde Vouerkolomme gebruik het.  Dié funksie is geskuif na 'n eie uitbreiding en ons beveel aan dat u dit hier installeer.">
+<!-- LOCALIZATION NOTE (featureConfigurator.folderColumns.install): The text for the button that will install the Extra Folder Columns addon. -->
 
-<!ENTITY featureConfigurator.useOriginalToolbar.button "gebruik oorspronklike nutsbalk">
-<!-- LOCALIZATION NOTE (featureConfigurator.useNewToolbar.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
+<!ENTITY featureConfigurator.folderColumns.install "Installeer Ekstra kolomme…">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.heading): The heading for the Disk space page. -->
 
-<!ENTITY featureConfigurator.useNewToolbar.button "gebruik nuwe nutsbalk">
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.heading): The
-words here should echo the name of the mode shown in the folder pane.-->
+<!ENTITY featureConfigurator.autoSync.heading "Skyfspasie">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.para): The paragraph that explains why the user would want to turn on autosync. -->
 
-<!ENTITY featureConfigurator.smartFolders.heading "Slimvouer-modus">
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.smart.status): This
-shows that the current mode in the folder pane is the Smart Folders mode.-->
+<!ENTITY featureConfigurator.autoSync.para "Dié nuwe weergawe van &brandShortName; kom met nuwe, verbeterde soekfunksionaliteit.  Om dié nuwe funksionaliteit te geniet, is dit nodig om die e-posboodskappe te sinchroniseer.">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.on): The label for the radio button for synchronizing all the accounts. -->
 
-<!ENTITY featureConfigurator.smartFolders.smart.status "Met gebruik van die &quot;slimvouers&quot;-modus.">
-<!-- LOCALIZATION NOTE (featureConfigurator.smartFolders.all.status): This
-shows that the current mode in the folder pane is not the Smart Folders mode.-->
+<!ENTITY featureConfigurator.autoSync.on "Sinkroniseer">
+<!ENTITY featureConfigurator.autoSync.on.explanation "Boodskappe sal vinniger laai en soekresultate sal vinniger verskyn.">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.off): The label for the radio button that will synchronize none of the accounts. -->
 
-<!ENTITY featureConfigurator.smartFolders.all.status "Sonder gebruik van die &quot;slimvouers&quot;-modus.">
+<!ENTITY featureConfigurator.autoSync.off "Moenie sinchroniseer nie">
+<!ENTITY featureConfigurator.autoSync.off.explanation "Boodskappe sal stadiger laai en soekresultate sal onvolledig wees.">
+<!-- LOCALIZATION NOTE (featureConfigurator.autoSync.some): The label for the radio button that will let you customize the synchronize for each account. -->
 
-<!ENTITY featureConfigurator.smartFolderBenefits.para "Vir gebruikers met verskeie rekeninge groepeer hierdie aansig vouers soos Inkassie sáám sodat u 'n gekonsolideerde oorsig oor al jou pos kry.">
-<!ENTITY featureConfigurator.smartFolderAlternative.para "As u verkies om inligting oor verskeie rekeninge te versprei, sal u die &quot;Alle vouers&quot;-modus verkies.">
-<!-- LOCALIZATION NOTE (featureConfigurator.useSmartFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
+<!ENTITY featureConfigurator.autoSync.some "Sinchronisasie per rekening">
+<!ENTITY featureConfigurator.autoSync.some.explanation "Pasmaak die sinchronisasie per rekening en vouer volgens u behoeftes.">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.currentSize): The label for the current amount of disk space your accounts are consuming. -->
 
-<!ENTITY featureConfigurator.useSmartFolders.button "gebruik &quot;slimvouers&quot;-modus">
-<!-- LOCALIZATION NOTE (featureConfigurator.useAllFolders.button): The
-choice of lower case is intentional, but may be overriden if that doesn't make
-sense because of a specific language context.-->
+<!ENTITY featureConfigurator.diskSpace.currentSize "Die totale huidige skyfverbruik:">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.freeSpace): The label for the current amount of free space available on your hard disk. -->
 
-<!ENTITY featureConfigurator.useAllFolders.button "gebruik &quot;allevouers&quot;-modus">
+<!ENTITY featureConfigurator.diskSpace.freeSpace "Oop spasie:">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.requireSpace): The label for the required amount of free space to synchronize all of your IMAP accounts. -->
 
-<!ENTITY featureConfigurator.collapsedHeaders.heading "Ingevoude kopskrifte">
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
-of the paragraph before the beginning of the link to the AMO search page.-->
+<!ENTITY featureConfigurator.diskSpace.requireSpace "Benodig:">
+<!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.warning): The label shown when your estimated available hard disk space if you chose autosync would be less than 50MB or if we estimate turning on autosync would use more than 50% of your free space. -->
 
-<!ENTITY featureConfigurator.headerParaBeforeLink "Thunderbird 3 het 'n beter gedetailleerde boodskapkopskrifaansig, met knoppies vir boodskap-verwante aksies. Daar is alternatiewe ontwerpe beskikbaar as ">
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
-the link to the AMO search page.-->
+<!ENTITY featureConfigurator.diskSpace.warning "Die oop spasie is baie min!">
 
-<!ENTITY featureConfigurator.headerParaLinkName "byvoegings">
-<!-- LOCALIZATION NOTE (featureConfigurator.headerParaAfterLink): The part of
-the paragraph after the link to the AMO search page.-->
 
-<!ENTITY featureConfigurator.headerParaAfterLink ".">
-
+<!ENTITY featureConfigurator.previousButton "Vorige">
+<!ENTITY featureConfigurator.nextButton "Volgende">
+<!ENTITY featureConfigurator.closeButton "Sluit">

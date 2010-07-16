@@ -4,11 +4,16 @@
 <!ENTITY sendingPrefix.label "При відсиланні пошти автоматично: ">
 <!ENTITY fccMailFolder.label "Зберегти копію в:">
 <!ENTITY fccMailFolder.accesskey "б">
-<!ENTITY fccReplyFollowsParent.label "Зберегти відповідь у теці з початковим повідомленням">
+<!ENTITY fccReplyFollowsParent.label "Зберегти відповідь у теці з початковим листом">
 <!ENTITY fccReplyFollowsParent.accesskey "ч">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Cc ці поштові адреси:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.emptytext "Розділяйте адреси комами">
 <!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
 <!ENTITY bccAddress.label "Посилати таємну копію на ці адреси:">
 <!ENTITY bccAddress.accesskey "т">
+<!ENTITY bccAddressList.emptytext "Розділяйте адреси комами">
 <!ENTITY saveMessageDlg.label "Показувати діалог підтвердження під час збереження пошти">
 <!ENTITY saveMessageDlg.accesskey "к">
 <!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->

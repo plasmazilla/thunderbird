@@ -9,7 +9,7 @@
 <!ENTITY newMessage.label "Mesazh">
 <!ENTITY newMessage.key "M">
 <!ENTITY newMessageCmd2.key "N">
-<!ENTITY newMessage.accesskey "M">
+<!ENTITY newMessage.accesskey "e">
 <!ENTITY newContact.label "Kontakt Libri Vendndodhje…">
 <!ENTITY newContact.accesskey "K">
 <!ENTITY attachMenu.label "Bashkangjisni">
@@ -214,7 +214,7 @@
 <!ENTITY attachments.accesskey "B">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
-<!ENTITY SmileButton.tooltip "Fusni një emotikon">
+<!ENTITY SmileButton.tooltip "Futni një emotikon">
 <!ENTITY smiley1Cmd.label "Buzëqeshje">
 <!ENTITY smiley2Cmd.label "I ngrysur">
 <!ENTITY smiley3Cmd.label "Syshkelur">

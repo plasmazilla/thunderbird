@@ -1,5 +1,4 @@
 <!ENTITY serverAdvanced.label "Προχωρημένες ρυθμίσεις λογαριασμού">
-<!-- LOCALIZATION NOTE (serverDirectory.label): Do not translate "IMAP" -->
 <!ENTITY serverDirectory.label "Κατάλογος διακομιστή IMAP:">
 <!ENTITY serverDirectory.accesskey "γ">
 <!ENTITY usingSubscription.label "Προβολή μόνο των εγγεγραμμένων φακέλων">
@@ -10,7 +9,6 @@
 <!ENTITY useIdle.accesskey "I">
 <!ENTITY maximumConnectionsNumber.label "Μέγιστος αριθμός συνδέσεων διακομιστή στην cache">
 <!ENTITY maximumConnectionsNumber.accesskey "Μ">
-<!-- LOCALIZATION NOTE (namespaceDesc.label): Do not translate "IMAP" -->
 <!ENTITY namespaceDesc.label "Αυτές οι προτιμήσεις καθορίζουν τα namespaces στον διακομιστή IMAP">
 <!ENTITY personalNamespace.label "Προσωπικό namespace:">
 <!ENTITY personalNamespace.accesskey "ο">

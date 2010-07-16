@@ -5,11 +5,11 @@
 
 <!-- LOCALIZATION NOTE (glodaFacetView.loading.label): Label that appears when
      the search results take a long time to appear. -->
-<!ENTITY glodaFacetView.loading.label "&#8230; සොයමින් සිටියි">
+<!ENTITY glodaFacetView.loading.label "සොයමින් සිටියි &#8230;">
 
 <!-- LOCALIZATION NOTE (glodaFacetView.empty.label): Label that appears when
      there are no results that match the search query. -->
-<!ENTITY glodaFacetView.empty.label "ඔබේ සෙවුමට ගැලපෙන ලිපි නැත">
+<!ENTITY glodaFacetView.empty.label "ඔබගේ සෙවුමට ගැලපෙන ලිපි නැත">
 
 <!-- LOCALIZATION NOTE (glodaFacetView.pageMore.label): Label at the bottom
      of the results list to show more hits. -->

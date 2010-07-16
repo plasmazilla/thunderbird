@@ -82,8 +82,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "N">
 
 <!ENTITY otherActionsButton.label "muut toiminnot">
-<!ENTITY otherActionsShowConversation.label "avaa keskusteluna">
-<!ENTITY otherActionsShowConversation.accesskey "k">
+<!ENTITY otherActionsOpenConversation.label "avaa keskusteluna">
+<!ENTITY otherActionsOpenConversation.accesskey "k">
 <!ENTITY otherActionsOpenInNewWindow.label "avaa uuteen ikkunaan">
 <!ENTITY otherActionsOpenInNewWindow.accesskey "a">
 <!ENTITY otherActionsOpenInNewTab.label "avaa uuteen välilehteen">
