@@ -1,3 +1,19 @@
+icedove (3.1-1) experimental; urgency=low
+
+  * New Upstream Version
+  * [124a316] add additional build depends libnotify-dev
+  * [5ed6a72] adjust branding for Icedove 3.1
+  * [bed8969] install further js files shipped with Icedove 3.1
+  * [02456e6] replace blue icedove icons with green version
+  * [036921f] regenerate patch queue for 3.1 Icedove release
+  * [a7fa393] build with system ffi
+  * [d8650f7] ship icedove svg file for low resolution icons too
+  * [7718c55] bump Standards Version to 3.9.0 and downgrade Conflicts to
+    Breaks
+  * [9621fc6] lintian: override ancient-libtool warning
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 17 Jul 2010 17:19:58 +0200
+
 icedove (3.0.5-1) unstable; urgency=low
 
   * New Upstream Version
