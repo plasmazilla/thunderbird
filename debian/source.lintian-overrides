@@ -1,0 +1,2 @@
+# Mozilla ship its own libffi, but I build against the Debian version.
+icedove source: ancient-libtool mozilla/js/ctypes/libffi/ltconfig
