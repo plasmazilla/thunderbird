@@ -14,7 +14,7 @@ Subject: [PATCH] bz466250_att349521_fix_ftbfs_with_cairo_fb
  1 files changed, 4 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/gfx/thebes/src/gfxASurface.cpp b/mozilla/gfx/thebes/src/gfxASurface.cpp
-index 9eeb0ff..f278b15 100644
+index ad80596..af43a74 100644
 --- a/mozilla/gfx/thebes/src/gfxASurface.cpp
 +++ b/mozilla/gfx/thebes/src/gfxASurface.cpp
 @@ -56,8 +56,10 @@
@@ -28,7 +28,7 @@ index 9eeb0ff..f278b15 100644
  
  #ifdef CAIRO_HAS_QPAINTER_SURFACE
  #include "gfxQPainterSurface.h"
-@@ -172,10 +174,12 @@ gfxASurface::Wrap (cairo_surface_t *csurf)
+@@ -176,10 +178,12 @@ gfxASurface::Wrap (cairo_surface_t *csurf)
      }
  #endif
  #ifdef MOZ_DFB

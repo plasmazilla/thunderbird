@@ -1,0 +1,23 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Wed, 29 Oct 2008 21:00:17 +0100
+Subject: [PATCH] Do exec instead of uselessly forking in xulrunner launcher script
+
+---
+ mozilla/build/unix/mozilla.in |    5 +----
+ 1 files changed, 1 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/build/unix/mozilla.in b/mozilla/build/unix/mozilla.in
+index 39c65a1..0e866c3 100644
+--- a/mozilla/build/unix/mozilla.in
++++ b/mozilla/build/unix/mozilla.in
+@@ -152,8 +152,5 @@ if [ $debugging = 1 ]
+ then
+   echo $dist_bin/run-mozilla.sh $script_args $dist_bin/$MOZILLA_BIN "$@"
+ fi
+-"$dist_bin/run-mozilla.sh" $script_args "$dist_bin/$MOZILLA_BIN" "$@"
+-exitcode=$?
+-
+-exit $exitcode
++exec "$dist_bin/run-mozilla.sh" $script_args "$dist_bin/$MOZILLA_BIN" "$@"
+ # EOF.
+-- 

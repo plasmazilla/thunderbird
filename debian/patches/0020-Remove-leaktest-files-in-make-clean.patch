@@ -1,0 +1,30 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sun, 24 Jan 2010 08:59:53 +0100
+Subject: [PATCH] Remove leaktest files in make clean
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=541769
+---
+ mozilla/build/Makefile.in |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
+index 5ecfb63..b811284 100644
+--- a/mozilla/build/Makefile.in
++++ b/mozilla/build/Makefile.in
+@@ -71,6 +71,7 @@ TARGET_DEPTH = ..
+ include $(srcdir)/automation-build.mk
+ 
+ _LEAKTEST_DIR = $(DEPTH)/_leaktest
++GARBAGE_DIRS += $(_LEAKTEST_DIR)
+ 
+ _LEAKTEST_FILES =    \
+ 		automation.py \
+@@ -83,6 +84,7 @@ _LEAKTEST_FILES =    \
+ leaktest.py: leaktest.py.in
+ 	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $^ > $@
+ 	chmod +x $@
++GARBAGE += leaktest.py
+ 
+ libs:: $(_LEAKTEST_FILES)
+ 	$(INSTALL) $^ $(_LEAKTEST_DIR)
+-- 

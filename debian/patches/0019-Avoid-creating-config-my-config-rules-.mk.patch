@@ -1,0 +1,59 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sun, 24 Jan 2010 08:52:15 +0100
+Subject: [PATCH] Avoid creating config/my{config,rules}.mk
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=541767
+---
+ mozilla/Makefile.in            |    2 +-
+ mozilla/config/rules.mk        |    6 ------
+ mozilla/js/src/config/rules.mk |    6 ------
+ 3 files changed, 1 insertions(+), 13 deletions(-)
+
+diff --git a/mozilla/Makefile.in b/mozilla/Makefile.in
+index dcef73c..2552274 100644
+--- a/mozilla/Makefile.in
++++ b/mozilla/Makefile.in
+@@ -83,7 +83,7 @@ include $(topsrcdir)/config/config.mk
+ 
+ GARBAGE_DIRS += dist _javagen _profile _tests staticlib
+ DIST_GARBAGE = config.cache config.log config.status config-defs.h \
+-   dependencies.beos config/autoconf.mk config/myrules.mk config/myconfig.mk \
++   dependencies.beos config/autoconf.mk \
+    unallmakefiles mozilla-config.h \
+    netwerk/necko-config.h xpcom/xpcom-config.h xpcom/xpcom-private.h \
+    $(topsrcdir)/.mozconfig.mk $(topsrcdir)/.mozconfig.out
+diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
+index 43aab8b..1800ab6 100644
+--- a/mozilla/config/rules.mk
++++ b/mozilla/config/rules.mk
+@@ -2073,12 +2073,6 @@ endif
+ -include $(MY_RULES)
+ 
+ #
+-# This speeds up gmake's processing if these files don't exist.
+-#
+-$(MY_CONFIG) $(MY_RULES):
+-	@touch $@
+-
+-#
+ # Generate Emacs tags in a file named TAGS if ETAGS was set in $(MY_CONFIG)
+ # or in $(MY_RULES)
+ #
+diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
+index 43aab8b..1800ab6 100644
+--- a/mozilla/js/src/config/rules.mk
++++ b/mozilla/js/src/config/rules.mk
+@@ -2073,12 +2073,6 @@ endif
+ -include $(MY_RULES)
+ 
+ #
+-# This speeds up gmake's processing if these files don't exist.
+-#
+-$(MY_CONFIG) $(MY_RULES):
+-	@touch $@
+-
+-#
+ # Generate Emacs tags in a file named TAGS if ETAGS was set in $(MY_CONFIG)
+ # or in $(MY_RULES)
+ #
+-- 

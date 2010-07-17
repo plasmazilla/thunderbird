@@ -1,0 +1,21 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Mon, 1 Feb 2010 16:34:43 +0100
+Subject: [PATCH] Cleanup build/automationutils.pyc on make clean
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=543469
+---
+ mozilla/build/Makefile.in |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
+index b811284..5a4229d 100644
+--- a/mozilla/build/Makefile.in
++++ b/mozilla/build/Makefile.in
+@@ -168,4 +168,6 @@ ifeq ($(OS_ARCH),Linux)
+ libs:: $(topsrcdir)/tools/rb/fix-linux-stack.pl
+ 	$(INSTALL) $< $(DIST)/bin
+ endif
++
++GARBAGE += automationutils.pyc
+ endif # ENABLE_TESTS
+-- 

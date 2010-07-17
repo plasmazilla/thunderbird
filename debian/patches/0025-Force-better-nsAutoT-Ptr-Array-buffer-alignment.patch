@@ -1,0 +1,66 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 5 Feb 2010 17:24:15 +0100
+Subject: [PATCH] Force better nsAutoT{Ptr,}Array buffer alignment
+
+This solves issues on sparc in a better way than the previous workaround that
+missed some other failure cases.
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=448658
+
+Always align AutoArrays for 64-bits words as decided with upstream.
+---
+ mozilla/xpcom/glue/nsTArray.h    |   12 ++++++++++--
+ mozilla/xpcom/glue/nsTPtrArray.h |    5 ++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/mozilla/xpcom/glue/nsTArray.h b/mozilla/xpcom/glue/nsTArray.h
+index 8a74e06..4b0e126 100644
+--- a/mozilla/xpcom/glue/nsTArray.h
++++ b/mozilla/xpcom/glue/nsTArray.h
+@@ -148,11 +148,16 @@ class NS_COM_GLUE nsTArray_base {
+       return mHdr->mIsAutoArray;
+     }
+ 
++    struct AutoArray {
++      Header *mHdr;
++      PRUint64 aligned;
++    };
++
+     // Returns a Header for the built-in buffer of this nsAutoTArray.
+     Header* GetAutoArrayBuffer() {
+       NS_ASSERTION(IsAutoArray(), "Should be an auto array to call this");
+ 
+-      return reinterpret_cast<Header*>(&mHdr + 1);
++      return reinterpret_cast<Header*>(&(reinterpret_cast<AutoArray*>(&mHdr))->aligned);
+     }
+ 
+     // Returns true if this is an nsAutoTArray and it currently uses the
+@@ -896,7 +901,10 @@ class nsAutoTArray : public nsTArray<E> {
+     }
+ 
+   protected:
+-    char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
++    union {
++      char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
++      PRUint64 dummy;
++    };
+ };
+ 
+ // specialization for N = 0. this makes the inheritance model easier for
+diff --git a/mozilla/xpcom/glue/nsTPtrArray.h b/mozilla/xpcom/glue/nsTPtrArray.h
+index afe3999..57a1aed 100644
+--- a/mozilla/xpcom/glue/nsTPtrArray.h
++++ b/mozilla/xpcom/glue/nsTPtrArray.h
+@@ -113,7 +113,10 @@ class nsAutoTPtrArray : public nsTPtrArray<E> {
+     }
+ 
+   protected:
+-    char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
++    union {
++      char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
++      PRUint64 dummy;
++    };
+ };
+ 
+ #endif  // nsTPtrArray_h__
+-- 

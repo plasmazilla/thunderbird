@@ -1,0 +1,26 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 3 Jul 2010 15:30:56 +0200
+Subject: [PATCH] install xpt-tools via packages-manifest
+
+would be needed for the icedove-dev package
+---
+ mail/installer/package-manifest.in |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/mail/installer/package-manifest.in b/mail/installer/package-manifest.in
+index 51f5d05..45cd438 100644
+--- a/mail/installer/package-manifest.in
++++ b/mail/installer/package-manifest.in
+@@ -865,3 +865,11 @@
+ @BINPATH@/@DLL_PREFIX@xul@DLL_SUFFIX@
+ #endif
+ #endif
++
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++; SDK files
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++
++@BINPATH@/xpidl
++@BINPATH@/xpt_dump
++@BINPATH@/xpt_link
+-- 

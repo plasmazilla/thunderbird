@@ -1,0 +1,90 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Tue, 6 Apr 2010 09:55:12 +0200
+Subject: [PATCH] Change parameter type of JS_{CEILING,FLOOR}_LOG2W and js_FloorLog2wImpl to be JSSize
+
+This fixes FTBFS on s390.
+https://bugzilla.mozilla.org/show_bug.cgi?id=557270
+---
+ mozilla/js/src/jsbit.h    |   14 +++++++-------
+ mozilla/js/src/jslog2.cpp |    6 +++---
+ mozilla/js/src/jstl.h     |    1 -
+ 3 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/mozilla/js/src/jsbit.h b/mozilla/js/src/jsbit.h
+index ea19b3a..aa683aa 100644
+--- a/mozilla/js/src/jsbit.h
++++ b/mozilla/js/src/jsbit.h
+@@ -213,8 +213,8 @@ __BitScanReverse64(unsigned __int64 val)
+ 
+ /*
+  * Internal function.
+- * Compute the log of the least power of 2 greater than or equal to n.
+- * This is a version of JS_CeilingLog2 that operates on jsuword with
++ * Compute the log of the least power of 2 greater than or equal to n. This is
++ * a version of JS_CeilingLog2 that operates on unsigned integers with
+  * CPU-dependant size.
+  */
+ #define JS_CEILING_LOG2W(n) ((n) <= 1 ? 0 : 1 + JS_FLOOR_LOG2W((n) - 1))
+@@ -222,7 +222,7 @@ __BitScanReverse64(unsigned __int64 val)
+ /*
+  * Internal function.
+  * Compute the log of the greatest power of 2 less than or equal to n.
+- * This is a version of JS_FloorLog2 that operates on jsuword with
++ * This is a version of JS_FloorLog2 that operates on unsigned integers with
+  * CPU-dependant size and requires that n != 0.
+  */
+ #define JS_FLOOR_LOG2W(n) (JS_ASSERT((n) != 0), js_FloorLog2wImpl(n))
+@@ -231,18 +231,18 @@ __BitScanReverse64(unsigned __int64 val)
+ 
+ # ifdef JS_HAS_BUILTIN_BITSCAN32
+ #  define js_FloorLog2wImpl(n)                                                \
+-    ((JSUword)(JS_BITS_PER_WORD - 1 - js_bitscan_clz32(n)))
++    ((JSSize)(JS_BITS_PER_WORD - 1 - js_bitscan_clz32(n)))
+ # else
+-#  define js_FloorLog2wImpl(n) ((JSUword)JS_FloorLog2(n))
++#  define js_FloorLog2wImpl(n) ((JSSize)JS_FloorLog2(n))
+ #endif
+ 
+ #elif JS_BYTES_PER_WORD == 8
+ 
+ # ifdef JS_HAS_BUILTIN_BITSCAN64
+ #  define js_FloorLog2wImpl(n)                                                \
+-    ((JSUword)(JS_BITS_PER_WORD - 1 - js_bitscan_clz64(n)))
++    ((JSSize)(JS_BITS_PER_WORD - 1 - js_bitscan_clz64(n)))
+ # else
+-extern JSUword js_FloorLog2wImpl(JSUword n);
++extern JSSize js_FloorLog2wImpl(JSSize n);
+ # endif
+ 
+ #else
+diff --git a/mozilla/js/src/jslog2.cpp b/mozilla/js/src/jslog2.cpp
+index 81e6511..9576675 100644
+--- a/mozilla/js/src/jslog2.cpp
++++ b/mozilla/js/src/jslog2.cpp
+@@ -85,10 +85,10 @@ JS_FloorLog2(JSUint32 n)
+  */
+ #if !defined(JS_HAS_BUILTIN_BITSCAN64) && JS_BYTES_PER_WORD == 8
+ 
+-JSUword
+-js_FloorLog2wImpl(JSUword n)
++JSSize
++js_FloorLog2wImpl(JSSize n)
+ {
+-    JSUword log2, m;
++    JSSize log2, m;
+ 
+     JS_ASSERT(n != 0);
+ 
+diff --git a/mozilla/js/src/jstl.h b/mozilla/js/src/jstl.h
+index 42e7240..ae721de 100644
+--- a/mozilla/js/src/jstl.h
++++ b/mozilla/js/src/jstl.h
+@@ -195,7 +195,6 @@ class ReentrancyGuard
+ static JS_ALWAYS_INLINE size_t
+ RoundUpPow2(size_t x)
+ {
+-    typedef tl::StaticAssert<tl::IsSameType<size_t,JSUword>::result>::result _;
+     size_t log2 = JS_CEILING_LOG2W(x);
+     JS_ASSERT(log2 < tl::BitSize<size_t>::result);
+     size_t result = size_t(1) << log2;
+-- 

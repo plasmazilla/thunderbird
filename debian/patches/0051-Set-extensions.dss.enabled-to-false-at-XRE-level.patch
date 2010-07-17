@@ -1,0 +1,19 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Tue, 23 Feb 2010 11:36:33 +0100
+Subject: [PATCH] Set extensions.dss.enabled to false at XRE level
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=547943
+---
+ mozilla/xulrunner/app/xulrunner.js |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/xulrunner/app/xulrunner.js b/mozilla/xulrunner/app/xulrunner.js
+index c2eeb69..33ecfbc 100644
+--- a/mozilla/xulrunner/app/xulrunner.js
++++ b/mozilla/xulrunner/app/xulrunner.js
+@@ -70,3 +70,4 @@ pref("browser.preferences.animateFadeIn", true);
+ #else
+ pref("browser.preferences.animateFadeIn", false);
+ #endif
++pref("extensions.dss.enabled", false);
+-- 
