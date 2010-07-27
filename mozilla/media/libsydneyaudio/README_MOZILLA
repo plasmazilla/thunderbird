@@ -18,3 +18,5 @@ sydney_os2_base.patch: Bug 448918 - add OS/2 support (this patch should
 
 sydney_os2_moz.patch:  Bug 448918 - add Mozilla-specific code to
                        sydney_audio_os2.c
+
+sydney_aix.patch:      Bug 499266 - add AIX support

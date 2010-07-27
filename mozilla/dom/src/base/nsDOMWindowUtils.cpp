@@ -64,6 +64,12 @@
 #include "gfxContext.h"
 #include "gfxImageSurface.h"
 
+#include "nsICSSLoader.h"
+#include "nsICSSParser.h"
+#include "nsICSSStyleSheet.h"
+#include "nsUnicharInputStream.h"
+#include "nsNetUtil.h"
+
 #if defined(MOZ_X11) && defined(MOZ_WIDGET_GTK2)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
@@ -73,6 +79,7 @@ NS_INTERFACE_MAP_BEGIN(nsDOMWindowUtils)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMWindowUtils)
   NS_INTERFACE_MAP_ENTRY(nsIDOMWindowUtils)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMWindowUtils_1_9_1)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(WindowUtils)
 NS_INTERFACE_MAP_END
 
@@ -756,4 +763,66 @@ nsDOMWindowUtils::GetScrollXY(PRBool aFlushLayout, PRInt32* aScrollX, PRInt32* a
   *aScrollY = nsPresContext::AppUnitsToIntCSSPixels(yPos);
 
   return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMWindowUtils::CssInitialSyntaxIsValid(const nsAString& aSheet,
+                                          PRBool *aRetVal)
+{
+  PRBool hasCap = PR_FALSE;
+  if (NS_FAILED(nsContentUtils::GetSecurityManager()->
+                IsCapabilityEnabled("UniversalXPConnect", &hasCap)) || !hasCap)
+    return NS_ERROR_DOM_SECURITY_ERR;
+
+  nsCOMPtr<nsIUnicharInputStream> stream;
+  nsresult rv = nsSimpleUnicharStreamFactory::GetInstance()->
+    CreateInstanceFromString(aSheet, getter_AddRefs(stream));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIURI> uri;
+  nsCAutoString uriContents("data:text/css,");
+  AppendUTF16toUTF8(aSheet, uriContents);
+  rv = NS_NewURI(getter_AddRefs(uri), uriContents.get());
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIPrincipal> principal;
+  rv = nsContentUtils::GetSecurityManager()->
+    GetCodebasePrincipal(uri, getter_AddRefs(principal));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsICSSStyleSheet> parsedSheet;
+  rv = NS_NewCSSStyleSheet(getter_AddRefs(parsedSheet));
+  NS_ENSURE_SUCCESS(rv, rv);
+  parsedSheet->SetURIs(uri, uri, uri);
+  parsedSheet->SetPrincipal(principal);
+
+  nsCOMPtr<nsICSSLoader> loader;
+  rv = NS_NewCSSLoader(getter_AddRefs(loader));
+  NS_ENSURE_SUCCESS(rv, rv);
+  loader->SetCompatibilityMode(eCompatibility_NavQuirks);
+
+  nsCOMPtr<nsICSSParser> parser;
+  rv = loader->GetParserFor(parsedSheet, getter_AddRefs(parser));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsICSSParser_1_9_1> pext(do_QueryInterface(parser));
+  NS_ABORT_IF_FALSE(pext, "nsICSSParser_1_9_1 missing from parser impl");
+
+  rv = pext->ParseWithInitialSyntaxCheck(stream, uri, uri, principal, 0,
+                                         PR_FALSE);
+  loader->RecycleParser(parser);
+
+  // In CheckInitialSyntax mode, the parser will return
+  // NS_ERROR_DOM_SYNTAX_ERR when the sheet has been rejected.
+  if (rv == NS_OK) {
+    *aRetVal = PR_TRUE;
+    return NS_OK;
+  } else if (rv == NS_ERROR_DOM_SYNTAX_ERR) {
+    *aRetVal = PR_FALSE;
+    return NS_OK;
+  } else {
+    NS_ABORT_IF_FALSE(NS_FAILED(rv),
+                      "CSS parser produced a success code other than NS_OK?!");
+    return rv;
+  }
 }

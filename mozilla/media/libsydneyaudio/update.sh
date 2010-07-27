@@ -9,3 +9,5 @@ patch -p4 <pause-resume.patch
 patch -p3 <bug495794_closeAudio.patch
 patch -p4 <sydney_os2_base.patch
 patch -p4 <sydney_os2_moz.patch
+patch -p3 <sydney_aix.patch
+

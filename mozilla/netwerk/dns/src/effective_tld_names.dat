@@ -274,6 +274,15 @@ sa.gov.au
 tas.gov.au
 vic.gov.au
 wa.gov.au
+// CGDNs - http://www.aucd.org.au/
+act.au
+nsw.au
+nt.au
+qld.au
+sa.au
+tas.au
+vic.au
+wa.au
 
 // aw : http://en.wikipedia.org/wiki/.aw
 aw
@@ -374,9 +383,12 @@ z.bg
 9.bg	 	 	
 
 // bh : http://en.wikipedia.org/wiki/.bh
-// list of other 2nd level tlds ?
 bh
 com.bh
+edu.bh
+net.bh
+org.bh
+gov.bh
 
 // bi : http://en.wikipedia.org/wiki/.bi
 // http://whois.nic.bi/
@@ -3878,6 +3890,7 @@ mil.rw
 gouv.rw
 
 // sa : http://www.nic.net.sa/
+sa
 com.sa
 net.sa
 org.sa
@@ -4139,6 +4152,9 @@ mil.to
 
 // tr : http://en.wikipedia.org/wiki/.tr
 *.tr
+// Used by government in the TRNC
+// http://en.wikipedia.org/wiki/.nc.tr
+gov.nc.tr
 
 // travel : http://en.wikipedia.org/wiki/.travel
 travel
@@ -4164,12 +4180,9 @@ gov.tt
 edu.tt
 
 // tv : http://en.wikipedia.org/wiki/.tv
-// list of other 2nd level tlds ?
+// Not listing any 2LDs as reserved since none seem to exist in practice,
+// Wikipedia notwithstanding.
 tv
-com.tv
-net.tv
-org.tv
-gov.tv
 
 // tw : http://en.wikipedia.org/wiki/.tw
 tw
@@ -4407,6 +4420,18 @@ net.ws
 org.ws
 gov.ws
 edu.ws
+
+// xn--mgbaam7a8h (UAE) : http://nic.ae/english/arabicdomain/rules.jsp
+امارات
+
+// xn--mgberp4a5d4ar (Saudi Arabia) : http://www.nic.net.sa/
+السعودية
+
+// xn--p1ai (Russia) : http://www.cctld.ru/en/docs/rulesrf.php
+рф
+
+// xn--wgbh1c (Egypt) : http://www.dotmasr.eg/
+مصر
 
 // ye : http://www.y.net.ye/services/domain_name.htm
 *.ye

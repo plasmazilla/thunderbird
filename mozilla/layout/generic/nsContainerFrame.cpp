@@ -984,6 +984,8 @@ nsContainerFrame::ReflowOverflowContainerChildren(nsPresContext*           aPres
     return NS_OK; // nothing to reflow
 
   nsOverflowContinuationTracker tracker(aPresContext, this, PR_FALSE, PR_FALSE);
+  PRBool shouldReflowAllKids = aReflowState.ShouldReflowAllKids();
+
   for (nsIFrame* frame = overflowContainers->FirstChild(); frame;
        frame = frame->GetNextSibling()) {
     if (frame->GetPrevInFlow()->GetParent() != GetPrevInFlow()) {
@@ -991,7 +993,9 @@ nsContainerFrame::ReflowOverflowContainerChildren(nsPresContext*           aPres
       // it will get reflowed once it's been placed
       continue;
     }
-    if (NS_SUBTREE_DIRTY(frame)) {
+    // If the available vertical height has changed, we need to reflow
+    // even if the frame isn't dirty.
+    if (shouldReflowAllKids || NS_SUBTREE_DIRTY(frame)) {
       // Get prev-in-flow
       nsIFrame* prevInFlow = frame->GetPrevInFlow();
       NS_ASSERTION(prevInFlow,

@@ -663,16 +663,16 @@ function checkForUpdates()
 function updateCheckUpdatesItem()
 {
   var updates = Components.classes["@mozilla.org/updates/update-service;1"]
-                          .getService(Components.interfaces.nsIApplicationUpdateService);
+                          .getService(Components.interfaces.nsIApplicationUpdateService2);
   var um = Components.classes["@mozilla.org/updates/update-manager;1"]
                      .getService(Components.interfaces.nsIUpdateManager);
 
   // Disable the UI if the update enabled pref has been locked by the
   // administrator or if we cannot update for some other reason.
   var checkForUpdates = document.getElementById("checkForUpdates");
-  var canUpdate = updates.canUpdate;
-  checkForUpdates.setAttribute("disabled", !canUpdate);
-  if (!canUpdate)
+  var canCheckForUpdates = updates.canCheckForUpdates;
+  checkForUpdates.setAttribute("disabled", !canCheckForUpdates);
+  if (!canCheckForUpdates)
     return;
 
   // By default, show "Check for Updates..."

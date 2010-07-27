@@ -43,13 +43,15 @@
 class nsGlobalWindow;
 
 class nsDOMWindowUtils : public nsIDOMWindowUtils,
-                         public nsSupportsWeakReference
+                         public nsSupportsWeakReference,
+                         public nsIDOMWindowUtils_1_9_1
 {
 public:
   nsDOMWindowUtils(nsGlobalWindow *aWindow);
   ~nsDOMWindowUtils();
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMWINDOWUTILS
+  NS_DECL_NSIDOMWINDOWUTILS_1_9_1
 
 protected:
   nsRefPtr<nsGlobalWindow> mWindow;

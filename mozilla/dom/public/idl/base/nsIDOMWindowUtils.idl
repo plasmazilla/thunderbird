@@ -311,3 +311,13 @@ interface nsIDOMWindowUtils : nsISupports {
    */
   void getScrollXY(in boolean aFlushLayout, out long aScrollX, out long aScrollY);
 };
+
+[scriptable, uuid(f4a5258a-1606-4e96-8b5d-6ba83273cf55)]
+interface nsIDOMWindowUtils_1_9_1 : nsISupports
+{
+  /**
+   * Exposes the CSS parser's "initial syntax is valid" heuristic for
+   * testing.
+   */
+  boolean cssInitialSyntaxIsValid(in AString aSheet);
+};
