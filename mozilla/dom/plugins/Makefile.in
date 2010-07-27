@@ -111,6 +111,10 @@ CPPSRCS = \
   PluginThreadChild.cpp \
   $(NULL)
 
+ifeq (WINNT,$(OS_ARCH))
+CPPSRCS += COMMessageFilter.cpp
+endif
+
 LOCAL_INCLUDES = \
   -I$(topsrcdir)/modules/plugin/base/public/ \
   -I$(topsrcdir)/modules/plugin/base/src/ \

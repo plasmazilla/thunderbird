@@ -55,7 +55,9 @@
 #include "nsDebug.h"
 
 #if defined(XP_MACOSX)
+#if 0
 #include <ucontext.h>
+#endif
 #endif
 
 #if defined(LINUX)
@@ -216,10 +218,10 @@ my_glib_log_func(const gchar *log_domain, GLogLevelFlags log_level,
 static void fpehandler(int signum, siginfo_t *si, void *context)
 {
 #ifdef XP_MACOSX
+  // Not available with 10.4 SDK? See bug 533035
+#if 0
   ucontext_t *uc = (ucontext_t *)context;
 
-// Not available with 10.4 SDK? See bug 533035
-#if 0
   _STRUCT_FP_CONTROL *ctrl = &uc->uc_mcontext->fs.fpu_fcw;
   ctrl->invalid = ctrl->denorm = ctrl->zdiv = ctrl->ovrfl = ctrl->undfl = ctrl->precis = 1;
 

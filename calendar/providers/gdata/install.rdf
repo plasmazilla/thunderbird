@@ -66,20 +66,8 @@
       <Description>
         <!-- Thunderbird -->
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-#ifdef MOZILLA_1_9_2_BRANCH
-        <em:minVersion>3.1a1pre</em:minVersion>
-#else
-        <em:minVersion>3.2a1pre</em:minVersion>
-#endif
-        <em:maxVersion>@THUNDERBIRD_VERSION@</em:maxVersion>
-      </Description>
-    </em:targetApplication>
-    <em:targetApplication>
-      <Description>
-        <!-- SeaMonkey -->
-        <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
-        <em:minVersion>2.1a1pre</em:minVersion>
-        <em:maxVersion>@SEAMONKEY_VERSION@</em:maxVersion>
+        <em:minVersion>3.1</em:minVersion>
+        <em:maxVersion>3.1.*</em:maxVersion>
       </Description>
     </em:targetApplication>
 

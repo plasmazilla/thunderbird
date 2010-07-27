@@ -4253,6 +4253,43 @@ else
     fi
 fi
 
+dnl system libevent Support
+dnl ========================================================
+MOZ_ARG_WITH_STRING(system-libevent,
+[  --with-system-libevent=[PFX]
+                          Use system libevent [installed at prefix PFX]],
+    LIBEVENT_DIR=$withval)
+
+_SAVE_CFLAGS=$CFLAGS
+_SAVE_LDFLAGS=$LDFLAGS
+_SAVE_LIBS=$LIBS
+if test -z "$LIBEVENT_DIR" -o "$LIBEVENT_DIR" = no; then
+    MOZ_NATIVE_LIBEVENT=
+else
+    if test "${LIBEVENT_DIR}" = "yes"; then
+        LIBEVENT_DIR=/usr
+    fi
+    CFLAGS="-I${LIBEVENT_DIR}/include $CFLAGS"
+    LDFLAGS="-L${LIBEVENT_DIR}/lib $LDFLAGS"
+    AC_CHECK_HEADER(event.h,
+                    [if test ! -f "${LIBEVENT_DIR}/include/event.h"; then
+                         AC_MSG_ERROR([event.h found, but is not in ${LIBEVENT_DIR}/include])
+                     fi],
+                    AC_MSG_ERROR([--with-system-libevent requested but event.h not found]))
+    AC_CHECK_LIB(event, event_init,
+                 [MOZ_NATIVE_LIBEVENT=1
+                  MOZ_LIBEVENT_INCLUDES="${LIBEVENT_DIR}/include"
+                  MOZ_LIBEVENT_LIBS="-L${LIBEVENT_DIR}/lib -levent"],
+                 [MOZ_NATIVE_LIBEVENT= MOZ_LIBEVENT_INCLUDES= MOZ_LIBEVENT_LIBS=])
+fi
+CFLAGS=$_SAVE_CFLAGS
+LDFLAGS=$_SAVE_LDFLAGS
+LIBS=$_SAVE_LIBS
+
+AC_SUBST(MOZ_NATIVE_LIBEVENT)
+AC_SUBST(MOZ_LIBEVENT_INCLUDES)
+AC_SUBST(MOZ_LIBEVENT_LIBS)
+
 dnl ========================================================
 dnl = If NSS was not detected in the system, 
 dnl = use the one in the source tree (mozilla/security/nss)
@@ -4557,7 +4594,6 @@ NECKO_WIFI=1
 NECKO_COOKIES=1
 NECKO_DISK_CACHE=1
 NECKO_PROTOCOLS_DEFAULT="about data file ftp gopher http res viewsource"
-NECKO_SMALL_BUFFERS=
 XPC_IDISPATCH_SUPPORT=
 
 
@@ -5761,13 +5797,20 @@ dnl ========================================================
 dnl = Breakpad crash reporting (on by default on supported platforms)
 dnl ========================================================
 
-if (test "$OS_ARCH" = "WINNT" -a -z "$GNU_CC" \
-    || test "$OS_ARCH" = "Darwin" \
-    || test "$OS_ARCH" = "Linux" -a "$CPU_ARCH" = "x86" \
-    || test "$OS_ARCH" = "SunOS") \
-   && test -z "$HAVE_64BIT_OS"; then
-   MOZ_CRASHREPORTER=1
-fi
+case $target in
+i?86-*-mingw*)
+  MOZ_CRASHREPORTER=1
+  ;;
+i?86-apple-darwin*|powerpc-apple-darwin*)
+  MOZ_CRASHREPORTER=1
+  ;;
+i?86-*-linux*|x86_64-*-linux*|arm-*-linux*)
+  MOZ_CRASHREPORTER=1
+  ;;
+*solaris*)
+  MOZ_CRASHREPORTER=1
+  ;;
+esac
 
 MOZ_ARG_DISABLE_BOOL(crashreporter,
 [  --disable-crashreporter          Disable breakpad crash reporting],
@@ -5824,6 +5867,11 @@ if test -z "$MOZ_ENABLE_GNOMEVFS" && test `echo "$MOZ_EXTENSIONS" | grep -c gnom
     if test -n "$MOZ_X11"; then
         AC_MSG_WARN([Cannot build gnomevfs without required libraries. Removing gnomevfs from MOZ_EXTENSIONS.])
     fi
+    MOZ_EXTENSIONS=`echo $MOZ_EXTENSIONS | sed -e 's|gnomevfs||'`
+fi
+
+dnl Do not build gnomevfs with libxul based apps
+if test ! -z "$LIBXUL_SDK_DIR" && test `echo "$MOZ_EXTENSIONS" | grep -c gnomevfs` -ne 0; then
     MOZ_EXTENSIONS=`echo $MOZ_EXTENSIONS | sed -e 's|gnomevfs||'`
 fi
 
@@ -7989,19 +8037,6 @@ if test "$NECKO_WIFI"; then
   AC_DEFINE(NECKO_WIFI)
 fi
 AC_SUBST(NECKO_WIFI)
-
-dnl
-dnl option to minimize size of necko's i/o buffers
-dnl
-MOZ_ARG_ENABLE_BOOL(necko-small-buffers,
-[  --enable-necko-small-buffers
-                          Minimize size of necko's i/o buffers],
-    NECKO_SMALL_BUFFERS=1,
-    NECKO_SMALL_BUFFERS=)
-AC_SUBST(NECKO_SMALL_BUFFERS)
-if test "$NECKO_SMALL_BUFFERS"; then
-    AC_DEFINE(NECKO_SMALL_BUFFERS)
-fi 
 
 dnl
 dnl option to disable cookies

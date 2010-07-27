@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=78:
+ * vim: set ts=8 sw=4 et tw=99:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -1566,6 +1566,65 @@ JS_PutPropertyDescArray(JSContext *cx, JSPropertyDescArray *pda)
             js_RemoveRoot(cx->runtime, &pd[i].alias);
     }
     cx->free(pd);
+}
+
+/************************************************************************/
+
+class FakeFrame {
+public:
+    FakeFrame(JSContext *cx, JSObject *scopeobj)
+      : cx(cx) {
+        JSFunction *fun = GET_FUNCTION_PRIVATE(cx, scopeobj);
+        JS_ASSERT(FUN_MINARGS(fun) == 0 && !FUN_INTERPRETED(fun) && fun->u.n.extra == 0);
+
+        vp[0] = OBJECT_TO_JSVAL(scopeobj);
+        vp[1] = JSVAL_NULL;
+
+        memset(&frame, 0, sizeof (frame));
+        frame.fun = fun;
+        frame.down = js_GetTopStackFrame(cx);
+        frame.scopeChain = JS_GetGlobalForObject(cx, scopeobj);
+        frame.argv = vp + 2;
+
+        cx->fp = &frame;
+    }
+
+    ~FakeFrame() {
+        if (frame.callobj)
+            js_PutCallObject(cx, &frame);
+        else if (frame.argsobj)
+            js_PutArgsObject(cx, &frame);
+        cx->fp = frame.down;
+    }
+
+private:
+    JSContext *cx;
+    JSStackFrame frame;
+    jsval vp[2];
+};
+
+JS_FRIEND_API(JSBool)
+js_GetPropertyByIdWithFakeFrame(JSContext *cx, JSObject *obj, JSObject *scopeobj, jsid id,
+                                jsval *vp)
+{
+    FakeFrame frame(cx, scopeobj);
+    return JS_GetPropertyById(cx, obj, id, vp);
+}
+
+JS_FRIEND_API(JSBool)
+js_SetPropertyByIdWithFakeFrame(JSContext *cx, JSObject *obj, JSObject *scopeobj, jsid id,
+                                jsval *vp)
+{
+    FakeFrame frame(cx, scopeobj);
+    return JS_SetPropertyById(cx, obj, id, vp);
+}
+
+JS_FRIEND_API(JSBool)
+js_CallFunctionValueWithFakeFrame(JSContext *cx, JSObject *obj, JSObject *scopeobj, jsval funval,
+                                  uintN argc, jsval *argv, jsval *rval)
+{
+    FakeFrame frame(cx, scopeobj);
+    return JS_CallFunctionValue(cx, obj, funval, argc, argv, rval);
 }
 
 /************************************************************************/

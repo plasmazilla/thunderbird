@@ -174,7 +174,9 @@ static NS_DEFINE_CID(kDOMEventGroupCID, NS_DOMEVENTGROUP_CID);
 #include "nsIPropertyBag2.h"
 #include "nsIDOMPageTransitionEvent.h"
 #include "nsFrameLoader.h"
+#ifdef MOZ_MEDIA
 #include "nsHTMLMediaElement.h"
+#endif // MOZ_MEDIA
 
 #include "mozAutoDocUpdate.h"
 
@@ -1626,6 +1628,7 @@ NS_INTERFACE_TABLE_HEAD(nsDocument)
     NS_INTERFACE_TABLE_ENTRY(nsDocument, nsIApplicationCacheContainer)
     NS_INTERFACE_TABLE_ENTRY(nsDocument, nsIDOMXPathNSResolver)
     NS_INTERFACE_TABLE_ENTRY(nsDocument, nsIDocument_MOZILLA_1_9_2_BRANCH)
+    NS_INTERFACE_TABLE_ENTRY(nsDocument, nsIDocument_MOZILLA_1_9_2_5_BRANCH)
   NS_OFFSET_AND_INTERFACE_TABLE_END
   NS_OFFSET_AND_INTERFACE_TABLE_TO_MAP_SEGUE
   NS_INTERFACE_MAP_ENTRIES_CYCLE_COLLECTION(nsDocument)
@@ -2668,6 +2671,94 @@ nsDocument::ElementFromPointHelper(PRInt32 aX, PRInt32 aY,
  
   if (ptContent)
     CallQueryInterface(ptContent, aReturn);
+  return NS_OK;
+}
+
+nsresult
+nsDocument::NodesFromRectHelper(float aX, float aY,
+                                float aTopSize, float aRightSize,
+                                float aBottomSize, float aLeftSize,
+                                PRBool aIgnoreRootScrollFrame,
+                                PRBool aFlushLayout,
+                                nsIDOMNodeList** aReturn)
+{
+  NS_ENSURE_ARG_POINTER(aReturn);
+  
+  nsBaseContentList* elements = new nsBaseContentList();
+  NS_IF_ADDREF(elements);
+  *aReturn = elements;
+
+  // Following the same behavior of elementFromPoint,
+  // we don't return anything if either coord is negative
+  if (!aIgnoreRootScrollFrame && (aX < 0 || aY < 0))
+    return NS_OK;
+
+  nscoord x = nsPresContext::CSSPixelsToAppUnits(aX - aLeftSize);
+  nscoord y = nsPresContext::CSSPixelsToAppUnits(aY - aTopSize);
+  nscoord w = nsPresContext::CSSPixelsToAppUnits(aLeftSize + aRightSize) + 1;
+  nscoord h = nsPresContext::CSSPixelsToAppUnits(aTopSize + aBottomSize) + 1;
+
+  nsRect rect(x, y, w, h);
+
+  // Make sure the layout information we get is up-to-date, and
+  // ensure we get a root frame (for everything but XUL)
+  if (aFlushLayout) {
+    FlushPendingNotifications(Flush_Layout);
+  }
+
+  nsIPresShell *ps = GetPrimaryShell();
+  NS_ENSURE_STATE(ps);
+  nsIFrame *rootFrame = ps->GetRootFrame();
+
+  // XUL docs, unlike HTML, have no frame tree until everything's done loading
+  if (!rootFrame)
+    return NS_OK; // return nothing to premature XUL callers as a reminder to wait
+
+  nsTArray<nsIFrame*> outFrames;
+  nsLayoutUtils::GetFramesForArea(rootFrame, rect, outFrames,
+                                  PR_TRUE, aIgnoreRootScrollFrame);
+
+  PRInt32 length = outFrames.Length();
+  if (!length)
+    return NS_OK;
+
+  // Used to filter out repeated elements in sequence.
+  nsIContent* lastAdded = nsnull;
+
+  for (PRInt32 i = 0; i < length; i++) {
+
+    nsIContent* ptContent = outFrames.ElementAt(i)->GetContent();
+    NS_ENSURE_STATE(ptContent);
+
+    // If the content is in a subdocument, try to get the element from |this| doc
+    nsIDocument *currentDoc = ptContent->GetCurrentDoc();
+    if (currentDoc && (currentDoc != this)) {
+      // XXX felipe: I can't get this type right without the intermediate vars
+      nsCOMPtr<nsIDOMElement> x = CheckAncestryAndGetFrame(currentDoc);
+      nsCOMPtr<nsIContent> elementDoc = do_QueryInterface(x);
+      if (elementDoc != lastAdded) {
+        elements->AppendElement(elementDoc);
+        lastAdded = elementDoc;
+      }
+      continue;
+    }
+
+    // If we have an anonymous element (such as an internal div from a textbox),
+    // or a node that isn't an element or a text node,
+    // replace it with the first non-anonymous parent node.
+    while (ptContent &&
+           (!(ptContent->IsNodeOfType(nsINode::eELEMENT) ||
+              ptContent->IsNodeOfType(nsINode::eTEXT)) ||
+            ptContent->IsInAnonymousSubtree())) {
+      // XXXldb: Faster to jump to GetBindingParent if non-null?
+      ptContent = ptContent->GetParent();
+    }
+   
+    if (ptContent && ptContent != lastAdded) {
+      elements->AppendElement(ptContent);
+      lastAdded = ptContent;
+    }
+  }
   return NS_OK;
 }
 
@@ -6970,6 +7061,15 @@ nsDocument::GetLayoutHistoryState() const
 }
 
 void
+nsDocument::AsyncBlockOnload()
+{
+  while (mAsyncOnloadBlockCount) {
+    --mAsyncOnloadBlockCount;
+    BlockOnload();
+  }
+}
+
+void
 nsDocument::BlockOnload()
 {
   if (mDisplayDocument) {
@@ -6980,6 +7080,16 @@ nsDocument::BlockOnload()
   // If mScriptGlobalObject is null, we shouldn't be messing with the loadgroup
   // -- it's not ours.
   if (mOnloadBlockCount == 0 && mScriptGlobalObject) {
+    if (!nsContentUtils::IsSafeToRunScript()) {
+      // Because AddRequest may lead to OnStateChange calls in chrome,
+      // block onload only when there are no script blockers.
+      ++mAsyncOnloadBlockCount;
+      if (mAsyncOnloadBlockCount == 1) {
+        nsContentUtils::AddScriptRunner(
+          NS_NEW_RUNNABLE_METHOD(nsDocument, this, AsyncBlockOnload));
+      }
+      return;
+    }
     nsCOMPtr<nsILoadGroup> loadGroup = GetDocumentLoadGroup();
     if (loadGroup) {
       loadGroup->AddRequest(mOnloadBlocker, nsnull);
@@ -6996,7 +7106,7 @@ nsDocument::UnblockOnload(PRBool aFireSync)
     return;
   }
 
-  if (mOnloadBlockCount == 0) {
+  if (mOnloadBlockCount == 0 && mAsyncOnloadBlockCount == 0) {
     NS_NOTREACHED("More UnblockOnload() calls than BlockOnload() calls; dropping call");
     return;
   }
@@ -7006,7 +7116,7 @@ nsDocument::UnblockOnload(PRBool aFireSync)
   // If mScriptGlobalObject is null, we shouldn't be messing with the loadgroup
   // -- it's not ours.
   if (mOnloadBlockCount == 0 && mScriptGlobalObject) {
-    if (aFireSync) {
+    if (aFireSync && mAsyncOnloadBlockCount == 0) {
       // Increment mOnloadBlockCount, since DoUnblockOnload will decrement it
       ++mOnloadBlockCount;
       DoUnblockOnload();
@@ -7055,6 +7165,11 @@ nsDocument::DoUnblockOnload()
     // We blocked again after the last unblock.  Nothing to do here.  We'll
     // post a new event when we unblock again.
     return;
+  }
+
+  if (mAsyncOnloadBlockCount != 0) {
+    // We need to wait until the async onload block has been handled.
+    PostUnblockOnloadEvent();
   }
 
   // If mScriptGlobalObject is null, we shouldn't be messing with the loadgroup

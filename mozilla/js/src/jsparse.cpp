@@ -927,7 +927,7 @@ JSCompiler::compileScript(JSContext *cx, JSObject *scopeChain, JSStackFrame *cal
      *
      * https://bugzilla.mozilla.org/show_bug.cgi?id=336551
      */
-    if (pn && onlyXML && (tcflags & TCF_NO_SCRIPT_RVAL)) {
+    if (pn && onlyXML && !callerFrame) {
         js_ReportCompileErrorNumber(cx, &jsc.tokenStream, NULL, JSREPORT_ERROR,
                                     JSMSG_XML_WHOLE_PROGRAM);
         goto out;

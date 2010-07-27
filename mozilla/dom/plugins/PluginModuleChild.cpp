@@ -64,6 +64,10 @@
 
 #include "nsNPAPIPlugin.h"
 
+#ifdef XP_WIN
+#include "COMMessageFilter.h"
+#endif
+
 using namespace mozilla::plugins;
 
 namespace {
@@ -74,9 +78,9 @@ static QApplication *gQApp = nsnull;
 }
 
 #if defined(XP_WIN)
-#ifndef WM_MOUSEHWHEEL
-#define WM_MOUSEHWHEEL     0x020E
-#endif
+// Used with fix for flash fullscreen window losing focus.
+const PRUnichar * kFlashFullscreenClass = L"ShockwaveFlashFullScreen";
+static bool gDelayFlashFocusReplyUntilEval = false;
 #endif
 
 PluginModuleChild::PluginModuleChild() :
@@ -128,6 +132,10 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
                         IPC::Channel* aChannel)
 {
     PLUGIN_LOG_DEBUG_METHOD;
+
+#ifdef XP_WIN
+    COMMessageFilter::Initialize(this);
+#endif
 
     NS_ASSERTION(aChannel, "need a channel");
 
@@ -1152,6 +1160,13 @@ _evaluate(NPP aNPP,
         return false;
     }
 
+#ifdef XP_WIN
+    if (gDelayFlashFocusReplyUntilEval) {
+        ReplyMessage(0);
+        gDelayFlashFocusReplyUntilEval = false;
+    }
+#endif
+
     return actor->Evaluate(aScript, aResult);
 }
 
@@ -1831,44 +1846,16 @@ PluginModuleChild::CallWindowProcHook(int nCode, WPARAM wParam, LPARAM lParam)
     if (nCode >= 0 &&
         (InSendMessageEx(NULL)&(ISMEX_REPLIED|ISMEX_SEND)) == ISMEX_SEND) {
         CWPSTRUCT* pCwp = reinterpret_cast<CWPSTRUCT*>(lParam);
-        switch(pCwp->message) {
-            // Sync messages we can reply to:
-            case WM_SETFOCUS:
-            case WM_KILLFOCUS:
-            case WM_MOUSEHWHEEL:
-            case WM_MOUSEWHEEL:
-            case WM_HSCROLL:
-            case WM_VSCROLL:
-            case WM_CONTEXTMENU:
-            case WM_IME_SETCONTEXT:
-            case WM_WINDOWPOSCHANGED:
-                ReplyMessage(0);
-            break;
-            // Sync message that can't be handled:
-            case WM_WINDOWPOSCHANGING:
-            case WM_DESTROY:
-            case WM_PAINT:
-            break;
-            // Everything else:
-            default: {
-#ifdef DEBUG
-              nsCAutoString log("Child plugin module received untrapped ");
-              log.AppendLiteral("synchronous message for window. msg=");
-              char szTmp[40];
-              sprintf(szTmp, "0x%06X", pCwp->message);
-              log.Append(szTmp);
-              log.AppendLiteral(" hwnd=");
-              sprintf(szTmp, "0x%08X", pCwp->hwnd);
-              log.Append(szTmp);
-              PRUnichar className[256] = { 0 };
-              if (GetClassNameW(pCwp->hwnd, className,
-                                sizeof(className)/sizeof(PRUnichar)) > 0) {
-                  log.AppendLiteral(" class='");
-                  log.Append(NS_ConvertUTF16toUTF8((PRUnichar*)className));
-                  log.AppendLiteral("'");
-              }
-              NS_WARNING(log.get());
-#endif
+        if (pCwp->message == WM_KILLFOCUS) {
+            // Fix for flash fullscreen window loosing focus. On single
+            // core systems, sync killfocus events need to be handled
+            // after the flash fullscreen window procedure processes this
+            // message, otherwise fullscreen focus will not work correctly.
+            PRUnichar szClass[26];
+            if (GetClassNameW(pCwp->hwnd, szClass,
+                              sizeof(szClass)/sizeof(PRUnichar)) &&
+                !wcscmp(szClass, kFlashFullscreenClass)) {
+                gDelayFlashFocusReplyUntilEval = true;
             }
         }
     }

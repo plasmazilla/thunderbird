@@ -89,6 +89,10 @@ SetupMacApplicationDelegate()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+  // this is called during startup, outside an event loop, and therefore
+  // needs an autorelease pool to avoid cocoa object leakage (bug 559075)
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
   // This call makes it so that application:openFile: doesn't get bogus calls
   // from Cocoa doing its own parsing of the argument string. And yes, we need
   // to use a string with a boolean value in it. That's just how it works.
@@ -98,6 +102,8 @@ SetupMacApplicationDelegate()
   // Create the delegate. This should be around for the lifetime of the app.
   MacApplicationDelegate *delegate = [[MacApplicationDelegate alloc] init];
   [[NSApplication sharedApplication] setDelegate:delegate];
+
+  [pool release];
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -109,10 +115,17 @@ SetupMacApplicationDelegate()
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
   if ((self = [super init])) {
-    [[NSAppleEventManager sharedAppleEventManager] setEventHandler:self
-                                                       andSelector:@selector(handleAppleEvent:withReplyEvent:)
-                                                     forEventClass:kInternetEventClass
-                                                        andEventID:kAEGetURL];
+    NSAppleEventManager *aeMgr = [NSAppleEventManager sharedAppleEventManager];
+
+    [aeMgr setEventHandler:self
+               andSelector:@selector(handleAppleEvent:withReplyEvent:)
+             forEventClass:kInternetEventClass
+                andEventID:kAEGetURL];
+
+    [aeMgr setEventHandler:self
+               andSelector:@selector(handleAppleEvent:withReplyEvent:)
+             forEventClass:'WWW!'
+                andEventID:'OURL'];
   }
   return self;
 
@@ -123,7 +136,9 @@ SetupMacApplicationDelegate()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  [[NSAppleEventManager sharedAppleEventManager] removeEventHandlerForEventClass:kInternetEventClass andEventID:kAEGetURL];
+  NSAppleEventManager *aeMgr = [NSAppleEventManager sharedAppleEventManager];
+  [aeMgr removeEventHandlerForEventClass:kInternetEventClass andEventID:kAEGetURL];
+  [aeMgr removeEventHandlerForEventClass:'WWW!' andEventID:'OURL'];
   [super dealloc];
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
@@ -319,7 +334,8 @@ static NSWindow* GetCocoaWindowForXULWindow(nsISupports *aXULWindow)
   if (!event)
     return;
 
-  if ([event eventClass] == kInternetEventClass && [event eventID] == kAEGetURL) {
+  if (([event eventClass] == kInternetEventClass && [event eventID] == kAEGetURL) ||
+      ([event eventClass] == 'WWW!' && [event eventID] == 'OURL')) {
     NSString* urlString = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
 
     // don't open chrome URLs

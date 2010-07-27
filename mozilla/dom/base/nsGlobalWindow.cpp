@@ -2079,12 +2079,42 @@ nsGlobalWindow::SetNewDocument(nsIDocument* aDocument,
         this_ctx->DidInitializeContext();
       }
     }
+
+    nsContentUtils::AddScriptRunner(
+      NS_NEW_RUNNABLE_METHOD(nsGlobalWindow, this, DispatchDOMWindowCreated));
   }
 
   // Clear our mutation bitfield.
   mMutationBits = 0;
 
   return NS_OK;
+}
+
+void
+nsGlobalWindow::DispatchDOMWindowCreated()
+{
+  if (!mDoc || !mDocument) {
+    return;
+  }
+
+  // Fire DOMWindowCreated at chrome event listeners
+  nsContentUtils::DispatchChromeEvent(mDoc, mDocument, NS_LITERAL_STRING("DOMWindowCreated"),
+                                      PR_TRUE /* bubbles */,
+                                      PR_FALSE /* not cancellable */);
+
+  nsCOMPtr<nsIObserverService> observerService =
+    do_GetService("@mozilla.org/observer-service;1");
+  if (observerService) {
+    nsAutoString origin;
+    nsIPrincipal* principal = mDoc->NodePrincipal();
+    nsContentUtils::GetUTFOrigin(principal, origin);
+    observerService->
+      NotifyObservers(static_cast<nsIDOMWindow*>(this),
+                      nsContentUtils::IsSystemPrincipal(principal) ?
+                        "chrome-document-global-created" :
+                        "content-document-global-created",
+                      origin.get());
+  }
 }
 
 void
