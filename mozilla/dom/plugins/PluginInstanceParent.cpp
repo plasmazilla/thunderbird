@@ -53,6 +53,7 @@
 extern const PRUnichar* kOOPPPluginFocusEventId;
 UINT gOOPPPluginFocusEvent =
     RegisterWindowMessage(kOOPPPluginFocusEventId);
+extern const PRUnichar* kFlashFullscreenClass;
 UINT gOOPPSpinNativeLoopEvent =
     RegisterWindowMessage(L"SyncChannel Spin Inner Loop Message");
 UINT gOOPPStopNativeLoopEvent =
@@ -554,7 +555,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
               if (hwnd && hwnd != mPluginHWND &&
                   GetClassNameW(hwnd, szClass,
                                 sizeof(szClass)/sizeof(PRUnichar)) &&
-                  !wcscmp(szClass, L"ShockwaveFlashFullScreen")) {
+                  !wcscmp(szClass, kFlashFullscreenClass)) {
                   return 0;
               }
             }

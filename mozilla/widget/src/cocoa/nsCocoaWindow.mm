@@ -256,6 +256,10 @@ nsresult nsCocoaWindow::Create(nsIWidget *aParent,
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+  // Because the hidden window is created outside of an event loop,
+  // we have to provide an autorelease pool (see bug 559075).
+  nsAutoreleasePool localPool;
+
   if (!WindowSizeAllowed(aRect.width, aRect.height))
     return NS_ERROR_FAILURE;
 
@@ -1029,11 +1033,13 @@ NS_METHOD nsCocoaWindow::MakeFullScreen(PRBool aFullScreen)
   NS_ASSERTION(mFullScreen != aFullScreen, "Unnecessary MakeFullScreen call");
 
   NSDisableScreenUpdates();
+  // The order here matters. When we exit full screen mode, we need to show the
+  // Dock first, otherwise the newly-created window won't have its minimize
+  // button enabled. See bug 526282.
+  nsCocoaUtils::HideOSChromeOnScreen(aFullScreen, [mWindow screen]);
   nsresult rv = nsBaseWidget::MakeFullScreen(aFullScreen);
   NSEnableScreenUpdates();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCocoaUtils::HideOSChromeOnScreen(aFullScreen, [mWindow screen]);
 
   mFullScreen = aFullScreen;
 
@@ -1334,8 +1340,7 @@ NS_IMETHODIMP nsCocoaWindow::SetFocus(PRBool aState)
   if (mPopupContentView) {
     mPopupContentView->SetFocus(aState);
   }
-  else if (aState && [mWindow isVisible]) {
-    // if the window is shown, move it to the front
+  else if (aState && ([mWindow isVisible] || [mWindow isMiniaturized])) {
     [mWindow setAcceptsMouseMovedEvents:YES];
     [mWindow makeKeyAndOrderFront:nil];
     SendSetZLevelEvent();

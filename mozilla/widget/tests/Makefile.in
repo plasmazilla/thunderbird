@@ -96,6 +96,9 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 _TEST_FILES += 	plugin_scroll_invalidation.html \
 		test_plugin_scroll_invalidation.html \
 		$(NULL)
+
+_CHROME_FILES += test_bug544765.xul \
+		$(NULL)
 endif
 
 ifdef _TEST_FILES

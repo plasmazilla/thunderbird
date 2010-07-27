@@ -1157,7 +1157,8 @@ nsXULListCellAccessible::GetColumnHeaderCells(nsIArray **aHeaderCells)
 
   nsCOMPtr<nsIAccessibleTable> table;
   GetTable(getter_AddRefs(table));
-  NS_ENSURE_STATE(table); // we expect to be in a listbox (table)
+  if (!table)
+    return NS_OK;
 
   // Get column header cell from XUL listhead.
   nsCOMPtr<nsIAccessible> tableAcc(do_QueryInterface(table));
@@ -1208,7 +1209,8 @@ nsXULListCellAccessible::GetRowHeaderCells(nsIArray **aHeaderCells)
 
   nsCOMPtr<nsIAccessibleTable> table;
   GetTable(getter_AddRefs(table));
-  NS_ENSURE_STATE(table); // we expect to be in a listbox (table)
+  if (!table)
+    return NS_OK;
 
   // Calculate row header cells from ARIA markup.
   return nsAccUtils::GetHeaderCellsFor(table, this,
@@ -1227,7 +1229,8 @@ nsXULListCellAccessible::IsSelected(PRBool *aIsSelected)
 
   nsCOMPtr<nsIAccessibleTable> table;
   GetTable(getter_AddRefs(table));
-  NS_ENSURE_STATE(table); // we expect to be in a listbox (table)
+  if (!table)
+    return NS_OK;
 
   PRInt32 rowIdx = -1;
   GetRowIndex(&rowIdx);
@@ -1256,7 +1259,8 @@ nsXULListCellAccessible::GetAttributesInternal(nsIPersistentProperties *aAttribu
   // "table-cell-index" attribute
   nsCOMPtr<nsIAccessibleTable> table;
   GetTable(getter_AddRefs(table));
-  NS_ENSURE_STATE(table); // we expect to be in a listbox (table)
+  if (!table)
+    return NS_OK;
 
   PRInt32 rowIdx = -1;
   GetRowIndex(&rowIdx);

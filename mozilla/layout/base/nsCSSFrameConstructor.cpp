@@ -6443,9 +6443,11 @@ nsCSSFrameConstructor::ContentAppended(nsIContent*     aContainer,
   }
 
   nsIAtom* frameType = parentFrame->GetType();
-
+  PRBool haveNoXBLChildren =
+    mDocument->BindingManager()->GetXBLChildNodesFor(aContainer) == nsnull;
   FrameConstructionItemList items;
-  if (aNewIndexInContainer > 0 && GetParentType(frameType) == eTypeBlock) {
+  if (aNewIndexInContainer > 0 && GetParentType(frameType) == eTypeBlock &&
+      haveNoXBLChildren) {
     // If there's a text node in the normal content list just before the new
     // items, and it has no frame, make a frame construction item for it. If it
     // doesn't need a frame, ConstructFramesFromItemList below won't give it
@@ -6496,8 +6498,7 @@ nsCSSFrameConstructor::ContentAppended(nsIContent*     aContainer,
   // To suppress whitespace-only text frames, we have to verify that
   // our container's DOM child list matches its flattened tree child list.
   // This is guaranteed to be true if GetXBLChildNodesFor() returns null.
-  items.SetParentHasNoXBLChildren(
-      !mDocument->BindingManager()->GetXBLChildNodesFor(aContainer));
+  items.SetParentHasNoXBLChildren(haveNoXBLChildren);
 
   nsFrameItems frameItems;
   ConstructFramesFromItemList(state, items, parentFrame, frameItems);
@@ -6830,7 +6831,9 @@ nsCSSFrameConstructor::ContentInserted(nsIContent*            aContainer,
 
   FrameConstructionItemList items;
   ParentType parentType = GetParentType(frameType);
-  if (aIndexInContainer > 0 && parentType == eTypeBlock) {
+  PRBool haveNoXBLChildren =
+    mDocument->BindingManager()->GetXBLChildNodesFor(aContainer) == nsnull;
+  if (aIndexInContainer > 0 && parentType == eTypeBlock && haveNoXBLChildren) {
     // If there's a text node in the normal content list just before the
     // new node, and it has no frame, make a frame construction item for
     // it, because it might need a frame now.  No need to do this if our
@@ -6843,7 +6846,7 @@ nsCSSFrameConstructor::ContentInserted(nsIContent*            aContainer,
   AddFrameConstructionItems(state, aChild, aIndexInContainer, parentFrame, items);
 
   if (aIndexInContainer + 1 < PRInt32(aContainer->GetChildCount()) &&
-      parentType == eTypeBlock) {
+      parentType == eTypeBlock && haveNoXBLChildren) {
     // If there's a text node in the normal content list just after the
     // new node, and it has no frame, make a frame construction item for
     // it, because it might need a frame now.  No need to do this if our
@@ -9107,6 +9110,16 @@ nsCSSFrameConstructor::MaybeRecreateContainerForFrameRemoval(nsIFrame* aFrame,
       return PR_TRUE;
     }
   }
+
+#ifdef MOZ_XUL
+  if (aFrame->GetType() == nsGkAtoms::popupSetFrame) {
+    nsIRootBox* rootBox = nsIRootBox::GetRootBox(mPresShell);
+    if (rootBox && rootBox->GetPopupSetFrame() == aFrame) {
+      *aResult = ReconstructDocElementHierarchy();
+      return PR_TRUE;
+    }
+  }
+#endif
 
   // Might need to reconstruct things if this frame's nextSibling is a table
   // pseudo, since removal of this frame might mean that this pseudo needs to

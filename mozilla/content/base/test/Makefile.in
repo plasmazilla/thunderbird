@@ -188,6 +188,7 @@ _TEST_FILES = 	test_bug5141.html \
 		file_htmlserializer_1_sibling_body.html \
 		file_htmlserializer_1_sibling_body_only_body.html \
 		file_htmlserializer_1_no_body.html \
+		file_htmlserializer_1_wrap.html \
 		test_bug424359-2.html \
 		file_htmlserializer_2.html \
 		test_bug431082.html \
@@ -284,6 +285,7 @@ _TEST_FILES = 	test_bug5141.html \
 		file_xhtmlserializer_1_sibling_body.xhtml \
 		file_xhtmlserializer_1_sibling_body_only_body.xhtml \
 		file_xhtmlserializer_1_no_body.xhtml \
+		file_xhtmlserializer_1_wrap.xhtml \
 		test_bug422403-2.xhtml \
 		file_xhtmlserializer_2.xhtml \
 		file_xhtmlserializer_2_basic.xhtml \
@@ -332,6 +334,11 @@ _TEST_FILES = 	test_bug5141.html \
 		file_bug503481.sjs \
 		test_bug503481b.html \
 		file_bug503481b_inner.html \
+		test_bug545644.html \
+		test_bug545644.xhtml \
+		test_bug541937.html \
+		file_bug541937.html \
+		file_bug541937.xhtml \
 		$(NULL)
 # Disabled; see bug 492181
 #		test_plugin_freezing.html

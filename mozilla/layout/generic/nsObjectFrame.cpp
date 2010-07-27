@@ -2599,12 +2599,12 @@ nsPluginInstanceOwner::~nsPluginInstanceOwner()
   }
 
   if (mCachedAttrParamNames) {
-    PR_Free(mCachedAttrParamNames);
+    NS_Free(mCachedAttrParamNames);
     mCachedAttrParamNames = nsnull;
   }
 
   if (mCachedAttrParamValues) {
-    PR_Free(mCachedAttrParamValues);
+    NS_Free(mCachedAttrParamValues);
     mCachedAttrParamValues = nsnull;
   }
 
@@ -3486,11 +3486,12 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
 
   PRUint32 cattrs = mContent->GetAttrCount();
 
-  if (cattrs < 0x0000FFFF) {
+  // minus two in case we add an extra "src" or "wmode" entry
+  if (cattrs < 0x0000FFFD) {
     // unsigned 32 bits to unsigned 16 bits conversion
     mNumCachedAttrs = static_cast<PRUint16>(cattrs);
   } else {
-    mNumCachedAttrs = 0xFFFE;  // minus one in case we add an extra "src" entry below
+    mNumCachedAttrs = 0xFFFD;
   }
 
   // now, we need to find all the PARAM tags that are children of us
@@ -3585,7 +3586,7 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
   // Nav 4.x would simply replace the "data" with "src". Because some plugins correctly
   // look for "data", lets instead copy the "data" attribute and add another entry
   // to the bottom of the array if there isn't already a "src" specified.
-  PRInt16 numRealAttrs = mNumCachedAttrs;
+  PRUint16 numRealAttrs = mNumCachedAttrs;
   nsAutoString data;
   if (mContent->Tag() == nsGkAtoms::object
     && !mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::src)
@@ -3599,13 +3600,13 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
   if (!wmodeType.IsEmpty())
     mNumCachedAttrs++;
   // now lets make the arrays
-  mCachedAttrParamNames  = (char **)PR_Calloc(sizeof(char *) * (mNumCachedAttrs + 1 + mNumCachedParams), 1);
+  mCachedAttrParamNames  = (char **)NS_Alloc(sizeof(char *) * (mNumCachedAttrs + 1 + mNumCachedParams));
   NS_ENSURE_TRUE(mCachedAttrParamNames,  NS_ERROR_OUT_OF_MEMORY);
-  mCachedAttrParamValues = (char **)PR_Calloc(sizeof(char *) * (mNumCachedAttrs + 1 + mNumCachedParams), 1);
+  mCachedAttrParamValues = (char **)NS_Alloc(sizeof(char *) * (mNumCachedAttrs + 1 + mNumCachedParams));
   NS_ENSURE_TRUE(mCachedAttrParamValues, NS_ERROR_OUT_OF_MEMORY);
 
   // let's fill in our attributes
-  PRInt16 c = 0;
+  PRUint32 nextAttrParamIndex = 0;
 
   // Some plugins (eg Flash, see bug 234675.) are actually sensitive to the
   // attribute order.  So we want to make sure we give the plugin the
@@ -3613,7 +3614,7 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
   // other browsers.  Now in HTML, the storage order is the reverse of the
   // source order, while in XML and XHTML it's the same as the source order
   // (see the AddAttributes functions in the HTML and XML content sinks).
-  PRInt16 start, end, increment;
+  PRInt32 start, end, increment;
   if (mContent->IsNodeOfType(nsINode::eHTML) &&
       mContent->IsInHTMLDocument()) {
     // HTML.  Walk attributes in reverse order.
@@ -3627,11 +3628,11 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
     increment = 1;
   }
   if (!wmodeType.IsEmpty()) {
-    mCachedAttrParamNames [c] = ToNewUTF8String(NS_LITERAL_STRING("wmode"));
-    mCachedAttrParamValues[c] = ToNewUTF8String(NS_ConvertUTF8toUTF16(wmodeType));
-    c++;
+    mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(NS_LITERAL_STRING("wmode"));
+    mCachedAttrParamValues[nextAttrParamIndex] = ToNewUTF8String(NS_ConvertUTF8toUTF16(wmodeType));
+    nextAttrParamIndex++;
   }
-  for (PRInt16 index = start; index != end; index += increment) {
+  for (PRInt32 index = start; index != end; index += increment) {
     const nsAttrName* attrName = mContent->GetAttrNameAt(index);
     nsIAtom* atom = attrName->LocalName();
     nsAutoString value;
@@ -3641,24 +3642,25 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
 
     FixUpURLS(name, value);
 
-    mCachedAttrParamNames [c] = ToNewUTF8String(name);
-    mCachedAttrParamValues[c] = ToNewUTF8String(value);
-    c++;
+    mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(name);
+    mCachedAttrParamValues[nextAttrParamIndex] = ToNewUTF8String(value);
+    nextAttrParamIndex++;
   }
 
   // if the conditions above were met, copy the "data" attribute to a "src" array entry
   if (data.Length()) {
-    mCachedAttrParamNames [mNumCachedAttrs-1] = ToNewUTF8String(NS_LITERAL_STRING("SRC"));
-    mCachedAttrParamValues[mNumCachedAttrs-1] = ToNewUTF8String(data);
+    mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(NS_LITERAL_STRING("SRC"));
+    mCachedAttrParamValues[nextAttrParamIndex] = ToNewUTF8String(data);
+    nextAttrParamIndex++;
   }
 
   // add our PARAM and null separator
-  mCachedAttrParamNames [mNumCachedAttrs] = ToNewUTF8String(NS_LITERAL_STRING("PARAM"));
-  mCachedAttrParamValues[mNumCachedAttrs] = nsnull;
+  mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(NS_LITERAL_STRING("PARAM"));
+  mCachedAttrParamValues[nextAttrParamIndex] = nsnull;
+  nextAttrParamIndex++;
 
   // now fill in the PARAM name/value pairs from the cached DOM nodes
-  c = 0;
-  for (PRInt16 idx = 0; idx < mNumCachedParams; idx++) {
+  for (PRUint16 idx = 0; idx < mNumCachedParams; idx++) {
     nsIDOMElement* param = ourParams.ObjectAt(idx);
     if (param) {
      nsAutoString name;
@@ -3680,9 +3682,9 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
       */            
      name.Trim(" \n\r\t\b", PR_TRUE, PR_TRUE, PR_FALSE);
      value.Trim(" \n\r\t\b", PR_TRUE, PR_TRUE, PR_FALSE);
-     mCachedAttrParamNames [mNumCachedAttrs + 1 + c] = ToNewUTF8String(name);
-     mCachedAttrParamValues[mNumCachedAttrs + 1 + c] = ToNewUTF8String(value);
-     c++;                                                      // rules!
+     mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(name);
+     mCachedAttrParamValues[nextAttrParamIndex] = ToNewUTF8String(value);
+     nextAttrParamIndex++;
     }
   }
 

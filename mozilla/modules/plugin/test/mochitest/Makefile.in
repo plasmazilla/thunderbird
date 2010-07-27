@@ -119,10 +119,13 @@ _MOCHITEST_FILES += \
 endif
 
 ifdef MOZ_IPC
+ifdef MOZ_CRASHREPORTER
 _MOCHICHROME_FILES += \
   test_crash_notify.xul \
   test_crash_notify_no_report.xul \
+  test_crash_submit.xul \
   $(NULL)
+endif
 endif
 
 libs:: $(_MOCHICHROME_FILES)

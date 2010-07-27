@@ -40,6 +40,7 @@
 #endif
 
 [xpcom]
+@BINPATH@/dependentlibs.list
 #ifdef XP_WIN32
 @BINPATH@/js3250.dll
 #else

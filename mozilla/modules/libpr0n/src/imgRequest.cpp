@@ -711,7 +711,14 @@ NS_IMETHODIMP imgRequest::OnStartRequest(nsIRequest *aRequest, nsISupports *ctxt
 
   /* set our state variables to their initial values, but advance mState
      to onStartRequest. */
-  mImageStatus = imgIRequest::STATUS_NONE;
+  if (mIsMultiPartChannel) {
+    // Don't blow away our status altogether
+    mImageStatus &= ~imgIRequest::STATUS_LOAD_PARTIAL;
+    mImageStatus &= ~imgIRequest::STATUS_LOAD_COMPLETE;
+    mImageStatus &= ~imgIRequest::STATUS_FRAME_COMPLETE;
+  } else {
+    mImageStatus = imgIRequest::STATUS_NONE;
+  }
   mState = onStartRequest;
 
   nsCOMPtr<nsIChannel> channel(do_QueryInterface(aRequest));

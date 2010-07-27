@@ -40,6 +40,7 @@ const EXPORTED_SYMBOLS = ['alertHook'];
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
+const Cr = Components.results;
 
 const nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
                                             "nsIActivityWarning", "init");
@@ -62,6 +63,14 @@ let alertHook =
                                  .getService(Ci.nsIAlertsService);
   },
 
+  get brandShortName() {
+    delete this.brandShortName;
+    return this.brandShortName = Cc["@mozilla.org/intl/stringbundle;1"]
+                                   .getService(Ci.nsIStringBundleService)
+                                   .createBundle("chrome://branding/locale/brand.properties")
+                                   .GetStringFromName("brandShortName");
+  },
+
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMsgUserFeedbackListener]),
 
   onAlert: function (aMessage, aUrl) {
@@ -79,9 +88,29 @@ let alertHook =
 
     this.activityMgr.addActivity(warning);
 
-    this.alertService
-        .showAlertNotification("chrome://branding/content/icon48.png", "",
-                               aMessage);
+    // If we have a message window in the url, then show a warning prompt,
+    // just like the modal code used to. Otherwise, don't.
+    try {
+      if (!aUrl || !aUrl.msgWindow)
+        return true;
+    }
+    // nsIMsgMailNewsUrl.msgWindow will throw on a null pointer, so that's
+    // what we're handling here.
+    catch (ex if (ex instanceof Ci.nsIException &&
+                  ex.result == Cr.NS_ERROR_INVALID_POINTER)) {
+      return true;
+    }
+
+    try {
+      this.alertService
+          .showAlertNotification("chrome://branding/content/icon48.png",
+                                 this.brandShortName, aMessage);
+    }
+    catch (ex) {
+      // XXX On Linux, if libnotify isn't supported, showAlertNotification
+      // can throw an error, so fall-back to the old method of modal dialogs.
+      return false;
+    }
 
     return true;
   },
