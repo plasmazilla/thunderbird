@@ -238,8 +238,22 @@ nsNodeUtils::LastRelease(nsINode* aNode)
 
   if (aNode->IsNodeOfType(nsINode::eELEMENT)) {
     nsIDocument* ownerDoc = aNode->GetOwnerDoc();
+    nsIContent* cont = static_cast<nsIContent*>(aNode);
     if (ownerDoc) {
-      ownerDoc->ClearBoxObjectFor(static_cast<nsIContent*>(aNode));
+      ownerDoc->ClearBoxObjectFor(cont);
+    }
+
+    NS_ASSERTION(aNode->HasFlag(NODE_FORCE_XBL_BINDINGS) ||
+                 !ownerDoc ||
+                 !ownerDoc->BindingManager() ||
+                 !ownerDoc->BindingManager()->GetBinding(cont),
+                 "Non-forced node has binding on destruction");
+
+    // if NODE_FORCE_XBL_BINDINGS is set, the node might still have a binding
+    // attached
+    if (aNode->HasFlag(NODE_FORCE_XBL_BINDINGS) &&
+        ownerDoc && ownerDoc->BindingManager()) {
+      ownerDoc->BindingManager()->ChangeDocumentFor(cont, ownerDoc, nsnull);
     }
   }
 

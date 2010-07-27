@@ -15,3 +15,5 @@ bug487519.patch: Fixes for bug487519
 
 bug520500.patch: Don't reject files with vorbis comments with name or
                  values of length 0.
+
+bug524429.patch: Fixes vararg macro syntax for IBM XLC compiler on AIX

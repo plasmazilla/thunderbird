@@ -1011,6 +1011,9 @@ public:
 
   virtual nsISupports* GetCurrentContentSink();
 
+  // Only BlockOnload should call this!
+  void AsyncBlockOnload();
+
 protected:
 
   void RegisterNamedItems(nsIContent *aContent);
@@ -1263,7 +1266,10 @@ private:
   // 2)  We haven't had Destroy() called on us yet.
   nsCOMPtr<nsILayoutHistoryState> mLayoutHistoryState;
 
+  // Currently active onload blockers
   PRUint32 mOnloadBlockCount;
+  // Onload blockers which haven't been activated yet
+  PRUint32 mAsyncOnloadBlockCount;
   nsCOMPtr<nsIRequest> mOnloadBlocker;
   
   // A map from unvisited URI hashes to content elements

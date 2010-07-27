@@ -662,4 +662,9 @@ modules/NetworkPrioritizer.jsm
 modules/WindowsPreviewPerTab.jsm
 res/broken-image.png
 res/loading-image.png
+# Files added by 3.6.4 that need to be removed by the win32 installer on downgrade
+mozcpp19.dll
+plugin-container.exe
+components/nsINIProcessor.js
+modules/CrashSubmit.jsm
 #endif

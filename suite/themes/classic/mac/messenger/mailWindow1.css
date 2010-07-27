@@ -71,7 +71,7 @@
 
 /* Inactive window */
 
-#messengerWindow:not([active="true"]) > #mailContent > #messengerBox > #folderPaneBox {
+#messengerWindow:not([active="true"]) #folderPaneBox {
   background-color: #E8E8E8;
 }
 

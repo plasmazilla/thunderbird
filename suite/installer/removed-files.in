@@ -102,6 +102,7 @@ components/xpinstall.dll
 #endif
 components/winhooks.xpt
 components/xml-rpc.xpt
+compreg.dat
 defaults/wallet/VcardSchema.tbl
 defaults/wallet/FieldSchema.tbl
 defaults/wallet/SchemaConcat.tbl
@@ -149,6 +150,7 @@ extensions/p@m/components/palmsync.xpt
 extensions/p@m/defaults/preferences/palmsync.js
 #endif
 xpicleanup@BIN_SUFFIX@
+xpti.dat
 #ifdef MOZ_STATIC_BUILD
 components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
 components/@DLL_PREFIX@appcomps@DLL_SUFFIX@

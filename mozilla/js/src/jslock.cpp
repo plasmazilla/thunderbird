@@ -168,7 +168,13 @@ mov 0,%0\n\
 static JS_ALWAYS_INLINE int
 NativeCompareAndSwap(jsword *w, jsword ov, jsword nv)
 {
-    return !_check_lock((atomic_p)w, ov, nv);
+    int res;
+    JS_STATIC_ASSERT(sizeof(jsword) == sizeof(long));
+
+    res = compare_and_swaplp((atomic_l)w, &ov, nv);
+    if (res)
+        __asm__("isync");
+    return res;
 }
 
 #elif defined(USE_ARM_KUSER)

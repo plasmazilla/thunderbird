@@ -47,6 +47,7 @@
 #include "nsWeakReference.h"
 #include "nsTHashtable.h"
 #include "nsCRT.h"
+#include "nsCycleCollectionParticipant.h"
 
 #define MOZ_PERSONALDICTIONARY_CONTRACTID "@mozilla.org/spellchecker/personaldictionary;1"
 #define MOZ_PERSONALDICTIONARY_CID         \
@@ -91,9 +92,10 @@ class mozPersonalDictionary : public mozIPersonalDictionary,
                               public nsSupportsWeakReference
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_MOZIPERSONALDICTIONARY
   NS_DECL_NSIOBSERVER
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(mozPersonalDictionary, mozIPersonalDictionary)
 
   mozPersonalDictionary();
   virtual ~mozPersonalDictionary();
