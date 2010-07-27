@@ -6508,6 +6508,9 @@ TraceRecorder::test_property_cache(JSObject* obj, LIns* obj_ins, JSObject*& obj2
         obj_ins = stobj_get_fslot(obj_ins, JSSLOT_PROTO);
     }
 
+    if (!OBJ_IS_NATIVE(obj))
+        ABORT_TRACE("non-native object");
+
     LIns* map_ins = lir->insLoad(LIR_ldp, obj_ins, (int)offsetof(JSObject, map));
     LIns* ops_ins;
 

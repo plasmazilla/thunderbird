@@ -42,3 +42,4 @@ cp $1/AUTHORS ./AUTHORS
 patch -p3 <endian.patch
 patch -p3 <bug487519.patch
 patch -p3 <bug520500.patch
+patch -p3 <bug524429.patch

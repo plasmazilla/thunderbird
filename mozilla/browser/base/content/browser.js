@@ -4340,8 +4340,13 @@ var XULBrowserWindow = {
     var observerService = Cc["@mozilla.org/observer-service;1"]
                             .getService(Ci.nsIObserverService);
 
+    // Set the URI now if it isn't already set, so that the user can tell which
+    // site is loading. Only do this if the content window has no opener, though
+    // (i.e. the load wasn't triggered by a content-controlled link), to
+    // minimize spoofing risk.
     if (gURLBar &&
         gURLBar.value == "" &&
+        !content.opener &&
         getWebNavigation().currentURI.spec == "about:blank")
       URLBarSetURI(uri);
 

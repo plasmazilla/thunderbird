@@ -4014,7 +4014,11 @@ js_FindPropertyHelper(JSContext *cx, jsid id, JSBool cacheResult,
                 }
             }
 #endif
-            if (cacheResult) {
+            /*
+             * We must check if pobj is native as a global object can have
+             * non-native prototype.
+             */
+            if (cacheResult && OBJ_IS_NATIVE(pobj)) {
                 entry = js_FillPropertyCache(cx, scopeChain,
                                              scopeIndex, protoIndex, pobj,
                                              (JSScopeProperty *) prop, false);
