@@ -731,7 +731,10 @@ pref("network.IDN.whitelist.jp", true);
 pref("network.IDN.whitelist.kr", true);
 pref("network.IDN.whitelist.li", true);
 pref("network.IDN.whitelist.lt", true);
+pref("network.IDN.whitelist.lu", true);
 pref("network.IDN.whitelist.no", true);
+pref("network.IDN.whitelist.nu", true);
+pref("network.IDN.whitelist.nz", true);
 pref("network.IDN.whitelist.pl", true);
 pref("network.IDN.whitelist.pr", true);
 pref("network.IDN.whitelist.se", true);
@@ -741,12 +744,23 @@ pref("network.IDN.whitelist.tm", true);
 pref("network.IDN.whitelist.tw", true);
 pref("network.IDN.whitelist.vn", true);
 
-// non-ccTLDs
+// IDN ccTLDs
+// ae, UAE, .<Emarat>
+pref("network.IDN.whitelist.xn--mgbaam7a8h", true); 
+// sa, Saudi Arabia, .<al-Saudiah>
+pref("network.IDN.whitelist.xn--mgberp4a5d4ar", true); 
+// ru, Russian Federation, .<RF>
+pref("network.IDN.whitelist.xn--p1ai", true);
+// jo, Jordan, .<Al-Ordon>
+pref("network.IDN.whitelist.xn--mgbayh7gpa", true);
+
+// gTLDs
 pref("network.IDN.whitelist.biz", true);
 pref("network.IDN.whitelist.cat", true);
 pref("network.IDN.whitelist.info", true);
 pref("network.IDN.whitelist.museum", true);
 pref("network.IDN.whitelist.org", true);
+pref("network.IDN.whitelist.tel", true);
 
 // NOTE: Before these can be removed, one of bug 414812's tests must be updated
 //       or it will likely fail!  Please CC jwalden+bmo on the bug associated
@@ -889,6 +903,9 @@ pref("network.proxy.autoconfig_url", "");
 // until we reach interval_max or the PAC file is successfully loaded).
 pref("network.proxy.autoconfig_retry_interval_min", 5);    // 5 seconds
 pref("network.proxy.autoconfig_retry_interval_max", 300);  // 5 minutes
+
+pref("network.buffer.cache.count", 24);
+pref("network.buffer.cache.size",  4096);
 
 pref("converter.html2txt.structs",          true); // Output structured phrases (strong, em, code, sub, sup, b, i, u)
 pref("converter.html2txt.header_strategy",  1); // 0 = no indention; 1 = indention, increased with header level; 2 = numbering and slight indention
@@ -1212,9 +1229,7 @@ pref("dom.max_script_run_time", 10);
 
 // How long a plugin is allowed to process a synchronous IPC message
 // before we consider it "hung".
-//
-//  NB: chosen to match dom.max_script_run_time by default
-pref("dom.ipc.plugins.timeoutSecs", 10);
+pref("dom.ipc.plugins.timeoutSecs", 45);
 
 pref("svg.enabled", true);
 pref("svg.smil.enabled", false);

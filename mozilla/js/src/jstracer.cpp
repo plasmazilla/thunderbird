@@ -7135,6 +7135,8 @@ arm_read_auxv() {
                 uint32_t hwcap = aux.a_un.a_val;
                 if (getenv("ARM_FORCE_HWCAP"))
                     hwcap = strtoul(getenv("ARM_FORCE_HWCAP"), NULL, 0);
+                else if (getenv("_SBOX_DIR"))
+                    continue;  // Ignore the rest, if we're running in scratchbox
                 // hardcode these values to avoid depending on specific versions
                 // of the hwcap header, e.g. HWCAP_NEON
                 arm_has_thumb = (hwcap & 4) != 0;
@@ -7146,6 +7148,8 @@ arm_read_auxv() {
                 const char *plat = (const char*) aux.a_un.a_val;
                 if (getenv("ARM_FORCE_PLATFORM"))
                     plat = getenv("ARM_FORCE_PLATFORM");
+                else if (getenv("_SBOX_DIR"))
+                    continue;  // Ignore the rest, if we're running in scratchbox
                 // The platform string has the form "v[0-9][lb]". The "l" or "b" indicate little-
                 // or big-endian variants and the digit indicates the version of the platform.
                 // We can only accept ARMv4 and above, but allow anything up to ARMv9 for future
@@ -7156,14 +7160,6 @@ arm_read_auxv() {
                     ((plat[2] == 'l') || (plat[2] == 'b')))
                 {
                     arm_arch = plat[1] - '0';
-                }
-                else
-                {
-                    // For production code, ignore invalid (or unexpected) platform strings and
-                    // fall back to the default. For debug code, use an assertion to catch this
-                    // when not running in scratchbox.
-                    if (getenv("_SBOX_DIR") == NULL)
-                        JS_ASSERT(false);
                 }
             }
         }
@@ -8815,6 +8811,9 @@ TraceRecorder::test_property_cache(JSObject* obj, LIns* obj_ins, JSObject*& obj2
         aobj = OBJ_GET_PROTO(cx, obj);
         obj_ins = stobj_get_proto(obj_ins);
     }
+
+    if (!OBJ_IS_NATIVE(obj))
+        ABORT_TRACE("non-native object");
 
     LIns* map_ins = map(obj_ins);
 
@@ -11247,7 +11246,7 @@ TraceRecorder::record_JSOP_GETELEM()
 
                 // Guard that the argument has the same type on trace as during recording.
                 LIns* typemap_ins;
-                if (callDepth == depth) {
+                if (depth == 0) {
                     // In this case, we are in the same frame where the arguments object was created.
                     // The entry type map is not necessarily up-to-date, so we capture a new type map
                     // for this point in the code.
@@ -12828,7 +12827,12 @@ TraceRecorder::record_JSOP_BINDNAME()
     // Find the target object.
     JSAtom *atom = atoms[GET_INDEX(cx->fp->regs->pc)];
     jsid id = ATOM_TO_JSID(atom);
+    JSContext *localCx = cx;
     JSObject *obj2 = js_FindIdentifierBase(cx, fp->scopeChain, id);
+    if (!obj2)
+        ABORT_TRACE_ERROR("js_FindIdentifierBase failed");
+    if (!TRACE_RECORDER(localCx))
+        return JSRS_STOP;
     if (obj2 != globalObj && STOBJ_GET_CLASS(obj2) != &js_CallClass)
         ABORT_TRACE("BINDNAME on non-global, non-call object");
 
@@ -13179,10 +13183,9 @@ TraceRecorder::record_JSOP_ARGSUB()
     JSStackFrame* fp = cx->fp;
     if (!(fp->fun->flags & JSFUN_HEAVYWEIGHT)) {
         uintN slot = GET_ARGNO(fp->regs->pc);
-        if (slot < fp->argc)
-            stack(0, get(&cx->fp->argv[slot]));
-        else
-            stack(0, INS_VOID());
+        if (slot >= fp->argc)
+            ABORT_TRACE("can't trace out-of-range arguments");
+        stack(0, get(&cx->fp->argv[slot]));
         return JSRS_CONTINUE;
     }
     ABORT_TRACE("can't trace JSOP_ARGSUB hard case");

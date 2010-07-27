@@ -478,6 +478,13 @@ public:
             NS_WARNING("Not same origin error!");
             errorevent.errorMsg = xoriginMsg.get();
             errorevent.lineNr = 0;
+            // FIXME: once the principal of the script is not tied to
+            // the filename, we can stop using the post-redirect
+            // filename if we want and remove this line.  Note that
+            // apparently we can't handle null filenames in the error
+            // event dispatching code.
+            static PRUnichar nullFilename[] = { PRUnichar(0) };
+            errorevent.fileName = nullFilename;
           }
 
           nsEventDispatcher::Dispatch(win, presContext, &errorevent, nsnull,
@@ -1158,9 +1165,10 @@ nsJSContext::DOMOperationCallback(JSContext *cx)
     }
   }
 
-  PRInt32 buttonPressed = 1; //In case user exits dialog by clicking X
+  PRInt32 buttonPressed = 0; //In case user exits dialog by clicking X
   PRBool neverShowDlgChk = PR_FALSE;
-  PRUint32 buttonFlags = (nsIPrompt::BUTTON_TITLE_IS_STRING *
+  PRUint32 buttonFlags = nsIPrompt::BUTTON_POS_1_DEFAULT +
+                         (nsIPrompt::BUTTON_TITLE_IS_STRING *
                           (nsIPrompt::BUTTON_POS_0 + nsIPrompt::BUTTON_POS_1));
 
   // Add a third button if necessary:
@@ -1171,13 +1179,13 @@ nsJSContext::DOMOperationCallback(JSContext *cx)
   ::JS_SetOperationCallback(cx, nsnull);
 
   // Open the dialog.
-  rv = prompt->ConfirmEx(title, msg, buttonFlags, stopButton, waitButton,
+  rv = prompt->ConfirmEx(title, msg, buttonFlags, waitButton, stopButton,
                          debugButton, neverShowDlg, &neverShowDlgChk,
                          &buttonPressed);
 
   ::JS_SetOperationCallback(cx, DOMOperationCallback);
 
-  if (NS_FAILED(rv) || (buttonPressed == 1)) {
+  if (NS_FAILED(rv) || (buttonPressed == 0)) {
     // Allow the script to continue running
 
     if (neverShowDlgChk) {

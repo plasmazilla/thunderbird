@@ -3377,6 +3377,8 @@ defined(PNG_USER_TRANSFORM_PTR_SUPPORTED)
    {
      png_free(png_ptr, png_ptr->big_row_buf);
      png_ptr->big_row_buf = (png_bytep)png_malloc(png_ptr, row_bytes+64);
+     if (png_ptr->interlaced)
+       png_memset(png_ptr->big_row_buf, 0, row_bytes + 64);
      png_ptr->row_buf = png_ptr->big_row_buf+32;
      png_ptr->old_big_row_buf_size = row_bytes+64;
    }

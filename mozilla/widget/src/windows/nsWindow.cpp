@@ -3646,6 +3646,8 @@ nsWindow::IPCWindowProcHandler(UINT& msg, WPARAM& wParam, LPARAM& lParam)
     // Windowed plugins that fire context menu selection events to parent
     // windows.
     case WM_CONTEXTMENU:
+    // IME events fired as a result of synchronous focus changes
+    case WM_IME_SETCONTEXT:
       handled = PR_TRUE;
     break;
   }

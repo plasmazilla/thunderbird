@@ -283,6 +283,13 @@ nsWindow::~nsWindow()
     Destroy();
   }
 
+  // Once a plugin window has been destroyed,
+  // its parent, the clipping window, can be destroyed.
+  if (mClipWnd) {
+    WinDestroyWindow(mClipWnd);
+    mClipWnd = 0;
+  }
+
 }
 
 /* static */ void
@@ -2195,10 +2202,10 @@ nsWindow::Scroll(const nsIntPoint& aDelta,
         // but not the part outside it [at least on Windows].  For
         // these widgets, we have to invalidate them to get both
         // parts updated after the scroll.
-        if (w->mBounds.Intersects(affectedRect)) {
+        if (w->mWnd && w->mBounds.Intersects(affectedRect)) {
           if (!ClipRegionContainedInRect(configuration.mClipRegion,
-                                         affectedRect - (w->mBounds.TopLeft()
-                                                         + aDelta))) {
+                                         affectedRect -
+                                         (w->mBounds.TopLeft() + aDelta))) {
             w->Invalidate(PR_FALSE);
           }
 

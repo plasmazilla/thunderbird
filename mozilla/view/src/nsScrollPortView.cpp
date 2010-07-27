@@ -764,7 +764,10 @@ nsScrollPortView::IncrementalScroll()
                    mOffsetY + mAsyncScroll->mVelocities[mAsyncScroll->mFrameIndex*2 + 1]);
       if (!thisView.IsAlive())
         return;
-      mAsyncScroll->mFrameIndex++;
+      // A nested ScrollTo() taking the synchronous path may have deleted
+      // |mAsyncScroll| so we need to null-check again.  Bug 490461.
+      if (mAsyncScroll)
+        mAsyncScroll->mFrameIndex++;
       return;
     }
   } else {
