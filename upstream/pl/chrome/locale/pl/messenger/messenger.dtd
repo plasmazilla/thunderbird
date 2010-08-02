@@ -393,7 +393,7 @@
 <!ENTITY markMenu.label                 "Oznacz">
 <!ENTITY markMenu.accesskey             "c">
 <!ENTITY markAsReadCmd.label            "Jako przeczytaną">
-<!ENTITY markAsReadCmd.accesskey        "p">
+<!ENTITY markAsReadCmd.accesskey        "a">
 <!ENTITY markAsReadCmd.key              "m">
 <!ENTITY markThreadAsReadCmd.label      "Wątek jako przeczytany">
 <!ENTITY markThreadAsReadCmd.accesskey  "W">
@@ -638,7 +638,7 @@
 <!ENTITY contextReplySender.label        "Odpowiedz tylko nadawcy">
 <!ENTITY contextReplySender.accesskey    "n">
 <!ENTITY contextReplyNewsgroup.label     "Odpowiedz grupie dyskusyjnej">
-<!ENTITY contextReplyNewsgroup.accesskey "u">
+<!ENTITY contextReplyNewsgroup.accesskey "s">
 <!ENTITY contextReplyAll.label           "Odpowiedz wszystkim">
 <!ENTITY contextReplyAll.accesskey       "w">
 <!ENTITY contextReplyList.label          "Odpowiedz liście dyskusyjnej">
@@ -658,7 +658,7 @@
 <!ENTITY contextPrint.label            "Drukuj…">
 <!ENTITY contextPrint.accesskey        "D">
 <!ENTITY contextPrintPreview.label     "Podgląd wydruku">
-<!ENTITY contextPrintPreview.accesskey "g">
+<!ENTITY contextPrintPreview.accesskey "u">
 
 <!-- Thread Pane Column Picker -->
 <!ENTITY columnPicker.resetToInbox.label             "Przywróć domyślne">
@@ -747,7 +747,7 @@
 <!ENTITY copyEmailCmd.accesskey      "e">
 <!ENTITY stopCmd.label               "Zatrzymaj">
 <!ENTITY stopCmd.accesskey           "Z">
-<!ENTITY reloadCmd.label             "Odświerz">
+<!ENTITY reloadCmd.label             "Odśwież">
 <!ENTITY reloadCmd.accesskey         "i">
 <!ENTITY openInBrowser.label         "Otwórz w przeglądarce">
 <!ENTITY openInBrowser.accesskey     "p">

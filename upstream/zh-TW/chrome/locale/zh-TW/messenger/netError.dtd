@@ -102,8 +102,8 @@
 <!ENTITY unknownSocketType.title "伺服器回應錯誤">
 <!ENTITY unknownSocketType.longDesc "
 <ul>
-  <li>請確定電腦已安裝個人安全管理員 (PEM)。</li>
-  <li>可能是伺服器上非標準的組態設定造成的。</li>
+  <li>請確定電腦已安裝個人安全管理員 (Personal Security Manager)。</li>
+  <li>可能是伺服器上的非標準設定所造成的。</li>
 </ul>
 ">
 

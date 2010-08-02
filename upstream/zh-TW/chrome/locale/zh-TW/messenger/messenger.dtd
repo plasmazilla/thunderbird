@@ -380,7 +380,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY tagMenu.label "標籤">
 <!ENTITY tagMenu.accesskey "g">
 <!ENTITY tagCmd0.key "0">
-<!ENTITY tagCmd1.key "0">
+<!ENTITY tagCmd1.key "1">
 <!ENTITY tagCmd2.key "2">
 <!ENTITY tagCmd3.key "3">
 <!ENTITY tagCmd4.key "4">

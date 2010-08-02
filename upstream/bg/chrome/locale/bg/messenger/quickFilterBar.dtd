@@ -23,13 +23,13 @@
      filters are propagated between folder changes and when opening new tabs.)
      -->
 
-<!ENTITY quickFilterBar.sticky.tooltip "Запазване на филтрите при отиване в папка">
+<!ENTITY quickFilterBar.sticky.tooltip "Запазване на филтрите при отиване в друга папка">
 <!-- LOCALIZATION NOTE (quickFilterBar.barLabel.label):
      The text to display on the quick filter bar, labeling it.  This should
      ideally be as short as possible.
      -->
 
-<!ENTITY quickFilterBar.barLabel.label "Бърз филтър:">
+<!ENTITY quickFilterBar.barLabel.label "Бързо търсене:">
 <!-- LOCALIZATION NOTE (quickFilterBar.unread.label):
      The label for the filter button that causes us to filter results to only
      include unread messages.
@@ -47,13 +47,13 @@
      include messages that have been starred/flagged.
      -->
 
-<!ENTITY quickFilterBar.starred.label "Отбелязани">
+<!ENTITY quickFilterBar.starred.label "Звезда">
 <!-- LOCALIZATION NOTE (quickFilterBar.starred.tooltip):
      The tooltip for the filter button that causes us to filter results to only
      include messages that have been starred/flagged.
      -->
 
-<!ENTITY quickFilterBar.starred.tooltip "Показване само на отбелязаните съобщения">
+<!ENTITY quickFilterBar.starred.tooltip "Показване само на отбелязаните със звезда съобщения">
 <!-- LOCALIZATION NOTE (quickFilterBar.inaddrbook.label):
      The label for the filter button that causes us to filter results to only
      include messages from contacts in one of the user's non-remote address
@@ -85,13 +85,13 @@
      include messages with attachments.
      -->
 
-<!ENTITY quickFilterBar.attachment.label "Прикачен файл">
+<!ENTITY quickFilterBar.attachment.label "Притурки">
 <!-- LOCALIZATION NOTE (quickFilterBar.attachment.tooltip):
      The tooltip for the filter button that causes us to filter results to only
      include messages with attachments.
      -->
 
-<!ENTITY quickFilterBar.attachment.tooltip "Показване само на съобщения с прикачени файлове">
+<!ENTITY quickFilterBar.attachment.tooltip "Показване само на съобщения с приложени файлове">
 <!-- LOCALIZATION NOTE (quickFilterBar.resultsLabel.some.formatString):
      This is used to populate the results box; it either displays the
      number of messages found using this string, that there are no messages
@@ -129,7 +129,7 @@
      box faster.
      -->
 
-<!ENTITY quickFilterBar.textbox.emptyText.base "Филтриране на съобщенията... #1">
+<!ENTITY quickFilterBar.textbox.emptyText.base "Търсене в тези съобщенията... #1">
 <!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.nonmac):
      The description of the key-binding to get into the box on windows and
      linux (which use the control key).  We use the keybinding for cmd_find
@@ -175,7 +175,7 @@
      sender for the string.
      -->
 
-<!ENTITY quickFilterBar.textFilter.sender.label "Изпращач">
+<!ENTITY quickFilterBar.textFilter.sender.label "Подател">
 <!-- LOCALIZATION NOTE (quickFilterBar.textFilter.recipients.label):
      The button label that toggles whether the text filter searches the message
      recipients (to, cc) for the string.
@@ -205,4 +205,4 @@
      This line will have #1 replaced with what the user has typed so far.
      -->
 
-<!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Натиснете „Enter“ отново за продължаване на търсене на: #1">
+<!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Натиснете отново „Enter“ за продължаване на търсенето на: #1">

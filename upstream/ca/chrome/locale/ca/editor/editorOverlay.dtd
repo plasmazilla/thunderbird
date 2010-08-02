@@ -74,7 +74,7 @@
 <!ENTITY publishAsCmd.accesskey "o">
 <!ENTITY exportToTextCmd.label "Exporta a text…">
 <!ENTITY exportToTextCmd.accesskey "t">
-<!ENTITY saveAsChangeEncodingCmd.label "Anomena i desa el joc de caràcters">
+<!ENTITY saveAsChangeEncodingCmd.label "Desa i canvia el joc de caràcters">
 <!ENTITY saveAsChangeEncodingCmd.accesskey "e">
 <!ENTITY previewCmd.label "Explora la pàgina">
 <!ENTITY previewCmd.accesskey "x">

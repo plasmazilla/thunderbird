@@ -1,0 +1,102 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Communicator.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corp.
+   - Portions created by the Initial Developer are Copyright (C) 2000
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   David Bienvenu <bienvenu@netscape.com>
+   -   Mohan Bhamidipati <mohanb@netscape.com>
+   -   Lorenzo Colitti   <lorenzo@colitti.com>
+   -   Stefan Borggraefe <Stefan.Borggraefe@gmx.de>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either of the GNU General Public License Version 2 or later (the "GPL"),
+   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY folderProps.windowtitle.label           "Thuộc tính">
+
+<!ENTITY generalInfo.label                       "Thông tin Tổng quát">
+<!ENTITY folderCharsetTab.label                  "Bảng mã Mặc định:">
+<!ENTITY folderCharsetTab.accesskey              "B">
+<!ENTITY folderCharsetOverride.label             "Áp dụng mặc định cho tất cả thư trong thư mục (sẽ bỏ qua thiết lập bảng mã riêng lẻ và tính năng tự động nhận diện)">
+<!ENTITY folderCharsetOverride.accesskey         "d">
+<!ENTITY folderRebuildSummaryFileTip2.label      "Xây dựng lại Chỉ số Tập tin Tóm tắt">
+<!ENTITY folderRebuildSummaryFile2.label         "Sửa thư mục">
+<!ENTITY folderRebuildSummaryFile2.accesskey     "S">
+<!ENTITY folderRebuildSummaryFile.explanation    "Đôi khi tập tin chỉ mục của thư mục (.msf) bị hư và thư tin trông có thể như bị biến mất hoặc các thư tin đã xóa lại hiện ra; sửa thư mục có thể khắc phục các vấn đề này.">
+<!ENTITY folderIncludeInGlobalSearch.label       "Bao gồm thư tin trong thư mục này trong kết quả Tìm kiếm Bao quát">
+<!ENTITY folderIncludeInGlobalSearch.accesskey   "g">
+     
+<!ENTITY retention.label "Chính sách Sử dụng">
+<!ENTITY retentionUseAccount.label  "Sử dụng thiết lập tài khoản của tôi">
+<!ENTITY retentionUseAccount.accesskey "S">
+<!ENTITY daysOld.label "ngày">
+<!ENTITY message.label "thư mới nhất">
+<!ENTITY retentionCleanup.label "Để khôi phục dung lượng đĩa, thư cũ sẽ bị xóa.">
+<!ENTITY retentionCleanupImap.label "Để khôi phục dung lượng đĩa, thư cũ có thể bị xóa vĩnh viễn, cả bản sao trong máy lẫn bản gốc trên máy chủ.">
+<!ENTITY retentionCleanupPop.label "Để khôi phục dung lượng đĩa, thư cũ có thể bị xóa vĩnh viễn, bao gồm cả bản gốc trên máy chủ.">
+<!ENTITY retentionDeleteMsg.label "Xóa thư cũ hơn">
+<!ENTITY retentionDeleteMsg.accesskey "a">
+<!ENTITY retentionKeepAll.label "Không xóa bất kì thư nào">
+<!ENTITY retentionKeepAll.accesskey "K">
+<!ENTITY retentionKeepRecent.label "Xóa tất cả trừ gần đây">
+<!ENTITY retentionKeepRecent.accesskey "g">
+<!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
+<!ENTITY retentionKeepUnreadHidden.label "Luôn luôn xóa thư đã đọc (ghi đè thiết lập tuổi)">
+<!ENTITY retentionApplyToFlagged.label "Luôn luôn giữ lại thư gắn sao">
+<!ENTITY retentionApplyToFlagged.accesskey "s">
+
+<!ENTITY folderSynchronizationTab.label          "Đồng bộ hóa">
+<!ENTITY folderCheckForNewMessages2.label         "Khi lấy thư tin mới cho tài khoản này, luôn luôn kiểm tra thư mục này">
+<!ENTITY folderCheckForNewMessages2.accesskey     "K">
+
+<!ENTITY offlineFolder.check.label               "Chọn thư mục này để dùng ngoại tuyến">
+<!ENTITY offlineFolder.check.accesskey           "C">
+<!ENTITY offlineFolder.button.label              "Tải ngay">
+<!ENTITY offlineFolder.button.accesskey          "T">
+
+<!ENTITY selectofflineNewsgroup.check.label      "Chọn nhóm tin để dùng ngoại tuyến">
+<!ENTITY selectofflineNewsgroup.check.accesskey  "o">
+<!ENTITY offlineNewsgroup.button.label           "Tải ngay">
+<!ENTITY offlineNewsgroup.button.accesskey       "i">
+
+<!ENTITY folderProps.name.label                  "Tên:">
+<!ENTITY folderProps.name.accesskey              "T">
+<!ENTITY folderProps.location.label              "Địa chỉ:">
+<!ENTITY folderProps.location.accesskey          "a">
+
+<!ENTITY folderSharingTab.label                  "Chia sẻ">
+<!ENTITY privileges.button.label                 "Quyền hạn…">
+<!ENTITY privileges.button.accesskey             "Q">
+<!ENTITY permissionsDesc.label                   "Bạn có những quyền sau:">
+<!ENTITY folderType.label                        "Kiểu Thư Mục:">
+
+<!ENTITY folderQuotaTab.label                    "Hạn mức">
+<!ENTITY folderQuotaRoot.label                   "Gốc rễ Hạn mức:">
+<!ENTITY folderQuotaUsage.label                  "Sử dụng:">
+<!ENTITY folderQuotaStatus.label                 "Trạng thái:">
