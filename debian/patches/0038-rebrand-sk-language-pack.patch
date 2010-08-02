@@ -1,0 +1,58 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 16:55:53 +0100
+Subject: [PATCH] rebrand sk language pack
+
+---
+ upstream/sk/chrome/locale/sk/branding/brand.dtd    |    6 +++---
+ .../sk/chrome/locale/sk/branding/brand.properties  |    4 ++--
+ .../chrome/locale/sk/messenger/accountCreation.dtd |    2 +-
+ upstream/sk/chrome/locale/sk/messenger/credits.dtd |    2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/upstream/sk/chrome/locale/sk/branding/brand.dtd b/upstream/sk/chrome/locale/sk/branding/brand.dtd
+index 648ef79..e1e28fc 100644
+--- a/upstream/sk/chrome/locale/sk/branding/brand.dtd
++++ b/upstream/sk/chrome/locale/sk/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird a logá Thunderbird sú ochranné známky patriace Mozilla Foundation.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/sk/chrome/locale/sk/branding/brand.properties b/upstream/sk/chrome/locale/sk/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/sk/chrome/locale/sk/branding/brand.properties
++++ b/upstream/sk/chrome/locale/sk/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/sk/chrome/locale/sk/messenger/accountCreation.dtd b/upstream/sk/chrome/locale/sk/messenger/accountCreation.dtd
+index f8aacfd..0331d84 100644
+--- a/upstream/sk/chrome/locale/sk/messenger/accountCreation.dtd
++++ b/upstream/sk/chrome/locale/sk/messenger/accountCreation.dtd
+@@ -69,7 +69,7 @@
+ <!ENTITY changeSettings.label            "Zmeniť nastavenia">
+ <!ENTITY changeSettings.accesskey        "e">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; vám môže umožniť získať vaše e-mailové správy použitím poskytnutej konfigurácie. Avšak mali by ste kontaktovať vášho poskytovateľa e-mailovej schránky alebo správcu systému a požiadať ho o údaje k neplatným pripojeniam. Viac informácii nájdete na stránke Thunderbird - Často kladené otázky.">
++<!ENTITY contactYourProvider.description "&brandShortName; vám môže umožniť získať vaše e-mailové správy použitím poskytnutej konfigurácie. Avšak mali by ste kontaktovať vášho poskytovateľa e-mailovej schránky alebo správcu systému a požiadať ho o údaje k neplatným pripojeniam. Viac informácii nájdete na stránke Icedove - Často kladené otázky.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Upozornenie! Toto je nezabezpečený server.">
+ <!ENTITY insecureServer.tooltip.details  "Viac informácií získate po kliknutí na krúžok.">
+diff --git a/upstream/sk/chrome/locale/sk/messenger/credits.dtd b/upstream/sk/chrome/locale/sk/messenger/credits.dtd
+index e2b0d5a..d61ef79 100644
+--- a/upstream/sk/chrome/locale/sk/messenger/credits.dtd
++++ b/upstream/sk/chrome/locale/sk/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "O programe &brandFullName;">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Špeciálne poďakovanie">
+ 
+ <!-- localization credits look like this: -->
+-- 

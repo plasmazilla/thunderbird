@@ -1,0 +1,46 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 16:50:52 +0100
+Subject: [PATCH] rebrand ru language pack
+
+---
+ upstream/ru/chrome/locale/ru/branding/brand.dtd    |    6 +++---
+ .../ru/chrome/locale/ru/branding/brand.properties  |    4 ++--
+ .../chrome/locale/ru/messenger/accountCreation.dtd |    2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/upstream/ru/chrome/locale/ru/branding/brand.dtd b/upstream/ru/chrome/locale/ru/branding/brand.dtd
+index 88eeaac..120541a 100644
+--- a/upstream/ru/chrome/locale/ru/branding/brand.dtd
++++ b/upstream/ru/chrome/locale/ru/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+-<!ENTITY logoTrademark "Mozilla Thunderbird и логотипы Thunderbird являются торговыми марками Mozilla Foundation.">
++<!ENTITY logoTrademark " ">
+diff --git a/upstream/ru/chrome/locale/ru/branding/brand.properties b/upstream/ru/chrome/locale/ru/branding/brand.properties
+index c27e6cb..841d695 100644
+--- a/upstream/ru/chrome/locale/ru/branding/brand.properties
++++ b/upstream/ru/chrome/locale/ru/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
++brandShortName = Icedove
++brandFullName = Icedove
+ vendorShortName = Mozilla
+diff --git a/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd b/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
+index 683833f..a7032ff 100644
+--- a/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
++++ b/upstream/ru/chrome/locale/ru/messenger/accountCreation.dtd
+@@ -49,7 +49,7 @@
+ <!ENTITY createAccount.accesskey "з">
+ <!ENTITY changeSettings.label "Изменить настройки">
+ <!ENTITY changeSettings.accesskey "м">
+-<!ENTITY contactYourProvider.description "Вы можете забирать свою почту с помощью &brandShortName;, используя предоставленные конфигурации. Тем не менее мы рекомендуем вам связаться с вашим администратором или провайдером электронной почты в связи с небезопасностью работы по этим соединениям. Для получения более подробной информации обратитесь к Thunderbird FAQ.">
++<!ENTITY contactYourProvider.description "Вы можете забирать свою почту с помощью &brandShortName;, используя предоставленные конфигурации. Тем не менее мы рекомендуем вам связаться с вашим администратором или провайдером электронной почты в связи с небезопасностью работы по этим соединениям. Для получения более подробной информации обратитесь к Icedove FAQ.">
+ <!ENTITY insecureServer.tooltip.title "Предупреждение! Это незащищённый сервер.">
+ <!ENTITY insecureServer.tooltip.details "Для получения подробностей щёлкните по кружку.">
+ <!ENTITY insecureUnencrypted.description "Ваши письма и данные аутентификации будут отправляться в незашифрованном виде, так что ваш пароль (и ваши сообщения) могут быть легко прочтены другими людьми. &brandShortName; позволит вам работать с вашей почтой, но мы настоятельно советуем вам попросить своего провайдера электронной почты настроить почтовый сервер на работу по защищённому соединению.">
+-- 

@@ -1,0 +1,76 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:59:22 +0100
+Subject: [PATCH] rebrand pt-PT language pack
+
+---
+ .../pt-PT/chrome/locale/pt-PT/branding/brand.dtd   |    9 ++++-----
+ .../chrome/locale/pt-PT/branding/brand.properties  |    6 +++---
+ .../locale/pt-PT/messenger/accountCreation.dtd     |    2 +-
+ .../chrome/locale/pt-PT/messenger/credits.dtd      |    2 +-
+ .../locale/pt-PT/messenger/featureConfigurator.dtd |    2 +-
+ 5 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.dtd b/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.dtd
+index 8c414ff..8de88c0 100644
+--- a/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.dtd
++++ b/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.dtd
+@@ -1,6 +1,5 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
+-<!ENTITY vendorShortName "Mozilla Thunderbird">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird e os logos Thunderbird
+-                                 são marcas registadas da Mozilla Foundation.">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
++<!ENTITY  logoTrademark         " ">
+ 
+diff --git a/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.properties b/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.properties
++++ b/upstream/pt-PT/chrome/locale/pt-PT/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/pt-PT/chrome/locale/pt-PT/messenger/accountCreation.dtd b/upstream/pt-PT/chrome/locale/pt-PT/messenger/accountCreation.dtd
+index 3565b6e..536f730 100644
+--- a/upstream/pt-PT/chrome/locale/pt-PT/messenger/accountCreation.dtd
++++ b/upstream/pt-PT/chrome/locale/pt-PT/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Mudar definições">
+ <!ENTITY changeSettings.accesskey        "u">
+ 
+-<!ENTITY contactYourProvider.description "O &brandShortName; pode permitir que receba o seu correio com as configurações fornecidas. No entanto, deve contactar o seu administrador ou fornecedor de correio electrónico sobre estas ligações incorrectas. Para mais informação veja a FAQ do Thunderbird FAQ.">
++<!ENTITY contactYourProvider.description "O &brandShortName; pode permitir que receba o seu correio com as configurações fornecidas. No entanto, deve contactar o seu administrador ou fornecedor de correio electrónico sobre estas ligações incorrectas. Para mais informação veja a FAQ do Icedove FAQ.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Aviso! Este servidor não é seguro.">
+ <!ENTITY insecureServer.tooltip.details  "Clique no círculo para mais detalhes.">
+diff --git a/upstream/pt-PT/chrome/locale/pt-PT/messenger/credits.dtd b/upstream/pt-PT/chrome/locale/pt-PT/messenger/credits.dtd
+index 26e629a..0db8cb2 100644
+--- a/upstream/pt-PT/chrome/locale/pt-PT/messenger/credits.dtd
++++ b/upstream/pt-PT/chrome/locale/pt-PT/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; Créditos">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Agradecimentos a">
+ 
+ <!-- localization credits look like this: -->
+diff --git a/upstream/pt-PT/chrome/locale/pt-PT/messenger/featureConfigurator.dtd b/upstream/pt-PT/chrome/locale/pt-PT/messenger/featureConfigurator.dtd
+index 8374005..7dc6af0 100644
+--- a/upstream/pt-PT/chrome/locale/pt-PT/messenger/featureConfigurator.dtd
++++ b/upstream/pt-PT/chrome/locale/pt-PT/messenger/featureConfigurator.dtd
+@@ -5,7 +5,7 @@
+ <!ENTITY featureConfigurator.heading1 "Vale a pena conhecer as funcionalidades do &brandShortName;">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para.1): The tone of this paragraph is important: we tried for a tone that promotes the new features (which we believe are good and worth users learning about), but also emphasizing that we think it's important to preserve user choice. -->
+-<!ENTITY featureConfigurator.para.1 "O &brandShortName; inclui novas e poderosas funcionalidades de que estamos orgulhosos e que pensamos que a maioria das pessoas vai gostar. Os gostos e necessidades das pessoas variam, por isso tornámos mais fácil controlar e personalizar o Thunderbird.">
++<!ENTITY featureConfigurator.para.1 "O &brandShortName; inclui novas e poderosas funcionalidades de que estamos orgulhosos e que pensamos que a maioria das pessoas vai gostar. Os gostos e necessidades das pessoas variam, por isso tornámos mais fácil controlar e personalizar o Icedove.">
+ 
+ <!-- LOCALIZATION NOTE (featureConfigurator.para.2): This paragraph explains that this page is active (the buttons change the UI), and that they can get back to it if they change their mind later.-->
+ <!ENTITY featureConfigurator.para.2 "Use esta página para configurar estas novas configurações. Pode sempre regressar ao assistente de migração através do menu Ajuda.">
+-- 

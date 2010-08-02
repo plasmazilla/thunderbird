@@ -3,24 +3,24 @@ Date: Sun, 21 Feb 2010 13:10:58 +0100
 Subject: [PATCH] rebrand ga-IE language pack
 
 ---
- .../ga-IE/chrome/locale/ga-IE/branding/brand.dtd   |    4 ++--
+ .../ga-IE/chrome/locale/ga-IE/branding/brand.dtd   |    6 +++---
  .../chrome/locale/ga-IE/branding/brand.properties  |    4 ++--
- .../chrome/locale/ga-IE/messenger/aboutDialog.dtd  |    2 +-
  .../locale/ga-IE/messenger/accountCreation.dtd     |    2 +-
  .../chrome/locale/ga-IE/messenger/credits.dtd      |    2 +-
- .../locale/ga-IE/messenger/featureConfigurator.dtd |    8 ++++----
- 6 files changed, 11 insertions(+), 11 deletions(-)
+ 4 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.dtd b/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.dtd
-index b0f582a..911f8fa 100644
+index 0121e8b..120541a 100644
 --- a/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.dtd
 +++ b/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.dtd
-@@ -1,3 +1,3 @@
+@@ -1,4 +1,4 @@
 -<!ENTITY brandShortName "Thunderbird">
 -<!ENTITY brandFullName "Mozilla Thunderbird">
 +<!ENTITY brandShortName "Icedove">
 +<!ENTITY brandFullName "Icedove">
  <!ENTITY vendorShortName "Mozilla">
+-<!ENTITY logoTrademark "Is trádmharcanna de chuid Fondúireacht Mozilla iad Mozilla Thunderbird agus suaitheantais Thunderbird.">
++<!ENTITY logoTrademark " ">
 diff --git a/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.properties b/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.properties
 index 857d0c3..44bf191 100644
 --- a/upstream/ga-IE/chrome/locale/ga-IE/branding/brand.properties
@@ -31,24 +31,11 @@ index 857d0c3..44bf191 100644
 +brandShortName=Icedove
 +brandFullName=Icedove
  vendorShortName=Mozilla
-diff --git a/upstream/ga-IE/chrome/locale/ga-IE/messenger/aboutDialog.dtd b/upstream/ga-IE/chrome/locale/ga-IE/messenger/aboutDialog.dtd
-index 543a6ac..d2d9db1 100644
---- a/upstream/ga-IE/chrome/locale/ga-IE/messenger/aboutDialog.dtd
-+++ b/upstream/ga-IE/chrome/locale/ga-IE/messenger/aboutDialog.dtd
-@@ -2,7 +2,7 @@
- <!ENTITY aboutButton.label "&lt; Siar">
- <!ENTITY aboutButton.accesskey "S">
- <!ENTITY aboutVersion "leagan">
--<!ENTITY copyrightText "&#169;1998-2009 le lucht déanta a gcion. Gach ceart ar cosaint. Is trádmharcanna de chuid Fondúireacht Mozilla iad Mozilla Thunderbird agus suaitheantais Thunderbird. Gach ceart ar cosaint.">
-+<!ENTITY copyrightText "&#169;1998-2009 le lucht déanta a gcion. Gach ceart ar cosaint.">
- <!ENTITY aboutMenu.label "Maidir leis">
- <!ENTITY aboutMenu.accesskey "M">
- <!ENTITY aboutCredits.label "Admhálacha">
 diff --git a/upstream/ga-IE/chrome/locale/ga-IE/messenger/accountCreation.dtd b/upstream/ga-IE/chrome/locale/ga-IE/messenger/accountCreation.dtd
-index 3264345..1ccca49 100644
+index 7d02ddf..a51e90c 100644
 --- a/upstream/ga-IE/chrome/locale/ga-IE/messenger/accountCreation.dtd
 +++ b/upstream/ga-IE/chrome/locale/ga-IE/messenger/accountCreation.dtd
-@@ -65,7 +65,7 @@
+@@ -68,7 +68,7 @@
  <!ENTITY changeSettings.label "Athraigh Socruithe">
  <!ENTITY changeSettings.accesskey "S">
  
@@ -68,42 +55,4 @@ index c128dda..98b2ca4 100644
  <!ENTITY credit.thanks "Buíochas ar leith le">
  <!-- localization credits look like this: -->
  <!--
-diff --git a/upstream/ga-IE/chrome/locale/ga-IE/messenger/featureConfigurator.dtd b/upstream/ga-IE/chrome/locale/ga-IE/messenger/featureConfigurator.dtd
-index 9ae5f58..0c8f6f9 100644
---- a/upstream/ga-IE/chrome/locale/ga-IE/messenger/featureConfigurator.dtd
-+++ b/upstream/ga-IE/chrome/locale/ga-IE/messenger/featureConfigurator.dtd
-@@ -4,13 +4,13 @@ baseMenuOverlay.dtd -->
- <!ENTITY featureConfigurator.title "Cúntóir Ascnaimh">
- <!-- LOCALIZATION NOTE (featureConfigurator.heading): Heading for the page -->
- 
--<!ENTITY featureConfigurator.heading "Gnéithe i Thunderbird 3 ar fiú iad a bheith ar eolas agat">
-+<!ENTITY featureConfigurator.heading "Gnéithe i Icedove 3 ar fiú iad a bheith ar eolas agat">
- <!-- LOCALIZATION NOTE (featureConfigurator.para1): The tone of this paragraph
- is important: we tried for a tone that promotes the new features (which we
- believe are good and worth users learning about), but also emphasizing that we
- think it's important to preserve user choice. -->
- 
--<!ENTITY featureConfigurator.para1 "Tá gnéithe nua cumhachta i Thunderbird 3 atáimid bródúil astu agus ceapaimid go dtaitneoidh siad le beagnach gach uile duine. Bíonn riachtanais agus mianta éagsúla ag daoine agus mar sin tá Thunderbird furasta le rialú agus le saincheapadh.">
-+<!ENTITY featureConfigurator.para1 "Tá gnéithe nua cumhachta i Icedove 3 atáimid bródúil astu agus ceapaimid go dtaitneoidh siad le beagnach gach uile duine. Bíonn riachtanais agus mianta éagsúla ag daoine agus mar sin tá Icedove furasta le rialú agus le saincheapadh.">
- <!-- LOCALIZATION NOTE (featureConfigurator.para2): This paragraph explains
- that this page is active (the buttons change the UI), and that they can get
- back to it if they change their mind later.-->
-@@ -37,7 +37,7 @@ is intended to explain why it might not be the right default for some users.-->
- <!ENTITY featureConfigurator.alternative.label "Rogha Eile">
- 
- <!ENTITY featureConfigurator.syncBenefits.para "Cuireann sé seo ar do chumas do chuid ríomhphoist a léamh gan a bheith ceangailte leis an idirlíon, agus teachtaireachtaí a aimsiú de réir na bhfocal iontu chomh maith leis na hábhair agus na hainmneacha iontu.">
--<!ENTITY featureConfigurator.syncAlternative.para "Íosluchtóidh Thunderbird do chuid ríomhphoist go léir go dtí an ríomhaire seo. Ná húsáid é seo má tá spás diosca gann, nó má bhíonn ort íoc as trácht líonra.">
-+<!ENTITY featureConfigurator.syncAlternative.para "Íosluchtóidh Icedove do chuid ríomhphoist go léir go dtí an ríomhaire seo. Ná húsáid é seo má tá spás diosca gann, nó má bhíonn ort íoc as trácht líonra.">
- <!-- LOCALIZATION NOTE (featureConfigurator.syncAll.button): The choice of
- lower case is intentional, but may be overriden if that doesn't make sense
- because of a specific language context.-->
-@@ -102,7 +102,7 @@ sense because of a specific language context.-->
- <!-- LOCALIZATION NOTE (featureConfigurator.headerParaBeforeLink): The part
- of the paragraph before the beginning of the link to the AMO search page.-->
- 
--<!ENTITY featureConfigurator.headerParaBeforeLink "Tá an t-amharc mionsonraithe ar ceanntásca na dteachtaireachtaí feabhsaithe i Thunderbird 3, agus cnaipí curtha leis le haghaidh gníomhartha a bhaineann le teachtaireachtaí. Tá dearaí eile le fáil mar ">
-+<!ENTITY featureConfigurator.headerParaBeforeLink "Tá an t-amharc mionsonraithe ar ceanntásca na dteachtaireachtaí feabhsaithe i Icedove 3, agus cnaipí curtha leis le haghaidh gníomhartha a bhaineann le teachtaireachtaí. Tá dearaí eile le fáil mar ">
- <!-- LOCALIZATION NOTE (featureConfigurator.headerParaLinkName): The name of
- the link to the AMO search page.-->
- 
 -- 

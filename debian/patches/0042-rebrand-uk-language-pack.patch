@@ -1,0 +1,61 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 17:12:50 +0100
+Subject: [PATCH] rebrand uk language pack
+
+---
+ upstream/uk/chrome/locale/uk/branding/brand.dtd    |    9 ++++-----
+ .../uk/chrome/locale/uk/branding/brand.properties  |    6 +++---
+ .../chrome/locale/uk/messenger/accountCreation.dtd |    2 +-
+ upstream/uk/chrome/locale/uk/messenger/credits.dtd |    2 +-
+ 4 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/upstream/uk/chrome/locale/uk/branding/brand.dtd b/upstream/uk/chrome/locale/uk/branding/brand.dtd
+index 48ec9e7..e1e28fc 100644
+--- a/upstream/uk/chrome/locale/uk/branding/brand.dtd
++++ b/upstream/uk/chrome/locale/uk/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla Thunderbird">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird та логотипи Thunderbird
+-                                 є торговими марками фундації Mozilla.">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
++<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/uk/chrome/locale/uk/branding/brand.properties b/upstream/uk/chrome/locale/uk/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/uk/chrome/locale/uk/branding/brand.properties
++++ b/upstream/uk/chrome/locale/uk/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/uk/chrome/locale/uk/messenger/accountCreation.dtd b/upstream/uk/chrome/locale/uk/messenger/accountCreation.dtd
+index e26b4cf..e9a0f93 100644
+--- a/upstream/uk/chrome/locale/uk/messenger/accountCreation.dtd
++++ b/upstream/uk/chrome/locale/uk/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Змінити настройки">
+ <!ENTITY changeSettings.accesskey        "З">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Thunderbird FAQ for more information.">
++<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Icedove FAQ for more information.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Увага! Це небезпечний сервер.">
+ <!ENTITY insecureServer.tooltip.details  "Клацніть по кружечку щоб дізнатись подробиці.">
+diff --git a/upstream/uk/chrome/locale/uk/messenger/credits.dtd b/upstream/uk/chrome/locale/uk/messenger/credits.dtd
+index 4e4e65b..ffd24fe 100644
+--- a/upstream/uk/chrome/locale/uk/messenger/credits.dtd
++++ b/upstream/uk/chrome/locale/uk/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "Учасники проекту &brandFullName;">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Спеціальна подяка">
+ 
+ <!-- localization credits look like this: -->
+-- 

@@ -1,0 +1,46 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 16:48:38 +0100
+Subject: [PATCH] rebrand ro language pack
+
+---
+ upstream/ro/chrome/locale/ro/branding/brand.dtd    |    6 +++---
+ .../ro/chrome/locale/ro/branding/brand.properties  |    4 ++--
+ .../chrome/locale/ro/messenger/accountCreation.dtd |    2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/upstream/ro/chrome/locale/ro/branding/brand.dtd b/upstream/ro/chrome/locale/ro/branding/brand.dtd
+index 7d27db9..e1e28fc 100644
+--- a/upstream/ro/chrome/locale/ro/branding/brand.dtd
++++ b/upstream/ro/chrome/locale/ro/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird și siglele Thunderbird sunt mărci înregistrate ale fundației Mozilla.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/ro/chrome/locale/ro/branding/brand.properties b/upstream/ro/chrome/locale/ro/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/ro/chrome/locale/ro/branding/brand.properties
++++ b/upstream/ro/chrome/locale/ro/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/ro/chrome/locale/ro/messenger/accountCreation.dtd b/upstream/ro/chrome/locale/ro/messenger/accountCreation.dtd
+index 2fd842c..5a8bb36 100644
+--- a/upstream/ro/chrome/locale/ro/messenger/accountCreation.dtd
++++ b/upstream/ro/chrome/locale/ro/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Schimbă setările">
+ <!ENTITY changeSettings.accesskey        "S">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; vă poate permite accesarea contului de email folosind configurația furnizată. Totuși, ar trebui să contactați administratorul sau furnizorul de email în legătură cu aceste conexiuni improprii. Vedeți întrebările frecvente despre Thunderbird pentru mai multe informații.">
++<!ENTITY contactYourProvider.description "&brandShortName; vă poate permite accesarea contului de email folosind configurația furnizată. Totuși, ar trebui să contactați administratorul sau furnizorul de email în legătură cu aceste conexiuni improprii. Vedeți întrebările frecvente despre Icedove pentru mai multe informații.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Avertisment! Acesta este un server nesecurizat.">
+ <!ENTITY insecureServer.tooltip.details  "Clic pe cerc pentru mai multe detalii.">
+-- 

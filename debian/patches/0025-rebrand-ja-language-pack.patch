@@ -1,0 +1,60 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:33:57 +0100
+Subject: [PATCH] rebrand ja language pack
+
+---
+ upstream/ja/chrome/locale/ja/branding/brand.dtd    |    8 ++++----
+ .../ja/chrome/locale/ja/branding/brand.properties  |    6 +++---
+ .../chrome/locale/ja/messenger/accountCreation.dtd |    2 +-
+ upstream/ja/chrome/locale/ja/messenger/credits.dtd |    2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/upstream/ja/chrome/locale/ja/branding/brand.dtd b/upstream/ja/chrome/locale/ja/branding/brand.dtd
+index 00bbc3f..e1e28fc 100644
+--- a/upstream/ja/chrome/locale/ja/branding/brand.dtd
++++ b/upstream/ja/chrome/locale/ja/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla Thunderbird">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird および Thunderbird ロゴは 米国 Mozilla Foundation の米国およびその他の国における商標または登録商標です。">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
++<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/ja/chrome/locale/ja/branding/brand.properties b/upstream/ja/chrome/locale/ja/branding/brand.properties
+index 6fbb426..219496c 100644
+--- a/upstream/ja/chrome/locale/ja/branding/brand.properties
++++ b/upstream/ja/chrome/locale/ja/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName	= Thunderbird
+-brandFullName	= Mozilla Thunderbird
+-vendorShortName	= Mozilla Thunderbird
++brandShortName	= Icedove
++brandFullName	= Icedove
++vendorShortName	= Mozilla
+diff --git a/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd b/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
+index b8f84a2..66dba3e 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label		"設定変更">
+ <!ENTITY changeSettings.accesskey	"S">
+ 
+-<!ENTITY contactYourProvider.description	"提供された設定を使用して &brandShortName; であなたのメールを受信することができます。ただし、これらの接続が不適当でないか、サーバの管理者またはメールプロバイダと連絡をとってください。詳しい情報は Thunderbird FAQ をご覧ください。">
++<!ENTITY contactYourProvider.description	"提供された設定を使用して &brandShortName; であなたのメールを受信することができます。ただし、これらの接続が不適当でないか、サーバの管理者またはメールプロバイダと連絡をとってください。詳しい情報は Icedove FAQ をご覧ください。">
+ 
+ <!ENTITY insecureServer.tooltip.title		"警告！ このサーバは安全ではありません。">
+ <!ENTITY insecureServer.tooltip.details		"詳細は丸印をクリックしてください。">
+diff --git a/upstream/ja/chrome/locale/ja/messenger/credits.dtd b/upstream/ja/chrome/locale/ja/messenger/credits.dtd
+index 7dec5ee..18cbd6c 100644
+--- a/upstream/ja/chrome/locale/ja/messenger/credits.dtd
++++ b/upstream/ja/chrome/locale/ja/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; Credits">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Special Thanks To">
+ 
+ <!-- localization credits look like this: -->
+-- 

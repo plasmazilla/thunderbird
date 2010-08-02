@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:26:44 +0100
+Subject: [PATCH] rebrand is language pack
+
+---
+ upstream/is/chrome/locale/is/branding/brand.dtd    |    7 +++----
+ .../is/chrome/locale/is/branding/brand.properties  |    4 ++--
+ .../chrome/locale/is/messenger/accountCreation.dtd |    2 +-
+ upstream/is/chrome/locale/is/messenger/credits.dtd |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/is/chrome/locale/is/branding/brand.dtd b/upstream/is/chrome/locale/is/branding/brand.dtd
+index 734256a..120541a 100644
+--- a/upstream/is/chrome/locale/is/branding/brand.dtd
++++ b/upstream/is/chrome/locale/is/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+-<!ENTITY logoTrademark "Mozilla Thunderbird og Thunderbird nafnmerkið
+-                                 eru vörumerki Mozilla stofnunarinnar.">
++<!ENTITY logoTrademark " ">
+diff --git a/upstream/is/chrome/locale/is/branding/brand.properties b/upstream/is/chrome/locale/is/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/is/chrome/locale/is/branding/brand.properties
++++ b/upstream/is/chrome/locale/is/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/is/chrome/locale/is/messenger/accountCreation.dtd b/upstream/is/chrome/locale/is/messenger/accountCreation.dtd
+index 68b167c..0804fc8 100644
+--- a/upstream/is/chrome/locale/is/messenger/accountCreation.dtd
++++ b/upstream/is/chrome/locale/is/messenger/accountCreation.dtd
+@@ -62,7 +62,7 @@
+      the settings and try again. -->
+ <!ENTITY changeSettings.label "Breyta stillingum">
+ <!ENTITY changeSettings.accesskey "s">
+-<!ENTITY contactYourProvider.description "&brandShortName; getur náð í póstinn þinn með þessum stillingum. Hinsvegar, er æskilegt að þú hafir samband við kerfisstjóra eða tölvupóstþjónustuaðila með að athuga þessar röngu tengingar. Kíktu í spurt og svarað í Thunderbird fyrir meiri upplýsingar.">
++<!ENTITY contactYourProvider.description "&brandShortName; getur náð í póstinn þinn með þessum stillingum. Hinsvegar, er æskilegt að þú hafir samband við kerfisstjóra eða tölvupóstþjónustuaðila með að athuga þessar röngu tengingar. Kíktu í spurt og svarað í Icedove fyrir meiri upplýsingar.">
+ <!ENTITY insecureServer.tooltip.title "Aðvörun! Þetta er óöruggur netþjónn.">
+ <!ENTITY insecureServer.tooltip.details "Smelltu á hringinn fyrir meiri upplýsingar.">
+ <!ENTITY insecureUnencrypted.description "Tölvupósturinn þinn og auðkenni er ekki sent dulkóðað, þannig að hugsanlegt er að aðrir aðilar geti lesið lykilorðið (og tölvupóstinn). &brandShortName; getur náð í póstinn þinn, hinsvegar er æskilegt að þú hafir samband við kerfisstjóra eða tölvupóstþjónustuaðila um hvernig er hægt að nota dulkóðaða tengingu.">
+diff --git a/upstream/is/chrome/locale/is/messenger/credits.dtd b/upstream/is/chrome/locale/is/messenger/credits.dtd
+index c8528bb..012ff00 100644
+--- a/upstream/is/chrome/locale/is/messenger/credits.dtd
++++ b/upstream/is/chrome/locale/is/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "&brandFullName; þakkir">
+-<!ENTITY brandMotto "Áfram Thunderbirds!">
++<!ENTITY brandMotto "Áfram Icedove!">
+ <!ENTITY credit.thanks "Sérstakar þakkir fá">
+ <!-- localization credits look like this: -->
+ <!--
+-- 

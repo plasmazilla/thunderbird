@@ -1,0 +1,61 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 17:10:45 +0100
+Subject: [PATCH] rebrand tr language pack
+
+---
+ upstream/tr/chrome/locale/tr/branding/brand.dtd    |    9 ++++-----
+ .../tr/chrome/locale/tr/branding/brand.properties  |    6 +++---
+ .../chrome/locale/tr/messenger/accountCreation.dtd |    2 +-
+ upstream/tr/chrome/locale/tr/messenger/credits.dtd |    2 +-
+ 4 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/upstream/tr/chrome/locale/tr/branding/brand.dtd b/upstream/tr/chrome/locale/tr/branding/brand.dtd
+index 24329fe..120541a 100644
+--- a/upstream/tr/chrome/locale/tr/branding/brand.dtd
++++ b/upstream/tr/chrome/locale/tr/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
+-<!ENTITY vendorShortName "Mozilla Thunderbird">
+-<!ENTITY logoTrademark "Mozilla Thunderbird and the Thunderbird logos
+-                                 are trademarks of the Mozilla Foundation.">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
++<!ENTITY logoTrademark " ">
+diff --git a/upstream/tr/chrome/locale/tr/branding/brand.properties b/upstream/tr/chrome/locale/tr/branding/brand.properties
+index f56cedf..44bf191 100644
+--- a/upstream/tr/chrome/locale/tr/branding/brand.properties
++++ b/upstream/tr/chrome/locale/tr/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Mozilla Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/tr/chrome/locale/tr/messenger/accountCreation.dtd b/upstream/tr/chrome/locale/tr/messenger/accountCreation.dtd
+index 502b729..6c5a6ae 100644
+--- a/upstream/tr/chrome/locale/tr/messenger/accountCreation.dtd
++++ b/upstream/tr/chrome/locale/tr/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label "Ayarları değiştir">
+ <!ENTITY changeSettings.accesskey "A">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Thunderbird FAQ for more information.">
++<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Icedove FAQ for more information.">
+ 
+ <!ENTITY insecureServer.tooltip.title "Uyarı! Güvenli sunucu değildir.">
+ <!ENTITY insecureServer.tooltip.details "Ayrıntılar için çembere tıklayınız.">
+diff --git a/upstream/tr/chrome/locale/tr/messenger/credits.dtd b/upstream/tr/chrome/locale/tr/messenger/credits.dtd
+index 1ea3c87..28c565a 100644
+--- a/upstream/tr/chrome/locale/tr/messenger/credits.dtd
++++ b/upstream/tr/chrome/locale/tr/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "&brandFullName; katkıda bulunanlar">
+-<!ENTITY brandMotto "Thunderbirds Are Go!">
++<!ENTITY brandMotto "Icedove Are Go!">
+ <!ENTITY credit.thanks "Özel olarak teşekkür ettiklerimiz">
+ <!-- localization credits look like this: -->
+ <!--
+-- 

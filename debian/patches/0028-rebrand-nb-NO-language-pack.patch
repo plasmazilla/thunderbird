@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:44:24 +0100
+Subject: [PATCH] rebrand nb-NO language pack
+
+---
+ .../nb-NO/chrome/locale/nb-NO/branding/brand.dtd   |    7 +++----
+ .../chrome/locale/nb-NO/branding/brand.properties  |    4 ++--
+ .../locale/nb-NO/messenger/accountCreation.dtd     |    2 +-
+ .../chrome/locale/nb-NO/messenger/credits.dtd      |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.dtd b/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.dtd
+index 1d28004..e1e28fc 100644
+--- a/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.dtd
++++ b/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird og Thunderbird-logoene
+-                                 er varemerker som tilhører Mozilla Foundation.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.properties b/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.properties
++++ b/upstream/nb-NO/chrome/locale/nb-NO/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/nb-NO/chrome/locale/nb-NO/messenger/accountCreation.dtd b/upstream/nb-NO/chrome/locale/nb-NO/messenger/accountCreation.dtd
+index 2cc88ed..22abc80 100644
+--- a/upstream/nb-NO/chrome/locale/nb-NO/messenger/accountCreation.dtd
++++ b/upstream/nb-NO/chrome/locale/nb-NO/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Endre innstillinger">
+ <!ENTITY changeSettings.accesskey        "E">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; kan la deg laste ned e-post med de gitte konfigurasjonene. Men du bør kontakte systemansvarlig eller e-posttilbyderen om disse feilaktige tilkoblingene. Se Thunderbird FAQ for mer informasjon.">
++<!ENTITY contactYourProvider.description "&brandShortName; kan la deg laste ned e-post med de gitte konfigurasjonene. Men du bør kontakte systemansvarlig eller e-posttilbyderen om disse feilaktige tilkoblingene. Se Icedove FAQ for mer informasjon.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Advarsel! Dette er en usikker tjener.">
+ <!ENTITY insecureServer.tooltip.details  "Trykk på sirkelen for mer informasjon.">
+diff --git a/upstream/nb-NO/chrome/locale/nb-NO/messenger/credits.dtd b/upstream/nb-NO/chrome/locale/nb-NO/messenger/credits.dtd
+index b640f3c..365b2dc 100644
+--- a/upstream/nb-NO/chrome/locale/nb-NO/messenger/credits.dtd
++++ b/upstream/nb-NO/chrome/locale/nb-NO/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName; anerkjennelser">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Spesielt takk til">
+ 
+ <!-- localization credits look like this: -->
+-- 

@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 17:04:54 +0100
+Subject: [PATCH] rebrand sv-SE language pack
+
+---
+ .../sv-SE/chrome/locale/sv-SE/branding/brand.dtd   |    7 +++----
+ .../chrome/locale/sv-SE/branding/brand.properties  |    4 ++--
+ .../locale/sv-SE/messenger/accountCreation.dtd     |    2 +-
+ .../chrome/locale/sv-SE/messenger/credits.dtd      |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.dtd b/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.dtd
+index 9a62420..e1e28fc 100644
+--- a/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.dtd
++++ b/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird och Thunderbird-logotyper
+-                                 är varumärken som tillhör Mozilla Foundation.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.properties b/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.properties
++++ b/upstream/sv-SE/chrome/locale/sv-SE/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/sv-SE/chrome/locale/sv-SE/messenger/accountCreation.dtd b/upstream/sv-SE/chrome/locale/sv-SE/messenger/accountCreation.dtd
+index 5636a0f..0654e4c 100644
+--- a/upstream/sv-SE/chrome/locale/sv-SE/messenger/accountCreation.dtd
++++ b/upstream/sv-SE/chrome/locale/sv-SE/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Ändra inställningarna">
+ <!ENTITY changeSettings.accesskey        "Ä">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; kan låta dig hämta e-post med de angivna inställningarna. Du bör dock kontakta din administratör eller e-postleverantör rörande denna olämpliga anslutning. Se Thunderbird FAQ för mer information.">
++<!ENTITY contactYourProvider.description "&brandShortName; kan låta dig hämta e-post med de angivna inställningarna. Du bör dock kontakta din administratör eller e-postleverantör rörande denna olämpliga anslutning. Se Icedove FAQ för mer information.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Varning! Det här är en osäker server.">
+ <!ENTITY insecureServer.tooltip.details  "Klicka på cirkeln för fler detaljer.">
+diff --git a/upstream/sv-SE/chrome/locale/sv-SE/messenger/credits.dtd b/upstream/sv-SE/chrome/locale/sv-SE/messenger/credits.dtd
+index ef09c10..ab64a6b 100644
+--- a/upstream/sv-SE/chrome/locale/sv-SE/messenger/credits.dtd
++++ b/upstream/sv-SE/chrome/locale/sv-SE/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "&brandFullName;-medarbetare">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Särskilt tack till">
+ 
+ <!-- localization credits look like this: -->
+-- 

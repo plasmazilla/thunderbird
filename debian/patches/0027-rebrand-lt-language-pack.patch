@@ -1,0 +1,50 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:42:14 +0100
+Subject: [PATCH] rebrand lt language pack
+
+---
+ upstream/lt/chrome/locale/lt/branding/brand.dtd    |    7 +++----
+ .../lt/chrome/locale/lt/branding/brand.properties  |    4 ++--
+ .../chrome/locale/lt/messenger/accountCreation.dtd |    2 +-
+ 3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/upstream/lt/chrome/locale/lt/branding/brand.dtd b/upstream/lt/chrome/locale/lt/branding/brand.dtd
+index 2b5776b..a367306 100644
+--- a/upstream/lt/chrome/locale/lt/branding/brand.dtd
++++ b/upstream/lt/chrome/locale/lt/branding/brand.dtd
+@@ -28,8 +28,7 @@
+    -
+    - ***** END LICENSE BLOCK ***** -->
+ 
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Vardas „Mozilla Thunderbird“ ir „Thunderbird“ logotipai yra bendrijos 
+-                                 „Mozilla Foundation“ prekės ženklai.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/lt/chrome/locale/lt/branding/brand.properties b/upstream/lt/chrome/locale/lt/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/lt/chrome/locale/lt/branding/brand.properties
++++ b/upstream/lt/chrome/locale/lt/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/lt/chrome/locale/lt/messenger/accountCreation.dtd b/upstream/lt/chrome/locale/lt/messenger/accountCreation.dtd
+index 1b34ee2..b3a5254 100644
+--- a/upstream/lt/chrome/locale/lt/messenger/accountCreation.dtd
++++ b/upstream/lt/chrome/locale/lt/messenger/accountCreation.dtd
+@@ -98,7 +98,7 @@
+ <!ENTITY changeSettings.label            "Keisti nuostatas">
+ <!ENTITY changeSettings.accesskey        "n">
+ 
+-<!ENTITY contactYourProvider.description "„&brandShortName;“ gali Jums leisti gauti paštą naudojant pateiktąsias nuostatas. Tačiau Jums derėtų susisiekti su sistemos administratoriumi ar el. pašto paslaugos teikėju dėl šių netinkamų nuostatų. Plačiau apie tai – „Thunderbird“ žinyne.">
++<!ENTITY contactYourProvider.description "„&brandShortName;“ gali Jums leisti gauti paštą naudojant pateiktąsias nuostatas. Tačiau Jums derėtų susisiekti su sistemos administratoriumi ar el. pašto paslaugos teikėju dėl šių netinkamų nuostatų. Plačiau apie tai – „Icedove“ žinyne.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Dėmesio! Šis serveris nesaugus.">
+ <!ENTITY insecureServer.tooltip.details  "Spustelėkite apskritimą, jei norite sužinoti daugiau.">
+-- 

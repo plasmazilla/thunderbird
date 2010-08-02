@@ -1,0 +1,34 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 14:53:43 +0100
+Subject: [PATCH] rebrand pl language pack
+
+---
+ upstream/pl/chrome/locale/pl/branding/brand.dtd    |    6 +++---
+ .../pl/chrome/locale/pl/branding/brand.properties  |    4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/upstream/pl/chrome/locale/pl/branding/brand.dtd b/upstream/pl/chrome/locale/pl/branding/brand.dtd
+index 00a9c9b..0f42932 100644
+--- a/upstream/pl/chrome/locale/pl/branding/brand.dtd
++++ b/upstream/pl/chrome/locale/pl/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName  "Thunderbird">
+-<!ENTITY brandFullName   "Mozilla Thunderbird">
++<!ENTITY brandShortName  "Icedove">
++<!ENTITY brandFullName   "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ 
+-<!ENTITY logoTrademark   "Mozilla Thunderbird oraz logotyp Thunderbird są znakami towarowymi Mozilla Foundation.">
+\ No newline at end of file
++<!ENTITY logoTrademark   " ">
+diff --git a/upstream/pl/chrome/locale/pl/branding/brand.properties b/upstream/pl/chrome/locale/pl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/pl/chrome/locale/pl/branding/brand.properties
++++ b/upstream/pl/chrome/locale/pl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+-- 

@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 21 Feb 2010 13:21:49 +0100
+Subject: [PATCH] rebrand id language pack
+
+---
+ upstream/id/chrome/locale/id/branding/brand.dtd    |    7 +++----
+ .../id/chrome/locale/id/branding/brand.properties  |    4 ++--
+ .../chrome/locale/id/messenger/accountCreation.dtd |    2 +-
+ upstream/id/chrome/locale/id/messenger/credits.dtd |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/id/chrome/locale/id/branding/brand.dtd b/upstream/id/chrome/locale/id/branding/brand.dtd
+index 4f6482a..e1e28fc 100644
+--- a/upstream/id/chrome/locale/id/branding/brand.dtd
++++ b/upstream/id/chrome/locale/id/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Mozilla Thunderbird dan logo Thunderbird
+-                                 merupakan merek dagang Mozilla Foundation.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/id/chrome/locale/id/branding/brand.properties b/upstream/id/chrome/locale/id/branding/brand.properties
+index c27e6cb..841d695 100644
+--- a/upstream/id/chrome/locale/id/branding/brand.properties
++++ b/upstream/id/chrome/locale/id/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
++brandShortName = Icedove
++brandFullName = Icedove
+ vendorShortName = Mozilla
+diff --git a/upstream/id/chrome/locale/id/messenger/accountCreation.dtd b/upstream/id/chrome/locale/id/messenger/accountCreation.dtd
+index cf5128b..efa7634 100644
+--- a/upstream/id/chrome/locale/id/messenger/accountCreation.dtd
++++ b/upstream/id/chrome/locale/id/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Ganti Pengaturan">
+ <!ENTITY changeSettings.accesskey        "G">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; dapat mengambil email Anda menggunakan konfigurasi yang telah disediakan. Akan tetapi, sebaiknya Anda menghubungi administrator sistem atau penyedia layanan email tentang sambungan yang tidak sesuai. Silakan lihat FAQ Thunderbird untuk informasi lebih lanjut.">
++<!ENTITY contactYourProvider.description "&brandShortName; dapat mengambil email Anda menggunakan konfigurasi yang telah disediakan. Akan tetapi, sebaiknya Anda menghubungi administrator sistem atau penyedia layanan email tentang sambungan yang tidak sesuai. Silakan lihat FAQ Icedove untuk informasi lebih lanjut.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Peringatan! Server ini tidak aman.">
+ <!ENTITY insecureServer.tooltip.details  "Klik pada lingkaran untuk detail lebih lanjut.">
+diff --git a/upstream/id/chrome/locale/id/messenger/credits.dtd b/upstream/id/chrome/locale/id/messenger/credits.dtd
+index d72d232..ff6d818 100644
+--- a/upstream/id/chrome/locale/id/messenger/credits.dtd
++++ b/upstream/id/chrome/locale/id/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title "Kredit &brandFullName;">
+-<!ENTITY brandMotto "Ayo Maju Thunderbird!">
++<!ENTITY brandMotto "Ayo Maju Icedove!">
+ <!ENTITY credit.thanks "Terima Kasih Khusus Kepada">
+ <!ENTITY credit.translation "<h3>Translators</h3><ul><li>Dody Suria Wijaya</li><li>Milda Irhamni</li><li>Romi Hardiyanto</li></ul>">
+ <!ENTITY credit.memory "Untuk Mengenang">
+-- 
