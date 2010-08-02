@@ -55,7 +55,7 @@
 <!ENTITY threadColumn.tooltip "Smelltu til að sýna umræður">
  
 <!ENTITY fromColumn.tooltip "Smelltu til að raða eftir frá">
-<!ENTITY recipientColumn.tooltip "Smelltu til að raða eftir móttakanda">
+<!ENTITY recipientColumn.tooltip "Smelltu til að raða eftir viðtakanda">
 <!ENTITY subjectColumn.tooltip "Smelltu til að raða eftir efni">
 <!ENTITY dateColumn.tooltip "Smelltu til að raða eftir dagsetningu">
 <!ENTITY priorityColumn.tooltip "Smelltu til að raða eftir forgangi">

@@ -115,7 +115,7 @@
 <!ENTITY In.label                       "">
 <!ENTITY Year.emptytext                 "年">
 <!ENTITY Or.value                       "或">
-<!ENTITY Age.emptytext                  "經過時間">
+<!ENTITY Age.emptytext                  "年齡">
 <!ENTITY YearsOld.label                 "">
 
 <!ENTITY Work.tab                       "商務">

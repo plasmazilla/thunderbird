@@ -57,7 +57,7 @@
 <!ENTITY GroupName.accesskey "N">
 <!ENTITY InputValue.label "欄位內含值:">
 <!ENTITY InputValue.accesskey "V">
-<!ENTITY InitialValue.label "內含值初始值">
+<!ENTITY InitialValue.label "初始值:">
 <!ENTITY InitialValue.accesskey "V">
 <!ENTITY InputChecked.label "初始時自動選擇">
 <!ENTITY InputChecked.accesskey "C">
