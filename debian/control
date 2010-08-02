@@ -69,7 +69,7 @@ Description: All language packages for Icedove (meta)
 
 Package: icedove-l10n-af
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Afrikaans language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -79,7 +79,7 @@ Description: Afrikaans language package for Icedove
 
 Package: icedove-l10n-ar
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Arabic language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -89,7 +89,7 @@ Description: Arabic language package for Icedove
 
 Package: icedove-l10n-be
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Belarusian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -99,7 +99,7 @@ Description: Belarusian language package for Icedove
 
 Package: icedove-l10n-bg
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-bg
 Description: Bulgarian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -110,7 +110,7 @@ Description: Bulgarian language package for Icedove
 
 Package: icedove-l10n-bn-bd
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Bengali language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -120,7 +120,7 @@ Description: Bengali language package for Icedove
 
 Package: icedove-l10n-ca
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-ca
 Description: Catalan/Valencian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -131,7 +131,7 @@ Description: Catalan/Valencian language package for Icedove
 
 Package: icedove-l10n-cs
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-cs-cz
 Description: Czech language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -142,7 +142,7 @@ Description: Czech language package for Icedove
 
 Package: icedove-l10n-da
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-da
 Description: Danish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -153,7 +153,7 @@ Description: Danish language package for Icedove
 
 Package: icedove-l10n-de
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-de-de | myspell-de-at | myspell-de-ch
 Description: German language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -164,7 +164,7 @@ Description: German language package for Icedove
 
 Package: icedove-l10n-el
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-el-gr
 Description: Greek language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -175,7 +175,7 @@ Description: Greek language package for Icedove
 
 Package: icedove-l10n-en-gb
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-en-gb | myspell-en-us
 Description: English (Great Britain) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -186,7 +186,7 @@ Description: English (Great Britain) language package for Icedove
 
 Package: icedove-l10n-es-ar
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-es
 Description: Spanish (Argentina) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -197,7 +197,7 @@ Description: Spanish (Argentina) language package for Icedove
 
 Package: icedove-l10n-es-es
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-es
 Description: Spanish (Spain) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -208,7 +208,7 @@ Description: Spanish (Spain) language package for Icedove
 
 Package: icedove-l10n-et
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-et
 Description: Estonian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -219,7 +219,7 @@ Description: Estonian language package for Icedove
 
 Package: icedove-l10n-eu
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Basque language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -229,7 +229,7 @@ Description: Basque language package for Icedove
 
 Package: icedove-l10n-fi
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-fi
 Description: Finnish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -240,7 +240,7 @@ Description: Finnish language package for Icedove
 
 Package: icedove-l10n-fr
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-fr | myspell-fr-gut
 Description: French language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -251,7 +251,7 @@ Description: French language package for Icedove
 
 Package: icedove-l10n-fy-nl
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Frisian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -261,7 +261,7 @@ Description: Frisian language package for Icedove
 
 Package: icedove-l10n-ga-ie
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Irish (Ireland) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -271,7 +271,7 @@ Description: Irish (Ireland) language package for Icedove
 
 Package: icedove-l10n-he
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-he
 Description: Hebrew language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -282,7 +282,7 @@ Description: Hebrew language package for Icedove
 
 Package: icedove-l10n-hu
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-hu
 Description: Hungarian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -293,7 +293,7 @@ Description: Hungarian language package for Icedove
 
 Package: icedove-l10n-id
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Indonesian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -303,7 +303,7 @@ Description: Indonesian language package for Icedove
 
 Package: icedove-l10n-is
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Icelandic language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -313,7 +313,7 @@ Description: Icelandic language package for Icedove
 
 Package: icedove-l10n-it
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-it
 Description: Italian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -324,7 +324,7 @@ Description: Italian language package for Icedove
 
 Package: icedove-l10n-ja
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Japanese language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -334,7 +334,7 @@ Description: Japanese language package for Icedove
 
 Package: icedove-l10n-ko
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Korean language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -344,7 +344,7 @@ Description: Korean language package for Icedove
 
 Package: icedove-l10n-lt
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-lt
 Description: Lithuanian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -355,7 +355,7 @@ Description: Lithuanian language package for Icedove
 
 Package: icedove-l10n-nb-no
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-nb
 Description: Bokmaal (Norway) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -366,7 +366,7 @@ Description: Bokmaal (Norway) language package for Icedove
 
 Package: icedove-l10n-nl
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-nl
 Description: Dutch language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -377,7 +377,7 @@ Description: Dutch language package for Icedove
 
 Package: icedove-l10n-nn-no
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-nn
 Description: Nynorsk (Norway) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -388,7 +388,7 @@ Description: Nynorsk (Norway) language package for Icedove
 
 Package: icedove-l10n-pa-in
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Punjabi (India) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -398,7 +398,7 @@ Description: Punjabi (India) language package for Icedove
 
 Package: icedove-l10n-pl
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-pl
 Description: Polish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -409,7 +409,7 @@ Description: Polish language package for Icedove
 
 Package: icedove-l10n-pt-br
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-pt-br | myspell-pt
 Description: Portuguese (Brazil) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -420,7 +420,7 @@ Description: Portuguese (Brazil) language package for Icedove
 
 Package: icedove-l10n-pt-pt
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-pt-pt | myspell-pt
 Description: Portuguese (Portugal) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -431,7 +431,7 @@ Description: Portuguese (Portugal) language package for Icedove
 
 Package: icedove-l10n-ro
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Romania language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -441,7 +441,7 @@ Description: Romania language package for Icedove
 
 Package: icedove-l10n-ru
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-ru
 Description: Russian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -452,7 +452,7 @@ Description: Russian language package for Icedove
 
 Package: icedove-l10n-si
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Sinhala language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -462,7 +462,7 @@ Description: Sinhala language package for Icedove
 
 Package: icedove-l10n-sk
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-sk
 Description: Slovak language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -473,7 +473,7 @@ Description: Slovak language package for Icedove
 
 Package: icedove-l10n-sl
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-sl
 Description: Slovenian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -484,7 +484,7 @@ Description: Slovenian language package for Icedove
 
 Package: icedove-l10n-sq
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Albanian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -494,7 +494,7 @@ Description: Albanian language package for Icedove
 
 Package: icedove-l10n-sv-se
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Recommends: myspell-sv-se
 Description: Swedish (Sweden) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
@@ -505,7 +505,7 @@ Description: Swedish (Sweden) language package for Icedove
 
 Package: icedove-l10n-tr
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Turkish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -515,7 +515,7 @@ Description: Turkish language package for Icedove
 
 Package: icedove-l10n-uk
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Ukrainian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -525,7 +525,7 @@ Description: Ukrainian language package for Icedove
 
 Package: icedove-l10n-vi
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Vietnamese language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -535,7 +535,7 @@ Description: Vietnamese language package for Icedove
 
 Package: icedove-l10n-zh-cn
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Chinese (China) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -545,7 +545,7 @@ Description: Chinese (China) language package for Icedove
 
 Package: icedove-l10n-zh-tw
 Architecture: all
-Depends: ${misc:Depends}, icedove (>= 3.0), icedove (<= 3.1)
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
 Description: Chinese (Taiwan) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
