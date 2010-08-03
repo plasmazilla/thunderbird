@@ -51,3 +51,6 @@
 0051-Add-xptcall-support-for-SH4-processors.patch
 0052-xpcom-PowerPC-lnx-add-support-for-soft-float.patch
 0053-Fix-misalignments-in-help-command-line.patch
+0054-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
+0055-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
+0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
