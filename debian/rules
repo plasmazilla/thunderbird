@@ -83,6 +83,7 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-system-jpeg=/usr \
 	--with-system-zlib=/usr \
 	--with-system-bz2 \
+	--with-system-png \
 	--with-system-nspr \
 	--with-system-nss \
 	--disable-javaxpcom \
@@ -97,7 +98,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--disable-updater \
 	--enable-pango \
 	--enable-xft \
-	--enable-png \
 	--enable-xinerama \
 	--enable-svg \
 	--enable-svg-renderer=cairo \
