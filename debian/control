@@ -36,7 +36,7 @@ Build-Depends: bzip2,
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
 DM-Upload-Allowed: yes
-Standards-Version: 3.9.0
+Standards-Version: 3.9.1
 
 Package: icedove
 Architecture: any
