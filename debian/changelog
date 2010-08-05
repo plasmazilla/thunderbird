@@ -1,3 +1,32 @@
+icedove (3.0.6-1) unstable; urgency=low
+
+  * New Upstream Version
+    - MFSA 2010-34 aka CVE-2010-1211, CVE-2010-1212: Miscellaneous memory
+      safety hazards (rv:1.9.2.7/ 1.9.1.11)
+    - MFSA 2010-39 aka CVE-2010-2752: nsCSSValue::Array index integer overflow
+    - MFSA 2010-40 aka CVE-2010-2753: nsTreeSelection dangling pointer remote
+      code execution vulnerability
+    - MFSA 2010-41 aka CVE-2010-1205: Remote code execution using malformed
+     PNG image
+    - MFSA 2010-42 aka CVE-2010-1213: Cross-origin data disclosure via Web
+      Workers and importScripts
+    - MFSA 2010-46 aka CVE-2010-0654: Cross-domain data theft using CSS
+    - MFSA 2010-47 aka CVE-2010-2754: Cross-origin data leakage from script
+      filename in error messages
+  * [7efdfaf] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0054-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
+      (Closes: #580297)
+    - 0055-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
+    - 0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
+    modified patches:
+    - 0012-Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+  * [ceb5c15] bump up standards version to 3.9.1
+  * [fd8dd2f] lintian: downgrade Conflicts to Breaks
+  * [4046823] build against system libpng
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 05 Aug 2010 13:55:35 -0400
+
 icedove (3.0.5-1) unstable; urgency=low
 
   * New Upstream Version
