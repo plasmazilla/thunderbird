@@ -3588,9 +3588,10 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
   // to the bottom of the array if there isn't already a "src" specified.
   PRUint16 numRealAttrs = mNumCachedAttrs;
   nsAutoString data;
-  if (mContent->Tag() == nsGkAtoms::object
-    && !mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::src)
-    && mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::data, data)) {
+  if (mContent->Tag() == nsGkAtoms::object &&
+      !mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::src) &&
+      mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::data, data) &&
+      !data.IsEmpty()) {
       mNumCachedAttrs++;
   }
 
@@ -3648,7 +3649,7 @@ nsresult nsPluginInstanceOwner::EnsureCachedAttrParamArrays()
   }
 
   // if the conditions above were met, copy the "data" attribute to a "src" array entry
-  if (data.Length()) {
+  if (!data.IsEmpty()) {
     mCachedAttrParamNames [nextAttrParamIndex] = ToNewUTF8String(NS_LITERAL_STRING("SRC"));
     mCachedAttrParamValues[nextAttrParamIndex] = ToNewUTF8String(data);
     nextAttrParamIndex++;
