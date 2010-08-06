@@ -12,12 +12,12 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=551138
  5 files changed, 30 insertions(+), 1 deletions(-)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index 45c1915..1e4d3d0 100644
+index 9dd92cc..87b80fa 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
-@@ -230,6 +230,10 @@ MOZ_NATIVE_HUNSPELL = @SYSTEM_HUNSPELL@
- MOZ_HUNSPELL_LIBS = @MOZ_HUNSPELL_LIBS@
- MOZ_HUNSPELL_CFLAGS = @MOZ_HUNSPELL_CFLAGS@
+@@ -233,6 +233,10 @@ MOZ_NATIVE_LIBEVENT = @MOZ_NATIVE_LIBEVENT@
+ MOZ_LIBEVENT_LIBS = @MOZ_LIBEVENT_LIBS@
+ MOZ_LIBEVENT_INCLUDES = @MOZ_LIBEVENT_INCLUDES@
  
 +MOZ_NATIVE_FFI = @MOZ_NATIVE_FFI@
 +MOZ_FFI_LIBS = @MOZ_FFI_LIBS@
@@ -27,10 +27,10 @@ index 45c1915..1e4d3d0 100644
  MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
  MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 426bc53..762520e 100644
+index 04c9e76..6eb2a48 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4471,6 +4471,18 @@ fi
+@@ -4508,6 +4508,18 @@ fi
  
  AC_SUBST(SYSTEM_HUNSPELL)
  
@@ -49,7 +49,7 @@ index 426bc53..762520e 100644
  dnl ========================================================
  dnl Java SDK support
  dnl ========================================================
-@@ -8647,7 +8659,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
+@@ -8682,7 +8694,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
  # Build jsctypes on the platforms we can.
  if test "$BUILD_CTYPES"; then
    # Run the libffi 'configure' script on platforms that it supports.

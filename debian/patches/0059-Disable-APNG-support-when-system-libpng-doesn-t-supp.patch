@@ -12,10 +12,10 @@ Subject: [PATCH] Disable APNG support when system libpng doesn't support it
  6 files changed, 69 insertions(+), 10 deletions(-)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index 1e4d3d0..3584fa0 100644
+index 87b80fa..8056408 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
-@@ -238,6 +238,7 @@ MOZ_NATIVE_ZLIB	= @SYSTEM_ZLIB@
+@@ -241,6 +241,7 @@ MOZ_NATIVE_ZLIB	= @SYSTEM_ZLIB@
  MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
  MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
  MOZ_NATIVE_PNG	= @SYSTEM_PNG@
@@ -24,10 +24,10 @@ index 1e4d3d0..3584fa0 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index c90b939..f2cae32 100644
+index a4060ce..18c554c 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4423,6 +4423,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
+@@ -4460,6 +4460,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
      CFLAGS="-I${PNG_DIR}/include $CFLAGS"
      LDFLAGS="-L${PNG_DIR}/lib $LDFLAGS"
  fi
@@ -35,7 +35,7 @@ index c90b939..f2cae32 100644
  if test -z "$PNG_DIR" -o "$PNG_DIR" = no; then
      SYSTEM_PNG=
  else
-@@ -4431,7 +4432,8 @@ else
+@@ -4468,7 +4469,8 @@ else
                   AC_MSG_ERROR([--with-system-png requested but no working libpng found]), 
                   $PNG_LIBS)
      AC_CHECK_LIB(png, png_get_acTL, ,
@@ -45,7 +45,7 @@ index c90b939..f2cae32 100644
                   $_SAVE_PNG_LIBS)
  fi
  if test "$SYSTEM_PNG" = 0; then
-@@ -8244,6 +8246,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
+@@ -8279,6 +8281,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
  AC_SUBST(SYSTEM_LIBXUL)
  AC_SUBST(SYSTEM_JPEG)
  AC_SUBST(SYSTEM_PNG)
@@ -54,7 +54,7 @@ index c90b939..f2cae32 100644
  AC_SUBST(SYSTEM_BZ2)
  
 diff --git a/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp b/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
-index ee57672..29a537d 100644
+index 4552b02..6d083e5 100644
 --- a/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
 +++ b/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
 @@ -61,8 +61,10 @@
@@ -134,9 +134,9 @@ index ee57672..29a537d 100644
      return;
 +#endif
  
-   if (new_row) {
-     PRInt32 width = decoder->mFrameRect.width;
-@@ -851,6 +865,7 @@ row_callback(png_structp png_ptr, png_bytep new_row,
+   if (row_num >= decoder->mFrameRect.height)
+     return;
+@@ -854,6 +868,7 @@ row_callback(png_structp png_ptr, png_bytep new_row,
    }
  }
  
@@ -144,7 +144,7 @@ index ee57672..29a537d 100644
  // got the header of a new frame that's coming
  void
  frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
-@@ -860,11 +875,15 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
+@@ -863,11 +878,15 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
    
    nsPNGDecoder *decoder = static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
    
@@ -160,7 +160,7 @@ index ee57672..29a537d 100644
    
    x_offset = png_get_next_frame_x_offset(png_ptr, decoder->mInfo);
    y_offset = png_get_next_frame_y_offset(png_ptr, decoder->mInfo);
-@@ -873,6 +892,7 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
+@@ -876,6 +895,7 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
    
    decoder->CreateFrame(x_offset, y_offset, width, height, decoder->format);
  }
@@ -168,7 +168,7 @@ index ee57672..29a537d 100644
  
  void
  end_callback(png_structp png_ptr, png_infop info_ptr)
-@@ -891,12 +911,14 @@ end_callback(png_structp png_ptr, png_infop info_ptr)
+@@ -894,12 +914,14 @@ end_callback(png_structp png_ptr, png_infop info_ptr)
  
    nsPNGDecoder *decoder = static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
    

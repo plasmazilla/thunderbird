@@ -29,7 +29,7 @@ index 29b183d..503c69b 100644
  
    const PRUnichar* patStr = patAutoStr.get();
 diff --git a/mozilla/layout/base/nsCSSRendering.cpp b/mozilla/layout/base/nsCSSRendering.cpp
-index 47cb687..3316069 100644
+index 8df1619..62011dd 100644
 --- a/mozilla/layout/base/nsCSSRendering.cpp
 +++ b/mozilla/layout/base/nsCSSRendering.cpp
 @@ -561,10 +561,10 @@ nsCSSRendering::PaintBorder(nsPresContext* aPresContext,
@@ -104,7 +104,7 @@ index 47cb687..3316069 100644
        nsCSSBorderRenderer::ComputeInnerRadii(aBGRadii, borderSizes,
                                               &clippedRadii);
 diff --git a/mozilla/layout/generic/nsTextFrameThebes.cpp b/mozilla/layout/generic/nsTextFrameThebes.cpp
-index 3b53e40..7552c5b 100644
+index 014368a..b6f9a8b 100644
 --- a/mozilla/layout/generic/nsTextFrameThebes.cpp
 +++ b/mozilla/layout/generic/nsTextFrameThebes.cpp
 @@ -1071,7 +1071,7 @@ BuildTextRuns(gfxContext* aContext, nsTextFrame* aForFrame,
@@ -502,10 +502,10 @@ index b4e39cc..06cb23c 100644
  NP_END_MACRO
  
 diff --git a/mozilla/netwerk/streamconv/converters/nsBinHexDecoder.cpp b/mozilla/netwerk/streamconv/converters/nsBinHexDecoder.cpp
-index 8189724..de72ae4 100644
+index be2cca8..2a00ab9 100644
 --- a/mozilla/netwerk/streamconv/converters/nsBinHexDecoder.cpp
 +++ b/mozilla/netwerk/streamconv/converters/nsBinHexDecoder.cpp
-@@ -98,7 +98,7 @@ NS_INTERFACE_MAP_END
+@@ -94,7 +94,7 @@ NS_INTERFACE_MAP_END
  
  // The binhex 4.0 decoder table....
  

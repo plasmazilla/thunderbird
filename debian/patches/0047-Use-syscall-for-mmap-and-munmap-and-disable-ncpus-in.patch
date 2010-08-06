@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=435683
  1 files changed, 57 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/memory/jemalloc/jemalloc.c b/mozilla/memory/jemalloc/jemalloc.c
-index 31de338..3ba5098 100644
+index 50ffa7d..950acaa 100644
 --- a/mozilla/memory/jemalloc/jemalloc.c
 +++ b/mozilla/memory/jemalloc/jemalloc.c
 @@ -369,6 +369,53 @@ __FBSDID("$FreeBSD: head/lib/libc/stdlib/malloc.c 180599 2008-07-18 19:35:44Z ja

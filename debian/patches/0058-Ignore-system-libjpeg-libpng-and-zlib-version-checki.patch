@@ -10,10 +10,10 @@ internal version, which makes system library not used even though
  1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 762520e..c90b939 100644
+index 6eb2a48..a4060ce 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4318,7 +4318,7 @@ else
+@@ -4355,7 +4355,7 @@ else
      AC_CHECK_LIB(jpeg, jpeg_destroy_compress, [SYSTEM_JPEG=1 JPEG_LIBS="-ljpeg $JPEG_LIBS"], SYSTEM_JPEG=, $JPEG_LIBS)
  fi
  
@@ -22,7 +22,7 @@ index 762520e..c90b939 100644
      LIBS="$JPEG_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <sys/types.h>
-@@ -4358,7 +4358,7 @@ else
+@@ -4395,7 +4395,7 @@ else
      AC_CHECK_LIB(z, gzread, [SYSTEM_ZLIB=1 ZLIB_LIBS="-lz $ZLIB_LIBS"], 
  	[SYSTEM_ZLIB= ZLIB_CFLAGS= ZLIB_LIBS=], $ZLIB_LIBS)
  fi
@@ -31,7 +31,7 @@ index 762520e..c90b939 100644
      LIBS="$ZLIB_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <string.h>
-@@ -4434,7 +4434,7 @@ else
+@@ -4471,7 +4471,7 @@ else
                   AC_MSG_ERROR([--with-system-png won't work because the system's libpng doesn't have APNG support]),
                   $_SAVE_PNG_LIBS)
  fi

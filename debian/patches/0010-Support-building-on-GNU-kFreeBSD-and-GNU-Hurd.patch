@@ -332,7 +332,7 @@ index b485702..007b065 100644
  #
  ifeq ($(OS_ARCH),WINNT)
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index d60dff1..faa20e3 100644
+index 9973e48..6195bed 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -1084,6 +1084,7 @@ if test -n "$CROSS_COMPILE"; then
@@ -452,7 +452,7 @@ index 0a3c83f..345ead7 100644
  #if defined(__FreeBSD__) 
  #define SEM_CREATE(p,s) sem_init(&(p), 0, s)  
 diff --git a/mozilla/media/libsydneyaudio/src/Makefile.in b/mozilla/media/libsydneyaudio/src/Makefile.in
-index 8feca70..d15526b 100644
+index e8efc0a..47f4ec3 100644
 --- a/mozilla/media/libsydneyaudio/src/Makefile.in
 +++ b/mozilla/media/libsydneyaudio/src/Makefile.in
 @@ -45,6 +45,12 @@ MODULE		= sydneyaudio
