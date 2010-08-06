@@ -1,3 +1,10 @@
+icedove-l10n (1:3.1.2-1) experimental; urgency=low
+
+  * New Upstream Version
+    - changes in: hu, ru
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 06 Aug 2010 14:17:24 -0400
+
 icedove-l10n (1:3.1.1-1) experimental; urgency=low
 
   * New Upstream Version
