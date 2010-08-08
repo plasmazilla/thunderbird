@@ -120,6 +120,10 @@ else
 	DEB_CONFIGURE_USER_FLAGS += --enable-optimize
 endif
 
+ifneq (,$(filter kfreebsd-% hurd-%,$(DEB_BUILD_ARCH)))
+	DEB_CONFIGURE_USER_FLAGS += --disable-necko-wifi
+endif
+
 ifeq ($(DEB_BUILD_ARCH),alpha)
 	MAIN_LDFLAGS += -Wl,--no-relax
 endif
