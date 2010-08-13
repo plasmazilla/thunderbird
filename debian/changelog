@@ -1,3 +1,41 @@
+icedove (3.1.2-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #589666, #591899)
+   - MFSA 2010-34 aka CVE-2010-1211, CVE-2010-1212: Miscellaneous memory
+     safety hazards (rv:1.9.2.7/ 1.9.1.11)
+   - MFSA 2010-38 aka CVE-2010-1215: Arbitrary code execution using SJOW and
+     fast native function
+   - MFSA 2010-39 aka CVE-2010-2752: nsCSSValue::Array index integer overflow
+   - MFSA 2010-40 aka CVE-2010-2753: nsTreeSelection dangling pointer remote
+     code execution vulnerability
+   - MFSA 2010-41 aka CVE-2010-1205: Remote code execution using malformed PNG
+     image
+   - MFSA 2010-42 aka CVE-2010-1213: Cross-origin data disclosure via Web
+     Workers and importScripts
+   - MFSA 2010-43 aka CVE-2010-1207: Same-origin bypass using canvas context
+   - MFSA 2010-44 aka CVE-2010-1210: Characters mapped to U+FFFD in 8 bit
+     encodings cause subsequent character to vanish
+   - MFSA 2010-46 aka CVE-2010-0654: Cross-domain data theft using CSS
+   - MFSA 2010-47 aka CVE-2010-2754: Cross-origin data leakage from script
+     filename in error messages
+  * [6b9976e] rebuild patch queue from patch-queue branch
+    modified patches:
+    - 0010-Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - 0015-Don-t-register-plugins-if-the-MOZILLA_DISABLE_PLUGIN.patch
+    - 0018-Work-around-FTBFS-on-mips-by-disabling-TLS-support.patch
+    - 0034-Fix-compiler-errors-with-g-4.4-with-std-gnu-0x.patch
+    - 0045-Expose-fullpath-from-nsIPluginTag.patch
+    - 0047-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
+    - 0050-Set-javascript.options.showInConsole.patch
+    - 0057-Allow-to-build-against-system-libffi.patch
+    - 0058-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
+    - 0059-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
+  * [16b0e7e] fix FTBFS on kfreebsd-* and hurd-i386 by passing
+    --disable-necko-wifi to configure (Closes: #589476)
+  * [15a02c7] bump up standards version to 3.9.1
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 13 Aug 2010 12:18:21 +0200
+
 icedove (3.1-1) experimental; urgency=low
 
   * New Upstream Version
