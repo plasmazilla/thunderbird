@@ -7,8 +7,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=552624
 ---
  mozilla/js/src/nanojit/NativeARM.cpp |  105 +++++++++++++++++---------------
  mozilla/js/src/nanojit/avmplus.h     |    2 +
- mozilla/js/src/nanojit/njcpudetect.h |  110 ++++++++++++++++++++++++++++++++++
- 3 files changed, 169 insertions(+), 48 deletions(-)
+ mozilla/js/src/nanojit/njcpudetect.h |  111 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 170 insertions(+), 48 deletions(-)
  create mode 100644 mozilla/js/src/nanojit/njcpudetect.h
 
 diff --git a/mozilla/js/src/nanojit/NativeARM.cpp b/mozilla/js/src/nanojit/NativeARM.cpp
@@ -203,10 +203,10 @@ index ffc0873..e86f22e 100644
  #define ARM_VFP    config.vfp
 diff --git a/mozilla/js/src/nanojit/njcpudetect.h b/mozilla/js/src/nanojit/njcpudetect.h
 new file mode 100644
-index 0000000..79ea90b
+index 0000000..aed20f2
 --- /dev/null
 +++ b/mozilla/js/src/nanojit/njcpudetect.h
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,111 @@
 +/* -*- Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 4 -*- */
 +/* vi: set ts=4 sw=4 expandtab: (add to ~/.vimrc: set modeline modelines=5) */
 +/* ***** BEGIN LICENSE BLOCK *****
@@ -300,7 +300,8 @@ index 0000000..79ea90b
 +
 +    #define NJ_COMPILER_ARM_ARCH 5
 +
-+#elif   defined(__ARM_ARCH_4__)
++#elif   defined(__ARM_ARCH_4__) || \
++        defined(__ARM_ARCH_4T__)
 +
 +    #define NJ_COMPILER_ARM_ARCH 4
 +

@@ -57,3 +57,4 @@
 0057-Allow-to-build-against-system-libffi.patch
 0058-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
 0059-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
+0060-Fix-startup-problem-with-symlinked-components-e.g.-e.patch
