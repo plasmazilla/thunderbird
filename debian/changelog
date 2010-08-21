@@ -1,3 +1,14 @@
+icedove (3.1.2-2) experimental; urgency=low
+
+  * [e1435dc] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0060-Fix-startup-problem-with-symlinked-components-e.g.-e.patch
+      (Closes: #592531)
+    modified patches:
+    - 0048-Add-nanojit-support-for-ARMv4T.patch - Fix FTBFS on armel
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 21 Aug 2010 14:51:03 +0200
+
 icedove (3.1.2-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #589666, #591899)
