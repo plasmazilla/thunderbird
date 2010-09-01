@@ -410,13 +410,18 @@ GetScriptedFunction(JSContext *cx, JSObject *obj, JSObject *unsafeObj,
     return JS_FALSE;
   }
 
+  JSObject *scopeobj = JS_GetGlobalForObject(cx, unsafeObj);
+  OBJ_TO_INNER_OBJECT(cx, scopeobj);
+  if (!scopeobj) {
+    return JS_FALSE;
+  }
+
   // If we either have no scripted function in the requested slot yet,
   // or if the scope of the unsafeObj changed since we compiled the
   // scripted function, re-compile to make sure the scripted function
   // is properly scoped etc.
   if (JSVAL_IS_VOID(*scriptedFunVal) ||
-      JS_GetGlobalForObject(cx, unsafeObj) !=
-      JS_GetGlobalForObject(cx, JSVAL_TO_OBJECT(*scriptedFunVal))) {
+      scopeobj != JS_GetGlobalForObject(cx, JSVAL_TO_OBJECT(*scriptedFunVal))) {
     // Check whether we have a cached principal or not.
     jsval pv;
     if (!::JS_GetReservedSlot(cx, obj, XPC_SJOW_SLOT_PRINCIPAL, &pv)) {
@@ -443,8 +448,7 @@ GetScriptedFunction(JSContext *cx, JSObject *obj, JSObject *unsafeObj,
 
     JSFunction *scriptedFun =
       ::JS_CompileFunctionForPrincipals(cx,
-                                        JS_GetGlobalForObject(cx, unsafeObj),
-                                        jsprin, nsnull, 0, nsnull,
+                                        scopeobj, jsprin, nsnull, 0, nsnull,
                                         funScript.get(), funScript.Length(),
                                         "XPCSafeJSObjectWrapper.cpp",
                                         __LINE__);
