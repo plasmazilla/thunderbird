@@ -225,7 +225,7 @@ public:
     }
 
     virtual bool
-    AnswerPluginGotFocus();
+    AnswerPluginFocusChange(const bool& gotFocus);
 
 private:
     bool InternalGetValueForNPObject(NPNVariable aVariable,

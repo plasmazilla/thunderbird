@@ -1554,7 +1554,8 @@ nsTextControlFrame::InitEditor()
     if (NS_FAILED(rv))
       return rv;
 
-    SetValue(defaultValue);
+    rv = SetValue(defaultValue);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     rv = mEditor->EnableUndo(PR_TRUE);
     NS_ASSERTION(NS_SUCCEEDED(rv),"Transaction Manager must have failed");
@@ -1894,10 +1895,10 @@ nsresult nsTextControlFrame::SetFormProperty(nsIAtom* aName, const nsAString& aV
       }
       SetValueChanged(PR_TRUE);
       nsresult rv = SetValue(aValue); // set new text value
+      NS_ENSURE_SUCCESS(rv, rv);
       if (isUserInput) {
         SetFireChangeEventState(fireChangeEvent);
       }
-      NS_ENSURE_SUCCESS(rv, rv);
     }
     else if (nsGkAtoms::select == aName)
     {
@@ -2682,11 +2683,27 @@ nsTextControlFrame::SetValue(const nsAString& aValue)
         plaintextEditor->GetMaxTextLength(&savedMaxLength);
         plaintextEditor->SetMaxTextLength(-1);
 
+        nsCOMPtr<nsIContent> content = GetContent();
+        NS_ASSERTION(content, "Where is our content?");
+
         if (currentValue.Length() < 1)
           editor->DeleteSelection(nsIEditor::eNone);
         else {
           if (plaintextEditor)
             plaintextEditor->InsertText(currentValue);
+        }
+        if (!weakFrame.IsAlive()) {
+          nsCOMPtr<nsIDOMHTMLInputElement> inputElement = do_QueryInterface(content);
+          if (inputElement) {
+            inputElement->SetValue(currentValue);
+            return NS_ERROR_UNEXPECTED;
+          }
+          nsCOMPtr<nsIDOMHTMLTextAreaElement> textAreaElement = do_QueryInterface(content);
+          if (textAreaElement) {
+            textAreaElement->SetValue(currentValue);
+            return NS_ERROR_UNEXPECTED;
+          }
+          NS_NOTREACHED("The content node should either be an input or a textarea element");
         }
 
         plaintextEditor->SetMaxTextLength(savedMaxLength);
@@ -2695,6 +2712,7 @@ nsTextControlFrame::SetValue(const nsAString& aValue)
           selPriv->EndBatchChanges();
       }
 
+      // This second check _shouldn't_ be necessary, but let's be safe.
       NS_ENSURE_STATE(weakFrame.IsAlive());
       if (outerTransaction)
         mNotifyOnInput = PR_TRUE;

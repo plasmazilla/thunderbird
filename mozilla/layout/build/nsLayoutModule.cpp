@@ -99,6 +99,7 @@
 #include "nsStyleSheetService.h"
 #include "nsXULPopupManager.h"
 #include "nsFocusManager.h"
+#include "nsIContentUtils.h"
 
 #include "nsIEventListenerService.h"
 // Transformiix stuff
@@ -514,9 +515,11 @@ MAKE_CTOR(CreatePlainTextSerializer,      nsIContentSerializer,        NS_NewPla
 MAKE_CTOR(CreateHTMLFragmentSink,         nsIFragmentContentSink,      NS_NewHTMLFragmentContentSink)
 MAKE_CTOR(CreateHTMLFragmentSink2,        nsIFragmentContentSink,      NS_NewHTMLFragmentContentSink2)
 MAKE_CTOR(CreateHTMLParanoidFragmentSink, nsIFragmentContentSink,      NS_NewHTMLParanoidFragmentSink)
+MAKE_CTOR(CreateHTMLParanoidFragmentSink2,nsIFragmentContentSink,      NS_NewHTMLParanoidFragmentSink2)
 MAKE_CTOR(CreateXMLFragmentSink,          nsIFragmentContentSink,      NS_NewXMLFragmentContentSink)
 MAKE_CTOR(CreateXMLFragmentSink2,         nsIFragmentContentSink,      NS_NewXMLFragmentContentSink2)
 MAKE_CTOR(CreateXHTMLParanoidFragmentSink,nsIFragmentContentSink,      NS_NewXHTMLParanoidFragmentSink)
+MAKE_CTOR(CreateXHTMLParanoidFragmentSink2,nsIFragmentContentSink,     NS_NewXHTMLParanoidFragmentSink2)
 MAKE_CTOR(CreateSanitizingHTMLSerializer, nsIContentSerializer,        NS_NewSanitizingHTMLSerializer)
 MAKE_CTOR(CreateXBLService,               nsIXBLService,               NS_NewXBLService)
 MAKE_CTOR(CreateContentPolicy,            nsIContentPolicy,            NS_NewContentPolicy)
@@ -545,6 +548,8 @@ MAKE_CTOR(CreatePluginDocument,           nsIDocument,                 NS_NewPlu
 MAKE_CTOR(CreateVideoDocument,            nsIDocument,                 NS_NewVideoDocument)
 #endif
 MAKE_CTOR(CreateFocusManager,             nsIFocusManager,      NS_NewFocusManager)
+
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsIContentUtils)
 
 #ifdef MOZ_ENABLE_CANVAS
 MAKE_CTOR(CreateCanvasRenderingContext2D, nsIDOMCanvasRenderingContext2D, NS_NewCanvasRenderingContext2D)
@@ -1193,6 +1198,11 @@ static const nsModuleComponentInfo gComponents[] = {
     NS_HTMLPARANOIDFRAGMENTSINK_CONTRACTID,
     CreateHTMLParanoidFragmentSink },
 
+  { "html paranoid fragment sink 2",
+    NS_HTMLPARANOIDFRAGMENTSINK2_CID,
+    NS_HTMLPARANOIDFRAGMENTSINK2_CONTRACTID,
+    CreateHTMLParanoidFragmentSink2 },
+
   { "HTML sanitizing content serializer",
     MOZ_SANITIZINGHTMLSERIALIZER_CID,
     MOZ_SANITIZINGHTMLSERIALIZER_CONTRACTID,
@@ -1212,6 +1222,11 @@ static const nsModuleComponentInfo gComponents[] = {
     NS_XHTMLPARANOIDFRAGMENTSINK_CID,
     NS_XHTMLPARANOIDFRAGMENTSINK_CONTRACTID,
     CreateXHTMLParanoidFragmentSink },
+
+  { "xhtml paranoid fragment sink 2",
+    NS_XHTMLPARANOIDFRAGMENTSINK2_CID,
+    NS_XHTMLPARANOIDFRAGMENTSINK2_CONTRACTID,
+    CreateXHTMLParanoidFragmentSink2 },
 
   { "XBL Service",
     NS_XBLSERVICE_CID,
@@ -1478,6 +1493,10 @@ static const nsModuleComponentInfo gComponents[] = {
       "@mozilla.org/focus-manager;1",
       CreateFocusManager },
 
+    { "Content Utils",
+      NS_ICONTENTUTILS_CID,
+      "@mozilla.org/content/contentutils;1",
+      nsIContentUtilsConstructor },
 
     { "Event Listener Service",
       NS_EVENTLISTENERSERVICE_CID,
