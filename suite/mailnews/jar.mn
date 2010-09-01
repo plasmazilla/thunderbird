@@ -80,6 +80,7 @@ messenger.jar:
     content/messenger/pref-character_encoding.js                               (prefs/pref-character_encoding.js)
     content/messenger/pref-offline.xul                                         (prefs/pref-offline.xul)
     content/messenger/pref-offline.js                                          (prefs/pref-offline.js)
+    content/messenger/preferences/preferences.xul                              (prefs/preferences.xul)
     content/messenger/SearchDialog.xul                                         (search/SearchDialog.xul)
     content/messenger/SearchDialog.js                                          (search/SearchDialog.js)
     content/messenger/ABSearchDialog.xul                                       (search/ABSearchDialog.xul)

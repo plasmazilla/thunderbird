@@ -736,6 +736,8 @@ array_lookupProperty(JSContext *cx, JSObject *obj, jsid id, JSObject **objp,
         *propp = NULL;
         return JS_TRUE;
     }
+
+    JSAutoTempValueRooter root(cx, proto);
     return OBJ_LOOKUP_PROPERTY(cx, proto, id, objp, propp);
 }
 

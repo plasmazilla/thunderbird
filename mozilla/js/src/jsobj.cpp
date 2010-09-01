@@ -3869,6 +3869,7 @@ js_LookupPropertyWithFlags(JSContext *cx, JSObject *obj, jsid id, uintN flags,
                         if (!OBJ_IS_NATIVE(obj2)) {
                             /* Whoops, newresolve handed back a foreign obj2. */
                             JS_ASSERT(obj2 != obj);
+                            JSAutoTempValueRooter root(cx, obj2);
                             ok = OBJ_LOOKUP_PROPERTY(cx, obj2, id, objp, propp);
                             if (!ok || *propp)
                                 goto cleanup;
@@ -3934,6 +3935,7 @@ js_LookupPropertyWithFlags(JSContext *cx, JSObject *obj, jsid id, uintN flags,
         if (!proto)
             break;
         if (!OBJ_IS_NATIVE(proto)) {
+            JSAutoTempValueRooter root(cx, proto);
             if (!OBJ_LOOKUP_PROPERTY(cx, proto, id, objp, propp))
                 return -1;
             return protoIndex + 1;

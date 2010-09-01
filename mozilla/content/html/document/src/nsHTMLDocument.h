@@ -195,6 +195,7 @@ public:
 #endif
 
   nsresult ChangeContentEditableCount(nsIContent *aElement, PRInt32 aChange);
+  void DeferredContentEditableCountChange(nsIContent *aElement);
 
   virtual EditingState GetEditingState()
   {

@@ -2658,13 +2658,23 @@ nsresult nsHTMLEditor::ParseFragment(const nsAString & aFragStr,
   // create the html fragment sink
   nsCOMPtr<nsIContentSink> sink;
   if (bContext)
-    sink = do_CreateInstance(NS_HTMLFRAGMENTSINK2_CONTRACTID);
+    sink = do_CreateInstance(NS_HTMLPARANOIDFRAGMENTSINK2_CONTRACTID);
   else
-    sink = do_CreateInstance(NS_HTMLFRAGMENTSINK_CONTRACTID);
+    sink = do_CreateInstance(NS_HTMLPARANOIDFRAGMENTSINK_CONTRACTID);
 
   NS_ENSURE_TRUE(sink, NS_ERROR_FAILURE);
   nsCOMPtr<nsIFragmentContentSink> fragSink(do_QueryInterface(sink));
   NS_ENSURE_TRUE(fragSink, NS_ERROR_FAILURE);
+
+  nsCOMPtr<nsIParanoidFragmentContentSink> paranoidSink(do_QueryInterface(sink));
+  NS_ASSERTION(paranoidSink, "Our content sink is paranoid");
+  if (bContext) {
+    // Allow comemnts for the context to catch our placeholder cookie
+    paranoidSink->AllowComments();
+  } else {
+    // Allow style elements and attributes for the actual content
+    paranoidSink->AllowStyles();
+  }
 
   fragSink->SetTargetDocument(aTargetDocument);
 

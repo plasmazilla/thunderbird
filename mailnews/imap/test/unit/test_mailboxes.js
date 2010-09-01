@@ -59,6 +59,16 @@ const gTestArray =
                    QueryInterface(Ci.nsIMsgImapMailFolder);
     newChild.updateFolderWithListener(null, UrlListener);
   },
+  function checkEmptyFolder() {
+    try {
+    let serverSink = gLocalServer.QueryInterface(Ci.nsIImapServerSink);
+      serverSink.possibleImapMailbox("/", '/', 0);
+    }
+    catch (ex) {
+      // we expect this to fail, but not crash or assert.
+    }
+    do_timeout_function(0, function(){doTest(++gCurTestNum)});
+  },
 ];
 
 function endTest()

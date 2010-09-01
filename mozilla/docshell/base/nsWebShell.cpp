@@ -874,6 +874,10 @@ nsWebShell::OnLinkClickSync(nsIContent *aContent,
   nsCOMPtr<nsIDOMHTMLAnchorElement> anchor(do_QueryInterface(aContent));
   if (anchor) {
     anchor->GetType(typeHint);
+    NS_ConvertUTF16toUTF8 utf8Hint(typeHint);
+    nsCAutoString type, dummy;
+    NS_ParseContentType(utf8Hint, type, dummy);
+    CopyUTF8toUTF16(type, typeHint);
   }
   
   rv = InternalLoad(aURI,               // New URI

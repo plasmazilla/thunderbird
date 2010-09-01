@@ -37,3 +37,6 @@ bug515217.patch: Fix crash where presentation thread releases a buffer just
 bug504843.patch: Abort when decoding video excessively large video frames.
 
 bug523816.patch: Correct CMML data buffer size calculation.
+
+oggplay-aix.patch: Bug 576883 - add AIX support (this patch should be removed
+                   when AIX support is added upstream)
