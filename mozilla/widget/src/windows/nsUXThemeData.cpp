@@ -23,6 +23,7 @@
  *
  * Contributor(s):
  *   Rob Arnold <robarnold@mozilla.com> (Original Author)
+ *   Reed Loden <reed@reedloden.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -96,8 +97,12 @@ nsUXThemeData::Initialize()
 {
   ::ZeroMemory(sThemes, sizeof(sThemes));
   NS_ASSERTION(!sThemeDLL, "nsUXThemeData being initialized twice!");
-  sThemeDLL = ::LoadLibraryW(kThemeLibraryName);
-  if (sThemeDLL) {
+
+  PRInt32 version = ::GetWindowsVersion();
+  sIsXPOrLater = version >= WINXP_VERSION;
+  sIsVistaOrLater = version >= VISTA_VERSION;
+
+  if (GetThemeDLL()) {
     openTheme = (OpenThemeDataPtr)GetProcAddress(sThemeDLL, "OpenThemeData");
     closeTheme = (CloseThemeDataPtr)GetProcAddress(sThemeDLL, "CloseThemeData");
     drawThemeBG = (DrawThemeBackgroundPtr)GetProcAddress(sThemeDLL, "DrawThemeBackground");
@@ -111,16 +116,12 @@ nsUXThemeData::Initialize()
     getCurrentThemeName = (GetCurrentThemeNamePtr)GetProcAddress(sThemeDLL, "GetCurrentThemeName");
     getThemeSysColor = (GetThemeSysColorPtr)GetProcAddress(sThemeDLL, "GetThemeSysColor");
   }
-  sDwmDLL = ::LoadLibraryW(kDwmLibraryName);
-  if(sDwmDLL) {
+  if (GetDwmDLL()) {
     dwmExtendFrameIntoClientAreaPtr = (DwmExtendFrameIntoClientAreaProc)::GetProcAddress(sDwmDLL, "DwmExtendFrameIntoClientArea");
     dwmIsCompositionEnabledPtr = (DwmIsCompositionEnabledProc)::GetProcAddress(sDwmDLL, "DwmIsCompositionEnabled");
     CheckForCompositor();
   }
 
-  PRInt32 version = ::GetWindowsVersion();
-  sIsXPOrLater = version >= WINXP_VERSION;
-  sIsVistaOrLater = version >= VISTA_VERSION;
   Invalidate();
 }
 
@@ -155,6 +156,20 @@ nsUXThemeData::GetTheme(nsUXThemeClass cls) {
     sThemes[cls] = openTheme(NULL, GetClassName(cls));
   }
   return sThemes[cls];
+}
+
+HMODULE
+nsUXThemeData::GetThemeDLL() {
+  if (!sThemeDLL && sIsXPOrLater)
+    sThemeDLL = ::LoadLibraryW(kThemeLibraryName);
+  return sThemeDLL;
+}
+
+HMODULE
+nsUXThemeData::GetDwmDLL() {
+  if (!sDwmDLL && sIsVistaOrLater)
+    sDwmDLL = ::LoadLibraryW(kDwmLibraryName);
+  return sDwmDLL;
 }
 
 const wchar_t *nsUXThemeData::GetClassName(nsUXThemeClass cls) {

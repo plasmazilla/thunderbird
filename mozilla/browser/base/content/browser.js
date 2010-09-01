@@ -5780,6 +5780,25 @@ function WindowIsClosing()
       reallyClose = false;
   }
 
+  if (reallyClose && window.toolbar.visible) {
+    // Figure out if there's at least one other browser window around.
+    let foundOtherBrowserWindow = false;
+    let wm = Cc["@mozilla.org/appshell/window-mediator;1"]
+               .getService(Ci.nsIWindowMediator);
+    let e = wm.getEnumerator("navigator:browser");
+    while (e.hasMoreElements() && !foundOtherBrowserWindow) {
+      let win = e.getNext();
+      if (win != window && win.toolbar && win.toolbar.visible)
+        foundOtherBrowserWindow = true;
+    }
+
+    if (!foundOtherBrowserWindow) {
+      Cc["@mozilla.org/observer-service;1"]
+        .getService(Ci.nsIObserverService)
+        .notifyObservers(null, "browser-lastwindow-close-granted", null);
+    }
+  }
+
   return reallyClose;
 }
 

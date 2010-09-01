@@ -94,6 +94,8 @@ public:
   static void Teardown();
   static void Invalidate();
   static HANDLE GetTheme(nsUXThemeClass cls);
+  static HMODULE GetThemeDLL();
+  static HMODULE GetDwmDLL();
 
   static inline BOOL IsAppThemed() {
     return isAppThemed && isAppThemed();

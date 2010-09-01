@@ -28,3 +28,6 @@ oggz_os2.patch: Bug 448918 - add OS/2 support (this patch should be
 bug516847.patch: Fix for bug 516847 (duplicate frame handling).
 bug504843.patch: Propogate read errors from oggz_read_sync().
 
+oggz-aix.patch: Bug 576883 - add AIX support (this patch should be 
+                removed when AIX support is added upstream)
+

@@ -7877,6 +7877,7 @@ TraceRecorder::callNative(uintN argc, JSOp mode)
         }
         box_jsval(vp[1], this_ins);
     }
+    set(&vp[1], this_ins);
     lir->insStorei(this_ins, invokevp_ins, 1 * sizeof(jsval));
 
     // Populate argv.
