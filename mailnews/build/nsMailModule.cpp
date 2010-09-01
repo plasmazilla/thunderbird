@@ -109,7 +109,9 @@
 #include "nsMsgServiceProvider.h"
 #include "nsSubscribeDataSource.h"
 #include "nsSubscribableServer.h"
+#ifdef NS_PRINTING
 #include "nsMsgPrintEngine.h"
+#endif
 #include "nsMsgSearchSession.h"
 #include "nsMsgSearchTerm.h"
 #include "nsMsgSearchAdapter.h"
@@ -351,7 +353,9 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMsgWindow,Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMsgServiceProviderService, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSubscribeDataSource, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSubscribableServer, Init)
+#ifdef NS_PRINTING
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgPrintEngine)
+#endif
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsFolderCompactState)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsOfflineStoreCompactState)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgThreadedDBView)
@@ -805,10 +809,12 @@ static const nsModuleComponentInfo gComponents[] = {
       NS_MSGWINDOW_CONTRACTID,
       nsMsgWindowConstructor,
     },
+#ifdef NS_PRINTING
     { "Mail/News Print Engine", NS_MSG_PRINTENGINE_CID,
       NS_MSGPRINTENGINE_CONTRACTID,
       nsMsgPrintEngineConstructor,
     },
+#endif
     { "Mail/News Service Provider Service", NS_MSGSERVICEPROVIDERSERVICE_CID,
       NS_MSGSERVICEPROVIDERSERVICE_CONTRACTID,
       nsMsgServiceProviderServiceConstructor,

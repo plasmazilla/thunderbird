@@ -115,7 +115,6 @@ CPPSRCS		= \
 		nsMsgServiceProvider.cpp \
 		nsSubscribeDataSource.cpp \
 		nsSubscribableServer.cpp \
-		nsMsgPrintEngine.cpp \
 		nsStatusBarBiffManager.cpp \
 		nsMsgDBView.cpp \
 		nsMsgThreadedDBView.cpp \
@@ -136,6 +135,12 @@ CPPSRCS		= \
                 nsMsgFolderNotificationService.cpp\
 		nsMailDirProvider.cpp\
 		$(NULL)
+
+ifdef NS_PRINTING
+CPPSRCS		+= \
+		nsMsgPrintEngine.cpp \
+		$(NULL)
+endif
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 CMMSRCS = nsMessengerOSXIntegration.mm

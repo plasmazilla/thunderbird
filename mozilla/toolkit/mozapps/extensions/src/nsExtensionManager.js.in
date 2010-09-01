@@ -1794,7 +1794,7 @@ function safeInstallOperation(itemID, installLocation, file) {
           continue;
 
         zipReader.extract(entryName, target);
-        target.permissions = PERMS_FILE;
+        target.permissions |= PERMS_FILE;
       }
     }
     catch (e) {

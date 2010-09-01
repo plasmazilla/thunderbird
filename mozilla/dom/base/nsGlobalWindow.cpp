@@ -9308,6 +9308,10 @@ NS_NewScriptGlobalObject(PRBool aIsChrome, PRBool aIsModalContentWindow,
 nsNavigator::nsNavigator(nsIDocShell *aDocShell)
   : mDocShell(aDocShell)
 {
+  if (mMimeTypes)
+    mMimeTypes->Invalidate();
+  if (mPlugins)
+    mPlugins->Invalidate();
 }
 
 nsNavigator::~nsNavigator()
@@ -9883,8 +9887,15 @@ nsNavigator::LoadingNewDocument()
   // Release these so that they will be recreated for the
   // new document (if requested).  The plugins or mime types
   // arrays may have changed.  See bug 150087.
-  mMimeTypes = nsnull;
-  mPlugins = nsnull;
+  if (mMimeTypes) {
+    mMimeTypes->Invalidate();
+    mMimeTypes = nsnull;
+  }
+
+  if (mPlugins) {
+    mPlugins->Invalidate();
+    mPlugins = nsnull;
+  }
 
   if (mGeolocation)
   {

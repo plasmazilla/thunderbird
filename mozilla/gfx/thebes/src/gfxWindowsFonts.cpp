@@ -1178,16 +1178,16 @@ gfxWindowsFont::Measure(gfxTextRun *aTextRun,
     // we need to create a copy in order to avoid getting cached extents
     if (aBoundingBoxType == TIGHT_HINTED_OUTLINE_EXTENTS &&
         mAntialiasOption != CAIRO_ANTIALIAS_NONE) {
-        // Not nsRefPtr here as we know this is a transient font instance,
-        // and we won't be putting it in the font cache. So we want to
-        // delete it immediately it goes out of scope, not call
-        // gfxFont::Release which deals with shared, cached font instances.
-        nsAutoPtr<gfxWindowsFont> tempFont =
-            new gfxWindowsFont(GetFontEntry(), GetStyle(), CAIRO_ANTIALIAS_NONE);
-        if (tempFont) {
-            return tempFont->Measure(aTextRun, aStart, aEnd,
-                                     TIGHT_HINTED_OUTLINE_EXTENTS,
-                                     aRefContext, aSpacing);
+        // the non-antialiased font is held in an nsAutoPtr, so it will
+        // be destroyed when the "parent" font is flushed from the cache
+        if (!mNonAAFont) {
+            mNonAAFont = new gfxWindowsFont(GetFontEntry(), GetStyle(),
+                                            CAIRO_ANTIALIAS_NONE);
+        }
+        if (mNonAAFont) {
+            return mNonAAFont->Measure(aTextRun, aStart, aEnd,
+                                       TIGHT_HINTED_OUTLINE_EXTENTS,
+                                       aRefContext, aSpacing);
         }
     }
 

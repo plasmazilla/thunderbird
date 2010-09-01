@@ -294,9 +294,9 @@ function test_that_msg_without_date_clears_previous_headers() {
  * Test various aspects of the (n more) widgetry.
  */
 function test_more_widget() {
-  // generate message with 20 recips (effectively guarantees overflow)
+  // generate message with 35 recips (effectively guarantees overflow for n=3)
   be_in_folder(folder);
-  let msg = create_message({toCount: 20});
+  let msg = create_message({toCount: 35});
 
   // add the message to the end of the folder
   add_message_to_folder(folder, msg);
@@ -366,8 +366,9 @@ function subtest_more_widget_display(toDescription) {
   let maxLines = prefBranch.getIntPref(
     "mailnews.headers.show_n_lines_before_more");
 
-  if (numLines > maxLines) {
-    throw new Error("expected <= " + maxLines + "lines; found " + numLines);
+  // allow for a 15% tolerance for any padding that may be applied
+  if (numLines < 0.85*maxLines || numLines > 1.15*maxLines) {
+    throw new Error("expected == " + maxLines + "lines; found " + numLines);
   }
 
   // test that we've got a (more) node and that it's expanded
@@ -427,10 +428,10 @@ function subtest_more_widget_star_click(toDescription) {
 /**
  * Make sure the (more) widget hidden pref actually works with a
  * non-default value.
-  */
+ */
 function test_more_widget_with_maxlines_of_3(){
 
-  // set maxLines to 2
+  // set maxLines to 3
   let prefBranch = Cc["@mozilla.org/preferences-service;1"]
     .getService(Ci.nsIPrefService).getBranch(null);
   let maxLines = prefBranch.setIntPref(
@@ -438,6 +439,49 @@ function test_more_widget_with_maxlines_of_3(){
 
   // call test_more_widget again
   test_more_widget();
+}
+
+/**
+ * Make sure the (more) widget hidden pref also works with an
+ * "all" (0) non-default value.
+ */
+function test_more_widget_with_disabled_more(){
+
+  // set maxLines to 0
+  let prefBranch = Cc["@mozilla.org/preferences-service;1"]
+    .getService(Ci.nsIPrefService).getBranch(null);
+  let maxLines = prefBranch.setIntPref(
+    "mailnews.headers.show_n_lines_before_more", 0);
+
+  // generate message with 35 recips (effectively guarantees overflow for n=3)
+  be_in_folder(folder);
+  let msg = create_message({toCount: 35});
+
+  // add the message to the end of the folder
+  add_message_to_folder(folder, msg);
+
+  // select and open the last message
+  let curMessage = select_click_row(-1);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // test that (n more) is gone
+  let moreNode = mc.a('expandedtoBox', {class: 'moreIndicator'});
+  if (!moreNode.collapsed) {
+    throw new Error("more node should be collapsed in n=0 case");
+  }
+
+  // get the description element containing the addresses
+  let toDescription = mc.a('expandedtoBox', {class: "headerValue"});
+
+  // test that we actually have more lines than the 3 we know are filled
+  let newNumLines = help_get_num_lines(toDescription);
+  if (newNumLines <= 3) {
+    throw new Error("number of address lines present in all addresses mode = " +
+      newNumLines + "<= number of expected minimum of 3 lines filled");
+  }
 }
 
 /**
@@ -509,5 +553,51 @@ function test_toolbar_collapse_and_expand() {
     //  See also: quick-filter-bar/test-display-issues.js if we change the
     //            default window size.
     mc.window.resizeTo(1024, 768);
+  }
+}
+
+/**
+ *  Make sure that opening the header toolbar customization dialog
+ *  does not break the get messages button in main toolbar
+ */
+function test_get_msg_button_customize_header_toolbar(){
+  be_in_folder(folder);
+
+  // select and open the first message
+  let curMessage = select_click_row(0);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // It is necessary to press the Get Message Button to get the popup menu populated
+  mc.click(mc.aid("button-getmsg", {class: "toolbarbutton-menubutton-dropmarker"}));
+  mc.ewait("button-getAllNewMsgSeparator");
+
+  var getMailButtonPopup = mc.eid("button-getMsgPopup").node;
+  var originalServerCount = getMailButtonPopup.childElementCount;
+
+  // Open customization dialog, because it broke the Get Message Button popup menu
+  // see https://bugzilla.mozilla.org/show_bug.cgi?id=565045
+  mc.click(mc.eid("CustomizeHeaderToolbar"));
+  let toolbox = mc.eid("header-view-toolbox").node;
+
+  // Due to differences between OS X and Windows/Linux versions
+  // the "done" button of the customization dialog cannot be
+  // accessed directly
+  toolbox.customizeDone();
+
+  // Press the Get Message Button to populate popup menu again
+  mc.click(mc.aid("button-getmsg", {class: "toolbarbutton-menubutton-dropmarker"}));
+  mc.ewait("button-getAllNewMsgSeparator");
+
+  getMailButtonPopup = mc.eid("button-getMsgPopup").node;
+  var finalServerCount = getMailButtonPopup.childElementCount;
+
+  if (originalServerCount != finalServerCount) {
+    throw new Error("number of entries in Get Message Button popup menu after " +
+                    "header toolbar customization " +
+                    finalServerCount + " <> as before: " +
+                    originalServerCount);
   }
 }

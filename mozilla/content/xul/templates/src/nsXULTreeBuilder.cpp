@@ -63,6 +63,8 @@
 #include "nsUnicharUtils.h"
 #include "nsINameSpaceManager.h"
 #include "nsIDOMClassInfo.h"
+#include "nsTreeContentView.h"
+#include "nsDOMError.h"
 
 // For security check
 #include "nsIDocument.h"
@@ -443,6 +445,9 @@ nsXULTreeBuilder::GetSelection(nsITreeSelection** aSelection)
 NS_IMETHODIMP
 nsXULTreeBuilder::SetSelection(nsITreeSelection* aSelection)
 {
+    NS_ENSURE_TRUE(!aSelection ||
+                   nsTreeContentView::CanTrustTreeSelection(aSelection),
+                   NS_ERROR_DOM_SECURITY_ERR);
     mSelection = aSelection;
     return NS_OK;
 }
