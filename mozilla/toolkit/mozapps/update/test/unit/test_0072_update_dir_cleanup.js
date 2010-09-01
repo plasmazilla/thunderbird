@@ -6,9 +6,7 @@
 
 function run_test() {
   removeUpdateDirsAndFiles();
-  var defaults = getPrefBranch().QueryInterface(AUS_Ci.nsIPrefService).
-                 getDefaultBranch(null);
-  defaults.setCharPref("app.update.channel", "bogus_channel");
+  setUpdateChannel();
 
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(""), false);
   var patches = getLocalPatchString(null, null, null, null, null, null,
@@ -17,8 +15,7 @@ function run_test() {
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), true);
   writeStatusFile(STATE_NONE);
 
-  startAUS();
-  startUpdateManager();
+  standardInit();
 
   var dir = getUpdatesDir();
   dump("Testing: " + dir.path + " exists\n");
@@ -26,7 +23,7 @@ function run_test() {
   do_check_true(dir.exists());
 
   var statusFile = dir.clone();
-  statusFile.append("update.status");
+  statusFile.append(FILE_UPDATE_STATUS);
   dump("Testing: " + statusFile.path + " does not exist\n");
   do_check_false(statusFile.exists());
 

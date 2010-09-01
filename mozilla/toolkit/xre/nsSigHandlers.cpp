@@ -297,6 +297,7 @@ void InstallSignalHandlers(const char *ProgramName)
   struct sigaction sa, osa;
   sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
   sa.sa_sigaction = fpehandler;
+  sigemptyset(&sa.sa_mask);
   sigaction(SIGFPE, &sa, &osa);
 
 #if defined(DEBUG) && defined(LINUX)
@@ -430,6 +431,9 @@ void InstallSignalHandlers(const char *ProgramName)
 }
 
 #endif
+
+#elif defined(XP_OS2)
+/* OS/2's FPE handler is implemented in NSPR */
 
 #else
 #error No signal handling implementation for this platform.

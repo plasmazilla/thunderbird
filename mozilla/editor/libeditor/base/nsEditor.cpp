@@ -111,6 +111,7 @@
 #include "nsINameSpaceManager.h"
 #include "nsIHTMLDocument.h"
 #include "nsIParserService.h"
+#include "nsComputedDOMStyle.h"
 
 #define NS_ERROR_EDITOR_NO_SELECTION NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_EDITOR,1)
 #define NS_ERROR_EDITOR_NO_TEXTNODE  NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_EDITOR,2)
@@ -4146,11 +4147,15 @@ nsEditor::IsPreformatted(nsIDOMNode *aNode, PRBool *aResult)
   
   nsCOMPtr<nsIPresShell> ps = do_QueryReferent(mPresShellWeak);
   if (!ps) return NS_ERROR_NOT_INITIALIZED;
-  
-  nsIFrame *frame = ps->GetPrimaryFrameFor(content);
 
-  NS_ASSERTION(frame, "no frame, see bug #188946");
-  if (!frame)
+  nsRefPtr<nsStyleContext> elementStyle;
+  if (content->IsNodeOfType(nsINode::eELEMENT)) {
+    elementStyle = nsComputedDOMStyle::GetStyleContextForContent(static_cast<nsIContent*>(content),
+                                                                 nsnull,
+                                                                 ps);
+  }
+
+  if (!elementStyle)
   {
     // Consider nodes without a style context to be NOT preformatted:
     // For instance, this is true of JS tags inside the body (which show
@@ -4159,7 +4164,7 @@ nsEditor::IsPreformatted(nsIDOMNode *aNode, PRBool *aResult)
     return NS_OK;
   }
 
-  const nsStyleText* styleText = frame->GetStyleText();
+  const nsStyleText* styleText = elementStyle->GetStyleText();
 
   *aResult = styleText->WhiteSpaceIsSignificant();
   return NS_OK;

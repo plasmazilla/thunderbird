@@ -7597,8 +7597,12 @@ NS_IMETHODIMP nsImapFolderCopyState::OnStopCopy(nsresult aStatus)
   if (NS_SUCCEEDED(aStatus))
     return AdvanceToNextFolder(aStatus);
   if (m_copySrvcListener)
+  {
     (void) m_copySrvcListener->OnStopCopy(aStatus);
-  delete this;
+    m_copySrvcListener = nsnull;
+  }
+  Release();
+
   return NS_OK;
 }
 
@@ -9123,7 +9127,7 @@ void nsImapMailFolder::PlaybackTimerCallback(nsITimer *aTimer, void *aClosure)
   
   NS_ASSERTION(request->SrcFolder->m_pendingPlaybackReq == request, "wrong playback request pointer");
   
-  nsImapOfflineSync *offlineSync = new nsImapOfflineSync(request->MsgWindow, nsnull, request->SrcFolder, PR_TRUE);
+  nsRefPtr<nsImapOfflineSync> offlineSync = new nsImapOfflineSync(request->MsgWindow, nsnull, request->SrcFolder, PR_TRUE);
   if (offlineSync)
   {
     nsresult rv = offlineSync->ProcessNextOperation();

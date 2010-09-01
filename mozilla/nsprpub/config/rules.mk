@@ -112,7 +112,7 @@ ifeq (,$(filter-out WINNT WINCE OS2,$(OS_ARCH)))
 # Win95 and OS/2 require library names conforming to the 8.3 rule.
 # other platforms do not.
 #
-ifeq (,$(filter-out WIN95 WINCE OS2,$(OS_TARGET)))
+ifeq (,$(filter-out WIN95 WINCE WINMO OS2,$(OS_TARGET)))
 LIBRARY		= $(OBJDIR)/$(LIBRARY_NAME)$(LIBRARY_VERSION)_s.$(LIB_SUFFIX)
 SHARED_LIBRARY	= $(OBJDIR)/$(LIBRARY_NAME)$(LIBRARY_VERSION).$(DLL_SUFFIX)
 IMPORT_LIBRARY	= $(OBJDIR)/$(LIBRARY_NAME)$(LIBRARY_VERSION).$(LIB_SUFFIX)
@@ -141,7 +141,7 @@ endif
 ifndef TARGETS
 ifeq (,$(filter-out WINNT WINCE OS2,$(OS_ARCH)))
 TARGETS		= $(LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY)
-ifndef BUILD_OPT
+ifdef MOZ_DEBUG_SYMBOLS
 ifdef MSC_VER
 ifneq (,$(filter-out 1100 1200,$(MSC_VER)))
 TARGETS		+= $(SHARED_LIB_PDB)
@@ -305,7 +305,7 @@ $(IMPORT_LIBRARY): $(MAPFILE)
 	rm -f $@
 	$(IMPLIB) $@ $(MAPFILE)
 else
-ifeq (,$(filter-out WIN95 WINCE,$(OS_TARGET)))
+ifeq (,$(filter-out WIN95 WINCE WINMO,$(OS_TARGET)))
 $(IMPORT_LIBRARY): $(SHARED_LIBRARY)
 endif
 endif

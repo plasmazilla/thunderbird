@@ -339,9 +339,7 @@ void imgRequest::Cancel(nsresult aStatus)
   if (!(mImageStatus & imgIRequest::STATUS_LOAD_PARTIAL))
     mImageStatus |= imgIRequest::STATUS_ERROR;
 
-  if (aStatus != NS_IMAGELIB_ERROR_NO_DECODER) {
-    RemoveFromCache();
-  }
+  RemoveFromCache();
 
   if (mRequest && mLoading)
     mRequest->Cancel(aStatus);

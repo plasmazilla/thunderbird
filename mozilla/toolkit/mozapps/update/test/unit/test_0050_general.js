@@ -51,12 +51,11 @@ var gExpectedStatusText;
 function run_test() {
   do_test_pending();
   removeUpdateDirsAndFiles();
-  startAUS();
-  startUpdateChecker();
-  getPrefBranch().setCharPref(PREF_APP_UPDATE_URL_OVERRIDE,
-                              URL_HOST + "update.xml");
+  setUpdateURLOverride();
+  standardInit();
+  // The mock XMLHttpRequest is MUCH faster
   overrideXHR(callHandleEvent);
-  do_timeout(0, "run_test_pt1()");
+  do_timeout(0, run_test_pt1);
 }
 
 function end_test() {

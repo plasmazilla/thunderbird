@@ -79,7 +79,10 @@
 #include "nsIContentViewer.h"
 
 // embedding
+#ifdef NS_PRINTING
 #include "nsIWebBrowserPrint.h"
+#include "nsMsgPrintEngine.h"
+#endif
 
 /* for access to docshell */
 #include "nsPIDOMWindow.h"
@@ -124,9 +127,6 @@
 #include "nsMsgMimeCID.h"
 #include "nsIMimeConverter.h"
 
-// Printing
-#include "nsMsgPrintEngine.h"
-
 // Save As
 #include "nsIFilePicker.h"
 #include "nsIStringBundle.h"
@@ -148,6 +148,8 @@ static NS_DEFINE_CID(kMsgSendLaterCID, NS_MSGSENDLATER_CID);
 #define MAILNEWS_ALLOW_PLUGINS_PREF_NAME "mailnews.message_display.allow.plugins"
 
 #define MIMETYPE_DELETED    "text/x-moz-deleted"
+
+#define ATTACHMENT_PERMISSION 00664
 
 //
 // Convert an nsString buffer to plain text...
@@ -737,7 +739,7 @@ nsMessenger::DetachAttachmentsWOPrompts(nsIFile* aDestFolder,
   ConvertAndSanitizeFileName(aDisplayNameArray[0], unescapedFileName);
   rv = attachmentDestination->Append(unescapedFileName);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = attachmentDestination->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
+  rv = attachmentDestination->CreateUnique(nsIFile::NORMAL_FILE_TYPE, ATTACHMENT_PERMISSION);
   NS_ENSURE_SUCCESS(rv, rv);
 
   saveState = new nsSaveAllAttachmentsState(aCount,
@@ -899,7 +901,7 @@ nsMessenger::SaveAttachmentToFolder(const nsACString& contentType, const nsACStr
   rv = attachmentDestination->Append(unescapedFileName);
   NS_ENSURE_SUCCESS(rv, rv);
 #ifdef XP_MACOSX
-  rv = attachmentDestination->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
+  rv = attachmentDestination->CreateUnique(nsIFile::NORMAL_FILE_TYPE, ATTACHMENT_PERMISSION);
   NS_ENSURE_SUCCESS(rv, rv);
 #endif
 
@@ -1145,6 +1147,7 @@ nsMessenger::SaveAs(const nsACString& aURI, PRBool aAsFile, nsIMsgIdentity *aIde
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr <nsILocalFile> tmpFile = do_QueryInterface(tmpTempFile, &rv);
+    // For temp file, we should use restrictive 00600 instead of ATTACHMENT_PERMISSION 
     rv = tmpFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
     if (NS_FAILED(rv)) goto done;
 
@@ -1839,7 +1842,7 @@ NS_IMETHODIMP
 nsSaveMsgListener::OnStartRequest(nsIRequest* request, nsISupports* aSupport)
 {
   if (m_file)
-    MsgNewBufferedFileOutputStream(getter_AddRefs(m_outputStream), m_file, -1, 00600);
+    MsgNewBufferedFileOutputStream(getter_AddRefs(m_outputStream), m_file, -1, ATTACHMENT_PERMISSION);
   if (!m_outputStream)
   {
     mCanceled = PR_TRUE;
@@ -1923,7 +1926,7 @@ nsSaveMsgListener::OnStopRequest(nsIRequest* request, nsISupports* aSupport,
       }
       else
       {
-        rv = localFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
+        rv = localFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, ATTACHMENT_PERMISSION);
         if (NS_FAILED(rv)) goto done;
       }
       rv = m_messenger->SaveAttachment(localFile,
@@ -2866,10 +2869,11 @@ nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aM
                                        getter_AddRefs(mMsgFile));
   NS_ENSURE_SUCCESS(rv,rv);
 
+  // For temp file, we should use restrictive 00600 instead of ATTACHMENT_PERMISSION 
   rv = mMsgFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 00600);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mMsgFileStream), mMsgFile, -1, 00600);
+  rv = MsgNewBufferedFileOutputStream(getter_AddRefs(mMsgFileStream), mMsgFile, -1, ATTACHMENT_PERMISSION);
 
   // create the additional header for data conversion. This will tell the stream converter
   // which MIME emitter we want to use, and it will tell the MIME emitter which attachments

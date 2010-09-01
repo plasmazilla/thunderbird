@@ -1862,6 +1862,8 @@ js_InvokeConstructor(JSContext *cx, uintN argc, JSBool clampReturn, jsval *vp)
     if (!obj)
         return JS_FALSE;
 
+    JSAutoTempValueRooter tvr(cx, obj);
+
     /* Now we have an object with a constructor method; call it. */
     vp[1] = OBJECT_TO_JSVAL(obj);
     if (!js_Invoke(cx, argc, vp, JSINVOKE_CONSTRUCT))
