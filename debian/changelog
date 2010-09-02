@@ -30,6 +30,13 @@ icedove (3.0.6-1) unstable; urgency=low
 icedove (3.0.5-1) unstable; urgency=low
 
   * New Upstream Version
+    - MFSA 2010-25 aka CVE-2010-1121: Re-use of freed object due to scope
+      confusion
+    - MFSA 2010-26 aka CVE-2010-1200, CVE-2010-1201, CVE-2010-1202: Crashes
+      with evidence of memory corruption (rv:1.9.2.4/ 1.9.1.10)
+    - MFSA 2010-29 aka CVE-2010-1196: Heap buffer overflow in
+      nsGenericDOMDataNode::SetTextInternal
+    - MFSA 2010-30 aka CVE-2010-1199: Integer Overflow in XSLT Node Sorting
   * [9774410] rebuild patch queue from patch-queue branch
     added patches:
     - 0045-Fix-misalignments-in-help-command-line.patch
