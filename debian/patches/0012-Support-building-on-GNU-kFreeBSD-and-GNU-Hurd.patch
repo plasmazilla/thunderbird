@@ -292,7 +292,7 @@ index b0cb6ed..16e9d59 100644
  #endif
  
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index cd2059c..e66e66e 100644
+index d9864a0..f0b80ea 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
 @@ -666,6 +666,14 @@ endif

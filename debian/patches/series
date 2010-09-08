@@ -54,3 +54,5 @@
 0054-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
 0055-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
 0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
+0057-Calculate-negotiate-auth-token-length-after-removing.patch
+0058-Fix-unaligned-reads-in-qcms.patch

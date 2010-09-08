@@ -41,7 +41,7 @@ index 96d3c0f..609fe3a 100644
     netwerk/necko-config.h xpcom/xpcom-config.h xpcom/xpcom-private.h \
     $(topsrcdir)/.mozconfig.mk $(topsrcdir)/.mozconfig.out
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index 82e7c23..6ee1023 100644
+index 9c55eed..2783042 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
 @@ -2123,12 +2123,6 @@ endif
@@ -58,7 +58,7 @@ index 82e7c23..6ee1023 100644
  # or in $(MY_RULES)
  #
 diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
-index cd2059c..7d07fbd 100644
+index d9864a0..edfd714 100644
 --- a/mozilla/js/src/config/rules.mk
 +++ b/mozilla/js/src/config/rules.mk
 @@ -2124,12 +2124,6 @@ endif

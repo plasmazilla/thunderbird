@@ -8,7 +8,7 @@ http://bugs.debian.org/374389
  1 files changed, 0 insertions(+), 9 deletions(-)
 
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index e66e66e..82e7c23 100644
+index f0b80ea..9c55eed 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
 @@ -607,15 +607,6 @@ endif
