@@ -1,3 +1,35 @@
+icedove (3.0.7-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2010-49 aka CVE-2010-3169: Miscellaneous memory safety hazards
+      (rv:1.9.2.9/ 1.9.1.12)
+    - MFSA 2010-50 aka CVE-2010-2765: Frameset integer overflow vulnerability
+    - MFSA 2010-51 aka CVE-2010-2767: Dangling pointer vulnerability using DOM
+      plugin array
+    - MFSA 2010-53 aka CVE-2010-3166: Heap buffer overflow in
+      nsTextFrameUtils::TransformText
+    - MFSA 2010-54 aka CVE-2010-2760: Dangling pointer vulnerability in
+      nsTreeSelection
+    - MFSA 2010-55 aka CVE-2010-3168: XUL tree removal crash and remote code
+      execution
+    - MFSA 2010-56 ala CVE-2010-3167: Dangling pointer vulnerability in
+      nsTreeContentView
+    - MFSA 2010-57 aka CVE-2010-2766: Crash and remote code execution in
+      normalizeDocument
+    - MFSA 2010-60 aka CVE-2010-2763: XSS using SJOW scripted function
+    - MFSA 2010-61 aka CVE-2010-2768: UTF-7 XSS by overriding document charset
+      using <object> type attribute
+    - MFSA 2010-62 aka CVE-2010-2769: Copy-and-paste or drag-and-drop into
+      designMode document allows XSS
+    - MFSA 2010-63 aka CVE-2010-2764: Information leak via XMLHttpRequest
+      statusText
+  * [1bf1dab] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0057-Calculate-negotiate-auth-token-length-after-removing.patch
+    - 0058-Fix-unaligned-reads-in-qcms.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 13 Sep 2010 17:33:45 +0200
+
 icedove (3.0.6-1) unstable; urgency=low
 
   * New Upstream Version
