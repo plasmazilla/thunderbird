@@ -1,0 +1,21 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Wed, 8 Sep 2010 20:48:03 +0200
+Subject: [PATCH] remove empty lines on top of si/install.rdf
+
+Closes: #595925
+---
+ upstream/si/install.rdf |    3 ---
+ 1 files changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/upstream/si/install.rdf b/upstream/si/install.rdf
+index 1597965..28cf1a5 100644
+--- a/upstream/si/install.rdf
++++ b/upstream/si/install.rdf
+@@ -1,6 +1,3 @@
+-
+-
+-
+ <?xml version="1.0"?>
+ <!--
+ 
+-- 
