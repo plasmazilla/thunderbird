@@ -1,3 +1,16 @@
+icedove-l10n (1:3.1.3-1) experimental; urgency=low
+
+  * New Upstream Version
+    - changes in: is nl pl zh
+  * [1bfefc6] rebuild patch queue from patch-queue branch
+    added patches:
+     - 0047-remove-empty-lines-on-top-of-si-install.rdf.patch
+       (Closes: #595925)
+  * [5334ec3] recommend hunspell dictionary as an alternative to myspell
+    (Closes: #593583)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 14 Sep 2010 11:05:21 +0200
+
 icedove-l10n (1:3.1.2-1) experimental; urgency=low
 
   * New Upstream Version
