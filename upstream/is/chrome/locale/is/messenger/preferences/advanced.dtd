@@ -64,9 +64,9 @@
 <!ENTITY showSettings.accesskey "n">
 <!ENTITY proxiesConfigure.label "Stilla hvernig &brandShortName; tengist við Internetið">
 <!ENTITY connectionsInfo.caption "Tenging">
-<!ENTITY offlineInfo.caption "Ótengdur">
-<!ENTITY offlineInfo.label "Stilla ótengdar stillingar">
-<!ENTITY showOffline.label "Ótengdur…">
+<!ENTITY offlineInfo.caption "Ónettengdur">
+<!ENTITY offlineInfo.label "Stilla ónettengdar stillingar">
+<!ENTITY showOffline.label "Ónettengdur…">
 <!ENTITY showOffline.accesskey "t">
 <!ENTITY Diskspace "Diskpláss">
 <!ENTITY offlineCompact.label "Þjappa möppum ef það sparar yfir">
