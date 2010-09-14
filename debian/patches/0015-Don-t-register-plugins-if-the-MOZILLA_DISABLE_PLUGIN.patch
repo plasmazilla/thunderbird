@@ -7,7 +7,7 @@ Subject: [PATCH] Don't register plugins if the MOZILLA_DISABLE_PLUGINS environme
  1 files changed, 25 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/modules/plugin/base/src/nsPluginHost.cpp b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-index e77ec50..06f51e8 100644
+index 7c46492..7a65f27 100644
 --- a/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 +++ b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 @@ -237,6 +237,24 @@ PRBool gSkipPluginSafeCalls = PR_FALSE;
@@ -35,7 +35,7 @@ index e77ec50..06f51e8 100644
  // flat file reg funcs
  static
  PRBool ReadSectionHeader(nsPluginManifestLineReader& reader, const char *token)
-@@ -4847,6 +4865,10 @@ nsresult nsPluginHost::FindPlugins(PRBool aCreatePluginList, PRBool * aPluginsCh
+@@ -4851,6 +4869,10 @@ nsresult nsPluginHost::FindPlugins(PRBool aCreatePluginList, PRBool * aPluginsCh
    // possible reset in subsequent ScanPluginsDirectory calls
    PRBool pluginschanged = PR_FALSE;
  
@@ -46,7 +46,7 @@ index e77ec50..06f51e8 100644
    // Scan the app-defined list of plugin dirs.
    rv = dirService->Get(NS_APP_PLUGINS_DIR_LIST, NS_GET_IID(nsISimpleEnumerator), getter_AddRefs(dirList));
    if (NS_SUCCEEDED(rv)) {
-@@ -5135,6 +5157,9 @@ nsPluginHost::WritePluginInfo()
+@@ -5139,6 +5161,9 @@ nsPluginHost::WritePluginInfo()
  nsresult
  nsPluginHost::ReadPluginInfo()
  {

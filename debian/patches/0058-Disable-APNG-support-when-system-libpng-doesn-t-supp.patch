@@ -24,7 +24,7 @@ index 87b80fa..8056408 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index a4060ce..18c554c 100644
+index 43de8bf..8668417 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4460,6 +4460,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
@@ -45,7 +45,7 @@ index a4060ce..18c554c 100644
                   $_SAVE_PNG_LIBS)
  fi
  if test "$SYSTEM_PNG" = 0; then
-@@ -8279,6 +8281,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
+@@ -8349,6 +8351,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
  AC_SUBST(SYSTEM_LIBXUL)
  AC_SUBST(SYSTEM_JPEG)
  AC_SUBST(SYSTEM_PNG)

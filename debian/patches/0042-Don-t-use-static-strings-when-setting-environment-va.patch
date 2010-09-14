@@ -9,7 +9,7 @@ strings unavailable and leading to strange segmentation faults.
  1 files changed, 25 insertions(+), 15 deletions(-)
 
 diff --git a/mozilla/toolkit/xre/nsAppRunner.cpp b/mozilla/toolkit/xre/nsAppRunner.cpp
-index 100a290..a8b773e 100644
+index 1eacc55..ab1e423 100644
 --- a/mozilla/toolkit/xre/nsAppRunner.cpp
 +++ b/mozilla/toolkit/xre/nsAppRunner.cpp
 @@ -326,6 +326,16 @@ static char **gRestartArgv;

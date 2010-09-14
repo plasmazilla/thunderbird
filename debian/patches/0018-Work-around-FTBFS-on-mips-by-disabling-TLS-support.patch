@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=528687
  1 files changed, 8 insertions(+), 1 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 6195bed..04c9e76 100644
+index a6da5cc..91114a4 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4134,7 +4134,14 @@ AC_CACHE_CHECK(for __thread keyword for TLS variables,

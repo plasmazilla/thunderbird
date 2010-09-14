@@ -10,7 +10,7 @@ internal version, which makes system library not used even though
  1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 6eb2a48..a4060ce 100644
+index 14ec3c2..43de8bf 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4355,7 +4355,7 @@ else

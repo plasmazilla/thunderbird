@@ -27,7 +27,7 @@ index 9dd92cc..87b80fa 100644
  MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
  MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 04c9e76..6eb2a48 100644
+index 91114a4..14ec3c2 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4508,6 +4508,18 @@ fi
@@ -49,7 +49,7 @@ index 04c9e76..6eb2a48 100644
  dnl ========================================================
  dnl Java SDK support
  dnl ========================================================
-@@ -8682,7 +8694,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
+@@ -8752,7 +8764,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
  # Build jsctypes on the platforms we can.
  if test "$BUILD_CTYPES"; then
    # Run the libffi 'configure' script on platforms that it supports.

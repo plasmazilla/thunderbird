@@ -10,7 +10,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=542999
  1 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/chrome/src/nsChromeRegistry.cpp b/mozilla/chrome/src/nsChromeRegistry.cpp
-index 209f946..4a0c031 100644
+index 696303b..887046e 100644
 --- a/mozilla/chrome/src/nsChromeRegistry.cpp
 +++ b/mozilla/chrome/src/nsChromeRegistry.cpp
 @@ -1272,10 +1272,11 @@ nsresult

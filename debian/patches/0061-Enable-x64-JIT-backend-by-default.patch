@@ -1,0 +1,37 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 26 Feb 2010 13:34:17 +0100
+Subject: [PATCH] Enable x64 JIT backend by default
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=489146
+---
+ mozilla/js/src/configure.in |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
+index 8dc2427..3ab770d 100644
+--- a/mozilla/js/src/configure.in
++++ b/mozilla/js/src/configure.in
+@@ -2467,6 +2467,10 @@ i?86-*)
+     ENABLE_JIT=1
+     NANOJIT_ARCH=i386
+     ;;
++x86_64*-*)
++    ENABLE_JIT=1
++    NANOJIT_ARCH=X64
++    ;;
+ arm*-*)
+     ENABLE_JIT=1
+     NANOJIT_ARCH=ARM
+@@ -2490,7 +2494,10 @@ case "$target" in
+ i?86-*)
+     AC_DEFINE(AVMPLUS_IA32)
+     ;;
+-
++x86_64*-*)
++    AC_DEFINE(AVMPLUS_AMD64)
++    AC_DEFINE(AVMPLUS_64BIT)
++    ;;
+ arm*-*)
+     AC_DEFINE(AVMPLUS_ARM)
+     ;;
+-- 

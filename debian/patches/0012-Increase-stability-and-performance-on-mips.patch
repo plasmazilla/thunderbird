@@ -9,7 +9,7 @@ http://bugs.debian.org/374389
  2 files changed, 0 insertions(+), 18 deletions(-)
 
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index 007b065..43aab8b 100644
+index 6b8eda3..d5789dd 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
 @@ -606,15 +606,6 @@ endif
@@ -29,7 +29,7 @@ index 007b065..43aab8b 100644
  # HP-UXBeOS specific section: for COMPONENTS only, add -Bsymbolic flag
  # which uses internal symbols first
 diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
-index 007b065..43aab8b 100644
+index 6b8eda3..d5789dd 100644
 --- a/mozilla/js/src/config/rules.mk
 +++ b/mozilla/js/src/config/rules.mk
 @@ -606,15 +606,6 @@ endif

@@ -1,0 +1,26 @@
+From: Mike Hommey <mh+mozilla@glandium.org>
+Date: Thu, 12 Aug 2010 14:47:58 +0200
+Subject: [PATCH] Fix ARM verbose assembly output for BLX.
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=586625
+---
+ mozilla/js/src/nanojit/NativeARM.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/js/src/nanojit/NativeARM.cpp b/mozilla/js/src/nanojit/NativeARM.cpp
+index 48408d0..cd48850 100644
+--- a/mozilla/js/src/nanojit/NativeARM.cpp
++++ b/mozilla/js/src/nanojit/NativeARM.cpp
+@@ -1558,9 +1558,9 @@ Assembler::BLX(Register addr, bool chk /* = true */)
+         underrunProtect(4);
+     }
+ 
+-    // BLX IP
++    // BLX reg
+     *(--_nIns) = (NIns)( (COND_AL) | (0x12<<20) | (0xFFF<<8) | (0x3<<4) | (addr) );
+-    asm_output("blx ip");
++    asm_output("blx %s", gpn(addr));
+ }
+ 
+ // Emit the code required to load a memory address into a register as follows:
+-- 
