@@ -49,6 +49,7 @@ components/@DLL_PREFIX@bookmark@DLL_SUFFIX@
 components/bookmarks.xpt
 components/chatzilla-service.js
 components/components.list
+components/compreg.dat
 components/contentAreaDropListener.js
 components/contentSecurityPolicy.js
 components/crashreporter.xpt
@@ -102,7 +103,7 @@ components/xpinstall.dll
 #endif
 components/winhooks.xpt
 components/xml-rpc.xpt
-compreg.dat
+components/xpti.dat
 defaults/wallet/VcardSchema.tbl
 defaults/wallet/FieldSchema.tbl
 defaults/wallet/SchemaConcat.tbl
@@ -150,7 +151,6 @@ extensions/p@m/components/palmsync.xpt
 extensions/p@m/defaults/preferences/palmsync.js
 #endif
 xpicleanup@BIN_SUFFIX@
-xpti.dat
 #ifdef MOZ_STATIC_BUILD
 components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
 components/@DLL_PREFIX@appcomps@DLL_SUFFIX@
