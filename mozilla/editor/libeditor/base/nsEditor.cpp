@@ -4148,8 +4148,12 @@ nsEditor::IsPreformatted(nsIDOMNode *aNode, PRBool *aResult)
   nsCOMPtr<nsIPresShell> ps = do_QueryReferent(mPresShellWeak);
   if (!ps) return NS_ERROR_NOT_INITIALIZED;
 
+  // Look at the node (and its parent if it's not an element), and grab its style context
   nsRefPtr<nsStyleContext> elementStyle;
-  if (content->IsNodeOfType(nsINode::eELEMENT)) {
+  if (!content->IsNodeOfType(nsINode::eELEMENT)) {
+    content = content->GetParent();
+  }
+  if (content && content->IsNodeOfType(nsINode::eELEMENT)) {
     elementStyle = nsComputedDOMStyle::GetStyleContextForContent(static_cast<nsIContent*>(content),
                                                                  nsnull,
                                                                  ps);
