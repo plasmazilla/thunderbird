@@ -68,6 +68,7 @@ REQUIRES	= xpcom \
 		  widget \
 		  view \
 		  webshell \
+		  caps \
 		  $(NULL)
 
 # Building the full blown HTML Editor  so add its source files and objects:

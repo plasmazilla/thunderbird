@@ -130,6 +130,7 @@ function runTest() {
           else
             runTest();
         }, false);
+        document.querySelector("a").focus();
         win.focus();
       }, 0);
     }, false);
@@ -139,7 +140,7 @@ function runTest() {
 
 var isMac = ("nsILocalFileMac" in Components.interfaces);
 if (isMac)
-  SimpleTest.waitForFocus(runTest);
+  addLoadEvent(runTest);
 else {
   // This test is not yet supported on non-Mac platforms, see bug 574005.
   todo(false, "Test not supported on this platform");

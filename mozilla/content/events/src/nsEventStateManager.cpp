@@ -2967,7 +2967,7 @@ nsEventStateManager::PostHandleEvent(nsPresContext* aPresContext,
         }
 
         nsIFrame* currFrame = mCurrentTarget;
-        nsIContent* activeContent = nsnull;
+        nsCOMPtr<nsIContent> activeContent;
         if (mCurrentTarget)
           activeContent = mCurrentTarget->GetContent();
 

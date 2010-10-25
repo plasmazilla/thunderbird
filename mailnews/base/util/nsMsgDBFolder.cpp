@@ -5525,6 +5525,7 @@ NS_IMETHODIMP nsMsgDBFolder::GetMsgTextFromStream(nsIInputStream *stream, const 
         break;
     }
   }
+  PR_Free(lineBuffer);
 
   // if the snippet is encoded, decode it
   if (!encoding.IsEmpty())
