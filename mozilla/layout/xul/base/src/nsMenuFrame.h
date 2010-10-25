@@ -228,6 +228,7 @@ public:
 protected:
   friend class nsMenuTimerMediator;
   friend class nsASyncMenuInitialization;
+  friend class nsMenuAttributeChangedEvent;
 
   // initialize mPopupFrame to the first popup frame within aChildList. Returns
   // aChildList with the popup frame removed.

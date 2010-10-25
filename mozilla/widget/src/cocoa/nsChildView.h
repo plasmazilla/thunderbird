@@ -251,6 +251,7 @@ public:
 
   // Note that we cannot get the actual state in TSM. But we can trust this
   // value. Because nsIMEStateManager reset this at every focus changing.
+  // XXX If plug-ins changed that, we cannot return correct state.
   static PRBool IsRomanKeyboardsOnly() { return sIsRomanKeyboardsOnly; }
 
   static PRBool GetIMEOpenState();

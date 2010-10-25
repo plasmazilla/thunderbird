@@ -752,10 +752,10 @@ PR_IMPLEMENT(PRStatus) PR_Interrupt(PRThread *thred)
     if ((NULL != cv) && !thred->interrupt_blocked)
     {
         PRIntn rv;
-        (void)PR_AtomicIncrement(&cv->notify_pending);
+        (void)PR_ATOMIC_INCREMENT(&cv->notify_pending);
         rv = pthread_cond_broadcast(&cv->cv);
         PR_ASSERT(0 == rv);
-        if (0 > PR_AtomicDecrement(&cv->notify_pending))
+        if (0 > PR_ATOMIC_DECREMENT(&cv->notify_pending))
             PR_DestroyCondVar(cv);
     }
     return PR_SUCCESS;
@@ -1045,6 +1045,8 @@ PR_IMPLEMENT(PRStatus) PR_Cleanup(void)
         else
             pt_book.user -= 1;
         PR_Unlock(pt_book.ml);
+
+        _PR_MD_EARLY_CLEANUP();
 
         _PR_CleanupMW();
         _PR_CleanupTime();
