@@ -409,6 +409,8 @@ PR_IMPLEMENT(PRStatus) PR_Cleanup()
     	PR_ASSERT((_PR_IS_NATIVE_THREAD(me)) || (me->cpu->id == 0));
 #endif
 
+        _PR_MD_EARLY_CLEANUP();
+
         _PR_CleanupMW();
         _PR_CleanupTime();
         _PR_CleanupDtoa();
@@ -801,7 +803,7 @@ PR_IMPLEMENT(PRStatus) PR_CallOnce(
     if (!_pr_initialized) _PR_ImplicitInitialization();
 
     if (!once->initialized) {
-	if (PR_AtomicSet(&once->inProgress, 1) == 0) {
+	if (PR_ATOMIC_SET(&once->inProgress, 1) == 0) {
 	    once->status = (*func)();
 	    PR_Lock(mod_init.ml);
 	    once->initialized = 1;
@@ -830,7 +832,7 @@ PR_IMPLEMENT(PRStatus) PR_CallOnceWithArg(
     if (!_pr_initialized) _PR_ImplicitInitialization();
 
     if (!once->initialized) {
-	if (PR_AtomicSet(&once->inProgress, 1) == 0) {
+	if (PR_ATOMIC_SET(&once->inProgress, 1) == 0) {
 	    once->status = (*func)(arg);
 	    PR_Lock(mod_init.ml);
 	    once->initialized = 1;

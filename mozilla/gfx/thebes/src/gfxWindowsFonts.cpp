@@ -2221,9 +2221,13 @@ private:
 };
 
 
-#define MAX_ITEM_LENGTH 32768
+// This is _slightly less_ than half of the maximum analysis window
+// we use with ScriptBreak, so that in typical cases we end up re-processing
+// only a small amount of overlap when we move the analysis window forward.
+#define MAX_ITEM_LENGTH      32499
 
-
+// Limit length of text passed to Uniscribe APIs, to avoid failure there.
+#define MAX_UNISCRIBE_LENGTH 65000
 
 static PRUint32 FindNextItemStart(int aOffset, int aLimit,
                                   nsTArray<SCRIPT_LOGATTR> &aLogAttr,
@@ -2286,28 +2290,53 @@ private:
     nsresult CopyItemSplitOversize(int aIndex, nsTArray<SCRIPT_ITEM> &aDest) {
         aDest.AppendElement(mItems[aIndex]);
         const int itemLength = mItems[aIndex+1].iCharPos - mItems[aIndex].iCharPos;
-        if (ESTIMATE_MAX_GLYPHS(itemLength) > 65535) {
+        if (ESTIMATE_MAX_GLYPHS(itemLength) > MAX_UNISCRIBE_LENGTH) {
             // This items length would cause ScriptShape() to fail. We need to
             // add extra items here so that no item's length could cause the fail.
 
             // Get cluster boundaries, so we can break cleanly if possible.
             nsTArray<SCRIPT_LOGATTR> logAttr;
-            if (!logAttr.SetLength(itemLength))
-                return NS_ERROR_FAILURE;
-            HRESULT rv= ScriptBreak(mString+mItems[aIndex].iCharPos, itemLength,
-                                    &mItems[aIndex].a, logAttr.Elements());
-            if (FAILED(rv))
-                return NS_ERROR_FAILURE;
 
             const int nextItemStart = mItems[aIndex+1].iCharPos;
-            int start = FindNextItemStart(mItems[aIndex].iCharPos,
-                                          nextItemStart, logAttr, mString);
+            int start = mItems[aIndex].iCharPos;
 
             while (start < nextItemStart) {
-                SCRIPT_ITEM item = mItems[aIndex];
-                item.iCharPos = start;
-                aDest.AppendElement(item);
-                start = FindNextItemStart(start, nextItemStart, logAttr, mString);
+                // ScriptBreak will fail for strings longer than 64K,
+                // so we do the analysis using a "sliding window" over the
+                // huge item.
+                int analysisLen = PR_MIN(nextItemStart - start,
+                                         MAX_UNISCRIBE_LENGTH);
+                if (!logAttr.SetLength(analysisLen)) {
+                    return NS_ERROR_FAILURE;
+                }
+                HRESULT rv = ScriptBreak(mString + start,
+                                         analysisLen,
+                                         &mItems[aIndex].a,
+                                         logAttr.Elements());
+                if (FAILED(rv)) {
+                    return NS_ERROR_FAILURE;
+                }
+
+                int analysisLimit = start + analysisLen;
+                start = FindNextItemStart(start, analysisLimit,
+                                          logAttr, mString);
+                int prevStart = start;
+                while (start < analysisLimit) {
+                    SCRIPT_ITEM item = mItems[aIndex];
+                    item.iCharPos = start;
+                    aDest.AppendElement(item);
+                    prevStart = start;
+                    start = FindNextItemStart(start, analysisLimit,
+                                              logAttr, mString);
+                }
+
+                // If the analysis window didn't reach the end of the entire
+                // original item, reset start so that the final (perhaps
+                // badly-terminated) item we just created will be merged with
+                // the following section of the text.
+                if (start < nextItemStart) {
+                    start = prevStart;
+                }
             }
         } 
         return NS_OK;
@@ -2336,7 +2365,7 @@ public:
             Init();
         }
 
-        if (ESTIMATE_MAX_GLYPHS(mLength) > 65535) {
+        if (ESTIMATE_MAX_GLYPHS(mLength) > MAX_UNISCRIBE_LENGTH) {
             // Any item of length > 43680 will cause ScriptShape() to fail, as its
             // mMaxGlyphs value will be greater than 65535 (43680*1.5+16>65535). So we
             // need to break up items which are longer than that upon cluster boundaries.

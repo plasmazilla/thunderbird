@@ -12289,7 +12289,7 @@ else
   echo "$ac_t""no" 1>&6
 fi
 
-	min_nspr_version=4.8.0
+	min_nspr_version=4.8.6
 	echo $ac_n "checking for NSPR - version >= $min_nspr_version""... $ac_c" 1>&6
 echo "configure:12295: checking for NSPR - version >= $min_nspr_version" >&5
 
@@ -12463,7 +12463,7 @@ else
   echo "$ac_t""no" 1>&6
 fi
 
-	min_nss_version=3.12.6
+	min_nss_version=3.12.8
 	echo $ac_n "checking for NSS - version >= $min_nss_version""... $ac_c" 1>&6
 echo "configure:12469: checking for NSS - version >= $min_nss_version" >&5
 

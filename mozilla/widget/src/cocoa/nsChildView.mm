@@ -6832,8 +6832,6 @@ nsTSMManager::SetIMEOpenState(PRBool aOpen)
 void
 nsTSMManager::SetRomanKeyboardsOnly(PRBool aRomanOnly)
 {
-  if (aRomanOnly == sIsRomanKeyboardsOnly)
-    return;
   CommitIME();
   KeyScript(aRomanOnly ? ENABLE_ROMAN_KYBDS_ONLY : smKeyEnableKybds);
   sIsRomanKeyboardsOnly = aRomanOnly;

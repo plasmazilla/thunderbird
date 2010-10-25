@@ -3823,6 +3823,7 @@ nsMsgLocalMailFolder::GetUidlFromFolder(nsLocalFolderScanState *aState, nsIMsgDB
       }
     }
   }
+  PR_Free(lineBuffer);
   return rv;
 }
 
@@ -4090,6 +4091,7 @@ nsresult nsMsgLocalMailFolder::ChangeKeywordForMessages(nsIArray *aMessages, con
       }
     }
     mDatabase->EndBatch();
+    PR_Free(lineBuffer);
   }
   return rv;
 }

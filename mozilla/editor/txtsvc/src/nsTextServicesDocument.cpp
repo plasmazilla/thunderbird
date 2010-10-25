@@ -3079,6 +3079,11 @@ nsTextServicesDocument::ClearDidSkip(nsIContentIterator* aFilteredIter)
 PRBool
 nsTextServicesDocument::IsBlockNode(nsIContent *aContent)
 {
+  if (!aContent) {
+    NS_ERROR("How did a null pointer get passed to IsBlockNode?");
+    return PR_FALSE;
+  }
+
   nsIAtom *atom = aContent->Tag();
 
   return (sAAtom       != atom &&

@@ -214,7 +214,7 @@ static PRInt32 sContextCount;
 static PRTime sMaxScriptRunTime;
 static PRTime sMaxChromeScriptRunTime;
 
-static nsIScriptSecurityManager *sSecurityManager;
+static nsIScriptSecurityManager_1_9_2 *sSecurityManager;
 
 static nsICollation *gCollation;
 
@@ -1552,6 +1552,9 @@ nsJSContext::EvaluateStringWithValue(const nsAString& aScript,
 
   jsval val;
 
+  rv = sSecurityManager->PushContextPrincipal(mContext, nsnull, principal);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsJSContext::TerminationFuncHolder holder(this);
 
   // SecurityManager said "ok", but don't compile if aVersion is unknown.
@@ -1599,6 +1602,8 @@ nsJSContext::EvaluateStringWithValue(const nsAString& aScript,
       *aIsUndefined = PR_TRUE;
     }
   }
+
+  sSecurityManager->PopContextPrincipal(mContext);
 
   // Pop here, after JS_ValueToString and any other possible evaluation.
   if (NS_FAILED(stack->Pop(nsnull)))
@@ -1726,6 +1731,9 @@ nsJSContext::EvaluateString(const nsAString& aScript,
   jsval val = JSVAL_VOID;
   jsval* vp = aRetValue ? &val : NULL;
 
+  rv = sSecurityManager->PushContextPrincipal(mContext, nsnull, principal);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsJSContext::TerminationFuncHolder holder(this);
 
   // SecurityManager said "ok", but don't compile if aVersion is unknown.
@@ -1770,6 +1778,8 @@ nsJSContext::EvaluateString(const nsAString& aScript,
       aRetValue->Truncate();
     }
   }
+
+  sSecurityManager->PopContextPrincipal(mContext);
 
   // Pop here, after JS_ValueToString and any other possible evaluation.
   if (NS_FAILED(stack->Pop(nsnull)))
@@ -1887,12 +1897,20 @@ nsJSContext::ExecuteScript(void *aScriptObject,
   jsval val;
   JSBool ok;
 
+  JSObject *scriptObj = (JSObject*)aScriptObject;
+  nsCOMPtr<nsIPrincipal> principal;
+
+  rv = sSecurityManager->GetObjectPrincipal(mContext, scriptObj, getter_AddRefs(principal));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = sSecurityManager->PushContextPrincipal(mContext, nsnull, principal);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsJSContext::TerminationFuncHolder holder(this);
   JSAutoRequest ar(mContext);
   ok = ::JS_ExecuteScript(mContext,
                           (JSObject *)aScopeObject,
-                          (JSScript*)::JS_GetPrivate(mContext,
-                          (JSObject*)aScriptObject),
+                          (JSScript*)::JS_GetPrivate(mContext, scriptObj),
                           &val);
 
   if (ok) {
@@ -1907,6 +1925,8 @@ nsJSContext::ExecuteScript(void *aScriptObject,
       aRetValue->Truncate();
     }
   }
+
+  sSecurityManager->PopContextPrincipal(mContext);
 
   // Pop here, after JS_ValueToString and any other possible evaluation.
   if (NS_FAILED(stack->Pop(nsnull)))

@@ -751,12 +751,14 @@ JS_SetWatchPoint(JSContext *cx, JSObject *obj, jsval idval,
         return JS_FALSE;
     }
 
+    JSAutoTempValueRooter idroot(cx);
     if (JSVAL_IS_INT(idval)) {
         propid = INT_JSVAL_TO_JSID(idval);
     } else {
         if (!js_ValueToStringId(cx, idval, &propid))
             return JS_FALSE;
         CHECK_FOR_STRING_INDEX(propid);
+        idroot.set(ID_TO_VALUE(propid));
     }
 
     if (!js_LookupProperty(cx, obj, propid, &pobj, &prop))
@@ -777,35 +779,37 @@ JS_SetWatchPoint(JSContext *cx, JSObject *obj, jsval idval,
         }
     } else if (pobj != obj) {
         /* Clone the prototype property so we can watch the right object. */
-        jsval value;
+        JSAutoTempValueRooter valroot(cx);
         JSPropertyOp getter, setter;
         uintN attrs, flags;
         intN shortid;
 
         if (OBJ_IS_NATIVE(pobj)) {
-            value = SPROP_HAS_VALID_SLOT(sprop, OBJ_SCOPE(pobj))
-                    ? LOCKED_OBJ_GET_SLOT(pobj, sprop->slot)
-                    : JSVAL_VOID;
+            valroot.set(SPROP_HAS_VALID_SLOT(sprop, OBJ_SCOPE(pobj))
+                        ? LOCKED_OBJ_GET_SLOT(pobj, sprop->slot)
+                        : JSVAL_VOID);
             getter = sprop->getter;
             setter = sprop->setter;
             attrs = sprop->attrs;
             flags = sprop->flags;
             shortid = sprop->shortid;
+            JS_UNLOCK_OBJ(cx, pobj);
         } else {
-            if (!OBJ_GET_PROPERTY(cx, pobj, propid, &value) ||
-                !OBJ_GET_ATTRIBUTES(cx, pobj, propid, prop, &attrs)) {
-                OBJ_DROP_PROPERTY(cx, pobj, prop);
+            OBJ_DROP_PROPERTY(cx, pobj, prop);
+
+            if (!OBJ_GET_PROPERTY(cx, pobj, propid, valroot.addr()) ||
+                !OBJ_GET_ATTRIBUTES(cx, pobj, propid, NULL, &attrs)) {
                 return JS_FALSE;
             }
             getter = setter = NULL;
             flags = 0;
             shortid = 0;
         }
-        OBJ_DROP_PROPERTY(cx, pobj, prop);
 
         /* Recall that obj is native, whether or not pobj is native. */
-        if (!js_DefineNativeProperty(cx, obj, propid, value, getter, setter,
-                                     attrs, flags, shortid, &prop)) {
+        if (!js_DefineNativeProperty(cx, obj, propid, valroot.value(),
+                                     getter, setter, attrs, flags,
+                                     shortid, &prop)) {
             return JS_FALSE;
         }
         sprop = (JSScopeProperty *) prop;
