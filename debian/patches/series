@@ -56,3 +56,4 @@
 0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
 0057-Calculate-negotiate-auth-token-length-after-removing.patch
 0058-Fix-unaligned-reads-in-qcms.patch
+0059-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch

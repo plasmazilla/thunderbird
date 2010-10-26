@@ -11,7 +11,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=541767
  4 files changed, 1 insertions(+), 19 deletions(-)
 
 diff --git a/config/rules.mk b/config/rules.mk
-index 185d396..59db6e7 100644
+index 56563b7..268bb2a 100644
 --- a/config/rules.mk
 +++ b/config/rules.mk
 @@ -2001,12 +2001,6 @@ endif

@@ -55,7 +55,7 @@ index 1e5626d..74bc1ec 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 7ec6e28..7cf0578 100644
+index 384a573..8878d8c 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4333,6 +4333,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then

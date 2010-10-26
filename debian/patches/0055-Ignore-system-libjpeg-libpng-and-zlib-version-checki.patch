@@ -42,7 +42,7 @@ index ade3c8e..53496ee 100644
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <sys/types.h>
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 6a13bc7..7ec6e28 100644
+index dcbff17..384a573 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4228,7 +4228,7 @@ else

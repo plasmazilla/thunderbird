@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=435683
  1 files changed, 57 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/memory/jemalloc/jemalloc.c b/mozilla/memory/jemalloc/jemalloc.c
-index d5e01f8..4d20ff0 100644
+index d5e01f8..8c83df5 100644
 --- a/mozilla/memory/jemalloc/jemalloc.c
 +++ b/mozilla/memory/jemalloc/jemalloc.c
 @@ -389,6 +389,53 @@ __FBSDID("$FreeBSD: head/lib/libc/stdlib/malloc.c 180599 2008-07-18 19:35:44Z ja
@@ -69,7 +69,7 @@ index d5e01f8..4d20ff0 100644
   * Data.
   */
  
-+#ifdef MOZ_MEMORY_NARENAS_DEFAULT_ONE
++#ifndef MOZ_MEMORY_NARENAS_DEFAULT_ONE
  /* Number of CPUs. */
  static unsigned		ncpus;
 +#endif
@@ -80,7 +80,7 @@ index d5e01f8..4d20ff0 100644
  	base_node_dealloc(node);
  }
  
-+#ifdef MOZ_MEMORY_NARENAS_DEFAULT_ONE
++#ifndef MOZ_MEMORY_NARENAS_DEFAULT_ONE
  #ifdef MOZ_MEMORY_BSD
  static inline unsigned
  malloc_ncpus(void)
@@ -96,7 +96,7 @@ index d5e01f8..4d20ff0 100644
  #endif
  		_malloc_message("\n", "", "", "");
  
-+#ifdef MOZ_MEMORY_NARENAS_DEFAULT_ONE
++#ifndef MOZ_MEMORY_NARENAS_DEFAULT_ONE
  		_malloc_message("CPUs: ", umax2s(ncpus, s), "\n", "");
 +#endif
  		_malloc_message("Max arenas: ", umax2s(narenas, s), "\n", "");
