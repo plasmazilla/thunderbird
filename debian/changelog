@@ -1,3 +1,26 @@
+icedove (3.0.9-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2010-64 aka CVE-2010-3174, CVE-2010-3176: Miscellaneous memory
+      safety hazards (rv:1.9.2.11/ 1.9.1.14)
+    - MFSA 2010-65 aka CVE-2010-3179: Buffer overflow and memory corruption
+      using document.write
+    - MFSA 2010-66 aka CVE-2010-3180: Use-after-free error in nsBarProp
+    - MFSA 2010-67 aka CVE-2010-3183: Dangling pointer vulnerability in
+      LookupGetterOrSetter
+    - MFSA 2010-69 aka CVE-2010-3178: Cross-site information disclosure via
+      modal calls
+    - MFSA 2010-71 aka CVE-2010-3182: Unsafe library loading vulnerabilities
+  * [2f5fb48] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0059-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
+    modified patches:
+    - 0054-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
+  * [d82f4a8] Bump up version of build dependencies libnspr4-dev and
+    libnss3-dev
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 26 Oct 2010 21:45:56 +0200
+
 icedove (3.0.8-1) unstable; urgency=low
 
   * New Upstream Version
