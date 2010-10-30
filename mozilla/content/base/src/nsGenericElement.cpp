@@ -3243,14 +3243,14 @@ nsGenericElement::doInsertChildAt(nsIContent* aKid, PRUint32 aIndex,
     }
   }
 
-  PRUint32 childCount = aChildArray.ChildCount();
-  NS_ENSURE_TRUE(aIndex <= childCount, NS_ERROR_ILLEGAL_VALUE);
-
   nsMutationGuard::DidMutate();
 
-  PRBool isAppend = (aIndex == childCount);
-
+  // Do this before checking the child-count since this could cause mutations
   mozAutoDocUpdate updateBatch(aDocument, UPDATE_CONTENT_MODEL, aNotify);
+
+  PRUint32 childCount = aChildArray.ChildCount();
+  NS_ENSURE_TRUE(aIndex <= childCount, NS_ERROR_ILLEGAL_VALUE);
+  PRBool isAppend = (aIndex == childCount);
 
   rv = aChildArray.InsertChildAt(aKid, aIndex);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -3727,6 +3727,8 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
 
   nsINode* container = NODE_FROM(aParent, aDocument);
 
+  mozAutoDocConditionalContentUpdateBatch batch(aDocument, PR_TRUE);
+
   // Figure out which index to insert at
   if (aRefChild) {
     refContent = do_QueryInterface(aRefChild);
@@ -3775,11 +3777,6 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
       NS_ASSERTION(adoptedKid == aNewChild, "Uh, adopt node changed nodes?");
     }
   }
-
-  // We want an update batch when we expect several mutations to be performed,
-  // which is when we're replacing a node, or when we're inserting a fragment.
-  mozAutoDocConditionalContentUpdateBatch(aDocument,
-    aReplace || nodeType == nsIDOMNode::DOCUMENT_FRAGMENT_NODE);
 
   // If we're replacing
   if (aReplace) {
