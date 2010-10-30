@@ -1,3 +1,11 @@
+icedove (3.0.10-1) unstable; urgency=low
+
+  * New Upstream Version
+    - MFSA 2010-73 aka CVE-2010-3765: Heap buffer overflow mixing
+      document.write and DOM insertion
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 30 Oct 2010 12:47:22 +0200
+
 icedove (3.0.9-1) unstable; urgency=high
 
   * New Upstream Version
