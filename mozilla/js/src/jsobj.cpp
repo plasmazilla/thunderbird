@@ -378,9 +378,7 @@ MarkSharpObjects(JSContext *cx, JSObject *obj, JSIdArray **idap)
 #if JS_HAS_GETTER_SETTER
     JSObject *obj2;
     JSProperty *prop;
-    uintN attrs;
 #endif
-    jsval val;
 
     JS_CHECK_RECURSION(cx, return NULL);
 
@@ -406,41 +404,46 @@ MarkSharpObjects(JSContext *cx, JSObject *obj, JSIdArray **idap)
         ok = JS_TRUE;
         for (i = 0, length = ida->length; i < length; i++) {
             id = ida->vector[i];
+            JSAutoTempValueRooter v(cx, JSVAL_VOID);
 #if JS_HAS_GETTER_SETTER
             ok = obj->lookupProperty(cx, id, &obj2, &prop);
             if (!ok)
                 break;
             if (!prop)
                 continue;
-            ok = obj2->getAttributes(cx, id, prop, &attrs);
-            if (ok) {
-                if (OBJ_IS_NATIVE(obj2) &&
-                    (attrs & (JSPROP_GETTER | JSPROP_SETTER))) {
-                    JSScopeProperty *sprop = (JSScopeProperty *) prop;
-                    val = JSVAL_NULL;
-                    if (attrs & JSPROP_GETTER)
-                        val = js_CastAsObjectJSVal(sprop->getter);
-                    if (attrs & JSPROP_SETTER) {
-                        if (val != JSVAL_NULL) {
-                            /* Mark the getter, then set val to setter. */
-                            ok = (MarkSharpObjects(cx, JSVAL_TO_OBJECT(val),
-                                                   NULL)
-                                  != NULL);
-                        }
-                        val = js_CastAsObjectJSVal(sprop->setter);
-                    }
-                } else {
-                    ok = obj->getProperty(cx, id, &val);
-                }
+            bool hasGetter, hasSetter;
+            JSAutoTempValueRooter setter(cx, JSVAL_VOID);
+            if (!OBJ_IS_NATIVE(obj2)) {
+                obj2->dropProperty(cx, prop);
+                hasGetter = hasSetter = false;
+            } else {
+                JSScopeProperty *sprop = (JSScopeProperty *) prop;
+                uintN attrs = sprop->attrs;
+                hasGetter = (attrs & JSPROP_GETTER);
+                hasSetter = (attrs & JSPROP_SETTER);
+                if (hasGetter)
+                    v.set(js_CastAsObjectJSVal(sprop->getter));
+                if (hasSetter)
+                    setter.set(js_CastAsObjectJSVal(sprop->setter));
+                JS_UNLOCK_OBJ(cx, obj2);
             }
-            obj2->dropProperty(cx, prop);
+            if (hasSetter) {
+                /* Mark the getter, then set value to setter. */
+                if (hasGetter && !JSVAL_IS_PRIMITIVE(v.value())) {
+                    ok = !!MarkSharpObjects(cx, JSVAL_TO_OBJECT(v.value()), NULL);
+                }
+                if (ok)
+                    v.set(setter.value());
+            } else if (!hasGetter) {
+                ok = obj->getProperty(cx, id, v.addr());
+            }
 #else
-            ok = obj->getProperty(cx, id, &val);
+            ok = obj->getProperty(cx, id, &v.addr());
 #endif
             if (!ok)
                 break;
-            if (!JSVAL_IS_PRIMITIVE(val) &&
-                !MarkSharpObjects(cx, JSVAL_TO_OBJECT(val), NULL)) {
+            if (!JSVAL_IS_PRIMITIVE(v.value()) &&
+                !MarkSharpObjects(cx, JSVAL_TO_OBJECT(v.value()), NULL)) {
                 ok = JS_FALSE;
                 break;
             }
@@ -774,14 +777,9 @@ obj_toSource(JSContext *cx, uintN argc, jsval *vp)
 
         valcnt = 0;
         if (prop) {
-            ok = obj2->getAttributes(cx, id, prop, &attrs);
-            if (!ok) {
-                obj2->dropProperty(cx, prop);
-                goto error;
-            }
-            if (OBJ_IS_NATIVE(obj2) &&
-                (attrs & (JSPROP_GETTER | JSPROP_SETTER))) {
+            if (OBJ_IS_NATIVE(obj2)) {
                 JSScopeProperty *sprop = (JSScopeProperty *) prop;
+                attrs = sprop->attrs;
                 if (attrs & JSPROP_GETTER) {
                     val[valcnt] = js_CastAsObjectJSVal(sprop->getter);
                     gsopold[valcnt] =
@@ -800,13 +798,18 @@ obj_toSource(JSContext *cx, uintN argc, jsval *vp)
 
                     valcnt++;
                 }
+                JS_UNLOCK_OBJ(cx, obj2);
             } else {
+                obj2->dropProperty(cx, prop);
+            }
+            if (!valcnt) {
                 valcnt = 1;
                 gsop[0] = NULL;
                 gsopold[0] = NULL;
                 ok = obj->getProperty(cx, id, &val[0]);
+                if (!ok)
+                    goto error;
             }
-            obj2->dropProperty(cx, prop);
         }
 
 #else  /* !JS_HAS_GETTER_SETTER */
@@ -821,11 +824,10 @@ obj_toSource(JSContext *cx, uintN argc, jsval *vp)
         gsop[0] = NULL;
         gsopold[0] = NULL;
         ok = obj->getProperty(cx, id, &val[0]);
-
-#endif /* !JS_HAS_GETTER_SETTER */
-
         if (!ok)
             goto error;
+
+#endif /* !JS_HAS_GETTER_SETTER */
 
         /*
          * If id is a string that's not an identifier, then it needs to be

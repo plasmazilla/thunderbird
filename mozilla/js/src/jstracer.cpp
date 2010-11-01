@@ -11221,10 +11221,9 @@ TraceRecorder::record_JSOP_GETELEM()
             uintN int_idx = JSVAL_TO_INT(idx);
             jsval* vp = &afp->argv[int_idx];
             if (idx_ins->isconstf()) {
-                if (int_idx >= 0 && int_idx < afp->argc)
-                    v_ins = get(vp);
-                else
-                    v_ins = INS_VOID();
+                if (int_idx < 0 || int_idx >= afp->argc)
+                    ABORT_TRACE("cannot trace arguments with out of range index");
+                v_ins = get(vp);
             } else {
                 // If the index is not a constant expression, we generate LIR to load the value from
                 // the native stack area. The guard on js_ArgumentClass above ensures the up-to-date

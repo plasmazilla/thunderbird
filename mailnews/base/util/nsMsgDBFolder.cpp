@@ -2407,6 +2407,7 @@ nsMsgDBFolder::CallFilterPlugins(nsIMsgWindow *aMsgWindow, PRBool *aFiltersRun)
   {
     rv = GetDatabase();
     NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(mDatabase, NS_ERROR_NOT_AVAILABLE);
   }
 
   // check if trait processing needed
@@ -5456,6 +5457,7 @@ NS_IMETHODIMP nsMsgDBFolder::GetMsgTextFromStream(nsIInputStream *stream, const 
         break;
     }
   }
+  PR_Free(lineBuffer);
 
   // if the snippet is encoded, decode it
   if (!encoding.IsEmpty())
