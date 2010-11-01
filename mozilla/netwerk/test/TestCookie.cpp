@@ -61,6 +61,7 @@ static const char kCookiesLifetimeDays[] = "network.cookie.lifetime.days";
 static const char kCookiesLifetimeCurrentSession[] = "network.cookie.lifetime.behavior";
 static const char kCookiesP3PString[] = "network.cookie.p3p";
 static const char kCookiesAskPermission[] = "network.cookie.warnAboutCookies";
+static const char kCookiesMaxPerHost[] = "network.cookie.maxPerHost";
 
 nsresult
 SetACookie(nsICookieService *aCookieService, const char *aSpec1, const char *aSpec2, const char* aCookieString, const char *aServerTime)
@@ -209,6 +210,8 @@ InitPrefs(nsIPrefBranch *aPrefBranch)
     aPrefBranch->SetIntPref(kCookiesLifetimeCurrentSession, 0);
     aPrefBranch->SetIntPref(kCookiesLifetimeDays, 1);
     aPrefBranch->SetBoolPref(kCookiesAskPermission, PR_FALSE);
+    // Set the base domain limit to 50 so we have a known value.
+    aPrefBranch->SetIntPref(kCookiesMaxPerHost, 50);
 }
 
 class ScopedXPCOM

@@ -5436,14 +5436,14 @@ ExtensionManager.prototype = {
    * ... it should NOT be called on every startup!
    */
   _ensureDS: function EM__ensureDS() {
-    if (!this._ds) {
-      this._ds = new ExtensionsDataSource(this);
-      if (this._ds) {
-        this._ds.loadExtensions();
-        this._ptr = getContainer(this._ds, this._ds._itemRoot).DataSource;
-        gRDF.RegisterDataSource(this._ptr, true);
-      }
-    }
+    if (this._ds)
+      return;
+
+    var ds = new ExtensionsDataSource(this);
+    ds.loadExtensions();
+    this._ds = ds;
+    this._ptr = getContainer(this._ds, this._ds._itemRoot).DataSource;
+    gRDF.RegisterDataSource(this._ptr, true);
   },
 
   /**
