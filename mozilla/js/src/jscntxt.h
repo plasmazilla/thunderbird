@@ -1344,6 +1344,11 @@ class JSAutoTempValueRooter
     jsval value() { return mTvr.u.value; }
     jsval *addr() { return &mTvr.u.value; }
 
+    void set(jsval v) {
+        JS_ASSERT(mTvr.count == JSTVU_SINGLE);
+        mTvr.u.value = v;
+    }
+
   protected:
     JSContext *mContext;
 

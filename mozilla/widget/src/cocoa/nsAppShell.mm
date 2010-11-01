@@ -800,6 +800,7 @@ nsAppShell::Exit(void)
   delete gCocoaAppModalWindowList;
   gCocoaAppModalWindowList = NULL;
 
+  nsTSMManager::Shutdown();
   NS_RemovePluginKeyEventsHandler();
 
   // Quoting from Apple's doc on the [NSApplication stop:] method (from their

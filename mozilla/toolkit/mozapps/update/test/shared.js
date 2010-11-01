@@ -49,12 +49,12 @@ const PREF_APP_UPDATE_CHANNEL           = "app.update.channel";
 const PREF_APP_UPDATE_ENABLED           = "app.update.enabled";
 const PREF_APP_UPDATE_IDLETIME          = "app.update.idletime";
 const PREF_APP_UPDATE_LOG               = "app.update.log";
+const PREF_APP_UPDATE_NEVER_BRANCH      = "app.update.never.";
+const PREF_APP_UPDATE_PROMPTWAITTIME    = "app.update.promptWaitTime";
 const PREF_APP_UPDATE_SHOW_INSTALLED_UI = "app.update.showInstalledUI";
 const PREF_APP_UPDATE_URL               = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS       = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE      = "app.update.url.override";
-
-const PREF_APP_UPDATE_NEVER_BRANCH      = "app.update.never.";
 
 const PREF_APP_PARTNER_BRANCH           = "app.partner.";
 const PREF_DISTRIBUTION_ID              = "distribution.id";

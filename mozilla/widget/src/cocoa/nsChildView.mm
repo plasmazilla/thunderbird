@@ -68,6 +68,7 @@
 #include "nsIMenuRollup.h"
 #include "nsIDOMSimpleGestureEvent.h"
 #include "nsIPluginInstance.h"
+#include "nsITimer.h"
 
 #include "nsDragService.h"
 #include "nsClipboard.h"
@@ -134,6 +135,7 @@ PRBool nsTSMManager::sIgnoreCommit = PR_FALSE;
 NSView<mozView>* nsTSMManager::sComposingView = nsnull;
 TSMDocumentID nsTSMManager::sDocumentID = nsnull;
 NSString* nsTSMManager::sComposingString = nsnull;
+nsITimer* nsTSMManager::sSyncKeyScriptTimer = nsnull;
 
 static NS_DEFINE_CID(kRegionCID, NS_REGION_CID);
 static NSView* sLastViewEntered = nil;
@@ -6350,11 +6352,48 @@ nsTSMManager::SetIMEOpenState(PRBool aOpen)
 void
 nsTSMManager::SetRomanKeyboardsOnly(PRBool aRomanOnly)
 {
-  if (aRomanOnly == sIsRomanKeyboardsOnly)
-    return;
   CommitIME();
-  KeyScript(aRomanOnly ? ENABLE_ROMAN_KYBDS_ONLY : smKeyEnableKybds);
+
   sIsRomanKeyboardsOnly = aRomanOnly;
+  CallKeyScriptAPI();
+}
+
+void
+nsTSMManager::CallKeyScriptAPI()
+{
+  // If timer has been alreay enabled, we don't need to recreate it.
+  if (sSyncKeyScriptTimer) {
+    return;
+  }
+
+  nsCOMPtr<nsITimer> timer = do_CreateInstance(NS_TIMER_CONTRACTID);
+  NS_ENSURE_TRUE(timer, );
+  NS_ADDREF(sSyncKeyScriptTimer = timer);
+  sSyncKeyScriptTimer->InitWithFuncCallback(SyncKeyScript, nsnull, 0,
+                                            nsITimer::TYPE_ONE_SHOT);
+}
+
+void
+nsTSMManager::SyncKeyScript(nsITimer* aTimer, void* aClosure)
+{
+  // This is a workaround of Bug 548480 for Snow Leopard.
+  //
+  // KeyScript may cause the crash in CFHash.  We need call
+  // [NSInputManager currentInputManager] before it.
+  [NSInputManager currentInputManager];
+
+  KeyScript(sIsRomanKeyboardsOnly ? ENABLE_ROMAN_KYBDS_ONLY : smKeyEnableKybds);
+  NS_RELEASE(sSyncKeyScriptTimer);
+}
+
+void
+nsTSMManager::Shutdown()
+{
+  if (!sSyncKeyScriptTimer) {
+    return;
+  }
+  sSyncKeyScriptTimer->Cancel();
+  NS_RELEASE(sSyncKeyScriptTimer);
 }
 
 void

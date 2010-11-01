@@ -106,6 +106,7 @@
 #endif
 #endif
 @BINPATH@/application.ini
+@BINPATH@/blocklist.xml
 @BINPATH@/platform.ini
 @BINPATH@/README.txt
 #ifdef MOZILLA_1_9_2_BRANCH

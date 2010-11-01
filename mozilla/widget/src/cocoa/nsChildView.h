@@ -68,6 +68,7 @@
 class gfxASurface;
 class nsChildView;
 union nsPluginPort;
+class nsITimer;
 
 enum {
   // Currently focused ChildView (while this TSM document is active).
@@ -248,6 +249,7 @@ public:
 
   // Note that we cannot get the actual state in TSM. But we can trust this
   // value. Because nsIMEStateManager reset this at every focus changing.
+  // XXX If plug-ins changed that, we cannot return correct state.
   static PRBool IsRomanKeyboardsOnly() { return sIsRomanKeyboardsOnly; }
 
   static PRBool GetIMEOpenState();
@@ -262,6 +264,8 @@ public:
 
   static void CommitIME();
   static void CancelIME();
+
+  static void Shutdown();
 private:
   static PRBool sIsIMEEnabled;
   static PRBool sIsRomanKeyboardsOnly;
@@ -269,8 +273,11 @@ private:
   static NSView<mozView>* sComposingView;
   static TSMDocumentID sDocumentID;
   static NSString* sComposingString;
+  static nsITimer* sSyncKeyScriptTimer;
 
   static void KillComposing();
+  static void CallKeyScriptAPI();
+  static void SyncKeyScript(nsITimer* aTimer, void* aClosure);
 };
 
 //-------------------------------------------------------------------------
