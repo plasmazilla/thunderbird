@@ -1,0 +1,23 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 6 Nov 2010 18:12:42 +0100
+Subject: [PATCH] sl: change Edit (Uredi) to CTRL+E
+
+Closes: #601331
+---
+ .../locale/sl/communicator/utilityOverlay.dtd      |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/upstream/sl/chrome/locale/sl/communicator/utilityOverlay.dtd b/upstream/sl/chrome/locale/sl/communicator/utilityOverlay.dtd
+index dbc5e2f..91f2b81 100644
+--- a/upstream/sl/chrome/locale/sl/communicator/utilityOverlay.dtd
++++ b/upstream/sl/chrome/locale/sl/communicator/utilityOverlay.dtd
+@@ -8,7 +8,7 @@
+ <!ENTITY newMenu.accesskey          "N">
+ 
+ <!ENTITY editMenu.label          "Uredi">
+-<!ENTITY editMenu.accesskey        "u">
++<!ENTITY editMenu.accesskey        "e">
+ <!ENTITY undoCmd.label            "Razveljavi">
+ <!ENTITY undoCmd.key            "Z">
+ <!ENTITY undoCmd.accesskey          "Z">
+-- 

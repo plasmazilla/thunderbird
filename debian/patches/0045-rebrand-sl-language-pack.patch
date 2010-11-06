@@ -32,7 +32,7 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/sl/chrome/locale/sl/messenger/accountCreation.dtd b/upstream/sl/chrome/locale/sl/messenger/accountCreation.dtd
-index 03e3d60..aa77cf9 100644
+index ad3cca1..201b61a 100644
 --- a/upstream/sl/chrome/locale/sl/messenger/accountCreation.dtd
 +++ b/upstream/sl/chrome/locale/sl/messenger/accountCreation.dtd
 @@ -68,7 +68,7 @@

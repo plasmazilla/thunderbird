@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 6 Nov 2010 18:01:50 +0100
+Subject: [PATCH] rebrand gd language pack
+
+---
+ upstream/gd/chrome/locale/gd/branding/brand.dtd    |    7 +++----
+ .../gd/chrome/locale/gd/branding/brand.properties  |    4 ++--
+ .../chrome/locale/gd/messenger/accountCreation.dtd |    2 +-
+ upstream/gd/chrome/locale/gd/messenger/credits.dtd |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/gd/chrome/locale/gd/branding/brand.dtd b/upstream/gd/chrome/locale/gd/branding/brand.dtd
+index 99aae6a..e1e28fc 100644
+--- a/upstream/gd/chrome/locale/gd/branding/brand.dtd
++++ b/upstream/gd/chrome/locale/gd/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Tha Mozilla Thunderbird is suaicheantasan Thunderbird
+-                                 'nan comharraidhean-malairt aig Fonndas Mozilla.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/gd/chrome/locale/gd/branding/brand.properties b/upstream/gd/chrome/locale/gd/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/gd/chrome/locale/gd/branding/brand.properties
++++ b/upstream/gd/chrome/locale/gd/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/gd/chrome/locale/gd/messenger/accountCreation.dtd b/upstream/gd/chrome/locale/gd/messenger/accountCreation.dtd
+index 1f66845..bb35c1e 100644
+--- a/upstream/gd/chrome/locale/gd/messenger/accountCreation.dtd
++++ b/upstream/gd/chrome/locale/gd/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Atharraich roghainnean">
+ <!ENTITY changeSettings.accesskey        "A">
+ 
+-<!ENTITY contactYourProvider.description "'S urrainn do &brandShortName; cead a thoirt dhut am post agad fhaighinn leis na roghainnean a thagh thu. Ge-tà, bu chòir dhut fios a leigeil dhan rianadair agad no do sholaraiche a' phuist-dhealain agad a thaobh nan ceanglaichean neo-iomchaidh seo. Cuir sùil air na CÀBHA aig Thunderbird airson barrachd fiosrachaidh.">
++<!ENTITY contactYourProvider.description "'S urrainn do &brandShortName; cead a thoirt dhut am post agad fhaighinn leis na roghainnean a thagh thu. Ge-tà, bu chòir dhut fios a leigeil dhan rianadair agad no do sholaraiche a' phuist-dhealain agad a thaobh nan ceanglaichean neo-iomchaidh seo. Cuir sùil air na CÀBHA aig Icedove airson barrachd fiosrachaidh.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Rabhadh! 'S e frithealaiche neo-thèarainte a tha seo.">
+ <!ENTITY insecureServer.tooltip.details  "Briog air a' chearcall airson barrachd fiosrachaidh.">
+diff --git a/upstream/gd/chrome/locale/gd/messenger/credits.dtd b/upstream/gd/chrome/locale/gd/messenger/credits.dtd
+index d530b84..fee4a8c 100644
+--- a/upstream/gd/chrome/locale/gd/messenger/credits.dtd
++++ b/upstream/gd/chrome/locale/gd/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "Creideasan &brandFullName;">
+-<!ENTITY brandMotto       "Thunderbirds Are Go!">
++<!ENTITY brandMotto       "Icedove Are Go!">
+ <!ENTITY credit.thanks    "Taing air leth do">
+ 
+ <!-- localization credits look like this: -->
+-- 

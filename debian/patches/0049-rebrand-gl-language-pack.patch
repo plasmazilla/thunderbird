@@ -1,0 +1,59 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 6 Nov 2010 18:04:21 +0100
+Subject: [PATCH] rebrand gl language pack
+
+---
+ upstream/gl/chrome/locale/gl/branding/brand.dtd    |    7 +++----
+ .../gl/chrome/locale/gl/branding/brand.properties  |    4 ++--
+ .../chrome/locale/gl/messenger/accountCreation.dtd |    2 +-
+ upstream/gl/chrome/locale/gl/messenger/credits.dtd |    2 +-
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/upstream/gl/chrome/locale/gl/branding/brand.dtd b/upstream/gl/chrome/locale/gl/branding/brand.dtd
+index c524050..e1e28fc 100644
+--- a/upstream/gl/chrome/locale/gl/branding/brand.dtd
++++ b/upstream/gl/chrome/locale/gl/branding/brand.dtd
+@@ -1,5 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Os logotipos de Mozilla Thunderbird e de Thunderbird
+-                                 son marcas rexistradas da Fundación Mozilla.">
++<!ENTITY  logoTrademark         " ">
+diff --git a/upstream/gl/chrome/locale/gl/branding/brand.properties b/upstream/gl/chrome/locale/gl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/gl/chrome/locale/gl/branding/brand.properties
++++ b/upstream/gl/chrome/locale/gl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/gl/chrome/locale/gl/messenger/accountCreation.dtd b/upstream/gl/chrome/locale/gl/messenger/accountCreation.dtd
+index d37fec9..2f148eb 100644
+--- a/upstream/gl/chrome/locale/gl/messenger/accountCreation.dtd
++++ b/upstream/gl/chrome/locale/gl/messenger/accountCreation.dtd
+@@ -68,7 +68,7 @@
+ <!ENTITY changeSettings.label            "Cambiar configuracións">
+ <!ENTITY changeSettings.accesskey        "f">
+ 
+-<!ENTITY contactYourProvider.description "&brandShortName; permítelle recibir o seu correo usando a configuración fornecida. No entanto, debería contactar co seu administrador ou fornecedor de correo-e en relación a estas conexións incorrectas. Vexa a FAQ de Thunderbird para máis información.">
++<!ENTITY contactYourProvider.description "&brandShortName; permítelle recibir o seu correo usando a configuración fornecida. No entanto, debería contactar co seu administrador ou fornecedor de correo-e en relación a estas conexións incorrectas. Vexa a FAQ de Icedove para máis información.">
+ 
+ <!ENTITY insecureServer.tooltip.title    "Aviso! Este é un servidor inseguro.">
+ <!ENTITY insecureServer.tooltip.details  "Prema no círculo para máis detalles.">
+diff --git a/upstream/gl/chrome/locale/gl/messenger/credits.dtd b/upstream/gl/chrome/locale/gl/messenger/credits.dtd
+index 3f6ed0e..96761c6 100644
+--- a/upstream/gl/chrome/locale/gl/messenger/credits.dtd
++++ b/upstream/gl/chrome/locale/gl/messenger/credits.dtd
+@@ -1,5 +1,5 @@
+ <!ENTITY credit.title     "Créditos de &brandFullName;">
+-<!ENTITY brandMotto       "Os Thunderbirds levantan o voo!">
++<!ENTITY brandMotto       "Os Icedove levantan o voo!">
+ <!ENTITY credit.thanks    "Agradecemento especial a">
+ 
+ <!-- localization credits look like this: -->
+-- 
