@@ -129,7 +129,7 @@
      box faster.
      -->
 
-<!ENTITY quickFilterBar.textbox.emptyText.base "Търсене в тези съобщенията... #1">
+<!ENTITY quickFilterBar.textbox.emptyText.base "Търсене в тези съобщения… #1">
 <!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.nonmac):
      The description of the key-binding to get into the box on windows and
      linux (which use the control key).  We use the keybinding for cmd_find

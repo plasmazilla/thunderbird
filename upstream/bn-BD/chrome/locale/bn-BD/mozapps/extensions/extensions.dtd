@@ -96,7 +96,7 @@
 <!ENTITY cancelUpgrade.accesskey "C">
 <!-- Only displayed in the selected Add-on's context menu -->
 
-<!ENTITY cmd.homepage.label "হোম পেজে যান (H)">
+<!ENTITY cmd.homepage.label "প্রধান পাতায় যান (H)">
 <!ENTITY cmd.homepage.accesskey "H">
 <!ENTITY cmd.about2.label "এই অ্যাড-অনের পরিচিতি">
 <!ENTITY cmd.about.accesskey "A">

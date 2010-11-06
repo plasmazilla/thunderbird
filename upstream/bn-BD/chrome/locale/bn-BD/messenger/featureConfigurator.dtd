@@ -33,7 +33,7 @@
 <!ENTITY featureConfigurator.collapsedHeaders.heading "কমপ্যাক্ট শীর্ষচরণ">
 <!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.weak): The paragraph to display if the user hadn't previously used the collapsed headers feature. -->
 
-<!ENTITY featureConfigurator.collapsedHeaders.para.weak "কমপ্যাক্ট বার্তা পাঠক ভিউ এর নিজস্ব এক্সটেনশনে সরানো হয়েছে যেখানে এটি এখন অনেক বেশী দৃষ্টি আকর্ষণ ও অপশন পাচ্ছে।">
+<!ENTITY featureConfigurator.collapsedHeaders.para.weak "কমপ্যাক্ট বার্তা পাঠক প্রদর্শনী এর নিজস্ব এক্সটেনশনে সরানো হয়েছে যেখানে এটি এখন অনেক বেশী দৃষ্টি আকর্ষণ ও অপশন পাচ্ছে।">
 <!-- LOCALIZATION NOTE (featureConfigurator.collapsedHeaders.para.strong): The paragraph to display if the user had previously used the collapsed headers feature. -->
 
 <!ENTITY featureConfigurator.collapsedHeaders.para.strong "আমরা লক্ষ্য করেছি যে আপনি কমপ্যাক্ট বার্তা পাঠক শীর্ষচরণ ব্যবহার করছিলেন।  এই ফাংশনটি এর নিজস্ব এক্সটেনশনে সরানো হয়েছে এবং আপনি যদি এটি ব্যবহার করতে চান তবে আমরা আপনাকে এটা এখানে ইনস্টল করার পরামর্শ দিচ্ছি।">

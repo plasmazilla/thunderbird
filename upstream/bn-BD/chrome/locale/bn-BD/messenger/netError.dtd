@@ -57,7 +57,7 @@
 <li>ওয়েবসাইটের কতৃপক্ষকে এই সমস্যা সম্পর্কে অবহিত করুন।</li> 
 </ul>">
 
-<!ENTITY netReset.title "সংযোগটি রিসেট হয়েছিল">
+<!ENTITY netReset.title "সংযোগটি পুনঃনির্ধারণ হয়েছিল">
 <!ENTITY netReset.longDesc "&sharedLongDesc;">
 
 <!ENTITY netTimeout.title "সংযোগটির সময়উত্তীর্ন হয়ে গেছে">
@@ -85,7 +85,7 @@
 
 <!ENTITY redirectLoop.title "পৃষ্ঠাটি সঠিকভাবে রিডিরেক্ট করছে না">
 <!ENTITY redirectLoop.longDesc "<ul> 
-<li>কুকি নিষ্ক্রিয় বা গ্রহন না করার ফলেও এই ত্রুটি দেখা দেয়া 
+<li>কুকি নিষ্ক্রিয় বা গ্রহণ না করার ফলেও এই ত্রুটি দেখা দেয়া 
 সম্ভব।</li> 
 </ul>">
 

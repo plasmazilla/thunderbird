@@ -7,7 +7,7 @@
 <!ENTITY neverEncrypt.accesskey "N">
 <!ENTITY alwaysEncryptMessage.label "প্রয়োজন (সকল প্রাপকের সার্টিফিকেট না থাকলে বার্তা প্রেরণ করা যায় না) (u)">
 <!ENTITY alwaysEncryptMessage.accesskey "u">
-<!ENTITY encryptionCert.message "আপনার কাছে প্রেরিত বার্তা এনক্রিপ্ট &amp; ডিক্রিপ্ট করতে, এই সার্টিফিকেটটি ব্যবহার করা হবে:">
+<!ENTITY encryptionCert.message "আপনার কাছে প্রেরিত বার্তা এনক্রিপ্ট ও ডিক্রিপ্ট করতে, এই সার্টিফিকেটটি ব্যবহার করা হবে:">
 <!ENTITY digitalSign.certificate.button "নির্বাচন…">
 <!ENTITY digitalSign.certificate.accesskey "S">
 <!ENTITY digitalSign.certificate_clear.button "পরিষ্কার">

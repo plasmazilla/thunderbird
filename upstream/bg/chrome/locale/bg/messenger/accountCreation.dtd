@@ -2,7 +2,7 @@
 <!ENTITY name.label "Вашето име:">
 <!ENTITY name.accesskey "и">
 <!ENTITY name.emptytext "Име Фамилия">
-<!ENTITY name.text "Вашето име, както ще ги видят другите">
+<!ENTITY name.text "Вашето име, както ще го видят другите">
 <!ENTITY email.label "Е-поща:">
 <!ENTITY email.accesskey "Е">
 <!ENTITY email.emptytext "email@example.com">

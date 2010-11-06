@@ -45,9 +45,9 @@
 <!ENTITY setPassword.meter.loading "লোড করা হচ্ছে">
 <!-- Values for resetpassword.xul -->
 
-<!ENTITY resetPasswordButtonLabel "রিসেট">
-<!ENTITY resetPassword.title "মাস্টার পাসওয়ার্ড রিসেট করুন">
-<!ENTITY resetPassword.text "মাস্টার পাসওয়ার্ড রিসেট করা হলে আপনার দ্বারা সংরক্ষিত সমস্ত ওয়েব ও ইমেইল পাসওয়ার্ড, ফর্মের তথ্য, ব্যক্তিগত সার্টিফিকেট ও কী মুছে যাবে। আপনি কি নিশ্চিতরূপে মাস্টার পাসওয়ার্ড রিসেট করতে ইচ্ছুক?">
+<!ENTITY resetPasswordButtonLabel "পুনঃনির্ধারণ">
+<!ENTITY resetPassword.title "মাস্টার পাসওয়ার্ড পুনঃনির্ধারণ করুন">
+<!ENTITY resetPassword.text "মাস্টার পাসওয়ার্ড পুনঃনির্ধারণ করা হলে আপনার দ্বারা সংরক্ষিত সমস্ত ওয়েব ও ইমেইল পাসওয়ার্ড, ফর্মের তথ্য, ব্যক্তিগত সার্টিফিকেট ও কী মুছে যাবে। আপনি কি নিশ্চিতরূপে মাস্টার পাসওয়ার্ড পুনঃনির্ধারণ করতে ইচ্ছুক?">
 <!-- Values for getpassword.xul -->
 
 <!ENTITY getPassword.title "মাস্টার পাসওয়ার্ড লিখুন">

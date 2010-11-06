@@ -4,7 +4,7 @@
 
 <!ENTITY accountActionsButton.label "Действия по регистрация">
 <!ENTITY accountActionsButton.accesskey "р">
-<!ENTITY addMailAccountButton.label "Дбавяне на пощенска регистрация…">
+<!ENTITY addMailAccountButton.label "Добавяне на пощенска регистрация…">
 <!ENTITY addMailAccountButton.accesskey "Д">
 <!ENTITY addOtherAccountButton.label "Добавяне на друга регистрация…">
 <!ENTITY addOtherAccountButton.accesskey "у">

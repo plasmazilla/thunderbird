@@ -1,0 +1,57 @@
+<!ENTITY itemGeneral.label                   "Основне поставке">
+<!ENTITY itemAutoComplete.label              "Адресирање">
+<!ENTITY itemSpellCheck.label                "Правопис">
+
+<!ENTITY forwardMsg.label                     "Прослеђене поруке:">
+<!ENTITY forwardMsg.accesskey                 "с">
+<!ENTITY inline.label                         "У тексту">
+<!ENTITY asAttachment.label                   "Као прилог">
+<!ENTITY addExtension.label                   "додај наставак за тип датотеке">
+<!ENTITY addExtension.accesskey               "н">
+
+<!ENTITY htmlComposeHeader.label              "ХТМЛ">
+<!ENTITY font.label                           "Писмо:">
+<!ENTITY font.accesskey                       "П">
+<!ENTITY size.label                           "Величина:">
+<!ENTITY size.accesskey                       "В">
+<!ENTITY fontColor.label                      "Боја текста:">
+<!ENTITY fontColor.accesskey                  "Б">
+<!ENTITY bgColor.label                        "Позадина:">
+<!ENTITY bgColor.accesskey                    "П">
+<!ENTITY restoreHTMLDefaults.label            "Врати изворно">
+<!ENTITY restoreHTMLDefaults.accesskey        "В">
+
+<!ENTITY spellCheck.label                     "Провери правопис пре слања">
+<!ENTITY spellCheck.accesskey                 "П">
+<!ENTITY spellCheckInline.label               "Укључи симултану проверу правописа">
+<!ENTITY spellCheckInline1.accesskey          "с">
+<!ENTITY languagePopup.label                  "Језик:">
+<!ENTITY languagePopup.accessKey              "Ј">
+<!ENTITY downloadDictionaries.label           "Преузми још речника">
+
+<!ENTITY warnOnSendAccelKey.label             "Тражи потврду када се порука шаље скраћеницом са тастатуре">
+<!ENTITY warnOnSendAccelKey.accesskey         "Т">
+<!ENTITY autoSave.label                       "Аутоматски чувај на">
+<!ENTITY autoSave.accesskey                   "А">
+<!ENTITY autoSaveEnd.label                    "minuta">
+
+<!ENTITY emailCollectionPicker.label           "Аутоматски додај одлазне адресе у:">
+<!ENTITY emailCollectionPicker.accesskey       "у">
+<!ENTITY addressingTitle.label                 "Аутоматска допуна адресе">
+<!ENTITY autocompleteText.label                "При адресирању порука, тражи одговарајуће уносе у:">
+<!ENTITY addressingEnable.label                "Локалном адресару">
+<!ENTITY addressingEnable.accesskey            "Л">
+<!ENTITY directories.label                     "Именику на серверу:">
+<!ENTITY directories.accesskey                 "И">
+<!ENTITY directoriesNone.label                 "ниједна">
+<!ENTITY editDirectories.label                 "Уреди речнике…">
+<!ENTITY editDirectories.accesskey             "У">
+
+<!ENTITY sendOptionsDescription.label          "Подешавање понашања формата текста">
+<!ENTITY sendOptions.label                     "Опције за слање…">
+<!ENTITY sendOptions.accesskey                 "О">
+
+<!ENTITY attachmentReminder.label              "Check for missing attachments">
+<!ENTITY attachmentReminder.accesskey          "m">
+<!ENTITY attachmentReminderOptions.label       "Keywords…">
+<!ENTITY attachmentReminderOptions.accesskey   "K">

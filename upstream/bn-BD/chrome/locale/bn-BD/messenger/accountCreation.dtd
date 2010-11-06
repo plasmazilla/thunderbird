@@ -1,4 +1,4 @@
-<!ENTITY autoconfigWizard.title "মেইল একাউন্ট ব্যবস্থাপনা">
+<!ENTITY autoconfigWizard.title "মেইল অ্যাকাউন্ট ব্যবস্থাপনা">
 <!ENTITY name.label "আপনার নাম (n)">
 <!ENTITY name.accesskey "n">
 <!ENTITY name.emptytext "প্রথম শেষ">
@@ -11,7 +11,7 @@
 <!ENTITY password.emptytext "পাসওয়ার্ড">
 <!ENTITY password.text "ঐচ্ছিক, শুধু ব্যবহারকারীর নামের বৈধতা যাচাই এর জন্য ব্যবহার করা হবে">
 
-<!ENTITY accountInformation.label "একাউন্ট সংক্রান্ত তথ্য">
+<!ENTITY accountInformation.label "অ্যাকাউন্ট সংক্রান্ত তথ্য">
 <!ENTITY username2.label "ব্যনহারকারীর নাম:">
 <!ENTITY incoming.label "আগত:">
 <!ENTITY outgoing.label "বহির্গামী:">
@@ -59,7 +59,7 @@
 <!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
      on the incoming or outgoing servers, then the page that pops up will
      have this text in a button to continue by creating the account. -->
-<!ENTITY createAccount.label "একাউন্ট তৈরি করুন (C)">
+<!ENTITY createAccount.label "অ্যাকাউন্ট তৈরি করুন (C)">
 <!ENTITY createAccount.accesskey "C">
 <!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
      the incoming or outgoing servers, then the page that pops up will have
@@ -68,11 +68,11 @@
 <!ENTITY changeSettings.label "সেটিং পরিবর্তন (S)">
 <!ENTITY changeSettings.accesskey "S">
 
-<!ENTITY contactYourProvider.description "&brandShortName; যে কনফিগারেশন দেয়া আছে তা ব্যবহার করে আপনার ইমেইল গ্রহন করতে পারবেন। উপরন্তু, আপনি এই ঝামেলাযুক্ত সংযোগের সাথে সংশ্লিষ্ট প্রশাসক বা ইমেইল সরবরাহকারীর সাথে যোগাযোগ করুন। আরও তথ্যের জন্য থান্ডারবার্ড FAQ দেখুন।">
+<!ENTITY contactYourProvider.description "&brandShortName; যে কনফিগারেশন দেয়া আছে তা ব্যবহার করে আপনার ইমেইল গ্রহণ করতে পারবেন। উপরন্তু, আপনি এই ঝামেলাযুক্ত সংযোগের সাথে সংশ্লিষ্ট প্রশাসক বা ইমেইল সরবরাহকারীর সাথে যোগাযোগ করুন। আরও তথ্যের জন্য থান্ডারবার্ড FAQ দেখুন।">
 
 <!ENTITY insecureServer.tooltip.title "সতর্কীকরণ! এটি একটি নিরাপত্তাহীন সার্ভার।">
 <!ENTITY insecureServer.tooltip.details "আরও বিস্তারিত তথ্যের জন্য বৃত্তে ক্লিক করুন।">
 
-<!ENTITY insecureUnencrypted.description "আপনার ইমেইল ও প্রমাণীকরণ আনএনক্রিপ্ট করে পাঠানো হয়েছে, সুতরাং আপনার পাসওয়ার্ড (এবং বার্তা) অন্য যে কেউ সহজেই পড়তে পারবে। &brandShortName; আপনাকে আপনার ইমেইল গ্রহন করতে দিবে, কিন্তু আপনি নিরাপদ সংযোগসহ সার্ভারকে কনফিগার করার ব্যাপারে আপনার ইমেইল সরবরাহকারীর সাথে যোগাযোগ করুন।">
-<!ENTITY insecureSelfSigned.description "সার্ভার যে সার্টিফিকেট ব্যবহার করে তা আমরা বিশ্বাস করতে পারিনা, সুতরাং আপনার সার্ভার ও &brandShortName; এর মাঝে অন্য কেউ আসছে কিনা তার ব্যাপারে আমারা নিশ্চিত না। &brandShortName; আপনাকে আপনার ইমেইল গ্রহন করতে দিবে কিন্তু ইমেইল সরবরাহকারীকে বিশ্বাসযোগ্য সার্টিফিকেট দ্বারা সার্ভার কনফিগার করতে হবে।">
+<!ENTITY insecureUnencrypted.description "আপনার ইমেইল ও প্রমাণীকরণ আনএনক্রিপ্ট করে পাঠানো হয়েছে, সুতরাং আপনার পাসওয়ার্ড (এবং বার্তা) অন্য যে কেউ সহজেই পড়তে পারবে। &brandShortName; আপনাকে আপনার ইমেইল গ্রহণ করতে দিবে, কিন্তু আপনি নিরাপদ সংযোগসহ সার্ভারকে কনফিগার করার ব্যাপারে আপনার ইমেইল সরবরাহকারীর সাথে যোগাযোগ করুন।">
+<!ENTITY insecureSelfSigned.description "সার্ভার যে সার্টিফিকেট ব্যবহার করে তা আমরা বিশ্বাস করতে পারিনা, সুতরাং আপনার সার্ভার ও &brandShortName; এর মাঝে অন্য কেউ আসছে কিনা তার ব্যাপারে আমারা নিশ্চিত না। &brandShortName; আপনাকে আপনার ইমেইল গ্রহণ করতে দিবে কিন্তু ইমেইল সরবরাহকারীকে বিশ্বাসযোগ্য সার্টিফিকেট দ্বারা সার্ভার কনফিগার করতে হবে।">
 <!ENTITY secureServer.description "অভিনন্দন! এটি একটি নিরাপদ সার্ভার।">

@@ -40,7 +40,7 @@
 <!ENTITY dateColumn.label "তারিখ">
 <!ENTITY priorityColumn.label "অগ্রাধিকার">
 <!ENTITY tagsColumn.label "ট্যাগ">
-<!ENTITY accountColumn.label "একাউন্ট">
+<!ENTITY accountColumn.label "অ্যাকাউন্ট">
 <!ENTITY statusColumn.label "অবস্থা">
 <!ENTITY sizeColumn.label "আকার">
 <!ENTITY junkStatusColumn.label "অপ্রয়োজনীয়তার অবস্থা">
@@ -61,7 +61,7 @@
 <!ENTITY dateColumn.tooltip "তারিখ অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY priorityColumn.tooltip "অগ্রাধিকার অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY tagsColumn.tooltip "ট্যাগ অনুসারে সাজাতে ক্লিক করুন">
-<!ENTITY accountColumn.tooltip "একাউন্ট অনুসারে সাজাতে ক্লিক করুন">
+<!ENTITY accountColumn.tooltip "অ্যাকাউন্ট অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY statusColumn.tooltip "অবস্থা অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY sizeColumn.tooltip "আকার অনুসারে সাজাতে ক্লিক করুন">
 <!ENTITY junkStatusColumn.tooltip "অপ্রয়োজনীয়তার অবস্থা অনুসারে সাজাতে ক্লিক করুন">
