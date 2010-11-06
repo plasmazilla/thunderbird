@@ -1,3 +1,16 @@
+icedove-l10n (1:3.1.6-1) experimental; urgency=low
+
+  * New Upstream Version
+    - added: gd, gl, sr
+    - changes in: bg, bn-BD, ca, es-AR, fr, it, ru, sl, zh-CN
+  * [3078bcc] rebuild patch queue from patch-queue branch
+    added patches:
+     - 0048-rebrand-gd-language-pack.patch
+     - 0049-rebrand-gl-language-pack.patch
+     - 0050-sl-change-Edit-Uredi-to-CTRL-E.patch (Closes: #601331)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 06 Nov 2010 21:03:09 +0100
+
 icedove-l10n (1:3.1.3-1) experimental; urgency=low
 
   * New Upstream Version
