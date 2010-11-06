@@ -18,7 +18,7 @@
 <!ENTITY featureConfigurator.folderColumns.heading "Colonne aggiuntive nel pannello cartelle">
 <!ENTITY featureConfigurator.folderColumns.para.weak "L'estensione 'Extra Folder Columns' sostituisce un'impostazione avanzata. Per tenere sotto controllo il numero di messaggi e lo spazio usato per ciascuna cartella è indispensabile installare questa estensione.">
 <!ENTITY featureConfigurator.folderColumns.para.strong "La possibilità di visualizzare colonne aggiuntive nel pannello cartelle precedentemente in uso è stata rimossa ed è ora integrata in un'estensione. Per continuare a utilizzare questa funzione si consiglia di installare l'estensione.">
-<!ENTITY featureConfigurator.folderColumns.install "Installare Extra Columns…">
+<!ENTITY featureConfigurator.folderColumns.install "Installa Extra Columns…">
 <!ENTITY featureConfigurator.autoSync.heading "Spazio su disco">
 <!ENTITY featureConfigurator.autoSync.para "Questa versione di &brandShortName; integra un sistema di ricerca più aggiornato ed efficiente. Per utilizzarlo sarà necessario sincronizzare i messaggi di posta.">
 <!ENTITY featureConfigurator.autoSync.on "Sincronizza">

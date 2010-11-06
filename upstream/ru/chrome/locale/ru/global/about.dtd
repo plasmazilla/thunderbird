@@ -11,4 +11,4 @@
 <!ENTITY about.buildconfig.beforeLink "Просмотреть">
 <!ENTITY about.buildconfig.linkTitle "конфигурацию сборки">
 <!ENTITY about.buildconfig.afterLink "используемую в этой версии.">
-<!ENTITY about.buildIdentifier "Идентификатор сборки:">
+<!ENTITY about.buildIdentifier "Идентификатор сборки: ">

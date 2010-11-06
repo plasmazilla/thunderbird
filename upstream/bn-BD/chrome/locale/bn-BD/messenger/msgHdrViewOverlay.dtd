@@ -92,7 +92,7 @@
 <!ENTITY markAsReadMenuItem.accesskey "r">
 <!ENTITY markAsUnreadMenuItem.label "অপঠিত হিসেবে চিহ্নিত করুন (r)">
 <!ENTITY markAsUnreadMenuItem.accesskey "r">
-<!ENTITY saveAsMenuItem.label "নতুনভাবে সংরক্ষন... (s)">
+<!ENTITY saveAsMenuItem.label "নতুনভাবে সংরক্ষণ... (s)">
 <!ENTITY saveAsMenuItem.accesskey "s">
 <!ENTITY viewSourceMenuItem.label "সোর্স দেখা... (v)">
 <!ENTITY viewSourceMenuItem.accesskey "v">
@@ -101,11 +101,11 @@
 
 <!ENTITY openAttachmentCmd.label "খুলুন (O)">
 <!ENTITY openAttachmentCmd.accesskey "O">
-<!ENTITY saveAsAttachmentCmd.label "নতুনভাবে সংরক্ষন... (A)">
+<!ENTITY saveAsAttachmentCmd.label "নতুনভাবে সংরক্ষণ... (A)">
 <!ENTITY saveAsAttachmentCmd.accesskey "A">
 <!ENTITY detachAttachmentCmd.label "আলাদা করা…">
 <!ENTITY deleteAttachmentCmd.label "মুছে ফেলা">
-<!ENTITY saveAllAttachmentsCmd.label "সব সংরক্ষন... (S)">
+<!ENTITY saveAllAttachmentsCmd.label "সব সংরক্ষণ... (S)">
 <!ENTITY saveAllAttachmentsCmd.accesskey "S">
 <!ENTITY detachAllAttachmentsCmd.label "সব আলাদা করা... (D)">
 <!ENTITY detachAllAttachmentsCmd.accesskey "D">

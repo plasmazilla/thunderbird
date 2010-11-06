@@ -37,36 +37,36 @@
  ***** END LICENSE BLOCK ***** -->
 
 <!--
-LOCALIZATION NOTE : 'Communicator 4.x' is the used for previous versions of
-Netscape Communicator, Please translate using the brandname in respective
+LOCALIZATION NOTE : 'Communicator 4.x' is the used for previous versions of 
+Netscape Communicator, Please translate using the brandname in respective 
 languages for Netscape Communicator 4 releases.
-LOCALIZATION NOTE : Do not translate any of the occurrences of the word
+LOCALIZATION NOTE : Do not translate any of the occurrences of the word 
 "&brandShortName;" below.
---> 
+-->
 
 <!ENTITY importDialog.windowTitle "Uvozi">
 <!ENTITY importAll.label          "Uvozi vse">
-<!ENTITY importAll.accesskey      "U">
+<!ENTITY importAll.accesskey      "e">
 <!ENTITY importMail.label         "Pošta">
-<!ENTITY importMail.accesskey     "P">
+<!ENTITY importMail.accesskey     "M">
 <!ENTITY importAddressbook.label  "Adresarji">
 <!ENTITY importAddressbook.accesskey "A">
 <!ENTITY importSettings.label     "Nastavitve">
 <!ENTITY importSettings.accesskey "N">
 <!ENTITY importFilters.label      "Filtri">
-<!ENTITY importFilters.accesskey  "F">
+<!ENTITY importFilters.accesskey  "D">
 
 <!ENTITY  window.width            "40em">
 <!ENTITY  window.macWidth         "45em">
 
 <!ENTITY importTitle.label        "&brandShortName; Čarovnik za uvoz">
-<!ENTITY importShortDesc.label    "Uvoz pošte, adresarjev, nastavitev in filtrov iz drugih programov">
+<!ENTITY importShortDesc.label    "Uvozite pošto, adresarje, nastavitve in filtre iz drugih programov">
 
 <!ENTITY importDescription1.label "S tem čarovnikom boste uvozili poštna sporočila, stike v adresarju, nastavitve in/ali filtre iz drugih programov in pogostih formatov adresarjev v &brandShortName;.">
 <!ENTITY importDescription2.label "Ko jih boste enkrat uvozili, jih boste lahko uporabljali kar v &brandShortName;.">
 
 <!ENTITY selectDescription.label  "Izberite vrsto datoteke, ki jo želite uvoziti:">
-<!ENTITY selectDescription.accesskey "Z">
+<!ENTITY selectDescription.accesskey "I">
 
 <!ENTITY back.label               "&lt; nazaj">
 <!ENTITY forward.label            "Naprej &gt;">
@@ -76,12 +76,12 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY select.label             "ali izberite vrsto podatkov, ki jih želite uvoziti:">
 
 <!ENTITY title.label              "Naslov">
-<!ENTITY processing.label         "Uvažanje…">
+<!ENTITY processing.label         "Uvažanje …">
 
 <!ENTITY FieldDiscInputText1.label  "Netscape Communicator 4.x ima en e-poštni naslov za vsako vizitko, medtem ko ima &brandShortName; dva (domači ni službeni).">
 <!ENTITY FieldDiscInputText2.label  "Izberite kategorijo v katero želite shraniti uvožene e-poštne naslove:">
 <!ENTITY FieldDiscWarning.label  "Ta kategorija bo uporabljena za vse vnose v izbranem adresarju: ">
-<!ENTITY importHome.label        "Doma">
+<!ENTITY importHome.label        "Domov">
 <!ENTITY importHome.accesskey    "D">
 <!ENTITY importWork.label        "Služba">
-<!ENTITY importWork.accesskey    "S">
+<!ENTITY importWork.accesskey    "L">

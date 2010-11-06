@@ -71,7 +71,7 @@
 <!ENTITY PrimaryEmail.accesskey "E">
 <!ENTITY SecondEmail.label "অতিরিক্ত ই-মেইল (i):">
 <!ENTITY SecondEmail.accesskey "i">
-<!ENTITY PreferMailFormat.label "যে বিন্যাসে বার্তা গ্রহণ করতে পছন্দ করবে (v):">
+<!ENTITY PreferMailFormat.label "পছন্দসই বার্তার বিন্যাস (v):">
 <!ENTITY PreferMailFormat.accesskey "v">
 <!ENTITY PlainText.label "সরল লেখা">
 <!ENTITY HTML.label "HTML">

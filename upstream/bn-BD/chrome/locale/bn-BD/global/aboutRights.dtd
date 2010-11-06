@@ -13,10 +13,10 @@
      deliberate for formatting around the embedded links. -->
 
 <!ENTITY rights.intro-point1a "&brandShortName; আপনার জন্য সহজলভ্য করা হচ্ছে">
-<!ENTITY rights.intro-point1b "মজিলা পাবলিক লাইসেন্সের">
-<!ENTITY rights.intro-point1c "শর্তাধীনে। এর অর্থ আপনি &brandShortName; ব্যবহার, অনুলিপি এবং অন্যদের কাছে বিতরণ করতে পারবেন। আপনি আপনার প্রয়োজনে &brandShortName; এর সোর্স কোডও পরিবর্তন করতে পারেন। মজিলা পাবলিক লাইসেন্স আপনাকে আপনার পরিবর্তিত সংস্করণটি বিতরণ করার অধিকারও প্রদান করে।">
+<!ENTITY rights.intro-point1b "মোজিলা পাবলিক লাইসেন্সের">
+<!ENTITY rights.intro-point1c "শর্তাধীনে। এর অর্থ আপনি &brandShortName; ব্যবহার, অনুলিপি এবং অন্যদের কাছে বিতরণ করতে পারবেন। আপনি আপনার প্রয়োজনে &brandShortName; এর সোর্স কোডও পরিবর্তন করতে পারেন। মোজিলা পাবলিক লাইসেন্স আপনাকে আপনার পরিবর্তিত সংস্করণটি বিতরণ করার অধিকারও প্রদান করে।">
 
-<!ENTITY rights.intro-point2a "মজিলা আপনাকে মজিলা এবং ফায়ারফক্সের ট্রেডমার্ক ও লোগোর উপর কোন ‌অধিকার প্রদান করে না। ট্রেডমার্ক সম্পর্কে আরো তথ্য পাওয়া যাবে ">
+<!ENTITY rights.intro-point2a "মোজিলা আপনাকে মোজিলা এবং ফায়ারফক্সের ট্রেডমার্ক ও লোগোর উপর কোন ‌অধিকার প্রদান করে না। ট্রেডমার্ক সম্পর্কে আরো তথ্য পাওয়া যাবে ">
 <!ENTITY rights.intro-point2b "এখানে">
 <!ENTITY rights.intro-point2c "।">
 <!-- point 3 text for official branded builds -->

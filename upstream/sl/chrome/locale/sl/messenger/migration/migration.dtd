@@ -7,7 +7,7 @@
 <!ENTITY importFromNothing.label        "Ne uvozi ničesar">
 <!ENTITY importFromNothing.accesskey    "D">
 <!ENTITY importFromSeamonkey2.label     "Netscape 6, 7, Mozilla 1.x ali SeaMonkey">
-<!ENTITY importFromSeamonkey2.accesskey "S">
+<!ENTITY importFromSeamonkey2.accesskey "s">
 <!ENTITY importFromNetscape4.label      "Netscape 4.x">
 <!ENTITY importFromNetscape4.accesskey  "4">
 <!ENTITY importFromOExpress.label       "Outlook Express">
@@ -21,8 +21,8 @@
 <!ENTITY importItems.title              "Možnosti uvoza">
 <!ENTITY importItems.label              "Izberite, kaj želite uvoziti:">
 
-<!ENTITY migrating.title                "Uvažanje…">
-<!ENTITY migrating.label                "Trenutno se uvaža sledeče…">
+<!ENTITY migrating.title                "Uvoz …">
+<!ENTITY migrating.label                "Trenutno se uvaža sledeče …">
 
 <!ENTITY selectProfile.title            "Izberite profil">
 <!ENTITY selectProfile.label            "Uvoz je možen iz naslednjih profilov:">

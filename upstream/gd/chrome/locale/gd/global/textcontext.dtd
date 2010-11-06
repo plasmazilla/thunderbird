@@ -1,0 +1,20 @@
+<!ENTITY cutCmd.label "Gearr às">
+<!ENTITY cutCmd.accesskey "s">
+<!ENTITY copyCmd.label "Dèan lethbhreac">
+<!ENTITY copyCmd.accesskey "c">
+<!ENTITY pasteCmd.label "Cuir ann">
+<!ENTITY pasteCmd.accesskey "C">
+<!ENTITY undoCmd.label "Neo-dhèan">
+<!ENTITY undoCmd.accesskey "n">
+<!ENTITY selectAllCmd.label "Tagh a h-uile">
+<!ENTITY selectAllCmd.accesskey "T">
+<!ENTITY deleteCmd.label "Sguab às">
+<!ENTITY deleteCmd.accesskey "S">
+
+<!ENTITY spellAddToDictionary.label "Cuir ris an fhaclair">
+<!ENTITY spellAddToDictionary.accesskey "r">
+<!ENTITY spellCheckEnable.label "Ceartaich an litreachadh">
+<!ENTITY spellCheckEnable.accesskey "l">
+<!ENTITY spellNoSuggestions.label "(Gun mholaidhean litreachaidh)">
+<!ENTITY spellDictionaries.label "Cànain">
+<!ENTITY spellDictionaries.accesskey "C">

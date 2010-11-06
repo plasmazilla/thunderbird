@@ -1,0 +1,29 @@
+<!ENTITY window.title "Филтери за пошту">
+<!ENTITY nameColumn.label "Име филтера">
+<!ENTITY activeColumn.label "Укључен">
+<!ENTITY newButton.label "Ново…">
+<!ENTITY newButton.accesskey "Н">
+<!ENTITY editButton.label "Измени…">
+<!ENTITY editButton.accesskey "У">
+<!ENTITY deleteButton.label "Уклони ставку">
+<!ENTITY deleteButton.accesskey "к">
+<!ENTITY reorderUpButton.label "На горе">
+<!ENTITY reorderUpButton.accesskey "г">
+<!ENTITY reorderDownButton.label "На доле">
+<!ENTITY reorderDownButton.accesskey "д">
+<!ENTITY filterHeader.label "Укључени филтери се аутоматски покрећу у доле назначеном редоследу.">
+<!ENTITY filtersForPrefix.label "Филтери за:">
+<!ENTITY filtersForPrefix.accesskey "Ф">
+<!ENTITY viewLogButton.label "Белешке о филтрима">
+<!ENTITY viewLogButton.accesskey "Д">
+<!ENTITY runFilters.label "Покрени сад">
+<!ENTITY runFilters.accesskey "П">
+<!ENTITY stopFilters.label "Стани">
+<!ENTITY stopFilters.accesskey "С">
+<!ENTITY folderPickerPrefix.label "Покрени изабране филтере на:">
+<!ENTITY folderPickerPrefix.accesskey "и">
+<!ENTITY choosethis.label "изабери овај директоријум">
+<!ENTITY choosethisnewsserver.label "изабери овај сервер за групе">
+<!ENTITY helpButton.label "Помоћ">
+<!ENTITY helpButton.accesskey "П">
+<!ENTITY closeCmd.key "о"> 

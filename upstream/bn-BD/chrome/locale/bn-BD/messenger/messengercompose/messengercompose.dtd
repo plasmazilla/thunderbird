@@ -88,13 +88,13 @@
 <!ENTITY findPrevCmd.accesskey "v">
 <!-- View Menu -->
 
-<!ENTITY viewMenu.label "ভিউ (V)">
+<!ENTITY viewMenu.label "প্রদর্শন (V)">
 <!ENTITY viewMenu.accesskey "V">
 <!ENTITY viewToolbarsMenuNew.label "টুলবার (T)">
 <!ENTITY viewToolbarsMenuNew.accesskey "T">
 <!ENTITY showCompositionToolbarCmd.label "মেইল রচনা টুলবার (o)">
 <!ENTITY showCompositionToolbarCmd.accesskey "o">
-<!ENTITY showFormattingBarCmd.label "বিন্যাসন বার (F)">
+<!ENTITY showFormattingBarCmd.label "বিন্যাস বার (F)">
 <!ENTITY showFormattingBarCmd.accesskey "F">
 <!ENTITY showTaskbarCmd.label "অবস্থা বার (S)">
 <!ENTITY showTaskbarCmd.accesskey "S">
@@ -164,7 +164,7 @@
 <!ENTITY addressBookCmd.label "ঠিকানা বই (A)">
 <!ENTITY addressBookCmd.accesskey "A">
 <!ENTITY addressBookCmd.key "B">
-<!ENTITY accountManagerCmd.label "একাউন্ট সেটিং… (c)">
+<!ENTITY accountManagerCmd.label "অ্যাকাউন্ট সেটিং… (c)">
 <!ENTITY accountManagerCmd.accesskey "c">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "অপশন… (O)">

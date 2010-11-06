@@ -27,7 +27,7 @@
 <!ENTITY retentionKeepUnreadHidden.label "সর্বদা পঠিত বার্তা মুছে ফেলা হবে (সময় সেটিংস অগ্রাহ্য করে)">
 <!ENTITY retentionApplyToFlagged.label "সর্বদা তারা চিহ্নিত বার্তা রাখা হবে (e)">
 <!ENTITY retentionApplyToFlagged.accesskey "e">
-<!ENTITY nntpRemoveMsgBody.label "বার্তা হতে বডি অপসারণ করা হবে, অপেক্ষাকৃত বেশী (o)">
+<!ENTITY nntpRemoveMsgBody.label "বার্তা হতে মূল অংশ অপসারণ করা হবে, অপেক্ষাকৃত বেশী (o)">
 <!ENTITY nntpRemoveMsgBody.accesskey "o">
 <!ENTITY offlineSelectNntp.label "অফলাইনে ব্যবহারের জন্য নিউজগ্রুপ নির্বাচন… (S)">
 <!ENTITY offlineSelectNntp.accesskey "S">

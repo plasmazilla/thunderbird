@@ -1,0 +1,23 @@
+locale messenger-mapi gd jar:chrome/gd.jar!/locale/gd/messenger-mapi/
+locale messenger-region gd jar:chrome/gd.jar!/locale/gd/messenger-region/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale autoconfig gd jar:chrome/gd.jar!/locale/gd/autoconfig/
+locale pippki gd jar:chrome/gd.jar!/locale/gd/pippki/
+locale communicator gd jar:chrome/gd.jar!/locale/gd/communicator/
+locale mozldap gd jar:chrome/gd.jar!/locale/gd/mozldap/
+locale alerts gd jar:chrome/gd.jar!/locale/gd/alerts/
+locale places gd jar:chrome/gd.jar!/locale/gd/places/
+locale messenger gd jar:chrome/gd.jar!/locale/gd/messenger/
+locale messenger-newsblog gd jar:chrome/gd.jar!/locale/gd/messenger-newsblog/
+locale mozapps gd jar:chrome/gd.jar!/locale/gd/mozapps/
+locale necko gd jar:chrome/gd.jar!/locale/gd/necko/
+locale pipnss gd jar:chrome/gd.jar!/locale/gd/pipnss/
+locale global-platform gd jar:chrome/gd.jar!/locale/gd/global-platform/
+locale global-region gd jar:chrome/gd.jar!/locale/gd/global-region/
+locale branding gd jar:chrome/gd.jar!/locale/gd/branding/
+locale passwordmgr gd jar:chrome/gd.jar!/locale/gd/passwordmgr/
+locale global gd jar:chrome/gd.jar!/locale/gd/global/
+locale editor gd jar:chrome/gd.jar!/locale/gd/editor/
+locale messenger-smime gd jar:chrome/gd.jar!/locale/gd/messenger-smime/
+locale cookie gd jar:chrome/gd.jar!/locale/gd/cookie/

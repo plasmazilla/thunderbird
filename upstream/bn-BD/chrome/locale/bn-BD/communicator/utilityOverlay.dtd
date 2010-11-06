@@ -34,7 +34,7 @@
 <!ENTITY preferencesCmdUnix.label "পছন্দসমূহ (n)">
 <!ENTITY preferencesCmdUnix.accesskey "n">
 
-<!ENTITY viewMenu.label "ভিউ (V)">
+<!ENTITY viewMenu.label "প্রদর্শন (V)">
 <!ENTITY viewMenu.accesskey "V">
 <!ENTITY viewToolbarsMenu.label "টুলবার (T)">
 <!ENTITY viewToolbarsMenu.accesskey "T">
