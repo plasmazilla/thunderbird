@@ -32,6 +32,8 @@ Depends:
  icedove-l10n-fr,
  icedove-l10n-fy-nl,
  icedove-l10n-ga-ie,
+ icedove-l10n-gd,
+ icedove-l10n-gl,
  icedove-l10n-he,
  icedove-l10n-hu,
  icedove-l10n-id,
@@ -53,6 +55,7 @@ Depends:
  icedove-l10n-sk,
  icedove-l10n-sl,
  icedove-l10n-sq,
+ icedove-l10n-sr,
  icedove-l10n-sv-se,
  icedove-l10n-tr,
  icedove-l10n-uk,
@@ -269,6 +272,28 @@ Description: Irish (Ireland) language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Irish (Ireland).
+
+Package: icedove-l10n-gd
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
+Recommends: myspell-gd
+Description: Gaelic (Scottish) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Gaelic (Scottish).
+
+Package: icedove-l10n-gl
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
+Recommends: hunspell-gl-es
+Description: Galician language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Galician.
 
 Package: icedove-l10n-he
 Architecture: all
@@ -494,6 +519,17 @@ Description: Albanian language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Albanian.
+
+Package: icedove-l10n-sr
+Architecture: all
+Depends: ${misc:Depends}, icedove (>= 3.1), icedove (<= 3.2)
+Recommends: hunspell-sr
+Description: Serbian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Serbian.
 
 Package: icedove-l10n-sv-se
 Architecture: all
