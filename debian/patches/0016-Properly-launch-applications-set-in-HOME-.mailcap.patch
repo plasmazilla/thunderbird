@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=444440
  1 files changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index 207685f..a98e136 100644
+index 0a889be..f408741 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-@@ -73,6 +73,12 @@ nsMIMEInfoUnix::LoadUriInternal(nsIURI * aURI)
+@@ -74,6 +74,12 @@ nsMIMEInfoUnix::LoadUriInternal(nsIURI * aURI)
  NS_IMETHODIMP
  nsMIMEInfoUnix::GetHasDefaultHandler(PRBool *_retval)
  {
@@ -22,9 +22,9 @@ index 207685f..a98e136 100644
 +    return nsMIMEInfoImpl::GetHasDefaultHandler(_retval);
 +
    *_retval = PR_FALSE;
-   nsCOMPtr<nsIGnomeVFSService> vfs = do_GetService(NS_GNOMEVFSSERVICE_CONTRACTID);
-   if (vfs) {
-@@ -92,14 +98,19 @@ nsMIMEInfoUnix::GetHasDefaultHandler(PRBool *_retval)
+   nsRefPtr<nsMIMEInfoBase> mimeInfo = nsGNOMERegistry::GetFromType(mType);
+   if (!mimeInfo) {
+@@ -95,14 +101,19 @@ nsMIMEInfoUnix::GetHasDefaultHandler(PRBool *_retval)
      return NS_OK;
    }
  #endif

@@ -14,7 +14,7 @@ Closes: #565559
  3 files changed, 16 insertions(+), 16 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index d9178f1..c039bac 100644
+index c222f56..c7e1fb3 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -99,10 +99,10 @@ pref("app.update.url", "https://aus2.mozillamessaging.com/update/3/%PRODUCT%/%VE
@@ -60,26 +60,26 @@ index d9178f1..c039bac 100644
  
  // Preferences for the Get Add-ons pane
  pref("extensions.getAddons.showPane", true);
--pref("extensions.getAddons.browseAddons", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%");
-+pref("extensions.getAddons.browseAddons", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/thunderbird");
+-pref("extensions.getAddons.browseAddons", "https://addons.mozilla.org/%LOCALE%/%APP%");
++pref("extensions.getAddons.browseAddons", "https://addons.mozilla.com/%LOCALE%/thunderbird");
  pref("extensions.getAddons.maxResults", 5);
--pref("extensions.getAddons.recommended.browseURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/recommended");
+-pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/recommended");
 -pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/list/featured/all/10/%OS%/%VERSION%");
--pref("extensions.getAddons.search.browseURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/search?q=%TERMS%");
+-pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
 -pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/10/%OS%/%VERSION%");
-+pref("extensions.getAddons.recommended.browseURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/thunderbird/recommended");
++pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.com/%LOCALE%/thunderbird/recommended");
 +pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/list/featured/all/10/%OS%/%VERSION%");
-+pref("extensions.getAddons.search.browseURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/thunderbird/search?q=%TERMS%");
++pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.com/%LOCALE%/thunderbird/search?q=%TERMS%");
 +pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/search/%TERMS%/all/10/%OS%/%VERSION%");
  
- pref("xpinstall.whitelist.add", "update.mozilla.org");
+ pref("xpinstall.whitelist.add", "addons.mozilla.org");
  pref("xpinstall.whitelist.add.36", "getpersonas.com");
-@@ -364,7 +364,7 @@ pref("mail.directory",                  "");
+@@ -363,7 +363,7 @@ pref("mail.directory",                  "");
  pref("news.directory",                  "");
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
--pref("spellchecker.dictionaries.download.url", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/%VERSION%/dictionaries/");
-+pref("spellchecker.dictionaries.download.url", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/thunderbird/%VERSION%/dictionaries/");
+-pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/%APP%/dictionaries/");
++pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.com/%LOCALE%/thunderbird/dictionaries/");
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are: 

@@ -66,3 +66,4 @@
 0066-Get-rid-of-blx_lr_bug.patch
 0067-Avoid-some-ARM-CPU-arch-related-runtime-tests-depend.patch
 0068-ARMv4T-support-for-nanojit.patch
+0069-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
