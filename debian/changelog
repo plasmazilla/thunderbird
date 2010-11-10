@@ -1,3 +1,28 @@
+icedove (3.1.6-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #601334)
+    - MFSA 2010-64 aka CVE-2010-3175, CVE-2010-3176: Miscellaneous memory
+      safety hazards (rv:1.9.2.11/ 1.9.1.14)
+    - MFSA 2010-65 aka CVE-2010-3179: Buffer overflow and memory corruption
+      using document.write
+    - MFSA 2010-66 aka CVE-2010-3180: Use-after-free error in nsBarProp
+    - MFSA 2010-67 aka CVE-2010-3183: Dangling pointer vulnerability in
+      LookupGetterOrSetter
+    - MFSA 2010-69 aka CVE-2010-3178: Cross-site information disclosure via
+      modal calls
+    - MFSA 2010-71 aka CVE-2010-3182: Unsafe library loading vulnerabilities
+    - MFSA 2010-73 aka CVE-2010-3765: Heap buffer overflow mixing
+      document.write and DOM insertion
+  * [270fd51] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0069-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
+    modified patches:
+    - 0009-fix-branding-in-migration-wizard-and-the-addon-manag.patch
+  * [24421f4] bump build depends for libnspr4-dev, libnss3-dev and
+    libsqlite3-dev
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 10 Nov 2010 07:11:17 +0100
+
 icedove (3.1.4-1) experimental; urgency=low
 
   * New Upstream Version
