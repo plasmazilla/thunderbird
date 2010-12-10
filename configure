@@ -18514,6 +18514,9 @@ fi
 QCMS_LIBS='$(DEPTH)/mozilla/gfx/qcms/$(LIB_PREFIX)mozqcms.$(LIB_SUFFIX)'    
 
 
+MOZ_OTS_LIBS='$(DEPTH)/mozilla/gfx/ots/src/$(LIB_PREFIX)mozots.$(LIB_SUFFIX)'
+
+
 # Check whether --enable-xul or --disable-xul was given.
 if test "${enable_xul+set}" = set; then
   enableval="$enable_xul"
@@ -18889,7 +18892,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 18893 "configure"
+#line 18896 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -18907,7 +18910,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:18911: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:18914: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -19526,6 +19529,7 @@ s%@CAIRO_XRENDER_CFLAGS@%$CAIRO_XRENDER_CFLAGS%g
 s%@CAIRO_XRENDER_LIBS@%$CAIRO_XRENDER_LIBS%g
 s%@MOZ_CAIRO_LIBS@%$MOZ_CAIRO_LIBS%g
 s%@QCMS_LIBS@%$QCMS_LIBS%g
+s%@MOZ_OTS_LIBS@%$MOZ_OTS_LIBS%g
 s%@MOZ_XUL@%$MOZ_XUL%g
 s%@MOZ_RDF@%$MOZ_RDF%g
 s%@MOZ_MORK@%$MOZ_MORK%g

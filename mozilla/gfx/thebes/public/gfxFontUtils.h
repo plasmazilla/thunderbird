@@ -355,6 +355,12 @@ public:
     static nsresult
     MakeEOTHeader(const PRUint8 *aFontData, PRUint32 aFontDataLength,
                   nsTArray<PRUint8> *aHeader, FontDataOverlay *aOverlay);
+
+    // determine whether a font (which has already passed ValidateSFNTHeaders)
+    // is CFF format rather than TrueType
+    static PRBool
+    IsCffFont(const PRUint8* aFontData);
+
 #endif
 
     // checks for valid SFNT table structure, returns true if valid

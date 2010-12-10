@@ -81,6 +81,9 @@ function PrivateBrowsingService() {
   this._obs.addObserver(this, "profile-after-change", true);
   this._obs.addObserver(this, "quit-application-granted", true);
   this._obs.addObserver(this, "private-browsing", true);
+
+  // List of nsIXULWindows we are going to be closing during the transition
+  this._windowsToClose = [];
 }
 
 PrivateBrowsingService.prototype = {
@@ -122,9 +125,6 @@ PrivateBrowsingService.prototype = {
 
   // Whether the private browsing mode has been started automatically
   _autoStarted: false,
-
-  // List of nsIXULWindows we are going to be closing during the transition
-  _windowsToClose: [],
 
   // XPCOM registration
   classDescription: "PrivateBrowsing Service",

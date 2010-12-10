@@ -856,6 +856,9 @@ js_ReportGetterOnlyAssignment(JSContext *cx);
 extern JS_FRIEND_API(JSBool)
 js_GetterOnlyPropertyStub(JSContext *cx, JSObject *obj, jsval id, jsval *vp);
 
+extern JS_FRIEND_API(void)
+js_SetObjectWeakRoot(JSContext *cx, JSObject *obj);
+
 #ifdef DEBUG
 JS_FRIEND_API(void) js_DumpChars(const jschar *s, size_t n);
 JS_FRIEND_API(void) js_DumpString(JSString *str);

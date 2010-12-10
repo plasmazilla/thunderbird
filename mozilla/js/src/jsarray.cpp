@@ -652,9 +652,16 @@ array_length_setter(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
 
     if (OBJ_IS_DENSE_ARRAY(cx, obj)) {
         /* Don't reallocate if we're not actually shrinking our slots. */
-        jsuint oldsize = js_DenseArrayCapacity(obj);
-        if (oldsize >= newlen && !ResizeSlots(cx, obj, oldsize, newlen))
-            return JS_FALSE;
+        jsuint capacity = js_DenseArrayCapacity(obj);
+        if (capacity > newlen) {
+            jsuint numNonHolesRemoved = 0;
+            for (jsval *slots = obj->dslots + newlen; slots < obj->dslots + capacity; slots++)
+                if (*slots != JSVAL_HOLE)
+                    numNonHolesRemoved++;
+            if (!ResizeSlots(cx, obj, capacity, newlen))
+                return JS_FALSE;
+            obj->fslots[JSSLOT_ARRAY_COUNT] -= numNonHolesRemoved;
+        }
     } else if (oldlen - newlen < (1 << 24)) {
         do {
             --oldlen;

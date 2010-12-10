@@ -82,7 +82,6 @@ private:
   PRInt32         mPrefRootLength;
   nsAutoVoidArray *mObservers;
   nsCString       mPrefRoot;
-  nsCStringArray  mObserverDomains;
   PRBool          mIsDefault;
 
 };
