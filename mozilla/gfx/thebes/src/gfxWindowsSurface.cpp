@@ -172,7 +172,7 @@ gfxWindowsSurface::OptimizeToDDB(HDC dc, const gfxIntSize& size, gfxImageFormat 
 nsresult gfxWindowsSurface::BeginPrinting(const nsAString& aTitle,
                                           const nsAString& aPrintToFileName)
 {
-#define DOC_TITLE_LENGTH 30
+#define DOC_TITLE_LENGTH (MAX_PATH-1)
     DOCINFOW docinfo;
 
     nsString titleStr(aTitle);

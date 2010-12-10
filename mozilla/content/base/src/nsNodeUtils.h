@@ -117,6 +117,15 @@ public:
   static void ContentRemoved(nsINode* aContainer,
                              nsIContent* aChild,
                              PRInt32 aIndexInContainer);
+
+  /**
+   * Send AttributeChildRemoved notifications to nsIMutationObservers.
+   * @param aAttribute Attribute from which the child has been removed.
+   * @param aChild     Removed child.
+   * @see nsIMutationObserver2::AttributeChildRemoved.
+   */
+  static void AttributeChildRemoved(nsINode* aAttribute, nsIContent* aChild);
+
   /**
    * Send ParentChainChanged notifications to nsIMutationObservers
    * @param aContent  The piece of content that had its parent changed.

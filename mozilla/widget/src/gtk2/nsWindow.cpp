@@ -788,10 +788,6 @@ nsWindow::Destroy(void)
         mWindowGroup = nsnull;
     }
 
-    // Destroy thebes surface now. Badness can happen if we destroy
-    // the surface after its X Window.
-    mThebesSurface = nsnull;
-
     if (mDragMotionTimerID) {
         gtk_timeout_remove(mDragMotionTimerID);
         mDragMotionTimerID = 0;
@@ -7158,25 +7154,25 @@ nsWindow::GetThebesSurface()
     width = PR_MIN(32767, width);
     height = PR_MIN(32767, height);
 
-    mThebesSurface = new gfxXlibSurface
+    gfxASurface* thebesSurface = new gfxXlibSurface
         (GDK_WINDOW_XDISPLAY(d),
          GDK_WINDOW_XWINDOW(d),
          GDK_VISUAL_XVISUAL(gdk_drawable_get_visual(d)),
          gfxIntSize(width, height));
 #endif
 #ifdef MOZ_DFB
-    mThebesSurface = new gfxDirectFBSurface(gdk_directfb_surface_lookup(d));
+    gfxASurface* thebesSurface = new gfxDirectFBSurface(gdk_directfb_surface_lookup(d));
 #endif
 
     // if the surface creation is reporting an error, then
     // we don't have a surface to give back
-    if (mThebesSurface && mThebesSurface->CairoStatus() != 0) {
-        mThebesSurface = nsnull;
+    if (thebesSurface && thebesSurface->CairoStatus() != 0) {
+        thebesSurface = nsnull;
     } else {
-        mThebesSurface->SetDeviceOffset(gfxPoint(-x_offset, -y_offset));
+        thebesSurface->SetDeviceOffset(gfxPoint(-x_offset, -y_offset));
     }
 
-    return mThebesSurface;
+    return thebesSurface;
 }
 
 NS_IMETHODIMP

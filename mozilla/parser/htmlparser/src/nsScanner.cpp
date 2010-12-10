@@ -184,8 +184,18 @@ nsresult nsScanner::SetDocumentCharset(const nsACString& aCharset , PRInt32 aSou
   NS_ASSERTION(nsParser::GetCharsetConverterManager(),
                "Must have the charset converter manager!");
 
-  return nsParser::GetCharsetConverterManager()->
+  res = nsParser::GetCharsetConverterManager()->
     GetUnicodeDecoderRaw(mCharset.get(), getter_AddRefs(mUnicodeDecoder));
+  if (NS_FAILED(res))
+  {
+    // GetUnicodeDecoderRaw can fail if the charset has the .isXSSVulnerable
+    // flag. Try to fallback to ISO-8859-1
+    mCharset.AssignLiteral("ISO-8859-1");
+    mCharsetSource = kCharsetFromWeakDocTypeDefault;
+    res = nsParser::GetCharsetConverterManager()->
+      GetUnicodeDecoderRaw(mCharset.get(), getter_AddRefs(mUnicodeDecoder));
+  }
+  return res;
 }
 
 

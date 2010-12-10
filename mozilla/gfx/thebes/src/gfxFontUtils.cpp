@@ -1799,4 +1799,14 @@ gfxFontUtils::MakeEOTHeader(const PRUint8 *aFontData, PRUint32 aFontDataLength,
     return NS_OK;
 }
 
+/* static */
+PRBool
+gfxFontUtils::IsCffFont(const PRUint8* aFontData)
+{
+    // this is only called after aFontData has passed basic validation,
+    // so we know there is enough data present to allow us to read the version!
+    const SFNTHeader *sfntHeader = reinterpret_cast<const SFNTHeader*>(aFontData);
+    return (sfntHeader->sfntVersion == TRUETYPE_TAG('O','T','T','O'));
+}
+
 #endif

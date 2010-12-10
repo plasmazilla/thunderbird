@@ -510,8 +510,6 @@ private:
     PRInt32             mTransparencyBitmapWidth;
     PRInt32             mTransparencyBitmapHeight;
 
-    nsRefPtr<gfxASurface> mThebesSurface;
-
 #ifdef MOZ_DFB
     int                    mDFBCursorX;
     int                    mDFBCursorY;
@@ -612,4 +610,3 @@ public:
 };
 
 #endif /* __nsWindow_h__ */
-

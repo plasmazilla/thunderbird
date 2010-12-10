@@ -1100,10 +1100,11 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
 
     // Check if this is an allowed attribute, or a style attribute in case
     // we've been asked to allow style attributes, or an HTML5 data-*
-    // attribute.
+    // attribute, or an attribute which begins with "_".
     if ((!sAllowedAttributes || !sAllowedAttributes->GetEntry(keyAtom)) &&
         (!mProcessStyle || keyAtom != nsGkAtoms::style) &&
-        !StringBeginsWith(key, NS_LITERAL_STRING("data-"))) {
+        !(StringBeginsWith(key, NS_LITERAL_STRING("data-")) ||
+          StringBeginsWith(key, NS_LITERAL_STRING("_")))) {
       continue;
     }
 

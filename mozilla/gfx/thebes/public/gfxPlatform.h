@@ -202,20 +202,30 @@ public:
 
     /**
      * Activate a platform font.  (Needed to support @font-face src url().)
-     * aFontData must persist as long as a reference is held to aLoader.
+     * aFontData is a NS_Malloc'ed block that must be freed by this function
+     * (or responsibility passed on) when it is no longer needed; the caller
+     * will NOT free it.
      * Ownership of the returned gfxFontEntry is passed to the caller,
      * who must either AddRef() or delete.
      */
     virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           nsISupports *aLoader,
                                            const PRUint8 *aFontData,
-                                           PRUint32 aLength)
-    { return nsnull; }
+                                           PRUint32 aLength);
 
     /**
      * Whether to allow downloadable fonts via @font-face rules
      */
     virtual PRBool DownloadableFontsEnabled();
+
+    /**
+     * Whether to sanitize downloaded fonts using the OTS library
+     */
+    PRBool SanitizeDownloadedFonts();
+
+    /**
+     * Whether to preserve OpenType layout tables when sanitizing
+     */
+    PRBool PreserveOTLTablesWhenSanitizing();
 
     // check whether format is supported on a platform or not (if unclear, returns true)
     virtual PRBool IsFontFormatSupported(nsIURI *aFontURI, PRUint32 aFormatFlags) { return PR_FALSE; }

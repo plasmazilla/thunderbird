@@ -673,6 +673,12 @@ function Startup()
 
   // initialize the session-restore service
   setTimeout(InitSessionStoreCallback, 0);
+
+  // Delayed initialization of PlacesDBUtils.
+  // This component checks for database coherence once per day, on
+  // an idle timer, taking corrective actions where needed.
+  Components.utils.import("resource://gre/modules/utils.js");
+  setTimeout(function() PlacesUtils.startPlacesDBUtils(), 15000);
 }
 
 function LoadBookmarksCallback()
