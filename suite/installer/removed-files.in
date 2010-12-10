@@ -50,6 +50,7 @@ components/bookmarks.xpt
 components/chatzilla-service.js
 components/components.list
 components/compreg.dat
+components/ConsoleAPI.js
 components/contentAreaDropListener.js
 components/contentSecurityPolicy.js
 components/crashreporter.xpt

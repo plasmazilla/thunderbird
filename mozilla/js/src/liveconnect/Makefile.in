@@ -61,6 +61,8 @@ REQUIRES	= js \
 		  caps \
 		  necko \
 		  string \
+		  plugin \
+		  oji \
 		  $(NULL)
 
 CSRCS		= \

@@ -5457,8 +5457,6 @@ clearFragmentAction(JSContext* cx, JSTraceMonitor* tm, Fragment* frag)
 JS_REQUIRES_STACK void
 js_PurgeScriptFragments(JSContext* cx, JSScript* script)
 {
-    if (!TRACING_ENABLED(cx))
-        return;
     debug_only_v(printf("Purging fragments for JSScript %p.\n", (void*)script);)
     /*
      * js_TrashTree trashes dependent trees recursively, so we must do all the trashing

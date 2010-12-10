@@ -78,34 +78,58 @@ FontEntry::~FontEntry()
 
 /* static */
 FontEntry*  
-FontEntry::CreateFontEntry(const gfxProxyFontEntry &aProxyEntry, 
-                           nsISupports *aLoader, const PRUint8 *aFontData, 
-                           PRUint32 aLength) {
-    if (!gfxFontUtils::ValidateSFNTHeaders(aFontData, aLength))
-        return nsnull;
+FontEntry::CreateFontEntry(const gfxProxyFontEntry &aProxyEntry,
+                           const PRUint8 *aFontData,
+                           PRUint32 aLength)
+{
+    // Ownership of aFontData is passed in here; the fontEntry must
+    // retain it as long as the FT_Face needs it, and ensure it is
+    // eventually deleted.
     FT_Face face;
     FT_Error error =
         FT_New_Memory_Face(gfxToolkitPlatform::GetPlatform()->GetFTLibrary(), 
                            aFontData, aLength, 0, &face);
-    if (error != FT_Err_Ok)
+    if (error != FT_Err_Ok) {
+        NS_Free((void*)aFontData);
         return nsnull;
-    FontEntry* fe = FontEntry::CreateFontEntryFromFace(face);
+    }
+    FontEntry* fe = FontEntry::CreateFontEntryFromFace(face, aFontData);
     fe->mItalic = aProxyEntry.mItalic;
     fe->mWeight = aProxyEntry.mWeight;
     fe->mStretch = aProxyEntry.mStretch;
     return fe;
-
 }
 
+class FTUserFontData {
+public:
+    FTUserFontData(FT_Face aFace, const PRUint8* aData)
+        : mFace(aFace), mFontData(aData)
+    {
+    }
+
+    ~FTUserFontData()
+    {
+        FT_Done_Face(mFace);
+        if (mFontData) {
+            NS_Free((void*)mFontData);
+        }
+    }
+
+private:
+    FT_Face        mFace;
+    const PRUint8 *mFontData;
+};
+  
 static void
 FTFontDestroyFunc(void *data)
 {
-    FT_Face face = (FT_Face)data;
-    FT_Done_Face(face);
+    FTUserFontData *userFontData = static_cast<FTUserFontData*>(data);
+    delete userFontData;
 }
 
 /* static */ FontEntry*  
-FontEntry::CreateFontEntryFromFace(FT_Face aFace) {
+FontEntry::CreateFontEntryFromFace(FT_Face aFace, const PRUint8 *aFontData)
+{
     static cairo_user_data_key_t key;
 
     if (!aFace->family_name) {
@@ -122,8 +146,11 @@ FontEntry::CreateFontEntryFromFace(FT_Face aFace) {
     FontEntry *fe = new FontEntry(fontName);
     fe->mItalic = aFace->style_flags & FT_STYLE_FLAG_ITALIC;
     fe->mFontFace = cairo_ft_font_face_create_for_ft_face(aFace, 0);
+
+    FTUserFontData *userFontData = new FTUserFontData(aFace, aFontData);
     cairo_font_face_set_user_data(fe->mFontFace, &key,
-                                  aFace, FTFontDestroyFunc);
+                                  userFontData, FTFontDestroyFunc);
+
     TT_OS2 *os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(aFace, ft_sfnt_os2));
     if (os2 && os2->version != 0xffff)
         fe->mWeight  = os2->usWeightClass;
@@ -149,7 +176,9 @@ FontEntry::CairoFontFace()
         FT_Face face;
         FT_New_Face(gfxToolkitPlatform::GetPlatform()->GetFTLibrary(), mFilename.get(), mFTFontIndex, &face);
         mFontFace = cairo_ft_font_face_create_for_ft_face(face, 0);
-        cairo_font_face_set_user_data(mFontFace, &key, face, FTFontDestroyFunc);
+        FTUserFontData *userFontData = new FTUserFontData(face, nsnull);
+        cairo_font_face_set_user_data(mFontFace, &key,
+                                      userFontData, FTFontDestroyFunc);
     }
     return mFontFace;
 }

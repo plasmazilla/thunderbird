@@ -217,7 +217,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 // QueryInterface implementation for nsNodeIterator
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsNodeIterator)
     NS_INTERFACE_MAP_ENTRY(nsIDOMNodeIterator)
-    NS_INTERFACE_MAP_ENTRY(nsIMutationObserver)
+    NS_INTERFACE_MAP_ENTRY(nsIMutationObserver2)
     NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMNodeIterator)
     NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(NodeIterator)
 NS_INTERFACE_MAP_END
@@ -366,3 +366,11 @@ void nsNodeIterator::ContentRemoved(nsIDocument *aDocument,
     mPointer.AdjustAfterRemoval(mRoot, container, aChild, aIndexInContainer);
     mWorkingPointer.AdjustAfterRemoval(mRoot, container, aChild, aIndexInContainer);
 }
+
+void nsNodeIterator::AttributeChildRemoved(nsINode* aAttribute,
+                                           nsIContent* aChild)
+{
+  mPointer.AdjustAfterRemoval(mRoot, aAttribute, aChild, 0);
+  mWorkingPointer.AdjustAfterRemoval(mRoot, aAttribute, aChild, 0);
+}
+

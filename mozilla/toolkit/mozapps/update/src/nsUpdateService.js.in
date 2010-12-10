@@ -1214,8 +1214,13 @@ function UpdateService() {
   var macutils = Cc["@mozilla.org/xpcom/mac-utils;1"].
                  getService(Ci.nsIMacUtils);
 
+  // Provide the info to determine whether the system is running ppc or i386 so
+  // it is possible to provide updates to Mozilla 2.0 for users running i386. On
+  // 1.9.1 we only supported ppc and i386 universal binaries so hardcode the
+  // second half of what app update reports as the ABI if the user is running a
+  // universal binary.
   if (macutils.isUniversalBinary)
-    gABI = "Universal-gcc3";
+    gABI += "-u-ppc-i386";
 #endif
 
   // Start the update timer only after a profile has been selected so that the

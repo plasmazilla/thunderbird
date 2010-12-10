@@ -5942,6 +5942,12 @@ js_GetterOnlyPropertyStub(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
     return JS_FALSE;
 }
 
+JS_FRIEND_API(void)
+js_SetObjectWeakRoot(JSContext *cx, JSObject *obj)
+{
+    cx->weakRoots.newborn[GCX_OBJECT] = obj;
+}
+
 #ifdef DEBUG
 
 /*
