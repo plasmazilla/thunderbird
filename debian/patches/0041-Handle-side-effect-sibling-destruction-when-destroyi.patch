@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=528386
  1 files changed, 1 insertions(+), 5 deletions(-)
 
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index bbe5e55..db71ecb 100644
+index 5ef0d4d..6fa1df6 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
 @@ -719,9 +719,7 @@ nsWindow::DestroyChildWindows()

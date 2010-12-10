@@ -10,7 +10,7 @@ Subject: [PATCH] thunderbird-3-profile
  4 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/config/autoconf.mk.in b/config/autoconf.mk.in
-index 7cfeadf..3fe6a25 100644
+index 6c34c66..3600590 100644
 --- a/config/autoconf.mk.in
 +++ b/config/autoconf.mk.in
 @@ -62,14 +62,14 @@ MOZ_PKG_SPECIAL = @MOZ_PKG_SPECIAL@

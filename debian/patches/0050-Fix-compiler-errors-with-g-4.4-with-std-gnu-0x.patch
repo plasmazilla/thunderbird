@@ -104,10 +104,10 @@ index 6bb824f..677dcb6 100644
        nsCSSBorderRenderer::ComputeInnerRadii(outerRadii, borderSizes,
                                               &bgRadii);
 diff --git a/mozilla/layout/generic/nsTextFrameThebes.cpp b/mozilla/layout/generic/nsTextFrameThebes.cpp
-index 98a47e3..4794cbc 100644
+index 690b689..b6043da 100644
 --- a/mozilla/layout/generic/nsTextFrameThebes.cpp
 +++ b/mozilla/layout/generic/nsTextFrameThebes.cpp
-@@ -1037,7 +1037,7 @@ BuildTextRuns(gfxContext* aContext, nsTextFrame* aForFrame,
+@@ -1094,7 +1094,7 @@ BuildTextRuns(gfxContext* aContext, nsTextFrame* aForFrame,
      }
  
      BuildTextRunsScanner::FindBoundaryState state = { stopAtFrame, nsnull, nsnull,

@@ -9,7 +9,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=522635
  2 files changed, 41 insertions(+), 29 deletions(-)
 
 diff --git a/mozilla/widget/src/gtk2/nsWindow.cpp b/mozilla/widget/src/gtk2/nsWindow.cpp
-index 8d6a4b0..bbe5e55 100644
+index e497d8e..5ef0d4d 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.cpp
 +++ b/mozilla/widget/src/gtk2/nsWindow.cpp
 @@ -679,9 +679,7 @@ CheckDestroyInvisibleContainer()
@@ -89,7 +89,7 @@ index 8d6a4b0..bbe5e55 100644
  #ifdef USE_XIM
      IMEDestroyContext();
  #endif
-@@ -812,16 +823,13 @@ nsWindow::Destroy(void)
+@@ -808,16 +819,13 @@ nsWindow::Destroy(void)
                            "mGdkWindow should be NULL when mContainer is destroyed");
      }
      else if (mGdkWindow) {
@@ -112,7 +112,7 @@ index 8d6a4b0..bbe5e55 100644
          g_object_set_data(G_OBJECT(mGdkWindow), "nsWindow", NULL);
          gdk_window_destroy(mGdkWindow);
          mGdkWindow = nsnull;
-@@ -2569,7 +2577,7 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
+@@ -2565,7 +2573,7 @@ nsWindow::OnContainerUnrealize(GtkWidget *aWidget)
                   "unexpected \"unrealize\" signal");
  
      if (mGdkWindow) {
@@ -121,7 +121,7 @@ index 8d6a4b0..bbe5e55 100644
  
          g_object_set_data(G_OBJECT(mGdkWindow), "nsWindow", NULL);
          mGdkWindow = NULL;
-@@ -7123,6 +7131,9 @@ nsWindow::GetSurfaceForGdkDrawable(GdkDrawable* aDrawable,
+@@ -7119,6 +7127,9 @@ nsWindow::GetSurfaceForGdkDrawable(GdkDrawable* aDrawable,
  gfxASurface*
  nsWindow::GetThebesSurface()
  {
@@ -132,7 +132,7 @@ index 8d6a4b0..bbe5e55 100644
      gint x_offset, y_offset;
      gdk_window_get_internal_paint_info(mGdkWindow, &d, &x_offset, &y_offset);
 diff --git a/mozilla/widget/src/gtk2/nsWindow.h b/mozilla/widget/src/gtk2/nsWindow.h
-index 66d713b..277c82c 100644
+index f220bd3..16437a4 100644
 --- a/mozilla/widget/src/gtk2/nsWindow.h
 +++ b/mozilla/widget/src/gtk2/nsWindow.h
 @@ -479,6 +479,7 @@ protected:

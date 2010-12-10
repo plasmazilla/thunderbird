@@ -14,7 +14,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=502298
  7 files changed, 66 insertions(+), 67 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index 0d3cfe2..ade3c8e 100644
+index a4454d9..7fdd412 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -2948,7 +2948,24 @@ else
@@ -72,7 +72,7 @@ index 0d3cfe2..ade3c8e 100644
  dnl Check for .hidden assembler directive and visibility attribute.
  dnl Borrowed from glibc configure.in
  dnl ===============================================================
-@@ -7462,6 +7478,7 @@ HAVE_CPP_2BYTE_WCHAR_T
+@@ -7468,6 +7484,7 @@ HAVE_CPP_2BYTE_WCHAR_T
  HAVE_CPP_ACCESS_CHANGING_USING
  HAVE_CPP_AMBIGUITY_RESOLVING_USING
  HAVE_CPP_BOOL
@@ -81,7 +81,7 @@ index 0d3cfe2..ade3c8e 100644
  HAVE_CPP_EXPLICIT
  HAVE_CPP_MODERN_SPECIALIZE_TEMPLATE_SYNTAX
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 02070d6..dcbff17 100644
+index ef90fa5..8cfaaaf 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -2832,7 +2832,24 @@ else
@@ -139,7 +139,7 @@ index 02070d6..dcbff17 100644
  dnl Check for .hidden assembler directive and visibility attribute.
  dnl Borrowed from glibc configure.in
  dnl ===============================================================
-@@ -8334,6 +8350,7 @@ HAVE_CPP_2BYTE_WCHAR_T
+@@ -8340,6 +8356,7 @@ HAVE_CPP_2BYTE_WCHAR_T
  HAVE_CPP_ACCESS_CHANGING_USING
  HAVE_CPP_AMBIGUITY_RESOLVING_USING
  HAVE_CPP_BOOL

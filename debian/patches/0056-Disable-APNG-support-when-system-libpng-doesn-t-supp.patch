@@ -13,7 +13,7 @@ Subject: [PATCH] Disable APNG support when system libpng doesn't support it
  7 files changed, 75 insertions(+), 11 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index 53496ee..bedf772 100644
+index 478f68b..875056b 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -4386,6 +4386,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
@@ -34,7 +34,7 @@ index 53496ee..bedf772 100644
                   $_SAVE_PNG_LIBS)
  fi
  if test "$SYSTEM_PNG" = 0; then
-@@ -7265,6 +7267,7 @@ COMPILE_CXXFLAGS=`echo \
+@@ -7271,6 +7273,7 @@ COMPILE_CXXFLAGS=`echo \
  AC_SUBST(SYSTEM_MAKEDEPEND)
  AC_SUBST(SYSTEM_JPEG)
  AC_SUBST(SYSTEM_PNG)
@@ -43,7 +43,7 @@ index 53496ee..bedf772 100644
  AC_SUBST(SYSTEM_BZ2)
  
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index 1e5626d..74bc1ec 100644
+index c695e74..4d07525 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
 @@ -223,6 +223,7 @@ MOZ_NATIVE_ZLIB	= @SYSTEM_ZLIB@
@@ -55,7 +55,7 @@ index 1e5626d..74bc1ec 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 384a573..8878d8c 100644
+index 53ebdae..96b3f00 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4333,6 +4333,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
@@ -76,7 +76,7 @@ index 384a573..8878d8c 100644
                   $_SAVE_PNG_LIBS)
  fi
  if test "$SYSTEM_PNG" = 0; then
-@@ -8135,6 +8137,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
+@@ -8141,6 +8143,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
  AC_SUBST(SYSTEM_LIBXUL)
  AC_SUBST(SYSTEM_JPEG)
  AC_SUBST(SYSTEM_PNG)

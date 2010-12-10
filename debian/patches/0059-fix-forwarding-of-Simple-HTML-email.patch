@@ -1,0 +1,80 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 14 Nov 2010 17:06:22 +0100
+Subject: [PATCH] fix forwarding of Simple HTML email
+
+If you forward a HTML or Simple HTML email, it could create a blank
+email.
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=394322
+---
+ mailnews/compose/public/nsIMsgSend.idl |    2 ++
+ mailnews/mime/src/mimedrft.cpp         |   13 +++++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/mailnews/compose/public/nsIMsgSend.idl b/mailnews/compose/public/nsIMsgSend.idl
+index b39abda..6996112 100644
+--- a/mailnews/compose/public/nsIMsgSend.idl
++++ b/mailnews/compose/public/nsIMsgSend.idl
+@@ -132,6 +132,8 @@ typedef struct nsMsgAttachedFile
+   
+   char        *type;        // The type of the data in file_name (not necessarily the same as the type of orig_url.)
+ 
++  char        *fullContentType; // The full content type of the data in file_name including all charset information.
++
+   char        *encoding;    // Likewise, the encoding of the tmp file. This will be set only if the original 
+                             // document had an encoding already; we don't do base64 encoding and so forth until 
+                             // it's time to assemble a full MIME message of all parts.
+diff --git a/mailnews/mime/src/mimedrft.cpp b/mailnews/mime/src/mimedrft.cpp
+index 86cae90..f7deeb1 100644
+--- a/mailnews/mime/src/mimedrft.cpp
++++ b/mailnews/mime/src/mimedrft.cpp
+@@ -446,6 +446,7 @@ mime_free_attachments ( nsMsgAttachedFile *attachments, int count )
+     cur->orig_url=nsnull;
+ 
+     PR_FREEIF ( cur->type );
++    PR_FREEIF ( cur->fullContentType );
+     PR_FREEIF ( cur->encoding );
+     PR_FREEIF ( cur->description );
+     PR_FREEIF ( cur->x_mac_type );
+@@ -1416,7 +1417,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
+           char *mimeCharset = nsnull;
+           // Get a charset from the header if no override is set.
+           if (!charsetOverride)
+-            mimeCharset = MimeHeaders_get_parameter (mdd->messageBody->type, "charset", nsnull, nsnull);
++            mimeCharset = MimeHeaders_get_parameter (mdd->messageBody->fullContentType, "charset", nsnull, nsnull);
+           // If no charset is specified in the header then use the default.
+           char *bodyCharset = mimeCharset ? mimeCharset : mdd->mailcharset;
+           if (bodyCharset)
+@@ -1724,6 +1725,11 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
+       if (ct)
+         NS_MsgSACopy(&(mdd->curAttachment->type), ct);
+       PR_FREEIF(ct);
++
++      ct = MimeHeaders_get(headers, HEADER_CONTENT_TYPE, PR_FALSE, PR_FALSE);
++      if (ct)
++        NS_MsgSACopy(&(mdd->curAttachment->fullContentType), ct);
++      PR_FREEIF(ct);
+     }
+     return 0;
+   }
+@@ -1804,6 +1810,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
+ 
+   mdd->curAttachment = newAttachment;
+   newAttachment->type =  MimeHeaders_get ( headers, HEADER_CONTENT_TYPE, PR_FALSE, PR_FALSE );
++  newAttachment->fullContentType =  MimeHeaders_get ( headers, HEADER_CONTENT_TYPE, PR_FALSE, PR_FALSE );
+ 
+   //
+   // This is to handle the degenerated Apple Double attachment.
+@@ -1816,8 +1823,10 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
+     boundary = MimeHeaders_get_parameter(parm_value, "boundary", NULL, NULL);
+     if (boundary)
+       tmp_value = PR_smprintf("; boundary=\"%s\"", boundary);
+-    if (tmp_value)
++    if (tmp_value) {
+       NS_MsgSACat(&(newAttachment->type), tmp_value);
++      NS_MsgSACat(&(newAttachment->fullContentType), tmp_value);
++    }
+     newAttachment->x_mac_type = MimeHeaders_get_parameter(parm_value, "x-mac-type", NULL, NULL);
+     newAttachment->x_mac_creator = MimeHeaders_get_parameter(parm_value, "x-mac-creator", NULL, NULL);
+     PR_FREEIF(parm_value);
+-- 

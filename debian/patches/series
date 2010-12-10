@@ -54,6 +54,6 @@
 0054-Use-syscall-for-mmap-and-munmap-and-disable-ncpus-in.patch
 0055-Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
 0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
-0057-Calculate-negotiate-auth-token-length-after-removing.patch
-0058-Fix-unaligned-reads-in-qcms.patch
-0059-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
+0057-Fix-unaligned-reads-in-qcms.patch
+0058-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
+0059-fix-forwarding-of-Simple-HTML-email.patch
