@@ -1,3 +1,20 @@
+icedove (3.0.11-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2010-74 aka CVE-2010-3776, CVE-2010-3778: Miscellaneous memory
+      safety hazards (rv:1.9.2.13/ 1.9.1.16)
+    - MFSA 2010-75 aka CVE-2010-3769: Buffer overflow while line breaking
+      after document.write with long string
+    - MFSA 2010-78 aka CVE-2010-3768: Add support for OTS font sanitizer
+  * [d468f16] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0059-fix-forwarding-of-Simple-HTML-email.patch
+    obsolete patches (fixed upstream):
+    - 0057-Calculate-negotiate-auth-token-length-after-removing.patch
+  * [f7c6501] add license info for gfx/ots
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 11 Dec 2010 17:44:53 +0100
+
 icedove (3.0.10-1) unstable; urgency=low
 
   * New Upstream Version
