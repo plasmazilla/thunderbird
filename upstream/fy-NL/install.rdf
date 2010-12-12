@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-fy-NL@thunderbird.mozilla.org"
                em:name="Frysk (fy) Language Pack"
-               em:version="3.1.366"
+               em:version="3.1.460"
                em:type="8"
                em:creator="mozilla.org">
     <em:targetApplication>

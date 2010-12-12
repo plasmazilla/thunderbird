@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-nb-NO@thunderbird.mozilla.org"
                em:name="Norsk bokmål (NO) Language Pack"
-               em:version="3.1.392"
+               em:version="3.1.448"
                em:type="8"
                em:creator="firefox.no">
     <em:contributor>Pascual Strømsnæs</em:contributor> <em:contributor>Vidar Braut Haarr</em:contributor> <em:contributor>Håvar Henriksen</em:contributor> <em:contributor>Reidar Djupvik</em:contributor> <em:contributor>Jan-Espen Pettersen</em:contributor> <em:contributor>Håvard Mork</em:contributor> <em:contributor>Lasse Marøen</em:contributor> <em:contributor>Martin Joné</em:contributor> <em:contributor>Morten Liljegren</em:contributor>

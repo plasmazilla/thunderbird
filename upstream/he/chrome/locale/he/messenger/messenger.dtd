@@ -720,7 +720,7 @@
 <!ENTITY reportPhishingError1.label "הודעה זו איננה הונאה.">
 
 <!-- MDN Bar -->
-<!ENTITY mdnBarMessage.label "השולח של הודעה זו ביקש לקבל אישור כאשר אתה קורא את ההודעה. אם ברצונך לעדכן את השולח?">
+<!ENTITY mdnBarMessage.label "השולח של הודעה זו ביקש לקבל אישור כאשר אתה קורא את ההודעה. האם ברצונך לעדכן את השולח?">
 <!ENTITY mdnBarIgnoreButton.label "התעלם מהבקשה">
 <!ENTITY mdnBarSendButton.label "שלח אישור">
 
