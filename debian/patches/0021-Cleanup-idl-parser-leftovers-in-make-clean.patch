@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=541774
  1 files changed, 6 insertions(+), 1 deletions(-)
 
 diff --git a/mozilla/js/src/xpconnect/src/Makefile.in b/mozilla/js/src/xpconnect/src/Makefile.in
-index 030bc64..6af4809 100644
+index deed768..66f9dd6 100644
 --- a/mozilla/js/src/xpconnect/src/Makefile.in
 +++ b/mozilla/js/src/xpconnect/src/Makefile.in
 @@ -217,7 +217,7 @@ dom_quickstubs.cpp: $(srcdir)/dom_quickstubs.qsconf \

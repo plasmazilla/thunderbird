@@ -8,10 +8,10 @@ would be needed for the icedove-dev package
  1 files changed, 8 insertions(+), 0 deletions(-)
 
 diff --git a/mail/installer/package-manifest.in b/mail/installer/package-manifest.in
-index dfb9530..ad95376 100644
+index 99d9bf6..7340040 100644
 --- a/mail/installer/package-manifest.in
 +++ b/mail/installer/package-manifest.in
-@@ -866,3 +866,11 @@
+@@ -867,3 +867,11 @@
  @BINPATH@/@DLL_PREFIX@xul@DLL_SUFFIX@
  #endif
  #endif

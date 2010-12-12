@@ -10,7 +10,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=541767
  3 files changed, 1 insertions(+), 13 deletions(-)
 
 diff --git a/mozilla/Makefile.in b/mozilla/Makefile.in
-index dcef73c..2552274 100644
+index 57e00c2..97a6e2b 100644
 --- a/mozilla/Makefile.in
 +++ b/mozilla/Makefile.in
 @@ -83,7 +83,7 @@ include $(topsrcdir)/config/config.mk

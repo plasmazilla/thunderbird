@@ -12,7 +12,7 @@ Subject: [PATCH] Disable APNG support when system libpng doesn't support it
  6 files changed, 69 insertions(+), 10 deletions(-)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index f78839e..9be1855 100644
+index 3b6e912..dbf0df9 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
 @@ -241,6 +241,7 @@ MOZ_NATIVE_ZLIB	= @SYSTEM_ZLIB@
@@ -24,7 +24,7 @@ index f78839e..9be1855 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index e1a26d2..0dfa969 100644
+index 4038a46..5888fe7 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4460,6 +4460,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
@@ -45,7 +45,7 @@ index e1a26d2..0dfa969 100644
                   $_SAVE_PNG_LIBS)
  fi
  if test "$SYSTEM_PNG" = 0; then
-@@ -8352,6 +8354,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
+@@ -8358,6 +8360,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
  AC_SUBST(SYSTEM_LIBXUL)
  AC_SUBST(SYSTEM_JPEG)
  AC_SUBST(SYSTEM_PNG)

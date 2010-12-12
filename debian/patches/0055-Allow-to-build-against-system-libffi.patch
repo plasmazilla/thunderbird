@@ -12,7 +12,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=551138
  5 files changed, 30 insertions(+), 1 deletions(-)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index fa84df0..f78839e 100644
+index c1fbb20..3b6e912 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
 @@ -233,6 +233,10 @@ MOZ_NATIVE_LIBEVENT = @MOZ_NATIVE_LIBEVENT@
@@ -27,7 +27,7 @@ index fa84df0..f78839e 100644
  MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
  MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 135a881..fbd1c9d 100644
+index f5dfc8f..29c3c98 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4508,6 +4508,18 @@ fi
@@ -49,7 +49,7 @@ index 135a881..fbd1c9d 100644
  dnl ========================================================
  dnl Java SDK support
  dnl ========================================================
-@@ -8755,7 +8767,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
+@@ -8761,7 +8773,7 @@ ac_configure_args="$_SUBDIR_CONFIG_ARGS"
  # Build jsctypes on the platforms we can.
  if test "$BUILD_CTYPES"; then
    # Run the libffi 'configure' script on platforms that it supports.
