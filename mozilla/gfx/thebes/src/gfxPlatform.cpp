@@ -308,6 +308,23 @@ gfxPlatform::UpdateFontList()
 }
 
 #define GFX_DOWNLOADABLE_FONTS_ENABLED "gfx.downloadable_fonts.enabled"
+#define GFX_DOWNLOADABLE_FONTS_SANITIZE "gfx.downloadable_fonts.sanitize"
+#define GFX_DOWNLOADABLE_FONTS_SANITIZE_PRESERVE_OTL \
+            "gfx.downloadable_fonts.sanitize.preserve_otl_tables"
+
+static PRBool
+GetBoolPref(const char* aPref, PRBool aDefaultValue = PR_FALSE)
+{
+    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
+    if (prefs) {
+        PRBool value;
+        nsresult rv = prefs->GetBoolPref(aPref, &value);
+        if (NS_SUCCEEDED(rv)) {
+            return value;
+        }
+    }
+    return aDefaultValue;
+}
 
 PRBool
 gfxPlatform::DownloadableFontsEnabled()
@@ -317,16 +334,40 @@ gfxPlatform::DownloadableFontsEnabled()
 
     if (initialized == PR_FALSE) {
         initialized = PR_TRUE;
-        nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-        if (prefs) {
-            PRBool allow;
-            nsresult rv = prefs->GetBoolPref(GFX_DOWNLOADABLE_FONTS_ENABLED, &allow);
-            if (NS_SUCCEEDED(rv))
-                allowDownloadableFonts = allow;
-        }
+        allowDownloadableFonts = GetBoolPref(GFX_DOWNLOADABLE_FONTS_ENABLED);
     }
 
     return allowDownloadableFonts;
+}
+
+PRBool
+gfxPlatform::SanitizeDownloadedFonts()
+{
+    static PRBool initialized = PR_FALSE;
+    static PRBool sanitizeDownloadableFonts = PR_TRUE;
+
+    if (initialized == PR_FALSE) {
+        initialized = PR_TRUE;
+        sanitizeDownloadableFonts =
+            GetBoolPref(GFX_DOWNLOADABLE_FONTS_SANITIZE, PR_TRUE);
+    }
+
+    return sanitizeDownloadableFonts;
+}
+
+PRBool
+gfxPlatform::PreserveOTLTablesWhenSanitizing()
+{
+    static PRBool initialized = PR_FALSE;
+    static PRBool preserveOTLTables = PR_FALSE;
+
+    if (initialized == PR_FALSE) {
+        initialized = PR_TRUE;
+        preserveOTLTables =
+            GetBoolPref(GFX_DOWNLOADABLE_FONTS_SANITIZE_PRESERVE_OTL);
+    }
+
+    return preserveOTLTables;
 }
 
 gfxFontEntry*

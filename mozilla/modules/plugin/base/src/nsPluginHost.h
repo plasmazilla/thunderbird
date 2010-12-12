@@ -326,6 +326,13 @@ public:
                      const nsAString& browserDumpID);
 #endif
 
+  // The guts of InstantiateEmbeddedPlugin.  The last argument should
+  // be false if we already have an in-flight stream and don't need to
+  // set up a new stream.
+  nsresult DoInstantiateEmbeddedPlugin(const char *aMimeType, nsIURI* aURL,
+                                       nsIPluginInstanceOwner* aOwner,
+                                       PRBool aAllowOpeningStreams);
+
 private:
   nsresult
   TrySetUpPluginInstance(const char *aMimeType, nsIURI *aURL, nsIPluginInstanceOwner *aOwner);

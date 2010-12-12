@@ -7465,8 +7465,6 @@ PurgeScriptRecordingAttempts(JSDHashTable *table, JSDHashEntryHdr *hdr, uint32 n
 JS_REQUIRES_STACK void
 js_PurgeScriptFragments(JSContext* cx, JSScript* script)
 {
-    if (!TRACING_ENABLED(cx))
-        return;
     debug_only_printf(LC_TMTracer,
                       "Purging fragments for JSScript %p.\n", (void*)script);
 

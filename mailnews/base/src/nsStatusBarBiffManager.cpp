@@ -154,8 +154,13 @@ nsresult nsStatusBarBiffManager::PlayBiffSound()
   
   // if nothing played, play the default system sound
   if (!customSoundPlayed) {
+#ifdef XP_MACOSX
+    // Mac has no specific event sounds, so just beep instead.
+    rv = mSound->Beep();
+#else
     rv = mSound->PlaySystemSound(DEFAULT_SYSTEM_SOUND);
-    NS_ENSURE_SUCCESS(rv,rv);
+#endif
+    NS_ENSURE_SUCCESS(rv, rv);
   }
   return rv;
 }

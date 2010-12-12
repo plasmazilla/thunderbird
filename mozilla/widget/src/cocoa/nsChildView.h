@@ -244,13 +244,15 @@ public:
   static PRBool IsComposing() { return sComposingView ? PR_TRUE : PR_FALSE; }
   static PRBool IsIMEEnabled() { return sIsIMEEnabled; }
   static PRBool IgnoreCommit() { return sIgnoreCommit; }
-
-  static void OnDestroyView(NSView<mozView>* aDestroyingView);
+  // returns nsIWidget::IME_STATUS_*
+  static PRUint32 GetIMEEnabled() { return sIMEEnabledStatus; }
 
   // Note that we cannot get the actual state in TSM. But we can trust this
   // value. Because nsIMEStateManager reset this at every focus changing.
   // XXX If plug-ins changed that, we cannot return correct state.
   static PRBool IsRomanKeyboardsOnly() { return sIsRomanKeyboardsOnly; }
+
+  static void OnDestroyView(NSView<mozView>* aDestroyingView);
 
   static PRBool GetIMEOpenState();
 
@@ -258,9 +260,8 @@ public:
   static void StartComposing(NSView<mozView>* aComposingView);
   static void UpdateComposing(NSString* aComposingString);
   static void EndComposing();
-  static void EnableIME(PRBool aEnable);
   static void SetIMEOpenState(PRBool aOpen);
-  static void SetRomanKeyboardsOnly(PRBool aRomanOnly);
+  static nsresult SetIMEEnabled(PRUint32 aEnabled);
 
   static void CommitIME();
   static void CancelIME();
@@ -274,10 +275,14 @@ private:
   static TSMDocumentID sDocumentID;
   static NSString* sComposingString;
   static nsITimer* sSyncKeyScriptTimer;
+  static PRUint32 sIMEEnabledStatus; // nsIWidget::IME_STATUS_*
 
   static void KillComposing();
   static void CallKeyScriptAPI();
   static void SyncKeyScript(nsITimer* aTimer, void* aClosure);
+
+  static void EnableIME(PRBool aEnable);
+  static void SetRomanKeyboardsOnly(PRBool aRomanOnly);
 };
 
 //-------------------------------------------------------------------------

@@ -317,6 +317,35 @@ def check_retries_option(option, opt_str, value, parser):
     raise OptionValueError("%s option value needs to be positive (not '%d')" % (opt_str, value))
   setattr(parser.values, option.dest, value)
 
+def do_apply_patch(hg, patch, repo):
+    check_call_noisy([hg, 
+        'import', 
+        '-R', repo,
+        '-m', "local patch from %s" % patch,
+        '--no-commit', '--force',
+        patch,
+        ], 
+        retryMax=0)
+    return
+
+import glob
+def do_apply_patches(topsrcdir, hg):
+    prefix_map = {
+        'mozilla': 'mozilla',
+        'chatzilla': os.path.join('mozilla', 'extensions', 'irc'),
+        'inspector': os.path.join('mozilla', 'extensions', 'inspector'),
+        'venkman':   os.path.join('mozilla', 'extensions', 'venkman'),
+    }
+
+    for prefix in prefix_map.keys():
+        prefix_dir = prefix_map.get(prefix)
+        files = glob.glob("%s*.patch" % prefix)
+        files.sort()
+        for file in files:
+            patch = os.path.join(topsrcdir, file)
+            if os.path.exists(patch):
+               do_apply_patch(hg, patch, prefix_dir)
+
 o = OptionParser(usage="%prog [options] checkout")
 o.add_option("-m", "--comm-repo", dest="comm_repo",
              default=None,
@@ -391,6 +420,10 @@ o.add_option("--cvsroot", dest="cvsroot",
 o.add_option("--retries", dest="retries", type="int", metavar="NUM",
              default=1, help="Number of times to retry a failed command before giving up. (default: 1)",
              action="callback", callback=check_retries_option)
+
+o.add_option("--apply-patches", dest="apply_patches",
+             action="store_true", default=False,
+             help="Look for and apply local patches (repo*.patch)")
 
 def fixup_comm_repo_options(options):
     """Check options.comm_repo value.
@@ -497,6 +530,10 @@ if action in ('checkout', 'co'):
     if not options.skip_venkman:
         fixup_venkman_repo_options(options)
         do_hg_pull(os.path.join('mozilla', 'extensions', 'venkman'), options.venkman_repo, options.hg, options.venkman_rev)
+  
+    if options.apply_patches:
+        do_apply_patches(topsrcdir, options.hg)
+
 else:
     o.print_help()
     sys.exit(2)

@@ -86,7 +86,11 @@ public:
   nsresult	GetPropertyWithToken(mdb_token aProperty, nsAString &resultProperty);
   nsresult	GetUint32PropertyWithToken(mdb_token aProperty, PRUint32 &propertyValue, PRUint32 defaultValue = 0);
   nsresult	GetInt32PropertyWithToken(mdb_token aProperty, PRInt32 &propertyValue, PRInt32 defaultValue = 0);
-
+  nsresult  GetUint64PropertyWithToken(mdb_token columnToken,
+                                       PRUint64 *propertyValue);
+  nsresult  SetUint64Property(const char *aProperty, PRUint64 propertyValue);
+  nsresult  GetFolderSize64(PRUint64 *folderSize);
+  nsresult  SetFolderSize64(PRUint64 folderSize);
   nsTArray<nsMsgKey> m_lateredKeys; // list of latered messages
   
 protected:
@@ -99,7 +103,7 @@ protected:
   
   void ReleaseExternalReferences(); // let go of any references to other objects.
   
-  PRInt32   m_folderSize;
+  PRUint32  m_folderSize;
   PRInt32   m_expungedBytes;	// sum of size of deleted messages in folder
   PRUint32  m_folderDate;
   nsMsgKey  m_highWaterMessageKey;	// largest news article number or imap uid whose header we've seen

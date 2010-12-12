@@ -85,7 +85,7 @@ _TEST_FILES = 	test_bug5141.html \
 		test_bug276037-2.xhtml \
 		test_bug298064.html \
 		bug298064-subframe.html \
-		test_bug308484.html \
+		test_xhr_forbidden_headers.html \
 		test_bug311681.xml \
 		test_bug322317.html \
 		test_bug330925.xhtml \
@@ -350,5 +350,12 @@ _TEST_FILES = 	test_bug5141.html \
 # test_bug444546.html \
 # bug444546.sjs \
 
+_BROWSER_TEST_FILES = \
+		browser_bug593387.js \
+		$(NULL)
+
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+
+libs:: $(_BROWSER_TEST_FILES)
+	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)
