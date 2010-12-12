@@ -63,7 +63,6 @@ IPDLTESTS = \
   TestCrashCleanup \
   TestDesc \
   TestHangs \
-  TestLatency \
   TestManyChildAllocs  \
   TestMultiMgrs  \
   TestNestedLoops \

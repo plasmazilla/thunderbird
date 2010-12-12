@@ -1805,9 +1805,12 @@ PRBool nsImapProtocol::ProcessCurrentURL()
 
   if (imapMailFolderSink)
   {
-    imapMailFolderSink->CopyNextStreamMessage(GetServerStateParser().LastCommandSuccessful() &&
+    rv = imapMailFolderSink->CopyNextStreamMessage(GetServerStateParser().LastCommandSuccessful() &&
                                               NS_SUCCEEDED(GetConnectionStatus()),
                                               copyState);
+    if (NS_FAILED(rv))
+      PR_LOG(IMAP, PR_LOG_ALWAYS, ("CopyNextStreamMessage failed:%lx\n", rv));
+
     if (copyState)
     {
       nsCOMPtr<nsIThread> thread = do_GetMainThread();
@@ -8914,20 +8917,28 @@ nsresult nsImapMockChannel::OpenCacheEntry()
     }
   }
   PRInt32 uidValidity = -1;
+  nsCacheAccessMode cacheAccess = nsICache::ACCESS_READ_WRITE;
+
   nsCOMPtr <nsIImapUrl> imapUrl = do_QueryInterface(m_url, &rv);
   if (imapUrl)
   {
+    PRBool storeResultsOffline;
     nsCOMPtr <nsIImapMailFolderSink> folderSink;
     rv = imapUrl->GetImapMailFolderSink(getter_AddRefs(folderSink));
     if (folderSink)
       folderSink->GetUidValidity(&uidValidity);
+    imapUrl->GetStoreResultsOffline(&storeResultsOffline);
+    // If we're storing the message in the offline store, don't
+    // write to the disk cache.
+    if (storeResultsOffline)
+      cacheAccess = nsICache::ACCESS_READ;
   }
   // stick the uid validity in front of the url, so that if the uid validity
   // changes, we won't re-use the wrong cache entries.
   nsCAutoString cacheKey;
   cacheKey.AppendInt(uidValidity, 16);
   cacheKey.Append(urlSpec);
-  return cacheSession->AsyncOpenCacheEntry(cacheKey, nsICache::ACCESS_READ_WRITE, this);
+  return cacheSession->AsyncOpenCacheEntry(cacheKey, cacheAccess, this);
 }
 
 nsresult nsImapMockChannel::ReadFromMemCache(nsICacheEntryDescriptor *entry)
@@ -8955,13 +8966,30 @@ nsresult nsImapMockChannel::ReadFromMemCache(nsICacheEntryDescriptor *entry)
     rv = entry->GetMetaDataElement("ContentModified", getter_Copies(annotation));
     if (NS_SUCCEEDED(rv) && !annotation.IsEmpty())
       shouldUseCacheEntry = annotation.EqualsLiteral("Not Modified");
+  }
+  if (shouldUseCacheEntry)
+  {
+    nsCOMPtr<nsIInputStream> in;
+    PRUint32 readCount;
+    rv = entry->OpenInputStream(0, getter_AddRefs(in));
+    NS_ENSURE_SUCCESS(rv, rv);
+    const int kFirstBlockSize = 100;
+    char firstBlock[kFirstBlockSize + 1];
 
+    rv = in->Read(firstBlock, sizeof(firstBlock), &readCount);
+    NS_ENSURE_SUCCESS(rv, rv);
+    firstBlock[kFirstBlockSize] = '\0';
+    PRInt32 findPos = MsgFindCharInSet(nsDependentCString(firstBlock),
+                                       ":\n\r", 0);
+    // Check that the first line is a header line, i.e., with a ':' in it
+    shouldUseCacheEntry = findPos != -1 && firstBlock[findPos] == ':';
+    in->Close();
   }
   if (shouldUseCacheEntry)
   {
     nsCOMPtr<nsIInputStream> in;
     rv = entry->OpenInputStream(0, getter_AddRefs(in));
-    if (NS_FAILED(rv)) return rv;
+    NS_ENSURE_SUCCESS(rv, rv);
      // if mem cache entry is broken or empty, return error.
     PRUint32 bytesAvailable;
     rv = in->Available(&bytesAvailable);

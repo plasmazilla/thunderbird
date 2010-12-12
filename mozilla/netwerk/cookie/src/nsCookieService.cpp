@@ -566,7 +566,7 @@ nsCookieService::TryInitDB(PRBool aDeleteExistingDB)
 
   // cache frequently used statements (for insertion, deletion, and updating)
   rv = mDBState->dbConn->CreateStatement(NS_LITERAL_CSTRING(
-    "INSERT INTO moz_cookies "
+    "INSERT OR REPLACE INTO moz_cookies "
     "(id, name, value, host, path, expiry, lastAccessed, isSecure, isHttpOnly) "
     "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"),
     getter_AddRefs(mDBState->stmtInsert));

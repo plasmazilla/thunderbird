@@ -1403,7 +1403,7 @@ gfxFontUtils::DecodeFontName(const PRUint8 *aNameData, PRInt32 aByteLen,
     }
 
     nsresult rv;
-    nsCOMPtr<nsICharsetConverterManager> ccm =
+    nsCOMPtr<nsICharsetConverterManager_1_9_BRANCH> ccm =
         do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
     NS_ASSERTION(NS_SUCCEEDED(rv), "failed to get charset converter manager");
     if (NS_FAILED(rv)) {
@@ -1411,7 +1411,7 @@ gfxFontUtils::DecodeFontName(const PRUint8 *aNameData, PRInt32 aByteLen,
     }
 
     nsCOMPtr<nsIUnicodeDecoder> decoder;
-    rv = ccm->GetUnicodeDecoderRaw(csName, getter_AddRefs(decoder));
+    rv = ccm->GetUnicodeDecoderRawInternal(csName, getter_AddRefs(decoder));
     if (NS_FAILED(rv)) {
         NS_WARNING("failed to get the decoder for a font name string");
         return PR_FALSE;

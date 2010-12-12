@@ -409,7 +409,7 @@ void nsMailDatabase::GetMailboxModProperties(PRInt64 *aSize, PRUint32 *aDate)
 NS_IMETHODIMP nsMailDatabase::GetSummaryValid(PRBool *aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
-  PRUint32 folderSize;
+  PRUint64 folderSize;
   PRUint32  folderDate;
   PRInt32 numUnreadMessages;
   nsAutoString errorMsg;
@@ -419,7 +419,7 @@ NS_IMETHODIMP nsMailDatabase::GetSummaryValid(PRBool *aResult)
   if (m_folderFile && m_dbFolderInfo)
   {
     m_dbFolderInfo->GetNumUnreadMessages(&numUnreadMessages);
-    m_dbFolderInfo->GetFolderSize(&folderSize);
+    m_dbFolderInfo->GetFolderSize64(&folderSize);
     m_dbFolderInfo->GetFolderDate(&folderDate);
 
     // compare current version of db versus filed out version info, 
@@ -493,7 +493,7 @@ NS_IMETHODIMP nsMailDatabase::SetSummaryValid(PRBool valid)
       PRUint32 actualFolderTimeStamp;
       PRInt64 fileSize;
       GetMailboxModProperties(&fileSize, &actualFolderTimeStamp);
-      m_dbFolderInfo->SetFolderSize((PRUint32) fileSize);
+      m_dbFolderInfo->SetUint64Property("folderSize", fileSize);
       m_dbFolderInfo->SetFolderDate(actualFolderTimeStamp);
       m_dbFolderInfo->SetVersion(GetCurVersion());
     }
@@ -740,7 +740,7 @@ nsresult nsMailDatabase::SetFolderInfoValid(nsILocalFile *folderName, int num, i
     PRUint32 actualFolderTimeStamp;
     PRInt64 fileSize;
     pMessageDB->GetMailboxModProperties(&fileSize, &actualFolderTimeStamp);
-    pMessageDB->m_dbFolderInfo->SetFolderSize((PRUint32) fileSize);
+    pMessageDB->m_dbFolderInfo->SetFolderSize64(fileSize);
     pMessageDB->m_dbFolderInfo->SetFolderDate(actualFolderTimeStamp);
     pMessageDB->m_dbFolderInfo->ChangeNumUnreadMessages(numunread);
     pMessageDB->m_dbFolderInfo->ChangeNumMessages(num);

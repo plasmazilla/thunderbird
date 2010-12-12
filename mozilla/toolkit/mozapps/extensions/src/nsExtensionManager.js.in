@@ -1227,10 +1227,11 @@ DirectoryInstallLocation.prototype = {
               linkedDirectory.isDirectory()) {
             locations.push(linkedDirectory);
             this._locationToIDMap[linkedDirectory.persistentDescriptor] = entry.leafName;
+            continue;
           }
         }
-        else
-          locations.push(entry);
+
+        locations.push(entry);
       }
       entries.close();
     }

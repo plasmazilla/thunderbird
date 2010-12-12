@@ -324,13 +324,13 @@ PRInt32
 MsgFindCharInSet(const nsCString &aString,
                  const char* aChars, PRUint32 aOffset)
 {
-#ifdef MOZILLA_INTENAL_API
-  return FindCharInSet(aChars, aOffset)
+#ifdef MOZILLA_INTERNAL_API
+  return aString.FindCharInSet(aChars, aOffset);
 #else
   PRInt32 len = strlen(aChars);
   PRInt32 index = -1;
-  for (int i = aOffset; i < len; i++) {
-    index = aString.FindChar(aChars[i]);
+  for (int i = 0; i < len; i++) {
+    index = aString.FindChar(aChars[i], aOffset);
     if (index != -1)
       return index;
   }

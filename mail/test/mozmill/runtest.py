@@ -225,7 +225,8 @@ class ThunderTestRunner(mozrunner.ThunderbirdRunner):
         self.use_vnc_server = (
             platform.system() == 'Linux' and
             os.path.isfile(self.VNC_SERVER_PATH) and
-            os.path.isfile(os.path.expanduser(self.VNC_PASSWD_PATH)))
+            os.path.isfile(os.path.expanduser(self.VNC_PASSWD_PATH)) and
+            env.get('MOZMILL_NO_VNC') != '1')
 
         mozrunner.Runner.__init__(self, *args, **kwargs)
 
@@ -371,7 +372,7 @@ def prettyPrintResults():
         if len(result['fails']) == 0:
             print 'TEST-PASS | ', result['name']
         else:
-            print 'TEST-UNEXPECTED-FAIL | ', result['name']
+            print 'TEST-UNEXPECTED-FAIL | %s | %s' % (prettifyFilename(result['filename']), result['name'])
         for failure in result['fails']:
             if 'exception' in failure:
                 prettyPrintException(failure['exception'])
