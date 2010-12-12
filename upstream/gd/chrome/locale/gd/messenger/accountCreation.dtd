@@ -9,10 +9,10 @@
 <!ENTITY password.label                  "Facal-faire:">
 <!ENTITY password.accesskey              "F">
 <!ENTITY password.emptytext              "Facal-faire">
-<!ENTITY password.text                   "Roghainneil, cha dèid a chleachdadh ach a chum dearbhadh ainm a' chleachdaiche">
+<!ENTITY password.text                   "Roghainneil, cha dèid a chleachdadh ach a chum dearbhadh an ainm-chleachdaiche">
 
 <!ENTITY accountInformation.label        "Fiosrachadh a' chunntais">
-<!ENTITY username2.label                 "Ainm a' chleachdaiche:">
+<!ENTITY username2.label                 "Ainm-cleachdaiche:">
 <!ENTITY incoming.label                  "A-steach:">
 <!ENTITY outgoing.label                  "A-mach:">
 <!ENTITY noEncryption.label              "Chan eil gin">
@@ -73,6 +73,6 @@
 <!ENTITY insecureServer.tooltip.title    "Rabhadh! 'S e frithealaiche neo-thèarainte a tha seo.">
 <!ENTITY insecureServer.tooltip.details  "Briog air a' chearcall airson barrachd fiosrachaidh.">
 
-<!ENTITY insecureUnencrypted.description "Thèid am post-dealain is an dearbhadh agad a sheòladh gun dubh-cheileadh agus mar sin, bhiodh e furasta gu leòr do dhaoine eile am facal-faire (agus am post) agad a leughadh. Leigidh &brandShortName leat am post agad fhaighinn ach bu chòir dhut iarraidh air solaraiche a' phuist-dhealain agad ceangal tèarainte a chur air dòigh air an fhrithealaiche.">
-<!ENTITY insecureSelfSigned.description  "Tha am frithealaiche seo a' cleachdadh teisteanas nach urrainn dhuinn earbsa a chur ann agus chan urrainn dhuinn a bhith cinnteach mar sin nach eil cuideigin a' còmhlachadh na trafaige eadar &brandShortName agus am frithealaiche agad. Leigidh &brandShortName leat am post agad fhaighinn ach bu chòir dhut gu mòr iarraidh air solaraiche a' phuist-dhealain agad teisteanas earbsach a chur air an fhrithealaiche.">
+<!ENTITY insecureUnencrypted.description "Thèid am post-dealain is an dearbhadh agad a sheòladh gun dubh-cheileadh agus mar sin, bhiodh e furasta gu leòr do dhaoine eile am facal-faire (agus am post) agad a leughadh. Leigidh &brandShortName; leat am post agad fhaighinn ach bu chòir dhut iarraidh air solaraiche a' phuist-dhealain agad ceangal tèarainte a chur air dòigh air an fhrithealaiche.">
+<!ENTITY insecureSelfSigned.description  "Tha am frithealaiche seo a' cleachdadh teisteanas nach urrainn dhuinn earbsa a chur ann agus chan urrainn dhuinn a bhith cinnteach mar sin nach eil cuideigin a' còmhlachadh na trafaige eadar &brandShortName; agus am frithealaiche agad. Leigidh &brandShortName; leat am post agad fhaighinn ach bu chòir dhut gu mòr iarraidh air solaraiche a' phuist-dhealain agad teisteanas earbsach a chur air an fhrithealaiche.">
 <!ENTITY secureServer.description        "Meal do naidheachd! 'S e frithealaiche tèarainte a tha seo.">

@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-nl@thunderbird.mozilla.org"
                em:name="Nederlands (NL) Language Pack"
-               em:version="3.1.751"
+               em:version="3.1.785"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>Gert-Paul van der Beek</em:contributor><em:contributor>Tim Maks van den Broek</em:contributor><em:contributor>Laurens Holst</em:contributor><em:contributor>Ton Kensen</em:contributor><em:contributor>Anne van Kesteren</em:contributor><em:contributor>Hendrik Maryns</em:contributor><em:contributor>Martijn Ras</em:contributor><em:contributor>leden MozBrowser-forum</em:contributor>
