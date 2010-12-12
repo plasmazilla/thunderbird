@@ -22367,6 +22367,9 @@ fi
 QCMS_LIBS='$(DEPTH)/gfx/qcms/$(LIB_PREFIX)mozqcms.$(LIB_SUFFIX)'
 
 
+MOZ_OTS_LIBS='$(DEPTH)/gfx/ots/src/$(LIB_PREFIX)mozots.$(LIB_SUFFIX)'
+
+
 # Check whether --enable-xul or --disable-xul was given.
 if test "${enable_xul+set}" = set; then
   enableval="$enable_xul"
@@ -22510,17 +22513,17 @@ if test -z "$SKIP_LIBRARY_CHECKS" -a "$NECKO_WIFI" -a "$OS_ARCH" = "Linux"
 then
   ac_safe=`echo "iwlib.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for iwlib.h""... $ac_c" 1>&6
-echo "configure:22514: checking for iwlib.h" >&5
+echo "configure:22517: checking for iwlib.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 22519 "configure"
+#line 22522 "configure"
 #include "confdefs.h"
 #include <iwlib.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:22524: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:22527: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -22886,7 +22889,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 22890 "configure"
+#line 22893 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -22904,7 +22907,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:22908: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:22911: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -22930,17 +22933,17 @@ if test "$USE_FC_FREETYPE"; then
 do
 ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
-echo "configure:22934: checking for $ac_hdr" >&5
+echo "configure:22937: checking for $ac_hdr" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 22939 "configure"
+#line 22942 "configure"
 #include "confdefs.h"
 #include <$ac_hdr>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:22944: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:22947: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -23620,6 +23623,7 @@ s%@MOZ_TREE_CAIRO@%$MOZ_TREE_CAIRO%g
 s%@MOZ_CAIRO_CFLAGS@%$MOZ_CAIRO_CFLAGS%g
 s%@MOZ_CAIRO_LIBS@%$MOZ_CAIRO_LIBS%g
 s%@QCMS_LIBS@%$QCMS_LIBS%g
+s%@MOZ_OTS_LIBS@%$MOZ_OTS_LIBS%g
 s%@MOZ_XUL@%$MOZ_XUL%g
 s%@MOZ_RDF@%$MOZ_RDF%g
 s%@NECKO_PROTOCOLS@%$NECKO_PROTOCOLS%g

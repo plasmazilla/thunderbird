@@ -52,6 +52,7 @@
 #include "ChildAsyncCall.h"
 #include "nsRect.h"
 #include "nsTHashtable.h"
+#include "mozilla/PaintTracker.h"
 
 namespace mozilla {
 namespace plugins {
@@ -92,6 +93,7 @@ protected:
     virtual bool
     AnswerPaint(const NPRemoteEvent& event, int16_t* handled)
     {
+        PaintTracker pt;
         return AnswerNPP_HandleEvent(event, handled);
     }
 

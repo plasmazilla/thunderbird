@@ -140,7 +140,7 @@ function check_test_pt4() {
                    getService(AUS_Ci.nsIMacUtils);
 
     if (macutils.isUniversalBinary)
-      abi = "Universal-gcc3";
+      abi += "-u-ppc-i386";
   }
 
   do_check_eq(getResult(gRequestURL), gAppInfo.OS + "_" + abi);

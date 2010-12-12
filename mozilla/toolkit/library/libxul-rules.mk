@@ -44,6 +44,7 @@ EXTRA_DSO_LDOPTS += \
 	$(MOZ_JS_LIBS) \
 	$(NSS_LIBS) \
 	$(MOZ_CAIRO_LIBS) \
+	$(MOZ_OTS_LIBS) \
 	$(NULL)
 
 ifdef MOZ_NATIVE_ZLIB

@@ -1536,9 +1536,9 @@ gfxWindowsFontGroup::MakeTextRun(const PRUint8 *aString, PRUint32 aLength,
         nsAutoString utf16;
         AppendASCIItoUTF16(cString, utf16);
         if (isComplex) {
-            InitTextRunUniscribe(aParams->mContext, textRun, utf16.get(), aLength);
+            InitTextRunUniscribe(aParams->mContext, textRun, utf16.get(), utf16.Length());
         } else {
-            InitTextRunGDI(aParams->mContext, textRun, utf16.get(), aLength);
+            InitTextRunGDI(aParams->mContext, textRun, utf16.get(), utf16.Length());
         }
     }
 

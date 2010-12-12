@@ -130,6 +130,10 @@ endif
 	     $(DIST_X86)/test-package-stage/mochitest/; \
 	  cp $(DIST_PPC)/test-package-stage/reftest/automation.py \
 	     $(DIST_X86)/test-package-stage/reftest/; \
+          if test -e $(DIST_PPC)/test-package-stage/mozmill/automation.py; then \
+            cp $(DIST_PPC)/test-package-stage/mozmill/automation.py \
+              $(DIST_X86)/test-package-stage/mozmill/;              \
+          fi; \
 	  $(TOPSRCDIR)/mozilla/build/macosx/universal/unify \
 	      --unify-with-sort "all-test-dirs\.list$$" \
 	      $(DIST_PPC)/test-package-stage \

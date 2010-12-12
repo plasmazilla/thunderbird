@@ -733,6 +733,11 @@ nsDOMAttribute::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationE
   if (guard.Mutated(0) && mChild != child) {
     return NS_OK;
   }
+
+  if (aNotify) {
+    nsNodeUtils::AttributeChildRemoved(this, mChild);
+  }
+
   NS_RELEASE(mChild);
   static_cast<nsTextNode*>(child.get())->UnbindFromAttribute();
 

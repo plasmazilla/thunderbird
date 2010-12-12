@@ -136,6 +136,7 @@ NSView<mozView>* nsTSMManager::sComposingView = nsnull;
 TSMDocumentID nsTSMManager::sDocumentID = nsnull;
 NSString* nsTSMManager::sComposingString = nsnull;
 nsITimer* nsTSMManager::sSyncKeyScriptTimer = nsnull;
+PRUint32 nsTSMManager::sIMEEnabledStatus = nsIWidget::IME_STATUS_ENABLED;
 
 static NS_DEFINE_CID(kRegionCID, NS_REGION_CID);
 static NSView* sLastViewEntered = nil;
@@ -2008,24 +2009,7 @@ NS_IMETHODIMP nsChildView::SetIMEEnabled(PRUint32 aState)
   NSLog(@"**** SetIMEEnabled aState = %d", aState);
 #endif
 
-  switch (aState) {
-    case nsIWidget::IME_STATUS_ENABLED:
-    case nsIWidget::IME_STATUS_PLUGIN:
-      nsTSMManager::SetRomanKeyboardsOnly(PR_FALSE);
-      nsTSMManager::EnableIME(PR_TRUE);
-      break;
-    case nsIWidget::IME_STATUS_DISABLED:
-      nsTSMManager::SetRomanKeyboardsOnly(PR_FALSE);
-      nsTSMManager::EnableIME(PR_FALSE);
-      break;
-    case nsIWidget::IME_STATUS_PASSWORD:
-      nsTSMManager::SetRomanKeyboardsOnly(PR_TRUE);
-      nsTSMManager::EnableIME(PR_FALSE);
-      break;
-    default:
-      NS_ERROR("not implemented!");
-  }
-  return NS_OK;
+  return nsTSMManager::SetIMEEnabled(aState);
 }
 
 NS_IMETHODIMP nsChildView::GetIMEEnabled(PRUint32* aState)
@@ -2034,12 +2018,7 @@ NS_IMETHODIMP nsChildView::GetIMEEnabled(PRUint32* aState)
   NSLog(@"**** GetIMEEnabled");
 #endif
 
-  if (nsTSMManager::IsIMEEnabled())
-    *aState = nsIWidget::IME_STATUS_ENABLED;
-  else if (nsTSMManager::IsRomanKeyboardsOnly())
-    *aState = nsIWidget::IME_STATUS_PASSWORD;
-  else
-    *aState = nsIWidget::IME_STATUS_DISABLED;
+  *aState = nsTSMManager::GetIMEEnabled();
   return NS_OK;
 }
 
@@ -6348,11 +6327,41 @@ nsTSMManager::SetIMEOpenState(PRBool aOpen)
   KeyScript(aOpen ? smKeySwapScript : smKeyRoman);
 }
 
+nsresult
+nsTSMManager::SetIMEEnabled(PRUint32 aEnabled)
+{
+  switch (aEnabled) {
+    case nsIWidget::IME_STATUS_ENABLED:
+    case nsIWidget::IME_STATUS_PLUGIN:
+      SetRomanKeyboardsOnly(PR_FALSE);
+      EnableIME(PR_TRUE);
+      break;
+    case nsIWidget::IME_STATUS_DISABLED:
+      SetRomanKeyboardsOnly(PR_FALSE);
+      EnableIME(PR_FALSE);
+      break;
+    case nsIWidget::IME_STATUS_PASSWORD:
+      SetRomanKeyboardsOnly(PR_TRUE);
+      EnableIME(PR_FALSE);
+      break;
+    default:
+      NS_ERROR("not implemented!");
+      return NS_ERROR_UNEXPECTED;
+  }
+  sIMEEnabledStatus = aEnabled;
+  return NS_OK;
+}
+
 #define ENABLE_ROMAN_KYBDS_ONLY -23
 void
 nsTSMManager::SetRomanKeyboardsOnly(PRBool aRomanOnly)
 {
   CommitIME();
+
+  if (sIMEEnabledStatus != nsIWidget::IME_STATUS_PLUGIN &&
+      sIsRomanKeyboardsOnly == aRomanOnly) {
+    return;
+  }
 
   sIsRomanKeyboardsOnly = aRomanOnly;
   CallKeyScriptAPI();
