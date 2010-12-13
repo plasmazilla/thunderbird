@@ -1,3 +1,21 @@
+icedove (3.1.7-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #606977)
+    - MFSA 2010-74 aka CVE-2010-3776, CVE-2010-3777: Miscellaneous memory
+      safety hazards (rv:1.9.2.13/ 1.9.1.16)
+    - MFSA 2010-75 aka CVE-2010-3769: Buffer overflow while line breaking
+      after document.write with long string
+    - MFSA 2010-78 aka CVE-2010-3768: Add support for OTS font sanitizer
+  * [46e3e8a] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0068-fix-forwarding-of-Simple-HTML-email.patch
+    obsolete patches (fixed upstream):
+    - 0017-Implement-sync_instruction_memory-for-sparc-linux.patch
+    - 0059-Fix-startup-problem-with-symlinked-components-e.g.-e.patch
+  * [9fcce0c] add license info for gfx/ots
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 13 Dec 2010 17:59:50 +0100
+
 icedove (3.1.6-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #601334)
