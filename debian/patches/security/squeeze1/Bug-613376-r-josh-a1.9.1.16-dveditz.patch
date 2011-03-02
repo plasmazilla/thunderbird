@@ -1,0 +1,62 @@
+From: Steven Michaud <smichaud@pobox.com>
+Date: Thu, 2 Dec 2010 11:29:08 -0600
+Subject: Bug 613376 - r=josh a1.9.1.16=dveditz
+
+---
+ dom/src/base/nsGlobalWindow.cpp  |   14 ++++++++++++++
+ layout/generic/nsObjectFrame.cpp |   17 ++++++++++++++++-
+ 2 files changed, 30 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/dom/src/base/nsGlobalWindow.cpp b/mozilla/dom/src/base/nsGlobalWindow.cpp
+index f053126..de29213 100644
+--- a/mozilla/dom/src/base/nsGlobalWindow.cpp
++++ b/mozilla/dom/src/base/nsGlobalWindow.cpp
+@@ -461,6 +461,20 @@ nsDummyJavaPluginOwner::Destroy()
+ NS_IMETHODIMP
+ nsDummyJavaPluginOwner::SetInstance(nsIPluginInstance *aInstance)
+ {
++  // If we're going to null out mInstance after use, be sure to call
++  // InvalidateOwner() here, since it now won't be called from
++  // nsDummyJavaPluginOwner::Destroy().
++  if (mInstance && !aInstance) {
++    nsCOMPtr<nsIPluginInstancePeer> peer;
++    mInstance->GetPeer(getter_AddRefs(peer));
++
++    nsCOMPtr<nsIPluginInstancePeer2_1_9_1_BRANCH> peer2(do_QueryInterface(peer));
++
++    // This plugin owner is going away, tell the peer.
++    if (peer2)
++      peer2->InvalidateOwner();
++  }
++
+   mInstance = aInstance;
+ 
+   return NS_OK;
+diff --git a/mozilla/layout/generic/nsObjectFrame.cpp b/mozilla/layout/generic/nsObjectFrame.cpp
+index 643f3cb..628e82d 100644
+--- a/mozilla/layout/generic/nsObjectFrame.cpp
++++ b/mozilla/layout/generic/nsObjectFrame.cpp
+@@ -2333,7 +2333,22 @@ NS_INTERFACE_MAP_END
+ NS_IMETHODIMP
+ nsPluginInstanceOwner::SetInstance(nsIPluginInstance *aInstance)
+ {
+-  NS_ASSERTION(!mInstance || !aInstance, "mInstance should only be set once!");
++  NS_ASSERTION(!mInstance || !aInstance, "mInstance should only be set or unset!");
++
++  // If we're going to null out mInstance after use, be sure to call
++  // InvalidateOwner() here, since it now won't be called from our
++  // destructor.
++  if (mInstance && !aInstance) {
++    nsCOMPtr<nsIPluginInstancePeer> peer;
++    mInstance->GetPeer(getter_AddRefs(peer));
++
++    nsCOMPtr<nsIPluginInstancePeer2_1_9_1_BRANCH> peer2(do_QueryInterface(peer));
++
++    if (peer2) {
++      // Tell the peer that its owner is going away.
++      peer2->InvalidateOwner();
++    }
++  }
+ 
+   mInstance = aInstance;
+ 

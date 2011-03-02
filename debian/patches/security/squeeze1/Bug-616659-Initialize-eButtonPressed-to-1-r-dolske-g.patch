@@ -1,0 +1,21 @@
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Thu, 30 Dec 2010 12:11:21 +0200
+Subject: Bug 616659, Initialize eButtonPressed to 1, r=dolske+gavin, a=clegnitto
+
+---
+ .../windowwatcher/src/nsPromptService.cpp          |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/embedding/components/windowwatcher/src/nsPromptService.cpp b/mozilla/embedding/components/windowwatcher/src/nsPromptService.cpp
+index 2653c81..0edcf1e 100644
+--- a/mozilla/embedding/components/windowwatcher/src/nsPromptService.cpp
++++ b/mozilla/embedding/components/windowwatcher/src/nsPromptService.cpp
+@@ -779,6 +779,8 @@ nsPromptService::DoDialog(nsIDOMWindow *aParent,
+     aParent = activeParent;
+   }
+ 
++  aParamBlock->SetInt(eButtonPressed, 1);
++
+   nsCOMPtr<nsISupports> arguments(do_QueryInterface(aParamBlock));
+   nsCOMPtr<nsIDOMWindow> dialog;
+   rv = mWatcher->OpenWindow(aParent, aChromeURL, "_blank",

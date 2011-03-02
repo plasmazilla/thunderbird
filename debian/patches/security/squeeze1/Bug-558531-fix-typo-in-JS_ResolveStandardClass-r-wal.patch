@@ -1,0 +1,21 @@
+From: David Mandelin <dmandelin@mozilla.com>
+Date: Wed, 21 Apr 2010 11:37:18 -0700
+Subject: Bug 558531: fix typo in JS_ResolveStandardClass, r=waldo, a=blocking
+
+---
+ js/src/jsapi.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jsapi.cpp b/mozilla/js/src/jsapi.cpp
+index 25e4b08..bac3756 100644
+--- a/mozilla/js/src/jsapi.cpp
++++ b/mozilla/js/src/jsapi.cpp
+@@ -1561,7 +1561,7 @@ JS_ResolveStandardClass(JSContext *cx, JSObject *obj, jsval id,
+                 if (!atom)
+                     return JS_FALSE;
+                 if (idstr == ATOM_TO_STRING(atom)) {
+-                    stdnm = &standard_class_names[i];
++                    stdnm = &object_prototype_names[i];
+                     break;
+                 }
+             }

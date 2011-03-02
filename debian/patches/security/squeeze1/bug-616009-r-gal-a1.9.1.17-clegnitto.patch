@@ -1,0 +1,23 @@
+From: Igor Bukanov <igor@mir2.org>
+Date: Thu, 6 Jan 2011 14:46:43 +0100
+Subject: bug 616009 r=gal a1.9.1.17=clegnitto
+
+---
+ js/src/json.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/js/src/json.cpp b/mozilla/js/src/json.cpp
+index ab91f06..35c0a9e 100644
+--- a/mozilla/js/src/json.cpp
++++ b/mozilla/js/src/json.cpp
+@@ -267,8 +267,8 @@ JO(JSContext *cx, jsval *vp, StringifyContext *scx)
+     if (!scx->callback(&c, 1, scx->data))
+         return JS_FALSE;
+ 
+-    jsval vec[3] = {JSVAL_NULL, JSVAL_NULL, JSVAL_NULL};
+-    JSAutoTempValueRooter tvr(cx, 3, vec);
++    jsval vec[] = {JSVAL_NULL, JSVAL_NULL, JSVAL_NULL, *vp};
++    JSAutoTempValueRooter tvr(cx, JS_ARRAY_LENGTH(vec), vec);
+     jsval& key = vec[0];
+     jsval& outputValue = vec[1];
+ 

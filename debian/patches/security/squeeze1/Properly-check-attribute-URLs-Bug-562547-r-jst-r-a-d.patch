@@ -1,0 +1,125 @@
+From: Robert Sayre <sayrer@gmail.com>
+Date: Tue, 14 Dec 2010 21:26:27 +0100
+Subject: Properly check attribute URLs -- Bug 562547, r=jst, r+a=dveditz
+
+---
+ content/html/document/src/Makefile.in              |    1 +
+ .../document/src/nsHTMLFragmentContentSink.cpp     |   12 +++++++++---
+ content/xml/document/src/Makefile.in               |    1 +
+ .../xml/document/src/nsXMLFragmentContentSink.cpp  |   13 +++++++++++--
+ 4 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/content/html/document/src/Makefile.in b/mozilla/content/html/document/src/Makefile.in
+index 780957e..7cf44ff 100644
+--- a/mozilla/content/html/document/src/Makefile.in
++++ b/mozilla/content/html/document/src/Makefile.in
+@@ -108,6 +108,7 @@ INCLUDES	+= \
+ 		-I$(srcdir)/../../../../layout/style \
+ 		-I$(srcdir)/../../../../dom/src/base \
+ 		-I$(srcdir)/../../../../xpcom/io \
++		-I$(srcdir)/../../../../caps/include \
+ 		$(NULL)
+ 
+ DEFINES += -D_IMPL_NS_LAYOUT
+diff --git a/mozilla/content/html/document/src/nsHTMLFragmentContentSink.cpp b/mozilla/content/html/document/src/nsHTMLFragmentContentSink.cpp
+index 0f26e7c..1ffbea8 100644
+--- a/mozilla/content/html/document/src/nsHTMLFragmentContentSink.cpp
++++ b/mozilla/content/html/document/src/nsHTMLFragmentContentSink.cpp
+@@ -59,6 +59,7 @@
+ #include "nsContentUtils.h"
+ #include "nsEscape.h"
+ #include "nsNodeInfoManager.h"
++#include "nsNullPrincipal.h"
+ #include "nsContentCreatorFunctions.h"
+ #include "nsNetUtil.h"
+ #include "nsIScriptSecurityManager.h"
+@@ -920,6 +921,8 @@ protected:
+   PRPackedBool mInStyle; // whether we're inside a style element
+   PRPackedBool mProcessComments; // used when comments are allowed
+ 
++  nsCOMPtr<nsIPrincipal> mNullPrincipal;
++
+   // Use nsTHashTable as a hash set for our whitelists
+   static nsTHashtable<nsISupportsHashKey>* sAllowedTags;
+   static nsTHashtable<nsISupportsHashKey>* sAllowedAttributes;
+@@ -1088,7 +1091,12 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
+   nsresult rv;
+   // use this to check for safe URIs in the few attributes that allow them
+   nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
++  PRUint32 flags = nsIScriptSecurityManager::DISALLOW_INHERIT_PRINCIPAL;
+   nsCOMPtr<nsIURI> baseURI;
++  if (!mNullPrincipal) {
++      mNullPrincipal = do_CreateInstance(NS_NULLPRINCIPAL_CONTRACTID, &rv);
++      NS_ENSURE_SUCCESS(rv, rv);
++  }
+ 
+   for (PRInt32 i = ac - 1; i >= 0; i--) {
+     rv = NS_OK;
+@@ -1125,9 +1133,7 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
+       rv = NS_NewURI(getter_AddRefs(attrURI), v, nsnull, baseURI);
+       if (NS_SUCCEEDED(rv)) {
+         rv = secMan->
+-          CheckLoadURIWithPrincipal(mTargetDocument->NodePrincipal(),
+-                attrURI,
+-                nsIScriptSecurityManager::DISALLOW_INHERIT_PRINCIPAL);
++          CheckLoadURIWithPrincipal(mNullPrincipal, attrURI, flags);
+       }
+     }
+     
+diff --git a/mozilla/content/xml/document/src/Makefile.in b/mozilla/content/xml/document/src/Makefile.in
+index 533119c..f9dee19 100644
+--- a/mozilla/content/xml/document/src/Makefile.in
++++ b/mozilla/content/xml/document/src/Makefile.in
+@@ -91,6 +91,7 @@ LOCAL_INCLUDES	= \
+ 		-I$(srcdir)/../../../xul/content/src \
+ 		-I$(srcdir)/../../../events/src \
+ 		-I$(srcdir)/../../../../dom/src/base \
++		-I$(srcdir)/../../../../caps/include \
+ 		$(NULL)
+ 
+ DEFINES += -D_IMPL_NS_LAYOUT
+diff --git a/mozilla/content/xml/document/src/nsXMLFragmentContentSink.cpp b/mozilla/content/xml/document/src/nsXMLFragmentContentSink.cpp
+index dcc1909..5f471b6 100644
+--- a/mozilla/content/xml/document/src/nsXMLFragmentContentSink.cpp
++++ b/mozilla/content/xml/document/src/nsXMLFragmentContentSink.cpp
+@@ -49,6 +49,7 @@
+ #include "nsGkAtoms.h"
+ #include "nsINodeInfo.h"
+ #include "nsNodeInfoManager.h"
++#include "nsNullPrincipal.h"
+ #include "nsContentCreatorFunctions.h"
+ #include "nsDOMError.h"
+ #include "nsIConsoleService.h"
+@@ -516,6 +517,9 @@ public:
+                                  PRUint32 aLength);
+ protected:
+   PRUint32 mSkipLevel; // used when we descend into <style> or <script>
++
++  nsCOMPtr<nsIPrincipal> mNullPrincipal;
++
+   // Use nsTHashTable as a hash set for our whitelists
+   static nsTHashtable<nsISupportsHashKey>* sAllowedTags;
+   static nsTHashtable<nsISupportsHashKey>* sAllowedAttributes;
+@@ -637,6 +641,12 @@ nsXHTMLParanoidFragmentSink::AddAttributes(const PRUnichar** aAtts,
+   PRInt32 nameSpaceID;
+   nsCOMPtr<nsIAtom> prefix, localName;
+   nsCOMPtr<nsINodeInfo> nodeInfo;
++
++  if (!mNullPrincipal) {
++      mNullPrincipal = do_CreateInstance(NS_NULLPRINCIPAL_CONTRACTID, &rv);
++      NS_ENSURE_SUCCESS(rv, rv);
++  }
++
+   while (*aAtts) {
+     nsContentUtils::SplitExpatName(aAtts[0], getter_AddRefs(prefix),
+                                    getter_AddRefs(localName), &nameSpaceID);
+@@ -652,8 +662,7 @@ nsXHTMLParanoidFragmentSink::AddAttributes(const PRUnichar** aAtts,
+       rv = NS_NewURI(getter_AddRefs(attrURI), nsDependentString(aAtts[1]),
+                      nsnull, baseURI);
+       if (NS_SUCCEEDED(rv)) {
+-        rv = secMan->CheckLoadURIWithPrincipal(mTargetDocument->NodePrincipal(),
+-                                               attrURI, flags);
++        rv = secMan->CheckLoadURIWithPrincipal(mNullPrincipal, attrURI, flags);
+       }
+     }
+ 

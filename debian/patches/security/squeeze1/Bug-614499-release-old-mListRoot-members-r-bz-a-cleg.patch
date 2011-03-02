@@ -1,0 +1,290 @@
+From: Igor Bukanov <igor@mir2.org>
+Date: Thu, 6 Jan 2011 15:06:04 +0100
+Subject: Bug 614499, release old mListRoot members, r=bz a=clegnitto
+
+---
+ docshell/shistory/src/nsSHTransaction.cpp |    8 ++++--
+ docshell/shistory/src/nsSHistory.cpp      |    7 +++++-
+ js/src/jsapi.cpp                          |    1 -
+ js/src/jscntxt.cpp                        |    1 +
+ js/src/jscntxt.h                          |   35 +++++++++++++++-------------
+ js/src/jsgc.cpp                           |   34 +++++++++++++++------------
+ js/src/jslock.cpp                         |   18 +++++---------
+ 7 files changed, 57 insertions(+), 47 deletions(-)
+
+diff --git a/mozilla/docshell/shistory/src/nsSHTransaction.cpp b/mozilla/docshell/shistory/src/nsSHTransaction.cpp
+index 7df1552..2050349 100644
+--- a/mozilla/docshell/shistory/src/nsSHTransaction.cpp
++++ b/mozilla/docshell/shistory/src/nsSHTransaction.cpp
+@@ -111,10 +111,12 @@ nsSHTransaction::GetNext(nsISHTransaction * * aResult)
+ NS_IMETHODIMP
+ nsSHTransaction::SetNext(nsISHTransaction * aNext)
+ {
+-   NS_ENSURE_SUCCESS(aNext->SetPrev(this), NS_ERROR_FAILURE);
++  if (aNext) {
++    NS_ENSURE_SUCCESS(aNext->SetPrev(this), NS_ERROR_FAILURE);
++  }
+ 
+-   mNext = aNext;
+-   return NS_OK;
++  mNext = aNext;
++  return NS_OK;
+ }
+ 
+ NS_IMETHODIMP
+diff --git a/mozilla/docshell/shistory/src/nsSHistory.cpp b/mozilla/docshell/shistory/src/nsSHistory.cpp
+index afee7cc..3fd1beb 100644
+--- a/mozilla/docshell/shistory/src/nsSHistory.cpp
++++ b/mozilla/docshell/shistory/src/nsSHistory.cpp
+@@ -569,9 +569,14 @@ nsSHistory::PurgeHistory(PRInt32 aEntries)
+   PRInt32 cnt = 0;
+   while (cnt < aEntries) {
+     nsCOMPtr<nsISHTransaction> nextTxn;
+-    if (mListRoot)
++    if (mListRoot) {
+       mListRoot->GetNext(getter_AddRefs(nextTxn));
++      mListRoot->SetNext(nsnull);
++    }
+     mListRoot = nextTxn;
++    if (mListRoot) {
++      mListRoot->SetPrev(nsnull);
++    }
+     cnt++;        
+   }
+   mLength -= cnt;
+diff --git a/mozilla/js/src/jsapi.cpp b/mozilla/js/src/jsapi.cpp
+index f0cc5a7..25e4b08 100644
+--- a/mozilla/js/src/jsapi.cpp
++++ b/mozilla/js/src/jsapi.cpp
+@@ -805,7 +805,6 @@ JS_NewRuntime(uint32 maxbytes)
+     rt->titleSharingDone = JS_NEW_CONDVAR(rt->gcLock);
+     if (!rt->titleSharingDone)
+         goto bad;
+-    rt->titleSharingTodo = NO_TITLE_SHARING_TODO;
+     rt->debuggerLock = JS_NEW_LOCK();
+     if (!rt->debuggerLock)
+         goto bad;
+diff --git a/mozilla/js/src/jscntxt.cpp b/mozilla/js/src/jscntxt.cpp
+index f2d69fb..62f2502 100644
+--- a/mozilla/js/src/jscntxt.cpp
++++ b/mozilla/js/src/jscntxt.cpp
+@@ -141,6 +141,7 @@ NewThread(jsword id)
+     JS_INIT_CLIST(&thread->contextList);
+     thread->id = id;
+     InitThreadData(&thread->data);
++    thread->titleSharingTodo = NO_TITLE_SHARING_TODO;
+     return thread;
+ }
+ 
+diff --git a/mozilla/js/src/jscntxt.h b/mozilla/js/src/jscntxt.h
+index 8fdecb0..4ca1bfa 100644
+--- a/mozilla/js/src/jscntxt.h
++++ b/mozilla/js/src/jscntxt.h
+@@ -273,6 +273,19 @@ struct JSThread {
+     /* Indicates that the thread is waiting in ClaimTitle from jslock.cpp. */
+     JSTitle             *titleToShare;
+ 
++    /* Linked list of titles that this thread must share. */
++    JSTitle             *titleSharingTodo;
++
++/*
++ * Magic terminator for the rt->titleSharingTodo linked list, threaded through
++ * title->u.link.  This hack allows us to test whether a title is on the list
++ * by asking whether title->u.link is non-null.  We use a large, likely bogus
++ * pointer here to distinguish this value from any valid u.count (small int)
++ * value.
++ */
++#define NO_TITLE_SHARING_TODO   ((JSTitle *) 0xfeedbeef)
++#define HAS_TITLES_TO_SHARE(cx) ((cx)->thread->titleSharingTodo != NO_TITLE_SHARING_TODO)
++    
+     /* Factored out of JSThread for !JS_THREADSAFE embedding in JSRuntime. */
+     JSThreadData        data;
+ };
+@@ -298,7 +311,12 @@ js_InitContextThread(JSContext *cx);
+ extern void
+ js_ClearContextThread(JSContext *cx);
+ 
+-#endif /* JS_THREADSAFE */
++
++#else /* !JS_THREADSAFE */
++
++#define HAS_TITLES_TO_SHARE(cx) JS_FALSE
++
++#endif /* !JS_THREADSAFE */
+ 
+ typedef enum JSDestroyContextMode {
+     JSDCM_NO_GC,
+@@ -482,23 +500,8 @@ struct JSRuntime {
+      * State for sharing single-threaded titles, once a second thread tries to
+      * lock a title.  The titleSharingDone condvar is protected by rt->gcLock
+      * to minimize number of locks taken in JS_EndRequest.
+-     *
+-     * The titleSharingTodo linked list is likewise "global" per runtime, not
+-     * one-list-per-context, to conserve space over all contexts, optimizing
+-     * for the likely case that titles become shared rarely, and among a very
+-     * small set of threads (contexts).
+      */
+     PRCondVar           *titleSharingDone;
+-    JSTitle             *titleSharingTodo;
+-
+-/*
+- * Magic terminator for the rt->titleSharingTodo linked list, threaded through
+- * title->u.link.  This hack allows us to test whether a title is on the list
+- * by asking whether title->u.link is non-null.  We use a large, likely bogus
+- * pointer here to distinguish this value from any valid u.count (small int)
+- * value.
+- */
+-#define NO_TITLE_SHARING_TODO   ((JSTitle *) 0xfeedbeef)
+ 
+     /*
+      * Lock serializing trapList and watchPointList accesses, and count of all
+diff --git a/mozilla/js/src/jsgc.cpp b/mozilla/js/src/jsgc.cpp
+index c4faae1..44b6098 100644
+--- a/mozilla/js/src/jsgc.cpp
++++ b/mozilla/js/src/jsgc.cpp
+@@ -941,12 +941,13 @@ RemoveChunkFromList(JSRuntime *rt, JSGCChunkInfo *ci)
+ #endif
+ 
+ static JSGCArenaInfo *
+-NewGCArena(JSRuntime *rt)
++NewGCArena(JSContext *cx)
+ {
+     jsuword chunk;
+     JSGCArenaInfo *a;
+ 
+-    if (rt->gcBytes >= rt->gcMaxBytes)
++    JSRuntime *rt = cx->runtime;
++    if (rt->gcBytes >= rt->gcMaxBytes && HAS_TITLES_TO_SHARE(cx))
+         return NULL;
+ 
+ #if CHUNKED_ARENA_ALLOCATION
+@@ -1795,10 +1796,11 @@ EnsureLocalFreeList(JSContext *cx)
+ #endif
+ 
+ static JS_INLINE bool
+-IsGCThresholdReached(JSRuntime *rt)
++IsGCThresholdReached(JSContext *cx)
+ {
++    JSRuntime *rt = cx->runtime;
+ #ifdef JS_GC_ZEAL
+-    if (rt->gcZeal >= 1)
++    if (rt->gcZeal >= 1 && !HAS_TITLES_TO_SHARE(cx))
+         return true;
+ #endif
+ 
+@@ -1807,8 +1809,9 @@ IsGCThresholdReached(JSRuntime *rt)
+      * zero (see the js_InitGC function) the return value is false when
+      * the gcBytes value is close to zero at the JS engine start.
+      */
+-    return rt->gcMallocBytes >= rt->gcMaxMallocBytes ||
+-           rt->gcBytes / rt->gcTriggerFactor >= rt->gcLastBytes / 100;
++    return (rt->gcMallocBytes >= rt->gcMaxMallocBytes ||
++            rt->gcBytes / rt->gcTriggerFactor >= rt->gcLastBytes / 100) &&
++           !HAS_TITLES_TO_SHARE(cx);
+ }
+ 
+ void *
+@@ -1883,7 +1886,7 @@ js_NewGCThing(JSContext *cx, uintN flags, size_t nbytes)
+ #endif
+ 
+     arenaList = &rt->gcArenaList[flindex];
+-    doGC = IsGCThresholdReached(rt);
++    doGC = IsGCThresholdReached(cx);
+     for (;;) {
+         if (doGC
+ #ifdef JS_TRACER
+@@ -1969,9 +1972,9 @@ testReservedObjects:
+             }
+ #endif
+ 
+-            a = NewGCArena(rt);
++            a = NewGCArena(cx);
+             if (!a) {
+-                if (doGC || JS_ON_TRACE(cx))
++                if (doGC || JS_ON_TRACE(cx) || HAS_TITLES_TO_SHARE(cx))
+                     goto fail;
+                 doGC = true;
+                 continue;
+@@ -2105,7 +2108,7 @@ RefillDoubleFreeList(JSContext *cx)
+         return NULL;
+     }
+ 
+-    if (IsGCThresholdReached(rt))
++    if (IsGCThresholdReached(cx))
+         goto do_gc;
+ 
+     /*
+@@ -2119,10 +2122,10 @@ RefillDoubleFreeList(JSContext *cx)
+             ARENA_INFO_OFFSET) {
+             if (doubleFlags == DOUBLE_BITMAP_SENTINEL ||
+                 !((JSGCArenaInfo *) doubleFlags)->prev) {
+-                a = NewGCArena(rt);
++                a = NewGCArena(cx);
+                 if (!a) {
+                   do_gc:
+-                    if (didGC || JS_ON_TRACE(cx)) {
++                    if (didGC || JS_ON_TRACE(cx) || HAS_TITLES_TO_SHARE(cx)) {
+                         METER(rt->gcStats.doubleArenaStats.fail++);
+                         JS_UNLOCK_GC(rt);
+                         js_ReportOutOfMemory(cx);
+@@ -2298,9 +2301,10 @@ js_AddAsGCBytes(JSContext *cx, size_t sz)
+     JSRuntime *rt;
+ 
+     rt = cx->runtime;
+-    if (rt->gcBytes >= rt->gcMaxBytes ||
+-        sz > (size_t) (rt->gcMaxBytes - rt->gcBytes) ||
+-        IsGCThresholdReached(rt)) {
++    if ((rt->gcBytes >= rt->gcMaxBytes ||
++         sz > (size_t) (rt->gcMaxBytes - rt->gcBytes) ||
++         IsGCThresholdReached(cx)) &&
++        !HAS_TITLES_TO_SHARE(cx)) {
+         if (JS_ON_TRACE(cx)) {
+             /*
+              * If we can't leave the trace, signal OOM condition, otherwise
+diff --git a/mozilla/js/src/jslock.cpp b/mozilla/js/src/jslock.cpp
+index 273e8d2..2305183 100644
+--- a/mozilla/js/src/jslock.cpp
++++ b/mozilla/js/src/jslock.cpp
+@@ -428,18 +428,14 @@ FinishSharingTitle(JSContext *cx, JSTitle *title);
+ static void
+ ShareTitle(JSContext *cx, JSTitle *title)
+ {
+-    JSRuntime *rt;
+-    JSTitle **todop;
+-
+-    rt = cx->runtime;
+     if (title->u.link) {
+-        for (todop = &rt->titleSharingTodo; *todop != title;
+-             todop = &(*todop)->u.link) {
++        JSThread *ownerThread = title->ownercx->thread;
++        JSTitle **todop = &ownerThread->titleSharingTodo;
++        for (; *todop != title; todop = &(*todop)->u.link)
+             JS_ASSERT(*todop != NO_TITLE_SHARING_TODO);
+-        }
+         *todop = title->u.link;
+         title->u.link = NULL;       /* null u.link for sanity ASAP */
+-        JS_NOTIFY_ALL_CONDVAR(rt->titleSharingDone);
++        JS_NOTIFY_ALL_CONDVAR(cx->runtime->titleSharingDone);
+     }
+     FinishSharingTitle(cx, title);
+ }
+@@ -619,8 +615,8 @@ ClaimTitle(JSTitle *title, JSContext *cx)
+          */
+         if (!title->u.link) {
+             js_HoldScope(TITLE_TO_SCOPE(title));
+-            title->u.link = rt->titleSharingTodo;
+-            rt->titleSharingTodo = title;
++            title->u.link = ownercx->thread->titleSharingTodo;
++            ownercx->thread->titleSharingTodo = title;
+         }
+ 
+         /*
+@@ -683,7 +679,7 @@ js_ShareWaitingTitles(JSContext *cx)
+     bool shared;
+ 
+     /* See whether cx has any single-threaded titles to start sharing. */
+-    todop = &cx->runtime->titleSharingTodo;
++    todop = &cx->thread->titleSharingTodo;
+     shared = false;
+     while ((title = *todop) != NO_TITLE_SHARING_TODO) {
+         if (title->ownercx != cx) {

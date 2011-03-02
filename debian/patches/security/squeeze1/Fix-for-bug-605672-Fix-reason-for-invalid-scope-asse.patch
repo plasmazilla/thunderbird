@@ -1,0 +1,432 @@
+From: Peter Van der Beken <peterv@propagandism.org>
+Date: Wed, 19 Jan 2011 15:26:52 -0800
+Subject: Fix for bug 605672 (Fix reason for invalid scope assertion). r=jst, a=clegnitto.
+
+---
+ content/base/public/nsContentUtils.h   |   17 +++---
+ content/base/src/nsContentUtils.cpp    |   96 +++++++++++++++++---------------
+ content/base/src/nsDOMDocumentType.cpp |   13 ++--
+ content/base/src/nsDocument.cpp        |    8 +--
+ content/base/src/nsNodeUtils.cpp       |   23 +++----
+ content/base/src/nsNodeUtils.h         |   15 ++---
+ 6 files changed, 83 insertions(+), 89 deletions(-)
+
+diff --git a/mozilla/content/base/public/nsContentUtils.h b/mozilla/content/base/public/nsContentUtils.h
+index 62282b6..b3c7b11 100644
+--- a/mozilla/content/base/public/nsContentUtils.h
++++ b/mozilla/content/base/public/nsContentUtils.h
+@@ -160,20 +160,18 @@ public:
+                                          nsIDocument *aOldDocument);
+ 
+   /**
+-   * Get a scope from aOldDocument and one from aNewDocument. Also get a
+-   * context through one of the scopes, from the stack or the safe context.
++   * Get a scope from aNewDocument. Also get a context through the scope of one
++   * of the documents, from the stack or the safe context.
+    *
+-   * @param aOldDocument The document to get aOldScope from.
++   * @param aOldDocument The document to try to get a context from. May be null.
+    * @param aNewDocument The document to get aNewScope from.
+    * @param aCx [out] Context gotten through one of the scopes, from the stack
+    *                  or the safe context.
+-   * @param aOldScope [out] Scope gotten from aOldDocument.
+    * @param aNewScope [out] Scope gotten from aNewDocument.
+    */
+-  static nsresult GetContextAndScopes(nsIDocument *aOldDocument,
+-                                      nsIDocument *aNewDocument,
+-                                      JSContext **aCx, JSObject **aOldScope,
+-                                      JSObject **aNewScope);
++  static nsresult GetContextAndScope(nsIDocument *aOldDocument,
++                                     nsIDocument *aNewDocument,
++                                     JSContext **aCx, JSObject **aNewScope);
+ 
+   /**
+    * When a document's scope changes (e.g., from document.open(), call this
+@@ -182,6 +180,8 @@ public:
+   static nsresult ReparentContentWrappersInScope(nsIScriptGlobalObject *aOldScope,
+                                                  nsIScriptGlobalObject *aNewScope);
+ 
++  static JSObject *GetCachedWrapper(nsWrapperCache *aCache);
++
+   static PRBool   IsCallerChrome();
+ 
+   static PRBool   IsCallerTrustedForRead();
+@@ -1413,7 +1413,6 @@ private:
+ 
+   static nsresult doReparentContentWrapper(nsIContent *aChild,
+                                            JSContext *cx,
+-                                           JSObject *aOldGlobal,
+                                            JSObject *aNewGlobal,
+                                            nsIDocument *aOldDocument,
+                                            nsIDocument *aNewDocument);
+diff --git a/mozilla/content/base/src/nsContentUtils.cpp b/mozilla/content/base/src/nsContentUtils.cpp
+index 8d2be95..d4409ac 100644
+--- a/mozilla/content/base/src/nsContentUtils.cpp
++++ b/mozilla/content/base/src/nsContentUtils.cpp
+@@ -1094,22 +1094,37 @@ nsContentUtils::InProlog(nsINode *aNode)
+ }
+ 
+ // static
++JSObject*
++nsContentUtils::GetCachedWrapper(nsWrapperCache *aCache)
++{
++  JSObject *obj = nsnull;
++  nsIXPConnectWrappedNative *wrapper =
++    static_cast<nsIXPConnectWrappedNative*>(aCache->GetWrapper());
++  if (wrapper) {
++    wrapper->GetJSObject(&obj);
++  }
++
++  return obj;
++}
++
++// static
+ nsresult
+ nsContentUtils::doReparentContentWrapper(nsIContent *aNode,
+                                          JSContext *cx,
+-                                         JSObject *aOldGlobal,
+                                          JSObject *aNewGlobal,
+                                          nsIDocument *aOldDocument,
+                                          nsIDocument *aNewDocument)
+ {
+-  nsCOMPtr<nsIXPConnectJSObjectHolder> old_wrapper;
+-
+   nsresult rv;
+ 
+-  rv = sXPConnect->ReparentWrappedNativeIfFound(cx, aOldGlobal, aNewGlobal,
+-                                                aNode,
+-                                                getter_AddRefs(old_wrapper));
+-  NS_ENSURE_SUCCESS(rv, rv);
++  JSObject *wrapper = GetCachedWrapper(aNode);
++  if (wrapper) {
++    nsCOMPtr<nsIXPConnectJSObjectHolder> old_wrapper;
++    rv = sXPConnect->ReparentWrappedNativeIfFound(cx, wrapper, aNewGlobal,
++                                                  aNode,
++                                                  getter_AddRefs(old_wrapper));
++    NS_ENSURE_SUCCESS(rv, rv);
++  }
+ 
+   // Whether or not aChild is already wrapped we must iterate through
+   // its descendants since there's no guarantee that a descendant isn't
+@@ -1123,8 +1138,7 @@ nsContentUtils::doReparentContentWrapper(nsIContent *aNode,
+     nsIContent *child = aNode->GetChildAt(i);
+     NS_ENSURE_TRUE(child, NS_ERROR_UNEXPECTED);
+ 
+-    rv = doReparentContentWrapper(child, cx, 
+-                                  aOldGlobal, aNewGlobal,
++    rv = doReparentContentWrapper(child, cx, aNewGlobal,
+                                   aOldDocument, aNewDocument);
+     NS_ENSURE_SUCCESS(rv, rv);
+   }
+@@ -1133,22 +1147,17 @@ nsContentUtils::doReparentContentWrapper(nsIContent *aNode,
+ }
+ 
+ static JSContext *
+-GetContextFromDocument(nsIDocument *aDocument, JSObject** aGlobalObject)
++GetContextFromDocument(nsIDocument *aDocument)
+ {
+   nsIScriptGlobalObject *sgo = aDocument->GetScopeObject();
+   if (!sgo) {
+     // No script global, no context.
+-
+-    *aGlobalObject = nsnull;
+-
+     return nsnull;
+   }
+ 
+-  *aGlobalObject = sgo->GetGlobalJSObject();
+-
+   nsIScriptContext *scx = sgo->GetContext();
+   if (!scx) {
+-    // No context left in the old scope...
++    // No context left in the scope...
+ 
+     return nsnull;
+   }
+@@ -1170,54 +1179,41 @@ nsContentUtils::ReparentContentWrapper(nsIContent *aContent,
+   }
+ 
+   JSContext *cx;
+-  JSObject *oldScope, *newScope;
+-  nsresult rv = GetContextAndScopes(aOldDocument, aNewDocument, &cx, &oldScope,
+-                                    &newScope);
++  JSObject *newScope;
++  nsresult rv = GetContextAndScope(aOldDocument, aNewDocument, &cx, &newScope);
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   if (!cx) {
+     return NS_OK;
+   }
+ 
+-  return doReparentContentWrapper(aContent, cx, oldScope, newScope, 
++  return doReparentContentWrapper(aContent, cx, newScope,
+                                   aOldDocument, aNewDocument);
+ }
+ 
+ // static
+ nsresult
+-nsContentUtils::GetContextAndScopes(nsIDocument *aOldDocument,
+-                                    nsIDocument *aNewDocument, JSContext **aCx,
+-                                    JSObject **aOldScope, JSObject **aNewScope)
++nsContentUtils::GetContextAndScope(nsIDocument *aOldDocument,
++                                   nsIDocument *aNewDocument, JSContext **aCx,
++                                   JSObject **aNewScope)
+ {
+   *aCx = nsnull;
+-  *aOldScope = nsnull;
+   *aNewScope = nsnull;
+ 
+-  JSObject *newScope = nsnull;
+-  nsIScriptGlobalObject *newSGO = aNewDocument->GetScopeObject();
+-  if (!newSGO || !(newScope = newSGO->GetGlobalJSObject())) {
+-    return NS_OK;
++  JSObject *newScope = GetCachedWrapper(aNewDocument);
++  JSObject *global;
++  if (!newScope) {
++    nsIScriptGlobalObject *newSGO = aNewDocument->GetScopeObject();
++    if (!newSGO || !(global = newSGO->GetGlobalJSObject())) {
++      return NS_OK;
++    }
+   }
+ 
+   NS_ENSURE_TRUE(sXPConnect, NS_ERROR_NOT_INITIALIZED);
+ 
+-  // Make sure to get our hands on the right scope object, since
+-  // GetWrappedNativeOfNativeObject doesn't call PreCreate and hence won't get
+-  // the right scope if we pass in something bogus.  The right scope lives on
+-  // the script global of the old document.
+-  // XXXbz note that if GetWrappedNativeOfNativeObject did call PreCreate it
+-  // would get the wrong scope (that of the _new_ document), so we should be
+-  // glad it doesn't!
+-  JSObject *oldScope = nsnull;
+-  JSContext *cx = GetContextFromDocument(aOldDocument, &oldScope);
+-
+-  if (!oldScope) {
+-    return NS_OK;
+-  }
+-
++  JSContext *cx = aOldDocument ? GetContextFromDocument(aOldDocument) : nsnull;
+   if (!cx) {
+-    JSObject *dummy;
+-    cx = GetContextFromDocument(aNewDocument, &dummy);
++    cx = GetContextFromDocument(aNewDocument);
+ 
+     if (!cx) {
+       // No context reachable from the old or new document, use the
+@@ -1239,8 +1235,18 @@ nsContentUtils::GetContextAndScopes(nsIDocument *aOldDocument,
+     }
+   }
+ 
++  if (!newScope && cx) {
++    nsCOMPtr<nsIXPConnectJSObjectHolder> holder;
++    jsval v;
++    nsresult rv = sXPConnect->WrapNativeToJSVal(cx, global, aNewDocument,
++                                                &NS_GET_IID(nsISupports), &v,
++                                                getter_AddRefs(holder));
++    NS_ENSURE_SUCCESS(rv, rv);
++
++    newScope = JSVAL_TO_OBJECT(v);
++  }
++
+   *aCx = cx;
+-  *aOldScope = oldScope;
+   *aNewScope = newScope;
+ 
+   return NS_OK;
+diff --git a/mozilla/content/base/src/nsDOMDocumentType.cpp b/mozilla/content/base/src/nsDOMDocumentType.cpp
+index 8904cc8..d4f1fab 100644
+--- a/mozilla/content/base/src/nsDOMDocumentType.cpp
++++ b/mozilla/content/base/src/nsDOMDocumentType.cpp
+@@ -264,16 +264,15 @@ nsDOMDocumentType::BindToTree(nsIDocument *aDocument, nsIContent *aParent,
+ 
+     mNodeInfo.swap(newNodeInfo);
+ 
+-    nsCOMPtr<nsIDocument> oldOwnerDoc =
+-      do_QueryInterface(nsContentUtils::GetDocumentFromContext());
+-    nsIDocument *newOwnerDoc = nimgr->GetDocument();
+-    if (oldOwnerDoc && newOwnerDoc) {
++    JSObject *oldScope = nsContentUtils::GetCachedWrapper(this);
++    if (oldScope) {
+       nsIXPConnect *xpc = nsContentUtils::XPConnect();
+ 
+       JSContext *cx = nsnull;
+-      JSObject *oldScope = nsnull, *newScope = nsnull;
+-      nsresult rv = nsContentUtils::GetContextAndScopes(oldOwnerDoc, newOwnerDoc, &cx,
+-                                                        &oldScope, &newScope);
++      JSObject *newScope = nsnull;
++      nsresult rv = nsContentUtils::GetContextAndScope(nsnull,
++                                                       nimgr->GetDocument(),
++                                                       &cx, &newScope);
+       if (cx && xpc) {
+         nsISupports *node = NS_ISUPPORTS_CAST(nsIContent*, this);
+         nsCOMPtr<nsIXPConnectJSObjectHolder> oldWrapper;
+diff --git a/mozilla/content/base/src/nsDocument.cpp b/mozilla/content/base/src/nsDocument.cpp
+index da61037..425cbdf 100644
+--- a/mozilla/content/base/src/nsDocument.cpp
++++ b/mozilla/content/base/src/nsDocument.cpp
+@@ -6006,17 +6006,15 @@ nsDocument::AdoptNode(nsIDOMNode *aAdoptedNode, nsIDOMNode **aResult)
+   PRBool sameDocument = oldDocument == this;
+ 
+   JSContext *cx = nsnull;
+-  JSObject *oldScope = nsnull;
+   JSObject *newScope = nsnull;
+-  if (!sameDocument && oldDocument) {
+-    rv = nsContentUtils::GetContextAndScopes(oldDocument, this, &cx, &oldScope,
+-                                             &newScope);
++  if (!sameDocument) {
++    rv = nsContentUtils::GetContextAndScope(oldDocument, this, &cx, &newScope);
+     NS_ENSURE_SUCCESS(rv, rv);
+   }
+ 
+   nsCOMArray<nsINode> nodesWithProperties;
+   rv = nsNodeUtils::Adopt(adoptedNode, sameDocument ? nsnull : mNodeInfoManager,
+-                          cx, oldScope, newScope, nodesWithProperties);
++                          cx, newScope, nodesWithProperties);
+   if (NS_FAILED(rv)) {
+     // Disconnect all nodes from their parents, since some have the old document
+     // as their ownerDocument and some have this as their ownerDocument.
+diff --git a/mozilla/content/base/src/nsNodeUtils.cpp b/mozilla/content/base/src/nsNodeUtils.cpp
+index 09249a4..ef4fd61 100755
+--- a/mozilla/content/base/src/nsNodeUtils.cpp
++++ b/mozilla/content/base/src/nsNodeUtils.cpp
+@@ -481,12 +481,11 @@ nsNodeUtils::CloneNodeImpl(nsINode *aNode, PRBool aDeep, nsIDOMNode **aResult)
+ class AdoptFuncData {
+ public:
+   AdoptFuncData(nsIDOMElement *aElement, nsNodeInfoManager *aNewNodeInfoManager,
+-                JSContext *aCx, JSObject *aOldScope, JSObject *aNewScope,
++                JSContext *aCx, JSObject *aNewScope,
+                 nsCOMArray<nsINode> &aNodesWithProperties)
+     : mElement(aElement),
+       mNewNodeInfoManager(aNewNodeInfoManager),
+       mCx(aCx),
+-      mOldScope(aOldScope),
+       mNewScope(aNewScope),
+       mNodesWithProperties(aNodesWithProperties)
+   {
+@@ -495,7 +494,6 @@ public:
+   nsIDOMElement *mElement;
+   nsNodeInfoManager *mNewNodeInfoManager;
+   JSContext *mCx;
+-  JSObject *mOldScope;
+   JSObject *mNewScope;
+   nsCOMArray<nsINode> &mNodesWithProperties;
+ };
+@@ -514,8 +512,7 @@ AdoptFunc(nsAttrHashKey::KeyType aKey, nsIDOMNode *aData, void* aUserArg)
+   nsCOMPtr<nsIDOMNode> node;
+   nsresult rv = nsNodeUtils::CloneAndAdopt(attr, clone, PR_TRUE,
+                                            data->mNewNodeInfoManager,
+-                                           data->mCx, data->mOldScope,
+-                                           data->mNewScope,
++                                           data->mCx, data->mNewScope,
+                                            data->mNodesWithProperties,
+                                            nsnull, getter_AddRefs(node));
+ 
+@@ -533,15 +530,14 @@ AdoptFunc(nsAttrHashKey::KeyType aKey, nsIDOMNode *aData, void* aUserArg)
+ nsresult
+ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
+                            nsNodeInfoManager *aNewNodeInfoManager,
+-                           JSContext *aCx, JSObject *aOldScope,
+-                           JSObject *aNewScope,
++                           JSContext *aCx, JSObject *aNewScope,
+                            nsCOMArray<nsINode> &aNodesWithProperties,
+                            nsINode *aParent, nsIDOMNode **aResult)
+ {
+   NS_PRECONDITION((!aClone && aNewNodeInfoManager) || !aCx,
+                   "If cloning or not getting a new nodeinfo we shouldn't "
+                   "rewrap");
+-  NS_PRECONDITION(!aCx || (aOldScope && aNewScope), "Must have scopes");
++  NS_PRECONDITION(!aCx || aNewScope, "Must have scopes");
+   NS_PRECONDITION(!aParent || !aNode->IsNodeOfType(nsINode::eDOCUMENT),
+                   "Can't insert document nodes into a parent");
+ 
+@@ -640,11 +636,12 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
+       elem->RecompileScriptEventListeners();
+     }
+ 
+-    if (aCx) {
++    JSObject *wrapper = nsContentUtils::GetCachedWrapper(aNode);
++    if (aCx && wrapper) {
+       nsIXPConnect *xpc = nsContentUtils::XPConnect();
+       if (xpc) {
+         nsCOMPtr<nsIXPConnectJSObjectHolder> oldWrapper;
+-        rv = xpc->ReparentWrappedNativeIfFound(aCx, aOldScope, aNewScope, aNode,
++        rv = xpc->ReparentWrappedNativeIfFound(aCx, wrapper, aNewScope, aNode,
+                                                getter_AddRefs(oldWrapper));
+         if (NS_FAILED(rv)) {
+           aNode->mNodeInfo.swap(nodeInfo);
+@@ -667,8 +664,8 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
+         NS_ENSURE_SUCCESS(rv, rv);
+       }
+ 
+-      AdoptFuncData data(element, nodeInfoManager, aCx, aOldScope,
+-                         aNewScope, aNodesWithProperties);
++      AdoptFuncData data(element, nodeInfoManager, aCx, aNewScope,
++                         aNodesWithProperties);
+ 
+       PRUint32 count = map->Enumerate(AdoptFunc, &data);
+       NS_ENSURE_TRUE(count == map->Count(), NS_ERROR_FAILURE);
+@@ -702,7 +699,7 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
+     for (i = 0; i < length; ++i) {
+       nsCOMPtr<nsIDOMNode> child;
+       rv = CloneAndAdopt(aNode->GetChildAt(i), aClone, PR_TRUE, nodeInfoManager,
+-                         aCx, aOldScope, aNewScope, aNodesWithProperties,
++                         aCx, aNewScope, aNodesWithProperties,
+                          clone, getter_AddRefs(child));
+       NS_ENSURE_SUCCESS(rv, rv);
+     }
+diff --git a/mozilla/content/base/src/nsNodeUtils.h b/mozilla/content/base/src/nsNodeUtils.h
+index ee4c9c2..8776175 100755
+--- a/mozilla/content/base/src/nsNodeUtils.h
++++ b/mozilla/content/base/src/nsNodeUtils.h
+@@ -163,8 +163,7 @@ public:
+                         nsIDOMNode **aResult)
+   {
+     return CloneAndAdopt(aNode, PR_TRUE, aDeep, aNewNodeInfoManager, nsnull,
+-                         nsnull, nsnull, aNodesWithProperties, nsnull,
+-                         aResult);
++                         nsnull, aNodesWithProperties, nsnull, aResult);
+   }
+ 
+   /**
+@@ -182,20 +181,18 @@ public:
+    * @param aCx Context to use for reparenting the wrappers, or null if no
+    *            reparenting should be done. Must be null if aNewNodeInfoManager
+    *            is null.
+-   * @param aOldScope Old scope for the wrappers. May be null if aCx is null.
+    * @param aNewScope New scope for the wrappers. May be null if aCx is null.
+    * @param aNodesWithProperties All nodes (from amongst aNode and its
+    *                             descendants) with properties.
+    */
+   static nsresult Adopt(nsINode *aNode, nsNodeInfoManager *aNewNodeInfoManager,
+-                        JSContext *aCx, JSObject *aOldScope,
+-                        JSObject *aNewScope,
++                        JSContext *aCx, JSObject *aNewScope,
+                         nsCOMArray<nsINode> &aNodesWithProperties)
+   {
+     nsCOMPtr<nsIDOMNode> dummy;
+     return CloneAndAdopt(aNode, PR_FALSE, PR_TRUE, aNewNodeInfoManager, aCx,
+-                         aOldScope, aNewScope, aNodesWithProperties,
+-                         nsnull, getter_AddRefs(dummy));
++                         aNewScope, aNodesWithProperties, nsnull,
++                         getter_AddRefs(dummy));
+   }
+ 
+   /**
+@@ -302,7 +299,6 @@ private:
+    * @param aCx Context to use for reparenting the wrappers, or null if no
+    *            reparenting should be done. Must be null if aClone is PR_TRUE or
+    *            if aNewNodeInfoManager is null.
+-   * @param aOldScope Old scope for the wrappers. May be null if aCx is null.
+    * @param aNewScope New scope for the wrappers. May be null if aCx is null.
+    * @param aNodesWithProperties All nodes (from amongst aNode and its
+    *                             descendants) with properties. If aClone is
+@@ -315,8 +311,7 @@ private:
+    */
+   static nsresult CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
+                                 nsNodeInfoManager *aNewNodeInfoManager,
+-                                JSContext *aCx, JSObject *aOldScope,
+-                                JSObject *aNewScope,
++                                JSContext *aCx, JSObject *aNewScope,
+                                 nsCOMArray<nsINode> &aNodesWithProperties,
+                                 nsINode *aParent, nsIDOMNode **aResult);
+ };

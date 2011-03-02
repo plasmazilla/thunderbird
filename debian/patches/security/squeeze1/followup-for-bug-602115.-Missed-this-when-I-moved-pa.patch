@@ -1,0 +1,27 @@
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Wed, 19 Jan 2011 10:13:03 -0800
+Subject: followup for bug 602115. Missed this when I moved patch to this branch.
+
+---
+ content/xslt/src/xslt/txExecutionState.cpp |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txExecutionState.cpp b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+index a2aa72a..8e00d68 100644
+--- a/mozilla/content/xslt/src/xslt/txExecutionState.cpp
++++ b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+@@ -404,10 +404,14 @@ txExecutionState::pushTemplateRule(txStylesheet::ImportFrame* aFrame,
+                                    txVariableMap* aParams)
+ {
+     TemplateRule* rule = mTemplateRules.AppendElement();
++    NS_ENSURE_TRUE(rule, NS_ERROR_OUT_OF_MEMORY);
++
+     rule->mFrame = aFrame;
+     rule->mModeNsId = aMode.mNamespaceID;
+     rule->mModeLocalName = aMode.mLocalName;
+     rule->mParams = aParams;
++
++    return NS_OK;
+ }
+ 
+ void

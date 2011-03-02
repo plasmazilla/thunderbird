@@ -1,0 +1,21 @@
+From: Igor Bukanov <igor@mir2.org>
+Date: Thu, 20 Jan 2011 00:24:55 +0100
+Subject: bug 600853 - regression fix r=brendan a=clegnitto
+
+---
+ js/src/jsgc.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jsgc.cpp b/mozilla/js/src/jsgc.cpp
+index 44b6098..51ac97e 100644
+--- a/mozilla/js/src/jsgc.cpp
++++ b/mozilla/js/src/jsgc.cpp
+@@ -947,7 +947,7 @@ NewGCArena(JSContext *cx)
+     JSGCArenaInfo *a;
+ 
+     JSRuntime *rt = cx->runtime;
+-    if (rt->gcBytes >= rt->gcMaxBytes && HAS_TITLES_TO_SHARE(cx))
++    if (rt->gcBytes >= rt->gcMaxBytes && !HAS_TITLES_TO_SHARE(cx))
+         return NULL;
+ 
+ #if CHUNKED_ARENA_ALLOCATION

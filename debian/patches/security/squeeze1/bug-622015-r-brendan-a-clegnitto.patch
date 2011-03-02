@@ -1,0 +1,30 @@
+From: Igor Bukanov <igor@mir2.org>
+Date: Wed, 19 Jan 2011 12:05:09 +0100
+Subject: bug 622015, r=brendan a=clegnitto
+
+---
+ js/src/jsinterp.cpp |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jsinterp.cpp b/mozilla/js/src/jsinterp.cpp
+index 2519e42..6337d50 100644
+--- a/mozilla/js/src/jsinterp.cpp
++++ b/mozilla/js/src/jsinterp.cpp
+@@ -7200,7 +7200,6 @@ js_Interpret(JSContext *cx)
+         // Handle other exceptions as if they came from the imacro-calling pc.
+         regs.pc = fp->imacpc;
+         fp->imacpc = NULL;
+-        atoms = script->atomMap.vector;
+     }
+ 
+     JS_ASSERT((size_t)((fp->imacpc ? fp->imacpc : regs.pc) - script->code) < script->length);
+@@ -7223,6 +7222,9 @@ js_Interpret(JSContext *cx)
+         JSTryNote *tn, *tnlimit;
+         uint32 offset;
+ 
++        /* Restore atoms local in case we will resume. */
++        atoms = script->atomMap.vector;
++
+         /* Call debugger throw hook if set. */
+         handler = cx->debugHooks->throwHook;
+         if (handler) {
