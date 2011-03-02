@@ -1,3 +1,22 @@
+icedove (3.0.11-1+squeeze1) stable-security; urgency=high
+
+  * [2bf1366] backported patches from xulrunner fixes mfsa2011-{01-08,10}
+    - MFSA 2011-01 aka CVE-2011-0053: Miscellaneous memory safety hazards
+      (rv:1.9.2.14/ 1.9.1.17)
+    - MFSA 2011-02 aka CVE-2011-0051: Recursive eval call causes confirm
+      dialogs to evaluate to true
+    - MFSA 2011-03 aka CVE-2011-0055: Use-after-free error in JSON.stringify
+    - MFSA 2011-04 aka CVE-2011-0054: Buffer overflow in JavaScript upvarMap
+    - MFSA 2011-05 aka CVE-2011-0056: Buffer overflow in JavaScript atom map
+    - MFSA 2011-06 aka CVE-2011-0057: Use-after-free error using Web Workers
+    - MFSA 2011-07 aka CVE-2011-0058: Memory corruption during text run
+      construction (Windows)
+    - MFSA 2011-08 aka CVE-2010-1585: ParanoidFragmentSink allows javascript:
+      URLs in chrome documents
+    - MFSA 2011-10 aka CVE-2011-0059: CSRF risk with plugins and 307 redirects
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 02 Mar 2011 18:22:20 +0100
+
 icedove (3.0.11-1) unstable; urgency=high
 
   * New Upstream Version
