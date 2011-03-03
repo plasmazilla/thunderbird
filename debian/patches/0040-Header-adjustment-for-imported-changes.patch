@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 25 Feb 2010 12:42:51 +0100
-Subject: [PATCH] Header adjustment for imported changes
+Subject: Header adjustment for imported changes
 
 Changes from bz#506433 rely on bz#471877 being applied, and we now need
 gtkversion.h on top of gtkcontainer.h.

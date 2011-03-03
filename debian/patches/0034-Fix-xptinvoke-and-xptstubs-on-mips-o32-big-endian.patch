@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sun, 14 Feb 2010 14:42:19 +0100
-Subject: [PATCH] Fix xptinvoke and xptstubs on mips o32 big endian
+Subject: Fix xptinvoke and xptstubs on mips o32 big endian
 
 ---
  .../xptcall/src/md/unix/xptcinvoke_mips.cpp        |   10 +++++++++

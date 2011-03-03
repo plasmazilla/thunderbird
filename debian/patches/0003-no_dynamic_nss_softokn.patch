@@ -1,6 +1,6 @@
 From: Alexander Sack <asac@debian.org>
 Date: Wed, 27 Jan 2010 19:06:07 +0100
-Subject: [PATCH] no_dynamic_nss_softokn
+Subject: no_dynamic_nss_softokn
 
 ---
  directory/c-sdk/component_versions.mk |    2 +-

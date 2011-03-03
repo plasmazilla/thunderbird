@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Tue, 6 Apr 2010 09:58:04 +0200
-Subject: [PATCH] KDE/Gnome startup notification not disappearing for the first time startup (needsRestart)
+Subject: KDE/Gnome startup notification not disappearing for the first time startup (needsRestart)
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=534845
 ---

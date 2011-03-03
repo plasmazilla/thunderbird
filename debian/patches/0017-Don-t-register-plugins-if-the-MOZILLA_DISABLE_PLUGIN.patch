@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 27 Sep 2008 17:17:39 +0200
-Subject: [PATCH] Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment variable is set
+Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment variable is set
 
 ---
  .../modules/plugin/base/src/nsPluginHostImpl.cpp   |   25 ++++++++++++++++++++

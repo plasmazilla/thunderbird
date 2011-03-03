@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 25 Feb 2010 10:58:45 +0100
-Subject: [PATCH] Reuse the GdkWindow in MozContainers
+Subject: Reuse the GdkWindow in MozContainers
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=506433
 ---

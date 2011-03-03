@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 5 Feb 2010 20:33:51 +0100
-Subject: [PATCH] Fix for padding of long long arguments on ppc xptcall
+Subject: Fix for padding of long long arguments on ppc xptcall
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=520367
 ---

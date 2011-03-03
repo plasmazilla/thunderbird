@@ -1,0 +1,36 @@
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Mon, 27 Dec 2010 11:45:31 +0200
+Subject: security-1.9.1.17: Fix some errors with handling invalid sequences in the EUC-JP decoder. Bug 563618, r=emk, a1.9.1.17=LegNeato
+
+---
+ mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+index 629884f..9ce854c 100644
+--- a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+@@ -322,10 +322,10 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+             if(0xFF == off) {
+               *dest++ = 0xFFFD;
+                // if the first byte is valid for EUC-JP but the second 
+-               // is not while being a valid US-ASCII(i.e. < 0xc0), save it
++               // is not while being a valid US-ASCII, save it
+                // instead of eating it up !
+-               if ( ! (*src & 0xc0)  )
+-                 *dest++ = (PRUnichar) *src;;
++              if ( (PRUint8)*src < (PRUint8)0x7f )
++                --src;
+             } else {
+                *dest++ = gJapaneseMap[mData+off];
+             }
+@@ -344,7 +344,7 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+               // if 0x8e is not followed by a valid JIS X 0201 byte
+               // but by a valid US-ASCII, save it instead of eating it up.
+               if ( (PRUint8)*src < (PRUint8)0x7f )
+-                 *dest++ = (PRUnichar) *src;
++                --src;
+             }
+             mState = 0;
+             if(dest >= destEnd)
+-- 

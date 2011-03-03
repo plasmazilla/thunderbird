@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 25 Feb 2010 10:55:26 +0100
-Subject: [PATCH] Replace mozDrawingarea with a single GdkWindow
+Subject: Replace mozDrawingarea with a single GdkWindow
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=506433
 ---

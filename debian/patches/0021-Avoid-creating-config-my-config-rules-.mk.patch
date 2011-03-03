@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sun, 24 Jan 2010 08:52:15 +0100
-Subject: [PATCH] Avoid creating config/my{config,rules}.mk
+Subject: Avoid creating config/my{config,rules}.mk
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=541767
 ---

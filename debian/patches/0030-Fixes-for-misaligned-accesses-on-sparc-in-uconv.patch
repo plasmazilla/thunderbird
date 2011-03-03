@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 5 Feb 2010 20:31:42 +0100
-Subject: [PATCH] Fixes for misaligned accesses on sparc in uconv
+Subject: Fixes for misaligned accesses on sparc in uconv
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=544512
 ---

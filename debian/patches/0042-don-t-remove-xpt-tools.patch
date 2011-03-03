@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Mar 2010 14:45:29 +0100
-Subject: [PATCH] don't remove xpt-tools
+Subject: don't remove xpt-tools
 
 would be needed for the icedove-dev package
 ---

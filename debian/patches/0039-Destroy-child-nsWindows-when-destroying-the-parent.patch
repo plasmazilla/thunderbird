@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 25 Feb 2010 11:11:12 +0100
-Subject: [PATCH] Destroy child nsWindows when destroying the parent
+Subject: Destroy child nsWindows when destroying the parent
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=522635
 ---

@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 17 Feb 2010 17:22:07 +0100
-Subject: [PATCH] Don't unnecessarily copy files in toolkit/library
+Subject: Don't unnecessarily copy files in toolkit/library
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=546664
 ---

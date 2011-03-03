@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 17 May 2008 19:30:10 +0200
-Subject: [PATCH] Build xptcstubs with less optimizations on hppa
+Subject: Build xptcstubs with less optimizations on hppa
 
 This avoids g++ outsmarting the assembly code.
 

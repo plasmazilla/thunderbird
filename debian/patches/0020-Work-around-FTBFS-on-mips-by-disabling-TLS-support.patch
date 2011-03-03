@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 10 Apr 2010 16:20:52 +0200
-Subject: [PATCH] Work around FTBFS on mips by disabling TLS support
+Subject: Work around FTBFS on mips by disabling TLS support
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=528687
 ---

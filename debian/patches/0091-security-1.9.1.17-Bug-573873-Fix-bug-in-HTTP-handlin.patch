@@ -1,0 +1,346 @@
+From: Josh Aas <joshmoz@gmail.com>
+Date: Wed, 8 Dec 2010 15:38:35 -0500
+Subject: security-1.9.1.17: Bug 573873: Fix bug in HTTP handling for plugins. r=jst a=dveditz
+
+---
+ mozilla/content/base/public/nsContentUtils.h       |    4 +-
+ mozilla/content/base/public/nsIContentUtils.h      |   19 ++++
+ mozilla/content/base/src/nsContentUtils.cpp        |   39 +++++--
+ mozilla/layout/build/nsLayoutCID.h                 |    4 +
+ mozilla/layout/build/nsLayoutModule.cpp            |    5 +
+ .../modules/plugin/base/src/nsPluginHostImpl.cpp   |  114 +++++++++++++++++---
+ 6 files changed, 156 insertions(+), 29 deletions(-)
+
+diff --git a/mozilla/content/base/public/nsContentUtils.h b/mozilla/content/base/public/nsContentUtils.h
+index b3c7b11..6a4626b 100644
+--- a/mozilla/content/base/public/nsContentUtils.h
++++ b/mozilla/content/base/public/nsContentUtils.h
+@@ -1380,7 +1380,9 @@ public:
+ 
+   static JSContext *GetCurrentJSContext();
+ 
+-                                             
++
++  // Returns NS_OK for same origin, error (NS_ERROR_DOM_BAD_URI) if not.
++  static nsresult CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel);
+   static nsIInterfaceRequestor* GetSameOriginChecker();
+ 
+   static nsIThreadJSContextStack* ThreadJSContextStack()
+diff --git a/mozilla/content/base/public/nsIContentUtils.h b/mozilla/content/base/public/nsIContentUtils.h
+index 35a4f1f..fab84e5 100644
+--- a/mozilla/content/base/public/nsIContentUtils.h
++++ b/mozilla/content/base/public/nsIContentUtils.h
+@@ -37,6 +37,8 @@
+ #ifndef nsIContentUtils_h__
+ #define nsIContentUtils_h__
+ 
++class nsIChannel;
++
+ // C4EA618E-A3D9-4524-8EEA-E92F26FC44DB
+ #define NS_ICONTENTUTILS_IID \
+ { 0xC4EA618E, 0xA3D9, 0x4524, \
+@@ -53,4 +55,21 @@ public:
+ 
+ NS_DEFINE_STATIC_IID_ACCESSOR(nsIContentUtils, NS_ICONTENTUTILS_IID)
+ 
++// {fbff0101-84ad-49f0-aea0-97ee4863bf55}
++#define NS_ICONTENTUTILS2_IID \
++{ 0xfbff0101, 0x84ad, 0x49f0, \
++{ 0xae, 0xa0, 0x97, 0xee, 0x48, 0x63, 0xbf, 0x55 } }
++
++class nsIContentUtils2 : public nsISupports
++{
++public:
++  NS_DECLARE_STATIC_IID_ACCESSOR(NS_ICONTENTUTILS2_IID)
++  NS_DECL_ISUPPORTS
++
++  // Returns NS_OK for same origin, error (NS_ERROR_DOM_BAD_URI) if not.
++  virtual nsresult CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel);
++};
++
++NS_DEFINE_STATIC_IID_ACCESSOR(nsIContentUtils2, NS_ICONTENTUTILS2_IID)
++
+ #endif /* nsIContentUtils_h__ */
+diff --git a/mozilla/content/base/src/nsContentUtils.cpp b/mozilla/content/base/src/nsContentUtils.cpp
+index d4409ac..fdda952 100644
+--- a/mozilla/content/base/src/nsContentUtils.cpp
++++ b/mozilla/content/base/src/nsContentUtils.cpp
+@@ -4372,6 +4372,14 @@ nsIContentUtils::IsSafeToRunScript()
+   return nsContentUtils::IsSafeToRunScript();
+ }
+ 
++NS_IMPL_ISUPPORTS1(nsIContentUtils2, nsIContentUtils2)
++
++nsresult
++nsIContentUtils2::CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel)
++{
++  return nsContentUtils::CheckSameOrigin(aOldChannel, aNewChannel);
++}
++
+ /* static */
+ PRBool
+ nsContentUtils::AddScriptRunner(nsIRunnable* aRunnable)
+@@ -4601,20 +4609,12 @@ nsContentUtils::GetSameOriginChecker()
+   return sSameOriginChecker;
+ }
+ 
+-
+-NS_IMPL_ISUPPORTS2(nsSameOriginChecker,
+-                   nsIChannelEventSink,
+-                   nsIInterfaceRequestor)
+-
+-NS_IMETHODIMP
+-nsSameOriginChecker::OnChannelRedirect(nsIChannel *aOldChannel,
+-                                       nsIChannel *aNewChannel,
+-                                       PRUint32    aFlags)
++/* static */
++nsresult
++nsContentUtils::CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel)
+ {
+-  NS_PRECONDITION(aNewChannel, "Redirecting to null channel?");
+-  if (!nsContentUtils::GetSecurityManager()) {
++  if (!nsContentUtils::GetSecurityManager())
+     return NS_ERROR_NOT_AVAILABLE;
+-  }
+ 
+   nsCOMPtr<nsIPrincipal> oldPrincipal;
+   nsContentUtils::GetSecurityManager()->
+@@ -4631,9 +4631,24 @@ nsSameOriginChecker::OnChannelRedirect(nsIChannel *aOldChannel,
+   if (NS_SUCCEEDED(rv) && newOriginalURI != newURI) {
+     rv = oldPrincipal->CheckMayLoad(newOriginalURI, PR_FALSE);
+   }
++
+   return rv;
+ }
+ 
++NS_IMPL_ISUPPORTS2(nsSameOriginChecker,
++                   nsIChannelEventSink,
++                   nsIInterfaceRequestor)
++
++NS_IMETHODIMP
++nsSameOriginChecker::OnChannelRedirect(nsIChannel *aOldChannel,
++                                       nsIChannel *aNewChannel,
++                                       PRUint32    aFlags)
++{
++  NS_PRECONDITION(aNewChannel, "Redirecting to null channel?");
++
++  return nsContentUtils::CheckSameOrigin(aOldChannel, aNewChannel);
++}
++
+ NS_IMETHODIMP
+ nsSameOriginChecker::GetInterface(const nsIID & aIID, void **aResult)
+ {
+diff --git a/mozilla/layout/build/nsLayoutCID.h b/mozilla/layout/build/nsLayoutCID.h
+index 7bdd04c..ea01eaf 100644
+--- a/mozilla/layout/build/nsLayoutCID.h
++++ b/mozilla/layout/build/nsLayoutCID.h
+@@ -234,6 +234,10 @@
+ #define NS_ICONTENTUTILS_CID \
+ { 0x762C4AE7, 0xB923, 0x422F, { 0xB9, 0x7E, 0xB9, 0xBF, 0xC1, 0xEF, 0x7B, 0xF0 } }
+ 
++// {7f5fef90-44bf-4d5c-a9fa-884eb7e7cdee}
++#define NS_ICONTENTUTILS2_CID \
++{ 0x7f5fef90, 0x44bf, 0x4d5c, { 0xa9, 0xfa, 0x88, 0x4e, 0xb7, 0xe7, 0xcd, 0xee } }
++
+ #ifdef MOZ_MEDIA
+ #define NS_HTMLAUDIOELEMENT_CID                   \
+ { /* 1d40026b-4c44-4f6f-b158-26bb5e9c65e9 */      \
+diff --git a/mozilla/layout/build/nsLayoutModule.cpp b/mozilla/layout/build/nsLayoutModule.cpp
+index 7590300..0d31df8 100644
+--- a/mozilla/layout/build/nsLayoutModule.cpp
++++ b/mozilla/layout/build/nsLayoutModule.cpp
+@@ -544,6 +544,7 @@ MAKE_CTOR(CreateVideoDocument,            nsIDocument,                 NS_NewVid
+ #endif
+ 
+ NS_GENERIC_FACTORY_CONSTRUCTOR(nsIContentUtils)
++NS_GENERIC_FACTORY_CONSTRUCTOR(nsIContentUtils2)
+ 
+ #ifdef MOZ_ENABLE_CANVAS
+ MAKE_CTOR(CreateCanvasRenderingContext2D, nsIDOMCanvasRenderingContext2D, NS_NewCanvasRenderingContext2D)
+@@ -1483,6 +1484,10 @@ static const nsModuleComponentInfo gComponents[] = {
+       "@mozilla.org/content/contentutils;1",
+       nsIContentUtilsConstructor },
+ 
++    { "Content Utils 2",
++      NS_ICONTENTUTILS2_CID,
++      "@mozilla.org/content/contentutils2;1",
++      nsIContentUtils2Constructor },
+ };
+ 
+ NS_IMPL_NSGETMODULE_WITH_CTOR(nsLayoutModule, gComponents, Initialize)
+diff --git a/mozilla/modules/plugin/base/src/nsPluginHostImpl.cpp b/mozilla/modules/plugin/base/src/nsPluginHostImpl.cpp
+index f3691fb..b2d334d 100644
+--- a/mozilla/modules/plugin/base/src/nsPluginHostImpl.cpp
++++ b/mozilla/modules/plugin/base/src/nsPluginHostImpl.cpp
+@@ -176,6 +176,10 @@
+ #include "nsIContentPolicy.h"
+ #include "nsContentPolicyUtils.h"
+ #include "nsContentErrors.h"
++#include "nsIContentUtils.h"
++
++#include "nsIInterfaceRequestor.h"
++#include "nsIChannelEventSink.h"
+ 
+ #if defined(XP_UNIX) && defined(MOZ_WIDGET_GTK2) & defined(MOZ_X11)
+ #include <gdk/gdkx.h> // for GDK_DISPLAY()
+@@ -1242,7 +1246,9 @@ private:
+ class nsPluginStreamListenerPeer : public nsIStreamListener,
+                                    public nsIProgressEventSink,
+                                    public nsIHttpHeaderVisitor,
+-                                   public nsSupportsWeakReference
++                                   public nsSupportsWeakReference,
++                                   public nsIInterfaceRequestor,
++                                   public nsIChannelEventSink
+ {
+ public:
+   nsPluginStreamListenerPeer();
+@@ -1253,6 +1259,8 @@ public:
+   NS_DECL_NSIREQUESTOBSERVER
+   NS_DECL_NSISTREAMLISTENER
+   NS_DECL_NSIHTTPHEADERVISITOR
++  NS_DECL_NSIINTERFACEREQUESTOR
++  NS_DECL_NSICHANNELEVENTSINK
+ 
+   // Called by GetURL and PostURL (via NewStream)
+   nsresult Initialize(nsIURI *aURL,
+@@ -1277,6 +1285,7 @@ private:
+   nsresult SetUpCache(nsIURI* aURL); // todo: see about removing this...
+   nsresult SetUpStreamListener(nsIRequest* request, nsIURI* aURL);
+   nsresult SetupPluginCacheFile(nsIChannel* channel);
++  nsresult GetInterfaceGlobal(const nsIID& aIID, void** result);
+ 
+   nsIURI                  *mURL;
+   nsIPluginInstanceOwner  *mOwner;
+@@ -1694,11 +1703,13 @@ nsPluginStreamListenerPeer::~nsPluginStreamListenerPeer()
+   delete mDataForwardToRequest;
+ }
+ 
+-NS_IMPL_ISUPPORTS4(nsPluginStreamListenerPeer,
++NS_IMPL_ISUPPORTS6(nsPluginStreamListenerPeer,
+                    nsIStreamListener,
+                    nsIRequestObserver,
+                    nsIHttpHeaderVisitor,
+-                   nsISupportsWeakReference)
++                   nsISupportsWeakReference,
++                   nsIInterfaceRequestor,
++                   nsIChannelEventSink)
+ 
+ // Called as a result of GetURL and PostURL
+ nsresult nsPluginStreamListenerPeer::Initialize(nsIURI *aURL,
+@@ -2505,6 +2516,89 @@ nsPluginStreamListenerPeer::VisitHeader(const nsACString &header, const nsACStri
+                                      PromiseFlatCString(value).get());
+ }
+ 
++nsresult
++nsPluginStreamListenerPeer::GetInterfaceGlobal(const nsIID& aIID, void** result)
++{
++  if (!mInstance) {
++    return NS_ERROR_FAILURE;
++  }
++
++  nsCOMPtr<nsIPluginInstancePeer> instancePeer;
++  nsresult rv = mInstance->GetPeer(getter_AddRefs(instancePeer));
++  if (NS_FAILED(rv) || !instancePeer) {
++    return NS_ERROR_FAILURE;
++  }
++
++  nsCOMPtr<nsPIPluginInstancePeer> pInstancePeer(do_QueryInterface(instancePeer));
++  nsCOMPtr<nsIPluginInstanceOwner> owner;
++  rv = pInstancePeer->GetOwner(getter_AddRefs(owner));
++  if (NS_SUCCEEDED(rv) && owner) {
++    nsCOMPtr<nsIDocument> doc;
++    nsresult rv = owner->GetDocument(getter_AddRefs(doc));
++    if (NS_SUCCEEDED(rv) && doc) {
++      nsPIDOMWindow *window = doc->GetWindow();
++      if (window) {
++        nsCOMPtr<nsIWebNavigation> webNav = do_GetInterface(window);
++        nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(webNav);
++        return ir->GetInterface(aIID, result);
++      }
++    }
++  }
++
++  return NS_ERROR_FAILURE;
++}
++
++NS_IMETHODIMP
++nsPluginStreamListenerPeer::GetInterface(const nsIID& aIID, void** result)
++{
++  // Provide nsIChannelEventSink ourselves, otherwise let our document's
++  // window provide the interface.
++
++  if (aIID.Equals(NS_GET_IID(nsIChannelEventSink))) {
++    return QueryInterface(aIID, result);
++  }
++
++  return GetInterfaceGlobal(aIID, result);
++}
++
++NS_IMETHODIMP
++nsPluginStreamListenerPeer::OnChannelRedirect(nsIChannel *oldChannel, nsIChannel *newChannel, PRUint32 flags)
++{
++  // Don't allow cross-origin 307 POST redirects. Fall back to channel event sink for window.
++
++  nsCOMPtr<nsIHttpChannel> oldHttpChannel(do_QueryInterface(oldChannel));
++  if (oldHttpChannel) {
++    PRUint32 responseStatus;
++    nsresult rv = oldHttpChannel->GetResponseStatus(&responseStatus);
++    if (NS_FAILED(rv)) {
++      return rv;
++    }
++    if (responseStatus == 307) {
++      nsCAutoString method;
++      rv = oldHttpChannel->GetRequestMethod(method);
++      if (NS_FAILED(rv)) {
++        return rv;
++      }
++      if (method.EqualsLiteral("POST")) {
++        nsCOMPtr<nsIContentUtils2> contentUtils2 = do_GetService("@mozilla.org/content/contentutils2;1");
++        NS_ENSURE_TRUE(contentUtils2, NS_ERROR_FAILURE);
++        rv = contentUtils2->CheckSameOrigin(oldChannel, newChannel);
++        if (NS_FAILED(rv)) {
++          return rv;
++        }
++      }
++    }
++  }
++
++  nsCOMPtr<nsIChannelEventSink> channelEventSink;
++  nsresult rv = GetInterfaceGlobal(NS_GET_IID(nsIChannelEventSink), getter_AddRefs(channelEventSink));
++  if (NS_FAILED(rv)) {
++    return NS_ERROR_FAILURE;
++  }
++
++  return channelEventSink->OnChannelRedirect(oldChannel, newChannel, flags);
++}
++
+ nsPluginHostImpl::nsPluginHostImpl()
+ {
+   mPluginsLoaded = PR_FALSE;
+@@ -5739,24 +5833,12 @@ NS_IMETHODIMP nsPluginHostImpl::NewPluginURLStream(const nsString& aURL,
+     rv = listenerPeer->Initialize(url, aInstance, aListener);
+ 
+     if (NS_SUCCEEDED(rv)) {
+-      nsCOMPtr<nsIInterfaceRequestor> callbacks;
+-      if (doc) {
+-        // Get the script global object owner and use that as the
+-        // notification callback.
+-        nsIScriptGlobalObject* global = doc->GetScriptGlobalObject();
+-        if (global) {
+-          nsCOMPtr<nsIWebNavigation> webNav = do_GetInterface(global);
+-          callbacks = do_QueryInterface(webNav);
+-        }
+-      }
+-
+       nsCOMPtr<nsIChannel> channel;
+-
+       rv = NS_NewChannel(getter_AddRefs(channel), url, nsnull,
+         nsnull, /* do not add this internal plugin's channel
+                 on the load group otherwise this channel could be canceled
+                 form |nsWebShell::OnLinkClickSync| bug 166613 */
+-        callbacks);
++        listenerPeer);
+       if (NS_FAILED(rv))
+         return rv;
+ 
+-- 

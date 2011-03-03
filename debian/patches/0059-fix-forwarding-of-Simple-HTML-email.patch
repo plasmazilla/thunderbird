@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 14 Nov 2010 17:06:22 +0100
-Subject: [PATCH] fix forwarding of Simple HTML email
+Subject: fix forwarding of Simple HTML email
 
 If you forward a HTML or Simple HTML email, it could create a blank
 email.

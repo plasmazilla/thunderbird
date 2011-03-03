@@ -1,0 +1,207 @@
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Mon, 13 Dec 2010 14:24:55 -0800
+Subject: security-1.9.1.17: Bug 602115: Fix XSLT error handling bugs. r=peterv a=dveditz
+
+---
+ mozilla/content/xslt/crashtests/602115.html        |   22 +++++++++
+ mozilla/content/xslt/crashtests/crashtests.list    |    1 +
+ mozilla/content/xslt/src/xslt/txExecutionState.cpp |   49 ++++++--------------
+ mozilla/content/xslt/src/xslt/txExecutionState.h   |    9 ++--
+ .../xslt/src/xslt/txMozillaXSLTProcessor.cpp       |   12 +++--
+ 5 files changed, 49 insertions(+), 44 deletions(-)
+ create mode 100644 mozilla/content/xslt/crashtests/602115.html
+
+diff --git a/mozilla/content/xslt/crashtests/602115.html b/mozilla/content/xslt/crashtests/602115.html
+new file mode 100644
+index 0000000..ad42d76
+--- /dev/null
++++ b/mozilla/content/xslt/crashtests/602115.html
+@@ -0,0 +1,22 @@
++<!DOCTYPE html>
++<script>
++
++try {
++  var docType = document.implementation.createDocumentType(undefined, '', '');
++  var doc = document.implementation.createDocument('', '', null);
++  var xp = new XSLTProcessor;
++  xp.importStylesheet(doc);
++  xp.transformToDocument(docType);
++}
++catch (ex) {}
++
++try {
++  docType = document.implementation.createDocumentType(undefined, '', '');
++  doc = document.implementation.createDocument('', '', null);
++  xp = new XSLTProcessor;
++  xp.importStylesheet(doc);
++  xp.transformToFragment(docType, document);
++}
++catch (ex) {}
++
++</script>
+diff --git a/mozilla/content/xslt/crashtests/crashtests.list b/mozilla/content/xslt/crashtests/crashtests.list
+index ba6447d..d44f34f 100644
+--- a/mozilla/content/xslt/crashtests/crashtests.list
++++ b/mozilla/content/xslt/crashtests/crashtests.list
+@@ -8,3 +8,4 @@ load 485286.xml
+ load 528300.xml
+ load 528488.xml
+ load 545927.html
++load 602115.html
+diff --git a/mozilla/content/xslt/src/xslt/txExecutionState.cpp b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+index d8f5ec7..a2aa72a 100644
+--- a/mozilla/content/xslt/src/xslt/txExecutionState.cpp
++++ b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+@@ -90,9 +90,6 @@ txExecutionState::txExecutionState(txStylesheet* aStylesheet,
+       mNextInstruction(nsnull),
+       mLocalVariables(nsnull),
+       mRecursionDepth(0),
+-      mTemplateRules(nsnull),
+-      mTemplateRulesBufferSize(0),
+-      mTemplateRuleCount(0),
+       mEvalContext(nsnull),
+       mInitialEvalContext(nsnull),
+       mGlobalParams(nsnull),
+@@ -109,12 +106,6 @@ txExecutionState::~txExecutionState()
+     delete mResultHandler;
+     delete mLocalVariables;
+     delete mEvalContext;
+-
+-    PRInt32 i;
+-    for (i = 0; i < mTemplateRuleCount; ++i) {
+-        NS_IF_RELEASE(mTemplateRules[i].mModeLocalName);
+-    }
+-    delete [] mTemplateRules;
+     
+     txStackIterator varsIter(&mLocalVarsStack);
+     while (varsIter.hasNext()) {
+@@ -204,7 +195,11 @@ txExecutionState::init(const txXPathNode& aNode,
+ nsresult
+ txExecutionState::end(nsresult aResult)
+ {
+-    popTemplateRule();
++    NS_ASSERTION(NS_FAILED(aResult) || mTemplateRules.Length() == 1,
++                 "Didn't clean up template rules properly");
++    if (NS_SUCCEEDED(aResult)) {
++        popTemplateRule();
++    }
+     return mOutputHandler->endDocument(aResult);
+ }
+ 
+@@ -408,35 +403,18 @@ txExecutionState::pushTemplateRule(txStylesheet::ImportFrame* aFrame,
+                                    const txExpandedName& aMode,
+                                    txVariableMap* aParams)
+ {
+-    if (mTemplateRuleCount == mTemplateRulesBufferSize) {
+-        PRInt32 newSize =
+-            mTemplateRulesBufferSize ? mTemplateRulesBufferSize * 2 : 10;
+-        TemplateRule* newRules = new TemplateRule[newSize];
+-        NS_ENSURE_TRUE(newRules, NS_ERROR_OUT_OF_MEMORY);
+-        
+-        memcpy(newRules, mTemplateRules,
+-               mTemplateRuleCount * sizeof(TemplateRule));
+-        delete [] mTemplateRules;
+-        mTemplateRules = newRules;
+-        mTemplateRulesBufferSize = newSize;
+-    }
+-
+-    mTemplateRules[mTemplateRuleCount].mFrame = aFrame;
+-    mTemplateRules[mTemplateRuleCount].mModeNsId = aMode.mNamespaceID;
+-    mTemplateRules[mTemplateRuleCount].mModeLocalName = aMode.mLocalName;
+-    mTemplateRules[mTemplateRuleCount].mParams = aParams;
+-    NS_IF_ADDREF(mTemplateRules[mTemplateRuleCount].mModeLocalName);
+-    ++mTemplateRuleCount;
+-    
+-    return NS_OK;
++    TemplateRule* rule = mTemplateRules.AppendElement();
++    rule->mFrame = aFrame;
++    rule->mModeNsId = aMode.mNamespaceID;
++    rule->mModeLocalName = aMode.mLocalName;
++    rule->mParams = aParams;
+ }
+ 
+ void
+ txExecutionState::popTemplateRule()
+ {
+-    // decrement outside of RELEASE, that would decrement twice
+-    --mTemplateRuleCount;
+-    NS_IF_RELEASE(mTemplateRules[mTemplateRuleCount].mModeLocalName);
++    NS_PRECONDITION(!mTemplateRules.IsEmpty(), "No rules to pop");
++    mTemplateRules.RemoveElementAt(mTemplateRules.Length() - 1);
+ }
+ 
+ txIEvalContext*
+@@ -500,7 +478,8 @@ txExecutionState::getKeyNodes(const txExpandedName& aKeyName,
+ txExecutionState::TemplateRule*
+ txExecutionState::getCurrentTemplateRule()
+ {
+-    return mTemplateRules + mTemplateRuleCount - 1;
++    NS_PRECONDITION(!mTemplateRules.IsEmpty(), "No current rule!");
++    return &mTemplateRules[mTemplateRules.Length() - 1];
+ }
+ 
+ txInstruction*
+diff --git a/mozilla/content/xslt/src/xslt/txExecutionState.h b/mozilla/content/xslt/src/xslt/txExecutionState.h
+index 2975780..a8e4025 100644
+--- a/mozilla/content/xslt/src/xslt/txExecutionState.h
++++ b/mozilla/content/xslt/src/xslt/txExecutionState.h
+@@ -104,10 +104,11 @@ public:
+     /**
+      * Struct holding information about a current template rule
+      */
+-    struct TemplateRule {
++    class TemplateRule {
++    public:
+         txStylesheet::ImportFrame* mFrame;
+         PRInt32 mModeNsId;
+-        nsIAtom* mModeLocalName;
++        nsCOMPtr<nsIAtom> mModeLocalName;
+         txVariableMap* mParams;
+     };
+ 
+@@ -173,9 +174,7 @@ private:
+     nsRefPtr<txAExprResult> mGlobalVarPlaceholderValue;
+     PRInt32 mRecursionDepth;
+ 
+-    TemplateRule* mTemplateRules;
+-    PRInt32 mTemplateRulesBufferSize;
+-    PRInt32 mTemplateRuleCount;
++    nsAutoTArray<TemplateRule, 10> mTemplateRules;
+ 
+     txIEvalContext* mEvalContext;
+     txIEvalContext* mInitialEvalContext;
+diff --git a/mozilla/content/xslt/src/xslt/txMozillaXSLTProcessor.cpp b/mozilla/content/xslt/src/xslt/txMozillaXSLTProcessor.cpp
+index 1d0be61..9288986 100644
+--- a/mozilla/content/xslt/src/xslt/txMozillaXSLTProcessor.cpp
++++ b/mozilla/content/xslt/src/xslt/txMozillaXSLTProcessor.cpp
+@@ -677,10 +677,12 @@ txMozillaXSLTProcessor::TransformToDoc(nsIDOMDocument *aOutputDoc,
+                                          mObserver);
+     es.mOutputHandlerFactory = &handlerFactory;
+ 
+-    es.init(*sourceNode, &mVariables);
++    nsresult rv = es.init(*sourceNode, &mVariables);
+ 
+     // Process root of XML source document
+-    nsresult rv = txXSLTProcessor::execute(es);
++    if (NS_SUCCEEDED(rv)) {
++        rv = txXSLTProcessor::execute(es);
++    }
+     
+     nsresult endRv = es.end(rv);
+     if (NS_SUCCEEDED(rv)) {
+@@ -734,10 +736,12 @@ txMozillaXSLTProcessor::TransformToFragment(nsIDOMNode *aSource,
+     txToFragmentHandlerFactory handlerFactory(*aResult);
+     es.mOutputHandlerFactory = &handlerFactory;
+ 
+-    es.init(*sourceNode, &mVariables);
++    rv = es.init(*sourceNode, &mVariables);
+ 
+     // Process root of XML source document
+-    rv = txXSLTProcessor::execute(es);
++    if (NS_SUCCEEDED(rv)) {
++        rv = txXSLTProcessor::execute(es);
++    }
+     // XXX setup exception context, bug 204658
+     nsresult endRv = es.end(rv);
+     if (NS_SUCCEEDED(rv)) {
+-- 

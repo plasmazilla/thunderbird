@@ -1,0 +1,261 @@
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Mon, 29 Nov 2010 13:50:09 -0500
+Subject: security-1.9.1.17: Bug 614116 - Enforce HTTP mode when setting a storage value for in-memory databases; r=mayhemer a=dveditz
+
+---
+ mozilla/dom/src/storage/nsDOMStorageMemoryDB.cpp   |    2 +
+ mozilla/dom/tests/mochitest/Makefile.in            |    1 +
+ .../dom/tests/mochitest/globalstorage/Makefile.in  |   54 ++++++++++++
+ .../globalstorage/iframe_bug614116-1.html          |   30 +++++++
+ .../globalstorage/iframe_bug614116-2.html          |   24 ++++++
+ .../mochitest/globalstorage/test_bug614116.html    |   86 ++++++++++++++++++++
+ 6 files changed, 197 insertions(+), 0 deletions(-)
+ create mode 100644 mozilla/dom/tests/mochitest/globalstorage/Makefile.in
+ create mode 100644 mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-1.html
+ create mode 100644 mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-2.html
+ create mode 100644 mozilla/dom/tests/mochitest/globalstorage/test_bug614116.html
+
+diff --git a/mozilla/dom/src/storage/nsDOMStorageMemoryDB.cpp b/mozilla/dom/src/storage/nsDOMStorageMemoryDB.cpp
+index 1c45e80..034e521 100644
+--- a/mozilla/dom/src/storage/nsDOMStorageMemoryDB.cpp
++++ b/mozilla/dom/src/storage/nsDOMStorageMemoryDB.cpp
+@@ -220,6 +220,8 @@ nsDOMStorageMemoryDB::SetKey(nsDOMStorage* aStorage,
+   }
+   else
+   {
++    if (!aSecure && item->mSecure)
++      return NS_ERROR_DOM_SECURITY_ERR;
+     usage -= aKey.Length() + item->mValue.Length();
+     if (usage > aQuota) {
+       return NS_ERROR_DOM_QUOTA_REACHED;
+diff --git a/mozilla/dom/tests/mochitest/Makefile.in b/mozilla/dom/tests/mochitest/Makefile.in
+index 9e3d220..51c39b4 100644
+--- a/mozilla/dom/tests/mochitest/Makefile.in
++++ b/mozilla/dom/tests/mochitest/Makefile.in
+@@ -53,6 +53,7 @@ DIRS	+= \
+ 	general \
+ 	whatwg \
+ 	geolocation \
++	globalstorage \
+ 	localstorage \
+ 	sessionstorage \
+ 	$(NULL)
+diff --git a/mozilla/dom/tests/mochitest/globalstorage/Makefile.in b/mozilla/dom/tests/mochitest/globalstorage/Makefile.in
+new file mode 100644
+index 0000000..199e7a6
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/globalstorage/Makefile.in
+@@ -0,0 +1,54 @@
++#
++# ***** BEGIN LICENSE BLOCK *****
++# Version: MPL 1.1/GPL 2.0/LGPL 2.1
++#
++# The contents of this file are subject to the Mozilla Public License Version
++# 1.1 (the "License"); you may not use this file except in compliance with
++# the License. You may obtain a copy of the License at
++# http://www.mozilla.org/MPL/
++#
++# Software distributed under the License is distributed on an "AS IS" basis,
++# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++# for the specific language governing rights and limitations under the
++# License.
++#
++# The Original Code is mozilla.org code.
++#
++# The Initial Developer of the Original Code is
++# Mozilla Foundation.
++# Portions created by the Initial Developer are Copyright (C) 2010
++# the Initial Developer. All Rights Reserved.
++#
++# Contributor(s):
++#
++# Alternatively, the contents of this file may be used under the terms of
++# either of the GNU General Public License Version 2 or later (the "GPL"),
++# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
++# in which case the provisions of the GPL or the LGPL are applicable instead
++# of those above. If you wish to allow use of your version of this file only
++# under the terms of either the GPL or the LGPL, and not to allow others to
++# use your version of this file under the terms of the MPL, indicate your
++# decision by deleting the provisions above and replace them with the notice
++# and other provisions required by the GPL or the LGPL. If you do not delete
++# the provisions above, a recipient may use your version of this file under
++# the terms of any one of the MPL, the GPL or the LGPL.
++#
++# ***** END LICENSE BLOCK *****
++
++DEPTH		= ../../../..
++topsrcdir	= @top_srcdir@
++srcdir		= @srcdir@
++VPATH		= @srcdir@
++relativesrcdir	= dom/tests/mochitest/globalstorage
++
++include $(DEPTH)/config/autoconf.mk
++include $(topsrcdir)/config/rules.mk
++
++_TEST_FILES	= \
++		test_bug614116.html \
++		iframe_bug614116-1.html \
++		iframe_bug614116-2.html \
++		$(NULL)
++
++libs:: 	$(_TEST_FILES)
++	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+diff --git a/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-1.html b/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-1.html
+new file mode 100644
+index 0000000..12742fb
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-1.html
+@@ -0,0 +1,30 @@
++<!DOCTYPE html>
++<html>
++  <body onload="loaded()">
++    <script>
++      function loaded() {
++        parent.postMessage("loaded", "http://mochi.test:8888");
++      }
++
++      function onMessageReceived(e) {
++        switch (e.data) {
++        case "getdata":
++          parent.postMessage("data:" + globalStorage["example.com"].data, "http://mochi.test:8888");
++          break;
++        case "setdata":
++          var didSucceed = true;
++          try {
++            globalStorage["example.com"].data = "value2";
++          } catch(e) {
++            didSucceed = false;
++          }
++          parent.postMessage("success:" + didSucceed, "http://mochi.test:8888");
++          parent.postMessage("dataset2:" + globalStorage["example.com"].data, "http://mochi.test:8888");
++          break;
++        }
++      }
++
++      addEventListener("message", onMessageReceived, false);
++    </script>
++  </body>
++</html>
+diff --git a/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-2.html b/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-2.html
+new file mode 100644
+index 0000000..66777b1
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/globalstorage/iframe_bug614116-2.html
+@@ -0,0 +1,24 @@
++<!DOCTYPE html>
++<html>
++  <body onload="loaded()">
++    <script>
++      function loaded() {
++        parent.postMessage("loaded", "http://mochi.test:8888");
++      }
++
++      function onMessageReceived(e) {
++        switch (e.data) {
++        case "getdata":
++          parent.postMessage("data2:" + globalStorage["example.com"].data, "http://mochi.test:8888");
++          break;
++        case "setdata":
++          globalStorage["example.com"].data = "value";
++          parent.postMessage("dataset:" + globalStorage["example.com"].data, "http://mochi.test:8888");
++          break;
++        }
++      }
++
++      addEventListener("message", onMessageReceived, false);
++    </script>
++  </body>
++</html>
+diff --git a/mozilla/dom/tests/mochitest/globalstorage/test_bug614116.html b/mozilla/dom/tests/mochitest/globalstorage/test_bug614116.html
+new file mode 100644
+index 0000000..1ebc91d
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/globalstorage/test_bug614116.html
+@@ -0,0 +1,86 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=614116
++-->
++<head>
++  <title>Test for Bug 614116</title>
++  <script type="application/javascript" src="/MochiKit/packed.js"></script>
++  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=614116">Mozilla Bug 614116</a>
++<p id="display"></p>
++<div id="content">
++<iframe id="http"></iframe>
++<iframe id="https"></iframe>
++</div>
++<pre id="test">
++<script type="application/javascript">
++
++/** Test for Bug 614116 **/
++SimpleTest.waitForExplicitFinish();
++addLoadEvent(function() {
++  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
++
++  const httpDomain = "http://example.com";
++  const httpsDomain = "https://example.com";
++  const path = "/tests/dom/tests/mochitest/globalstorage/";
++
++  var pm = Components.classes["@mozilla.org/permissionmanager;1"]
++                     .getService(Components.interfaces.nsIPermissionManager);
++  var ios = Components.classes["@mozilla.org/network/io-service;1"]
++                      .getService(Components.interfaces.nsIIOService);
++  pm.add(ios.newURI(httpDomain, null, null), "cookie", Components.interfaces.nsICookiePermission.ACCESS_SESSION);
++  pm.add(ios.newURI(httpsDomain, null, null), "cookie", Components.interfaces.nsICookiePermission.ACCESS_SESSION);
++
++  var http = document.getElementById("http");
++  var https = document.getElementById("https");
++
++  function finishTest() {
++    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
++    pm.remove("example.com", "cookie");
++    SimpleTest.finish();
++  }
++
++  var loaded = 0;
++  function onMessageReceived(e) {
++    switch (e.data) {
++    case "loaded":
++      ++loaded;
++      ok(loaded <= 2, "Two iframes should be loaded at most");
++      if (loaded == 2) {
++        https.contentWindow.postMessage("setdata", httpsDomain);
++      }
++      break;
++    default:
++      if (e.data.indexOf("dataset:") == 0) {
++        is(e.data.substr(8), "value", "Correct value should be set");
++        http.contentWindow.postMessage("getdata", httpDomain);
++      } else if (e.data.indexOf("data:") == 0) {
++        is(e.data.substr(5), "undefined", "Data should not be available in HTTP mode");
++        http.contentWindow.postMessage("setdata", httpDomain);
++      } else if (e.data.indexOf("dataset2:") == 0) {
++        is(e.data.substr(9), "undefined", "Correct value should be set");
++        https.contentWindow.postMessage("getdata", httpsDomain);
++      } else if (e.data.indexOf("data2:") == 0) {
++        is(e.data.substr(6), "value", "Data should not be modified in HTTP mode");
++        finishTest();
++      } else if (e.data.indexOf("success:") == 0) {
++        is(e.data.substr(8), "false", "Setting the value in HTTP mode should fail");
++      }
++    }
++  }
++
++  window.addEventListener("message", onMessageReceived, false);
++
++  http.src = httpDomain + path + "iframe_bug614116-1.html";
++  https.src = httpsDomain + path + "iframe_bug614116-2.html";
++});
++
++</script>
++</pre>
++</body>
++</html>
+-- 

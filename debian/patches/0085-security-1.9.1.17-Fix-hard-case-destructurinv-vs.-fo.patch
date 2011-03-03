@@ -1,0 +1,28 @@
+From: Brendan Eich <brendan@mozilla.org>
+Date: Thu, 20 Jan 2011 15:48:18 -0800
+Subject: security-1.9.1.17: Fix hard-case destructurinv vs. for(var ...=... in ...) bug (558633, r=mrbkap, a=dveditz).
+
+---
+ mozilla/js/src/jsparse.cpp |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jsparse.cpp b/mozilla/js/src/jsparse.cpp
+index 230e744..be5978e 100644
+--- a/mozilla/js/src/jsparse.cpp
++++ b/mozilla/js/src/jsparse.cpp
+@@ -3464,7 +3464,13 @@ BindDestructuringLHS(JSContext *cx, JSParseNode *pn, JSTreeContext *tc)
+ 
+       case TOK_DOT:
+       case TOK_LB:
+-        pn->pn_op = JSOP_SETNAME;
++        /*
++         * We may be called on a name node that has already been specialized,
++         * in the very weird and ECMA-262-required "for (var [x] = i in o) ..."
++         * case. See bug 558633.
++         */
++        if (!(js_CodeSpec[pn->pn_op].format & JOF_SET))
++            pn->pn_op = JSOP_SETNAME;
+         break;
+ 
+ #if JS_HAS_LVALUE_RETURN
+-- 

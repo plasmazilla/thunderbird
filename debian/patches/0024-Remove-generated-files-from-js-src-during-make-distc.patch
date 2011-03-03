@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sun, 24 Jan 2010 09:03:25 +0100
-Subject: [PATCH] Remove generated files from js/src during make distclean
+Subject: Remove generated files from js/src during make distclean
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=541770
 ---

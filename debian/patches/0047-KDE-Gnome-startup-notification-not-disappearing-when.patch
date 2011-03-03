@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Tue, 6 Apr 2010 09:13:16 +0200
-Subject: [PATCH] KDE/Gnome startup notification not disappearing when app window is up
+Subject: KDE/Gnome startup notification not disappearing when app window is up
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=416053
 ---

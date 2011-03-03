@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Wed, 27 Jan 2010 19:07:15 +0100
-Subject: [PATCH] gnome mail command
+Subject: gnome mail command
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=550568
 ---

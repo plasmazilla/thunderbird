@@ -1,0 +1,83 @@
+From: Mats Palmgren <matspal@gmail.com>
+Date: Wed, 19 Jan 2011 00:13:49 +0100
+Subject: security-1.9.1.17: Bug 576649. r=dbaron a=blocking1.9.1.17
+
+---
+ mozilla/layout/base/nsCSSFrameConstructor.cpp |   12 +++++++-----
+ mozilla/layout/base/nsFrameManager.cpp        |   20 +++++++++++++-------
+ 2 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/layout/base/nsCSSFrameConstructor.cpp b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+index 09b2695..52bfc64 100644
+--- a/mozilla/layout/base/nsCSSFrameConstructor.cpp
++++ b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+@@ -9693,13 +9693,15 @@ UpdateViewsForTree(nsIFrame* aFrame, nsIViewManager* aViewManager,
+       if (!(child->GetStateBits() & NS_FRAME_OUT_OF_FLOW)
+           || (child->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER)) {
+         // only do frames that don't have placeholders
+-        if (nsGkAtoms::placeholderFrame == child->GetType()) { // placeholder
+-          // get out of flow frame and start over there
++        if (nsGkAtoms::placeholderFrame == child->GetType()) {
++          // do the out-of-flow frame and its continuations
+           nsIFrame* outOfFlowFrame =
+             nsPlaceholderFrame::GetRealFrameForPlaceholder(child);
+-
+-          DoApplyRenderingChangeToTree(outOfFlowFrame, aViewManager,
+-                                       aFrameManager, aChange);
++          do {
++            DoApplyRenderingChangeToTree(outOfFlowFrame, aViewManager,
++                                         aFrameManager, aChange);
++          } while ((outOfFlowFrame = outOfFlowFrame->GetNextContinuation()) &&
++                   (outOfFlowFrame->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER));
+         }
+         else {  // regular frame
+           UpdateViewsForTree(child, aViewManager, aFrameManager, aChange);
+diff --git a/mozilla/layout/base/nsFrameManager.cpp b/mozilla/layout/base/nsFrameManager.cpp
+index 4704dab..c9f3e25 100644
+--- a/mozilla/layout/base/nsFrameManager.cpp
++++ b/mozilla/layout/base/nsFrameManager.cpp
+@@ -22,6 +22,7 @@
+  * the Initial Developer. All Rights Reserved.
+  *
+  * Contributor(s):
++ *   Mats Palmgren <matspal@gmail.com>
+  *
+  * Alternatively, the contents of this file may be used under the terms of
+  * either of the GNU General Public License Version 2 or later (the "GPL"),
+@@ -935,12 +936,14 @@ nsresult
+ nsFrameManager::ReParentStyleContext(nsIFrame* aFrame)
+ {
+   if (nsGkAtoms::placeholderFrame == aFrame->GetType()) {
+-    // Also reparent the out-of-flow
++    // Also reparent the out-of-flow and all its continuations.
+     nsIFrame* outOfFlow =
+       nsPlaceholderFrame::GetRealFrameForPlaceholder(aFrame);
+     NS_ASSERTION(outOfFlow, "no out-of-flow frame");
+-
+-    ReParentStyleContext(outOfFlow);
++    do {
++      ReParentStyleContext(outOfFlow);
++    } while ((outOfFlow = outOfFlow->GetNextContinuation()) &&
++             (outOfFlow->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER));
+   }
+ 
+   // DO NOT verify the style tree before reparenting.  The frame
+@@ -1483,10 +1486,13 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
+ 
+               // |nsFrame::GetParentStyleContextFrame| checks being out
+               // of flow so that this works correctly.
+-              ReResolveStyleContext(aPresContext, outOfFlowFrame,
+-                                    content, aChangeList,
+-                                    NS_SubtractHint(aMinChange,
+-                                                    nsChangeHint_ReflowFrame));
++              do {
++                ReResolveStyleContext(aPresContext, outOfFlowFrame,
++                                      content, aChangeList,
++                                      NS_SubtractHint(aMinChange,
++                                                      nsChangeHint_ReflowFrame));
++              } while ((outOfFlowFrame = outOfFlowFrame->GetNextContinuation()) &&
++                       (outOfFlowFrame->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER));
+ 
+               // reresolve placeholder's context under the same parent
+               // as the out-of-flow frame
+-- 

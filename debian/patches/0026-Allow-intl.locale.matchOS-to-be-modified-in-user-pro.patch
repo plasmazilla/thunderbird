@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 29 Jan 2010 10:40:51 +0100
-Subject: [PATCH] Allow intl.locale.matchOS to be modified in user profile
+Subject: Allow intl.locale.matchOS to be modified in user profile
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=519468
 ---

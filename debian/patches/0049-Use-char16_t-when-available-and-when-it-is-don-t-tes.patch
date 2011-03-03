@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 7 Apr 2010 18:56:43 +0200
-Subject: [PATCH] Use char16_t when available, and when it is, don't test for -fshort-wchar
+Subject: Use char16_t when available, and when it is, don't test for -fshort-wchar
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=502298
 ---

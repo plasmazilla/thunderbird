@@ -1,6 +1,6 @@
 From: Alexander Sack <asac@debian.org>
 Date: Wed, 27 Jan 2010 19:05:42 +0100
-Subject: [PATCH] thunderbird-3-profile
+Subject: thunderbird-3-profile
 
 ---
  config/autoconf.mk.in         |    8 ++++----

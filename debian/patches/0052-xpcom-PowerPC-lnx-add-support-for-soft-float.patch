@@ -1,6 +1,6 @@
 From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 Date: Wed, 16 Jun 2010 11:03:10 +0200
-Subject: [PATCH] xpcom/PowerPC lnx: add support for soft-float
+Subject: xpcom/PowerPC lnx: add support for soft-float
 
 current implemention assumes hard float what means dedicated floating
 point registers are used for floating point numbers. This does not work

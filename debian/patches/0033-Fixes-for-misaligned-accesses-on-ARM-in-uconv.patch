@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sat, 13 Feb 2010 09:57:31 +0100
-Subject: [PATCH] Fixes for misaligned accesses on ARM in uconv
+Subject: Fixes for misaligned accesses on ARM in uconv
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=544512
 ---

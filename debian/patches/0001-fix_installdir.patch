@@ -1,6 +1,6 @@
 From: Alexander Sack <asac@debian.org>
 Date: Wed, 27 Jan 2010 19:05:18 +0100
-Subject: [PATCH] fix_installdir
+Subject: fix_installdir
 
 ---
  mail/app/Makefile.in |    6 +++---

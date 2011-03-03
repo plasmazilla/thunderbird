@@ -1,0 +1,21 @@
+From: Josh Aas <joshmoz@gmail.com>
+Date: Wed, 8 Dec 2010 16:16:09 -0500
+Subject: security-1.9.1.17: Bug 573873: Bustage fix. a=dveditz
+
+---
+ mozilla/content/base/public/nsContentUtils.h |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/base/public/nsContentUtils.h b/mozilla/content/base/public/nsContentUtils.h
+index 6a4626b..127d803 100644
+--- a/mozilla/content/base/public/nsContentUtils.h
++++ b/mozilla/content/base/public/nsContentUtils.h
+@@ -115,6 +115,7 @@ class nsIXTFService;
+ class nsIBidiKeyboard;
+ #endif
+ class nsIMIMEHeaderParam;
++class nsIChannel;
+ 
+ extern const char kLoadAsData[];
+ 
+-- 

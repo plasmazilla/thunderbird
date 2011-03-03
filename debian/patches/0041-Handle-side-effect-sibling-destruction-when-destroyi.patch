@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 25 Feb 2010 15:19:00 +0100
-Subject: [PATCH] Handle side-effect sibling destruction when destroying child windows
+Subject: Handle side-effect sibling destruction when destroying child windows
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=528386
 ---

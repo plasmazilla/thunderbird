@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 7 Apr 2010 18:58:35 +0200
-Subject: [PATCH] Fix compiler errors with g++ 4.4 with -std=gnu++0x
+Subject: Fix compiler errors with g++ 4.4 with -std=gnu++0x
 
 of the form: error: narrowing conversion ... inside { }
 

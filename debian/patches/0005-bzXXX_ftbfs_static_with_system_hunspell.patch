@@ -1,6 +1,6 @@
 From: Alexander Sack <asac@debian.org>
 Date: Wed, 27 Jan 2010 19:07:00 +0100
-Subject: [PATCH] bzXXX_ftbfs_static_with_system_hunspell
+Subject: bzXXX_ftbfs_static_with_system_hunspell
 
 ---
  mail/app/Makefile.in |    1 +

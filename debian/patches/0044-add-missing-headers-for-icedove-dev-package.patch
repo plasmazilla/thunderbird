@@ -1,6 +1,6 @@
 From: Michael Musenbrock <redeamer@gmx.net>
 Date: Thu, 8 Apr 2010 23:11:39 +0200
-Subject: [PATCH] add missing headers for icedove-dev package
+Subject: add missing headers for icedove-dev package
 
 nsStreamConverter.h
 mimecryp.h

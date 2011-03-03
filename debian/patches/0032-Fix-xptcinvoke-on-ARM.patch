@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Mon, 8 Feb 2010 09:54:43 +0100
-Subject: [PATCH] Fix xptcinvoke on ARM
+Subject: Fix xptcinvoke on ARM
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=476903
 ---

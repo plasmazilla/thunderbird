@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Fri, 30 Apr 2010 11:03:50 +0200
-Subject: [PATCH] Add xptcall support for SH4 processors
+Subject: Add xptcall support for SH4 processors
 
 Closes: #573400
 https://bugzilla.mozilla.org/show_bug.cgi?id=382214

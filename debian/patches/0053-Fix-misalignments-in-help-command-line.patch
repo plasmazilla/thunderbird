@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 19 Jun 2010 23:18:49 +0200
-Subject: [PATCH] Fix misalignments in --help command line
+Subject: Fix misalignments in --help command line
 
 for -options, -file and -setDefaultMail
 ---

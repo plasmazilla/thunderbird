@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 17 Feb 2010 15:48:54 +0100
-Subject: [PATCH] Cleanup top directory during make distclean
+Subject: Cleanup top directory during make distclean
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=546642
 ---

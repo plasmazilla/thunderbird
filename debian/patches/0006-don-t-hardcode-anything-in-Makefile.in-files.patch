@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Wed, 27 Jan 2010 19:07:09 +0100
-Subject: [PATCH] don't hardcode anything in Makefile.in files
+Subject: don't hardcode anything in Makefile.in files
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=550506
 ---

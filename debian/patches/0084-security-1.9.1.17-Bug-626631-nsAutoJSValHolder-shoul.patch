@@ -1,0 +1,75 @@
+From: Luke Wagner <lw@mozilla.com>
+Date: Thu, 20 Jan 2011 16:11:19 -0800
+Subject: security-1.9.1.17: Bug 626631 - nsAutoJSValHolder should root its jsval (r=gal,a=clegnitto)
+
+---
+ .../js/src/xpconnect/public/nsAutoJSValHolder.h    |   14 ++++----------
+ 1 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/mozilla/js/src/xpconnect/public/nsAutoJSValHolder.h b/mozilla/js/src/xpconnect/public/nsAutoJSValHolder.h
+index 6a57dc8..af0fd52 100644
+--- a/mozilla/js/src/xpconnect/public/nsAutoJSValHolder.h
++++ b/mozilla/js/src/xpconnect/public/nsAutoJSValHolder.h
+@@ -54,7 +54,6 @@ public:
+   nsAutoJSValHolder()
+     : mRt(NULL)
+     , mVal(JSVAL_NULL)
+-    , mGCThing(NULL)
+     , mHeld(JS_FALSE)
+   {
+     // nothing to do
+@@ -76,11 +75,11 @@ public:
+ 
+   /**
+    * Hold by rooting on the runtime.
+-   * Note that mGCThing may be JSVAL_NULL, which is not a problem.
++   * Note that mVal may be JSVAL_NULL, which is not a problem.
+    */
+   JSBool Hold(JSRuntime* aRt) {
+     if (!mHeld) {
+-      if (JS_AddNamedRootRT(aRt, &mGCThing, "nsAutoJSValHolder")) {
++      if (JS_AddNamedRootRT(aRt, &mVal, "nsAutoJSValHolder")) {
+         mRt = aRt;
+         mHeld = JS_TRUE;
+       } else {
+@@ -91,7 +90,7 @@ public:
+   }
+ 
+   /**
+-   * Manually release, nullifying mVal, mGCThing, and mRt, but returning
++   * Manually release, nullifying mVal and mRt, but returning
+    * the original jsval.
+    */
+   jsval Release() {
+@@ -100,12 +99,11 @@ public:
+     jsval oldval = mVal;
+ 
+     if (mHeld) {
+-      JS_RemoveRootRT(mRt, &mGCThing); // infallible
++      JS_RemoveRootRT(mRt, &mVal); // infallible
+       mHeld = JS_FALSE;
+     }
+ 
+     mVal = JSVAL_NULL;
+-    mGCThing = NULL;
+     mRt = NULL;
+ 
+     return oldval;
+@@ -152,16 +150,12 @@ public:
+     }
+ #endif
+     mVal = aOther;
+-    mGCThing = JSVAL_IS_GCTHING(aOther)
+-             ? JSVAL_TO_GCTHING(aOther)
+-             : NULL;
+     return *this;
+   }
+ 
+ private:
+   JSRuntime* mRt;
+   jsval mVal;
+-  void* mGCThing;
+   JSBool mHeld;
+ };
+ 
+-- 

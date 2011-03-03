@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 21 Jun 2008 03:09:21 +0200
-Subject: [PATCH] Add another preferences directory for applications: preferences/syspref
+Subject: Add another preferences directory for applications: preferences/syspref
 
 This can be used to symlink to /etc/ice*/pref.
 ---

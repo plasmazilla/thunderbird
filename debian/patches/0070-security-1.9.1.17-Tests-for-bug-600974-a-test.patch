@@ -1,0 +1,347 @@
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Wed, 20 Oct 2010 09:11:15 -0700
+Subject: security-1.9.1.17: Tests for bug 600974, a=test
+
+---
+ mozilla/intl/uconv/tests/unit/test_bug317216.js |   79 +++++++++++++-------
+ mozilla/layout/reftests/bugs/600974-1-ref.html  |    2 +-
+ mozilla/layout/reftests/bugs/600974-1.html      |    2 +-
+ mozilla/layout/reftests/bugs/600974-2.html      |   94 +++++++++++++++++++++++
+ mozilla/layout/reftests/bugs/600974-3.html      |  Bin 0 -> 11314 bytes
+ mozilla/layout/reftests/bugs/reftest.list       |    2 +
+ 6 files changed, 150 insertions(+), 29 deletions(-)
+ create mode 100644 mozilla/layout/reftests/bugs/600974-2.html
+ create mode 100644 mozilla/layout/reftests/bugs/600974-3.html
+
+diff --git a/mozilla/intl/uconv/tests/unit/test_bug317216.js b/mozilla/intl/uconv/tests/unit/test_bug317216.js
+index bf57419..746c63e 100644
+--- a/mozilla/intl/uconv/tests/unit/test_bug317216.js
++++ b/mozilla/intl/uconv/tests/unit/test_bug317216.js
+@@ -11,53 +11,53 @@
+ 
+ const test = [
+ // 0: Valid surrogate pair
+-              ["%00%2D%00%2D%D8%35%DC%20%00%2D%00%2D",
++              ["%D8%35%DC%20%00%2D%00%2D",
+ //    expected: surrogate pair
+-               "--\uD835\uDC20--"],
++               "\uD835\uDC20--"],
+ // 1: Lone high surrogate
+-              ["%00%2D%00%2D%D8%35%00%2D%00%2D",
++              ["%D8%35%00%2D%00%2D",
+ //    expected: one replacement char
+-               "--\uFFFD--"],
++               "\uFFFD--"],
+ // 2: Lone low surrogate
+-              ["%00%2D%00%2D%DC%20%00%2D%00%2D",
++              ["%DC%20%00%2D%00%2D",
+ //    expected: one replacement char
+-               "--\uFFFD--"],
++               "\uFFFD--"],
+ // 3: Two high surrogates
+-              ["%00%2D%00%2D%D8%35%D8%35%00%2D%00%2D",
++              ["%D8%35%D8%35%00%2D%00%2D",
+ //    expected: two replacement chars
+-               "--\uFFFD\uFFFD--"],
++               "\uFFFD\uFFFD--"],
+ // 4: Two low surrogates
+-              ["%00%2D%00%2D%DC%20%DC%20%00%2D%00%2D",
++              ["%DC%20%DC%20%00%2D%00%2D",
+ //    expected: two replacement chars
+-              "--\uFFFD\uFFFD--"],
++	       "\uFFFD\uFFFD--"],
+ // 5: Low surrogate followed by high surrogate
+-              ["%00%2D%00%2D%DC%20%D8%35%00%2D%00%2D",
++              ["%DC%20%D8%35%00%2D%00%2D",
+ //    expected: two replacement chars
+-               "--\uFFFD\uFFFD--"],
++               "\uFFFD\uFFFD--"],
+ // 6: Lone high surrogate followed by valid surrogate pair
+-              ["%00%2D%00%2D%D8%35%D8%35%DC%20%00%2D%00%2D",
++              ["%D8%35%D8%35%DC%20%00%2D%00%2D",
+ //    expected: replacement char followed by surrogate pair
+-               "--\uFFFD\uD835\uDC20--"],
++               "\uFFFD\uD835\uDC20--"],
+ // 7: Lone low surrogate followed by valid surrogate pair
+-              ["%00%2D%00%2D%DC%20%D8%35%DC%20%00%2D%00%2D",
++              ["%DC%20%D8%35%DC%20%00%2D%00%2D",
+ //    expected: replacement char followed by surrogate pair
+-               "--\uFFFD\uD835\uDC20--"],
++               "\uFFFD\uD835\uDC20--"],
+ // 8: Valid surrogate pair followed by lone high surrogate
+-              ["%00%2D%00%2D%D8%35%DC%20%D8%35%00%2D%00%2D",
++              ["%D8%35%DC%20%D8%35%00%2D%00%2D",
+ //    expected: surrogate pair followed by replacement char
+-               "--\uD835\uDC20\uFFFD--"],
++               "\uD835\uDC20\uFFFD--"],
+ // 9: Valid surrogate pair followed by lone low surrogate
+-              ["%00%2D%00%2D%D8%35%DC%20%DC%20%00%2D%00%2D",
++              ["%D8%35%DC%20%DC%20%00%2D%00%2D",
+ //    expected: surrogate pair followed by replacement char
+-               "--\uD835\uDC20\uFFFD--"],
++               "\uD835\uDC20\uFFFD--"],
+ // 10: Lone high surrogate at the end of the input
+-              ["%00%2D%00%2D%00%2D%00%2D%D8%35%",
++              ["%D8%35%",
+ //    expected: nothing
+-               "----"],
++               ""],
+ // 11: Half code unit at the end of the input
+-              ["%00%2D%00%2D%00%2D%00%2D%D8",
++              ["%D8",
+ //    expected: nothing
+-              "----"]];
++              ""]];
+ 
+ const IOService = Components.Constructor("@mozilla.org/network/io-service;1",
+                                          "nsIIOService");
+@@ -95,15 +95,40 @@ function testCase(testText, expectedText, bufferLength, charset)
+   do_check_eq(escape(outStr), escape(expectedText));
+ }
+ 
++// Add 32 dummy characters to the test text to work around the minimum buffer
++// size of an ns*Buffer
++const MINIMUM_BUFFER_SIZE=32;
++function padBytes(str)
++{
++  var padding = "";
++  for (var i = 0; i < MINIMUM_BUFFER_SIZE; ++i) {
++    padding += "%00%2D";
++  }
++  return padding + str;
++}
++
++function padUnichars(str)
++{
++  var padding = "";
++  for (var i = 0; i < MINIMUM_BUFFER_SIZE; ++i) {
++    padding += "-";
++  }
++  return padding + str;
++}
++
+ // Byte-swap %-encoded utf-16
+ function flip(str) { return str.replace(/(%..)(%..)/g, "$2$1"); }
+ 
+ function run_test()
+ {
+   for (var i = 0; i < 12; ++i) {
+-    for (var bufferLength = 4; bufferLength < 8; ++ bufferLength) {
+-      testCase(test[i][0], test[i][1], bufferLength, "UTF-16BE");
+-      testCase(flip(test[i][0]), test[i][1], bufferLength, "UTF-16LE");
++    for (var bufferLength = MINIMUM_BUFFER_SIZE;
++	 bufferLength < MINIMUM_BUFFER_SIZE + 4;
++	 ++ bufferLength) {
++      var testText = padBytes(test[i][0]);
++      var expectedText = padUnichars(test[i][1]);
++      testCase(testText, expectedText, bufferLength, "UTF-16BE");
++      testCase(flip(testText), expectedText, bufferLength, "UTF-16LE");
+     }
+   }
+ }
+diff --git a/mozilla/layout/reftests/bugs/600974-1-ref.html b/mozilla/layout/reftests/bugs/600974-1-ref.html
+index 9bf883b..71b6ce9 100644
+--- a/mozilla/layout/reftests/bugs/600974-1-ref.html
++++ b/mozilla/layout/reftests/bugs/600974-1-ref.html
+@@ -1,5 +1,5 @@
+ <!DOCTYPE HTML>
+-<html>
++<html lang="en" style="font-family: serif; font-size: 16px">
+ <head>
+   <meta http-equiv="Content-Type"
+  content="text/html; charset=ISO-8859-1">
+diff --git a/mozilla/layout/reftests/bugs/600974-1.html b/mozilla/layout/reftests/bugs/600974-1.html
+index 13de69f..9cbfee1 100644
+--- a/mozilla/layout/reftests/bugs/600974-1.html
++++ b/mozilla/layout/reftests/bugs/600974-1.html
+@@ -1,7 +1,7 @@
+ <!DOCTYPE html>
+ <!-- This is a test for decoding supplementary characters. It contains text in
+      Unicode plane 1 encoded as UTF-8. Don't reencode it in any way. -->
+-<html>
++<html lang="en" style="font-family: serif; font-size: 16px">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ </head>
+diff --git a/mozilla/layout/reftests/bugs/600974-2.html b/mozilla/layout/reftests/bugs/600974-2.html
+new file mode 100644
+index 0000000..5c14bde
+--- /dev/null
++++ b/mozilla/layout/reftests/bugs/600974-2.html
+@@ -0,0 +1,94 @@
++<!DOCTYPE HTML>
++<!-- This is a test for decoding supplementary characters. It contains text in
++     Unicode plane 1 encoded as GB18030. Don't reencode it in any way. -->
++<html lang="en" style="font-family: serif; font-size: 16px">
++<head>
++  <meta http-equiv="Content-Type" content="text/html; charset=gb18030">
++  <title></title>
++</head>
++<body>
++<p>𝙻𝚘𝚛𝚎𝚖 𝚒𝚙𝚜𝚞𝚖 𝚍𝚘𝚕𝚘𝚛 𝚜𝚒𝚝 𝚊𝚖𝚎𝚝,
++𝚌𝚘𝚗𝚜𝚎𝚌𝚝𝚎𝚝𝚞𝚛 𝚊𝚍𝚒𝚙𝚒𝚜𝚌𝚒𝚗𝚐 𝚎𝚕𝚒𝚝. 𝙰𝚕𝚒𝚚𝚞𝚊𝚖
++𝚟𝚎𝚕 𝚊𝚛𝚌𝚞 𝚗𝚒𝚋𝚑, 𝚟𝚎𝚕 𝚍𝚒𝚌𝚝𝚞𝚖 𝚝𝚘𝚛𝚝𝚘𝚛. 𝙲𝚛𝚊𝚜
++𝚒𝚊𝚌𝚞𝚕𝚒𝚜 𝚎𝚕𝚒𝚝 𝚎𝚐𝚎𝚝 𝚗𝚞𝚗𝚌 𝚜𝚘𝚕𝚕𝚒𝚌𝚒𝚝𝚞𝚍𝚒𝚗 𝚎𝚝
++𝚌𝚘𝚖𝚖𝚘𝚍𝚘 𝚟𝚎𝚕𝚒𝚝 𝚊𝚕𝚒𝚚𝚞𝚊𝚖. 𝚀𝚞𝚒𝚜𝚚𝚞𝚎 𝚟𝚎𝚕
++𝚋𝚒𝚋𝚎𝚗𝚍𝚞𝚖 𝚖𝚊𝚞𝚛𝚒𝚜. 𝙽𝚞𝚕𝚕𝚊𝚖 𝚗𝚎𝚌 𝚏𝚎𝚕𝚒𝚜 𝚍𝚒𝚊𝚖,
++𝚟𝚎𝚕 𝚟𝚞𝚕𝚙𝚞𝚝𝚊𝚝𝚎 𝚙𝚞𝚛𝚞𝚜. 𝙲𝚛𝚊𝚜 𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊,
++𝚟𝚎𝚕𝚒𝚝 𝚟𝚒𝚝𝚊𝚎 𝚙𝚞𝚕𝚟𝚒𝚗𝚊𝚛 𝚌𝚞𝚛𝚜𝚞𝚜, 𝚗𝚒𝚜𝚕
++𝚙𝚞𝚛𝚞𝚜 𝚙𝚘𝚛𝚝𝚝𝚒𝚝𝚘𝚛 𝚚𝚞𝚊𝚖, 𝚗𝚘𝚗 𝚊𝚍𝚒𝚙𝚒𝚜𝚌𝚒𝚗𝚐
++𝚎𝚛𝚘𝚜 𝚖𝚊𝚞𝚛𝚒𝚜 𝚎𝚞 𝚏𝚎𝚕𝚒𝚜. 𝙽𝚞𝚕𝚕𝚊𝚖 𝚕𝚞𝚌𝚝𝚞𝚜
++𝚗𝚒𝚜𝚒 𝚜𝚒𝚝 𝚊𝚖𝚎𝚝 𝚗𝚒𝚜𝚕 𝚜𝚘𝚍𝚊𝚕𝚎𝚜 𝚒𝚗𝚝𝚎𝚛𝚍𝚞𝚖.
++𝙿𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚟𝚞𝚕𝚙𝚞𝚝𝚊𝚝𝚎 𝚊𝚕𝚒𝚚𝚞𝚊𝚖 𝚕𝚎𝚘, 𝚒𝚍
++𝚛𝚑𝚘𝚗𝚌𝚞𝚜 𝚜𝚎𝚖 𝚌𝚘𝚖𝚖𝚘𝚍𝚘 𝚒𝚍. 𝚂𝚎𝚍 𝚕𝚊𝚘𝚛𝚎𝚎𝚝
++𝚒𝚗𝚝𝚎𝚛𝚍𝚞𝚖 𝚌𝚘𝚗𝚍𝚒𝚖𝚎𝚗𝚝𝚞𝚖. 𝙽𝚞𝚕𝚕𝚊𝚖 𝚘𝚛𝚗𝚊𝚛𝚎
++𝚟𝚎𝚜𝚝𝚒𝚋𝚞𝚕𝚞𝚖 𝚙𝚘𝚛𝚝𝚊. 𝙰𝚎𝚗𝚎𝚊𝚗 𝚒𝚍 𝚍𝚘𝚕𝚘𝚛
++𝚍𝚘𝚕𝚘𝚛, 𝚗𝚎𝚌 𝚎𝚕𝚎𝚒𝚏𝚎𝚗𝚍 𝚗𝚎𝚚𝚞𝚎. 𝙳𝚘𝚗𝚎𝚌
++𝚝𝚒𝚗𝚌𝚒𝚍𝚞𝚗𝚝 𝚌𝚘𝚖𝚖𝚘𝚍𝚘 𝚗𝚒𝚜𝚕, 𝚗𝚘𝚗
++𝚜𝚌𝚎𝚕𝚎𝚛𝚒𝚜𝚚𝚞𝚎 𝚍𝚘𝚕𝚘𝚛 𝚊𝚌𝚌𝚞𝚖𝚜𝚊𝚗 𝚒𝚍.
++𝙿𝚛𝚊𝚎𝚜𝚎𝚗𝚝 𝚋𝚒𝚋𝚎𝚗𝚍𝚞𝚖 𝚟𝚒𝚟𝚎𝚛𝚛𝚊 𝚜𝚞𝚜𝚌𝚒𝚙𝚒𝚝.
++𝙽𝚞𝚗𝚌 𝚌𝚘𝚗𝚍𝚒𝚖𝚎𝚗𝚝𝚞𝚖, 𝚊𝚗𝚝𝚎 𝚟𝚒𝚝𝚊𝚎
++𝚌𝚘𝚗𝚍𝚒𝚖𝚎𝚗𝚝𝚞𝚖 𝚛𝚑𝚘𝚗𝚌𝚞𝚜, 𝚗𝚞𝚗𝚌 𝚗𝚒𝚋𝚑
++𝚙𝚞𝚕𝚟𝚒𝚗𝚊𝚛 𝚝𝚞𝚛𝚙𝚒𝚜, 𝚒𝚗 𝚕𝚘𝚋𝚘𝚛𝚝𝚒𝚜 𝚕𝚊𝚌𝚞𝚜 𝚕𝚎𝚘
++𝚞𝚝 𝚛𝚒𝚜𝚞𝚜. 𝚂𝚎𝚍 𝚒𝚗 𝚎𝚗𝚒𝚖 𝚝𝚘𝚛𝚝𝚘𝚛, 𝚟𝚒𝚝𝚊𝚎
++𝚊𝚌𝚌𝚞𝚖𝚜𝚊𝚗 𝚛𝚒𝚜𝚞𝚜. 𝙰𝚕𝚒𝚚𝚞𝚊𝚖 𝚖𝚒 𝚎𝚛𝚊𝚝,
++𝚌𝚘𝚖𝚖𝚘𝚍𝚘 𝚗𝚎𝚌 𝚕𝚘𝚋𝚘𝚛𝚝𝚒𝚜 𝚗𝚘𝚗, 𝚍𝚒𝚐𝚗𝚒𝚜𝚜𝚒𝚖
++𝚎𝚐𝚎𝚝 𝚎𝚛𝚘𝚜. 𝙵𝚞𝚜𝚌𝚎 𝚕𝚊𝚌𝚞𝚜 𝚖𝚊𝚜𝚜𝚊,
++𝚌𝚘𝚗𝚜𝚎𝚌𝚝𝚎𝚝𝚞𝚛 𝚟𝚒𝚝𝚊𝚎 𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊 𝚜𝚎𝚍,
++𝚟𝚒𝚟𝚎𝚛𝚛𝚊 𝚒𝚗 𝚚𝚞𝚊𝚖.
++𝙲𝚞𝚛𝚊𝚋𝚒𝚝𝚞𝚛 𝚗𝚎𝚌 𝚊𝚛𝚌𝚞 𝚚𝚞𝚊𝚖, 𝚜𝚒𝚝 𝚊𝚖𝚎𝚝
++𝚝𝚒𝚗𝚌𝚒𝚍𝚞𝚗𝚝 𝚕𝚊𝚌𝚞𝚜. 𝚂𝚎𝚍 𝚖𝚘𝚕𝚎𝚜𝚝𝚒𝚎
++𝚍𝚒𝚐𝚗𝚒𝚜𝚜𝚒𝚖 𝚗𝚒𝚜𝚕, 𝚊𝚝 𝚏𝚎𝚛𝚖𝚎𝚗𝚝𝚞𝚖 𝚖𝚊𝚞𝚛𝚒𝚜
++𝚎𝚐𝚎𝚜𝚝𝚊𝚜 𝚗𝚎𝚌. 𝚂𝚎𝚍 𝚖𝚒 𝚚𝚞𝚊𝚖, 𝚞𝚕𝚝𝚛𝚒𝚌𝚒𝚎𝚜 𝚞𝚝
++𝚝𝚒𝚗𝚌𝚒𝚍𝚞𝚗𝚝 𝚟𝚎𝚕, 𝚋𝚒𝚋𝚎𝚗𝚍𝚞𝚖 𝚊𝚌 𝚖𝚊𝚜𝚜𝚊.
++𝚅𝚎𝚜𝚝𝚒𝚋𝚞𝚕𝚞𝚖 𝚟𝚎𝚕 𝚛𝚒𝚜𝚞𝚜 𝚙𝚘𝚛𝚝𝚊 𝚖𝚊𝚞𝚛𝚒𝚜
++𝚝𝚎𝚖𝚙𝚘𝚛 𝚋𝚕𝚊𝚗𝚍𝚒𝚝 𝚎𝚞 𝚟𝚎𝚕 𝚍𝚒𝚊𝚖. 𝚀𝚞𝚒𝚜𝚚𝚞𝚎
++𝚎𝚛𝚘𝚜 𝚕𝚒𝚋𝚎𝚛𝚘, 𝚝𝚎𝚖𝚙𝚘𝚛 𝚞𝚝 𝚎𝚐𝚎𝚜𝚝𝚊𝚜 𝚗𝚎𝚌,
++𝚊𝚕𝚒𝚚𝚞𝚎𝚝 𝚎𝚐𝚎𝚝 𝚎𝚕𝚒𝚝. 𝙳𝚘𝚗𝚎𝚌 𝚋𝚕𝚊𝚗𝚍𝚒𝚝 𝚘𝚍𝚒𝚘
++𝚊𝚝 𝚗𝚒𝚋𝚑 𝚟𝚊𝚛𝚒𝚞𝚜 𝚝𝚛𝚒𝚜𝚝𝚒𝚚𝚞𝚎. 𝚂𝚎𝚍 𝚛𝚑𝚘𝚗𝚌𝚞𝚜
++𝚙𝚘𝚛𝚝𝚊 𝚘𝚛𝚌𝚒, 𝚙𝚕𝚊𝚌𝚎𝚛𝚊𝚝 𝚌𝚘𝚗𝚍𝚒𝚖𝚎𝚗𝚝𝚞𝚖 𝚘𝚛𝚌𝚒
++𝚒𝚖𝚙𝚎𝚛𝚍𝚒𝚎𝚝 𝚟𝚒𝚝𝚊𝚎. 𝙴𝚝𝚒𝚊𝚖 𝚎𝚞 𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊
++𝚎𝚛𝚘𝚜. 𝙸𝚗 𝚟𝚎𝚗𝚎𝚗𝚊𝚝𝚒𝚜 𝚙𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚕𝚒𝚋𝚎𝚛𝚘
++𝚜𝚎𝚍 𝚎𝚐𝚎𝚜𝚝𝚊𝚜. 𝙳𝚞𝚒𝚜 𝚝𝚒𝚗𝚌𝚒𝚍𝚞𝚗𝚝 𝚖𝚘𝚕𝚎𝚜𝚝𝚒𝚎
++𝚛𝚒𝚜𝚞𝚜 𝚒𝚍 𝚛𝚞𝚝𝚛𝚞𝚖. 𝙽𝚞𝚕𝚕𝚊 𝚏𝚊𝚌𝚒𝚕𝚒𝚜𝚒. 𝙳𝚞𝚒𝚜
++𝚟𝚎𝚕 𝚙𝚞𝚛𝚞𝚜 𝚊𝚌 𝚕𝚒𝚋𝚎𝚛𝚘 𝚛𝚞𝚝𝚛𝚞𝚖 𝚞𝚕𝚝𝚛𝚒𝚌𝚎𝚜
++𝚜𝚎𝚍 𝚟𝚎𝚕 𝚊𝚞𝚐𝚞𝚎. 𝙳𝚘𝚗𝚎𝚌 𝚎𝚐𝚎𝚝 𝚍𝚒𝚊𝚖 𝚎𝚝
++𝚕𝚒𝚋𝚎𝚛𝚘 𝚙𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚟𝚎𝚗𝚎𝚗𝚊𝚝𝚒𝚜 𝚗𝚘𝚗 𝚎𝚝
++𝚙𝚞𝚛𝚞𝚜. 𝚄𝚝 𝚎𝚞 𝚕𝚎𝚌𝚝𝚞𝚜 𝚙𝚞𝚛𝚞𝚜, 𝚎𝚐𝚎𝚝 𝚐𝚛𝚊𝚟𝚒𝚍𝚊
++𝚎𝚛𝚊𝚝. 𝚂𝚎𝚍 𝚗𝚎𝚌 𝚏𝚎𝚕𝚒𝚜 𝚕𝚒𝚐𝚞𝚕𝚊, 𝚎𝚐𝚎𝚝 𝚕𝚞𝚌𝚝𝚞𝚜
++𝚎𝚛𝚊𝚝. 𝙼𝚊𝚞𝚛𝚒𝚜 𝚜𝚊𝚙𝚒𝚎𝚗 𝚎𝚜𝚝, 𝚖𝚊𝚝𝚝𝚒𝚜 𝚞𝚝
++𝚏𝚊𝚞𝚌𝚒𝚋𝚞𝚜 𝚎𝚝, 𝚏𝚊𝚞𝚌𝚒𝚋𝚞𝚜 𝚗𝚎𝚌 𝚗𝚞𝚗𝚌. 𝙽𝚞𝚗𝚌
++𝚝𝚎𝚖𝚙𝚞𝚜 𝚒𝚊𝚌𝚞𝚕𝚒𝚜 𝚞𝚛𝚗𝚊 𝚟𝚒𝚝𝚊𝚎 𝚍𝚒𝚐𝚗𝚒𝚜𝚜𝚒𝚖.
++𝙸𝚗 𝚗𝚞𝚗𝚌 𝚗𝚒𝚜𝚒, 𝚞𝚕𝚕𝚊𝚖𝚌𝚘𝚛𝚙𝚎𝚛 𝚟𝚎𝚕 𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊
++𝚟𝚘𝚕𝚞𝚝𝚙𝚊𝚝, 𝚒𝚖𝚙𝚎𝚛𝚍𝚒𝚎𝚝 𝚊 𝚍𝚒𝚊𝚖.
++𝙿𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚟𝚎𝚕 𝚕𝚒𝚐𝚞𝚕𝚊 𝚎𝚐𝚎𝚝 𝚕𝚎𝚘
++𝚊𝚞𝚌𝚝𝚘𝚛 𝚛𝚑𝚘𝚗𝚌𝚞𝚜 𝚌𝚘𝚗𝚟𝚊𝚕𝚕𝚒𝚜 𝚊 𝚝𝚘𝚛𝚝𝚘𝚛.
++𝙴𝚝𝚒𝚊𝚖 𝚊𝚝 𝚕𝚎𝚌𝚝𝚞𝚜 𝚟𝚒𝚝𝚊𝚎 𝚊𝚗𝚝𝚎 𝚝𝚎𝚖𝚙𝚞𝚜
++𝚞𝚕𝚝𝚛𝚒𝚌𝚒𝚎𝚜 𝚞𝚝 𝚟𝚒𝚝𝚊𝚎 𝚎𝚕𝚒𝚝. 𝙽𝚊𝚖 𝚒𝚗 𝚝𝚞𝚛𝚙𝚒𝚜
++𝚒𝚙𝚜𝚞𝚖, 𝚊𝚝 𝚖𝚊𝚝𝚝𝚒𝚜 𝚝𝚘𝚛𝚝𝚘𝚛. 𝙽𝚞𝚕𝚕𝚊 𝚎𝚝
++𝚙𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚗𝚎𝚚𝚞𝚎. 𝙳𝚘𝚗𝚎𝚌 𝚕𝚊𝚌𝚒𝚗𝚒𝚊,
++𝚝𝚞𝚛𝚙𝚒𝚜 𝚞𝚝 𝚍𝚒𝚌𝚝𝚞𝚖 𝚜𝚘𝚍𝚊𝚕𝚎𝚜, 𝚍𝚞𝚒 𝚗𝚒𝚜𝚒
++𝚏𝚊𝚌𝚒𝚕𝚒𝚜𝚒𝚜 𝚛𝚒𝚜𝚞𝚜, 𝚜𝚎𝚍 𝚋𝚕𝚊𝚗𝚍𝚒𝚝 𝚖𝚒 𝚎𝚕𝚒𝚝 𝚞𝚝
++𝚗𝚒𝚋𝚑. 𝙰𝚕𝚒𝚚𝚞𝚊𝚖 𝚎𝚛𝚊𝚝 𝚟𝚘𝚕𝚞𝚝𝚙𝚊𝚝.
++𝙿𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎 𝚗𝚎𝚌 𝚎𝚕𝚒𝚝 𝚒𝚍 𝚓𝚞𝚜𝚝𝚘
++𝚒𝚗𝚝𝚎𝚛𝚍𝚞𝚖 𝚘𝚛𝚗𝚊𝚛𝚎 𝚊 𝚒𝚗 𝚍𝚒𝚊𝚖. 𝙼𝚘𝚛𝚋𝚒 𝚊𝚝
++𝚏𝚛𝚒𝚗𝚐𝚒𝚕𝚕𝚊 𝚕𝚎𝚌𝚝𝚞𝚜. 𝙳𝚘𝚗𝚎𝚌 𝚌𝚘𝚗𝚟𝚊𝚕𝚕𝚒𝚜
++𝚎𝚕𝚎𝚒𝚏𝚎𝚗𝚍 𝚏𝚎𝚕𝚒𝚜, 𝚒𝚍 𝚜𝚊𝚐𝚒𝚝𝚝𝚒𝚜 𝚞𝚛𝚗𝚊
++𝚖𝚊𝚝𝚝𝚒𝚜 𝚗𝚎𝚌. 𝚄𝚝 𝚌𝚘𝚗𝚜𝚎𝚚𝚞𝚊𝚝 𝚝𝚞𝚛𝚙𝚒𝚜 𝚟𝚎𝚕
++𝚚𝚞𝚊𝚖 𝚝𝚎𝚖𝚙𝚘𝚛 𝚎𝚐𝚎𝚝 𝚞𝚕𝚝𝚛𝚒𝚌𝚎𝚜 𝚗𝚎𝚚𝚞𝚎
++𝚖𝚘𝚕𝚎𝚜𝚝𝚒𝚎. 𝚂𝚞𝚜𝚙𝚎𝚗𝚍𝚒𝚜𝚜𝚎 𝚝𝚎𝚕𝚕𝚞𝚜 𝚗𝚒𝚜𝚒,
++𝚑𝚎𝚗𝚍𝚛𝚎𝚛𝚒𝚝 𝚟𝚒𝚝𝚊𝚎 𝚙𝚘𝚜𝚞𝚎𝚛𝚎 𝚎𝚐𝚎𝚝, 𝚙𝚕𝚊𝚌𝚎𝚛𝚊𝚝
++𝚜𝚎𝚍 𝚖𝚎𝚝𝚞𝚜. 𝙸𝚗𝚝𝚎𝚐𝚎𝚛 𝚙𝚕𝚊𝚌𝚎𝚛𝚊𝚝 𝚒𝚖𝚙𝚎𝚛𝚍𝚒𝚎𝚝
++𝚙𝚕𝚊𝚌𝚎𝚛𝚊𝚝. 𝙼𝚘𝚛𝚋𝚒 𝚝𝚎𝚖𝚙𝚞𝚜 𝚗𝚞𝚗𝚌 𝚗𝚞𝚗𝚌.
++𝙸𝚗𝚝𝚎𝚐𝚎𝚛 𝚚𝚞𝚒𝚜 𝚘𝚛𝚌𝚒 𝚏𝚎𝚕𝚒𝚜. 𝙽𝚞𝚗𝚌 𝚜𝚎𝚖𝚙𝚎𝚛,
++𝚊𝚛𝚌𝚞 𝚗𝚘𝚗 𝚌𝚘𝚗𝚜𝚎𝚚𝚞𝚊𝚝 𝚍𝚒𝚐𝚗𝚒𝚜𝚜𝚒𝚖, 𝚕𝚘𝚛𝚎𝚖
++𝚞𝚛𝚗𝚊 𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊 𝚖𝚒, 𝚗𝚎𝚌 𝚊𝚌𝚌𝚞𝚖𝚜𝚊𝚗 𝚎𝚗𝚒𝚖 𝚖𝚒
++𝚊 𝚙𝚞𝚛𝚞𝚜. 𝙲𝚞𝚛𝚊𝚋𝚒𝚝𝚞𝚛 𝚎𝚝 𝚎𝚕𝚒𝚝 𝚒𝚗 𝚜𝚎𝚖
++𝚜𝚘𝚍𝚊𝚕𝚎𝚜 𝚒𝚗𝚝𝚎𝚛𝚍𝚞𝚖. 𝙿𝚎𝚕𝚕𝚎𝚗𝚝𝚎𝚜𝚚𝚞𝚎
++𝚜𝚊𝚐𝚒𝚝𝚝𝚒𝚜 𝚛𝚞𝚝𝚛𝚞𝚖 𝚕𝚎𝚌𝚝𝚞𝚜 𝚌𝚘𝚖𝚖𝚘𝚍𝚘
++𝚌𝚘𝚗𝚍𝚒𝚖𝚎𝚗𝚝𝚞𝚖. 𝙴𝚝𝚒𝚊𝚖 𝚏𝚛𝚒𝚗𝚐𝚒𝚕𝚕𝚊, 𝚚𝚞𝚊𝚖 𝚗𝚎𝚌
++𝚞𝚕𝚕𝚊𝚖𝚌𝚘𝚛𝚙𝚎𝚛 𝚜𝚘𝚕𝚕𝚒𝚌𝚒𝚝𝚞𝚍𝚒𝚗, 𝚝𝚞𝚛𝚙𝚒𝚜 𝚗𝚒𝚜𝚒
++𝚊𝚕𝚒𝚚𝚞𝚎𝚝 𝚛𝚒𝚜𝚞𝚜, 𝚜𝚒𝚝 𝚊𝚖𝚎𝚝 𝚎𝚕𝚎𝚖𝚎𝚗𝚝𝚞𝚖
++𝚍𝚘𝚕𝚘𝚛 𝚕𝚘𝚛𝚎𝚖 𝚟𝚒𝚝𝚊𝚎 𝚕𝚒𝚐𝚞𝚕𝚊. 𝙿𝚛𝚊𝚎𝚜𝚎𝚗𝚝
++𝚙𝚑𝚊𝚛𝚎𝚝𝚛𝚊 𝚊𝚕𝚒𝚚𝚞𝚎𝚝 𝚟𝚎𝚕𝚒𝚝 𝚜𝚎𝚍 𝚙𝚕𝚊𝚌𝚎𝚛𝚊𝚝. </p>
++</body>
++</html>
+diff --git a/mozilla/layout/reftests/bugs/600974-3.html b/mozilla/layout/reftests/bugs/600974-3.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..136cee96bafd67c369f2f83530db2209844fda14
+GIT binary patch
+literal 11314
+zcmb8#O|xB95eDErzP}<eaUxI*bfCxtw6sb~2QY9LAwsGIV-l1oDJV-P5hB4Npd|RW
+z9Qjk!e!BO2_Sw1T-e^&awf0*5@%G!jK2DN<|7Uq|`P%Zz@{{G|<<;e9%TJf@EmxKw
+z)cD8CkCvB~vtEC8dA4R>UEW%*FSlwm|G!$J+sn0@xm}}QEWcWAR{uuLyk6rsO6r~E
+z&6>Hjyt~|}|9)93Z&!P#<gb?OomzXnY#Lv!5nDG)`nj6_VcTS9q}k$`%zM3N=B#G&
+z-)r@Kef4~;X8F5XbH*=J<9BdfD{NP4jlI_@s_$2HFD&0`zpu2%ueXPrrE{z$Zjtg#
+z|DBHDw>7%cx>y><-YU7b%m0-X!<)-@muK46Gc|{=JI#h!yovGI8eJ`|>$P%c`F6|U
+z<9f}1r@l71TQ&E)vPK5(8^y>o2hZ2a${YQKnHQUJd|xT1Z`Xe}%G0&w*Oim&%WoRj
+z%PWG(%(KPFoszm%Hsxo~%^JMP!1HZSl+Y!Qw@UAJSv}@;unn5q<@I*Q{!(FkzQ)_P
+zT4QyK;Kk+V<^PSsGrZndUi#-Z|MmN7UsU_D+Wl$|mn-%EPpkc{+M{Y;Rh!w5Yee?5
+zwg0kZ$&i2CU-xSCuo_#Bmv1a*)qhlt-sjawTQm1~9qV}+do1u240>8Lj9K}leX#?}
+zc&|#Y@r|Rozt@=E#?(muQD3cfz$$K*zv>ybS^IOf2Zf%+y-tt?|Hh6e!sKDBmTUfI
+zHJ%`O)JS;o)xN7w9FJOl9~lc~K3V%=8dl!*AGH>ilAqWMYvDNfKR@_+yvvc?Y3y{q
+zTkgO?%?{fz!5=?+t|#gbYaK!wutnzn-e&v9I61voMaBQdFH}65!DU-r`MtZ&L!*(K
+znq`N*VdyXGS5Obz;bgR?W)Be`u<}dKzA(lp4gExv73fGjI+=aUk$g~%K4}Qq=^9yg
+z%>hBpZ=9R$uj*;<J;N6Xk+=PhAa%xrTnxUcaFWet^`CV%&PNi|#}y87u=IR;N|yP4
+zxb7hyNKDmP3Fkb;cWRaNCyfIy5YwGpovs4t$j&Z4pXI5?yCkY%NgIT8eOZA(RKw0$
+zjgGnbwBy5GN8Mj-qh>mTJ#(z_*+D}DVkXZU`H6@vI{YTyt@5919zIytf}Gs3&gtEi
+zSd&d2_-{`K^lZYg&s$jG>5Dasq&{vua-x1ar`4yrCL(C)%?`9i?)1qrHYY!SSoJ<`
+zY;ZwKmp>M@Ij=5f4f^=SQ>qOHHo_f-9zOL92?AOWHJaujdsM_&g~|yQ=EpuXau7S6
+zht;e5Dv0##&n_8e=t55yBW<I7pP$`!GfQ*g8PU_Tn7z@g9O~6-@_&CtcB|%iBRTfY
+zYLqC=Vz^OOFH&=JH--DtIVVRCYoDDvA$YOE#xZ)VM{C1+njf>6WJBvbRL|~{3~xJ(
+z2dli2)Ne68{f5fPo2p>1Z5~bmI1-y!a{4_k&c%JVT9};tg-JLruj0vmM_01)G<QQ#
+zb=CDOPyf4JT#DlKe&1?tk2^WW+JlZQr;ut4CQ=a3%MU_UcndR+j?SLh7uf|YAMdEH
+zjorzS%+INmUGPPt;b&@<x73x{+}iuoh{X10N_2C=!F`Nm_UJH^NcZfE8M+{}PxiHW
+z5vq&dxAMf!+)`?n4W6EShhMxaX-(Zdon;*K`LJdv)#;TQe#E3<?_u-K!~Pu`q-=%z
+zcWd0as2)dC$uNbv$y8!C8(;Sd&)KTi_|~<Kt;RB8e5kgrne%yKTNPgXP9wo9Yag#(
+zV@IFJIuGq-tD>A>kh_5(zFAFN$y-jGJyP6uENziK`L3j%*;}3}Ob$-{M&p@>#<p5A
+zmQQH-8@==VpSrhI7v4$3$#?AE?>L`cDVRO3q1+Op9W1%W#Lgp6jkJ2GXJ=ZW6IR7F
+zzrV<*4ug>7oE00#7ezR`>=f60iCxUl@hLm{=A*MjYF;wohR?{I=RWlmCQ=*v#2&4Q
+zT{N?o!-6=qduzS@Y1K{q5VDsD^kZxDE;EUW9+~0HUXgdJV!GFH#y7cxURMDb$VnV@
+zTL*^J8dg#-lX*Jx&flYol(_Sz`;ct4&U^LA*VG|PFwMy$GG4>NVRb#<F2>8lhV6f;
+zsyU$`jmHDBleRYNk@sSN`1~u)?BxuKH*C#q2+8=scNlok9<XdZ+1oOXk<1>~&>@x;
+z<NhY4ar!NBRx5`}sPR@ssjJ=}Yd%P(O3Wu;TP$X29@mg+BWaF((M*l+eZYc;RA;P*
+zH{Zh;en>Xj>hpfSz0O&KX}r*z>V^N}yM_Pwge*7Xdo`YSNUC2XB=sG8^?Yu-(kiC3
+zNJ48YZ(F`D-UINEr8B?Jj8513R+)#r*OkO4WRPBb(qUZ0L3><Tvu}@UZmUL?2bp#A
+z{AHXI;qJN?KIW8io8T^}tTu=Gqn)<JgO6lje&x%j^>`fq+iFK2n>n$`ebFn?*yEK8
+z_UL5=rque}WBZ)!5%JA}Ea_93r_YSzd`@Mj*4f#rcW$kVqrn4PBsAmfHskXZ7u1(m
+zvQ>4ly}}2{dETe~{#dfxxjB0-cyNeQtZe(lS8|cx9p_oWCMm2y-gW1@Z#D8+%^AHv
+z{}Scg&3VU!&q0%~WX`vDt(rKG$SUmnsLoc|C(*oL^QjDLUFU6CW~^Y;EKeKTR{fHI
+z!5$@vLv6DG$K)k@D#*y>bum%0AB#_y-t*>*W&KC%4!ygZ6F+Rc<P@hdzM&BT&di4K
+zSv7+j*5`ysrdgzSzj??GktedvL-n{a&dYu~wfDGjd93&8%5M;L-r1=JsrrX2du)C;
+zXa8*H(B=0E`JAvkiHXI|=!&4xuk#q>HPKGqU>|NWPd^cVP-Ai;(2PZzj9_Sg@9d*U
+zKK47{;`(QQd&`I_yP-MjY>DCY%Y)tU3neU~3Hr`!+n9(&kz5?cRfT6YfBN1ZZutot
+z!3XP99j`pGNPcR}=)hcK2#5Qs<~wymLbR;$qsP!z-50%G!f^P{8Fsg{A(?xCy*U|p
+z;x$!iW&0a0RVC9T@^=BOjQ5LA5mry}3mqhh6Uxbm=(hX7S8`{3;IGE#E6*yatsb`*
+z3=~<P6T5xZY<RUQ>ioIGX+|K2dVjMX*T66f9iR3Trg(!b_mO#a=J#iO)B3clFXw2`
+z(eIq3KkS6evKH&?@HX$L%YQ}4-u7or@iXyFq$)B9*?O>^(>H1y`Eb6~7XPYgs}uVI
+zCv@6!_1k$hyY7RUqe(_H=36$5FV6a8HM&@t7>tI8zt*T(vQ}-*8SBR$U`}=>m#JV<
+zq9L*F>CQr1=+ToWsA_q?S}b61xE@x{>RYB+3=SuyaTu6=5iX7^Ex#pBzXM6~3-#%9
+zkoWMV=M@@bTEkjqARv(%Gad;!5l@igRvYQ;7%?`3UEdd<8Dt>HYhZi-9Y>T3Kd!sU
+zH_x)npX%CBV4>q}1jm|_XPVY?9(UF{uVzK3-*yH@=p=jak(kptam3I3=3$%N<Wn5s
+zD(`yl%+#p}*z9~%-_cax@i(@hW>IU+UZE3tFB187Zywu&-FIS`=rBc-ZJC{FhXr=N
+zd5PYv`r0^}_azOO*a$m3`JPigd7MhZ4m<o#9CL!dSKp#ZtnoANrpvvkKd~gML7lzY
+z{+gT1?F^Fl%Tm`x_1kU^uK3vJz!&s$LK$r{bLw3lUn;0`*_jOjoX&Z2ewPm3yE|{V
+z2;;%pe5}<WFY?3g{L+G!w|OO)@2~1(C+H@pJcL<UqMsV1(V1A^rYa+mKrw%_fEyTS
+z&e<m~7r%sg6ieRR^jI6VQ+XZHDhY@A?Ke?S&N(pF&PX-e{0Egj=kCp;dG@*<s!#P!
+zbxwUjX(VPGY<JV32%E!!FU(+)Wm>f7WT6jnst#KuVauP7{D1eTSi_2}HNxt7Fdo1B
+z@L@LNVJ!Htoajd<6@ybPQO(_(RneqsNQpHO9!GWhP5$&7bWWq=N*&yM@byvef1X65
+zVI7hn6t6lUJ$X%zqJbyU;f}S$^!Zxx;U?BLZXxL}eWOX<%?3H|Q#mX|o~PW(P?;a8
+zM6u}^C0nPNRts>;6v^J9y$=pwHOtO$c>1m&3x{e7ul~NmK2V$RL&pxx`p)>_B))vd
+nU(OCpiF9Kle&()u>S^Eq^0NMQW&eBM=b!jjm)pPeto8o_;i>Ov
+
+literal 0
+HcmV?d00001
+
+diff --git a/mozilla/layout/reftests/bugs/reftest.list b/mozilla/layout/reftests/bugs/reftest.list
+index 87a8b4e..427a2d4 100644
+--- a/mozilla/layout/reftests/bugs/reftest.list
++++ b/mozilla/layout/reftests/bugs/reftest.list
+@@ -1054,4 +1054,6 @@ fails == 494667-2.html 494667-2-ref.html # needs bug 155955 (not on 1.9.1 branch
+ != 513318-2.xul 513318-2-ref.xul
+ != 513318-3.xul 513318-3-ref.xul
+ == 600974-1.html 600974-1-ref.html
++== 600974-2.html 600974-1-ref.html
++== 600974-3.html 600974-1-ref.html
+ == 603423-1.html 603423-1-ref.html
+-- 
