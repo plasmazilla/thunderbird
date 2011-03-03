@@ -81,7 +81,7 @@
 
 <!ENTITY allowRemoteContent1.label      "Ceadaich susbaint chèin.">
 <!ENTITY allowRemoteContent1.accesskey  "d">
-<!ENTITY allowRemoteContent1.tooltip    "Gabhaidh susbaint o thùsan cian fhilleadh a-steach ann an teachdaireachdan HTML. Nuair a dh'fhosglar teachdaireachd d' a leithid, thèid ceangal a dhèanamh ris an tùs chèin seo. Dh'fhaodar an teachdaireachd a thathar a' leughadh a' lorgachadh leis. Ma chuireas tu cromag sa bhogsa seo, ceadaichidh seo susbaint chèin d' a leithid ann an teachdaireachdan HTML on charaid seo.">
+<!ENTITY allowRemoteContent1.tooltip    "Gabhaidh susbaint o thùsan cian leabachadh a-steach ann an teachdaireachdan HTML. Nuair a dh'fhosglar teachdaireachd d' a leithid, thèid ceangal a dhèanamh ris an tùs chèin seo. Dh'fhaodar an teachdaireachd a thathar a' leughadh a' lorgachadh leis. Ma chuireas tu cromag sa bhogsa seo, ceadaichidh seo susbaint chèin d' a leithid ann an teachdaireachdan HTML on charaid seo.">
 
 <!ENTITY WorkPhone.label                "Obair:">
 <!ENTITY WorkPhone.accesskey            "O">
@@ -157,7 +157,7 @@
 <!ENTITY Photo.tab                      "Fotograf">
 <!ENTITY Photo.accesskey                "o">
 <!ENTITY PhotoDesc.label                "Tagh aon dhe na leanas:">
-<!ENTITY GenericPhoto.label             "Fotograf coitcheann">
+<!ENTITY GenericPhoto.label             "Fotograf gnèitheach">
 <!ENTITY GenericPhoto.accesskey         "g">
 <!ENTITY DefaultPhoto.label             "Bunaiteach">
 <!ENTITY PhotoFile.label                "Air a' choimpiutair seo">

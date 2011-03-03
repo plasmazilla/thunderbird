@@ -88,8 +88,8 @@
 <!ENTITY useCacheBefore.label            "Cleachd suas gu">
 <!ENTITY useCacheBefore.accesskey        "u">
 <!ENTITY useCacheAfter.label             "MB a dh'àite airson an tasgadan">
-<!ENTITY clearCacheNow.label             "Glan an-dràsta">
-<!ENTITY clearCacheNow.accesskey         "G">
+<!ENTITY clearCacheNow.label             "Falmhaich e an-dràsta">
+<!ENTITY clearCacheNow.accesskey         "c">
 
 <!-- Certificates -->
 <!ENTITY certSelection.description       "Nuair a dh'iarras frithealaiche an teisteanas pearsanta agam:">

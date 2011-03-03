@@ -76,8 +76,8 @@
 <!ENTITY previewCmd.accesskey "S">
 <!ENTITY sendPageCmd.label "Senda síðu…">
 <!ENTITY sendPageCmd.accesskey "d">
-<!ENTITY printSetupCmd.label "Síðuuppsetning…">
-<!ENTITY printSetupCmd.accesskey "u">
+<!ENTITY printSetupCmd.label "Uppsetning síðu…">
+<!ENTITY printSetupCmd.accesskey "U">
 <!ENTITY printCmd.label "Prenta…">
 <!ENTITY printCmd.accesskey "P">
 <!ENTITY printCmd.key "P">
