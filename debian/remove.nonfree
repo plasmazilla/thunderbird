@@ -1,7 +1,7 @@
 #! /bin/sh
 
-rm -fv ./directory/c-sdk/ldap/examples/macintosh/*.u
-rm -fv ./directory/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
+rm -fv ./directory/sdks/c-sdk/ldap/examples/macintosh/*.u
+rm -fv ./directory/sdks/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
 rm -fv ./mozilla/modules/oji/tests/script/killer.exe
 rm -fv ./mozilla/other-licenses/7zstub/firefox/7zSD.sfx
 rm -fv ./mozilla/toolkit/mozapps/update/src/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib

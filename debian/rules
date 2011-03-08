@@ -148,7 +148,7 @@ $(DEB_MOZ_APPLICATION)%: thunderbird%.in
 pre-build:: $(subst_files)
 
 configure/$(DEB_MOZ_APPLICATION)::
-	sed -i '/^OS_LDFLAGS/s|=|& $(MAIN_LDFLAGS)|' config/autoconf.mk mozilla/config/autoconf.mk mozilla/js/src/config/autoconf.mk directory/c-sdk/config/autoconf.mk
+	sed -i '/^OS_LDFLAGS/s|=|& $(MAIN_LDFLAGS)|' config/autoconf.mk mozilla/config/autoconf.mk mozilla/js/src/config/autoconf.mk directory/sdks/c-sdk/config/autoconf.mk
 
 makebuilddir/$(DEB_MOZ_APPLICATION):: debian/stamp-autotools-files-moz
 debian/stamp-autotools-files-moz:
@@ -156,8 +156,8 @@ debian/stamp-autotools-files-moz:
 	then cd $(DEB_SRCDIR)/mozilla && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/mozilla/js/src/configure ]; \
 	then cd $(DEB_SRCDIR)/mozilla/js/src && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
-	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/directory/c-sdk/configure ]; \
-	then cd $(DEB_SRCDIR)/directory/c-sdk && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
+	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(DEB_SRCDIR)/directory/sdks/c-sdk/configure ]; \
+	then cd $(DEB_SRCDIR)/directory/sdks/c-sdk && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	touch $@
 
 install/$(DEB_MOZ_APPLICATION)::

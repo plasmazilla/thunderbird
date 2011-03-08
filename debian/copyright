@@ -141,7 +141,7 @@ The file db/mork/src/morkQuickSort.cpp is licensed under the following terms:
 The following files come from X11R5, without any clear licensing terms:
 
   build/autoconf/install-sh
-  directory/c-sdk/config/autoconf/install-sh
+  directory/sdks/c-sdk/config/autoconf/install-sh
   nsprpub/build/autoconf/install-sh
 
 The embedding/qa/mozembed/public/nsIQABrowserUIGlue.idl file and the files
