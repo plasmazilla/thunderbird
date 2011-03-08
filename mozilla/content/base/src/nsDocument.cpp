@@ -6063,17 +6063,15 @@ nsDocument::AdoptNode(nsIDOMNode *aAdoptedNode, nsIDOMNode **aResult)
   PRBool sameDocument = oldDocument == this;
 
   JSContext *cx = nsnull;
-  JSObject *oldScope = nsnull;
   JSObject *newScope = nsnull;
-  if (!sameDocument && oldDocument) {
-    rv = nsContentUtils::GetContextAndScopes(oldDocument, this, &cx, &oldScope,
-                                             &newScope);
+  if (!sameDocument) {
+    rv = nsContentUtils::GetContextAndScope(oldDocument, this, &cx, &newScope);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
   nsCOMArray<nsINode> nodesWithProperties;
   rv = nsNodeUtils::Adopt(adoptedNode, sameDocument ? nsnull : mNodeInfoManager,
-                          cx, oldScope, newScope, nodesWithProperties);
+                          cx, newScope, nodesWithProperties);
   if (NS_FAILED(rv)) {
     // Disconnect all nodes from their parents, since some have the old document
     // as their ownerDocument and some have this as their ownerDocument.

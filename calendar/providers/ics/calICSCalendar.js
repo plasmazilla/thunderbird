@@ -24,6 +24,7 @@
  *   Joey Minta <jminta@gmail.com>
  *   Philipp Kewisch <mozilla@kewis.ch>
  *   Daniel Boelzle <daniel.boelzle@sun.com>
+ *   Matthew Mecca <matthew.mecca@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -124,9 +125,7 @@ calICSCalendar.prototype = {
 
         // Use the ioservice, to create a channel, which makes finding the
         // right hooks to use easier.
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                                  .getService(Components.interfaces.nsIIOService);
-        var channel = ioService.newChannelFromURI(this.mUri);
+        var channel = cal.getIOService().newChannelFromURI(this.mUri);
 
         if (calInstanceOf(channel, Components.interfaces.nsIHttpChannel)) {
             this.mHooks = new httpHooks();
@@ -146,7 +145,12 @@ calICSCalendar.prototype = {
     },
 
     refresh: function calICSCalendar_refresh() {
-        this.queue.push({action: 'refresh'});
+        this.queue.push({action: 'refresh', forceRefresh: false});
+        this.processQueue();
+    },
+
+    forceRefresh: function calICSCalendar_forceRefresh() {
+        this.queue.push({action: 'refresh', forceRefresh: true});
         this.processQueue();
     },
 
@@ -159,11 +163,24 @@ calICSCalendar.prototype = {
         this.mHooks.onBeforeGet(aChannel);
     },
 
-    doRefresh: function calICSCalendar_doRefresh() {
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                                  .getService(Components.interfaces.nsIIOService);
+    createMemoryCalendar: function calICSCalendar_createMemoryCalendar() {
+        // Create a new calendar, to get rid of all the old events
+        // Don't forget to remove the observer
+        if (this.mMemoryCalendar) {
+            this.mMemoryCalendar.removeObserver(this.mObserver);
+        }
+        this.mMemoryCalendar = Components.classes["@mozilla.org/calendar/calendar;1?type=memory"]
+                                         .createInstance(Components.interfaces.calICalendar);
+        this.mMemoryCalendar.uri = this.mUri;
+        this.mMemoryCalendar.superCalendar = this;
+    },
 
-        var channel = ioService.newChannelFromURI(this.mUri);
+    doRefresh: function calICSCalendar_doRefresh(aForce) {
+        let prbForce = Components.classes["@mozilla.org/supports-PRBool;1"]
+                                 .createInstance(Components.interfaces.nsISupportsPRBool);
+        prbForce.data = aForce;
+
+        var channel = cal.getIOService().newChannelFromURI(this.mUri);
         this.prepareChannel(channel);
 
         var streamLoader = Components.classes["@mozilla.org/network/stream-loader;1"]
@@ -174,7 +191,7 @@ calICSCalendar.prototype = {
 
         try {
             streamLoader.init(this);
-            channel.asyncOpen(streamLoader, this);
+            channel.asyncOpen(streamLoader, prbForce);
         } catch(e) {
             // File not found: a new calendar. No problem.
             this.unlock();
@@ -191,14 +208,19 @@ calICSCalendar.prototype = {
 
     onStreamComplete: function(loader, ctxt, status, resultLength, result)
     {
-        // No need to do anything if there was no result
+        let forceRefresh = ctxt.QueryInterface(Components.interfaces.nsISupportsPRBool).data;
+
+         // Clear any existing events if there was no result
         if (!resultLength) {
+            this.createMemoryCalendar();
+            this.mMemoryCalendar.addObserver(this.mObserver);
+            this.mObserver.onLoad(this);
             this.unlock();
             return;
         }
-        
+
         // Allow the hook to get needed data (like an etag) of the channel
-        var cont = this.mHooks.onAfterGet();
+        var cont = this.mHooks.onAfterGet(forceRefresh);
         if (!cont) {
             this.unlock();
             return;
@@ -221,13 +243,7 @@ calICSCalendar.prototype = {
             return;
         }
 
-        // Create a new calendar, to get rid of all the old events
-        // Don't forget to remove the observer
-        this.mMemoryCalendar.removeObserver(this.mObserver);
-        this.mMemoryCalendar = Components.classes["@mozilla.org/calendar/calendar;1?type=memory"]
-                                         .createInstance(Components.interfaces.calICalendar);
-        this.mMemoryCalendar.uri = this.mUri;
-        this.mMemoryCalendar.superCalendar = this;
+        this.createMemoryCalendar();
 
         this.mObserver.onStartBatch();
 
@@ -291,10 +307,7 @@ calICSCalendar.prototype = {
                     // All events are returned. Now set up a channel and a
                     // streamloader to upload.  onStopRequest will be called
                     // once the write has finished
-                    var ioService = Components.classes
-                        ["@mozilla.org/network/io-service;1"]
-                        .getService(Components.interfaces.nsIIOService);
-                    var channel = ioService.newChannelFromURI(savedthis.mUri);
+                    var channel = cal.getIOService().newChannelFromURI(savedthis.mUri);
 
                     // Allow the hook to add things to the channel, like a
                     // header that checks etags
@@ -332,6 +345,7 @@ calICSCalendar.prototype = {
                                                 "was a failure: 0x" + ex.result.toString(16));
                     savedthis.mObserver.onError(savedthis.superCalendar, calIErrors.MODIFICATION_FAILED, "");
                     savedthis.unlock(calIErrors.MODIFICATION_FAILED);
+                    savedthis.forceRefresh();
                 }
             },
             onGetResult: function(aCalendar, aStatus, aItemType, aDetail, aCount, aItems)
@@ -523,7 +537,7 @@ calICSCalendar.prototype = {
             this.writeICS();
         }
         else if (refreshAction) {
-            this.doRefresh();
+            this.doRefresh(refreshAction.forceRefresh);
         }
     },
 
@@ -739,9 +753,7 @@ calICSCalendar.prototype = {
         purgeOldBackups();
 
         // Now go download the remote file, and store it somewhere local.
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                                  .getService(CI.nsIIOService);
-        var channel = ioService.newChannelFromURI(this.mUri);
+        var channel = cal.getIOService().newChannelFromURI(this.mUri);
         channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
         channel.notificationCallbacks = this;
 
@@ -845,7 +857,7 @@ dummyHooks.prototype = {
      *     didn't change, there might be no data in this GET), true in all
      *     other cases
      */
-    onAfterGet: function() {
+    onAfterGet: function(aForceRefresh) {
         return true;
     },
 
@@ -876,19 +888,21 @@ httpHooks.prototype = {
         return true;
     },
     
-    onAfterGet: function() {
+    onAfterGet: function(aForceRefresh) {
         var httpchannel = this.mChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
 
         // 304: Not Modified
         // Can use the old data, so tell the caller that it can skip parsing.
-        if (httpchannel.responseStatus == 304)
+        if (httpchannel.responseStatus == 304 && !aForceRefresh) {
             return false;
+        }
 
         // 404: Not Found
         // This is a new calendar. Shouldn't try to parse it. But it also
         // isn't a failure, so don't throw.
-        if (httpchannel.responseStatus == 404)
+        if (httpchannel.responseStatus == 404) {
             return false;
+        }
 
         try {
             this.mEtag = httpchannel.getResponseHeader("ETag");
@@ -1000,11 +1014,11 @@ fileHooks.prototype = {
      *     didn't change, there might be no data in this GET), true in all
      *     other cases
      */
-    onAfterGet: function fH_onAfterGet() {
+    onAfterGet: function fH_onAfterGet(aForceRefresh) {
         let filechannel = this.mChannel.QueryInterface(Components.interfaces.nsIFileChannel);
         if (this.mtime) {
             let newMtime = filechannel.file.lastModifiedTime;
-            if (this.mtime == newMtime) {
+            if (this.mtime == newMtime && !aForceRefresh) {
                 return false;
             } else {
                 this.mtime = newMtime;

@@ -20,6 +20,7 @@
  * Contributor(s):
  *   Michael Buettner <michael.buettner@sun.com>
  *   Philipp Kewisch <mozilla@kewis.ch>
+ *   Gianfranco Balza <bv1578@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -91,10 +92,12 @@ function onLoad() {
         }
     }
 
-    var zoom = document.getElementById("zoom-menulist");
+    let zoom = document.getElementById("zoom-menulist");
     let zoomOut = document.getElementById("zoom-out-button");
     let zoomIn = document.getElementById("zoom-in-button");
-    zoom.value = "100";
+
+    // Make sure zoom factor is set up correctly (from persisted value)
+    setZoomFactor(zoom.value);
 
     initTimeRange();
 
@@ -173,17 +176,6 @@ function onCancel() {
 }
 
 /**
- * Event handler for setting the zoom factor
- *
- * @param aValue        The zoom factor to set.
- *
- * XXX setZoomFactor should be called directly.
- */
-function onZoomFactor(aValue) {
-    setZoomFactor(parseInt(aValue));
-}
-
-/**
  * Function called when zoom buttons (+/-) are clicked.
  *
  * @param aZoomOut      true -> zoom out; false -> zoom in.
@@ -195,7 +187,7 @@ function zoomWithButtons(aZoomOut) {
     } else if (!aZoomOut && zoom.selectedIndex > 0) {
         zoom.selectedIndex--;
     }
-    setZoomFactor(parseInt(zoom.value));
+    setZoomFactor(zoom.value);
 }
 
 /**
@@ -457,7 +449,7 @@ function updateEndTime() {
             promptService.alert(
                 null,
                 document.title,
-                calGetString("calendar", "warningNegativeDuration"));
+                calGetString("calendar", "warningEndBeforeStart"));
         }
         setTimeout(callback, 1);
     }
@@ -810,6 +802,9 @@ function scrollToCurrentTime() {
  * @return              aValue (for chaining)
  */
 function setZoomFactor(aValue) {
+    // Correct zoom factor, if needed 
+    aValue = parseInt(aValue, 10) || 100;
+
     if (gZoomFactor == aValue) {
         return aValue;
     }

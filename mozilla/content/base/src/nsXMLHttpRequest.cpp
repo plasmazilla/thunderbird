@@ -2400,7 +2400,11 @@ nsXMLHttpRequest::Send(nsIVariant *aBody)
                 NS_ENSURE_SUCCESS(rv, rv);
 
                 nsCOMPtr<nsIInputStream> stream;
-                rv = NS_NewLocalFileInputStream(getter_AddRefs(stream), internalFile); 
+                rv = NS_NewLocalFileInputStream(getter_AddRefs(stream),
+                                                internalFile,
+                                                -1, -1,
+                                                nsIFileInputStream::CLOSE_ON_EOF |
+                                                nsIFileInputStream::REOPEN_ON_REWIND); 
                 NS_ENSURE_SUCCESS(rv, rv);
 
                 // Feed local file input stream into our upload channel

@@ -2205,10 +2205,9 @@ BindNameToSlot(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
             JS_ASSERT(index == cg->upvarList.count - 1);
 
             uint32 *vector = cg->upvarMap.vector;
-            if (!vector) {
-                uint32 length = cg->lexdeps.count;
-
-                vector = (uint32 *) js_calloc(length * sizeof *vector);
+            uint32 length = cg->lexdeps.count;
+            if (!vector || cg->upvarMap.length != length) {
+                vector = (uint32 *) js_realloc(vector, length * sizeof *vector);
                 if (!vector) {
                     JS_ReportOutOfMemory(cx);
                     return JS_FALSE;
@@ -2227,6 +2226,7 @@ BindNameToSlot(JSContext *cx, JSCodeGenerator *cg, JSParseNode *pn)
                     slot += tc->fun->nargs;
             }
 
+            JS_ASSERT(index < cg->upvarMap.length);
             vector[index] = MAKE_UPVAR_COOKIE(skip, slot);
         }
 

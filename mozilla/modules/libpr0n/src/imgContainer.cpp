@@ -546,19 +546,20 @@ NS_IMETHODIMP imgContainer::EnsureCleanFrame(PRUint32 aFrameNum, PRInt32 aX, PRI
 
   // See if we can re-use the frame that already exists.
   nsIntRect rect = frame->GetRect();
-  if (rect.x != aX || rect.y != aY || rect.width != aWidth || rect.height != aHeight ||
-      frame->GetFormat() != aFormat) {
-    DeleteImgFrame(aFrameNum);
-    return InternalAddFrame(aFrameNum, aX, aY, aWidth, aHeight, aFormat, 
-                            /* aPaletteDepth = */ 0, imageData, imageLength,
-                            /* aPaletteData = */ nsnull, 
-                            /* aPaletteLength = */ nsnull);
+  if (rect.x == aX && rect.y == aY && rect.width == aWidth &&
+      rect.height == aHeight && frame->GetFormat() == aFormat) {
+    // We can re-use the frame if it has image data.
+    frame->GetImageData(imageData, imageLength);
+    if (*imageData) {
+      return NS_OK;
+    }
   }
 
-  // We can re-use the frame.
-  frame->GetImageData(imageData, imageLength);
-
-  return NS_OK;
+  DeleteImgFrame(aFrameNum);
+  return InternalAddFrame(aFrameNum, aX, aY, aWidth, aHeight, aFormat, 
+                          /* aPaletteDepth = */ 0, imageData, imageLength,
+                          /* aPaletteData = */ nsnull, 
+                          /* aPaletteLength = */ nsnull);
 }
 
 

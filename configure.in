@@ -1825,22 +1825,22 @@ case "$target" in
         DSO_CFLAGS='-qflag=w:w'
         DSO_PIC_CFLAGS=
         LDFLAGS="$LDFLAGS -Wl,-brtl -blibpath:/usr/lib:/lib"
-        AC_MSG_WARN([Clearing MOZ_FIX_LINK_PATHS till we can fix bug 332075.])
         MOZ_FIX_LINK_PATHS=
         MKSHLIB='$(CXX) $(DSO_LDOPTS) -o $@'
         MKCSHLIB='$(CC) $(DSO_LDOPTS) -o $@'
         if test "$COMPILE_ENVIRONMENT"; then
             AC_LANG_SAVE
             AC_LANG_CPLUSPLUS
-            AC_MSG_CHECKING([for VisualAge C++ compiler version >= 6.0.0.3])
+            AC_MSG_CHECKING([for IBM XLC/C++ compiler version >= 8.0.0.15])
             AC_TRY_COMPILE([],
-                [#if (__IBMCPP__ < 600)
+                [#if (__IBMCPP__ < 800)
                  #error "Bad compiler"
                  #endif],
                 _BAD_COMPILER=,_BAD_COMPILER=1)
             if test -n "$_BAD_COMPILER"; then
                 AC_MSG_RESULT([no])    
-                AC_MSG_ERROR([VisualAge C++ version 6.0.0.3 or higher is required to build.])
+                AC_MSG_ERROR([IBM XLC/C++ 8.0.0.15 or higher is required to bui
+ld.])
             else
                 AC_MSG_RESULT([yes])    
             fi
@@ -7617,14 +7617,17 @@ MOZ_BUILD_APP="$MOZ_BUILD_APP_CACHED"
 if test -n "$COMPILE_ENVIRONMENT" -a -n "$MOZ_LDAP_XPCOM"; then
     # these subdirs may not yet have been created in the build tree.
     # don't use the "-p" switch to mkdir, since not all platforms have it
-    if test ! -d "directory/c-sdk/ldap"; then
-        if test ! -d "directory/c-sdk"; then
-            if test ! -d "directory"; then
-                mkdir "directory"
+    if test ! -d "directory/sdks/c-sdk/ldap"; then
+        if test ! -d "directory/sdks/c-sdk"; then
+            if test ! -d "directory/sdks"; then
+                if test ! -d "directory"; then
+                    mkdir "directory"
+                fi
+                mkdir "directory/sdks"
             fi
-            mkdir "directory/c-sdk"
+            mkdir "directory/sdks/c-sdk"
         fi
-        mkdir "directory/c-sdk/ldap"
+        mkdir "directory/sdks/c-sdk/ldap"
     fi
 
     ac_configure_args="$_SUBDIR_CONFIG_ARGS --prefix=$MOZ_BUILD_ROOT/mozilla/dist --with-dist-prefix=$MOZ_BUILD_ROOT/mozilla/dist --without-nss --with-mozilla"
@@ -7632,6 +7635,6 @@ if test -n "$COMPILE_ENVIRONMENT" -a -n "$MOZ_LDAP_XPCOM"; then
         dnl A 64-bit OS was (auto-)detected: (explicitly) enable 64-bit support.
         ac_configure_args="$ac_configure_args --enable-64bit"
     fi
-    AC_OUTPUT_SUBDIRS(directory/c-sdk)
+    AC_OUTPUT_SUBDIRS(directory/sdks/c-sdk)
     ac_configure_args="$_SUBDIR_CONFIG_ARGS"
 fi # COMPILE_ENVIRONMENT && MOZ_LDAP_XPCOM

@@ -60,7 +60,7 @@ else # toplevel Makefile
 TIERS += app
 
 ifdef MOZ_LDAP_XPCOM
-tier_app_staticdirs += directory/c-sdk
+tier_app_staticdirs += directory/sdks/c-sdk
 tier_app_dirs += directory/xpcom
 endif
 

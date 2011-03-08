@@ -142,7 +142,7 @@ function getAccountManager() {
 /* Shortcut to the IO service */
 function getIOService() {
     return Components.classes["@mozilla.org/network/io-service;1"]
-                     .getService(Components.interfaces.nsIIOService2);
+                     .getService(Components.interfaces.nsIIOService);
 }
 
 /* Shortcut to the calendar-manager service */
@@ -331,9 +331,7 @@ function calPrint() {
  * @returns  an nsIURI whose spec is aUriString
  */
 function makeURL(aUriString) {
-    var ioSvc = Components.classes["@mozilla.org/network/io-service;1"].
-                getService(Components.interfaces.nsIIOService);
-    return ioSvc.newURI(aUriString, null, null);
+    return getIOService().newURI(aUriString, null, null);
 }
 
 /**
@@ -649,7 +647,7 @@ function calGetString(aBundleName, aStringName, aParams, aComponent) {
 }
 
 /**
- * Gets the value of a the fiels of a string array in a .properties file from the calendar bundle
+ * Gets the value of the fields of a string array in a .properties file from the calendar bundle
  *
  * @param aBundleName  the name of the properties file. It is assumed that the
  *                     file lives in chrome://calendar/locale/
@@ -1114,6 +1112,9 @@ function checkIfInRange(item, rangeStart, rangeEnd, returnDtstartOrDue)
 function getProgressAtom(aTask) {
     var now = new Date();
 
+    if (aTask.recurrenceInfo)
+      return "repeating";
+
     if (aTask.isCompleted)
       return "completed";
 
@@ -1258,8 +1259,6 @@ function sendMailTo(aRecipient, aSubject, aBody) {
         // service.
         var protoSvc = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
                        .getService(Components.interfaces.nsIExternalProtocolService);
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                        .getService(Components.interfaces.nsIIOService);
 
         var uriString = "mailto:";
         var uriParams = [];
@@ -1279,7 +1278,7 @@ function sendMailTo(aRecipient, aSubject, aBody) {
             uriString += "?" + uriParams.join("&");
         }
 
-        protoSvc.loadUrl(ioService.newURI(uriString, null, null));
+        protoSvc.loadUrl(makeURL(uriString));
     }
 }
 
