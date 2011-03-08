@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sat, 13 Feb 2010 09:57:31 +0100
-Subject: [PATCH] Fixes for misaligned accesses on ARM in uconv
+Subject: Fixes for misaligned accesses on ARM in uconv
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=544512
 ---
@@ -9,10 +9,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=544512
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
-index 4c6dba1..9314c2b 100644
+index 1bcb9d6..52e3b7d 100644
 --- a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
 +++ b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
-@@ -112,7 +112,7 @@ UTF16ConvertToUnicode(PRUint8& aState, PRUint8& aOddByte,
+@@ -133,7 +133,7 @@ UTF16ConvertToUnicode(PRUint8& aState, PRUint8& aOddByte,
      if (dest == destEnd)
        goto error;
  

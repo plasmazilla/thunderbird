@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Tue, 23 Feb 2010 11:36:33 +0100
-Subject: [PATCH] Set extensions.dss.enabled to false at XRE level
+Subject: Set extensions.dss.enabled to false at XRE level
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=547943
 ---

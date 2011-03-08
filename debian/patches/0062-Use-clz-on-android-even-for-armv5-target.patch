@@ -1,6 +1,6 @@
 From: Mike Hommey <mh+mozilla@glandium.org>
 Date: Thu, 12 Aug 2010 10:14:50 +0200
-Subject: [PATCH] Use clz on android even for armv5 target.
+Subject: Use clz on android even for armv5 target.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=586224
 ---

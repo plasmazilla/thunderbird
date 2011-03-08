@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sat, 11 Sep 2010 09:31:09 +0200
-Subject: [PATCH] Use errno.ENOENT instead of "2" in JarMaker.py
+Subject: Use errno.ENOENT instead of "2" in JarMaker.py
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=595459
 ---

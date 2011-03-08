@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Wed, 24 Feb 2010 18:40:00 +0100
-Subject: [PATCH] Remove the js shell from the build directory during cleanup
+Subject: Remove the js shell from the build directory during cleanup
 
 ---
  mozilla/js/src/shell/Makefile.in |    2 ++

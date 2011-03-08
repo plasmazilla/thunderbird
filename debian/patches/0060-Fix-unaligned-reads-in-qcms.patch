@@ -1,6 +1,6 @@
 From: Vladimir Vukicevic <vladimir@pobox.com>
 Date: Tue, 8 Sep 2009 11:36:28 -0400
-Subject: [PATCH] Fix unaligned reads in qcms
+Subject: Fix unaligned reads in qcms
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=504766
 ---

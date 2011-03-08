@@ -1,6 +1,6 @@
 From: Mike Hommey <mh+mozilla@glandium.org>
 Date: Thu, 12 Aug 2010 14:47:58 +0200
-Subject: [PATCH] Fix ARM verbose assembly output for BLX.
+Subject: Fix ARM verbose assembly output for BLX.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=586625
 ---

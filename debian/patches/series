@@ -66,3 +66,6 @@
 0066-ARMv4T-support-for-nanojit.patch
 0067-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
 0068-fix-forwarding-of-Simple-HTML-email.patch
+0069-save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+0070-News-article-is-empty-if-selected-during-download-fr.patch
+0071-restore-icedove-on-login-by-session-management.patch

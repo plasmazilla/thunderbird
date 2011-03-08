@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Wed, 24 Feb 2010 18:38:43 +0100
-Subject: [PATCH] mozilla-config.h was renamed js-confdefs.h in js/src
+Subject: mozilla-config.h was renamed js-confdefs.h in js/src
 
 ---
  mozilla/js/src/Makefile.in |    2 +-

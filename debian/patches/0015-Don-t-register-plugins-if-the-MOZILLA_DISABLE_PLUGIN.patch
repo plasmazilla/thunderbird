@@ -1,16 +1,16 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 27 Sep 2008 17:17:39 +0200
-Subject: [PATCH] Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment variable is set
+Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment variable is set
 
 ---
  mozilla/modules/plugin/base/src/nsPluginHost.cpp |   25 ++++++++++++++++++++++
  1 files changed, 25 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/modules/plugin/base/src/nsPluginHost.cpp b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-index b11c0e6..22c069f 100644
+index 96e1a1e..a10122e 100644
 --- a/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 +++ b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-@@ -237,6 +237,24 @@ PRBool gSkipPluginSafeCalls = PR_FALSE;
+@@ -243,6 +243,24 @@ PRBool gSkipPluginSafeCalls = PR_FALSE;
  nsIFile *nsPluginHost::sPluginTempDir;
  nsPluginHost *nsPluginHost::sInst;
  
@@ -35,7 +35,7 @@ index b11c0e6..22c069f 100644
  // flat file reg funcs
  static
  PRBool ReadSectionHeader(nsPluginManifestLineReader& reader, const char *token)
-@@ -4872,6 +4890,10 @@ nsresult nsPluginHost::FindPlugins(PRBool aCreatePluginList, PRBool * aPluginsCh
+@@ -4961,6 +4979,10 @@ nsresult nsPluginHost::FindPlugins(PRBool aCreatePluginList, PRBool * aPluginsCh
    // possible reset in subsequent ScanPluginsDirectory calls
    PRBool pluginschanged = PR_FALSE;
  
@@ -46,7 +46,7 @@ index b11c0e6..22c069f 100644
    // Scan the app-defined list of plugin dirs.
    rv = dirService->Get(NS_APP_PLUGINS_DIR_LIST, NS_GET_IID(nsISimpleEnumerator), getter_AddRefs(dirList));
    if (NS_SUCCEEDED(rv)) {
-@@ -5160,6 +5182,9 @@ nsPluginHost::WritePluginInfo()
+@@ -5249,6 +5271,9 @@ nsPluginHost::WritePluginInfo()
  nsresult
  nsPluginHost::ReadPluginInfo()
  {

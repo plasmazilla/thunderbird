@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Mon, 11 Jan 2010 11:09:46 +0100
-Subject: [PATCH] Avoid creating /usr/lib/mozilla/extensions 0700 when running as root
+Subject: Avoid creating /usr/lib/mozilla/extensions 0700 when running as root
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=538929
 ---

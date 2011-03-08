@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 7 Apr 2010 18:58:35 +0200
-Subject: [PATCH] Fix compiler errors with g++ 4.4 with -std=gnu++0x
+Subject: Fix compiler errors with g++ 4.4 with -std=gnu++0x
 
 of the form: error: narrowing conversion ... inside { }
 
@@ -104,10 +104,10 @@ index 8df1619..62011dd 100644
        nsCSSBorderRenderer::ComputeInnerRadii(aBGRadii, borderSizes,
                                               &clippedRadii);
 diff --git a/mozilla/layout/generic/nsTextFrameThebes.cpp b/mozilla/layout/generic/nsTextFrameThebes.cpp
-index d8a8801..cfbd301 100644
+index 29e4cbe..d956c74 100644
 --- a/mozilla/layout/generic/nsTextFrameThebes.cpp
 +++ b/mozilla/layout/generic/nsTextFrameThebes.cpp
-@@ -1128,7 +1128,7 @@ BuildTextRuns(gfxContext* aContext, nsTextFrame* aForFrame,
+@@ -1129,7 +1129,7 @@ BuildTextRuns(gfxContext* aContext, nsTextFrame* aForFrame,
      }
  
      BuildTextRunsScanner::FindBoundaryState state = { stopAtFrame, nsnull, nsnull,

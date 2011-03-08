@@ -1,6 +1,6 @@
 From: Mike Hommey <mh+mozilla@glandium.org>
 Date: Thu, 26 Aug 2010 15:51:29 +0200
-Subject: [PATCH] Avoid some ARM CPU arch related runtime tests depending on the build target.
+Subject: Avoid some ARM CPU arch related runtime tests depending on the build target.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=585604
 ---

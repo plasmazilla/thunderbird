@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 29 Oct 2008 21:00:17 +0100
-Subject: [PATCH] Do exec instead of uselessly forking in xulrunner launcher script
+Subject: Do exec instead of uselessly forking in xulrunner launcher script
 
 ---
  mozilla/build/unix/mozilla.in |    5 +----

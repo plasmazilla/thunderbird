@@ -1,6 +1,6 @@
 From: Alexander Sack <asac@debian.org>
 Date: Wed, 27 Jan 2010 19:06:37 +0100
-Subject: [PATCH] bz466250_att349521_fix_ftbfs_with_cairo_fb
+Subject: bz466250_att349521_fix_ftbfs_with_cairo_fb
 
 #
 # Ubuntu: none

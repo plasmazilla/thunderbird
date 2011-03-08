@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Fri, 27 Aug 2010 19:37:25 +0200
-Subject: [PATCH] fix FTBFS on hurd
+Subject: fix FTBFS on hurd
 
 GNU/Hurd didn't provide SA_SIGINFO in signal.h
 

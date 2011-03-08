@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Tue, 9 Mar 2010 09:44:37 +0100
-Subject: [PATCH] Allow to build against system libffi
+Subject: Allow to build against system libffi
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=551138
 ---

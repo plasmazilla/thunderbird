@@ -1,6 +1,6 @@
 From: Mike Hommey <mh+mozilla@glandium.org>
 Date: Sat, 14 Aug 2010 10:09:11 +0200
-Subject: [PATCH] Get rid of blx_lr_bug.
+Subject: Get rid of blx_lr_bug.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=586262
 ---

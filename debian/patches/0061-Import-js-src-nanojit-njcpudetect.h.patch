@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Wed, 1 Sep 2010 21:07:45 +0200
-Subject: [PATCH] Import js/src/nanojit/njcpudetect.h
+Subject: Import js/src/nanojit/njcpudetect.h
 
 ---
  mozilla/js/src/nanojit/avmplus.h     |    2 +

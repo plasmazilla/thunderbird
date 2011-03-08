@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Thu, 7 Jan 2010 10:45:26 +0100
-Subject: [PATCH] Fix misalignments in --help command line
+Subject: Fix misalignments in --help command line
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=458631
 ---

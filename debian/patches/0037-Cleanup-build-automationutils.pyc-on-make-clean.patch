@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Mon, 1 Feb 2010 16:34:43 +0100
-Subject: [PATCH] Cleanup build/automationutils.pyc on make clean
+Subject: Cleanup build/automationutils.pyc on make clean
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=543469
 ---

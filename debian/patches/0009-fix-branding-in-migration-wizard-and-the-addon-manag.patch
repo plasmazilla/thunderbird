@@ -1,6 +1,6 @@
 From: Edward J. Shornock <ed.shornock@gmail.com>
 Date: Mon, 1 Feb 2010 19:16:08 +0100
-Subject: [PATCH] fix branding in migration wizard and the addon manager
+Subject: fix branding in migration wizard and the addon manager
 
 Replace /Thunderbird/ with /Icedove/
 Update %APP% with the respective Mozilla names so

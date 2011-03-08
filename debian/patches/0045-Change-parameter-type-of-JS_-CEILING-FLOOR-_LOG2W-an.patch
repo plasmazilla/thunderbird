@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Tue, 6 Apr 2010 09:55:12 +0200
-Subject: [PATCH] Change parameter type of JS_{CEILING,FLOOR}_LOG2W and js_FloorLog2wImpl to be JSSize
+Subject: Change parameter type of JS_{CEILING,FLOOR}_LOG2W and js_FloorLog2wImpl to be JSSize
 
 This fixes FTBFS on s390.
 https://bugzilla.mozilla.org/show_bug.cgi?id=557270
@@ -76,11 +76,11 @@ index 81e6511..9576675 100644
      JS_ASSERT(n != 0);
  
 diff --git a/mozilla/js/src/jstl.h b/mozilla/js/src/jstl.h
-index 42e7240..ae721de 100644
+index c3b3f3b..8dd093d 100644
 --- a/mozilla/js/src/jstl.h
 +++ b/mozilla/js/src/jstl.h
 @@ -195,7 +195,6 @@ class ReentrancyGuard
- static JS_ALWAYS_INLINE size_t
+ JS_ALWAYS_INLINE size_t
  RoundUpPow2(size_t x)
  {
 -    typedef tl::StaticAssert<tl::IsSameType<size_t,JSUword>::result>::result _;

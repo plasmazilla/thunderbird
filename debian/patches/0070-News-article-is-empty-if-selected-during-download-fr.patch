@@ -1,0 +1,173 @@
+From: Joshua Cranmer <Pidgeot18@gmail.com>
+Date: Mon, 22 Mar 2010 15:24:45 -0400
+Subject: News article is empty if selected during download from news server
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=540288
+https://bugzilla.mozilla.org/show_bug.cgi?id=561615
+Closes: #487494
+---
+ mailnews/news/src/nsNNTPProtocol.cpp      |   19 ++++-
+ mailnews/news/test/unit/test_bug540288.js |  110 +++++++++++++++++++++++++++++
+ 2 files changed, 126 insertions(+), 3 deletions(-)
+ create mode 100644 mailnews/news/test/unit/test_bug540288.js
+
+diff --git a/mailnews/news/src/nsNNTPProtocol.cpp b/mailnews/news/src/nsNNTPProtocol.cpp
+index a8e8385..ff82220 100644
+--- a/mailnews/news/src/nsNNTPProtocol.cpp
++++ b/mailnews/news/src/nsNNTPProtocol.cpp
+@@ -902,9 +902,21 @@ nsNNTPProtocol::OnCacheEntryAvailable(nsICacheEntryDescriptor *entry, nsCacheAcc
+     nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(m_runningURL, &rv);
+     mailnewsUrl->SetMemCacheEntry(entry);
+ 
++    // If we have an empty cache entry with read access, we probably failed to
++    // clear it out from an error ealier. In this case, we'll simply try to
++    // write in the cache entry this time and hope we get luckier.
++    PRBool canRead = access & nsICache::ACCESS_READ;
++    if (canRead)
++    {
++      PRUint32 size;
++      entry->GetDataSize(&size);
++      if (size == 0)
++        canRead = PR_FALSE;
++    }
++
+     // if we have write access then insert a "stream T" into the flow so data
+     // gets written to both
+-    if (access & nsICache::ACCESS_WRITE && !(access & nsICache::ACCESS_READ))
++    if (access & nsICache::ACCESS_WRITE && !canRead)
+     {
+       // use a stream listener Tee to force data into the cache and to our current channel listener...
+       nsCOMPtr<nsIStreamListener> newListener;
+@@ -923,12 +935,13 @@ nsNNTPProtocol::OnCacheEntryAvailable(nsICacheEntryDescriptor *entry, nsCacheAcc
+       m_channelListener = do_QueryInterface(tee);
+       NS_ENSURE_SUCCESS(rv, rv);
+     }
+-    else
++    else if (canRead)
+     {
+       rv = ReadFromMemCache(entry);
+       if (access & nsICache::ACCESS_WRITE)
+         entry->MarkValid();
+-      if (NS_SUCCEEDED(rv)) return NS_OK; // kick out if reading from the cache succeeded...
++      if (NS_SUCCEEDED(rv))
++        return NS_OK; // kick out if reading from the cache succeeded...
+     }
+   } // if we got a valid entry back from the cache...
+ 
+diff --git a/mailnews/news/test/unit/test_bug540288.js b/mailnews/news/test/unit/test_bug540288.js
+new file mode 100644
+index 0000000..8f6a94a
+--- /dev/null
++++ b/mailnews/news/test/unit/test_bug540288.js
+@@ -0,0 +1,110 @@
++/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++/* Tests that an empty cache entry doesn't return an empty message for news. */
++
++Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
++
++// The basic daemon to use for testing nntpd.js implementations
++var daemon = setupNNTPDaemon();
++
++// Define these up here for checking with the transaction
++var type = null;
++var test = null;
++
++var server;
++var localserver;
++
++var streamListener =
++{
++  _data: "",
++
++  QueryInterface:
++    XPCOMUtils.generateQI([Ci.nsIStreamListener, Ci.nsIRequestObserver]),
++
++  // nsIRequestObserver
++  onStartRequest: function(aRequest, aContext) {
++  },
++  onStopRequest: function(aRequest, aContext, aStatusCode) {
++    do_check_eq(aStatusCode, 0);
++
++    // Reduce any \r\n to just \n so we can do a good comparison on any
++    // platform.
++    var reduced = this._data.replace(/\r\n/g, "\n");
++    do_check_eq(reduced, kSimpleNewsArticle);
++
++    // We must finish closing connections and tidying up after a timeout
++    // so that the thread has time to unwrap itself.
++    do_timeout(0, doTestFinished);
++  },
++
++  // nsIStreamListener
++  onDataAvailable: function(aRequest, aContext, aInputStream, aOffset, aCount) {
++    let scriptStream = Cc["@mozilla.org/scriptableinputstream;1"]
++                         .createInstance(Ci.nsIScriptableInputStream);
++
++    scriptStream.init(aInputStream);
++
++    this._data += scriptStream.read(aCount);
++  }
++};
++
++function doTestFinished() {
++    localserver.closeCachedConnections();
++
++    server.stop();
++
++    var thread = gThreadManager.currentThread;
++    while (thread.hasPendingEvents())
++      thread.processNextEvent(true);
++
++    do_test_finished();
++}
++
++const kCacheKey = "news://localhost:" + NNTP_PORT + "/TSS1%40nntp.test";
++
++function run_test() {
++  type = "RFC 977";
++  var handler = new NNTP_RFC977_handler(daemon);
++  localserver = setupLocalServer(NNTP_PORT);
++  server = new nsMailServer(handler);
++  server.start(NNTP_PORT);
++
++  try {
++    // Add an empty message to the cache
++    var cache = Cc["@mozilla.org/messenger/nntpservice;1"]
++                  .getService(Ci.nsINntpService)
++                  .cacheSession;
++    var cacheEntry = cache.openCacheEntry(kCacheKey, Ci.nsICache.ACCESS_WRITE,
++                                          true);
++    cacheEntry.markValid();
++    var firstAccess = cacheEntry.fetchCount;
++    cacheEntry.close();
++
++    // Get the folder and new mail
++    var folder = localserver.rootFolder.getChildNamed("test.subscribe.simple");
++    folder.clearFlag(Ci.nsMsgFolderFlags.Offline);
++    folder.getNewMessages(null, {
++      OnStopRunningUrl: function () { localserver.closeCachedConnections(); }});
++    server.performTest();
++
++    do_check_eq(folder.getTotalMessages(false), 1);
++    do_check_true(folder.hasNewMessages);
++
++    server.resetTest();
++
++    var message = folder.firstNewMessage;
++
++    var messageUri = folder.getUriForMsg(message);
++
++    var nntpService = Cc["@mozilla.org/messenger/nntpservice;1"]
++      .getService(Ci.nsIMsgMessageService);
++
++    do_test_pending();
++
++    nntpService.DisplayMessage(messageUri, streamListener, null, null, null, {});
++    // Get the server to run
++    server.performTest();
++  } catch (e) {
++    server.stop();
++    do_throw(e);
++  }
++};
+-- 

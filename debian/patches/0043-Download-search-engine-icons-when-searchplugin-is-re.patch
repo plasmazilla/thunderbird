@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Tue, 23 Mar 2010 11:57:28 +0100
-Subject: [PATCH] Download search engine icons when searchplugin is read-only
+Subject: Download search engine icons when searchplugin is read-only
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=554265
 ---

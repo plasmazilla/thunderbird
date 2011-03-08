@@ -1,6 +1,6 @@
 From: Mike Hommey <mh+mozilla@glandium.org>
 Date: Tue, 31 Aug 2010 11:51:23 +0200
-Subject: [PATCH] ARMv4T support for nanojit.
+Subject: ARMv4T support for nanojit.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=552624
 ---

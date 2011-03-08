@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Thu, 13 Mar 2008 20:28:02 +0100
-Subject: [PATCH] Enable intl.locale.matchOS, and report the locale correctly
+Subject: Enable intl.locale.matchOS, and report the locale correctly
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=331779
 ---

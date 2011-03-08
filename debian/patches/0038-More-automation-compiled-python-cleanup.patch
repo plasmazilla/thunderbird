@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 26 Mar 2010 13:44:11 +0100
-Subject: [PATCH] More automation compiled python cleanup
+Subject: More automation compiled python cleanup
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=543469
 ---

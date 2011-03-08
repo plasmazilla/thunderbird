@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Wed, 14 Apr 2010 08:59:59 +0200
-Subject: [PATCH] Do build time detection of 2-bytes wchar_t and char16_t support
+Subject: Do build time detection of 2-bytes wchar_t and char16_t support
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=559278
 Closes: #577677 - in xulrunner

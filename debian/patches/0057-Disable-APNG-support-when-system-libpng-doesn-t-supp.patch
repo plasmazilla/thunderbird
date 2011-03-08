@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Fri, 14 Mar 2008 08:29:51 +0100
-Subject: [PATCH] Disable APNG support when system libpng doesn't support it
+Subject: Disable APNG support when system libpng doesn't support it
 
 ---
  mozilla/config/autoconf.mk.in                      |    1 +

@@ -1,6 +1,6 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Sat, 8 Dec 2007 17:34:10 +0100
-Subject: [PATCH] Increase stability and performance on mips
+Subject: Increase stability and performance on mips
 
 http://bugs.debian.org/374389
 ---

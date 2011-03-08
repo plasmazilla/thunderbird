@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 5 Feb 2010 17:24:15 +0100
-Subject: [PATCH] Force better nsAutoT{Ptr,}Array buffer alignment
+Subject: Force better nsAutoT{Ptr,}Array buffer alignment
 
 This solves issues on sparc in a better way than the previous workaround that
 missed some other failure cases.

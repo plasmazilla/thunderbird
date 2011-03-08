@@ -1,6 +1,6 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Sat, 6 Mar 2010 11:53:30 +0100
-Subject: [PATCH] Expose fullpath from nsIPluginTag
+Subject: Expose fullpath from nsIPluginTag
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=550668
 ---
@@ -24,10 +24,10 @@ index 9f42f3b..ef03939 100644
 +  readonly attribute AUTF8String fullpath;
 +};
 diff --git a/mozilla/modules/plugin/base/src/nsPluginHost.cpp b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-index 22c069f..cadf51b 100644
+index a10122e..1875212 100644
 --- a/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 +++ b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-@@ -824,7 +824,7 @@ nsPluginTag::~nsPluginTag()
+@@ -830,7 +830,7 @@ nsPluginTag::~nsPluginTag()
    }
  }
  
@@ -36,7 +36,7 @@ index 22c069f..cadf51b 100644
  
  static nsresult ConvertToUTF8(nsIUnicodeDecoder *aUnicodeDecoder,
                                nsAFlatCString& aString)
-@@ -911,6 +911,13 @@ nsPluginTag::GetFilename(nsACString& aFileName)
+@@ -917,6 +917,13 @@ nsPluginTag::GetFilename(nsACString& aFileName)
  }
  
  NS_IMETHODIMP
