@@ -1029,7 +1029,7 @@ mime_encode_qp_buffer (MimeEncoderData *data, const char *buffer, PRInt32 size)
       out = out_buffer;
 
       /* If it's CRLF, swallow two chars instead of one. */
-      if (in[0] == '\r' && in[1] == '\n')
+      if (in + 1 < end && in[0] == '\r' && in[1] == '\n')
         in++;
 
       out = out_buffer;

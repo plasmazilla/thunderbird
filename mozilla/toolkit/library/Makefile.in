@@ -257,9 +257,7 @@ EXTRA_DSO_LDOPTS += -lelf -ldemangle -lCstd
 endif
 
 ifeq ($(OS_ARCH),AIX)
-ifdef HAVE_64BIT_OS
 EXTRA_DSO_LDOPTS += -bbigtoc 
-endif
 endif
 
 ifeq ($(OS_ARCH),WINNT)

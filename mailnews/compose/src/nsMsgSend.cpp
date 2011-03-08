@@ -4153,7 +4153,7 @@ nsMsgComposeAndSend::NotifyListenerOnStopCopy(nsresult aStatus)
     if (retry)
     {
       mSendProgress = nsnull; // this was cancelled, so we need to clear it.
-      return DoFcc();
+      return SendToMagicFolder(m_deliver_mode);
     }
 
   }

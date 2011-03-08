@@ -222,7 +222,7 @@ calMemoryCalendar.prototype = {
             var storedOldItem = this.mItems[aOldItem.id];
 
             // compareItems is not suitable here. See bug 418805.
-            if (!compareItemContent(storedOldItem, aOldItem)) {
+            if (!cal.compareItemContent(storedOldItem, aOldItem)) {
                 return reportError("old item mismatch in modifyItem");
             }
 
@@ -430,8 +430,12 @@ calMemoryCalendar.prototype = {
             }
 
             if (itemReturnOccurrences && item.recurrenceInfo) {
-                var occurrences = item.recurrenceInfo.getOccurrences(
-                    aRangeStart, aRangeEnd, aCount ? aCount - itemsFound.length : 0, {});
+                let startDate  = aRangeStart;
+                if (!aRangeStart && cal.isToDo(item)) {
+                    startDate = item.entryDate;
+                }
+                let occurrences = item.recurrenceInfo.getOccurrences(
+                    startDate, aRangeEnd, aCount ? aCount - itemsFound.length : 0, {});
                 if (wantUnrespondedInvitations) {
                     occurrences = occurrences.filter(checkUnrespondedInvitation);
                 }

@@ -101,44 +101,34 @@ const URL_UPDATE = URL_HOST + URL_PATH + "/update.sjs";
 
 const URI_UPDATE_PROMPT_DIALOG  = "chrome://mozapps/content/update/updates.xul";
 
-const CRC_ERROR = 4;
-
-const DEBUG = false;
-
-const TEST_TIMEOUT = 30000; // 30 seconds
+const TEST_TIMEOUT = 20000; // 20 seconds
 var gTimeoutTimer;
+
+// The number of SimpleTest.executeSoon calls to perform when waiting on an
+// update window to close before giving up.
+const CLOSE_WINDOW_TIMEOUT_MAXCOUNT = 10;
+// Counter for the SimpleTest.executeSoon when waiting on an update window to
+// close before giving up.
+var gCloseWindowTimeoutCounter = 0;
 
 // The following vars are for restoring previous preference values (if present)
 // when the test finishes.
-var gAppUpdateChannel; // app.update.channel (default prefbranch)
-var gAppUpdateEnabled; // app.update.enabled
-var gAppUpdateURL;     // app.update.url.override
+var gAppUpdateAuto;       // app.update.auto
+var gAppUpdateChannel;    // app.update.channel (default prefbranch)
+var gAppUpdateEnabled;    // app.update.enabled
+var gAppUpdateURL;        // app.update.url.override
 
 var gTestCounter = -1;
 var gWin;
 var gDocElem;
 var gPrefToCheck;
 
+// Set to true to log additional information for debugging. To log additional
+// information for an individual test set DEBUG_AUS_TEST to true in the test's
+// onload function.
+var DEBUG_AUS_TEST = false;
+
 #include ../shared.js
-
-function debugDump(msg) {
-  if (DEBUG) {
-    dump("*** " + msg + "\n");
-  }
-}
-
-__defineGetter__("gWW", function() {
-  delete this.gWW;
-  return this.gWW = AUS_Cc["@mozilla.org/embedcomp/window-watcher;1"].
-                      getService(AUS_Ci.nsIWindowWatcher);
-});
-
-__defineGetter__("gApp", function() {
-  delete this.gApp;
-  return this.gApp = AUS_Cc["@mozilla.org/xre/app-info;1"].
-                     getService(AUS_Ci.nsIXULAppInfo).
-                     QueryInterface(AUS_Ci.nsIXULRuntime);
-});
 
 /**
  * The current test in TESTS array.
@@ -197,29 +187,69 @@ __defineGetter__("gIncompatibleListbox", function() {
 });
 
 /**
- * Default test run function that can be used by most tests.
+ * Default test run function that can be used by most tests. This function uses
+ * protective measures to prevent the test from failing provided by
+ * |runTestDefaultWaitForWindowClosed| helper functions to prevent failure due
+ * to a previous test failure.
  */
 function runTestDefault() {
-  debugDump("Entering runTestDefault");
+  debugDump("entering");
 
   SimpleTest.waitForExplicitFinish();
 
-  gWW.registerNotification(gWindowObserver);
-
-  setupPrefs();
-  removeUpdateDirsAndFiles();
-  reloadUpdateManagerData();
-  runTest();
+  runTestDefaultWaitForWindowClosed();
 }
 
 /**
- * Default test finish function that can be used by most tests.
+ * If an update window is found SimpleTest.executeSoon can callback before the
+ * update window is fully closed especially with debug builds. If an update
+ * window is found this function will call itself using SimpleTest.executeSoon
+ * up to the amount declared in CLOSE_WINDOW_TIMEOUT_MAXCOUNT until the update
+ * window has closed before continuing the test.
+ */
+function runTestDefaultWaitForWindowClosed() {
+  gCloseWindowTimeoutCounter++;
+  if (gCloseWindowTimeoutCounter > CLOSE_WINDOW_TIMEOUT_MAXCOUNT) {
+    try {
+      finishTest();
+    }
+    catch (e) {
+      finishTestDefault();
+    }
+    return;
+  }
+
+  // The update window should not be open at this time. If it is the call to
+  // |closeUpdateWindow| will close it and cause the test to fail.
+  if (closeUpdateWindow()) {
+    SimpleTest.executeSoon(runTestDefaultWaitForWindowClosed);
+  }
+  else {
+    Services.ww.registerNotification(gWindowObserver);
+
+    gCloseWindowTimeoutCounter = 0;
+
+    setupPrefs();
+    removeUpdateDirsAndFiles();
+    reloadUpdateManagerData();
+    // Start the timout timer before the update window is displayed so it can
+    // clean up tests that don't successfully display the update window.
+    gTimeoutTimer = AUS_Cc["@mozilla.org/timer;1"].
+                    createInstance(AUS_Ci.nsITimer);
+    gTimeoutTimer.initWithCallback(finishTestTimeout, TEST_TIMEOUT,
+                                   AUS_Ci.nsITimer.TYPE_ONE_SHOT);
+    runTest();
+  }
+}
+
+/**
+ * Default test finish function that can be used by most tests. This function
+ * uses protective measures to prevent the next test from failing provided by
+ * |finishTestDefaultWaitForWindowClosed| helper functions to prevent failure
+ * due to an update window being left open.
  */
 function finishTestDefault() {
-  debugDump("Entering finishTestDefault");
-
-  gDocElem.removeEventListener("pageshow", onPageShowDefault, false);
-
+  debugDump("entering");
   if (gTimeoutTimer) {
     gTimeoutTimer.cancel();
     gTimeoutTimer = null;
@@ -227,12 +257,16 @@ function finishTestDefault() {
 
   verifyTestsRan();
 
-  gWW.unregisterNotification(gWindowObserver);
-
   resetPrefs();
   removeUpdateDirsAndFiles();
   reloadUpdateManagerData();
-  SimpleTest.finish();
+
+  Services.ww.unregisterNotification(gWindowObserver);
+  if (gDocElem) {
+    gDocElem.removeEventListener("pageshow", onPageShowDefault, false);
+  }
+
+  finishTestDefaultWaitForWindowClosed();
 }
 
 /**
@@ -244,10 +278,39 @@ function finishTestDefault() {
  *         The nsITimer that fired.
  */
 function finishTestTimeout(aTimer) {
-  gTimeoutTimer = null;
   ok(false, "Test timed out. Maximum time allowed is " + (TEST_TIMEOUT / 1000) +
      " seconds");
-  gWin.close();
+
+  try {
+    finishTest();
+  }
+  catch (e) {
+    finishTestDefault();
+  }
+}
+
+/**
+ * If an update window is found SimpleTest.executeSoon can callback before the
+ * update window is fully closed especially with debug builds. If an update
+ * window is found this function will call itself using SimpleTest.executeSoon
+ * up to the amount declared in CLOSE_WINDOW_TIMEOUT_MAXCOUNT until the update
+ * window has closed before finishing the test.
+ */
+function finishTestDefaultWaitForWindowClosed() {
+  gCloseWindowTimeoutCounter++;
+  if (gCloseWindowTimeoutCounter > CLOSE_WINDOW_TIMEOUT_MAXCOUNT) {
+    SimpleTest.finish();
+    return;
+  }
+
+  // The update window should not be open at this time. If it is the call to
+  // |closeUpdateWindow| will close it and cause the test to fail.
+  if (closeUpdateWindow()) {
+    SimpleTest.executeSoon(finishTestDefaultWaitForWindowClosed);
+  }
+  else {
+    SimpleTest.finish();
+  }
 }
 
 /**
@@ -256,12 +319,16 @@ function finishTestTimeout(aTimer) {
  * wizardpage.
  */
 function onPageShowDefault(aEvent) {
+  if (!gTimeoutTimer) {
+    debugDump("gTimeoutTimer is null... returning early");
+    return;
+  }
+
   // Return early if the event's original target isn't for a wizardpage element.
   // This check is necessary due to the remotecontent element firing pageshow.
   if (aEvent.originalTarget.nodeName != "wizardpage") {
-    debugDump("onPageShowDefault - only handles events with an " +
-              "originalTarget nodeName of |wizardpage|. " +
-              "aEvent.originalTarget.nodeName = " +
+    debugDump("only handles events with an originalTarget nodeName of " +
+              "|wizardpage|. aEvent.originalTarget.nodeName = " +
               aEvent.originalTarget.nodeName + "... returning early");
     return;
   }
@@ -274,16 +341,19 @@ function onPageShowDefault(aEvent) {
  * Default callback that can be used by most tests.
  */
 function defaultCallback(aEvent) {
-  debugDump("Entering defaultCallback - TESTS[" + gTestCounter + "], " +
-            "pageid: " + gTest.pageid + ", currentPage.pageid: " +
-            gDocElem.currentPage.pageid + ", " +
-            "aEvent.originalTarget.nodeName: " + aEvent.originalTarget.nodeName);
+  if (!gTimeoutTimer) {
+    debugDump("gTimeoutTimer is null... returning early");
+    return;
+  }
+
+  debugDump("entering - TESTS[" + gTestCounter + "], pageid: " + gTest.pageid +
+            ", aEvent.originalTarget.nodeName: " +
+            aEvent.originalTarget.nodeName);
 
   if (gTest && gTest.extraStartFunction) {
-    debugDump("defaultCallback - calling extraStartFunction " +
-              gTest.extraStartFunction.name);
+    debugDump("calling extraStartFunction " + gTest.extraStartFunction.name);
     if (gTest.extraStartFunction(aEvent)) {
-      debugDump("defaultCallback - extraStartFunction early return");
+      debugDump("extraStartFunction early return");
       return;
     }
   }
@@ -293,8 +363,7 @@ function defaultCallback(aEvent) {
 
   // Perform extra checks if specified by the test
   if (gTest.extraCheckFunction) {
-    debugDump("delayedCallback - calling extraCheckFunction " +
-              gTest.extraCheckFunction.name);
+    debugDump("calling extraCheckFunction " + gTest.extraCheckFunction.name);
     gTest.extraCheckFunction();
   }
 
@@ -310,9 +379,12 @@ function defaultCallback(aEvent) {
  * before checking their values.
  */
 function delayedDefaultCallback() {
-  debugDump("Entering delayedDefaultCallback - TESTS[" + gTestCounter + "], " +
-            "pageid: " + gTest.pageid + ", currentPage.pageid: " +
-            gDocElem.currentPage.pageid);
+  if (!gTimeoutTimer) {
+    debugDump("gTimeoutTimer is null... returning early");
+    return;
+  }
+
+  debugDump("entering - TESTS[" + gTestCounter + "], pageid: " + gTest.pageid);
 
   // Verify the pageid hasn't changed after executeSoon was called.
   is(gDocElem.currentPage.pageid, gTest.pageid,
@@ -323,7 +395,7 @@ function delayedDefaultCallback() {
 
   // Perform delayed extra checks if specified by the test
   if (gTest.extraDelayedCheckFunction) {
-    debugDump("delayedDefaultCallback - calling extraDelayedCheckFunction " +
+    debugDump("calling extraDelayedCheckFunction " +
               gTest.extraDelayedCheckFunction.name);
     gTest.extraDelayedCheckFunction();
   }
@@ -332,15 +404,14 @@ function delayedDefaultCallback() {
   gTest.ranTest = true;
 
   if (gTest.buttonClick) {
-    debugDump("delayedDefaultCallback - clicking " + gTest.buttonClick +
-              " button");
+    debugDump("clicking " + gTest.buttonClick + " button");
     if(gTest.extraDelayedFinishFunction) {
       throw("Tests cannot have a buttonClick and an extraDelayedFinishFunction property");
     }
     gDocElem.getButton(gTest.buttonClick).click();
   }
   else if (gTest.extraDelayedFinishFunction) {
-    debugDump("delayedDefaultCallback - calling extraDelayedFinishFunction " +
+    debugDump("calling extraDelayedFinishFunction " +
               gTest.extraDelayedFinishFunction.name);
     gTest.extraDelayedFinishFunction();
   }
@@ -352,9 +423,7 @@ function delayedDefaultCallback() {
  * and hidden attribute value is true.
  */
 function checkButtonStates() {
-  debugDump("Entering checkButtonStates - TESTS[" + gTestCounter + "], " +
-            "pageid: " + gTest.pageid + ", currentPage.pageid: " +
-            gDocElem.currentPage.pageid);
+  debugDump("entering - TESTS[" + gTestCounter + "], pageid: " + gTest.pageid);
 
   const buttonNames = ["extra1", "extra2", "back", "next", "finish", "cancel"];
   let buttonStates = getExpectedButtonStates();
@@ -368,14 +437,8 @@ function checkButtonStates() {
     let disabled = hasDisabled ? buttonStates[aButtonName].disabled : true;
     is(button.hidden, hidden, "Checking " + aButtonName + " button " +
        "hidden attribute value equals " + (hidden ? "true" : "false"));
-    if (button.hidden != hidden)
-      debugDump("Checking " + aButtonName + " button hidden attribute " +
-                "value equals " + (hidden ? "true" : "false"));
     is(button.disabled, disabled, "Checking " + aButtonName + " button " +
        "disabled attribute value equals " + (disabled ? "true" : "false"));
-    if (button.disabled != disabled)
-      debugDump("Checking " + aButtonName + " button disabled attribute " +
-                "value equals " + (disabled ? "true" : "false"));
   });
 }
 
@@ -432,8 +495,7 @@ function getExpectedButtonStates() {
  * Adds a load event listener to the current remotecontent element.
  */
 function addRemoteContentLoadListener() {
-  debugDump("Entering addRemoteContentLoadListener - TESTS[" + gTestCounter +
-            "], pageid: " + gTest.pageid);
+  debugDump("entering - TESTS[" + gTestCounter + "], pageid: " + gTest.pageid);
 
   gRemoteContent.addEventListener("load", remoteContentLoadListener, false);
 }
@@ -444,9 +506,8 @@ function addRemoteContentLoadListener() {
 function remoteContentLoadListener(aEvent) {
   // Return early if the event's original target's nodeName isn't remotecontent.
   if (aEvent.originalTarget.nodeName != "remotecontent") {
-    debugDump("remoteContentLoadListener - only handles events with an " +
-              "originalTarget nodeName of |remotecontent|. " +
-              "aEvent.originalTarget.nodeName = " +
+    debugDump("only handles events with an originalTarget nodeName of " +
+              "|remotecontent|. aEvent.originalTarget.nodeName = " +
               aEvent.originalTarget.nodeName);
     return;
   }
@@ -472,7 +533,7 @@ function waitForRemoteContentLoaded(aEvent) {
   // expected or isn't the event's originalTarget.
   if (gRemoteContentState != gTest.expectedRemoteContentState ||
       !aEvent.originalTarget.isSameNode(gRemoteContent)) {
-    debugDump("waitForRemoteContentLoaded - returning early\n" +
+    debugDump("returning early\n" +
               "gRemoteContentState: " + gRemoteContentState + "\n" +
               "expectedRemoteContentState: " +
               gTest.expectedRemoteContentState + "\n" +
@@ -500,8 +561,7 @@ function checkRemoteContentState() {
  * the radio element specified in the current test's radioClick property.
  */
 function addRadioGroupSelectListenerAndClick() {
-  debugDump("Entering addRadioGroupSelectListenerAndClick - TESTS[" +
-            gTestCounter + "], pageid: " + gTest.pageid);
+  debugDump("entering - TESTS[" + gTestCounter + "], pageid: " + gTest.pageid);
 
   gAcceptDeclineLicense.addEventListener("select", radioGroupSelectListener,
                                          false);
@@ -514,9 +574,8 @@ function addRadioGroupSelectListenerAndClick() {
 function radioGroupSelectListener(aEvent) {
   // Return early if the event's original target's nodeName isn't radiogroup.
   if (aEvent.originalTarget.nodeName != "radiogroup") {
-    debugDump("remoteContentLoadListener - only handles events with an " +
-              "originalTarget nodeName of |radiogroup|. " +
-              "aEvent.originalTarget.nodeName = " +
+    debugDump("only handles events with an originalTarget nodeName of " +
+              "|radiogroup|. aEvent.originalTarget.nodeName = " +
               aEvent.originalTarget.nodeName);
     return;
   }
@@ -551,7 +610,7 @@ function checkRadioGroupSelectedIndex() {
 function checkPrefHasUserValue(aPrefHasValue) {
   let prefHasUserValue = aPrefHasValue === undefined ? gTest.prefHasUserValue
                                                      : aPrefHasValue;
-  is(gPref.prefHasUserValue(gPrefToCheck), prefHasUserValue,
+  is(Services.prefs.prefHasUserValue(gPrefToCheck), prefHasUserValue,
      "Checking prefHasUserValue for preference " + gPrefToCheck + " equals " +
      (prefHasUserValue ? "true" : "false"));
 }
@@ -571,16 +630,16 @@ function checkPrefHasUserValue(aPrefHasValue) {
  */
 function getVersionParams(aExtensionVersion, aPlatformVersion) {
   return "&extensionVersion=" + (aExtensionVersion ? aExtensionVersion
-                                                   : gApp.version) +
+                                                   : Services.appinfo.version) +
          "&platformVersion=" + (aPlatformVersion ? aPlatformVersion
-                                                 : gApp.platformVersion);
+                                                 : Services.appinfo.platformVersion);
 }
 
 /**
  * Verifies that all tests ran.
  */
 function verifyTestsRan() {
-  debugDump("Entering verifyTestsRan");
+  debugDump("entering");
 
   // Return early if there are no tests defined.
   if (!TESTS) {
@@ -604,86 +663,102 @@ function verifyTestsRan() {
  * set back to the original values when each test has finished.
  */
 function setupPrefs() {
-  if (DEBUG) {
-    gPref.setBoolPref(PREF_APP_UPDATE_LOG, true)
-  }
-
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
-    gAppUpdateURL = gPref.setIntPref(PREF_APP_UPDATE_URL_OVERRIDE);
-  }
-
   gAppUpdateChannel = gDefaultPrefBranch.getCharPref(PREF_APP_UPDATE_CHANNEL);
   setUpdateChannel();
 
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_ENABLED)) {
-    gAppUpdateEnabled = gPref.getBoolPref(PREF_APP_UPDATE_ENABLED);
+  if (DEBUG_AUS_TEST) {
+    Services.prefs.setBoolPref(PREF_APP_UPDATE_LOG, true)
   }
 
-  gPref.setBoolPref(PREF_APP_UPDATE_AUTO, false);
-  gPref.setIntPref(PREF_APP_UPDATE_IDLETIME, 0);
-  gPref.setIntPref(PREF_APP_UPDATE_PROMPTWAITTIME, 0);
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
+    gAppUpdateURL = Services.prefs.getCharPref(PREF_APP_UPDATE_URL_OVERRIDE);
+  }
+
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_ENABLED)) {
+    gAppUpdateEnabled = Services.prefs.getBoolPref(PREF_APP_UPDATE_ENABLED);
+  }
+  Services.prefs.setBoolPref(PREF_APP_UPDATE_ENABLED, true)
+
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_AUTO)) {
+    gAppUpdateAuto = Services.prefs.getBoolPref(PREF_APP_UPDATE_AUTO);
+  }
+  Services.prefs.setBoolPref(PREF_APP_UPDATE_AUTO, false)
+
+  Services.prefs.setIntPref(PREF_APP_UPDATE_IDLETIME, 0);
+  Services.prefs.setIntPref(PREF_APP_UPDATE_PROMPTWAITTIME, 0);
 }
 
 /**
  * Resets the most common preferences used by tests to their original values.
  */
 function resetPrefs() {
-  if (gAppUpdateURL) {
-    gPref.setCharPref(PREF_APP_UPDATE_URL_OVERRIDE, gAppUpdateURL);
+  if (gAppUpdateURL !== undefined) {
+    Services.prefs.setCharPref(PREF_APP_UPDATE_URL_OVERRIDE, gAppUpdateURL);
   }
-  else if (gPref.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_URL_OVERRIDE);
+  else if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_URL_OVERRIDE);
   }
 
-  if (gAppUpdateChannel) {
+  if (gAppUpdateChannel !== undefined) {
     setUpdateChannel(gAppUpdateChannel);
   }
 
-  if (gAppUpdateEnabled) {
-    gPref.setBoolPref(PREF_APP_UPDATE_ENABLED, gAppUpdateEnabled);
+  if (gAppUpdateEnabled !== undefined) {
+    Services.prefs.setBoolPref(PREF_APP_UPDATE_ENABLED, gAppUpdateEnabled);
   }
-  else if (gPref.prefHasUserValue(PREF_APP_UPDATE_ENABLED)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_ENABLED);
-  }
-
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_IDLETIME)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_IDLETIME);
+  else if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_ENABLED)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_ENABLED);
   }
 
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_PROMPTWAITTIME)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_PROMPTWAITTIME);
+  if (gAppUpdateAuto !== undefined) {
+    Services.prefs.setBoolPref(PREF_APP_UPDATE_AUTO, gAppUpdateAuto);
+  }
+  else if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_AUTO)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_AUTO);
   }
 
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_URL_DETAILS)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_URL_DETAILS);
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_IDLETIME)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_IDLETIME);
   }
 
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_SHOW_INSTALLED_UI)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_SHOW_INSTALLED_UI);
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_PROMPTWAITTIME)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_PROMPTWAITTIME);
   }
 
-  if (gPref.prefHasUserValue(PREF_APP_UPDATE_LOG)) {
-    gPref.clearUserPref(PREF_APP_UPDATE_LOG);
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_URL_DETAILS)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_URL_DETAILS);
+  }
+
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_SHOW_INSTALLED_UI)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_SHOW_INSTALLED_UI);
+  }
+
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_LOG)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_LOG);
   }
 
   try {
-    gPref.deleteBranch(PREF_APP_UPDATE_NEVER_BRANCH);
+    Services.prefs.deleteBranch(PREF_APP_UPDATE_NEVER_BRANCH);
   }
   catch(e) {
   }
 }
 
 /**
- * Closes the update window if it is open.
+ * Closes the update window if it is open and causes the test to fail if an
+ * update window is found.
+ *
+ * @return true if an update window was found, otherwise false.
  */
 function closeUpdateWindow() {
   let updateWindow = getUpdateWindow();
   if (!updateWindow)
-    return;
+    return false;
 
-  ok(false, "Found an existing Update Window from a previous test... " +
-            "attempting to close it.");
+  ok(false, "Found an existing Update Window from the current or a previous " +
+            "test... attempting to close it.");
   updateWindow.close();
+  return true;
 }
 
 /**
@@ -693,9 +768,7 @@ function closeUpdateWindow() {
  *         if it isn't.
  */
 function getUpdateWindow() {
-  var wm = AUS_Cc["@mozilla.org/appshell/window-mediator;1"].
-           getService(AUS_Ci.nsIWindowMediator);
-  return wm.getMostRecentWindow(UPDATE_WINDOW_NAME);
+  return Services.wm.getMostRecentWindow(UPDATE_WINDOW_NAME);
 }
 
 /**
@@ -707,9 +780,8 @@ var gWindowObserver = {
 
     if (aTopic == "domwindowclosed") {
       if (win.location != URI_UPDATE_PROMPT_DIALOG) {
-        debugDump("gWindowObserver:observe - domwindowclosed event for " +
-                  "window not being tested - location: " + win.location +
-                  "... returning early");
+        debugDump("domwindowclosed event for window not being tested - " +
+                  "location: " + win.location + "... returning early");
         return;
       }
       // Allow tests the ability to provide their own function (it must be
@@ -723,13 +795,12 @@ var gWindowObserver = {
       return;
     }
 
-    win.addEventListener("load", function onLoad() {
-      win.removeEventListener("load", onLoad, false);
+    win.addEventListener("load", function WO_observe_onLoad() {
+      win.removeEventListener("load", WO_observe_onLoad, false);
       // Ignore windows other than the update UI window.
       if (win.location != URI_UPDATE_PROMPT_DIALOG) {
-        debugDump("gWindowObserver:observe:onLoad - load event for window " +
-                  "not being tested - location: " + win.location +
-                  "... returning early");
+        debugDump("load event for window not being tested - location: " +
+                  win.location + "... returning early");
         return;
       }
 
@@ -742,11 +813,6 @@ var gWindowObserver = {
            ", expected: " + PAGEID_DUMMY + "... returning early");
         return;
       }
-
-      gTimeoutTimer = AUS_Cc["@mozilla.org/timer;1"].
-                      createInstance(AUS_Ci.nsITimer);
-      gTimeoutTimer.initWithCallback(finishTestTimeout, TEST_TIMEOUT,
-                                     AUS_Ci.nsITimer.TYPE_ONE_SHOT);
 
       gWin = win;
       gDocElem = gWin.document.documentElement;

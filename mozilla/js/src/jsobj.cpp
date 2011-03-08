@@ -4404,6 +4404,12 @@ js_SetPropertyHelper(JSContext *cx, JSObject *obj, jsid id, JSBool cacheResult,
             (scope->sealed() && (attrs & JSPROP_SHARED))) {
             JS_UNLOCK_SCOPE(cx, scope);
 
+            PCMETER(cacheResult && JS_PROPERTY_CACHE(cx).rofills++);
+            if (cacheResult) {
+                JS_ASSERT_NOT_ON_TRACE(cx);
+                TRACE_2(SetPropHit, JS_NO_PROP_CACHE_FILL, sprop);
+            }
+
             /*
              * Here, we'll either return true or goto read_only_error, which
              * reports a strict warning or throws an error.  So we redefine
@@ -4416,20 +4422,18 @@ js_SetPropertyHelper(JSContext *cx, JSObject *obj, jsid id, JSBool cacheResult,
             if (attrs & JSPROP_READONLY) {
                 if (!JS_HAS_STRICT_OPTION(cx)) {
                     /* Just return true per ECMA if not in strict mode. */
-                    PCMETER(cacheResult && JS_PROPERTY_CACHE(cx).rofills++);
-                    if (cacheResult)
-                        TRACE_2(SetPropHit, JS_NO_PROP_CACHE_FILL, sprop);
                     return JS_TRUE;
-#ifdef JS_TRACER
-                error: // TRACE_2 jumps here in case of error.
-                    return JS_FALSE;
-#endif
                 }
 
                 /* Strict mode: report a read-only strict warning. */
                 flags = JSREPORT_STRICT | JSREPORT_WARNING;
             }
             goto read_only_error;
+
+#ifdef JS_TRACER
+          error: // TRACE_2 jumps here in case of error.
+            return JS_FALSE;
+#endif
         }
 
         if (pobj != obj) {

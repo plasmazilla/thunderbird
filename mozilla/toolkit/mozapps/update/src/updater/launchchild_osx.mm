@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <Cocoa/Cocoa.h>
+#include <CoreServices/CoreServices.h>
 
 #ifdef __ppc__
 #include <sys/types.h>
@@ -44,13 +45,26 @@
 #include <mach/machine.h>
 #endif /* __ppc__ */
 
+bool OnLeopard()
+{
+  static SInt32 gOSXMajor = 0x0;
+  static SInt32 gOSXMinor = 0x0;
+
+  OSErr err = ::Gestalt(gestaltSystemVersionMajor, &gOSXMajor);
+  if (err != noErr) {
+    return false;
+  }
+
+  err = ::Gestalt(gestaltSystemVersionMinor, &gOSXMinor);
+  if (err != noErr) {
+    return false;
+  }
+
+  return (gOSXMajor == 10 && gOSXMinor == 5);
+}
+
 void LaunchChild(int argc, char **argv)
 {
-  int i;
-  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  NSTask *child = [[[NSTask alloc] init] autorelease];
-  NSMutableArray *args = [[[NSMutableArray alloc] init] autorelease];
-
 #ifdef __ppc__
   // It's possible that the app is a universal binary running under Rosetta
   // translation because the user forced it to.  Relaunching via NSTask would
@@ -76,11 +90,39 @@ void LaunchChild(int argc, char **argv)
   }
 #endif /* __ppc__ */
 
-  for (i = 1; i < argc; ++i)
-    [args addObject: [NSString stringWithCString: argv[i]]];
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-  [child setLaunchPath: [NSString stringWithCString: argv[0]]];
-  [child setArguments: args];
+  NSTask *child = [[[NSTask alloc] init] autorelease];
+
+  // On Mac OS X 10.5 and later users can be updating to a binary which
+  // will the OS might try to launch in x86_64 mode by default. Mozilla's
+  // x86_64 binaries require Mac OS X 10.6 in order to run so make sure
+  // that we don't try to launch a binary that won't run on Mac OS X 10.5.
+  // Accomplish this by using the command line program "arch" because
+  // "posix_spawnp" (which has a preferred arch attribute) is not available
+  // on Mac OS X 10.4.
+  if (OnLeopard()) {
+    [child setLaunchPath:@"/usr/bin/arch"];
+  }
+  else {
+    [child setLaunchPath:[NSString stringWithCString:argv[0]]];
+  }
+
+  // Set up arguments including the preferred arch and the actual target
+  // binary on Mac OS X 10.5.
+  NSMutableArray *args = [[[NSMutableArray alloc] init] autorelease];
+  if (OnLeopard()) {
+#ifdef __ppc__
+    [args addObject:@"-ppc"];
+#endif
+    [args addObject:@"-i386"];
+    [args addObject:[NSString stringWithCString:argv[0]]];
+  }
+  for (int i = 1; i < argc; ++i) {
+    [args addObject:[NSString stringWithCString:argv[i]]];
+  }
+  [child setArguments:args];
+
   [child launch];
   [pool release];
 }

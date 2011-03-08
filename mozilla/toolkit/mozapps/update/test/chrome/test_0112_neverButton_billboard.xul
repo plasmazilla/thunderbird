@@ -16,12 +16,12 @@
 <script type="application/javascript"
         src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"/>
 <script type="application/javascript"
-        src="chrome://mochikit/content/chrome/toolkit/mozapps/update/test/chrome/utils.js"/>
+        src="utils.js"/>
 
 <script type="application/javascript">
 <![CDATA[
 
-gPrefToCheck = PREF_APP_UPDATE_NEVER_BRANCH + gApp.version;
+gPrefToCheck = PREF_APP_UPDATE_NEVER_BRANCH + Services.appinfo.version;
 
 const TESTS = [ {
   pageid: PAGEID_CHECKING
@@ -42,16 +42,15 @@ const TESTS = [ {
 } ];
 
 function runTest() {
-  debugDump("Entering runTest");
+  debugDump("entering");
 
   let url = URL_UPDATE + "?type=major" +
             getVersionParams();
   setUpdateURLOverride(url);
-  debugDump("Update URL: " + url);
 
   // add the never preference for this version to verify that checking for
   // updates clears the preference.
-  gPref.setBoolPref(gPrefToCheck, true)
+  Services.prefs.setBoolPref(gPrefToCheck, true)
 
   gUP.checkForUpdates();
 }

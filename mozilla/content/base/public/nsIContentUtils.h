@@ -37,6 +37,8 @@
 #ifndef nsIContentUtils_h__
 #define nsIContentUtils_h__
 
+class nsIChannel;
+
 // C4EA618E-A3D9-4524-8EEA-E92F26FC44DB
 #define NS_ICONTENTUTILS_IID \
 { 0xC4EA618E, 0xA3D9, 0x4524, \
@@ -52,5 +54,22 @@ public:
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIContentUtils, NS_ICONTENTUTILS_IID)
+
+// {8af226b4-ea0b-4962-b6b2-dd5ec7c42527}
+#define NS_ICONTENTUTILS2_IID \
+{ 0x8af226b4, 0xea0b, 0x4962, \
+  { 0xb6, 0xb2, 0xdd, 0x5e, 0xc7, 0xc4, 0x25, 0x27 } }
+
+class nsIContentUtils2 : public nsISupports
+{
+  public:
+    NS_DECLARE_STATIC_IID_ACCESSOR(NS_ICONTENTUTILS2_IID)
+    NS_DECL_ISUPPORTS
+
+    // Returns NS_OK for same origin, error (NS_ERROR_DOM_BAD_URI) if not.
+    virtual nsresult CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel);
+};
+
+NS_DEFINE_STATIC_IID_ACCESSOR(nsIContentUtils2, NS_ICONTENTUTILS2_IID)
 
 #endif /* nsIContentUtils_h__ */

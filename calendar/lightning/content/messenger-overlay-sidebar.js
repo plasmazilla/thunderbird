@@ -236,6 +236,10 @@ function refreshUIBits() {
 
         // update the unifinder
         refreshEventTree();
+
+        // update today's date on todaypane button
+        document.getElementById("calendar-status-todaypane-button").setUpTodayDate();
+
     } catch (exc) {
         ASSERT(false, exc);
     }
@@ -375,7 +379,7 @@ var gInvitationsCalendarManagerObserver = {
 };
 
 function scheduleInvitationsUpdate(firstDelay) {
-    gInvitationsCalendarManagerObserver.mCount = 0;
+    gInvitationsOperationListener.mCount = 0;
     getInvitationsManager().scheduleInvitationsUpdate(firstDelay,
                                                       gInvitationsOperationListener);
 }
@@ -387,7 +391,7 @@ function rescheduleInvitationsUpdate(firstDelay) {
 
 function openInvitationsDialog() {
     getInvitationsManager().cancelInvitationsUpdate();
-    gInvitationsCalendarManagerObserver.mCount = 0;
+    gInvitationsOperationListener.mCount = 0;
     getInvitationsManager().openInvitationsDialog(
         gInvitationsOperationListener,
         function oiD_callback() {

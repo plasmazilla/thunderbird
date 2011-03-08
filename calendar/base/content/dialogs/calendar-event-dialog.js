@@ -24,6 +24,7 @@
  *   Fred Jendrzejewski <fred.jen@web.de>
  *   Daniel Boelzle <daniel.boelzle@sun.com>
  *   Markus Adrario <Mozilla@Adrario.de>
+ *   Gianfranco Balza <bv1578@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -310,6 +311,11 @@ function onCommandCancel() {
  *
  */
 function onCancel() {
+    // The datepickers need to remove the focus in order to trigger the
+    // validation of the values just edited, with the keyboard, but not yet
+    // confirmed (i.e. not followed by a click, a tab or enter keys pressure).
+    document.documentElement.focus();
+
     if (!gConfirmCancel || (gConfirmCancel && onCommandCancel())) {
         dispose();
         return true;
@@ -419,6 +425,10 @@ function loadDialog(item) {
     // hide rows based on if this is an event or todo
     updateStyle();
 
+    // Synchronize link-top-image with keep-duration-button status
+    let keepAttribute = document.getElementById("keepduration-button").getAttribute("keep") == "true";
+    setBooleanAttribute("link-image-top", "keep", keepAttribute);
+
     updateDateTime();
 
     updateCalendar();
@@ -502,25 +512,44 @@ function loadDateTime(item) {
             duration = endTime.subtractDate(startTime);
         }
         setElementValue("cmd_attendees", !(hasEntryDate && hasDueDate), "disabled");
+        setBooleanAttribute("keepduration-button", "disabled", !(hasEntryDate && hasDueDate));
         gStartTime = startTime;
         gEndTime = endTime;
         gItemDuration = duration;
     }
 }
 
+/**
+ * Toggles the "keep" attribute every time the keepduration-button is pressed.
+ */
+function toggleKeepDuration() {
+    let kdb = document.getElementById("keepduration-button");
+    let keepAttribute = kdb.getAttribute("keep") == "true";
+    // To make the "keep" attribute persistent, it mustn't be removed when in
+    // false state (bug 15232).
+    kdb.setAttribute("keep", keepAttribute ? "false" : "true");
+    setBooleanAttribute("link-image-top", "keep", !keepAttribute);
+}
 
 /**
- * Handler function to be used when the start time or end time of the event have
- * changed. If aKeepDuration is true then the end time will be modified so that
- * the total duration of the item stays the same.
+ * Handler function to be used when the Start time or End time of the event have
+ * changed.
+ * When changing the Start date, the End date changes automatically so the
+ * event/task's duration stays the same. Instead the End date is not linked
+ * to the Start date unless the the keepDurationButton has the "keep" attribute
+ * set to true. In this case modifying the End date changes the Start date in
+ * order to keep the same duration.
  *
- * @param aKeepDuration   If true, the duration will be kept constant.
+ * @param aStartDatepicker     If true the Start or Entry datepicker has changed,
+ *                             otherwise the End or Due datepicker has changed.
  */
-function dateTimeControls2State(aKeepDuration) {
+function dateTimeControls2State(aStartDatepicker) {
     if (gIgnoreUpdate) {
         return;
     }
-
+    let keepAttribute = document.getElementById("keepduration-button")
+                                .getAttribute("keep") == "true";
+    let allDay = getElementValue("event-all-day", "checked");
     var startWidgetId;
     var endWidgetId;
     if (isEvent(window.calendarItem)) {
@@ -548,18 +577,19 @@ function dateTimeControls2State(aKeepDuration) {
         // timezone instead of converting.
         gStartTime = jsDateToDateTime(
             getElementValue(startWidgetId),
-            (menuItem.getAttribute('checked') == 'true') ? gStartTimezone : kDefaultTimezone);
+            (menuItem.getAttribute('checked') == 'true' || allDay) ? gStartTimezone : kDefaultTimezone);
+        gStartTime.isDate = allDay;
     }
-
     if (gEndTime) {
-        if (aKeepDuration) {
+        if (aStartDatepicker) {
+            // Change the End date in order to keep the duration.
             gEndTime = gStartTime.clone();
             if (gItemDuration) {
                 gEndTime.addDuration(gItemDuration);
                 gEndTime = gEndTime.getInTimezone(gEndTimezone);
             }
         } else {
-            var timezone = gEndTimezone;
+            let timezone = gEndTimezone;
             if (timezone.isUTC) {
                 if (gStartTime && !compareObjects(gStartTimezone, gEndTimezone)) {
                     timezone = gStartTimezone;
@@ -567,18 +597,30 @@ function dateTimeControls2State(aKeepDuration) {
             }
             gEndTime = jsDateToDateTime(
                 getElementValue(endWidgetId),
-                (menuItem.getAttribute('checked') == 'true') ? timezone : kDefaultTimezone);
+                (menuItem.getAttribute('checked') == 'true' || allDay) ? timezone : kDefaultTimezone);
+            gEndTime.isDate = allDay;
+            if (keepAttribute) {
+                // Keepduration button links the the Start date to the End date
+                // -> change the Start date in order to keep the duration.
+                let fduration = gItemDuration.clone();
+                fduration.isNegative = true;
+                gStartTime = gEndTime.clone();
+                gStartTime.addDuration(fduration);
+                gStartTime = gStartTime.getInTimezone(gStartTimezone);
+            }
         }
     }
 
-    if (getElementValue("event-all-day", "checked")) {
+    if (allDay) {
         gStartTime.isDate = true;
+        gEndTime.isDate = true;
+        gItemDuration = gEndTime.subtractDate(gStartTime);
     }
 
     // calculate the new duration of start/end-time.
     // don't allow for negative durations.
     var warning = false;
-    if (!aKeepDuration && gStartTime && gEndTime) {
+    if (!aStartDatepicker && gStartTime && gEndTime) {
         if (gEndTime.compare(gStartTime) >= 0) {
             gItemDuration = gEndTime.subtractDate(gStartTime);
         } else {
@@ -598,7 +640,7 @@ function dateTimeControls2State(aKeepDuration) {
             promptService.alert(
                 null,
                 document.title,
-                calGetString("calendar", "warningNegativeDuration"));
+                calGetString("calendar", "warningEndBeforeStart"));
         }
         setTimeout(callback, 1);
     }
@@ -683,6 +725,7 @@ function updateDateCheckboxes(aDatePickerId, aCheckboxId, aDateTime) {
         gItemDuration = null;
     }
     setElementValue("cmd_attendees", !(hasEntryDate && hasDueDate), "disabled");
+    setBooleanAttribute("keepduration-button", "disabled", !(hasEntryDate && hasDueDate));
     updateDateTime();
     updateTimezone();
 }
@@ -1090,35 +1133,52 @@ function onUpdateAllDay() {
     }
     let allDay = getElementValue("event-all-day", "checked");
 
-    // store/restore datetimes when "All day" checkbox changes status
+    // Store/restore datetimes when "All day" checkbox changes status.
     if (allDay) {
         gOldStartTime = gStartTime.clone();
         gOldEndTime = gEndTime.clone();
+        // When events that end at 0:00 become all-day events, we need to
+        // subtract a day from the end date because the real end is midnight.
+        if (gEndTime.hour == 0 && gEndTime.minute == 0) {
+            let tempStartTime = gStartTime.clone();
+            let tempEndTime = gEndTime.clone();
+            tempStartTime.isDate = true;
+            tempEndTime.isDate = true;
+            tempStartTime.day++;
+            if (tempEndTime.compare(tempStartTime) >= 0) {
+                gEndTime.day--;
+            }
+        }
     } else {
         if (gStartTime.isDate || gEndTime.isDate) {
             if (!gOldStartTime && !gOldEndTime) {
-                // checkbox "all day" has been unchecked for the first time
+                // Checkbox "all day" has been unchecked for the first time.
                 gOldStartTime = gStartTime.clone();
-                gOldStartTime.isDate = 0;
+                gOldStartTime.isDate = false;
                 gOldStartTime.hour = getDefaultStartDate(window.initialStartDateValue).hour;
                 gOldEndTime = gEndTime.clone();
-                gOldEndTime.isDate = 0;
+                gOldEndTime.isDate = false;
                 gOldEndTime.hour = gOldStartTime.hour;
                 gOldEndTime.minute += getPrefSafe("calendar.event.defaultlength", 60);
             } else if (gOldStartTime != gStartTime || gOldEndTime != gEndTime) {
-                // checkbox "all day" has been unchecked after a date change
-                let startTimeHour =  gOldStartTime.hour;
+                // Checkbox "all day" has been unchecked after a date change.
+                let startTimeHour = gOldStartTime.hour;
                 let startTimeMinute = gOldStartTime.minute;
                 let endTimeHour = gOldEndTime.hour;
                 let endTimeMinute = gOldEndTime.minute;
                 gOldStartTime = gStartTime.clone();
-                gOldStartTime.isDate = 0;
+                gOldStartTime.isDate = false;
                 gOldStartTime.hour = startTimeHour;
                 gOldStartTime.minute = startTimeMinute;
                 gOldEndTime = gEndTime.clone();
-                gOldEndTime.isDate = 0;
+                gOldEndTime.isDate = false;
                 gOldEndTime.hour = endTimeHour;
                 gOldEndTime.minute = endTimeMinute;
+                // When we restore 0:00 as end time, we need to add one day to
+                // the end date in order to include the last day until midnight.
+                if (endTimeHour == 0 && endTimeMinute == 0) {
+                    gOldEndTime.day++;
+                }
             }
         }
         gStartTime = gOldStartTime.clone();
@@ -1149,7 +1209,7 @@ function onUpdateAllDay() {
         return;
     }
 
-    var allDay = getElementValue("event-all-day", "checked");
+    let allDay = getElementValue("event-all-day", "checked");
     setElementValue("event-starttime", allDay, "timepickerdisabled");
     setElementValue("event-endtime", allDay, "timepickerdisabled");
 
@@ -1157,6 +1217,7 @@ function onUpdateAllDay() {
 
     gStartTime.isDate = allDay;
     gEndTime.isDate = allDay;
+    gItemDuration = gEndTime.subtractDate(gStartTime);
 
     updateDateTime();
     updateRepeatDetails();
@@ -2216,6 +2277,11 @@ function saveItem() {
  *                                save prompt just before the window is closing.
  */
 function onCommandSave(aIsClosing) {
+    // The datepickers need to remove the focus in order to trigger the
+    // validation of the values just edited, with the keyboard, but not yet
+    // confirmed (i.e. not followed by a click, a tab or enter keys pressure).
+    document.documentElement.focus();
+
     let originalItem = window.calendarItem;
     let item = saveItem();
     let calendar = getCurrentCalendar();
@@ -2810,8 +2876,8 @@ function updateRepeatDetails() {
         let kDefaultTimezone = calendarDefaultTimezone();
         let event = cal.isEvent(item);
 
-        let startDate =  getElementValue( event ? "event-starttime" : "todo-entrydate");
-        let endDate =  getElementValue( event ? "event-endtime" : "todo-duedate");
+        let startDate = getElementValue(event ? "event-starttime" : "todo-entrydate");
+        let endDate = getElementValue(event ? "event-endtime" : "todo-duedate");
         startDate = jsDateToDateTime(startDate, kDefaultTimezone);
         endDate = jsDateToDateTime(endDate, kDefaultTimezone);
 
