@@ -949,13 +949,12 @@ RemoveChunkFromList(JSRuntime *rt, JSGCChunkInfo *ci)
 #endif
 
 static JSGCArenaInfo *
-NewGCArena(JSContext *cx)
+NewGCArena(JSRuntime *rt)
 {
     jsuword chunk;
     JSGCArenaInfo *a;
 
-    JSRuntime *rt = cx->runtime;
-    if (rt->gcBytes >= rt->gcMaxBytes && !HAS_TITLES_TO_SHARE(cx))
+    if (rt->gcBytes >= rt->gcMaxBytes)
         return NULL;
 
 #if CHUNKED_ARENA_ALLOCATION
@@ -1753,11 +1752,10 @@ JSRuntime::setGCLastBytes(size_t lastBytes)
 }
 
 static JS_INLINE bool
-IsGCThresholdReached(JSContext *cx)
+IsGCThresholdReached(JSRuntime *rt)
 {
-    JSRuntime *rt = cx->runtime;
 #ifdef JS_GC_ZEAL
-    if (rt->gcZeal >= 1 && !HAS_TITLES_TO_SHARE(cx))
+    if (rt->gcZeal >= 1)
         return true;
 #endif
 
@@ -1766,8 +1764,8 @@ IsGCThresholdReached(JSContext *cx)
      * zero (see the js_InitGC function) the return value is false when
      * the gcBytes value is close to zero at the JS engine start.
      */
-    return (rt->gcMallocBytes >= rt->gcMaxMallocBytes ||
-            rt->gcBytes >= rt->gcTriggerBytes) && !HAS_TITLES_TO_SHARE(cx);
+    return rt->gcMallocBytes >= rt->gcMaxMallocBytes ||
+           rt->gcBytes >= rt->gcTriggerBytes;
 }
 
 template <class T> static JS_INLINE T*
@@ -1842,7 +1840,7 @@ NewGCThing(JSContext *cx, uintN flags)
 #endif
 
     arenaList = &rt->gcArenaList[flindex];
-    doGC = IsGCThresholdReached(cx);
+    doGC = IsGCThresholdReached(rt);
     for (;;) {
         if (doGC
 #ifdef JS_TRACER
@@ -1922,9 +1920,9 @@ testReservedObjects:
             }
 #endif
 
-            a = NewGCArena(cx);
+            a = NewGCArena(rt);
             if (!a) {
-                if (doGC || JS_ON_TRACE(cx) || HAS_TITLES_TO_SHARE(cx))
+                if (doGC || JS_ON_TRACE(cx))
                     goto fail;
                 doGC = true;
                 continue;
@@ -2074,7 +2072,7 @@ RefillDoubleFreeList(JSContext *cx)
         return NULL;
     }
 
-    if (IsGCThresholdReached(cx))
+    if (IsGCThresholdReached(rt))
         goto do_gc;
 
     /*
@@ -2088,10 +2086,10 @@ RefillDoubleFreeList(JSContext *cx)
             ARENA_INFO_OFFSET) {
             if (doubleFlags == DOUBLE_BITMAP_SENTINEL ||
                 !((JSGCArenaInfo *) doubleFlags)->prev) {
-                a = NewGCArena(cx);
+                a = NewGCArena(rt);
                 if (!a) {
                   do_gc:
-                    if (didGC || JS_ON_TRACE(cx) || HAS_TITLES_TO_SHARE(cx)) {
+                    if (didGC || JS_ON_TRACE(cx)) {
                         METER(rt->gcStats.doubleArenaStats.fail++);
                         JS_UNLOCK_GC(rt);
                         js_ReportOutOfMemory(cx);

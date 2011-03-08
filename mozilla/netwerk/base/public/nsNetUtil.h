@@ -1703,13 +1703,10 @@ NS_MakeRandomInvalidURLString(nsCString& result)
  * Helper function to determine whether urlString is Java-compatible --
  * whether it can be passed to the Java URL(String) constructor without the
  * latter throwing a MalformedURLException, or without Java otherwise
- * mishandling it.  This function (in effect) implements a scheme whitelist
- * for Java.
+ * mishandling it.
  */  
 inline nsresult
-NS_CheckIsJavaCompatibleURLString(nsCString& urlString,
-                                  PRBool isOJIPlugin,
-                                  PRBool *result)
+NS_CheckIsJavaCompatibleURLString(nsCString& urlString, PRBool *result)
 {
   *result = PR_FALSE; // Default to "no"
 
@@ -1728,36 +1725,17 @@ NS_CheckIsJavaCompatibleURLString(nsCString& urlString,
     nsCString scheme;
     scheme.Assign(urlString.get() + schemePos, schemeLen);
     // By default Java only understands a small number of URL schemes, and of
-    // these only some can legitimately represent a browser page's "origin"
-    // (and be something we can legitimately expect Java to handle ... or not
-    // to mishandle).
-    //
-    // Besides those listed below, the OJI plugin understands the "jar",
-    // "mailto", "netdoc", "javascript" and "rmi" schemes, and Java Plugin2
-    // also understands the "about" scheme.  We actually pass "about" URLs
-    // to Java ("about:blank" when processing a javascript: URL (one that
-    // calls Java) from the location bar of a blank page, and (in FF4 and up)
-    // "about:home" when processing a javascript: URL from the home page).
-    // And Java doesn't appear to mishandle them (for example it doesn't allow
-    // connections to "about" URLs).  But it doesn't make any sense to do
-    // same-origin checks on "about" URLs, so we don't include them in our
-    // scheme whitelist.
-    //
-    // The OJI plugin doesn't understand "chrome" URLs (only Java Plugin2
-    // does) -- so we mustn't pass them to the OJI plugin.  But we do need to
-    // pass "chrome" URLs to Java Plugin2:  Java Plugin2 grants additional
-    // privileges to chrome "origins", and some extensions take advantage of
-    // this.  For more information see bug 620773.
+    // these only some are likely to represent user input (for example from a
+    // link or the location bar) that Java can legitimately be expected to
+    // handle.  (Besides those listed below, Java also understands the "jar",
+    // "mailto" and "netdoc" schemes.  But it probably doesn't expect these
+    // from a browser, and is therefore likely to mishandle them.)
     if (PL_strcasecmp(scheme.get(), "http") &&
         PL_strcasecmp(scheme.get(), "https") &&
         PL_strcasecmp(scheme.get(), "file") &&
         PL_strcasecmp(scheme.get(), "ftp") &&
         PL_strcasecmp(scheme.get(), "gopher"))
       compatible = PR_FALSE;
-    if (!compatible && !isOJIPlugin) {
-      if (!PL_strcasecmp(scheme.get(), "chrome"))
-        compatible = PR_TRUE;
-    }
   } else {
     compatible = PR_FALSE;
   }

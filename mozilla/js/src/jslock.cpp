@@ -439,14 +439,18 @@ FinishSharingTitle(JSContext *cx, JSTitle *title);
 static void
 ShareTitle(JSContext *cx, JSTitle *title)
 {
+    JSRuntime *rt;
+    JSTitle **todop;
+
+    rt = cx->runtime;
     if (title->u.link) {
-        JSThread *ownerThread = title->ownercx->thread;
-        JSTitle **todop = &ownerThread->titleSharingTodo;
-        for (; *todop != title; todop = &(*todop)->u.link)
+        for (todop = &rt->titleSharingTodo; *todop != title;
+             todop = &(*todop)->u.link) {
             JS_ASSERT(*todop != NO_TITLE_SHARING_TODO);
+        }
         *todop = title->u.link;
         title->u.link = NULL;       /* null u.link for sanity ASAP */
-        JS_NOTIFY_ALL_CONDVAR(cx->runtime->titleSharingDone);
+        JS_NOTIFY_ALL_CONDVAR(rt->titleSharingDone);
     }
     FinishSharingTitle(cx, title);
 }
@@ -620,8 +624,8 @@ ClaimTitle(JSTitle *title, JSContext *cx)
          */
         if (!title->u.link) {
             TITLE_TO_SCOPE(title)->hold();
-            title->u.link = ownercx->thread->titleSharingTodo;
-            ownercx->thread->titleSharingTodo = title;
+            title->u.link = rt->titleSharingTodo;
+            rt->titleSharingTodo = title;
         }
 
         /*
@@ -684,7 +688,7 @@ js_ShareWaitingTitles(JSContext *cx)
     bool shared;
 
     /* See whether cx has any single-threaded titles to start sharing. */
-    todop = &cx->thread->titleSharingTodo;
+    todop = &cx->runtime->titleSharingTodo;
     shared = false;
     while ((title = *todop) != NO_TITLE_SHARING_TODO) {
         if (title->ownercx != cx) {

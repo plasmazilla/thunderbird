@@ -809,6 +809,7 @@ JS_NewRuntime(uint32 maxbytes)
     rt->titleSharingDone = JS_NEW_CONDVAR(rt->gcLock);
     if (!rt->titleSharingDone)
         goto bad;
+    rt->titleSharingTodo = NO_TITLE_SHARING_TODO;
     rt->debuggerLock = JS_NEW_LOCK();
     if (!rt->debuggerLock)
         goto bad;

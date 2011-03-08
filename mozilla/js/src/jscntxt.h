@@ -350,19 +350,6 @@ struct JSThread {
     /* Indicates that the thread is waiting in ClaimTitle from jslock.cpp. */
     JSTitle             *titleToShare;
 
-    /* Linked list of titles that this thread must share. */
-    JSTitle             *titleSharingTodo;
-
-/*
- * Magic terminator for the rt->titleSharingTodo linked list, threaded through
- * title->u.link.  This hack allows us to test whether a title is on the list
- * by asking whether title->u.link is non-null.  We use a large, likely bogus
- * pointer here to distinguish this value from any valid u.count (small int)
- * value.
- */
-#define NO_TITLE_SHARING_TODO   ((JSTitle *) 0xfeedbeef)
-#define HAS_TITLES_TO_SHARE(cx) ((cx)->thread->titleSharingTodo != NO_TITLE_SHARING_TODO)
-    
     JSGCThing           *gcFreeLists[GC_NUM_FREELISTS];
 
     /* Factored out of JSThread for !JS_THREADSAFE embedding in JSRuntime. */
@@ -393,12 +380,7 @@ js_InitContextThread(JSContext *cx);
 extern void
 js_ClearContextThread(JSContext *cx);
 
-
-#else /* !JS_THREADSAFE */
-
-#define HAS_TITLES_TO_SHARE(cx) JS_FALSE
-
-#endif /* !JS_THREADSAFE */
+#endif /* JS_THREADSAFE */
 
 typedef enum JSDestroyContextMode {
     JSDCM_NO_GC,
@@ -595,8 +577,23 @@ struct JSRuntime {
      * State for sharing single-threaded titles, once a second thread tries to
      * lock a title.  The titleSharingDone condvar is protected by rt->gcLock
      * to minimize number of locks taken in JS_EndRequest.
+     *
+     * The titleSharingTodo linked list is likewise "global" per runtime, not
+     * one-list-per-context, to conserve space over all contexts, optimizing
+     * for the likely case that titles become shared rarely, and among a very
+     * small set of threads (contexts).
      */
     PRCondVar           *titleSharingDone;
+    JSTitle             *titleSharingTodo;
+
+/*
+ * Magic terminator for the rt->titleSharingTodo linked list, threaded through
+ * title->u.link.  This hack allows us to test whether a title is on the list
+ * by asking whether title->u.link is non-null.  We use a large, likely bogus
+ * pointer here to distinguish this value from any valid u.count (small int)
+ * value.
+ */
+#define NO_TITLE_SHARING_TODO   ((JSTitle *) 0xfeedbeef)
 
     /*
      * Lock serializing trapList and watchPointList accesses, and count of all
