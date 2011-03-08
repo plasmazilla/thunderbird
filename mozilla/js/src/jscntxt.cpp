@@ -152,6 +152,7 @@ NewThread(jsword id)
     JS_INIT_CLIST(&thread->contextList);
     thread->id = id;
     InitThreadData(&thread->data);
+    thread->titleSharingTodo = NO_TITLE_SHARING_TODO;
     return thread;
 }
 

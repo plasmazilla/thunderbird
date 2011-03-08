@@ -912,13 +912,15 @@ nsNPAPIPluginInstance::nsNPAPIPluginInstance(nsIPluginInstanceOld *aShadow)
     mLibrary(nsnull),
     mStreams(nsnull),
     mMIMEType(nsnull),
-    mShadow(aShadow)
+    mShadow(aShadow),
+    mPlugin(nsnull)
 {
 }
 #endif
 
 nsNPAPIPluginInstance::nsNPAPIPluginInstance(NPPluginFuncs* callbacks,
-                                             PluginLibrary* aLibrary)
+                                             PluginLibrary* aLibrary,
+                                             nsNPAPIPlugin* aPlugin)
   : mCallbacks(callbacks),
 #ifdef XP_MACOSX
 #ifdef NP_NO_QUICKDRAW
@@ -940,6 +942,7 @@ nsNPAPIPluginInstance::nsNPAPIPluginInstance(NPPluginFuncs* callbacks,
 #ifdef OJI
     ,mShadow(nsnull)
 #endif
+    ,mPlugin(aPlugin)
 {
   NS_ASSERTION(mCallbacks != NULL, "null callbacks");
 
@@ -1125,6 +1128,8 @@ NS_IMETHODIMP nsNPAPIPluginInstance::Start(void)
 NS_IMETHODIMP nsNPAPIPluginInstance::Stop(void)
 {
   PLUGIN_LOG(PLUGIN_LOG_NORMAL, ("nsNPAPIPluginInstance::Stop this=%p\n",this));
+
+  mPlugin = nsnull;
 
 #ifdef OJI
   if (mShadow)

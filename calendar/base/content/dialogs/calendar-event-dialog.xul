@@ -24,6 +24,7 @@
    -   Stefan Sitter <ssitter@gmail.com>
    -   Fred Jendrzejewski <fred.jen@web.de>
    -   Markus Adrario <Mozilla@Adrario.de>
+   -   Gianfranco Balza <bv1578@gmail.com>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -734,7 +735,7 @@
             </row>
 
             <!-- StartDate -->
-            <row id="event-grid-startdate-row" align="center">
+            <row id="event-grid-startdate-row">
                 <hbox id="event-grid-startdate-label-box"
                       align="center">
                     <label value="&event.from.label;"
@@ -748,8 +749,7 @@
                            class="todo-only"
                            disable-on-readonly="true"/>
                 </hbox>
-                <hbox id="event-grid-startdate-picker-box"
-                      align="center">
+                <hbox id="event-grid-startdate-picker-box">
                     <datetimepicker id="event-starttime"
                                     class="event-only"
                                     disable-on-readonly="true"
@@ -761,15 +761,29 @@
                     <datetimepicker id="todo-entrydate"
                                     class="todo-only"
                                     disable-on-readonly="true"
-                                    onchange="dateTimeControls2State(false);"/>
-                    <label id="timezone-starttime"
-                           class="text-link"
-                           collapsed="true"
-                           crop="right"
-                           disable-on-readonly="true"
-                           flex="1"
-                           hyperlink="true"
-                           onclick="editStartTimezone()"/>
+                                    onchange="dateTimeControls2State(true);"/>
+                    <vbox>
+                        <hbox>
+                            <image id="link-image-top" class="keepduration-link-image" keep="true"/>
+                        </hbox>
+                        <spacer flex="1"/>
+                        <toolbarbutton id="keepduration-button"
+                                       accesskey="&event.dialog.keepDurationButton.accesskey;"
+                                       oncommand="toggleKeepDuration();"
+                                       persist="keep"
+                                       keep="false"
+                                       tooltiptext="&event.dialog.keepDurationButton.tooltip;"/>
+                    </vbox>
+                    <hbox align="center">
+                        <label id="timezone-starttime"
+                               class="text-link"
+                               collapsed="true"
+                               crop="end"
+                               disable-on-readonly="true"
+                               flex="1"
+                               hyperlink="true"
+                               onclick="editStartTimezone()"/>
+                    </hbox>
                 </hbox>
             </row>
 
@@ -789,8 +803,7 @@
                            disable-on-readonly="true"/>
                 </hbox>
                 <vbox>
-                    <hbox id="event-grid-enddate-picker-box"
-                          align="center">
+                    <hbox id="event-grid-enddate-picker-box">
                         <datetimepicker id="event-endtime"
                                         class="event-only"
                                         disable-on-readonly="true"
@@ -803,14 +816,19 @@
                                         class="todo-only"
                                         disable-on-readonly="true"
                                         onchange="dateTimeControls2State(false);"/>
-                        <label id="timezone-endtime"
-                               class="text-link"
-                               collapsed="true"
-                               crop="right"
-                               disable-on-readonly="true"
-                               flex="1"
-                               hyperlink="true"
-                               onclick="editEndTimezone()"/>
+                        <vbox pack="end">
+                            <image id="link-image-bottom" class="keepduration-link-image"/>
+                        </vbox>
+                        <hbox align="center">
+                            <label id="timezone-endtime"
+                                   class="text-link"
+                                   collapsed="true"
+                                   crop="end"
+                                   disable-on-readonly="true"
+                                   flex="1"
+                                   hyperlink="true"
+                                   onclick="editEndTimezone()"/>
+                        </hbox>
                     </hbox>
                 </vbox>
             </row>

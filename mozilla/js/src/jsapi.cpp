@@ -809,7 +809,6 @@ JS_NewRuntime(uint32 maxbytes)
     rt->titleSharingDone = JS_NEW_CONDVAR(rt->gcLock);
     if (!rt->titleSharingDone)
         goto bad;
-    rt->titleSharingTodo = NO_TITLE_SHARING_TODO;
     rt->debuggerLock = JS_NEW_LOCK();
     if (!rt->debuggerLock)
         goto bad;
@@ -1576,7 +1575,7 @@ JS_ResolveStandardClass(JSContext *cx, JSObject *obj, jsval id,
                 if (!atom)
                     return JS_FALSE;
                 if (idstr == ATOM_TO_STRING(atom)) {
-                    stdnm = &standard_class_names[i];
+                    stdnm = &object_prototype_names[i];
                     break;
                 }
             }
@@ -4367,12 +4366,11 @@ js_generic_fast_native_method_dispatcher(JSContext *cx, uintN argc, jsval *vp)
     fs = (JSFunctionSpec *) JSVAL_TO_PRIVATE(fsv);
     JS_ASSERT((~fs->flags & (JSFUN_FAST_NATIVE | JSFUN_GENERIC_NATIVE)) == 0);
 
-    /*
-     * We know that vp[2] is valid because JS_DefineFunctions, which is our
-     * only (indirect) referrer, defined us as requiring at least one argument
-     * (notice how it passes fs->nargs + 1 as the next-to-last argument to
-     * JS_DefineFunction).
-     */
+    if (argc < 1) {
+        js_ReportMissingArg(cx, vp, 0);
+        return JS_FALSE;
+    }
+
     if (JSVAL_IS_PRIMITIVE(vp[2])) {
         /*
          * Make sure that this is an object or null, as required by the generic
@@ -4397,15 +4395,9 @@ js_generic_fast_native_method_dispatcher(JSContext *cx, uintN argc, jsval *vp)
      */
     if (!js_ComputeThis(cx, JS_FALSE, vp + 2))
         return JS_FALSE;
-    /*
-     * Protect against argc underflowing. By calling js_ComputeThis, we made
-     * it as if the static was called with one parameter, the explicit |this|
-     * object.
-     */
-    if (argc != 0) {
-        /* Clear the last parameter in case too few arguments were passed. */
-        vp[2 + --argc] = JSVAL_VOID;
-    }
+
+    /* Clear the last parameter in case too few arguments were passed. */
+    vp[2 + --argc] = JSVAL_VOID;
 
     native =
 #ifdef JS_TRACER
@@ -4431,12 +4423,11 @@ js_generic_native_method_dispatcher(JSContext *cx, JSObject *obj,
     JS_ASSERT((fs->flags & (JSFUN_FAST_NATIVE | JSFUN_GENERIC_NATIVE)) ==
               JSFUN_GENERIC_NATIVE);
 
-    /*
-     * We know that argv[0] is valid because JS_DefineFunctions, which is our
-     * only (indirect) referrer, defined us as requiring at least one argument
-     * (notice how it passes fs->nargs + 1 as the next-to-last argument to
-     * JS_DefineFunction).
-     */
+    if (argc < 1) {
+        js_ReportMissingArg(cx, argv - 2, 0);
+        return JS_FALSE;
+    }
+
     if (JSVAL_IS_PRIMITIVE(argv[0])) {
         /*
          * Make sure that this is an object or null, as required by the generic
@@ -4464,15 +4455,8 @@ js_generic_native_method_dispatcher(JSContext *cx, JSObject *obj,
     js_GetTopStackFrame(cx)->thisp = JSVAL_TO_OBJECT(argv[-1]);
     JS_ASSERT(cx->fp->argv == argv);
 
-    /*
-     * Protect against argc underflowing. By calling js_ComputeThis, we made
-     * it as if the static was called with one parameter, the explicit |this|
-     * object.
-     */
-    if (argc != 0) {
-        /* Clear the last parameter in case too few arguments were passed. */
-        argv[--argc] = JSVAL_VOID;
-    }
+    /* Clear the last parameter in case too few arguments were passed. */
+    argv[--argc] = JSVAL_VOID;
 
     return fs->call(cx, JSVAL_TO_OBJECT(argv[-1]), argc, argv, rval);
 }

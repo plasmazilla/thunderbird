@@ -139,7 +139,7 @@ nsCSecurityContext::GetOrigin(char* buf, int buflen)
     PRBool javaCompatible = PR_FALSE;
 
     if (NS_SUCCEEDED(GetOriginImpl(origin))) {
-        if (NS_FAILED(NS_CheckIsJavaCompatibleURLString(origin, &javaCompatible)))
+        if (NS_FAILED(NS_CheckIsJavaCompatibleURLString(origin, PR_TRUE, &javaCompatible)))
             javaCompatible = PR_FALSE;
     } else {
         javaCompatible = PR_FALSE;

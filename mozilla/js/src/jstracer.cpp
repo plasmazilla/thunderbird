@@ -12905,6 +12905,8 @@ TraceRecorder::record_JSOP_IN()
     JSObject* obj2;
     JSProperty* prop;
     bool ok = obj->lookupProperty(cx, id, &obj2, &prop);
+    if (!ok)
+        ABORT_TRACE_ERROR("obj->lookupProperty failed in JSOP_IN");
 
     /* lookupProperty can reenter the interpreter and kill |this|. */
     if (!localtm.recorder) {
@@ -12913,8 +12915,6 @@ TraceRecorder::record_JSOP_IN()
         return JSRS_STOP;
     }
 
-    if (!ok)
-        ABORT_TRACE_ERROR("obj->lookupProperty failed in JSOP_IN");
     bool cond = prop != NULL;
     if (prop)
         obj2->dropProperty(cx, prop);

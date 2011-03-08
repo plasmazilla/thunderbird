@@ -16,7 +16,7 @@
 <script type="application/javascript"
         src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"/>
 <script type="application/javascript"
-        src="chrome://mochikit/content/chrome/toolkit/mozapps/update/test/chrome/utils.js"/>
+        src="utils.js"/>
 
 <script type="application/javascript">
 <![CDATA[
@@ -27,13 +27,14 @@ const TESTS = [ {
 } ];
 
 function runTest() {
-  debugDump("Entering runTest");
+  debugDump("entering");
 
-  gPref.setBoolPref(PREF_APP_UPDATE_SHOW_INSTALLED_UI, true);
+  Services.prefs.setBoolPref(PREF_APP_UPDATE_SHOW_INSTALLED_UI, true);
   let patches = getLocalPatchString("complete", null, null, null, null, null,
                                     STATE_PENDING);
   let updates = getLocalUpdateString(patches, null, null, null,
-                                     gApp.version, gApp.platformVersion);
+                                     Services.appinfo.version,
+                                     Services.appinfo.platformVersion);
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), true);
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(""), false);
   writeStatusFile(STATE_SUCCEEDED);

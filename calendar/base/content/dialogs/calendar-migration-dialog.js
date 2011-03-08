@@ -200,18 +200,6 @@ var gDataMigrator = {
     },
 
     /**
-     * Cached getter for the IO Service
-     * XXX replace with cal.getIOService()
-     */
-    get ioService() {
-        if (!this.mIoService) {
-            this.mIoService = Components.classes["@mozilla.org/network/io-service;1"]
-                              .getService(Components.interfaces.nsIIOService);
-        }
-        return this.mIoService;
-    },
-
-    /**
      * Gets the value for mIsLightning, and sets it if this.mIsLightning is
      * not initialized. This is used by objects outside gDataMigrator to
      * access the mIsLightning member.
@@ -510,7 +498,7 @@ var gDataMigrator = {
                 tempFile.append("icalTemp.ics");
                 tempFile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE,
                                       parseInt("0600", 8));
-                var tempUri = gDataMigrator.ioService.newFileURI(tempFile);
+                var tempUri = cal.getIOService().newFileURI(tempFile);
 
                 var stream = Components.classes["@mozilla.org/network/file-output-stream;1"]
                              .createInstance(Components.interfaces.nsIFileOutputStream);

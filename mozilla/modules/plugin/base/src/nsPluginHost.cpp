@@ -158,8 +158,14 @@
 #include "nsIContentPolicy.h"
 #include "nsContentPolicyUtils.h"
 #include "nsContentErrors.h"
+#include "nsIContentUtils.h"
+
+#include "nsIInterfaceRequestor.h"
+#include "nsIChannelEventSink.h"
 
 #if defined(XP_WIN)
+#include "nsIWindowMediator.h"
+#include "nsIBaseWindow.h"
 #include "windows.h"
 #include "winbase.h"
 #endif
@@ -1115,7 +1121,9 @@ class nsPluginStreamListenerPeer : public nsIStreamListener,
                                    public nsIProgressEventSink,
                                    public nsIHttpHeaderVisitor,
                                    public nsSupportsWeakReference,
-                                   public nsINPAPIPluginStreamInfo
+                                   public nsINPAPIPluginStreamInfo,
+                                   public nsIInterfaceRequestor,
+                                   public nsIChannelEventSink
 {
 public:
   nsPluginStreamListenerPeer();
@@ -1126,6 +1134,8 @@ public:
   NS_DECL_NSIREQUESTOBSERVER
   NS_DECL_NSISTREAMLISTENER
   NS_DECL_NSIHTTPHEADERVISITOR
+  NS_DECL_NSIINTERFACEREQUESTOR
+  NS_DECL_NSICHANNELEVENTSINK
 
   // nsINPAPIPluginStreamInfo interface
   NS_DECL_NSIPLUGINSTREAMINFO
@@ -1159,6 +1169,7 @@ private:
   nsresult SetUpCache(nsIURI* aURL); // todo: see about removing this...
   nsresult SetUpStreamListener(nsIRequest* request, nsIURI* aURL);
   nsresult SetupPluginCacheFile(nsIChannel* channel);
+  nsresult GetInterfaceGlobal(const nsIID& aIID, void** result);
 
   nsCOMPtr<nsIURI> mURL;
   nsCString mURLSpec; // Have to keep this member because GetURL hands out char*
@@ -1489,13 +1500,15 @@ nsPluginStreamListenerPeer::~nsPluginStreamListenerPeer()
   delete mDataForwardToRequest;
 }
 
-NS_IMPL_ISUPPORTS6(nsPluginStreamListenerPeer,
+NS_IMPL_ISUPPORTS8(nsPluginStreamListenerPeer,
                    nsIStreamListener,
                    nsIRequestObserver,
                    nsIHttpHeaderVisitor,
                    nsISupportsWeakReference,
                    nsIPluginStreamInfo,
-                   nsINPAPIPluginStreamInfo)
+                   nsINPAPIPluginStreamInfo,
+                   nsIInterfaceRequestor,
+                   nsIChannelEventSink)
 
 // Called as a result of GetURL and PostURL
 nsresult nsPluginStreamListenerPeer::Initialize(nsIURI *aURL,
@@ -2273,6 +2286,82 @@ nsPluginStreamListenerPeer::VisitHeader(const nsACString &header, const nsACStri
 
   return listener->NewResponseHeader(PromiseFlatCString(header).get(),
                                      PromiseFlatCString(value).get());
+}
+
+nsresult
+nsPluginStreamListenerPeer::GetInterfaceGlobal(const nsIID& aIID, void** result)
+{
+  if (!mInstance) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsCOMPtr<nsIPluginInstanceOwner> owner;
+  mInstance->GetOwner(getter_AddRefs(owner));
+  if (owner) {
+    nsCOMPtr<nsIDocument> doc;
+    nsresult rv = owner->GetDocument(getter_AddRefs(doc));
+    if (NS_SUCCEEDED(rv) && doc) {
+      nsPIDOMWindow *window = doc->GetWindow();
+      if (window) {
+        nsCOMPtr<nsIWebNavigation> webNav = do_GetInterface(window);
+        nsCOMPtr<nsIInterfaceRequestor> ir = do_QueryInterface(webNav);
+        return ir->GetInterface(aIID, result);
+      }
+    }
+  }
+
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsPluginStreamListenerPeer::GetInterface(const nsIID& aIID, void** result)
+{
+  // Provide nsIChannelEventSink ourselves, otherwise let our document's
+  // window provide the interface.
+
+  if (aIID.Equals(NS_GET_IID(nsIChannelEventSink))) {
+    return QueryInterface(aIID, result);
+  }
+
+  return GetInterfaceGlobal(aIID, result);
+}
+
+NS_IMETHODIMP
+nsPluginStreamListenerPeer::OnChannelRedirect(nsIChannel *oldChannel, nsIChannel *newChannel, PRUint32 flags)
+{
+  // Don't allow cross-origin 307 POST redirects. Fall back to channel event sink for window.
+
+  nsCOMPtr<nsIHttpChannel> oldHttpChannel(do_QueryInterface(oldChannel));
+  if (oldHttpChannel) {
+    PRUint32 responseStatus;
+    nsresult rv = oldHttpChannel->GetResponseStatus(&responseStatus);
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
+    if (responseStatus == 307) {
+      nsCAutoString method;
+      rv = oldHttpChannel->GetRequestMethod(method);
+      if (NS_FAILED(rv)) {
+        return rv;
+      }
+      if (method.EqualsLiteral("POST")) {
+        nsCOMPtr<nsIContentUtils2> contentUtils2 = do_GetService("@mozilla.org/content/contentutils2;1");
+        NS_ENSURE_TRUE(contentUtils2, NS_ERROR_FAILURE);
+        rv = contentUtils2->CheckSameOrigin(oldChannel, newChannel);
+        if (NS_FAILED(rv)) {
+          return rv;
+        }
+      }
+    }
+  }
+
+  nsCOMPtr<nsIChannelEventSink> channelEventSink;
+  nsresult rv = GetInterfaceGlobal(NS_GET_IID(nsIChannelEventSink), getter_AddRefs(channelEventSink));
+  if (NS_FAILED(rv)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  return channelEventSink->OnChannelRedirect(oldChannel, newChannel, flags);
 }
 
 nsPluginHost::nsPluginHost()
@@ -4641,21 +4730,13 @@ nsresult nsPluginHost::ScanPluginsDirectory(nsIFile * pluginsDir,
           *aPluginsChanged = PR_TRUE;
         }
       }
-    }
-    else {
-      // plugin file was added, flag this fact
-      *aPluginsChanged = PR_TRUE;
-    }
-
-    // if we are not creating the list, just continue the loop
-    // no need to proceed if changes are detected
-    if (!aCreatePluginList) {
-      if (*aPluginsChanged)
-        return NS_OK;
-      else
+      if (!aCreatePluginList) {
+        if (*aPluginsChanged)
+          return NS_OK;
         continue;
+      }
     }
-
+    
     // if it is not found in cache info list or has been changed, create a new one
     if (!pluginTag) {
       nsPluginFile pluginFile(file);
@@ -4748,6 +4829,14 @@ nsresult nsPluginHost::ScanPluginsDirectory(nsIFile * pluginsDir,
 
     // do it if we still want it
     if (bAddIt) {
+      // We have a valid new plugin so report that plugins have changed.
+      *aPluginsChanged = PR_TRUE;
+      
+      // If we're not creating a plugin list, simply looking for changes,
+      // then we're done.
+      if (!aCreatePluginList) {
+        return NS_OK;
+      }
       pluginTag->SetHost(this);
       pluginTag->mNext = mPlugins;
       mPlugins = pluginTag;
@@ -5498,24 +5587,12 @@ nsresult nsPluginHost::NewPluginURLStream(const nsString& aURL,
     rv = listenerPeer->Initialize(url, aInstance, aListener);
 
     if (NS_SUCCEEDED(rv)) {
-      nsCOMPtr<nsIInterfaceRequestor> callbacks;
-      if (doc) {
-        // Get the script global object owner and use that as the
-        // notification callback.
-        nsIScriptGlobalObject* global = doc->GetScriptGlobalObject();
-        if (global) {
-          nsCOMPtr<nsIWebNavigation> webNav = do_GetInterface(global);
-          callbacks = do_QueryInterface(webNav);
-        }
-      }
-
       nsCOMPtr<nsIChannel> channel;
-
       rv = NS_NewChannel(getter_AddRefs(channel), url, nsnull,
         nsnull, /* do not add this internal plugin's channel
                 on the load group otherwise this channel could be canceled
                 form |nsDocShell::OnLinkClickSync| bug 166613 */
-        callbacks);
+        listenerPeer);
       if (NS_FAILED(rv))
         return rv;
 
@@ -6250,6 +6327,57 @@ nsresult nsPluginHost::AddUnusedLibrary(PRLibrary * aLibrary)
 }
 
 #ifdef MOZ_IPC
+#ifdef XP_WIN
+// Re-enable any top level browser windows that were disabled by modal dialogs
+// displayed by the crashed plugin.
+static void
+CheckForDisabledWindows()
+{
+  nsCOMPtr<nsIWindowMediator> wm(do_GetService(NS_WINDOWMEDIATOR_CONTRACTID));
+  if (!wm)
+    return;
+
+  nsCOMPtr<nsISimpleEnumerator> windowList;
+  wm->GetXULWindowEnumerator(nsnull, getter_AddRefs(windowList));
+  if (!windowList)
+    return;
+
+  PRBool haveWindows;
+  do {
+    windowList->HasMoreElements(&haveWindows);
+    if (!haveWindows)
+      return;
+
+    nsCOMPtr<nsISupports> supportsWindow;
+    windowList->GetNext(getter_AddRefs(supportsWindow));
+    nsCOMPtr<nsIBaseWindow> baseWin(do_QueryInterface(supportsWindow));
+    if (baseWin) {
+      PRBool aFlag;
+      nsCOMPtr<nsIWidget> widget;
+      baseWin->GetMainWidget(getter_AddRefs(widget));
+      if (widget && !widget->GetParent() &&
+          NS_SUCCEEDED(widget->IsVisible(aFlag)) && aFlag == PR_TRUE &&
+          NS_SUCCEEDED(widget->IsEnabled(&aFlag)) && aFlag == PR_FALSE) {
+        nsIWidget * child = widget->GetFirstChild();
+        PRBool enable = PR_TRUE;
+        while (child)  {
+          nsWindowType aType;
+          if (NS_SUCCEEDED(child->GetWindowType(aType)) &&
+              aType == eWindowType_dialog) {
+            enable = PR_FALSE;
+            break;
+          }
+          child = child->GetNextSibling();
+        }
+        if (enable) {
+          widget->Enable(PR_TRUE);
+        }
+      }
+    }
+  } while (haveWindows);
+}
+#endif
+
 void
 nsPluginHost::PluginCrashed(nsNPAPIPlugin* aPlugin,
                             const nsAString& pluginDumpID,
@@ -6312,6 +6440,10 @@ nsPluginHost::PluginCrashed(nsNPAPIPlugin* aPlugin,
   // instance of this plugin we reload it (launch a new plugin process).
 
   plugin->mEntryPoint = nsnull;
+
+#ifdef XP_WIN
+  CheckForDisabledWindows();
+#endif
 }
 #endif
 

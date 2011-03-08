@@ -333,6 +333,10 @@ public:
                                        nsIPluginInstanceOwner* aOwner,
                                        PRBool aAllowOpeningStreams);
 
+  // Return the tag for |plugin| if found, nsnull if not.
+  nsPluginTag*
+  FindTagForPlugin(nsIPlugin* aPlugin);
+
 private:
   nsresult
   TrySetUpPluginInstance(const char *aMimeType, nsIURI *aURL, nsIPluginInstanceOwner *aOwner);
@@ -355,10 +359,6 @@ private:
 
   nsPluginTag*
   FindPluginEnabledForExtension(const char* aExtension, const char* &aMimeType);
-
-  // Return the tag for |plugin| if found, nsnull if not.
-  nsPluginTag*
-  FindTagForPlugin(nsIPlugin* aPlugin);
 
   nsresult
   FindStoppedPluginForURL(nsIURI* aURL, nsIPluginInstanceOwner *aOwner);

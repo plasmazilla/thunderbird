@@ -57,6 +57,7 @@ calIcalProperty::~calIcalProperty()
 }
 
 NS_IMPL_ISUPPORTS1(calIcalProperty, calIIcalProperty)
+NS_IMPL_CI_INTERFACE_GETTER1(calIcalProperty, calIIcalProperty)
 
 NS_IMETHODIMP_(icalproperty *)
 calIcalProperty::GetIcalProperty()

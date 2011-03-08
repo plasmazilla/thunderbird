@@ -7554,13 +7554,15 @@ UpdateViewsForTree(nsIFrame* aFrame, nsIViewManager* aViewManager,
       if (!(child->GetStateBits() & NS_FRAME_OUT_OF_FLOW)
           || (child->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER)) {
         // only do frames that don't have placeholders
-        if (nsGkAtoms::placeholderFrame == child->GetType()) { // placeholder
-          // get out of flow frame and start over there
+        if (nsGkAtoms::placeholderFrame == child->GetType()) {
+          // do the out-of-flow frame and its continuations
           nsIFrame* outOfFlowFrame =
             nsPlaceholderFrame::GetRealFrameForPlaceholder(child);
-
-          DoApplyRenderingChangeToTree(outOfFlowFrame, aViewManager,
-                                       aFrameManager, aChange);
+          do {
+            DoApplyRenderingChangeToTree(outOfFlowFrame, aViewManager,
+                                         aFrameManager, aChange);
+          } while ((outOfFlowFrame = outOfFlowFrame->GetNextContinuation()) &&
+                   (outOfFlowFrame->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER));
         }
         else {  // regular frame
           UpdateViewsForTree(child, aViewManager, aFrameManager, aChange);

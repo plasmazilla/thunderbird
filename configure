@@ -6406,7 +6406,6 @@ EOF
         DSO_CFLAGS='-qflag=w:w'
         DSO_PIC_CFLAGS=
         LDFLAGS="$LDFLAGS -Wl,-brtl -blibpath:/usr/lib:/lib"
-        echo "configure: warning: Clearing MOZ_FIX_LINK_PATHS till we can fix bug 332075." 1>&2
         MOZ_FIX_LINK_PATHS=
         MKSHLIB='$(CXX) $(DSO_LDOPTS) -o $@'
         MKCSHLIB='$(CC) $(DSO_LDOPTS) -o $@'
@@ -6419,19 +6418,19 @@ ac_compile='${CXX-g++} -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext 1>&5'
 ac_link='${CXX-g++} -o conftest${ac_exeext} $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS 1>&5'
 cross_compiling=$ac_cv_prog_cxx_cross
 
-            echo $ac_n "checking for VisualAge C++ compiler version >= 6.0.0.3""... $ac_c" 1>&6
-echo "configure:6424: checking for VisualAge C++ compiler version >= 6.0.0.3" >&5
+            echo $ac_n "checking for IBM XLC/C++ compiler version >= 8.0.0.15""... $ac_c" 1>&6
+echo "configure:6423: checking for IBM XLC/C++ compiler version >= 8.0.0.15" >&5
             cat > conftest.$ac_ext <<EOF
-#line 6426 "configure"
+#line 6425 "configure"
 #include "confdefs.h"
 
 int main() {
-#if (__IBMCPP__ < 600)
+#if (__IBMCPP__ < 800)
                  #error "Bad compiler"
                  #endif
 ; return 0; }
 EOF
-if { (eval echo configure:6435: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:6434: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   _BAD_COMPILER=
 else
@@ -6443,7 +6442,8 @@ fi
 rm -f conftest*
             if test -n "$_BAD_COMPILER"; then
                 echo "$ac_t""no" 1>&6    
-                { echo "configure: error: VisualAge C++ version 6.0.0.3 or higher is required to build." 1>&2; exit 1; }
+                { echo "configure: error: IBM XLC/C++ 8.0.0.15 or higher is required to bui
+ld." 1>&2; exit 1; }
             else
                 echo "$ac_t""yes" 1>&6    
             fi
@@ -20189,14 +20189,17 @@ MOZ_BUILD_APP="$MOZ_BUILD_APP_CACHED"
 if test -n "$COMPILE_ENVIRONMENT" -a -n "$MOZ_LDAP_XPCOM"; then
     # these subdirs may not yet have been created in the build tree.
     # don't use the "-p" switch to mkdir, since not all platforms have it
-    if test ! -d "directory/c-sdk/ldap"; then
-        if test ! -d "directory/c-sdk"; then
-            if test ! -d "directory"; then
-                mkdir "directory"
+    if test ! -d "directory/sdks/c-sdk/ldap"; then
+        if test ! -d "directory/sdks/c-sdk"; then
+            if test ! -d "directory/sdks"; then
+                if test ! -d "directory"; then
+                    mkdir "directory"
+                fi
+                mkdir "directory/sdks"
             fi
-            mkdir "directory/c-sdk"
+            mkdir "directory/sdks/c-sdk"
         fi
-        mkdir "directory/c-sdk/ldap"
+        mkdir "directory/sdks/c-sdk/ldap"
     fi
 
     ac_configure_args="$_SUBDIR_CONFIG_ARGS --prefix=$MOZ_BUILD_ROOT/mozilla/dist --with-dist-prefix=$MOZ_BUILD_ROOT/mozilla/dist --without-nss --with-mozilla"
@@ -20230,7 +20233,7 @@ if test "$no_recursion" != yes; then
     esac
   done
 
-  for ac_config_dir in directory/c-sdk; do
+  for ac_config_dir in directory/sdks/c-sdk; do
 
     # Do not complain, so a configure script can configure whichever
     # parts of a large source tree are present.

@@ -509,12 +509,11 @@ nsNodeUtils::CloneNodeImpl(nsINode *aNode, PRBool aDeep, nsIDOMNode **aResult)
 class AdoptFuncData {
 public:
   AdoptFuncData(nsIDOMElement *aElement, nsNodeInfoManager *aNewNodeInfoManager,
-                JSContext *aCx, JSObject *aOldScope, JSObject *aNewScope,
+                JSContext *aCx, JSObject *aNewScope,
                 nsCOMArray<nsINode> &aNodesWithProperties)
     : mElement(aElement),
       mNewNodeInfoManager(aNewNodeInfoManager),
       mCx(aCx),
-      mOldScope(aOldScope),
       mNewScope(aNewScope),
       mNodesWithProperties(aNodesWithProperties)
   {
@@ -523,7 +522,6 @@ public:
   nsIDOMElement *mElement;
   nsNodeInfoManager *mNewNodeInfoManager;
   JSContext *mCx;
-  JSObject *mOldScope;
   JSObject *mNewScope;
   nsCOMArray<nsINode> &mNodesWithProperties;
 };
@@ -542,8 +540,7 @@ AdoptFunc(nsAttrHashKey::KeyType aKey, nsIDOMNode *aData, void* aUserArg)
   nsCOMPtr<nsIDOMNode> node;
   nsresult rv = nsNodeUtils::CloneAndAdopt(attr, clone, PR_TRUE,
                                            data->mNewNodeInfoManager,
-                                           data->mCx, data->mOldScope,
-                                           data->mNewScope,
+                                           data->mCx, data->mNewScope,
                                            data->mNodesWithProperties,
                                            nsnull, getter_AddRefs(node));
 
@@ -561,15 +558,14 @@ AdoptFunc(nsAttrHashKey::KeyType aKey, nsIDOMNode *aData, void* aUserArg)
 nsresult
 nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
                            nsNodeInfoManager *aNewNodeInfoManager,
-                           JSContext *aCx, JSObject *aOldScope,
-                           JSObject *aNewScope,
+                           JSContext *aCx, JSObject *aNewScope,
                            nsCOMArray<nsINode> &aNodesWithProperties,
                            nsINode *aParent, nsIDOMNode **aResult)
 {
   NS_PRECONDITION((!aClone && aNewNodeInfoManager) || !aCx,
                   "If cloning or not getting a new nodeinfo we shouldn't "
                   "rewrap");
-  NS_PRECONDITION(!aCx || (aOldScope && aNewScope), "Must have scopes");
+  NS_PRECONDITION(!aCx || aNewScope, "Must have scopes");
   NS_PRECONDITION(!aParent || !aNode->IsNodeOfType(nsINode::eDOCUMENT),
                   "Can't insert document nodes into a parent");
 
@@ -679,11 +675,12 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
       elem->RecompileScriptEventListeners();
     }
 
-    if (aCx) {
+    JSObject *wrapper = aNode->GetWrapper();
+    if (aCx && wrapper) {
       nsIXPConnect *xpc = nsContentUtils::XPConnect();
       if (xpc) {
         nsCOMPtr<nsIXPConnectJSObjectHolder> oldWrapper;
-        rv = xpc->ReparentWrappedNativeIfFound(aCx, aOldScope, aNewScope, aNode,
+        rv = xpc->ReparentWrappedNativeIfFound(aCx, wrapper, aNewScope, aNode,
                                                getter_AddRefs(oldWrapper));
         if (NS_FAILED(rv)) {
           aNode->mNodeInfo.swap(nodeInfo);
@@ -706,8 +703,8 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
         NS_ENSURE_SUCCESS(rv, rv);
       }
 
-      AdoptFuncData data(element, nodeInfoManager, aCx, aOldScope,
-                         aNewScope, aNodesWithProperties);
+      AdoptFuncData data(element, nodeInfoManager, aCx, aNewScope,
+                         aNodesWithProperties);
 
       PRUint32 count = map->Enumerate(AdoptFunc, &data);
       NS_ENSURE_TRUE(count == map->Count(), NS_ERROR_FAILURE);
@@ -741,7 +738,7 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
     for (i = 0; i < length; ++i) {
       nsCOMPtr<nsIDOMNode> child;
       rv = CloneAndAdopt(aNode->GetChildAt(i), aClone, PR_TRUE, nodeInfoManager,
-                         aCx, aOldScope, aNewScope, aNodesWithProperties,
+                         aCx, aNewScope, aNodesWithProperties,
                          clone, getter_AddRefs(child));
       NS_ENSURE_SUCCESS(rv, rv);
     }

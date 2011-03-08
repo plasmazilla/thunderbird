@@ -119,6 +119,8 @@ public:
   nsIPluginInstanceOld *GetShadow();
 #endif
 
+  nsNPAPIPlugin* GetPlugin() { return mPlugin; }
+
   nsresult GetNPP(NPP * aNPP);
 
   // Return the callbacks for the plugin instance.
@@ -146,7 +148,7 @@ public:
   nsNPAPIPluginInstance(nsIPluginInstanceOld *aShadow);
 #endif
 
-  nsNPAPIPluginInstance(NPPluginFuncs* callbacks, PluginLibrary* aLibrary);
+  nsNPAPIPluginInstance(NPPluginFuncs* callbacks, PluginLibrary* aLibrary, nsNPAPIPlugin* aPlugin);
 
   // Use Release() to destroy this
   virtual ~nsNPAPIPluginInstance();
@@ -220,6 +222,8 @@ public:
   PluginLibrary* mLibrary;
   nsInstanceStream *mStreams;
 
+  nsXPIDLCString mFakeURL;
+
 private:
   nsTArray<PopupControlState> mPopupStates;
 
@@ -234,6 +238,7 @@ private:
 #ifdef OJI
   nsIPluginInstanceOld *mShadow; // Strong
 #endif
+  nsNPAPIPlugin* mPlugin; // Weak
 };
 
 #endif // nsNPAPIPluginInstance_h_
