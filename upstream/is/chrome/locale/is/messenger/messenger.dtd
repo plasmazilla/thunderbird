@@ -64,8 +64,8 @@
 <!ENTITY printCmd.key "p">
 <!ENTITY printPreviewCmd.label "Prentskoðun">
 <!ENTITY printPreviewCmd.accesskey "ð">
-<!ENTITY printSetupCmd.label "Síðuuppsetning…">
-<!ENTITY printSetupCmd.accesskey "u">
+<!ENTITY printSetupCmd.label "Uppsetning síðu…">
+<!ENTITY printSetupCmd.accesskey "U">
 <!-- Edit Menu -->
 <!ENTITY deleteMsgCmd.label "Eyða pósti">
 <!ENTITY deleteMsgCmd.accesskey "y">

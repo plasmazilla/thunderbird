@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-gd@thunderbird.mozilla.org"
                em:name="Scottish Gaelic Language Pack"
-               em:version="3.1.67"
+               em:version="3.1.85"
                em:type="8"
                em:creator="Sgioba Ionadaileadh Mozilla na Gàidhlig">
     <em:contributor>Michael &apos;Akerbeltz&apos; Bauer</em:contributor> <em:contributor>Kevin Scannell</em:contributor>

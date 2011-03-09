@@ -99,7 +99,7 @@
 <!ENTITY cmd.homepage.label "Féach ar an leathanach baile">
 <!ENTITY cmd.homepage.accesskey "B">
 <!ENTITY cmd.about2.label "Maidir leis an mBreiseán seo">
-<!ENTITY cmd.about.accesskey "W">
+<!ENTITY cmd.about.accesskey "M">
 <!ENTITY cmd.checkUpdate.label "Cuardaigh Nuashonrú">
 <!ENTITY cmd.checkUpdate.accesskey "C">
 

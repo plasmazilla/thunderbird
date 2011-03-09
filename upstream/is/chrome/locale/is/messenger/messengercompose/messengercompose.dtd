@@ -41,8 +41,8 @@
 <!ENTITY sendLaterCmd.label "Senda síðar">
 <!ENTITY sendLaterCmd.keycode "VK_RETURN">
 <!ENTITY sendLaterCmd.accesskey "ð">
-<!ENTITY printSetupCmd.label "Síðuuppsetning…">
-<!ENTITY printSetupCmd.accesskey "u">
+<!ENTITY printSetupCmd.label "Uppsetning síðu…">
+<!ENTITY printSetupCmd.accesskey "U">
 <!ENTITY printCmd.label "Prenta…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "P">

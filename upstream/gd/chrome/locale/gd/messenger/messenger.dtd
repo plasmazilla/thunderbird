@@ -138,8 +138,8 @@
 <!ENTITY allFolders.accesskey "A">
 <!ENTITY unreadFolders.label "Gun leughadh">
 <!ENTITY unreadFolders.accesskey "u">
-<!ENTITY favoriteFolders.label "An fheadhainn as fhearr">
-<!ENTITY favoriteFolders.accesskey "f">
+<!ENTITY favoriteFolders.label "Annsachd">
+<!ENTITY favoriteFolders.accesskey "A">
 <!ENTITY recentFolders.label "O chionn ghoirid">
 <!ENTITY recentFolders.accesskey "r">
 
@@ -158,8 +158,8 @@
 <!ENTITY sortByPriorityCmd.accesskey "P">
 <!ENTITY sortBySizeCmd.label "Meud">
 <!ENTITY sortBySizeCmd.accesskey "M">
-<!ENTITY sortByStatusCmd.label "Cor">
-<!ENTITY sortByStatusCmd.accesskey "C">
+<!ENTITY sortByStatusCmd.label "Staid">
+<!ENTITY sortByStatusCmd.accesskey "S">
 <!ENTITY sortByTagsCmd.label "Thagaichean">
 <!ENTITY sortByTagsCmd.accesskey "g">
 <!ENTITY sortByJunkStatusCmd.label "Na h-inbhe truilleis">
@@ -597,7 +597,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY priorityColumn.label "Prìomhachas">
 <!ENTITY tagsColumn.label "Taga">
 <!ENTITY accountColumn.label "Cunntas">
-<!ENTITY statusColumn.label "Cor">
+<!ENTITY statusColumn.label "Staid">
 <!ENTITY sizeColumn.label "Meud">
 <!ENTITY junkStatusColumn.label "An inbhe truilleis">
 <!ENTITY unreadColumn.label "Gun leughadh">

@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-sk@thunderbird.mozilla.org"
                em:name="Slovak (SK) Language Pack"
-               em:version="3.1.201"
+               em:version="3.1.250"
                em:type="8"
                em:creator="Mozilla.sk">
     <em:contributor>Team Mozilla.sk</em:contributor>

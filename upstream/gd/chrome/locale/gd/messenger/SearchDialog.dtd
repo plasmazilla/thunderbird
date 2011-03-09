@@ -41,7 +41,7 @@
 <!ENTITY priorityColumn.label "Prìomhachas">
 <!ENTITY tagsColumn.label "Tagaichean">
 <!ENTITY accountColumn.label "Cunntas">
-<!ENTITY statusColumn.label "Cor">
+<!ENTITY statusColumn.label "Staid">
 <!ENTITY sizeColumn.label "Meud">
 <!ENTITY junkStatusColumn.label "An inbhe truilleis">
 <!ENTITY unreadColumn.label "Gun leughadh">

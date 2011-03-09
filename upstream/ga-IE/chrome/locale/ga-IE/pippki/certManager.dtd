@@ -142,6 +142,6 @@
 <!ENTITY exceptionMgr.certlocation.accesskey "G">
 <!ENTITY exceptionMgr.certstatus.caption "Stádas an Teastais">
 <!ENTITY exceptionMgr.certstatus.viewCert "Amharc…">
-<!ENTITY exceptionMgr.certstatus.accesskey "V">
+<!ENTITY exceptionMgr.certstatus.accesskey "A">
 <!ENTITY exceptionMgr.permanent.label "Glac leis an eisceacht seo go buan">
 <!ENTITY exceptionMgr.permanent.accesskey "G">

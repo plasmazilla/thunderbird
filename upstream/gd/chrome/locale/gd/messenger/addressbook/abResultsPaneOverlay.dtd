@@ -42,7 +42,7 @@
 <!ENTITY Company.accesskey                     "m">
 <!ENTITY _PhoneticName.label                   "Ainm fòn-eòlach">
 <!ENTITY _PhoneticName.accesskey               "A">
-<!ENTITY NickName.label                        "Am far-ainm">
+<!ENTITY NickName.label                        "Far-ainm">
 <!ENTITY NickName.accesskey                    "i">
 <!ENTITY SecondEmail.label                     "Post-dealain eile">
 <!ENTITY SecondEmail.accesskey                 "l">
