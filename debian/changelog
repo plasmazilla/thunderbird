@@ -1,3 +1,28 @@
+icedove (3.1.9-1) experimental; urgency=low
+
+  * New Upstream Version
+    - MFSA 2011-01 aka CVE-2011-0053, CVE-2011-0062: Miscellaneous memory
+      safety hazards (rv:1.9.2.14/ 1.9.1.17)
+    - MFSA 2011-08 aka CVE-2010-1585: ParanoidFragmentSink allows javascript:
+      URLs in chrome documents
+    - MFSA 2011-09 aka CVE-2011-0061: Crash caused by corrupted JPEG image
+  * [699536a] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0069-save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+      (Closes: #505875)
+    - 0070-News-article-is-empty-if-selected-during-download-fr.patch
+      (Closes: #487494)
+    - 0071-restore-icedove-on-login-by-session-management.patch
+      (Closes: #403458)
+    modified patches:
+    - 0003-no_dynamic_nss_softokn.patch
+    - 0010-Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - 0030-Don-t-error-out-when-run-time-libsqlite-is-older-tha.patch
+  * [98d8ac0] c-sdk move to sdks/c-sdk - adjust
+    debian/{copyright,remove.nonfree,rules}
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 09 Mar 2011 20:21:59 +0100
+
 icedove (3.1.7-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #606977)
