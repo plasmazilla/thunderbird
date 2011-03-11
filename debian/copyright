@@ -1,7 +1,5 @@
-Author: Mozilla Localization Projects
-Download:
- http://ftp.mozilla.org/pub/mozilla.org/thunderbird/releases/
- http://www.mancomun.org/index.php?option=com_remository&Itemid=111&id=120&func=fileinfo
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=135
+Source: http://ftp.mozilla.org/pub/mozilla.org/thunderbird/releases/
 
 Files: *
 Copyright: (C) Mozilla Project and Mozilla Localization Projects
