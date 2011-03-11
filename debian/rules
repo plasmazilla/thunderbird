@@ -31,7 +31,7 @@ override_dh_auto_install:
 	cd $(CURDIR)/upstream; \
 	for DIRECTORY in *; \
 	do \
-		LOCALE=`echo $${DIRECTORY} | sed --posix 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'`; \
+		LOCALE=`echo $${DIRECTORY} | tr [:upper:] [:lower:]`; \
 		ID=`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
 		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/chrome; \
 		install -m 644 $${DIRECTORY}/chrome/*.jar $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/chrome; \
