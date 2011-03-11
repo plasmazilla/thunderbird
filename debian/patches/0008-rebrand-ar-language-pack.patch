@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:11:46 +0100
-Subject: [PATCH] rebrand ar language pack
+Subject: rebrand ar language pack
 
 ---
  upstream/ar/chrome/locale/ar/branding/brand.dtd    |    9 ++++-----

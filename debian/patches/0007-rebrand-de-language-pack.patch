@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 11:18:04 +0100
-Subject: [PATCH] rebrand de language pack
+Subject: rebrand de language pack
 
 ---
  upstream/de/chrome/locale/de/branding/brand.dtd    |    6 +++---

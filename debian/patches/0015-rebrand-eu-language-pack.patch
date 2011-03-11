@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:59:15 +0100
-Subject: [PATCH] rebrand eu language pack
+Subject: rebrand eu language pack
 
 ---
  upstream/eu/chrome/locale/eu/branding/brand.dtd    |    7 +++----

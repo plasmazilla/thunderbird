@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 1 Aug 2010 21:49:19 -0400
-Subject: [PATCH] rebrand vi language pack
+Subject: rebrand vi language pack
 
 ---
  upstream/vi/chrome/locale/vi/branding/brand.dtd    |    7 +++----

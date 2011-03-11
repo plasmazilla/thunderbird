@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:46:37 +0100
-Subject: [PATCH] rebrand nl language pack
+Subject: rebrand nl language pack
 
 ---
  upstream/nl/chrome/locale/nl/branding/brand.dtd    |    7 +++----

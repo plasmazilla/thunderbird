@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 17:04:54 +0100
-Subject: [PATCH] rebrand sv-SE language pack
+Subject: rebrand sv-SE language pack
 
 ---
  .../sv-SE/chrome/locale/sv-SE/branding/brand.dtd   |    7 +++----

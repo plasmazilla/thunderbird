@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 6 Nov 2010 18:12:42 +0100
-Subject: [PATCH] sl: change Edit (Uredi) to CTRL+E
+Subject: sl: change Edit (Uredi) to CTRL+E
 
 Closes: #601331
 ---

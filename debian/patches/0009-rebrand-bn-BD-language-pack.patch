@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:13:46 +0100
-Subject: [PATCH] rebrand bn-BD language pack
+Subject: rebrand bn-BD language pack
 
 ---
  .../bn-BD/chrome/locale/bn-BD/branding/brand.dtd   |    9 ++++-----

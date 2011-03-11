@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 6 Nov 2010 18:01:50 +0100
-Subject: [PATCH] rebrand gd language pack
+Subject: rebrand gd language pack
 
 ---
  upstream/gd/chrome/locale/gd/branding/brand.dtd    |    7 +++----
@@ -10,18 +10,18 @@ Subject: [PATCH] rebrand gd language pack
  4 files changed, 7 insertions(+), 8 deletions(-)
 
 diff --git a/upstream/gd/chrome/locale/gd/branding/brand.dtd b/upstream/gd/chrome/locale/gd/branding/brand.dtd
-index bc4ef5c..120541a 100644
+index 0a8c2c4..e1e28fc 100644
 --- a/upstream/gd/chrome/locale/gd/branding/brand.dtd
 +++ b/upstream/gd/chrome/locale/gd/branding/brand.dtd
 @@ -1,5 +1,4 @@
--<!ENTITY brandShortName "Thunderbird">
--<!ENTITY brandFullName "Mozilla Thunderbird">
-+<!ENTITY brandShortName "Icedove">
-+<!ENTITY brandFullName "Icedove">
- <!ENTITY vendorShortName "Mozilla">
--<!ENTITY logoTrademark "Mozilla Thunderbird and the Thunderbird logos
--                                 are trademarks of the Mozilla Foundation.">
-+<!ENTITY logoTrademark " ">
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
+-<!ENTITY  logoTrademark         "Tha Mozilla Thunderbird is suaicheantasan Thunderbird
+-                                 'nan comharran-malairt aig Fonndas Mozilla.">
++<!ENTITY  logoTrademark         " ">
 diff --git a/upstream/gd/chrome/locale/gd/branding/brand.properties b/upstream/gd/chrome/locale/gd/branding/brand.properties
 index 857d0c3..44bf191 100644
 --- a/upstream/gd/chrome/locale/gd/branding/brand.properties

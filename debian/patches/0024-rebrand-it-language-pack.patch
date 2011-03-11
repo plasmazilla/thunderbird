@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:30:35 +0100
-Subject: [PATCH] rebrand it language pack
+Subject: rebrand it language pack
 
 ---
  upstream/it/chrome/locale/it/branding/brand.dtd    |    8 ++++----

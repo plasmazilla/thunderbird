@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 6 Nov 2010 18:04:21 +0100
-Subject: [PATCH] rebrand gl language pack
+Subject: rebrand gl language pack
 
 ---
  upstream/gl/chrome/locale/gl/branding/brand.dtd    |    7 +++----

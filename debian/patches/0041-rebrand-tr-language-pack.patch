@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 17:10:45 +0100
-Subject: [PATCH] rebrand tr language pack
+Subject: rebrand tr language pack
 
 ---
  upstream/tr/chrome/locale/tr/branding/brand.dtd    |    9 ++++-----

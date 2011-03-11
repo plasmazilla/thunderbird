@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 13:19:42 +0100
-Subject: [PATCH] rebrand hu language pack
+Subject: rebrand hu language pack
 
 ---
  upstream/hu/chrome/locale/hu/branding/brand.dtd    |    7 +++----

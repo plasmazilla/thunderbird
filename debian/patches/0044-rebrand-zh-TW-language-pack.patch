@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 17:20:24 +0100
-Subject: [PATCH] rebrand zh-TW language pack
+Subject: rebrand zh-TW language pack
 
 ---
  .../zh-TW/chrome/locale/zh-TW/branding/brand.dtd   |    7 +++----

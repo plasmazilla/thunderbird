@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 11:02:55 +0100
-Subject: [PATCH] rebrand ca language pack
+Subject: rebrand ca language pack
 
 ---
  upstream/ca/chrome/locale/ca/branding/brand.dtd    |    7 +++----

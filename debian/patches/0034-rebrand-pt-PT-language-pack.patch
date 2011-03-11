@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:59:22 +0100
-Subject: [PATCH] rebrand pt-PT language pack
+Subject: rebrand pt-PT language pack
 
 ---
  .../pt-PT/chrome/locale/pt-PT/branding/brand.dtd   |    9 ++++-----

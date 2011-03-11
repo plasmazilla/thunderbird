@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:50:47 +0100
-Subject: [PATCH] rebrand es-ES language pack
+Subject: rebrand es-ES language pack
 
 ---
  .../es-ES/chrome/locale/es-ES/branding/brand.dtd   |    6 +++---

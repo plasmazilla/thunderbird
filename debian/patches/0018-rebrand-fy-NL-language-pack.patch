@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 13:08:35 +0100
-Subject: [PATCH] rebrand fy-NL language pack
+Subject: rebrand fy-NL language pack
 
 ---
  .../fy-NL/chrome/locale/fy-NL/branding/brand.dtd   |    7 +++----

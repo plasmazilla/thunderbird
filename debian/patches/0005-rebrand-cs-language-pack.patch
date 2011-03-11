@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 11:07:44 +0100
-Subject: [PATCH] rebrand cs language pack
+Subject: rebrand cs language pack
 
 ---
  upstream/cs/chrome/locale/cs/branding/brand.dtd    |    6 +++---

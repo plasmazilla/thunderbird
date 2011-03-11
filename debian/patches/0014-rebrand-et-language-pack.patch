@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:56:55 +0100
-Subject: [PATCH] rebrand et language pack
+Subject: rebrand et language pack
 
 ---
  upstream/et/chrome/locale/et/branding/brand.dtd    |    7 +++----

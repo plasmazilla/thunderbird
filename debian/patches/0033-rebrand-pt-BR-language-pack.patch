@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:55:46 +0100
-Subject: [PATCH] rebrand pt-BR language pack
+Subject: rebrand pt-BR language pack
 
 ---
  .../pt-BR/chrome/locale/pt-BR/branding/brand.dtd   |    6 +++---

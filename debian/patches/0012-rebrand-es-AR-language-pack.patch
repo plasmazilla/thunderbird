@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:43:48 +0100
-Subject: [PATCH] rebrand es-AR language pack
+Subject: rebrand es-AR language pack
 
 ---
  .../es-AR/chrome/locale/es-AR/branding/brand.dtd   |    7 +++----

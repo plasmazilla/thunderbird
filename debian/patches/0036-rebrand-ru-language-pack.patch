@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 16:50:52 +0100
-Subject: [PATCH] rebrand ru language pack
+Subject: rebrand ru language pack
 
 ---
  upstream/ru/chrome/locale/ru/branding/brand.dtd    |    6 +++---

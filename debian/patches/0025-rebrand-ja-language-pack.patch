@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:33:57 +0100
-Subject: [PATCH] rebrand ja language pack
+Subject: rebrand ja language pack
 
 ---
  upstream/ja/chrome/locale/ja/branding/brand.dtd    |    8 ++++----

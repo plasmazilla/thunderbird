@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 16:53:27 +0100
-Subject: [PATCH] rebrand si language pack
+Subject: rebrand si language pack
 
 ---
  upstream/si/chrome/locale/si/branding/brand.dtd    |    7 +-

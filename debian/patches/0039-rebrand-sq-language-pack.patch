@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 17:00:25 +0100
-Subject: [PATCH] rebrand sq language pack
+Subject: rebrand sq language pack
 
 ---
  upstream/sq/chrome/locale/sq/branding/brand.dtd    |    9 ++++-----

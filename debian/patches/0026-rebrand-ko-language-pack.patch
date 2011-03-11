@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:39:34 +0100
-Subject: [PATCH] rebrand ko language pack
+Subject: rebrand ko language pack
 
 ---
  upstream/ko/chrome/locale/ko/branding/brand.dtd    |    6 +++---

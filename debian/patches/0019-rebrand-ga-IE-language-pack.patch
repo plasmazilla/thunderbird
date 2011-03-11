@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 13:10:58 +0100
-Subject: [PATCH] rebrand ga-IE language pack
+Subject: rebrand ga-IE language pack
 
 ---
  .../ga-IE/chrome/locale/ga-IE/branding/brand.dtd   |    6 +++---

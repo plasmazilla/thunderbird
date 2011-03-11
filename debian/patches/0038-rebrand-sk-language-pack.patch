@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 16:55:53 +0100
-Subject: [PATCH] rebrand sk language pack
+Subject: rebrand sk language pack
 
 ---
  upstream/sk/chrome/locale/sk/branding/brand.dtd    |    6 +++---

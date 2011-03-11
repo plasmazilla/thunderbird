@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:44:24 +0100
-Subject: [PATCH] rebrand nb-NO language pack
+Subject: rebrand nb-NO language pack
 
 ---
  .../nb-NO/chrome/locale/nb-NO/branding/brand.dtd   |    7 +++----

@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 17:17:37 +0100
-Subject: [PATCH] rebrand zh-CN language pack
+Subject: rebrand zh-CN language pack
 
 ---
  .../zh-CN/chrome/locale/zh-CN/branding/brand.dtd   |    6 +++---

@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 12:39:52 +0100
-Subject: [PATCH] rebrand en-GB language pack
+Subject: rebrand en-GB language pack
 
 ---
  .../en-GB/chrome/locale/en-GB/branding/brand.dtd   |    7 +++----

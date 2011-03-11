@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Wed, 8 Sep 2010 20:48:03 +0200
-Subject: [PATCH] remove empty lines on top of si/install.rdf
+Subject: remove empty lines on top of si/install.rdf
 
 Closes: #595925
 ---

@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 13:01:29 +0100
-Subject: [PATCH] rebrand fi language pack
+Subject: rebrand fi language pack
 
 ---
  upstream/fi/chrome/locale/fi/branding/brand.dtd    |    7 +++----

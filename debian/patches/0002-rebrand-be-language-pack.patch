@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 10:49:43 +0100
-Subject: [PATCH] rebrand be language pack
+Subject: rebrand be language pack
 
 ---
  upstream/be/chrome/locale/be/branding/brand.dtd    |    7 +++----

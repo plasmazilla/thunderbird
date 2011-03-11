@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 16:48:38 +0100
-Subject: [PATCH] rebrand ro language pack
+Subject: rebrand ro language pack
 
 ---
  upstream/ro/chrome/locale/ro/branding/brand.dtd    |    6 +++---

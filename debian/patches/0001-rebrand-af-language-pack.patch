@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 10:39:04 +0100
-Subject: [PATCH] rebrand af language pack
+Subject: rebrand af language pack
 
 ---
  upstream/af/chrome/locale/af/branding/brand.dtd    |    7 +++----

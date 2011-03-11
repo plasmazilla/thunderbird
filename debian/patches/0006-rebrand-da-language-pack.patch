@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 11:12:37 +0100
-Subject: [PATCH] rebrand da language pack
+Subject: rebrand da language pack
 
 ---
  upstream/da/chrome/locale/da/branding/brand.dtd    |    6 +++---

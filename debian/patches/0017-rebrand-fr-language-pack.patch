@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 13:06:10 +0100
-Subject: [PATCH] rebrand fr language pack
+Subject: rebrand fr language pack
 
 ---
  upstream/fr/chrome/locale/fr/branding/brand.dtd    |    7 +++----

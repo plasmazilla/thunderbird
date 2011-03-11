@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sun, 21 Feb 2010 14:53:43 +0100
-Subject: [PATCH] rebrand pl language pack
+Subject: rebrand pl language pack
 
 ---
  upstream/pl/chrome/locale/pl/branding/brand.dtd    |    6 +++---
