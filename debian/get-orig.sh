@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 #
 # Download upstream xpi files from mozilla server and extract into upstream
 # folder. Must run from root of debian package.
