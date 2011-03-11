@@ -29,8 +29,9 @@ License: GPL-2+ | LGPL-2.1+ | MPL-1.1
  can be found in /usr/share/common-licenses/LGPL-2.1 file.
 
 Files: debian/*
-Copyright: (C) 2007-2009 Daniel Baumann <daniel@debian.org>
-               2010-2011 Christoph Goehre <chris@sigxcpu.org>
+Copyright: 2006-2007 Hans Ofverbeck <hans.ofverbeck@home.se>
+           2007-2009 Daniel Baumann <daniel@debian.org>
+           2010-2011 Christoph Goehre <chris@sigxcpu.org>
 License: GPL-2+
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
