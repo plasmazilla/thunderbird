@@ -1,0 +1,18 @@
+icedove-l10n for Debian - source package notes
+----------------------------------------------
+
+The upstream tarball was generated as follows:
+
+mkdir ../icedove-l10n-$VERSION
+cp -a debian ../icedove-l10n-$VERSION
+cd ../icedove-l10n-$VERSION
+mkdir upstream
+debian/get-orig.sh $VERSION
+# en-US is integrated in icedove itself
+rm -rf upstream/en-US
+cd ..
+tar --exclude debian -zcf icedove-l10n_$VERSION.orig.tar.gz icedove-l10n-$VERSION
+rm -rf icedove-l10n-$VERSION
+  
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 12 Mar 2011 17:49:53 +0100
