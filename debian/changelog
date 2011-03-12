@@ -1,3 +1,23 @@
+icedove-l10n (1:3.1.9-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #617808)
+    - changes in: da, ga-IE, gd, is, ja, ru, sk, zh-TW
+  * [a4ff20d] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0051-disable-extension-update-extension-is-managed-by-apt.patch
+      Thanks to Arno Renevier <arno@renevier.net> (Closes: #616102)
+    modified patches:
+    - 0048-rebrand-gd-language-pack.patch
+  * [294218b] add myself as copyright holder of debian files
+  * [ffbcdaf] adjust copyright file for DEP5 specification
+  * [1b94092] run get-orig.sh with '-e' to stop on any error
+  * [2a35f4e] add Hans Ofverbeck as copyright holder of debian files
+  * [ac1a935] debian/rules: cleanup bash repeats
+  * [8ff00ca] debian/rules: use 'tr' to down-case locale name
+  * [eb65688] describe preparation of upstream tarball in README.source
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 12 Mar 2011 18:45:20 +0100
+
 icedove-l10n (1:3.1.7-1) experimental; urgency=low
 
   * New Upstream Version
