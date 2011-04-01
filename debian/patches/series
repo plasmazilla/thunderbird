@@ -69,3 +69,4 @@
 0069-save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
 0070-News-article-is-empty-if-selected-during-download-fr.patch
 0071-restore-icedove-on-login-by-session-management.patch
+0072-Add-support-for-libnotify-0.7.patch
