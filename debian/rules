@@ -33,15 +33,17 @@ override_dh_auto_install:
 	do \
 		LOCALE=`echo $${DIRECTORY} | tr [:upper:] [:lower:]`; \
 		ID=`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/chrome; \
-		install -m 644 $${DIRECTORY}/chrome/*.jar $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/chrome; \
-		install -m 644 $${DIRECTORY}/install.rdf $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}; \
-		install -m 644 $${DIRECTORY}/chrome.manifest $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/uninstall; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/chrome; \
+		install -m 644 $${DIRECTORY}/chrome/*.jar $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/chrome; \
+		install -m 644 $${DIRECTORY}/install.rdf $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}; \
+		install -m 644 $${DIRECTORY}/chrome.manifest $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/uninstall; \
 		cat $${DIRECTORY}/install.rdf | \
 			sed --posix '/<em:locale>/!d' | \
 			sed --posix "s/.*/register	global	locale	$${DIRECTORY}/" > \
-			$(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}/uninstall/Uninstall; \
+			$(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/uninstall/Uninstall; \
 		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d; \
 		echo extension,$${ID} > $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d/50$${DIRECTORY}-locale.ext; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions; \
+		ln -s /usr/share/icedove/extensions/$${ID} $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}; \
 	done;
