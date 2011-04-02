@@ -1,3 +1,11 @@
+icedove-l10n (1:3.1.9-2) unstable; urgency=low
+
+  * Upload to unstable
+  * [ce2ce49] install translation files into /usr/share instead of /usr/lib
+    (Closes: #620424)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 02 Apr 2011 16:04:10 +0200
+
 icedove-l10n (1:3.1.9-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #617808)
