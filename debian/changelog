@@ -1,3 +1,16 @@
+icedove (3.1.9-2) unstable; urgency=low
+
+  * Upload to unstable
+  * [ace3b6f] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0072-Add-support-for-libnotify-0.7.patch
+  * [910f213] use DEP5 for copyright file
+  * [3ae4c8b] set global section to 'mail'
+  * [42c9c89] icedove.1: icedove is derived from Thunderbird instead of
+    Mozilla suite
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 02 Apr 2011 09:43:04 +0200
+
 icedove (3.1.9-1) experimental; urgency=low
 
   * New Upstream Version
