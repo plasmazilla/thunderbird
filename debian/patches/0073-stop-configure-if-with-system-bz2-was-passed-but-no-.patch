@@ -1,0 +1,26 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 2 Apr 2011 23:22:40 +0200
+Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is around
+
+---
+ mozilla/configure.in |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index 5888fe7..6503b57 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -4432,8 +4432,10 @@ fi
+ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then
+     SYSTEM_BZ2=
+ else
+-    AC_CHECK_LIB(bz2, BZ2_bzread, [SYSTEM_BZ2=1 BZ2_LIBS="-lbz2"],
+-	[SYSTEM_BZ2= BZ2_CFLAGS= BZ2_LIBS=], $BZ2_LIBS)
++    AC_CHECK_LIB(bz2, BZ2_bzread, [SYSTEM_BZ2=1 BZ2_LIBS="-lbz2"], [
++        echo "You have run configure with --with-system-bz2, but there is no libbz2 around."
++        exit 1
++        ], $BZ2_LIBS)
+ fi
+ CFLAGS=$_SAVE_CFLAGS
+ LDFLAGS=$_SAVE_LDFLAGS
+-- 

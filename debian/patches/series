@@ -70,3 +70,4 @@
 0070-News-article-is-empty-if-selected-during-download-fr.patch
 0071-restore-icedove-on-login-by-session-management.patch
 0072-Add-support-for-libnotify-0.7.patch
+0073-stop-configure-if-with-system-bz2-was-passed-but-no-.patch
