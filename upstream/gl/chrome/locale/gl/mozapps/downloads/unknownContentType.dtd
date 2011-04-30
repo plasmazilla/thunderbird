@@ -19,7 +19,7 @@
 
 <!ENTITY  chooseHandlerMac.label      "Escoller…">
 <!ENTITY  chooseHandlerMac.accesskey  "E">
-<!ENTITY  chooseHandler.label         "Explorar…">
+<!ENTITY  chooseHandler.label         "Examinar…">
 <!ENTITY  chooseHandler.accesskey     "x">
 
 <!ENTITY  unknownPromptText.label     "Desexa gardar este ficheiro?">

@@ -68,8 +68,8 @@
 
 <!-- Button labels -->
 <!ENTITY cancel "Cancelar"> 
-<!ENTITY pause  "Pór en pausa">
-<!ENTITY resume "Continuar">
+<!ENTITY pause  "Pausa">
+<!ENTITY resume "Retomar">
 <!ENTITY close  "Pechar">
 <!ENTITY reveal "Mostrar o enderezo do ficheiro">
 <!ENTITY launch "Abrir ficheiro">

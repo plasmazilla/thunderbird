@@ -44,7 +44,7 @@
 <!ENTITY additional.label   "Codificacións dispoñíbeis:">
 <!ENTITY add.label          "Engadir">
 <!ENTITY add.accessKey      "n">
-<!ENTITY moveUp.label       "Mover cara a arriba">
+<!ENTITY moveUp.label       "Subir">
 <!ENTITY moveUp.accessKey   "a">
-<!ENTITY moveDown.label     "Mover cara a abaixo">
+<!ENTITY moveDown.label     "Baixar">
 <!ENTITY moveDown.accessKey "b">

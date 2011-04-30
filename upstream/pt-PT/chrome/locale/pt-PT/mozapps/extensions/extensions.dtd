@@ -173,4 +173,4 @@
 <!ENTITY eula.accept "Aceitar e Instalar…">
 
 <!ENTITY blocklist.blocked.label          "Bloqueado">
-<!ENTITY blocklist.checkbox.label         "Disactivado">
+<!ENTITY blocklist.checkbox.label         "Desactivado">
