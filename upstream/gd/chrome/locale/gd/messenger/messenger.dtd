@@ -125,8 +125,8 @@
 <!ENTITY messagePaneClassic.accesskey "c">
 <!ENTITY messagePaneWide.label "An sealladh leathann">
 <!ENTITY messagePaneWide.accesskey "e">
-<!ENTITY messagePaneVertical.label "An sealladh dìreach">
-<!ENTITY messagePaneVertical.accesskey "d">
+<!ENTITY messagePaneVertical.label "Sealladh inghearach">
+<!ENTITY messagePaneVertical.accesskey "S">
 <!ENTITY showMessageCmd.label "Leòs na teachdaireachd">
 <!ENTITY showMessageCmd.accesskey "L">
 
@@ -282,7 +282,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY searchAddressesCmd.accesskey "s">
 
 <!-- Go Menu -->
-<!ENTITY goMenu.label "Rach">
+<!ENTITY goMenu.label "Rach ann">
 <!ENTITY goMenu.accesskey "R">
 <!ENTITY nextMenu.label "Air adhart">
 <!ENTITY nextMenu.accesskey "A">
@@ -783,7 +783,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY ViewContact.accesskey "S">
 <!ENTITY SubscribeToNewsgroup.label "Fo-sgrìobh gun bhuidheann-naidheachd">
 <!ENTITY SubscribeToNewsgroup.accesskey "n">
-<!ENTITY SendMessageTo.label "Sgrìobh teachdaireachd gu">
+<!ENTITY SendMessageTo.label "Sgrìobh teachdaireachd thuige/thuice">
 <!ENTITY SendMessageTo.accesskey "S">
 <!ENTITY CopyEmailAddress.label "Dèan lethbhreac de sheòladh a' phuist-dhealain">
 <!ENTITY CopyEmailAddress.accesskey "c">

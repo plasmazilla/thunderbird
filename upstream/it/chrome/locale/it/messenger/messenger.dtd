@@ -79,7 +79,7 @@
 <!ENTITY cancelNewsMsgsCmd.accesskey "n">
 <!ENTITY deleteFolderCmd.label "Elimina cartella">
 <!ENTITY deleteFolderCmd.accesskey "E">
-<!ENTITY unsubscribeNewsgroupCmd.label "Annulla sottoscrizione">
+<!ENTITY unsubscribeNewsgroupCmd.label "Rimuovi sottoscrizione">
 <!ENTITY unsubscribeNewsgroupCmd.accesskey "n">
 <!ENTITY selectMenu.label "Seleziona">
 <!ENTITY selectMenu.accesskey "S">
@@ -509,8 +509,8 @@
 <!ENTITY folderContextEmptyJunk.accesskey "v">
 <!ENTITY folderContextSendUnsentMessages.label "Invia messaggi ancora da inviare">
 <!ENTITY folderContextSendUnsentMessages.accesskey "S">
-<!ENTITY folderContextUnsubscribe.label "Annulla Sottoscrizione">
-<!ENTITY folderContextUnsubscribe.accesskey "A">
+<!ENTITY folderContextUnsubscribe.label "Rimuovi Sottoscrizione">
+<!ENTITY folderContextUnsubscribe.accesskey "U">
 <!ENTITY folderContextMarkNewsgroupRead.label "Marca il gruppo di discussione come letto">
 <!ENTITY folderContextMarkNewsgroupRead.accesskey "c">
 <!ENTITY folderContextMarkMailFolderRead.label "Marca la cartella come letta">

@@ -8,7 +8,7 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-cs@thunderbird.mozilla.org"
                em:name="Czech (CZ) Language Pack"
-               em:version="3.1.221"
+               em:version="3.1.314"
                em:type="8"
                em:creator="CZilla.cz">
     <em:contributor>Pavel Franc</em:contributor>

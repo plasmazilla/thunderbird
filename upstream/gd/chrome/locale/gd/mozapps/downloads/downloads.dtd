@@ -9,8 +9,8 @@ file names and tall enough to hint that there are more downloads in the list -->
 
 <!ENTITY downloads.title                  "Luchdaidhean a-nuas">
 
-<!ENTITY cmd.pause.label                  "Fuirich">
-<!ENTITY cmd.pause.accesskey              "F">
+<!ENTITY cmd.pause.label                  "Cuir 'na stad">
+<!ENTITY cmd.pause.accesskey              "C">
 <!ENTITY cmd.resume.label                 "Lean air">
 <!ENTITY cmd.resume.accesskey             "L">
 <!ENTITY cmd.cancel.label                 "Sguir dheth">

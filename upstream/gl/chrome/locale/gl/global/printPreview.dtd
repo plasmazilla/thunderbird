@@ -37,8 +37,8 @@
 
 <!ENTITY print.label          "Imprimir…">
 <!ENTITY print.accesskey      "I">
-<!ENTITY pageSetup.label      "Configurar páxina…">
-<!ENTITY pageSetup.accesskey  "C">
+<!ENTITY pageSetup.label      "Configuración da páxina…">
+<!ENTITY pageSetup.accesskey  "u">
 <!ENTITY page.label           "Páxina:">
 <!ENTITY page.accesskey       "x">
 <!ENTITY of.label             "de">

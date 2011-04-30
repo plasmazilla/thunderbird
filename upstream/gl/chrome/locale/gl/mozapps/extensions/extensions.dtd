@@ -13,13 +13,13 @@
 <!ENTITY extensions.label                 "Extensións">
 <!ENTITY themes.label                     "Temas">
 <!ENTITY locales.label                    "Idiomas">
-<!ENTITY plugins.label                    "Plugins">
+<!ENTITY plugins.label                    "Engadidos">
 <!ENTITY update.label                     "Actualizacións">
 <!ENTITY install.label                    "Instalación">
 
 <!-- Command Bar items -->
-<!ENTITY cmd.checkUpdatesAll.label        "Localizar actualizacións">
-<!ENTITY cmd.checkUpdatesAll.accesskey    "L">
+<!ENTITY cmd.checkUpdatesAll.label        "Buscar actualizacións">
+<!ENTITY cmd.checkUpdatesAll.accesskey    "B">
 <!ENTITY cmd.checkUpdatesAllAddon.tooltip "Localizar actualizacións para os complementos">
 <!ENTITY cmd.checkUpdatesAllTheme.tooltip "Localizar actualizacións para os temas">
 <!ENTITY cmd.checkUpdatesAllPlugin.tooltip "Localizar actualizacións para os plugins">
@@ -114,7 +114,6 @@
 <!ENTITY needsDependencies.label          "Precisa elementos adicionais.">
 <!ENTITY blocklisted.label                "Desactivado por seguranza.">
 <!ENTITY softBlocklisted.label            "Coñecido por causar problemas de estabilidade ou seguranza.">
-
 <!ENTITY outdated.label                   "Está dispoñíbel unha versión máis nova e segura.">
 <!ENTITY toBeDisabled.label               "Desactivarase este complemento ao reiniciar &brandShortName;">
 <!ENTITY toBeEnabled.label                "Activarase este complemento ao reiniciar &brandShortName;">
@@ -139,7 +138,7 @@
 <!ENTITY emptySearch.button               "Aceptar">
 <!ENTITY cancelSearch.button              "Cancelar">
 <!ENTITY searchFailed.button              "Aceptar">
-<!ENTITY searchResultHomepage.value       "Obteña máis información">
+<!ENTITY searchResultHomepage.value       "Saber máis">
 <!ENTITY searchBox.label                  "Buscar en todos os complementos">
 <!ENTITY recommendedResults.label         "Ver todos os complementos recomendados">
 <!ENTITY searchResultConnecting.label     "Conectando…">
@@ -174,4 +173,4 @@
 <!ENTITY eula.accept                      "Aceptar e instalar…">
 
 <!ENTITY blocklist.blocked.label          "Bloqueado">
-<!ENTITY blocklist.checkbox.label         "Desactivado">
+<!ENTITY blocklist.checkbox.label         "Desactivar">

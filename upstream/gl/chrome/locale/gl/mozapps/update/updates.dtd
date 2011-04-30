@@ -6,14 +6,21 @@
 <!ENTITY  checking.title                  "Buscando actualizacións">
 <!ENTITY  updateCheck.label               "Buscando versións máis recentes de &brandShortName;…">
 
-<!ENTITY  pluginupdatesfound.title        "Encontradas actualizacións para os plugins">
-<!ENTITY  pluginupdatesfound.label        "Atopáronse unha ou varias actualizacións para os seus plugins.">
-<!ENTITY  pluginupdateslink.label         "Vexa como actualizar os seus plugins.">
+<!ENTITY  pluginupdatesfound.title        "Encontráronse actualizacións para os engadidos">
+<!ENTITY  pluginupdatesfound.label        "Encontráronse unha ou varias actualizacións para os seus engadidos.">
+<!ENTITY  pluginupdateslink.label         "Vexa como actualizar os seus engadidos.">
 
 <!ENTITY  noupdatesfound.title            "Non se encontrou ningunha actualización">
 <!ENTITY  noupdatesautoenabled.intro      "Non existen novas actualizacións dispoñíbeis. &brandShortName; buscará actualizacións periodicamente.">
 <!ENTITY  noupdatesautodisabled.intro     "Non existen novas actualizacións dispoñíbeis. Verifique de novo máis tarde ou active
                                            a busca automática de actualizacións de &brandShortName;.">
+
+<!ENTITY  manualUpdate.title              "Imposibel actualizar">
+<!ENTITY  manualUpdate.desc               "Unha actualización de seguridade e estabilidade está dispoñibel mais
+                                           vostede non ten os permisos requeridos para instalala. Por favor, contacte
+                                           con administración de sistemas ou intente de novo dende unha conta do sistema con permisos para 
+                                           instalar aplicativos neste computador.">
+<!ENTITY  manualUpdateGetMsg.label        "Sempre pode obter a última versión de &brandShortName; en:">
 
 <!ENTITY  incompatibleCheck.title         "Verificando compatibilidade do complemento">
 <!ENTITY  incompatibleCheck.label         "Buscando versións máis actuais dos complementos…">
@@ -24,15 +31,6 @@
 
 <!ENTITY  license.instructions            "Se acepta os termos do contrato, prema Acepto 
                                            para continuar coa instalación da actualización.">
-<!ENTITY  manualUpdate.title              "Imposibel actualizar">
-<!ENTITY  manualUpdateGetMsg.label        "Sempre pode obter a última versión de &brandShortName; en:">
-
-<!ENTITY  manualUpdate.desc               "Unha actualización de seguridade e estabilidade está dispoñibel mais
-                                           vostede non ten os permisos requeridos para instalala. Por favor, contacte
-                                           con administración de sistemas ou intente de novo dende unha conta do sistema con permisos para 
-                                           instalar aplicacións neste computador.">
-<!ENTITY  manualUpdateGetMsg.label        "Sempre pode obter a última versión de &brandShortName; en:">
-
 
 <!ENTITY  license.titleText               "Contrato de licenza de software">
 <!ENTITY  license.introText               "Termos e condicións de uso deste software.">
@@ -61,7 +59,7 @@
 <!ENTITY  errorManual.label               "Pode actualizar &brandShortName; manualmente visitando esta ligazón
                                            e descargando a última versión:">
                                            
-<!ENTITY  errorpatching.title             "Erro na actualización">
+<!ENTITY  errorpatching.title             "Fallou a actualización">
 <!ENTITY  errorpatching.intro             "Non foi posíbel aplicar a actualización parcial. 
                                            &brandShortName; tentará de novo descargando a actualización completa.">
 
@@ -71,7 +69,6 @@
 
 <!ENTITY  finishedBackgroundPage.text     "Descargouse unha actualización de seguranza e estabilidade de &brandShortName;
                                            e está pronta para ser instalada.">
-
 <!ENTITY  finishedBackground.name         "Actualizar:">
 <!-- LOCALIZATION NOTE (finishedBackground.more): This string describes the button labels defined by restartNowButton and restartLaterButton in updates.properties. -->
 <!ENTITY  finishedBackground.more         "A actualización será instalada a próxima vez que se inicie &brandShortName;. Pode reiniciar
@@ -79,7 +76,7 @@
 
 <!ENTITY  installed.title                 "Actualización instalada">
 <!ENTITY  installed.intro                 "Actualización instalada correctamente.">
-<!ENTITY  whatsnew.label                  "Obteña máis información acerca das novidades…">
+<!ENTITY  whatsnew.label                  "Obteña máis información sobre as novidades…">
 
 <!ENTITY  update.details.label            "Detalles">
 <!ENTITY  update.installedOn.label        "Instalada o:">
