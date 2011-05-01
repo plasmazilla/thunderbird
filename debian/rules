@@ -150,6 +150,25 @@ pre-build:: $(subst_files)
 
 configure/$(DEB_MOZ_APPLICATION)::
 	sed -i '/^OS_LDFLAGS/s|=|& $(MAIN_LDFLAGS)|' config/autoconf.mk mozilla/config/autoconf.mk mozilla/js/src/config/autoconf.mk directory/sdks/c-sdk/config/autoconf.mk
+# Ensure --{with,enable}-system options properly set expected variables
+# according to the definitions in the mozconfig file.
+	@awk -F' *# *| *$$' ' \
+	BEGIN { "find $(CURDIR)/mozilla -name autoconf.mk -printf \"%p \"" | getline confs } \
+	$$1 ~ /system/ { \
+		if (! $$2) { \
+			print FILENAME ": Missing variable for",$$1; \
+			error=1; \
+		} else { \
+			split($$2,var,"="); \
+			cmd = "grep -l " var[1] " " confs; \
+			cmd | getline dir; \
+			sub(/\/[^\/]*$$/, "", dir); \
+			cmd = "$(MAKE) -C " dir " --no-print-directory echo-variable-" var[1]; \
+			cmd | getline value; \
+			if (value != var[2]) { print $$1, "triggered", var[1] "=" value,"instead of",$$2; error=1 } \
+		} \
+	} \
+	END { if (error) { exit 1 }}' debian/icedove.configopts
 
 makebuilddir/$(DEB_MOZ_APPLICATION):: debian/stamp-autotools-files-moz
 debian/stamp-autotools-files-moz:
