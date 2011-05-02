@@ -1,0 +1,44 @@
+From ea2511a05e3d8f542ca11ff33ea4218b7c8cc4e7 Mon Sep 17 00:00:00 2001
+From: L. David Baron <dbaron@dbaron.org>
+Date: Mon, 24 Jan 2011 12:40:49 -0800
+Subject: Correctly fix up the parentage of child sheets when removing the
+ primary nsCSSStyleSheet from an nsCSSStyleSheetInner. (Bug 623351)
+ r=bzbarsky a1.9.1.18=dveditz
+
+---
+ layout/style/nsCSSStyleSheet.cpp |   12 ++++++++++++
+ 1 files changed, 12 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/layout/style/nsCSSStyleSheet.cpp b/mozilla/layout/style/nsCSSStyleSheet.cpp
+index 143b1e3..7757551 100644
+--- a/mozilla/layout/style/nsCSSStyleSheet.cpp
++++ b/mozilla/layout/style/nsCSSStyleSheet.cpp
+@@ -812,6 +812,15 @@ struct ChildSheetListBuilder {
+     aSheet->mParent = parent;
+     aSheet->SetOwningDocument(parent->mDocument);
+   }
++
++  static void ReparentChildList(nsCSSStyleSheet* aPrimarySheet,
++                                nsCSSStyleSheet* aFirstChild)
++  {
++    for (nsCSSStyleSheet *child = aFirstChild; child; child = child->mNext) {
++      child->mParent = aPrimarySheet;
++      child->SetOwningDocument(aPrimarySheet->mDocument);
++    }
++  }
+ };
+   
+ PRBool
+@@ -908,6 +917,9 @@ nsCSSStyleSheetInner::RemoveSheet(nsICSSStyleSheet* aSheet)
+     NS_ASSERTION(mSheets.Count(), "no parents");
+     mOrderedRules.EnumerateForwards(SetStyleSheetReference,
+                                     (nsICSSStyleSheet*)mSheets.ElementAt(0));
++
++    ChildSheetListBuilder::ReparentChildList(static_cast<nsCSSStyleSheet*>(
++      (nsICSSStyleSheet*)mSheets.ElementAt(0)), mFirstChild);
+   }
+   else {
+     mSheets.RemoveElement(aSheet);
+-- 
+1.7.4.4
+

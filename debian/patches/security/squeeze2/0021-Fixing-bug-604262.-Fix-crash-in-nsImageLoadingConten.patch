@@ -1,0 +1,405 @@
+From ecd92df94d6d60d87df7d7ca6b39c526eb274ee4 Mon Sep 17 00:00:00 2001
+From: Johnny Stenback <jst@mozilla.com>
+Date: Wed, 20 Apr 2011 19:30:13 +0200
+Subject: Fixing bug 604262. Fix crash in
+ nsImageLoadingContent::OnStartDecode(). r=mrbkap a=dveditz
+
+---
+ content/base/src/nsImageLoadingContent.cpp       |   37 +++++++++++++++++++++-
+ content/html/document/crashtests/631421.html     |   34 ++++++++++++++++++++
+ content/html/document/crashtests/crashtests.list |    1 +
+ content/html/document/src/nsImageDocument.cpp    |   26 +++++++++++++++
+ layout/generic/nsImageFrame.cpp                  |   31 +++++++++++++++++-
+ layout/svg/base/src/nsSVGImageFrame.cpp          |   26 +++++++++++++++
+ 7 files changed, 153 insertions(+), 2 deletions(-)
+ create mode 100644 content/html/document/crashtests/631421.html
+ create mode 100644 content/html/document/crashtests/631421.png
+
+diff --git a/mozilla/content/base/src/nsImageLoadingContent.cpp b/mozilla/content/base/src/nsImageLoadingContent.cpp
+index 19ac416..c8eb384 100644
+--- a/mozilla/content/base/src/nsImageLoadingContent.cpp
++++ b/mozilla/content/base/src/nsImageLoadingContent.cpp
+@@ -163,13 +163,15 @@ nsImageLoadingContent::FrameChanged(imgIContainer* aContainer,
+   LOOP_OVER_OBSERVERS(FrameChanged(aContainer, aFrame, aDirtyRect));
+   return NS_OK;
+ }
+-            
++
+ /*
+  * imgIDecoderObserver impl
+  */
+ NS_IMETHODIMP
+ nsImageLoadingContent::OnStartRequest(imgIRequest* aRequest)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStartRequest(aRequest));
+   return NS_OK;
+ }
+@@ -177,6 +179,8 @@ nsImageLoadingContent::OnStartRequest(imgIRequest* aRequest)
+ NS_IMETHODIMP
+ nsImageLoadingContent::OnStartDecode(imgIRequest* aRequest)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStartDecode(aRequest));
+   return NS_OK;
+ }
+@@ -185,6 +189,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::OnStartContainer(imgIRequest* aRequest,
+                                         imgIContainer* aContainer)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStartContainer(aRequest, aContainer));
+ 
+   // Have to check for state changes here, since we might have been in
+@@ -197,6 +203,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::OnStartFrame(imgIRequest* aRequest,
+                                     gfxIImageFrame* aFrame)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStartFrame(aRequest, aFrame));
+   return NS_OK;    
+ }
+@@ -206,6 +214,8 @@ nsImageLoadingContent::OnDataAvailable(imgIRequest* aRequest,
+                                        gfxIImageFrame* aFrame,
+                                        const nsRect* aRect)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnDataAvailable(aRequest, aFrame, aRect));
+   return NS_OK;
+ }
+@@ -214,6 +224,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::OnStopFrame(imgIRequest* aRequest,
+                                    gfxIImageFrame* aFrame)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStopFrame(aRequest, aFrame));
+   return NS_OK;
+ }
+@@ -222,6 +234,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::OnStopContainer(imgIRequest* aRequest,
+                                        imgIContainer* aContainer)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStopContainer(aRequest, aContainer));
+   return NS_OK;
+ }
+@@ -233,6 +247,9 @@ nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
+ {
+   NS_PRECONDITION(aRequest == mCurrentRequest || aRequest == mPendingRequest,
+                   "Unknown request");
++
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStopDecode(aRequest, aStatus, aStatusArg));
+ 
+   if (aRequest == mPendingRequest) {
+@@ -264,6 +281,8 @@ nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
+ NS_IMETHODIMP
+ nsImageLoadingContent::OnStopRequest(imgIRequest* aRequest, PRBool aLastPart)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   LOOP_OVER_OBSERVERS(OnStopRequest(aRequest, aLastPart));
+ 
+   return NS_OK;
+@@ -276,6 +295,8 @@ nsImageLoadingContent::OnStopRequest(imgIRequest* aRequest, PRBool aLastPart)
+ NS_IMETHODIMP
+ nsImageLoadingContent::GetLoadingEnabled(PRBool *aLoadingEnabled)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   *aLoadingEnabled = mLoadingEnabled;
+   return NS_OK;
+ }
+@@ -283,6 +304,8 @@ nsImageLoadingContent::GetLoadingEnabled(PRBool *aLoadingEnabled)
+ NS_IMETHODIMP
+ nsImageLoadingContent::SetLoadingEnabled(PRBool aLoadingEnabled)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   if (nsContentUtils::GetImgLoader()) {
+     mLoadingEnabled = aLoadingEnabled;
+   }
+@@ -292,6 +315,8 @@ nsImageLoadingContent::SetLoadingEnabled(PRBool aLoadingEnabled)
+ NS_IMETHODIMP
+ nsImageLoadingContent::GetImageBlockingStatus(PRInt16* aStatus)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   NS_PRECONDITION(aStatus, "Null out param");
+   *aStatus = mImageBlockingStatus;
+   return NS_OK;
+@@ -300,6 +325,8 @@ nsImageLoadingContent::GetImageBlockingStatus(PRInt16* aStatus)
+ NS_IMETHODIMP
+ nsImageLoadingContent::AddObserver(imgIDecoderObserver* aObserver)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   NS_ENSURE_ARG_POINTER(aObserver);
+ 
+   if (!mObserverList.mObserver) {
+@@ -326,6 +353,8 @@ nsImageLoadingContent::AddObserver(imgIDecoderObserver* aObserver)
+ NS_IMETHODIMP
+ nsImageLoadingContent::RemoveObserver(imgIDecoderObserver* aObserver)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   NS_ENSURE_ARG_POINTER(aObserver);
+ 
+   if (mObserverList.mObserver == aObserver) {
+@@ -383,6 +412,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::GetRequestType(imgIRequest* aRequest,
+                                       PRInt32* aRequestType)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   NS_PRECONDITION(aRequestType, "Null out param");
+   
+   if (aRequest == mCurrentRequest) {
+@@ -419,6 +450,8 @@ NS_IMETHODIMP
+ nsImageLoadingContent::LoadImageWithChannel(nsIChannel* aChannel,
+                                             nsIStreamListener** aListener)
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   NS_PRECONDITION(aListener, "null out param");
+   
+   NS_ENSURE_ARG_POINTER(aChannel);
+@@ -456,6 +489,8 @@ nsImageLoadingContent::LoadImageWithChannel(nsIChannel* aChannel,
+ 
+ NS_IMETHODIMP nsImageLoadingContent::ForceReload()
+ {
++  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
++
+   nsCOMPtr<nsIURI> currentURI;
+   GetCurrentURI(getter_AddRefs(currentURI));
+   if (!currentURI) {
+diff --git a/mozilla/content/html/document/crashtests/631421.html b/mozilla/content/html/document/crashtests/631421.html
+new file mode 100644
+index 0000000..e4a7b91
+--- /dev/null
++++ b/mozilla/content/html/document/crashtests/631421.html
+@@ -0,0 +1,34 @@
++<!DOCTYPE html>
++<html class="reftest-wait">
++<head>
++<script>
++"use strict";
++
++var f2;
++
++function newIframe()
++{
++  var f = document.createElementNS("http://www.w3.org/1999/xhtml", "iframe");
++  f.setAttributeNS(null, "src", "631421.png");
++  document.body.appendChild(f);
++  return f;
++}
++
++function b1()
++{
++  void newIframe();
++  f2 = newIframe();
++  setTimeout(b2, 0);
++}
++
++function b2()
++{
++  document.body.removeChild(f2);
++  document.documentElement.removeAttribute("class");
++}
++
++</script>
++</head>
++
++<body onload="b1();"></body>
++</html>
+diff --git a/mozilla/content/html/document/crashtests/crashtests.list b/mozilla/content/html/document/crashtests/crashtests.list
+index 1017b33..8c3dbaa 100644
+--- a/mozilla/content/html/document/crashtests/crashtests.list
++++ b/mozilla/content/html/document/crashtests/crashtests.list
+@@ -10,3 +10,4 @@ load 468562-2.html
+ load 494225.html
+ load 495543.svg
+ load 564461.xhtml
++load 631421.html
+diff --git a/mozilla/content/html/document/src/nsImageDocument.cpp b/mozilla/content/html/document/src/nsImageDocument.cpp
+index 84416e0..b3e3984 100644
+--- a/mozilla/content/html/document/src/nsImageDocument.cpp
++++ b/mozilla/content/html/document/src/nsImageDocument.cpp
+@@ -72,6 +72,7 @@
+ #include "nsIDocShell.h"
+ #include "nsIContentViewer.h"
+ #include "nsIMarkupDocumentViewer.h"
++#include "nsIJSContextStack.h"
+ 
+ #define AUTOMATIC_IMAGE_RESIZING_PREF "browser.enable_automatic_image_resizing"
+ 
+@@ -351,7 +352,20 @@ nsImageDocument::Destroy()
+     if (mObservingImageLoader) {
+       nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mImageContent);
+       if (imageLoader) {
++        // Push a null JSContext on the stack so that code that
++        // nsImageLoadingContent doesn't think it's being called by JS.  See
++        // Bug 631241
++
++        nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++        if (stack) {
++          stack->Push(nsnull);
++        }
++
+         imageLoader->RemoveObserver(this);
++
++        if (stack) {
++          stack->Pop(nsnull);
++        }
+       }
+     }
+ 
+@@ -644,6 +658,14 @@ nsImageDocument::CreateSyntheticDocument()
+   nsCAutoString src;
+   mDocumentURI->GetSpec(src);
+ 
++  // Push a null JSContext on the stack so that code that runs within
++  // the below code doesn't think it's being called by JS. See bug
++  // 604262.
++  nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++  if (stack) {
++    stack->Push(nsnull);
++  }
++
+   NS_ConvertUTF8toUTF16 srcString(src);
+   // Make sure not to start the image load from here...
+   imageLoader->SetLoadingEnabled(PR_FALSE);
+@@ -653,6 +675,10 @@ nsImageDocument::CreateSyntheticDocument()
+   body->AppendChildTo(mImageContent, PR_FALSE);
+   imageLoader->SetLoadingEnabled(PR_TRUE);
+ 
++  if (stack) {
++    stack->Pop(nsnull);
++  }
++
+   return NS_OK;
+ }
+ 
+diff --git a/mozilla/layout/generic/nsImageFrame.cpp b/mozilla/layout/generic/nsImageFrame.cpp
+index 2d0e153..1ad6381 100644
+--- a/mozilla/layout/generic/nsImageFrame.cpp
++++ b/mozilla/layout/generic/nsImageFrame.cpp
+@@ -103,6 +103,7 @@
+ #include "nsLayoutErrors.h"
+ #include "nsBidiUtils.h"
+ #include "nsBidiPresUtils.h"
++#include "nsIJSContextStack.h"
+ 
+ #ifdef DEBUG
+ #undef NOISY_IMAGE_LOADING
+@@ -239,7 +240,20 @@ nsImageFrame::Destroy()
+   if (mListener) {
+     nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
+     if (imageLoader) {
++      // Push a null JSContext on the stack so that code that runs
++      // within the below code doesn't think it's being called by
++      // JS. See bug 604262.
++      nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++      if (stack) {
++        stack->Push(nsnull);
++      }
++
+       imageLoader->RemoveObserver(mListener);
++
++      if (stack) {
++        stack->Pop(nsnull);
++      }
++
+     }
+     
+     reinterpret_cast<nsImageListener*>(mListener.get())->SetFrame(nsnull);
+@@ -265,7 +279,22 @@ nsImageFrame::Init(nsIContent*      aContent,
+ 
+   nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(aContent);
+   NS_ENSURE_TRUE(imageLoader, NS_ERROR_UNEXPECTED);
+-  imageLoader->AddObserver(mListener);
++
++  {
++    // Push a null JSContext on the stack so that code that runs
++    // within the below code doesn't think it's being called by
++    // JS. See bug 604262.
++    nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++    if (stack) {
++      stack->Push(nsnull);
++    }
++
++    imageLoader->AddObserver(mListener);
++
++    if (stack) {
++      stack->Pop(nsnull);
++    }
++  }
+ 
+   nsPresContext *aPresContext = PresContext();
+   
+diff --git a/mozilla/layout/svg/base/src/nsSVGImageFrame.cpp b/mozilla/layout/svg/base/src/nsSVGImageFrame.cpp
+index 03b6e2a..272e606 100644
+--- a/mozilla/layout/svg/base/src/nsSVGImageFrame.cpp
++++ b/mozilla/layout/svg/base/src/nsSVGImageFrame.cpp
+@@ -48,6 +48,7 @@
+ #include "gfxContext.h"
+ #include "nsIInterfaceRequestorUtils.h"
+ #include "nsIImage.h"
++#include "nsIJSContextStack.h"
+ 
+ class nsSVGImageFrame;
+ 
+@@ -144,7 +145,19 @@ nsSVGImageFrame::~nsSVGImageFrame()
+   if (mListener) {
+     nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
+     if (imageLoader) {
++      // Push a null JSContext on the stack so that code that runs
++      // within the below code doesn't think it's being called by
++      // JS. See bug 604262.
++      nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++      if (stack) {
++        stack->Push(nsnull);
++      }
++
+       imageLoader->RemoveObserver(mListener);
++
++      if (stack) {
++        stack->Pop(nsnull);
++      }
+     }
+     reinterpret_cast<nsSVGImageListener*>(mListener.get())->SetFrame(nsnull);
+   }
+@@ -163,8 +176,21 @@ nsSVGImageFrame::Init(nsIContent* aContent,
+   if (!mListener) return NS_ERROR_OUT_OF_MEMORY;
+   nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
+   NS_ENSURE_TRUE(imageLoader, NS_ERROR_UNEXPECTED);
++
++  // Push a null JSContext on the stack so that code that runs within
++  // the below code doesn't think it's being called by JS. See bug
++  // 604262.
++  nsIThreadJSContextStack* stack = nsContentUtils::ThreadJSContextStack();
++  if (stack) {
++    stack->Push(nsnull);
++  }
++
+   imageLoader->AddObserver(mListener);
+ 
++  if (stack) {
++    stack->Pop(nsnull);
++  }
++
+   return NS_OK; 
+ }
+ 
+-- 
+1.7.4.4
+

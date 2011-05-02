@@ -1,0 +1,34 @@
+From 7b5174bc53984bcff676e724c1af6673abf8bf75 Mon Sep 17 00:00:00 2001
+From: Daniel Veditz <dveditz@cruzio.com>
+Date: Tue, 29 Mar 2011 13:29:31 -0700
+Subject: bug 645565 don't stomp previous 200 response with an invalid one,
+ r=biesi, a=clegnitto
+
+---
+ netwerk/streamconv/converters/nsDirIndexParser.cpp |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/netwerk/streamconv/converters/nsDirIndexParser.cpp b/mozilla/netwerk/streamconv/converters/nsDirIndexParser.cpp
+index 0927ee6..658c513 100644
+--- a/mozilla/netwerk/streamconv/converters/nsDirIndexParser.cpp
++++ b/mozilla/netwerk/streamconv/converters/nsDirIndexParser.cpp
+@@ -179,8 +179,6 @@ nsDirIndexParser::ParseFormat(const char* aFormatStr) {
+   // Parse a "200" format line, and remember the fields and their
+   // ordering in mFormat. Multiple 200 lines stomp on each other.
+ 
+-  delete[] mFormat;
+-
+   // Lets find out how many elements we have.
+   // easier to do this then realloc
+   const char* pos = aFormatStr;
+@@ -203,6 +201,7 @@ nsDirIndexParser::ParseFormat(const char* aFormatStr) {
+ 
+   } while (*pos);
+ 
++  delete[] mFormat;
+   mFormat = new int[num+1];
+   // Prevent NULL Deref - Bug 443299 
+   if (mFormat == nsnull)
+-- 
+1.7.4.4
+

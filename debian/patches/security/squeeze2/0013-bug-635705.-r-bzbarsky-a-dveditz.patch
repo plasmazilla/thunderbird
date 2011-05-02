@@ -1,0 +1,26 @@
+From dc5f218a8c064e25f986090b43dcd9f0fc01b3a4 Mon Sep 17 00:00:00 2001
+From: Jonathan Kew <jfkthame@gmail.com>
+Date: Sat, 5 Mar 2011 08:30:18 +0000
+Subject: bug 635705. r=bzbarsky a=dveditz
+
+---
+ netwerk/mime/src/nsMIMEHeaderParamImpl.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp b/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
+index 58dbc80..5409653 100644
+--- a/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
++++ b/mozilla/netwerk/mime/src/nsMIMEHeaderParamImpl.cpp
+@@ -165,8 +165,8 @@ nsMIMEHeaderParamImpl::GetParameterInternal(const char *aHeaderValue,
+       if (str == start)
+         return NS_ERROR_UNEXPECTED;
+       *aResult = (char *) nsMemory::Clone(start, (str - start) + 1);
+-      (*aResult)[str - start] = '\0';  // null-terminate
+       NS_ENSURE_TRUE(*aResult, NS_ERROR_OUT_OF_MEMORY);
++      (*aResult)[str - start] = '\0';  // null-terminate
+       return NS_OK;
+     }
+ 
+-- 
+1.7.4.4
+

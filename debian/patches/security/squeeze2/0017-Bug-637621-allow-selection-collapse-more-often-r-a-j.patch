@@ -1,0 +1,26 @@
+From 8fa8552b5b5651652e5123184eaf066c62203716 Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Tue, 29 Mar 2011 19:36:58 +0300
+Subject: Bug 637621, allow selection collapse more often, r+a=jst
+
+---
+ layout/generic/nsSelection.cpp |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsSelection.cpp b/mozilla/layout/generic/nsSelection.cpp
+index a824a13..b9415af 100644
+--- a/mozilla/layout/generic/nsSelection.cpp
++++ b/mozilla/layout/generic/nsSelection.cpp
+@@ -5519,6 +5519,9 @@ nsTypedSelection::Collapse(nsIDOMNode* aParentNode, PRInt32 aOffset)
+     return NS_ERROR_INVALID_ARG;
+   if (!mFrameSelection)
+     return NS_ERROR_NOT_INITIALIZED; // Can't do selection
++
++  nsCOMPtr<nsINode> kungfuDeathGrip = aParentNode;
++
+   mFrameSelection->InvalidateDesiredX();
+   if (!IsValidSelectionPoint(mFrameSelection, aParentNode))
+     return NS_ERROR_FAILURE;
+-- 
+1.7.4.4
+

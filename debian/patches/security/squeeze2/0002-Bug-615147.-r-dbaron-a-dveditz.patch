@@ -1,0 +1,89 @@
+From 3b1bf18c8d05889803c333e5caceae5437dc686d Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Sun, 30 Jan 2011 03:49:57 +0100
+Subject: Bug 615147. r=dbaron a=dveditz
+
+---
+ xpcom/string/src/nsSubstring.cpp  |    8 +++++++-
+ xpcom/string/src/nsTSubstring.cpp |   25 ++++++++++++++-----------
+ 2 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/xpcom/string/src/nsSubstring.cpp b/mozilla/xpcom/string/src/nsSubstring.cpp
+index e697c37..51520ac 100644
+--- a/mozilla/xpcom/string/src/nsSubstring.cpp
++++ b/mozilla/xpcom/string/src/nsSubstring.cpp
+@@ -199,6 +199,9 @@ nsStringBuffer*
+ nsStringBuffer::Alloc(size_t size)
+   {
+     NS_ASSERTION(size != 0, "zero capacity allocation not allowed");
++    NS_ASSERTION(sizeof(nsStringBuffer) + size <= size_t(PRUint32(-1)) &&
++                 sizeof(nsStringBuffer) + size > size,
++                 "mStorageSize will truncate");
+ 
+     nsStringBuffer *hdr =
+         (nsStringBuffer *) malloc(sizeof(nsStringBuffer) + size);
+@@ -219,12 +222,15 @@ nsStringBuffer::Realloc(nsStringBuffer* hdr, size_t size)
+     STRING_STAT_INCREMENT(Realloc);
+ 
+     NS_ASSERTION(size != 0, "zero capacity allocation not allowed");
++    NS_ASSERTION(sizeof(nsStringBuffer) + size <= size_t(PRUint32(-1)) &&
++                 sizeof(nsStringBuffer) + size > size,
++                 "mStorageSize will truncate");
+ 
+     // no point in trying to save ourselves if we hit this assertion
+     NS_ASSERTION(!hdr->IsReadonly(), "|Realloc| attempted on readonly string");
+ 
+     // Treat this as a release and addref for refcounting purposes, since we
+-    // just asserted that the refcound is 1.  If we don't do that, refcount
++    // just asserted that the refcount is 1.  If we don't do that, refcount
+     // logging will claim we've leaked all sorts of stuff.
+     NS_LOG_RELEASE(hdr, 0, "nsStringBuffer");
+     
+diff --git a/mozilla/xpcom/string/src/nsTSubstring.cpp b/mozilla/xpcom/string/src/nsTSubstring.cpp
+index 8770538..811e9ee 100644
+--- a/mozilla/xpcom/string/src/nsTSubstring.cpp
++++ b/mozilla/xpcom/string/src/nsTSubstring.cpp
+@@ -97,10 +97,13 @@ nsTSubstring_CharT::MutatePrep( size_type capacity, char_type** oldData, PRUint3
+ 
+     size_type curCapacity = Capacity();
+ 
+-    // If |capacity > size_type(-1)/2|, then our doubling algorithm may not be
++    // If |capacity > kMaxCapacity|, then our doubling algorithm may not be
+     // able to allocate it.  Just bail out in cases like that.  We don't want
+     // to be allocating 2GB+ strings anyway.
+-    if (capacity > size_type(-1)/2) {
++    PR_STATIC_ASSERT((sizeof(nsStringBuffer) & 0x1) == 0);
++    const size_type kMaxCapacity =
++      (size_type(-1)/2 - sizeof(nsStringBuffer)) / sizeof(char_type) - 2;
++    if (capacity > kMaxCapacity) {
+       // Also assert for |capacity| equal to |size_type(-1)|, since we use that value to
+       // flag immutability.
+       NS_ASSERTION(capacity != size_type(-1), "Bogus capacity");
+@@ -118,15 +121,15 @@ nsTSubstring_CharT::MutatePrep( size_type capacity, char_type** oldData, PRUint3
+           return PR_TRUE;
+         }
+ 
+-        if (curCapacity > 0)
+-          {
+-            // use doubling algorithm when forced to increase available
+-            // capacity.
+-            PRUint32 temp = curCapacity;
+-            while (temp < capacity)
+-              temp <<= 1;
+-            capacity = temp;
+-          }
++        if (curCapacity > 0) {
++          // Use doubling algorithm when forced to increase available capacity.
++          size_type temp = curCapacity;
++          while (temp < capacity)
++            temp <<= 1;
++          NS_ASSERTION(NS_MIN(temp, kMaxCapacity) >= capacity,
++                       "should have hit the early return at the top");
++          capacity = NS_MIN(temp, kMaxCapacity);
++        }
+       }
+ 
+     //
+-- 
+1.7.4.4
+

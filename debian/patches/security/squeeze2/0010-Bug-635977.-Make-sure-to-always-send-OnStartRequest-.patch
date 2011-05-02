@@ -1,0 +1,84 @@
+From baf3262025be96e0f90a1a64c2966ea5bed330dc Mon Sep 17 00:00:00 2001
+From: Boris Zbarsky <bzbarsky@mit.edu>
+Date: Thu, 24 Feb 2011 13:42:15 -0500
+Subject: Bug 635977. Make sure to always send OnStartRequest to our listener
+ from nsIndexedToHTML. r=jduell, a=dveditz
+
+---
+ netwerk/streamconv/converters/nsIndexedToHTML.cpp |   36 ++++++++++++++-------
+ netwerk/streamconv/converters/nsIndexedToHTML.h   |    5 ++-
+ 2 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.cpp b/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.cpp
+index 2873d21..99a8723 100644
+--- a/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.cpp
++++ b/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.cpp
+@@ -150,6 +150,29 @@ nsIndexedToHTML::AsyncConvertData(const char *aFromType,
+ 
+ NS_IMETHODIMP
+ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
++    nsString buffer;
++    nsresult rv = DoOnStartRequest(request, aContext, buffer);
++    if (NS_FAILED(rv)) {
++        request->Cancel(rv);
++    }
++    
++    rv = mListener->OnStartRequest(request, aContext);
++    if (NS_FAILED(rv)) return rv;
++
++    // The request may have been canceled, and if that happens, we want to
++    // suppress calls to OnDataAvailable.
++    request->GetStatus(&rv);
++    if (NS_FAILED(rv)) return rv;
++
++    // Push our buffer to the listener.
++
++    rv = FormatInputStream(request, aContext, buffer);
++    return rv;
++}
++
++nsresult
++nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
++                                  nsString& aBuffer) {
+     nsresult rv;
+ 
+     nsCOMPtr<nsIChannel> channel = do_QueryInterface(request);
+@@ -687,18 +710,7 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
+     }
+     buffer.AppendLiteral(" <tbody>\n");
+ 
+-    // Push buffer to the listener now, so the initial HTML will not
+-    // be parsed in OnDataAvailable().
+-
+-    rv = mListener->OnStartRequest(request, aContext);
+-    if (NS_FAILED(rv)) return rv;
+-
+-    // The request may have been canceled, and if that happens, we want to
+-    // suppress calls to OnDataAvailable.
+-    request->GetStatus(&rv);
+-    if (NS_FAILED(rv)) return rv;
+-
+-    rv = FormatInputStream(request, aContext, buffer);
++    aBuffer = buffer;
+     return rv;
+ }
+ 
+diff --git a/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.h b/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.h
+index 4001c9f..fc9124f 100644
+--- a/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.h
++++ b/mozilla/netwerk/streamconv/converters/nsIndexedToHTML.h
+@@ -76,7 +76,10 @@ public:
+ protected:
+     
+     void FormatSizeString(PRInt64 inSize, nsString& outSizeString);
+-    nsresult FormatInputStream(nsIRequest* aRequest, nsISupports *aContext, const nsAString &aBuffer); 
++    nsresult FormatInputStream(nsIRequest* aRequest, nsISupports *aContext, const nsAString &aBuffer);
++    // Helper to properly implement OnStartRequest
++    nsresult DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
++                              nsString& aBuffer);
+ 
+ protected:
+     nsCOMPtr<nsIDirIndexParser>     mParser;
+-- 
+1.7.4.4
+

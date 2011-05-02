@@ -1,0 +1,588 @@
+From 0cb5a370263fb2c40966ca5abd6f54215c344af4 Mon Sep 17 00:00:00 2001
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Tue, 7 Dec 2010 01:30:05 -0500
+Subject: Bug 527935 - Fire the input event for text controls with the correct
+ trusted-ness status; r=roc a=LegNeato
+
+---
+ editor/idl/nsIEditor.idl                           |   11 +++
+ editor/libeditor/base/nsEditor.cpp                 |   28 ++++++
+ editor/libeditor/base/nsEditor.h                   |   32 +++++++-
+ editor/libeditor/text/nsEditorEventListeners.cpp   |   23 +++++
+ editor/libeditor/text/nsPlaintextDataTransfer.cpp  |    2 +
+ editor/libeditor/text/nsPlaintextEditor.cpp        |    8 ++
+ editor/libeditor/text/tests/Makefile.in            |    2 +
+ editor/libeditor/text/tests/test_bug527935.html    |   94 ++++++++++++++++++++
+ editor/libeditor/text/tests/test_bug625452.html    |   67 ++++++++++++++
+ layout/forms/nsTextControlFrame.cpp                |   10 ++-
+ layout/forms/nsTextControlFrame.h                  |    2 +-
+ .../components/satchel/test/test_bug_511615.html   |   24 ++---
+ 12 files changed, 283 insertions(+), 20 deletions(-)
+ create mode 100644 editor/libeditor/text/tests/test_bug527935.html
+ create mode 100644 editor/libeditor/text/tests/test_bug625452.html
+
+diff --git a/mozilla/editor/idl/nsIEditor.idl b/mozilla/editor/idl/nsIEditor.idl
+index 7966abb..a125ab1 100644
+--- a/mozilla/editor/idl/nsIEditor.idl
++++ b/mozilla/editor/idl/nsIEditor.idl
+@@ -571,3 +571,14 @@ interface nsIEditor  : nsISupports
+   /* checks if a node is read-only or not */
+   [notxpcom] boolean isModifiableNode(in nsIDOMNode aNode);
+ };
++
++[uuid(a9ddee78-f5d2-43f1-9d91-d2124ba40d81)]
++interface nsIEditor_MOZILLA_1_9_2_BRANCH : nsISupports
++{
++  /**
++   * Will be set to true if the last keypress event that the editor has handled
++   * has been trusted.  The value will only be valid when the edit action listeners
++   * are being called, and will throw upon access at all other times.
++   */
++  readonly attribute boolean lastKeypressEventTrusted;
++};
+diff --git a/mozilla/editor/libeditor/base/nsEditor.cpp b/mozilla/editor/libeditor/base/nsEditor.cpp
+index cb11a84..4f1172b 100644
+--- a/mozilla/editor/libeditor/base/nsEditor.cpp
++++ b/mozilla/editor/libeditor/base/nsEditor.cpp
+@@ -113,6 +113,7 @@
+ #include "nsINameSpaceManager.h"
+ #include "nsIHTMLDocument.h"
+ #include "nsIParserService.h"
++#include "nsIDOMNSEvent.h"
+ 
+ #define NS_ERROR_EDITOR_NO_SELECTION NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_EDITOR,1)
+ #define NS_ERROR_EDITOR_NO_TEXTNODE  NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_EDITOR,2)
+@@ -155,6 +156,7 @@ nsEditor::nsEditor()
+ ,  mDocDirtyState(-1)
+ ,  mDocWeak(nsnull)
+ ,  mPhonetic(nsnull)
++,  mLastKeypressEventWasTrusted(eTriUnset)
+ {
+   //initialize member variables here
+ }
+@@ -207,6 +209,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsEditor)
+ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+ 
+ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsEditor)
++ NS_INTERFACE_MAP_ENTRY(nsIEditor_MOZILLA_1_9_2_BRANCH)
+  NS_INTERFACE_MAP_ENTRY(nsIMutationObserver)
+  NS_INTERFACE_MAP_ENTRY(nsIPhonetic)
+  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
+@@ -5386,3 +5389,28 @@ nsEditor::IsModifiableNode(nsIDOMNode *aNode)
+ {
+   return PR_TRUE;
+ }
++
++NS_IMETHODIMP
++nsEditor::GetLastKeypressEventTrusted(PRBool *aWasTrusted)
++{
++  NS_ENSURE_ARG_POINTER(aWasTrusted);
++
++  if (mLastKeypressEventWasTrusted == eTriUnset) {
++    return NS_ERROR_UNEXPECTED;
++  }
++
++  *aWasTrusted = (mLastKeypressEventWasTrusted == eTriTrue);
++  return NS_OK;
++}
++
++void
++nsEditor::BeginKeypressHandling(nsIDOMNSEvent* aEvent)
++{
++  NS_ASSERTION(mLastKeypressEventWasTrusted == eTriUnset, "How come our status is not clear?");
++
++  if (aEvent) {
++    PRBool isTrusted = PR_FALSE;
++    aEvent->GetIsTrusted(&isTrusted);
++    mLastKeypressEventWasTrusted = isTrusted ? eTriTrue : eTriFalse;
++  }
++}
+diff --git a/mozilla/editor/libeditor/base/nsEditor.h b/mozilla/editor/libeditor/base/nsEditor.h
+index 8e602f9..fcf7437 100644
+--- a/mozilla/editor/libeditor/base/nsEditor.h
++++ b/mozilla/editor/libeditor/base/nsEditor.h
+@@ -86,6 +86,7 @@ class RemoveStyleSheetTxn;
+ class nsIFile;
+ class nsISelectionController;
+ class nsIDOMEventTarget;
++class nsIDOMNSEvent;
+ 
+ #define kMOZEditorBogusNodeAttr NS_LITERAL_STRING("_moz_editor_bogus_node")
+ #define kMOZEditorBogusNodeValue NS_LITERAL_STRING("TRUE")
+@@ -99,7 +100,8 @@ class nsEditor : public nsIEditor,
+                  public nsIEditorIMESupport,
+                  public nsSupportsWeakReference,
+                  public nsIPhonetic,
+-                 public nsStubMutationObserver
++                 public nsStubMutationObserver,
++                 public nsIEditor_MOZILLA_1_9_2_BRANCH
+ {
+ public:
+ 
+@@ -159,6 +161,9 @@ public:
+   NS_DECL_NSIMUTATIONOBSERVER_CONTENTINSERTED
+   NS_DECL_NSIMUTATIONOBSERVER_CONTENTREMOVED
+ 
++  // nsIEditor_MOZILLA_1_9_2_BRANCH
++  NS_DECL_NSIEDITOR_MOZILLA_1_9_2_BRANCH
++
+ public:
+ 
+   
+@@ -197,6 +202,29 @@ public:
+   */
+   nsresult CreateHTMLContent(const nsAString& aTag, nsIContent** aContent);
+ 
++  void BeginKeypressHandling() { mLastKeypressEventWasTrusted = eTriTrue; }
++  void BeginKeypressHandling(nsIDOMNSEvent* aEvent);
++  void EndKeypressHandling() { mLastKeypressEventWasTrusted = eTriUnset; }
++
++  class FireTrustedInputEvent {
++  public:
++    explicit FireTrustedInputEvent(nsEditor* aSelf, PRBool aActive = PR_TRUE)
++      : mEditor(aSelf)
++      , mShouldAct(aActive && mEditor->mLastKeypressEventWasTrusted == eTriUnset) {
++      if (mShouldAct) {
++        mEditor->BeginKeypressHandling();
++      }
++    }
++    ~FireTrustedInputEvent() {
++      if (mShouldAct) {
++        mEditor->EndKeypressHandling();
++      }
++    }
++  private:
++    nsEditor* mEditor;
++    PRBool mShouldAct;
++  };
++
+ protected:
+   nsCString mContentMIMEType;       // MIME type of the doc we are editing.
+ 
+@@ -644,6 +672,8 @@ protected:
+   nsCOMPtr<nsIDOMEventListener> mDragListenerP;
+   nsCOMPtr<nsIDOMEventListener> mFocusListenerP;
+ 
++  Tristate mLastKeypressEventWasTrusted;
++
+   friend PRBool NSCanUnload(nsISupports* serviceMgr);
+   friend class nsAutoTxnsConserveSelection;
+   friend class nsAutoSelectionReset;
+diff --git a/mozilla/editor/libeditor/text/nsEditorEventListeners.cpp b/mozilla/editor/libeditor/text/nsEditorEventListeners.cpp
+index a2127f3..0b701a3 100644
+--- a/mozilla/editor/libeditor/text/nsEditorEventListeners.cpp
++++ b/mozilla/editor/libeditor/text/nsEditorEventListeners.cpp
+@@ -73,6 +73,20 @@
+ 
+ //#define DEBUG_IME
+ 
++class nsAutoEditorKeypressOperation {
++public:
++  nsAutoEditorKeypressOperation(nsEditor *aEditor, nsIDOMNSEvent *aEvent)
++    : mEditor(aEditor) {
++    mEditor->BeginKeypressHandling(aEvent);
++  }
++  ~nsAutoEditorKeypressOperation() {
++    mEditor->EndKeypressHandling();
++  }
++
++private:
++  nsEditor *mEditor;
++};
++
+ /*
+  * nsTextEditorKeyListener implementation
+  */
+@@ -117,6 +131,10 @@ nsTextEditorKeyListener::KeyUp(nsIDOMEvent* aKeyEvent)
+ nsresult
+ nsTextEditorKeyListener::KeyPress(nsIDOMEvent* aKeyEvent)
+ {
++  // Transfer the event's trusted-ness to our editor
++  nsCOMPtr<nsIDOMNSEvent> NSEvent = do_QueryInterface(aKeyEvent);
++  nsAutoEditorKeypressOperation operation(static_cast<nsEditor*> (mEditor), NSEvent);
++
+   // DOM event handling happens in two passes, the client pass and the system
+   // pass.  We do all of our processing in the system pass, to allow client
+   // handlers the opportunity to cancel events and prevent typing in the editor.
+@@ -869,6 +887,11 @@ nsTextEditorCompositionListener::HandleEndComposition(nsIDOMEvent* aCompositionE
+ #ifdef DEBUG_IME
+    printf("nsTextEditorCompositionListener::HandleEndComposition\n");
+ #endif
++
++  // Transfer the event's trusted-ness to our editor
++  nsCOMPtr<nsIDOMNSEvent> NSEvent = do_QueryInterface(aCompositionEvent);
++  nsAutoEditorKeypressOperation operation(static_cast<nsEditor*> (mEditor), NSEvent);
++
+    return mEditor->EndComposition();
+ }
+ 
+diff --git a/mozilla/editor/libeditor/text/nsPlaintextDataTransfer.cpp b/mozilla/editor/libeditor/text/nsPlaintextDataTransfer.cpp
+index cb59e0d..a657255 100644
+--- a/mozilla/editor/libeditor/text/nsPlaintextDataTransfer.cpp
++++ b/mozilla/editor/libeditor/text/nsPlaintextDataTransfer.cpp
+@@ -119,6 +119,8 @@ NS_IMETHODIMP nsPlaintextEditor::InsertTextFromTransferable(nsITransferable *aTr
+                                                             PRInt32 aDestOffset,
+                                                             PRBool aDoDeleteSelection)
+ {
++  FireTrustedInputEvent trusted(this);
++
+   nsresult rv = NS_OK;
+   char* bestFlavor = nsnull;
+   nsCOMPtr<nsISupports> genericDataObj;
+diff --git a/mozilla/editor/libeditor/text/nsPlaintextEditor.cpp b/mozilla/editor/libeditor/text/nsPlaintextEditor.cpp
+index ead1d02..d23d42a 100644
+--- a/mozilla/editor/libeditor/text/nsPlaintextEditor.cpp
++++ b/mozilla/editor/libeditor/text/nsPlaintextEditor.cpp
+@@ -715,6 +715,8 @@ NS_IMETHODIMP nsPlaintextEditor::DeleteSelection(nsIEditor::EDirection aAction)
+ 
+   nsresult result;
+ 
++  FireTrustedInputEvent trusted(this, aAction != eNone);
++
+   // delete placeholder txns merge.
+   nsAutoPlaceHolderBatch batch(this, nsGkAtoms::DeleteTxnName);
+   nsAutoRules beginRulesSniffing(this, kOpDeleteSelection, aAction);
+@@ -1124,6 +1126,8 @@ nsPlaintextEditor::SetNewlineHandling(PRInt32 aNewlineHandling)
+ NS_IMETHODIMP 
+ nsPlaintextEditor::Undo(PRUint32 aCount)
+ {
++  FireTrustedInputEvent trusted(this);
++
+   nsAutoUpdateViewBatch beginViewBatching(this);
+ 
+   ForceCompositionEnd();
+@@ -1148,6 +1152,8 @@ nsPlaintextEditor::Undo(PRUint32 aCount)
+ NS_IMETHODIMP 
+ nsPlaintextEditor::Redo(PRUint32 aCount)
+ {
++  FireTrustedInputEvent trusted(this);
++
+   nsAutoUpdateViewBatch beginViewBatching(this);
+ 
+   ForceCompositionEnd();
+@@ -1222,6 +1228,8 @@ nsresult nsPlaintextEditor::FireClipboardEvent(PRUint32 msg,
+ 
+ NS_IMETHODIMP nsPlaintextEditor::Cut()
+ {
++  FireTrustedInputEvent trusted(this);
++
+   PRBool preventDefault;
+   nsresult rv = FireClipboardEvent(NS_CUT, &preventDefault);
+   if (NS_FAILED(rv) || preventDefault)
+diff --git a/mozilla/editor/libeditor/text/tests/Makefile.in b/mozilla/editor/libeditor/text/tests/Makefile.in
+index 19718ad..6ff16d1 100644
+--- a/mozilla/editor/libeditor/text/tests/Makefile.in
++++ b/mozilla/editor/libeditor/text/tests/Makefile.in
+@@ -46,6 +46,8 @@ include $(topsrcdir)/config/rules.mk
+ 
+ _TEST_FILES = \
+ 		test_bug471722.html \
++		test_bug527935.html \
++		test_bug625452.html \
+ 		$(NULL)
+ 
+ libs:: $(_TEST_FILES)
+diff --git a/mozilla/editor/libeditor/text/tests/test_bug527935.html b/mozilla/editor/libeditor/text/tests/test_bug527935.html
+new file mode 100644
+index 0000000..d208859
+--- /dev/null
++++ b/mozilla/editor/libeditor/text/tests/test_bug527935.html
+@@ -0,0 +1,94 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=527935
++-->
++<head>
++  <title>Test for Bug 527935</title>
++  <script type="application/javascript" src="/MochiKit/packed.js"></script>
++  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=527935">Mozilla Bug 527935</a>
++<p id="display"></p>
++<div id="content">
++  <iframe id="formTarget" name="formTarget"></iframe>
++  <form action="data:text/html," target="formTarget">
++    <input name="test" id="initValue"><input type="submit">
++  </form>
++</div>
++<pre id="test">
++<script type="application/javascript">
++
++function getAutocompletePopup() {
++    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
++    var Ci = Components.interfaces;
++    chromeWin = window.QueryInterface(Ci.nsIInterfaceRequestor)
++                      .getInterface(Ci.nsIWebNavigation)
++                      .QueryInterface(Ci.nsIDocShellTreeItem)
++                      .rootTreeItem
++                      .QueryInterface(Ci.nsIInterfaceRequestor)
++                      .getInterface(Ci.nsIDOMWindow)
++                      .QueryInterface(Ci.nsIDOMChromeWindow);
++    autocompleteMenu = chromeWin.document.getElementById("PopupAutoComplete");
++    ok(autocompleteMenu, "Got autocomplete popup");
++
++    return autocompleteMenu;
++}
++
++function registerPopupShowing(popup, listener) {
++    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
++    popup.addEventListener("popupshowing", listener, false);
++}
++
++function unregisterPopupShowing(popup, listener) {
++    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
++    popup.removeEventListener("popupshowing", listener, false);
++}
++
++/** Test for Bug 527935 **/
++SimpleTest.waitForExplicitFinish();
++addLoadEvent(function() {
++  var formTarget = document.getElementById("formTarget");
++  var initValue = document.getElementById("initValue");
++
++  formTarget.addEventListener("load", function() {
++    var newInput = document.createElement("input");
++    newInput.setAttribute("name", "test");
++    document.body.appendChild(newInput);
++
++    setTimeout(function() {
++      var popupShown = false;
++      var popup = getAutocompletePopup();
++      function listener() {
++        popupShown = true;
++      }
++      registerPopupShowing(popup, listener);
++
++      var event = document.createEvent("KeyboardEvent");
++
++      event.initKeyEvent("keypress", true, true, null, false, false,
++                         false, false, 0, "f".charCodeAt(0));
++      newInput.value = "";
++      newInput.focus();
++      newInput.dispatchEvent(event);
++
++      setTimeout(function() {
++        ok(!popupShown, "Popup must not be opened");
++        unregisterPopupShowing(popup, listener);
++        SimpleTest.finish();
++      }, 1000);
++    }, 0);
++  }, false);
++
++  initValue.focus();
++  initValue.value = "foo";
++  synthesizeKey("VK_ENTER", {});
++});
++
++</script>
++</pre>
++</body>
++</html>
+diff --git a/mozilla/editor/libeditor/text/tests/test_bug625452.html b/mozilla/editor/libeditor/text/tests/test_bug625452.html
+new file mode 100644
+index 0000000..f5e5068
+--- /dev/null
++++ b/mozilla/editor/libeditor/text/tests/test_bug625452.html
+@@ -0,0 +1,67 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=625452
++-->
++<head>
++  <title>Test for Bug 625452</title>
++  <script type="application/javascript" src="/MochiKit/packed.js"></script>
++  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=625452">Mozilla Bug 625452</a>
++<p id="display"></p>
++<div id="content">
++<input>
++</div>
++<pre id="test">
++<script type="application/javascript">
++
++/** Test for Bug 625452 **/
++SimpleTest.waitForExplicitFinish();
++addLoadEvent(function() {
++  var i = document.querySelector("input");
++  var inputCount = 0;
++  i.addEventListener("input", function() inputCount++, false);
++
++  // test cut
++  i.focus();
++  i.value = "foo bar";
++  i.selectionStart = 0;
++  i.selectionEnd = 4;
++  synthesizeKey("X", {accelKey: true});
++  is(i.value, "bar", "Cut should work correctly");
++  is(inputCount, 1, "input event should be raised correctly");
++
++  // test undo
++  synthesizeKey("Z", {accelKey: true});
++  is(i.value, "foo bar", "Undo should work correctly");
++  is(inputCount, 2, "input event should be raised correctly");
++
++  // test redo
++  synthesizeKey("Z", {accelKey: true, shiftKey: true});
++  is(i.value, "bar", "Redo should work correctly");
++  is(inputCount, 3, "input event should be raised correctly");
++
++  // test delete
++  i.selectionStart = 0;
++  i.selectionEnd = 2;
++  synthesizeKey("VK_DELETE", {});
++  is(i.value, "r", "Delete should work correctly");
++  is(inputCount, 4, "input event should be raised correctly");
++
++  // test DeleteSelection(eNone)
++  i.value = "retest"; // the "r" common prefix is crucial here
++  is(inputCount, 4, "input event should not have been raised");
++
++  // paste is tested in test_bug596001.html
++
++  SimpleTest.finish();
++});
++
++</script>
++</pre>
++</body>
++</html>
+diff --git a/mozilla/layout/forms/nsTextControlFrame.cpp b/mozilla/layout/forms/nsTextControlFrame.cpp
+index e2e2a3e..12e1646 100644
+--- a/mozilla/layout/forms/nsTextControlFrame.cpp
++++ b/mozilla/layout/forms/nsTextControlFrame.cpp
+@@ -518,7 +518,11 @@ nsTextInputListener::EditAction()
+   mFrame->SetValueChanged(PR_TRUE);
+ 
+   // Fire input event
+-  mFrame->FireOnInput();
++  nsCOMPtr<nsIEditor_MOZILLA_1_9_2_BRANCH> editor192 = do_QueryInterface(editor);
++  NS_ASSERTION(editor192, "Something is very wrong!");
++  PRBool trusted = PR_FALSE;
++  editor192->GetLastKeypressEventTrusted(&trusted);
++  mFrame->FireOnInput(trusted);
+ 
+   return NS_OK;
+ }
+@@ -2546,14 +2550,14 @@ nsTextControlFrame::GetMaxLength(PRInt32* aSize)
+ 
+ // this is where we propagate a content changed event
+ void
+-nsTextControlFrame::FireOnInput()
++nsTextControlFrame::FireOnInput(PRBool aTrusted)
+ {
+   if (!mNotifyOnInput)
+     return; // if notification is turned off, do nothing
+   
+   // Dispatch the "input" event
+   nsEventStatus status = nsEventStatus_eIgnore;
+-  nsUIEvent event(PR_TRUE, NS_FORM_INPUT, 0);
++  nsUIEvent event(aTrusted, NS_FORM_INPUT, 0);
+ 
+   // Have the content handle the event, propagating it according to normal
+   // DOM rules.
+diff --git a/mozilla/layout/forms/nsTextControlFrame.h b/mozilla/layout/forms/nsTextControlFrame.h
+index 207216e..0e777af 100644
+--- a/mozilla/layout/forms/nsTextControlFrame.h
++++ b/mozilla/layout/forms/nsTextControlFrame.h
+@@ -191,7 +191,7 @@ public: //for methods who access nsTextControlFrame directly
+    * @return whether this is a password ontrol
+    */
+   PRBool IsPasswordTextControl() const;
+-  void FireOnInput();
++  void FireOnInput(PRBool aTrusted);
+   void SetValueChanged(PRBool aValueChanged);
+   /** Called when the frame is focused, to remember the value for onChange. */
+   nsresult InitFocusedValue();
+diff --git a/mozilla/toolkit/components/satchel/test/test_bug_511615.html b/mozilla/toolkit/components/satchel/test/test_bug_511615.html
+index 041ebb7..6508e45 100644
+--- a/mozilla/toolkit/components/satchel/test/test_bug_511615.html
++++ b/mozilla/toolkit/components/satchel/test/test_bug_511615.html
+@@ -210,10 +210,7 @@ function runTest(testNum) {
+         nextTestPrivledged = true;
+         break;
+     case 15:
+-        // XXX even with patch the popup is still opened.
+-        // the keypress triggers a form input oninput / onchange
+-        todo(false, "popup should be closed");
+-        checkPopupOpen(true, -1);
++        checkPopupOpen(false);
+         checkForm("v");
+         break;
+     // try a space
+@@ -222,8 +219,7 @@ function runTest(testNum) {
+         nextTestPrivledged = true;
+         break;
+     case 17:
+-        todo(false, "popup should be closed");
+-        checkPopupOpen(false, -1);
++        checkPopupOpen(false);
+         checkForm("v ");
+         break;
+     // backspace
+@@ -232,17 +228,15 @@ function runTest(testNum) {
+         nextTestPrivledged = true;
+         break;
+     case 19:
+-        todo(false, "popup should be closed");
+-        checkPopupOpen(true, -1);
++        checkPopupOpen(false);
+         checkForm("v");
+         nextTestPrivledged = true;
+         break;
+     case 20:
+         // We're privledged for this test, so open the popup.
+-        todo(false, "popup should be closed");
+-        checkPopupOpen(true, -1);
++        checkPopupOpen(false);
+         checkForm("v");
+-//        doKey("down");
++        doKey("down");
+         nextTestPrivledged = true;
+         break;
+     case 21:
+@@ -331,7 +325,7 @@ function runTest(testNum) {
+         break;
+     case 203:
+         // XXX we should ignore this input while popup is open?
+-        checkPopupOpen(false, -1);
++        checkPopupOpen(true, 0);
+         checkForm("v ");
+         break;
+     // backspace
+@@ -341,13 +335,13 @@ function runTest(testNum) {
+         break;
+     case 205:
+         // XXX we should ignore this input while popup is open?
+-        checkPopupOpen(true, -1);
++        checkPopupOpen(true, 0);
+         checkForm("v");
+         nextTestPrivledged = true;
+         break;
+     // Oops, reselect 1st entry
+     case 206:
+-        doKey("down");
++        // (this space intentionally left blank)
+         nextTestPrivledged = true;
+         break;
+     case 207:
+@@ -371,7 +365,7 @@ function runTest(testNum) {
+         break;
+     case 211:
+         checkPopupOpen(false);
+-        checkForm("v");
++        checkForm("");
+ 
+ 
+         SimpleTest.finish();
+-- 
+1.7.4.4
+

@@ -1,0 +1,37 @@
+From 0f0e669eedc3d193cdadbc16ce8a4497fe4c45c1 Mon Sep 17 00:00:00 2001
+From: Chris Jones <jones.chris.g@gmail.com>
+Date: Mon, 31 Jan 2011 13:34:06 -0600
+Subject: Bug 595593. r=vlad a=b
+
+---
+ content/canvas/src/nsCanvasRenderingContext2D.cpp |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp b/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
+index e446d4d..e63f9ff 100644
+--- a/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
++++ b/mozilla/content/canvas/src/nsCanvasRenderingContext2D.cpp
+@@ -911,6 +911,9 @@ nsCanvasRenderingContext2D::SetDimensions(PRInt32 width, PRInt32 height)
+     mSaveCount = 0;
+ 
+     ContextState *state = mStyleStack.AppendElement();
++    if (!state) {
++        return NS_ERROR_OUT_OF_MEMORY;
++    }
+     state->globalAlpha = 1.0;
+ 
+     state->colorStyles[STYLE_FILL] = NS_RGB(0,0,0);
+@@ -1075,7 +1078,9 @@ NS_IMETHODIMP
+ nsCanvasRenderingContext2D::Save()
+ {
+     ContextState state = CurrentState();
+-    mStyleStack.AppendElement(state);
++    if (!mStyleStack.AppendElement(state)) {
++        return NS_ERROR_OUT_OF_MEMORY;
++    }
+     mThebes->Save();
+     mSaveCount++;
+     return NS_OK;
+-- 
+1.7.4.4
+

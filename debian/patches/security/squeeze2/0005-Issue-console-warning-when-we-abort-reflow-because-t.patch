@@ -1,0 +1,67 @@
+From 7c4a4868ae7c33de41519fd5b74510ef9bf1167d Mon Sep 17 00:00:00 2001
+From: L. David Baron <dbaron@dbaron.org>
+Date: Wed, 2 Feb 2011 11:05:09 -0800
+Subject: Issue console warning when we abort reflow because the frame tree is
+ too deep. (Bug 619021) r=roc a1.9.1.18=dveditz
+
+---
+ layout/generic/nsBlockFrame.cpp  |    9 ---------
+ layout/generic/nsFrame.cpp       |    1 +
+ layout/generic/nsInlineFrame.cpp |    9 ---------
+ 3 files changed, 1 insertions(+), 18 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsBlockFrame.cpp b/mozilla/layout/generic/nsBlockFrame.cpp
+index 79e21f1..acd695b 100644
+--- a/mozilla/layout/generic/nsBlockFrame.cpp
++++ b/mozilla/layout/generic/nsBlockFrame.cpp
+@@ -909,15 +909,6 @@ nsBlockFrame::Reflow(nsPresContext*           aPresContext,
+   ClearLineCursor();
+ 
+   if (IsFrameTreeTooDeep(aReflowState, aMetrics)) {
+-#ifdef DEBUG_kipp
+-    {
+-      extern char* nsPresShell_ReflowStackPointerTop;
+-      char marker;
+-      char* newsp = (char*) &marker;
+-      printf("XXX: frame tree is too deep; approx stack size = %d\n",
+-             nsPresShell_ReflowStackPointerTop - newsp);
+-    }
+-#endif
+     aStatus = NS_FRAME_COMPLETE;
+     return NS_OK;
+   }
+diff --git a/mozilla/layout/generic/nsFrame.cpp b/mozilla/layout/generic/nsFrame.cpp
+index 66bdbd4..31e8d9f 100644
+--- a/mozilla/layout/generic/nsFrame.cpp
++++ b/mozilla/layout/generic/nsFrame.cpp
+@@ -4059,6 +4059,7 @@ nsFrame::IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
+                             nsHTMLReflowMetrics& aMetrics)
+ {
+   if (aReflowState.mReflowDepth >  MAX_FRAME_DEPTH) {
++    NS_WARNING("frame tree too deep; setting zero size and returning");
+     mState |= NS_FRAME_TOO_DEEP_IN_FRAME_TREE;
+     mState &= ~NS_FRAME_OUTSIDE_CHILDREN;
+     aMetrics.width = 0;
+diff --git a/mozilla/layout/generic/nsInlineFrame.cpp b/mozilla/layout/generic/nsInlineFrame.cpp
+index c6c76e3..d156d05 100644
+--- a/mozilla/layout/generic/nsInlineFrame.cpp
++++ b/mozilla/layout/generic/nsInlineFrame.cpp
+@@ -364,15 +364,6 @@ nsInlineFrame::Reflow(nsPresContext*          aPresContext,
+   }
+ 
+   if (IsFrameTreeTooDeep(aReflowState, aMetrics)) {
+-#ifdef DEBUG_kipp
+-    {
+-      extern char* nsPresShell_ReflowStackPointerTop;
+-      char marker;
+-      char* newsp = (char*) &marker;
+-      printf("XXX: frame tree is too deep; approx stack size = %d\n",
+-             nsPresShell_ReflowStackPointerTop - newsp);
+-    }
+-#endif
+     aStatus = NS_FRAME_COMPLETE;
+     return NS_OK;
+   }
+-- 
+1.7.4.4
+

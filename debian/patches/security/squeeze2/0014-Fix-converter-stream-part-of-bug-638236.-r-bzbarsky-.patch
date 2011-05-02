@@ -1,0 +1,27 @@
+From 676ba1d27287a89506f46cf3c481e91aa79a6d2d Mon Sep 17 00:00:00 2001
+From: L. David Baron <dbaron@dbaron.org>
+Date: Wed, 2 Mar 2011 21:01:20 -0800
+Subject: Fix converter stream part of bug 638236. r=bzbarsky
+ a1.9.1.18=clegnitto
+
+---
+ intl/uconv/src/nsConverterInputStream.cpp |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/intl/uconv/src/nsConverterInputStream.cpp b/mozilla/intl/uconv/src/nsConverterInputStream.cpp
+index b295162..4552aef 100644
+--- a/mozilla/intl/uconv/src/nsConverterInputStream.cpp
++++ b/mozilla/intl/uconv/src/nsConverterInputStream.cpp
+@@ -254,7 +254,8 @@ nsConverterInputStream::Fill(nsresult * aErrorCode)
+     NS_ASSERTION(srcConsumed <= mByteData->GetLength(),
+                  "Whoa.  The converter should have returned NS_OK_UDEC_MOREINPUT before this point!");
+   } while (mReplacementChar &&
+-           NS_FAILED(*aErrorCode));
++           NS_FAILED(*aErrorCode) &&
++           mUnicharData->GetBufferSize() > mUnicharDataLength);
+ 
+   mLeftOverBytes = mByteData->GetLength() - srcConsumed;
+ 
+-- 
+1.7.4.4
+

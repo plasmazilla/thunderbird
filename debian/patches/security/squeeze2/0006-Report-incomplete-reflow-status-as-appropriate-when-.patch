@@ -1,0 +1,100 @@
+From 99686205983f9f546604f356c3591299dceea110 Mon Sep 17 00:00:00 2001
+From: L. David Baron <dbaron@dbaron.org>
+Date: Wed, 2 Feb 2011 11:05:09 -0800
+Subject: Report incomplete reflow status as appropriate when frame tree is
+ too deep. (Bug 619021) r=roc a1.9.1.18=dveditz
+
+---
+ layout/generic/nsBlockFrame.cpp  |    3 +--
+ layout/generic/nsFrame.cpp       |   13 ++++++++++++-
+ layout/generic/nsFrame.h         |   13 +++++++------
+ layout/generic/nsInlineFrame.cpp |    3 +--
+ 4 files changed, 21 insertions(+), 11 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsBlockFrame.cpp b/mozilla/layout/generic/nsBlockFrame.cpp
+index acd695b..f045fc9 100644
+--- a/mozilla/layout/generic/nsBlockFrame.cpp
++++ b/mozilla/layout/generic/nsBlockFrame.cpp
+@@ -908,8 +908,7 @@ nsBlockFrame::Reflow(nsPresContext*           aPresContext,
+   // and we may even delete the line with the line cursor.
+   ClearLineCursor();
+ 
+-  if (IsFrameTreeTooDeep(aReflowState, aMetrics)) {
+-    aStatus = NS_FRAME_COMPLETE;
++  if (IsFrameTreeTooDeep(aReflowState, aMetrics, aStatus)) {
+     return NS_OK;
+   }
+ 
+diff --git a/mozilla/layout/generic/nsFrame.cpp b/mozilla/layout/generic/nsFrame.cpp
+index 31e8d9f..9a2d23c 100644
+--- a/mozilla/layout/generic/nsFrame.cpp
++++ b/mozilla/layout/generic/nsFrame.cpp
+@@ -4056,7 +4056,8 @@ nsIFrame::CheckInvalidateSizeChange(const nsRect& aOldRect,
+ 
+ PRBool
+ nsFrame::IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
+-                            nsHTMLReflowMetrics& aMetrics)
++                            nsHTMLReflowMetrics& aMetrics,
++                            nsReflowStatus& aStatus)
+ {
+   if (aReflowState.mReflowDepth >  MAX_FRAME_DEPTH) {
+     NS_WARNING("frame tree too deep; setting zero size and returning");
+@@ -4070,6 +4071,16 @@ nsFrame::IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
+     aMetrics.mOverflowArea.y = 0;
+     aMetrics.mOverflowArea.width = 0;
+     aMetrics.mOverflowArea.height = 0;
++
++    if (GetNextInFlow()) {
++      // Reflow depth might vary between reflows, so we might have
++      // successfully reflowed and split this frame before.  If so, we
++      // shouldn't delete its continuations.
++      aStatus = NS_FRAME_NOT_COMPLETE;
++    } else {
++      aStatus = NS_FRAME_COMPLETE;
++    }
++
+     return PR_TRUE;
+   }
+   mState &= ~NS_FRAME_TOO_DEEP_IN_FRAME_TREE;
+diff --git a/mozilla/layout/generic/nsFrame.h b/mozilla/layout/generic/nsFrame.h
+index 334ddd0..7ae5cb9 100644
+--- a/mozilla/layout/generic/nsFrame.h
++++ b/mozilla/layout/generic/nsFrame.h
+@@ -388,13 +388,14 @@ public:
+    */
+   void CheckInvalidateSizeChange(nsHTMLReflowMetrics&     aNewDesiredSize);
+ 
+-  // Helper function that tests if the frame tree is too deep; if it
+-  // is it marks the frame as "unflowable" and zeros out the metrics
+-  // and returns PR_TRUE. Otherwise, the frame is unmarked
+-  // "unflowable" and the metrics are not touched and PR_FALSE is
+-  // returned.
++  // Helper function that tests if the frame tree is too deep; if it is
++  // it marks the frame as "unflowable", zeroes out the metrics, sets
++  // the reflow status, and returns PR_TRUE. Otherwise, the frame is
++  // unmarked "unflowable" and the metrics and reflow status are not
++  // touched and PR_FALSE is returned.
+   PRBool IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
+-                            nsHTMLReflowMetrics& aMetrics);
++                            nsHTMLReflowMetrics& aMetrics,
++                            nsReflowStatus& aStatus);
+ 
+   // Do the work for getting the parent style context frame so that
+   // other frame's |GetParentStyleContextFrame| methods can call this
+diff --git a/mozilla/layout/generic/nsInlineFrame.cpp b/mozilla/layout/generic/nsInlineFrame.cpp
+index d156d05..b0a55ec 100644
+--- a/mozilla/layout/generic/nsInlineFrame.cpp
++++ b/mozilla/layout/generic/nsInlineFrame.cpp
+@@ -363,8 +363,7 @@ nsInlineFrame::Reflow(nsPresContext*          aPresContext,
+     }
+   }
+ 
+-  if (IsFrameTreeTooDeep(aReflowState, aMetrics)) {
+-    aStatus = NS_FRAME_COMPLETE;
++  if (IsFrameTreeTooDeep(aReflowState, aMetrics, aStatus)) {
+     return NS_OK;
+   }
+ 
+-- 
+1.7.4.4
+

@@ -1,0 +1,125 @@
+From c4dceb0bb8ea41980548644060e9b63152b012c0 Mon Sep 17 00:00:00 2001
+From: Chris Double <chris.double@double.co.nz>
+Date: Mon, 21 Feb 2011 17:40:50 +1300
+Subject: Bug 623998 - Reduce frameset size limit - r=roc a1.9.1.18=dveditz
+
+---
+ content/html/content/public/nsIFrameSetElement.h   |    6 ++++
+ content/html/content/src/nsHTMLFrameSetElement.cpp |    5 +--
+ layout/generic/nsFrameSetFrame.cpp                 |   27 ++++++++++++++++++-
+ 3 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/content/html/content/public/nsIFrameSetElement.h b/mozilla/content/html/content/public/nsIFrameSetElement.h
+index 9a90820..563184b 100644
+--- a/mozilla/content/html/content/public/nsIFrameSetElement.h
++++ b/mozilla/content/html/content/public/nsIFrameSetElement.h
+@@ -66,6 +66,12 @@ struct nsFramesetSpec {
+ };
+ 
+ /**
++ * The maximum number of entries allowed in the frame set element row
++ * or column spec.
++ */
++#define NS_MAX_FRAMESET_SPEC_COUNT 16000
++
++/**
+  * This interface is used by the nsFramesetFrame to access the parsed
+  * values of the "rows" and "cols" attributes
+  */
+diff --git a/mozilla/content/html/content/src/nsHTMLFrameSetElement.cpp b/mozilla/content/html/content/src/nsHTMLFrameSetElement.cpp
+index 6a6c394..a29ad4f 100644
+--- a/mozilla/content/html/content/src/nsHTMLFrameSetElement.cpp
++++ b/mozilla/content/html/content/src/nsHTMLFrameSetElement.cpp
+@@ -322,12 +322,11 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
+   spec.StripChars(" \n\r\t\"\'");
+   spec.Trim(",");
+   
+-#define MAX_FRAMESET_SPEC_COUNT 100000
+   // Count the commas. Don't count more than X commas (bug 576447).
+-  PR_STATIC_ASSERT(MAX_FRAMESET_SPEC_COUNT * sizeof(nsFramesetSpec) < (1 << 30));
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT * sizeof(nsFramesetSpec) < (1 << 30));
+   PRInt32 commaX = spec.FindChar(sComma);
+   PRInt32 count = 1;
+-  while (commaX != kNotFound && count < MAX_FRAMESET_SPEC_COUNT) {
++  while (commaX != kNotFound && count < NS_MAX_FRAMESET_SPEC_COUNT) {
+     count++;
+     commaX = spec.FindChar(sComma, commaX + 1);
+   }
+diff --git a/mozilla/layout/generic/nsFrameSetFrame.cpp b/mozilla/layout/generic/nsFrameSetFrame.cpp
+index 956fdc3..6eccaba 100644
+--- a/mozilla/layout/generic/nsFrameSetFrame.cpp
++++ b/mozilla/layout/generic/nsFrameSetFrame.cpp
+@@ -352,13 +352,19 @@ nsHTMLFramesetFrame::Init(nsIContent*      aContent,
+   NS_ENSURE_SUCCESS(result, result);
+   result = ourContent->GetColSpec(&mNumCols, &colSpecs);
+   NS_ENSURE_SUCCESS(result, result);
++
++  // Maximum value of mNumRows and mNumCols is NS_MAX_FRAMESET_SPEC_COUNT
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nscoord));
+   mRowSizes  = new nscoord[mNumRows];
+   mColSizes  = new nscoord[mNumCols];
+   if (!mRowSizes || !mColSizes)
+     return NS_ERROR_OUT_OF_MEMORY; 
+ 
++  // Ensure we can't overflow numCells
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < PR_INT32_MAX / NS_MAX_FRAMESET_SPEC_COUNT);
+   PRInt32 numCells = mNumRows*mNumCols;
+ 
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nsHTMLFramesetBorderFrame*));
+   mVerBorders    = new nsHTMLFramesetBorderFrame*[mNumCols];  // 1 more than number of ver borders
+   if (!mVerBorders)
+     return NS_ERROR_OUT_OF_MEMORY;
+@@ -372,9 +378,15 @@ nsHTMLFramesetFrame::Init(nsIContent*      aContent,
+ 
+   for (int horX = 0; horX < mNumRows; horX++)
+     mHorBorders[horX]    = nsnull;
+-     
++ 
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
++                   < UINT_MAX / sizeof(PRInt32) / NS_MAX_FRAMESET_SPEC_COUNT); 
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
++                   < UINT_MAX / sizeof(nsFrameborder) / NS_MAX_FRAMESET_SPEC_COUNT); 
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
++                   < UINT_MAX / sizeof(nsBorderColor) / NS_MAX_FRAMESET_SPEC_COUNT); 
+   mChildTypes = new PRInt32[numCells]; 
+-  mChildFrameborder  = new nsFrameborder[numCells]; 
++  mChildFrameborder  = new nsFrameborder[numCells];
+   mChildBorderColors  = new nsBorderColor[numCells]; 
+   if (!mChildTypes || !mChildFrameborder || !mChildBorderColors)
+     return NS_ERROR_OUT_OF_MEMORY;
+@@ -547,6 +559,9 @@ void nsHTMLFramesetFrame::CalculateRowCol(nsPresContext*       aPresContext,
+                                           const nsFramesetSpec* aSpecs, 
+                                           nscoord*              aValues)
+ {
++  // aNumSpecs maximum value is NS_MAX_FRAMESET_SPEC_COUNT
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(PRInt32));
++
+   PRInt32  fixedTotal = 0;
+   PRInt32  numFixed = 0;
+   nsAutoArrayPtr<PRInt32> fixed(new PRInt32[aNumSpecs]);
+@@ -1040,6 +1055,11 @@ nsHTMLFramesetFrame::Reflow(nsPresContext*          aPresContext,
+   nsFrameborder           frameborder = GetFrameBorder();
+ 
+   if (firstTime) {
++    // Check for overflow in memory allocations using mNumCols and mNumRows
++    // which have a maxium value of NS_MAX_FRAMESET_SPEC_COUNT.
++    PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(PRBool));
++    PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nscolor));
++
+     verBordersVis = new PRBool[mNumCols];
+     NS_ENSURE_TRUE(verBordersVis, NS_ERROR_OUT_OF_MEMORY);
+     verBorderColors = new nscolor[mNumCols];
+@@ -1378,7 +1398,10 @@ nsHTMLFramesetFrame::RecalculateBorderResize()
+     return;
+   }
+ 
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < PR_INT32_MAX / NS_MAX_FRAMESET_SPEC_COUNT);
+   PRInt32 numCells = mNumRows * mNumCols; // max number of cells
++  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
++                   < UINT_MAX / sizeof(PRInt32) / NS_MAX_FRAMESET_SPEC_COUNT); 
+   nsAutoArrayPtr<PRInt32> childTypes(new PRInt32[numCells]);
+   if (NS_UNLIKELY(!childTypes)) {
+     return;
+-- 
+1.7.4.4
+
