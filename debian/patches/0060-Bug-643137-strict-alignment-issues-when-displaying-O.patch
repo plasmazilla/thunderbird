@@ -1,0 +1,30 @@
+From e1cd1a61c0115bfca18ba1555ac78c1dd983c182 Mon Sep 17 00:00:00 2001
+From: Landry Breuil <landry@openbsd.org>
+Date: Fri, 25 Mar 2011 04:04:18 -3600
+Subject: [PATCH] Bug 643137 - strict alignment issues when displaying
+ OpenType fonts on sparc64. r=roc
+
+---
+ gfx/ots/include/opentype-sanitiser.h |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/gfx/ots/include/opentype-sanitiser.h b/mozilla/gfx/ots/include/opentype-sanitiser.h
+index ad719c1..f913692 100644
+--- a/mozilla/gfx/ots/include/opentype-sanitiser.h
++++ b/mozilla/gfx/ots/include/opentype-sanitiser.h
+@@ -68,8 +68,10 @@ class OTSStream {
+     }
+ 
+     while (length >= 4) {
+-      chksum_ += ntohl(*reinterpret_cast<const uint32_t*>(
+-          reinterpret_cast<const uint8_t*>(data) + offset));
++      uint32_t tmp;
++      std::memcpy(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
++        sizeof(uint32_t));
++      chksum_ += ntohl(tmp);
+       length -= 4;
+       offset += 4;
+     }
+-- 
+1.7.4.4
+

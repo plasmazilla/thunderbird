@@ -57,6 +57,7 @@
 0057-Fix-unaligned-reads-in-qcms.patch
 0058-Use-errno.ENOENT-instead-of-2-in-JarMaker.py.patch
 0059-fix-forwarding-of-Simple-HTML-email.patch
+0060-Bug-643137-strict-alignment-issues-when-displaying-O.patch
 
 security/squeeze1/Bug-613376-r-josh-a1.9.1.16-dveditz.patch
 security/squeeze1/Properly-check-attribute-URLs-Bug-562547-r-jst-r-a-d.patch
