@@ -103,7 +103,6 @@ security/squeeze2/0012-Bug-634986.-Don-t-act-like-we-re-redirecting-if-we-d.patc
 security/squeeze2/0013-bug-635705.-r-bzbarsky-a-dveditz.patch
 security/squeeze2/0014-Fix-converter-stream-part-of-bug-638236.-r-bzbarsky-.patch
 security/squeeze2/0015-Set-correct-output-params-in-the-UTF-16-decoder.-Bug.patch
-security/squeeze2/0016-Bug-637957-Make-notifiers-strong-owners-of-mCallback.patch
 security/squeeze2/0017-Bug-637621-allow-selection-collapse-more-often-r-a-j.patch
 security/squeeze2/0018-Bug-637621-allow-selection-collapse-more-often-r-a-j.patch
 security/squeeze2/0019-bug-645565-don-t-stomp-previous-200-response-with-an.patch
