@@ -1,3 +1,20 @@
+icedove (3.0.11-1+squeeze2) stable-security; urgency=high
+
+  * [66361e1] backported patches from xulrunner fixes mfsa2011-{12-14,16}
+    - MFSA 2011-12 aka CVE-2011-0069, CVE-2011-0070, CVE-2011-0072,
+                       CVE-2011-0074, CVE-2011-0075, CVE-2011-0077,
+                       CVE-2011-0078, CVE-2011-0080:
+      Miscellaneous memory safety hazards (rv:2.0.1/ 1.9.2.17/ 1.9.1.19)
+    - MFSA 2011-13 aka CVE-2011-0065, CVE-2011-0066, CVE-2011-0073:
+      Multiple dangling pointer vulnerabilities
+    - MFSA 2011-14 aka CVE-2011-0067: Information stealing via form history
+    - MFSA 2011-16 aka CVE-2011-0071: Directory traversal in resource:
+      protocol
+  * [8e5f78f] gfx/ots/include/opentype-sanitiser.h: strict alignment issues
+    when displaying OpenType fonts.
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 03 May 2011 17:07:43 +0200
+
 icedove (3.0.11-1+squeeze1) stable-security; urgency=high
 
   * [2bf1366] backported patches from xulrunner fixes mfsa2011-{01-08,10}
