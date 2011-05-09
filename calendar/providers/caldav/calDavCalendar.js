@@ -77,6 +77,7 @@ function calDavCalendar() {
     this.mTargetCalendar = null;
     this.mQueuedQueries = [];
     this.mCtag = null;
+    this.mOldCtag = null;
 
     // By default, support both events and todos.
     this.mGenerallySupportedItemTypes = ["VEVENT", "VTODO"];
@@ -173,6 +174,7 @@ calDavCalendar.prototype = {
             try {
                 try {
                     this.mCtag = null;
+                    this.mOldCtag = null;
                     this.mTargetCalendar.deleteMetaData("ctag");
                 } catch(e) {
                     cal.ERROR(e);
@@ -343,6 +345,7 @@ calDavCalendar.prototype = {
     mQueuedQueries: null,
 
     mCtag: null,
+    mOldCtag: null,
 
     mTargetCalendar: null,
 
@@ -407,8 +410,6 @@ calDavCalendar.prototype = {
                 break;
             case "organizerCN":
                 return null; // xxx todo
-            case "cache.updateTimer":
-                return getPrefSafe("calendar.autorefresh.timeout");
             case "itip.transport":
                 if (this.hasAutoScheduling || this.hasScheduling) {
                     return this.QueryInterface(Components.interfaces.calIItipTransport);
@@ -997,6 +998,13 @@ calDavCalendar.prototype = {
      */
     notifyGetFailed: function notifyGetFailed(errorMsg, aListener, aChangeLogListener) {
          cal.WARN("CalDAV: Get failed: " + errorMsg);
+
+         // Revert the ctag, since something failed it is no longer valid.
+         this.mCtag = this.mOldCtag;
+         this.mTargetCalendar.setMetaData("ctag", this.mCtag);
+         this.mOldCtag = null;
+
+         // Notify changelog listener
          if (this.isCached && aChangeLogListener) {
              aChangeLogListener.onResult({ status: Components.results.NS_ERROR_FAILURE },
                                          Components.results.NS_ERROR_FAILURE);
@@ -1192,6 +1200,7 @@ calDavCalendar.prototype = {
             var ctag = multistatus..CS::getctag.toString();
             if (!ctag.length || ctag != thisCalendar.mCtag) {
                 // ctag mismatch, need to fetch calendar-data
+                thisCalendar.mOldCtag = thisCalendar.mCtag;
                 thisCalendar.mCtag = ctag;
                 thisCalendar.mTargetCalendar.setMetaData("ctag", ctag);
                 thisCalendar.getUpdatedItems(thisCalendar.calendarUri,
@@ -1432,6 +1441,7 @@ calDavCalendar.prototype = {
                 }
 
                 thisCalendar.mCtag = ctag;
+                thisCalendar.mOldCtag = null;
                 thisCalendar.mTargetCalendar.setMetaData("ctag", ctag);
                 if (thisCalendar.verboseLogging()) {
                     cal.LOG("CalDAV: initial ctag " + ctag + " for calendar " +
@@ -2179,7 +2189,10 @@ calDavCalendar.prototype = {
         return uriComponents.join("/");
     },
     isInbox: function caldav_isInbox(aString) {
-        return ((this.hasScheduling || this.hasAutoScheduling) && this.mInboxUrl &&
+        // Note: If you change this, make sure it really returns a boolean
+        // value and not null!
+        return ((this.hasScheduling || this.hasAutoScheduling) &&
+                (this.mInboxUrl != null) &&
                 aString.indexOf(this.mInboxUrl.spec) == 0);
     },
 

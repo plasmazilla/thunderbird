@@ -5926,10 +5926,18 @@ function escapeAddonURI(aItem, aAppVersion, aUpdateType, aURI, aDS)
 
   if (aDS.getItemProperty(aItem.id, "compatible") == "false")
     itemStatus += ",incompatible";
-  if (aDS.getItemProperty(aItem.id, "blocklisted") == "true")
-    itemStatus += ",blocklisted";
   if (aDS.getItemProperty(aItem.id, "satisfiesDependencies") == "false")
     itemStatus += ",needsDependencies";
+
+  var version = aDS.getItemProperty(aItem.id, "version");
+  if (!gBlocklist)
+    gBlocklist = Cc["@mozilla.org/extensions/blocklist;1"].
+                 getService(Ci.nsIBlocklistService);
+  var blockState = gBlocklist.getAddonBlocklistState(aItem.id, version);
+  if (blockState == Ci.nsIBlocklistService.STATE_BLOCKED)
+    itemStatus += ",blocklisted";
+  else if (blockState == Ci.nsIBlocklistService.STATE_SOFTBLOCKED)
+    itemStatus += ",softblocked";
 
   aURI = aURI.replace(/%ITEM_ID%/g, aItem.id);
   aURI = aURI.replace(/%ITEM_VERSION%/g, aItem.version);

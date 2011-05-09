@@ -306,7 +306,10 @@ $(IMPORT_LIBRARY): $(MAPFILE)
 	$(IMPLIB) $@ $(MAPFILE)
 else
 ifeq (,$(filter-out WIN95 WINCE WINMO,$(OS_TARGET)))
+# PDBs and import libraries need to depend on the shared library to
+# order dependencies properly.
 $(IMPORT_LIBRARY): $(SHARED_LIBRARY)
+$(SHARED_LIB_PDB): $(SHARED_LIBRARY)
 endif
 endif
 
@@ -458,6 +461,14 @@ $(filter $(OBJDIR)/%.$(OBJ_SUFFIX),$(OBJS)): $(OBJDIR)/%.$(OBJ_SUFFIX): $(DUMMY_
 ################################################################################
 # Special gmake rules.
 ################################################################################
+
+#
+# Disallow parallel builds with MSVC < 8 since it can't open the PDB file in
+# parallel.
+#
+ifeq (,$(filter-out 1200 1300 1310,$(MSC_VER)))
+.NOTPARALLEL:
+endif
 
 #
 # Re-define the list of default suffixes, so gmake won't have to churn through

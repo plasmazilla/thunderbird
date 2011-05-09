@@ -1015,8 +1015,9 @@ nsObjectLoadingContent::OnChannelRedirect(nsIChannel *aOldChannel,
                                           nsIChannel *aNewChannel,
                                           PRUint32    aFlags)
 {
-  // If we're already busy with a new load, cancel the redirect
-  if (aOldChannel != mChannel) {
+  // If we're already busy with a new load, or have no load at all,
+  // cancel the redirect.
+  if (!mChannel || aOldChannel != mChannel) {
     return NS_BINDING_ABORTED;
   }
 

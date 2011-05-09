@@ -444,7 +444,7 @@ var gUpdates = {
         if (this.shouldCheckAddonCompatibility) {
           var incompatCheckPage = document.getElementById("incompatibleCheck");
           incompatCheckPage.setAttribute("next", this.updatesFoundPageId);
-          return "incompatCheckPage";
+          return "incompatibleCheck";
         }
         return this.updatesFoundPageId;
       }

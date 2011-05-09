@@ -3153,21 +3153,33 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
     }
 
 #if defined(MOZ_UPDATER)
-  // Check for and process any available updates
-  nsCOMPtr<nsIFile> updRoot;
-  PRBool persistent;
-  rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
-                           getter_AddRefs(updRoot));
-  // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
-  if (NS_FAILED(rv))
-    updRoot = dirProvider.GetAppDir();
+    // Check for and process any available updates
+    nsCOMPtr<nsIFile> updRoot;
+    PRBool persistent;
+    rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                             getter_AddRefs(updRoot));
+    // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
+    if (NS_FAILED(rv))
+      updRoot = dirProvider.GetAppDir();
 
-  ProcessUpdates(dirProvider.GetGREDir(),
-                 dirProvider.GetAppDir(),
-                 updRoot,
-                 gRestartArgc,
-                 gRestartArgv,
-                 appData.version);
+    // Support for processing an update and exiting. The MOZ_PROCESS_UPDATES
+    // environment variable will be part of the updater's environment and the
+    // application that is relaunched by the updater. When the application is
+    // relaunched by the updater it will be removed below and the application
+    // will exit.
+    if (CheckArg("process-updates")) {
+      PR_SetEnv("MOZ_PROCESS_UPDATES=1");
+    }
+    ProcessUpdates(dirProvider.GetGREDir(),
+                   dirProvider.GetAppDir(),
+                   updRoot,
+                   gRestartArgc,
+                   gRestartArgv,
+                   appData.version);
+    if (PR_GetEnv("MOZ_PROCESS_UPDATES")) {
+      PR_SetEnv("MOZ_PROCESS_UPDATES=");
+      return 0;
+    }
 #endif
 
     nsCOMPtr<nsIProfileLock> profileLock;

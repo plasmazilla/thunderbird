@@ -2481,18 +2481,14 @@ nsPluginHost::GetPluginName(nsIPluginInstance *aPluginInstance)
 
 PRBool nsPluginHost::IsRunningPlugin(nsPluginTag * plugin)
 {
-  if (!plugin)
+  if (!plugin || !plugin->mEntryPoint || !plugin->mLibrary) {
     return PR_FALSE;
+  }
 
-  // we can check for mLibrary to be non-zero and then ask nsIPluginInstance
-  // in nsPluginInstanceTagList to see if plugin with matching mime type is not stopped
-  if (!plugin->mLibrary)
-    return PR_FALSE;
-
-  for (int i = 0; i < plugin->mVariants; i++) {
-    nsPluginInstanceTag * p = mPluginInstanceTagList.find(plugin->mMimeTypeArray[i]);
-    if (p && !p->mStopped)
+  for (nsPluginInstanceTag* ap = mPluginInstanceTagList.mFirst; ap; ap = ap->mNext) {
+    if (ap->mPluginTag == plugin && !ap->mStopped) {
       return PR_TRUE;
+    }
   }
 
   return PR_FALSE;
