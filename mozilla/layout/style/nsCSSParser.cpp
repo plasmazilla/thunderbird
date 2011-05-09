@@ -1310,7 +1310,15 @@ CSSParserImpl::ParseSelectorString(const nsSubstring& aSelectorString,
 
   PRBool success = ParseSelectorList(*aSelectorList, PR_FALSE);
   nsresult rv = mScanner.GetLowLevelError();
-  OUTPUT_ERROR();
+  // We deliberately do not call OUTPUT_ERROR here, because all our
+  // callers map a failure return to a JS exception, and if that JS
+  // exception is caught, people don't want to see parser diagnostics;
+  // see e.g. http://bugs.jquery.com/ticket/7535
+  // It would be nice to be able to save the parser diagnostics into
+  // the exception, so that if it _isn't_ caught we can report them
+  // along with the usual uncaught-exception message, but we don't
+  // have any way to do that at present; see bug 631621.
+  CLEAR_ERROR();
   ReleaseScanner();
 
   mUnresolvablePrefixException = PR_FALSE;

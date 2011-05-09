@@ -420,6 +420,10 @@ nsresult imgContainer::InternalAddFrameHelper(PRUint32 framenum, imgFrame *aFram
 
   frame->GetImageData(imageData, imageLength);
 
+  // We are in the middle of decoding. This will be unlocked when we finish the
+  // decoder->Write() call.
+  frame->LockImageData();
+
   mFrames.InsertElementAt(framenum, frame.forget());
   mNumFrames++;
 
@@ -436,6 +440,9 @@ nsresult imgContainer::InternalAddFrame(PRUint32 framenum,
                                         PRUint32 **paletteData,
                                         PRUint32 *paletteLength)
 {
+  // We assume that we're in the middle of decoding because we unlock the
+  // previous frame when we create a new frame, and only when decoding do we
+  // lock frames.
   if (framenum > PRUint32(mNumFrames))
     return NS_ERROR_INVALID_ARG;
 
@@ -444,6 +451,13 @@ nsresult imgContainer::InternalAddFrame(PRUint32 framenum,
 
   nsresult rv = frame->Init(aX, aY, aWidth, aHeight, aFormat, aPaletteDepth);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  // We know we are in a decoder. Therefore, we must unlock the previous frame
+  // when we move on to decoding into the next frame.
+  if (mFrames.Length() > 0) {
+    imgFrame *prevframe = mFrames.ElementAt(mFrames.Length() - 1);
+    prevframe->UnlockImageData();
+  }
 
   if (mFrames.Length() == 0) {
     return InternalAddFrameHelper(framenum, frame.forget(), imageData, imageLength, 
@@ -1864,9 +1878,26 @@ imgContainer::ReloadImages(void)
             mRestoreData.Length()));
   }
 
+  // The decoder will start decoding into the current frame (if we have one).
+  // When it needs to add another frame, we will unlock this frame and lock the
+  // new frame.
+  // Our invariant is that, while in the decoder, the last frame is always
+  // locked, and all others are unlocked.
+  if (mFrames.Length() > 0) {
+    imgFrame *curframe = mFrames.ElementAt(mFrames.Length() - 1);
+    curframe->LockImageData();
+  }
+
   // |WriteFrom()| may fail if the original data is broken.
   PRUint32 written;
   (void)decoder->WriteFrom(stream, mRestoreData.Length(), &written);
+
+  // We unlock the current frame, even if that frame is different from the
+  // frame we entered the decoder with. (See above.)
+  if (mFrames.Length() > 0) {
+    imgFrame *curframe = mFrames.ElementAt(mFrames.Length() - 1);
+    curframe->UnlockImageData();
+  }
 
   result = decoder->Flush();
   NS_ENSURE_SUCCESS(result, result);

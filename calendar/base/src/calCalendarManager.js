@@ -69,6 +69,20 @@ function flushPrefs() {
               .savePrefFile(null);
 }
 
+/**
+ * Callback object for the refresh timer. Should be called as an object, i.e
+ * let foo = new timerCallback(calendar);
+ *
+ * @param aCalendar     The calendar to refresh on notification
+ */
+function timerCallback(aCalendar) {
+    this.notify = function refreshNotify(aTimer) {
+        if (!aCalendar.getProperty("disabled") && aCalendar.canRefresh) {
+            aCalendar.refresh();
+        }
+    }
+}
+
 function calCalendarManager() {
     this.wrappedJSObject = this;
     this.mObservers = new calListenerBag(Components.interfaces.calICalendarManagerObserver);
@@ -132,9 +146,7 @@ calCalendarManager.prototype = {
         this.checkAndMigrateDB();
         this.mCache = null;
         this.mCalObservers = null;
-        this.mRefreshTimer = null;
-        this.setUpPrefObservers();
-        this.setUpRefreshTimer();
+        this.mRefreshTimer = {};
         this.setupOfflineObservers();
         if (cal.isSunbird()) {
             this.loginMasterPassword();
@@ -149,7 +161,6 @@ calCalendarManager.prototype = {
             cal.removeObserver(this.mCalObservers[cal.id]);
         }
 
-        this.cleanupPrefObservers();
         this.cleanupOfflineObservers();
 
         var observerSvc = Components.classes["@mozilla.org/observer-service;1"]
@@ -158,49 +169,6 @@ calCalendarManager.prototype = {
         observerSvc.removeObserver(this, "profile-after-change");
         observerSvc.removeObserver(this, "profile-before-change");
         observerSvc.removeObserver(this, "em-action-requested");
-    },
-
-    setUpPrefObservers: function ccm_setUpPrefObservers() {
-        var prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefBranch2);
-        prefBranch.addObserver("calendar.autorefresh.enabled", this, false);
-        prefBranch.addObserver("calendar.autorefresh.timeout", this, false);
-    },
-
-    cleanupPrefObservers: function ccm_cleanupPrefObservers() {
-        var prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefBranch2);
-        prefBranch.removeObserver("calendar.autorefresh.enabled", this);
-        prefBranch.removeObserver("calendar.autorefresh.timeout", this);
-    },
-
-    setUpRefreshTimer: function ccm_setUpRefreshTimer() {
-        if (this.mRefreshTimer) {
-            this.mRefreshTimer.cancel();
-        }
-
-        var prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
-                                .getService(Components.interfaces.nsIPrefBranch);
-
-        var refreshEnabled = false;
-        try {
-            var refreshEnabled = prefBranch.getBoolPref("calendar.autorefresh.enabled");
-        } catch (e) {
-        }
-
-        // Read and convert the minute-based pref to msecs
-        var refreshTimeout = 0;
-        try {
-            var refreshTimeout = prefBranch.getIntPref("calendar.autorefresh.timeout") * 60000;
-        } catch (e) {
-        }
-
-        if (refreshEnabled && refreshTimeout > 0) {
-            this.mRefreshTimer = Components.classes["@mozilla.org/timer;1"]
-                                    .createInstance(Components.interfaces.nsITimer);
-            this.mRefreshTimer.init(this, refreshTimeout,
-                                   Components.interfaces.nsITimer.TYPE_REPEATING_SLACK);
-        }
     },
 
     setupOfflineObservers: function ccm_setupOfflineObservers() {
@@ -248,12 +216,6 @@ calCalendarManager.prototype = {
                     if (!cal.getProperty("disabled") && cal.canRefresh) {
                         cal.refresh();
                     }
-                }
-                break;
-            case "nsPref:changed":
-                if (aData == "calendar.autorefresh.enabled" ||
-                    aData == "calendar.autorefresh.timeout") {
-                    this.setUpRefreshTimer();
                 }
                 break;
             case "network:offline-status-changed":
@@ -446,9 +408,6 @@ calCalendarManager.prototype = {
                         case "lightning-main-default":
                         case "calendar-main-default":
                             cal.setPref(getPrefBranchFor(id) + name, value == "true");
-                            break;
-                        case "cache.updatetimer":
-                            cal.setPref(getPrefBranchFor(id) + "cache.updateTimer", Number(value));
                             break;
                         case "backup-time":
                         case "uniquenum":
@@ -704,6 +663,39 @@ calCalendarManager.prototype = {
             this.mReadonlyCalendarCount++;
         }
         this.mCalendarCount++;
+
+        // Set up the refresh timer
+        this.setupRefreshTimer(calendar);
+    },
+
+    setupRefreshTimer: function setupRefreshTimer(aCalendar) {
+        // Add the refresh timer for this calendar
+        let refreshInterval = aCalendar.getProperty("refreshInterval");
+        if (refreshInterval === null) {
+            // Default to 30 minutes, in case the value is missing
+            refreshInterval = 30;
+        }
+
+        this.clearRefreshTimer(aCalendar);
+
+        if (refreshInterval > 0) {
+            this.mRefreshTimer[aCalendar.id] =
+                Components.classes["@mozilla.org/timer;1"]
+                          .createInstance(Components.interfaces.nsITimer);
+
+            this.mRefreshTimer[aCalendar.id]
+                .initWithCallback(new timerCallback(aCalendar),
+                                  refreshInterval * 60000,
+                                  Components.interfaces.nsITimer.TYPE_REPEATING_SLACK);
+        }
+    },
+
+    clearRefreshTimer: function clearRefreshTimer(aCalendar) {
+        if (aCalendar.id in this.mRefreshTimer &&
+            this.mRefreshTimer[aCalendar.id]) {
+            this.mRefreshTimer[aCalendar.id].cancel();
+            delete this.mRefreshTimer[aCalendar.id]
+        }
     },
 
     unregisterCalendar: function(calendar) {
@@ -733,6 +725,8 @@ calCalendarManager.prototype = {
             this.mNetworkCalendarCount--;
         }
         this.mCalendarCount--;
+
+        this.clearRefreshTimer(calendar);
     },
 
     deleteCalendar: function(calendar) {
@@ -932,6 +926,9 @@ calMgrCalendarObserver.prototype = {
             case "readOnly":
                 this.calMgr.mReadonlyCalendarCount += (aValue ? 1 : -1);
                 break;
+            case "refreshInterval":
+                this.calMgr.setupRefreshTimer(aCalendar);
+                break;
             case "cache.enabled":
                 aOldValue = aOldValue || false;
                 aValue = aValue || false;
@@ -962,10 +959,13 @@ calMgrCalendarObserver.prototype = {
                                         "disabled",
                                         "auto-enabled",
                                         "cache.enabled",
+                                        "refreshInterval",
                                         "suppressAlarms",
                                         "calendar-main-in-composite",
-                                        "calendar-main-default"];
-                    for each ( prop in propsToCopy ) {
+                                        "calendar-main-default",
+                                        "readOnly",
+                                        "imip.identity.key"];
+                    for each (let prop in propsToCopy ) {
                       newCal.setProperty(prop,
                                          aCalendar.getProperty(prop));
                     }

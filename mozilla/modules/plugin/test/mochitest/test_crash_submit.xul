@@ -97,7 +97,7 @@ function runTests() {
   var prefs = Components.classes['@mozilla.org/preferences-service;1']
     .getService(Components.interfaces.nsIPrefBranch);
   if (!prefs.getBoolPref('dom.ipc.plugins.enabled')) {
-    ok(true, "Skipping this test when IPC plugins are not enabled.");
+    todo(false, "Skipping this test when IPC plugins are not enabled.");
     SimpleTest.finish();
     return;
   }

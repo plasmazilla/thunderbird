@@ -136,9 +136,8 @@ DEFINES += -DBINPATH=bin
 endif
 
 libs::
-	$(MAKE) -C $(DEPTH)/browser/locales langpack PKG_LANGPACK_PATH=
+	$(MAKE) -C $(DEPTH)/browser/locales langpack
 
-UPLOAD_EXTRA_FILES += $(PKG_LANGPACK_BASENAME).xpi
 
 installer:: removed-files
 ifdef INSTALLER_DIR

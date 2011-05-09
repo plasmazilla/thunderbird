@@ -650,6 +650,14 @@ description.tooltipBody {
     display: none;
 }
 
+#calendar-item-context-menu-attendance-menu[itemType="single"] > menupopup > *[scope="all-occurrences"] {
+    display: none;
+}
+
+.calendar-context-heading-label {
+    font-weight: bold;
+}
+
 calendar-event-box,
 calendar-editable-item,
 calendar-month-day-box-item {
@@ -679,9 +687,10 @@ calendar-month-day-box-item[invitation-status="DECLINED"] {
 
 /* Navigation controls for the views */
 #calendar-nav-control {
-    background-color: white;
+    background-color: #E8E8E8;
     border: solid ThreeDShadow;
     border-width: 1px 0 0 1px;
+    padding-top: 1px;
 }
 
 #view-deck {
@@ -690,26 +699,24 @@ calendar-month-day-box-item[invitation-status="DECLINED"] {
     border-width: 0 0 0 1px;
 }
 
-.view-scrollbarspacer {
-    border-bottom: 1px solid #D2D2D2;
-    margin-bottom: 4px;
-}
-
 .tabs-left,
 .tabs-right {
-    border-bottom: 2px solid #D2D2D2;
+    border-bottom: 1px solid #D2D2D2;
 }
 
 tab[calview] {
     -moz-appearance: none;
     background-image: url("chrome://calendar/skin/calendar-day-label-back-vertical.png");
-    background-color: #F2F2F2;
+    background-color: #CCCCCC;
     color: #2E4E73;
-    border-bottom: 1px solid #D2D2D2;
+    border: 1px solid #BDBDBD;
     -moz-border-radius-topleft: 4px;
     -moz-border-radius-topright: 4px;  
-    -moz-border-right-colors: #D2D2D2 transparent;
-    -moz-border-left-colors: transparent #D2D2D2;  
+    -moz-border-radius-bottomleft: 0px;
+    -moz-border-radius-bottomright: 0px;
+    -moz-border-left-colors: #BDBDBD;
+    -moz-border-top-colors: #BDBDBD;
+    -moz-border-right-colors: #BDBDBD;
     font-size: 14px;
     margin-top: 0px;
     -moz-user-focus: normal;  
@@ -734,7 +741,6 @@ tab[calview] > .tab-middle {
     font-weight: normal;
     font-size: 14px;
     color: #2E4E73;
-    margin-bottom: -1px;
 }
 
 .view-header[type="end"] {
@@ -748,43 +754,38 @@ tab[calview] > .tab-middle {
     border-bottom: 1px solid #D2D2D2;
     padding-bottom: 1px;
 }
+
 .navigation-bottombox {
     min-height: 4px;
     max-height: 4px;
+    background-color: white;
 }
 
-.navigation-bottombox[type="end"] {
-    border-right: 1px solid #D2D2D2;
+.navigation-spacer-box {
+    min-width: 4px;
+    border-bottom: 1px solid #D2D2D2;
 }
 
 .view-navigation-button {
     -moz-user-focus: normal;
     -moz-appearance: toolbarbutton;
-    margin-top: 3px;
+    min-width: 22px;
     -moz-margin-start: 2px;
     -moz-margin-end: 2px;
-    margin-bottom: 0px;
-    padding: 4px;
 }
 
 .today-navigation-button {
     -moz-user-focus: normal;
     -moz-appearance: toolbarbutton;
-    margin-top: 3px;
     -moz-margin-start: 2px;
     -moz-margin-end: 2px;
-    margin-bottom: 0px;
-    padding: 3px;
-    padding-bottom: 5px;
+    padding-top: 0px !important; /* a workaround to center the label vertically on Windows */
     color: #2E4E73;
+    font-size: 14px;
 }
 
 .view-navigation-button > .toolbarbutton-text {
     display: none;
-}
-
-.view-navigation-button > .toolbarbutton-icon {
-    margin: 1px;
 }
 
 .today-navigation-button > .toolbarbutton-icon {

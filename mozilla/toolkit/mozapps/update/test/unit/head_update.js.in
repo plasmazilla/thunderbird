@@ -529,14 +529,13 @@ function checkFilesAfterUpdateFailure(aTestID, aTestFiles) {
  *          A string used to identify the name of directories for a test.
  */
 function checkFilesAfterUpdateCommon(aTestID) {
-// Skipping test for patch files since bug 316890 isn't fixed on 1.9.2
-//  logTestInfo("testing patch files should not be left behind");
-//  let updatesDir = do_get_file(aTestID + UPDATES_DIR_SUFFIX, true);
-//  let entries = updatesDir.QueryInterface(AUS_Ci.nsIFile).directoryEntries;
-//  while (entries.hasMoreElements()) {
-//    let entry = entries.getNext().QueryInterface(AUS_Ci.nsIFile);
-//    do_check_neq(getFileExtension(entry), "patch");
-//  }
+  logTestInfo("testing patch files should not be left behind");
+  let updatesDir = do_get_file(aTestID + UPDATES_DIR_SUFFIX, true);
+  let entries = updatesDir.QueryInterface(AUS_Ci.nsIFile).directoryEntries;
+  while (entries.hasMoreElements()) {
+    let entry = entries.getNext().QueryInterface(AUS_Ci.nsIFile);
+    do_check_neq(getFileExtension(entry), "patch");
+  }
 
   logTestInfo("testing backup files should not be left behind");
   let applyToDir = do_get_file(aTestID + APPLY_TO_DIR_SUFFIX, true);

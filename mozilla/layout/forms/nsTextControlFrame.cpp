@@ -465,7 +465,11 @@ nsTextInputListener::EditAction()
   mFrame->SetValueChanged(PR_TRUE);
 
   // Fire input event
-  mFrame->FireOnInput();
+  nsCOMPtr<nsIEditor_MOZILLA_1_9_2_BRANCH> editor192 = do_QueryInterface(editor);
+  NS_ASSERTION(editor192, "Something is very wrong!");
+  PRBool trusted = PR_FALSE;
+  editor192->GetLastKeypressEventTrusted(&trusted);
+  mFrame->FireOnInput(trusted);
 
   return NS_OK;
 }
@@ -2479,14 +2483,14 @@ nsTextControlFrame::GetMaxLength(PRInt32* aSize)
 
 // this is where we propagate a content changed event
 void
-nsTextControlFrame::FireOnInput()
+nsTextControlFrame::FireOnInput(PRBool aTrusted)
 {
   if (!mNotifyOnInput)
     return; // if notification is turned off, do nothing
   
   // Dispatch the "input" event
   nsEventStatus status = nsEventStatus_eIgnore;
-  nsUIEvent event(PR_TRUE, NS_FORM_INPUT, 0);
+  nsUIEvent event(aTrusted, NS_FORM_INPUT, 0);
 
   // Have the content handle the event, propagating it according to normal
   // DOM rules.
