@@ -19,6 +19,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Martin Schroeder <mschroeder@mozilla.x-home.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -76,6 +77,11 @@ var calendarController = {
         "calendar_toggle_orientation_command": true,
         "calendar_toggle_workdays_only_command": true,
 
+        "calendar_day-view_command": true,
+        "calendar_week-view_command": true,
+        "calendar_multiweek-view_command": true,
+        "calendar_month-view_command": true,
+
         "calendar_task_filter_command": true,
         "calendar_reload_remote_calendars": true,
         "calendar_show_unifinder_command": true,
@@ -92,6 +98,8 @@ var calendarController = {
         "calendar_general-priority_command": true,
         "calendar_general-progress_command": true,
         "calendar_task_category_command": true,
+
+        "calendar_attendance_command": true,
 
         // Pseudo commands
         "calendar_in_foreground": true,
@@ -179,6 +187,13 @@ var calendarController = {
             case "calendar_reload_remote_calendar":
                 return !this.no_network_calendars && !this.offline;
 
+            case "calendar_attendance_command":
+                // Small hack, we want to hide instead of disable.
+                let attendSel = this.item_selected && this.selected_events_invitation;
+                setBooleanAttribute("calendar_attendance_command", "hidden", !attendSel);
+                return attendSel;
+                break;
+
             // The following commands all just need the calendar in foreground,
             // make sure you take care when changing things here.
             case "calendar_view_next_command":
@@ -190,6 +205,10 @@ var calendarController = {
 
             // The following commands need calendar mode, be careful when
             // changing things.
+            case "calendar_day-view_command":
+            case "calendar_week-view_command":
+            case "calendar_multiweek-view_command":
+            case "calendar_month-view_command":
             case "calendar_show_unifinder_command":
             case "calendar_mode_calendar":
                 return this.isInMode("calendar");
@@ -364,6 +383,23 @@ var calendarController = {
             case "calendar_toggle_workdays_only_command":
                 toggleWorkdaysOnly();
                 break;
+
+            case "calendar_day-view_command":
+                switchCalendarView("day", true);
+                break;
+            case "calendar_week-view_command":
+                switchCalendarView("week", true);
+                break;
+            case "calendar_multiweek-view_command":
+                switchCalendarView("multiweek", true);
+                break;
+            case "calendar_month-view_command":
+                switchCalendarView("month", true);
+                break;
+            case "calendar_attendance_command":
+                // This command is actually handled inline, since it takes a value
+                break;
+
             default:
                 if (this.defaultController && !this.isCalendarInForeground()) {
                     // If calendar is not in foreground, let the default controller take
@@ -401,9 +437,11 @@ var calendarController = {
         var selectedItems = aEvent.detail;
         calendarController.item_selected = selectedItems && (selectedItems.length > 0);
 
-        var selLength = (selectedItems === undefined ? 0 : selectedItems.length);
-        var selected_events_readonly = 0;
-        var selected_events_requires_network = 0;
+        let selLength = (selectedItems === undefined ? 0 : selectedItems.length);
+        let selected_events_readonly = 0;
+        let selected_events_requires_network = 0;
+        let selected_events_invitation = 0;
+
         if (selLength > 0) {
             for each (var item in selectedItems) {
                 if (item.calendar.readOnly) {
@@ -411,6 +449,17 @@ var calendarController = {
                 }
                 if (item.calendar.getProperty("requiresNetwork")) {
                     selected_events_requires_network++;
+                }
+
+                if (cal.isInvitation(item)) {
+                    selected_events_invitation++;
+                } else if (item.organizer) {
+                    // If we are the organizer and there are attendees, then
+                    // this is likely also an invitation.
+                    let calOrgId = item.calendar.getProperty("organizerId");
+                    if (item.organizer.id == calOrgId && item.getAttendees({}).length) {
+                        selected_events_invitation++;
+                    }
                 }
             }
         }
@@ -420,6 +469,9 @@ var calendarController = {
 
         calendarController.selected_events_requires_network =
               (selected_events_requires_network == selLength);
+        calendarController.selected_events_invitation =
+              (selected_events_invitation == selLength);
+
         calendarController.updateCommands();
         calendarController2.updateCommands();
         if(!isSunbird()) {
@@ -435,6 +487,7 @@ var calendarController = {
     item_selected: false,
     selected_events_readonly: false,
     selected_events_requires_network: false,
+    selected_events_invitation: false,
 
     /**
      * Returns a boolean indicating if its possible to write items to any
@@ -758,6 +811,40 @@ function setupContextItemType(event, items) {
         event.target.removeAttribute("type");
         adaptModificationMenuItem("calendar-item-context-menu-delete-menuitem", "Item");
     }
+
+    let menu = document.getElementById("calendar-item-context-menu-attendance-menu");
+    let allSingle = items.every(function(x) !x.recurrenceId);
+    setElementValue(menu, allSingle ? "single" : "recurring", "itemType");
+
+    // Set up the attendance menu
+    function getInvStat(item) {
+        let attendee = null;
+        if (cal.isInvitation(item)) {
+            attendee = cal.getInvitedAttendee(item);
+        } else if (item.organizer) {
+            let calOrgId = item.calendar.getProperty("organizerId");
+            if (calOrgId == item.organizer.id && item.getAttendees({}).length) {
+                attendee = item.organizer;
+            }
+        }
+        return attendee && attendee.participationStatus;
+    }
+
+    let firstStatusOccurrences = items.length && getInvStat(items[0]);
+    let firstStatusParents = items.length && getInvStat(items[0].parentItem);
+    let sameStatusOccurrences = items.every(function (x) getInvStat(x) == firstStatusOccurrences);
+    let sameStatusParents = items.every(function (x) getInvStat(x.parentItem) == firstStatusParents)
+
+    let occurrenceChildren = menu.getElementsByAttribute("value", firstStatusOccurrences);
+    let parentsChildren = menu.getElementsByAttribute("value", firstStatusParents);
+    if (sameStatusOccurrences && occurrenceChildren[0]) {
+        occurrenceChildren[0].setAttribute("checked", "true");
+    }
+
+    if (sameStatusParents && parentsChildren[1]) {
+        parentsChildren[1].setAttribute("checked", "true");
+    }
+
     return true;
 }
 

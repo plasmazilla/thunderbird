@@ -1039,8 +1039,7 @@ nsresult nsMsgMdnGenerator::InitAndProcess(PRBool *needToAskUser)
             else
             {
                 *needToAskUser = PR_FALSE;
-                rv = CreateMdnMsg();
-                UserAgreed();
+                rv = UserAgreed();
             }
         }
     }

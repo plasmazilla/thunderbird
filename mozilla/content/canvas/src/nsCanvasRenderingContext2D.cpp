@@ -940,6 +940,9 @@ nsCanvasRenderingContext2D::InitializeWithSurface(nsIDocShell *docShell, gfxASur
     mSaveCount = 0;
 
     ContextState *state = mStyleStack.AppendElement();
+    if (!state) {
+        return NS_ERROR_OUT_OF_MEMORY;
+    }
     state->globalAlpha = 1.0;
 
     state->colorStyles[STYLE_FILL] = NS_RGB(0,0,0);
@@ -1106,7 +1109,9 @@ NS_IMETHODIMP
 nsCanvasRenderingContext2D::Save()
 {
     ContextState state = CurrentState();
-    mStyleStack.AppendElement(state);
+    if (!mStyleStack.AppendElement(state)) {
+        return NS_ERROR_OUT_OF_MEMORY;
+    }
     mThebes->Save();
     mSaveCount++;
     return NS_OK;

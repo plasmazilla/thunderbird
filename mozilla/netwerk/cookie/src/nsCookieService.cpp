@@ -921,10 +921,10 @@ nsCookieService::Add(const nsACString &aDomain,
                      PRBool            aIsSession,
                      PRInt64           aExpiry)
 {
-  // empty domains are acceptable (e.g. file:// URI's), but domains containing
-  // a trailing '.' will break our domainwalking code.
-  NS_ENSURE_TRUE(aDomain.IsEmpty() || aDomain.Last() != '.',
-                 NS_ERROR_INVALID_ARG);
+  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
+  // '.'. 
+  NS_ENSURE_TRUE(aDomain.IsEmpty() ||
+    !(aDomain.Length() == 1 && aDomain.Last() == '.'), NS_ERROR_INVALID_ARG);
 
   PRInt64 currentTimeInUsec = PR_Now();
 
@@ -950,10 +950,10 @@ nsCookieService::Remove(const nsACString &aHost,
                         const nsACString &aPath,
                         PRBool           aBlocked)
 {
-  // empty domains are acceptable (e.g. file:// URI's), but domains containing
-  // a trailing '.' will break our domainwalking code.
-  NS_ENSURE_TRUE(aHost.IsEmpty() || aHost.Last() != '.',
-                 NS_ERROR_INVALID_ARG);
+  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
+  // '.'.
+  NS_ENSURE_TRUE(aHost.IsEmpty() ||
+    !(aHost.Length() == 1 && aHost.Last() == '.'), NS_ERROR_INVALID_ARG);
 
   nsListIter matchIter;
   if (FindCookie(PromiseFlatCString(aHost),
@@ -1256,8 +1256,6 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
     COOKIE_LOGFAILURE(GET_COOKIE, aHostURI, nsnull, "couldn't get host/path from URI");
     return;
   }
-  // trim trailing dots
-  hostFromURI.Trim(".");
 
   // block any URIs without a host that aren't file:// URIs
   if (hostFromURI.IsEmpty()) {
@@ -1268,6 +1266,10 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
       return;
     }
   }
+
+  // aHostURI may be the string '.'. If so, fail.
+  if (hostFromURI.Length() == 1 && hostFromURI.Last() == '.')
+    return;
 
   // insert a leading dot, so we begin the hash lookup with the
   // equivalent domain cookie host
@@ -1341,7 +1343,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
         stale = PR_TRUE;
     }
 
-    if (!nextDot)
+    if (!nextDot || *(nextDot + 1) == '.')
       break;
 
     currentDot = nextDot;
@@ -1855,9 +1857,6 @@ nsCookieService::IsForeign(nsIURI *aHostURI,
     // assume foreign
     return PR_TRUE;
   }
-  // trim trailing dots
-  currentHost.Trim(".");
-  firstHost.Trim(".");
 
   // fast path: check if the two hosts are identical.
   // this also covers two special cases:
@@ -1881,7 +1880,6 @@ nsCookieService::IsForeign(nsIURI *aHostURI,
     // URI is an IP, eTLD, or something else went wrong - assume foreign
     return PR_TRUE;
   }  
-  baseDomain.Trim(".");
 
   // ensure the host domain is derived from the base domain.
   // we prepend dots before the comparison to ensure e.g.
@@ -1962,8 +1960,6 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
   if (NS_FAILED(aHostURI->GetAsciiHost(hostFromURI))) {
     return PR_FALSE;
   }
-  // trim trailing dots
-  hostFromURI.Trim(".");
 
   // block any URIs without a host that aren't file:// URIs
   if (hostFromURI.IsEmpty()) {
@@ -1973,9 +1969,18 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
       return PR_FALSE;
   }
 
+  // aHostURI may be the string '.'. If so, fail.
+  if (hostFromURI.Length() == 1 && hostFromURI.Last() == '.')
+    return PR_FALSE;
+
   // if a domain is given, check the host has permission
   if (!aCookieAttributes.host.IsEmpty()) {
-    aCookieAttributes.host.Trim(".");
+    // Tolerate leading '.' characters, but not if it's otherwise an empty host.
+    if (aCookieAttributes.host.Length() > 1 &&
+        aCookieAttributes.host.First() == '.') {
+      aCookieAttributes.host.Cut(0, 1);
+    }
+
     // switch to lowercase now, to avoid case-insensitive compares everywhere
     ToLowerCase(aCookieAttributes.host);
 
@@ -1984,14 +1989,14 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
     // represents the lowest level domain a cookie can be set for.
     nsCAutoString baseDomain;
     rv = mTLDService->GetBaseDomain(aHostURI, 0, baseDomain);
-    baseDomain.Trim(".");
     if (NS_FAILED(rv)) {
       // check whether the host is an IP address, and leave the cookie as
       // a non-domain one. this will require an exact host match for the cookie,
       // so we eliminate any chance of IP address funkiness (e.g. the alias 127.1
       // domain-matching 99.54.127.1). bug 105917 originally noted the
       // requirement to deal with IP addresses.
-      if (rv == NS_ERROR_HOST_IS_IP_ADDRESS)
+      if (rv == NS_ERROR_HOST_IS_IP_ADDRESS ||
+          rv == NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS)
         return hostFromURI.Equals(aCookieAttributes.host);
 
       return PR_FALSE;
@@ -2192,6 +2197,11 @@ PRUint32
 nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
                                               nsEnumerationData &aData)
 {
+  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
+  // '.'.
+  NS_ASSERTION(aHost.IsEmpty() ||
+    !(aHost.Length() == 1 && aHost.Last() == '.'), "invalid host");
+
   PRUint32 countFromHost = 0;
   nsCAutoString hostWithDot(NS_LITERAL_CSTRING(".") + aHost);
 
@@ -2212,7 +2222,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
       }
     }
 
-    if (!nextDot)
+    if (!nextDot || *(nextDot + 1) == '.')
       break;
 
     currentDot = nextDot;
@@ -2228,6 +2238,11 @@ NS_IMETHODIMP
 nsCookieService::CountCookiesFromHost(const nsACString &aHost,
                                       PRUint32         *aCountFromHost)
 {
+  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
+  // '.'.
+  NS_ENSURE_TRUE(aHost.IsEmpty() ||
+    !(aHost.Length() == 1 && aHost.Last() == '.'), NS_ERROR_INVALID_ARG);
+
   // we don't care about finding the oldest cookie here, so disable the search
   nsEnumerationData data(PR_Now() / PR_USEC_PER_SEC, LL_MININT);
   *aCountFromHost = CountCookiesFromHostInternal(aHost, data);
@@ -2240,6 +2255,11 @@ NS_IMETHODIMP
 nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
                                     nsISimpleEnumerator **aEnumerator)
 {
+  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
+  // '.'.
+  NS_ENSURE_TRUE(aHost.IsEmpty() ||
+    !(aHost.Length() == 1 && aHost.Last() == '.'), NS_ERROR_INVALID_ARG);
+
   nsCOMArray<nsICookie> cookieList(mMaxCookiesPerHost);
   nsCAutoString hostWithDot(NS_LITERAL_CSTRING(".") + aHost);
   PRInt64 currentTime = PR_Now() / PR_USEC_PER_SEC;
@@ -2254,7 +2274,7 @@ nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
         cookieList.AppendObject(iter.current);
     }
 
-    if (!nextDot)
+    if (!nextDot || *(nextDot + 1) == '.')
       break;
 
     currentDot = nextDot;

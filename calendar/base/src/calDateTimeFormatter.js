@@ -227,17 +227,20 @@ function formatInterval(aStartDate, aEndDate) {
         if (sameDay) {
             return this.formatDateLong(aStartDate);
         } else {
-            var startMonthName = this.monthName(aStartDate.month);
             var startDay = aStartDate.day;
             var startYear = aStartDate.year;
-            var endMonthName = this.monthName(endDate.month);
             var endDay = endDate.day;
             var endYear = endDate.year;
             if (aStartDate.year != endDate.year) {
+                let startMonthName = cal.formatMonth(aStartDate.month + 1, "calendar", "dayIntervalBetweenYears");
+                let endMonthName = cal.formatMonth(aEndDate.month + 1, "calendar", "dayIntervalBetweenYears");
                 return calGetString("calendar", "dayIntervalBetweenYears", [startMonthName, startDay, startYear, endMonthName, endDay, endYear]);
             } else if (aStartDate.month != endDate.month) {
+                let startMonthName = cal.formatMonth(aStartDate.month + 1, "calendar", "dayIntervalBetweenMonths");
+                let endMonthName = cal.formatMonth(aEndDate.month + 1, "calendar", "dayIntervalBetweenMonths");
                 return calGetString("calendar", "dayIntervalBetweenMonths", [startMonthName, startDay, endMonthName, endDay, endYear]);
             } else {
+                let startMonthName = cal.formatMonth(aStartDate.month + 1, "calendar", "dayIntervalInMonth");
                 return calGetString("calendar", "dayIntervalInMonth", [startMonthName, startDay, endDay, endYear]);
             }
         }
@@ -301,7 +304,7 @@ function shortMonthName(aMonthIndex) {
 };
 
 calDateTimeFormatter.prototype.dayName =
-function monthName(aDayIndex) {
+function dayName(aDayIndex) {
     var oneBasedDayIndex = aDayIndex + 1;
     return this.mDateStringBundle.GetStringFromName("day." + oneBasedDayIndex + ".name" );
 };

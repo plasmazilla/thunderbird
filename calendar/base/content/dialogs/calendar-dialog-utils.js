@@ -250,10 +250,10 @@ function recurrenceRule2String(recurrenceInfo, startDate, endDate, allDay) {
                                            .replace("#2", rule.interval);
                 }
             } else if (rule.type == 'YEARLY') {
+                let bymonth = rule.getComponent("BYMONTH", {});
                 if (checkRecurrenceRule(rule, ['BYMONTH']) &&
                     checkRecurrenceRule(rule, ['BYMONTHDAY'])) {
-                    bymonth = rule.getComponent("BYMONTH", {});
-                    bymonthday = rule.getComponent("BYMONTHDAY", {});
+                    let bymonthday = rule.getComponent("BYMONTHDAY", {});
 
                     if (bymonth.length == 1 && bymonthday.length == 1) {
                         let monthNameString = getRString("repeatDetailsMonth" + bymonth[0]);
@@ -265,8 +265,7 @@ function recurrenceRule2String(recurrenceInfo, startDate, endDate, allDay) {
                     }
                 } else if (checkRecurrenceRule(rule, ['BYMONTH']) &&
                            checkRecurrenceRule(rule, ['BYDAY'])) {
-                    bymonth = rule.getComponent("BYMONTH", {});
-                    byday = rule.getComponent("BYDAY", {});
+                    let byday = rule.getComponent("BYDAY", {});
 
                     if (bymonth.length == 1 && byday.length == 1) {
                         let dayString = "repeatDetailsDay" + day_of_week(byday[0]);
@@ -691,8 +690,11 @@ function getCurrentCalendar() {
 /**
  * Common update functions for both event dialogs. Called when a reminder has
  * been selected from the menulist.
+ *
+ * @param aSuppressDialogs     If true, controls are updated without prompting
+ *                               for changes with the dialog
  */
-function commonUpdateReminder() {
+function commonUpdateReminder(aSuppressDialogs) {
     // if a custom reminder has been selected, we show the appropriate
     // dialog in order to allow the user to specify the details.
     // the result will be placed in the 'reminder-custom-menuitem' tag.
@@ -704,8 +706,9 @@ function commonUpdateReminder() {
         removeChildren("reminder-icon-box");
 
         // show the dialog. This call blocks until the dialog is closed. Don't
-        // pop up the dialog if this happens during initialization of the dialog
-        if (reminderList.hasAttribute("last-value")) {
+        // pop up the dialog if aSuppressDialogs was specified or if this
+        // happens during initialization of the dialog
+        if (!aSuppressDialogs && reminderList.hasAttribute("last-value")) {
             editReminder();
         }
 

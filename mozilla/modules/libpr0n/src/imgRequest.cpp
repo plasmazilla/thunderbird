@@ -45,6 +45,8 @@
 #include "imgILoader.h"
 #include "ImageErrors.h"
 #include "ImageLogging.h"
+#include "imgFrame.h"
+#include "imgContainer.h"
 
 #include "netCore.h"
 
@@ -986,8 +988,26 @@ NS_IMETHODIMP imgRequest::OnDataAvailable(nsIRequest *aRequest, nsISupports *ctx
     return NS_BINDING_ABORTED;
   }
 
+  // The decoder will start decoding into the current frame (if we have one).
+  // When it needs to add another frame, we will unlock this frame and lock the
+  // new frame.
+  // Our invariant is that, while in the decoder, the last frame is always
+  // locked, and all others are unlocked.
+  imgContainer *image = reinterpret_cast<imgContainer*>(mImage.get());
+  if (image->mFrames.Length() > 0) {
+    imgFrame *curframe = image->mFrames.ElementAt(image->mFrames.Length() - 1);
+    curframe->LockImageData();
+  }
+
   PRUint32 wrote;
   nsresult rv = mDecoder->WriteFrom(inStr, count, &wrote);
+
+  // We unlock the current frame, even if that frame is different from the
+  // frame we entered the decoder with. (See above.)
+  if (image->mFrames.Length() > 0) {
+    imgFrame *curframe = image->mFrames.ElementAt(image->mFrames.Length() - 1);
+    curframe->UnlockImageData();
+  }
 
   if (NS_FAILED(rv)) {
     PR_LOG(gImgLog, PR_LOG_WARNING,
