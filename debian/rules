@@ -111,7 +111,7 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-system-hunspell \
 	--with-distribution-id=$(DEBIAN_DIST) \
 	--build=$(DEB_BUILD_GNU_TYPE) \
-	--host=$(DEB_HOST_GNU_TYPE) \
+	--host=$(DEB_HOST_MULTIARCH) \
 	$(EXTRA_BRANDING_CONFIGURE_FLAGS) \
 	$(NULL)
 
