@@ -1,3 +1,32 @@
+icedove (3.1.10-1) unstable; urgency=high
+
+  * New Upstream Version (Closes: #625207)
+    - MFSA 2011-12 aka CVE-2011-0069, CVE-2011-0070, CVE-2011-0072,
+                       CVE-2011-0074, CVE-2011-0075, CVE-2011-0077,
+                       CVE-2011-0078, CVE-2011-0080, CVE-2011-0081:
+      Miscellaneous memory safety hazards (rv:2.0.1/ 1.9.2.17/ 1.9.1.19)
+    - MFSA 2011-16 aka CVE-2011-0071: Directory traversal in resource: protocol
+  * [78e0217] build against system libbz2
+  * [e6af761] build against system libpng
+  * [4b57c30] build against system libhunspell
+  * [937f0bd] double check to build against most system libraries
+  * [d6de723] rebuild patch queue from patch-queue branch
+    added patches (Closes: #624969):
+    - 0072-fix-building-with-gcc-4.6-Add-constructor-to-placate.patch
+    - 0073-fix-building-with-gcc-4.6-os2.cc-missing-include-cst.patch
+    - 0074-Add-constructor-for-nsCaseInsensitiveStringComparato.patch
+    - 0075-Add-constructor-for-nsXULAppInfo-which-inherits-from.patch
+    - 0076-Add-constructor-for-GTKEmbedDirectoryProvider.patch
+    modified patches:
+    - 0056-Disable-APNG-support-when-system-libpng-doesn-t-supp.patch
+    obsolete patches (fixed upstream):
+    - 0051-Do-exec-instead-of-uselessly-forking-in-xulrunner-la.patch
+    - 0072-Add-support-for-libnotify-0.7.patch
+  * [e190ef1] bump up standards version to 3.9.2 (change DEB_HOST_GNU_TYPE to
+    DEB_HOST_MULTIARCH)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 10 May 2011 20:03:04 +0200
+
 icedove (3.1.9-2) unstable; urgency=low
 
   * Upload to unstable
