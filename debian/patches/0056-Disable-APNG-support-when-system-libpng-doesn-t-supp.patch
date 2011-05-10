@@ -3,14 +3,58 @@ Date: Fri, 14 Mar 2008 08:29:51 +0100
 Subject: Disable APNG support when system libpng doesn't support it
 
 ---
+ config/autoconf.mk.in                              |    1 +
+ configure.in                                       |    5 ++-
  mozilla/config/autoconf.mk.in                      |    1 +
  mozilla/configure.in                               |    5 ++-
  .../modules/libpr0n/decoders/png/nsPNGDecoder.cpp  |   26 ++++++++++++-
  .../modules/libpr0n/decoders/png/nsPNGDecoder.h    |    4 ++
  .../modules/libpr0n/encoders/png/nsPNGEncoder.cpp  |   39 ++++++++++++++++----
  .../modules/libpr0n/encoders/png/nsPNGEncoder.h    |    4 ++
- 6 files changed, 69 insertions(+), 10 deletions(-)
+ 8 files changed, 74 insertions(+), 11 deletions(-)
 
+diff --git a/config/autoconf.mk.in b/config/autoconf.mk.in
+index 9445959..1012763 100644
+--- a/config/autoconf.mk.in
++++ b/config/autoconf.mk.in
+@@ -200,6 +200,7 @@ MOZ_NATIVE_ZLIB	= @SYSTEM_ZLIB@
+ MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
+ MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
+ MOZ_NATIVE_PNG	= @SYSTEM_PNG@
++APNG		= @APNG@
+ 
+ MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
+ MOZ_PERMISSIONS = @MOZ_PERMISSIONS@
+diff --git a/configure.in b/configure.in
+index 0b25290..65462e7 100644
+--- a/configure.in
++++ b/configure.in
+@@ -4477,6 +4477,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then
+     CFLAGS="-I${PNG_DIR}/include $CFLAGS"
+     LDFLAGS="-L${PNG_DIR}/lib $LDFLAGS"
+ fi
++APNG=1
+ if test -z "$PNG_DIR" -o "$PNG_DIR" = no; then
+     SYSTEM_PNG=
+ else
+@@ -4485,7 +4486,8 @@ else
+                  AC_MSG_ERROR([--with-system-png requested but no working libpng found]), 
+                  $PNG_LIBS)
+     AC_CHECK_LIB(png, png_get_acTL, ,
+-                 AC_MSG_ERROR([--with-system-png won't work because the system's libpng doesn't have APNG support]),
++                 AC_MSG_WARN([system's libpng doesn't have APNG support])
++		 APNG=,
+                  $_SAVE_PNG_LIBS)
+ fi
+ if test "$SYSTEM_PNG" = 1; then
+@@ -7266,6 +7268,7 @@ AC_SUBST(SYSTEM_MAKEDEPEND)
+ AC_SUBST(SYSTEM_LIBXUL)
+ AC_SUBST(SYSTEM_JPEG)
+ AC_SUBST(SYSTEM_PNG)
++AC_SUBST(APNG)
+ AC_SUBST(SYSTEM_ZLIB)
+ AC_SUBST(SYSTEM_BZ2)
+ 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
 index 3b6e912..dbf0df9 100644
 --- a/mozilla/config/autoconf.mk.in
@@ -24,7 +68,7 @@ index 3b6e912..dbf0df9 100644
  
  MOZ_UPDATE_XTERM = @MOZ_UPDATE_XTERM@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 4038a46..5888fe7 100644
+index c95027f..8c665e9 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4460,6 +4460,7 @@ if test -n "${PNG_DIR}" -a "${PNG_DIR}" != "yes"; then

@@ -1,6 +1,7 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Mon, 1 Feb 2010 13:31:52 +0100
-Subject: Avoid crashing when trying to kill a nsProcess that is already terminated
+Subject: Avoid crashing when trying to kill a nsProcess that is already
+ terminated
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=543441
 ---

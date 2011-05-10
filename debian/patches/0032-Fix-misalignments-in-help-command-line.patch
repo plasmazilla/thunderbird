@@ -22,7 +22,7 @@ index dc1e97c..3fa6e09 100644
    classDescription: "jsConsoleHandler",
    classID: Components.ID("{2cd0c310-e127-44d0-88fc-4435c9ab4d4b}"),
 diff --git a/mozilla/toolkit/xre/nsAppRunner.cpp b/mozilla/toolkit/xre/nsAppRunner.cpp
-index 7ff7565..1eacc55 100644
+index c0c639f..0fde7cf 100644
 --- a/mozilla/toolkit/xre/nsAppRunner.cpp
 +++ b/mozilla/toolkit/xre/nsAppRunner.cpp
 @@ -1289,28 +1289,28 @@ DumpHelp()

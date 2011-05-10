@@ -1,6 +1,7 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Mon, 31 May 2010 13:05:41 +0200
-Subject: Use syscall() for mmap and munmap and disable ncpus in jemalloc to work around deadlocks with LD_PRELOADed libraries
+Subject: Use syscall() for mmap and munmap and disable ncpus in jemalloc to
+ work around deadlocks with LD_PRELOADed libraries
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=435683
 ---

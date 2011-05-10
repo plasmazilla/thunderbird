@@ -9,7 +9,7 @@ strings unavailable and leading to strange segmentation faults.
  1 files changed, 25 insertions(+), 15 deletions(-)
 
 diff --git a/mozilla/toolkit/xre/nsAppRunner.cpp b/mozilla/toolkit/xre/nsAppRunner.cpp
-index 1eacc55..ab1e423 100644
+index 0fde7cf..791bb63 100644
 --- a/mozilla/toolkit/xre/nsAppRunner.cpp
 +++ b/mozilla/toolkit/xre/nsAppRunner.cpp
 @@ -326,6 +326,16 @@ static char **gRestartArgv;
@@ -74,7 +74,7 @@ index 1eacc55..ab1e423 100644
    }
  
    // Handle -help and -version command line arguments.
-@@ -3416,14 +3426,14 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
+@@ -3428,14 +3438,14 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
  
            // clear out any environment variables which may have been set 
            // during the relaunch process now that we know we won't be relaunching.
@@ -97,7 +97,7 @@ index 1eacc55..ab1e423 100644
  
            if (!shuttingDown) {
  #ifdef XP_MACOSX
-@@ -3541,10 +3551,10 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
+@@ -3553,10 +3563,10 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
        else {
          char* noEMRestart = PR_GetEnv("NO_EM_RESTART");
          if (noEMRestart && *noEMRestart) {

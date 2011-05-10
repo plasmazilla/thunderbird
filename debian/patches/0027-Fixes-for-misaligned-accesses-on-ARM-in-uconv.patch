@@ -9,10 +9,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=544512
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
-index 1bcb9d6..52e3b7d 100644
+index 10db9ed..3dee128 100644
 --- a/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
 +++ b/mozilla/intl/uconv/ucvlatin/nsUCS2BEToUnicode.cpp
-@@ -133,7 +133,7 @@ UTF16ConvertToUnicode(PRUint8& aState, PRUint8& aOddByte,
+@@ -130,7 +130,7 @@ UTF16ConvertToUnicode(PRUint8& aState, PRUint8& aOddByte,
      if (dest == destEnd)
        goto error;
  

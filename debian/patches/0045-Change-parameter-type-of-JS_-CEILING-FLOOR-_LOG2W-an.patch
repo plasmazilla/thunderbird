@@ -1,6 +1,7 @@
 From: Mike Hommey <glandium@debian.org>
 Date: Tue, 6 Apr 2010 09:55:12 +0200
-Subject: Change parameter type of JS_{CEILING,FLOOR}_LOG2W and js_FloorLog2wImpl to be JSSize
+Subject: Change parameter type of JS_{CEILING,FLOOR}_LOG2W and
+ js_FloorLog2wImpl to be JSSize
 
 This fixes FTBFS on s390.
 https://bugzilla.mozilla.org/show_bug.cgi?id=557270

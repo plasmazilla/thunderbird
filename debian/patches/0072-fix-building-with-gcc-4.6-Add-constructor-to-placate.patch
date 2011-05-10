@@ -1,0 +1,62 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Mon, 9 May 2011 19:06:25 +0200
+Subject: fix building with gcc 4.6 - Add constructor to placate CLang
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=623126
+Closes: #624969
+---
+ mozilla/xpcom/base/nsDebugImpl.h         |    1 +
+ mozilla/xpcom/base/nsTraceRefcntImpl.h   |    1 +
+ mozilla/xpcom/glue/nsEnumeratorUtils.cpp |    1 +
+ mozilla/xpcom/io/nsUnicharInputStream.h  |    1 +
+ 4 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/xpcom/base/nsDebugImpl.h b/mozilla/xpcom/base/nsDebugImpl.h
+index 0da6866..3074fb7 100644
+--- a/mozilla/xpcom/base/nsDebugImpl.h
++++ b/mozilla/xpcom/base/nsDebugImpl.h
+@@ -40,6 +40,7 @@
+ class nsDebugImpl : public nsIDebug2
+ {
+ public:
++    nsDebugImpl() {}
+     NS_DECL_ISUPPORTS
+     NS_DECL_NSIDEBUG
+     NS_DECL_NSIDEBUG2
+diff --git a/mozilla/xpcom/base/nsTraceRefcntImpl.h b/mozilla/xpcom/base/nsTraceRefcntImpl.h
+index 41b348b..d7c40ff 100644
+--- a/mozilla/xpcom/base/nsTraceRefcntImpl.h
++++ b/mozilla/xpcom/base/nsTraceRefcntImpl.h
+@@ -44,6 +44,7 @@
+ class nsTraceRefcntImpl : public nsITraceRefcnt
+ {
+ public:
++  nsTraceRefcntImpl() {}
+   NS_DECL_ISUPPORTS
+   NS_DECL_NSITRACEREFCNT
+ 
+diff --git a/mozilla/xpcom/glue/nsEnumeratorUtils.cpp b/mozilla/xpcom/glue/nsEnumeratorUtils.cpp
+index b5d915b..80383d7 100644
+--- a/mozilla/xpcom/glue/nsEnumeratorUtils.cpp
++++ b/mozilla/xpcom/glue/nsEnumeratorUtils.cpp
+@@ -52,6 +52,7 @@ class EmptyEnumeratorImpl : public nsISimpleEnumerator,
+                             public nsIStringEnumerator
+ {
+ public:
++    EmptyEnumeratorImpl() {}
+     // nsISupports interface
+     NS_DECL_ISUPPORTS_INHERITED  // not really inherited, but no mRefCnt
+ 
+diff --git a/mozilla/xpcom/io/nsUnicharInputStream.h b/mozilla/xpcom/io/nsUnicharInputStream.h
+index 1cd6eed..fdeadd5 100644
+--- a/mozilla/xpcom/io/nsUnicharInputStream.h
++++ b/mozilla/xpcom/io/nsUnicharInputStream.h
+@@ -51,6 +51,7 @@ class nsSimpleUnicharStreamFactory :
+   private nsISimpleUnicharStreamFactory
+ {
+ public:
++  nsSimpleUnicharStreamFactory() {}
+   NS_DECL_ISUPPORTS_INHERITED
+   NS_DECL_NSIFACTORY
+   NS_DECL_NSISIMPLEUNICHARSTREAMFACTORY
+-- 

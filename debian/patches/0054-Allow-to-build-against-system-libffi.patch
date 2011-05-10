@@ -27,7 +27,7 @@ index c1fbb20..3b6e912 100644
  MOZ_NATIVE_BZ2	= @SYSTEM_BZ2@
  MOZ_NATIVE_JPEG	= @SYSTEM_JPEG@
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index f5dfc8f..29c3c98 100644
+index a3a30dd..3d4d9a9 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4508,6 +4508,18 @@ fi

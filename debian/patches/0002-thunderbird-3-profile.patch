@@ -59,7 +59,7 @@ index 306b428..abc4a98 100755
  MOZ_THUNDERBIRD=1
  MOZ_NO_ACTIVEX_SUPPORT=1
 diff --git a/mozilla/build/unix/mozilla.in b/mozilla/build/unix/mozilla.in
-index c85b201..39c65a1 100644
+index e0940fc..0e866c3 100644
 --- a/mozilla/build/unix/mozilla.in
 +++ b/mozilla/build/unix/mozilla.in
 @@ -97,6 +97,22 @@ if [ $found = 0 ]; then

@@ -1,13 +1,14 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Sat, 2 Apr 2011 23:22:40 +0200
-Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is around
+Subject: stop configure if '--with-system-bz2' was passed, but no libbz2 is
+ around
 
 ---
  mozilla/configure.in |    6 ++++--
  1 files changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 5888fe7..6503b57 100644
+index 8c665e9..cc27462 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -4432,8 +4432,10 @@ fi

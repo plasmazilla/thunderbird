@@ -1,6 +1,7 @@
 From: Mike Hommey <mh@glandium.org>
 Date: Fri, 29 Jan 2010 16:36:46 +0100
-Subject: Override intl.locale.matchOS if general.useragent.locale is set in user profile
+Subject: Override intl.locale.matchOS if general.useragent.locale is set in
+ user profile
 
 This allows the Quick Locale Switcher extension to work.
 

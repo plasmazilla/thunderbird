@@ -24,7 +24,7 @@ index 9f42f3b..ef03939 100644
 +  readonly attribute AUTF8String fullpath;
 +};
 diff --git a/mozilla/modules/plugin/base/src/nsPluginHost.cpp b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
-index a10122e..1875212 100644
+index d5a0a5c..aa23b16 100644
 --- a/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 +++ b/mozilla/modules/plugin/base/src/nsPluginHost.cpp
 @@ -830,7 +830,7 @@ nsPluginTag::~nsPluginTag()

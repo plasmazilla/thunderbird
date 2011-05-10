@@ -332,7 +332,7 @@ index 4d21b58..6b8eda3 100644
  #
  ifeq ($(OS_ARCH),WINNT)
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index d63137c..824e738 100644
+index 201d90f..c69b0df 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -1084,6 +1084,7 @@ if test -n "$CROSS_COMPILE"; then
