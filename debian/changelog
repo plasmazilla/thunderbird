@@ -1,3 +1,11 @@
+icedove (3.1.10-2) unstable; urgency=low
+
+  * [de81b7f] remove obsolete build depends libxp-dev (Closes: #623668)
+  * [633782d] change DEB_HOST_MULTIARCH back to DEB_HOST_GNU_TYPE and
+    downgrade sqlite version (Closes: #627598)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 06 Jun 2011 20:53:54 +0200
+
 icedove (3.1.10-1) unstable; urgency=high
 
   * New Upstream Version (Closes: #625207)
