@@ -74,3 +74,4 @@
 0074-Add-constructor-for-nsCaseInsensitiveStringComparato.patch
 0075-Add-constructor-for-nsXULAppInfo-which-inherits-from.patch
 0076-Add-constructor-for-GTKEmbedDirectoryProvider.patch
+0077-downgrade-SQLITE_VERSION-to-3.7.1.patch
