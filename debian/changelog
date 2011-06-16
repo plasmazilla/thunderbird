@@ -1,3 +1,9 @@
+icedove (3.1.10-2~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 16 Jun 2011 20:52:59 +0200
+
 icedove (3.1.10-2) unstable; urgency=low
 
   * [de81b7f] remove obsolete build depends libxp-dev (Closes: #623668)
