@@ -3056,6 +3056,8 @@ js_GrowSlots(JSContext *cx, JSObject *obj, size_t nslots)
     size_t oslots = size_t(slots[-1]);
 
     slots = (jsval*) cx->realloc(slots - 1, nwords * sizeof(jsval));
+    if (!slots)
+        return false;
     *slots++ = nslots;
     obj->dslots = slots;
 

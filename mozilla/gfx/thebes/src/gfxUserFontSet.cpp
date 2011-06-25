@@ -393,9 +393,9 @@ gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
         }
 
         if (fe) {
-            static_cast<gfxMixedFontFamily*>(pe->mFamily)->ReplaceFontEntry(pe, fe);
-            IncrementGeneration();
 #ifdef PR_LOGGING
+            // must do this before ReplaceFontEntry() because that will
+            // destroy the proxy!
             if (LOG_ENABLED()) {
                 nsCAutoString fontURI;
                 pe->mSrcList[pe->mSrcIndex].mURI->GetSpec(fontURI);
@@ -405,6 +405,8 @@ gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
                      PRUint32(mGeneration)));
             }
 #endif
+            static_cast<gfxMixedFontFamily*>(pe->mFamily)->ReplaceFontEntry(pe, fe);
+            IncrementGeneration();
             return PR_TRUE;
         } else {
 #ifdef PR_LOGGING

@@ -3080,7 +3080,8 @@ array_extra(JSContext *cx, ArrayExtraMode mode, uintN argc, jsval *vp)
     jsval *argv, *elemroot, *invokevp, *sp;
     JSBool ok, cond, hole;
     JSObject *callable, *thisp, *newarr;
-    jsint start, end, step, i;
+    jsuint start, end, i;
+    jsint step;
     void *mark;
 
     obj = JS_THIS_OBJECT(cx, vp);
