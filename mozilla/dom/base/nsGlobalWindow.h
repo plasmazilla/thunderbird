@@ -450,6 +450,8 @@ public:
   static PRBool DOMWindowDumpEnabled();
 
 protected:
+  friend class nsBarProp;
+
   // Object Management
   virtual ~nsGlobalWindow();
   void CleanUp();

@@ -799,7 +799,11 @@ nsCookieService::SetCookieStringInternal(nsIURI     *aHostURI,
  
   // switch to a nice string type now, and process each cookie in the header
   nsDependentCString cookieHeader(aCookieHeader);
-  while (SetCookieInternal(aHostURI, aChannel, cookieHeader, serverTime, aFromHttp));
+  while (SetCookieInternal(aHostURI, aChannel, cookieHeader, serverTime, aFromHttp)) {
+    // document.cookie can only set one cookie at a time
+    if (!aFromHttp)
+      break;
+  }
 
   return NS_OK;
 }
@@ -1289,6 +1293,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
   PRInt64 currentTime = currentTimeInUsec / PR_USEC_PER_SEC;
   const char *currentDot = hostFromURI.get();
   const char *nextDot = currentDot + 1;
+  const char *end = currentDot + (hostFromURI.Length() - 1);
   PRBool stale = PR_FALSE;
 
   // begin hash lookup, walking up the subdomain levels.
@@ -1343,7 +1348,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
         stale = PR_TRUE;
     }
 
-    if (!nextDot || *(nextDot + 1) == '.')
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
       break;
 
     currentDot = nextDot;
@@ -2207,6 +2212,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
 
   const char *currentDot = hostWithDot.get();
   const char *nextDot = currentDot + 1;
+  const char *end = currentDot + (hostWithDot.Length() - 1);
   do {
     nsCookieEntry *entry = mDBState->hostTable.GetEntry(currentDot);
     for (nsListIter iter(entry); iter.current; ++iter) {
@@ -2222,7 +2228,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
       }
     }
 
-    if (!nextDot || *(nextDot + 1) == '.')
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
       break;
 
     currentDot = nextDot;
@@ -2266,6 +2272,7 @@ nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
 
   const char *currentDot = hostWithDot.get();
   const char *nextDot = currentDot + 1;
+  const char *end = currentDot + (hostWithDot.Length() - 1);
   do {
     nsCookieEntry *entry = mDBState->hostTable.GetEntry(currentDot);
     for (nsListIter iter(entry); iter.current; ++iter) {
@@ -2274,7 +2281,7 @@ nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
         cookieList.AppendObject(iter.current);
     }
 
-    if (!nextDot || *(nextDot + 1) == '.')
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
       break;
 
     currentDot = nextDot;
