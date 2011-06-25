@@ -119,9 +119,8 @@ function runTest() {
     ];
 
     if (isNullOrigin) {
-      passTests = ["*", "\t \t* \t "];
+      passTests = ["*", "\t \t* \t ", "null"];
       failTests = failTests.filter(function(v) { return v != origin });
-      failTests.push("null");
     }
     
     for each(allowOrigin in passTests) {
@@ -671,6 +670,11 @@ function runTest() {
          "wrong events in test for " + test.toSource());
     }
   }
+
+  // Make sure to clear cookies to avoid affecting other tests
+  document.cookie = "a=; path=/; expires=Thu, 01-Jan-1970 00:00:01 GMT"
+  is(document.cookie, "", "No cookies should be left over");
+
 
   // Test redirects
   is(loader.src, "http://example.org/tests/content/base/test/file_CrossSiteXHR_inner.html");

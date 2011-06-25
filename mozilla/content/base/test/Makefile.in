@@ -344,6 +344,7 @@ _TEST_FILES = 	test_bug5141.html \
 		file_x-frame-options_page.sjs \
 		test_bug590771.html \
 		test_bug631615.html \
+		test_bug626262.html \
 		$(NULL)
 # Disabled; see bug 492181
 #		test_plugin_freezing.html
