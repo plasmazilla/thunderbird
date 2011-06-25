@@ -7,7 +7,7 @@ Subject: Set javascript.options.showInConsole
  1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index ed7a671..9334141 100644
+index 455b68f..f6eb93d 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
 @@ -556,6 +556,7 @@ pref("dom.event.contextmenu.enabled",       true);

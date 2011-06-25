@@ -98,7 +98,7 @@ index c95027f..8c665e9 100644
  AC_SUBST(SYSTEM_BZ2)
  
 diff --git a/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp b/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
-index 4552b02..6d083e5 100644
+index 497fbd1..953ea27 100644
 --- a/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
 +++ b/mozilla/modules/libpr0n/decoders/png/nsPNGDecoder.cpp
 @@ -61,8 +61,10 @@
@@ -151,7 +151,7 @@ index 4552b02..6d083e5 100644
  
  // set timeout and frame disposal method for the current frame
  void nsPNGDecoder::EndImageFrame()
-@@ -673,12 +682,15 @@ info_callback(png_structp png_ptr, png_infop info_ptr)
+@@ -678,12 +687,15 @@ info_callback(png_structp png_ptr, png_infop info_ptr)
    else if (channels == 2 || channels == 4)
      decoder->format = gfxASurface::ImageFormatARGB32;
  
@@ -168,7 +168,7 @@ index 4552b02..6d083e5 100644
      decoder->CreateFrame(0, 0, width, height, decoder->format);
    }
    
-@@ -755,9 +767,11 @@ row_callback(png_structp png_ptr, png_bytep new_row,
+@@ -760,9 +772,11 @@ row_callback(png_structp png_ptr, png_bytep new_row,
     */
    nsPNGDecoder *decoder = static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
    
@@ -180,7 +180,7 @@ index 4552b02..6d083e5 100644
  
    if (row_num >= decoder->mFrameRect.height)
      return;
-@@ -854,6 +868,7 @@ row_callback(png_structp png_ptr, png_bytep new_row,
+@@ -859,6 +873,7 @@ row_callback(png_structp png_ptr, png_bytep new_row,
    }
  }
  
@@ -188,7 +188,7 @@ index 4552b02..6d083e5 100644
  // got the header of a new frame that's coming
  void
  frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
-@@ -863,11 +878,15 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
+@@ -868,11 +883,15 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
    
    nsPNGDecoder *decoder = static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
    
@@ -204,7 +204,7 @@ index 4552b02..6d083e5 100644
    
    x_offset = png_get_next_frame_x_offset(png_ptr, decoder->mInfo);
    y_offset = png_get_next_frame_y_offset(png_ptr, decoder->mInfo);
-@@ -876,6 +895,7 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
+@@ -881,6 +900,7 @@ frame_info_callback(png_structp png_ptr, png_uint_32 frame_num)
    
    decoder->CreateFrame(x_offset, y_offset, width, height, decoder->format);
  }
@@ -212,7 +212,7 @@ index 4552b02..6d083e5 100644
  
  void
  end_callback(png_structp png_ptr, png_infop info_ptr)
-@@ -894,12 +914,14 @@ end_callback(png_structp png_ptr, png_infop info_ptr)
+@@ -899,12 +919,14 @@ end_callback(png_structp png_ptr, png_infop info_ptr)
  
    nsPNGDecoder *decoder = static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
    
