@@ -35,7 +35,6 @@ Build-Depends: bzip2,
 	libffi-dev
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
-DM-Upload-Allowed: yes
 Standards-Version: 3.9.2
 
 Package: icedove
