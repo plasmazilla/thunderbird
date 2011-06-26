@@ -1,3 +1,9 @@
+icedove (3.1.11-1~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 26 Jun 2011 12:56:21 +0200
+
 icedove (3.1.11-1) unstable; urgency=high
 
   * New Upstream Version
