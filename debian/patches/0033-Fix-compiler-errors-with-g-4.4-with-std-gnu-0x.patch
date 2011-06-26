@@ -117,10 +117,10 @@ index 29e4cbe..d956c74 100644
      PRBool foundBoundary = PR_FALSE;
      PRInt32 i;
 diff --git a/mozilla/modules/libpr0n/decoders/jpeg/nsJPEGDecoder.cpp b/mozilla/modules/libpr0n/decoders/jpeg/nsJPEGDecoder.cpp
-index 5f26f78..e2579bd 100644
+index d8fac6b..b47b31f 100644
 --- a/mozilla/modules/libpr0n/decoders/jpeg/nsJPEGDecoder.cpp
 +++ b/mozilla/modules/libpr0n/decoders/jpeg/nsJPEGDecoder.cpp
-@@ -1025,187 +1025,187 @@ term_source (j_decompress_ptr jd)
+@@ -1030,187 +1030,187 @@ term_source (j_decompress_ptr jd)
  /* Four tables, each 256 entries of 4 bytes totals 4K which is not bad... */
  
  const int Cr_r_tab[(MAXJSAMPLE+1) * sizeof(int)] ={

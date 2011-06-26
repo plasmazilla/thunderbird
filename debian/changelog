@@ -1,3 +1,22 @@
+icedove (3.1.11-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-19 aka CVE-2011-2364, CVE-2011-2365, CVE-2011-2374,
+                       CVE-2011-2376:
+      Miscellaneous memory safety hazards (rv:3.0/1.9.2.18)
+    - MFSA 2011-20 aka CVE-2011-2373: Use-after-free vulnerability when
+      viewing XUL document with script disabled
+    - MFSA 2011-21 aka CVE-2011-2377: Memory corruption due to
+      multipart/x-mixed-replace images
+    - MFSA 2011-22 aka CVE-2011-2371: Integer overflow and arbitrary code
+      execution in Array.reduceRight()
+    - MFSA 2011-23 aka CVE-2011-0083, CVE-2011-0085, CVE-2011-2363:
+      Multiple dangling pointer vulnerabilities
+    - MFSA 2011-24 aka CVE-2011-2362: Cookie isolation error
+  * [2a82ce8] DM-Upload-Allowed is superfluous since I'm DD
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 26 Jun 2011 10:35:31 +0200
+
 icedove (3.1.10-2~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
