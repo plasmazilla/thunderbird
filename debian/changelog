@@ -1,3 +1,21 @@
+icedove (3.0.11-1+squeeze3) stable-security; urgency=high
+
+  * [637d85f] backported patches from xulrunner fixes mfsa2011-{19-24}
+    - MFSA 2011-19 aka CVE-2011-2364, CVE-2011-2365, CVE-2011-2374,
+                       CVE-2011-2376:
+      Miscellaneous memory safety hazards (rv:3.0/1.9.2.18)
+    - MFSA 2011-20 aka CVE-2011-2373: Use-after-free vulnerability when
+      viewing XUL document with script disabled
+    - MFSA 2011-21 aka CVE-2011-2377: Memory corruption due to
+      multipart/x-mixed-replace images
+    - MFSA 2011-22 aka CVE-2011-2371: Integer overflow and arbitrary code
+      execution in Array.reduceRight()
+    - MFSA 2011-23 aka CVE-2011-0083, CVE-2011-0085, CVE-2011-2363:
+      Multiple dangling pointer vulnerabilities
+    - MFSA 2011-24 aka CVE-2011-2362: Cookie isolation error
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 02 Jul 2011 15:21:12 +0200
+
 icedove (3.0.11-1+squeeze2) stable-security; urgency=high
 
   * [66361e1] backported patches from xulrunner fixes mfsa2011-{12-14,16}
