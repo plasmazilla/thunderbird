@@ -1,0 +1,66 @@
+From: Nicholas Nethercote <nnethercote@mozilla.com>
+Date: Tue, 7 Jun 2011 15:42:20 +1000
+Subject: Bug 629858 - improve a strict warning message. r=jwalden, a=dveditz.
+
+---
+ js/src/jsparse.cpp |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mozilla/js/src/jsparse.cpp b/mozilla/js/src/jsparse.cpp
+index be5978e..ba8799c 100644
+--- a/mozilla/js/src/jsparse.cpp
++++ b/mozilla/js/src/jsparse.cpp
+@@ -1138,7 +1138,7 @@ HasFinalReturn(JSParseNode *pn)
+ }
+ 
+ static JSBool
+-ReportBadReturn(JSContext *cx, JSTreeContext *tc, uintN flags, uintN errnum,
++ReportBadReturn(JSContext *cx, JSTreeContext *tc, JSParseNode *pn, uintN flags, uintN errnum,
+                 uintN anonerrnum)
+ {
+     const char *name;
+@@ -1150,7 +1150,7 @@ ReportBadReturn(JSContext *cx, JSTreeContext *tc, uintN flags, uintN errnum,
+         errnum = anonerrnum;
+         name = NULL;
+     }
+-    return js_ReportCompileErrorNumber(cx, TS(tc->compiler), NULL, flags,
++    return js_ReportCompileErrorNumber(cx, TS(tc->compiler), pn, flags,
+                                        errnum, name);
+ }
+ 
+@@ -1159,7 +1159,7 @@ CheckFinalReturn(JSContext *cx, JSTreeContext *tc, JSParseNode *pn)
+ {
+     JS_ASSERT(tc->flags & TCF_IN_FUNCTION);
+     return HasFinalReturn(pn) == ENDS_IN_RETURN ||
+-           ReportBadReturn(cx, tc, JSREPORT_WARNING | JSREPORT_STRICT,
++           ReportBadReturn(cx, tc, pn, JSREPORT_WARNING | JSREPORT_STRICT,
+                            JSMSG_NO_RETURN_VALUE, JSMSG_ANON_NO_RETURN_VALUE);
+ }
+ 
+@@ -1194,7 +1194,7 @@ FunctionBody(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc)
+                 pn = NULL;
+             } else {
+                 if (tc->flags & TCF_FUN_IS_GENERATOR) {
+-                    ReportBadReturn(cx, tc, JSREPORT_ERROR,
++                    ReportBadReturn(cx, tc, pn, JSREPORT_ERROR,
+                                     JSMSG_BAD_GENERATOR_RETURN,
+                                     JSMSG_BAD_ANON_GENERATOR_RETURN);
+                     pn = NULL;
+@@ -4108,7 +4108,7 @@ ReturnOrYield(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
+ 
+     if ((~tc->flags & (TCF_RETURN_EXPR | TCF_FUN_IS_GENERATOR)) == 0) {
+         /* As in Python (see PEP-255), disallow return v; in generators. */
+-        ReportBadReturn(cx, tc, JSREPORT_ERROR,
++        ReportBadReturn(cx, tc, pn, JSREPORT_ERROR,
+                         JSMSG_BAD_GENERATOR_RETURN,
+                         JSMSG_BAD_ANON_GENERATOR_RETURN);
+         return NULL;
+@@ -4116,7 +4116,7 @@ ReturnOrYield(JSContext *cx, JSTokenStream *ts, JSTreeContext *tc,
+ 
+     if (JS_HAS_STRICT_OPTION(cx) &&
+         (~tc->flags & (TCF_RETURN_EXPR | TCF_RETURN_VOID)) == 0 &&
+-        !ReportBadReturn(cx, tc, JSREPORT_WARNING | JSREPORT_STRICT,
++        !ReportBadReturn(cx, tc, pn, JSREPORT_WARNING | JSREPORT_STRICT,
+                          JSMSG_NO_RETURN_VALUE,
+                          JSMSG_ANON_NO_RETURN_VALUE)) {
+         return NULL;

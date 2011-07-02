@@ -1,0 +1,34 @@
+From: Jonathan Kew <jfkthame@gmail.com>
+Date: Thu, 9 Jun 2011 21:46:01 +0100
+Subject: bug 642734 - don't access proxy after it has been replaced.
+ r=jdaggett a=dveditz
+
+---
+ gfx/thebes/src/gfxUserFontSet.cpp |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/gfx/thebes/src/gfxUserFontSet.cpp b/mozilla/gfx/thebes/src/gfxUserFontSet.cpp
+index bbf9de0..a54a4c7 100644
+--- a/mozilla/gfx/thebes/src/gfxUserFontSet.cpp
++++ b/mozilla/gfx/thebes/src/gfxUserFontSet.cpp
+@@ -346,9 +346,9 @@ gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
+             }
+         }
+         if (fe) {
+-            static_cast<gfxMixedFontFamily*>(pe->mFamily)->ReplaceFontEntry(pe, fe);
+-            IncrementGeneration();
+ #ifdef PR_LOGGING
++            // must do this before ReplaceFontEntry() because that will
++            // destroy the proxy!
+             if (LOG_ENABLED()) {
+                 nsCAutoString fontURI;
+                 pe->mSrcList[pe->mSrcIndex].mURI->GetSpec(fontURI);
+@@ -358,6 +358,8 @@ gfxUserFontSet::OnLoadComplete(gfxFontEntry *aFontToLoad,
+                      PRUint32(mGeneration)));
+             }
+ #endif
++            static_cast<gfxMixedFontFamily*>(pe->mFamily)->ReplaceFontEntry(pe, fe);
++            IncrementGeneration();
+             return PR_TRUE;
+         }
+     } else {

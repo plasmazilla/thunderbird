@@ -1,0 +1,36 @@
+From: David Mandelin <dmandelin@mozilla.com>
+Date: Tue, 24 May 2011 12:11:19 -0700
+Subject: Bug 655742: restrict tracing of array stores, r=dvander, a=dveditz
+
+---
+ js/src/jstracer.cpp |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/js/src/jstracer.cpp b/mozilla/js/src/jstracer.cpp
+index 85eb222..adf1a81 100644
+--- a/mozilla/js/src/jstracer.cpp
++++ b/mozilla/js/src/jstracer.cpp
+@@ -5993,6 +5993,11 @@ TraceRecorder::incProp(jsint incr, bool pre)
+         ABORT_TRACE("incProp on invalid slot");
+ 
+     jsval& v = STOBJ_GET_SLOT(obj, slot);
++    // Bug 655742: if the array element is a double, box_jsval can
++    // OOM after we have already overwritten the array object in
++    // the stack.
++    if (JSVAL_IS_DOUBLE(v))
++        return JSRS_STOP;
+     CHECK_STATUS(inc(v, v_ins, incr, pre));
+ 
+     box_jsval(v, v_ins);
+@@ -6019,6 +6024,11 @@ TraceRecorder::incElem(jsint incr, bool pre)
+     CHECK_STATUS(denseArrayElement(l, r, vp, v_ins, addr_ins));
+     if (!addr_ins) // if we read a hole, abort
+         return JSRS_STOP;
++    // Bug 655742: if the array element is a double, box_jsval can
++    // OOM after we have already overwritten the array object in
++    // the stack.
++    if (JSVAL_IS_DOUBLE(*vp))
++        return JSRS_STOP;
+     CHECK_STATUS(inc(*vp, v_ins, incr, pre));
+     box_jsval(*vp, v_ins);
+     lir->insStorei(v_ins, addr_ins, 0);

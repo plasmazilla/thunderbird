@@ -1,0 +1,42 @@
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Sun, 5 Jun 2011 22:45:26 -0700
+Subject: Bug 639648: Update recheck invariants if adopting mutates the DOM.
+ r=smaug. a=dveditz
+
+---
+ content/base/src/nsGenericElement.cpp |   15 +++++++++++++++
+ 1 files changed, 15 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/base/src/nsGenericElement.cpp b/mozilla/content/base/src/nsGenericElement.cpp
+index 536acdc..13bd2da 100644
+--- a/mozilla/content/base/src/nsGenericElement.cpp
++++ b/mozilla/content/base/src/nsGenericElement.cpp
+@@ -3777,6 +3777,8 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+     return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
+   }
+ 
++  nsMutationGuard guard;
++
+   // DocumentType nodes are the only nodes that can have a null
+   // ownerDocument according to the DOM spec, and we need to allow
+   // inserting them w/o calling AdoptNode().
+@@ -3786,6 +3788,19 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+     res = AdoptNodeIntoOwnerDoc(container, aNewChild);
+     NS_ENSURE_SUCCESS(res, res);
+   }
++  
++  if (guard.Mutated(0)) {
++    insPos = refContent ? container->IndexOf(refContent) :
++                          container->GetChildCount();
++    if (insPos < 0) {
++      return NS_ERROR_DOM_NOT_FOUND_ERR;
++    }
++
++    if (!IsAllowedAsChild(newContent, nodeType, aParent, aDocument, aReplace,
++                          refContent)) {
++      return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
++    }
++  }
+ 
+   // If we're replacing
+   if (aReplace) {

@@ -1,0 +1,85 @@
+From: Jonathan Watt <jwatt@jwatt.org>
+Date: Thu, 16 Jun 2011 10:46:16 +0100
+Subject: Bug 648094. r=dholbert, a=dveditz.
+
+---
+ content/svg/content/src/nsSVGTSpanElement.cpp    |    6 ++++--
+ content/svg/content/src/nsSVGTextElement.cpp     |    6 ++++--
+ content/svg/content/src/nsSVGTextPathElement.cpp |    6 ++++--
+ 3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGTSpanElement.cpp b/mozilla/content/svg/content/src/nsSVGTSpanElement.cpp
+index e3fdcab..4b5894d 100644
+--- a/mozilla/content/svg/content/src/nsSVGTSpanElement.cpp
++++ b/mozilla/content/svg/content/src/nsSVGTSpanElement.cpp
+@@ -46,6 +46,7 @@
+ #include "nsISVGTextContentMetrics.h"
+ #include "nsIFrame.h"
+ #include "nsDOMError.h"
++#include "nsIDOMSVGPoint.h"
+ 
+ typedef nsSVGStylableElement nsSVGTSpanElementBase;
+ 
+@@ -335,9 +336,10 @@ NS_IMETHODIMP nsSVGTSpanElement::GetRotationOfChar(PRUint32 charnum, float *_ret
+ NS_IMETHODIMP nsSVGTSpanElement::GetCharNumAtPosition(nsIDOMSVGPoint *point,
+                                                       PRInt32 *_retval)
+ {
+-  // null check when implementing - this method can be used by scripts!
+-  if (!point)
++  nsCOMPtr<nsISVGValue> p = do_QueryInterface(point);
++  if (!p) {
+     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
++  }
+ 
+   nsCOMPtr<nsISVGTextContentMetrics> metrics = GetTextContentMetrics();
+ 
+diff --git a/mozilla/content/svg/content/src/nsSVGTextElement.cpp b/mozilla/content/svg/content/src/nsSVGTextElement.cpp
+index b992f43..30293f0 100644
+--- a/mozilla/content/svg/content/src/nsSVGTextElement.cpp
++++ b/mozilla/content/svg/content/src/nsSVGTextElement.cpp
+@@ -46,6 +46,7 @@
+ #include "nsISVGTextContentMetrics.h"
+ #include "nsIFrame.h"
+ #include "nsDOMError.h"
++#include "nsIDOMSVGPoint.h"
+ 
+ typedef nsSVGGraphicElement nsSVGTextElementBase;
+ 
+@@ -331,9 +332,10 @@ NS_IMETHODIMP nsSVGTextElement::GetRotationOfChar(PRUint32 charnum, float *_retv
+ /* long getCharNumAtPosition (in nsIDOMSVGPoint point); */
+ NS_IMETHODIMP nsSVGTextElement::GetCharNumAtPosition(nsIDOMSVGPoint *point, PRInt32 *_retval)
+ {
+-  // null check when implementing - this method can be used by scripts!
+-  if (!point)
++  nsCOMPtr<nsISVGValue> p = do_QueryInterface(point);
++  if (!p) {
+     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
++  }
+ 
+   nsCOMPtr<nsISVGTextContentMetrics> metrics = GetTextContentMetrics();
+ 
+diff --git a/mozilla/content/svg/content/src/nsSVGTextPathElement.cpp b/mozilla/content/svg/content/src/nsSVGTextPathElement.cpp
+index 5fbc226..b88c733 100644
+--- a/mozilla/content/svg/content/src/nsSVGTextPathElement.cpp
++++ b/mozilla/content/svg/content/src/nsSVGTextPathElement.cpp
+@@ -43,6 +43,7 @@
+ #include "nsIFrame.h"
+ #include "nsSVGTextPathElement.h"
+ #include "nsDOMError.h"
++#include "nsIDOMSVGPoint.h"
+ 
+ nsSVGElement::LengthInfo nsSVGTextPathElement::sLengthInfo[1] =
+ {
+@@ -237,9 +238,10 @@ NS_IMETHODIMP nsSVGTextPathElement::GetRotationOfChar(PRUint32 charnum, float *_
+ NS_IMETHODIMP nsSVGTextPathElement::GetCharNumAtPosition(nsIDOMSVGPoint *point,
+                                                          PRInt32 *_retval)
+ {
+-  // null check when implementing - this method can be used by scripts!
+-  if (!point)
++  nsCOMPtr<nsISVGValue> p = do_QueryInterface(point);
++  if (!p) {
+     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
++  }
+ 
+   nsCOMPtr<nsISVGTextContentMetrics> metrics = GetTextContentMetrics();
+ 

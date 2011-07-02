@@ -1,0 +1,25 @@
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Fri, 8 Apr 2011 14:29:34 -0700
+Subject: Bug 645572 - Don't let the frame constructor's update count to
+ become negative. r=sicking a=dveditz
+
+---
+ layout/base/nsCSSFrameConstructor.cpp |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/layout/base/nsCSSFrameConstructor.cpp b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+index 52bfc64..9085f3c 100644
+--- a/mozilla/layout/base/nsCSSFrameConstructor.cpp
++++ b/mozilla/layout/base/nsCSSFrameConstructor.cpp
+@@ -10274,7 +10274,10 @@ nsCSSFrameConstructor::EndUpdate()
+     RecalcQuotesAndCounters();
+     NS_ASSERTION(mUpdateCount == 1, "Odd update count");
+   }
+-  --mUpdateCount;
++  // Negative update counts don't make sense
++  if (mUpdateCount > 0) {
++    --mUpdateCount;
++  }
+   if (mFocusSuppressCount) {
+     NS_UnsuppressFocusEvent();
+     --mFocusSuppressCount;

@@ -1,0 +1,31 @@
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Wed, 8 Jun 2011 22:19:13 +0300
+Subject: Bug 646662, move mozAutoDocConditionalContentUpdateBatch to prevent
+ a bogus assertion, r=sicking, a=dveditz
+
+---
+ content/base/src/nsGenericElement.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/content/base/src/nsGenericElement.cpp b/mozilla/content/base/src/nsGenericElement.cpp
+index 13bd2da..0a013f0 100644
+--- a/mozilla/content/base/src/nsGenericElement.cpp
++++ b/mozilla/content/base/src/nsGenericElement.cpp
+@@ -3743,8 +3743,6 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+ 
+   nsINode* container = NODE_FROM(aParent, aDocument);
+ 
+-  mozAutoDocConditionalContentUpdateBatch batch(aDocument, PR_TRUE);
+-
+   // Figure out which index to insert at
+   if (aRefChild) {
+     refContent = do_QueryInterface(aRefChild);
+@@ -3802,6 +3800,8 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+     }
+   }
+ 
++  mozAutoDocConditionalContentUpdateBatch batch(aDocument, PR_TRUE);
++
+   // If we're replacing
+   if (aReplace) {
+     // Getting (and addrefing) the following child here is sort of wasteful

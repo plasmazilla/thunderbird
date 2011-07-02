@@ -1,0 +1,544 @@
+From: Justin Lebar <justin.lebar@gmail.com>
+Date: Sun, 24 Apr 2011 22:30:57 -0400
+Subject: Fix bug 642338. r=smaug, a=dveditz
+
+---
+ dom/src/base/nsBarProps.cpp                   |   66 ++++++++++++--------
+ dom/src/base/nsBarProps.h                     |   45 +++++++-------
+ dom/src/base/nsGlobalWindow.cpp               |   63 ++------------------
+ dom/src/base/nsGlobalWindow.h                 |    2 +
+ dom/tests/mochitest/bugs/Makefile.in          |    2 +
+ dom/tests/mochitest/bugs/file_window_bar.html |    7 ++
+ dom/tests/mochitest/bugs/test_window_bar.html |   80 +++++++++++++++++++++++++
+ 7 files changed, 157 insertions(+), 108 deletions(-)
+ create mode 100644 dom/tests/mochitest/bugs/file_window_bar.html
+ create mode 100644 dom/tests/mochitest/bugs/test_window_bar.html
+
+diff --git a/mozilla/dom/src/base/nsBarProps.cpp b/mozilla/dom/src/base/nsBarProps.cpp
+index e04896b..955277d 100644
+--- a/mozilla/dom/src/base/nsBarProps.cpp
++++ b/mozilla/dom/src/base/nsBarProps.cpp
+@@ -51,8 +51,11 @@
+ //
+ //  Basic (virtual) BarProp class implementation
+ //
+-nsBarProp::nsBarProp() : mBrowserChrome(nsnull)
++nsBarProp::nsBarProp(nsGlobalWindow *aWindow)
+ {
++  mDOMWindow = aWindow;
++  nsISupports *supwin = static_cast<nsIScriptGlobalObject *>(aWindow);
++  mDOMWindowWeakref = do_GetWeakReference(supwin);
+ }
+ 
+ nsBarProp::~nsBarProp()
+@@ -71,25 +74,19 @@ NS_INTERFACE_MAP_END
+ NS_IMPL_ADDREF(nsBarProp)
+ NS_IMPL_RELEASE(nsBarProp)
+ 
+-
+-NS_IMETHODIMP
+-nsBarProp::SetWebBrowserChrome(nsIWebBrowserChrome* aBrowserChrome)
+-{
+-  mBrowserChrome = aBrowserChrome;
+-  return NS_OK;
+-}
+-
+ NS_IMETHODIMP
+ nsBarProp::GetVisibleByFlag(PRBool *aVisible, PRUint32 aChromeFlag)
+ {
+   *aVisible = PR_FALSE;
+-  NS_ENSURE_TRUE(mBrowserChrome, NS_OK);
++
++  nsCOMPtr<nsIWebBrowserChrome> browserChrome = GetBrowserChrome();
++  NS_ENSURE_TRUE(browserChrome, NS_OK);
+ 
+   PRUint32 chromeFlags;
+ 
+-  NS_ENSURE_SUCCESS(mBrowserChrome->GetChromeFlags(&chromeFlags),
++  NS_ENSURE_SUCCESS(browserChrome->GetChromeFlags(&chromeFlags),
+                     NS_ERROR_FAILURE);
+-  if(chromeFlags & aChromeFlag)
++  if (chromeFlags & aChromeFlag)
+     *aVisible = PR_TRUE;
+ 
+   return NS_OK;
+@@ -98,9 +95,10 @@ nsBarProp::GetVisibleByFlag(PRBool *aVisible, PRUint32 aChromeFlag)
+ NS_IMETHODIMP
+ nsBarProp::SetVisibleByFlag(PRBool aVisible, PRUint32 aChromeFlag)
+ {
+-  NS_ENSURE_TRUE(mBrowserChrome, NS_OK);
++  nsCOMPtr<nsIWebBrowserChrome> browserChrome = GetBrowserChrome();
++  NS_ENSURE_TRUE(browserChrome, NS_OK);
+ 
+-  PRBool   enabled = PR_FALSE;
++  PRBool enabled = PR_FALSE;
+ 
+   nsCOMPtr<nsIScriptSecurityManager>
+            securityManager(do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID));
+@@ -111,23 +109,37 @@ nsBarProp::SetVisibleByFlag(PRBool aVisible, PRUint32 aChromeFlag)
+ 
+   PRUint32 chromeFlags;
+ 
+-  NS_ENSURE_SUCCESS(mBrowserChrome->GetChromeFlags(&chromeFlags),
++  NS_ENSURE_SUCCESS(browserChrome->GetChromeFlags(&chromeFlags),
+                     NS_ERROR_FAILURE);
+-  if(aVisible)
++  if (aVisible)
+     chromeFlags |= aChromeFlag;
+   else
+     chromeFlags &= ~aChromeFlag;
+-  NS_ENSURE_SUCCESS(mBrowserChrome->SetChromeFlags(chromeFlags),
++  NS_ENSURE_SUCCESS(browserChrome->SetChromeFlags(chromeFlags),
+                     NS_ERROR_FAILURE);
+ 
+   return NS_OK;
+ }
+ 
++already_AddRefed<nsIWebBrowserChrome>
++nsBarProp::GetBrowserChrome()
++{
++  // Check that the window is still alive.
++  nsCOMPtr<nsIDOMWindow> domwin(do_QueryReferent(mDOMWindowWeakref));
++  if (!domwin)
++    return nsnull;
++
++  nsIWebBrowserChrome *browserChrome = nsnull;
++  mDOMWindow->GetWebBrowserChrome(&browserChrome);
++  return browserChrome;
++}
++
+ //
+ // MenubarProp class implementation
+ //
+ 
+-nsMenubarProp::nsMenubarProp()
++nsMenubarProp::nsMenubarProp(nsGlobalWindow *aWindow) 
++  : nsBarProp(aWindow)
+ {
+ }
+ 
+@@ -153,7 +165,8 @@ nsMenubarProp::SetVisible(PRBool aVisible)
+ // ToolbarProp class implementation
+ //
+ 
+-nsToolbarProp::nsToolbarProp()
++nsToolbarProp::nsToolbarProp(nsGlobalWindow *aWindow)
++  : nsBarProp(aWindow)
+ {
+ }
+ 
+@@ -179,7 +192,8 @@ nsToolbarProp::SetVisible(PRBool aVisible)
+ // LocationbarProp class implementation
+ //
+ 
+-nsLocationbarProp::nsLocationbarProp()
++nsLocationbarProp::nsLocationbarProp(nsGlobalWindow *aWindow)
++  : nsBarProp(aWindow)
+ {
+ }
+ 
+@@ -207,7 +221,8 @@ nsLocationbarProp::SetVisible(PRBool aVisible)
+ // PersonalbarProp class implementation
+ //
+ 
+-nsPersonalbarProp::nsPersonalbarProp()
++nsPersonalbarProp::nsPersonalbarProp(nsGlobalWindow *aWindow)
++  : nsBarProp(aWindow)
+ {
+ }
+ 
+@@ -235,7 +250,8 @@ nsPersonalbarProp::SetVisible(PRBool aVisible)
+ // StatusbarProp class implementation
+ //
+ 
+-nsStatusbarProp::nsStatusbarProp()
++nsStatusbarProp::nsStatusbarProp(nsGlobalWindow *aWindow)
++  : nsBarProp(aWindow)
+ {
+ }
+ 
+@@ -262,10 +278,8 @@ nsStatusbarProp::SetVisible(PRBool aVisible)
+ //
+ 
+ nsScrollbarsProp::nsScrollbarsProp(nsGlobalWindow *aWindow)
++: nsBarProp(aWindow)
+ {
+-  mDOMWindow = aWindow;
+-  nsISupports *supwin = static_cast<nsIScriptGlobalObject *>(aWindow);
+-  mDOMWindowWeakref = do_GetWeakReference(supwin);
+ }
+ 
+ nsScrollbarsProp::~nsScrollbarsProp()
+@@ -339,7 +353,7 @@ nsScrollbarsProp::SetVisible(PRBool aVisible)
+   }
+ 
+   /* Notably absent is the part where we notify the chrome window using
+-     mBrowserChrome->SetChromeFlags(). Given the possibility of multiple
++     GetBrowserChrome()->SetChromeFlags(). Given the possibility of multiple
+      DOM windows (multiple top-level windows, even) within a single
+      chrome window, the historical concept of a single "has scrollbars"
+      flag in the chrome is inapplicable, and we can't tell at this level
+diff --git a/mozilla/dom/src/base/nsBarProps.h b/mozilla/dom/src/base/nsBarProps.h
+index 80cc683..f032c10 100644
+--- a/mozilla/dom/src/base/nsBarProps.h
++++ b/mozilla/dom/src/base/nsBarProps.h
+@@ -56,26 +56,34 @@ class nsIWebBrowserChrome;
+ class nsBarProp : public nsIDOMBarProp
+ {
+ public:
+-  nsBarProp();
++  explicit nsBarProp(nsGlobalWindow *aWindow);
+   virtual ~nsBarProp();
+ 
+   NS_DECL_ISUPPORTS
+ 
+-  NS_IMETHOD SetWebBrowserChrome(nsIWebBrowserChrome* aBrowserChrome);
+-
+   NS_IMETHOD GetVisibleByFlag(PRBool *aVisible, PRUint32 aChromeFlag);
+   NS_IMETHOD SetVisibleByFlag(PRBool aVisible, PRUint32 aChromeFlag);
+ 
+ protected:
+-  // Weak Reference
+-  nsIWebBrowserChrome* mBrowserChrome;
++  already_AddRefed<nsIWebBrowserChrome> GetBrowserChrome();
++
++  nsGlobalWindow             *mDOMWindow;
++  nsCOMPtr<nsIWeakReference>  mDOMWindowWeakref;
++  /* Note the odd double reference to the owning global window.
++     Since the corresponding DOM window nominally owns this object,
++     but refcounted ownership of this object can be handed off to
++     owners unknown, we need a weak ref back to the DOM window.
++     However we also need access to properties of the DOM Window
++     that aren't available through interfaces. Then it's either
++     a weak ref and some skanky casting, or this funky double ref.
++     Funky beats skanky, so here we are. */
+ };
+ 
+ // Script "menubar" object
+ class nsMenubarProp : public nsBarProp
+ {
+ public:
+-  nsMenubarProp();
++  explicit nsMenubarProp(nsGlobalWindow *aWindow);
+   virtual ~nsMenubarProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+@@ -85,7 +93,7 @@ public:
+ class nsToolbarProp : public nsBarProp
+ {
+ public:
+-  nsToolbarProp();
++  explicit nsToolbarProp(nsGlobalWindow *aWindow);
+   virtual ~nsToolbarProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+@@ -95,7 +103,7 @@ public:
+ class nsLocationbarProp : public nsBarProp
+ {
+ public:
+-  nsLocationbarProp();
++  explicit nsLocationbarProp(nsGlobalWindow *aWindow);
+   virtual ~nsLocationbarProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+@@ -105,7 +113,7 @@ public:
+ class nsPersonalbarProp : public nsBarProp
+ {
+ public:
+-  nsPersonalbarProp();
++  explicit nsPersonalbarProp(nsGlobalWindow *aWindow);
+   virtual ~nsPersonalbarProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+@@ -115,31 +123,20 @@ public:
+ class nsStatusbarProp : public nsBarProp
+ {
+ public:
+-  nsStatusbarProp();
++  explicit nsStatusbarProp(nsGlobalWindow *aWindow);
+   virtual ~nsStatusbarProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+ };
+ 
+ // Script "scrollbars" object
+-class nsScrollbarsProp : public nsBarProp {
++class nsScrollbarsProp : public nsBarProp
++{
+ public:
+-  nsScrollbarsProp(nsGlobalWindow *aWindow);
++  explicit nsScrollbarsProp(nsGlobalWindow *aWindow);
+   virtual ~nsScrollbarsProp();
+ 
+   NS_DECL_NSIDOMBARPROP
+-
+-private:
+-  nsGlobalWindow           *mDOMWindow;
+-  nsCOMPtr<nsIWeakReference>  mDOMWindowWeakref;
+-  /* Note the odd double reference to the owning global window.
+-     Since the corresponding DOM window nominally owns this object,
+-     yet refcounted ownership of this object can be handed off to
+-     owners unknown, we need a weak ref to back to the DOM window.
+-     However we also need access to properties of the DOM Window
+-     that aren't available through interfaces. Then it's either
+-     a weak ref and some skanky casting, or this funky double ref.
+-     Funky beats skanky, so here we are. */
+ };
+ 
+ #endif /* nsBarProps_h___ */
+diff --git a/mozilla/dom/src/base/nsGlobalWindow.cpp b/mozilla/dom/src/base/nsGlobalWindow.cpp
+index de29213..33786eb 100644
+--- a/mozilla/dom/src/base/nsGlobalWindow.cpp
++++ b/mozilla/dom/src/base/nsGlobalWindow.cpp
+@@ -2192,29 +2192,6 @@ nsGlobalWindow::SetDocShell(nsIDocShell* aDocShell)
+   if (mScreen)
+     mScreen->SetDocShell(aDocShell);
+ 
+- 
+-  // tell our member elements about the new browserwindow
+-  nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-  GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-  if (mMenubar) {
+-    mMenubar->SetWebBrowserChrome(browserChrome);
+-  }
+-  if (mToolbar) {
+-    mToolbar->SetWebBrowserChrome(browserChrome);
+-  }
+-  if (mLocationbar) {
+-    mLocationbar->SetWebBrowserChrome(browserChrome);
+-  }
+-  if (mPersonalbar) {
+-    mPersonalbar->SetWebBrowserChrome(browserChrome);
+-  }
+-  if (mStatusbar) {
+-    mStatusbar->SetWebBrowserChrome(browserChrome);
+-  }
+-  if (mScrollbars) {
+-    mScrollbars->SetWebBrowserChrome(browserChrome);
+-  }
+- 
+   if (mDocShell) {
+ 
+     // Get our enclosing chrome shell and retrieve its global window impl, so
+@@ -2794,15 +2771,10 @@ nsGlobalWindow::GetMenubar(nsIDOMBarProp** aMenubar)
+   *aMenubar = nsnull;
+ 
+   if (!mMenubar) {
+-    mMenubar = new nsMenubarProp();
++    mMenubar = new nsMenubarProp(this);
+     if (!mMenubar) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mMenubar->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aMenubar = mMenubar);
+@@ -2818,15 +2790,10 @@ nsGlobalWindow::GetToolbar(nsIDOMBarProp** aToolbar)
+   *aToolbar = nsnull;
+ 
+   if (!mToolbar) {
+-    mToolbar = new nsToolbarProp();
++    mToolbar = new nsToolbarProp(this);
+     if (!mToolbar) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mToolbar->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aToolbar = mToolbar);
+@@ -2842,15 +2809,10 @@ nsGlobalWindow::GetLocationbar(nsIDOMBarProp** aLocationbar)
+   *aLocationbar = nsnull;
+ 
+   if (!mLocationbar) {
+-    mLocationbar = new nsLocationbarProp();
++    mLocationbar = new nsLocationbarProp(this);
+     if (!mLocationbar) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mLocationbar->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aLocationbar = mLocationbar);
+@@ -2866,15 +2828,10 @@ nsGlobalWindow::GetPersonalbar(nsIDOMBarProp** aPersonalbar)
+   *aPersonalbar = nsnull;
+ 
+   if (!mPersonalbar) {
+-    mPersonalbar = new nsPersonalbarProp();
++    mPersonalbar = new nsPersonalbarProp(this);
+     if (!mPersonalbar) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mPersonalbar->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aPersonalbar = mPersonalbar);
+@@ -2890,15 +2847,10 @@ nsGlobalWindow::GetStatusbar(nsIDOMBarProp** aStatusbar)
+   *aStatusbar = nsnull;
+ 
+   if (!mStatusbar) {
+-    mStatusbar = new nsStatusbarProp();
++    mStatusbar = new nsStatusbarProp(this);
+     if (!mStatusbar) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mStatusbar->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aStatusbar = mStatusbar);
+@@ -2918,11 +2870,6 @@ nsGlobalWindow::GetScrollbars(nsIDOMBarProp** aScrollbars)
+     if (!mScrollbars) {
+       return NS_ERROR_OUT_OF_MEMORY;
+     }
+-
+-    nsCOMPtr<nsIWebBrowserChrome> browserChrome;
+-    GetWebBrowserChrome(getter_AddRefs(browserChrome));
+-
+-    mScrollbars->SetWebBrowserChrome(browserChrome);
+   }
+ 
+   NS_ADDREF(*aScrollbars = mScrollbars);
+diff --git a/mozilla/dom/src/base/nsGlobalWindow.h b/mozilla/dom/src/base/nsGlobalWindow.h
+index 50eb0df..eb28b70 100644
+--- a/mozilla/dom/src/base/nsGlobalWindow.h
++++ b/mozilla/dom/src/base/nsGlobalWindow.h
+@@ -446,6 +446,8 @@ public:
+   static PRBool DOMWindowDumpEnabled();
+ 
+ protected:
++  friend class nsBarProp;
++
+   // Object Management
+   virtual ~nsGlobalWindow();
+   void CleanUp();
+diff --git a/mozilla/dom/tests/mochitest/bugs/Makefile.in b/mozilla/dom/tests/mochitest/bugs/Makefile.in
+index 0e50740..8609807 100644
+--- a/mozilla/dom/tests/mochitest/bugs/Makefile.in
++++ b/mozilla/dom/tests/mochitest/bugs/Makefile.in
+@@ -96,6 +96,8 @@ _TEST_FILES	= \
+ 		file_bug504862.html \
+ 		test_bug531176.html \
+ 		test_bug583225.html \
++		test_window_bar.html \
++		file_window_bar.html \
+ 		$(NULL)
+ 
+ libs:: 	$(_TEST_FILES)
+diff --git a/mozilla/dom/tests/mochitest/bugs/file_window_bar.html b/mozilla/dom/tests/mochitest/bugs/file_window_bar.html
+new file mode 100644
+index 0000000..59b2c16
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/bugs/file_window_bar.html
+@@ -0,0 +1,7 @@
++<html>
++<body onload='opener.testWindow(window)'>
++
++Nothing to see here!
++
++</body>
++</html>
+diff --git a/mozilla/dom/tests/mochitest/bugs/test_window_bar.html b/mozilla/dom/tests/mochitest/bugs/test_window_bar.html
+new file mode 100644
+index 0000000..484c7ea
+--- /dev/null
++++ b/mozilla/dom/tests/mochitest/bugs/test_window_bar.html
+@@ -0,0 +1,80 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=642338
++-->
++<head>
++  <title>Test for Bug 642338</title>
++  <script type="text/javascript" src="/MochiKit/packed.js"></script>
++  <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=642338">Mozilla Bug 642338</a>
++<p id="display"></p>
++<div id="content" style="display: none">
++  
++</div>
++<pre id="test">
++<script class="testbody" type="text/javascript">
++
++/* Test that the following window properties work:
++
++     menubar
++     toolbar
++     locationbar
++     personalbar
++     statusbar
++     scrollbars
++
++*/
++
++var numWindows = 0;
++
++/* Called when our popup loads. */
++function testWindow(w)
++{
++  // w.location.search == '?true' if we expect the bars to be on, and
++  // '?false' otherwise.
++
++  var e = w.location.search == '?true';
++  
++  is(w.menubar.visible, e, "menubar");
++  is(w.toolbar.visible, e, "toolbar");
++  is(w.personalbar.visible, e, "personalbar");
++  is(w.scrollbars.visible, e, "scrollbars");
++
++  // You can't turn these off even if you try, so check that they're true.
++  is(w.locationbar.visible, true, "locationbar");
++  is(w.statusbar.visible, true, "statusbar");
++
++  w.close();
++
++  numWindows++;
++  if (numWindows == 2) {
++    // We're done!
++    SimpleTest.finish();
++  }
++
++}
++
++SimpleTest.waitForExplicitFinish();
++
++// These will call back into testWindow when they open.
++
++var allBarsWindow =
++  window.open('file_window_bar.html?true', 'all-bars',
++              'menubar=yes,toolbar=yes,location=yes,' +
++              'personalbar=yes,status=yes,scrollbars=yes',
++              true);
++
++var noBarsWindow = 
++  window.open('file_window_bar.html?false', 'no-bars',
++              'menubar=no,toolbar=no,location=no,' +
++              'personalbar=no,status=no,scrollbars=no',
++              false);
++
++</script>
++</pre>
++</body>
++</html>

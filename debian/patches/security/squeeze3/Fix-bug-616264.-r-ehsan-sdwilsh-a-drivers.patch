@@ -1,0 +1,390 @@
+From: Dan Witte <dwitte@gmail.com>
+Date: Mon, 6 Jun 2011 18:25:58 -0400
+Subject: Fix bug 616264. r=ehsan,sdwilsh, a=drivers
+
+---
+ extensions/cookie/test/unit/test_bug526789.js |  101 +++++++++++++++++++------
+ netwerk/cookie/src/nsCookieService.cpp        |   57 +++++++++-----
+ netwerk/cookie/src/nsCookieService.h          |    1 +
+ netwerk/dns/src/nsEffectiveTLDService.cpp     |    7 ++-
+ netwerk/test/TestCookie.cpp                   |    8 +-
+ 5 files changed, 126 insertions(+), 48 deletions(-)
+
+diff --git a/mozilla/extensions/cookie/test/unit/test_bug526789.js b/mozilla/extensions/cookie/test/unit/test_bug526789.js
+index cbab09a..612af07 100644
+--- a/mozilla/extensions/cookie/test/unit/test_bug526789.js
++++ b/mozilla/extensions/cookie/test/unit/test_bug526789.js
+@@ -1,3 +1,6 @@
++/* Any copyright is dedicated to the Public Domain.
++   http://creativecommons.org/publicdomain/zero/1.0/ */
++
+ const Cc = Components.classes;
+ const Ci = Components.interfaces;
+ const Cr = Components.results;
+@@ -21,10 +24,26 @@ function run_test() {
+   var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
+   var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
+   var ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++  var expiry = (Date.now() + 1000) * 1000;
+ 
+   cm.removeAll();
+ 
+-  // test that an empty or '.' http:// host results in a no-op
++  // Test that 'baz.com' and 'baz.com.' are treated differently
++  cm.add("baz.com", "/", "foo", "bar", false, false, true, expiry);
++  do_check_eq(cm.countCookiesFromHost("baz.com"), 1);
++  do_check_eq(cm.countCookiesFromHost("baz.com."), 0);
++  cm.remove("baz.com", "foo", "/", false);
++  do_check_eq(cm.countCookiesFromHost("baz.com"), 0);
++
++  cm.add("baz.com.", "/", "foo", "bar", false, false, true, expiry);
++  do_check_eq(cm.countCookiesFromHost("baz.com"), 0);
++  do_check_eq(cm.countCookiesFromHost("baz.com."), 1);
++  cm.remove("baz.com", "foo", "/", false);
++  do_check_eq(cm.countCookiesFromHost("baz.com."), 1);
++  cm.remove("baz.com.", "foo", "/", false);
++  do_check_eq(cm.countCookiesFromHost("baz.com."), 0);
++
++  // Test that setting an empty or '.' http:// host results in a no-op
+   var uri = ios.newURI("http://baz.com/", null, null);
+   var emptyuri = ios.newURI("http:///", null, null);
+   var doturi = ios.newURI("http://./", null, null);
+@@ -44,12 +63,14 @@ function run_test() {
+ 
+   do_check_eq(cm.countCookiesFromHost("baz.com"), 1);
+   do_check_eq(cm.countCookiesFromHost(""), 0);
+-  do_check_eq(cm.countCookiesFromHost("."), 0);
++  do_check_throws(function() {
++    cm.countCookiesFromHost(".");
++  }, Cr.NS_ERROR_ILLEGAL_VALUE);
+ 
+   cm.removeAll();
+ 
+-  // test that an empty file:// host works
+-  var emptyuri = ios.newURI("file:///", null, null);
++  // Test that an empty file:// host works
++  emptyuri = ios.newURI("file:///", null, null);
+   do_check_eq(emptyuri.asciiHost, "");
+   do_check_eq(ios.newURI("file://./", null, null).asciiHost, "");
+   do_check_eq(ios.newURI("file://foo.bar/", null, null).asciiHost, "");
+@@ -66,38 +87,36 @@ function run_test() {
+ 
+   do_check_eq(cm.countCookiesFromHost("baz.com"), 0);
+   do_check_eq(cm.countCookiesFromHost(""), 2);
+-  do_check_eq(cm.countCookiesFromHost("."), 0);
+ 
+   cm.removeAll();
+ 
+-  // test that an empty host to add() or remove() works,
+-  // but a host of '.' or ending with a '.' doesn't
+-  var expiry = (Date.now() + 1000) * 1000;
++  // Test that an empty host to add() or remove() works,
++  // but a host of '.' doesn't
+   cm.add("", "/", "foo2", "bar", false, false, true, expiry);
+   do_check_eq(getCookieCount(), 1);
+   do_check_throws(function() {
+     cm.add(".", "/", "foo3", "bar", false, false, true, expiry);
+   }, Cr.NS_ERROR_ILLEGAL_VALUE);
+   do_check_eq(getCookieCount(), 1);
+-  cm.add("test.com", "/", "foo", "bar", false, false, true, expiry);
+-  do_check_eq(getCookieCount(), 2);
+-  do_check_throws(function() {
+-    cm.add("test.com.", "/", "foo4", "bar", false, false, true, expiry);
+-  }, Cr.NS_ERROR_ILLEGAL_VALUE);
+-  do_check_eq(getCookieCount(), 2);
+ 
+   cm.remove("", "foo2", "/", false);
+-  do_check_eq(getCookieCount(), 1);
++  do_check_eq(getCookieCount(), 0);
+   do_check_throws(function() {
+     cm.remove(".", "foo3", "/", false);
+   }, Cr.NS_ERROR_ILLEGAL_VALUE);
+-  do_check_eq(getCookieCount(), 1);
+-  do_check_throws(function() {
+-    cm.remove("test.com.", "foo4", "/", false);
+-  }, Cr.NS_ERROR_ILLEGAL_VALUE);
+-  do_check_eq(getCookieCount(), 1);
+-  cm.remove("test.com", "foo", "/", false);
+-  do_check_eq(getCookieCount(), 0);
++
++  // Test that the 'domain' attribute accepts a leading dot for IP addresses,
++  // aliases such as 'localhost', and eTLD's such as 'co.uk'; but that the
++  // resulting cookie is for the exact host only.
++  testDomainCookie("http://192.168.0.1/", "192.168.0.1");
++  testDomainCookie("http://localhost/", "localhost");
++  testDomainCookie("http://co.uk/", "co.uk");
++
++  // Test that trailing dots are treated differently for purposes of the
++  // 'domain' attribute when using setCookieString.
++  testTrailingDotCookie("http://192.168.0.1", "192.168.0.1");
++  testTrailingDotCookie("http://localhost", "localhost");
++  testTrailingDotCookie("http://foo.com", "foo.com");
+ 
+   cm.removeAll();
+ }
+@@ -114,3 +133,41 @@ function getCookieCount() {
+   return count;
+ }
+ 
++function testDomainCookie(uriString, domain) {
++  var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
++  var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
++  var ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++
++  cm.removeAll();
++
++  var uri = ios.newURI(uriString, null, null);
++  cs.setCookieString(uri, null, "foo=bar; domain=" + domain, null);
++  do_check_neq(cm.countCookiesFromHost(domain), 0);
++  do_check_eq(cm.countCookiesFromHost("." + domain), 0);
++  cm.removeAll();
++
++  cs.setCookieString(uri, null, "foo=bar; domain=." + domain, null);
++  do_check_neq(cm.countCookiesFromHost(domain), 0);
++  do_check_eq(cm.countCookiesFromHost("." + domain), 0);
++  cm.removeAll();
++}
++
++function testTrailingDotCookie(uriString, domain) {
++  var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
++  var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
++  var ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++
++  cm.removeAll();
++
++  var uri = ios.newURI(uriString, null, null);
++  cs.setCookieString(uri, null, "foo=bar; domain=" + domain + ".", null);
++  do_check_eq(cm.countCookiesFromHost(domain), 0);
++  do_check_eq(cm.countCookiesFromHost(domain + "."), 0);
++  cm.removeAll();
++
++  uri = ios.newURI(uriString + ".", null, null);
++  cs.setCookieString(uri, null, "foo=bar; domain=" + domain, null);
++  do_check_eq(cm.countCookiesFromHost(domain), 0);
++  do_check_eq(cm.countCookiesFromHost(domain + "."), 0);
++  cm.removeAll();
++}
+diff --git a/mozilla/netwerk/cookie/src/nsCookieService.cpp b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+index efdfdda..6228d20 100644
+--- a/mozilla/netwerk/cookie/src/nsCookieService.cpp
++++ b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+@@ -957,10 +957,10 @@ nsCookieService::Add(const nsACString &aDomain,
+                      PRBool            aIsSession,
+                      PRInt64           aExpiry)
+ {
+-  // empty domains are acceptable (e.g. file:// URI's), but domains containing
+-  // a trailing '.' will break our domainwalking code.
+-  NS_ENSURE_TRUE(aDomain.IsEmpty() || aDomain.Last() != '.',
+-                 NS_ERROR_INVALID_ARG);
++  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
++  // '.'. 
++  NS_ENSURE_TRUE(aDomain.IsEmpty() ||
++    !(aDomain.Length() == 1 && aDomain.Last() == '.'), NS_ERROR_INVALID_ARG);
+ 
+   PRInt64 currentTimeInUsec = PR_Now();
+ 
+@@ -986,10 +986,10 @@ nsCookieService::Remove(const nsACString &aHost,
+                         const nsACString &aPath,
+                         PRBool           aBlocked)
+ {
+-  // empty domains are acceptable (e.g. file:// URI's), but domains containing
+-  // a trailing '.' will break our domainwalking code.
+-  NS_ENSURE_TRUE(aHost.IsEmpty() || aHost.Last() != '.',
+-                 NS_ERROR_INVALID_ARG);
++  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
++  // '.'.
++  NS_ENSURE_TRUE(aHost.IsEmpty() ||
++    !(aHost.Length() == 1 && aHost.Last() == '.'), NS_ERROR_INVALID_ARG);
+ 
+   nsListIter matchIter;
+   if (FindCookie(PromiseFlatCString(aHost),
+@@ -1269,8 +1269,6 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+     COOKIE_LOGFAILURE(GET_COOKIE, aHostURI, nsnull, "couldn't get host/path from URI");
+     return;
+   }
+-  // trim trailing dots
+-  hostFromURI.Trim(".");
+ 
+   // block any URIs without a host that aren't file:// URIs
+   if (hostFromURI.IsEmpty()) {
+@@ -1282,6 +1280,10 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+     }
+   }
+ 
++  // aHostURI may be the string '.'. If so, fail.
++  if (hostFromURI.Length() == 1 && hostFromURI.Last() == '.')
++    return;
++
+   // insert a leading dot, so we begin the hash lookup with the
+   // equivalent domain cookie host
+   hostFromURI.Insert(NS_LITERAL_CSTRING("."), 0);
+@@ -1354,7 +1356,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+         stale = PR_TRUE;
+     }
+ 
+-    if (!nextDot)
++    if (!nextDot || *(nextDot + 1) == '.')
+       break;
+ 
+     currentDot = nextDot;
+@@ -1868,9 +1870,6 @@ nsCookieService::IsForeign(nsIURI *aHostURI,
+     // assume foreign
+     return PR_TRUE;
+   }
+-  // trim trailing dots
+-  currentHost.Trim(".");
+-  firstHost.Trim(".");
+ 
+   // fast path: check if the two hosts are identical.
+   // this also covers two special cases:
+@@ -1894,7 +1893,6 @@ nsCookieService::IsForeign(nsIURI *aHostURI,
+     // URI is an IP, eTLD, or something else went wrong - assume foreign
+     return PR_TRUE;
+   }  
+-  baseDomain.Trim(".");
+ 
+   // ensure the host domain is derived from the base domain.
+   // we prepend dots before the comparison to ensure e.g.
+@@ -1975,8 +1973,6 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
+   if (NS_FAILED(aHostURI->GetAsciiHost(hostFromURI))) {
+     return PR_FALSE;
+   }
+-  // trim trailing dots
+-  hostFromURI.Trim(".");
+ 
+   // block any URIs without a host that aren't file:// URIs
+   if (hostFromURI.IsEmpty()) {
+@@ -1986,9 +1982,18 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
+       return PR_FALSE;
+   }
+ 
++  // aHostURI may be the string '.'. If so, fail.
++  if (hostFromURI.Length() == 1 && hostFromURI.Last() == '.')
++    return PR_FALSE;
++
+   // if a domain is given, check the host has permission
+   if (!aCookieAttributes.host.IsEmpty()) {
+-    aCookieAttributes.host.Trim(".");
++    // Tolerate leading '.' characters, but not if it's otherwise an empty host.
++    if (aCookieAttributes.host.Length() > 1 &&
++        aCookieAttributes.host.First() == '.') {
++      aCookieAttributes.host.Cut(0, 1);
++    }
++
+     // switch to lowercase now, to avoid case-insensitive compares everywhere
+     ToLowerCase(aCookieAttributes.host);
+ 
+@@ -1997,14 +2002,14 @@ nsCookieService::CheckDomain(nsCookieAttributes &aCookieAttributes,
+     // represents the lowest level domain a cookie can be set for.
+     nsCAutoString baseDomain;
+     rv = mTLDService->GetBaseDomain(aHostURI, 0, baseDomain);
+-    baseDomain.Trim(".");
+     if (NS_FAILED(rv)) {
+       // check whether the host is an IP address, and leave the cookie as
+       // a non-domain one. this will require an exact host match for the cookie,
+       // so we eliminate any chance of IP address funkiness (e.g. the alias 127.1
+       // domain-matching 99.54.127.1). bug 105917 originally noted the
+       // requirement to deal with IP addresses.
+-      if (rv == NS_ERROR_HOST_IS_IP_ADDRESS)
++      if (rv == NS_ERROR_HOST_IS_IP_ADDRESS ||
++          rv == NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS)
+         return hostFromURI.Equals(aCookieAttributes.host);
+ 
+       return PR_FALSE;
+@@ -2205,6 +2210,11 @@ PRUint32
+ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
+                                               nsEnumerationData &aData)
+ {
++  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
++  // '.'.
++  NS_ASSERTION(aHost.IsEmpty() ||
++    !(aHost.Length() == 1 && aHost.Last() == '.'), "invalid host");
++
+   PRUint32 countFromHost = 0;
+   nsCAutoString hostWithDot(NS_LITERAL_CSTRING(".") + aHost);
+ 
+@@ -2225,7 +2235,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
+       }
+     }
+ 
+-    if (!nextDot)
++    if (!nextDot || *(nextDot + 1) == '.')
+       break;
+ 
+     currentDot = nextDot;
+@@ -2241,6 +2251,11 @@ NS_IMETHODIMP
+ nsCookieService::CountCookiesFromHost(const nsACString &aHost,
+                                       PRUint32         *aCountFromHost)
+ {
++  // empty domains are acceptable (e.g. file:// URI's), but we reject the host
++  // '.'.
++  NS_ENSURE_TRUE(aHost.IsEmpty() ||
++    !(aHost.Length() == 1 && aHost.Last() == '.'), NS_ERROR_INVALID_ARG);
++
+   // we don't care about finding the oldest cookie here, so disable the search
+   nsEnumerationData data(PR_Now() / PR_USEC_PER_SEC, LL_MININT);
+   *aCountFromHost = CountCookiesFromHostInternal(aHost, data);
+diff --git a/mozilla/netwerk/cookie/src/nsCookieService.h b/mozilla/netwerk/cookie/src/nsCookieService.h
+index 00d1f8a..c31efbd 100644
+--- a/mozilla/netwerk/cookie/src/nsCookieService.h
++++ b/mozilla/netwerk/cookie/src/nsCookieService.h
+@@ -192,6 +192,7 @@ class nsCookieService : public nsICookieService
+     void                          UpdateCookieInList(nsCookie *aCookie, PRInt64 aLastAccessed);
+     static PRBool                 GetTokenValue(nsASingleFragmentCString::const_char_iterator &aIter, nsASingleFragmentCString::const_char_iterator &aEndIter, nsDependentCSubstring &aTokenString, nsDependentCSubstring &aTokenValue, PRBool &aEqualsFound);
+     static PRBool                 ParseAttributes(nsDependentCString &aCookieHeader, nsCookieAttributes &aCookie);
++    nsresult                      NormalizeHost(nsCString &aHost);
+     PRBool                        IsForeign(nsIURI *aHostURI, nsIURI *aFirstURI);
+     PRUint32                      CheckPrefs(nsIURI *aHostURI, nsIChannel *aChannel, const char *aCookieHeader);
+     PRBool                        CheckDomain(nsCookieAttributes &aCookie, nsIURI *aHostURI);
+diff --git a/mozilla/netwerk/dns/src/nsEffectiveTLDService.cpp b/mozilla/netwerk/dns/src/nsEffectiveTLDService.cpp
+index 07d4456..7fe981d 100644
+--- a/mozilla/netwerk/dns/src/nsEffectiveTLDService.cpp
++++ b/mozilla/netwerk/dns/src/nsEffectiveTLDService.cpp
+@@ -169,13 +169,18 @@ nsEffectiveTLDService::GetBaseDomainInternal(nsCString  &aHostname,
+                                              nsACString &aBaseDomain)
+ {
+   if (aHostname.IsEmpty())
+-    return NS_ERROR_INVALID_ARG;
++    return NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS;
+ 
+   // chomp any trailing dot, and keep track of it for later
+   PRBool trailingDot = aHostname.Last() == '.';
+   if (trailingDot)
+     aHostname.Truncate(aHostname.Length() - 1);
+ 
++  // check the edge cases of the host being '.' or having a second trailing '.',
++  // since subsequent checks won't catch it.
++  if (aHostname.IsEmpty() || aHostname.Last() == '.')
++    return NS_ERROR_INVALID_ARG;
++
+   // Check if we're dealing with an IPv4/IPv6 hostname, and return
+   PRNetAddr addr;
+   PRStatus result = PR_StringToNetAddr(aHostname.get(), &addr);
+diff --git a/mozilla/netwerk/test/TestCookie.cpp b/mozilla/netwerk/test/TestCookie.cpp
+index 6e8afbd..3e3cfcc 100644
+--- a/mozilla/netwerk/test/TestCookie.cpp
++++ b/mozilla/netwerk/test/TestCookie.cpp
+@@ -309,11 +309,11 @@ main(PRInt32 argc, char *argv[])
+       GetACookie(cookieService, "http://www.basic.com/testPath/testfile.txt", nsnull, getter_Copies(cookie));
+       rv[1] = CheckResult(cookie.get(), MUST_EQUAL, "test=basic");
+       GetACookie(cookieService, "http://www.basic.com./", nsnull, getter_Copies(cookie));
+-      rv[2] = CheckResult(cookie.get(), MUST_EQUAL, "test=basic");
++      rv[2] = CheckResult(cookie.get(), MUST_BE_NULL);
+       GetACookie(cookieService, "http://www.basic.com.", nsnull, getter_Copies(cookie));
+-      rv[3] = CheckResult(cookie.get(), MUST_EQUAL, "test=basic");
++      rv[3] = CheckResult(cookie.get(), MUST_BE_NULL);
+       GetACookie(cookieService, "http://www.basic.com./testPath/testfile.txt", nsnull, getter_Copies(cookie));
+-      rv[4] = CheckResult(cookie.get(), MUST_EQUAL, "test=basic");
++      rv[4] = CheckResult(cookie.get(), MUST_BE_NULL);
+       GetACookie(cookieService, "http://www.basic2.com/", nsnull, getter_Copies(cookie));
+       rv[5] = CheckResult(cookie.get(), MUST_BE_NULL);
+       SetACookie(cookieService, "http://www.basic.com", nsnull, "test=basic; max-age=-1", nsnull);
+@@ -332,7 +332,7 @@ main(PRInt32 argc, char *argv[])
+       GetACookie(cookieService, "http://domain.com", nsnull, getter_Copies(cookie));
+       rv[0] = CheckResult(cookie.get(), MUST_EQUAL, "test=domain");
+       GetACookie(cookieService, "http://domain.com.", nsnull, getter_Copies(cookie));
+-      rv[1] = CheckResult(cookie.get(), MUST_EQUAL, "test=domain");
++      rv[1] = CheckResult(cookie.get(), MUST_BE_NULL);
+       GetACookie(cookieService, "http://www.domain.com", nsnull, getter_Copies(cookie));
+       rv[2] = CheckResult(cookie.get(), MUST_EQUAL, "test=domain");
+       GetACookie(cookieService, "http://foo.domain.com", nsnull, getter_Copies(cookie));

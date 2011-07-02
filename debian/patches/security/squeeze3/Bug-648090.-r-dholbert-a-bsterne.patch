@@ -1,0 +1,82 @@
+From: Jonathan Watt <jwatt@jwatt.org>
+Date: Sun, 8 May 2011 18:20:29 +0100
+Subject: Bug 648090. r=dholbert, a=bsterne.
+
+---
+ content/svg/content/src/nsSVGNumberList.cpp  |   25 ++++++++++++++++++++-----
+ content/svg/content/src/nsSVGPathSegList.cpp |   13 ++++++++++---
+ 2 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGNumberList.cpp b/mozilla/content/svg/content/src/nsSVGNumberList.cpp
+index 552620b..7d5b7b0 100644
+--- a/mozilla/content/svg/content/src/nsSVGNumberList.cpp
++++ b/mozilla/content/svg/content/src/nsSVGNumberList.cpp
+@@ -261,16 +261,31 @@ nsSVGNumberList::ReplaceItem(nsIDOMSVGNumber *newItem,
+                              PRUint32 index,
+                              nsIDOMSVGNumber **_retval)
+ {
++  *_retval = nsnull;
++
+   if (!newItem) {
+-    *_retval = nsnull;
+     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
+   }
+ 
+-  nsresult rv = RemoveItem(index, _retval);
+-  if (NS_FAILED(rv))
+-    return rv;
++  if (index >= mNumbers.Count()) {
++    return NS_ERROR_DOM_INDEX_SIZE_ERR;
++  }
+ 
+-  return InsertElementAt(newItem, index);
++  // The following is equivalent to RemoveItem() followed by InsertElementAt(),
++  // but with the WillModify() / DidModify() notifications collapsed.
++
++  WillModify();
++  nsIDOMSVGNumber* number = ElementAt(index);
++  NS_REMOVE_SVGVALUE_OBSERVER(number);
++  NS_RELEASE(number);
++  mNumbers.ReplaceElementAt(newItem, index);
++  NS_ADDREF(newItem);
++  NS_ADD_SVGVALUE_OBSERVER(newItem);
++  DidModify();
++
++  NS_ADDREF(*_retval = newItem);
++
++  return NS_OK;
+ }
+ 
+ /* nsIDOMSVGNumberList removeItem (in unsigned long index); */
+diff --git a/mozilla/content/svg/content/src/nsSVGPathSegList.cpp b/mozilla/content/svg/content/src/nsSVGPathSegList.cpp
+index ac16e50..c63988f 100644
+--- a/mozilla/content/svg/content/src/nsSVGPathSegList.cpp
++++ b/mozilla/content/svg/content/src/nsSVGPathSegList.cpp
+@@ -243,17 +243,24 @@ NS_IMETHODIMP nsSVGPathSegList::ReplaceItem(nsIDOMSVGPathSeg *newItem,
+ {
+   NS_ENSURE_NATIVE_PATH_SEG(newItem, _retval);
+ 
++  if (index >= static_cast<PRUint32>(mSegments.Count())) {
++    return NS_ERROR_DOM_INDEX_SIZE_ERR;
++  }
++
+   // immediately remove the new item from its current list
+   nsSVGPathSeg* newItemSeg = static_cast<nsSVGPathSeg*>(newItem);
+   RemoveFromCurrentList(newItemSeg);
+ 
++  // check length *again*, since mutation listener may have changed it!
+   if (index >= static_cast<PRUint32>(mSegments.Count())) {
+     return NS_ERROR_DOM_INDEX_SIZE_ERR;
+   }
+ 
+-  // NOTE: the new item can never be the item we will be replacing now that we removed it from its current list beforehand
+-  InsertElementAt(newItemSeg, index);
+-  RemoveFromCurrentList(static_cast<nsSVGPathSeg*>(mSegments.ObjectAt(index+1)));
++  WillModify();
++  mSegments.ReplaceObjectAt(newItemSeg, index);
++  newItemSeg->SetCurrentList(this);
++  DidModify();
++
+   NS_ADDREF(*_retval = newItem);
+ 
+   return NS_OK;

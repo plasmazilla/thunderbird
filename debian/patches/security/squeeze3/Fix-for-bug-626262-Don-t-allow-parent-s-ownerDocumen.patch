@@ -1,0 +1,160 @@
+From: Peter Van der Beken <peterv@propagandism.org>
+Date: Mon, 7 Feb 2011 15:36:16 +0100
+Subject: Fix for bug 626262 (Don't allow parent's ownerDocument to change
+ during appendChild). r=bz, a=dveditz.
+
+---
+ content/base/src/nsGenericElement.cpp |   45 ++++++++++++++++-----------
+ content/base/test/Makefile.in         |    1 +
+ content/base/test/test_bug626262.html |   55 +++++++++++++++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 18 deletions(-)
+ create mode 100644 content/base/test/test_bug626262.html
+
+diff --git a/mozilla/content/base/src/nsGenericElement.cpp b/mozilla/content/base/src/nsGenericElement.cpp
+index 713ab1c..536acdc 100644
+--- a/mozilla/content/base/src/nsGenericElement.cpp
++++ b/mozilla/content/base/src/nsGenericElement.cpp
+@@ -3203,6 +3203,29 @@ nsGenericElement::InsertChildAt(nsIContent* aKid,
+                          mAttrsAndChildren);
+ }
+ 
++static nsresult
++AdoptNodeIntoOwnerDoc(nsINode *aParent, nsIDOMNode *aNode)
++{
++  nsIDocument *doc = aParent->GetOwnerDoc();
++
++  nsresult rv;
++  nsCOMPtr<nsIDOM3Document> domDoc = do_QueryInterface(doc, &rv);
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  nsCOMPtr<nsIDOMNode> adoptedNode;
++  rv = domDoc->AdoptNode(aNode, getter_AddRefs(adoptedNode));
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  if (doc != aParent->GetOwnerDoc()) {
++    return NS_ERROR_DOM_WRONG_DOCUMENT_ERR;
++  }
++
++  NS_ASSERTION(adoptedNode == aNode, "Uh, adopt node changed nodes?");
++  NS_ASSERTION(aParent->HasSameOwnerDoc(nsCOMPtr<nsINode>(do_QueryInterface(aNode))),
++               "ownerDocument changed again after adopting!");
++
++  return NS_OK;
++}
+ 
+ /* static */
+ nsresult
+@@ -3226,20 +3249,13 @@ nsGenericElement::doInsertChildAt(nsIContent* aKid, PRUint32 aIndex,
+     rv = kid->GetNodeType(&nodeType);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+-    nsCOMPtr<nsIDOM3Document> domDoc =
+-      do_QueryInterface(container->GetOwnerDoc());
+-
+     // DocumentType nodes are the only nodes that can have a null
+     // ownerDocument according to the DOM spec, and we need to allow
+     // inserting them w/o calling AdoptNode().
+ 
+-    if (domDoc && (nodeType != nsIDOMNode::DOCUMENT_TYPE_NODE ||
+-                   aKid->GetOwnerDoc())) {
+-      nsCOMPtr<nsIDOMNode> adoptedKid;
+-      rv = domDoc->AdoptNode(kid, getter_AddRefs(adoptedKid));
++    if (nodeType != nsIDOMNode::DOCUMENT_TYPE_NODE || aKid->GetOwnerDoc()) {
++      rv = AdoptNodeIntoOwnerDoc(container, kid);
+       NS_ENSURE_SUCCESS(rv, rv);
+-
+-      NS_ASSERTION(adoptedKid == kid, "Uh, adopt node changed nodes?");
+     }
+   }
+ 
+@@ -3767,15 +3783,8 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+   if (!container->HasSameOwnerDoc(newContent) &&
+       (nodeType != nsIDOMNode::DOCUMENT_TYPE_NODE ||
+        newContent->GetOwnerDoc())) {
+-    nsCOMPtr<nsIDOM3Document> domDoc = do_QueryInterface(aDocument);
+-
+-    if (domDoc) {
+-      nsCOMPtr<nsIDOMNode> adoptedKid;
+-      nsresult rv = domDoc->AdoptNode(aNewChild, getter_AddRefs(adoptedKid));
+-      NS_ENSURE_SUCCESS(rv, rv);
+-
+-      NS_ASSERTION(adoptedKid == aNewChild, "Uh, adopt node changed nodes?");
+-    }
++    res = AdoptNodeIntoOwnerDoc(container, aNewChild);
++    NS_ENSURE_SUCCESS(res, res);
+   }
+ 
+   // If we're replacing
+diff --git a/mozilla/content/base/test/Makefile.in b/mozilla/content/base/test/Makefile.in
+index c3cc1b2..9ad8512 100644
+--- a/mozilla/content/base/test/Makefile.in
++++ b/mozilla/content/base/test/Makefile.in
+@@ -287,6 +287,7 @@ _TEST_FILES = 	test_bug5141.html \
+ 		file_bug498897.html \
+ 		file_bug498897.html^headers^ \
+ 		file_bug498897.css \
++		test_bug626262.html \
+ 		$(NULL)
+ 
+ # Disabled for now. Mochitest isn't reliable enough for these.
+diff --git a/mozilla/content/base/test/test_bug626262.html b/mozilla/content/base/test/test_bug626262.html
+new file mode 100644
+index 0000000..5e33a09
+--- /dev/null
++++ b/mozilla/content/base/test/test_bug626262.html
+@@ -0,0 +1,55 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=626262
++-->
++<head>
++  <title>Test for Bug 626262</title>
++  <script type="application/javascript" src="/MochiKit/packed.js"></script>
++  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=626262">Mozilla Bug 626262</a>
++<p id="display"><iframe id="f" src="data:text/html,1"></iframe></p>
++<div id="content" style="display: none">
++  
++</div>
++<pre id="test">
++<script type="application/javascript">
++
++/** Test for Bug 626262 **/
++SimpleTest.waitForExplicitFinish();
++
++addLoadEvent(function() {
++  var iframe = document.getElementById("f");
++  var frameDoc = iframe.contentDocument;
++  var parent = frameDoc.createElementNS("http://www.w3.org/1999/xhtml", "div");
++
++  function a()
++  {
++    window.removeEventListener("DOMNodeRemoved", arguments.callee, false);
++    document.adoptNode(parent);
++  }
++
++  var text = document.createTextNode(" ");
++  document.documentElement.appendChild(text);
++
++  var thrown = false;
++  try {
++    window.addEventListener("DOMNodeRemoved", a, false);
++    parent.appendChild(text);
++  }
++  catch (e) {
++    thrown = true;
++  }
++
++  ok(thrown, "changing ownerDocument during adoptNode should throw");
++
++  SimpleTest.finish();
++});
++
++</script>
++</pre>
++</body>
++</html>

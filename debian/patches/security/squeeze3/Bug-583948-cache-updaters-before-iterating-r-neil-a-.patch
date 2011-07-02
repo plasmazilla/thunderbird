@@ -1,0 +1,122 @@
+From: Neil Deakin <neil@mozilla.com>
+Date: Thu, 9 Jun 2011 00:00:17 -0700
+Subject: Bug 583948, cache updaters before iterating, r=neil,a=dveditz
+
+---
+ .../xul/document/src/nsXULCommandDispatcher.cpp    |   10 ++++-
+ content/xul/document/test/Makefile.in              |    2 +
+ content/xul/document/test/test_bug583948.xul       |   41 ++++++++++++++++++++
+ content/xul/document/test/window_bug583948.xul     |    8 ++++
+ 4 files changed, 60 insertions(+), 1 deletions(-)
+ create mode 100644 content/xul/document/test/test_bug583948.xul
+ create mode 100644 content/xul/document/test/window_bug583948.xul
+
+diff --git a/mozilla/content/xul/document/src/nsXULCommandDispatcher.cpp b/mozilla/content/xul/document/src/nsXULCommandDispatcher.cpp
+index 070e7a8..67a2864 100644
+--- a/mozilla/content/xul/document/src/nsXULCommandDispatcher.cpp
++++ b/mozilla/content/xul/document/src/nsXULCommandDispatcher.cpp
+@@ -361,6 +361,8 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
+     if (NS_FAILED(rv)) return rv;
+   }
+ 
++  nsCOMArray<nsIContent> updaters;
++
+   for (Updater* updater = mUpdaters; updater != nsnull; updater = updater->mNext) {
+     // Skip any nodes that don't match our 'events' or 'targets'
+     // filters.
+@@ -375,6 +377,12 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
+     if (! content)
+       return NS_ERROR_UNEXPECTED;
+ 
++    updaters.AppendObject(content);
++  }
++
++  for (PRUint32 u = 0; u < updaters.Count(); u++) {
++    nsIContent* content = updaters[u];
++
+     nsCOMPtr<nsIDocument> document = content->GetDocument();
+ 
+     NS_ASSERTION(document != nsnull, "element has no document");
+@@ -387,7 +395,7 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
+       CopyUTF16toUTF8(aEventName, aeventnameC);
+       PR_LOG(gLog, PR_LOG_NOTICE,
+              ("xulcmd[%p] update %p event=%s",
+-              this, updater->mElement.get(),
++              this, content,
+               aeventnameC.get()));
+     }
+ #endif
+diff --git a/mozilla/content/xul/document/test/Makefile.in b/mozilla/content/xul/document/test/Makefile.in
+index 9712e90..d1751b3 100644
+--- a/mozilla/content/xul/document/test/Makefile.in
++++ b/mozilla/content/xul/document/test/Makefile.in
+@@ -57,6 +57,8 @@ _TEST_FILES	= \
+ 		$(NULL)
+ 
+ _CHROME_FILES = \
++		test_bug583948.xul \
++		window_bug583948.xul \
+ 		test_bug497875.xul \
+ 		     bug497875-iframe.xul \
+ 		$(NULL)
+diff --git a/mozilla/content/xul/document/test/test_bug583948.xul b/mozilla/content/xul/document/test/test_bug583948.xul
+new file mode 100644
+index 0000000..630eb0e
+--- /dev/null
++++ b/mozilla/content/xul/document/test/test_bug583948.xul
+@@ -0,0 +1,41 @@
++<?xml version="1.0"?>
++<?xml-stylesheet href="chrome://global/skin" type="text/css"?>
++<?xml-stylesheet href="chrome://mochikit/content/tests/SimpleTest/test.css"
++                 type="text/css"?>
++
++<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
++
++<script type="application/javascript" src="chrome://mochikit/content/MochiKit/packed.js"></script>
++<script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js" />
++
++<body xmlns="http://www.w3.org/1999/xhtml">
++  <div id="content" style="display: none"/>
++</body>
++
++<script>
++SimpleTest.waitForExplicitFinish();
++
++var attempts = 0;
++
++function update() {
++  setTimeout(function() {
++    if (otherWindow.location)
++      otherWindow.location.reload()
++    }, 1);
++  otherWindow.document.commandDispatcher.updateCommands('');
++  // without the crash fix, this usually crashes after 2 to 4 reloads
++  if (++attempts == 6) {
++    ok(true, "didn't crash after 6 attempts");
++    otherWindow.close();
++    SimpleTest.finish();
++  }
++  else {
++    setTimeout(update, 100);
++  }
++}
++
++var otherWindow = window.open("window_bug583948.xul", "_new", "chrome");
++setTimeout(update, 100);
++</script>
++
++</window>
+diff --git a/mozilla/content/xul/document/test/window_bug583948.xul b/mozilla/content/xul/document/test/window_bug583948.xul
+new file mode 100644
+index 0000000..332496d
+--- /dev/null
++++ b/mozilla/content/xul/document/test/window_bug583948.xul
+@@ -0,0 +1,8 @@
++<?xml-stylesheet href="chrome://browser/skin/" type="text/css"?>
++<window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
++
++<command oncommandupdate="document.removeChild(document.documentElement)" commandupdater="true"/>
++<box command="c"/>
++<iframe/>
++
++</window>

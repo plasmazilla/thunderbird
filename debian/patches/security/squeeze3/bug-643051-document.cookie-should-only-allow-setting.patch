@@ -1,0 +1,139 @@
+From: Christian Biesinger <cbiesinger@gmail.com>
+Date: Tue, 10 May 2011 17:20:03 -0700
+Subject: bug 643051 - document.cookie should only allow setting one cookie at
+ a time
+
+---
+ content/base/test/test_CrossSiteXHR.html      |    5 +++
+ content/html/content/test/Makefile.in         |    1 +
+ content/html/content/test/test_bug643051.html |   43 +++++++++++++++++++++++++
+ netwerk/cookie/src/nsCookieService.cpp        |    6 +++-
+ netwerk/test/unit/test_bug643051.js           |   24 ++++++++++++++
+ 5 files changed, 78 insertions(+), 1 deletions(-)
+ create mode 100644 content/html/content/test/test_bug643051.html
+ create mode 100644 netwerk/test/unit/test_bug643051.js
+
+diff --git a/mozilla/content/base/test/test_CrossSiteXHR.html b/mozilla/content/base/test/test_CrossSiteXHR.html
+index 1048ed8..4c419a8 100644
+--- a/mozilla/content/base/test/test_CrossSiteXHR.html
++++ b/mozilla/content/base/test/test_CrossSiteXHR.html
+@@ -672,6 +672,11 @@ function runTest() {
+     }
+   }
+ 
++  // Make sure to clear cookies to avoid affecting other tests
++  document.cookie = "a=; path=/; expires=Thu, 01-Jan-1970 00:00:01 GMT"
++  is(document.cookie, "", "No cookies should be left over");
++
++
+   // Test redirects
+   is(loader.src, "http://example.org/tests/content/base/test/file_CrossSiteXHR_inner.html");
+   is(origin, "http://example.org");
+diff --git a/mozilla/content/html/content/test/Makefile.in b/mozilla/content/html/content/test/Makefile.in
+index ff47e72..6ecadff 100644
+--- a/mozilla/content/html/content/test/Makefile.in
++++ b/mozilla/content/html/content/test/Makefile.in
+@@ -124,6 +124,7 @@ _TEST_FILES = 	test_bug589.html \
+ 		test_bug442801.html \
+ 		test_bug448166.html \
+ 		test_bug460568.html \
++		test_bug643051.html \
+ 		$(NULL)
+ 
+ libs:: $(_TEST_FILES)
+diff --git a/mozilla/content/html/content/test/test_bug643051.html b/mozilla/content/html/content/test/test_bug643051.html
+new file mode 100644
+index 0000000..08f8cea
+--- /dev/null
++++ b/mozilla/content/html/content/test/test_bug643051.html
+@@ -0,0 +1,43 @@
++<!DOCTYPE HTML>
++<html>
++<!--
++https://bugzilla.mozilla.org/show_bug.cgi?id=643051
++-->
++<head>
++  <title>Test for Bug 643051</title>
++  <script type="application/javascript" src="/MochiKit/packed.js"></script>
++  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
++  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
++</head>
++<body>
++<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=643051">Mozilla Bug 643051</a>
++<p id="display"></p>
++<div id="content" style="display: none">
++  
++</div>
++<pre id="test">
++<script type="application/javascript">
++
++/** Test for Bug 643051 **/
++document.cookie = "a=; expires=Thu, 01-Jan-1970 00:00:01 GMT";  // clear cookie
++document.cookie = "a2=; expires=Thu, 01-Jan-1970 00:00:01 GMT";  // clear cookie
++document.cookie = "a3=; expires=Thu, 01-Jan-1970 00:00:01 GMT";  // clear cookie
++
++// single cookie, should work
++document.cookie = "a=bar";
++is(document.cookie, "a=bar", "Can't read stored cookie!");
++
++document.cookie = "a2=bar\na3=bar";
++is(document.cookie, "a=bar; a2=bar", "Wrong cookie value");
++
++document.cookie = "a2=baz; a3=bar";
++is(document.cookie, "a=bar; a2=baz", "Wrong cookie value");
++
++// clear cookies again to avoid affecting other tests
++document.cookie = "a=; expires=Thu, 01-Jan-1970 00:00:01 GMT";
++document.cookie = "a2=; expires=Thu, 01-Jan-1970 00:00:01 GMT";
++document.cookie = "a3=; expires=Thu, 01-Jan-1970 00:00:01 GMT";
++</script>
++</pre>
++</body>
++</html>
+diff --git a/mozilla/netwerk/cookie/src/nsCookieService.cpp b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+index 043797f..efdfdda 100644
+--- a/mozilla/netwerk/cookie/src/nsCookieService.cpp
++++ b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+@@ -831,7 +831,11 @@ nsCookieService::SetCookieStringInternal(nsIURI     *aHostURI,
+  
+   // switch to a nice string type now, and process each cookie in the header
+   nsDependentCString cookieHeader(aCookieHeader);
+-  while (SetCookieInternal(aHostURI, aChannel, cookieHeader, serverTime, aFromHttp));
++  while (SetCookieInternal(aHostURI, aChannel, cookieHeader, serverTime, aFromHttp)) {
++    // document.cookie can only set one cookie at a time
++    if (!aFromHttp)
++      break;
++  }
+ 
+   return NS_OK;
+ }
+diff --git a/mozilla/netwerk/test/unit/test_bug643051.js b/mozilla/netwerk/test/unit/test_bug643051.js
+new file mode 100644
+index 0000000..6ae47de
+--- /dev/null
++++ b/mozilla/netwerk/test/unit/test_bug643051.js
+@@ -0,0 +1,24 @@
++const Cc = Components.classes;
++const Ci = Components.interfaces;
++
++function run_test() {
++  let cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
++  let ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++
++  let uri = ios.newURI("http://example.org/", null, null);
++
++  let set = "foo=bar\nbaz=foo";
++  let expected = "foo=bar; baz=foo";
++  cs.setCookieStringFromHttp(uri, null, null, set, null, null);
++
++  let actual = cs.getCookieStringFromHttp(uri, null, null);
++  do_check_eq(actual, expected);
++
++  uri = ios.newURI("http://example.com/", null, null);
++  cs.setCookieString(uri, null, set, null);
++
++  expected = "foo=bar";
++  actual = cs.getCookieString(uri, null, null);
++  do_check_eq(actual, expected);
++}
++

@@ -1,0 +1,22 @@
+From: Luke Wagner <luke@mozilla.com>
+Date: Fri, 10 Jun 2011 15:14:00 -0700
+Subject: Bug 650874 - Fix correctness issue with JSOP_CALLGVAR,
+ r=gal,dvander, a=LegNeato
+
+---
+ js/src/jstracer.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jstracer.cpp b/mozilla/js/src/jstracer.cpp
+index adf1a81..4c1e05b 100644
+--- a/mozilla/js/src/jstracer.cpp
++++ b/mozilla/js/src/jstracer.cpp
+@@ -10723,7 +10723,7 @@ TraceRecorder::record_JSOP_CALLGVAR()
+ 
+     jsval& v = STOBJ_GET_SLOT(globalObj, slot);
+     stack(0, get(&v));
+-    stack(1, INS_CONSTPTR(NULL));
++    stack(1, INS_CONSTPTR(globalObj));
+     return JSRS_CONTINUE;
+ }
+ 

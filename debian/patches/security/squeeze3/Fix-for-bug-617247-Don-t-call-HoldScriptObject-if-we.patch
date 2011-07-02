@@ -1,0 +1,26 @@
+From: Peter Van der Beken <peterv@propagandism.org>
+Date: Sun, 6 Mar 2011 14:46:51 +0100
+Subject: Fix for bug 617247 (Don't call HoldScriptObject if we don't have a
+ script object). r=sicking, a=dveditz.
+
+---
+ content/xul/content/src/nsXULElement.h |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/xul/content/src/nsXULElement.h b/mozilla/content/xul/content/src/nsXULElement.h
+index bf3bfd3..eb010d6 100644
+--- a/mozilla/content/xul/content/src/nsXULElement.h
++++ b/mozilla/content/xul/content/src/nsXULElement.h
+@@ -374,6 +374,12 @@ public:
+     {
+         NS_ASSERTION(!mScriptObject.mObject, "Leaking script object.");
+ 
++        if (!aObject) {
++            mScriptObject.mObject = nsnull;
++
++            return;
++        }
++
+         nsresult rv = nsContentUtils::HoldScriptObject(mScriptObject.mLangID,
+                                                        this,
+                                                        &NS_CYCLE_COLLECTION_NAME(nsXULPrototypeNode),

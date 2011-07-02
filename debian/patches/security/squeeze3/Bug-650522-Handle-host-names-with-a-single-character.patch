@@ -1,0 +1,73 @@
+From: Ehsan Akhgari <ehsan@mozilla.com>
+Date: Mon, 6 Jun 2011 21:43:20 -0400
+Subject: Bug 650522 - Handle host names with a single character before a dot
+ correctly; r=dwitte a=LegNeato
+
+---
+ extensions/cookie/test/unit/test_bug650522.js |   18 ++++++++++++++++++
+ netwerk/cookie/src/nsCookieService.cpp        |    6 ++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+ create mode 100644 extensions/cookie/test/unit/test_bug650522.js
+
+diff --git a/mozilla/extensions/cookie/test/unit/test_bug650522.js b/mozilla/extensions/cookie/test/unit/test_bug650522.js
+new file mode 100644
+index 0000000..7df21fb
+--- /dev/null
++++ b/mozilla/extensions/cookie/test/unit/test_bug650522.js
+@@ -0,0 +1,18 @@
++/* Any copyright is dedicated to the Public Domain.
++   http://creativecommons.org/publicdomain/zero/1.0/ */
++
++const Cc = Components.classes;
++const Ci = Components.interfaces;
++
++function run_test() {
++  var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
++  var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
++  var ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++  var expiry = (Date.now() + 1000) * 1000;
++
++  // Test our handling of host names with a single character at the beginning
++  // followed by a dot.
++  cm.add("e.mail.com", "/", "foo", "bar", false, false, true, expiry);
++  do_check_eq(cm.countCookiesFromHost("e.mail.com"), 1);
++  do_check_eq(cs.getCookieString(ios.newURI("http://e.mail.com", null, null), null), "foo=bar");
++}
+diff --git a/mozilla/netwerk/cookie/src/nsCookieService.cpp b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+index 6228d20..7b4d6e3 100644
+--- a/mozilla/netwerk/cookie/src/nsCookieService.cpp
++++ b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+@@ -1302,6 +1302,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+   PRInt64 currentTime = currentTimeInUsec / PR_USEC_PER_SEC;
+   const char *currentDot = hostFromURI.get();
+   const char *nextDot = currentDot + 1;
++  const char *end = currentDot + (hostFromURI.Length() - 1);
+   PRBool stale = PR_FALSE;
+ 
+   // begin hash lookup, walking up the subdomain levels.
+@@ -1356,7 +1357,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+         stale = PR_TRUE;
+     }
+ 
+-    if (!nextDot || *(nextDot + 1) == '.')
++    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
+       break;
+ 
+     currentDot = nextDot;
+@@ -2220,6 +2221,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
+ 
+   const char *currentDot = hostWithDot.get();
+   const char *nextDot = currentDot + 1;
++  const char *end = currentDot + (hostWithDot.Length() - 1);
+   do {
+     nsCookieEntry *entry = mDBState->hostTable.GetEntry(currentDot);
+     for (nsListIter iter(entry); iter.current; ++iter) {
+@@ -2235,7 +2237,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
+       }
+     }
+ 
+-    if (!nextDot || *(nextDot + 1) == '.')
++    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
+       break;
+ 
+     currentDot = nextDot;

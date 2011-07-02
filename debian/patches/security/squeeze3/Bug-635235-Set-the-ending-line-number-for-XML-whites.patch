@@ -1,0 +1,21 @@
+From: Jeff Walden <jwalden@mit.edu>
+Date: Thu, 9 Jun 2011 01:02:17 -0700
+Subject: Bug 635235 - Set the ending line number for XML whitespace.
+ r=nnethercote, a=dveditz
+
+---
+ js/src/jsscan.cpp |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/js/src/jsscan.cpp b/mozilla/js/src/jsscan.cpp
+index eee0a57..8dd374f 100644
+--- a/mozilla/js/src/jsscan.cpp
++++ b/mozilla/js/src/jsscan.cpp
+@@ -1099,6 +1099,7 @@ js_GetToken(JSContext *cx, JSTokenStream *ts)
+                 c = GetChar(ts);
+             } while (JS_ISXMLSPACE(c));
+             UngetChar(ts, c);
++            tp->pos.end.lineno = ts->lineno;
+             tt = TOK_XMLSPACE;
+             goto out;
+         }
