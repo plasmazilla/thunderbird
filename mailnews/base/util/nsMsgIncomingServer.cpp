@@ -475,6 +475,8 @@ nsMsgIncomingServer::GetFileValue(const char* aRelPrefName,
   if (relFilePref) {
     rv = relFilePref->GetFile(aLocalFile);
     NS_ASSERTION(*aLocalFile, "An nsIRelativeFilePref has no file.");
+    if (NS_SUCCEEDED(rv))
+      (*aLocalFile)->Normalize();
   } else {
     rv = mPrefBranch->GetComplexValue(aAbsPrefName,
                                       NS_GET_IID(nsILocalFile),
@@ -1184,7 +1186,7 @@ nsMsgIncomingServer::InternalSetHostName(const nsACString& aHostname, const char
     nsCAutoString portString(Substring(hostname, colonPos));
     hostname.SetLength(colonPos);
     nsresult err;
-    PRInt32 port = portString.ToInteger(&err, 10);
+    PRInt32 port = portString.ToInteger(&err);
     if (NS_SUCCEEDED(err))
       SetPort(port);
   }
@@ -1649,9 +1651,6 @@ NS_IMPL_SERVERPREF_STR(nsMsgIncomingServer, Username, "userName")
 NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, AuthMethod, "authMethod")
 NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, BiffMinutes, "check_time")
 NS_IMPL_SERVERPREF_STR(nsMsgIncomingServer, Type, "type")
-// in 4.x, this was "mail.pop3_gets_new_mail" for pop and
-// "mail.imap.new_mail_get_headers" for imap (it was global)
-// in 5.0, this will be per server, and it will be "download_on_biff"
 NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, DownloadOnBiff, "download_on_biff")
 NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, Valid, "valid")
 NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, EmptyTrashOnExit,
@@ -1679,10 +1678,6 @@ NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, MaxMessageSize, "max_size")
 NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, IncomingDuplicateAction, "dup_action")
 
 NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, Hidden, "hidden")
-
-NS_IMPL_SERVERPREF_INT(nsMsgIncomingServer, ArchiveGranularity, "archive_granularity")
-
-NS_IMPL_SERVERPREF_BOOL(nsMsgIncomingServer, ArchiveKeepFolderStructure, "archive_keep_folder_structure")
 
 NS_IMETHODIMP nsMsgIncomingServer::GetSocketType(PRInt32 *aSocketType)
 {
@@ -2064,6 +2059,14 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetSpamSettings(nsISpamSettings **aSpamSettings)
 {
   NS_ENSURE_ARG_POINTER(aSpamSettings);
+
+  nsCAutoString spamActionTargetAccount;
+  GetCharValue("spamActionTargetAccount", spamActionTargetAccount);
+  if (spamActionTargetAccount.IsEmpty())
+  {
+    GetServerURI(spamActionTargetAccount);
+    SetCharValue("spamActionTargetAccount", spamActionTargetAccount);
+  }
 
   if (!mSpamSettings) {
     nsresult rv;

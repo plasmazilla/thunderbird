@@ -211,7 +211,7 @@ nsWidgetUtils::UpdateFromEvent(nsIDOMEvent *aDOMEvent)
   doc = do_QueryInterface(domDoc);
   if (!doc) return NS_OK;
   // the only case where there could be more shells in printpreview
-  nsIPresShell *shell = doc->GetPrimaryShell();
+  nsIPresShell *shell = doc->GetShell();
   NS_ENSURE_TRUE(shell, NS_ERROR_FAILURE);
   mViewManager = shell->GetViewManager();
   NS_ENSURE_TRUE(mViewManager, NS_ERROR_FAILURE);
@@ -284,8 +284,7 @@ nsWidgetUtils::MouseMove(nsIDOMEvent* aDOMEvent)
   if(g_lastX == MIN_INT || g_lastY == MIN_INT)
     return NS_OK;
 
-  nsIView *aView = nsnull;
-  mViewManager->GetRootView(aView);
+  nsIView* aView = mViewManager->GetRootView();
   if (!aView)
     if (NS_FAILED(UpdateFromEvent(aDOMEvent)))
       return NS_OK;

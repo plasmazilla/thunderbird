@@ -137,27 +137,20 @@ nsLineBox::Cleanup()
 static void
 ListFloats(FILE* out, PRInt32 aIndent, const nsFloatCacheList& aFloats)
 {
-  nsAutoString frameName;
   nsFloatCache* fc = aFloats.Head();
   while (fc) {
     nsFrame::IndentBy(out, aIndent);
-    nsPlaceholderFrame* ph = fc->mPlaceholder;
-    if (ph) {
-      fprintf(out, "placeholder@%p ", static_cast<void*>(ph));
-      nsIFrame* frame = ph->GetOutOfFlowFrame();
-      if (frame) {
-        nsIFrameDebug* frameDebug = do_QueryFrame(frame);
-        if (frameDebug) {
-          frameDebug->GetFrameName(frameName);
-          fputs(NS_LossyConvertUTF16toASCII(frameName).get(), out);
-        }
-      }
-
-      if (!frame) {
-        fputs("\n###!!! NULL out-of-flow frame", out);
-      }
-      fprintf(out, "\n");
+    nsIFrame* frame = fc->mFloat;
+    fprintf(out, "floatframe@%p ", static_cast<void*>(frame));
+    if (frame) {
+      nsAutoString frameName;
+      frame->GetFrameName(frameName);
+      fputs(NS_LossyConvertUTF16toASCII(frameName).get(), out);
     }
+    else {
+      fputs("\n###!!! NULL out-of-flow frame", out);
+    }
+    fprintf(out, "\n");
     fc = fc->Next();
   }
 }
@@ -213,19 +206,22 @@ nsLineBox::List(FILE* out, PRInt32 aIndent) const
   fprintf(out, "{%d,%d,%d,%d} ",
           mBounds.x, mBounds.y, mBounds.width, mBounds.height);
   if (mData) {
-    fprintf(out, "ca={%d,%d,%d,%d} ",
-            mData->mCombinedArea.x, mData->mCombinedArea.y,
-            mData->mCombinedArea.width, mData->mCombinedArea.height);
+    fprintf(out, "vis-overflow={%d,%d,%d,%d} scr-overflow={%d,%d,%d,%d} ",
+            mData->mOverflowAreas.VisualOverflow().x,
+            mData->mOverflowAreas.VisualOverflow().y,
+            mData->mOverflowAreas.VisualOverflow().width,
+            mData->mOverflowAreas.VisualOverflow().height,
+            mData->mOverflowAreas.ScrollableOverflow().x,
+            mData->mOverflowAreas.ScrollableOverflow().y,
+            mData->mOverflowAreas.ScrollableOverflow().width,
+            mData->mOverflowAreas.ScrollableOverflow().height);
   }
   fprintf(out, "<\n");
 
   nsIFrame* frame = mFirstChild;
   PRInt32 n = GetChildCount();
   while (--n >= 0) {
-    nsIFrameDebug* frameDebug = do_QueryFrame(frame);
-    if (frameDebug) {
-      frameDebug->List(out, aIndent + 1);
-    }
+    frame->List(out, aIndent + 1);
     frame = frame->GetNextSibling();
   }
 
@@ -330,61 +326,63 @@ nsLineBox::CachedIsEmpty()
 }
 
 void
-nsLineBox::DeleteLineList(nsPresContext* aPresContext, nsLineList& aLines)
+nsLineBox::DeleteLineList(nsPresContext* aPresContext, nsLineList& aLines,
+                          nsIFrame* aDestructRoot)
 {
   if (! aLines.empty()) {
     // Delete our child frames before doing anything else. In particular
     // we do all of this before our base class releases it's hold on the
     // view.
+#ifdef DEBUG
+    PRInt32 numFrames = 0;
+#endif
     for (nsIFrame* child = aLines.front()->mFirstChild; child; ) {
       nsIFrame* nextChild = child->GetNextSibling();
-      child->Destroy();
+      child->SetNextSibling(nsnull);
+      child->DestroyFrom((aDestructRoot) ? aDestructRoot : child);
       child = nextChild;
+#ifdef DEBUG
+      numFrames++;
+#endif
     }
 
     nsIPresShell *shell = aPresContext->PresShell();
 
     do {
       nsLineBox* line = aLines.front();
+#ifdef DEBUG
+      numFrames -= line->GetChildCount();
+#endif
       aLines.pop_front();
       line->Destroy(shell);
     } while (! aLines.empty());
+#ifdef DEBUG
+    NS_ASSERTION(numFrames == 0, "number of frames deleted does not match");
+#endif
   }
-}
-
-nsLineBox*
-nsLineBox::FindLineContaining(nsLineList& aLines, nsIFrame* aFrame,
-                              PRInt32* aFrameIndexInLine)
-{
-  NS_PRECONDITION(aFrameIndexInLine && !aLines.empty() && aFrame, "null ptr");
-  for (nsLineList::iterator line = aLines.begin(),
-                            line_end = aLines.end();
-       line != line_end;
-       ++line)
-  {
-    PRInt32 ix = line->IndexOf(aFrame);
-    if (ix >= 0) {
-      *aFrameIndexInLine = ix;
-      return line;
-    }
-  }
-  *aFrameIndexInLine = -1;
-  return nsnull;
 }
 
 PRBool
 nsLineBox::RFindLineContaining(nsIFrame* aFrame,
                                const nsLineList::iterator& aBegin,
                                nsLineList::iterator& aEnd,
+                               nsIFrame* aLastFrameBeforeEnd,
                                PRInt32* aFrameIndexInLine)
 {
   NS_PRECONDITION(aFrame, "null ptr");
+  nsIFrame* curFrame = aLastFrameBeforeEnd;
   while (aBegin != aEnd) {
     --aEnd;
-    PRInt32 ix = aEnd->IndexOf(aFrame);
-    if (ix >= 0) {
-      *aFrameIndexInLine = ix;
-      return PR_TRUE;
+    NS_ASSERTION(aEnd->IsLastChild(curFrame), "Unexpected curFrame");
+    // i is the index of curFrame in aEnd
+    PRInt32 i = aEnd->GetChildCount() - 1;
+    while (i >= 0) {
+      if (curFrame == aFrame) {
+        *aFrameIndexInLine = i;
+        return PR_TRUE;
+      }
+      --i;
+      curFrame = curFrame->GetPrevSibling();
     }
   }
   *aFrameIndexInLine = -1;
@@ -427,7 +425,7 @@ nsLineBox::SetCarriedOutBottomMargin(nsCollapsingMargin aValue)
 void
 nsLineBox::MaybeFreeData()
 {
-  if (mData && (mData->mCombinedArea == mBounds)) {
+  if (mData && mData->mOverflowAreas == nsOverflowAreas(mBounds, mBounds)) {
     if (IsInline()) {
       if (mInlineData->mFloats.IsEmpty()) {
         delete mInlineData;
@@ -497,29 +495,31 @@ nsLineBox::RemoveFloat(nsIFrame* aFrame)
 }
 
 void
-nsLineBox::SetCombinedArea(const nsRect& aCombinedArea)
-{  
-  NS_ASSERTION(aCombinedArea.width >= 0, "illegal width for combined area");
-  NS_ASSERTION(aCombinedArea.height >= 0, "illegal height for combined area");
-  if (aCombinedArea != mBounds) {
-    if (mData) {
-      mData->mCombinedArea = aCombinedArea;
-    }
-    else {
+nsLineBox::SetOverflowAreas(const nsOverflowAreas& aOverflowAreas)
+{
+  NS_FOR_FRAME_OVERFLOW_TYPES(otype) {
+    NS_ASSERTION(aOverflowAreas.Overflow(otype).width >= 0,
+                 "illegal width for combined area");
+    NS_ASSERTION(aOverflowAreas.Overflow(otype).height >= 0,
+                 "illegal height for combined area");
+  }
+  // REVIEW: should this use IsExactEqual?
+  if (aOverflowAreas.VisualOverflow() != mBounds ||
+      aOverflowAreas.ScrollableOverflow() != mBounds) {
+    if (!mData) {
       if (IsInline()) {
-        mInlineData = new ExtraInlineData(aCombinedArea);
+        mInlineData = new ExtraInlineData(mBounds);
       }
       else {
-        mBlockData = new ExtraBlockData(aCombinedArea);
+        mBlockData = new ExtraBlockData(mBounds);
       }
     }
+    mData->mOverflowAreas = aOverflowAreas;
   }
-  else {
-    if (mData) {
-      // Store away new value so that MaybeFreeData compares against
-      // the right value.
-      mData->mCombinedArea = aCombinedArea;
-    }
+  else if (mData) {
+    // Store away new value so that MaybeFreeData compares against
+    // the right value.
+    mData->mOverflowAreas = aOverflowAreas;
     MaybeFreeData();
   }
 }
@@ -642,23 +642,6 @@ nsLineIterator::FindLineContaining(nsIFrame* aFrame)
     line = mLines[++lineNumber];
   }
   return -1;
-}
-
-/* virtual */ PRInt32
-nsLineIterator::FindLineAt(nscoord aY)
-{
-  nsLineBox* line = mLines[0];
-  if (!line || (aY < line->mBounds.y)) {
-    return -1;
-  }
-  PRInt32 lineNumber = 0;
-  while (lineNumber != mNumLines) {
-    if ((aY >= line->mBounds.y) && (aY < line->mBounds.YMost())) {
-      return lineNumber;
-    }
-    line = mLines[++lineNumber];
-  }
-  return mNumLines;
 }
 
 #ifdef IBMBIDI
@@ -842,7 +825,7 @@ nsFloatCacheList::Find(nsIFrame* aOutOfFlowFrame)
 {
   nsFloatCache* fc = mHead;
   while (fc) {
-    if (fc->mPlaceholder->GetOutOfFlowFrame() == aOutOfFlowFrame) {
+    if (fc->mFloat == aOutOfFlowFrame) {
       break;
     }
     fc = fc->Next();
@@ -919,8 +902,10 @@ nsFloatCacheFreeList::DeleteAll()
 }
 
 nsFloatCache*
-nsFloatCacheFreeList::Alloc()
+nsFloatCacheFreeList::Alloc(nsIFrame* aFloat)
 {
+  NS_PRECONDITION(aFloat->GetStateBits() & NS_FRAME_OUT_OF_FLOW,
+                  "This is a float cache, why isn't the frame out-of-flow?");
   nsFloatCache* fc = mHead;
   if (mHead) {
     if (mHead == mTail) {
@@ -934,6 +919,7 @@ nsFloatCacheFreeList::Alloc()
   else {
     fc = new nsFloatCache();
   }
+  fc->mFloat = aFloat;
   return fc;
 }
 
@@ -956,7 +942,7 @@ nsFloatCacheFreeList::Append(nsFloatCache* aFloat)
 //----------------------------------------------------------------------
 
 nsFloatCache::nsFloatCache()
-  : mPlaceholder(nsnull),
+  : mFloat(nsnull),
     mNext(nsnull)
 {
   MOZ_COUNT_CTOR(nsFloatCache);

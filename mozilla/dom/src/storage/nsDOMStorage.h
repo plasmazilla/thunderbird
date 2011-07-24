@@ -47,6 +47,7 @@
 #include "nsIDOMStorage.h"
 #include "nsIDOMStorageList.h"
 #include "nsIDOMStorageItem.h"
+#include "nsIPermissionManager.h"
 #include "nsInterfaceHashtable.h"
 #include "nsVoidArray.h"
 #include "nsTArray.h"
@@ -54,16 +55,36 @@
 #include "nsIDOMToString.h"
 #include "nsDOMEvent.h"
 #include "nsIDOMStorageEvent.h"
+#include "nsIDOMStorageEventObsolete.h"
 #include "nsIDOMStorageManager.h"
 #include "nsCycleCollectionParticipant.h"
+#include "nsIObserver.h"
+#include "nsITimer.h"
+#include "nsWeakReference.h"
+
+#define NS_DOMSTORAGE_FLUSH_TIMER_OBSERVER "domstorage-flush-timer"
 
 #ifdef MOZ_STORAGE
 #include "nsDOMStorageDBWrapper.h"
 #endif
 
+#define IS_PERMISSION_ALLOWED(perm) \
+      ((perm) != nsIPermissionManager::UNKNOWN_ACTION && \
+      (perm) != nsIPermissionManager::DENY_ACTION)
+
 class nsDOMStorage;
 class nsIDOMStorage;
 class nsDOMStorageItem;
+class nsDOMStoragePersistentDB;
+
+namespace mozilla {
+namespace dom {
+class StorageParent;
+}
+}
+using mozilla::dom::StorageParent;
+
+class DOMStorageImpl;
 
 class nsDOMStorageEntry : public nsVoidPtrHashKey
 {
@@ -73,7 +94,7 @@ public:
   ~nsDOMStorageEntry();
 
   // weak reference so that it can be deleted when no longer used
-  nsDOMStorage* mStorage;
+  DOMStorageImpl* mStorage;
 };
 
 class nsSessionStorageEntry : public nsStringHashKey
@@ -101,8 +122,8 @@ public:
 
   nsDOMStorageManager();
 
-  void AddToStoragesHash(nsDOMStorage* aStorage);
-  void RemoveFromStoragesHash(nsDOMStorage* aStorage);
+  void AddToStoragesHash(DOMStorageImpl* aStorage);
+  void RemoveFromStoragesHash(DOMStorageImpl* aStorage);
 
   nsresult ClearAllStorages();
 
@@ -112,6 +133,11 @@ public:
   static nsDOMStorageManager* GetInstance();
   static void Shutdown();
 
+  /**
+   * Checks whether there is any data waiting to be flushed from a temp table.
+   */
+  PRBool UnflushedDataExists();
+
   static nsDOMStorageManager* gStorageManager;
 
 protected:
@@ -120,34 +146,27 @@ protected:
   PRBool mInPrivateBrowsing;
 };
 
-class nsDOMStorage : public nsIDOMStorageObsolete,
-                     public nsPIDOMStorage
+class DOMStorageBase : public nsISupports
 {
 public:
-  nsDOMStorage();
-  nsDOMStorage(nsDOMStorage& aThat);
-  virtual ~nsDOMStorage();
+  DOMStorageBase();
+  DOMStorageBase(DOMStorageBase&);
 
-  // nsISupports
-  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMStorage, nsIDOMStorageObsolete)
+  virtual void InitAsSessionStorage(nsIURI* aDomainURI);
+  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist);
+  virtual void InitAsGlobalStorage(const nsACString& aDomainDemanded);
 
-  // nsIDOMStorageObsolete
-  NS_DECL_NSIDOMSTORAGEOBSOLETE
-
-  // Helpers for implementing nsIDOMStorage
-  nsresult GetItem(const nsAString& key, nsAString& aData);
-  nsresult Clear();
-
-  // nsPIDOMStorage
-  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal);
-  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal);
-  virtual nsresult InitAsGlobalStorage(const nsACString &aDomainDemanded);
-  virtual already_AddRefed<nsIDOMStorage> Clone();
-  virtual nsTArray<nsString> *GetKeys();
-  virtual nsIPrincipal* Principal();
-  virtual PRBool CanAccess(nsIPrincipal *aPrincipal);
-
+  virtual nsTArray<nsString>* GetKeys(bool aCallerSecure) = 0;
+  virtual nsresult GetLength(bool aCallerSecure, PRUint32* aLength) = 0;
+  virtual nsresult GetKey(bool aCallerSecure, PRUint32 aIndex, nsAString& aKey) = 0;
+  virtual nsIDOMStorageItem* GetValue(bool aCallerSecure, const nsAString& aKey,
+                                      nsresult* rv) = 0;
+  virtual nsresult SetValue(bool aCallerSecure, const nsAString& aKey,
+                            const nsAString& aData, nsAString& aOldValue) = 0;
+  virtual nsresult RemoveValue(bool aCallerSecure, const nsAString& aKey,
+                               nsAString& aOldValue) = 0;
+  virtual nsresult Clear(bool aCallerSecure, PRInt32* aOldCount) = 0;
+  
   // If true, the contents of the storage should be stored in the
   // database, otherwise this storage should act like a session
   // storage.
@@ -158,65 +177,47 @@ public:
     return mUseDB;
   }
 
-  PRBool SessionOnly() {
-    return mSessionOnly;
-  }
-
-  // Check whether storage may be used by the caller, and whether it
-  // is session only.  Returns true if storage may be used.
-  static PRBool
-  CanUseStorage(PRPackedBool* aSessionOnly);
-
-  // Check whether storage may be used.  Updates mSessionOnly based on
-  // the result of CanUseStorage.
-  PRBool
-  CacheStoragePermissions();
-
   // retrieve the value and secure state corresponding to a key out of storage.
-  nsresult
+  virtual nsresult
   GetDBValue(const nsAString& aKey,
              nsAString& aValue,
-             PRBool* aSecure);
+             PRBool* aSecure) = 0;
 
   // set the value corresponding to a key in the storage. If
   // aSecure is false, then attempts to modify a secure value
   // throw NS_ERROR_DOM_INVALID_ACCESS_ERR
-  nsresult
+  virtual nsresult
   SetDBValue(const nsAString& aKey,
              const nsAString& aValue,
-             PRBool aSecure);
+             PRBool aSecure) = 0;
 
   // set the value corresponding to a key as secure.
-  nsresult
-  SetSecure(const nsAString& aKey, PRBool aSecure);
+  virtual nsresult
+  SetSecure(const nsAString& aKey, PRBool aSecure) = 0;
 
-  // clear all values from the store
-  void ClearAll();
+  virtual nsresult
+  CloneFrom(bool aCallerSecure, DOMStorageBase* aThat) = 0;
 
-  nsresult
-  CloneFrom(nsDOMStorage* aThat);
+  // e.g. "moc.rab.oof.:" or "moc.rab.oof.:http:80" depending
+  // on association with a domain (globalStorage) or
+  // an origin (localStorage).
+  nsCString& GetScopeDBKey() {return mScopeDBKey;}
 
-  nsIDOMStorageItem* GetNamedItem(const nsAString& aKey, nsresult* aResult);
-
-  static nsDOMStorage* FromSupports(nsISupports* aSupports)
+  // e.g. "moc.rab.%" - reversed eTLD+1 subpart of the domain or
+  // reversed offline application allowed domain.
+  nsCString& GetQuotaDomainDBKey(PRBool aOfflineAllowed)
   {
-    return static_cast<nsDOMStorage*>(static_cast<nsIDOMStorageObsolete*>(aSupports));
+    return aOfflineAllowed ? mQuotaDomainDBKey : mQuotaETLDplus1DomainDBKey;
   }
 
+  virtual bool CacheStoragePermissions() = 0;
+
 protected:
-
   friend class nsDOMStorageManager;
-  friend class nsDOMStorage2;
+  friend class nsDOMStorage;
 
-  static nsresult InitDB();
-
-  // cache the keys from the database for faster lookup
-  nsresult CacheKeysFromDB();
-
-  void BroadcastChangeNotification();
-
-  PRBool CanAccessSystem(nsIPrincipal *aPrincipal);
-
+  nsPIDOMStorage::nsDOMStorageType mStorageType;
+  
   // true if the storage database should be used for values
   PRPackedBool mUseDB;
 
@@ -227,42 +228,202 @@ protected:
   // make sure this stays up to date.
   PRPackedBool mSessionOnly;
 
-  // true if this storage was initialized as a localStorage object.  localStorage
-  // objects are scoped to scheme/host/port in the database, while globalStorage
-  // objects are scoped just to host.  this flag also tells the manager to map
-  // this storage also in mLocalStorages hash table.
-  PRPackedBool mLocalStorage;
-
-  // true if items from the database are cached
-  PRPackedBool mItemsCached;
-
   // domain this store is associated with
   nsCString mDomain;
-
-  // the key->value item pairs
-  nsTHashtable<nsSessionStorageEntry> mItems;
 
   // keys are used for database queries.
   // see comments of the getters bellow.
   nsCString mScopeDBKey;
+  nsCString mQuotaETLDplus1DomainDBKey;
   nsCString mQuotaDomainDBKey;
+
+  bool mCanUseChromePersist;
+};
+
+class DOMStorageImpl : public DOMStorageBase
+
+{
+public:
+  NS_DECL_CYCLE_COLLECTION_CLASS(DOMStorageImpl)
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+
+  DOMStorageImpl(nsDOMStorage*);
+  DOMStorageImpl(nsDOMStorage*, DOMStorageImpl&);
+  ~DOMStorageImpl();
+
+  virtual void InitAsSessionStorage(nsIURI* aDomainURI);
+  virtual void InitAsLocalStorage(nsIURI* aDomainURI, bool aCanUseChromePersist);
+  virtual void InitAsGlobalStorage(const nsACString& aDomainDemanded);
+
+  PRBool SessionOnly() {
+    return mSessionOnly;
+  }
+
+  virtual nsTArray<nsString>* GetKeys(bool aCallerSecure);
+  virtual nsresult GetLength(bool aCallerSecure, PRUint32* aLength);
+  virtual nsresult GetKey(bool aCallerSecure, PRUint32 aIndex, nsAString& aKey);
+  virtual nsIDOMStorageItem* GetValue(bool aCallerSecure, const nsAString& aKey,
+                                      nsresult* rv);
+  virtual nsresult SetValue(bool aCallerSecure, const nsAString& aKey,
+                            const nsAString& aData, nsAString& aOldValue);
+  virtual nsresult RemoveValue(bool aCallerSecure, const nsAString& aKey,
+                               nsAString& aOldValue);
+  virtual nsresult Clear(bool aCallerSecure, PRInt32* aOldCount);
+
+  // cache the keys from the database for faster lookup
+  nsresult CacheKeysFromDB();
+  
+  // Some privileged internal pages can use a persistent storage even in
+  // session-only or private-browsing modes.
+  bool CanUseChromePersist();
+
+  // retrieve the value and secure state corresponding to a key out of storage
+  // that has been cached in mItems hash table.
+  nsresult
+  GetCachedValue(const nsAString& aKey,
+                 nsAString& aValue,
+                 PRBool* aSecure);
+
+  // retrieve the value and secure state corresponding to a key out of storage.
+  virtual nsresult
+  GetDBValue(const nsAString& aKey,
+             nsAString& aValue,
+             PRBool* aSecure);
+
+  // set the value corresponding to a key in the storage. If
+  // aSecure is false, then attempts to modify a secure value
+  // throw NS_ERROR_DOM_INVALID_ACCESS_ERR
+  virtual nsresult
+  SetDBValue(const nsAString& aKey,
+             const nsAString& aValue,
+             PRBool aSecure);
+
+  // set the value corresponding to a key as secure.
+  virtual nsresult
+  SetSecure(const nsAString& aKey, PRBool aSecure);
+
+  // clear all values from the store
+  void ClearAll();
+
+  virtual nsresult
+  CloneFrom(bool aCallerSecure, DOMStorageBase* aThat);
+
+  virtual bool CacheStoragePermissions();
+
+private:
+#ifdef MOZ_STORAGE
+  static nsDOMStorageDBWrapper* gStorageDB;
+#endif
+  friend class nsDOMStorageManager;
+  friend class nsDOMStoragePersistentDB;
+  friend class StorageParent;
+
+  void Init(nsDOMStorage*);
+
+  // Cross-process storage implementations never have InitAs(Session|Local|Global)Storage
+  // called, so the appropriate initialization needs to happen from the child.
+  void InitFromChild(bool aUseDB, bool aCanUseChromePersist, bool aSessionOnly,
+                     const nsACString& aDomain,
+                     const nsACString& aScopeDBKey,
+                     const nsACString& aQuotaDomainDBKey,
+                     const nsACString& aQuotaETLDplus1DomainDBKey,
+                     PRUint32 aStorageType);
+  void SetSessionOnly(bool aSessionOnly);
+
+  static nsresult InitDB();
+
+  // true if items from the database are cached
+  PRPackedBool mItemsCached;
+
+  // the key->value item pairs
+  nsTHashtable<nsSessionStorageEntry> mItems;
+
+  // Weak reference to the owning storage instance
+  nsDOMStorage* mOwner;
+};
+
+class nsDOMStorage : public nsIDOMStorageObsolete,
+                     public nsPIDOMStorage
+{
+public:
+  nsDOMStorage();
+  nsDOMStorage(nsDOMStorage& aThat);
+  virtual ~nsDOMStorage();
+
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMStorage, nsIDOMStorageObsolete)
+
+  NS_DECL_NSIDOMSTORAGEOBSOLETE
+
+  // Helpers for implementing nsIDOMStorage
+  nsresult GetItem(const nsAString& key, nsAString& aData);
+  nsresult Clear();
+
+  // nsPIDOMStorage
+  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
+  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
+  virtual nsresult InitAsGlobalStorage(const nsACString &aDomainDemanded);
+  virtual already_AddRefed<nsIDOMStorage> Clone();
+  virtual already_AddRefed<nsIDOMStorage> Fork(const nsSubstring &aDocumentURI);
+  virtual PRBool IsForkOf(nsIDOMStorage* aThat);
+  virtual nsTArray<nsString> *GetKeys();
+  virtual nsIPrincipal* Principal();
+  virtual PRBool CanAccess(nsIPrincipal *aPrincipal);
+  virtual nsDOMStorageType StorageType();
+  virtual void BroadcastChangeNotification(const nsSubstring &aKey,
+                                           const nsSubstring &aOldValue,
+                                           const nsSubstring &aNewValue);
+
+  // Check whether storage may be used by the caller, and whether it
+  // is session only.  Returns true if storage may be used.
+  static PRBool
+  CanUseStorage(PRPackedBool* aSessionOnly);
+
+  // Check whether this URI can use chrome persist storage.  This kind of
+  // storage can bypass cookies limits, private browsing and uses the offline
+  // apps quota.
+  static PRBool
+  URICanUseChromePersist(nsIURI* aURI);
+  
+  // Check whether storage may be used.  Updates mSessionOnly based on
+  // the result of CanUseStorage.
+  PRBool
+  CacheStoragePermissions();
+
+  nsIDOMStorageItem* GetNamedItem(const nsAString& aKey, nsresult* aResult);
+
+  static nsDOMStorage* FromSupports(nsISupports* aSupports)
+  {
+    return static_cast<nsDOMStorage*>(static_cast<nsIDOMStorageObsolete*>(aSupports));
+  }
+
+  nsresult SetSecure(const nsAString& aKey, PRBool aSecure)
+  {
+    return mStorageImpl->SetSecure(aKey, aSecure);
+  }
+
+  nsresult CloneFrom(nsDOMStorage* aThat);
+
+ protected:
+  friend class nsDOMStorage2;
+  friend class nsDOMStoragePersistentDB;
+
+  nsRefPtr<DOMStorageBase> mStorageImpl;
+
+  PRBool CanAccessSystem(nsIPrincipal *aPrincipal);
+
+  // document URI of the document this storage is bound to
+  nsString mDocumentURI;
+
+  // true if this storage was initialized as a localStorage object.  localStorage
+  // objects are scoped to scheme/host/port in the database, while globalStorage
+  // objects are scoped just to host.  this flag also tells the manager to map
+  // this storage also in mLocalStorages hash table.
+  nsDOMStorageType mStorageType;
 
   friend class nsIDOMStorage2;
   nsPIDOMStorage* mSecurityChecker;
-
-public:
-  // e.g. "moc.rab.oof.:" or "moc.rab.oof.:http:80" depending
-  // on association with a domain (globalStorage) or
-  // an origin (localStorage).
-  nsCString& GetScopeDBKey() {return mScopeDBKey;}
-
-  // e.g. "moc.rab.%" - reversed eTLD+1 subpart of the domain or
-  // (in future) reversed offline application allowed domain.
-  nsCString& GetQuotaDomainDBKey() {return mQuotaDomainDBKey;}
-
- #ifdef MOZ_STORAGE
-   static nsDOMStorageDBWrapper* gStorageDB;
- #endif
+  nsPIDOMStorage* mEventBroadcaster;
 };
 
 class nsDOMStorage2 : public nsIDOMStorage,
@@ -279,19 +440,32 @@ public:
   NS_DECL_NSIDOMSTORAGE
 
   // nsPIDOMStorage
-  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal);
-  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal);
+  virtual nsresult InitAsSessionStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
+  virtual nsresult InitAsLocalStorage(nsIPrincipal *aPrincipal, const nsSubstring &aDocumentURI);
   virtual nsresult InitAsGlobalStorage(const nsACString &aDomainDemanded);
   virtual already_AddRefed<nsIDOMStorage> Clone();
+  virtual already_AddRefed<nsIDOMStorage> Fork(const nsSubstring &aDocumentURI);
+  virtual PRBool IsForkOf(nsIDOMStorage* aThat);
   virtual nsTArray<nsString> *GetKeys();
   virtual nsIPrincipal* Principal();
   virtual PRBool CanAccess(nsIPrincipal *aPrincipal);
+  virtual nsDOMStorageType StorageType();
+  virtual void BroadcastChangeNotification(const nsSubstring &aKey,
+                                           const nsSubstring &aOldValue,
+                                           const nsSubstring &aNewValue);
+
+  nsresult InitAsSessionStorageFork(nsIPrincipal *aPrincipal,
+                                    const nsSubstring &aDocumentURI,
+                                    nsIDOMStorageObsolete* aStorage);
 
 private:
   // storages bound to an origin hold the principal to
   // make security checks against it
   nsCOMPtr<nsIPrincipal> mPrincipal;
 
+  // Needed for the storage event, this is address of the document this storage
+  // is bound to
+  nsString mDocumentURI;
   nsRefPtr<nsDOMStorage> mStorage;
 };
 
@@ -352,7 +526,7 @@ class nsDOMStorageItem : public nsIDOMStorageItem,
                          public nsIDOMToString
 {
 public:
-  nsDOMStorageItem(nsDOMStorage* aStorage,
+  nsDOMStorageItem(DOMStorageBase* aStorage,
                    const nsAString& aKey,
                    const nsAString& aValue,
                    PRBool aSecure);
@@ -406,22 +580,16 @@ protected:
 
   // If this item came from the db, mStorage points to the storage
   // object where this item came from.
-  nsRefPtr<nsDOMStorage> mStorage;
+  nsRefPtr<DOMStorageBase> mStorage;
 };
 
 class nsDOMStorageEvent : public nsDOMEvent,
                           public nsIDOMStorageEvent
 {
 public:
-  nsDOMStorageEvent(const nsAString& aDomain)
-    : nsDOMEvent(nsnull, nsnull), mDomain(aDomain)
+  nsDOMStorageEvent()
+    : nsDOMEvent(nsnull, nsnull)
   {
-    if (aDomain.IsEmpty()) {
-      // An empty domain means this event is for a session sotrage
-      // object change. Store #session as the domain.
-
-      mDomain = NS_LITERAL_STRING("#session");
-    }
   }
 
   virtual ~nsDOMStorageEvent()
@@ -430,21 +598,54 @@ public:
 
   nsresult Init();
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsDOMStorageEvent, nsDOMEvent)
+
   NS_DECL_NSIDOMSTORAGEEVENT
+  NS_FORWARD_NSIDOMEVENT(nsDOMEvent::)
+
+protected:
+  nsString mKey;
+  nsString mOldValue;
+  nsString mNewValue;
+  nsString mUrl;
+  nsCOMPtr<nsIDOMStorage> mStorageArea;
+};
+
+class nsDOMStorageEventObsolete : public nsDOMEvent,
+                          public nsIDOMStorageEventObsolete
+{
+public:
+  nsDOMStorageEventObsolete()
+    : nsDOMEvent(nsnull, nsnull)
+  {
+  }
+
+  virtual ~nsDOMStorageEventObsolete()
+  {
+  }
+
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIDOMSTORAGEEVENTOBSOLETE
   NS_FORWARD_NSIDOMEVENT(nsDOMEvent::)
 
 protected:
   nsString mDomain;
 };
 
-NS_IMETHODIMP
+nsresult
 NS_NewDOMStorage(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
-NS_IMETHODIMP
+nsresult
 NS_NewDOMStorage2(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
 nsresult
 NS_NewDOMStorageList(nsIDOMStorageList** aResult);
+
+PRUint32
+GetOfflinePermission(const nsACString &aDomain);
+
+PRBool
+IsOfflineAllowed(const nsACString &aDomain);
 
 #endif /* nsDOMStorage_h___ */

@@ -76,20 +76,22 @@
                    showcommentcolumn="true"
                    tabscrolling="true"
                    xbl:inherits="disabled,disableautocomplete,searchengine,src,newlines">
-        <xul:button class="searchbar-engine-button"
-                    type="menu"
-                    anonid="searchbar-engine-button">
-          <xul:image class="searchbar-engine-image" xbl:inherits="src"/>
-          <xul:image class="searchbar-dropmarker-image"/>
-          <xul:menupopup class="searchbar-popup"
-                         anonid="searchbar-popup">
-            <xul:menuseparator/>
-            <xul:menuitem class="open-engine-manager"
-                          anonid="open-engine-manager"
-                          label="&cmd_engineManager.label;"
-                          oncommand="openManager(event);"/>
-          </xul:menupopup>
-        </xul:button>
+        <xul:box>
+          <xul:button class="searchbar-engine-button"
+                      type="menu"
+                      anonid="searchbar-engine-button">
+            <xul:image class="searchbar-engine-image" xbl:inherits="src"/>
+            <xul:image class="searchbar-dropmarker-image"/>
+            <xul:menupopup class="searchbar-popup"
+                           anonid="searchbar-popup">
+              <xul:menuseparator/>
+              <xul:menuitem class="open-engine-manager"
+                            anonid="open-engine-manager"
+                            label="&cmd_engineManager.label;"
+                            oncommand="openManager(event);"/>
+            </xul:menupopup>
+          </xul:button>
+        </xul:box>
         <xul:hbox class="search-go-container">
           <xul:image class="search-go-button"
                      anonid="search-go-button"
@@ -119,7 +121,7 @@
                Components.classes["@mozilla.org/observer-service;1"]
                          .getService(Components.interfaces.nsIObserverService);
           os.addObserver(this, "browser-search-engine-modified", false);
-          
+
           this._addedObserver = true;
         ]]></body>
       </method>
@@ -149,7 +151,7 @@
       <property name="engines" readonly="true">
         <getter><![CDATA[
           if (!this._engines)
-            this._engines = this.searchService.getVisibleEngines({ });
+            this._engines = this.searchService.getVisibleEngines();
           return this._engines;
         ]]></getter>
       </property>
@@ -273,7 +275,6 @@
               }
             }
           }
-          BrowserSearch.updateSearchButton();
         ]]></body>
       </method>
 
@@ -301,7 +302,6 @@
               }
             }
           }
-          BrowserSearch.updateSearchButton();
         ]]></body>
       </method>
 
@@ -312,7 +312,7 @@
 
           var name = this.currentEngine.name;
           var text = this._stringBundle.getFormattedString("searchtip", [name]);
-          this._textbox.emptyText = name;
+          this._textbox.placeholder = name;
           this._textbox.label = text;
           this._textbox.tooltipText = text;
         ]]></body>
@@ -401,7 +401,7 @@
             var name = engines[i].name;
             menuitem.setAttribute("label", name);
             menuitem.setAttribute("id", name);
-            menuitem.setAttribute("class", "menuitem-iconic searchbar-engine-menuitem");
+            menuitem.setAttribute("class", "menuitem-iconic searchbar-engine-menuitem menuitem-with-favicon");
             // Since this menu is rebuilt by the observer method whenever a new
             // engine is selected, the "selected" attribute does not need to be
             // explicitly cleared anywhere.
@@ -432,7 +432,7 @@
           else {
             setTimeout(function () {
               openDialog("chrome://browser/content/search/engineManager.xul",
-                         "_blank", "chrome,dialog,modal,centerscreen");
+                         "_blank", "chrome,dialog,modal,centerscreen,resizable");
             }, 0);
           }
         ]]></body>
@@ -474,8 +474,12 @@
 
           // Save the current value in the form history
           if (textValue) {
-            textBox._formHistSvc.addEntry(textBox.getAttribute("autocompletesearchparam"),
-                                          textValue);
+            try {
+              textBox._formHistSvc.addEntry(textBox.getAttribute("autocompletesearchparam"),
+                                            textValue);
+            } catch (ex) {
+              Components.utils.reportError("Saving search to form history failed: " + ex);
+            }
           }
 
           this.doSearch(textValue, where);
@@ -487,7 +491,7 @@
         <parameter name="aWhere"/>
         <body><![CDATA[
           // null parameter below specifies HTML response for search
-          var submission = this.currentEngine.getSubmission(aData, null);
+          var submission = this.currentEngine.getSubmission(aData);
           openUILinkIn(submission.uri.spec, aWhere, null, submission.postData);
         ]]></body>
       </method>
@@ -578,16 +582,44 @@
                                                 "anonid", "textbox-input-box");
           var cxmenu = document.getAnonymousElementByAttribute(textBox,
                                             "anonid", "input-box-contextmenu");
+          var pasteAndSearch;
+          cxmenu.addEventListener("popupshowing", function() {
+            if (!pasteAndSearch)
+              return;
+            var controller = document.commandDispatcher.getControllerForCommand("cmd_paste");
+            var enabled = controller.isCommandEnabled("cmd_paste");
+            if (enabled)
+              pasteAndSearch.removeAttribute("disabled");
+            else
+              pasteAndSearch.setAttribute("disabled", "true");
+          }, false);
 
-          var element = document.createElementNS(kXULNS, "menuseparator");
+          var element, label, akey;
+
+          element = document.createElementNS(kXULNS, "menuseparator");
           cxmenu.appendChild(element);
+
+          var insertLocation = cxmenu.firstChild;
+          while (insertLocation.nextSibling &&
+                 insertLocation.getAttribute("cmd") != "cmd_paste")
+            insertLocation = insertLocation.nextSibling;
+          if (insertLocation) {
+            element = document.createElementNS(kXULNS, "menuitem");
+            label = this._stringBundle.getString("cmd_pasteAndSearch");
+            element.setAttribute("label", label);
+            element.setAttribute("anonid", "paste-and-search");
+            element.setAttribute("oncommand",
+                "BrowserSearch.searchBar.select(); goDoCommand('cmd_paste'); BrowserSearch.searchBar.handleSearchCommand();");
+            cxmenu.insertBefore(element, insertLocation.nextSibling);
+            pasteAndSearch = element;
+          }
+
           element = document.createElementNS(kXULNS, "menuitem");
-          var label = this._stringBundle.getString("cmd_clearHistory");
-          var akey = this._stringBundle.getString("cmd_clearHistory_accesskey");
+          label = this._stringBundle.getString("cmd_clearHistory");
+          akey = this._stringBundle.getString("cmd_clearHistory_accesskey");
           element.setAttribute("label", label);
           element.setAttribute("accesskey", akey);
           element.setAttribute("cmd", "cmd_clearhistory");
-
           cxmenu.appendChild(element);
 
           element = document.createElementNS(kXULNS, "menuitem");
@@ -600,7 +632,6 @@
           element.setAttribute("type", "checkbox");
           element.setAttribute("checked", this._suggestEnabled);
           element.setAttribute("autocheck", "false");
-
           this._suggestMenuItem = element;
           cxmenu.appendChild(element);
 
@@ -613,6 +644,12 @@
         ]]></body>
       </method>
 
+      <!--
+        This method overrides the autocomplete binding's openPopup (essentially
+        duplicating the logic from the autocomplete popup binding's
+        openAutocompletePopup method), modifying it so that the popup is aligned with
+        the inner textbox, but sized to not extend beyond the search bar border.
+      -->
       <method name="openPopup">
         <body><![CDATA[
           var popup = this.popup;
@@ -629,16 +666,24 @@
             popup.mInput = this;
             popup.view = this.controller.QueryInterface(Components.interfaces.nsITreeView);
             popup.invalidate();
-            
+
             popup.showCommentColumn = this.showCommentColumn;
             popup.showImageColumn = this.showImageColumn;
 
             document.popupNode = null;
 
+            const isRTL = getComputedStyle(this, "").direction == "rtl";
+
             var outerRect = this.getBoundingClientRect();
             var innerRect = this.inputField.getBoundingClientRect();
-            var width = outerRect.right - innerRect.left;
+            if (isRTL) {
+              var width = innerRect.right - outerRect.left;
+            } else {
+              var width = outerRect.right - innerRect.left;
+            }
             popup.setAttribute("width", width > 100 ? width : 100);
+
+            var yOffset = outerRect.bottom - innerRect.bottom;
 
             // setConsumeRollupEvent() before we call openPopup(), 
             // see bug #404438 for more details
@@ -646,7 +691,7 @@
               this.consumeRollupEvent ? 
                 Ci.nsIPopupBoxObject.ROLLUP_CONSUME : 
                 Ci.nsIPopupBoxObject.ROLLUP_NO_CONSUME);
-            popup.openPopup(null, "", innerRect.left, outerRect.bottom, false, false);
+            popup.openPopup(this.inputField, "after_start", 0, yOffset, false, false);
           }
         ]]></body>
       </method>
@@ -721,29 +766,6 @@
           }
         }
       })]]></field>
-
-      <!-- DND Observer -->
-      <field name="searchbarDNDObserver" readonly="true"><![CDATA[({
-        mOuter: this,
-
-        onDrop: function (aEvent, aXferData, aDragSession) {
-          var data = transferUtils.retrieveURLFromData(aXferData.data,
-                         aXferData.flavour.contentType);
-          if (data) {
-            this.mOuter.value = data;
-            this.mOuter.onTextEntered(aEvent);
-          }
-        },
-
-        getSupportedFlavours: function () {
-          var flavourSet = new FlavourSet();
-
-          flavourSet.appendFlavour("text/unicode");
-          flavourSet.appendFlavour("text/x-moz-url");
-          flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-          return flavourSet;
-        }
-      })]]></field>
     </implementation>
 
     <handlers>
@@ -769,8 +791,26 @@
                action="return this.openSearch();"/>
 #endif
 
-      <handler event="drop" phase="capturing">
-        nsDragAndDrop.drop(event, this.searchbarDNDObserver);
+      <handler event="dragover">
+      <![CDATA[
+        var types = event.dataTransfer.types;
+        if (types.contains("text/plain") || types.contains("text/x-moz-text-internal"))
+          event.preventDefault();
+      ]]>
+      </handler>
+
+      <handler event="drop">
+      <![CDATA[
+        var dataTransfer = event.dataTransfer;
+        var data = dataTransfer.getData("text/plain");
+        if (!data)
+          data = dataTransfer.getData("text/x-moz-text-internal");
+        if (data) {
+          event.preventDefault();
+          this.value = data;
+          this.onTextEntered(event);
+        }
+      ]]>
       </handler>
 
     </handlers>

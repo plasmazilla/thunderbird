@@ -111,7 +111,8 @@ AsyncChannel::AsyncChannel(AsyncListener* aListener)
     mIOLoop(),
     mWorkerLoop(),
     mChild(false),
-    mChannelErrorTask(NULL)
+    mChannelErrorTask(NULL),
+    mExistingListener(NULL)
 {
     MOZ_COUNT_CTOR(AsyncChannel);
 }
@@ -131,7 +132,7 @@ AsyncChannel::Open(Transport* aTransport, MessageLoop* aIOLoop)
     // FIXME need to check for valid channel
 
     mTransport = aTransport;
-    mTransport->set_listener(this);
+    mExistingListener = mTransport->set_listener(this);
 
     // FIXME figure out whether we're in parent or child, grab IO loop
     // appropriately
@@ -139,8 +140,7 @@ AsyncChannel::Open(Transport* aTransport, MessageLoop* aIOLoop)
     if(!aIOLoop) {
         // parent
         needOpen = false;
-        aIOLoop = BrowserProcessSubThread
-                  ::GetMessageLoop(BrowserProcessSubThread::IO);
+        aIOLoop = XRE_GetIOMessageLoop();
         // FIXME assuming that the parent waits for the OnConnected event.
         // FIXME see GeckoChildProcessHost.cpp.  bad assumption!
         mChannelState = ChannelConnected;
@@ -269,14 +269,14 @@ AsyncChannel::OnSpecialMessage(uint16 id, const Message& msg)
 }
 
 void
-AsyncChannel::SendSpecialMessage(Message* msg)
+AsyncChannel::SendSpecialMessage(Message* msg) const
 {
     AssertWorkerThread();
     SendThroughTransport(msg);
 }
 
 void
-AsyncChannel::SendThroughTransport(Message* msg)
+AsyncChannel::SendThroughTransport(Message* msg) const
 {
     AssertWorkerThread();
 
@@ -368,6 +368,15 @@ AsyncChannel::Clear()
     }
 }
 
+static void
+PrintErrorMessage(bool isChild, const char* channelName, const char* msg)
+{
+#ifdef DEBUG
+    fprintf(stderr, "\n###!!! [%s][%s] Error: %s\n\n",
+            isChild ? "Child" : "Parent", channelName, msg);
+#endif
+}
+
 bool
 AsyncChannel::MaybeHandleError(Result code, const char* channelName)
 {
@@ -385,6 +394,9 @@ AsyncChannel::MaybeHandleError(Result code, const char* channelName)
     case MsgPayloadError:
         errorMsg = "Payload error: message could not be deserialized";
         break;
+    case MsgProcessingError:
+        errorMsg = "Processing error: message was deserialized, but the handler returned false (indicating failure)";
+        break;
     case MsgRouteError:
         errorMsg = "Route error: message sent to unknown actor ID";
         break;
@@ -397,12 +409,15 @@ AsyncChannel::MaybeHandleError(Result code, const char* channelName)
         return false;
     }
 
-    PrintErrorMessage(channelName, errorMsg);
+    PrintErrorMessage(mChild, channelName, errorMsg);
+
+    mListener->OnProcessingError(code);
+
     return false;
 }
 
 void
-AsyncChannel::ReportConnectionError(const char* channelName)
+AsyncChannel::ReportConnectionError(const char* channelName) const
 {
     const char* errorMsg;
     switch (mChannelState) {
@@ -414,15 +429,21 @@ AsyncChannel::ReportConnectionError(const char* channelName)
         break;
     case ChannelTimeout:
         errorMsg = "Channel timeout: cannot send/recv";
+        break;
+    case ChannelClosing:
+        errorMsg = "Channel closing: too late to send/recv, messages will be lost";
+        break;
     case ChannelError:
         errorMsg = "Channel error: cannot send/recv";
         break;
 
     default:
-        NOTREACHED();
+        NS_RUNTIMEABORT("unreached");
     }
 
-    PrintErrorMessage(channelName, errorMsg);
+    PrintErrorMessage(mChild, channelName, errorMsg);
+
+    mListener->OnProcessingError(MsgDropped);
 }
 
 //
@@ -453,13 +474,30 @@ AsyncChannel::OnChannelOpened()
 }
 
 void
+AsyncChannel::DispatchOnChannelConnected(int32 peer_pid)
+{
+    AssertWorkerThread();
+    if (mListener)
+        mListener->OnChannelConnected(peer_pid);
+}
+
+void
 AsyncChannel::OnChannelConnected(int32 peer_pid)
 {
     AssertIOThread();
 
-    MutexAutoLock lock(mMutex);
-    mChannelState = ChannelConnected;
-    mCvar.Notify();
+    {
+        MutexAutoLock lock(mMutex);
+        mChannelState = ChannelConnected;
+        mCvar.Notify();
+    }
+
+    if(mExistingListener)
+        mExistingListener->OnChannelConnected(peer_pid);
+
+    mWorkerLoop->PostTask(FROM_HERE, NewRunnableMethod(this, 
+                                                       &AsyncChannel::DispatchOnChannelConnected, 
+                                                       peer_pid));
 }
 
 void

@@ -61,17 +61,18 @@ _TEST_FILES = 	test_bug1682.html \
 		test_bug311681.xhtml \
 		test_bug324378.html \
 		test_bug332848.xhtml \
+		test_bug340017.xhtml \
 		test_bug359657.html \
 		test_bug369370.html \
 		bug369370-popup.png \
 		test_bug380383.html \
-		test_bug386495.html \
 		test_bug391777.html \
 		test_bug402680.html \
 		test_bug403868.html \
 		test_bug403868.xhtml \
 		test_bug404320.html \
 		$(warning test_bug435128.html disabled because it takes 60 seconds) \
+		test_bug463104.html \
 		test_bug468353.html \
 		test_form-parsing.html \
 		test_viewport.html \
@@ -90,13 +91,32 @@ _TEST_FILES = 	test_bug1682.html \
 		bug448564-iframe-3.html \
 		bug448564-echo.sjs \
 		bug448564-submit.js \
+		test_bug478251.html \
 		test_bug481440.html \
 		test_bug481647.html \
 		test_bug482659.html \
 		test_bug486741.html \
+		test_bug489532.html \
 		test_bug497242.xhtml \
+		test_bug499092.html \
+		bug499092.xml \
+		bug499092.html \
 		test_bug512367.html \
+		test_bug570376.html \
+		test_bug571981.html \
 		$(NULL)
+
+ifneq (mobile,$(MOZ_BUILD_APP))
+_BROWSER_TEST_FILES = \
+		browser_bug592641.js \
+		bug592641_img.jpg \
+		$(NULL)
+endif
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+
+ifneq (mobile,$(MOZ_BUILD_APP))
+libs:: $(_BROWSER_TEST_FILES)
+	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)
+endif

@@ -207,7 +207,7 @@ namespace nanojit
 
         const unsigned char * data = (const unsigned char *)key;
         while(len >= 4) {
-            uint32_t k = *(size_t *)data;
+            uint32_t k = *(size_t *)(void*)data;
 
             k *= m;
             k ^= k >> r;
@@ -237,7 +237,8 @@ namespace nanojit
 
     template<class K> struct DefaultHash {
         static size_t hash(const K &k) {
-            return murmurhash(&k, sizeof(K));
+            // (const void*) cast is required by ARM RVCT 2.2
+            return murmurhash((const void*) &k, sizeof(K));
         }
     };
 
@@ -252,6 +253,7 @@ namespace nanojit
 
     /** Bucket hashtable with a fixed # of buckets (never rehash)
      *  Intended for use when a reasonable # of buckets can be estimated ahead of time.
+     *  Note that operator== is used to compare keys.
      */
     template<class K, class T, class H=DefaultHash<K> > class HashMap {
         Allocator& allocator;
@@ -346,7 +348,7 @@ namespace nanojit
             const Seq<Node>* current;
 
         public:
-            Iter(HashMap<K,T,H>& map) : map(map), bucket(map.nbuckets-1), current(NULL)
+            Iter(HashMap<K,T,H>& map) : map(map), bucket((int)map.nbuckets-1), current(NULL)
             { }
 
             /** return true if more (k,v) remain to be visited */

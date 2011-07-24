@@ -41,37 +41,76 @@
  * rules are matched
  */
 
+#ifndef nsRuleWalker_h_
+#define nsRuleWalker_h_
+
 #include "nsRuleNode.h"
+#include "nsIStyleRule.h"
 
 class nsRuleWalker {
 public:
-  nsRuleNode* GetCurrentNode() { return mCurrent; }
-  void SetCurrentNode(nsRuleNode* aNode) { mCurrent = aNode; }
+  nsRuleNode* CurrentNode() { return mCurrent; }
+  void SetCurrentNode(nsRuleNode* aNode) {
+    NS_ASSERTION(aNode, "Must have node here!");
+    mCurrent = aNode;
+  }
 
   void Forward(nsIStyleRule* aRule) { 
-    if (mCurrent) { // check for OOM from previous step
-      mCurrent = mCurrent->Transition(aRule, mLevel, mImportance);
-    }
+    mCurrent = mCurrent->Transition(aRule, mLevel, mImportance);
+    mCheckForImportantRules =
+      mCheckForImportantRules && !aRule->GetImportantRule();
+    NS_POSTCONDITION(mCurrent, "Transition messed up");
   }
 
   void Reset() { mCurrent = mRoot; }
 
   PRBool AtRoot() { return mCurrent == mRoot; }
 
-  void SetLevel(PRUint8 aLevel, PRBool aImportance) {
+  void SetLevel(PRUint8 aLevel, PRBool aImportance,
+                PRBool aCheckForImportantRules) {
+    NS_ASSERTION(!aCheckForImportantRules || !aImportance,
+                 "Shouldn't be checking for important rules while walking "
+                 "important rules");
     mLevel = aLevel;
     mImportance = aImportance;
+    mCheckForImportantRules = aCheckForImportantRules;
   }
   PRUint8 GetLevel() const { return mLevel; }
   PRBool GetImportance() const { return mImportance; }
+  PRBool GetCheckForImportantRules() const { return mCheckForImportantRules; }
+
+  // We define the visited-relevant link to be the link that is the
+  // nearest self-or-ancestor to the node being matched.
+  enum VisitedHandlingType {
+    // Do rule matching as though all links are unvisited.
+    eRelevantLinkUnvisited,
+    // Do rule matching as though the relevant link is visited and all
+    // other links are unvisited.
+    eRelevantLinkVisited,
+    // Do rule matching as though a rule should match if it would match
+    // given any set of visitedness states.  (used by users other than
+    // nsRuleWalker)
+    eLinksVisitedOrUnvisited
+  };
 
 private:
-  nsRuleNode* mCurrent; // Our current position.
+  nsRuleNode* mCurrent; // Our current position.  Never null.
   nsRuleNode* mRoot; // The root of the tree we're walking.
   PRUint8 mLevel; // an nsStyleSet::sheetType
   PRPackedBool mImportance;
+  PRPackedBool mCheckForImportantRules; // If true, check for important rules as
+                                        // we walk and set to false if we find
+                                        // one.
 
 public:
-  nsRuleWalker(nsRuleNode* aRoot) :mCurrent(aRoot), mRoot(aRoot) { MOZ_COUNT_CTOR(nsRuleWalker); }
+  nsRuleWalker(nsRuleNode* aRoot)
+    : mCurrent(aRoot)
+    , mRoot(aRoot)
+  {
+    NS_ASSERTION(mCurrent, "Caller screwed up and gave us null node");
+    MOZ_COUNT_CTOR(nsRuleWalker);
+  }
   ~nsRuleWalker() { MOZ_COUNT_DTOR(nsRuleWalker); }
 };
+
+#endif /* !defined(nsRuleWalker_h_) */

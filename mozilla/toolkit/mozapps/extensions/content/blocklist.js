@@ -35,6 +35,8 @@
 #
 # ***** END LICENSE BLOCK *****
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gArgs;
 
 function init() {
@@ -44,9 +46,8 @@ function init() {
 
   // NOTE: We use strings from the "updates.properties" bundleset to change the
   // text on the "Cancel" button to "Restart Later". (bug 523784)
-  let strings = Components.classes["@mozilla.org/intl/stringbundle;1"].
-                getService(Components.interfaces.nsIStringBundleService);
-  let bundle = strings.createBundle("chrome://mozapps/locale/update/updates.properties");
+  let bundle = Services.strings.
+              createBundle("chrome://mozapps/locale/update/updates.properties");
   let cancelButton = document.documentElement.getButton("cancel");
   cancelButton.setAttribute("label", bundle.GetStringFromName("restartLaterButton"));
   cancelButton.setAttribute("accesskey",

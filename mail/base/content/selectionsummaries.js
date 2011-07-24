@@ -14,7 +14,7 @@
  * The Original Code is multiple message preview pane
  *
  * The Initial Developer of the Original Code is
- *   Mozilla Messaging
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -50,7 +50,8 @@ let gSelectionSummaryStrings = {
   messagesSize: "messagesSize",
   noticeText: "noticeText",
   noSubject: "noSubject",
-}
+};
+let gSelectionSummaryStringsInitialized = false;
 
 /**
  * loadSelectionSummaryStrings does the routine localization of non-pluralized
@@ -58,16 +59,17 @@ let gSelectionSummaryStrings = {
  * locale.
  */
 function loadSelectionSummaryStrings() {
+  if (gSelectionSummaryStringsInitialized)
+    return;
+
+  gSelectionSummaryStringsInitialized = true;
+
   // convert strings to those in the string bundle
   let getStr = function(string) document.getElementById("bundle_multimessages").getString(string);
-  var strBundleService = Components.classes["@mozilla.org/intl/stringbundle;1"].getService();
-  strBundleService = strBundleService.QueryInterface(Components.interfaces.nsIStringBundleService);
-    for (let [name, value] in Iterator(gSelectionSummaryStrings))
-      gSelectionSummaryStrings[name] = typeof value == "string" ?
-        getStr(value) : value.map(gSelectionSummaryStrings);
+  for (let [name, value] in Iterator(gSelectionSummaryStrings))
+    gSelectionSummaryStrings[name] = typeof value == "string" ?
+      getStr(value) : value.map(gSelectionSummaryStrings);
 }
-
-loadSelectionSummaryStrings();
 
 // Ah, wouldn't it be nice if there was platform code to do the following...
 
@@ -84,7 +86,7 @@ function _mm_addClass(node, classname) {
   if (node.hasAttribute('class'))
     classes = node.getAttribute('class').split(' ');
 
-  for each (klass in classes) {
+  for each (let [, klass] in Iterator(classes)) {
     if (klass == classname) // already have it
       return;
   }
@@ -113,6 +115,33 @@ function _mm_removeClass(node, classname) {
   node.setAttribute('class', newclasses.join(' '));
 }
 
+/**
+ * Format the display name for the multi-message/thread summaries. First, try
+ * using FormatDisplayName, then fall back to the header's display name or the
+ * address.
+ *
+ * @param aHeaderParser An instance of |nsIMsgHeaderParser|
+ * @param aHeaderValue  The raw header value
+ * @param aContext      The context of the header field (e.g. "to", "from")
+ * @return The formatted display name
+ */
+function _mm_FormatDisplayName(aHeaderParser, aHeaderValue, aContext)
+{
+  let addresses = {};
+  let fullNames = {};
+  let names = {};
+  let numAddresses = aHeaderParser.parseHeadersWithArray(aHeaderValue,
+    addresses, names, fullNames);
+
+  if (numAddresses > 0) {
+    return FormatDisplayName(addresses.value[0], names.value[0], aContext) ||
+      names.value[0] || addresses.value[0];
+  }
+  else {
+    // Something strange happened, just return the raw header value.
+    return aHeaderValue;
+  }
+}
 
 /**
  * the MultiMessageSummary class is responsible for populating the message pane
@@ -137,6 +166,9 @@ function _mm_removeClass(node, classname) {
 function MultiMessageSummary(aMessages, aListener) {
   this._msgHdrs = aMessages;
   this._listener = aListener;
+
+  // Ensure the summary selection strings are loaded.
+  loadSelectionSummaryStrings();
 }
 
 MultiMessageSummary.prototype = {
@@ -205,14 +237,17 @@ MultiMessageSummary.prototype = {
     let numThreads = 0;
     let headerParser = Components.classes["@mozilla.org/messenger/headerparser;1"].
                          getService(Components.interfaces.nsIMsgHeaderParser);
+    let viewThreadId = function (aMsgHdr) {
+      let thread = gDBView.getThreadContainingMsgHdr(aMsgHdr);
+      return thread.threadKey;
+    };
     for (let [,msgHdr] in Iterator(this._msgHdrs))
     {
-      if (! threads[msgHdr.threadId]) {
-        threads[msgHdr.threadId] = [msgHdr];
+      if (! threads[viewThreadId(msgHdr)]) {
+        threads[viewThreadId(msgHdr)] = [msgHdr];
         numThreads += 1;
-      }
-      else {
-        threads[msgHdr.threadId].push(msgHdr);
+      } else {
+        threads[viewThreadId(msgHdr)].push(msgHdr);
       }
     }
 
@@ -226,6 +261,10 @@ MultiMessageSummary.prototype = {
                 .replace("#1", numThreads);
 
     heading.textContent = messagesTitle;
+
+    // enable/disable the archive button as appropriate
+    let archiveBtn = htmlpane.contentDocument.getElementById('archive');
+    archiveBtn.collapsed = !gFolderDisplay.canArchiveSelectedMessages;
 
     // clear the messages list
     let messagesElt = htmlpane.contentDocument.getElementById('messagelist');
@@ -266,7 +305,7 @@ MultiMessageSummary.prototype = {
         msg_classes += " starred";
 
       let subject = msgs[0].mime2DecodedSubject || gSelectionSummaryStrings['noSubject'];
-      let author = headerParser.extractHeaderAddressName(msgs[0].mime2DecodedAuthor);
+      let author = _mm_FormatDisplayName(headerParser, msgs[0].mime2DecodedAuthor, "from");
 
       let countstring = "";
       if (numMsgs > 1) {
@@ -328,7 +367,7 @@ MultiMessageSummary.prototype = {
       while (tagsNode.firstChild)
         tagsNode.removeChild(tagsNode.firstChild);
       this._addTagNodes(msgs, tagsNode);
-      for each (msgHdr in msgs) {
+      for (let [, msgHdr] in Iterator(msgs)) {
         this._msgNodes[msgHdr.messageKey + msgHdr.folder.URI] = msgNode;
       }
       messagesElt.appendChild(msgNode);
@@ -495,6 +534,9 @@ function ThreadSummary(aMessages, aListener)
 {
   this._msgHdrs = aMessages;
   this._listener = aListener;
+
+  // Ensure the summary selection strings are loaded.
+  loadSelectionSummaryStrings();
 }
 
 ThreadSummary.prototype = {
@@ -513,6 +555,10 @@ ThreadSummary.prototype = {
     let heading = htmlpane.contentDocument.getElementById('heading');
     heading.setAttribute("class", "heading");
     heading.textContent = subject;
+
+    // enable/disable the archive button as appropriate
+    let archiveBtn = htmlpane.contentDocument.getElementById('archive');
+    archiveBtn.collapsed = !gFolderDisplay.canArchiveSelectedMessages;
 
     let messagesElt = htmlpane.contentDocument.getElementById('messagelist');
     while (messagesElt.firstChild)
@@ -538,7 +584,7 @@ ThreadSummary.prototype = {
       if (msgHdr.isFlagged)
         msg_classes += " starred";
 
-      let senderName = headerParser.extractHeaderAddressName(msgHdr.mime2DecodedAuthor);
+      let senderName = _mm_FormatDisplayName(headerParser, msgHdr.mime2DecodedAuthor, "from");
       let date = makeFriendlyDateAgo(new Date(msgHdr.date/1000));
 
       let msgContents = <div class="row">

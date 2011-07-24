@@ -1,94 +1,98 @@
 <html>
 <head>
+  <script type="text/javascript" src="manifest.js"></script>
 </head>
 <body onload="setTimeout(load, 0);" onunload="done()">
 <script>
 
 // Page URL: http://example.org/tests/content/media/test/file_access_controls.html
 
+var gResource = getPlayableVideo(gSmallTests).name;
+
 var gTests = [
   {
     // Test 0
-    url: "redirect.sjs?http://example.com/tests/content/media/test/320x240.ogv",
+    url: "redirect.sjs?domain=example.com&file="+ gResource,
     result: "error",
     description: "Won't load when redirected to different domain",
   },{
     // Test 1
-    url: "redirect.sjs?http://example.com/tests/content/media/test/320x240.allow-origin.ogv",
-    result: "loaded",
+    url: "redirect.sjs?domain=example.com&allowed&file=" + gResource,
+    result: "loadeddata",
     description: "Can load when redirected to different domain with allow-origin",
   },{
     // Test 2
-    url: "redirect.sjs?http://test1.example.org/tests/content/media/test/320x240.ogv",
+    url: "redirect.sjs?domain=test1.example.org&file=" + gResource,
     result: "error",
     description: "Won't load when redirected to subdomain",
   },{
     // Test 3
-    url: "redirect.sjs?http://test1.example.org/tests/content/media/test/320x240.allow-origin.ogv",
-    result: "loaded",
+    url: "redirect.sjs?domain=test1.example.org&allowed&file=" + gResource,
+    result: "loadeddata",
     description: "Can load when redirected to subdomain with allow-origin",
   },{
     // Test 4
-    url: "redirect.sjs?http://example.org/tests/content/media/test/320x240.ogv",
-    result: "loaded",
+    url: "redirect.sjs?domain=example.org&file=" + gResource,
+    result: "loadeddata",
     description: "Can load when redirected to same domain",
   },{
     // Test 5
-    url: "http://example.org/tests/content/media/test/320x240.ogv",
-    result: "loaded",
+    url: "http://example.org/tests/content/media/test/" + gResource,
+    result: "loadeddata",
     description: "Can load from same domain"
   },{
     // Test 6
-    url: "http://example.org:8000/tests/content/media/test/320x240.ogv",
+    url: "http://example.org:8000/tests/content/media/test/" + gResource,
     result: "error",
-    description: "Won't load from differnet port on same domain"
+    description: "Won't load from different port on same domain"
   },{
     // Test 7
-    url: "http://example.org:8000/tests/content/media/test/320x240.allow-origin.ogv",
-    result: "loaded",
+    url: "http://example.org:8000/tests/content/media/test/allowed.sjs?" + gResource,
+    result: "loadeddata",
     description: "Can load from different port on same domain with allow-origin",
   },{
     // Test 8
-    url: "http://example.com/tests/content/media/test/320x240.ogv",
+    url: "http://example.com/tests/content/media/test/" + gResource,
     result: "error",
     description: "Won't load cross domain",
   },{
     // Test 9
-    url: "http://example.com/tests/content/media/test/320x240.allow-origin.ogv",
-    result: "loaded",
+    url: "http://example.com/tests/content/media/test/allowed.sjs?" + gResource,
+    result: "loadeddata",
     description: "Can load cross domain with allow-origin",
   },{
     // Test 10
-    url: "http://test1.example.org/tests/content/media/test/320x240.allow-origin.ogv",
-    result: "loaded",
+    url: "http://test1.example.org/tests/content/media/test/allowed.sjs?" + gResource,
+    result: "loadeddata",
     description: "Can load from subdomain with allow-origin",
   },{
     // Test 11
-    url: "http://test1.example.org/tests/content/media/test/320x240.ogv",
+    url: "http://test1.example.org/tests/content/media/test/" + gResource,
     result: "error",
     description: "Won't load from subdomain",
   }
 ];
 
 var gTestNum = 0;
-var gExpectedResult = null;
-var gTestDescription = null;
 var gVideo = null;
 var gTestedRemoved = false;
 var gOldPref;
 
-function result(code) {
-  //dump((gTestNum - 1) + ": " + code + "\n");
+function eventHandler(event) {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-  opener.is(code, gExpectedResult, gTestDescription);
+  //dump((gTestNum - 1) + ": " + event.type + "\n");
+  var video = event.target;
+  opener.is(event.type, video.expectedResult, video.testDescription +
+    (gTestedRemoved ? " (element not in document)" : " (element in document)"));
+  // Make sure any extra events cause an error
+  video.expectedResult = "<none>";
   nextTest();
 }
 
 function createVideo() {
   var v = document.createElement('video');
-  v.addEventListener('loadeddata', function(){result('loaded');}, false);
-  v.addEventListener('error', function(){result('error');}, false);
-  v.id = 'video';
+  v.addEventListener('loadeddata', eventHandler, false);
+  v.addEventListener('error', eventHandler, false);
   return v;
 }
 
@@ -112,7 +116,6 @@ function load() {
 
 function nextTest() {
   //dump("nextTest() called, gTestNum="+gTestNum+" gTestedRemoved="+gTestedRemoved+"\n");
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   if (gTestNum == gTests.length) {
     //dump("gTestNum == gTests.length\n");
     if (!gTestedRemoved) {
@@ -126,15 +129,19 @@ function nextTest() {
       return;
     }
   }
-  gExpectedResult = gTests[gTestNum].result;
-  gTestDescription = gTests[gTestNum].description;
-  //dump("Starting test " + gTestNum + " at " + gTests[gTestNum].url + " expecting:" + gExpectedResult + "\n");
 
   if (gVideo && gVideo.parentNode)
     gVideo.parentNode.removeChild(gVideo);
+
+  gVideo = null;
+  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
+  Components.utils.forceGC();  
   
   gVideo = createVideo();
+  gVideo.expectedResult = gTests[gTestNum].result;
+  gVideo.testDescription = gTests[gTestNum].description;
   gVideo.src = gTests[gTestNum].url;
+  //dump("Starting test " + gTestNum + " at " + gVideo.src + " expecting:" + gVideo.expectedResult + "\n");
   if (!gTestedRemoved) {
     document.body.appendChild(gVideo); 
     // Will cause load() to be invoked.
@@ -151,6 +158,7 @@ function done() {
                                .getService(Components.interfaces.nsIPrefService);
   var branch = prefService.getBranch("media.");
   branch.setBoolPref("enforce_same_site_origin", gOldPref);
+  mediaTestCleanup();
   opener.done();
 }
 

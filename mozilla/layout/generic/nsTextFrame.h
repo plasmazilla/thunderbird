@@ -51,6 +51,7 @@
 #define nsTextFrame_h__
 
 #include "nsFrame.h"
+#include "nsSplittableFrame.h"
 #include "nsLineBox.h"
 #include "gfxFont.h"
 #include "gfxSkipChars.h"
@@ -59,13 +60,9 @@
 class nsTextPaintStyle;
 class PropertyProvider;
 
-// This bit is set while the frame is registered as a blinking frame or if
-// frame is within a non-dynamic PresContext.
-#define TEXT_BLINK_ON_OR_PRINTING  0x20000000
-
 // This state bit is set on frames that have some non-collapsed characters after
 // reflow
-#define TEXT_HAS_NONCOLLAPSED_CHARACTERS 0x80000000
+#define TEXT_HAS_NONCOLLAPSED_CHARACTERS NS_FRAME_STATE_BIT(31)
 
 class nsTextFrame : public nsFrame {
 public:
@@ -87,7 +84,7 @@ public:
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
   
   NS_IMETHOD GetCursor(const nsPoint& aPoint,
                        nsIFrame::Cursor& aCursor);
@@ -172,14 +169,19 @@ public:
                         SelectionType aType);
 
   virtual PRBool PeekOffsetNoAmount(PRBool aForward, PRInt32* aOffset);
-  virtual PRBool PeekOffsetCharacter(PRBool aForward, PRInt32* aOffset);
+  virtual PRBool PeekOffsetCharacter(PRBool aForward, PRInt32* aOffset,
+                                     PRBool aRespectClusters = PR_TRUE);
   virtual PRBool PeekOffsetWord(PRBool aForward, PRBool aWordSelectEatSpace, PRBool aIsKeyboardSelect,
                                 PRInt32* aOffset, PeekWordState* aState);
 
   NS_IMETHOD CheckVisibility(nsPresContext* aContext, PRInt32 aStartIndex, PRInt32 aEndIndex, PRBool aRecurse, PRBool *aFinished, PRBool *_retval);
   
+  // Flags for aSetLengthFlags
+  enum { ALLOW_FRAME_CREATION_AND_DESTRUCTION = 0x01 };
+
   // Update offsets to account for new length. This may clear mTextRun.
-  void SetLength(PRInt32 aLength);
+  void SetLength(PRInt32 aLength, nsLineLayout* aLineLayout,
+                 PRUint32 aSetLengthFlags = 0);
   
   NS_IMETHOD GetOffsets(PRInt32 &start, PRInt32 &end)const;
   
@@ -197,6 +199,7 @@ public:
   
   virtual PRBool IsEmpty();
   virtual PRBool IsSelfEmpty() { return IsEmpty(); }
+  virtual nscoord GetBaseline() const;
   
   /**
    * @return PR_TRUE if this text frame ends with a newline character.  It
@@ -219,7 +222,7 @@ public:
   }
   
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
   
   virtual void MarkIntrinsicWidthsDirty();
@@ -244,7 +247,7 @@ public:
   // placeholders or inlines containing such).
   struct TrimOutput {
     // true if we trimmed some space or changed metrics in some other way.
-    // In this case, we should call RecomputeOverflowRect on this frame.
+    // In this case, we should call RecomputeOverflow on this frame.
     PRPackedBool mChanged;
     // true if the last character is not justifiable so should be subtracted
     // from the count of justifiable characters in the frame, since the last
@@ -260,7 +263,7 @@ public:
                                    PRUint32 aSkippedStartOffset = 0,
                                    PRUint32 aSkippedMaxLength = PR_UINT32_MAX);
 
-  nsRect RecomputeOverflowRect();
+  nsOverflowAreas RecomputeOverflow();
 
   void AddInlineMinWidthForFlow(nsIRenderingContext *aRenderingContext,
                                 nsIFrame::InlineMinWidthData *aData);
@@ -309,6 +312,8 @@ public:
                                      nsTextPaintStyle& aTextPaintStyle,
                                      SelectionDetails* aDetails,
                                      SelectionType aSelectionType);
+
+  virtual nscolor GetCaretColorAt(PRInt32 aOffset);
 
   PRInt16 GetSelectionStatus(PRInt16* aSelectionFlags);
 
@@ -371,16 +376,13 @@ public:
   TrimmedOffsets GetTrimmedOffsets(const nsTextFragment* aFrag,
                                    PRBool aTrimAfter);
 
-  const nsTextFragment* GetFragment() const
-  {
-    return !(GetStateBits() & TEXT_BLINK_ON_OR_PRINTING) ?
-      mContent->GetText() : GetFragmentInternal();
-  }
+  // Similar to Reflow(), but for use from nsLineLayout
+  void ReflowText(nsLineLayout& aLineLayout, nscoord aAvailableWidth,
+                  nsIRenderingContext* aRenderingContext, PRBool aShouldBlink,
+                  nsHTMLReflowMetrics& aMetrics, nsReflowStatus& aStatus);
 
 protected:
   virtual ~nsTextFrame();
-
-  const nsTextFragment* GetFragmentInternal() const;
 
   nsIFrame*   mNextContinuation;
   // The key invariant here is that mContentOffset never decreases along
@@ -407,7 +409,7 @@ protected:
   
   void UnionTextDecorationOverflow(nsPresContext* aPresContext,
                                    PropertyProvider& aProvider,
-                                   nsRect* aOverflowRect);
+                                   nsRect* aVisualOverflowRect);
 
   void DrawText(gfxContext* aCtx,
                 const gfxPoint& aTextBaselinePt,
@@ -465,6 +467,12 @@ protected:
 
   ContentOffsets GetCharacterOffsetAtFramePointInternal(const nsPoint &aPoint,
                    PRBool aForInsertionPoint);
+
+  void ClearFrameOffsetCache();
+
+  virtual PRBool HasAnyNoncollapsedCharacters();
+
+  void ClearMetrics(nsHTMLReflowMetrics& aMetrics);
 };
 
 #endif

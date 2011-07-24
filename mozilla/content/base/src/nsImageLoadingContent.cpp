@@ -22,6 +22,7 @@
  *
  * Contributor(s):
  *   Christian Biesinger <cbiesinger@web.de>
+ *   Bobby Holley <bobbyholley@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -58,8 +59,8 @@
 #include "imgILoader.h"
 #include "nsThreadUtils.h"
 #include "nsNetUtil.h"
+#include "nsPLDOMEvent.h"
 
-#include "nsPresContext.h"
 #include "nsIPresShell.h"
 #include "nsIEventStateManager.h"
 #include "nsGUIEvent.h"
@@ -75,6 +76,9 @@
 #include "nsContentPolicyUtils.h"
 #include "nsEventDispatcher.h"
 #include "nsDOMClassInfo.h"
+#ifdef MOZ_SVG
+#include "nsSVGEffects.h"
+#endif
 
 #include "mozAutoDocUpdate.h"
 
@@ -103,13 +107,17 @@ nsImageLoadingContent::nsImageLoadingContent()
   : mObserverList(nsnull),
     mImageBlockingStatus(nsIContentPolicy::ACCEPT),
     mLoadingEnabled(PR_TRUE),
-    mStartingLoad(PR_FALSE),
+    mIsImageStateForced(PR_FALSE),
     mLoading(PR_FALSE),
     // mBroken starts out true, since an image without a URI is broken....
     mBroken(PR_TRUE),
     mUserDisabled(PR_FALSE),
     mSuppressed(PR_FALSE),
-    mIsImageStateForced(PR_FALSE)    
+    mBlockingOnload(PR_FALSE),
+    mNewRequestsWillNeedAnimationReset(PR_FALSE),
+    mPendingRequestNeedsResetAnimation(PR_FALSE),
+    mCurrentRequestNeedsResetAnimation(PR_FALSE),
+    mStateChangerDepth(0)
 {
   if (!nsContentUtils::GetImgLoader()) {
     mLoadingEnabled = PR_FALSE;
@@ -120,14 +128,8 @@ void
 nsImageLoadingContent::DestroyImageLoadingContent()
 {
   // Cancel our requests so they won't hold stale refs to us
-  if (mCurrentRequest) {
-    mCurrentRequest->CancelAndForgetObserver(NS_ERROR_FAILURE);
-    mCurrentRequest = nsnull;
-  }
-  if (mPendingRequest) {
-    mPendingRequest->CancelAndForgetObserver(NS_ERROR_FAILURE);
-    mPendingRequest = nsnull;
-  }
+  ClearCurrentRequest(NS_BINDING_ABORTED);
+  ClearPendingRequest(NS_BINDING_ABORTED);
 }
 
 nsImageLoadingContent::~nsImageLoadingContent()
@@ -157,19 +159,19 @@ nsImageLoadingContent::~nsImageLoadingContent()
  */
 NS_IMETHODIMP
 nsImageLoadingContent::FrameChanged(imgIContainer* aContainer,
-                                    nsIntRect* aDirtyRect)
+                                    const nsIntRect* aDirtyRect)
 {
   LOOP_OVER_OBSERVERS(FrameChanged(aContainer, aDirtyRect));
   return NS_OK;
 }
-
+            
 /*
  * imgIDecoderObserver impl
  */
 NS_IMETHODIMP
 nsImageLoadingContent::OnStartRequest(imgIRequest* aRequest)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   LOOP_OVER_OBSERVERS(OnStartRequest(aRequest));
   return NS_OK;
@@ -178,7 +180,24 @@ nsImageLoadingContent::OnStartRequest(imgIRequest* aRequest)
 NS_IMETHODIMP
 nsImageLoadingContent::OnStartDecode(imgIRequest* aRequest)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
+
+  // Onload blocking. This only applies for the current request.
+  if (aRequest == mCurrentRequest) {
+
+    // Determine whether this is a background request (this can be the case
+    // with multipart/x-mixed-replace images, for example).
+    PRUint32 loadFlags;
+    nsresult rv = aRequest->GetLoadFlags(&loadFlags);
+    PRBool background =
+      (NS_SUCCEEDED(rv) && (loadFlags & nsIRequest::LOAD_BACKGROUND));
+
+    // Block onload for non-background requests
+    if (!background) {
+      NS_ABORT_IF_FALSE(!mBlockingOnload, "Shouldn't already be blocking");
+      SetBlockingOnload(PR_TRUE);
+    }
+  }
 
   LOOP_OVER_OBSERVERS(OnStartDecode(aRequest));
   return NS_OK;
@@ -188,7 +207,7 @@ NS_IMETHODIMP
 nsImageLoadingContent::OnStartContainer(imgIRequest* aRequest,
                                         imgIContainer* aContainer)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   LOOP_OVER_OBSERVERS(OnStartContainer(aRequest, aContainer));
 
@@ -202,7 +221,7 @@ NS_IMETHODIMP
 nsImageLoadingContent::OnStartFrame(imgIRequest* aRequest,
                                     PRUint32 aFrame)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   LOOP_OVER_OBSERVERS(OnStartFrame(aRequest, aFrame));
   return NS_OK;    
@@ -213,7 +232,7 @@ nsImageLoadingContent::OnDataAvailable(imgIRequest* aRequest,
                                        PRBool aCurrentFrame,
                                        const nsIntRect* aRect)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   LOOP_OVER_OBSERVERS(OnDataAvailable(aRequest, aCurrentFrame, aRect));
   return NS_OK;
@@ -223,7 +242,11 @@ NS_IMETHODIMP
 nsImageLoadingContent::OnStopFrame(imgIRequest* aRequest,
                                    PRUint32 aFrame)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
+
+  // If we're blocking a load, one frame is enough
+  if (aRequest == mCurrentRequest)
+    SetBlockingOnload(PR_FALSE);
 
   LOOP_OVER_OBSERVERS(OnStopFrame(aRequest, aFrame));
   return NS_OK;
@@ -233,46 +256,112 @@ NS_IMETHODIMP
 nsImageLoadingContent::OnStopContainer(imgIRequest* aRequest,
                                        imgIContainer* aContainer)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
+
+  // This is really hacky. We need to handle the case where we start decoding,
+  // block onload, but then hit an error before we get to our first frame. In
+  // theory we would just hook in at OnStopDecode, but OnStopDecode is broken
+  // until we fix bug 505385. OnStopContainer is actually going away at that
+  // point. So for now we take advantage of the fact that OnStopContainer is
+  // always fired in the decoders at the same time as OnStopDecode.
+  if (aRequest == mCurrentRequest)
+    SetBlockingOnload(PR_FALSE);
 
   LOOP_OVER_OBSERVERS(OnStopContainer(aRequest, aContainer));
   return NS_OK;
 }
 
+// Warning - This isn't actually fired when decode is complete. Rather, it's
+// fired when load is complete. See bug 505385, and in the mean time use
+// OnStopContainer.
 NS_IMETHODIMP
 nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
                                     nsresult aStatus,
                                     const PRUnichar* aStatusArg)
 {
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
+
+  // We should definitely have a request here
+  NS_ABORT_IF_FALSE(aRequest, "no request?");
+
   NS_PRECONDITION(aRequest == mCurrentRequest || aRequest == mPendingRequest,
                   "Unknown request");
-
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
-
   LOOP_OVER_OBSERVERS(OnStopDecode(aRequest, aStatus, aStatusArg));
 
+  // XXXbholley - When we fix bug 505385,  everything here should go in
+  // OnStopRequest.
+
+  // Our state may change. Watch it.
+  AutoStateChanger changer(this, PR_TRUE);
+
+  // If the pending request is loaded, switch to it.
   if (aRequest == mPendingRequest) {
-    mCurrentRequest->Cancel(NS_ERROR_IMAGE_SRC_CHANGED);
-    mPendingRequest.swap(mCurrentRequest);
+    PrepareCurrentRequest() = mPendingRequest;
     mPendingRequest = nsnull;
+    mCurrentRequestNeedsResetAnimation = mPendingRequestNeedsResetAnimation;
+    mPendingRequestNeedsResetAnimation = PR_FALSE;
+  }
+  NS_ABORT_IF_FALSE(aRequest == mCurrentRequest,
+                    "One way or another, we should be current by now");
+
+  if (mCurrentRequestNeedsResetAnimation) {
+    nsCOMPtr<imgIContainer> container;
+    mCurrentRequest->GetImage(getter_AddRefs(container));
+    if (container)
+      container->ResetAnimation();
+    mCurrentRequestNeedsResetAnimation = PR_FALSE;
   }
 
-  // XXXldb What's the difference between when OnStopDecode and OnStopRequest
-  // fire?  Should we do this work there instead?  Should they just be the
-  // same?
+  // We just loaded all the data we're going to get. If we haven't done an
+  // initial paint, we want to make sure the image starts decoding for 2
+  // reasons:
+  //
+  // 1) This image is sitting idle but might need to be decoded as soon as we
+  // start painting, in which case we've wasted time.
+  //
+  // 2) We want to block onload until all visible images are decoded. We do this
+  // by blocking onload until all in progress decodes get at least one frame
+  // decoded. However, if all the data comes in while painting is suppressed
+  // (ie, before the initial paint delay is finished), we fire onload without
+  // doing a paint first. This means that decode-on-draw images don't start
+  // decoding, so we can't wait for them to finish. See bug 512435.
 
+  // We can only do this if we have a presshell
+  nsIDocument* doc = GetOurDocument();
+  nsIPresShell* shell = doc ? doc->GetShell() : nsnull;
+  if (shell) {
+
+    // We need to figure out whether to kick off decoding
+    PRBool doRequestDecode = PR_FALSE;
+
+    // If we haven't got the initial reflow yet, IsPaintingSuppressed actually
+    // returns false
+    if (!shell->DidInitialReflow())
+      doRequestDecode = PR_TRUE;
+
+    // Figure out if painting is suppressed. Note that it's possible for painting
+    // to be suppressed for reasons other than the initial paint delay (for
+    // example - being in the bfcache), but we probably aren't loading images in
+    // those situations.
+    if (shell->IsPaintingSuppressed())
+      doRequestDecode = PR_TRUE;
+
+    // If we're requesting a decode, do it
+    if (doRequestDecode)
+      mCurrentRequest->RequestDecode();
+  }
+
+  // Fire the appropriate DOM event.
   if (NS_SUCCEEDED(aStatus)) {
     FireEvent(NS_LITERAL_STRING("load"));
   } else {
     FireEvent(NS_LITERAL_STRING("error"));
   }
 
-  // Have to check for state changes here (for example, the new load could
-  // have resulted in a broken image).  Note that we don't want to do this
-  // async, unlike the event, because while this is waiting to happen our
-  // state could change yet again, and then we'll get confused about our
-  // state.
-  UpdateImageState(PR_TRUE);
+#ifdef MOZ_SVG
+  nsCOMPtr<nsINode> thisNode = do_QueryInterface(this);
+  nsSVGEffects::InvalidateDirectRenderingObservers(thisNode->AsElement());
+#endif
 
   return NS_OK;
 }
@@ -280,9 +369,19 @@ nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
 NS_IMETHODIMP
 nsImageLoadingContent::OnStopRequest(imgIRequest* aRequest, PRBool aLastPart)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   LOOP_OVER_OBSERVERS(OnStopRequest(aRequest, aLastPart));
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsImageLoadingContent::OnDiscard(imgIRequest *aRequest)
+{
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
+
+  LOOP_OVER_OBSERVERS(OnDiscard(aRequest));
 
   return NS_OK;
 }
@@ -294,7 +393,7 @@ nsImageLoadingContent::OnStopRequest(imgIRequest* aRequest, PRBool aLastPart)
 NS_IMETHODIMP
 nsImageLoadingContent::GetLoadingEnabled(PRBool *aLoadingEnabled)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   *aLoadingEnabled = mLoadingEnabled;
   return NS_OK;
@@ -303,7 +402,7 @@ nsImageLoadingContent::GetLoadingEnabled(PRBool *aLoadingEnabled)
 NS_IMETHODIMP
 nsImageLoadingContent::SetLoadingEnabled(PRBool aLoadingEnabled)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   if (nsContentUtils::GetImgLoader()) {
     mLoadingEnabled = aLoadingEnabled;
@@ -314,7 +413,7 @@ nsImageLoadingContent::SetLoadingEnabled(PRBool aLoadingEnabled)
 NS_IMETHODIMP
 nsImageLoadingContent::GetImageBlockingStatus(PRInt16* aStatus)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   NS_PRECONDITION(aStatus, "Null out param");
   *aStatus = mImageBlockingStatus;
@@ -324,7 +423,7 @@ nsImageLoadingContent::GetImageBlockingStatus(PRInt16* aStatus)
 NS_IMETHODIMP
 nsImageLoadingContent::AddObserver(imgIDecoderObserver* aObserver)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   NS_ENSURE_ARG_POINTER(aObserver);
 
@@ -352,7 +451,7 @@ nsImageLoadingContent::AddObserver(imgIDecoderObserver* aObserver)
 NS_IMETHODIMP
 nsImageLoadingContent::RemoveObserver(imgIDecoderObserver* aObserver)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   NS_ENSURE_ARG_POINTER(aObserver);
 
@@ -379,7 +478,7 @@ nsImageLoadingContent::RemoveObserver(imgIDecoderObserver* aObserver)
   }
 #ifdef DEBUG
   else {
-    NS_WARNING("Asked to remove non-existent observer");
+    NS_WARNING("Asked to remove nonexistent observer");
   }
 #endif
   return NS_OK;
@@ -411,7 +510,7 @@ NS_IMETHODIMP
 nsImageLoadingContent::GetRequestType(imgIRequest* aRequest,
                                       PRInt32* aRequestType)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   NS_PRECONDITION(aRequestType, "Null out param");
   
@@ -449,46 +548,46 @@ NS_IMETHODIMP
 nsImageLoadingContent::LoadImageWithChannel(nsIChannel* aChannel,
                                             nsIStreamListener** aListener)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
-
-  NS_PRECONDITION(aListener, "null out param");
-  
-  NS_ENSURE_ARG_POINTER(aChannel);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   if (!nsContentUtils::GetImgLoader()) {
     return NS_ERROR_NULL_POINTER;
   }
 
-  // XXX what should we do with content policies here, if anything?
-  // Shouldn't that be done before the start of the load?
-  // XXX what about shouldProcess?
-  
   nsCOMPtr<nsIDocument> doc = GetOurDocument();
   if (!doc) {
     // Don't bother
     return NS_OK;
   }
 
-  // Null out our mCurrentURI, in case we have no image requests right now.
-  mCurrentURI = nsnull;
-  
-  CancelImageRequests(NS_ERROR_IMAGE_SRC_CHANGED, PR_FALSE,
-                      nsIContentPolicy::ACCEPT);
+  // XXX what should we do with content policies here, if anything?
+  // Shouldn't that be done before the start of the load?
+  // XXX what about shouldProcess?
 
-  nsCOMPtr<imgIRequest> & req = mCurrentRequest ? mPendingRequest : mCurrentRequest;
+  // Our state might change. Watch it.
+  AutoStateChanger changer(this, PR_TRUE);
 
+  // Do the load.
+  nsCOMPtr<imgIRequest>& req = PrepareNextRequest();
   nsresult rv = nsContentUtils::GetImgLoader()->
-    LoadImageWithChannel(aChannel, this, doc, aListener, getter_AddRefs(req));
-
-  // Make sure our state is up to date
-  UpdateImageState(PR_TRUE);
-
-  return rv;
+    LoadImageWithChannel(aChannel, this, doc, aListener,
+                         getter_AddRefs(req));
+  if (NS_SUCCEEDED(rv)) {
+    TrackImage(req);
+  } else {
+    // If we don't have a current URI, we might as well store this URI so people
+    // know what we tried (and failed) to load.
+    if (!mCurrentRequest)
+      aChannel->GetURI(getter_AddRefs(mCurrentURI));
+    FireEvent(NS_LITERAL_STRING("error"));
+    return rv;
+  }
+  return NS_OK;;
 }
 
 NS_IMETHODIMP nsImageLoadingContent::ForceReload()
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   nsCOMPtr<nsIURI> currentURI;
   GetCurrentURI(getter_AddRefs(currentURI));
@@ -502,6 +601,22 @@ NS_IMETHODIMP nsImageLoadingContent::ForceReload()
 /*
  * Non-interface methods
  */
+
+void
+nsImageLoadingContent::NotifyOwnerDocumentChanged(nsIDocument *aOldDoc)
+{
+  // If we had a document before, unregister ourselves with it.
+  if (aOldDoc) {
+    if (mCurrentRequest)
+      aOldDoc->RemoveImage(mCurrentRequest);
+    if (mPendingRequest)
+      aOldDoc->RemoveImage(mPendingRequest);
+  }
+
+  // Re-track the images
+  TrackImage(mCurrentRequest);
+  TrackImage(mPendingRequest);
+}
 
 nsresult
 nsImageLoadingContent::LoadImage(const nsAString& aNewURI,
@@ -568,11 +683,10 @@ nsImageLoadingContent::LoadImage(nsIURI* aNewURI,
     }
   }
 
-
-  nsresult rv;   // XXXbz Should failures in this method fire onerror?
-
-  // Skip the URI equality check if our current image was blocked.  If
-  // that happened, we really do want to try loading again.
+  // URI equality check.
+  //
+  // We skip the equality check if our current image was blocked, since in that
+  // case we really do want to try loading again.
   if (!aForce && NS_CP_ACCEPTED(mImageBlockingStatus)) {
     nsCOMPtr<nsIURI> currentURI;
     GetCurrentURI(getter_AddRefs(currentURI));
@@ -585,103 +699,97 @@ nsImageLoadingContent::LoadImage(nsIURI* aNewURI,
     }
   }
 
-  // From this point on, our state could change before return, so make
-  // sure to notify if it does.
+  // From this point on, our image state could change. Watch it.
   AutoStateChanger changer(this, aNotify);
 
-  // Use the principal of aDocument to avoid having to QI |this| an extra time.
-  // It should be the same as the principal of this node in any case.
+  // Sanity check.
+  //
+  // We use the principal of aDocument to avoid having to QI |this| an extra
+  // time. It should always be the same as the principal of this node.
 #ifdef DEBUG
   nsCOMPtr<nsIContent> thisContent = do_QueryInterface(this);
-  NS_ASSERTION(thisContent &&
-               thisContent->NodePrincipal() == aDocument->NodePrincipal(),
-               "Principal mismatch?");
+  NS_ABORT_IF_FALSE(thisContent &&
+                    thisContent->NodePrincipal() == aDocument->NodePrincipal(),
+                    "Principal mismatch?");
 #endif
-  
-  // If we'll be loading a new image, we want to cancel our existing
-  // requests; the question is what reason to pass in.  If everything
-  // is going smoothly, that reason should be
-  // NS_ERROR_IMAGE_SRC_CHANGED so that our frame (if any) will know
-  // not to show the broken image icon.  If the load is blocked by the
-  // content policy or security manager, we will want to cancel with
-  // the error code from those.
 
-  PRInt16 newImageStatus;
-  PRBool loadImage = nsContentUtils::CanLoadImage(aNewURI, this, aDocument,
-                                                  aDocument->NodePrincipal(),
-                                                  &newImageStatus);
-  NS_ASSERTION(loadImage || !NS_CP_ACCEPTED(newImageStatus),
-               "CanLoadImage lied");
-
-  nsresult cancelResult = loadImage ? NS_ERROR_IMAGE_SRC_CHANGED
-                                    : NS_ERROR_IMAGE_BLOCKED;
-
-  CancelImageRequests(cancelResult, PR_FALSE, newImageStatus);
-
-  // Remember the URL of this request, in case someone asks us for it later.
-  // But this only matters if we are affecting the current request.  Need to do
-  // this after CancelImageRequests, since that affects the value of
-  // mCurrentRequest.
-  if (!mCurrentRequest) {
-    mCurrentURI = aNewURI;
-  }
-  
-  if (!loadImage) {
-    // Don't actually load anything!  This was blocked by CanLoadImage.
+  // Are we blocked?
+  PRInt16 cpDecision = nsIContentPolicy::REJECT_REQUEST;
+  nsContentUtils::CanLoadImage(aNewURI, this, aDocument,
+                               aDocument->NodePrincipal(), &cpDecision);
+  if (!NS_CP_ACCEPTED(cpDecision)) {
     FireEvent(NS_LITERAL_STRING("error"));
+    SetBlockedRequest(aNewURI, cpDecision);
     return NS_OK;
   }
 
-  nsCOMPtr<imgIRequest> & req = mCurrentRequest ? mPendingRequest : mCurrentRequest;
-
+  // Not blocked. Do the load.
+  nsCOMPtr<imgIRequest>& req = PrepareNextRequest();
+  nsresult rv;
   rv = nsContentUtils::LoadImage(aNewURI, aDocument,
                                  aDocument->NodePrincipal(),
                                  aDocument->GetDocumentURI(),
                                  this, aLoadFlags,
                                  getter_AddRefs(req));
-  if (NS_FAILED(rv)) {
+  if (NS_SUCCEEDED(rv)) {
+    TrackImage(req);
+  } else {
+    // If we don't have a current URI, we might as well store this URI so people
+    // know what we tried (and failed) to load.
+    if (!mCurrentRequest)
+      mCurrentURI = aNewURI;
     FireEvent(NS_LITERAL_STRING("error"));
     return NS_OK;
-  }
-
-  // If we now have a current request, we don't need to store the URI, since
-  // we can get it off the request. Release it.
-  if (mCurrentRequest) {
-    mCurrentURI = nsnull;
   }
 
   return NS_OK;
 }
 
 nsresult
-nsImageLoadingContent::ForceImageState(PRBool aForce, PRInt32 aState)
+nsImageLoadingContent::ForceImageState(PRBool aForce, nsEventStates::InternalType aState)
 {
-  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome() || mStartingLoad, NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   mIsImageStateForced = aForce;
-  mForcedImageState = aState;
+  mForcedImageState = nsEventStates(aState);
   return NS_OK;
 }
 
-PRInt32
+nsEventStates
 nsImageLoadingContent::ImageState() const
 {
-  return mIsImageStateForced ? mForcedImageState :
-    (mBroken * NS_EVENT_STATE_BROKEN) |
-    (mUserDisabled * NS_EVENT_STATE_USERDISABLED) |
-    (mSuppressed * NS_EVENT_STATE_SUPPRESSED) |
-    (mLoading * NS_EVENT_STATE_LOADING);
+  if (mIsImageStateForced) {
+    return mForcedImageState;
+  }
+
+  nsEventStates states;
+
+  if (mBroken) {
+    states |= NS_EVENT_STATE_BROKEN;
+  }
+  if (mUserDisabled) {
+    states |= NS_EVENT_STATE_USERDISABLED;
+  }
+  if (mSuppressed) {
+    states |= NS_EVENT_STATE_SUPPRESSED;
+  }
+  if (mLoading) {
+    states |= NS_EVENT_STATE_LOADING;
+  }
+
+  return states;
 }
 
 void
 nsImageLoadingContent::UpdateImageState(PRBool aNotify)
 {
-  if (mStartingLoad) {
-    // Ignore this call; we'll update our state when the state changer is
-    // destroyed.  Need this to work around the fact that some libpr0n stuff is
-    // actually sync and hence we can get OnStopDecode called while we're still
-    // under LoadImage, and OnStopDecode doesn't know anything about
-    // aNotify
+  if (mStateChangerDepth > 0) {
+    // Ignore this call; we'll update our state when the outermost state
+    // changer is destroyed. Need this to work around the fact that some libpr0n
+    // stuff is actually sync and hence we can get OnStopDecode called while
+    // we're still under LoadImage, and OnStopDecode doesn't know anything about
+    // aNotify.
+    // XXX - This machinery should be removed after bug 521604.
     return;
   }
   
@@ -690,7 +798,7 @@ nsImageLoadingContent::UpdateImageState(PRBool aNotify)
     return;
   }
 
-  PRInt32 oldState = ImageState();
+  nsEventStates oldState = ImageState();
 
   mLoading = mBroken = mUserDisabled = mSuppressed = PR_FALSE;
   
@@ -718,10 +826,10 @@ nsImageLoadingContent::UpdateImageState(PRBool aNotify)
     nsIDocument* doc = thisContent->GetCurrentDoc();
     if (doc) {
       NS_ASSERTION(thisContent->IsInDoc(), "Something is confused");
-      PRInt32 changedBits = oldState ^ ImageState();
-      if (changedBits) {
+      nsEventStates changedBits = oldState ^ ImageState();
+      if (!changedBits.IsEmpty()) {
         mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-        doc->ContentStatesChanged(thisContent, nsnull, changedBits);
+        doc->ContentStateChanged(thisContent, changedBits);
       }
     }
   }
@@ -730,73 +838,31 @@ nsImageLoadingContent::UpdateImageState(PRBool aNotify)
 void
 nsImageLoadingContent::CancelImageRequests(PRBool aNotify)
 {
-  // Make sure to null out mCurrentURI here, so we no longer look like an image
   AutoStateChanger changer(this, aNotify);
-  mCurrentURI = nsnull;
-  CancelImageRequests(NS_BINDING_ABORTED, PR_TRUE, nsIContentPolicy::ACCEPT);
-}
-
-void
-nsImageLoadingContent::CancelImageRequests(nsresult aReason,
-                                           PRBool   aEvenIfSizeAvailable,
-                                           PRInt16  aNewImageStatus)
-{
-  // Cancel the pending request, if any
-  if (mPendingRequest) {
-    mPendingRequest->Cancel(aReason);
-    mPendingRequest = nsnull;
-  }
-
-  // Cancel the current request if it has not progressed enough to
-  // have a size yet
-  if (mCurrentRequest) {
-    PRUint32 loadStatus = imgIRequest::STATUS_ERROR;
-    mCurrentRequest->GetImageStatus(&loadStatus);
-
-    NS_ASSERTION(NS_CP_ACCEPTED(mImageBlockingStatus),
-                 "Have current request but blocked image?");
-    
-    if (aEvenIfSizeAvailable ||
-        !(loadStatus & imgIRequest::STATUS_SIZE_AVAILABLE)) {
-      // The new image is going to become the current request.  Make sure to
-      // set mImageBlockingStatus _before_ we cancel the request... if we set
-      // it after, things that are watching the mCurrentRequest will get wrong
-      // data.
-      mImageBlockingStatus = aNewImageStatus;
-      mCurrentRequest->Cancel(aReason);
-      mCurrentRequest = nsnull;
-    }
-  } else {
-    // No current request so the new image status will become the
-    // status of the current request
-    mImageBlockingStatus = aNewImageStatus;
-  }
-
-  // Note that the only way we could have avoided setting the image blocking
-  // status above is if we have a current request and have kept it as the
-  // current request.  In that case, we want to leave our old status, since the
-  // status corresponds to the current request.  Even if we plan to do a
-  // pending request load, having an mCurrentRequest means that our current
-  // status is not a REJECT_* status, and doing the load shouldn't change that.
-  // XXXbz there is an issue here if different ACCEPT statuses are used, but...
+  ClearPendingRequest(NS_BINDING_ABORTED);
+  ClearCurrentRequest(NS_BINDING_ABORTED);
 }
 
 nsresult
 nsImageLoadingContent::UseAsPrimaryRequest(imgIRequest* aRequest,
                                            PRBool aNotify)
 {
-  // Use an AutoStateChanger so that the clone call won't
-  // automatically notify from inside OnStopDecode.
-  // Also, make sure to use the CancelImageRequests which doesn't
-  // notify, so that the changer is handling the notifications.
-  NS_PRECONDITION(aRequest, "Must have a request here!");
+  // Our state will change. Watch it.
   AutoStateChanger changer(this, aNotify);
-  mCurrentURI = nsnull;
-  CancelImageRequests(NS_BINDING_ABORTED, PR_TRUE, nsIContentPolicy::ACCEPT);
 
-  NS_ASSERTION(!mCurrentRequest, "We should not have a current request now");
+  // Get rid if our existing images
+  ClearPendingRequest(NS_BINDING_ABORTED);
+  ClearCurrentRequest(NS_BINDING_ABORTED);
 
-  return aRequest->Clone(this, getter_AddRefs(mCurrentRequest));
+  // Clone the request we were given.
+  nsCOMPtr<imgIRequest>& req = PrepareNextRequest();;
+  nsresult rv = aRequest->Clone(this, getter_AddRefs(req));
+  if (NS_SUCCEEDED(rv))
+    TrackImage(req);
+  else
+    return rv;
+
+  return NS_OK;
 }
 
 nsIDocument*
@@ -832,58 +898,6 @@ nsImageLoadingContent::StringToURI(const nsAString& aSpec,
                    nsContentUtils::GetIOService());
 }
 
-
-/**
- * Class used to dispatch events
- */
-
-class nsImageLoadingContent::Event : public nsRunnable
-{
-public:
-  Event(nsPresContext* aPresContext, nsImageLoadingContent* aContent,
-             const nsAString& aMessage, nsIDocument* aDocument)
-    : mPresContext(aPresContext),
-      mContent(aContent),
-      mMessage(aMessage),
-      mDocument(aDocument)
-  {
-  }
-  ~Event()
-  {
-    mDocument->UnblockOnload(PR_TRUE);
-  }
-
-  NS_IMETHOD Run();
-  
-  nsCOMPtr<nsPresContext> mPresContext;
-  nsRefPtr<nsImageLoadingContent> mContent;
-  nsString mMessage;
-  // Need to hold on to the document in case our event outlives document
-  // teardown... Wantto be able to get back to the document even if the
-  // prescontext and content can't.
-  nsCOMPtr<nsIDocument> mDocument;
-};
-
-NS_IMETHODIMP
-nsImageLoadingContent::Event::Run()
-{
-  PRUint32 eventMsg;
-
-  if (mMessage.EqualsLiteral("load")) {
-    eventMsg = NS_LOAD;
-  } else {
-    eventMsg = NS_LOAD_ERROR;
-  }
-
-  nsCOMPtr<nsIContent> ourContent = do_QueryInterface(mContent);
-
-  nsEvent event(PR_TRUE, eventMsg);
-  event.flags |= NS_EVENT_FLAG_CANT_BUBBLE;
-  nsEventDispatcher::Dispatch(ourContent, mPresContext, &event);
-
-  return NS_OK;
-}
-
 nsresult
 nsImageLoadingContent::FireEvent(const nsAString& aEventType)
 {
@@ -891,26 +905,199 @@ nsImageLoadingContent::FireEvent(const nsAString& aEventType)
   // loops in cases when onLoad handlers reset the src and the new src is in
   // cache.
 
-  nsCOMPtr<nsIDocument> document = GetOurDocument();
-  if (!document) {
-    // no use to fire events if there is no document....
-    return NS_OK;
-  }                                                                             
+  nsCOMPtr<nsINode> thisNode = do_QueryInterface(this);
 
-  // We should not be getting called from off the UI thread...
-  NS_ASSERTION(NS_IsMainThread(), "should be on the main thread");
-
-  nsIPresShell *shell = document->GetPrimaryShell();
-  nsPresContext *presContext = shell ? shell->GetPresContext() : nsnull;
-
-  nsCOMPtr<nsIRunnable> evt =
-      new nsImageLoadingContent::Event(presContext, this, aEventType, document);
-  NS_ENSURE_TRUE(evt, NS_ERROR_OUT_OF_MEMORY);
-
-  // Block onload for our event.  Since we unblock in the event destructor, we
-  // want to block now, even if posting will fail.
-  document->BlockOnload();
+  nsRefPtr<nsPLDOMEvent> event =
+    new nsLoadBlockingPLDOMEvent(thisNode, aEventType, PR_FALSE, PR_FALSE);
+  event->PostDOMEvent();
   
-  return NS_DispatchToCurrentThread(evt);
+  return NS_OK;
+}
+
+nsCOMPtr<imgIRequest>&
+nsImageLoadingContent::PrepareNextRequest()
+{
+  // If we don't have a usable current request, get rid of any half-baked
+  // request that might be sitting there and make this one current.
+  if (!HaveSize(mCurrentRequest))
+    return PrepareCurrentRequest();
+
+  // Otherwise, make it pending.
+  return PreparePendingRequest();
+}
+
+void
+nsImageLoadingContent::SetBlockedRequest(nsIURI* aURI, PRInt16 aContentDecision)
+{
+  // Sanity
+  NS_ABORT_IF_FALSE(!NS_CP_ACCEPTED(aContentDecision), "Blocked but not?");
+
+  // We do some slightly illogical stuff here to maintain consistency with
+  // old behavior that people probably depend on. Even in the case where the
+  // new image is blocked, the old one should really be canceled with the
+  // reason "image source changed". However, apparently there's some abuse
+  // over in nsImageFrame where the displaying of the "broken" icon for the
+  // next image depends on the cancel reason of the previous image. ugh.
+  ClearPendingRequest(NS_ERROR_IMAGE_BLOCKED);
+
+  // For the blocked case, we only want to cancel the existing current request
+  // if size is not available. bz says the web depends on this behavior.
+  if (!HaveSize(mCurrentRequest)) {
+
+    mImageBlockingStatus = aContentDecision;
+    ClearCurrentRequest(NS_ERROR_IMAGE_BLOCKED);
+
+    // We still want to remember what URI we were despite not having an actual
+    // request.
+    mCurrentURI = aURI;
+  }
+}
+
+nsCOMPtr<imgIRequest>&
+nsImageLoadingContent::PrepareCurrentRequest()
+{
+  // Blocked images go through SetBlockedRequest, which is a separate path. For
+  // everything else, we're unblocked.
+  mImageBlockingStatus = nsIContentPolicy::ACCEPT;
+
+  // Get rid of anything that was there previously.
+  ClearCurrentRequest(NS_ERROR_IMAGE_SRC_CHANGED);
+
+  mCurrentRequestNeedsResetAnimation = mNewRequestsWillNeedAnimationReset;
+
+  // Return a reference.
+  return mCurrentRequest;
+}
+
+nsCOMPtr<imgIRequest>&
+nsImageLoadingContent::PreparePendingRequest()
+{
+  // Get rid of anything that was there previously.
+  ClearPendingRequest(NS_ERROR_IMAGE_SRC_CHANGED);
+
+  mPendingRequestNeedsResetAnimation = mNewRequestsWillNeedAnimationReset;
+
+  // Return a reference.
+  return mPendingRequest;
+}
+
+void
+nsImageLoadingContent::ClearCurrentRequest(nsresult aReason)
+{
+  if (!mCurrentRequest) {
+    // Even if we didn't have a current request, we might have been keeping
+    // a URI as a placeholder for a failed load. Clear that now.
+    mCurrentURI = nsnull;
+    return;
+  }
+  NS_ABORT_IF_FALSE(!mCurrentURI,
+                    "Shouldn't have both mCurrentRequest and mCurrentURI!");
+
+  // Clean up the request.
+  UntrackImage(mCurrentRequest);
+  mCurrentRequest->CancelAndForgetObserver(aReason);
+  mCurrentRequest = nsnull;
+  mCurrentRequestNeedsResetAnimation = PR_FALSE;
+
+  // We only block onload during the decoding of "current" images. This one is
+  // going away, so we should unblock unconditionally here.
+  SetBlockingOnload(PR_FALSE);
+}
+
+void
+nsImageLoadingContent::ClearPendingRequest(nsresult aReason)
+{
+  if (!mPendingRequest)
+    return;
+
+  // Push a null JSContext on the stack so that code that runs within
+  // the below code doesn't think it's being called by JS. See bug
+  // 604262.
+  nsCxPusher pusher;
+  pusher.PushNull();
+
+  UntrackImage(mPendingRequest);
+  mPendingRequest->CancelAndForgetObserver(aReason);
+  mPendingRequest = nsnull;
+  mPendingRequestNeedsResetAnimation = PR_FALSE;
+}
+
+bool
+nsImageLoadingContent::HaveSize(imgIRequest *aImage)
+{
+  // Handle the null case
+  if (!aImage)
+    return false;
+
+  // Query the image
+  PRUint32 status;
+  nsresult rv = aImage->GetImageStatus(&status);
+  return (NS_SUCCEEDED(rv) && (status & imgIRequest::STATUS_SIZE_AVAILABLE));
+}
+
+void
+nsImageLoadingContent::SetBlockingOnload(PRBool aBlocking)
+{
+  // If we're already in the desired state, we have nothing to do
+  if (mBlockingOnload == aBlocking)
+    return;
+
+  // Get the document
+  nsIDocument* doc = GetOurDocument();
+
+  if (doc) {
+    // Take the appropriate action
+    if (aBlocking)
+      doc->BlockOnload();
+    else
+      doc->UnblockOnload(PR_FALSE);
+
+    // Update our state
+    mBlockingOnload = aBlocking;
+  }
+}
+
+nsresult
+nsImageLoadingContent::TrackImage(imgIRequest* aImage)
+{
+  if (!aImage)
+    return NS_OK;
+
+  nsIDocument* doc = GetOurDocument();
+  if (doc)
+    return doc->AddImage(aImage);
+  return NS_OK;
+}
+
+nsresult
+nsImageLoadingContent::UntrackImage(imgIRequest* aImage)
+{
+  if (!aImage)
+    return NS_OK;
+
+  // If GetOurDocument() returns null here, we've outlived our document.
+  // That's fine, because the document empties out the tracker and unlocks
+  // all locked images on destruction.
+  nsIDocument* doc = GetOurDocument();
+  if (doc)
+    return doc->RemoveImage(aImage);
+  return NS_OK;
+}
+
+
+void
+nsImageLoadingContent::CreateStaticImageClone(nsImageLoadingContent* aDest) const
+{
+  aDest->mCurrentRequest = nsContentUtils::GetStaticRequest(mCurrentRequest);
+  aDest->TrackImage(aDest->mCurrentRequest);
+  aDest->mForcedImageState = mForcedImageState;
+  aDest->mImageBlockingStatus = mImageBlockingStatus;
+  aDest->mLoadingEnabled = mLoadingEnabled;
+  aDest->mStateChangerDepth = mStateChangerDepth;
+  aDest->mIsImageStateForced = mIsImageStateForced;
+  aDest->mLoading = mLoading;
+  aDest->mBroken = mBroken;
+  aDest->mUserDisabled = mUserDisabled;
+  aDest->mSuppressed = mSuppressed;
 }
 

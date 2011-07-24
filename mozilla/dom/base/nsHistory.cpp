@@ -1,4 +1,5 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 sw=2 et tw=78: */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -57,11 +58,19 @@
 #include "nsReadableUtils.h"
 #include "nsDOMClassInfo.h"
 #include "nsContentUtils.h"
+#include "nsIDOMNSDocument.h"
+#include "nsISHistoryInternal.h"
+
+static const char* sAllowPushStatePrefStr  =
+  "browser.history.allowPushState";
+static const char* sAllowReplaceStatePrefStr =
+  "browser.history.allowReplaceState";
 
 //
 //  History class implementation 
 //
-nsHistory::nsHistory(nsIDocShell* aDocShell) : mDocShell(aDocShell)
+nsHistory::nsHistory(nsPIDOMWindow* aInnerWindow)
+  : mInnerWindow(do_GetWeakReference(aInnerWindow))
 {
 }
 
@@ -69,6 +78,8 @@ nsHistory::~nsHistory()
 {
 }
 
+
+DOMCI_DATA(History, nsHistory)
 
 // QueryInterface implementation for nsHistory
 NS_INTERFACE_MAP_BEGIN(nsHistory)
@@ -82,19 +93,13 @@ NS_IMPL_ADDREF(nsHistory)
 NS_IMPL_RELEASE(nsHistory)
 
 
-void
-nsHistory::SetDocShell(nsIDocShell *aDocShell)
-{
-  mDocShell = aDocShell; // Weak Reference
-}
-
 NS_IMETHODIMP
 nsHistory::GetLength(PRInt32* aLength)
 {
   nsCOMPtr<nsISHistory>   sHistory;
 
   // Get session History from docshell
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
   return sHistory->GetCount(aLength);
 }
@@ -102,12 +107,15 @@ nsHistory::GetLength(PRInt32* aLength)
 NS_IMETHODIMP
 nsHistory::GetCurrent(nsAString& aCurrent)
 {
+  if (!nsContentUtils::IsCallerTrustedForRead())
+    return NS_ERROR_DOM_SECURITY_ERR;
+
   PRInt32 curIndex=0;
   nsCAutoString curURL;
   nsCOMPtr<nsISHistory> sHistory;
 
   // Get SessionHistory from docshell
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
 
   // Get the current index at session History
@@ -131,12 +139,15 @@ nsHistory::GetCurrent(nsAString& aCurrent)
 NS_IMETHODIMP
 nsHistory::GetPrevious(nsAString& aPrevious)
 {
+  if (!nsContentUtils::IsCallerTrustedForRead())
+    return NS_ERROR_DOM_SECURITY_ERR;
+
   PRInt32 curIndex;
   nsCAutoString prevURL;
   nsCOMPtr<nsISHistory>  sHistory;
 
   // Get session History from docshell
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
 
   // Get the current index at session History
@@ -165,7 +176,7 @@ nsHistory::GetNext(nsAString& aNext)
   nsCOMPtr<nsISHistory>  sHistory;
 
   // Get session History from docshell
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
 
   // Get the current index at session History
@@ -191,7 +202,7 @@ nsHistory::Back()
 {
   nsCOMPtr<nsISHistory>  sHistory;
 
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
 
   //QI SHistory to WebNavigation
@@ -207,7 +218,7 @@ nsHistory::Forward()
 {
   nsCOMPtr<nsISHistory>  sHistory;
 
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(sHistory));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(sHistory));
   NS_ENSURE_TRUE(sHistory, NS_ERROR_FAILURE);
 
   //QI SHistory to WebNavigation
@@ -222,7 +233,7 @@ NS_IMETHODIMP
 nsHistory::Go(PRInt32 aDelta)
 {
   if (aDelta == 0) {
-    nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(mDocShell));
+    nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(GetDocShell()));
 
     if (window && window->IsHandlingResizeEvent()) {
       // history.go(0) (aka location.reload()) was called on a window
@@ -238,8 +249,7 @@ nsHistory::Go(PRInt32 aDelta)
 
       nsIPresShell *shell;
       nsPresContext *pcx;
-      if (doc && (shell = doc->GetPrimaryShell()) &&
-          (pcx = shell->GetPresContext())) {
+      if (doc && (shell = doc->GetShell()) && (pcx = shell->GetPresContext())) {
         pcx->RebuildAllStyleData(NS_STYLE_HINT_REFLOW);
       }
 
@@ -249,7 +259,7 @@ nsHistory::Go(PRInt32 aDelta)
 
   nsCOMPtr<nsISHistory> session_history;
 
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(session_history));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(session_history));
   NS_ENSURE_TRUE(session_history, NS_ERROR_FAILURE);
 
   // QI SHistory to nsIWebNavigation
@@ -258,7 +268,7 @@ nsHistory::Go(PRInt32 aDelta)
 
   PRInt32 curIndex=-1;
   PRInt32 len = 0;
-  nsresult rv = session_history->GetIndex(&curIndex);  
+  nsresult rv = session_history->GetIndex(&curIndex);
   rv = session_history->GetCount(&len);
 
   PRInt32 index = curIndex + aDelta;
@@ -273,18 +283,96 @@ nsHistory::Go(PRInt32 aDelta)
 }
 
 NS_IMETHODIMP
+nsHistory::PushState(nsIVariant *aData, const nsAString& aTitle,
+                     const nsAString& aURL, JSContext* aCx)
+{
+  // Check that PushState hasn't been pref'ed off.
+  if (!nsContentUtils::GetBoolPref(sAllowPushStatePrefStr, PR_FALSE))
+    return NS_OK;
+
+  nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
+  if (!win)
+    return NS_ERROR_NOT_AVAILABLE;
+
+  if (!nsContentUtils::CanCallerAccess(win->GetOuterWindow()))
+    return NS_ERROR_DOM_SECURITY_ERR;
+
+  // AddState might run scripts, so we need to hold a strong reference to the
+  // docShell here to keep it from going away.
+  nsCOMPtr<nsIDocShell> docShell = win->GetDocShell();
+
+  NS_ENSURE_TRUE(docShell, NS_ERROR_FAILURE);
+
+  // PR_FALSE tells the docshell to add a new history entry instead of
+  // modifying the current one.
+  nsresult rv = docShell->AddState(aData, aTitle, aURL, PR_FALSE, aCx);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsHistory::ReplaceState(nsIVariant *aData, const nsAString& aTitle,
+                        const nsAString& aURL, JSContext* aCx)
+{
+  // Check that ReplaceState hasn't been pref'ed off
+  if (!nsContentUtils::GetBoolPref(sAllowReplaceStatePrefStr, PR_FALSE))
+    return NS_OK;
+
+  nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
+  if (!win)
+    return NS_ERROR_NOT_AVAILABLE;
+
+  if (!nsContentUtils::CanCallerAccess(win->GetOuterWindow()))
+    return NS_ERROR_DOM_SECURITY_ERR;
+
+  // AddState might run scripts, so we need to hold a strong reference to the
+  // docShell here to keep it from going away.
+  nsCOMPtr<nsIDocShell> docShell = win->GetDocShell();
+
+  NS_ENSURE_TRUE(docShell, NS_ERROR_FAILURE);
+
+  // PR_TRUE tells the docshell to modify the current SHEntry, rather than
+  // create a new one.
+  return docShell->AddState(aData, aTitle, aURL, PR_TRUE, aCx);
+}
+
+NS_IMETHODIMP
+nsHistory::GetState(nsIVariant **aState)
+{
+  *aState = nsnull;
+
+  nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
+  if (!win)
+    return NS_ERROR_NOT_AVAILABLE;
+
+  if (!nsContentUtils::CanCallerAccess(win->GetOuterWindow()))
+    return NS_ERROR_DOM_SECURITY_ERR;
+
+  nsCOMPtr<nsIDocument> doc =
+    do_QueryInterface(win->GetExtantDocument());
+  if (!doc)
+    return NS_ERROR_NOT_AVAILABLE;
+
+  return doc->GetMozCurrentStateObject(aState);
+}
+
+NS_IMETHODIMP
 nsHistory::Item(PRUint32 aIndex, nsAString& aReturn)
 {
   aReturn.Truncate();
+  if (!nsContentUtils::IsCallerTrustedForRead()) {
+    return NS_ERROR_DOM_SECURITY_ERR;
+  }
 
   nsresult rv = NS_OK;
   nsCOMPtr<nsISHistory>  session_history;
 
-  GetSessionHistoryFromDocShell(mDocShell, getter_AddRefs(session_history));
+  GetSessionHistoryFromDocShell(GetDocShell(), getter_AddRefs(session_history));
   NS_ENSURE_TRUE(session_history, NS_ERROR_FAILURE);
 
- 	nsCOMPtr<nsIHistoryEntry> sh_entry;
- 	nsCOMPtr<nsIURI> uri;
+  nsCOMPtr<nsIHistoryEntry> sh_entry;
+  nsCOMPtr<nsIURI> uri;
 
   rv = session_history->GetEntryAtIndex(aIndex, PR_FALSE,
                                         getter_AddRefs(sh_entry));
@@ -315,7 +403,7 @@ nsHistory::GetSessionHistoryFromDocShell(nsIDocShell * aDocShell,
    */
   
   // QI mDocShell to nsIDocShellTreeItem
-  nsCOMPtr<nsIDocShellTreeItem> dsTreeItem(do_QueryInterface(mDocShell));
+  nsCOMPtr<nsIDocShellTreeItem> dsTreeItem(do_QueryInterface(aDocShell));
   NS_ENSURE_TRUE(dsTreeItem, NS_ERROR_FAILURE);
 
   // Get the root DocShell from it

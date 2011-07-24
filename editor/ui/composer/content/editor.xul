@@ -25,6 +25,7 @@
    -   Ben Goodger
    -   Michael Lowe
    -   Sammy Ford
+   -   Ian Neal
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -73,6 +74,9 @@
         title="&editorWindow.titlemodifier;"
         titlemodifier="&editorWindow.titlemodifier;"
         titlemenuseparator="&editorWindow.titlemodifiermenuseparator;"
+        toggletoolbar="true"
+        lightweightthemes="true"
+        lightweightthemesfooter="status-bar"
         windowtype="composer:html"
         width="640" height="480"
         screenX="10" screenY="10"
@@ -81,7 +85,6 @@
   <script type="application/javascript" src="chrome://editor/content/editor.js"/>
   <script type="application/javascript" src="chrome://editor/content/EditorContextMenu.js"/>
   <script type="application/javascript" src="chrome://editor/content/StructBarContextMenu.js"/>
-  <script type="application/javascript" src="chrome://editor/content/editorApplicationOverlay.js"/>
   <script type="application/javascript" src="chrome://editor/content/publishprefs.js"/>
   <script type="application/javascript" src="chrome://communicator/content/contentAreaDD.js"/>
   <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
@@ -89,38 +92,66 @@
   <script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
 
   <popupset id="editorContentContextSet"/>
-  <popup id="sidebarPopup"/>
-  <popup id="popupNotificationMenu"/>
+  <menupopup id="sidebarPopup"/>
+  <menupopup id="popupNotificationMenu"/>
 
-  <commandset id="tasksCommands">
-    <commandset id="globalEditMenuItems"/>
-    <commandset id="selectEditMenuItems"/>
-    <commandset id="undoEditMenuItems"/>
-    <commandset id="clipboardEditMenuItems"/>
-    
+  <commandset id="editorCommands">
     <commandset id="commonEditorMenuItems"/>
     <commandset id="composerMenuItems"/>
+    <commandset id="composerOnlyMenuItems"
+                commandupdater="true"
+                events="create, mode_switch"
+                oncommandupdate="goUpdateComposerMenuItems(this);">
+      <!-- file menu -->
+      <command id="cmd_exportToText"
+               label="&exportToTextCmd.label;"
+               accesskey="&exportToTextCmd.accesskey;"
+               oncommand="goDoCommand('cmd_exportToText');"/>
+      <command id="cmd_preview"
+               oncommand="goDoCommand('cmd_preview');"/>
+      <command id="cmd_editSendPage"
+               label="&sendPageCmd.label;"
+               accesskey="&sendPageCmd.accesskey;"
+               oncommand="goDoCommand('cmd_editSendPage');"/>
+      <!-- format menu -->
+      <command id="cmd_pageProperties"
+               oncommand="goDoCommand('cmd_pageProperties');"/>
+      <!-- tools menu -->
+      <command id="cmd_validate"
+               oncommand="goDoCommand('cmd_validate');"/>
+      <!-- toolbars -->
+      <command id="cmd_NormalMode"
+               oncommand="goDoCommand('cmd_NormalMode');"/>
+      <command id="cmd_AllTagsMode"
+               oncommand="goDoCommand('cmd_AllTagsMode');"/>
+      <command id="cmd_HTMLSourceMode"
+               oncommand="goDoCommand('cmd_HTMLSourceMode');"/>
+      <command id="cmd_PreviewMode"
+               oncommand="goDoCommand('cmd_PreviewMode');"/>
+      <command id="cmd_updateStructToolbar"
+               oncommand="goDoCommand('cmd_updateStructToolbar');"/>
+    </commandset>
     <commandset id="composerEditMenuItems"/>
     <commandset id="composerSaveMenuItems"/>    
     <commandset id="composerStyleMenuItems"/>
     <commandset id="composerTableMenuItems"/>
     <commandset id="composerListMenuItems"/>
-    <command id="toggleSidebar"/>
+    <commandset id="tasksCommands"/>
+    <!-- view menu -->
+    <command id="cmd_viewEditModeToolbar"
+             oncommand="goToggleToolbar('EditModeToolbar','cmd_viewEditModeToolbar');"
+             checked="true"/>
   </commandset>
 
   <tooltip id="aHTMLTooltip" onpopupshowing="return FillInHTMLTooltipEditor(this);"/>
 
-  <broadcaster id="args" value="about:blank"/>
-  <broadcaster id="canPrint"/>
-  
-  <!-- Interim hack to transition from nsIXULWindowCallbacks/ShowWindowWithArgs
-  <broadcaster id="dialog.start" ready="false"/>
-  <observes element="dialog.start" attribute="ready" onbroadcast="EditorStartup('html')"/>
--->
-  <broadcasterset id="broadcasterset">
+  <broadcasterset id="editorBroadcasters">
     <broadcaster id="Editor:Throbber" busy="false"/>
     <broadcaster id="Communicator:WorkMode"/>
+    <broadcaster id="args" value="about:blank"/>
   </broadcasterset>
+
+  <broadcasterset id="mainBroadcasterSet"/>
 
   <!-- keys are appended from the overlay -->
   <keyset id="editorKeys">
@@ -138,7 +169,7 @@
     <menu id="fileMenu"/>
     <menu id="editMenu"/>
 
-    <menu id="viewMenu" label="&viewMenu.label;" accesskey="&viewMenu.accesskey;">
+    <menu id="menu_View">
     <!-- id pulls in "Show Sidebar" item from sidebarOverlay -->
     <menupopup id="menu_View_Popup">
       <menu id="menu_Toolbars">
@@ -150,10 +181,31 @@
         </menupopup>
       </menu>
       <menuseparator id="viewSep1"/>
-      <menuitem id="viewNormalMode" checked="true"/>
-      <menuitem id="viewAllTagsMode"/>
-      <menuitem id="viewSourceMode"/>
-      <menuitem id="viewPreviewMode"/>
+      <menuitem id="viewNormalMode"
+                type="radio"
+                group="mode"
+                checked="true"
+                label="&NormalMode.label;"
+                accesskey="&NormalMode.accesskey;"
+                command="cmd_NormalMode"/>
+      <menuitem id="viewAllTagsMode"
+                type="radio"
+                group="mode"
+                label="&AllTagsMode.label;"
+                accesskey="&AllTagsMode.accesskey;"
+                command="cmd_AllTagsMode"/>
+      <menuitem id="viewSourceMode"
+                type="radio"
+                group="mode"
+                label="&HTMLSourceMode.label;"
+                accesskey="&HTMLSourceMode.accesskey;"
+                command="cmd_HTMLSourceMode"/>
+      <menuitem id="viewPreviewMode"
+                type="radio"
+                group="mode"
+                label="&PreviewMode.label;"
+                accesskey="&PreviewMode.accesskey;"
+                command="cmd_PreviewMode"/>
       <menuseparator id="viewSep2"/>
       <menu id = "composerCharsetMenu" />
     </menupopup>
@@ -163,11 +215,20 @@
 
     <menu id="formatMenu" label="&formatMenu.label;" accesskey="&formatMenu.accesskey;">
       <menupopup id="formatMenuPopup">
-        <menuitem id="snapToGrid"/>
+        <menuitem id="snapToGrid"
+                  label="&grid.label;"
+                  accesskey="&grid.accesskey;"
+                  oncommand="goDoCommand('cmd_grid')"
+                  observes="cmd_renderedHTMLEnabler"/>
         <menuseparator/>
         <menuitem id="objectProperties"/>
         <menuitem id="colorsAndBackground"/>
-        <menuitem id="pageProperties"/>
+        <!-- Don't use 'observes', must call command correctly -->
+        <menuitem id="pageProperties"
+                  label="&pageProperties.label;"
+                  accesskey="&pageProperties.accesskey;"
+                  oncommand="goDoCommand('cmd_pageProperties')"
+                  observes="cmd_renderedHTMLEnabler"/>
       </menupopup>
     </menu>
 
@@ -176,7 +237,10 @@
     <!-- tasks menu filled from tasksOverlay -->
     <menu id="tasksMenu">
       <menupopup id="taskPopup">
-        <menuitem id="menu_validate" observes="cmd_validate"/>
+        <menuitem id="menu_validate"
+                  label="&validateCmd.label;"
+                  accesskey="&validateCmd.accesskey;"
+                  command="cmd_validate"/>
         <menuseparator id="sep_validate"/>
       </menupopup>
     </menu>
@@ -189,7 +253,7 @@
     <spacer flex="1"/>
   </menubar>
 
-  <!-- toolbar filled out from editorOverlay -->
+  <!-- toolbar mostly filled out from editorOverlay -->
   <!-- add  class="standard" for dark blue background (icons need rework first) -->
   <toolbar class="chromeclass-toolbar toolbar-primary" id="EditToolbar" persist="collapsed" 
            grippytooltiptext="&compositionToolbar.tooltip;">
@@ -197,7 +261,11 @@
     <toolbarbutton id="openButton"/>
     <toolbarbutton id="saveButton"/>
     <toolbarbutton id="publishButton"/>
-    <toolbarbutton id="previewButton"/>
+    <toolbarbutton id="previewButton"
+                   class="toolbarbutton-1"
+                   label="&previewToolbarCmd.label;"
+                   command="cmd_preview"
+                   tooltiptext="&previewToolbarCmd.tooltip;"/>
     <toolbarbutton id="cutButton"/>
     <toolbarbutton id="copyButton"/>
     <toolbarbutton id="pasteButton"/>
@@ -212,7 +280,10 @@
     <toolbarbutton id="spellingButton"/>
     <spacer flex="1"/>
     <hbox id="throbber-box" align="center">
-      <button id="navigator-throbber" oncommand="goClickThrobber('editor.throbber.url')" tooltiptext="&throbber.tooltip;">
+      <button id="navigator-throbber"
+              oncommand="goClickThrobber('editor.throbber.url', event)"
+              onclick="checkForMiddleClick(this, event);"
+              tooltiptext="&throbber.tooltip;">
         <observes element="Editor:Throbber" attribute="busy"/>
       </button>
     </hbox> 
@@ -223,8 +294,8 @@
            grippytooltiptext="&formatToolbar.tooltip;"
            nowindowdrag="true">
     <!-- from editorOverlay -->
-    <menulist id="ParagraphSelect"/>
-    <stack id="ColorButtons"/>
+    <toolbaritem id="paragraph-select-container"/>
+    <toolbaritem id="color-buttons-container"/>
     <toolbarbutton id="HighlightColorButton"/>
 
     <toolbarseparator class="toolbarseparator-standard"/>
@@ -289,13 +360,35 @@
       </vbox>
     </deck>
 
-    <hbox id="EditModeToolbar" align="center" hidden="false" persist="collapsed">
-      <tabs id="EditModeTabs" class="tabs-bottom" flex="1">
-        <tab id="NormalModeButton"/>
-        <tab id="TagModeButton"/>
-        <tab id="SourceModeButton"/>
-        <tab id="PreviewModeButton"/>
-    </tabs>
+    <!-- Edit Mode toolbar -->
+    <hbox id="EditModeToolbar"
+          persist="collapsed">
+      <tabs id="EditModeTabs"
+            class="tabs-bottom"
+            flex="1"
+            onselect="this.selectedItem.doCommand();">
+        <tab id="NormalModeButton"
+             class="tab-bottom edit-mode"
+             label="&NormalModeTab.label;"
+             tooltiptext="&NormalMode.tooltip;"
+             command="cmd_NormalMode"/>
+        <tab id="TagModeButton"
+             class="tab-bottom edit-mode"
+             label="&AllTagsModeTab.label;"
+             tooltiptext="&AllTagsMode.tooltip;"
+             command="cmd_AllTagsMode"/>
+        <tab id="SourceModeButton"
+             class="tab-bottom edit-mode"
+             label="&HTMLSourceModeTab.label;"
+             tooltiptext="&HTMLSourceMode.tooltip;"
+             dir="&HTMLSourceModeTab.dir;"
+             command="cmd_HTMLSourceMode"/>
+        <tab id="PreviewModeButton"
+             class="tab-bottom edit-mode"
+             label="&PreviewModeTab.label;"
+             tooltiptext="&PreviewMode.tooltip;"
+             command="cmd_PreviewMode"/>
+      </tabs>
     </hbox>
 
   </vbox> <!-- appcontent -->

@@ -6,7 +6,7 @@ const Ci = Components.interfaces;
 
 const URI_BLOCKLIST_DIALOG = "chrome://mozapps/content/extensions/blocklist.xul";
 
-let ww, strings;
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 // This tests that the blocklist dialog still affects soft-blocked add-ons
 // if the user clicks the "Restart Later" button. It also ensures that the
@@ -24,35 +24,30 @@ let args = {
 
 function test() {
   waitForExplicitFinish();
-  ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-       getService(Ci.nsIWindowWatcher);
-  strings = Cc["@mozilla.org/intl/stringbundle;1"].
-            getService(Ci.nsIStringBundleService);
 
-  let windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-      if (aTopic != "domwindowopened")
-        return;
+  let windowObserver = function(aSubject, aTopic, aData) {
+    if (aTopic != "domwindowopened")
+      return;
 
-      ww.unregisterNotification(windowObserver);
+    Services.ww.unregisterNotification(windowObserver);
 
-      let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
-      win.addEventListener("load", function() {
-        win.removeEventListener("load", arguments.callee, false);
+    let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
+    win.addEventListener("load", function() {
+      win.removeEventListener("load", arguments.callee, false);
 
-        executeSoon(function() bug523784_test1(win));
-      }, false);
-    }
+      executeSoon(function() bug523784_test1(win));
+    }, false);
   };
-  ww.registerNotification(windowObserver);
+  Services.ww.registerNotification(windowObserver);
 
   args.wrappedJSObject = args;
-  ww.openWindow(null, URI_BLOCKLIST_DIALOG, "",
+  Services.ww.openWindow(null, URI_BLOCKLIST_DIALOG, "",
                          "chrome,centerscreen,dialog,titlebar", args);
 }
 
 function bug523784_test1(win) {
-  let bundle = strings.createBundle("chrome://mozapps/locale/update/updates.properties");
+  let bundle = Services.strings.
+              createBundle("chrome://mozapps/locale/update/updates.properties");
   let cancelButton = win.document.documentElement.getButton("cancel");
 
   is(cancelButton.getAttribute("label"),
@@ -62,20 +57,18 @@ function bug523784_test1(win) {
      bundle.GetStringFromName("restartLaterButton.accesskey"),
      "Accesskey should also be changed on Cancel button");
 
-  let windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-        if (aTopic != "domwindowclosed")
-          return;
+  let windowObserver = function(aSubject, aTopic, aData) {
+    if (aTopic != "domwindowclosed")
+      return;
 
-        ww.unregisterNotification(windowObserver);
+    Services.ww.unregisterNotification(windowObserver);
 
-        ok(args.list[0].disable, "Should be blocking add-on");
-        ok(!args.restart, "Should not restart browser immediately");
+    ok(args.list[0].disable, "Should be blocking add-on");
+    ok(!args.restart, "Should not restart browser immediately");
 
-        executeSoon(finish);
-    }
+    executeSoon(finish);
   };
-  ww.registerNotification(windowObserver);
+  Services.ww.registerNotification(windowObserver);
 
   cancelButton.doCommand();
 }

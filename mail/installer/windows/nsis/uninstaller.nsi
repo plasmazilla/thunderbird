@@ -96,14 +96,17 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro AddHandlerValues
 !insertmacro CleanVirtualStore
 !insertmacro ElevateUAC
-!insertmacro FindSMProgramsDir
 !insertmacro GetLongPath
 !insertmacro GetPathFromString
 !insertmacro IsHandlerForInstallDir
+!insertmacro LogDesktopShortcut
+!insertmacro LogQuickLaunchShortcut
+!insertmacro LogStartMenuShortcut
 !insertmacro RegCleanMain
 !insertmacro RegCleanUninstall
 !insertmacro SetBrandNameVars
 !insertmacro UnloadUAC
+!insertmacro UpdateShortcutAppModelIDs
 !insertmacro WriteRegDWORD2
 !insertmacro WriteRegStr2
 

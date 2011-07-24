@@ -84,13 +84,8 @@ struct nsFramesetDrag {
   PRInt32              mIndex;     // index of left col or top row of effected area
   PRInt32              mChange;    // pos for left to right or top to bottom, neg otherwise
   PRPackedBool         mVertical;  // vertical if true, otherwise horizontal
-  PRPackedBool         mActive;
 
   nsFramesetDrag();
-  nsFramesetDrag(PRBool               aVertical, 
-                 PRInt32              aIndex, 
-                 PRInt32              aChange, 
-                 nsHTMLFramesetFrame* aSource); 
   void Reset(PRBool               aVertical, 
              PRInt32              aIndex, 
              PRInt32              aChange, 

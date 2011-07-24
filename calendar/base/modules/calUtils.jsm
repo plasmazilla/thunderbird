@@ -90,7 +90,6 @@ let cal = {
 
     /**
      * Schedules execution of the passed function to the current thread's queue.
-     * Do this to work around re-entrancy problems w.r.t. processPendingEvent(), e.g. on chrome startup.
      */
     postPone: function cal_postPone(func) {
         if (this.threadingEnabled) {
@@ -101,83 +100,11 @@ let cal = {
         }
     },
 
-    /**
-     * Call this function regularly to process a pending event, e.g. UI.
-     */
-    processPendingEvent: function cal_processPendingEvent() {
-        let thread = cal.getThreadManager().currentThread;
-        thread.processNextEvent(false /* don't wait */);
-    },
-
     get threadingEnabled() {
         if (gCalThreadingEnabled === undefined) {
             gCalThreadingEnabled = !cal.getPrefSafe("calendar.threading.disabled", false);
         }
         return gCalThreadingEnabled;
-    },
-
-    getWorkerThread: function cal_getWorkerThread() {
-        let threads = cal_getWorkerThread.mThreads;
-        switch (threads) {
-            case null:
-                return null; // during shutdown
-            case undefined: {
-                cal_getWorkerThread.mThreads = threads = Components.classes["@mozilla.org/thread-pool;1"]
-                                                                   .createInstance(Components.interfaces.nsIThreadPool);
-                cal.addShutdownObserver(function() {
-                        cal.LOG("cal.getWorkerThread() shutdown.");
-                        let threads = cal_getWorkerThread.mThreads;
-                        cal_getWorkerThread.mThreads = null;
-                        threads.shutdown();
-                    });
-                break;
-            }
-        }
-        return threads;
-    },
-
-    /**
-     * Executes the passed action function on a worker thread.
-     * Once the action function has been executed, respFunc is called
-     * on the same thread that execAsync() has been called on.
-     *
-     * xxx todo: think of leaks, ref cycles!
-     */
-    execWorker: function cal_execWorker(actionFunc, respFunc) {
-        // response executed on the calling thread:
-        let callingThread = cal.getThreadManager().currentThread;
-
-        let worker = { // nsIRunnable:
-            run: function worker_run() {
-                let res = null;
-                try {
-                    actionFunc(callingThread);
-                } catch (exc) {
-                    res = exc;
-                }
-
-                if (!respFunc) {
-                    return;
-                }
-
-                let response = { // nsIRunnable:
-                    run: function response_run() {
-                        respFunc(res);
-                    }
-                };
-                callingThread.dispatch(response, Components.interfaces.nsIEventTarget.DISPATCH_NORMAL);
-            }
-        };
-
-        if (cal.threadingEnabled) {
-            let thread = cal.getWorkerThread();
-            if (thread) {
-                thread.dispatch(worker, Components.interfaces.nsIEventTarget.DISPATCH_NORMAL);
-                return;
-            } // else shutdown ongoing
-        }
-
-        worker.run(); // exec on current thread
     },
 
     /**
@@ -705,4 +632,4 @@ function generateServiceAccessor(id, iface) {
 cal.loadScripts(["calUtils.js"], cal);
 // Some functions in calUtils.js refer to other in the same file, thus include
 // the code in global scope (although only visible to this module file), too:
-cal.loadScripts(["calUtils.js"], cal.__parent__);
+cal.loadScripts(["calUtils.js"], Components.utils.getGlobalForObject(cal));

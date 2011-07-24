@@ -102,9 +102,10 @@ SessionStartup.prototype = {
     let doResumeSession = prefBranch.getBoolPref("sessionstore.resume_session_once") ||
                           prefBranch.getIntPref("startup.page") == 3;
 
-    // only read the session file if config allows possibility of restoring
     var resumeFromCrash = prefBranch.getBoolPref("sessionstore.resume_from_crash");
-    if ((!resumeFromCrash && !doResumeSession) || !sessionFile.exists())
+
+    // only continue if the session file exists
+    if (!sessionFile.exists())
       return;
 
     // get string containing session state
@@ -132,10 +133,12 @@ SessionStartup.prototype = {
       this._sessionType = Components.interfaces.nsISessionStartup.RECOVER_SESSION;
     else if (!lastSessionCrashed && doResumeSession)
       this._sessionType = Components.interfaces.nsISessionStartup.RESUME_SESSION;
+    else if (initialState)
+      this._sessionType = Components.interfaces.nsISessionStartup.DEFER_SESSION;
     else
       this._iniString = null; // reset the state string
 
-    if (this._sessionType != Components.interfaces.nsISessionStartup.NO_SESSION) {
+    if (this.doRestore()) {
       // wait for the first browser window to open
       Services.obs.addObserver(this, "browser:purge-session-history", true);
     }
@@ -184,7 +187,8 @@ SessionStartup.prototype = {
    * @returns bool
    */
   doRestore: function sss_doRestore() {
-    return this._sessionType != Components.interfaces.nsISessionStartup.NO_SESSION;
+    return this._sessionType == Components.interfaces.nsISessionStartup.RECOVER_SESSION ||
+           this._sessionType == Components.interfaces.nsISessionStartup.RESUME_SESSION;
   },
 
   /**
@@ -246,17 +250,8 @@ SessionStartup.prototype = {
   QueryInterface : XPCOMUtils.generateQI([Components.interfaces.nsIObserver,
                                           Components.interfaces.nsISupportsWeakReference,
                                           Components.interfaces.nsISessionStartup]),
-  classDescription: "Suite Session Startup Service",
-  classID:          Components.ID("{4e6c1112-57b6-44ba-adf9-99fb573b0a30}"),
-  contractID:       "@mozilla.org/suite/sessionstartup;1",
-
-  // get this contractID registered for certain categories via XPCOMUtils
-  _xpcom_categories: [
-    // make ourselves a startup observer
-    { category: "app-startup", service: true }
-  ]
+  classID: Components.ID("{4e6c1112-57b6-44ba-adf9-99fb573b0a30}")
 
 };
 
-function NSGetModule(aCompMgr, aFileSpec)
-  XPCOMUtils.generateModule([SessionStartup]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([SessionStartup]);

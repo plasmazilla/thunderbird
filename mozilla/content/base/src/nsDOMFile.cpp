@@ -15,7 +15,7 @@
  * The Original Code is mozila.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation
+ * Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -52,6 +52,7 @@
 #include "nsIFile.h"
 #include "nsIFileStreams.h"
 #include "nsIInputStream.h"
+#include "nsIIPCSerializable.h"
 #include "nsIMIMEService.h"
 #include "nsIPlatformCharset.h"
 #include "nsISeekableStream.h"
@@ -59,19 +60,91 @@
 #include "nsIUnicodeDecoder.h"
 #include "nsNetCID.h"
 #include "nsNetUtil.h"
+#include "nsIUUIDGenerator.h"
+#include "nsFileDataProtocolHandler.h"
+#include "nsStringStream.h"
+#include "CheckedInt.h"
 
 #include "plbase64.h"
 #include "prmem.h"
 
+using namespace mozilla;
+
+// XXXkhuey the input stream that we pass out of a DOMFile
+// can outlive the actual DOMFile object.  Thus, we must
+// ensure that the buffer underlying the stream we get
+// from NS_NewByteInputStream is held alive as long as the
+// stream is.  We do that by passing back this class instead.
+class DataOwnerAdapter : public nsIInputStream,
+                         public nsISeekableStream
+{
+  typedef nsDOMMemoryFile::DataOwner DataOwner;
+public:
+  static nsresult Create(DataOwner* aDataOwner,
+                         PRUint32 aStart,
+                         PRUint32 aLength,
+                         nsIInputStream** _retval);
+
+  NS_DECL_ISUPPORTS
+
+  NS_FORWARD_NSIINPUTSTREAM(mStream->)
+
+  NS_FORWARD_NSISEEKABLESTREAM(mSeekableStream->)
+
+private:
+  DataOwnerAdapter(DataOwner* aDataOwner,
+                   nsIInputStream* aStream)
+    : mDataOwner(aDataOwner), mStream(aStream),
+      mSeekableStream(do_QueryInterface(aStream))
+  {
+    NS_ASSERTION(mSeekableStream, "Somebody gave us the wrong stream!");
+  }
+
+  nsRefPtr<DataOwner> mDataOwner;
+  nsCOMPtr<nsIInputStream> mStream;
+  nsCOMPtr<nsISeekableStream> mSeekableStream;
+};
+
+NS_IMPL_THREADSAFE_ISUPPORTS2(DataOwnerAdapter,
+                              nsIInputStream,
+                              nsISeekableStream)
+
+nsresult DataOwnerAdapter::Create(DataOwner* aDataOwner,
+                                  PRUint32 aStart,
+                                  PRUint32 aLength,
+                                  nsIInputStream** _retval)
+{
+  nsresult rv;
+  NS_ASSERTION(aDataOwner, "Uh ...");
+
+  nsCOMPtr<nsIInputStream> stream;
+
+  rv = NS_NewByteInputStream(getter_AddRefs(stream),
+                             static_cast<const char*>(aDataOwner->mData) +
+                             aStart,
+                             (PRInt32)aLength,
+                             NS_ASSIGNMENT_DEPEND);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  NS_ADDREF(*_retval = new DataOwnerAdapter(aDataOwner, stream));
+
+  return NS_OK;
+}
+
 // nsDOMFile implementation
+
+DOMCI_DATA(File, nsDOMFile)
+DOMCI_DATA(Blob, nsDOMFile)
 
 NS_INTERFACE_MAP_BEGIN(nsDOMFile)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFile)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMFile)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMFile_1_9_2_BRANCH)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMFileInternal)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob_MOZILLA_2_0_BRANCH)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIDOMFile, mIsFullFile)
+  NS_INTERFACE_MAP_ENTRY(nsIXHRSendable)
   NS_INTERFACE_MAP_ENTRY(nsICharsetDetectionObserver)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(File)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(File, mIsFullFile)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_CONDITIONAL(Blob, !mIsFullFile)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsDOMFile)
@@ -106,31 +179,45 @@ nsDOMFile::GetFileSize(PRUint64 *aFileSize)
 NS_IMETHODIMP
 nsDOMFile::GetName(nsAString &aFileName)
 {
+  NS_ASSERTION(mIsFullFile, "Should only be called on files");
   return mFile->GetLeafName(aFileName);
 }
 
 NS_IMETHODIMP
 nsDOMFile::GetMozFullPath(nsAString &aFileName)
 {
+  NS_ASSERTION(mIsFullFile, "Should only be called on files");
   if (nsContentUtils::IsCallerTrustedForCapability("UniversalFileRead")) {
-    return mFile->GetPath(aFileName);
+    return GetMozFullPathInternal(aFileName);
   }
   aFileName.Truncate();
   return NS_OK;
 }
 
 NS_IMETHODIMP
+nsDOMFile::GetMozFullPathInternal(nsAString &aFilename)
+{
+  NS_ASSERTION(mIsFullFile, "Should only be called on files");
+  return mFile->GetPath(aFilename);
+}
+
+NS_IMETHODIMP
 nsDOMFile::GetSize(PRUint64 *aFileSize)
 {
-  PRInt64 fileSize;
-  nsresult rv = mFile->GetFileSize(&fileSize);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (fileSize < 0) {
-    return NS_ERROR_FAILURE;
+  if (mIsFullFile) {
+    PRInt64 fileSize;
+    nsresult rv = mFile->GetFileSize(&fileSize);
+    NS_ENSURE_SUCCESS(rv, rv);
+  
+    if (fileSize < 0) {
+      return NS_ERROR_FAILURE;
+    }
+  
+    *aFileSize = fileSize;
   }
-
-  *aFileSize = fileSize;
+  else {
+    *aFileSize = mLength;
+  }
 
   return NS_OK;
 }
@@ -138,7 +225,7 @@ nsDOMFile::GetSize(PRUint64 *aFileSize)
 NS_IMETHODIMP
 nsDOMFile::GetType(nsAString &aType)
 {
-  if (!mContentType.Length()) {
+  if (mContentType.IsEmpty() && mFile && mIsFullFile) {
     nsresult rv;
     nsCOMPtr<nsIMIMEService> mimeService =
       do_GetService(NS_MIMESERVICE_CONTRACTID, &rv);
@@ -159,15 +246,122 @@ nsDOMFile::GetType(nsAString &aType)
   return NS_OK;
 }
 
+// Makes sure that aStart and aEnd is less then or equal to aSize and greater
+// than 0
+void
+ParseSize(PRInt64 aSize, PRInt64& aStart, PRInt64& aEnd)
+{
+  CheckedInt64 newStartOffset = aStart;
+  if (aStart < -aSize) {
+    newStartOffset = 0;
+  }
+  else if (aStart < 0) {
+    newStartOffset += aSize;
+  }
+  else if (aStart > aSize) {
+    newStartOffset = aSize;
+  }
+
+  CheckedInt64 newEndOffset = aEnd;
+  if (aEnd < -aSize) {
+    newEndOffset = 0;
+  }
+  else if (aEnd < 0) {
+    newEndOffset += aSize;
+  }
+  else if (aEnd > aSize) {
+    newEndOffset = aSize;
+  }
+
+  if (!newStartOffset.valid() || !newEndOffset.valid() ||
+      newStartOffset.value() >= newEndOffset.value()) {
+    aStart = aEnd = 0;
+  }
+  else {
+    aStart = newStartOffset.value();
+    aEnd = newEndOffset.value();
+  }
+}
+
+NS_IMETHODIMP
+nsDOMFile::Slice(PRUint64 aStart, PRUint64 aLength,
+                 const nsAString& aContentType, nsIDOMBlob **aBlob)
+{
+  return MozSlice(aStart, aStart + aLength, aContentType, 2, aBlob);
+}
+
+NS_IMETHODIMP
+nsDOMFile::MozSlice(PRInt64 aStart, PRInt64 aEnd,
+                    const nsAString& aContentType, PRUint8 optional_argc,
+                    nsIDOMBlob **aBlob)
+{
+  *aBlob = nsnull;
+
+  // Truncate aLength and aStart so that we stay within this file.
+  PRUint64 thisLength;
+  nsresult rv = GetSize(&thisLength);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (!optional_argc) {
+    aEnd = (PRInt64)thisLength;
+  }
+
+  ParseSize((PRInt64)thisLength, aStart, aEnd);
+  
+  // Create the new file
+  NS_ADDREF(*aBlob = new nsDOMFile(this, aStart, aEnd - aStart, aContentType));
+  
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMFile::GetInternalStream(nsIInputStream **aStream)
+{
+  return mIsFullFile ?
+    NS_NewLocalFileInputStream(aStream, mFile, -1, -1,
+                               nsIFileInputStream::CLOSE_ON_EOF |
+                               nsIFileInputStream::REOPEN_ON_REWIND) :
+    NS_NewPartialLocalFileInputStream(aStream, mFile, mStart, mLength,
+                                      -1, -1,
+                                      nsIFileInputStream::CLOSE_ON_EOF |
+                                      nsIFileInputStream::REOPEN_ON_REWIND);
+}
+
+NS_IMETHODIMP
+nsDOMFile::GetInternalUrl(nsIPrincipal* aPrincipal, nsAString& aURL)
+{
+  NS_ENSURE_STATE(aPrincipal);
+
+  nsresult rv;
+  nsCOMPtr<nsIUUIDGenerator> uuidgen =
+    do_GetService("@mozilla.org/uuid-generator;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  
+  nsID id;
+  rv = uuidgen->GenerateUUIDInPlace(&id);
+  NS_ENSURE_SUCCESS(rv, rv);
+  
+  char chars[NSID_LENGTH];
+  id.ToProvidedString(chars);
+    
+  nsCString url = NS_LITERAL_CSTRING(FILEDATA_SCHEME ":") +
+    Substring(chars + 1, chars + NSID_LENGTH - 2);
+
+  nsFileDataProtocolHandler::AddFileDataEntry(url, this,
+                                              aPrincipal);
+
+  CopyASCIItoUTF16(url, aURL);
+  
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsDOMFile::GetAsText(const nsAString &aCharset, nsAString &aResult)
 {
   aResult.Truncate();
 
   nsCOMPtr<nsIInputStream> stream;
-  nsresult rv = NS_NewLocalFileInputStream
-                  (getter_AddRefs(stream),
-                   mFile, -1, -1, 0);
+  nsresult rv = GetInternalStream(getter_AddRefs(stream));
   NS_ENSURE_SUCCESS(rv, DOMFileResult(rv));
 
   nsCAutoString charsetGuess;
@@ -191,21 +385,7 @@ nsDOMFile::GetAsText(const nsAString &aCharset, nsAString &aResult)
   rv = alias->GetPreferred(charsetGuess, charset);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return ConvertStream(stream, charset.get(), aResult);
-}
-
-NS_IMETHODIMP
-nsDOMFile::GetInternalFile(nsIFile **aFile)
-{
-  NS_IF_ADDREF(*aFile = mFile);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMFile::SetInternalFile(nsIFile *aFile)
-{
-  mFile = aFile;
-  return NS_OK;
+  return DOMFileResult(ConvertStream(stream, charset.get(), aResult));
 }
 
 NS_IMETHODIMP
@@ -214,23 +394,27 @@ nsDOMFile::GetAsDataURL(nsAString &aResult)
   aResult.AssignLiteral("data:");
 
   nsresult rv;
-  nsCOMPtr<nsIMIMEService> mimeService =
-    do_GetService(NS_MIMESERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (!mContentType.Length()) {
+    nsCOMPtr<nsIMIMEService> mimeService =
+      do_GetService(NS_MIMESERVICE_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCAutoString contentType;
-  rv = mimeService->GetTypeFromFile(mFile, contentType);
-  if (NS_SUCCEEDED(rv)) {
-    AppendUTF8toUTF16(contentType, aResult);
+    nsCAutoString contentType;
+    rv = mimeService->GetTypeFromFile(mFile, contentType);
+    if (NS_SUCCEEDED(rv)) {
+      CopyUTF8toUTF16(contentType, mContentType);
+    }
+  }
+
+  if (mContentType.Length()) {
+    aResult.Append(mContentType);
   } else {
     aResult.AppendLiteral("application/octet-stream");
   }
   aResult.AppendLiteral(";base64,");
 
   nsCOMPtr<nsIInputStream> stream;
-  rv = NS_NewLocalFileInputStream(getter_AddRefs(stream),
-                                  mFile, -1, -1,
-                                  nsIFileInputStream::CLOSE_ON_EOF);
+  rv = GetInternalStream(getter_AddRefs(stream));
   NS_ENSURE_SUCCESS(rv, DOMFileResult(rv));
 
   char readBuf[4096];
@@ -253,8 +437,17 @@ nsDOMFile::GetAsDataURL(nsAString &aResult)
 
     // out buffer should be at least 4/3rds the read buf, plus a terminator
     char *base64 = PL_Base64Encode(readBuf, numEncode, nsnull);
-    AppendASCIItoUTF16(base64, aResult);
+    if (!base64) {
+      return DOMFileResult(NS_ERROR_OUT_OF_MEMORY);
+    }
+    nsDependentCString str(base64);
+    PRUint32 strLen = str.Length();
+    PRUint32 oldLength = aResult.Length();
+    AppendASCIItoUTF16(str, aResult);
     PR_Free(base64);
+    if (aResult.Length() - oldLength != strLen) {
+      return DOMFileResult(NS_ERROR_OUT_OF_MEMORY);
+    }
 
     if (leftOver) {
       memmove(readBuf, readBuf + numEncode, leftOver);
@@ -270,10 +463,7 @@ nsDOMFile::GetAsBinary(nsAString &aResult)
   aResult.Truncate();
 
   nsCOMPtr<nsIInputStream> stream;
-  nsresult rv = NS_NewLocalFileInputStream
-                  (getter_AddRefs(stream),
-                   mFile, -1, -1,
-                   nsIFileInputStream::CLOSE_ON_EOF);
+  nsresult rv = GetInternalStream(getter_AddRefs(stream));
   NS_ENSURE_SUCCESS(rv, DOMFileResult(rv));
 
   PRUint32 numRead;
@@ -281,7 +471,11 @@ nsDOMFile::GetAsBinary(nsAString &aResult)
     char readBuf[4096];
     rv = stream->Read(readBuf, sizeof(readBuf), &numRead);
     NS_ENSURE_SUCCESS(rv, DOMFileResult(rv));
+    PRUint32 oldLength = aResult.Length();
     AppendASCIItoUTF16(Substring(readBuf, readBuf + numRead), aResult);
+    if (aResult.Length() - oldLength != numRead) {
+      return DOMFileResult(NS_ERROR_OUT_OF_MEMORY);
+    }
   } while (numRead > 0);
 
   return NS_OK;
@@ -387,6 +581,29 @@ nsDOMFile::GuessCharset(nsIInputStream *aStream,
 }
 
 NS_IMETHODIMP
+nsDOMFile::GetSendInfo(nsIInputStream** aBody,
+                       nsACString& aContentType,
+                       nsACString& aCharset)
+{
+  nsresult rv;
+
+  nsCOMPtr<nsIInputStream> stream;
+  rv = this->GetInternalStream(getter_AddRefs(stream));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsString contentType;
+  rv = this->GetType(contentType);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  CopyUTF16toUTF8(contentType, aContentType);
+
+  aCharset.Truncate();
+
+  stream.forget(aBody);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMFile::Notify(const char* aCharset, nsDetectionConfident aConf)
 {
   mCharset.Assign(aCharset);
@@ -419,14 +636,74 @@ nsDOMFile::ConvertStream(nsIInputStream *aStream,
   nsString result;
   rv = unicharStream->ReadString(8192, result, &numChars);
   while (NS_SUCCEEDED(rv) && numChars > 0) {
+    PRUint32 oldLength = aResult.Length();
     aResult.Append(result);
+    if (aResult.Length() - oldLength != result.Length()) {
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
     rv = unicharStream->ReadString(8192, result, &numChars);
   }
 
   return rv;
 }
 
+// nsDOMMemoryFile Implementation
+NS_IMETHODIMP
+nsDOMMemoryFile::GetName(nsAString &aFileName)
+{
+  NS_ASSERTION(mIsFullFile, "Should only be called on files");
+  aFileName = mName;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMMemoryFile::GetSize(PRUint64 *aFileSize)
+{
+  *aFileSize = mLength;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMMemoryFile::MozSlice(PRInt64 aStart, PRInt64 aEnd,
+                          const nsAString& aContentType, PRUint8 optional_argc,
+                          nsIDOMBlob **aBlob)
+{
+  *aBlob = nsnull;
+
+  if (!optional_argc) {
+    aEnd = (PRInt64)mLength;
+  }
+
+  // Truncate aLength and aStart so that we stay within this file.
+  ParseSize((PRInt64)mLength, aStart, aEnd);
+
+  // Create the new file
+  NS_ADDREF(*aBlob = new nsDOMMemoryFile(this, aStart, aEnd - aStart,
+                                         aContentType));
+  
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMMemoryFile::GetInternalStream(nsIInputStream **aStream)
+{
+  if (mLength > PR_INT32_MAX)
+    return NS_ERROR_FAILURE;
+
+  return DataOwnerAdapter::Create(mDataOwner, mStart, mLength, aStream);
+}
+
+NS_IMETHODIMP
+nsDOMMemoryFile::GetMozFullPathInternal(nsAString &aFilename)
+{
+  NS_ASSERTION(mIsFullFile, "Should only be called on files");
+  aFilename.Truncate();
+  return NS_OK;
+}
+
 // nsDOMFileList implementation
+
+DOMCI_DATA(FileList, nsDOMFileList)
 
 NS_INTERFACE_MAP_BEGIN(nsDOMFileList)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFileList)
@@ -455,6 +732,8 @@ nsDOMFileList::Item(PRUint32 aIndex, nsIDOMFile **aFile)
 
 // nsDOMFileError implementation
 
+DOMCI_DATA(FileError, nsDOMFileError)
+
 NS_INTERFACE_MAP_BEGIN(nsDOMFileError)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFileError)
   NS_INTERFACE_MAP_ENTRY(nsIDOMFileError)
@@ -469,4 +748,19 @@ nsDOMFileError::GetCode(PRUint16* aCode)
 {
   *aCode = mCode;
   return NS_OK;
+}
+
+nsDOMFileInternalUrlHolder::nsDOMFileInternalUrlHolder(nsIDOMBlob* aFile,
+                                                       nsIPrincipal* aPrincipal
+                                                       MOZILLA_GUARD_OBJECT_NOTIFIER_PARAM_IN_IMPL) {
+  MOZILLA_GUARD_OBJECT_NOTIFIER_INIT;
+  aFile->GetInternalUrl(aPrincipal, mUrl);
+}
+ 
+nsDOMFileInternalUrlHolder::~nsDOMFileInternalUrlHolder() {
+  if (!mUrl.IsEmpty()) {
+    nsCAutoString narrowUrl;
+    CopyUTF16toUTF8(mUrl, narrowUrl);
+    nsFileDataProtocolHandler::RemoveFileDataEntry(narrowUrl);
+  }
 }

@@ -190,16 +190,6 @@ nsresult nsScanner::SetDocumentCharset(const nsACString& aCharset , PRInt32 aSou
 
   res = nsParser::GetCharsetConverterManager()->
     GetUnicodeDecoderRaw(mCharset.get(), getter_AddRefs(mUnicodeDecoder));
-  if (NS_FAILED(res))
-  {
-    // GetUnicodeDecoderRaw can fail if the charset has the .isXSSVulnerable
-    // flag. Try to fallback to ISO-8859-1
-    mCharset.AssignLiteral("ISO-8859-1");
-    mCharsetSource = kCharsetFromWeakDocTypeDefault;
-    res = nsParser::GetCharsetConverterManager()->
-      GetUnicodeDecoderRaw(mCharset.get(), getter_AddRefs(mUnicodeDecoder));
-  }
-
   if (NS_SUCCEEDED(res) && mUnicodeDecoder)
   {
      // We need to detect conversion error of character to support XML
@@ -1184,6 +1174,7 @@ PRBool nsScanner::AppendToBuffer(nsScannerString::Buffer* aBuf,
     return mSlidingBuffer != nsnull;
   }
 
+  PRUint32 countRemaining = mCountRemaining;
   if (!mSlidingBuffer) {
     mSlidingBuffer = new nsScannerString(aBuf);
     if (!mSlidingBuffer)
@@ -1205,7 +1196,7 @@ PRBool nsScanner::AppendToBuffer(nsScannerString::Buffer* aBuf,
   if (aErrorPos != -1 && !mHasInvalidCharacter) {
     mHasInvalidCharacter = PR_TRUE;
     mFirstInvalidPosition = mCurrentPosition;
-    mFirstInvalidPosition.advance(aErrorPos);
+    mFirstInvalidPosition.advance(countRemaining + aErrorPos);
   }
 
   if (mFirstNonWhitespacePosition == -1) {

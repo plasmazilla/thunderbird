@@ -53,6 +53,8 @@
 #include "nsDOMError.h"
 #include "nsScriptSecurityManager.h"
 
+NS_IMPL_CLASSINFO(nsNullPrincipal, NULL, nsIClassInfo::MAIN_THREAD_ONLY,
+                  NS_NULLPRINCIPAL_CID)
 NS_IMPL_QUERY_INTERFACE2_CI(nsNullPrincipal,
                             nsIPrincipal,
                             nsISerializable)
@@ -64,7 +66,7 @@ NS_IMETHODIMP_(nsrefcnt)
 nsNullPrincipal::AddRef()
 {
   NS_PRECONDITION(PRInt32(mJSPrincipals.refcount) >= 0, "illegal refcnt");
-  nsrefcnt count = PR_AtomicIncrement((PRInt32 *)&mJSPrincipals.refcount);
+  nsrefcnt count = PR_ATOMIC_INCREMENT(&mJSPrincipals.refcount);
   NS_LOG_ADDREF(this, count, "nsNullPrincipal", sizeof(*this));
   return count;
 }
@@ -73,10 +75,10 @@ NS_IMETHODIMP_(nsrefcnt)
 nsNullPrincipal::Release()
 {
   NS_PRECONDITION(0 != mJSPrincipals.refcount, "dup release");
-  nsrefcnt count = PR_AtomicDecrement((PRInt32 *)&mJSPrincipals.refcount);
+  nsrefcnt count = PR_ATOMIC_DECREMENT(&mJSPrincipals.refcount);
   NS_LOG_RELEASE(this, count, "nsNullPrincipal");
   if (count == 0) {
-    NS_DELETEXPCOM(this);
+    delete this;
   }
 
   return count;
@@ -249,6 +251,21 @@ NS_IMETHODIMP
 nsNullPrincipal::GetURI(nsIURI** aURI)
 {
   return NS_EnsureSafeToReturn(mURI, aURI);
+}
+
+NS_IMETHODIMP
+nsNullPrincipal::GetCsp(nsIContentSecurityPolicy** aCsp)
+{
+  // CSP on a null principal makes no sense
+  *aCsp = nsnull;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsNullPrincipal::SetCsp(nsIContentSecurityPolicy* aCsp)
+{
+  // CSP on a null principal makes no sense
+  return NS_ERROR_NOT_AVAILABLE;
 }
 
 NS_IMETHODIMP

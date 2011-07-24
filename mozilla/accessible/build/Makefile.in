@@ -46,16 +46,11 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= accessibility
 LIBRARY_NAME	= accessibility
 EXPORT_LIBRARY = 1
-ifneq ($(OS_ARCH),WINNT)
 SHORT_LIBNAME	= access
-endif
 IS_COMPONENT	= 1
 MODULE_NAME	= nsAccessibilityModule
 GRE_MODULE	= 1
 LIBXUL_LIBRARY	= 1
-
-REQUIRES	= xpcom \
-		  $(NULL)
 
 CPPSRCS		= nsAccessibilityFactory.cpp
 
@@ -64,6 +59,7 @@ LOCAL_INCLUDES	= -I$(srcdir)/../src
 SHARED_LIBRARY_LIBS = \
 	../src/base/$(LIB_PREFIX)accessibility_base_s.$(LIB_SUFFIX) \
 	../src/html/$(LIB_PREFIX)accessibility_html_s.$(LIB_SUFFIX) \
+	../src/xpcom/$(LIB_PREFIX)accessibility_xpcom_s.$(LIB_SUFFIX) \
 	../src/$(LIB_PREFIX)accessibility_toolkit_s.$(LIB_SUFFIX) \
 	$(NULL)
 
@@ -93,9 +89,9 @@ endif
 
 ifeq ($(OS_ARCH),WINNT)
 OS_LIBS += \
-	ole32.lib \
 	oleaut32.lib \
 	version.lib \
+	ole32.lib \
 	$(NULL)
 endif
 

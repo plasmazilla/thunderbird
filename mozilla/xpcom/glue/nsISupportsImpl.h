@@ -53,12 +53,13 @@
 
 #if !defined(XPCOM_GLUE_AVOID_NSPR)
 #include "prthread.h" /* needed for thread-safety checks */
-#include "pratom.h"   /* needed for PR_AtomicIncrement and PR_AtomicDecrement */
+#include "nsAtomicRefcnt.h" /* for NS_Atomic{Increment,Decrement}Refcnt */
 #endif
 
 #include "nsDebug.h"
 #include "nsTraceRefcnt.h"
 #include "nsCycleCollector.h"
+#include "nsCycleCollectorUtils.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Macros to help detect thread-safety:
@@ -77,11 +78,22 @@ private:
 #define NS_DECL_OWNINGTHREAD            nsAutoOwningThread _mOwningThread;
 #define NS_ASSERT_OWNINGTHREAD(_class) \
   NS_CheckThreadSafe(_mOwningThread.GetThread(), #_class " not thread-safe")
+#define NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class) \
+  do { \
+    if (NS_IsCycleCollectorThread()) { \
+      NS_ERROR("Changing refcount of " #_class " object during Traverse is " \
+               "not permitted!"); \
+    } \
+    else { \
+      NS_ASSERT_OWNINGTHREAD(_class); \
+    } \
+  } while (0)
 
 #else // !NS_DEBUG
 
 #define NS_DECL_OWNINGTHREAD            /* nothing */
 #define NS_ASSERT_OWNINGTHREAD(_class)  ((void)0)
+#define NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class)  ((void)0)
 
 #endif // NS_DEBUG
 
@@ -304,6 +316,39 @@ public:
 #define NS_INIT_ISUPPORTS() ((void)0)
 
 /**
+ * Use this macro to declare and implement the AddRef & Release methods for a
+ * given non-XPCOM <i>_class</i>.
+ *
+ * The implementations here should match NS_IMPL_ADDREF/NS_IMPL_RELEASE, minus
+ * the nsrefcnt return-value and the NS_ASSERT_OWNINGTHREAD() call.
+ *
+ * @param _class The name of the class implementing the method
+ */
+#define NS_INLINE_DECL_REFCOUNTING(_class)                                    \
+public:                                                                       \
+  void AddRef(void) {                                                         \
+    NS_PRECONDITION(PRInt32(mRefCnt) >= 0, "illegal refcnt");                 \
+    NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                          \
+    ++mRefCnt;                                                                \
+    NS_LOG_ADDREF(this, mRefCnt, #_class, sizeof(*this));                     \
+  }                                                                           \
+  void Release(void) {                                                        \
+    NS_PRECONDITION(0 != mRefCnt, "dup release");                             \
+    NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                          \
+    --mRefCnt;                                                                \
+    NS_LOG_RELEASE(this, mRefCnt, #_class);                                   \
+    if (mRefCnt == 0) {                                                       \
+      NS_ASSERT_OWNINGTHREAD(_class);                                         \
+      mRefCnt = 1; /* stabilize */                                            \
+      delete this;                                                            \
+    }                                                                         \
+  }                                                                           \
+protected:                                                                    \
+  nsAutoRefCnt mRefCnt;                                                       \
+  NS_DECL_OWNINGTHREAD                                                        \
+public:
+
+/**
  * Use this macro to implement the AddRef method for a given <i>_class</i>
  * @param _class The name of the class implementing the method
  */
@@ -311,7 +356,7 @@ public:
 NS_IMETHODIMP_(nsrefcnt) _class::AddRef(void)                                 \
 {                                                                             \
   NS_PRECONDITION(PRInt32(mRefCnt) >= 0, "illegal refcnt");                   \
-  NS_ASSERT_OWNINGTHREAD(_class);                                             \
+  NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                            \
   ++mRefCnt;                                                                  \
   NS_LOG_ADDREF(this, mRefCnt, #_class, sizeof(*this));                       \
   return mRefCnt;                                                             \
@@ -354,10 +399,11 @@ NS_IMETHODIMP_(nsrefcnt) _class::AddRef(void)                                 \
 NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
 {                                                                             \
   NS_PRECONDITION(0 != mRefCnt, "dup release");                               \
-  NS_ASSERT_OWNINGTHREAD(_class);                                             \
+  NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                            \
   --mRefCnt;                                                                  \
   NS_LOG_RELEASE(this, mRefCnt, #_class);                                     \
   if (mRefCnt == 0) {                                                         \
+    NS_ASSERT_OWNINGTHREAD(_class);                                           \
     mRefCnt = 1; /* stabilize */                                              \
     _destroy;                                                                 \
     return 0;                                                                 \
@@ -379,7 +425,7 @@ NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
  * the refcount to |0|.
  */
 #define NS_IMPL_RELEASE(_class) \
-  NS_IMPL_RELEASE_WITH_DESTROY(_class, NS_DELETEXPCOM(this))
+  NS_IMPL_RELEASE_WITH_DESTROY(_class, delete (this))
 
 /**
  * Use this macro to implement the Release method for a given <i>_class</i>
@@ -396,29 +442,27 @@ NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
 }
 
 
-#define NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(_class, _basetype)          \
+#define NS_IMPL_CYCLE_COLLECTING_ADDREF(_class)                               \
 NS_IMETHODIMP_(nsrefcnt) _class::AddRef(void)                                 \
 {                                                                             \
   NS_PRECONDITION(PRInt32(mRefCnt) >= 0, "illegal refcnt");                   \
-  NS_ASSERT_OWNINGTHREAD(_class);                                             \
+  NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                            \
   nsrefcnt count =                                                            \
     mRefCnt.incr(NS_CYCLE_COLLECTION_CLASSNAME(_class)::Upcast(this));        \
   NS_LOG_ADDREF(this, count, #_class, sizeof(*this));                         \
   return count;                                                               \
 }
 
-#define NS_IMPL_CYCLE_COLLECTING_ADDREF(_class)      \
-  NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(_class, _class)
-
-#define NS_IMPL_CYCLE_COLLECTING_RELEASE_FULL(_class, _basetype, _destroy)    \
+#define NS_IMPL_CYCLE_COLLECTING_RELEASE_WITH_DESTROY(_class, _destroy)       \
 NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
 {                                                                             \
   NS_PRECONDITION(0 != mRefCnt, "dup release");                               \
-  NS_ASSERT_OWNINGTHREAD(_class);                                             \
+  NS_ASSERT_OWNINGTHREAD_AND_NOT_CCTHREAD(_class);                            \
   nsISupports *base = NS_CYCLE_COLLECTION_CLASSNAME(_class)::Upcast(this);    \
   nsrefcnt count = mRefCnt.decr(base);                                        \
   NS_LOG_RELEASE(this, count, #_class);                                       \
   if (count == 0) {                                                           \
+    NS_ASSERT_OWNINGTHREAD(_class);                                           \
     mRefCnt.stabilizeForDeletion(base);                                       \
     _destroy;                                                                 \
     return 0;                                                                 \
@@ -426,17 +470,8 @@ NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
   return count;                                                               \
 }
 
-#define NS_IMPL_CYCLE_COLLECTING_RELEASE_WITH_DESTROY(_class, _destroy)       \
-  NS_IMPL_CYCLE_COLLECTING_RELEASE_FULL(_class, _class, _destroy)
-
-#define NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS_WITH_DESTROY(_class, _basetype, _destroy)         \
-  NS_IMPL_CYCLE_COLLECTING_RELEASE_FULL(_class, _basetype, _destroy)
-
-#define NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(_class, _basetype)         \
-  NS_IMPL_CYCLE_COLLECTING_RELEASE_FULL(_class, _basetype, NS_DELETEXPCOM(this))
-
-#define NS_IMPL_CYCLE_COLLECTING_RELEASE(_class)       \
-  NS_IMPL_CYCLE_COLLECTING_RELEASE_FULL(_class, _class, NS_DELETEXPCOM(this))
+#define NS_IMPL_CYCLE_COLLECTING_RELEASE(_class)                              \
+  NS_IMPL_CYCLE_COLLECTING_RELEASE_WITH_DESTROY(_class, delete (this))
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1194,6 +1229,10 @@ NS_IMETHODIMP_(nsrefcnt) Class::Release(void)                                 \
     NS_IMPL_ADDREF_INHERITED(Class, Super)                                    \
     NS_IMPL_RELEASE_INHERITED(Class, Super)                                   \
 
+#define NS_IMPL_ISUPPORTS_INHERITED8(Class, Super, i1, i2, i3, i4, i5, i6, i7, i8) \
+    NS_IMPL_QUERY_INTERFACE_INHERITED8(Class, Super, i1, i2, i3, i4, i5, i6, i7, i8) \
+    NS_IMPL_ADDREF_INHERITED(Class, Super)                                    \
+    NS_IMPL_RELEASE_INHERITED(Class, Super)                                   \
 /*
  * Macro to glue together a QI that starts with an interface table
  * and segues into an interface map (e.g. it uses singleton classinfo
@@ -1224,29 +1263,32 @@ NS_IMETHODIMP_(nsrefcnt) Class::Release(void)                                 \
 NS_IMETHODIMP_(nsrefcnt) _class::AddRef(void)                                 \
 {                                                                             \
   NS_PRECONDITION(PRInt32(mRefCnt) >= 0, "illegal refcnt");                   \
-  nsrefcnt count;                                                             \
-  count = PR_AtomicIncrement((PRInt32*)&mRefCnt);                             \
+  nsrefcnt count = NS_AtomicIncrementRefcnt(mRefCnt);                         \
   NS_LOG_ADDREF(this, count, #_class, sizeof(*this));                         \
-  return count;                                                               \
+  return (nsrefcnt) count;                                                    \
 }
 
 /**
  * Use this macro to implement the Release method for a given <i>_class</i>
  * @param _class The name of the class implementing the method
+ *
+ * Note that we don't need to use an atomic operation to stabilize the refcnt.
+ * If the refcnt is released to 0, only the current thread has a reference to
+ * the object; we thus don't have to use an atomic set to inform other threads
+ * that we've changed the refcnt.
  */
 
 #define NS_IMPL_THREADSAFE_RELEASE(_class)                                    \
 NS_IMETHODIMP_(nsrefcnt) _class::Release(void)                                \
 {                                                                             \
-  nsrefcnt count;                                                             \
   NS_PRECONDITION(0 != mRefCnt, "dup release");                               \
-  count = PR_AtomicDecrement((PRInt32 *)&mRefCnt);                            \
+  nsrefcnt count = NS_AtomicDecrementRefcnt(mRefCnt);                         \
   NS_LOG_RELEASE(this, count, #_class);                                       \
   if (0 == count) {                                                           \
     mRefCnt = 1; /* stabilize */                                              \
     /* enable this to find non-threadsafe destructors: */                     \
     /* NS_ASSERT_OWNINGTHREAD(_class); */                                     \
-    NS_DELETEXPCOM(this);                                                     \
+    delete (this);                                                            \
     return 0;                                                                 \
   }                                                                           \
   return count;                                                               \

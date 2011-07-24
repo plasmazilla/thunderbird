@@ -24,6 +24,7 @@
  *   Blake Ross <blakeross@telocity.com>
  *   Gervase Markham <gerv@gerv.net>
  *   Phil Ringnalda <philringnalda@gmail.com>
+ *   Thomas Düllmann <bugzilla2010@duellmann24.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,6 +39,11 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
+Components.utils.import("resource:///modules/MailUtils.js");
+
+var gSpellChecker = new InlineSpellChecker();
 
 function nsContextMenu(aXulMenu) {
   this.target         = null;
@@ -59,9 +65,7 @@ function nsContextMenu(aXulMenu) {
   this.linkURI        = null;
   this.linkProtocol   = null;
   this.mediaURL       = "";
-  this.inFrame        = false;
   this.isContentSelected = false;
-  this.inDirList      = false;
   this.shouldDisplay  = true;
 
   // Message Related Items
@@ -96,7 +100,52 @@ nsContextMenu.prototype = {
     this.initMediaPlayerItems();
     this.initBrowserItems();
     this.initMessageItems();
+    this.initSpellingItems();
     this.initSeparators();
+  },
+  addDictionaries: function CM_addDictionaries() {
+    openDictionaryList();
+  },
+  initSpellingItems: function CM_initSpellingItems() {
+    let canSpell = gSpellChecker.canSpellCheck;
+    let onMisspelling = gSpellChecker.overMisspelling;
+    this.showItem("mailContext-spell-check-enabled", canSpell);
+    this.showItem("mailContext-spell-separator", canSpell || this.onEditableArea);
+    if (canSpell) {
+      document.getElementById("mailContext-spell-check-enabled")
+              .setAttribute("checked", gSpellChecker.enabled);
+    }
+
+    this.showItem("mailContext-spell-add-to-dictionary", onMisspelling);
+
+    // suggestion list
+    this.showItem("mailContext-spell-suggestions-separator", onMisspelling);
+    if (onMisspelling) {
+      let addMenuItem =
+        document.getElementById("mailContext-spell-add-to-dictionary");
+      let suggestionCount =
+        gSpellChecker.addSuggestionsToMenu(addMenuItem.parentNode,
+                                           addMenuItem, 5);
+      this.showItem("mailContext-spell-no-suggestions", suggestionCount == 0);
+    } else {
+      this.showItem("mailContext-spell-no-suggestions", false);
+    }
+
+    // dictionary list
+    this.showItem("mailContext-spell-dictionaries", gSpellChecker.enabled);
+    if (canSpell) {
+      let dictMenu = document.getElementById("mailContext-spell-dictionaries-menu");
+      let dictSep = document.getElementById("mailContext-spell-language-separator");
+      gSpellChecker.addDictionaryListToMenu(dictMenu, dictSep);
+      this.showItem("mailContext-spell-add-dictionaries-main", false);
+    } else if (this.onEditableArea) {
+      // when there is no spellchecker but we might be able to spellcheck
+      // add the add to dictionaries item. This will ensure that people
+      // with no dictionaries will be able to download them
+      this.showItem("mailContext-spell-add-dictionaries-main", true);
+    } else {
+      this.showItem("mailContext-spell-add-dictionaries-main", false);
+    }
   },
   initSaveItems : function CM_initSaveItems() {
     this.showItem("mailContext-savelink", this.onSaveableLink);
@@ -134,7 +183,8 @@ nsContextMenu.prototype = {
     this.showItem("mailContext-media-mute", onMedia && !this.target.muted);
     this.showItem("mailContext-media-unmute", onMedia && this.target.muted);
     if (onMedia) {
-      let hasError = this.target.error != null;
+      let hasError = this.target.error != null ||
+                     this.target.networkState == this.target.NETWORK_NO_SOURCE;
       this.setItemAttr("mailContext-media-play", "disabled", hasError);
       this.setItemAttr("mailContext-media-pause", "disabled", hasError);
       this.setItemAttr("mailContext-media-mute", "disabled", hasError);
@@ -158,8 +208,10 @@ nsContextMenu.prototype = {
     this.showItem("mailContext-reload", notOnSpecialItem);
 
     let loadedProtocol = "";
-    if (content.document && content.document.location)
-      loadedProtocol = content.document.location.protocol;
+    if (this.target &&
+        this.target.ownerDocument.defaultView.top.location)
+      loadedProtocol = this.target.ownerDocument.defaultView.top
+                           .location.protocol;
 
     // Only show open in browser if we're not on a special item and we're not
     // on an about: or chrome: protocol - for these protocols the browser is
@@ -227,8 +279,10 @@ nsContextMenu.prototype = {
     let msgModifyItems = this.numSelectedMessages > 0 && !this.hideMailItems &&
       !this.onPlayableMedia &&
       !(this.numSelectedMessages == 1 && gMessageDisplay.isDummy);
+    let canArchive = gFolderDisplay.canArchiveSelectedMessages;
 
-    this.showItem("mailContext-archive", canMove && msgModifyItems);
+    this.showItem("mailContext-archive", canMove && msgModifyItems &&
+                                         canArchive);
 
     // Set up the move menu. We can't move from newsgroups.
     this.showItem("mailContext-moveMenu",
@@ -286,8 +340,12 @@ nsContextMenu.prototype = {
       "mailContext-sep-open-browser", "mailContext-sep-link",
       "mailContext-sep-open", "mailContext-sep-open2",
       "mailContext-sep-reply", "paneContext-afterMove",
+      "mailContext-sep-afterTagAddNew", "mailContext-sep-afterTagRemoveAll",
+      "mailContext-sep-afterMarkAllRead", "mailContext-sep-afterMarkFlagged",
       "mailContext-sep-afterMarkMenu", "mailContext-sep-edit",
-      "mailContext-sep-copy", "mailContext-sep-reportPhishing"
+      "mailContext-sep-copy", "mailContext-sep-reportPhishing",
+      "mailContext-sep-undo", "mailContext-sep-clipboard",
+      "mailContext-spell-suggestions-separator", "mailContext-spell-separator",
     ];
     mailContextSeparators.forEach(this.hideIfAppropriate, this);
 
@@ -299,6 +357,18 @@ nsContextMenu.prototype = {
    * its ancestors.
    */
   setTarget : function CM_setTarget(aNode) {
+    // Clear any old spellchecking items from the menu, this used to
+    // be in the menu hiding code but wasn't getting called in all
+    // situations. Here, we can ensure it gets cleaned up any time the
+    // menu is shown. Note: must be before uninit because that clears the
+    // internal vars
+    // We also need to do that before we possibly bail because we just clicked
+    // on some XUL node. Otherwise, dictionary choices just accumulate until we
+    // right-click on some HTML element again.
+    gSpellChecker.clearSuggestionsFromMenu();
+    gSpellChecker.clearDictionaryListFromMenu();
+    gSpellChecker.uninit();
+
     const xulNS =
       "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
     if (aNode.namespaceURI == xulNS) {
@@ -315,7 +385,7 @@ nsContextMenu.prototype = {
         }
         let popup = document.getAnonymousElementByAttribute(treeColPicker, "anonid", "popup");
         treeColPicker.buildPopup(popup);
-        popup.openPopup(aNode, "before_start", 0, 0, true)
+        popup.openPopup(aNode, "before_start", 0, 0, true);
         this.shouldDisplay = false;
       }
       return;
@@ -333,7 +403,6 @@ nsContextMenu.prototype = {
     this.linkURI        = null;
     this.linkProtocol   = null;
     this.onMathML       = false;
-    this.inFrame        = false;
 
     this.target = aNode;
 
@@ -353,6 +422,11 @@ nsContextMenu.prototype = {
         this.onTextInput = this.isTargetATextBox(this.target);
       } else if (this.target instanceof HTMLTextAreaElement) {
         this.onTextInput = true;
+        if (!this.target.readOnly) {
+          this.onEditableArea = true;
+          gSpellChecker.init(this.target.QueryInterface(Components.interfaces.nsIDOMNSEditableElement).editor);
+          gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
+        }
       } else if (this.target instanceof HTMLCanvasElement) {
         this.onCanvas = true;
       } else if (this.target instanceof HTMLVideoElement) {
@@ -364,36 +438,6 @@ nsContextMenu.prototype = {
         this.onPlayableMedia = true;
         this.mediaURL = this.target.currentSrc || this.target.src;
       // Browser supports background images here but we don't need to.
-      } else if ("HTTPIndex" in content &&
-                 content.HTTPIndex instanceof Components.interfaces.nsIHTTPIndex) {
-        this.inDirList = true;
-        // Bubble outward till we get to an element with URL attribute
-        // (which should be the href).
-        var root = this.target;
-        while (root && !this.link) {
-          if (root.tagName == "tree") {
-            // Hit root of tree; must have clicked in empty space;
-            // thus, no link.
-            break;
-          }
-          if (root.getAttribute("URL")) {
-            // Build pseudo link object so link-related functions work.
-            this.onLink = true;
-            this.link = { href : root.getAttribute("URL"),
-                          getAttribute: function (aAttr) {
-                            if (aAttr == "title") {
-                              return root.firstChild.firstChild
-                                         .getAttribute("label");
-                            }
-                            return "";
-                          }
-                        };
-            // If element is a directory, then you can't save it.
-            this.onSaveableLink = root.getAttribute("container") != "true";
-          } else {
-            root = root.parentNode;
-          }
-        }
       }
     }
 
@@ -451,11 +495,6 @@ nsContextMenu.prototype = {
          this.target.parentNode.namespaceURI == NS_MathML) ||
         (this.target.namespaceURI == NS_MathML))
       this.onMathML = true;
-
-    // See if the user clicked in a frame.
-    if (this.target.ownerDocument != window.content.document) {
-      this.inFrame = true;
-    }
   },
 
   setMessageTargets: function CM_setMessageTargets(aNode) {
@@ -842,7 +881,8 @@ nsContextMenu.prototype = {
   openInBrowser: function CM_openInBrowser() {
     let uri = Components.classes["@mozilla.org/network/io-service;1"]
                         .getService(Components.interfaces.nsIIOService)
-                        .newURI(content.document.location, null, null);
+                        .newURI(this.target.ownerDocument.defaultView.
+                                top.location.href, null, null);
 
     Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
               .getService(Components.interfaces.nsIExternalProtocolService)

@@ -38,13 +38,17 @@
 #ifndef NS_SMILTIMEVALUESPEC_H_
 #define NS_SMILTIMEVALUESPEC_H_
 
-#include "nsISupports.h"
-#include "nsCOMPtr.h"
-#include "nsSMILTypes.h"
+#include "nsSMILTimeValueSpecParams.h"
+#include "nsReferencedElement.h"
+#include "nsAutoPtr.h"
+#include "nsIDOMEventListener.h"
 
 class nsAString;
 class nsSMILTimeValue;
 class nsSMILTimedElement;
+class nsSMILTimeContainer;
+class nsSMILInstanceTime;
+class nsSMILInterval;
 
 //----------------------------------------------------------------------
 // nsSMILTimeValueSpec class
@@ -55,41 +59,98 @@ class nsSMILTimedElement;
 // and synchronisation (for syncbase specifications).
 //
 // For an overview of how this class is related to other SMIL time classes see
-// the documentstation in nsSMILTimeValue.h
+// the documentation in nsSMILTimeValue.h
 
-// {39d2f376-6bda-42c0-8510-a93b24828a80}
-#define NS_SMILTIMEVALUESPEC_IID \
-{ 0x39d2f376, 0x6bda, 0x42c0, { 0x85, 0x10, 0xa9, 0x3b, 0x24, 0x82, 0x8a, 0x80 } }
-
-class nsSMILTimeValueSpec : public nsISupports
+class nsSMILTimeValueSpec
 {
 public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_SMILTIMEVALUESPEC_IID)
-  NS_DECL_ISUPPORTS
+  typedef mozilla::dom::Element Element;
+
+  nsSMILTimeValueSpec(nsSMILTimedElement& aOwner, PRBool aIsBegin);
+  ~nsSMILTimeValueSpec();
+
+  nsresult SetSpec(const nsAString& aStringSpec, Element* aContextNode);
+  void     ResolveReferences(nsIContent* aContextNode);
+  PRBool   IsEventBased() const;
+
+  void     HandleNewInterval(nsSMILInterval& aInterval,
+                             const nsSMILTimeContainer* aSrcContainer);
+  void     HandleTargetElementChange(Element* aNewTarget);
+
+  // For created nsSMILInstanceTime objects
+  PRBool   DependsOnBegin() const;
+  void     HandleChangedInstanceTime(const nsSMILInstanceTime& aBaseTime,
+                                     const nsSMILTimeContainer* aSrcContainer,
+                                     nsSMILInstanceTime& aInstanceTimeToUpdate,
+                                     PRBool aObjectChanged);
+  void     HandleDeletedInstanceTime(nsSMILInstanceTime& aInstanceTime);
+
+  // Cycle-collection support
+  void Traverse(nsCycleCollectionTraversalCallback* aCallback);
+  void Unlink();
 
 protected:
-  nsSMILTimeValueSpec(nsSMILTimedElement* aOwner, PRBool aIsBegin);
+  void UpdateReferencedElement(Element* aFrom, Element* aTo);
+  void UnregisterFromReferencedElement(Element* aElement);
+  nsSMILTimedElement* GetTimedElement(Element* aElement);
+  void RegisterEventListener(Element* aElement);
+  void UnregisterEventListener(Element* aElement);
+  nsIEventListenerManager* GetEventListenerManager(Element* aElement,
+      nsIDOMEventGroup** aSystemGroup);
+  void HandleEvent(nsIDOMEvent* aEvent);
+  PRBool CheckEventDetail(nsIDOMEvent* aEvent);
+  PRBool CheckRepeatEventDetail(nsIDOMEvent* aEvent);
+  PRBool CheckAccessKeyEventDetail(nsIDOMEvent* aEvent);
+  nsSMILTimeValue ConvertBetweenTimeContainers(const nsSMILTimeValue& aSrcTime,
+                                      const nsSMILTimeContainer* aSrcContainer);
 
-  friend already_AddRefed<nsSMILTimeValueSpec>
-  NS_NewSMILTimeValueSpec(nsSMILTimedElement* aOwner,
-                          PRBool aIsBegin,
-                          const nsAString& aStringSpec);
+  nsSMILTimedElement*           mOwner;
+  PRPackedBool                  mIsBegin; // Indicates if *we* are a begin spec,
+                                          // not to be confused with
+                                          // mParams.mSyncBegin which indicates
+                                          // if we're synced with the begin of
+                                          // the target.
+  nsSMILTimeValueSpecParams     mParams;
 
-  nsresult SetSpec(const nsAString& aStringSpec);
+  class TimeReferenceElement : public nsReferencedElement
+  {
+  public:
+    TimeReferenceElement(nsSMILTimeValueSpec* aOwner) : mSpec(aOwner) { }
+    void ResetWithElement(Element* aTo) {
+      nsRefPtr<Element> from = get();
+      Unlink();
+      ElementChanged(from, aTo);
+    }
 
-  nsSMILTimedElement* mOwner;
-  PRPackedBool        mIsBegin;
-  nsSMILTime          mOffset;
+  protected:
+    virtual void ElementChanged(Element* aFrom, Element* aTo)
+    {
+      nsReferencedElement::ElementChanged(aFrom, aTo);
+      mSpec->UpdateReferencedElement(aFrom, aTo);
+    }
+    virtual PRBool IsPersistent() { return PR_TRUE; }
+  private:
+    nsSMILTimeValueSpec* mSpec;
+  };
+
+  TimeReferenceElement mReferencedElement;
+
+  class EventListener : public nsIDOMEventListener
+  {
+  public:
+    EventListener(nsSMILTimeValueSpec* aOwner) : mSpec(aOwner) { }
+    void Disconnect()
+    {
+      mSpec = nsnull;
+    }
+
+    NS_DECL_ISUPPORTS
+    NS_DECL_NSIDOMEVENTLISTENER
+
+  private:
+    nsSMILTimeValueSpec* mSpec;
+  };
+  nsCOMPtr<EventListener> mEventListener;
 };
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsSMILTimeValueSpec, NS_SMILTIMEVALUESPEC_IID)
-
-////////////////////////////////////////////////////////////////////////
-// Factory methods
-
-already_AddRefed<nsSMILTimeValueSpec>
-NS_NewSMILTimeValueSpec(nsSMILTimedElement* aOwner,
-                        PRBool aIsBegin,
-                        const nsAString& aStringSpec);
 
 #endif // NS_SMILTIMEVALUESPEC_H_

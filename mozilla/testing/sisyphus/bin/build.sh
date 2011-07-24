@@ -49,7 +49,7 @@ case $product in
             if [[ -z "$TEST_FORCE_CLOBBER_ON_ERROR" ]]; then
                 error "error during build" $LINENO
             else
-                echo "error occured during build. attempting a clobber build" $LINENO
+                echo "error occurred during build. attempting a clobber build" $LINENO
                 if ! $buildbash $bashlogin -c "export PATH=\"$BUILDPATH\"; cd $BUILDTREE/mozilla; make -f client.mk distclean" 2>&1; then
                     error "error during forced clobber" $LINENO
                 fi
@@ -118,6 +118,8 @@ case $product in
                     AUTOCONF=autoconf-2.13
                 elif findprogram autoconf-2.13; then
                     AUTOCONF=autoconf-2.13
+                elif findprogram autoconf2.13; then
+                    AUTOCONF=autoconf2.13
                 elif findprogram autoconf213; then
                     AUTOCONF=autoconf213
                 else

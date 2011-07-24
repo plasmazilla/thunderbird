@@ -37,16 +37,24 @@
 #include "nsSVGEnum.h"
 #include "nsIAtom.h"
 #include "nsSVGElement.h"
+#ifdef MOZ_SMIL
+#include "nsSMILValue.h"
+#include "SMILEnumType.h"
+#endif // MOZ_SMIL
+
+using namespace mozilla;
 
 NS_SVG_VAL_IMPL_CYCLE_COLLECTION(nsSVGEnum::DOMAnimatedEnum, mSVGElement)
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsSVGEnum::DOMAnimatedEnum)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(nsSVGEnum::DOMAnimatedEnum)
 
+DOMCI_DATA(SVGAnimatedEnumeration, nsSVGEnum::DOMAnimatedEnum)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGEnum::DOMAnimatedEnum)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGAnimatedEnumeration)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimatedEnumeration)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimatedEnumeration)
 NS_INTERFACE_MAP_END
 
 nsSVGEnumMapping *
@@ -67,32 +75,46 @@ nsSVGEnum::SetBaseValueString(const nsAString& aValue,
 {
   nsCOMPtr<nsIAtom> valAtom = do_GetAtom(aValue);
 
-  nsSVGEnumMapping *tmp = GetMapping(aSVGElement);
+  nsSVGEnumMapping *mapping = GetMapping(aSVGElement);
 
-  while (tmp && tmp->mKey) {
-    if (valAtom == *(tmp->mKey)) {
-      mBaseVal = mAnimVal = tmp->mVal;
+  while (mapping && mapping->mKey) {
+    if (valAtom == *(mapping->mKey)) {
+      mIsBaseSet = PR_TRUE;
+      if (mBaseVal != mapping->mVal) {
+        mBaseVal = mapping->mVal;
+        if (!mIsAnimated) {
+          mAnimVal = mBaseVal;
+        }
+#ifdef MOZ_SMIL
+        else {
+          aSVGElement->AnimationNeedsResample();
+        }
+#endif
+        // We don't need to call DidChange* here - we're only called by
+        // nsSVGElement::ParseAttribute under nsGenericElement::SetAttr,
+        // which takes care of notifying.
+      }
       return NS_OK;
     }
-    tmp++;
+    mapping++;
   }
 
   // only a warning since authors may mistype attribute values
   NS_WARNING("unknown enumeration key");
-  return NS_ERROR_FAILURE;
+  return NS_ERROR_DOM_SYNTAX_ERR;
 }
 
 void
 nsSVGEnum::GetBaseValueString(nsAString& aValue, nsSVGElement *aSVGElement)
 {
-  nsSVGEnumMapping *tmp = GetMapping(aSVGElement);
+  nsSVGEnumMapping *mapping = GetMapping(aSVGElement);
 
-  while (tmp && tmp->mKey) {
-    if (mBaseVal == tmp->mVal) {
-      (*tmp->mKey)->ToString(aValue);
+  while (mapping && mapping->mKey) {
+    if (mBaseVal == mapping->mVal) {
+      (*mapping->mKey)->ToString(aValue);
       return;
     }
-    tmp++;
+    mapping++;
   }
   NS_ERROR("unknown enumeration value");
 }
@@ -102,17 +124,36 @@ nsSVGEnum::SetBaseValue(PRUint16 aValue,
                         nsSVGElement *aSVGElement,
                         PRBool aDoSetAttr)
 {
-  nsSVGEnumMapping *tmp = GetMapping(aSVGElement);
+  nsSVGEnumMapping *mapping = GetMapping(aSVGElement);
 
-  while (tmp && tmp->mKey) {
-    if (tmp->mVal == aValue) {
-      mAnimVal = mBaseVal = PRUint8(aValue);
-      aSVGElement->DidChangeEnum(mAttrEnum, aDoSetAttr);
+  while (mapping && mapping->mKey) {
+    if (mapping->mVal == aValue) {
+      mIsBaseSet = PR_TRUE;
+      if (mBaseVal != PRUint8(aValue)) {
+        mBaseVal = PRUint8(aValue);
+        if (!mIsAnimated) {
+          mAnimVal = mBaseVal;
+        }
+#ifdef MOZ_SMIL
+        else {
+          aSVGElement->AnimationNeedsResample();
+        }
+#endif
+        aSVGElement->DidChangeEnum(mAttrEnum, aDoSetAttr);
+      }
       return NS_OK;
     }
-    tmp++;
+    mapping++;
   }
-  return NS_ERROR_FAILURE;
+  return NS_ERROR_DOM_SYNTAX_ERR;
+}
+
+void
+nsSVGEnum::SetAnimValue(PRUint16 aValue, nsSVGElement *aSVGElement)
+{
+  mAnimVal = aValue;
+  mIsAnimated = PR_TRUE;
+  aSVGElement->DidAnimateEnum(mAttrEnum);
 }
 
 nsresult
@@ -126,3 +167,66 @@ nsSVGEnum::ToDOMAnimatedEnum(nsIDOMSVGAnimatedEnumeration **aResult,
   NS_ADDREF(*aResult);
   return NS_OK;
 }
+
+#ifdef MOZ_SMIL
+nsISMILAttr*
+nsSVGEnum::ToSMILAttr(nsSVGElement *aSVGElement)
+{
+  return new SMILEnum(this, aSVGElement);
+}
+
+nsresult
+nsSVGEnum::SMILEnum::ValueFromString(const nsAString& aStr,
+                                     const nsISMILAnimationElement* /*aSrcElement*/,
+                                     nsSMILValue& aValue,
+                                     PRBool& aPreventCachingOfSandwich) const
+{
+  nsCOMPtr<nsIAtom> valAtom = do_GetAtom(aStr);
+  nsSVGEnumMapping *mapping = mVal->GetMapping(mSVGElement);
+
+  while (mapping && mapping->mKey) {
+    if (valAtom == *(mapping->mKey)) {
+      nsSMILValue val(&SMILEnumType::sSingleton);
+      val.mU.mUint = mapping->mVal;
+      aValue = val;
+      aPreventCachingOfSandwich = PR_FALSE;
+      return NS_OK;
+    }
+    mapping++;
+  }
+  
+  // only a warning since authors may mistype attribute values
+  NS_WARNING("unknown enumeration key");
+  return NS_ERROR_FAILURE;
+}
+
+nsSMILValue
+nsSVGEnum::SMILEnum::GetBaseValue() const
+{
+  nsSMILValue val(&SMILEnumType::sSingleton);
+  val.mU.mUint = mVal->mBaseVal;
+  return val;
+}
+
+void
+nsSVGEnum::SMILEnum::ClearAnimValue()
+{
+  if (mVal->mIsAnimated) {
+    mVal->SetAnimValue(mVal->mBaseVal, mSVGElement);
+    mVal->mIsAnimated = PR_FALSE;
+  }
+}
+
+nsresult
+nsSVGEnum::SMILEnum::SetAnimValue(const nsSMILValue& aValue)
+{
+  NS_ASSERTION(aValue.mType == &SMILEnumType::sSingleton,
+               "Unexpected type to assign animated value");
+  if (aValue.mType == &SMILEnumType::sSingleton) {
+    NS_ABORT_IF_FALSE(aValue.mU.mUint <= USHRT_MAX,
+                      "Very large enumerated value - too big for PRUint16");
+    mVal->SetAnimValue(PRUint16(aValue.mU.mUint), mSVGElement);
+  }
+  return NS_OK;
+}
+#endif // MOZ_SMIL

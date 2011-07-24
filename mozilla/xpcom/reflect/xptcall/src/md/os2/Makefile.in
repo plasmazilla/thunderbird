@@ -44,13 +44,13 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= xpcom
 LIBRARY_NAME	= xptcmd
+EXPORT_LIBRARY	= ../..
 MOZILLA_INTERNAL_API = 1
 
 CPPSRCS		= \
 		../unix/xptcinvoke_gcc_x86_unix.cpp \
 		xptcstubs_gcc_x86_os2.cpp \
 		$(NULL)
-REQUIRES = string
 LOCAL_INCLUDES = \
 		-I$(srcdir)/../unix \
 		-I$(srcdir)/../../../../xptinfo/src \
@@ -70,6 +70,3 @@ include $(topsrcdir)/config/rules.mk
 DEFINES		+= -DEXPORT_XPTC_API
 
 LOCAL_INCLUDES	+= -I$(srcdir)/../..
-
-libs:: $(LIBRARY)
-	$(INSTALL) $(LIBRARY) ../..

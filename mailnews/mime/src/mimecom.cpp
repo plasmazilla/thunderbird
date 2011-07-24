@@ -40,10 +40,11 @@
 #include "mimemult.h"  /*   |     |--- MimeMultipart (abstract)      */
 #include "mimemsig.h"  /*   |     |     |--- MimeMultipartSigned (abstract)*/
 #include "mimetext.h"  /*   |     |--- MimeInlineText (abstract)      */
+#include "mimecryp.h"
 #include "mimecth.h"
 
 /*
- * These calls are necessary to expose the object class heirarchy
+ * These calls are necessary to expose the object class hierarchy
  * to externally developed content type handlers.
  */
 extern "C" void *
@@ -80,6 +81,12 @@ extern "C" void *
 XPCOM_GetmimeMultipartSignedClass(void)
 {
   return (void *) &mimeMultipartSignedClass;
+}
+
+extern "C" void *
+XPCOM_GetmimeEncryptedClass(void)
+{
+  return (void *) &mimeEncryptedClass;
 }
 
 extern "C" int

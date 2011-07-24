@@ -46,13 +46,21 @@ include $(topsrcdir)/config/rules.mk
 
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
 
+ifdef MOZ_ENABLE_LIBXUL
 MOZ_PKG_MANIFEST_P = $(srcdir)/package-manifest.in
+else
+define message
+You need to build with --enable-libxul (the default, unless you specify
+--disable-libxul or --enable-shared or --enable-debug) to package a build.
+endef
+default libs installer::
+  $(error $(message))
+endif
 
 MOZ_NONLOCALIZED_PKG_LIST = \
 	xpcom \
 	browser \
 	mail \
-	reporter \
 	$(NULL)
 
 MOZ_LOCALIZED_PKG_LIST = \
@@ -67,6 +75,27 @@ MOZ_OPTIONAL_PKG_LIST = \
 	$(NULL)
 
 DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
+
+ifeq ($(MOZ_CHROME_FILE_FORMAT), jar)
+DEFINES += -DJAREXT=.jar
+else
+DEFINES += -DJAREXT=
+endif
+
+ifdef ENABLE_TESTS
+DEFINES += -DENABLE_TESTS=1
+endif
+
+ifdef MOZ_ANGLE
+DEFINES += -DMOZ_ANGLE=$(MOZ_ANGLE)
+DEFINES += -DMOZ_D3DX9_DLL=$(MOZ_D3DX9_DLL)
+DEFINES += -DMOZ_D3DCOMPILER_DLL=$(MOZ_D3DCOMPILER_DLL)
+endif
+
+ifdef MOZ_DEBUG
+DEFINES += -DMOZ_DEBUG=1
+endif
+
 ifdef MOZ_ENABLE_GNOME_COMPONENT
 DEFINES += -DMOZ_ENABLE_GNOME_COMPONENT=1
 endif
@@ -77,6 +106,10 @@ endif
 
 ifdef NSS_DISABLE_DBM
 DEFINES += -DNSS_DISABLE_DBM=1
+endif
+
+ifdef _MSC_VER
+DEFINES += -D_MSC_VER=$(_MSC_VER)
 endif
 
 ifdef MOZ_USE_NATIVE_UCONV
@@ -99,6 +132,10 @@ ifeq (,$(filter-out WINNT OS2,$(OS_ARCH)))
 DEFINES += -DWIN_OR_OS2=1
 endif
 
+# Don't ifdef MOZ_IPC this because mac ppc needs it too.
+include $(MOZILLA_SRCDIR)/ipc/app/defs.mk
+DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
+
 ifdef MOZ_PKG_MANIFEST_P
 MOZ_PKG_MANIFEST = package-manifest
 
@@ -112,10 +149,15 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 MOZ_PKG_MAC_DSSTORE=branding/dsstore
 MOZ_PKG_MAC_BACKGROUND=branding/background.png
 MOZ_PKG_MAC_ICON=branding/disk.icns
-MOZ_PKG_MAC_EXTRA=--format UDBZ \
-                  --symlink "/Applications: " \
+MOZ_PKG_MAC_EXTRA=--symlink "/Applications:/ " \
                   --copy "$(call EXPAND_LOCALE_SRCDIR,suite/locales)/installer/mac/README.txt"
 endif
+
+NON_OMNIJAR_FILES = \
+	defaults/messenger/mailViews.dat \
+	defaults/profile/localstore.rdf \
+	defaults/profile/panels.rdf \
+	$(NULL)
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
 
@@ -128,10 +170,7 @@ endif
 DEFINES += -DBINPATH=$(BINPATH)
 
 libs::
-	$(MAKE) -C $(DEPTH)/suite/locales langpack PKG_LANGPACK_PATH=
-
-UPLOAD_EXTRA_FILES += $(PKG_LANGPACK_BASENAME).xpi
-
+	$(MAKE) -C $(DEPTH)/suite/locales langpack
 
 ifeq (WINNT,$(OS_ARCH))
 PKGCOMP_FIND_OPTS = 

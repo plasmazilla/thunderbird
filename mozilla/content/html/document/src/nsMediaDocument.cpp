@@ -141,8 +141,8 @@ nsMediaDocument::Init()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Create a bundle for the localization
-  nsCOMPtr<nsIStringBundleService> stringService(
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID));
+  nsCOMPtr<nsIStringBundleService> stringService =
+    mozilla::services::GetStringBundleService();
   if (stringService) {
     stringService->CreateBundle(NSMEDIADOCUMENT_PROPERTIES_URI,
                                 getter_AddRefs(mStringBundle));
@@ -237,7 +237,7 @@ nsMediaDocument::CreateSyntheticDocument()
                                            kNameSpaceID_XHTML);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
-  nsRefPtr<nsGenericHTMLElement> root = NS_NewHTMLHtmlElement(nodeInfo);
+  nsRefPtr<nsGenericHTMLElement> root = NS_NewHTMLHtmlElement(nodeInfo.forget());
   if (!root) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -251,7 +251,7 @@ nsMediaDocument::CreateSyntheticDocument()
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   // Create a <head> so our title has somewhere to live
-  nsRefPtr<nsGenericHTMLElement> head = NS_NewHTMLHeadElement(nodeInfo);
+  nsRefPtr<nsGenericHTMLElement> head = NS_NewHTMLHeadElement(nodeInfo.forget());
   if (!head) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -262,7 +262,7 @@ nsMediaDocument::CreateSyntheticDocument()
                                            kNameSpaceID_XHTML);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
-  nsRefPtr<nsGenericHTMLElement> body = NS_NewHTMLBodyElement(nodeInfo);
+  nsRefPtr<nsGenericHTMLElement> body = NS_NewHTMLBodyElement(nodeInfo.forget());
   if (!body) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -276,25 +276,13 @@ nsresult
 nsMediaDocument::StartLayout()
 {
   mMayStartLayout = PR_TRUE;
-  nsPresShellIterator iter(this);
-  nsCOMPtr<nsIPresShell> shell;
-  while ((shell = iter.GetNextShell())) {
-    if (shell->DidInitialReflow()) {
-      // Don't mess with this presshell: someone has already handled
-      // its initial reflow.
-      continue;
-    }
-    
+  nsCOMPtr<nsIPresShell> shell = GetShell();
+  // Don't mess with the presshell if someone has already handled
+  // its initial reflow.
+  if (shell && !shell->DidInitialReflow()) {
     nsRect visibleArea = shell->GetPresContext()->GetVisibleArea();
     nsresult rv = shell->InitialReflow(visibleArea.width, visibleArea.height);
     NS_ENSURE_SUCCESS(rv, rv);
-
-    // Now trigger a refresh.  vm might be null if the presshell got
-    // Destroy() called already.
-    nsIViewManager* vm = shell->GetViewManager();
-    if (vm) {
-      vm->EnableRefresh(NS_VMREFRESH_IMMEDIATE);
-    }
   }
 
   return NS_OK;

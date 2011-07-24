@@ -37,6 +37,11 @@
 
 #include "nsIDOMHTMLElement.idl"
 
+%{C++
+// for jsval
+#include "jsapi.h"
+%}
+
 /**
  * The nsIDOMHTMLCanvasElement interface is the interface to a HTML
  * <canvas> element.
@@ -47,23 +52,25 @@
  * @status UNDER_DEVELOPMENT
  */
 
-[scriptable, uuid(d87394af-d31a-484e-8b7c-75381045384d)]
+interface nsIDOMFile;
+
+[scriptable, uuid(2e98cd39-2269-493a-a3bb-abe85be2523c)]
 interface nsIDOMHTMLCanvasElement : nsIDOMHTMLElement
 {
-  attribute long width;
-  attribute long height;
+  attribute unsigned long width;
+  attribute unsigned long height;
   attribute boolean mozOpaque;
 
-  nsISupports getContext(in DOMString contextId);
+  nsISupports getContext(in DOMString contextId,
+                         [optional] in jsval contextOptions);
 
-  // This version will query the JS context for its arguments; C++
-  // callers should use toDataURLAs.
-  //
+
   // Valid calls are:
   //  toDataURL();              -- defaults to image/png
   //  toDataURL(type);          -- uses given type
   //  toDataURL(type, params);  -- only available to trusted callers
-  DOMString toDataURL();
+  [optional_argc] DOMString toDataURL([optional] in DOMString type,
+                                      [optional] in DOMString params);
 
   // This version lets you specify different image types and pass parameters
   // to the encoder. For example toDataURLAs("image/png", "transparency=none")
@@ -71,5 +78,16 @@ interface nsIDOMHTMLCanvasElement : nsIDOMHTMLElement
   // the options string that it supports. Separate multiple options with
   // semicolons.
   [noscript] DOMString toDataURLAs(in DOMString mimeType, in DOMString encoderOptions);
+
+ 
+  // Valid calls are
+  // mozGetAsFile(name);              -- defaults to image/png
+  // mozGetAsFile(name, type);        -- uses given type
+  [optional_argc] nsIDOMFile mozGetAsFile(in DOMString name,
+                                          [optional] in DOMString type);
+
+  // A Mozilla-only extension to get a canvas context backed by double-buffered
+  // shared memory. Only privileged callers can call this.
+  nsISupports MozGetIPCContext(in DOMString contextId);
 };
 

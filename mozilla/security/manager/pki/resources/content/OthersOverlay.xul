@@ -39,7 +39,7 @@
 
 <!DOCTYPE overlay SYSTEM "chrome://pippki/locale/certManager.dtd">
 
-<overlay id="WebSitesOverlay" 
+<overlay id="OthersOverlay"
          xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
          xmlns:cert="http://netscape.com/rdf-cert#" 
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
@@ -56,15 +56,8 @@
         <treecol id="emailcol" label="&certmgr.email;"
                      flex="1"/>
         <splitter class="tree-splitter"/>
-<!-- disable the purposes column until we get a solution
-     to fill in this information that is compatible with OCSP
-     and does not block the whole interface
-        <treecol id="purposecol" label="&certmgr.purpose;"
-                     flex="1"/>
--->
         <treecol id="expiredcol" label="&certmgr.expires;"
                  flex="1"/>
-<!--        <treecol id="certdbkeycol" collapsed="true" flex="1"/> -->
       </treecols>
       <treechildren flex="1" ondblclick="viewCerts();"/>
     </tree>
@@ -77,8 +70,8 @@
               accesskey="&certmgr.view2.accesskey;"
               disabled="true" oncommand="viewCerts();"/>
       <button id="email_editButton"
-              label="&certmgr.edit2.label;"
-              accesskey="&certmgr.edit2.accesskey;"
+              label="&certmgr.edit3.label;"
+              accesskey="&certmgr.edit3.accesskey;"
               disabled="true" oncommand="editCerts();"/>
       <button id="email_addButton"
               label="&certmgr.restore2.label;"

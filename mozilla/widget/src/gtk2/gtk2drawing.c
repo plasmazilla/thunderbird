@@ -789,6 +789,9 @@ moz_gtk_init()
 {
     GtkWidgetClass *entry_class;
 
+    if (is_initialized)
+        return MOZ_GTK_SUCCESS;
+
     is_initialized = TRUE;
     have_arrow_scaling = (gtk_major_version > 2 ||
                           (gtk_major_version == 2 && gtk_minor_version >= 12));
@@ -805,6 +808,14 @@ moz_gtk_init()
                              G_PARAM_READWRITE));
 
     return MOZ_GTK_SUCCESS;
+}
+
+GdkColormap*
+moz_gtk_widget_get_colormap()
+{
+    /* Child widgets inherit the colormap from the GtkWindow. */
+    ensure_window_widget();
+    return gtk_widget_get_colormap(gProtoWindow);
 }
 
 gint
@@ -1327,21 +1338,12 @@ moz_gtk_scrollbar_thumb_paint(GtkThemeWidgetType widget,
        surrounding the scrollbar if the theme thinks that it's butted
        up against the scrollbar arrows.  Note the increases of the
        clip rect below. */
-    /* Changing the cliprect is pretty bogus. This lets themes draw
-       outside the frame, which means we don't invalidate them
-       correctly. See bug 297508. But some themes do seem to need
-       it. So we modify the frame's overflow area to account for what
-       we're doing here; see nsNativeThemeGTK::GetWidgetOverflow. */
     adj = gtk_range_get_adjustment(GTK_RANGE(scrollbar));
 
     if (widget == MOZ_GTK_SCROLLBAR_THUMB_HORIZONTAL) {
-        cliprect->x -= 1;
-        cliprect->width += 2;
         adj->page_size = rect->width;
     }
     else {
-        cliprect->y -= 1;
-        cliprect->height += 2;
         adj->page_size = rect->height;
     }
 
@@ -1891,8 +1893,9 @@ moz_gtk_combo_box_paint(GdkDrawable* drawable, GdkRectangle* rect,
 }
 
 static gint
-moz_gtk_downarrow_paint(GdkDrawable* drawable, GdkRectangle* rect,
-                        GdkRectangle* cliprect, GtkWidgetState* state)
+moz_gtk_arrow_paint(GdkDrawable* drawable, GdkRectangle* rect,
+                    GdkRectangle* cliprect, GtkWidgetState* state,
+                    GtkArrowType arrow_type, GtkTextDirection direction)
 {
     GtkStyle* style;
     GtkStateType state_type = ConvertGtkState(state);
@@ -1901,13 +1904,21 @@ moz_gtk_downarrow_paint(GdkDrawable* drawable, GdkRectangle* rect,
 
     ensure_button_arrow_widget();
     style = gButtonArrowWidget->style;
+    gtk_widget_set_direction(gButtonArrowWidget, direction);
 
     calculate_arrow_rect(gButtonArrowWidget, rect, &arrow_rect,
-                         GTK_TEXT_DIR_LTR);
+                         direction);
+
+    if (direction == GTK_TEXT_DIR_RTL) {
+        if (arrow_type == GTK_ARROW_LEFT)
+            arrow_type = GTK_ARROW_RIGHT;
+        else if (arrow_type == GTK_ARROW_RIGHT)
+            arrow_type = GTK_ARROW_LEFT;
+    }
 
     TSOffsetStyleGCs(style, arrow_rect.x, arrow_rect.y);
     gtk_paint_arrow(style, drawable, state_type, shadow_type, cliprect,
-                    gButtonArrowWidget, "arrow",  GTK_ARROW_DOWN, TRUE,
+                    gButtonArrowWidget, "arrow",  arrow_type, TRUE,
                     arrow_rect.x, arrow_rect.y, arrow_rect.width, arrow_rect.height);
 
     return MOZ_GTK_SUCCESS;
@@ -2253,8 +2264,8 @@ moz_gtk_get_tab_thickness(void)
 
 static gint
 moz_gtk_tab_paint(GdkDrawable* drawable, GdkRectangle* rect,
-                  GdkRectangle* cliprect, GtkTabFlags flags,
-                  GtkTextDirection direction)
+                  GdkRectangle* cliprect, GtkWidgetState* state,
+                  GtkTabFlags flags, GtkTextDirection direction)
 {
     /* When the tab isn't selected, we just draw a notebook extension.
      * When it is selected, we overwrite the adjacent border of the tabpanel
@@ -2262,11 +2273,13 @@ moz_gtk_tab_paint(GdkDrawable* drawable, GdkRectangle* rect,
      * tab appear physically attached to the tabpanel; see details below. */
 
     GtkStyle* style;
+    GdkRectangle focusRect;
 
     ensure_tab_widget();
     gtk_widget_set_direction(gTabWidget, direction);
 
     style = gTabWidget->style;
+    focusRect = *rect;
     TSOffsetStyleGCs(style, rect->x, rect->y);
 
     if ((flags & MOZ_GTK_TAB_SELECTED) == 0) {
@@ -2333,11 +2346,9 @@ moz_gtk_tab_paint(GdkDrawable* drawable, GdkRectangle* rect,
         }
 
         if (flags & MOZ_GTK_TAB_BOTTOM) {
-            /* Enlarge the cliprect to have room for the full gap height */
-            cliprect->height += gap_height - gap_voffset;
-            cliprect->y -= gap_height - gap_voffset;
-
             /* Draw the tab */
+            focusRect.y += gap_voffset;
+            focusRect.height -= gap_voffset;
             gtk_paint_extension(style, drawable, GTK_STATE_NORMAL,
                                 GTK_SHADOW_OUT, cliprect, gTabWidget, "tab",
                                 rect->x, rect->y + gap_voffset, rect->width,
@@ -2359,10 +2370,8 @@ moz_gtk_tab_paint(GdkDrawable* drawable, GdkRectangle* rect,
                               3 * gap_height, GTK_POS_BOTTOM,
                               gap_loffset, rect->width);
         } else {
-            /* Enlarge the cliprect to have room for the full gap height */
-            cliprect->height += gap_height - gap_voffset;
-
             /* Draw the tab */
+            focusRect.height -= gap_voffset;
             gtk_paint_extension(style, drawable, GTK_STATE_NORMAL,
                                 GTK_SHADOW_OUT, cliprect, gTabWidget, "tab",
                                 rect->x, rect->y, rect->width,
@@ -2385,6 +2394,22 @@ moz_gtk_tab_paint(GdkDrawable* drawable, GdkRectangle* rect,
                               gap_loffset, rect->width);
         }
 
+    }
+
+    if (state->focused) {
+      /* Paint the focus ring */
+      focusRect.x += XTHICKNESS(style);
+      focusRect.width -= XTHICKNESS(style) * 2;
+      focusRect.y += YTHICKNESS(style);
+      focusRect.height -= YTHICKNESS(style) * 2;
+
+      gtk_paint_focus(style, drawable,
+                      /* Believe it or not, NORMAL means a selected tab and
+                         ACTIVE means an unselected tab. */
+                      (flags & MOZ_GTK_TAB_SELECTED) ? GTK_STATE_NORMAL
+                                                     : GTK_STATE_ACTIVE,
+                      cliprect, gTabWidget, "tab",
+                      focusRect.x, focusRect.y, focusRect.width, focusRect.height);
     }
 
     return MOZ_GTK_SUCCESS;
@@ -2995,7 +3020,7 @@ moz_gtk_get_tab_scroll_arrow_size(gint* width, gint* height)
 }
 
 gint
-moz_gtk_get_downarrow_size(gint* width, gint* height)
+moz_gtk_get_arrow_size(gint* width, gint* height)
 {
     GtkRequisition requisition;
     ensure_button_arrow_widget();
@@ -3117,6 +3142,19 @@ moz_gtk_images_in_menus()
     settings = gtk_widget_get_settings(gImageMenuItemWidget);
 
     g_object_get(settings, "gtk-menu-images", &result, NULL);
+    return result;
+}
+
+gboolean
+moz_gtk_images_in_buttons()
+{
+    gboolean result;
+    GtkSettings* settings;
+
+    ensure_button_widget();
+    settings = gtk_widget_get_settings(gButtonWidget);
+
+    g_object_get(settings, "gtk-button-images", &result, NULL);
     return result;
 }
 
@@ -3270,7 +3308,7 @@ moz_gtk_widget_paint(GtkThemeWidgetType widget, GdkDrawable* drawable,
                                             direction);
         break;
     case MOZ_GTK_TAB:
-        return moz_gtk_tab_paint(drawable, rect, cliprect,
+        return moz_gtk_tab_paint(drawable, rect, cliprect, state,
                                  (GtkTabFlags) flags, direction);
         break;
     case MOZ_GTK_TABPANELS:
@@ -3299,7 +3337,8 @@ moz_gtk_widget_paint(GtkThemeWidgetType widget, GdkDrawable* drawable,
                                         direction);
         break;
     case MOZ_GTK_TOOLBARBUTTON_ARROW:
-        return moz_gtk_downarrow_paint(drawable, rect, cliprect, state);
+        return moz_gtk_arrow_paint(drawable, rect, cliprect, state,
+                                   (GtkArrowType) flags, direction);
         break;
     case MOZ_GTK_CHECKMENUITEM:
     case MOZ_GTK_RADIOMENUITEM:
@@ -3326,8 +3365,7 @@ moz_gtk_widget_paint(GtkThemeWidgetType widget, GdkDrawable* drawable,
 
 GtkWidget* moz_gtk_get_scrollbar_widget(void)
 {
-    if (!is_initialized)
-        return NULL;
+    NS_ASSERTION(is_initialized, "Forgot to call moz_gtk_init()");
     ensure_scrollbar_widget();
     return gHorizScrollbarWidget;
 }

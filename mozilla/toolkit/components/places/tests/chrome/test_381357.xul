@@ -51,7 +51,7 @@ var observer =
   onBeginUpdateBatch: function(){},
   onEndUpdateBatch: function(){
   },
-  onItemAdded: function(itemId, folder, index, itemType) {
+  onItemAdded: function(itemId, folder, index, itemType, uri) {
     var title = bmsvc.getItemTitle(itemId);
     if (title == "The First Title") {
       ok(true, "Item with title loaded");
@@ -67,10 +67,10 @@ var observer =
 
 };
 
-const FEEDSPEC = "http://localhost:8888/tests/toolkit/components/places/tests/chrome/rss_as_html.rss";
+const FEEDSPEC = "http://mochi.test:8888/tests/toolkit/components/places/tests/chrome/rss_as_html.rss";
 
 gLivemarkId = lmsvc.createLivemarkFolderOnly(toolbarFolderId, "foo",
-                                             uri("http:/localhost/"),
+                                             uri("http:/mochi.test/"),
                                              uri(FEEDSPEC), -1);
 bmsvc.addObserver(observer, false);
 lmsvc.reloadLivemarkFolder(gLivemarkId);

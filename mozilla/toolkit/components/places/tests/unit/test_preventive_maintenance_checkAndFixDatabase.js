@@ -43,37 +43,40 @@
 // Include PlacesDBUtils module.
 Components.utils.import("resource://gre/modules/PlacesDBUtils.jsm");
 
-const FINISHED_MAINTENANCE_NOTIFICATION_TOPIC = "places-maintenance-finished";
-
-let os = Cc["@mozilla.org/observer-service;1"].
-         getService(Ci.nsIObserverService);
-let log = [];
-
-let observer = {
-  observe: function(aSubject, aTopic, aData) {
-    if (aTopic == FINISHED_MAINTENANCE_NOTIFICATION_TOPIC) {
-      // Integrity should be good.
-      do_check_eq(log[1], "ok");
-
-      // Check we are not wrongly executing bad integrity tasks.
-      const goodMsgs = ["INTEGRITY", "VACUUM", "CLEANUP", "STATS"];
-      const badMsgs = ["BACKUP", "REINDEX"];
-      log.forEach(function (aLogMsg) {
-        do_check_eq(badMsgs.indexOf(aLogMsg), -1);
-        let index = goodMsgs.indexOf(aLogMsg);
-        if (index != -1)
-          goodMsgs.splice(index, 1);
-      });
-      // Check we have run all tasks.
-      do_check_eq(goodMsgs.length, 0);
-
-      do_test_finished();
-    }
-  }
-}
-os.addObserver(observer, FINISHED_MAINTENANCE_NOTIFICATION_TOPIC, false);
-
 function run_test() {
   do_test_pending();
-  log = PlacesDBUtils.checkAndFixDatabase().split("\n");
+  PlacesDBUtils.checkAndFixDatabase(function(aLog) {
+    let sections = [];
+    let positives = [];
+    let negatives = [];
+    let infos = [];
+
+    aLog.forEach(function (aMsg) {
+      print (aMsg);
+      switch (aMsg.substr(0, 1)) {
+        case "+":
+          positives.push(aMsg);
+          break;
+        case "-":
+          negatives.push(aMsg);
+          break;
+        case ">":
+          sections.push(aMsg);
+          break;
+        default:
+          infos.push(aMsg);
+      }
+    });
+
+    print("Check that we have run all sections.");
+    do_check_eq(sections.length, 5);
+    print("Check that we have no negatives.");
+    do_check_false(!!negatives.length);
+    print("Check that we have positives.");
+    do_check_true(!!positives.length);
+    print("Check that we have info.");
+    do_check_true(!!infos.length);
+
+    do_test_finished();
+  });
 }

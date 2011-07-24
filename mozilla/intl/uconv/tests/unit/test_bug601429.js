@@ -1,18 +1,12 @@
-const Ci = Components.interfaces;
-const Cc = Components.classes;
-const CC = Components.Constructor;
-
 // Tests whether characters above 0x7F decode to ASCII characters liable to 
 // expose XSS vulnerabilities
+load('CharsetConversionTests.js');
+
 function run_test() {
   var failures = false;
   var ccManager = Cc["@mozilla.org/charset-converter-manager;1"]
         .getService(Ci.nsICharsetConverterManager);
-
-  var ScriptableUnicodeConverter = 
-    CC("@mozilla.org/intl/scriptableunicodeconverter",
-       "nsIScriptableUnicodeConverter");
-  var decodingConverter = new ScriptableUnicodeConverter();
+  var decodingConverter = CreateScriptableConverter();
 
   var charsetList = ccManager.getDecoderList();
   var counter = 0;

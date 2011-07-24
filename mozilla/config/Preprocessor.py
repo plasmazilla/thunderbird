@@ -170,6 +170,7 @@ class Preprocessor:
 
   def getCommandLineParser(self, unescapeDefines = False):
     escapedValue = re.compile('".*"$')
+    numberValue = re.compile('\d+$')
     def handleE(option, opt, value, parser):
       for k,v in os.environ.iteritems():
         self.context[k] = v
@@ -180,6 +181,8 @@ class Preprocessor:
       elif unescapeDefines and escapedValue.match(vals[1]):
         # strip escaped string values
         vals[1] = vals[1][1:-1]
+      elif numberValue.match(vals[1]):
+        vals[1] = int(vals[1])
       self.context[vals[0]] = vals[1]
     def handleU(option, opt, value, parser):
       del self.context[value]
@@ -241,10 +244,7 @@ class Preprocessor:
     if m.group('value'):
       val = m.group('value')
       try:
-        if val[0] == '0':
-          val = int(val, 8)
-        else:
-          val = int(val)
+        val = int(val)
       except:
         pass
     self.context[m.group('name')] = val

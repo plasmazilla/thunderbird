@@ -46,12 +46,11 @@
 #include "nsIDocShell.h"
 #include "nsIStringBundle.h"
 #include "nsILocalFile.h"
-#include "nsIObserver.h"
 #include "nsWeakReference.h"
 #include "nsIDOMWindow.h"
 #include "nsVoidArray.h"
 
-class nsMessenger : public nsIMessenger, public nsIObserver, public nsSupportsWeakReference, public nsIFolderListener
+class nsMessenger : public nsIMessenger, public nsSupportsWeakReference, public nsIFolderListener
 {
 
 public:
@@ -60,7 +59,6 @@ public:
 
   NS_DECL_ISUPPORTS  
   NS_DECL_NSIMESSENGER
-  NS_DECL_NSIOBSERVER
   NS_DECL_NSIFOLDERLISTENER
 
   nsresult Alert(const char * stringName);
@@ -82,6 +80,11 @@ public:
                               const char **displayNameArray,
                               const char **messageUriArray,
                               PRBool detaching);
+  nsresult SaveOneAttachment(const char* aContentType,
+                             const char* aURL,
+                             const char* aDisplayName,
+                             const char* aMessageUri,
+                             PRBool detaching);
 
 protected:
   void GetString(const nsString& aStringName, nsString& stringValue);
@@ -100,10 +103,7 @@ private:
 
   nsresult GetSaveToDir(nsILocalFile **aSaveToDir);
 
-  nsresult SetDisplayProperties();
-
   nsString mId;
-  void *mScriptObject;
   nsCOMPtr<nsITransactionManager> mTxnMgr;
 
   /* rhp - need this to drive message display */

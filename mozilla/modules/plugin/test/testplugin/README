@@ -4,6 +4,12 @@
 
 The test plugin registers itself for the MIME type "application/x-test".
 
+== Event Model ==
+
+* getEventModel()
+Returns the NPAPI event model in use. On platforms without event models,
+simply returns 0;
+
 == Rendering ==
 
 By default, the plugin fills its rectangle with gray, with a black border, and
@@ -37,6 +43,28 @@ Hands back an object which reflects properties as values, e.g.
 * convertPointY(sourceSpace, sourceX, sourceY, destSpace)
 The plugin uses NPN_ConvertPoint to convert sourceX and sourceY from the source
 to dest space and returns the X or Y result based on the call.
+
+== NPCocoaEventWindowFocusChanged ==
+
+* getTopLevelWindowActivationState()
+Returns the activation state for the top-level window as set by the last
+NPCocoaEventWindowFocusChanged event. Returns true for active, false for
+inactive, and throws an exception if the state is unknown (uninitialized).
+
+* getTopLevelWindowActivationEventCount()
+Returns the number of NPCocoaEventWindowFocusChanged events received by
+the instance.
+
+== Focus Tests ==
+
+* getFocusState()
+Returns the plugin's focus state. Returns true for focused, false for unfocused,
+and throws an exception if the state is unknown (uninitialized). This does not
+necessarily correspond to actual input focus - this corresponds to focus as
+defined by the NPAPI event model in use.
+
+* getFocusEventCount()
+Returns the number of focus events received by the instance.
 
 == NPRuntime testing ==
 
@@ -102,6 +130,13 @@ with a boolean value, indicating whether the tests were successful.
 NPN_PluginThreadAsyncCall.  When finished, calls the script callback
 with a boolean value, indicating whether the tests were successful.
 
+* paintscript="..." content attribute
+If the "paintscript" attribute is set on the plugin element during plugin
+initialization, then every time the plugin paints it gets the contents of that
+attribute and evaluates it as a script in the context of the plugin's DOM
+window. This is useful for testing evil plugin code that might, for example,
+modify the DOM during painting.
+
 == Private browsing ==
 
 The test plugin object supports the following scriptable methods:
@@ -142,6 +177,10 @@ window.
 
 * getWidthAtLastPaint()
 Returns the window width that was current when the plugin last painted.
+
+* setInvalidateDuringPaint(value)
+When value is true, every time the plugin paints, it will invalidate
+itself *during the paint* using NPN_Invalidate.
 
 == Plugin geometry ==
 
@@ -308,14 +347,17 @@ If the plugin is instantiated as a full-page plugin, the following defaults
 are used:
   streammode="seek" frame="testframe" range="100,100"
 
-The .streamTest(url, doPost, postData, callback) function will test how
-NPN_GetURLNotify and NPN_PostURLNotify behave when they are called with
-arbitrary (malformed) URLs. The function will return `true` if NPN_GetURLNotify
-succeeds, and `false` if it fails.
+The streamTest(url, doPost, postData, writeCallback, notifyCallback, redirectCallback, allowRedirects)
+function will test how NPN_GetURLNotify and NPN_PostURLNotify behave when they are
+called with arbitrary (malformed) URLs. The function will return `true` if
+NPN_[Get/Post]URLNotify succeeds, and `false` if it fails.
+@url url to request
 @param doPost whether to call NPN_PostURLNotify
 @param postData null, or a string to send a postdata
-@callback which will be called when the urlnotify is received with the notify
-result
+@writeCallback will be called when data is received for the stream
+@notifyCallback will be called when the urlnotify is received with the notify result
+@redirectCallback will be called from urlredirectnotify if a redirect is attempted
+@allowRedirects boolean value indicating whether or not to allow redirects
 
 == Internal consistency ==
 

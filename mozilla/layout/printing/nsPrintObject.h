@@ -40,13 +40,14 @@
 // Interfaces
 #include "nsCOMPtr.h"
 #include "nsIContent.h"
-#include "nsPresContext.h"
 #include "nsIPresShell.h"
 #include "nsStyleSet.h"
 #include "nsIViewManager.h"
 #include "nsIDocShell.h"
 #include "nsIDocument.h"
-#include "nsIWidget.h"
+#include "nsIDocShellTreeOwner.h"
+
+class nsPresContext;
 
 // nsPrintObject Document Type
 enum PrintObjectType  {eDoc = 0, eFrame = 1, eIFrame = 2, eFrameSet = 3};
@@ -62,21 +63,22 @@ public:
   ~nsPrintObject(); // non-virtual
 
   // Methods
-  nsresult Init(nsIDocShell* aDocShell);
+  nsresult Init(nsIDocShell* aDocShell, nsIDOMDocument* aDoc,
+                PRBool aPrintPreview);
 
   PRBool IsPrintable()  { return !mDontPrint; }
   void   DestroyPresentation();
 
   // Data Members
   nsCOMPtr<nsIDocShell>    mDocShell;
+  nsCOMPtr<nsIDocShellTreeOwner> mTreeOwner;
   nsCOMPtr<nsIDocument>    mDocument;
 
-  nsCOMPtr<nsPresContext>  mPresContext;
+  nsRefPtr<nsPresContext>  mPresContext;
   nsCOMPtr<nsIPresShell>   mPresShell;
   nsCOMPtr<nsIViewManager> mViewManager;
-  nsCOMPtr<nsIWidget>      mWindow;
 
-  nsIContent*      mContent;
+  nsCOMPtr<nsIContent>     mContent;
   PrintObjectType  mFrameType;
   
   nsTArray<nsPrintObject*> mKids;
@@ -86,7 +88,8 @@ public:
   PRPackedBool     mPrintAsIs;
   PRPackedBool     mSharedPresShell;
   PRPackedBool     mInvisible;        // Indicates PO is set to not visible by CSS
-
+  PRPackedBool     mPrintPreview;
+  PRPackedBool     mDidCreateDocShell;
   float            mShrinkRatio;
   float            mZoomRatio;
 

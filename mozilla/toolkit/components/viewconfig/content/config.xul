@@ -46,8 +46,10 @@
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" 
         title="&window.title;"
         windowtype="Preferences:ConfigManager"
+        role="application"
         width="750"
         height="500"
+        disablefastfind="true"
         onunload="onConfigUnload();"
         onload="onConfigLoad();">
 
@@ -55,7 +57,7 @@
 
 <stringbundle id="configBundle" src="chrome://global/locale/config.properties"/>
 
-<popup id="configContext" onpopupshowing="if (event.target == this) updateContextMenu();">
+<menupopup id="configContext" onpopupshowing="if (event.target == this) updateContextMenu();">
   <menuitem id="toggleSelected" default="true"
             label="&toggle.label;" accesskey="&toggle.accesskey;"
             oncommand="ModifySelected();"/>
@@ -74,7 +76,7 @@
     </menupopup>
   </menu>
   <menuitem id="resetSelected" label="&reset.label;" accesskey="&reset.accesskey;" oncommand="ResetSelected();"/>
-</popup>
+</menupopup>
 
 <keyset id="configTreeKeyset" disabled="true">
   <key keycode="VK_ENTER" oncommand="ModifySelected();"/>
@@ -110,23 +112,19 @@
           enableColumnDrag="true" context="configContext">
       <treecols>
         <treecol id="prefCol" label="&prefColumn.label;" flex="7"
-            class="sortDirectionIndicator"
             ignoreincolumnpicker="true"
             persist="hidden width ordinal sortDirection"/>
         <splitter class="tree-splitter" />
         <treecol id="lockCol" label="&lockColumn.label;" flex="1"
-            class="sortDirectionIndicator"
             persist="hidden width ordinal sortDirection"/>
         <splitter class="tree-splitter" />
         <treecol id="typeCol" label="&typeColumn.label;" flex="1"
-            class="sortDirectionIndicator"
             persist="hidden width ordinal sortDirection"/>
         <splitter class="tree-splitter" />
         <treecol id="valueCol" label="&valueColumn.label;" flex="10"
-            class="sortDirectionIndicator"
             persist="hidden width ordinal sortDirection"/>
       </treecols>
-  
+
       <treechildren id="configTreeBody" ondblclick="if (event.button == 0) ModifySelected();"/>
     </tree>
   </vbox>

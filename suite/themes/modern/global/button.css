@@ -36,10 +36,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 /* ===== button.css =====================================================
-  == Styles used by the XUL button element.
+  == Styles used by the XUL (and XHTML in netError.xhtml) button element.
   ======================================================================= */
-
-@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
 /* :::::::::: button :::::::::: */
 
@@ -50,10 +48,10 @@ button {
   -moz-border-right-colors: transparent transparent transparent #000000 #A2AEBB #A7B4C1;
   -moz-border-bottom-colors: transparent transparent transparent #000000 #97A6B6 #9DAAB9;
   -moz-border-left-colors: transparent transparent transparent #000000 #BBC6D1 #B1BBC9;
-  -moz-border-radius: 5px;
+  border-radius: 5px;
   min-width: 6em;
   background-color: #AAB6C4;
-  -moz-background-clip: padding;
+  background-clip: padding-box;
   color: #000000;
   font: menu;
 }
@@ -126,7 +124,7 @@ button[default="true"]:hover:active {
   -moz-border-right-colors: transparent transparent #000000 #000000 #8290A5 #899AAC;
   -moz-border-bottom-colors: transparent transparent #000000 #000000 #8290A5 #899AAC;
   -moz-border-left-colors: transparent transparent #000000 #000000 #8290A5 #899AAC;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
 }
 
 button[default="true"]:hover:active:focus {
@@ -146,9 +144,7 @@ button[default="true"]:focus {
 /* ::::: menu/menu-button buttons ::::: */
 
 button[type="menu-button"] {
-  -moz-box-align: center;
-  -moz-box-pack: center;
-  border: none !important;
+  border: none;
   background: transparent !important;
 }
 
@@ -159,10 +155,8 @@ button[type="menu-button"] {
 .button-menu-dropmarker,
 .button-menubutton-dropmarker {
   margin: 1px;
-  background-color: transparent !important;
-  border: none !important;
-  min-width:9px;
-  min-height:5px;
+  background-color: transparent;
+  border: none;
 }
   
 .button-menubutton-dropmarker[open="true"] {
@@ -183,3 +177,9 @@ button.plain:hover:active
   padding: 0px;
 }
 
+/* ::::: xhtml buttons ::::: */
+
+button::-moz-focus-inner {
+  padding: 0px;
+  border: 0px none;
+}

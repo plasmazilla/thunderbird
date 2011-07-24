@@ -13,7 +13,7 @@
  *
  * The Original Code is sessionstore test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -34,13 +34,22 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+function browserWindowsCount() {
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  return count;
+}
+
 function test() {
   /** Test for Bug 514751 (Wallpaper) **/
+  is(browserWindowsCount(), 1, "Only one browser window should be open initially");
 
   let ss = Cc["@mozilla.org/browser/sessionstore;1"].
            getService(Ci.nsISessionStore);
-  let ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-           getService(Ci.nsIWindowWatcher);
 
   waitForExplicitFinish();
 
@@ -55,43 +64,21 @@ function test() {
     }]
   };
 
-  let windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-      let theWin = aSubject.QueryInterface(Ci.nsIDOMWindow);
-
-      switch(aTopic) {
-        case "domwindowopened":
-          theWin.addEventListener("load", function () {
-            theWin.removeEventListener("load", arguments.callee, false);
-            executeSoon(function() {
-              var gotError = false;
-              try {
-                ss.setWindowState(theWin, JSON.stringify(state), true);
-              } catch (e) {
-                if (/NS_ERROR_MALFORMED_URI/.test(e))
-                  gotError = true;
-              }
-              ok(!gotError, "Didn't get a malformed URI error.");
-              executeSoon(function() {
-                theWin.close();
-              });
-            });
-          }, false);
-          break;
-
-        case "domwindowclosed":
-          ww.unregisterNotification(this);
-          finish();
-          break;
+  var theWin = openDialog(location, "", "chrome,all,dialog=no");
+  theWin.addEventListener("load", function () {
+    executeSoon(function () {
+      var gotError = false;
+      try {
+        ss.setWindowState(theWin, JSON.stringify(state), true);
+      } catch (e) {
+        if (/NS_ERROR_MALFORMED_URI/.test(e))
+          gotError = true;
       }
-    }
-  }
-  ww.registerNotification(windowObserver);
-  ww.openWindow(null,
-                location,
-                "_blank",
-                "chrome,all,dialog=no",
-                null);
-
+      ok(!gotError, "Didn't get a malformed URI error.");
+      theWin.close();
+      is(browserWindowsCount(), 1, "Only one browser window should be open eventually");
+      finish();
+    });
+  }, false);
 }
 

@@ -115,6 +115,11 @@ class CxxCodeGen(CodePrinter, Visitor):
         td.fromtype.accept(self)
         self.println(' '+ td.totypename +';')
 
+    def visitUsing(self, us):
+        self.printdent('using ')
+        us.type.accept(self)
+        self.println(';')
+
     def visitForwardDecl(self, fd):
         if fd.cls:      self.printdent('class ')
         elif fd.struct: self.printdent('struct ')
@@ -196,6 +201,15 @@ class CxxCodeGen(CodePrinter, Visitor):
     def visitMethodDecl(self, md):
         assert not (md.static and md.virtual)
 
+        if md.T:
+            self.write('template<')
+            self.write('typename ')
+            md.T.accept(self)
+            self.println('>')
+            self.printdent()
+
+        if md.inline:
+            self.write('inline ')
         if md.static:
             self.write('static ')
         if md.virtual:
@@ -216,6 +230,8 @@ class CxxCodeGen(CodePrinter, Visitor):
 
         if md.const:
             self.write(' const')
+        if md.warn_unused:
+            self.write(' NS_WARN_UNUSED_RESULT')
         if md.pure:
             self.write(' = 0')
 
@@ -262,6 +278,8 @@ class CxxCodeGen(CodePrinter, Visitor):
 
 
     def visitDestructorDecl(self, dd):
+        if dd.inline:
+            self.write('inline ')
         if dd.virtual:
             self.write('virtual ')
 

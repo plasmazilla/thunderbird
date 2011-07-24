@@ -69,7 +69,7 @@ public:
                                nsIAtom*        aAttribute,
                                PRInt32         aModType);
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   /**
    * Get the "type" of the frame
@@ -89,6 +89,8 @@ public:
 
   // nsIAnonymousContentCreator
   virtual nsresult CreateAnonymousContent(nsTArray<nsIContent*>& aElements);
+  virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
+                                        PRUint32 aFilter);
 };
 
 //----------------------------------------------------------------------
@@ -151,10 +153,10 @@ nsSVGUseFrame::AttributeChanged(PRInt32         aNameSpaceID,
 }
 
 void
-nsSVGUseFrame::Destroy()
+nsSVGUseFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   nsRefPtr<nsSVGUseElement> use = static_cast<nsSVGUseElement*>(mContent);
-  nsSVGUseFrameBase::Destroy();
+  nsSVGUseFrameBase::DestroyFrom(aDestructRoot);
   use->DestroyAnonymousContent();
 }
 
@@ -179,4 +181,13 @@ nsSVGUseFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
   if (!aElements.AppendElement(clone))
     return NS_ERROR_OUT_OF_MEMORY;
   return NS_OK;
+}
+
+void
+nsSVGUseFrame::AppendAnonymousContentTo(nsBaseContentList& aElements,
+                                        PRUint32 aFilter)
+{
+  nsSVGUseElement *use = static_cast<nsSVGUseElement*>(mContent);
+  nsIContent* clone = use->GetAnonymousContent();
+  aElements.MaybeAppendElement(clone);
 }

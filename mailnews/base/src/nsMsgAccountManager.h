@@ -81,6 +81,8 @@ public:
   /// Handles event posted to event queue to batch notifications.
   void ProcessUpdateEvent(nsIMsgFolder *folder, nsIMsgDatabase *db);
 
+  void DecrementNewMsgCount();
+
   nsCOMPtr <nsIMsgFolder> m_virtualFolder; // folder we're listening to db changes on behalf of.
   nsCOMPtr <nsIMsgFolder> m_folderWatching; // folder whose db we're listening to.
   nsCOMPtr <nsISupportsArray> m_searchTerms;
@@ -132,9 +134,12 @@ private:
   PRBool m_cleanupInboxInProgress;
 
   nsCString mAccountKeyList;
-  
-  PRBool m_haveShutdown;
-  PRBool m_shutdownInProgress;
+
+  // These are static because the account manager may go away during
+  // shutdown, and get recreated.
+  static PRBool m_haveShutdown;
+  static PRBool m_shutdownInProgress;
+
   PRBool m_userAuthenticated;
   PRBool m_loadingVirtualFolders;
   PRBool m_virtualFoldersLoaded;

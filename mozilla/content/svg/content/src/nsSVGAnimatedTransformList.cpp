@@ -67,12 +67,14 @@ nsSVGAnimatedTransformList::Init(nsIDOMSVGTransformList* baseVal)
 NS_IMPL_ADDREF(nsSVGAnimatedTransformList)
 NS_IMPL_RELEASE(nsSVGAnimatedTransformList)
 
+DOMCI_DATA(SVGAnimatedTransformList, nsSVGAnimatedTransformList)
+
 NS_INTERFACE_MAP_BEGIN(nsSVGAnimatedTransformList)
   NS_INTERFACE_MAP_ENTRY(nsISVGValue)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGAnimatedTransformList)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   NS_INTERFACE_MAP_ENTRY(nsISVGValueObserver)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimatedTransformList)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimatedTransformList)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsISVGValue)
 NS_INTERFACE_MAP_END
 
@@ -134,6 +136,31 @@ nsSVGAnimatedTransformList::DidModifySVGObservable (nsISVGValue* observable,
   return NS_OK;
 }
 
+//----------------------------------------------------------------------
+// Misc nsSVGAnimatedTransformList methods
+
+PRBool
+nsSVGAnimatedTransformList::IsExplicitlySet() const
+{
+  // XXX Dummy implementation until bug 602759 is fixed.
+  // Like other methods of this name, we need to know when a transform value has
+  // been explicitly set (either by markup, a DOM call, or animation).
+  // Given our current implementation, we can say that's the case so long as
+  // mBaseVal has something in it or mAnimVal exists.
+  // It's not quite right because, for example, if we have transform="" we
+  // should probably behave as if the value is set, but for now it will do until
+  // bug 602759 is fixed.
+  if (mAnimVal)
+    return PR_TRUE;
+
+  if (!mBaseVal)
+    return PR_FALSE;
+
+  PRUint32 numItems = 0;
+  nsIDOMSVGTransformList *list = mBaseVal.get();
+  list->GetNumberOfItems(&numItems);
+  return numItems > 0;
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Exported creation functions:

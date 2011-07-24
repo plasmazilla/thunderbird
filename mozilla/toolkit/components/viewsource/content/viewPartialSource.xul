@@ -78,7 +78,7 @@
 
   <command id="cmd_savePage" oncommand="ViewSourceSavePage();"/>
   <command id="cmd_print" oncommand="PrintUtils.print();"/>
-  <command id="cmd_printpreview" oncommand="PrintUtils.printPreview(onEnterPP, onExitPP);"/>
+  <command id="cmd_printpreview" oncommand="PrintUtils.printPreview(PrintPreviewListener);"/>
   <command id="cmd_pagesetup" oncommand="PrintUtils.showPageSetup();"/>
   <command id="cmd_close" oncommand="window.close();"/>
   <commandset id="editMenuCommands"/>
@@ -111,19 +111,19 @@
     <key id="key_textZoomReset2" key="&textReset.commandkey2;" command="cmd_textZoomReset" modifiers="accel"/>
   </keyset>
 
-  <popup id="viewSourceContextMenu">
+  <menupopup id="viewSourceContextMenu">
     <menuitem id="cMenu_findAgain"/>
     <menuseparator/>
     <menuitem id="cMenu_copy"/>
     <menuseparator/>
     <menuitem id="cMenu_selectAll"/>
-  </popup>
+  </menupopup>
 
   <!-- Menu --> 
   <toolbox id="viewSource-toolbox">
     <menubar id="viewSource-main-menubar">
 
-      <menu id="file_menu" label="&fileMenu.label;" accesskey="&fileMenu.accesskey;">
+      <menu id="menu_file" label="&fileMenu.label;" accesskey="&fileMenu.accesskey;">
         <menupopup id="filemenu-popup">
           <menuitem key="key_savePage" command="cmd_savePage" id="menu_savePage"
                     label="&savePageCmd.label;" accesskey="&savePageCmd.accesskey;"/>
@@ -184,7 +184,7 @@
     </menubar>  
   </toolbox>
 
-  <vbox id="appcontent" flex="1" ondrop="contentAreaDNDObserver.drop(event);">
+  <vbox id="appcontent" flex="1">
     <browser id="content" type="content-primary" name="content" src="about:blank" flex="1"
              disablehistory="true" context="viewSourceContextMenu"/>
     <findbar id="FindToolbar" browserid="content"/>

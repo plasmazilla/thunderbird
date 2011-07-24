@@ -46,23 +46,7 @@ MODULE = inspector
 LIBRARY_NAME = inspector_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  gfx \
-		  thebes \
-		  layout \
-		  content \
-		  widget \
-		  locale \
-		  necko \
-		  docshell \
-		  webshell \
-		  $(NULL)
 
-ifdef ACCESSIBILITY
-REQUIRES        += accessibility
-endif
 
 CPPSRCS= \
   inDeepTreeWalker.cpp \
@@ -74,9 +58,6 @@ CPPSRCS= \
 	$(NULL)
 
 ifdef MOZ_XUL
-REQUIRES += \
-  xul \
-  $(NULL)
 CPPSRCS += \
   inDOMView.cpp \
   $(NULL)

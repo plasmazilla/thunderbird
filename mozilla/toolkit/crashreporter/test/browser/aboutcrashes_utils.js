@@ -57,7 +57,8 @@ function make_fake_appdir() {
 function cleanup_fake_appdir() {
   let dirSvc = Cc["@mozilla.org/file/directory_service;1"]
                .getService(Ci.nsIProperties);
-  dirSvc.unregisterProvider(_provider);
+  dirSvc.QueryInterface(Ci.nsIDirectoryService)
+        .unregisterProvider(_provider);
   // undefine our value so future calls get the real value
   try {
     dirSvc.undefine("UAppData");
@@ -107,10 +108,9 @@ function writeDataToFile(file, data) {
   fstream.close();
 }
 
-function addPendingCrashreport(crD, extra) {
+function addPendingCrashreport(crD, date, extra) {
   let pendingdir = crD.clone();
   pendingdir.append("pending");
-  let date = Date.now() - Math.round(Math.random() * 10 * 60000);
   let uuidGenerator = Cc["@mozilla.org/uuid-generator;1"]
                       .getService(Ci.nsIUUIDGenerator);
   let uuid = uuidGenerator.generateUUID().toString();

@@ -15,7 +15,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -47,7 +47,7 @@ try {
 var observer = {
   onBeginUpdateBatch: function() {},
   onEndUpdateBatch: function() {},
-  onItemAdded: function(id, folder, index, itemType) {
+  onItemAdded: function(id, folder, index, itemType, uri) {
     this._itemAddedId = id;
     this._itemAddedParent = folder;
     this._itemAddedIndex = index;
@@ -82,9 +82,9 @@ function run_test() {
                                    bmsvc.DEFAULT_INDEX, "");
   do_check_true(observer.itemChangedProperty == null);
 
-  // We set lastModified 1us in the past to workaround a timing bug on
+  // We set lastModified in the past to workaround a timing bug on
   // virtual machines, see bug 427142 for details.
-  var newDate = Date.now() * 1000 - 1;
+  var newDate = (Date.now() - 10) * 1000;
   bmsvc.setItemDateAdded(bookmarkId, newDate);
   // test notification
   do_check_eq(observer._itemChangedProperty, "dateAdded");
@@ -127,15 +127,15 @@ function run_test() {
   do_check_eq(bmsvc.getItemLastModified(bookmarkId), childNode.lastModified);
 
   // test live update of lastModified caused by other changes:
-  // We set lastModified 1us in the past to workaround a timing bug on
-  // virtual machines, see bug 427142 for details.
-  var pastDate = Date.now() * 1000 - 1;
+  // We set lastModified in the past to workaround timers resolution,
+  // see bug 427142 for details.
+  var pastDate = (Date.now() - 10) * 1000;
   bmsvc.setItemLastModified(bookmarkId, pastDate);
   // set title (causing update of last modified)
   var oldLastModified = bmsvc.getItemLastModified(bookmarkId);
   bmsvc.setItemTitle(bookmarkId, "Google");
   // test that lastModified is updated
-  do_check_true(oldLastModified < childNode.lastModified);
+  is_time_ordered(oldLastModified, childNode.lastModified);
   // test that node value matches db value
   do_check_eq(bmsvc.getItemLastModified(bookmarkId), childNode.lastModified);
 

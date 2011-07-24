@@ -14,7 +14,7 @@
  * The Original Code is mozilla.org Address Book code
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -66,6 +66,10 @@ nsAbAutoCompleteResult.prototype = {
     return this._searchResults[aIndex].value;
   },
 
+  getLabelAt: function getLabelAt(aIndex) {
+    return this.getValueAt(aIndex);
+  },
+
   getCommentAt: function getCommentAt(aIndex) {
     return this._searchResults[aIndex].comment;
   },
@@ -100,9 +104,7 @@ function nsAbAutoCompleteSearch() {}
 
 nsAbAutoCompleteSearch.prototype = {
   // For component registration
-  classDescription: "Address Book Autocomplete",
   classID: Components.ID("2f946df9-114c-41fe-8899-81f10daf4f0c"),
-  contractID: "@mozilla.org/autocomplete/search;1?name=addrbook",
 
   // This is set from a preference,
   // 0 = no comment column, 1 = name of address book this card came from
@@ -491,9 +493,5 @@ nsAbAutoCompleteSearch.prototype = {
 
 // Module
 
-let components = [nsAbAutoCompleteSearch];
-
-function NSGetModule(compMgr, fileSpec)
-{
-  return XPCOMUtils.generateModule(components);
-}
+var components = [nsAbAutoCompleteSearch];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

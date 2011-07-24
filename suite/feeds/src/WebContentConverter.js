@@ -43,7 +43,6 @@ Components.utils.import("resource://gre/modules/debug.js");
 
 const WCCR_CONTRACTID = "@mozilla.org/embeddor.implemented/web-content-handler-registrar;1";
 const WCCR_CLASSID = Components.ID("{792a7e82-06a0-437c-af63-b2d12e808acc}");
-const WCCR_CLASSNAME = "Web Content Handler Registrar";
 
 const WCC_CLASSID = Components.ID("{db7ebf28-cc40-415f-8a51-1b111851df1e}");
 const WCC_CLASSNAME = "Web Service Handler";
@@ -762,7 +761,7 @@ WebContentConverterRegistrar.prototype = {
      * branch and stop cycling once that's true.  This doesn't fix the case
      * where a user manually removes a reader, but that's not supported yet!
      */
-    var vals = branch.getChildList("", {});
+    var vals = branch.getChildList("");
     if (vals.length == 0)
       return;
 
@@ -787,7 +786,7 @@ WebContentConverterRegistrar.prototype = {
                           .getService(Components.interfaces.nsIPrefService);
 
     var kids = prefs.getBranch(PREF_CONTENTHANDLERS_BRANCH)
-                    .getChildList("", {});
+                    .getChildList("");
     // first get the numbers of the providers by getting all ###.uri prefs
     var nums = [];
     for (let i = 0; i < kids.length; i++) {
@@ -807,7 +806,7 @@ WebContentConverterRegistrar.prototype = {
     // so that getWebContentHandlerByURI can return successfully.
     try {
       var autoBranch = prefs.getBranch(PREF_CONTENTHANDLERS_AUTO);
-      var childPrefs = autoBranch.getChildList("", { });
+      var childPrefs = autoBranch.getChildList("");
       for (let i = 0; i < childPrefs.length; ++i) {
         let type = childPrefs[i];
         let uri = autoBranch.getCharPref(type);
@@ -865,8 +864,6 @@ WebContentConverterRegistrar.prototype = {
     return null;
   },
 
-  contractID: WCCR_CONTRACTID,
-  classDescription: WCCR_CLASSNAME,
   classID: WCCR_CLASSID,
   implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
   flags: Components.interfaces.nsIClassInfo.DOM_OBJECT,
@@ -880,14 +877,7 @@ WebContentConverterRegistrar.prototype = {
      Components.interfaces.nsIObserver,
      Components.interfaces.nsIClassInfo,
      Components.interfaces.nsIFactory,
-     Components.interfaces.nsISupports]),
-
-  _xpcom_categories: [{
-    category: "app-startup",
-    service: true
-  }]
+     Components.interfaces.nsISupports])
 };
 
-function NSGetModule(cm, file) {
-  return XPCOMUtils.generateModule([WebContentConverterRegistrar]);
-}
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([WebContentConverterRegistrar]);

@@ -118,13 +118,13 @@ nsSimplePageSequenceFrame::nsSimplePageSequenceFrame(nsStyleContext* aContext) :
   mSelectionHeight(-1),
   mYSelOffset(0)
 {
-  nscoord halfInch = PresContext()->TwipsToAppUnits(NS_INCHES_TO_TWIPS(0.5));
+  nscoord halfInch = PresContext()->CSSTwipsToAppUnits(NS_INCHES_TO_TWIPS(0.5));
   mMargin.SizeTo(halfInch, halfInch, halfInch, halfInch);
 
   // XXX Unsafe to assume successful allocation
   mPageData = new nsSharedPageData();
   mPageData->mHeadFootFont = new nsFont(*PresContext()->GetDefaultFont(kGenericFont_serif));
-  mPageData->mHeadFootFont->size = PresContext()->PointsToAppUnits(10);
+  mPageData->mHeadFootFont->size = nsPresContext::CSSPointsToAppUnits(10);
 
   nsresult rv;
   mPageData->mPrintOptions = do_GetService(sPrintOptionsContractID, &rv);
@@ -144,17 +144,6 @@ NS_QUERYFRAME_HEAD(nsSimplePageSequenceFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsContainerFrame)
 
 //----------------------------------------------------------------------
-
-// Creates a continuing page frame
-nsresult
-nsSimplePageSequenceFrame::CreateContinuingPageFrame(nsPresContext* aPresContext,
-                                                     nsIFrame*       aPageFrame,
-                                                     nsIFrame**      aContinuingPage)
-{
-  // Create the continuing frame
-  return aPresContext->PresShell()->FrameConstructor()->
-    CreateContinuingFrame(aPresContext, aPageFrame, this, aContinuingPage);
-}
 
 NS_IMETHODIMP
 nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
@@ -176,8 +165,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     // Return our desired size
     aDesiredSize.height  = mSize.height * PresContext()->GetPrintPreviewScale();
     aDesiredSize.width   = mSize.width * PresContext()->GetPrintPreviewScale();
-    aDesiredSize.mOverflowArea = nsRect(0, 0, aDesiredSize.width,
-                                        aDesiredSize.height);
+    aDesiredSize.SetOverflowAreasToDesiredBounds();
     FinishAndStoreOverflow(&aDesiredSize);
     return NS_OK;
   }
@@ -201,7 +189,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
 
     nsIntMargin marginTwips;
     mPageData->mPrintSettings->GetMarginInTwips(marginTwips);
-    mMargin = aPresContext->TwipsToAppUnits(marginTwips + unwriteableTwips);
+    mMargin = aPresContext->CSSTwipsToAppUnits(marginTwips + unwriteableTwips);
 
     PRInt16 printType;
     mPageData->mPrintSettings->GetPrintRange(&printType);
@@ -211,14 +199,14 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     mPageData->mPrintSettings->GetEdgeInTwips(edgeTwips);
 
     // sanity check the values. three inches are sometimes needed
-    PRInt32 inchInTwips = NS_INCHES_TO_TWIPS(3.0);
-    edgeTwips.top = PR_MIN(PR_MAX(edgeTwips.top, 0), inchInTwips);
-    edgeTwips.bottom = PR_MIN(PR_MAX(edgeTwips.bottom, 0), inchInTwips);
-    edgeTwips.left = PR_MIN(PR_MAX(edgeTwips.left, 0), inchInTwips);
-    edgeTwips.right = PR_MIN(PR_MAX(edgeTwips.right, 0), inchInTwips);
+    PRInt32 inchInTwips = NS_INCHES_TO_INT_TWIPS(3.0);
+    edgeTwips.top = NS_MIN(NS_MAX(edgeTwips.top, 0), inchInTwips);
+    edgeTwips.bottom = NS_MIN(NS_MAX(edgeTwips.bottom, 0), inchInTwips);
+    edgeTwips.left = NS_MIN(NS_MAX(edgeTwips.left, 0), inchInTwips);
+    edgeTwips.right = NS_MIN(NS_MAX(edgeTwips.right, 0), inchInTwips);
 
     mPageData->mEdgePaperMargin =
-      aPresContext->TwipsToAppUnits(edgeTwips + unwriteableTwips);
+      aPresContext->CSSTwipsToAppUnits(edgeTwips + unwriteableTwips);
   }
 
   // *** Special Override ***
@@ -239,17 +227,17 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
 
   // Compute the size of each page and the x coordinate that each page will
   // be placed at
-  nscoord extraThreshold = PR_MAX(pageSize.width, pageSize.height)/10;
+  nscoord extraThreshold = NS_MAX(pageSize.width, pageSize.height)/10;
   PRInt32 gapInTwips = nsContentUtils::GetIntPref("print.print_extra_margin");
-  gapInTwips = PR_MAX(0, gapInTwips);
+  gapInTwips = NS_MAX(0, gapInTwips);
 
-  nscoord extraGap = aPresContext->TwipsToAppUnits(gapInTwips);
-  extraGap = PR_MIN(extraGap, extraThreshold); // clamp to 1/10 of the largest dim of the page
+  nscoord extraGap = aPresContext->CSSTwipsToAppUnits(gapInTwips);
+  extraGap = NS_MIN(extraGap, extraThreshold); // clamp to 1/10 of the largest dim of the page
 
   nscoord  deadSpaceGap = 0;
   if (isPrintPreview) {
     GetDeadSpaceValue(&gapInTwips);
-    deadSpaceGap = aPresContext->TwipsToAppUnits(gapInTwips);
+    deadSpaceGap = aPresContext->CSSTwipsToAppUnits(gapInTwips);
   }
 
   nsMargin extraMargin(0,0,0,0);
@@ -300,19 +288,19 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
     nsIFrame* kidNextInFlow = kidFrame->GetNextInFlow();
 
     if (NS_FRAME_IS_FULLY_COMPLETE(status)) {
-      NS_ASSERTION(nsnull == kidNextInFlow, "bad child flow list");
-    } else if (nsnull == kidNextInFlow) {
+      NS_ASSERTION(!kidNextInFlow, "bad child flow list");
+    } else if (!kidNextInFlow) {
       // The page isn't complete and it doesn't have a next-in-flow, so
-      // create a continuing page
+      // create a continuing page.
       nsIFrame* continuingPage;
-      nsresult rv = CreateContinuingPageFrame(aPresContext, kidFrame,
-                                              &continuingPage);
+      nsresult rv = aPresContext->PresShell()->FrameConstructor()->
+        CreateContinuingFrame(aPresContext, kidFrame, this, &continuingPage);
       if (NS_FAILED(rv)) {
         break;
       }
 
       // Add it to our child list
-      kidFrame->SetNextSibling(continuingPage);
+      mFrames.InsertFrame(nsnull, kidFrame, continuingPage);
     }
 
     // Get the next page
@@ -361,8 +349,7 @@ nsSimplePageSequenceFrame::Reflow(nsPresContext*          aPresContext,
   aDesiredSize.height  = y * PresContext()->GetPrintPreviewScale(); // includes page heights and dead space
   aDesiredSize.width   = w * PresContext()->GetPrintPreviewScale();
 
-  aDesiredSize.mOverflowArea = nsRect(0, 0, aDesiredSize.width,
-                                      aDesiredSize.height);
+  aDesiredSize.SetOverflowAreasToDesiredBounds();
   FinishAndStoreOverflow(&aDesiredSize);
 
   // cache the size so we can set the desired size 
@@ -618,9 +605,8 @@ nsSimplePageSequenceFrame::PrintNextPage()
       PR_PL(("SeqFr::PrintNextPage -> %p PageNo: %d", pf, mPageNum));
 
       nsCOMPtr<nsIRenderingContext> renderingContext;
-      PresContext()->PresShell()->
-              CreateRenderingContext(mCurrentPageFrame,
-                                     getter_AddRefs(renderingContext));
+      dc->CreateRenderingContext(*getter_AddRefs(renderingContext));
+      NS_ENSURE_TRUE(renderingContext, NS_ERROR_OUT_OF_MEMORY);
 
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
       // On linux, need to rotate landscape-mode output on printed surfaces
@@ -629,7 +615,7 @@ nsSimplePageSequenceFrame::PrintNextPage()
       if (nsIPrintSettings::kLandscapeOrientation == orientation) {
         // Shift up by one landscape-page-height (in points) before we rotate.
         float offset = POINTS_PER_INCH_FLOAT *
-           (mCurrentPageFrame->GetSize().height / float(dc->AppUnitsPerInch()));
+           (mCurrentPageFrame->GetSize().height / float(dc->AppUnitsPerCSSInch()));
         renderingContext->ThebesContext()->Translate(gfxPoint(offset, 0));
         renderingContext->ThebesContext()->Rotate(M_PI/2);
       }
@@ -639,7 +625,8 @@ nsSimplePageSequenceFrame::PrintNextPage()
                          mCurrentPageFrame->GetSize());
       nsRegion drawingRegion(drawingRect);
       nsLayoutUtils::PaintFrame(renderingContext, mCurrentPageFrame,
-                                drawingRegion, NS_RGBA(0,0,0,0));
+                                drawingRegion, NS_RGBA(0,0,0,0),
+                                nsLayoutUtils::PAINT_SYNC_DECODE_IMAGES);
 
       if (mSelectionHeight >= 0 && selectionY < mSelectionHeight) {
         selectionY += height;
@@ -707,7 +694,8 @@ nsSimplePageSequenceFrame::PaintPageSequence(nsIRenderingContext& aRenderingCont
     aRenderingContext.PushState();
     aRenderingContext.Translate(pt.x, pt.y);
     nsLayoutUtils::PaintFrame(&aRenderingContext, child,
-                              nsRegion(rect - pt), NS_RGBA(0,0,0,0));
+                              nsRegion(rect - pt), NS_RGBA(0,0,0,0),
+                              nsLayoutUtils::PAINT_SYNC_DECODE_IMAGES);
     aRenderingContext.PopState();
     child = child->GetNextSibling();
   }
@@ -724,7 +712,8 @@ nsSimplePageSequenceFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = aLists.Content()->AppendNewToTop(new (aBuilder)
-        nsDisplayGeneric(this, ::PaintPageSequence, "PageSequence"));
+        nsDisplayGeneric(aBuilder, this, ::PaintPageSequence, "PageSequence",
+                         nsDisplayItem::TYPE_PAGE_SEQUENCE));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;

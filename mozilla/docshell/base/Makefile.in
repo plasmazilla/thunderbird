@@ -1,4 +1,4 @@
-# 
+#
 # ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
@@ -36,105 +36,79 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH		= ../..
-topsrcdir	= @top_srcdir@
-srcdir		= @srcdir@
-VPATH		= @srcdir@
+DEPTH = ../..
+topsrcdir = @top_srcdir@
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE		= docshell
-ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
-XPIDL_MODULE	= docshell_base
-endif
-LIBRARY_NAME	= basedocshell_s
-GRE_MODULE	= 1
-LIBXUL_LIBRARY	= 1
+MODULE         = docshell
+LIBRARY_NAME   = basedocshell_s
+GRE_MODULE     = 1
+LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  caps \
-		  necko \
-		  gfx \
-		  thebes \
-		  layout \
-		  content \
-		  dom \
-		  js \
-		  uriloader \
-		  exthandler \
-		  htmlparser \
-		  view \
-		  pref \
-		  locale \
-		  webbrwsr \
-		  xpconnect \
-		  widget \
-		  shistory \
-		  intl \
-		  plugin \
-		  webshell \
-		  chardet \
-		  uconv \
-		  xuldoc \
-		  find \
-		  nkcache \
-		  composer \
-		  commandhandler \
-		  editor \
-		  windowwatcher \
-		  imglib2 \
-		  jar \
-		  prefetch \
-		  $(NULL)
+ifdef MOZ_TOOLKIT_SEARCH
+DEFINES += -DMOZ_TOOLKIT_SEARCH
+endif
 
 SDK_XPIDLSRCS = \
-		nsIGlobalHistory.idl \
-		$(NULL)
+  nsIGlobalHistory.idl \
+  nsIClipboardCommands.idl \
+  $(NULL)
 
-XPIDLSRCS	= \
-		nsCDefaultURIFixup.idl		\
-		nsIDocShell.idl			\
-		nsIDocShellLoadInfo.idl	\
-		nsIDocShellTreeItem.idl	\
-		nsIDocShellTreeNode.idl	\
-		nsIDocShellTreeOwner.idl	\
-		nsIDocShellHistory.idl \
-		nsIGlobalHistory2.idl \
-		nsIGlobalHistory3.idl \
-		nsIMarkupDocumentViewer.idl	\
-		nsIScrollable.idl		\
-		nsITextScroll.idl		\
-		nsIWebNavigation.idl		\
-		nsIWebNavigationInfo.idl        \
-		nsIContentViewer.idl		\
-		nsIContentViewerEdit.idl	\
-		nsIContentViewerFile.idl	\
-		nsIURIFixup.idl			\
-		nsIEditorDocShell.idl		\
-		nsIWebPageDescriptor.idl	\
-		nsIURIClassifier.idl		\
-		nsIChannelClassifier.idl	\
-		nsIDownloadHistory.idl          \
-		nsILoadContext.idl              \
-		$(NULL)
+XPIDLSRCS = \
+  nsCDefaultURIFixup.idl \
+  nsIDocShell.idl \
+  nsIDocShellLoadInfo.idl \
+  nsIDocShellTreeItem.idl \
+  nsIDocShellTreeNode.idl \
+  nsIDocShellTreeOwner.idl \
+  nsIDocShellHistory.idl \
+  nsIGlobalHistory2.idl \
+  nsIGlobalHistory3.idl \
+  nsIMarkupDocumentViewer.idl \
+  nsIScrollable.idl \
+  nsITextScroll.idl \
+  nsIWebNavigation.idl \
+  nsIWebNavigationInfo.idl \
+  nsIContentViewer.idl \
+  nsIContentViewerEdit.idl \
+  nsIContentViewerFile.idl \
+  nsIURIFixup.idl \
+  nsIEditorDocShell.idl \
+  nsIWebPageDescriptor.idl \
+  nsIDownloadHistory.idl \
+  nsILoadContext.idl \
+  nsIRefreshURI.idl \
+  nsIContentViewerContainer.idl \
+  nsIDocumentLoaderFactory.idl \
+  $(NULL)
 
-EXPORTS		= nsDocShellLoadTypes.h
+EXPORTS = \
+  nsDocShellLoadTypes.h \
+  nsILinkHandler.h \
+  nsIWebShellServices.h \
+  $(NULL)
 
-CPPSRCS		= \
-		nsDocShell.cpp		\
-		nsDocShellLoadInfo.cpp		\
-		nsDocShellEditorData.cpp	\
-		nsDocShellTransferableHooks.cpp \
-		nsDocShellEnumerator.cpp  \
-		nsDSURIContentListener.cpp		\
-		nsDefaultURIFixup.cpp		\
-		nsGlobalHistoryAdapter.cpp \
-		nsGlobalHistory2Adapter.cpp \
-		nsWebNavigationInfo.cpp \
-		nsAboutRedirector.cpp \
-		nsDownloadHistory.cpp \
-		$(NULL)
+EXPORTS_NAMESPACES = mozilla
+
+EXPORTS_mozilla = \
+  IHistory.h \
+  $(NULL)
+
+CPPSRCS = \
+  nsDocShell.cpp \
+  nsDocShellLoadInfo.cpp \
+  nsDocShellEditorData.cpp \
+  nsDocShellTransferableHooks.cpp \
+  nsDocShellEnumerator.cpp \
+  nsDSURIContentListener.cpp \
+  nsDefaultURIFixup.cpp \
+  nsWebNavigationInfo.cpp \
+  nsAboutRedirector.cpp \
+  nsDownloadHistory.cpp \
+  $(NULL)
 
 # we don't want the shared lib, but we want to force the creation of a
 # static lib.
@@ -142,4 +116,7 @@ FORCE_STATIC_LIB = 1
 
 include $(topsrcdir)/config/rules.mk
 
-LOCAL_INCLUDES += -I$(srcdir)/../shistory/src
+LOCAL_INCLUDES += \
+  -I$(srcdir)/../shistory/src \
+  -I$(topsrcdir)/layout/base \
+  $(NULL)

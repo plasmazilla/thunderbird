@@ -55,18 +55,20 @@ nsDOMCSSValueList::~nsDOMCSSValueList()
 NS_IMPL_ADDREF(nsDOMCSSValueList)
 NS_IMPL_RELEASE(nsDOMCSSValueList)
 
+DOMCI_DATA(CSSValueList, nsDOMCSSValueList)
+
 // QueryInterface implementation for nsDOMCSSValueList
 NS_INTERFACE_MAP_BEGIN(nsDOMCSSValueList)
   NS_INTERFACE_MAP_ENTRY(nsIDOMCSSValueList)
   NS_INTERFACE_MAP_ENTRY(nsIDOMCSSValue)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(CSSValueList)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(CSSValueList)
 NS_INTERFACE_MAP_END
 
-PRBool
+void
 nsDOMCSSValueList::AppendCSSValue(nsIDOMCSSValue* aValue)
 {
-  return mCSSValues.AppendObject(aValue);
+  mCSSValues.AppendElement(aValue);
 }
 
 // nsIDOMCSSValueList
@@ -74,7 +76,7 @@ nsDOMCSSValueList::AppendCSSValue(nsIDOMCSSValue* aValue)
 NS_IMETHODIMP
 nsDOMCSSValueList::GetLength(PRUint32* aLength)
 {
-  *aLength = mCSSValues.Count();
+  *aLength = mCSSValues.Length();
 
   return NS_OK;
 }
@@ -96,7 +98,7 @@ nsDOMCSSValueList::GetCssText(nsAString& aCssText)
 {
   aCssText.Truncate();
 
-  PRUint32 count = mCSSValues.Count();
+  PRUint32 count = mCSSValues.Length();
 
   nsAutoString separator;
   if (mCommaDelimited) {

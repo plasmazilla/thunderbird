@@ -16,7 +16,7 @@
 # The Original Code is mozilla.org code.
 #
 # The Initial Developer of the Original Code is
-# The Mozilla Foundation 
+# The Mozilla Foundation
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
 #
@@ -96,7 +96,7 @@ def WindowsPathToMsysPath(path):
     and expect MSYS paths."""
     if sys.platform != 'win32':
         return path
-    (drive, path) = os.path.splitdrive(os.path.abspath(path))     
+    (drive, path) = os.path.splitdrive(os.path.abspath(path))
     return "/" + drive[0] + path.replace('\\','/')
 
 def AppendOptionalArgsToSSHCommandline(cmdline, port, ssh_key):
@@ -179,9 +179,6 @@ def UploadFiles(user, host, path, files, verbose=False, port=None, ssh_key=None,
                 print "Running post-upload command: " + post_upload_command
             file_list = '"' + '" "'.join(remote_files) + '"'
             DoSSHCommand('%s "%s" %s' % (post_upload_command, path, file_list), user, host, port=port, ssh_key=ssh_key)
-    except:
-        print "Encountered error while uploading"
-        raise
     finally:
         if upload_to_temp_dir:
             DoSSHCommand("rm -rf %s" % path, user, host, port=port,

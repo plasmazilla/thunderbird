@@ -285,15 +285,15 @@ struct nsCatalogData {
 
 // The order of this table is guestimated to be in the optimum order
 static const nsCatalogData kCatalogTable[] = {
-  { "-//W3C//DTD XHTML 1.0 Transitional//EN",    "xhtml11.dtd", nsnull },
-  { "-//W3C//DTD XHTML 1.1//EN",                 "xhtml11.dtd", nsnull },
-  { "-//W3C//DTD XHTML 1.0 Strict//EN",          "xhtml11.dtd", nsnull },
-  { "-//W3C//DTD XHTML 1.0 Frameset//EN",        "xhtml11.dtd", nsnull },
-  { "-//W3C//DTD XHTML Basic 1.0//EN",           "xhtml11.dtd", nsnull },
-  { "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN", "mathml.dtd",  "resource://gre/res/mathml.css" },
-  { "-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN", "mathml.dtd", "resource://gre/res/mathml.css" },
-  { "-//W3C//DTD MathML 2.0//EN",                "mathml.dtd",  "resource://gre/res/mathml.css" },
-  { "-//WAPFORUM//DTD XHTML Mobile 1.0//EN",     "xhtml11.dtd", nsnull },
+  { "-//W3C//DTD XHTML 1.0 Transitional//EN",    "htmlmathml-f.ent", nsnull },
+  { "-//W3C//DTD XHTML 1.1//EN",                 "htmlmathml-f.ent", nsnull },
+  { "-//W3C//DTD XHTML 1.0 Strict//EN",          "htmlmathml-f.ent", nsnull },
+  { "-//W3C//DTD XHTML 1.0 Frameset//EN",        "htmlmathml-f.ent", nsnull },
+  { "-//W3C//DTD XHTML Basic 1.0//EN",           "htmlmathml-f.ent", nsnull },
+  { "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN", "htmlmathml-f.ent", "resource://gre-resources/mathml.css" },
+  { "-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN", "htmlmathml-f.ent", "resource://gre-resources/mathml.css" },
+  { "-//W3C//DTD MathML 2.0//EN",                "htmlmathml-f.ent", "resource://gre-resources/mathml.css" },
+  { "-//WAPFORUM//DTD XHTML Mobile 1.0//EN",     "htmlmathml-f.ent", nsnull },
   { nsnull, nsnull, nsnull }
 };
 
@@ -316,14 +316,12 @@ LookupCatalogData(const PRUnichar* aPublicID)
   return nsnull;
 }
 
-// aCatalogData can be null. If not null, it provides a hook to additional
-// built-in knowledge on the resource that we are trying to load. Returns true
-// if the local DTD specified in the catalog data exists or if the filename
-// contained within the url exists in the special DTD directory. If either of
-// this exists, aResult is set to the file: url that points to the DTD file
-// found in the local DTD directory.
-static PRBool
-IsLoadableDTD(const nsCatalogData* aCatalogData, nsIURI* aDTD,
+// This function provides a resource URI to a local DTD 
+// in resource://gre/res/dtd/ which may or may not exist.
+// If aCatalogData is provided, it is used to remap the
+// DTD instead of taking the filename from the URI.
+static void
+GetLocalDTDURI(const nsCatalogData* aCatalogData, nsIURI* aDTD,
               nsIURI** aResult)
 {
   NS_ASSERTION(aDTD, "Null parameter.");
@@ -341,41 +339,18 @@ IsLoadableDTD(const nsCatalogData* aCatalogData, nsIURI* aDTD,
     // special DTD directory and it will be picked.
     nsCOMPtr<nsIURL> dtdURL = do_QueryInterface(aDTD);
     if (!dtdURL) {
-      return PR_FALSE;
+      return;
     }
 
     dtdURL->GetFileName(fileName);
     if (fileName.IsEmpty()) {
-      return PR_FALSE;
+      return;
     }
   }
 
-  nsCOMPtr<nsIFile> dtdPath;
-  NS_GetSpecialDirectory(NS_GRE_DIR, getter_AddRefs(dtdPath));
-  if (!dtdPath) {
-    return PR_FALSE;
-  }
-
-  nsCOMPtr<nsILocalFile> lfile = do_QueryInterface(dtdPath);
-
-  // append res/dtd/<fileName>
-  // can't do AppendRelativeNativePath("res/dtd/" + fileName)
-  // as that won't work on all platforms.
-  lfile->AppendNative(NS_LITERAL_CSTRING("res"));
-  lfile->AppendNative(NS_LITERAL_CSTRING("dtd"));
-  lfile->AppendNative(fileName);
-
-  PRBool exists;
-  dtdPath->Exists(&exists);
-  if (!exists) {
-    return PR_FALSE;
-  }
-
-  // The DTD was found in the local DTD directory.
-  // Set aDTD to a file: url pointing to the local DTD
-  NS_NewFileURI(aResult, dtdPath);
-
-  return *aResult != nsnull;
+  nsCAutoString respath("resource://gre/res/dtd/");
+  respath += fileName;
+  NS_NewURI(aResult, respath);
 }
 
 /***************************** END CATALOG UTILS *****************************/
@@ -400,7 +375,8 @@ nsExpatDriver::nsExpatDriver()
     mIsFinalChunk(PR_FALSE),
     mInternalState(NS_OK),
     mExpatBuffered(0),
-    mCatalogData(nsnull)
+    mCatalogData(nsnull),
+    mWindowID(0)
 {
 }
 
@@ -795,7 +771,8 @@ nsExpatDriver::OpenInputStreamFromExternalDTD(const PRUnichar* aFPIStr,
     }
 
     nsCOMPtr<nsIURI> localURI;
-    if (!IsLoadableDTD(mCatalogData, uri, getter_AddRefs(localURI))) {
+    GetLocalDTDURI(mCatalogData, uri, getter_AddRefs(localURI));
+    if (!localURI) {
       return NS_ERROR_NOT_IMPLEMENTED;
     }
 
@@ -822,14 +799,17 @@ nsExpatDriver::OpenInputStreamFromExternalDTD(const PRUnichar* aFPIStr,
     return NS_ERROR_CONTENT_BLOCKED;
   }
 
-  rv = NS_OpenURI(aStream, uri);
-
   nsCAutoString absURL;
   uri->GetSpec(absURL);
 
   CopyUTF8toUTF16(absURL, aAbsURL);
 
-  return rv;
+  nsCOMPtr<nsIChannel> channel;
+  rv = NS_NewChannel(getter_AddRefs(channel), uri);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  channel->SetContentType(NS_LITERAL_CSTRING("application/xml"));
+  return channel->Open(aStream);
 }
 
 static nsresult
@@ -967,11 +947,13 @@ nsExpatDriver::HandleError()
   nsCOMPtr<nsIScriptError> serr(do_CreateInstance(NS_SCRIPTERROR_CONTRACTID));
   nsresult rv = NS_ERROR_FAILURE;
   if (serr) {
-    rv = serr->Init(description.get(),
-                    mURISpec.get(),
-                    mLastLine.get(),
-                    lineNumber, colNumber,
-                    nsIScriptError::errorFlag, "malformed-xml");
+    nsCOMPtr<nsIScriptError2> serr2(do_QueryInterface(serr));
+    rv = serr2->InitWithWindowID(description.get(),
+                                 mURISpec.get(),
+                                 mLastLine.get(),
+                                 lineNumber, colNumber,
+                                 nsIScriptError::errorFlag, "malformed-xml",
+                                 mWindowID);
   }
 
   // If it didn't initialize, we can't do any logging.
@@ -1257,6 +1239,22 @@ nsExpatDriver::WillBuildModel(const CParserContext& aParserContext,
 
   XML_SetBase(mExpatParser, mURISpec.get());
 
+  nsCOMPtr<nsIDocument> doc = do_QueryInterface(mOriginalSink->GetTarget());
+  if (doc) {
+    nsCOMPtr<nsPIDOMWindow> win = doc->GetWindow();
+    if (!win) {
+      PRBool aHasHadScriptHandlingObject;
+      nsIScriptGlobalObject *global =
+        doc->GetScriptHandlingObject(aHasHadScriptHandlingObject);
+      if (global) {
+        win = do_QueryInterface(global);
+      }
+    }
+    if (win) {
+      mWindowID = win->GetOuterWindow()->WindowID();
+    }
+  }
+
   // Set up the callbacks
   XML_SetXmlDeclHandler(mExpatParser, Driver_HandleXMLDeclaration); 
   XML_SetElementHandler(mExpatParser, Driver_HandleStartElement,
@@ -1438,7 +1436,10 @@ nsExpatDriver::MaybeStopParser(nsresult aState)
         mInternalState == NS_ERROR_HTMLPARSER_INTERRUPTED ||
         (mInternalState == NS_ERROR_HTMLPARSER_BLOCK &&
          aState != NS_ERROR_HTMLPARSER_INTERRUPTED)) {
-      mInternalState = aState;
+      mInternalState = (aState == NS_ERROR_HTMLPARSER_INTERRUPTED ||
+                        aState == NS_ERROR_HTMLPARSER_BLOCK) ?
+                       aState :
+                       NS_ERROR_HTMLPARSER_STOPPARSING;
     }
 
     // If we get an error then we need to stop Expat (by calling XML_StopParser

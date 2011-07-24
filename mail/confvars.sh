@@ -39,9 +39,9 @@
 MOZ_APP_NAME=thunderbird
 MOZ_UPDATER=1
 MOZ_THUNDERBIRD=1
+MOZ_CHROME_FILE_FORMAT=omni
 MOZ_NO_ACTIVEX_SUPPORT=1
 MOZ_ACTIVEX_SCRIPTING_SUPPORT=
-NECKO_PROTOCOLS_DEFAULT="about data file ftp http res viewsource"
 MOZ_MAIL_NEWS=1
 if [ "$COMM_BUILD" ]; then
   MOZ_LDAP_XPCOM=1
@@ -49,32 +49,27 @@ fi
 MOZ_STATIC_MAIL_BUILD=1
 MOZ_COMPOSER=1
 MOZ_SAFE_BROWSING=1
-MOZ_TOOLKIT_SEARCH=
-MOZ_PLACES=
-MOZ_MORKREADER=
 MOZ_MORK=1
+MOZ_STATIC_BUILD_UNSUPPORTED=1
+MOZ_APP_COMPONENT_LIBS="xpautocomplete mailcomps $MAIL_COMPONENT $LDAP_COMPONENT"
+MOZ_APP_COMPONENT_MODULES="MODULE(xpAutoComplete) MODULE(nsMailCompsModule) $MAIL_MODULE $LDAP_MODULE"
+MOZ_APP_EXTRA_LIBS="$LDAP_LIBS"
 
 # Needed for the mozilla-central build side of the system.
-# Can be dropped when we branch MOZILLA_1_9_2_BRANCH
-MOZILLA_BRANCH_VERSION=`echo ${MOZILLA_VERSION} | sed -e 's/^\([0-9]\.[0-9]\.[0-9]\).*/\1/;'`
+# Can be dropped/altered when we sort out our equivalent of
+# MOZILLA_5_0_BRANCH
+MOZILLA_BRANCH_VERSION=`echo ${MOZILLA_VERSION} | sed -e 's/^\([0-9]\.[0-9]\).*/\1/;'`
 
-if test "$MOZILLA_BRANCH_VERSION" = "1.9.2"; then
-  MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version-192.txt
-  # Use unofficial branding for the 1.9.2 branch
+if test "$MOZILLA_BRANCH_VERSION" = "5.0"; then
+  MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version-50.txt
+  # Use unofficial branding for the 5.0 branch
   MOZ_BRANDING_DIRECTORY=mail/branding/unofficial
-  MOZ_NO_XPCOM_OBSOLETE=1
-  # MOZ_OJI is only required to be cleared for MOZILLA_1_9_2_BRANCH (OS X).
-  MOZ_OJI=
 else
   MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt
   MOZ_BRANDING_DIRECTORY=mail/branding/nightly
 fi
 
 MOZ_APP_VERSION=`cat $MOZ_APP_VERSION_TXT`
-
 THUNDERBIRD_VERSION=$MOZ_APP_VERSION
-MOZ_OFFICIAL_BRANDING_DIRECTORY=other-licenses/branding/thunderbird
 
-# Until we can build with libxul, we can't have ipc either
-MOZ_ENABLE_LIBXUL=
-MOZ_IPC=
+MOZ_OFFICIAL_BRANDING_DIRECTORY=other-licenses/branding/thunderbird

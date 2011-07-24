@@ -10,7 +10,9 @@
 #if defined (__SVR4) && defined (__sun)
 /* int_types.h gets included somehow, so avoid redefining the types differently */
 #include <sys/int_types.h>
-#else
+#elif defined (_AIX)
+#include <sys/types.h>
+#elif !defined(ANDROID)
 typedef PRInt8 int8_t;
 typedef PRUint8 uint8_t;
 typedef PRInt16 int16_t;
@@ -23,14 +25,12 @@ typedef PRUint64 uint64_t;
 #ifdef __OS2__
 /* OS/2's stdlib typdefs uintptr_t. So we'll just include that so we don't collide */
 #include <stdlib.h>
-#elif defined(__FreeBSD__)
-/* FreeBSD typedefs uintptr_t in /usr/include/sys/types.h */
-#else
+#elif !defined(__intptr_t_defined) && !defined(_UINTPTR_T_DEFINED)
 typedef PRUptrdiff uintptr_t;
 #endif
 #endif
 
-#else // MOZ_QCMS
+#else /* MOZ_QCMS */
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define IS_LITTLE_ENDIAN

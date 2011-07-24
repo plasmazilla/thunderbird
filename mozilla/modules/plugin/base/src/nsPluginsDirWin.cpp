@@ -54,24 +54,37 @@
 
 #include "nsString.h"
 #include "nsILocalFile.h"
+#include "nsUnicharUtils.h"
+#include "nsSetDllDirectory.h"
 
 /* Local helper functions */
 
-static char* GetKeyValue(WCHAR* verbuf, WCHAR* key)
+static char* GetKeyValue(void* verbuf, const WCHAR* key,
+                         UINT language, UINT codepage)
 {
+  WCHAR keybuf[64]; // plenty for the template below, with the longest key
+                    // we use (currently "FileDescription")
+  const WCHAR keyFormat[] = L"\\StringFileInfo\\%04X%04X\\%s";
   WCHAR *buf = NULL;
   UINT blen;
 
-  ::VerQueryValueW(verbuf, key, (void **)&buf, &blen);
-
-  if (buf) {
-    return PL_strdup(NS_ConvertUTF16toUTF8(buf).get());
+  if (_snwprintf_s(keybuf, NS_ARRAY_LENGTH(keybuf), _TRUNCATE,
+                   keyFormat, language, codepage, key) < 0)
+  {
+    NS_NOTREACHED("plugin info key too long for buffer!");
+    return nsnull;
   }
 
-  return nsnull;
+  if (::VerQueryValueW(verbuf, keybuf, (void **)&buf, &blen) == 0 ||
+      buf == nsnull || blen == 0)
+  {
+    return nsnull;
+  }
+
+  return PL_strdup(NS_ConvertUTF16toUTF8(buf, blen).get());
 }
 
-static char* GetVersion(WCHAR* verbuf)
+static char* GetVersion(void* verbuf)
 {
   VS_FIXEDFILEINFO *fileInfo;
   UINT fileInfoLen;
@@ -158,6 +171,47 @@ static void FreeStringArray(PRUint32 variants, char ** array)
   PR_Free(array);
 }
 
+static PRBool CanLoadPlugin(const PRUnichar* aBinaryPath)
+{
+#if defined(_M_IX86) || defined(_M_X64) || defined(_M_IA64)
+  PRBool canLoad = PR_FALSE;
+
+  HANDLE file = CreateFileW(aBinaryPath, GENERIC_READ,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (file != INVALID_HANDLE_VALUE) {
+    HANDLE map = CreateFileMappingW(file, NULL, PAGE_READONLY, 0,
+                                    GetFileSize(file, NULL), NULL);
+    if (map != NULL) {
+      LPVOID mapView = MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
+      if (mapView != NULL) {
+        if (((IMAGE_DOS_HEADER*)mapView)->e_magic == IMAGE_DOS_SIGNATURE) {
+          long peImageHeaderStart = (((IMAGE_DOS_HEADER*)mapView)->e_lfanew);
+          if (peImageHeaderStart != 0L) {
+            DWORD arch = (((IMAGE_NT_HEADERS*)((LPBYTE)mapView + peImageHeaderStart))->FileHeader.Machine);
+#ifdef _M_IX86
+            canLoad = (arch == IMAGE_FILE_MACHINE_I386);
+#elif defined(_M_X64)
+            canLoad = (arch == IMAGE_FILE_MACHINE_AMD64);
+#elif defined(_M_IA64)
+            canLoad = (arch == IMAGE_FILE_MACHINE_IA64);
+#endif
+          }
+        }
+        UnmapViewOfFile(mapView);
+      }
+      CloseHandle(map);
+    }
+    CloseHandle(file);
+  }
+
+  return canLoad;
+#else
+  // Assume correct binaries for unhandled cases.
+  return PR_TRUE;
+#endif
+}
+
 /* nsPluginsDir implementation */
 
 // The file name must be in the form "np*.dll"
@@ -212,12 +266,14 @@ nsPluginFile::~nsPluginFile()
  * Loads the plugin into memory using NSPR's shared-library loading
  * mechanism. Handles platform differences in loading shared libraries.
  */
-nsresult nsPluginFile::LoadPlugin(PRLibrary* &outLibrary)
+nsresult nsPluginFile::LoadPlugin(PRLibrary **outLibrary)
 {
   nsCOMPtr<nsILocalFile> plugin = do_QueryInterface(mPlugin);
 
   if (!plugin)
     return NS_ERROR_NULL_POINTER;
+
+  PRBool protectCurrentDirectory = PR_TRUE;
 
 #ifndef WINCE
   nsAutoString pluginFolderPath;
@@ -226,6 +282,10 @@ nsresult nsPluginFile::LoadPlugin(PRLibrary* &outLibrary)
   PRInt32 idx = pluginFolderPath.RFindChar('\\');
   if (kNotFound == idx)
     return NS_ERROR_FILE_INVALID_PATH;
+
+  if (Substring(pluginFolderPath, idx).LowerCaseEqualsLiteral("\\np32dsw.dll")) {
+    protectCurrentDirectory = PR_FALSE;
+  }
 
   pluginFolderPath.SetLength(idx);
 
@@ -240,9 +300,17 @@ nsresult nsPluginFile::LoadPlugin(PRLibrary* &outLibrary)
   }
 #endif
 
-  nsresult rv = plugin->Load(&outLibrary);
+  if (protectCurrentDirectory) {
+    mozilla::NS_SetDllDirectory(NULL);
+  }
+
+  nsresult rv = plugin->Load(outLibrary);
   if (NS_FAILED(rv))
-      outLibrary = NULL;
+      *outLibrary = NULL;
+
+  if (protectCurrentDirectory) {
+    mozilla::NS_SetDllDirectory(L"");
+  }
 
 #ifndef WINCE    
   if (restoreOrigDir) {
@@ -257,11 +325,13 @@ nsresult nsPluginFile::LoadPlugin(PRLibrary* &outLibrary)
 /**
  * Obtains all of the information currently available for this plugin.
  */
-nsresult nsPluginFile::GetPluginInfo(nsPluginInfo& info)
+nsresult nsPluginFile::GetPluginInfo(nsPluginInfo& info, PRLibrary **outLibrary)
 {
+  *outLibrary = nsnull;
+
   nsresult rv = NS_OK;
   DWORD zerome, versionsize;
-  WCHAR* verbuf = nsnull;
+  void* verbuf = nsnull;
 
   if (!mPlugin)
     return NS_ERROR_NULL_POINTER;
@@ -269,6 +339,9 @@ nsresult nsPluginFile::GetPluginInfo(nsPluginInfo& info)
   nsAutoString fullPath;
   if (NS_FAILED(rv = mPlugin->GetPath(fullPath)))
     return rv;
+
+  if (!CanLoadPlugin(fullPath.get()))
+    return NS_ERROR_FAILURE;
 
   nsAutoString fileName;
   if (NS_FAILED(rv = mPlugin->GetLeafName(fileName)))
@@ -284,18 +357,21 @@ nsresult nsPluginFile::GetPluginInfo(nsPluginInfo& info)
   versionsize = ::GetFileVersionInfoSizeW(lpFilepath, &zerome);
 
   if (versionsize > 0)
-    verbuf = (WCHAR*)PR_Malloc(versionsize);
+    verbuf = PR_Malloc(versionsize);
   if (!verbuf)
     return NS_ERROR_OUT_OF_MEMORY;
 
   if (::GetFileVersionInfoW(lpFilepath, NULL, versionsize, verbuf))
   {
-    info.fName = GetKeyValue(verbuf, L"\\StringFileInfo\\040904E4\\ProductName");
-    info.fDescription = GetKeyValue(verbuf, L"\\StringFileInfo\\040904E4\\FileDescription");
-
-    char *mimeType = GetKeyValue(verbuf, L"\\StringFileInfo\\040904E4\\MIMEType");
-    char *mimeDescription = GetKeyValue(verbuf, L"\\StringFileInfo\\040904E4\\FileOpenName");
-    char *extensions = GetKeyValue(verbuf, L"\\StringFileInfo\\040904E4\\FileExtents");
+    // TODO: get appropriately-localized info from plugin file
+    UINT lang = 1033; // language = English
+    UINT cp = 1252;   // codepage = Western
+    info.fName = GetKeyValue(verbuf, L"ProductName", lang, cp);
+    info.fDescription = GetKeyValue(verbuf, L"FileDescription", lang, cp);
+ 
+    char *mimeType = GetKeyValue(verbuf, L"MIMEType", lang, cp);
+    char *mimeDescription = GetKeyValue(verbuf, L"FileOpenName", lang, cp);
+    char *extensions = GetKeyValue(verbuf, L"FileExtents", lang, cp);
 
     info.fVariantCount = CalculateVariantCount(mimeType);
     info.fMimeTypeArray = MakeStringArray(info.fVariantCount, mimeType);

@@ -1,8 +1,8 @@
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+/* Any copyright is dedicated to the Public Domain.
+   http://creativecommons.org/publicdomain/zero/1.0/ */
 
 function run_test() {
-  do_load_module("cookieprompt.js");
+  do_load_manifest("cookieprompt.manifest");
 
   var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
   var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
@@ -30,6 +30,8 @@ function run_test() {
 
   // if private browsing is available
   if (pb) {
+    prefs.setBoolPref("browser.privatebrowsing.keep_current_session", true);
+
     // enter private browsing mode
     pb.privateBrowsingEnabled = true;
 
@@ -43,6 +45,8 @@ function run_test() {
     // add a test cookie
     cs.setCookieString(uri, null, "foobaz=bar", null);
     do_check_eq(cs.countCookiesFromHost("foo.bar"), 2);
+
+    prefs.clearUserPref("browser.privatebrowsing.keep_current_session");
   }
 }
 

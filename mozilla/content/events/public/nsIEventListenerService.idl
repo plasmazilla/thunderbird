@@ -67,7 +67,7 @@ interface nsIEventListenerInfo : nsISupports
   nsISupports getDebugObject();
 };
 
-[scriptable, uuid(551cac0f-31ed-45e0-8d67-bc0d6e117b31)]
+[scriptable, uuid(7be78bb6-33f7-4f31-b3f3-97eefaff2762)]
 interface nsIEventListenerService : nsISupports
 {
   /**
@@ -75,7 +75,7 @@ interface nsIEventListenerService : nsISupports
    * If aEventTarget doesn't have any listeners, this returns null.
    */
   void getListenerInfoFor(in nsIDOMEventTarget aEventTarget,
-                          out unsigned long aCount,
+                          [optional] out unsigned long aCount,
                           [retval, array, size_is(aCount)] out
                             nsIEventListenerInfo aOutArray);
 
@@ -88,8 +88,13 @@ interface nsIEventListenerService : nsISupports
    *       event target chain than what this methods returns.
   */
   void getEventTargetChainFor(in nsIDOMEventTarget aEventTarget,
-                              out unsigned long aCount,
+                              [optional] out unsigned long aCount,
                               [retval, array, size_is(aCount)] out
                                 nsIDOMEventTarget aOutArray);
+
+  /**
+   * Returns system event group.
+   */
+  readonly attribute nsIDOMEventGroup systemEventGroup;
 };
 

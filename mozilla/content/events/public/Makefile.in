@@ -52,10 +52,10 @@ EXPORTS		= \
 		nsIPrivateDOMEvent.h \
 		nsIPrivateTextEvent.h \
 		nsIPrivateTextRange.h \
-		nsIPrivateCompositionEvent.h \
 		nsPLDOMEvent.h \
 		nsEventDispatcher.h \
 		nsPIDOMEventTarget.h \
+		nsEventStates.h \
 		$(NULL)
 
 XPIDLSRCS	= \

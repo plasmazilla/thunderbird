@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-  <title>Test for plugin child widgets not being invalidated by scrolling</title>
+  <title>Test for windowless plugin invalidation and expose events in clips</title>
   <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
@@ -52,6 +52,7 @@
 <pre id="test">
 </pre>
 
+<script type="application/javascript" src="utils.js"></script>
 <script type="application/javascript">
 SimpleTest.waitForExplicitFinish();
 
@@ -64,12 +65,11 @@ function initialize() {
   clip = document.getElementById("clip");
   clipped = document.getElementById("clipped");
 
-  is(paint_waiter.getPaintCount(), 0, "zero-sized plugin not painted");
   waitForPaint(show);
 }
 
 function show() {
-  is(clipped.getPaintCount(), 0, "fully clipped plugin not painted");
+  paintCountIs(clipped, 0, "fully clipped plugin not painted");
 
   clip.style.height = "10px";
 
@@ -80,15 +80,16 @@ function show() {
 }
 
 function invalidate() {
-  is(clipped.getPaintCount(), 1, "partially clipped plugin painted once");
-
+  paintCountIs(clipped, 1, "partially clipped plugin painted once");  
+  
   clipped.setColor("FF00FF00"); // plugin invalidates
 
   waitForPaint(done);
 }
 
 function done() {
-  is(clipped.getPaintCount(), 2, "painted after invalidate");
+  paintCountIs(clipped, 2, "painted after invalidate");
+
   SimpleTest.finish();  
 }
 

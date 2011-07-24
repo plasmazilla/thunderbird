@@ -38,6 +38,24 @@
 // This test makes sure that the Forget This Site command is hidden for multiple
 // selections.
 
+/**
+ * Clears history invoking callback when done.
+ */
+function waitForClearHistory(aCallback) {
+  const TOPIC_EXPIRATION_FINISHED = "places-expiration-finished";
+  let observer = {
+    observe: function(aSubject, aTopic, aData) {
+      Services.obs.removeObserver(this, TOPIC_EXPIRATION_FINISHED);
+      aCallback();
+    }
+  };
+  Services.obs.addObserver(observer, TOPIC_EXPIRATION_FINISHED, false);
+
+  let hs = Cc["@mozilla.org/browser/nav-history-service;1"].
+           getService(Ci.nsINavHistoryService);
+  hs.QueryInterface(Ci.nsIBrowserHistory).removeAllPages();
+}
+
 function test() {
   // initialization
   let ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
@@ -55,54 +73,59 @@ function test() {
   });
 
   function testForgetThisSiteVisibility(selectionCount, funcNext) {
-    let observer = {
-      observe: function(aSubject, aTopic, aData) {
-        if (aTopic === "domwindowopened") {
-          ww.unregisterNotification(this);
-          let organizer = aSubject.QueryInterface(Ci.nsIDOMWindow);
-          organizer.addEventListener("load", function onLoad(event) {
-            organizer.removeEventListener("load", onLoad, false);
-            executeSoon(function () {
-              // Select History in the left pane.
-              organizer.PlacesOrganizer.selectLeftPaneQuery('History');
-              let PO = organizer.PlacesOrganizer;
-              let histContainer = PO._places.selectedNode.QueryInterface(Ci.nsINavHistoryContainerResultNode);
-              histContainer.containerOpen = true;
-              PO._places.selectNode(histContainer.getChild(0));
-              // Select the first history entry.
-              let doc = organizer.document;
-              let tree = PO._content;
-              let selection = tree.view.selection;
-              selection.clearSelection();
-              selection.rangedSelect(0, selectionCount - 1, true);
-              is(selection.count, selectionCount,
-                "The selected range is as big as expected");
-              // Open the context menu
-              let contextmenu = doc.getElementById("placesContext");
-              contextmenu.addEventListener("popupshown", function() {
-                contextmenu.removeEventListener("popupshown", arguments.callee, false);
-                let forgetThisSite = doc.getElementById("placesContext_deleteHost");
-                let hideForgetThisSite = (selectionCount != 1);
-                is(forgetThisSite.hidden, hideForgetThisSite,
-                  "The Forget this site menu item should " + (hideForgetThisSite ? "" : "not ") +
-                  "be hidden with " + selectionCount + " items selected");
-                // Close the context menu
-                contextmenu.hidePopup();
-                // Close Library window.
-                organizer.close();
-                // Proceed
-                funcNext();
-              }, false);
-              let event = document.createEvent("MouseEvents");
-              event.initMouseEvent("contextmenu", true, true, organizer, 0,
-                                   0, 0, 0, 0, false, false, false, false,
-                                   0, null);
-              tree.dispatchEvent(event);
-            });
-          }, false);
-        }
-      }
-    };
+    function observer(aSubject, aTopic, aData) {
+      if (aTopic != "domwindowopened")
+        return;
+      ww.unregisterNotification(observer);
+      let organizer = aSubject.QueryInterface(Ci.nsIDOMWindow);
+      SimpleTest.waitForFocus(function() {
+        executeSoon(function() {
+          // Select History in the left pane.
+          organizer.PlacesOrganizer.selectLeftPaneQuery('History');
+          let PO = organizer.PlacesOrganizer;
+          let histContainer = PO._places.selectedNode.QueryInterface(Ci.nsINavHistoryContainerResultNode);
+          histContainer.containerOpen = true;
+          PO._places.selectNode(histContainer.getChild(0));
+          // Select the first history entry.
+          let doc = organizer.document;
+          let tree = PO._content;
+          let selection = tree.view.selection;
+          selection.clearSelection();
+          selection.rangedSelect(0, selectionCount - 1, true);
+          is(selection.count, selectionCount,
+            "The selected range is as big as expected");
+          // Open the context menu
+          let contextmenu = doc.getElementById("placesContext");
+          contextmenu.addEventListener("popupshown", function() {
+            contextmenu.removeEventListener("popupshown", arguments.callee, true);
+            let forgetThisSite = doc.getElementById("placesContext_deleteHost");
+            let hideForgetThisSite = (selectionCount != 1);
+            is(forgetThisSite.hidden, hideForgetThisSite,
+              "The Forget this site menu item should " + (hideForgetThisSite ? "" : "not ") +
+              "be hidden with " + selectionCount + " items selected");
+            // Close the context menu
+            contextmenu.hidePopup();
+            // Wait for the Organizer window to actually be closed
+            function closeObserver(aSubject, aTopic, aData) {
+              if (aTopic != "domwindowclosed")
+                return;
+              ww.unregisterNotification(closeObserver);
+              // Proceed
+              funcNext();
+            }
+            ww.registerNotification(closeObserver);
+            // Close Library window.
+            organizer.close();
+          }, true);
+          // Get cell coordinates
+          var x = {}, y = {}, width = {}, height = {};
+          tree.treeBoxObject.getCoordsForCellItem(0, tree.columns[0], "text",
+                                                  x, y, width, height);
+          // Initiate a context menu for the selected cell
+          EventUtils.synthesizeMouse(tree.body, x.value + width.value / 2, y.value + height.value / 2, {type: "contextmenu"}, organizer);
+        });
+      }, organizer);
+    }
 
     ww.registerNotification(observer);
     ww.openWindow(null,
@@ -115,9 +138,7 @@ function test() {
   testForgetThisSiteVisibility(1, function() {
     testForgetThisSiteVisibility(2, function() {
       // Cleanup
-      history.QueryInterface(Ci.nsIBrowserHistory)
-             .removeAllPages();
-      finish();
+      waitForClearHistory(finish);
     });
   });
 }

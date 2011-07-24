@@ -53,11 +53,11 @@
 #include "nsIServiceManager.h"
 #include "nsIThread.h"
 
-#include "nsAutoLock.h"
 #include "nsCOMPtr.h"
 #include "nsThreadUtils.h"
 #include "xptiprivate.h"
 
+using namespace mozilla;
 
 #ifdef PR_LOGGING
 PRLogModuleInfo *nsProxyObjectManager::sLog = PR_NewLogModule("xpcomproxy");
@@ -96,14 +96,26 @@ protected:
 // nsProxyObjectManager
 /////////////////////////////////////////////////////////////////////////
 
-nsProxyObjectManager* nsProxyObjectManager::mInstance = nsnull;
+nsProxyObjectManager* nsProxyObjectManager::gInstance = nsnull;
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsProxyObjectManager, nsIProxyObjectManager)
+NS_IMPL_QUERY_INTERFACE1(nsProxyObjectManager, nsIProxyObjectManager)
+
+NS_IMETHODIMP_(nsrefcnt)
+nsProxyObjectManager::AddRef()
+{
+    return 2;
+}
+
+NS_IMETHODIMP_(nsrefcnt)
+nsProxyObjectManager::Release()
+{
+    return 1;
+}
 
 nsProxyObjectManager::nsProxyObjectManager()
     : mProxyObjectMap(256, PR_FALSE)
+    , mProxyCreationLock("nsProxyObjectManager.mProxyCreationLock")
 {
-    mProxyCreationLock = PR_NewLock();
     mProxyClassMap.Init(256);
 }
 
@@ -111,33 +123,31 @@ nsProxyObjectManager::~nsProxyObjectManager()
 {
     mProxyClassMap.Clear();
 
-    if (mProxyCreationLock)
-        PR_DestroyLock(mProxyCreationLock);
-
-    nsProxyObjectManager::mInstance = nsnull;
+    nsProxyObjectManager::gInstance = nsnull;
 }
 
 PRBool
 nsProxyObjectManager::IsManagerShutdown()
 {
-    return mInstance == nsnull;
+    return gInstance == nsnull;
 }
 
 nsProxyObjectManager *
 nsProxyObjectManager::GetInstance()
 {
-    if (!mInstance) 
-        mInstance = new nsProxyObjectManager();
-    return mInstance;
+    if (!gInstance) 
+        gInstance = new nsProxyObjectManager();
+    return gInstance;
 }
 
 void
 nsProxyObjectManager::Shutdown()
 {
-    mInstance = nsnull;
+    delete gInstance;
+    NS_ASSERTION(!gInstance, "Destructor didn't null gInstance?");
 }
 
-NS_IMETHODIMP 
+nsresult
 nsProxyObjectManager::Create(nsISupports* outer, const nsIID& aIID,
                              void* *aInstancePtr)
 {
@@ -224,7 +234,7 @@ nsProxyObjectManager::GetProxyForObject(nsIEventTarget* aTarget,
     nsProxyEventKey rootKey(realObj, realEQ, proxyType);
 
     {
-        nsAutoLock lock(mProxyCreationLock);
+        MutexAutoLock lock(mProxyCreationLock);
         nsProxyLockedRefPtr root =
             (nsProxyObject*) mProxyObjectMap.Get(&rootKey);
         if (root)
@@ -238,7 +248,7 @@ nsProxyObjectManager::GetProxyForObject(nsIEventTarget* aTarget,
 
     // lock again, and check for a race putting into mProxyObjectMap
     {
-        nsAutoLock lock(mProxyCreationLock);
+        MutexAutoLock lock(mProxyCreationLock);
         nsProxyLockedRefPtr root = 
             (nsProxyObject*) mProxyObjectMap.Get(&rootKey);
         if (root) {
@@ -269,7 +279,7 @@ nsresult
 nsProxyObjectManager::GetClass(REFNSIID aIID, nsProxyEventClass **aResult)
 {
     {
-        nsAutoLock lock(mProxyCreationLock);
+        MutexAutoLock lock(mProxyCreationLock);
         if (mProxyClassMap.Get(aIID, aResult)) {
             NS_ASSERTION(*aResult, "Null data in mProxyClassMap");
             return NS_OK;
@@ -277,7 +287,7 @@ nsProxyObjectManager::GetClass(REFNSIID aIID, nsProxyEventClass **aResult)
     }
 
     nsIInterfaceInfoManager *iim =
-        xptiInterfaceInfoManager::GetInterfaceInfoManagerNoAddRef();
+        xptiInterfaceInfoManager::GetSingleton();
     if (!iim)
         return NS_ERROR_FAILURE;
 
@@ -292,7 +302,7 @@ nsProxyObjectManager::GetClass(REFNSIID aIID, nsProxyEventClass **aResult)
 
     // Re-lock to put this class into our map. Before putting, check to see
     // if another thread raced to put before us
-    nsAutoLock lock(mProxyCreationLock);
+    MutexAutoLock lock(mProxyCreationLock);
 
     if (mProxyClassMap.Get(aIID, aResult)) {
         NS_ASSERTION(*aResult, "Null data in mProxyClassMap");

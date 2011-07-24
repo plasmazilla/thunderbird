@@ -37,13 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== listbox.css =======================================================
-  == Styles used by XUL listbox-related elements.
-  ======================================================================= */
-
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
-
-/* ::::: listbox ::::: */
 
 listbox {
   -moz-appearance: listbox;
@@ -63,9 +57,6 @@ listbox {
 
 listitem {
   border: 1px solid transparent;
-}
-
-listbox:focus > listitem[selected="true"][current="true"] {
 }
 
 listitem[selected="true"] {
@@ -115,21 +106,6 @@ listheader[sortable="true"]:hover:active {
   margin: 0px !important;
 }
 
-/* ..... sort direction icon ..... */
-
-.listheader-sortdirection {
-  -moz-appearance: treeheadersortarrow;
-  list-style-image: none;
-}
-
-.listheader-sortdirection[sortDirection="ascending"] {
-  list-style-image: url("chrome://global/skin/tree/sort-asc.gif");
-}
-
-.listheader-sortdirection[sortDirection="descending"] {
-  list-style-image: url("chrome://global/skin/tree/sort-dsc.gif");
-}
-
 /* ::::: listcell ::::: */
 
 .listcell-label {
@@ -156,7 +132,7 @@ listheader[sortable="true"]:hover:active {
   border: 1px solid -moz-DialogText;
   min-width: 13px;
   min-height: 13px;
-  background: -moz-Field url("chrome://global/skin/checkbox/cbox.gif") no-repeat 50% 50%;
+  background: -moz-Field no-repeat 50% 50%;
 }
 
 .listcell-check[checked="true"] {

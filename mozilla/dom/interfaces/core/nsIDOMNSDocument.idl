@@ -42,8 +42,9 @@
 
 interface nsIBoxObject;
 interface nsIDOMLocation;
+interface nsIVariant;
 
-[scriptable, uuid(09a439ad-4079-46d5-a050-4d7015d1a108)]
+[scriptable, uuid(92f2c6f8-3668-4a47-8251-2a900afe11fa)]
 interface nsIDOMNSDocument : nsISupports
 {
   readonly attribute DOMString      characterSet;
@@ -61,6 +62,8 @@ interface nsIDOMNSDocument : nsISupports
   boolean      hasFocus();
 
   readonly attribute nsIDOMElement  activeElement;
+
+  readonly attribute nsIDOMElement  currentScript;
 
   /*
    * Retrieve elements matching all classes listed in a
@@ -87,8 +90,43 @@ interface nsIDOMNSDocument : nsISupports
   * Callers from XUL documents should wait until the onload event has fired
   * before calling this method.
   *
-  * <a href="http://dev.w3.org/cvsweb/~checkout~/csswg/cssom/Overview.html?content-type=text/html;%20charset=utf-8#documentlayout-elementfrompoint">preliminary spec</a>
+  * See <http://www.w3.org/TR/cssom-view/#the-documentview-interface>
   */
-  nsIDOMElement             elementFromPoint(in long x, in long y);
+  nsIDOMElement             elementFromPoint(in float x, in float y);
 
+  /**
+   * Release the current mouse capture if it is on an element within this
+   * document.
+   */
+  void releaseCapture();
+
+  /**
+   * Use the given DOM element as the source image of target |-moz-element()|.
+   *
+   * This function introduces a new special ID (called "image element ID"),
+   * which is only used by |-moz-element()|, and associates it with the given
+   * DOM element.  Image elements ID's have the higher precedence than general
+   * HTML id's, so if |document.mozSetImageElement(<id>, <element>)| is called,
+   * |-moz-element(#<id>)| uses |<element>| as the source image even if there
+   * is another element with id attribute = |<id>|.  To unregister an image
+   * element ID |<id>|, call |document.mozSetImageElement(<id>, null)|.
+   *
+   * Example:
+   * <script>
+   *   canvas = document.createElement("canvas");
+   *   canvas.setAttribute("width", 100);
+   *   canvas.setAttribute("height", 100);
+   *   // draw to canvas
+   *   document.mozSetImageElement("canvasbg", canvas);
+   * </script>
+   * <div style="background-image: -moz-element(#canvasbg);"></div>
+   *
+   * @param aImageElementId an image element ID to associate with
+   * |aImageElement|
+   * @param aImageElement a DOM element to be used as the source image of
+   * |-moz-element(#aImageElementId)|. If this is null, the function will
+   * unregister the image element ID |aImageElementId|.
+   */
+  void mozSetImageElement(in DOMString aImageElementId,
+                          in nsIDOMElement aImageElement);
 };

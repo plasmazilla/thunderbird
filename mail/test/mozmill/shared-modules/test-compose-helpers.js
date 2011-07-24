@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -67,9 +67,14 @@ function installInto(module) {
   // Now copy helper functions
   module.open_compose_new_mail = open_compose_new_mail;
   module.open_compose_with_reply = open_compose_with_reply;
+  module.open_compose_with_reply_to_list = open_compose_with_reply_to_list;
   module.open_compose_with_forward = open_compose_with_forward;
+  module.open_compose_with_forward_as_attachments = open_compose_with_forward_as_attachments;
   module.open_compose_with_element_click = open_compose_with_element_click;
   module.close_compose_window = close_compose_window;
+  module.wait_for_compose_window = wait_for_compose_window;
+  module.add_attachment = add_attachment;
+  module.delete_attachment = delete_attachment;
 }
 
 /**
@@ -101,6 +106,40 @@ function open_compose_with_reply(aController) {
 
   windowHelper.plan_for_new_window("msgcompose");
   aController.keypress(null, "r", {shiftKey: false, accelKey: true});
+
+  return wait_for_compose_window();
+}
+
+/**
+ * Opens the compose window by replying to list for a selected message and waits for it
+ * to load.
+ *
+ * @return The loaded window of type "msgcompose" wrapped in a MozmillController
+ *         that is augmented using augment_controller.
+ */
+function open_compose_with_reply_to_list(aController) {
+  if (aController === undefined)
+    aController = mc;
+
+  windowHelper.plan_for_new_window("msgcompose");
+  aController.keypress(null, "l", {shiftKey: true, accelKey: true});
+
+  return wait_for_compose_window();
+}
+
+/**
+ * Opens the compose window by forwarding the selected messages as attachments
+ * and waits for it to load.
+ *
+ * @return The loaded window of type "msgcompose" wrapped in a MozmillController
+ *         that is augmented using augment_controller.
+ */
+function open_compose_with_forward_as_attachments(aController) {
+  if (aController === undefined)
+    aController = mc;
+
+  windowHelper.plan_for_new_window("msgcompose");
+  aController.click(aController.eid("menu_forwardAsAttachment"));
 
   return wait_for_compose_window();
 }
@@ -203,4 +242,34 @@ function wait_for_compose_window(aController) {
   aController.sleep(1000);
 
   return replyWindow;
+}
+
+/**
+ * Add an attachment to the compose window
+ * @param aComposeWindow the composition window in question
+ * @param aUrl the URL for this attachment (either a file URL or a web URL)
+ * @param aSize (optional) the file size of this attachment, in bytes
+ */
+function add_attachment(aComposeWindow, aUrl, aSize) {
+  let attachment = Cc["@mozilla.org/messengercompose/attachment;1"]
+                     .createInstance(Ci.nsIMsgAttachment);
+
+  attachment.url = aUrl;
+  if(aSize)
+    attachment.size = aSize;
+
+  aComposeWindow.window.AddUrlAttachment(attachment);
+}
+
+/**
+ * Delete an attachment from the compose window
+ * @param aComposeWindow the composition window in question
+ * @param aIndex the index of the attachment in the attachment pane
+ */
+function delete_attachment(aComposeWindow, aIndex) {
+  let bucket = aComposeWindow.e('attachmentBucket');
+  let node = bucket.getElementsByTagName('listitem')[aIndex];
+
+  aComposeWindow.click(new elib.Elem(node));
+  aComposeWindow.window.RemoveSelectedAttachment();
 }

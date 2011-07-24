@@ -38,42 +38,29 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsMsgContentPolicy.h"
-#include "nsIServiceManager.h"
-#include "nsIDocShellTreeItem.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch2.h"
-#include "nsIURI.h"
-#include "nsIInterfaceRequestorUtils.h"
 #include "nsIMsgHeaderParser.h"
 #include "nsIAbManager.h"
 #include "nsIAbDirectory.h"
 #include "nsIAbCard.h"
 #include "nsIMsgWindow.h"
 #include "nsIMimeMiscStatus.h"
-#include "nsIMsgMessageService.h"
 #include "nsIMsgHdr.h"
-#include "nsMsgUtils.h"
 #include "nsNetUtil.h"
-
 #include "nsIMsgComposeService.h"
-#include "nsIMsgCompose.h"
 #include "nsMsgCompCID.h"
-
-// needed by the content load policy manager
-#include "nsIExternalProtocolService.h"
-#include "nsCExternalHandlerService.h"
-
-// needed for mailnews content load policy manager
-#include "nsIDocShell.h"
+#include "nsIDocShellTreeItem.h"
 #include "nsIWebNavigation.h"
 #include "nsContentPolicyUtils.h"
 #include "nsIDOMHTMLImageElement.h"
-#include "nsILoadContext.h"
 #include "nsIFrameLoader.h"
 #include "nsIWebProgress.h"
+#include "nsMsgUtils.h"
+#include "nsThreadUtils.h"
 
 static const char kBlockRemoteImages[] = "mailnews.message_display.disable_remote_image";
-static const char kAllowPlugins[] = "mailnews.message_display.allow.plugins";
+static const char kAllowPlugins[] = "mailnews.message_display.allow_plugins";
 static const char kTrustedDomains[] =  "mail.trusteddomains";
 
 // Per message headder flags to keep track of whether the user is allowing remote
@@ -252,13 +239,7 @@ nsMsgContentPolicy::ShouldLoad(PRUint32          aContentType,
 #endif
 
   switch(aContentType) {
-
-  case nsIContentPolicy::TYPE_OBJECT:
-    // only allow the plugin to load if the allow plugins pref has been set
-    if (!mAllowPlugins)
-      *aDecision = nsIContentPolicy::REJECT_TYPE;
-    return NS_OK;
-
+    // Plugins (nsIContentPolicy::TYPE_OBJECT) are blocked on document load.
   case nsIContentPolicy::TYPE_DOCUMENT:
     // At this point, we have no intention of supporting a different JS
     // setting on a subdocument, so we don't worry about TYPE_SUBDOCUMENT here.
@@ -271,10 +252,11 @@ nsMsgContentPolicy::ShouldLoad(PRUint32          aContentType,
     // sorry, because OnLocationChange isn't guaranteed to necessarily be called
     // soon enough to disable it in time (though bz says it _should_ be called 
     // soon enough "in all sane cases").
-    rv = DisableJSOnMailNewsUrlDocshells(aContentLocation, aRequestingContext);
-
+    rv = SetDisableItemsOnMailNewsUrlDocshells(aContentLocation,
+                                               aRequestingContext);
     // if something went wrong during the tweaking, reject this content
     if (NS_FAILED(rv)) {
+      NS_WARNING("Failed to set disable items on docShells");
       *aDecision = nsIContentPolicy::REJECT_TYPE;
       return NS_OK;
     }
@@ -313,7 +295,7 @@ nsMsgContentPolicy::ShouldLoad(PRUint32          aContentType,
   }
 
   // never load unexposed protocols except for http, https and file. 
-  // Protocols like ftp, gopher are always blocked.
+  // Protocols like ftp are always blocked.
   if (ShouldBlockUnexposedProtocol(aContentLocation))
     return NS_OK;
 
@@ -324,23 +306,12 @@ nsMsgContentPolicy::ShouldLoad(PRUint32          aContentType,
     return NS_OK;
   }
 
-  // Non-Thunderbird apps got this earlier.
-#ifdef MOZ_THUNDERBIRD
-  nsCOMPtr<nsIDocShell> rootDocShell;
-  rv = GetRootDocShellForContext(aRequestingContext,
-                                 getter_AddRefs(rootDocShell));
-  NS_ENSURE_SUCCESS(rv, rv);
-#endif
-
   // Extract the windowtype to handle compose windows separately from mail
-  PRBool isComposeWindow = PR_FALSE;
-  rv = IsComposeWindow(rootDocShell, isComposeWindow);
-  NS_ENSURE_SUCCESS(rv, NS_OK);
-
+  nsCOMPtr<nsIMsgCompose> msgCompose = GetMsgComposeForContext(aRequestingContext);
   // Work out if we're in a compose window or not.
-  if (isComposeWindow)
+  if (msgCompose)
   {
-    ComposeShouldLoad(rootDocShell, aRequestingContext, aContentLocation,
+    ComposeShouldLoad(msgCompose, aRequestingContext, aContentLocation,
                       aDecision);
     return NS_OK;
   }
@@ -429,15 +400,15 @@ nsMsgContentPolicy::IsExposedProtocol(nsIURI *aContentLocation)
 
   // If you are changing this list, you may need to also consider changing the
   // list of network.protocol-handler.expose.* prefs in all-thunderbird.js.
-  if (contentScheme.LowerCaseEqualsLiteral("mailto") ||
-      contentScheme.LowerCaseEqualsLiteral("news") ||
-      contentScheme.LowerCaseEqualsLiteral("snews") ||
-      contentScheme.LowerCaseEqualsLiteral("nntp") ||
-      contentScheme.LowerCaseEqualsLiteral("imap") ||
-      contentScheme.LowerCaseEqualsLiteral("addbook") ||
-      contentScheme.LowerCaseEqualsLiteral("pop") ||
-      contentScheme.LowerCaseEqualsLiteral("mailbox") ||
-      contentScheme.LowerCaseEqualsLiteral("about"))
+  if (MsgLowerCaseEqualsLiteral(contentScheme, "mailto") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "news") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "snews") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "nntp") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "imap") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "addbook") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "pop") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "mailbox") ||
+      MsgLowerCaseEqualsLiteral(contentScheme, "about"))
     return PR_TRUE;
 
   PRBool isData;
@@ -520,6 +491,30 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForMsgHdr(nsIMsgDBHdr *aMsgHdr,
   return result;
 }
 
+class RemoteContentNotifierEvent : public nsRunnable
+{
+public:
+  RemoteContentNotifierEvent(nsIMsgWindow *aMsgWindow, nsIMsgDBHdr *aMsgHdr)
+    : mMsgWindow(aMsgWindow), mMsgHdr(aMsgHdr)
+  {}
+
+  NS_IMETHOD Run()
+  {
+    if (mMsgWindow)
+    {
+      nsCOMPtr<nsIMsgHeaderSink> msgHdrSink;
+      (void)mMsgWindow->GetMsgHeaderSink(getter_AddRefs(msgHdrSink));
+      if (msgHdrSink)
+        msgHdrSink->OnMsgHasRemoteContent(mMsgHdr);
+    }
+    return NS_OK;
+  }
+
+private:
+  nsCOMPtr<nsIMsgWindow> mMsgWindow;
+  nsCOMPtr<nsIMsgDBHdr> mMsgHdr;
+};
+
 /** 
  * This function is used to determine if we allow content for a remote message.
  * If we reject loading remote content, then we'll inform the message window
@@ -573,10 +568,12 @@ nsMsgContentPolicy::ShouldAcceptContentForPotentialMsg(nsIURI *aOriginatorLocati
     (void)mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow)); 
     if (msgWindow)
     {
-      nsCOMPtr<nsIMsgHeaderSink> msgHdrSink;
-      (void)msgWindow->GetMsgHeaderSink(getter_AddRefs(msgHdrSink));
-      if (msgHdrSink)
-        msgHdrSink->OnMsgHasRemoteContent(msgHdr);
+      nsCOMPtr<nsIRunnable> event = new RemoteContentNotifierEvent(msgWindow,
+                                                                   msgHdr);
+      // Post this as an event because it can cause dom mutations, and we
+      // get called at a bad time to be causing dom mutations.
+      if (event)
+        NS_DispatchToCurrentThread(event);
     }
   }
 }
@@ -585,30 +582,21 @@ nsMsgContentPolicy::ShouldAcceptContentForPotentialMsg(nsIURI *aOriginatorLocati
  * Content policy logic for compose windows
  * 
  */
-void nsMsgContentPolicy::ComposeShouldLoad(nsIDocShell * aRootDocShell, nsISupports * aRequestingContext,
-                                               nsIURI * aContentLocation, PRInt16 * aDecision)
+void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
+                                           nsISupports *aRequestingContext,
+                                           nsIURI *aContentLocation,
+                                           PRInt16 *aDecision)
 {
   NS_PRECONDITION(*aDecision == nsIContentPolicy::REJECT_REQUEST,
                   "ComposeShouldLoad expects default decision to be reject!");
 
   nsresult rv;
-
-  nsCOMPtr<nsIDOMWindowInternal> window(do_GetInterface(aRootDocShell, &rv));
-  NS_ENSURE_SUCCESS(rv, );
-
-  nsCOMPtr<nsIMsgComposeService> composeService (do_GetService(NS_MSGCOMPOSESERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, );
-
-  nsCOMPtr<nsIMsgCompose> msgCompose;
-  rv = composeService->GetMsgComposeForWindow(window, getter_AddRefs(msgCompose));
-  NS_ENSURE_SUCCESS(rv, );
-
   nsCString originalMsgURI;
-  msgCompose->GetOriginalMsgURI(getter_Copies(originalMsgURI));
+  rv = aMsgCompose->GetOriginalMsgURI(getter_Copies(originalMsgURI));
   NS_ENSURE_SUCCESS(rv, );
 
   MSG_ComposeType composeType;
-  rv = msgCompose->GetType(&composeType);
+  rv = aMsgCompose->GetType(&composeType);
   NS_ENSURE_SUCCESS(rv, );
 
   // Only allow remote content for new mail compositions or mailto
@@ -635,7 +623,7 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIDocShell * aRootDocShell, nsISuppo
     if (*aDecision == nsIContentPolicy::REJECT_REQUEST)
     {
       PRBool insertingQuotedContent = PR_TRUE;
-      msgCompose->GetInsertingQuotedContent(&insertingQuotedContent);
+      aMsgCompose->GetInsertingQuotedContent(&insertingQuotedContent);
       nsCOMPtr<nsIDOMHTMLImageElement> imageElement(do_QueryInterface(aRequestingContext));
       if (!insertingQuotedContent && imageElement)
       {
@@ -648,35 +636,32 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIDocShell * aRootDocShell, nsISuppo
   }
 }
 
-/**
- * Uses the root docshell to determine if we're in a compose window or not.
- */
-nsresult nsMsgContentPolicy::IsComposeWindow(nsIDocShell *aRootDocShell,
-                                             PRBool &aIsComposeWindow)
+already_AddRefed<nsIMsgCompose> nsMsgContentPolicy::GetMsgComposeForContext(nsISupports *aRequestingContext)
 {
   nsresult rv;
-  // get the dom document element
-  nsCOMPtr<nsIDOMDocument> domDocument = do_GetInterface(aRootDocShell, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIDOMElement> windowEl;
-  rv = domDocument->GetDocumentElement(getter_AddRefs(windowEl));
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsIDocShell *shell = NS_CP_GetDocShellFromContext(aRequestingContext);
+  nsCOMPtr<nsIDocShellTreeItem> docShellTreeItem(do_QueryInterface(shell, &rv));
+  NS_ENSURE_SUCCESS(rv, nsnull);
 
-  nsAutoString windowType;
-  // GetDocumentElement may succeed but return nsnull, if it does, we'll
-  // treat the window as a non-msgcompose window.
-  if (windowEl)
-  {
-    rv = windowEl->GetAttribute(NS_LITERAL_STRING("windowtype"), windowType);
-    NS_ENSURE_SUCCESS(rv, rv);
-  }
+  nsCOMPtr<nsIDocShellTreeItem> rootItem;
+  rv = docShellTreeItem->GetSameTypeRootTreeItem(getter_AddRefs(rootItem));
+  NS_ENSURE_SUCCESS(rv, nsnull);
 
-  aIsComposeWindow = windowType.Equals(NS_LITERAL_STRING("msgcompose"));
-  return NS_OK;
+  nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(rootItem, &rv));
+  NS_ENSURE_SUCCESS(rv, nsnull);
+
+  nsCOMPtr<nsIMsgComposeService> composeService(do_GetService(NS_MSGCOMPOSESERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, nsnull);
+
+  nsIMsgCompose* msgCompose = nsnull;
+  // Don't bother checking rv, as GetMsgComposeForDocShell returns NS_ERROR_FAILURE
+  // for not found. We default to nsnull, so we're still returning a valid value.
+  composeService->GetMsgComposeForDocShell(docShell, &msgCompose);
+  return msgCompose;
 }
 
-nsresult nsMsgContentPolicy::DisableJSOnMailNewsUrlDocshells(
+nsresult nsMsgContentPolicy::SetDisableItemsOnMailNewsUrlDocshells(
   nsIURI *aContentLocation, nsISupports *aRequestingContext)
 {
   // XXX if this class changes so that this method can be called from
@@ -710,11 +695,11 @@ nsresult nsMsgContentPolicy::DisableJSOnMailNewsUrlDocshells(
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(frameLoader, NS_ERROR_INVALID_POINTER);
   
-  nsCOMPtr<nsIDocShell> shell;
-  rv = frameLoader->GetDocShell(getter_AddRefs(shell));
+  nsCOMPtr<nsIDocShell> docShell;
+  rv = frameLoader->GetDocShell(getter_AddRefs(docShell));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIDocShellTreeItem> docshellTreeItem(do_QueryInterface(shell, &rv));
+  nsCOMPtr<nsIDocShellTreeItem> docshellTreeItem(do_QueryInterface(docShell, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
   // what sort of docshell is this?
@@ -727,7 +712,15 @@ nsresult nsMsgContentPolicy::DisableJSOnMailNewsUrlDocshells(
     return NS_OK;
   }
 
-  return shell->SetAllowJavascript(PR_FALSE);
+  // For messages, we must always disable javascript...
+  rv = docShell->SetAllowJavascript(PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // ...and we allow plugins according to the mail specific preference.
+  rv = docShell->SetAllowPlugins(mAllowPlugins);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return NS_OK;
 }
 
 /**
@@ -811,6 +804,8 @@ NS_IMETHODIMP nsMsgContentPolicy::Observe(nsISupports *aSubject, const char *aTo
 
     if (pref.Equals(kBlockRemoteImages))
       prefBranchInt->GetBoolPref(kBlockRemoteImages, &mBlockRemoteImages);
+    if (pref.Equals(kAllowPlugins))
+      prefBranchInt->GetBoolPref(kAllowPlugins, &mAllowPlugins);
   }
 
   return NS_OK;
@@ -866,9 +861,29 @@ nsMsgContentPolicy::OnLocationChange(nsIWebProgress *aWebProgress,
   }
 #endif
   
-  // If this is a mailnews url, turn off JavaScript, otherwise turn it on
   nsCOMPtr<nsIMsgMessageUrl> messageUrl = do_QueryInterface(aLocation, &rv);
-  return docShell->SetAllowJavascript(NS_FAILED(rv));
+
+  if (NS_SUCCEEDED(rv)) {
+    // Disable javascript on message URLs.
+    rv = docShell->SetAllowJavascript(PR_FALSE);
+    NS_ASSERTION(NS_SUCCEEDED(rv),
+                 "Failed to set javascript disabled on docShell");
+    // Also disable plugins if the preference requires it.
+    rv = docShell->SetAllowPlugins(mAllowPlugins);
+    NS_ASSERTION(NS_SUCCEEDED(rv),
+                 "Failed to set plugins disabled on docShell");
+  }
+  else {
+    // Disable javascript and plugins are allowed on non-message URLs.
+    rv = docShell->SetAllowJavascript(PR_TRUE);
+    NS_ASSERTION(NS_SUCCEEDED(rv),
+                 "Failed to set javascript allowed on docShell");
+    rv = docShell->SetAllowPlugins(PR_TRUE);
+    NS_ASSERTION(NS_SUCCEEDED(rv),
+                 "Failed to set plugins allowed on docShell");
+  }
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP

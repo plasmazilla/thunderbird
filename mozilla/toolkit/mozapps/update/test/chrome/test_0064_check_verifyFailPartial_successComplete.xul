@@ -36,7 +36,7 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=minor&showDetails=1&invalidPartialHash=1" +
+  let url = URL_UPDATE + "?showDetails=1&invalidPartialHash=1" +
             getVersionParams();
   setUpdateURLOverride(url);
 

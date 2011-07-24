@@ -43,6 +43,7 @@
 #include "nsISVGSVGFrame.h"
 #include "nsIDOMSVGPoint.h"
 #include "nsIDOMSVGNumber.h"
+#include "nsSVGFeatures.h"
 #include "gfxMatrix.h"
 
 class nsSVGForeignObjectFrame;
@@ -92,8 +93,6 @@ public:
                         const nsHTMLReflowState*  aReflowState,
                         nsDidReflowStatus aStatus);
 
-  NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint& aPoint);
-
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
@@ -111,7 +110,8 @@ public:
    */
   virtual nsIAtom* GetType() const;
 
-  void Paint(nsIRenderingContext& aRenderingContext,
+  void Paint(const nsDisplayListBuilder* aBuilder,
+             nsIRenderingContext& aRenderingContext,
              const nsRect& aDirtyRect, nsPoint aPt);
 
 #ifdef DEBUG
@@ -158,7 +158,12 @@ protected:
    * embedded in an HTML 'object', 'embed' or 'applet' element. Set
    * aEmbeddingFrame to obtain the nsIFrame for the embedding HTML element.
    */
-  PRBool EmbeddedByReference(nsIFrame **aEmbeddingFrame = nsnull);
+  PRBool IsRootOfReplacedElementSubDoc(nsIFrame **aEmbeddingFrame = nsnull);
+
+  /* Returns true if our content is the document element and our document is
+   * being used as an image.
+   */
+  PRBool IsRootOfImage();
 
   // A hash-set containing our nsSVGForeignObjectFrame descendants. Note we use
   // a hash-set to avoid the O(N^2) behavior we'd get tearing down an SVG frame

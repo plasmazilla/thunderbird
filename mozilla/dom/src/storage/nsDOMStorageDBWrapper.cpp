@@ -69,12 +69,23 @@ void ReverseString(const nsCSubstring& source, nsCSubstring& result)
   }
 }
 
+nsDOMStorageDBWrapper::nsDOMStorageDBWrapper()
+{
+}
+
+nsDOMStorageDBWrapper::~nsDOMStorageDBWrapper()
+{
+}
+
 nsresult
 nsDOMStorageDBWrapper::Init()
 {
   nsresult rv;
 
-  rv = mPersistentDB.Init();
+  rv = mPersistentDB.Init(NS_LITERAL_STRING("webappsstore.sqlite"));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = mChromePersistentDB.Init(NS_LITERAL_STRING("chromeappsstore.sqlite"));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = mSessionOnlyDB.Init(&mPersistentDB);
@@ -87,9 +98,26 @@ nsDOMStorageDBWrapper::Init()
 }
 
 nsresult
-nsDOMStorageDBWrapper::GetAllKeys(nsDOMStorage* aStorage,
+nsDOMStorageDBWrapper::FlushAndDeleteTemporaryTables(bool force)
+{
+  nsresult rv1, rv2;
+  rv1 = mChromePersistentDB.FlushTemporaryTables(force);
+  rv2 = mPersistentDB.FlushTemporaryTables(force);
+
+  // Everything flushed?  Then no need for a timer.
+  if (!mChromePersistentDB.mTempTableLoads.Count() && 
+      !mPersistentDB.mTempTableLoads.Count())
+    StopTempTableFlushTimer();
+
+  return NS_FAILED(rv1) ? rv1 : rv2;
+}
+
+nsresult
+nsDOMStorageDBWrapper::GetAllKeys(DOMStorageImpl* aStorage,
                                   nsTHashtable<nsSessionStorageEntry>* aKeys)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.GetAllKeys(aStorage, aKeys);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
     return mPrivateBrowsingDB.GetAllKeys(aStorage, aKeys);
   if (aStorage->SessionOnly())
@@ -99,11 +127,13 @@ nsDOMStorageDBWrapper::GetAllKeys(nsDOMStorage* aStorage,
 }
 
 nsresult
-nsDOMStorageDBWrapper::GetKeyValue(nsDOMStorage* aStorage,
+nsDOMStorageDBWrapper::GetKeyValue(DOMStorageImpl* aStorage,
                                    const nsAString& aKey,
                                    nsAString& aValue,
                                    PRBool* aSecure)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.GetKeyValue(aStorage, aKey, aValue, aSecure);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
     return mPrivateBrowsingDB.GetKeyValue(aStorage, aKey, aValue, aSecure);
   if (aStorage->SessionOnly())
@@ -113,29 +143,35 @@ nsDOMStorageDBWrapper::GetKeyValue(nsDOMStorage* aStorage,
 }
 
 nsresult
-nsDOMStorageDBWrapper::SetKey(nsDOMStorage* aStorage,
+nsDOMStorageDBWrapper::SetKey(DOMStorageImpl* aStorage,
                               const nsAString& aKey,
                               const nsAString& aValue,
                               PRBool aSecure,
                               PRInt32 aQuota,
+                              PRBool aExcludeOfflineFromUsage,
                               PRInt32 *aNewUsage)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.SetKey(aStorage, aKey, aValue, aSecure,
+                                      aQuota, aExcludeOfflineFromUsage, aNewUsage);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
     return mPrivateBrowsingDB.SetKey(aStorage, aKey, aValue, aSecure,
-                                          aQuota, aNewUsage);
+                                          aQuota, aExcludeOfflineFromUsage, aNewUsage);
   if (aStorage->SessionOnly())
     return mSessionOnlyDB.SetKey(aStorage, aKey, aValue, aSecure,
-                                      aQuota, aNewUsage);
+                                      aQuota, aExcludeOfflineFromUsage, aNewUsage);
 
   return mPersistentDB.SetKey(aStorage, aKey, aValue, aSecure,
-                                   aQuota, aNewUsage);
+                                   aQuota, aExcludeOfflineFromUsage, aNewUsage);
 }
 
 nsresult
-nsDOMStorageDBWrapper::SetSecure(nsDOMStorage* aStorage,
+nsDOMStorageDBWrapper::SetSecure(DOMStorageImpl* aStorage,
                                  const nsAString& aKey,
                                  const PRBool aSecure)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.SetSecure(aStorage, aKey, aSecure);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
     return mPrivateBrowsingDB.SetSecure(aStorage, aKey, aSecure);
   if (aStorage->SessionOnly())
@@ -145,21 +181,26 @@ nsDOMStorageDBWrapper::SetSecure(nsDOMStorage* aStorage,
 }
 
 nsresult
-nsDOMStorageDBWrapper::RemoveKey(nsDOMStorage* aStorage,
+nsDOMStorageDBWrapper::RemoveKey(DOMStorageImpl* aStorage,
                                  const nsAString& aKey,
+                                 PRBool aExcludeOfflineFromUsage,
                                  PRInt32 aKeyUsage)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.RemoveKey(aStorage, aKey, aExcludeOfflineFromUsage, aKeyUsage);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
-    return mPrivateBrowsingDB.RemoveKey(aStorage, aKey, aKeyUsage);
+    return mPrivateBrowsingDB.RemoveKey(aStorage, aKey, aExcludeOfflineFromUsage, aKeyUsage);
   if (aStorage->SessionOnly())
-    return mSessionOnlyDB.RemoveKey(aStorage, aKey, aKeyUsage);
+    return mSessionOnlyDB.RemoveKey(aStorage, aKey, aExcludeOfflineFromUsage, aKeyUsage);
 
-  return mPersistentDB.RemoveKey(aStorage, aKey, aKeyUsage);
+  return mPersistentDB.RemoveKey(aStorage, aKey, aExcludeOfflineFromUsage, aKeyUsage);
 }
 
 nsresult
-nsDOMStorageDBWrapper::ClearStorage(nsDOMStorage* aStorage)
+nsDOMStorageDBWrapper::ClearStorage(DOMStorageImpl* aStorage)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.ClearStorage(aStorage);
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
     return mPrivateBrowsingDB.ClearStorage(aStorage);
   if (aStorage->SessionOnly())
@@ -244,14 +285,17 @@ nsDOMStorageDBWrapper::RemoveAll()
 }
 
 nsresult
-nsDOMStorageDBWrapper::GetUsage(nsDOMStorage* aStorage, PRInt32 *aUsage)
+nsDOMStorageDBWrapper::GetUsage(DOMStorageImpl* aStorage,
+                                PRBool aExcludeOfflineFromUsage, PRInt32 *aUsage)
 {
+  if (aStorage->CanUseChromePersist())
+    return mChromePersistentDB.GetUsage(aStorage, aExcludeOfflineFromUsage, aUsage);    
   if (nsDOMStorageManager::gStorageManager->InPrivateBrowsingMode())
-    return mPrivateBrowsingDB.GetUsage(aStorage, aUsage);
+    return mPrivateBrowsingDB.GetUsage(aStorage, aExcludeOfflineFromUsage, aUsage);
   if (aStorage->SessionOnly())
-    return mSessionOnlyDB.GetUsage(aStorage, aUsage);
+    return mSessionOnlyDB.GetUsage(aStorage, aExcludeOfflineFromUsage, aUsage);
 
-  return mPersistentDB.GetUsage(aStorage, aUsage);
+  return mPersistentDB.GetUsage(aStorage, aExcludeOfflineFromUsage, aUsage);
 }
 
 nsresult
@@ -303,11 +347,25 @@ nsDOMStorageDBWrapper::CreateDomainScopeDBKey(nsIURI* aUri, nsACString& aKey)
 {
   nsresult rv;
 
-  nsCAutoString host;
-  rv = aUri->GetAsciiHost(host);
+  nsCAutoString domainScope;
+  rv = aUri->GetAsciiHost(domainScope);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = CreateDomainScopeDBKey(host, aKey);
+  if (domainScope.IsEmpty()) {
+    // About pages have an empty host but a valid path.  Since they are handled
+    // internally by our own redirector, we can trust them and use path as key.
+    PRBool isAboutUrl = PR_FALSE;
+    if ((NS_SUCCEEDED(aUri->SchemeIs("about", &isAboutUrl)) && isAboutUrl) ||
+        (NS_SUCCEEDED(aUri->SchemeIs("moz-safe-about", &isAboutUrl)) && isAboutUrl)) {
+      rv = aUri->GetPath(domainScope);
+      NS_ENSURE_SUCCESS(rv, rv);
+      // While the host is always canonicalized to lowercase, the path is not,
+      // thus need to force the casing.
+      ToLowerCase(domainScope);
+    }
+  }
+
+  rv = CreateDomainScopeDBKey(domainScope, aKey);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -329,29 +387,34 @@ nsDOMStorageDBWrapper::CreateDomainScopeDBKey(const nsACString& aAsciiDomain,
 nsresult
 nsDOMStorageDBWrapper::CreateQuotaDomainDBKey(const nsACString& aAsciiDomain,
                                               PRBool aIncludeSubDomains,
+                                              PRBool aEffectiveTLDplus1Only,
                                               nsACString& aKey)
 {
   nsresult rv;
 
-  nsCOMPtr<nsIEffectiveTLDService> eTLDService(do_GetService(
-    NS_EFFECTIVETLDSERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIURI> uri;
-  rv = NS_NewURI(getter_AddRefs(uri), NS_LITERAL_CSTRING("http://") + aAsciiDomain);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCAutoString eTLDplusOne;
-  rv = eTLDService->GetBaseDomain(uri, 0, eTLDplusOne);
-  if (NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS == rv) {
-    // XXX bug 357323 - what to do for localhost/file exactly?
-    eTLDplusOne = aAsciiDomain;
-    rv = NS_OK;
-  }
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCAutoString subdomainsDBKey;
-  CreateDomainScopeDBKey(eTLDplusOne, subdomainsDBKey);
+  if (aEffectiveTLDplus1Only) {
+    nsCOMPtr<nsIEffectiveTLDService> eTLDService(do_GetService(
+      NS_EFFECTIVETLDSERVICE_CONTRACTID, &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIURI> uri;
+    rv = NS_NewURI(getter_AddRefs(uri), NS_LITERAL_CSTRING("http://") + aAsciiDomain);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCAutoString eTLDplusOne;
+    rv = eTLDService->GetBaseDomain(uri, 0, eTLDplusOne);
+    if (NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS == rv) {
+      // XXX bug 357323 - what to do for localhost/file exactly?
+      eTLDplusOne = aAsciiDomain;
+      rv = NS_OK;
+    }
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    CreateDomainScopeDBKey(eTLDplusOne, subdomainsDBKey);
+  }
+  else
+    CreateDomainScopeDBKey(aAsciiDomain, subdomainsDBKey);
 
   if (!aIncludeSubDomains)
     subdomainsDBKey.AppendLiteral(":");
@@ -359,3 +422,42 @@ nsDOMStorageDBWrapper::CreateQuotaDomainDBKey(const nsACString& aAsciiDomain,
   aKey.Assign(subdomainsDBKey);
   return NS_OK;
 }
+
+nsresult
+nsDOMStorageDBWrapper::GetDomainFromScopeKey(const nsACString& aScope,
+                                         nsACString& aDomain)
+{
+  nsCAutoString reverseDomain, scope;
+  scope = aScope;
+  scope.Left(reverseDomain, scope.FindChar(':')-1);
+
+  ReverseString(reverseDomain, aDomain);
+  return NS_OK;
+}
+
+void
+nsDOMStorageDBWrapper::EnsureTempTableFlushTimer()
+{
+  if (!mTempTableFlushTimer) {
+    nsresult rv;
+    mTempTableFlushTimer = do_CreateInstance(NS_TIMER_CONTRACTID, &rv);
+
+    if (!NS_SUCCEEDED(rv)) {
+      mTempTableFlushTimer = nsnull;
+      return;
+    }
+
+    mTempTableFlushTimer->Init(nsDOMStorageManager::gStorageManager, 5000,
+                               nsITimer::TYPE_REPEATING_SLACK);
+  }
+}
+
+void
+nsDOMStorageDBWrapper::StopTempTableFlushTimer()
+{
+  if (mTempTableFlushTimer) {
+    mTempTableFlushTimer->Cancel();
+    mTempTableFlushTimer = nsnull;
+  }
+}
+

@@ -39,7 +39,7 @@
 
 #include "nsCOMPtr.h"
 #include "nsIAtom.h"
-#include "nsIXBLDocumentInfo.h"
+#include "nsXBLDocumentInfo.h"
 #include "nsIInputStream.h"
 #include "nsINameSpaceManager.h"
 #include "nsHashtable.h"
@@ -114,8 +114,8 @@
 static void
 XBLFinalize(JSContext *cx, JSObject *obj)
 {
-  nsIXBLDocumentInfo* docInfo =
-    static_cast<nsIXBLDocumentInfo*>(::JS_GetPrivate(cx, obj));
+  nsXBLDocumentInfo* docInfo =
+    static_cast<nsXBLDocumentInfo*>(::JS_GetPrivate(cx, obj));
   NS_RELEASE(docInfo);
   
   nsXBLJSClass* c = static_cast<nsXBLJSClass*>(::JS_GET_CLASS(cx, obj));
@@ -123,7 +123,7 @@ XBLFinalize(JSContext *cx, JSObject *obj)
 }
 
 static JSBool
-XBLResolve(JSContext *cx, JSObject *obj, jsval id, uintN flags,
+XBLResolve(JSContext *cx, JSObject *obj, jsid id, uintN flags,
            JSObject **objp)
 {
   // Note: if we get here, that means that the implementation for some binding
@@ -136,7 +136,7 @@ XBLResolve(JSContext *cx, JSObject *obj, jsval id, uintN flags,
   JSObject* origObj = *objp;
   *objp = NULL;
 
-  if (!JSVAL_IS_STRING(id)) {
+  if (!JSID_IS_STRING(id)) {
     return JS_TRUE;
   }
 
@@ -172,7 +172,7 @@ XBLResolve(JSContext *cx, JSObject *obj, jsval id, uintN flags,
   if (!xpcWrapper) {
     // Looks like whatever |origObj| is it's not our nsIContent.  It might well
     // be the proto our binding installed, however, where the private is the
-    // nsIXBLDocumentInfo, so just baul out quietly.  Do NOT throw an exception
+    // nsXBLDocumentInfo, so just baul out quietly.  Do NOT throw an exception
     // here.
     // We could make this stricter by checking the class maybe, but whatever
     return JS_TRUE;
@@ -233,7 +233,8 @@ nsXBLJSClass::nsXBLJSClass(const nsAFlatCString& aClassName)
     JSCLASS_NEW_RESOLVE | JSCLASS_NEW_RESOLVE_GETS_START |
     // Our one reserved slot holds the relevant nsXBLPrototypeBinding
     JSCLASS_HAS_RESERVED_SLOTS(1);
-  addProperty = delProperty = setProperty = getProperty = ::JS_PropertyStub;
+  addProperty = delProperty = getProperty = ::JS_PropertyStub;
+  setProperty = ::JS_StrictPropertyStub;
   enumerate = ::JS_EnumerateStub;
   resolve = (JSResolveOp)XBLResolve;
   convert = ::JS_ConvertStub;
@@ -285,7 +286,7 @@ nsXBLBinding::~nsXBLBinding(void)
     nsXBLBinding::UninstallAnonymousContent(mContent->GetOwnerDoc(), mContent);
   }
   delete mInsertionPointTable;
-  nsIXBLDocumentInfo* info = mPrototypeBinding->XBLDocumentInfo();
+  nsXBLDocumentInfo* info = mPrototypeBinding->XBLDocumentInfo();
   NS_RELEASE(info);
 }
 
@@ -316,7 +317,8 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_NATIVE(nsXBLBinding)
   // XXX What about mNextBinding and mInsertionPointTable?
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_BEGIN(nsXBLBinding)
-  cb.NoteXPCOMChild(tmp->mPrototypeBinding->XBLDocumentInfo());
+  cb.NoteXPCOMChild(static_cast<nsIScriptGlobalObjectOwner*>(
+                      tmp->mPrototypeBinding->XBLDocumentInfo()));
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mContent)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mNextBinding, nsXBLBinding)
   if (tmp->mInsertionPointTable)
@@ -454,14 +456,6 @@ BuildContentLists(nsISupports* aKey,
   if (count == 0)
     return PL_DHASH_NEXT;
 
-  // XXX Could this array just be altered in place and passed directly to
-  // SetContentListFor?  We'd save space if we could pull this off.
-  nsInsertionPointList* contentList = new nsInsertionPointList;
-  if (!contentList) {
-    data->mRv = NS_ERROR_OUT_OF_MEMORY;
-    return PL_DHASH_STOP;
-  }
-
   // Figure out the relevant content node.
   nsXBLInsertionPoint* currPoint = aData->ElementAt(0);
   nsCOMPtr<nsIContent> parent = currPoint->GetInsertionParent();
@@ -470,6 +464,14 @@ BuildContentLists(nsISupports* aKey,
     return PL_DHASH_STOP;
   }
   PRInt32 currIndex = currPoint->GetInsertionIndex();
+
+  // XXX Could this array just be altered in place and passed directly to
+  // SetContentListFor?  We'd save space if we could pull this off.
+  nsInsertionPointList* contentList = new nsInsertionPointList;
+  if (!contentList) {
+    data->mRv = NS_ERROR_OUT_OF_MEMORY;
+    return PL_DHASH_STOP;
+  }
 
   nsCOMPtr<nsIDOMNodeList> nodeList;
   if (parent == boundElement) {
@@ -851,9 +853,6 @@ nsXBLBinding::InstallEventHandlers()
             eventAtom == nsGkAtoms::keypress)
           continue;
 
-        nsAutoString type;
-        eventAtom->ToString(type);
-
         // If this is a command, add it in the system event group, otherwise 
         // add it to the standard event group.
 
@@ -879,7 +878,9 @@ nsXBLBinding::InstallEventHandlers()
             flags |= NS_PRIV_EVENT_UNTRUSTED_PERMITTED;
           }
 
-          manager->AddEventListenerByType(handler, type, flags, eventGroup);
+          manager->AddEventListenerByType(handler,
+                                          nsDependentAtomString(eventAtom),
+                                          flags, eventGroup);
         }
       }
 
@@ -1017,9 +1018,6 @@ nsXBLBinding::UnhookEventHandlers()
           eventAtom == nsGkAtoms::keypress)
         continue;
 
-      nsAutoString type;
-      eventAtom->ToString(type);
-
       // Figure out if we're using capturing or not.
       PRInt32 flags = (curr->GetPhase() == NS_PHASE_CAPTURING) ?
         NS_EVENT_FLAG_CAPTURE : NS_EVENT_FLAG_BUBBLE;
@@ -1037,7 +1035,9 @@ nsXBLBinding::UnhookEventHandlers()
         eventGroup = systemEventGroup;
       }
 
-      manager->RemoveEventListenerByType(handler, type, flags, eventGroup);
+      manager->RemoveEventListenerByType(handler,
+                                         nsDependentAtomString(eventAtom),
+                                         flags, eventGroup);
     }
 
     const nsCOMArray<nsXBLKeyEventHandler>* keyHandlers =
@@ -1081,84 +1081,99 @@ nsXBLBinding::ChangeDocument(nsIDocument* aOldDocument, nsIDocument* aNewDocumen
       if (mPrototypeBinding->HasImplementation()) { 
         nsIScriptGlobalObject *global = aOldDocument->GetScopeObject();
         if (global) {
+          JSObject *scope = global->GetGlobalJSObject();
+          // scope might be null if we've cycle-collected the global
+          // object, since the Unlink phase of cycle collection happens
+          // after JS GC finalization.  But in that case, we don't care
+          // about fixing the prototype chain, since everything's going
+          // away immediately.
+
           nsCOMPtr<nsIScriptContext> context = global->GetContext();
-          if (context) {
+          if (context && scope) {
             JSContext *cx = (JSContext *)context->GetNativeContext();
  
             nsCxPusher pusher;
             pusher.Push(cx);
 
-            nsCOMPtr<nsIXPConnectJSObjectHolder> wrapper;
-            nsresult rv = nsContentUtils::XPConnect()->
-              WrapNative(cx, global->GetGlobalJSObject(),
-                         mBoundElement, NS_GET_IID(nsISupports),
-                         getter_AddRefs(wrapper));
+            nsCOMPtr<nsIXPConnectWrappedNative> wrapper;
+            nsIXPConnect *xpc = nsContentUtils::XPConnect();
+            nsresult rv =
+              xpc->GetWrappedNativeOfNativeObject(cx, scope, mBoundElement,
+                                                  NS_GET_IID(nsISupports),
+                                                  getter_AddRefs(wrapper));
             if (NS_FAILED(rv))
               return;
 
-            JSObject* scriptObject = nsnull;
-            rv = wrapper->GetJSObject(&scriptObject);
-            if (NS_FAILED(rv))
-              return;
+            JSObject* scriptObject;
+            if (wrapper)
+                wrapper->GetJSObject(&scriptObject);
+            else
+                scriptObject = nsnull;
 
-            // XXX Stay in sync! What if a layered binding has an
-            // <interface>?!
-            // XXXbz what does that comment mean, really?  It seems to date
-            // back to when there was such a thing as an <interface>, whever
-            // that was...
+            if (scriptObject) {
+              // XXX Stay in sync! What if a layered binding has an
+              // <interface>?!
+              // XXXbz what does that comment mean, really?  It seems to date
+              // back to when there was such a thing as an <interface>, whever
+              // that was...
 
-            // Find the right prototype.
-            JSObject* base = scriptObject;
-            JSObject* proto;
-            JSAutoRequest ar(cx);
-            for ( ; true; base = proto) { // Will break out on null proto
-              proto = ::JS_GetPrototype(cx, base);
-              if (!proto) {
+              // Find the right prototype.
+              JSObject* base = scriptObject;
+              JSObject* proto;
+              JSAutoRequest ar(cx);
+              JSAutoEnterCompartment ac;
+              if (!ac.enter(cx, scriptObject)) {
+                return;
+              }
+
+              for ( ; true; base = proto) { // Will break out on null proto
+                proto = ::JS_GetPrototype(cx, base);
+                if (!proto) {
+                  break;
+                }
+
+                JSClass* clazz = ::JS_GET_CLASS(cx, proto);
+                if (!clazz ||
+                    (~clazz->flags &
+                     (JSCLASS_HAS_PRIVATE | JSCLASS_PRIVATE_IS_NSISUPPORTS)) ||
+                    JSCLASS_RESERVED_SLOTS(clazz) != 1 ||
+                    clazz->resolve != (JSResolveOp)XBLResolve ||
+                    clazz->finalize != XBLFinalize) {
+                  // Clearly not the right class
+                  continue;
+                }
+
+                nsRefPtr<nsXBLDocumentInfo> docInfo =
+                  static_cast<nsXBLDocumentInfo*>(::JS_GetPrivate(cx, proto));
+                if (!docInfo) {
+                  // Not the proto we seek
+                  continue;
+                }
+
+                jsval protoBinding;
+                if (!::JS_GetReservedSlot(cx, proto, 0, &protoBinding)) {
+                  NS_ERROR("Really shouldn't happen");
+                  continue;
+                }
+
+                if (JSVAL_TO_PRIVATE(protoBinding) != mPrototypeBinding) {
+                  // Not the right binding
+                  continue;
+                }
+
+                // Alright!  This is the right prototype.  Pull it out of the
+                // proto chain.
+                JSObject* grandProto = ::JS_GetPrototype(cx, proto);
+                ::JS_SetPrototype(cx, base, grandProto);
                 break;
               }
 
-              JSClass* clazz = ::JS_GET_CLASS(cx, proto);
-              if (!clazz ||
-                  (~clazz->flags &
-                   (JSCLASS_HAS_PRIVATE | JSCLASS_PRIVATE_IS_NSISUPPORTS)) ||
-                  JSCLASS_RESERVED_SLOTS(clazz) != 1 ||
-                  clazz->resolve != (JSResolveOp)XBLResolve ||
-                  clazz->finalize != XBLFinalize) {
-                // Clearly not the right class
-                continue;
-              }
+              mPrototypeBinding->UndefineFields(cx, scriptObject);
 
-              nsCOMPtr<nsIXBLDocumentInfo> docInfo =
-                do_QueryInterface(static_cast<nsISupports*>
-                                             (::JS_GetPrivate(cx, proto)));
-              if (!docInfo) {
-                // Not the proto we seek
-                continue;
-              }
-              
-              jsval protoBinding;
-              if (!::JS_GetReservedSlot(cx, proto, 0, &protoBinding)) {
-                NS_ERROR("Really shouldn't happen");
-                continue;
-              }
-
-              if (JSVAL_TO_PRIVATE(protoBinding) != mPrototypeBinding) {
-                // Not the right binding
-                continue;
-              }
-
-              // Alright!  This is the right prototype.  Pull it out of the
-              // proto chain.
-              JSObject* grandProto = ::JS_GetPrototype(cx, proto);
-              ::JS_SetPrototype(cx, base, grandProto);
-              break;
+              // Don't remove the reference from the document to the
+              // wrapper here since it'll be removed by the element
+              // itself when that's taken out of the document.
             }
-
-            mPrototypeBinding->UndefineFields(cx, scriptObject);
-
-            // Don't remove the reference from the document to the
-            // wrapper here since it'll be removed by the element
-            // itself when that's taken out of the document.
           }
         }
       }
@@ -1244,6 +1259,11 @@ nsXBLBinding::DoInitJSClass(JSContext *cx, JSObject *global, JSObject *obj,
   nsCAutoString className(aClassName);
   JSObject* parent_proto = nsnull;  // If we have an "obj" we can set this
   JSAutoRequest ar(cx);
+
+  JSAutoEnterCompartment ac;
+  if (!ac.enter(cx, global))
+      return NS_ERROR_FAILURE;
+
   if (obj) {
     // Retrieve the current prototype of obj.
     parent_proto = ::JS_GetPrototype(cx, obj);
@@ -1346,7 +1366,7 @@ nsXBLBinding::DoInitJSClass(JSContext *cx, JSObject *global, JSObject *obj,
     // addref/release the nsXBLDocumentInfo through it, because cycle
     // collection doesn't seem to work right if the private is not an
     // nsISupports.
-    nsIXBLDocumentInfo* docInfo = aProtoBinding->XBLDocumentInfo();
+    nsXBLDocumentInfo* docInfo = aProtoBinding->XBLDocumentInfo();
     ::JS_SetPrivate(cx, proto, docInfo);
     NS_ADDREF(docInfo);
 
@@ -1377,11 +1397,8 @@ nsXBLBinding::DoInitJSClass(JSContext *cx, JSObject *global, JSObject *obj,
 PRBool
 nsXBLBinding::AllowScripts()
 {
-  PRBool result;
-  mPrototypeBinding->GetAllowScripts(&result);
-  if (!result) {
-    return result;
-  }
+  if (!mPrototypeBinding->GetAllowScripts())
+    return PR_FALSE;
 
   // Nasty hack.  Use the JSContext of the bound node, since the
   // security manager API expects to get the docshell type from
@@ -1408,8 +1425,8 @@ nsXBLBinding::AllowScripts()
   
   JSContext* cx = (JSContext*) context->GetNativeContext();
 
-  nsCOMPtr<nsIDocument> ourDocument;
-  mPrototypeBinding->XBLDocumentInfo()->GetDocument(getter_AddRefs(ourDocument));
+  nsCOMPtr<nsIDocument> ourDocument =
+    mPrototypeBinding->XBLDocumentInfo()->GetDocument();
   PRBool canExecute;
   nsresult rv =
     mgr->CanExecuteScripts(cx, ourDocument->NodePrincipal(), &canExecute);
@@ -1512,7 +1529,7 @@ nsXBLBinding::GetExistingInsertionPointsFor(nsIContent* aParent)
 }
 
 nsIContent*
-nsXBLBinding::GetInsertionPoint(nsIContent* aChild, PRUint32* aIndex)
+nsXBLBinding::GetInsertionPoint(const nsIContent* aChild, PRUint32* aIndex)
 {
   if (mContent) {
     return mPrototypeBinding->GetInsertionPoint(mBoundElement, mContent,

@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 384370 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -36,7 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://gre/modules/utils.js");
 var tests = [];
 
 /*
@@ -112,7 +111,7 @@ tests.push({
 
   validate: function validate() {
     // validate tags restored
-    var tags = PlacesUtils.tagging.getTagsForURI(this._testURI, {});
+    var tags = PlacesUtils.tagging.getTagsForURI(this._testURI);
     // also validates that litter tags are gone
     do_check_eq(this._tags.toString(), tags.toString());
 
@@ -157,7 +156,7 @@ function run_test() {
   do_check_eq(typeof PlacesUtils, "object");
 
   // make json file
-  var jsonFile = dirSvc.get("ProfD", Ci.nsILocalFile);
+  var jsonFile = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
   jsonFile.append("bookmarks.json");
   if (jsonFile.exists())
     jsonFile.remove(false);
@@ -179,7 +178,7 @@ function run_test() {
   });
 
   try {
-    PlacesUtils.backupBookmarksToFile(jsonFile);
+    PlacesUtils.backups.saveBookmarksToJSONFile(jsonFile);
   } catch(ex) { do_throw("couldn't export to file: " + ex); }
 
   tests.forEach(function(aTest) {

@@ -46,6 +46,7 @@
 #include "mozilla/Monitor.h"
 
 #include "nsXULAppAPI.h"        // for GeckoProcessType
+#include "nsString.h"
 
 namespace mozilla {
 namespace ipc {
@@ -63,9 +64,16 @@ public:
 
   ~GeckoChildProcessHost();
 
-  bool SyncLaunch(std::vector<std::string> aExtraOpts=std::vector<std::string>());
+  static nsresult GetArchitecturesForBinary(const char *path, uint32 *result);
+
+  static uint32 GetSupportedArchitecturesForProcessType(GeckoProcessType type);
+
+  bool SyncLaunch(std::vector<std::string> aExtraOpts=std::vector<std::string>(),
+                  int32 timeoutMs=0,
+                  base::ProcessArchitecture arch=base::GetCurrentProcessArchitecture());
   bool AsyncLaunch(std::vector<std::string> aExtraOpts=std::vector<std::string>());
-  bool PerformAsyncLaunch(std::vector<std::string> aExtraOpts=std::vector<std::string>());
+  bool PerformAsyncLaunch(std::vector<std::string> aExtraOpts=std::vector<std::string>(),
+                          base::ProcessArchitecture arch=base::GetCurrentProcessArchitecture());
 
   virtual void OnChannelConnected(int32 peer_pid);
   virtual void OnMessageReceived(const IPC::Message& aMsg);
@@ -89,12 +97,26 @@ public:
     return mChildProcessHandle;
   }
 
+#ifdef XP_MACOSX
+  task_t GetChildTask() {
+    return mChildTask;
+  }
+#endif
+
+
 protected:
   GeckoProcessType mProcessType;
   Monitor mMonitor;
   bool mLaunched;
   bool mChannelInitialized;
   FilePath mProcessPath;
+
+  static PRInt32 mChildCounter;
+
+#ifdef XP_WIN
+  void InitWindowsGroupID();
+  nsString mGroupId;
+#endif
 
 #if defined(OS_POSIX)
   base::file_handle_mapping_vector mFileMap;
@@ -103,9 +125,16 @@ protected:
   base::WaitableEventWatcher::Delegate* mDelegate;
 
   ProcessHandle mChildProcessHandle;
+#if defined(OS_MACOSX)
+  task_t mChildTask;
+#endif
 
 private:
   DISALLOW_EVIL_CONSTRUCTORS(GeckoChildProcessHost);
+
+  // Does the actual work for AsyncLaunch, on the IO thread.
+  bool PerformAsyncLaunchInternal(std::vector<std::string>& aExtraOpts,
+                                  base::ProcessArchitecture arch);
 };
 
 } /* namespace ipc */

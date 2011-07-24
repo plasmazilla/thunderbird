@@ -41,16 +41,16 @@
 #define _nsXULTextAccessible_H_
 
 #include "nsBaseWidgetAccessible.h"
-#include "nsTextAccessibleWrap.h"
 #include "nsHyperTextAccessibleWrap.h"
 
-class nsIWeakReference;
-
+/**
+ * Used for XUL description and label elements.
+ */
 class nsXULTextAccessible : public nsHyperTextAccessibleWrap
 {
 
 public:
-  nsXULTextAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell);
+  nsXULTextAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
   NS_IMETHOD GetRelationByType(PRUint32 aRelationType,
@@ -58,18 +58,21 @@ public:
 
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 
+/**
+ * Used for XUL tooltip element.
+ */
 class nsXULTooltipAccessible : public nsLeafAccessible
 {
 
 public:
-  nsXULTooltipAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell);
+  nsXULTooltipAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 
@@ -77,7 +80,7 @@ class nsXULLinkAccessible : public nsHyperTextAccessibleWrap
 {
 
 public:
-  nsXULLinkAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell);
+  nsXULLinkAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   NS_DECL_ISUPPORTS_INHERITED
 
@@ -88,13 +91,16 @@ public:
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
-  // nsIAccessibleHyperLink
-  NS_IMETHOD GetURI(PRInt32 aIndex, nsIURI **aURI);
-
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+
+  // HyperLinkAccessible
+  virtual bool IsHyperLink();
+  virtual PRUint32 StartOffset();
+  virtual PRUint32 EndOffset();
+  virtual already_AddRefed<nsIURI> GetAnchorURI(PRUint32 aAnchorIndex);
 
 protected:
   enum { eAction_Jump = 0 };

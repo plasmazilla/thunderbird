@@ -85,7 +85,7 @@ protected:
     nsresult CreateLocalStore(nsIFile* aFile);
     nsresult LoadData();
 
-    friend NS_IMETHODIMP
+    friend nsresult
     NS_NewLocalStore(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
     nsCOMPtr<nsIRDFService>    mRDFService;
@@ -238,7 +238,7 @@ LocalStoreImpl::~LocalStoreImpl(void)
 }
 
 
-NS_IMETHODIMP
+nsresult
 NS_NewLocalStore(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 {
     NS_PRECONDITION(aOuter == nsnull, "no aggregation");
@@ -267,8 +267,8 @@ NS_NewLocalStore(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 }
 
 NS_IMPL_CYCLE_COLLECTION_1(LocalStoreImpl, mInner)
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(LocalStoreImpl, nsILocalStore)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(LocalStoreImpl, nsILocalStore)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(LocalStoreImpl)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(LocalStoreImpl)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(LocalStoreImpl)
     NS_INTERFACE_MAP_ENTRY(nsILocalStore)

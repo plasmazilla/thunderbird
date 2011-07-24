@@ -47,8 +47,8 @@ class nsIRenderingContext;
 class nsGUIEvent;
 
 #define NS_IVIEWOBSERVER_IID  \
-  { 0xc85d474d, 0x316e, 0x491c, \
-    { 0x8b, 0xc5, 0x24, 0xba, 0xb7, 0xbb, 0x68, 0x9e } }
+  { 0xdc283a18, 0x61cb, 0x468c, \
+    { 0x8d, 0xb8, 0x9b, 0x81, 0xf7, 0xc9, 0x33, 0x25 } }
 
 class nsIViewObserver : public nsISupports
 {
@@ -57,48 +57,31 @@ public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IVIEWOBSERVER_IID)
 
   /* called when the observer needs to paint. This paints the entire
-   * frame subtree rooted at the view, including frame subtrees from
+   * frame subtree rooted at aViewToPaint, including frame subtrees from
    * subdocuments.
-   * @param aRenderingContext rendering context to paint to; the origin
-   * of the view is painted at (0,0) in the rendering context's current
-   * transform. For best results this should transform to pixel-aligned
-   * coordinates.
-   * @param aDirtyRegion the region to be painted, in the coordinates of
-   * aRootView
+   * @param aViewToPaint the view for the widget that is being painted
+   * @param aWidgetToPaint the widget that is being painted, the widget of
+   * aViewToPaint
+   * @param aDirtyRegion the region to be painted, in appunits of aDisplayRoot
+   * and relative to aDisplayRoot
+   * @param aIntDirtyRegion the region to be painted, in dev pixels, in the
+   * coordinates of aWidgetToPaint. This conveys the same information as
+   * aDirtyRegion but in a different format.
+   * @param aPaintDefaultBackground just paint the default background,
+   * don't try to paint any content. This is set when the observer
+   * needs to paint something, but the view tree is unstable, so it
+   * must *not* paint, or even examine, the frame subtree rooted at the
+   * view.  (It is, however, safe to inspect the state of the view itself,
+   * and any associated widget.) The name illustrates the expected behavior,
+   * which is to paint some default background color over the dirty region.
    * @return error status
    */
-  NS_IMETHOD Paint(nsIView*             aRootView,
-                   nsIRenderingContext* aRenderingContext,
-                   const nsRegion&      aDirtyRegion) = 0;
-
-  /* called when the observer needs to paint something, but the view
-   * tree is unstable, so it must *not* paint, or even examine, the
-   * frame subtree rooted at the view.  (It is, however, safe to inspect
-   * the state of the view itself, and any associated widget.)  The name
-   * illustrates the expected behavior, which is to paint some default
-   * background color over the dirty rect.
-   *
-   * @param aRenderingContext rendering context to paint to; the origin
-   * of the view is painted at (0,0) in the rendering context's current
-   * transform. For best results this should transform to pixel-aligned
-   * coordinates.
-   * @param aDirtyRect the rectangle to be painted, in the coordinates
-   * of aRootView
-   * @return error status
-   */
-  NS_IMETHOD PaintDefaultBackground(nsIView*             aRootView,
-                                    nsIRenderingContext* aRenderingContext,
-                                    const nsRect&        aDirtyRect) = 0;
-
-  /**
-   * @see nsLayoutUtils::ComputeRepaintRegionForCopy
-   */
-  NS_IMETHOD ComputeRepaintRegionForCopy(nsIView*      aRootView,
-                                         nsIView*      aMovingView,
-                                         nsPoint       aDelta,
-                                         const nsRect& aUpdateRect,
-                                         nsRegion*     aBlitRegion,
-                                         nsRegion*     aRepaintRegion) = 0;
+  NS_IMETHOD Paint(nsIView*           aViewToPaint,
+                   nsIWidget*         aWidgetToPaint,
+                   const nsRegion&    aDirtyRegion,
+                   const nsIntRegion& aIntDirtyRegion,
+                   PRBool             aPaintDefaultBackground,
+                   PRBool             aWillSendDidPaint) = 0;
 
   /* called when the observer needs to handle an event
    * @param aView  - where to start processing the event; the root view,
@@ -113,6 +96,7 @@ public:
    */
   NS_IMETHOD HandleEvent(nsIView*       aView,
                          nsGUIEvent*    aEvent,
+                         PRBool         aDontRetargetEvents,
                          nsEventStatus* aEventStatus) = 0;
 
   /* called when the view has been resized and the
@@ -124,31 +108,25 @@ public:
   NS_IMETHOD ResizeReflow(nsIView * aView, nscoord aWidth, nscoord aHeight) = 0;
 
   /**
-   * Hack to find out if the view observer is itself visible, in lieu
-   * of having the view trees linked.
+   * Returns true if the view observer wants to drop all invalidation right now
+   * because painting is suppressed. It will invalidate everything when it
+   * unsuppresses.
    */
-  NS_IMETHOD_(PRBool) IsVisible() = 0;
+  NS_IMETHOD_(PRBool) ShouldIgnoreInvalidation() = 0;
 
   /**
    * Notify the observer that we're about to start painting.  This
    * gives the observer a chance to make some last-minute invalidates
    * and geometry changes if it wants to.
    */
-  NS_IMETHOD_(void) WillPaint() = 0;
+  NS_IMETHOD_(void) WillPaint(PRBool aWillSendDidPaint) = 0;
 
   /**
-   * Notify the observer that it should invalidate the frame bounds for
-   * the frame associated with this view, due to scrolling.
+   * Notify the observer that we finished painting.  This
+   * gives the observer a chance to make some last-minute invalidates
+   * and geometry changes if it wants to.
    */
-  NS_IMETHOD_(void) InvalidateFrameForScrolledView(nsIView *aView) = 0;
-
-  /**
-   * Notify the observer that some areas of the root view have been
-   * invalidated/blitted due to scrolling. A bitblit-scroll occurred
-   * so we can be sure that rootView->NeedsInvalidateFrameOnScroll is false.
-   */
-  NS_IMETHOD_(void) NotifyInvalidateForScrolledView(const nsRegion& aBlitRegion,
-                                                    const nsRegion& aInvalidateRegion) = 0;
+  NS_IMETHOD_(void) DidPaint() = 0;
 
   /**
    * Dispatch the given synthesized mouse move event, and if
@@ -157,6 +135,13 @@ public:
    */
   NS_IMETHOD_(void) DispatchSynthMouseMove(nsGUIEvent *aEvent,
                                            PRBool aFlushOnHoverChange) = 0;
+
+  /**
+   * If something within aView is capturing the mouse, clear the capture.
+   * if aView is null, clear the mouse capture no matter what is capturing it.
+   */
+  NS_IMETHOD_(void) ClearMouseCapture(nsIView* aView) = 0;
+
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIViewObserver, NS_IVIEWOBSERVER_IID)

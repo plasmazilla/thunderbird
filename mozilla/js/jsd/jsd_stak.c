@@ -40,6 +40,7 @@
  */
 
 #include "jsd.h"
+#include "jsfriendapi.h"
 
 #ifdef DEBUG
 void JSD_ASSERT_VALID_THREAD_STATE(JSDThreadState* jsdthreadstate)
@@ -65,7 +66,7 @@ _addNewFrame(JSDContext*        jsdc,
     JSDStackFrameInfo* jsdframe;
     JSDScript*         jsdscript = NULL;
 
-    if (!JS_IsNativeFrame(jsdthreadstate->context, fp))
+    if (JS_IsScriptFrame(jsdthreadstate->context, fp))
     {
         JSD_LOCK_SCRIPTS(jsdc);
         jsdscript = jsd_FindJSDScript(jsdc, script);
@@ -120,19 +121,21 @@ jsd_NewThreadState(JSDContext* jsdc, JSContext *cx )
     JS_INIT_CLIST(&jsdthreadstate->stack);
     jsdthreadstate->stackDepth = 0;
 
+    JS_BeginRequest(jsdthreadstate->context);
     while( NULL != (fp = JS_FrameIterator(cx, &iter)) )
     {
         JSScript* script = JS_GetFrameScript(cx, fp);
         jsuword  pc = (jsuword) JS_GetFramePC(cx, fp);
+        jsval dummyThis;
 
         /*
          * don't construct a JSDStackFrame for dummy frames (those without a
          * |this| object, or native frames, if JSD_INCLUDE_NATIVE_FRAMES
          * isn't set.
          */
-        if (JS_GetFrameThis(cx, fp) &&
+        if (JS_GetFrameThis(cx, fp, &dummyThis) &&
             ((jsdc->flags & JSD_INCLUDE_NATIVE_FRAMES) ||
-             !JS_IsNativeFrame(cx, fp)))
+             JS_IsScriptFrame(cx, fp)))
         {
             JSDStackFrameInfo *frame;
 
@@ -147,11 +150,13 @@ jsd_NewThreadState(JSDContext* jsdc, JSContext *cx )
                  * is not enabled for debugging, fail the entire thread state.
                  */
                 JS_INIT_CLIST(&jsdthreadstate->links);
+                JS_EndRequest(jsdthreadstate->context);
                 jsd_DestroyThreadState(jsdc, jsdthreadstate);
                 return NULL;
             }
         }
     }
+    JS_EndRequest(jsdthreadstate->context);
 
     if (jsdthreadstate->stackDepth == 0)
     {
@@ -339,21 +344,25 @@ jsd_GetThisForStackFrame(JSDContext* jsdc,
 
     if( jsd_IsValidFrameInThreadState(jsdc, jsdthreadstate, jsdframe) )
     {
-        obj = JS_GetFrameThis(jsdthreadstate->context, jsdframe->fp);
-        if(obj)
-            jsdval = JSD_NewValue(jsdc, OBJECT_TO_JSVAL(obj));
+        JSBool ok;
+        jsval thisval;
+        JS_BeginRequest(jsdthreadstate->context);
+        ok = JS_GetFrameThis(jsdthreadstate->context, jsdframe->fp, &thisval);
+        JS_EndRequest(jsdthreadstate->context);
+        if(ok)
+            jsdval = JSD_NewValue(jsdc, thisval);
     }
 
     JSD_UNLOCK_THREADSTATES(jsdc);
     return jsdval;
 }
 
-const char*
-jsd_GetNameForStackFrame(JSDContext* jsdc, 
-                         JSDThreadState* jsdthreadstate,
-                         JSDStackFrameInfo* jsdframe)
+JSString*
+jsd_GetIdForStackFrame(JSDContext* jsdc, 
+                       JSDThreadState* jsdthreadstate,
+                       JSDStackFrameInfo* jsdframe)
 {
-    const char *rv = NULL;
+    JSString *rv = NULL;
     
     JSD_LOCK_THREADSTATES(jsdc);
     
@@ -361,32 +370,19 @@ jsd_GetNameForStackFrame(JSDContext* jsdc,
     {
         JSFunction *fun = JS_GetFrameFunction (jsdthreadstate->context,
                                                jsdframe->fp);
-        if (fun)
-            rv = JS_GetFunctionName (fun);
+        if( fun )
+        {
+            rv = JS_GetFunctionId (fun);
+
+            /*
+             * For compatibility we return "anonymous", not an empty string
+             * here.
+             */
+            if( !rv )
+                rv = JS_GetAnonymousString(jsdc->jsrt);
+        }
     }
     
-    JSD_UNLOCK_THREADSTATES(jsdc);
-    return rv;
-}
-
-JSBool
-jsd_IsStackFrameNative(JSDContext* jsdc, 
-                       JSDThreadState* jsdthreadstate,
-                       JSDStackFrameInfo* jsdframe)
-{
-    JSBool rv;
-    
-    JSD_LOCK_THREADSTATES(jsdc);
-
-    if( jsd_IsValidFrameInThreadState(jsdc, jsdthreadstate, jsdframe) )
-    {
-        rv = JS_IsNativeFrame(jsdthreadstate->context, jsdframe->fp);
-    }
-    else
-    {
-        rv = JS_FALSE;
-    }
-
     JSD_UNLOCK_THREADSTATES(jsdc);
     return rv;
 }

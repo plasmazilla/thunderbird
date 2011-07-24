@@ -63,6 +63,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(InsertElementTxn, EditTxn)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mParent)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+NS_IMPL_ADDREF_INHERITED(InsertElementTxn, EditTxn)
+NS_IMPL_RELEASE_INHERITED(InsertElementTxn, EditTxn)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(InsertElementTxn)
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 
@@ -72,15 +74,13 @@ NS_IMETHODIMP InsertElementTxn::Init(nsIDOMNode *aNode,
                                      nsIEditor  *aEditor)
 {
   NS_ASSERTION(aNode && aParent && aEditor, "bad arg");
-  if (!aNode || !aParent || !aEditor)
-    return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(aNode && aParent && aEditor, NS_ERROR_NULL_POINTER);
 
   mNode = do_QueryInterface(aNode);
   mParent = do_QueryInterface(aParent);
   mOffset = aOffset;
   mEditor = aEditor;
-  if (!mNode || !mParent || !mEditor)
-    return NS_ERROR_INVALID_ARG;
+  NS_ENSURE_TRUE(mNode && mParent && mEditor, NS_ERROR_INVALID_ARG);
   return NS_OK;
 }
 
@@ -96,17 +96,20 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
     mNode->GetNodeName(namestr);
     char* nodename = ToNewCString(namestr);
     printf("%p Do Insert Element of %p <%s> into parent %p at offset %d\n", 
-           this, nodeAsContent.get(), nodename,
-           parentAsContent.get(), mOffset); 
+           static_cast<void*>(this),
+           static_cast<void*>(nodeAsContent.get()),
+           nodename,
+           static_cast<void*>(parentAsContent.get()),
+           mOffset); 
     nsMemory::Free(nodename);
   }
 #endif
 
-  if (!mNode || !mParent) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mNode && mParent, NS_ERROR_NOT_INITIALIZED);
 
   nsCOMPtr<nsIDOMNodeList> childNodes;
   nsresult result = mParent->GetChildNodes(getter_AddRefs(childNodes));
-  if (NS_FAILED(result)) return result;
+  NS_ENSURE_SUCCESS(result, result);
   nsCOMPtr<nsIDOMNode>refNode;
   if (childNodes)
   {
@@ -116,7 +119,7 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
     // -1 is sentinel value meaning "append at end"
     if (mOffset == -1) mOffset = count;
     result = childNodes->Item(mOffset, getter_AddRefs(refNode));
-    if (NS_FAILED(result)) return result; 
+    NS_ENSURE_SUCCESS(result, result); 
     // note, it's ok for mRefNode to be null.  that means append
   }
 
@@ -124,8 +127,8 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
 
   nsCOMPtr<nsIDOMNode> resultNode;
   result = mParent->InsertBefore(mNode, refNode, getter_AddRefs(resultNode));
-  if (NS_FAILED(result)) return result;
-  if (!resultNode) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_SUCCESS(result, result);
+  NS_ENSURE_TRUE(resultNode, NS_ERROR_NULL_POINTER);
 
   // only set selection to insertion point if editor gives permission
   PRBool bAdjustSelection;
@@ -134,8 +137,8 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
   {
     nsCOMPtr<nsISelection> selection;
     result = mEditor->GetSelection(getter_AddRefs(selection));
-    if (NS_FAILED(result)) return result;
-    if (!selection) return NS_ERROR_NULL_POINTER;
+    NS_ENSURE_SUCCESS(result, result);
+    NS_ENSURE_TRUE(selection, NS_ERROR_NULL_POINTER);
     // place the selection just after the inserted element
     selection->Collapse(mParent, mOffset+1);
   }
@@ -149,11 +152,17 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
 NS_IMETHODIMP InsertElementTxn::UndoTransaction(void)
 {
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("%p Undo Insert Element of %p into parent %p at offset %d\n", 
-                       this, mNode.get(), mParent.get(), mOffset); }
+  if (gNoisy)
+  {
+    printf("%p Undo Insert Element of %p into parent %p at offset %d\n",
+           static_cast<void*>(this),
+           static_cast<void*>(mNode.get()),
+           static_cast<void*>(mParent.get()),
+           mOffset);
+  }
 #endif
 
-  if (!mNode || !mParent) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mNode && mParent, NS_ERROR_NOT_INITIALIZED);
 
   nsCOMPtr<nsIDOMNode> resultNode;
   return mParent->RemoveChild(mNode, getter_AddRefs(resultNode));

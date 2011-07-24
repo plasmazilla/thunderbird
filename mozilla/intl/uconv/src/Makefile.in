@@ -49,37 +49,19 @@ IS_COMPONENT	= 1
 MODULE_NAME	= nsUConvModule
 GRE_MODULE	= 1
 LIBXUL_LIBRARY = 1
-ifneq ($(OS_ARCH),WINNT)
 # To avoid conflict with OS/2 system uconv.dll
 SHORT_LIBNAME  = mozuconv
-endif
-
-REQUIRES	= xpcom \
-		  string \
-		  intl \
-		  locale \
-		  unicharutil \
-		  necko \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsUConvModule.cpp \
-		nsCharsetAliasImp.cpp \
 		nsConverterInputStream.cpp \
 		nsConverterOutputStream.cpp \
 		nsTextToSubURI.cpp \
-		nsGREResProperties.cpp \
 		nsCharsetConverterManager.cpp \
 		nsUTF8ConverterService.cpp \
 		nsUTF8ToUnicode.cpp \
 		nsUnicodeToUTF8.cpp \
 		nsScriptableUConv.cpp \
-		$(NULL)
-
-ifdef MOZ_USE_NATIVE_UCONV
-REQUIRES	+= ucnative
-else
-CPPSRCS         += \
 		nsISO88591ToUnicode.cpp \
 		nsCP1252ToUnicode.cpp \
 		nsMacRomanToUnicode.cpp \
@@ -88,36 +70,19 @@ CPPSRCS         += \
 		nsUnicodeToMacRoman.cpp \
 		$(NULL)
 
+# Are we targeting x86-32 or x86-64?  If so, we want to include the SSE2
+# version of nsUTF8ToUnicodeSSE2.cpp.
+ifneq (,$(INTEL_ARCHITECTURE))
+CPPSRCS			+= nsUTF8ToUnicodeSSE2.cpp
+
+# nsUTF8ToUnicodeSSE2.cpp uses SSE2 intrinsics, so we need to pass -msse2 if
+# we're using gcc. (See bug 585538 comment 12.)
+ifdef GNU_CC
+nsUTF8ToUnicodeSSE2.$(OBJ_SUFFIX): CXXFLAGS+=-msse2
 endif
 
-EXPORT_RESOURCE	= \
-		charsetalias.properties \
-		charsetData.properties \
-		$(NULL)
-
-ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
-CPPSRCS			+= nsOS2Charset.cpp
-EXPORT_RESOURCE		+= os2charset.properties
-else
-ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
-CPPSRCS			+= nsWinCharset.cpp
-EXPORT_RESOURCE		+= wincharset.properties
-else
-ifneq (,$(filter cocoa mac, $(MOZ_WIDGET_TOOLKIT)))
-CPPSRCS			+= nsMacCharset.cpp
-EXPORT_RESOURCE		+= maccharset.properties
-else
-ifeq ($(OS_ARCH),BeOS)
-CPPSRCS			+= nsBeOSCharset.cpp
-else
-CPPSRCS			+= nsUNIXCharset.cpp
-EXPORT_RESOURCE		+= unixcharset.properties
-# add platform charset remapping properties files here if necessary
-# (see unixcharset.sample.properties for an example file)
-# eg: if we needed a charset remap for OSARCH=Linux then add the following line:
-#EXPORT_RESOURCE		+= unixcharset.Linux.properties
-endif
-endif
+ifdef SOLARIS_SUNPRO_CXX
+nsUTF8ToUnicodeSSE2.$(OBJ_SUFFIX): OS_CXXFLAGS += -xarch=sse2 -xO4
 endif
 endif
 
@@ -130,7 +95,7 @@ EXTRA_DSO_LDOPTS = \
 
 LOCAL_INCLUDES	= -I$(srcdir)/../util
 
-ifneq (,$(filter cocoa mac, $(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 EXTRA_DSO_LDOPTS += $(TK_LIBS)
 endif
 
@@ -142,10 +107,8 @@ LOCAL_INCLUDES	= -I$(srcdir)/../util \
 		  -I$(srcdir)/../ucvtw \
 		  -I$(srcdir)/../ucvko \
 		  -I$(srcdir)/../ucvcn \
-		  -I$(srcdir)/../native \
 		  $(NULL)
 
-ifndef MOZ_USE_NATIVE_UCONV
 SHARED_LIBRARY_LIBS += \
 	../ucvlatin/$(LIB_PREFIX)ucvlatin_s.$(LIB_SUFFIX) \
 	../ucvibm/$(LIB_PREFIX)ucvibm_s.$(LIB_SUFFIX) \
@@ -155,24 +118,5 @@ SHARED_LIBRARY_LIBS += \
 	../ucvko/$(LIB_PREFIX)ucvko_s.$(LIB_SUFFIX) \
 	../ucvcn/$(LIB_PREFIX)ucvcn_s.$(LIB_SUFFIX) \
 	$(NULL)
-else
-SHARED_LIBRARY_LIBS += \
-	../native/$(LIB_PREFIX)ucnative_s.$(LIB_SUFFIX) \
-	$(NULL)
-endif
 
 include $(topsrcdir)/config/rules.mk
-
-# CODESET is not automatically defined on some older versions of Redhat.
-# Define _XOPEN_SOURCE so CODESET will get defined and thus allow 
-# nl_langinfo(CODESET) to compile on these systems.
-ifeq ($(OS_ARCH), Linux)
-DEFINES         += -D_XOPEN_SOURCE=500
-endif
-
-libs:: $(EXPORT_RESOURCE)
-	$(INSTALL) $^ $(DIST)/bin/res
-
-install:: $(EXPORT_RESOURCE)
-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/res 
-

@@ -39,14 +39,11 @@
 #define nsNPAPIPlugin_h_
 
 #include "nsIPlugin.h"
-#ifdef OJI
-#include "nsIPluginOld.h"
-#include "nsIJVMPlugin.h"
-#include "nsIJVMConsole.h"
-#endif
 #include "prlink.h"
 #include "npfunctions.h"
 #include "nsPluginHost.h"
+
+#include "jsapi.h"
 
 #include "mozilla/PluginLibrary.h"
 
@@ -73,101 +70,114 @@
 typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_GETENTRYPOINTS) (NPPluginFuncs* pCallbacks);
 typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_PLUGININIT) (const NPNetscapeFuncs* pCallbacks);
 typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_PLUGINUNIXINIT) (const NPNetscapeFuncs* pCallbacks, NPPluginFuncs* fCallbacks);
-typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_PLUGINSHUTDOWN) (void);
-#ifdef XP_MACOSX
-typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_MAIN) (NPNetscapeFuncs* nCallbacks, NPPluginFuncs* pCallbacks, NPP_ShutdownProcPtr* unloadProcPtr);
-#endif
+typedef NS_NPAPIPLUGIN_CALLBACK(NPError, NP_PLUGINSHUTDOWN) ();
 
 class nsNPAPIPlugin : public nsIPlugin
-#ifdef OJI
-                     ,public nsIPluginOld,
-                      public nsIJVMPlugin,
-                      public nsIJVMConsole
-#endif
 {
 private:
   typedef mozilla::PluginLibrary PluginLibrary;
 
 public:
-#ifdef OJI
-  nsNPAPIPlugin(nsIPluginOld *aShadow);
-#endif
-  nsNPAPIPlugin(NPPluginFuncs* callbacks,
-                PluginLibrary* aLibrary /*assume ownership*/);
+  nsNPAPIPlugin();
   virtual ~nsNPAPIPlugin();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIPLUGIN
 
-#ifdef OJI
-  NS_DECL_NSIFACTORY
-
-  // nsIPluginOld methods not declared elsewhere
-  NS_IMETHOD CreatePluginInstance(nsISupports *aOuter, REFNSIID aIID,
-                                  const char *aPluginMIMEType, void **aResult);
-
-  // nsIJVMPlugin methods
-  NS_IMETHOD AddToClassPath(const char* dirPath);
-  NS_IMETHOD RemoveFromClassPath(const char* dirPath);
-  NS_IMETHOD GetClassPath(const char* *result);
-  NS_IMETHOD GetJavaWrapper(JNIEnv* jenv, jint obj, jobject *jobj);
-  NS_IMETHOD CreateSecureEnv(JNIEnv* proxyEnv, nsISecureEnv* *outSecureEnv);
-  NS_IMETHOD SpendTime(PRUint32 timeMillis);
-  NS_IMETHOD UnwrapJavaWrapper(JNIEnv* jenv, jobject jobj, jint* obj);
-
-  // nsIJVMConsole methods
-  NS_IMETHOD Show(void);
-  NS_IMETHOD Hide(void);
-  NS_IMETHOD IsVisible(PRBool *result);
-  NS_IMETHOD Print(const char* msg, const char* encodingName = NULL);
-  
-  // Helper methods
-  void SetShadow(nsIPluginOld *shadow);
-  nsIPluginOld *GetShadow();
-#endif
-
   // Constructs and initializes an nsNPAPIPlugin object. A NULL file path
   // will prevent this from calling NP_Initialize.
-  static nsresult CreatePlugin(const char* aFilePath, PRLibrary* aLibrary,
-                               nsIPlugin** aResult);
-#ifdef XP_MACOSX
+  static nsresult CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult);
+
+  PluginLibrary* GetLibrary();
+  // PluginFuncs() can't fail but results are only valid if GetLibrary() succeeds
+  NPPluginFuncs* PluginFuncs();
+
+#if defined(XP_MACOSX) && !defined(__LP64__)
   void SetPluginRefNum(short aRefNum);
 #endif
 
-#ifdef MOZ_IPC
   // The IPC mechanism notifies the nsNPAPIPlugin if the plugin
   // crashes and is no longer usable. pluginDumpID/browserDumpID are
   // the IDs of respective minidumps that were written, or empty if no
   // minidump was written.
   void PluginCrashed(const nsAString& pluginDumpID,
                      const nsAString& browserDumpID);
-#endif
+  
+  static PRBool RunPluginOOP(const nsPluginTag *aPluginTag);
 
 protected:
-  // Ensures that the static CALLBACKS is properly initialized
-  static void CheckClassInitialized(void);
 
-#ifdef XP_MACOSX
-  short fPluginRefNum;
+#if defined(XP_MACOSX) && !defined(__LP64__)
+  short mPluginRefNum;
 #endif
 
-  // The plugin-side callbacks that the browser calls. One set of
-  // plugin callbacks for each plugin.
-  NPPluginFuncs fCallbacks;
-  PluginLibrary* fLibrary;
-  PRLibrary* fPRLibrary;
-
-  // Browser-side callbacks that the plugin calls.
-  static NPNetscapeFuncs CALLBACKS;
-
-#ifdef OJI
-  nsIPluginOld *mShadow; // Strong
-#endif
+  NPPluginFuncs mPluginFuncs;
+  PluginLibrary* mLibrary;
 };
 
 namespace mozilla {
 namespace plugins {
 namespace parent {
+
+JS_STATIC_ASSERT(sizeof(NPIdentifier) == sizeof(jsid));
+
+static inline jsid
+NPIdentifierToJSId(NPIdentifier id)
+{
+    jsid tmp;
+    JSID_BITS(tmp) = (size_t)id;
+    return tmp;
+}
+
+static inline NPIdentifier
+JSIdToNPIdentifier(jsid id)
+{
+    return (NPIdentifier)JSID_BITS(id);
+}
+
+static inline bool
+NPIdentifierIsString(NPIdentifier id)
+{
+    return JSID_IS_STRING(NPIdentifierToJSId(id));
+}
+
+static inline JSString *
+NPIdentifierToString(NPIdentifier id)
+{
+    return JSID_TO_STRING(NPIdentifierToJSId(id));
+}
+
+static inline NPIdentifier
+StringToNPIdentifier(JSString *str)
+{
+    return JSIdToNPIdentifier(INTERNED_STRING_TO_JSID(str));
+}
+
+static inline bool
+NPIdentifierIsInt(NPIdentifier id)
+{
+    return JSID_IS_INT(NPIdentifierToJSId(id));
+}
+
+static inline jsint
+NPIdentifierToInt(NPIdentifier id)
+{
+    return JSID_TO_INT(NPIdentifierToJSId(id));
+}
+
+static inline NPIdentifier
+IntToNPIdentifier(jsint i)
+{
+    return JSIdToNPIdentifier(INT_TO_JSID(i));
+}
+
+static inline bool
+NPIdentifierIsVoid(NPIdentifier id)
+{
+    return JSID_IS_VOID(NPIdentifierToJSId(id));
+}
+
+#define NPIdentifier_VOID (JSIdToNPIdentifier(JSID_VOID))
 
 NPObject* NP_CALLBACK
 _getwindowobject(NPP npp);
@@ -252,6 +262,7 @@ void NP_CALLBACK
 _poppopupsenabledstate(NPP npp);
 
 typedef void(*PluginThreadCallback)(void *);
+
 void NP_CALLBACK
 _pluginthreadasynccall(NPP instance, PluginThreadCallback func,
                        void *userData);
@@ -277,6 +288,12 @@ _scheduletimer(NPP instance, uint32_t interval, NPBool repeat, PluginTimerFunc t
 
 void NP_CALLBACK
 _unscheduletimer(NPP instance, uint32_t timerID);
+
+NPError NP_CALLBACK
+_popupcontextmenu(NPP instance, NPMenu* menu);
+
+NPBool NP_CALLBACK
+_convertpoint(NPP instance, double sourceX, double sourceY, NPCoordinateSpace sourceSpace, double *destX, double *destY, NPCoordinateSpace destSpace);
 
 NPError NP_CALLBACK
 _requestread(NPStream *pstream, NPByteRange *rangeList);
@@ -340,10 +357,13 @@ _memalloc (uint32_t size);
 
 // Deprecated entry points for the old Java plugin.
 void* NP_CALLBACK /* OJI type: JRIEnv* */
-_getJavaEnv(void);
+_getJavaEnv();
 
 void* NP_CALLBACK /* OJI type: jref */
 _getJavaPeer(NPP npp);
+
+void NP_CALLBACK
+_urlredirectresponse(NPP instance, void* notifyData, NPBool allow);
 
 } /* namespace parent */
 } /* namespace plugins */
@@ -361,10 +381,15 @@ OnPluginDestroy(NPP instance);
 void
 OnShutdown();
 
-void
-EnterAsyncPluginThreadCallLock();
-void
-ExitAsyncPluginThreadCallLock();
+/**
+ * within a lexical scope, locks and unlocks the mutex used to
+ * serialize modifications to plugin async callback state.
+ */
+struct NS_STACK_CLASS AsyncCallbackAutoLock
+{
+  AsyncCallbackAutoLock();
+  ~AsyncCallbackAutoLock();
+};
 
 class NPPStack
 {

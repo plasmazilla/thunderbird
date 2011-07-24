@@ -224,9 +224,14 @@ MimeMultipartRelated_finalize (MimeObject *obj)
   MimeMultipartRelated* relobj = (MimeMultipartRelated*) obj;
   PR_FREEIF(relobj->base_url);
   PR_FREEIF(relobj->curtag);
-        PR_FREEIF(relobj->head_buffer);
-        relobj->head_buffer_fp = 0;
-        relobj->head_buffer_size = 0;
+  if (relobj->buffered_hdrs) {
+	PR_FREEIF(relobj->buffered_hdrs->all_headers);
+	PR_FREEIF(relobj->buffered_hdrs->heads);
+	PR_FREEIF(relobj->buffered_hdrs);
+  }
+  PR_FREEIF(relobj->head_buffer);
+  relobj->head_buffer_fp = 0;
+  relobj->head_buffer_size = 0;
   if (relobj->hash) {
     PL_HashTableEnumerateEntries(relobj->hash, mime_multipart_related_nukehash, NULL);
     PL_HashTableDestroy(relobj->hash);
@@ -352,11 +357,12 @@ MimeStartParamExists(MimeObject *obj, MimeObject* child)
   char *st = (ct
               ? MimeHeaders_get_parameter(ct, HEADER_PARM_START, NULL, NULL)
               : 0);
+
+  PR_FREEIF(ct);
   if (!st)
     return PR_FALSE;
 
   PR_FREEIF(st);
-  PR_FREEIF(ct);
   return PR_TRUE;
 }
 
@@ -370,6 +376,8 @@ MimeThisIsStartPart(MimeObject *obj, MimeObject* child)
   st = (ct
         ? MimeHeaders_get_parameter(ct, HEADER_PARM_START, NULL, NULL)
         : 0);
+
+  PR_FREEIF(ct);
   if (!st)
     return PR_FALSE;
 
@@ -394,7 +402,6 @@ MimeThisIsStartPart(MimeObject *obj, MimeObject* child)
   }
 
   PR_FREEIF(st);
-  PR_FREEIF(ct);
   PR_FREEIF(cst);
   return rval;
 }
@@ -564,8 +571,16 @@ MimeMultipartRelated_output_child_p(MimeObject *obj, MimeObject* child)
                 PR_Free(tmp);
                 if (tloc)
                 {
-                    MimeHashValue * value = new MimeHashValue(child, temp);
+                  MimeHashValue *value;
+                  value = (MimeHashValue*)PL_HashTableLookup(relobj->hash, tloc);
+
+                  if (!value)
+                  {
+                    value = new MimeHashValue(child, temp);
                     PL_HashTableAdd(relobj->hash, tloc, value);
+                  }
+                  else
+                    PR_smprintf_free(tloc);
                 }
               }
             }
@@ -1042,6 +1057,8 @@ MimeMultipartRelated_parse_eof (MimeObject *obj, PRBool abort_p)
 
   body = mime_create(((ct && *ct) ? ct : (dct ? dct : TEXT_HTML)),
              relobj->buffered_hdrs, obj->options);
+
+  PR_FREEIF(ct);
   if (!body) {
     status = MIME_OUT_OF_MEMORY;
     goto FAIL;

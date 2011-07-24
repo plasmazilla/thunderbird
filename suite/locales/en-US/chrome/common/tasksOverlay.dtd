@@ -23,6 +23,9 @@
 <!ENTITY tasksMenu.label "Tools">
 <!ENTITY tasksMenu.accesskey "T"> 
 
+<!ENTITY datamanCmd.label "Data Manager">
+<!ENTITY datamanCmd.accesskey "M">
+
 <!ENTITY passwordManagerCmd.label "Password Manager">
 <!ENTITY passwordManagerCmd.accesskey "P">
 
@@ -36,8 +39,18 @@
 <!ENTITY downloadManagerCmd.accesskey "D">
 <!ENTITY downloadManagerCmd.commandkey "j">
 
-<!ENTITY addonsManagerCmd.label "Add-on Manager">
-<!ENTITY addonsManagerCmd.accesskey "A">
+<!ENTITY addOnsManagerCmd.label "Add-ons Manager">
+<!ENTITY addOnsManagerCmd.accesskey "A">
+<!ENTITY addOnsManagerCmd.commandkey "a">
 
 <!ENTITY switchProfileCmd.label "Switch Profile…">
 <!ENTITY switchProfileCmd.accesskey "h">
+
+<!ENTITY syncBrand.shortName.label "Sync">
+<!-- LOCALIZATION NOTE (syncSetup.accesskey, syncSyncNowItem.accesskey):
+     Only one of these will show at a time (based on setup state),
+     so reusing accesskey is ok. -->
+<!ENTITY syncSetup.label           "Set Up Sync…">
+<!ENTITY syncSetup.accesskey       "S">
+<!ENTITY syncSyncNowItem.label     "Sync Now">
+<!ENTITY syncSyncNowItem.accesskey "S">

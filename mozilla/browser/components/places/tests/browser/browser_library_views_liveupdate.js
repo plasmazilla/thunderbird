@@ -39,13 +39,14 @@
  * Tests Library Left pane view for liveupdate.
  */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-
 var gLibrary = null;
 
 function test() {
   waitForExplicitFinish();
+  // This test takes quite some time, and timeouts frequently, so we require
+  // more time to run.
+  // See Bug 525610.
+  requestLongerTimeout(2);
 
   // Sanity checks.
   ok(PlacesUtils, "PlacesUtils in context");
@@ -54,18 +55,16 @@ function test() {
   // Open Library, we will check the left pane.
   var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
            getService(Ci.nsIWindowWatcher);
-  var windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-      if (aTopic === "domwindowopened") {
-        ww.unregisterNotification(this);
-        gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
-        gLibrary.addEventListener("load", function onLoad(event) {
-          gLibrary.removeEventListener("load", onLoad, false);
-          executeSoon(startTest);
-        }, false);
-      }
-    }
-  };
+  function windowObserver(aSubject, aTopic, aData) {
+    if (aTopic != "domwindowopened")
+      return;
+    ww.unregisterNotification(windowObserver);
+    gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
+    gLibrary.addEventListener("load", function onLoad(event) {
+      gLibrary.removeEventListener("load", onLoad, false);
+      executeSoon(startTest);
+    }, false);
+  }
   ww.registerNotification(windowObserver);
   ww.openWindow(null,
                 "chrome://browser/content/places/places.xul",
@@ -79,8 +78,9 @@ function test() {
  */
 function startTest() {
   var bs = PlacesUtils.bookmarks;
-  // Add bookmarks observer.
+  // Add observers.
   bs.addObserver(bookmarksObserver, false);
+  PlacesUtils.annotations.addObserver(bookmarksObserver, false);
   var addedBookmarks = [];
 
   // MENU
@@ -94,12 +94,14 @@ function startTest() {
                          PlacesUtils._uri("place:"),
                          bs.DEFAULT_INDEX,
                          "bm2");
+  bs.setItemTitle(id, "bm2_edited");
   addedBookmarks.push(id);
   id = bs.insertSeparator(bs.bookmarksMenuFolder, bs.DEFAULT_INDEX);
   addedBookmarks.push(id);
   id = bs.createFolder(bs.bookmarksMenuFolder,
                        "bmf",
                        bs.DEFAULT_INDEX);
+  bs.setItemTitle(id, "bmf_edited");
   addedBookmarks.push(id);
   id = bs.insertBookmark(id,
                          PlacesUtils._uri("http://bmf1.mozilla.org/"),
@@ -107,6 +109,11 @@ function startTest() {
                          "bmf1");
   addedBookmarks.push(id);
   bs.moveItem(id, bs.bookmarksMenuFolder, 0);
+  id = PlacesUtils.livemarks.createLivemarkFolderOnly(
+    bs.bookmarksMenuFolder, "bml",
+    PlacesUtils._uri("http://bml.siteuri.mozilla.org/"),
+    PlacesUtils._uri("http://bml.feeduri.mozilla.org/"), bs.DEFAULT_INDEX);
+  addedBookmarks.push(id);
 
   // TOOLBAR
   ok(true, "*** Acting on toolbar bookmarks");
@@ -114,17 +121,20 @@ function startTest() {
                     PlacesUtils._uri("http://tb1.mozilla.org/"),
                     bs.DEFAULT_INDEX,
                     "tb1");
+  bs.setItemTitle(id, "tb1_edited");
   addedBookmarks.push(id);
   id = bs.insertBookmark(bs.toolbarFolder,
                          PlacesUtils._uri("place:"),
                          bs.DEFAULT_INDEX,
                          "tb2");
+  bs.setItemTitle(id, "tb2_edited");
   addedBookmarks.push(id);
   id = bs.insertSeparator(bs.toolbarFolder, bs.DEFAULT_INDEX);
   addedBookmarks.push(id);
   id = bs.createFolder(bs.toolbarFolder,
                        "tbf",
                        bs.DEFAULT_INDEX);
+  bs.setItemTitle(id, "tbf_edited");
   addedBookmarks.push(id);
   id = bs.insertBookmark(id,
                          PlacesUtils._uri("http://tbf1.mozilla.org/"),
@@ -132,6 +142,10 @@ function startTest() {
                          "bmf1");
   addedBookmarks.push(id);
   bs.moveItem(id, bs.toolbarFolder, 0);
+  id = PlacesUtils.livemarks.createLivemarkFolderOnly(
+    bs.toolbarFolder, "tbl", PlacesUtils._uri("http://tbl.siteuri.mozilla.org/"),
+    PlacesUtils._uri("http://tbl.feeduri.mozilla.org/"), bs.DEFAULT_INDEX);
+  addedBookmarks.push(id);
 
   // UNSORTED
   ok(true, "*** Acting on unsorted bookmarks");
@@ -139,17 +153,20 @@ function startTest() {
                          PlacesUtils._uri("http://ub1.mozilla.org/"),
                          bs.DEFAULT_INDEX,
                          "ub1");
+  bs.setItemTitle(id, "ub1_edited");
   addedBookmarks.push(id);
   id = bs.insertBookmark(bs.unfiledBookmarksFolder,
                          PlacesUtils._uri("place:"),
                          bs.DEFAULT_INDEX,
                          "ub2");
+  bs.setItemTitle(id, "ub2_edited");
   addedBookmarks.push(id);
   id = bs.insertSeparator(bs.unfiledBookmarksFolder, bs.DEFAULT_INDEX);
   addedBookmarks.push(id);
   id = bs.createFolder(bs.unfiledBookmarksFolder,
                        "ubf",
                        bs.DEFAULT_INDEX);
+  bs.setItemTitle(id, "ubf_edited");
   addedBookmarks.push(id);
   id = bs.insertBookmark(id,
                          PlacesUtils._uri("http://ubf1.mozilla.org/"),
@@ -157,6 +174,11 @@ function startTest() {
                          "ubf1");
   addedBookmarks.push(id);
   bs.moveItem(id, bs.unfiledBookmarksFolder, 0);
+  id = PlacesUtils.livemarks.createLivemarkFolderOnly(
+    bs.unfiledBookmarksFolder, "bubl",
+    PlacesUtils._uri("http://bubl.siteuri.mozilla.org/"),
+    PlacesUtils._uri("http://bubl.feeduri.mozilla.org/"), bs.DEFAULT_INDEX);
+  addedBookmarks.push(id);
 
   // Remove all added bookmarks.
   addedBookmarks.forEach(function (aItem) {
@@ -167,8 +189,9 @@ function startTest() {
     } catch (ex) {}
   });
 
-  // Remove bookmarks observer.
+  // Remove observers.
   bs.removeObserver(bookmarksObserver);
+  PlacesUtils.annotations.removeObserver(bookmarksObserver);
   finishTest();
 }
 
@@ -186,15 +209,40 @@ function finishTest() {
  * nodes positions in the affected views.
  */
 var bookmarksObserver = {
-  QueryInterface: function PSB_QueryInterface(aIID) {
-    if (aIID.equals(Ci.nsINavBookmarkObserver) ||
-        aIID.equals(Ci.nsISupports))
-      return this;
-    throw Cr.NS_NOINTERFACE;
+  QueryInterface: XPCOMUtils.generateQI([
+    Ci.nsINavBookmarkObserver
+  , Ci.nsIAnnotationObserver
+  ]),
+
+  // nsIAnnotationObserver
+  onItemAnnotationSet: function(aItemId, aAnnotationName) {
+    if (aAnnotationName == PlacesUtils.LMANNO_FEEDURI) {
+      // Check that item is recognized as a livemark.
+      let validator = function(aTreeRowIndex) {
+        let tree = gLibrary.PlacesOrganizer._places;
+        let livemarkAtom = Cc["@mozilla.org/atom-service;1"].
+                           getService(Ci.nsIAtomService).
+                           getAtom("livemark");
+        let properties = Cc["@mozilla.org/supports-array;1"].
+                         createInstance(Ci.nsISupportsArray);
+        tree.view.getCellProperties(aTreeRowIndex,
+                                    tree.columns.getColumnAt(0),
+                                    properties);
+        return properties.GetIndexOf(livemarkAtom) != -1;
+      };
+
+      var [node, index, valid] = getNodeForTreeItem(aItemId, gLibrary.PlacesOrganizer._places, validator);
+      isnot(node, null, "Found new Places node in left pane at " + index);
+      ok(valid, "Node is recognized as a livemark");
+    }
   },
+  onItemAnnotationRemoved: function() {},
+  onPageAnnotationSet: function() {},
+  onPageAnnotationRemoved: function() {},
 
   // nsINavBookmarkObserver
-  onItemAdded: function PSB_onItemAdded(aItemId, aFolderId, aIndex) {
+  onItemAdded: function PSB_onItemAdded(aItemId, aFolderId, aIndex, aItemType,
+                                        aURI) {
     var node = null;
     var index = null;
     [node, index] = getNodeForTreeItem(aItemId, gLibrary.PlacesOrganizer._places);
@@ -258,7 +306,19 @@ var bookmarksObserver = {
   onBeforeItemRemoved: function PSB_onBeforeItemRemoved(aItemId) {},
   onItemVisited: function() {},
   onItemChanged: function PSB_onItemChanged(aItemId, aProperty,
-                                            aIsAnnotationProperty, aValue) {}
+                                            aIsAnnotationProperty, aNewValue) {
+    if (aProperty == "title") {
+      let validator = function(aTreeRowIndex) {
+        let tree = gLibrary.PlacesOrganizer._places;
+        let cellText = tree.view.getCellText(aTreeRowIndex,
+                                             tree.columns.getColumnAt(0));
+        return cellText == aNewValue;
+      }
+      let [node, index, valid] = getNodeForTreeItem(aItemId, gLibrary.PlacesOrganizer._places, validator);
+      if (node) // Only visible nodes.
+        ok(valid, "Title cell value has been correctly updated");
+    }
+  }
 };
 
 
@@ -267,13 +327,17 @@ var bookmarksObserver = {
  *
  * @param aItemId
  *        item id of the item to search.
- * @returns [node, index] or [null, null] if not found.
+ * @param aTree
+ *        Tree to search in.
+ * @param aValidator [optional]
+ *        function to check row validity if found.  Defaults to {return true;}.
+ * @returns [node, index, valid] or [null, null, false] if not found.
  */
-function getNodeForTreeItem(aItemId, aTree) {
+function getNodeForTreeItem(aItemId, aTree, aValidator) {
 
   function findNode(aContainerIndex) {
     if (aTree.view.isContainerEmpty(aContainerIndex))
-      return [null, null];
+      return [null, null, false];
 
     // The rowCount limit is just for sanity, but we will end looping when
     // we have checked the last child of this container or we have found node.
@@ -282,7 +346,8 @@ function getNodeForTreeItem(aItemId, aTree) {
 
       if (node.itemId == aItemId) {
         // Minus one because we want relative index inside the container.
-        return [node, i - aTree.view.getParentIndex(i) - 1];
+        let valid = aValidator ? aValidator(i) : true;
+        return [node, i - aTree.view.getParentIndex(i) - 1, valid];
       }
 
       if (PlacesUtils.nodeIsFolder(node)) {
@@ -301,7 +366,7 @@ function getNodeForTreeItem(aItemId, aTree) {
       if (!aTree.view.hasNextSibling(aContainerIndex + 1, i))
         break;
     }
-    return [null, null]
+    return [null, null, false]
   }
 
   // Root node is hidden, so we need to manually walk the first level.
@@ -316,5 +381,5 @@ function getNodeForTreeItem(aItemId, aTree) {
     if (foundNode[0] != null)
       return foundNode;
   }
-  return [null, null];
+  return [null, null, false];
 }

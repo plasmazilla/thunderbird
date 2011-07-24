@@ -200,7 +200,7 @@ typedef enum {
   MOZ_GTK_MENUPOPUP,
   /* Paints the arrow of menuitems that contain submenus */
   MOZ_GTK_MENUARROW,
-  /* Paints an arrow that points down */
+  /* Paints an arrow in a toolbar button. flags is a GtkArrowType. */
   MOZ_GTK_TOOLBARBUTTON_ARROW,
   /* Paints items of menubar and popups. */
   MOZ_GTK_MENUITEM,
@@ -242,11 +242,17 @@ gint moz_gtk_enable_style_props(style_prop_t styleGetProp);
  */
 gint moz_gtk_shutdown();
 
+/**
+ * Retrieves the colormap to use for drawables passed to moz_gtk_widget_paint.
+ */
+GdkColormap* moz_gtk_widget_get_colormap();
 
 /*** Widget drawing ***/
 /**
  * Paint a widget in the current theme.
  * widget:    a constant giving the widget to paint
+ * drawable:  the drawable to paint to;
+ *            it's colormap must be moz_gtk_widget_get_colormap().
  * rect:      the bounding rectangle for the widget
  * cliprect:  a clipprect rectangle for this painting operation
  * state:     the state of the widget.  ignored for some widgets.
@@ -374,13 +380,13 @@ gint moz_gtk_get_combo_box_entry_button_size(gint* width, gint* height);
 gint moz_gtk_get_tab_scroll_arrow_size(gint* width, gint* height);
 
 /**
- * Get the desired size of a toolbar button dropdown arrow
+ * Get the desired size of an arrow in a button
  * width:   [OUT] the desired width
  * height:  [OUT] the desired height
  *
  * returns:    MOZ_GTK_SUCCESS if there was no error, an error code otherwise
  */
-gint moz_gtk_get_downarrow_size(gint* width, gint* height);
+gint moz_gtk_get_arrow_size(gint* width, gint* height);
 
 /**
  * Get the desired size of a toolbar separator
@@ -439,6 +445,12 @@ gint moz_gtk_get_tab_thickness(void);
  * If TRUE, use images in menus.
  */
 gboolean moz_gtk_images_in_menus(void);
+
+/**
+ * Get a boolean which indicates whether or not to use images in buttons.
+ * If TRUE, use images in buttons.
+ */
+gboolean moz_gtk_images_in_buttons(void);
 
 #ifdef __cplusplus
 }

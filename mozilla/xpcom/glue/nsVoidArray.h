@@ -62,6 +62,8 @@ public:
   inline PRInt32 Count() const {
     return mImpl ? mImpl->mCount : 0;
   }
+  // If the array grows, the newly created entries will all be null
+  PRBool SetCount(PRInt32 aNewCount);
   // returns the max number that can be held without allocating
   inline PRInt32 GetArraySize() const {
     return mImpl ? (PRInt32(mImpl->mBits) & kArraySizeMask) : 0;
@@ -203,60 +205,6 @@ public:
 protected:
   // The internal storage
   char mAutoBuf[sizeof(Impl) + (kAutoBufSize - 1) * sizeof(void*)];
-};
-
-
-class nsString;
-
-typedef int (* nsStringArrayComparatorFunc)
-            (const nsString* aElement1, const nsString* aElement2, void* aData);
-
-typedef PRBool (*nsStringArrayEnumFunc)(nsString& aElement, void *aData);
-
-class NS_COM_GLUE nsStringArray: private nsVoidArray
-{
-public:
-  nsStringArray(void);
-  nsStringArray(PRInt32 aCount);  // Storage for aCount elements will be pre-allocated
-  ~nsStringArray(void);
-
-  nsStringArray& operator=(const nsStringArray& other);
-
-  PRInt32 Count(void) const {
-    return nsVoidArray::Count();
-  }
-
-  void StringAt(PRInt32 aIndex, nsAString& aString) const;
-  nsString* StringAt(PRInt32 aIndex) const;
-  nsString* operator[](PRInt32 aIndex) const { return StringAt(aIndex); }
-
-  PRInt32 IndexOf(const nsAString& aPossibleString) const;
-
-  PRBool InsertStringAt(const nsAString& aString, PRInt32 aIndex);
-
-  PRBool ReplaceStringAt(const nsAString& aString, PRInt32 aIndex);
-
-  PRBool AppendString(const nsAString& aString) {
-    return InsertStringAt(aString, Count());
-  }
-
-  PRBool RemoveString(const nsAString& aString);
-  PRBool RemoveStringAt(PRInt32 aIndex);
-  void   Clear(void);
-
-  void Compact(void) {
-    nsVoidArray::Compact();
-  }
-
-  void Sort(void);
-  void Sort(nsStringArrayComparatorFunc aFunc, void* aData);
-
-  PRBool EnumerateForwards(nsStringArrayEnumFunc aFunc, void* aData);
-  PRBool EnumerateBackwards(nsStringArrayEnumFunc aFunc, void* aData);
-
-private:
-  /// Copy constructors are not allowed
-  nsStringArray(const nsStringArray& other);
 };
 
 

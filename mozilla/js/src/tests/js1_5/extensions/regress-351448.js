@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-351448.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 351448;
 var summary = 'RegExp - throw InternalError on too complex regular expressions';
@@ -77,7 +76,9 @@ function test()
 
   expect = 'InternalError: regular expression too complex';
 
-  options('relimit');
+  if (!options().match(/relimit/)) {
+    options('relimit');
+  }
 
   for (var i = 0; i < strings.length; i++)
   {

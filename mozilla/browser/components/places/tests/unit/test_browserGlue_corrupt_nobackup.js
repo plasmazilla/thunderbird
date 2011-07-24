@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Unit Test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -41,39 +41,34 @@
  * is corrupt but a JSON backup is not available.
  */
 
-const NS_PLACES_INIT_COMPLETE_TOPIC = "places-init-complete";
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-// Create an observer for the Places notifications
-var os = Cc["@mozilla.org/observer-service;1"].
-         getService(Ci.nsIObserverService);
-var observer = {
-  observe: function thn_observe(aSubject, aTopic, aData) {
-    if (aTopic == NS_PLACES_INIT_COMPLETE_TOPIC) {
-        os.removeObserver(this, NS_PLACES_INIT_COMPLETE_TOPIC);
-        var hs = Cc["@mozilla.org/browser/nav-history-service;1"].
-                 getService(Ci.nsINavHistoryService);
-      // Check the database was corrupt.
-      // nsBrowserGlue uses databaseStatus to manage initialization.
-      do_check_eq(hs.databaseStatus, hs.DATABASE_STATUS_CORRUPT);
+XPCOMUtils.defineLazyServiceGetter(this, "bs",
+                                   "@mozilla.org/browser/nav-bookmarks-service;1",
+                                   "nsINavBookmarksService");
+XPCOMUtils.defineLazyServiceGetter(this, "anno",
+                                   "@mozilla.org/browser/annotation-service;1",
+                                   "nsIAnnotationService");
 
-      // Enqueue next part of the test.
-      var tm = Cc["@mozilla.org/thread-manager;1"].
-               getService(Ci.nsIThreadManager);
-      tm.mainThread.dispatch({
-        run: function() {
-          continue_test();
-        }
-      }, Ci.nsIThread.DISPATCH_NORMAL);
-    }
-  }
+let bookmarksObserver = {
+  onBeginUpdateBatch: function() {},
+  onEndUpdateBatch: function() {
+    let itemId = bs.getIdForItemAt(bs.toolbarFolder, 0);
+    do_check_neq(itemId, -1);
+    if (anno.itemHasAnnotation(itemId, "Places/SmartBookmark"))
+      continue_test();
+  },
+  onItemAdded: function() {},
+  onBeforeItemRemoved: function(id) {},
+  onItemRemoved: function(id, folder, index, itemType) {},
+  onItemChanged: function() {},
+  onItemVisited: function(id, visitID, time) {},
+  onItemMoved: function() {},
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsINavBookmarkObserver])
 };
 
 function run_test() {
-  // XXX bug 507199
-  // This test is temporarily disabled!
-  return;
-
-  os.addObserver(observer, NS_PLACES_INIT_COMPLETE_TOPIC, false);
+  do_test_pending();
 
   // Create bookmarks.html in the profile.
   create_bookmarks_html("bookmarks.glue.html");
@@ -81,14 +76,14 @@ function run_test() {
   remove_all_JSON_backups();
 
   // Remove current database file.
-  var db = gProfD.clone();
+  let db = gProfD.clone();
   db.append("places.sqlite");
   if (db.exists()) {
     db.remove(false);
     do_check_false(db.exists());
   }
   // Create a corrupt database.
-  corruptDB = gTestDir.clone();
+  let corruptDB = gTestDir.clone();
   corruptDB.append("corruptDB.sqlite");
   corruptDB.copyTo(gProfD, "places.sqlite");
   do_check_true(db.exists());
@@ -97,20 +92,23 @@ function run_test() {
   Cc["@mozilla.org/browser/browserglue;1"].getService(Ci.nsIBrowserGlue);
 
   // Initialize Places through the History Service.
-  var hs = Cc["@mozilla.org/browser/nav-history-service;1"].
+  let hs = Cc["@mozilla.org/browser/nav-history-service;1"].
            getService(Ci.nsINavHistoryService);
+  // Check the database was corrupt.
+  // nsBrowserGlue uses databaseStatus to manage initialization.
+  do_check_eq(hs.databaseStatus, hs.DATABASE_STATUS_CORRUPT);
 
-  // Wait for init-complete notification before going on.
-  do_test_pending();
+  // The test will continue once import has finished and smart bookmarks
+  // have been created.
+  bs.addObserver(bookmarksObserver, false);
 }
 
 function continue_test() {
-  var bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-           getService(Ci.nsINavBookmarksService);
-
-  var itemId = bs.getIdForItemAt(bs.toolbarFolder, SMART_BOOKMARKS_ON_TOOLBAR);
-  do_check_neq(itemId, -1);
+  // Check that bookmarks html has been restored.
+  let itemId = bs.getIdForItemAt(bs.toolbarFolder, SMART_BOOKMARKS_ON_TOOLBAR);
   do_check_eq(bs.getItemTitle(itemId), "example");
+
+  remove_bookmarks_html();
 
   do_test_finished();
 }

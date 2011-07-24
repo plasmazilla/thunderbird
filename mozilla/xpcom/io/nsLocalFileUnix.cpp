@@ -46,7 +46,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 /**
- * Implementation of nsIFile for ``Unixy'' systems.
+ * Implementation of nsIFile for "unixy" systems.
  */
 
 #include <sys/types.h>
@@ -58,13 +58,21 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <locale.h>
-#ifdef XP_BEOS
-    #include <Path.h>
-    #include <Entry.h>
-    #include <Roster.h>
-#endif
 #if defined(VMS)
     #include <fabdef.h>
+#endif
+
+#if defined(HAVE_SYS_QUOTA_H) && defined(HAVE_LINUX_QUOTA_H)
+#define USE_LINUX_QUOTACTL
+#include <sys/quota.h>
+#endif
+
+#if (MOZ_PLATFORM_MAEMO == 6)
+#include <QUrl>
+#include <QString>
+#if (MOZ_ENABLE_CONTENTACTION)
+#include <contentaction/contentaction.h>
+#endif
 #endif
 
 #include "nsDirectoryServiceDefs.h"
@@ -83,7 +91,17 @@
 #include "nsITimelineService.h"
 
 #ifdef MOZ_WIDGET_GTK2
+#include "nsIGIOService.h"
 #include "nsIGnomeVFSService.h"
+#endif
+
+#ifdef XP_MACOSX
+#include <Carbon/Carbon.h>
+#include "CocoaFileUtils.h"
+#include "prmem.h"
+#include "plbase64.h"
+
+static nsresult MacErrorMapper(OSErr inErr);
 #endif
 
 #if (MOZ_PLATFORM_MAEMO == 5)
@@ -91,6 +109,12 @@
 #include <hildon-uri.h>
 #include <hildon-mime.h>
 #include <libosso.h>
+#endif
+
+#ifdef ANDROID
+#include "AndroidBridge.h"
+#include "nsIMIMEService.h"
+#include <linux/magic.h>
 #endif
 
 #include "nsNativeCharsetUtils.h"
@@ -249,10 +273,18 @@ nsLocalFile::nsLocalFile(const nsLocalFile& other)
 {
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS3(nsLocalFile,
-                              nsIFile,
+#ifdef XP_MACOSX
+NS_IMPL_THREADSAFE_ISUPPORTS4(nsLocalFile,
+                              nsILocalFileMac,
                               nsILocalFile,
+                              nsIFile,
                               nsIHashable)
+#else
+NS_IMPL_THREADSAFE_ISUPPORTS3(nsLocalFile,
+                              nsILocalFile,
+                              nsIFile,
+                              nsIHashable)
+#endif
 
 nsresult
 nsLocalFile::nsLocalFileConstructor(nsISupports *outer, 
@@ -526,17 +558,8 @@ nsLocalFile::Normalize()
     char    resolved_path[PATH_MAX] = "";
     char *resolved_path_ptr = nsnull;
 
-#ifdef XP_BEOS
-    BEntry be_e(mPath.get(), true);
-    BPath be_p;
-    status_t err;
-    if ((err = be_e.GetPath(&be_p)) == B_OK) {
-        resolved_path_ptr = (char *)be_p.Path();
-        PL_strncpyz(resolved_path, resolved_path_ptr, PATH_MAX - 1);
-    }
-#else
     resolved_path_ptr = realpath(mPath.get(), resolved_path);
-#endif
+
     // if there is an error, the return is null.
     if (!resolved_path_ptr)
         return NSRESULT_FOR_ERRNO();
@@ -953,7 +976,14 @@ nsLocalFile::Remove(PRBool recursive)
             nsCOMPtr<nsIFile> file = do_QueryInterface(item, &rv);
             if (NS_FAILED(rv))
                 return NS_ERROR_FAILURE;
-            if (NS_FAILED(rv = file->Remove(recursive)))
+            rv = file->Remove(recursive);
+
+#ifdef ANDROID
+            // See bug 580434 - Bionic gives us just deleted files
+            if (rv == NS_ERROR_FILE_TARGET_DOES_NOT_EXIST)
+                continue;
+#endif
+            if (NS_FAILED(rv))
                 return rv;
         }
     }
@@ -1060,9 +1090,20 @@ nsLocalFile::SetPermissions(PRUint32 aPermissions)
      * Race condition here: we should use fchmod instead, there's no way to 
      * guarantee the name still refers to the same file.
      */
-    if (chmod(mPath.get(), aPermissions) < 0)
-        return NSRESULT_FOR_ERRNO();
-    return NS_OK;
+    if (chmod(mPath.get(), aPermissions) >= 0)
+        return NS_OK;
+#if defined(ANDROID) && defined(STATFS)
+    // For the time being, this is restricted for use by Android, but we 
+    // will figure out what to do for all platforms in bug 638503
+    struct STATFS sfs;
+    if (STATFS(mPath.get(), &sfs) < 0)
+         return NSRESULT_FOR_ERRNO();
+
+    // if this is a FAT file system we can't set file permissions
+    if (sfs.f_type == MSDOS_SUPER_MAGIC )
+        return NS_OK;
+#endif
+    return NSRESULT_FOR_ERRNO();
 }
 
 NS_IMETHODIMP
@@ -1099,7 +1140,18 @@ nsLocalFile::SetFileSize(PRInt64 aFileSize)
 {
     CHECK_mPath();
 
-#ifdef HAVE_TRUNCATE64
+#if defined(ANDROID)
+    /* no truncate on bionic */
+    int fd = open(mPath.get(), O_WRONLY);
+    if (fd == -1)
+        return NSRESULT_FOR_ERRNO();
+
+    int ret = ftruncate(fd, (off_t)aFileSize);
+    close(fd);
+
+    if (ret == -1)
+        return NSRESULT_FOR_ERRNO();
+#elif defined(HAVE_TRUNCATE64)
     if (truncate64(mPath.get(), (off64_t)aFileSize) == -1)
         return NSRESULT_FOR_ERRNO();
 #else
@@ -1123,6 +1175,58 @@ nsLocalFile::GetFileSizeOfLink(PRInt64 *aFileSize)
     *aFileSize = (PRInt64)sbuf.st_size;
     return NS_OK;
 }
+
+#if defined(USE_LINUX_QUOTACTL)
+/*
+ * Searches /proc/self/mountinfo for given device (Major:Minor), 
+ * returns exported name from /dev
+ *
+ * Fails when /proc/self/mountinfo or diven device don't exist.
+ */
+static PRBool
+GetDeviceName(int deviceMajor, int deviceMinor, nsACString &deviceName)
+{
+    PRBool ret = false;
+    
+    const int kMountInfoLineLength = 200;
+    const int kMountInfoDevPosition = 6;
+
+    char mountinfo_line[kMountInfoLineLength];
+    char device_num[kMountInfoLineLength];
+    
+    snprintf(device_num,kMountInfoLineLength,"%d:%d", deviceMajor, deviceMinor);
+    
+    FILE *f = fopen("/proc/self/mountinfo","rt");
+    if(!f)
+        return ret;
+
+    // Expects /proc/self/mountinfo in format:
+    // 'ID ID major:minor root mountpoint flags - type devicename flags'
+    while(fgets(mountinfo_line,kMountInfoLineLength,f)) {
+        char *p_dev = strstr(mountinfo_line,device_num);
+    
+        int i;
+        for(i = 0; i < kMountInfoDevPosition && p_dev != NULL; i++) {
+            p_dev = strchr(p_dev,' ');
+            if(p_dev)
+              p_dev++;
+        }
+    
+        if(p_dev) {
+            char *p_dev_end = strchr(p_dev,' ');
+            if(p_dev_end) {
+                *p_dev_end = '\0';
+                deviceName.Assign(p_dev);
+                ret = true;
+                break;
+            }
+        }
+    }
+    
+    fclose(f);
+    return ret; 
+}
+#endif
 
 NS_IMETHODIMP
 nsLocalFile::GetDiskSpaceAvailable(PRInt64 *aDiskSpaceAvailable)
@@ -1162,7 +1266,33 @@ nsLocalFile::GetDiskSpaceAvailable(PRInt64 *aDiskSpaceAvailable)
      * a non-superuser, minus one as a fudge factor, multiplied by the size
      * of the aforementioned blocks.
      */
+#if defined(SOLARIS) || defined(XP_MACOSX)
+    /* On Solaris and Mac, unit is f_frsize. */
+    *aDiskSpaceAvailable = (PRInt64)fs_buf.f_frsize * (fs_buf.f_bavail - 1);
+#else
     *aDiskSpaceAvailable = (PRInt64)fs_buf.f_bsize * (fs_buf.f_bavail - 1);
+#endif /* SOLARIS */
+
+#if defined(USE_LINUX_QUOTACTL)
+
+    if(!FillStatCache()) {
+        // Return available size from statfs
+        return NS_OK;
+    }
+
+    nsCString deviceName;
+    if(!GetDeviceName(major(mCachedStat.st_dev), minor(mCachedStat.st_dev), deviceName)) {
+        return NS_OK;
+    }
+
+    struct dqblk dq;
+    if(!quotactl(QCMD(Q_GETQUOTA, USRQUOTA), deviceName.get(), getuid(), (caddr_t)&dq)) {
+        PRInt64 QuotaSpaceAvailable = PRInt64(fs_buf.f_bsize * dq.dqb_bhardlimit);
+        if(QuotaSpaceAvailable < *aDiskSpaceAvailable) {
+            *aDiskSpaceAvailable = QuotaSpaceAvailable;
+        }
+    }
+#endif
 
     return NS_OK;
 
@@ -1189,7 +1319,7 @@ nsLocalFile::GetParent(nsIFile **aParent)
 {
     CHECK_mPath();
     NS_ENSURE_ARG_POINTER(aParent);
-    *aParent       = nsnull;
+    *aParent = nsnull;
 
     // if '/' we are at the top of the volume, return null
     if (mPath.Equals("/"))
@@ -1201,7 +1331,7 @@ nsLocalFile::GetParent(nsIFile **aParent)
 
     // find the last significant slash in buffer
     slashp = strrchr(buffer, '/');
-    NS_ASSERTION(slashp, "non-canonical mPath?");
+    NS_ASSERTION(slashp, "non-canonical path?");
     if (!slashp)
         return NS_ERROR_FILE_INVALID_PATH;
 
@@ -1229,68 +1359,6 @@ nsLocalFile::GetParent(nsIFile **aParent)
  * The results of Exists, isWritable and isReadable are not cached.
  */
 
-
-#if defined(XP_BEOS) || defined(SOLARIS)
-// access() is buggy in BeOS POSIX implementation, at least for BFS, using stat() instead
-// see bug 169506, https://bugzilla.mozilla.org/show_bug.cgi?id=169506
-// access() problem also exists in Solaris POSIX implementation
-// see bug 351595, https://bugzilla.mozilla.org/show_bug.cgi?id=351595
-NS_IMETHODIMP
-nsLocalFile::Exists(PRBool *_retval)
-{
-    CHECK_mPath();
-    NS_ENSURE_ARG_POINTER(_retval);
-    struct STAT buf;
-
-    *_retval = (STAT(mPath.get(), &buf) == 0);
-    return NS_OK;
-}
-
-NS_IMETHODIMP
-nsLocalFile::IsWritable(PRBool *_retval)
-{
-    CHECK_mPath();
-    NS_ENSURE_ARG_POINTER(_retval);
-    struct STAT buf;
-
-    *_retval = (STAT(mPath.get(), &buf) == 0);
-    if (*_retval || errno == EACCES) {
-        *_retval = *_retval && (buf.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH ));
-        return NS_OK;
-    }
-    return NSRESULT_FOR_ERRNO();
-}
-
-NS_IMETHODIMP
-nsLocalFile::IsReadable(PRBool *_retval)
-{
-    CHECK_mPath();
-    NS_ENSURE_ARG_POINTER(_retval);
-    struct STAT buf;
-
-    *_retval = (STAT(mPath.get(), &buf) == 0);
-    if (*_retval || errno == EACCES) {
-        *_retval = *_retval && (buf.st_mode & (S_IRUSR | S_IRGRP | S_IROTH ));
-        return NS_OK;
-    }
-    return NSRESULT_FOR_ERRNO();
-}
-
-NS_IMETHODIMP
-nsLocalFile::IsExecutable(PRBool *_retval)
-{
-    CHECK_mPath();
-    NS_ENSURE_ARG_POINTER(_retval);
-    struct STAT buf;
-
-    *_retval = (STAT(mPath.get(), &buf) == 0);
-    if (*_retval || errno == EACCES) {
-        *_retval = *_retval && (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH ));
-        return NS_OK;
-    }
-    return NSRESULT_FOR_ERRNO();
-}
-#else
 
 NS_IMETHODIMP
 nsLocalFile::Exists(PRBool *_retval)
@@ -1334,11 +1402,28 @@ nsLocalFile::IsExecutable(PRBool *_retval)
     NS_ENSURE_ARG_POINTER(_retval);
 
     *_retval = (access(mPath.get(), X_OK) == 0);
+#ifdef SOLARIS
+    // On Solaris, access will always return 0 for root user, however
+    // the file is only executable if S_IXUSR | S_IXGRP | S_IXOTH is set.
+    // See bug 351950, https://bugzilla.mozilla.org/show_bug.cgi?id=351950
+    if (*_retval) {
+        struct STAT buf;
+
+        *_retval = (STAT(mPath.get(), &buf) == 0);
+        if (*_retval || errno == EACCES) {
+            *_retval = *_retval &&
+                       (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH ));
+            return NS_OK;
+        }
+
+        return NSRESULT_FOR_ERRNO();
+    }
+#endif
     if (*_retval || errno == EACCES)
         return NS_OK;
     return NSRESULT_FOR_ERRNO();
 }
-#endif
+
 NS_IMETHODIMP
 nsLocalFile::IsDirectory(PRBool *_retval)
 {
@@ -1527,7 +1612,6 @@ nsLocalFile::GetNativeTarget(nsACString &_retval)
     return rv;
 }
 
-/* attribute PRBool followLinks; */
 NS_IMETHODIMP
 nsLocalFile::GetFollowLinks(PRBool *aFollowLinks)
 {
@@ -1595,45 +1679,65 @@ nsLocalFile::GetPersistentDescriptor(nsACString &aPersistentDescriptor)
 NS_IMETHODIMP
 nsLocalFile::SetPersistentDescriptor(const nsACString &aPersistentDescriptor)
 {
-    return InitWithNativePath(aPersistentDescriptor);
-}
+#ifdef XP_MACOSX
+    if (aPersistentDescriptor.IsEmpty())
+        return NS_ERROR_INVALID_ARG;
 
-#ifdef XP_BEOS
-NS_IMETHODIMP
-nsLocalFile::Reveal()
-{
-    BPath bPath(mPath.get());
-    PRBool isDirectory;
-    if (NS_FAILED(IsDirectory(&isDirectory)))
+    // Support pathnames as user-supplied descriptors if they begin with '/'
+    // or '~'.  These characters do not collide with the base64 set used for
+    // encoding alias records.
+    char first = aPersistentDescriptor.First();
+    if (first == '/' || first == '~')
+        return InitWithNativePath(aPersistentDescriptor);
+
+    PRUint32 dataSize = aPersistentDescriptor.Length();    
+    char* decodedData = PL_Base64Decode(PromiseFlatCString(aPersistentDescriptor).get(), dataSize, nsnull);
+    if (!decodedData) {
+        NS_ERROR("SetPersistentDescriptor was given bad data");
         return NS_ERROR_FAILURE;
-  
-    if(!isDirectory)
-        bPath.GetParent(&bPath);
-    entry_ref ref;
-    get_ref_for_path(bPath.Path(),&ref);
-    BMessage message(B_REFS_RECEIVED);
-    message.AddRef("refs",&ref);
-    BMessenger messenger("application/x-vnd.Be-TRAK");
-    messenger.SendMessage(&message);
-    return NS_OK;
-}
+    }
 
-NS_IMETHODIMP
-nsLocalFile::Launch()
-{
-    entry_ref ref;
-    get_ref_for_path (mPath.get(), &ref);
-    be_roster->Launch (&ref);
+    // Cast to an alias record and resolve.
+    AliasRecord aliasHeader = *(AliasPtr)decodedData;
+    PRInt32 aliasSize = ::GetAliasSizeFromPtr(&aliasHeader);
+    if (aliasSize > ((PRInt32)dataSize * 3) / 4) { // be paranoid about having too few data
+        PR_Free(decodedData);
+        return NS_ERROR_FAILURE;
+    }
 
-    return NS_OK;
-}
+    nsresult rv = NS_OK;
+
+    // Move the now-decoded data into the Handle.
+    // The size of the decoded data is 3/4 the size of the encoded data. See plbase64.h
+    Handle  newHandle = nsnull;
+    if (::PtrToHand(decodedData, &newHandle, aliasSize) != noErr)
+        rv = NS_ERROR_OUT_OF_MEMORY;
+    PR_Free(decodedData);
+    if (NS_FAILED(rv))
+        return rv;
+
+    Boolean changed;
+    FSRef resolvedFSRef;
+    OSErr err = ::FSResolveAlias(nsnull, (AliasHandle)newHandle, &resolvedFSRef, &changed);
+
+    rv = MacErrorMapper(err);
+    DisposeHandle(newHandle);
+    if (NS_FAILED(rv))
+        return rv;
+
+    return InitWithFSRef(&resolvedFSRef);  
 #else
+    return InitWithNativePath(aPersistentDescriptor);
+#endif
+}
+
 NS_IMETHODIMP
 nsLocalFile::Reveal()
 {
 #ifdef MOZ_WIDGET_GTK2
-    nsCOMPtr<nsIGnomeVFSService> vfs = do_GetService(NS_GNOMEVFSSERVICE_CONTRACTID);
-    if (!vfs)
+    nsCOMPtr<nsIGIOService> giovfs = do_GetService(NS_GIOSERVICE_CONTRACTID);
+    nsCOMPtr<nsIGnomeVFSService> gnomevfs = do_GetService(NS_GNOMEVFSSERVICE_CONTRACTID);
+    if (!giovfs && !gnomevfs)
         return NS_ERROR_FAILURE;
 
     PRBool isDirectory;
@@ -1641,7 +1745,11 @@ nsLocalFile::Reveal()
         return NS_ERROR_FAILURE;
 
     if (isDirectory) {
-        return vfs->ShowURIForInput(mPath);
+        if (giovfs)
+            return giovfs->ShowURIForInput(mPath);
+        else 
+            /* Fallback to GnomeVFS */
+            return gnomevfs->ShowURIForInput(mPath);
     } else {
         nsCOMPtr<nsIFile> parentDir;
         nsCAutoString dirPath;
@@ -1650,8 +1758,19 @@ nsLocalFile::Reveal()
         if (NS_FAILED(parentDir->GetNativePath(dirPath)))
             return NS_ERROR_FAILURE;
 
-        return vfs->ShowURIForInput(dirPath);
+        if (giovfs)
+            return giovfs->ShowURIForInput(dirPath);
+        else 
+            return gnomevfs->ShowURIForInput(dirPath);        
     }
+#elif defined(XP_MACOSX)
+    CFURLRef url;
+    if (NS_SUCCEEDED(GetCFURL(&url))) {
+      nsresult rv = CocoaFileUtils::RevealFileInFinder(url);
+      ::CFRelease(url);
+      return rv;
+    }
+    return NS_ERROR_FAILURE;
 #else
     return NS_ERROR_FAILURE;
 #endif
@@ -1679,17 +1798,52 @@ nsLocalFile::Launch()
       return NS_ERROR_FAILURE;
     return NS_OK;
 #else
-    nsCOMPtr<nsIGnomeVFSService> vfs = do_GetService(NS_GNOMEVFSSERVICE_CONTRACTID);
-    if (!vfs)
-        return NS_ERROR_FAILURE;
-
-    return vfs->ShowURIForInput(mPath);
+    nsCOMPtr<nsIGIOService> giovfs = do_GetService(NS_GIOSERVICE_CONTRACTID);
+    nsCOMPtr<nsIGnomeVFSService> gnomevfs = do_GetService(NS_GNOMEVFSSERVICE_CONTRACTID);
+    if (giovfs) {
+      return giovfs->ShowURIForInput(mPath);
+    } else if (gnomevfs) {
+      /* GnomeVFS fallback */
+      return gnomevfs->ShowURIForInput(mPath);
+    }
+    
+    return NS_ERROR_FAILURE;
 #endif
+#elif defined(MOZ_ENABLE_CONTENTACTION)
+    QUrl uri = QUrl::fromLocalFile(QString::fromUtf8(mPath.get()));
+    ContentAction::Action action =
+      ContentAction::Action::defaultActionForFile(uri);
+
+    if (action.isValid()) {
+      action.trigger();
+      return NS_OK;
+    }
+
+    return NS_ERROR_FAILURE;
+#elif defined(ANDROID)
+    // Try to get a mimetype, if this fails just use the file uri alone
+    nsresult rv;
+    nsCAutoString type;
+    nsCOMPtr<nsIMIMEService> mimeService(do_GetService("@mozilla.org/mime;1", &rv));
+    if (NS_SUCCEEDED(rv))
+        rv = mimeService->GetTypeFromFile(this, type);
+
+    nsDependentCString fileUri = NS_LITERAL_CSTRING("file://");
+    fileUri.Append(mPath);
+    mozilla::AndroidBridge* bridge = mozilla::AndroidBridge::Bridge();
+    return bridge->OpenUriExternal(fileUri, type) ? NS_OK : NS_ERROR_FAILURE;
+#elif defined(XP_MACOSX)
+    CFURLRef url;
+    if (NS_SUCCEEDED(GetCFURL(&url))) {
+        nsresult rv = CocoaFileUtils::OpenURL(url);
+        ::CFRelease(url);
+        return rv;
+    }
+    return NS_ERROR_FAILURE;
 #else
     return NS_ERROR_FAILURE;
 #endif
 }
-#endif
 
 nsresult
 NS_NewNativeLocalFile(const nsACString &path, PRBool followSymlinks, nsILocalFile **result)
@@ -1698,6 +1852,8 @@ NS_NewNativeLocalFile(const nsACString &path, PRBool followSymlinks, nsILocalFil
     if (!file)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(file);
+
+    file->SetFollowLinks(followSymlinks);
 
     if (!path.IsEmpty()) {
         nsresult rv = file->InitWithNativePath(path);
@@ -1836,3 +1992,436 @@ void
 nsLocalFile::GlobalShutdown()
 {
 }
+
+// nsILocalFileMac
+
+#ifdef XP_MACOSX
+
+static nsresult MacErrorMapper(OSErr inErr)
+{
+  nsresult outErr;
+
+  switch (inErr)
+  {
+    case noErr:
+      outErr = NS_OK;
+      break;
+
+    case fnfErr:
+    case afpObjectNotFound:
+    case afpDirNotFound:
+      outErr = NS_ERROR_FILE_NOT_FOUND;
+      break;
+
+    case dupFNErr:
+    case afpObjectExists:
+      outErr = NS_ERROR_FILE_ALREADY_EXISTS;
+      break;
+
+    case dskFulErr:
+    case afpDiskFull:
+      outErr = NS_ERROR_FILE_DISK_FULL;
+      break;
+
+    case fLckdErr:
+    case afpVolLocked:
+      outErr = NS_ERROR_FILE_IS_LOCKED;
+      break;
+
+    case afpAccessDenied:
+      outErr = NS_ERROR_FILE_ACCESS_DENIED;
+      break;
+
+    case afpDirNotEmpty:
+      outErr = NS_ERROR_FILE_DIR_NOT_EMPTY;
+      break;
+
+    // Can't find good map for some
+    case bdNamErr:
+      outErr = NS_ERROR_FAILURE;
+      break;
+
+    default:
+      outErr = NS_ERROR_FAILURE;
+      break;
+  }
+
+  return outErr;
+}
+
+static nsresult CFStringReftoUTF8(CFStringRef aInStrRef, nsACString& aOutStr)
+{
+  // first see if the conversion would succeed and find the length of the result
+  CFIndex usedBufLen, inStrLen = ::CFStringGetLength(aInStrRef);
+  CFIndex charsConverted = ::CFStringGetBytes(aInStrRef, CFRangeMake(0, inStrLen),
+                                              kCFStringEncodingUTF8, 0, PR_FALSE,
+                                              NULL, 0, &usedBufLen);
+  if (charsConverted == inStrLen) {
+    // all characters converted, do the actual conversion
+    aOutStr.SetLength(usedBufLen);
+    if (aOutStr.Length() != (unsigned int)usedBufLen)
+      return NS_ERROR_OUT_OF_MEMORY;
+    UInt8 *buffer = (UInt8*)aOutStr.BeginWriting();
+    ::CFStringGetBytes(aInStrRef, CFRangeMake(0, inStrLen), kCFStringEncodingUTF8,
+                       0, false, buffer, usedBufLen, &usedBufLen);
+    return NS_OK;
+  }
+
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsLocalFile::InitWithCFURL(CFURLRef aCFURL)
+{
+  UInt8 path[PATH_MAX];
+  if (::CFURLGetFileSystemRepresentation(aCFURL, false, path, PATH_MAX)) {
+    nsDependentCString nativePath((char*)path);
+    return InitWithNativePath(nativePath);
+  }
+
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsLocalFile::InitWithFSRef(const FSRef *aFSRef)
+{
+  NS_ENSURE_ARG(aFSRef);
+
+  CFURLRef newURLRef = ::CFURLCreateFromFSRef(kCFAllocatorDefault, aFSRef);
+  if (newURLRef) {
+    nsresult rv = InitWithCFURL(newURLRef);
+    ::CFRelease(newURLRef);
+    return rv;
+  }
+
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetCFURL(CFURLRef *_retval)
+{
+  CHECK_mPath();
+
+  PRBool isDir;
+  IsDirectory(&isDir);
+  *_retval = ::CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+                                                       (UInt8*)mPath.get(),
+                                                       mPath.Length(),
+                                                       isDir);
+
+  return (*_retval ? NS_OK : NS_ERROR_FAILURE);
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetFSRef(FSRef *_retval)
+{
+  NS_ENSURE_ARG_POINTER(_retval);
+
+  nsresult rv = NS_ERROR_FAILURE;
+
+  CFURLRef url = NULL;
+  if (NS_SUCCEEDED(GetCFURL(&url))) {
+    if (::CFURLGetFSRef(url, _retval)) {
+      rv = NS_OK;
+    }
+    ::CFRelease(url);
+  }
+
+  return rv;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetFSSpec(FSSpec *_retval)
+{
+  NS_ENSURE_ARG_POINTER(_retval);
+
+  FSRef fsRef;
+  nsresult rv = GetFSRef(&fsRef);
+  if (NS_SUCCEEDED(rv)) {
+    OSErr err = ::FSGetCatalogInfo(&fsRef, kFSCatInfoNone, nsnull, nsnull, _retval, nsnull);
+    return MacErrorMapper(err);
+  }
+
+  return rv;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetFileSizeWithResFork(PRInt64 *aFileSizeWithResFork)
+{
+  NS_ENSURE_ARG_POINTER(aFileSizeWithResFork);
+
+  FSRef fsRef;
+  nsresult rv = GetFSRef(&fsRef);
+  if (NS_FAILED(rv))
+    return rv;
+
+  FSCatalogInfo catalogInfo;
+  OSErr err = ::FSGetCatalogInfo(&fsRef, kFSCatInfoDataSizes + kFSCatInfoRsrcSizes,
+                                 &catalogInfo, nsnull, nsnull, nsnull);
+  if (err != noErr)
+    return MacErrorMapper(err);
+
+  *aFileSizeWithResFork = catalogInfo.dataLogicalSize + catalogInfo.rsrcLogicalSize;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetFileType(OSType *aFileType)
+{
+  CFURLRef url;
+  if (NS_SUCCEEDED(GetCFURL(&url))) {
+    nsresult rv = CocoaFileUtils::GetFileTypeCode(url, aFileType);
+    ::CFRelease(url);
+    return rv;
+  }
+  return NS_ERROR_FAILURE;
+}
+  
+NS_IMETHODIMP
+nsLocalFile::SetFileType(OSType aFileType)
+{
+  CFURLRef url;
+  if (NS_SUCCEEDED(GetCFURL(&url))) {
+    nsresult rv = CocoaFileUtils::SetFileTypeCode(url, aFileType);
+    ::CFRelease(url);
+    return rv;
+  }
+  return NS_ERROR_FAILURE;
+}
+  
+NS_IMETHODIMP
+nsLocalFile::GetFileCreator(OSType *aFileCreator)
+{
+  CFURLRef url;
+  if (NS_SUCCEEDED(GetCFURL(&url))) {
+    nsresult rv = CocoaFileUtils::GetFileCreatorCode(url, aFileCreator);
+    ::CFRelease(url);
+    return rv;
+  }
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsLocalFile::SetFileCreator(OSType aFileCreator)
+{
+  CFURLRef url;
+  if (NS_SUCCEEDED(GetCFURL(&url))) {
+    nsresult rv = CocoaFileUtils::SetFileCreatorCode(url, aFileCreator);
+    ::CFRelease(url);
+    return rv;
+  }
+  return NS_ERROR_FAILURE;
+}
+  
+NS_IMETHODIMP
+nsLocalFile::LaunchWithDoc(nsILocalFile *aDocToLoad, PRBool aLaunchInBackground)
+{    
+  PRBool isExecutable;
+  nsresult rv = IsExecutable(&isExecutable);
+  if (NS_FAILED(rv))
+    return rv;
+  if (!isExecutable)
+    return NS_ERROR_FILE_EXECUTION_FAILED;
+
+  FSRef appFSRef, docFSRef;
+  rv = GetFSRef(&appFSRef);
+  if (NS_FAILED(rv))
+    return rv;
+
+  if (aDocToLoad) {
+    nsCOMPtr<nsILocalFileMac> macDoc = do_QueryInterface(aDocToLoad);
+    rv = macDoc->GetFSRef(&docFSRef);
+    if (NS_FAILED(rv))
+      return rv;
+  }
+
+  LSLaunchFlags theLaunchFlags = kLSLaunchDefaults;
+  LSLaunchFSRefSpec thelaunchSpec;
+
+  if (aLaunchInBackground)
+    theLaunchFlags |= kLSLaunchDontSwitch;
+  memset(&thelaunchSpec, 0, sizeof(LSLaunchFSRefSpec));
+
+  thelaunchSpec.appRef = &appFSRef;
+  if (aDocToLoad) {
+    thelaunchSpec.numDocs = 1;
+    thelaunchSpec.itemRefs = &docFSRef;
+  }
+  thelaunchSpec.launchFlags = theLaunchFlags;
+
+  OSErr err = ::LSOpenFromRefSpec(&thelaunchSpec, NULL);
+  if (err != noErr)
+    return MacErrorMapper(err);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsLocalFile::OpenDocWithApp(nsILocalFile *aAppToOpenWith, PRBool aLaunchInBackground)
+{
+  FSRef docFSRef;
+  nsresult rv = GetFSRef(&docFSRef);
+  if (NS_FAILED(rv))
+    return rv;
+
+  if (!aAppToOpenWith) {
+    OSErr err = ::LSOpenFSRef(&docFSRef, NULL);
+    return MacErrorMapper(err);
+  }
+
+  nsCOMPtr<nsILocalFileMac> appFileMac = do_QueryInterface(aAppToOpenWith, &rv);
+  if (!appFileMac)
+    return rv;
+
+  PRBool isExecutable;
+  rv = appFileMac->IsExecutable(&isExecutable);
+  if (NS_FAILED(rv))
+    return rv;
+  if (!isExecutable)
+    return NS_ERROR_FILE_EXECUTION_FAILED;
+
+  FSRef appFSRef;
+  rv = appFileMac->GetFSRef(&appFSRef);
+  if (NS_FAILED(rv))
+    return rv;
+
+  LSLaunchFlags theLaunchFlags = kLSLaunchDefaults;
+  LSLaunchFSRefSpec thelaunchSpec;
+
+  if (aLaunchInBackground)
+    theLaunchFlags |= kLSLaunchDontSwitch;
+  memset(&thelaunchSpec, 0, sizeof(LSLaunchFSRefSpec));
+
+  thelaunchSpec.appRef = &appFSRef;
+  thelaunchSpec.numDocs = 1;
+  thelaunchSpec.itemRefs = &docFSRef;
+  thelaunchSpec.launchFlags = theLaunchFlags;
+
+  OSErr err = ::LSOpenFromRefSpec(&thelaunchSpec, NULL);
+  if (err != noErr)
+    return MacErrorMapper(err);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsLocalFile::IsPackage(PRBool *_retval)
+{
+  NS_ENSURE_ARG(_retval);
+  *_retval = PR_FALSE;
+
+  CFURLRef url;
+  nsresult rv = GetCFURL(&url);
+  if (NS_FAILED(rv))
+    return rv;
+
+  LSItemInfoRecord info;
+  OSStatus status = ::LSCopyItemInfoForURL(url, kLSRequestBasicFlagsOnly, &info);
+
+  ::CFRelease(url);
+
+  if (status != noErr) {
+    return NS_ERROR_FAILURE;
+  }
+
+  *_retval = !!(info.flags & kLSItemInfoIsPackage);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetBundleDisplayName(nsAString& outBundleName)
+{
+  PRBool isPackage = PR_FALSE;
+  nsresult rv = IsPackage(&isPackage);
+  if (NS_FAILED(rv) || !isPackage)
+    return NS_ERROR_FAILURE;
+
+  nsAutoString name;
+  rv = GetLeafName(name);
+  if (NS_FAILED(rv))
+    return rv;
+
+  PRInt32 length = name.Length();
+  if (Substring(name, length - 4, length).EqualsLiteral(".app")) {
+    // 4 characters in ".app"
+    outBundleName = Substring(name, 0, length - 4);
+  }
+  else {
+    outBundleName = name;
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsLocalFile::GetBundleIdentifier(nsACString& outBundleIdentifier)
+{
+  nsresult rv = NS_ERROR_FAILURE;
+
+  CFURLRef urlRef;
+  if (NS_SUCCEEDED(GetCFURL(&urlRef))) {
+    CFBundleRef bundle = ::CFBundleCreate(NULL, urlRef);
+    if (bundle) {
+      CFStringRef bundleIdentifier = ::CFBundleGetIdentifier(bundle);
+      if (bundleIdentifier)
+        rv = CFStringReftoUTF8(bundleIdentifier, outBundleIdentifier);
+      ::CFRelease(bundle);
+    }
+    ::CFRelease(urlRef);
+  }
+
+  return rv;
+}
+
+NS_IMETHODIMP nsLocalFile::InitWithFile(nsILocalFile *aFile)
+{
+  NS_ENSURE_ARG(aFile);
+
+  nsCAutoString nativePath;
+  nsresult rv = aFile->GetNativePath(nativePath);
+  if (NS_FAILED(rv))
+    return rv;
+
+  return InitWithNativePath(nativePath);
+}
+
+nsresult
+NS_NewLocalFileWithFSRef(const FSRef* aFSRef, PRBool aFollowLinks, nsILocalFileMac** result)
+{
+  nsLocalFile* file = new nsLocalFile();
+  if (file == nsnull)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(file);
+
+  file->SetFollowLinks(aFollowLinks);
+
+  nsresult rv = file->InitWithFSRef(aFSRef);
+  if (NS_FAILED(rv)) {
+    NS_RELEASE(file);
+    return rv;
+  }
+  *result = file;
+  return NS_OK;
+}
+
+nsresult
+NS_NewLocalFileWithCFURL(const CFURLRef aURL, PRBool aFollowLinks, nsILocalFileMac** result)
+{
+  nsLocalFile* file = new nsLocalFile();
+  if (!file)
+    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ADDREF(file);
+
+  file->SetFollowLinks(aFollowLinks);
+
+  nsresult rv = file->InitWithCFURL(aURL);
+  if (NS_FAILED(rv)) {
+    NS_RELEASE(file);
+    return rv;
+  }
+  *result = file;
+  return NS_OK;
+}
+
+#endif

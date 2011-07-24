@@ -42,13 +42,15 @@
 #include "nsIClassInfoImpl.h"
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
-#include "nsAutoLock.h"
+#include "nsCycleCollectorUtils.h"
+
+using namespace mozilla;
 
 #ifdef XP_WIN
 #include <windows.h>
-DWORD gTLSIsMainThreadIndex = TlsAlloc();
+DWORD gTLSThreadIDIndex = TlsAlloc();
 #elif defined(NS_TLS)
-NS_TLS bool gTLSIsMainThread = false;
+NS_TLS mozilla::threads::ID gTLSThreadID = mozilla::threads::Generic;
 #endif
 
 typedef nsTArray< nsRefPtr<nsThread> > nsThreadArray;
@@ -76,6 +78,9 @@ nsThreadManager nsThreadManager::sInstance;
 // statically allocated instance
 NS_IMETHODIMP_(nsrefcnt) nsThreadManager::AddRef() { return 2; }
 NS_IMETHODIMP_(nsrefcnt) nsThreadManager::Release() { return 1; }
+NS_IMPL_CLASSINFO(nsThreadManager, NULL,
+                  nsIClassInfo::THREADSAFE | nsIClassInfo::SINGLETON,
+                  NS_THREADMANAGER_CID)
 NS_IMPL_QUERY_INTERFACE1_CI(nsThreadManager, nsIThreadManager)
 NS_IMPL_CI_INTERFACE_GETTER1(nsThreadManager, nsIThreadManager)
 
@@ -84,15 +89,13 @@ NS_IMPL_CI_INTERFACE_GETTER1(nsThreadManager, nsIThreadManager)
 nsresult
 nsThreadManager::Init()
 {
-  mLock = PR_NewLock();
-  if (!mLock)
-    return NS_ERROR_OUT_OF_MEMORY;
-
   if (!mThreadsByPRThread.Init())
     return NS_ERROR_OUT_OF_MEMORY;
 
   if (PR_NewThreadPrivateIndex(&mCurThreadIndex, ReleaseObject) == PR_FAILURE)
     return NS_ERROR_FAILURE;
+
+  mLock = new Mutex("nsThreadManager.mLock");
 
   // Setup "main" thread
   mMainThread = new nsThread();
@@ -110,9 +113,9 @@ nsThreadManager::Init()
   mMainThread->GetPRThread(&mMainPRThread);
 
 #ifdef XP_WIN
-  TlsSetValue(gTLSIsMainThreadIndex, (void*) 1);
+  TlsSetValue(gTLSThreadIDIndex, (void*) mozilla::threads::Main);
 #elif defined(NS_TLS)
-  gTLSIsMainThread = true;
+  gTLSThreadID = mozilla::threads::Main;
 #endif
 
   mInitialized = PR_TRUE;
@@ -138,7 +141,7 @@ nsThreadManager::Shutdown()
   // holding the hashtable lock while calling nsIThread::Shutdown.
   nsThreadArray threads;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(*mLock);
     mThreadsByPRThread.Enumerate(AppendAndRemoveThread, &threads);
   }
 
@@ -165,7 +168,7 @@ nsThreadManager::Shutdown()
 
   // Clear the table of threads.
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(*mLock);
     mThreadsByPRThread.Clear();
   }
 
@@ -176,13 +179,10 @@ nsThreadManager::Shutdown()
 
   // Release main thread object.
   mMainThread = nsnull;
+  mLock = nsnull;
 
   // Remove the TLS entry for the main thread.
   PR_SetThreadPrivate(mCurThreadIndex, nsnull);
-
-  // We don't need this lock anymore.
-  PR_DestroyLock(mLock);
-  mLock = nsnull;
 }
 
 void
@@ -190,7 +190,7 @@ nsThreadManager::RegisterCurrentThread(nsThread *thread)
 {
   NS_ASSERTION(thread->GetPRThread() == PR_GetCurrentThread(), "bad thread");
 
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(*mLock);
 
   mThreadsByPRThread.Put(thread->GetPRThread(), thread);  // XXX check OOM?
 
@@ -203,7 +203,7 @@ nsThreadManager::UnregisterCurrentThread(nsThread *thread)
 {
   NS_ASSERTION(thread->GetPRThread() == PR_GetCurrentThread(), "bad thread");
 
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(*mLock);
 
   mThreadsByPRThread.Remove(thread->GetPRThread());
 
@@ -265,7 +265,7 @@ nsThreadManager::GetThreadFromPRThread(PRThread *thread, nsIThread **result)
 
   nsRefPtr<nsThread> temp;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(*mLock);
     mThreadsByPRThread.Get(thread, getter_AddRefs(temp));
   }
 
@@ -300,5 +300,12 @@ nsThreadManager::GetIsMainThread(PRBool *result)
   // This method may be called post-Shutdown
 
   *result = (PR_GetCurrentThread() == mMainPRThread);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsThreadManager::GetIsCycleCollectorThread(PRBool *result)
+{
+  *result = PRBool(NS_IsCycleCollectorThread());
   return NS_OK;
 }

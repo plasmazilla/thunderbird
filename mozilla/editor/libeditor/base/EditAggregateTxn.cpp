@@ -55,6 +55,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(EditAggregateTxn, EditTxn)
   }
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+NS_IMPL_ADDREF_INHERITED(EditAggregateTxn, EditTxn)
+NS_IMPL_RELEASE_INHERITED(EditAggregateTxn, EditTxn)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(EditAggregateTxn)
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 
@@ -171,8 +173,7 @@ NS_IMETHODIMP EditAggregateTxn::GetTxnAt(PRInt32 aIndex, EditTxn **aTxn)
   }
   // ugh, this is all wrong - what a mess we have with editor transaction interfaces
   *aTxn = mChildren[aIndex];
-  if (!*aTxn)
-    return NS_ERROR_UNEXPECTED;
+  NS_ENSURE_TRUE(*aTxn, NS_ERROR_UNEXPECTED);
   NS_ADDREF(*aTxn);
   return NS_OK;
 }

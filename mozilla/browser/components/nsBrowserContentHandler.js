@@ -20,6 +20,7 @@
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
+#   Robert Strong <robert.bugzilla@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -35,6 +36,9 @@
 #
 # ***** END LICENSE BLOCK *****
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 const nsISupports            = Components.interfaces.nsISupports;
 
 const nsIBrowserDOMWindow    = Components.interfaces.nsIBrowserDOMWindow;
@@ -47,7 +51,6 @@ const nsIContentHandler      = Components.interfaces.nsIContentHandler;
 const nsIDocShellTreeItem    = Components.interfaces.nsIDocShellTreeItem;
 const nsIDOMChromeWindow     = Components.interfaces.nsIDOMChromeWindow;
 const nsIDOMWindow           = Components.interfaces.nsIDOMWindow;
-const nsIFactory             = Components.interfaces.nsIFactory;
 const nsIFileURL             = Components.interfaces.nsIFileURL;
 const nsIHttpProtocolHandler = Components.interfaces.nsIHttpProtocolHandler;
 const nsIInterfaceRequestor  = Components.interfaces.nsIInterfaceRequestor;
@@ -63,6 +66,7 @@ const nsICategoryManager     = Components.interfaces.nsICategoryManager;
 const nsIWebNavigationInfo   = Components.interfaces.nsIWebNavigationInfo;
 const nsIBrowserSearchService = Components.interfaces.nsIBrowserSearchService;
 const nsICommandLineValidator = Components.interfaces.nsICommandLineValidator;
+const nsIXULAppInfo          = Components.interfaces.nsIXULAppInfo;
 
 const NS_BINDING_ABORTED = Components.results.NS_BINDING_ABORTED;
 const NS_ERROR_WONT_HANDLE_CONTENT = 0x805d0001;
@@ -114,12 +118,15 @@ function resolveURIInternal(aCmdLine, aArgument) {
 const OVERRIDE_NONE        = 0;
 const OVERRIDE_NEW_PROFILE = 1;
 const OVERRIDE_NEW_MSTONE  = 2;
+const OVERRIDE_NEW_BUILD_ID = 3;
 /**
  * Determines whether a home page override is needed.
  * Returns:
  *  OVERRIDE_NEW_PROFILE if this is the first run with a new profile.
  *  OVERRIDE_NEW_MSTONE if this is the first run with a build with a different
  *                      Gecko milestone (i.e. right after an upgrade).
+ *  OVERRIDE_NEW_BUILD_ID if this is the first run with a new build ID of the
+ *                        same Gecko milestone (i.e. after a nightly upgrade).
  *  OVERRIDE_NONE otherwise.
  */
 function needHomepageOverride(prefb) {
@@ -134,6 +141,14 @@ function needHomepageOverride(prefb) {
   var mstone = Components.classes["@mozilla.org/network/protocol;1?name=http"]
                          .getService(nsIHttpProtocolHandler).misc;
 
+  var savedBuildID = null;
+  try {
+    savedBuildID = prefb.getCharPref("browser.startup.homepage_override.buildID");
+  } catch (e) {}
+
+  var buildID =  Components.classes["@mozilla.org/xre/app-info;1"]
+                           .getService(nsIXULAppInfo).platformBuildID;
+
   if (mstone != savedmstone) {
     // Bug 462254. Previous releases had a default pref to suppress the EULA
     // agreement if the platform's installer had already shown one. Now with
@@ -143,10 +158,50 @@ function needHomepageOverride(prefb) {
       prefb.setBoolPref("browser.rights.3.shown", true);
     
     prefb.setCharPref("browser.startup.homepage_override.mstone", mstone);
+    prefb.setCharPref("browser.startup.homepage_override.buildID", buildID);
     return (savedmstone ? OVERRIDE_NEW_MSTONE : OVERRIDE_NEW_PROFILE);
   }
 
+  if (buildID != savedBuildID) {
+    prefb.setCharPref("browser.startup.homepage_override.buildID", buildID);
+    return OVERRIDE_NEW_BUILD_ID;
+  }
+
   return OVERRIDE_NONE;
+}
+
+/**
+ * Gets the override page for the first run after the application has been
+ * updated.
+ * @param  defaultOverridePage
+ *         The default override page.
+ * @return The override page.
+ */
+function getPostUpdateOverridePage(defaultOverridePage) {
+  var um = Components.classes["@mozilla.org/updates/update-manager;1"]
+                     .getService(Components.interfaces.nsIUpdateManager);
+  try {
+    // If the updates.xml file is deleted then getUpdateAt will throw.
+    var update = um.getUpdateAt(0)
+                   .QueryInterface(Components.interfaces.nsIPropertyBag);
+  } catch (e) {
+    // This should never happen.
+    Components.utils.reportError("Unable to find update: " + e);
+    return defaultOverridePage;
+  }
+
+  let actions = update.getProperty("actions");
+  // When the update doesn't specify actions fallback to the original behavior
+  // of displaying the default override page.
+  if (!actions)
+    return defaultOverridePage;
+
+  // The existence of silent or the non-existence of showURL in the actions both
+  // mean that an override page should not be displayed.
+  if (actions.indexOf("silent") != -1 || actions.indexOf("showURL") == -1)
+    return "";
+
+  return update.getProperty("openURL") || defaultOverridePage;
 }
 
 // Copies a pref override file into the user's profile pref-override folder,
@@ -268,7 +323,7 @@ function doSearch(searchTerm, cmdLine) {
   var ss = Components.classes["@mozilla.org/browser/search-service;1"]
                      .getService(nsIBrowserSearchService);
 
-  var submission = ss.defaultEngine.getSubmission(searchTerm, null);
+  var submission = ss.defaultEngine.getSubmission(searchTerm);
 
   // fill our nsISupportsArray with uri-as-wstring, null, null, postData
   var sa = Components.classes["@mozilla.org/supports-array;1"]
@@ -289,14 +344,26 @@ function doSearch(searchTerm, cmdLine) {
   var wwatch = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
                          .getService(nsIWindowWatcher);
 
-  return wwatch.openWindow(null, nsBrowserContentHandler.chromeURL,
+  return wwatch.openWindow(null, gBrowserContentHandler.chromeURL,
                            "_blank",
                            "chrome,dialog=no,all" +
-                             nsBrowserContentHandler.getFeatures(cmdLine),
+                           gBrowserContentHandler.getFeatures(cmdLine),
                            sa);
 }
 
-var nsBrowserContentHandler = {
+function nsBrowserContentHandler() {
+}
+nsBrowserContentHandler.prototype = {
+  classID: Components.ID("{5d0ce354-df01-421a-83fb-7ead0990c24e}"),
+
+  _xpcom_factory: {
+    createInstance: function bch_factory_ci(outer, iid) {
+      if (outer)
+        throw Components.results.NS_ERROR_NO_AGGREGATION;
+      return gBrowserContentHandler.QueryInterface(iid);
+    }
+  },
+
   /* helper functions */
 
   mChromeURL : null,
@@ -314,17 +381,10 @@ var nsBrowserContentHandler = {
   },
 
   /* nsISupports */
-  QueryInterface : function bch_QI(iid) {
-    if (!iid.equals(nsISupports) &&
-        !iid.equals(nsICommandLineHandler) &&
-        !iid.equals(nsIBrowserHandler) &&
-        !iid.equals(nsIContentHandler) &&
-        !iid.equals(nsICommandLineValidator) &&
-        !iid.equals(nsIFactory))
-      throw Components.results.NS_ERROR_NO_INTERFACE;
-
-    return this;
-  },
+  QueryInterface : XPCOMUtils.generateQI([nsICommandLineHandler,
+                                          nsIBrowserHandler,
+                                          nsIContentHandler,
+                                          nsICommandLineValidator]),
 
   /* nsICommandLineHandler */
   handle : function bch_handle(cmdLine) {
@@ -471,6 +531,8 @@ var nsBrowserContentHandler = {
     }
     if (cmdLine.handleFlag("silent", false))
       cmdLine.preventDefault = true;
+    if (cmdLine.findFlag("private-toggle", false) >= 0)
+      cmdLine.preventDefault = true;
 
     var searchParam = cmdLine.handleFlagWithParam("search", false);
     if (searchParam) {
@@ -505,36 +567,58 @@ var nsBrowserContentHandler = {
 #endif
   },
 
-  helpInfo : "  -browser            Open a browser window.\n",
+  helpInfo : "  -browser           Open a browser window.\n" +
+             "  -new-window  <url> Open <url> in a new window.\n" +
+             "  -new-tab     <url> Open <url> in a new tab.\n" +
+#ifdef XP_WIN
+             "  -preferences       Open Options dialog.\n" +
+#else
+             "  -preferences       Open Preferences dialog.\n" +
+#endif
+             "  -search     <term> Search <term> with your default search engine.\n",
 
   /* nsIBrowserHandler */
 
   get defaultArgs() {
     var prefb = Components.classes["@mozilla.org/preferences-service;1"]
                           .getService(nsIPrefBranch);
-    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                              .getService(Components.interfaces.nsIURLFormatter);
 
     var overridePage = "";
     var haveUpdateSession = false;
     try {
-      switch (needHomepageOverride(prefb)) {
-        case OVERRIDE_NEW_PROFILE:
-          // New profile
-          overridePage = formatter.formatURLPref("startup.homepage_welcome_url");
-          break;
-        case OVERRIDE_NEW_MSTONE:
-          // Existing profile, new build
-          copyPrefOverride();
+      let override = needHomepageOverride(prefb);
+      if (override != OVERRIDE_NONE) {
+        // Setup the default search engine to about:home page.
+        AboutHomeUtils.loadDefaultSearchEngine();
+        AboutHomeUtils.loadSnippetsURL();
 
-          // Check whether we have a session to restore. If we do, we assume
-          // that this is an "update" session.
-          var ss = Components.classes["@mozilla.org/browser/sessionstartup;1"]
-                             .getService(Components.interfaces.nsISessionStartup);
-          haveUpdateSession = ss.doRestore();
-          overridePage = formatter.formatURLPref("startup.homepage_override_url");
-          break;
-    }
+        switch (override) {
+          case OVERRIDE_NEW_PROFILE:
+            // New profile.
+            overridePage = Services.urlFormatter.formatURLPref("startup.homepage_welcome_url");
+            break;
+          case OVERRIDE_NEW_MSTONE:
+            // Existing profile, new milestone build.
+            copyPrefOverride();
+
+            // Check whether we have a session to restore. If we do, we assume
+            // that this is an "update" session.
+            var ss = Components.classes["@mozilla.org/browser/sessionstartup;1"]
+                               .getService(Components.interfaces.nsISessionStartup);
+            haveUpdateSession = ss.doRestore();
+            overridePage = Services.urlFormatter.formatURLPref("startup.homepage_override_url");
+            if (prefb.prefHasUserValue("app.update.postupdate"))
+              overridePage = getPostUpdateOverridePage(overridePage);
+            break;
+        }
+      }
+      else {
+        // No need to override homepage, but update snippets url if the pref has
+        // been manually changed.
+        if (Services.prefs.prefHasUserValue(AboutHomeUtils.SNIPPETS_URL_PREF)) {
+          AboutHomeUtils.loadSnippetsURL();
+        }
+      }
     } catch (ex) {}
 
     // formatURLPref might return "about:blank" if getting the pref fails
@@ -653,22 +737,9 @@ var nsBrowserContentHandler = {
       cmdLine.handleFlag("osint", false)
     }
   },
-
-  /* nsIFactory */
-  createInstance: function bch_CI(outer, iid) {
-    if (outer != null)
-      throw Components.results.NS_ERROR_NO_AGGREGATION;
-
-    return this.QueryInterface(iid);
-  },
-    
-  lockFactory : function bch_lock(lock) {
-    /* no-op */
-  }
 };
+var gBrowserContentHandler = new nsBrowserContentHandler();
 
-const bch_contractID = "@mozilla.org/browser/clh;1";
-const bch_CID = Components.ID("{5d0ce354-df01-421a-83fb-7ead0990c24e}");
 const CONTRACTID_PREFIX = "@mozilla.org/uriloader/content-handler;1?type=";
 
 function handURIToExistingBrowser(uri, location, cmdLine)
@@ -679,8 +750,8 @@ function handURIToExistingBrowser(uri, location, cmdLine)
   var navWin = getMostRecentBrowserWindow();
   if (!navWin) {
     // if we couldn't load it in an existing window, open a new one
-    openWindow(null, nsBrowserContentHandler.chromeURL, "_blank",
-               "chrome,dialog=no,all" + nsBrowserContentHandler.getFeatures(cmdLine),
+    openWindow(null, gBrowserContentHandler.chromeURL, "_blank",
+               "chrome,dialog=no,all" + gBrowserContentHandler.getFeatures(cmdLine),
                uri.spec);
     return;
   }
@@ -695,13 +766,16 @@ function handURIToExistingBrowser(uri, location, cmdLine)
                nsIBrowserDOMWindow.OPEN_EXTERNAL);
 }
 
+function nsDefaultCommandLineHandler() {
+}
 
-var nsDefaultCommandLineHandler = {
+nsDefaultCommandLineHandler.prototype = {
+  classID: Components.ID("{47cd0651-b1be-4a0f-b5c4-10e5a573ef71}"),
+
   /* nsISupports */
   QueryInterface : function dch_QI(iid) {
     if (!iid.equals(nsISupports) &&
-        !iid.equals(nsICommandLineHandler) &&
-        !iid.equals(nsIFactory))
+        !iid.equals(nsICommandLineHandler))
       throw Components.results.NS_ERROR_NO_INTERFACE;
 
     return this;
@@ -803,149 +877,58 @@ var nsDefaultCommandLineHandler = {
 
       var URLlist = urilist.filter(shouldLoadURI).map(function (u) u.spec);
       if (URLlist.length) {
-        openWindow(null, nsBrowserContentHandler.chromeURL, "_blank",
-                   "chrome,dialog=no,all" + nsBrowserContentHandler.getFeatures(cmdLine),
+        openWindow(null, gBrowserContentHandler.chromeURL, "_blank",
+                   "chrome,dialog=no,all" + gBrowserContentHandler.getFeatures(cmdLine),
                    URLlist);
       }
 
     }
     else if (!cmdLine.preventDefault) {
       // Passing defaultArgs, so use NO_EXTERNAL_URIS
-      openWindow(null, nsBrowserContentHandler.chromeURL, "_blank",
-                 "chrome,dialog=no,all" + nsBrowserContentHandler.getFeatures(cmdLine),
-                 nsBrowserContentHandler.defaultArgs, NO_EXTERNAL_URIS);
+      openWindow(null, gBrowserContentHandler.chromeURL, "_blank",
+                 "chrome,dialog=no,all" + gBrowserContentHandler.getFeatures(cmdLine),
+                 gBrowserContentHandler.defaultArgs, NO_EXTERNAL_URIS);
     }
   },
 
   helpInfo : "",
-
-  /* nsIFactory */
-  createInstance: function dch_CI(outer, iid) {
-    if (outer != null)
-      throw Components.results.NS_ERROR_NO_AGGREGATION;
-
-    return this.QueryInterface(iid);
-  },
-    
-  lockFactory : function dch_lock(lock) {
-    /* no-op */
-  }
 };
 
-const dch_contractID = "@mozilla.org/browser/final-clh;1";
-const dch_CID = Components.ID("{47cd0651-b1be-4a0f-b5c4-10e5a573ef71}");
-
-var Module = {
-  /* nsISupports */
-  QueryInterface: function mod_QI(iid) {
-    if (iid.equals(Components.interfaces.nsIModule) ||
-        iid.equals(Components.interfaces.nsISupports))
-      return this;
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
+let AboutHomeUtils = {
+  SNIPPETS_URL_PREF: "browser.aboutHomeSnippets.updateUrl",
+  get _storage() {
+    let aboutHomeURI = Services.io.newURI("moz-safe-about:home", null, null);
+    let principal = Components.classes["@mozilla.org/scriptsecuritymanager;1"].
+                    getService(Components.interfaces.nsIScriptSecurityManager).
+                    getCodebasePrincipal(aboutHomeURI);
+    let dsm = Components.classes["@mozilla.org/dom/storagemanager;1"].
+              getService(Components.interfaces.nsIDOMStorageManager);
+    return dsm.getLocalStorageForPrincipal(principal, "");
   },
 
-  /* nsIModule */
-  getClassObject: function mod_getco(compMgr, cid, iid) {
-    if (cid.equals(bch_CID))
-      return nsBrowserContentHandler.QueryInterface(iid);
-
-    if (cid.equals(dch_CID))
-      return nsDefaultCommandLineHandler.QueryInterface(iid);
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
-  },
-    
-  registerSelf: function mod_regself(compMgr, fileSpec, location, type) {
-    if (Components.classes["@mozilla.org/xre/app-info;1"]) {
-      // Don't register these if Firefox is launching a XULRunner application
-      const FIREFOX_UID = "{ec8030f7-c20a-464f-9b0e-13a3a9e97384}";
-      var appInfo = Components.classes["@mozilla.org/xre/app-info;1"]
-                              .getService(Components.interfaces.nsIXULAppInfo);
-      if (appInfo.ID != FIREFOX_UID)
-        return;
+  loadDefaultSearchEngine: function AHU_loadDefaultSearchEngine()
+  {
+    let defaultEngine = Services.search.originalDefaultEngine;
+    let submission = defaultEngine.getSubmission("_searchTerms_");
+    if (submission.postData)
+      throw new Error("Home page does not support POST search engines.");
+    let engine = {
+      name: defaultEngine.name
+    , searchUrl: submission.uri.spec
     }
-
-    var compReg =
-      compMgr.QueryInterface( Components.interfaces.nsIComponentRegistrar );
-
-    compReg.registerFactoryLocation( bch_CID,
-                                     "nsBrowserContentHandler",
-                                     bch_contractID,
-                                     fileSpec,
-                                     location,
-                                     type );
-    compReg.registerFactoryLocation( dch_CID,
-                                     "nsDefaultCommandLineHandler",
-                                     dch_contractID,
-                                     fileSpec,
-                                     location,
-                                     type );
-
-    function registerType(contentType) {
-      compReg.registerFactoryLocation( bch_CID,
-                                       "Browser Cmdline Handler",
-                                       CONTRACTID_PREFIX + contentType,
-                                       fileSpec,
-                                       location,
-                                       type );
-    }
-
-    registerType("text/html");
-    registerType("application/vnd.mozilla.xul+xml");
-#ifdef MOZ_SVG
-    registerType("image/svg+xml");
-#endif
-    registerType("text/rdf");
-    registerType("text/xml");
-    registerType("application/xhtml+xml");
-    registerType("text/css");
-    registerType("text/plain");
-    registerType("image/gif");
-    registerType("image/jpeg");
-    registerType("image/jpg");
-    registerType("image/png");
-    registerType("image/bmp");
-    registerType("image/x-icon");
-    registerType("image/vnd.microsoft.icon");
-    registerType("application/http-index-format");
-
-    var catMan = Components.classes["@mozilla.org/categorymanager;1"]
-                           .getService(nsICategoryManager);
-
-    catMan.addCategoryEntry("command-line-handler",
-                            "m-browser",
-                            bch_contractID, true, true);
-    catMan.addCategoryEntry("command-line-handler",
-                            "x-default",
-                            dch_contractID, true, true);
-    catMan.addCategoryEntry("command-line-validator",
-                            "b-browser",
-                            bch_contractID, true, true);
-  },
-    
-  unregisterSelf : function mod_unregself(compMgr, location, type) {
-    var compReg = compMgr.QueryInterface(nsIComponentRegistrar);
-    compReg.unregisterFactoryLocation(bch_CID, location);
-    compReg.unregisterFactoryLocation(dch_CID, location);
-
-    var catMan = Components.classes["@mozilla.org/categorymanager;1"]
-                           .getService(nsICategoryManager);
-
-    catMan.deleteCategoryEntry("command-line-handler",
-                               "m-browser", true);
-    catMan.deleteCategoryEntry("command-line-handler",
-                               "x-default", true);
-    catMan.deleteCategoryEntry("command-line-validator",
-                               "b-browser", true);
+    this._storage.setItem("search-engine", JSON.stringify(engine));
   },
 
-  canUnload: function(compMgr) {
-    return true;
-  }
+  loadSnippetsURL: function AHU_loadSnippetsURL()
+  {
+    const STARTPAGE_VERSION = 1;
+    let updateURL = Services.prefs
+                            .getCharPref(this.SNIPPETS_URL_PREF)
+                            .replace("%STARTPAGE_VERSION%", STARTPAGE_VERSION);
+    updateURL = Services.urlFormatter.formatURL(updateURL);
+    this._storage.setItem("snippets-update-url", updateURL);
+  },
 };
 
-// NSGetModule: Return the nsIModule object.
-function NSGetModule(compMgr, fileSpec) {
-  return Module;
-}
+var components = [nsBrowserContentHandler, nsDefaultCommandLineHandler];
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

@@ -579,7 +579,7 @@ nsCertTree::GetCertsByTypeFromCertList(CERTCertList *aCertList,
       }
     }
 
-    nsCOMPtr<nsIX509Cert> pipCert = new nsNSSCertificate(node->cert);
+    nsCOMPtr<nsIX509Cert> pipCert = nsNSSCertificate::Create(node->cert);
     if (!pipCert)
       return NS_ERROR_OUT_OF_MEMORY;
 
@@ -792,7 +792,7 @@ if (count) {
 NS_IMETHODIMP 
 nsCertTree::DeleteEntryObject(PRUint32 index)
 {
-  if (!mTreeArray || index < 0) {
+  if (!mTreeArray) {
     return NS_ERROR_FAILURE;
   }
 

@@ -44,7 +44,6 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= msglocal
 LIBRARY_NAME	= msglocal
-META_COMPONENT = mail
 EXPORT_LIBRARY = 1
 IS_COMPONENT	= 1
 MODULE_NAME	= local_mail_services
@@ -53,26 +52,8 @@ MOZILLA_INTERNAL_API = 1
 endif
 LOCAL_INCLUDES += -I$(srcdir)/../src
 
-REQUIRES	= xpcom \
-		  string \
-		  msgbase \
-		  msgbaseutil \
-		  msgdb \
-		  necko \
-		  txmgr \
-		  rdf \
-		  rdfutil \
-		  mime \
-		  intl \
-		  pref \
-		  nkcache \
-		  $(NULL)
 
-ifeq ($(USE_SHORT_LIBNAME),1)
-EXTRA_DSO_LIBS = msgbsutl
-else
 EXTRA_DSO_LIBS = msgbaseutil
-endif
 
 CPPSRCS		= nsMsgLocalFactory.cpp
 
@@ -104,4 +85,3 @@ include $(topsrcdir)/config/rules.mk
 ifdef MOZ_MOVEMAIL
 DEFINES	+= -DHAVE_MOVEMAIL
 endif
-

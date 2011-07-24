@@ -39,7 +39,6 @@ cmdname=`basename "$0"`
 MOZ_DIST_BIN=`dirname "$0"`
 MOZ_DEFAULT_NAME="./${cmdname}-bin"
 MOZ_APPRUNNER_NAME="./mozilla-bin"
-MOZ_VIEWER_NAME="./viewer"
 MOZ_PROGRAM=""
 
 exitcode=1
@@ -60,23 +59,22 @@ echo ""
 echo "    -d debugger          Debugger to use."
 echo "    --debugger debugger"
 echo ""
+echo "    -a debugger_args     Arguments passed to [debugger]."
+echo "    --debugger-args debugger_args"
+echo ""
 echo "  Examples:"
-echo ""
-echo "  Run the viewer"
-echo ""
-echo "    ${cmdname} viewer"
 echo ""
 echo "  Run the mozilla-bin binary"
 echo ""
 echo "    ${cmdname} mozilla-bin"
 echo ""
-echo "  Debug the viewer in a debugger"
-echo ""
-echo "    ${cmdname} -g viewer"
-echo ""
 echo "  Debug the mozilla-bin binary in gdb"
 echo ""
 echo "    ${cmdname} -g mozilla-bin -d gdb"
+echo ""
+echo "  Run mozilla-bin under valgrind with arguments"
+echo ""
+echo "    ${cmdname} -g -d valgrind -a '--tool=memcheck --leak-check=full' mozilla-bin"
 echo ""
 	return 0
 }
@@ -105,7 +103,7 @@ moz_test_binary()
 ##########################################################################
 moz_get_debugger()
 {
-	debuggers="ddd gdb dbx bdb"
+	debuggers="ddd gdb dbx bdb native-gdb"
 	debugger="notfound"
 	done="no"
 	for d in $debuggers
@@ -171,16 +169,20 @@ moz_debug_program()
 # If you are not using ddd, gdb and know of a way to convey the arguments 
 # over to the prog then add that here- Gagan Saksena 03/15/00
         case `basename $debugger` in
-            gdb) echo "$debugger --args $prog" ${1+"$@"}
-                exec "$debugger" --args "$prog" ${1+"$@"}
+            native-gdb) echo "$debugger $moz_debugger_args --args $prog" ${1+"$@"}
+                exec "$debugger" $moz_debugger_args --args "$prog" ${1+"$@"}
+                exitcode=$?
+                ;;
+            gdb) echo "$debugger $moz_debugger_args --args $prog" ${1+"$@"}
+                exec "$debugger" $moz_debugger_args --args "$prog" ${1+"$@"}
 		exitcode=$?
                 ;;
-            ddd) echo "$debugger --gdb -- --args $prog" ${1+"$@"}
-		exec "$debugger" --gdb -- --args "$prog" ${1+"$@"}
+            ddd) echo "$debugger $moz_debugger_args --gdb -- --args $prog" ${1+"$@"}
+		exec "$debugger" $moz_debugger_args --gdb -- --args "$prog" ${1+"$@"}
 		exitcode=$?
                 ;;
-            *) echo "$debugger $prog ${1+"$@"}"
-                exec $debugger "$prog" ${1+"$@"}
+            *) echo "$debugger $moz_debugger_args $prog ${1+"$@"}"
+                exec $debugger $moz_debugger_args "$prog" ${1+"$@"}
 		exitcode=$?
                 ;;
         esac
@@ -194,6 +196,7 @@ moz_debug_program()
 ##
 moz_debug=0
 moz_debugger=""
+moz_debugger_args=""
 #
 ##
 ## Parse the command line
@@ -211,6 +214,15 @@ do
 	shift 2
       else
         echo "-d requires an argument"
+        exit 1
+      fi
+      ;;
+    -a | --debugger-args)
+      moz_debugger_args=$2;
+      if [ "${moz_debugger_args}" != "" ]; then
+	shift 2
+      else
+        echo "-a requires an argument"
         exit 1
       fi
       ;;
@@ -239,11 +251,6 @@ then
 	if [ -x "$MOZ_DEFAULT_NAME" ]
 	then
 		MOZ_PROGRAM=$MOZ_DEFAULT_NAME
-	## Try viewer (this should be deprecated)
-	## 
-	elif [ -x "$MOZ_VIEWER_NAME" ]
-	then
-		MOZ_PROGRAM=$MOZ_VIEWER_NAME
 	##
 	## Try mozilla-bin
 	## 
@@ -326,12 +333,6 @@ LIBPATH=${MOZ_DIST_BIN}:${MRE_HOME}${LIBPATH:+":$LIBPATH"}
 ## Set DYLD_LIBRARY_PATH for Mac OS X (Darwin)
 DYLD_LIBRARY_PATH=${MOZ_DIST_BIN}:${MRE_HOME}${DYLD_LIBRARY_PATH:+":$DYLD_LIBRARY_PATH"}
 #
-## Set LIBRARY_PATH for BeOS
-LIBRARY_PATH=${MOZ_DIST_BIN}:${MOZ_DIST_BIN}/components:${MRE_HOME}${LIBRARY_PATH:+":$LIBRARY_PATH"}
-#
-## Set ADDON_PATH for BeOS
-ADDON_PATH=${MOZ_DIST_BIN}${ADDON_PATH:+":$ADDON_PATH"}
-#
 ## Solaris Xserver(Xsun) tuning - use shared memory transport if available
 if [ "$XSUNTRANSPORT" = "" ]
 then 
@@ -377,6 +378,7 @@ then
   echo "      MOZ_TOOLKIT=$MOZ_TOOLKIT"
   echo "        moz_debug=$moz_debug"
   echo "     moz_debugger=$moz_debugger"
+  echo "moz_debugger_args=$moz_debugger_args"
 fi
 #
 export MOZILLA_FIVE_HOME LD_LIBRARY_PATH

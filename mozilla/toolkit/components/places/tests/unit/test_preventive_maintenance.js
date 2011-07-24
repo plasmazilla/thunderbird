@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 431558 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -45,27 +45,15 @@
 // Include PlacesDBUtils module
 Components.utils.import("resource://gre/modules/PlacesDBUtils.jsm");
 
-const FINISHED_MAINTANANCE_NOTIFICATION_TOPIC = "places-maintenance-finished";
-
-const PLACES_STRING_BUNDLE_URI = "chrome://places/locale/places.properties";
+const FINISHED_MAINTENANCE_NOTIFICATION_TOPIC = "places-maintenance-finished";
 
 // Get services and database connection
-let os = Cc["@mozilla.org/observer-service;1"].
-         getService(Ci.nsIObserverService);
-let hs = Cc["@mozilla.org/browser/nav-history-service;1"].
-         getService(Ci.nsINavHistoryService);
-let bh = hs.QueryInterface(Ci.nsIBrowserHistory);
-let bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-         getService(Ci.nsINavBookmarksService);
-let ts = Cc["@mozilla.org/browser/tagging-service;1"].
-         getService(Ci.nsITaggingService);
-let as = Cc["@mozilla.org/browser/annotation-service;1"].
-         getService(Ci.nsIAnnotationService);
-let fs = Cc["@mozilla.org/browser/favicon-service;1"].
-         getService(Ci.nsIFaviconService);
-let bundle = Cc["@mozilla.org/intl/stringbundle;1"].
-             getService(Ci.nsIStringBundleService).
-             createBundle(PLACES_STRING_BUNDLE_URI);
+let hs = PlacesUtils.history;
+let bh = PlacesUtils.bhistory;
+let bs = PlacesUtils.bookmarks;
+let ts = PlacesUtils.tagging;
+let as = PlacesUtils.annotations;
+let fs = PlacesUtils.favicons;
 
 let mDBConn = hs.QueryInterface(Ci.nsPIPlacesDatabase).DBConnection;
 
@@ -95,15 +83,18 @@ function addPlace(aUrl, aFavicon) {
   return mDBConn.lastInsertRowID;
 }
 
-function addBookmark(aPlaceId, aType, aParent, aKeywordId, aFolderType) {
+function addBookmark(aPlaceId, aType, aParent, aKeywordId, aFolderType, aTitle) {
   let stmt = mDBConn.createStatement(
-    "INSERT INTO moz_bookmarks (fk, type, parent, keyword_id, folder_type) " +
-    "VALUES (:place_id, :type, :parent, :keyword_id, :folder_type)");
+    "INSERT INTO moz_bookmarks (fk, type, parent, keyword_id, folder_type, "
+  +                            "title, guid) "
+  + "VALUES (:place_id, :type, :parent, :keyword_id, :folder_type, :title, "
+  +         "GENERATE_GUID())");
   stmt.params["place_id"] = aPlaceId || null;
   stmt.params["type"] = aType || bs.TYPE_BOOKMARK;
   stmt.params["parent"] = aParent || bs.unfiledBookmarksFolder;
   stmt.params["keyword_id"] = aKeywordId || null;
   stmt.params["folder_type"] = aFolderType || null;
+  stmt.params["title"] = typeof(aTitle) == "string" ? aTitle : null;
   stmt.execute();
   stmt.finalize();
   return mDBConn.lastInsertRowID;
@@ -133,7 +124,7 @@ tests.push({
     // add a bookmark
     this._bookmarkId = addBookmark(this._placeId);
     // Add a used attribute and an unused one.
-    stmt = mDBConn.createStatement("INSERT INTO moz_anno_attributes (name) VALUES (:anno)");
+    let stmt = mDBConn.createStatement("INSERT INTO moz_anno_attributes (name) VALUES (:anno)");
     stmt.params['anno'] = this._usedPageAttribute;
     stmt.execute();
     stmt.reset();
@@ -194,7 +185,7 @@ tests.push({
     stmt.params['anno'] = this._usedPageAttribute;
     stmt.execute();
     stmt.finalize();
-    // Add an annotation with a not existant attribute
+    // Add an annotation with a nonexistent attribute
     stmt = mDBConn.createStatement("INSERT INTO moz_annos (place_id, anno_attribute_id) VALUES(:place_id, 1337)");
     stmt.params['place_id'] = this._placeId;
     stmt.execute();
@@ -241,7 +232,7 @@ tests.push({
     stmt.params['anno'] = this._usedPageAttribute;
     stmt.execute();
     stmt.reset();
-    // Add an annotation to a not existant page
+    // Add an annotation to a nonexistent page
     stmt.params['place_id'] = 1337;
     stmt.params['anno'] = this._usedPageAttribute;
     stmt.execute();
@@ -259,7 +250,7 @@ tests.push({
     stmt.params['anno'] = this._usedPageAttribute;
     do_check_true(stmt.executeStep());
     stmt.finalize();
-    // Check that annotation to a not existant page has been removed
+    // Check that an annotation to a nonexistent page has been removed
     stmt = mDBConn.createStatement("SELECT id FROM moz_annos WHERE place_id = 1337");
     do_check_false(stmt.executeStep());
     stmt.finalize();
@@ -318,13 +309,13 @@ tests.push({
     // Ensure all roots titles are correct.
     do_check_eq(bs.getItemTitle(bs.placesRoot), "");
     do_check_eq(bs.getItemTitle(bs.bookmarksMenuFolder),
-                bundle.GetStringFromName("BookmarksMenuFolderTitle"));
+                PlacesUtils.getString("BookmarksMenuFolderTitle"));
     do_check_eq(bs.getItemTitle(bs.tagsFolder),
-                bundle.GetStringFromName("TagsFolderTitle"));
+                PlacesUtils.getString("TagsFolderTitle"));
     do_check_eq(bs.getItemTitle(bs.unfiledBookmarksFolder),
-                bundle.GetStringFromName("UnsortedBookmarksFolderTitle"));
+                PlacesUtils.getString("UnsortedBookmarksFolderTitle"));
     do_check_eq(bs.getItemTitle(bs.toolbarFolder),
-                bundle.GetStringFromName("BookmarksToolbarFolderTitle"));
+                PlacesUtils.getString("BookmarksToolbarFolderTitle"));
   }
 });
 
@@ -526,7 +517,7 @@ tests.push({
     this._placeId = addPlace();
     // Add a bookmark using the keyword
     this._validKeywordItemId = addBookmark(this._placeId, bs.TYPE_BOOKMARK, bs.unfiledBookmarksFolder, this._validKeywordId);
-    // Add a bookmark using a not existant keyword
+    // Add a bookmark using a nonexistent keyword
     this._invalidKeywordItemId = addBookmark(this._placeId, bs.TYPE_BOOKMARK, bs.unfiledBookmarksFolder, this._invalidKeywordId);
   },
 
@@ -703,17 +694,93 @@ tests.push({
 });
 
 //------------------------------------------------------------------------------
-//XXX TODO
+
 tests.push({
   name: "D.10",
   desc: "Recalculate positions",
 
-  setup: function() {
+  _unfiledBookmarks: [],
+  _toolbarBookmarks: [],
 
+  setup: function() {
+    const NUM_BOOKMARKS = 20;
+    bs.runInBatchMode({
+      runBatched: function (aUserData) {
+        // Add bookmarks to two folders to better perturbate the table.
+        for (let i = 0; i < NUM_BOOKMARKS; i++) {
+          bs.insertBookmark(PlacesUtils.unfiledBookmarksFolderId,
+                            NetUtil.newURI("http://example.com/"),
+                            bs.DEFAULT_INDEX, "testbookmark");
+        }
+        for (let i = 0; i < NUM_BOOKMARKS; i++) {
+          bs.insertBookmark(PlacesUtils.toolbarFolderId,
+                            NetUtil.newURI("http://example.com/"),
+                            bs.DEFAULT_INDEX, "testbookmark");
+        }
+      }
+    }, null);
+
+    function randomize_positions(aParent, aResultArray) {
+      let stmt = mDBConn.createStatement(
+        "UPDATE moz_bookmarks SET position = :rand " +
+        "WHERE id IN ( " +
+          "SELECT id FROM moz_bookmarks WHERE parent = :parent " +
+          "ORDER BY RANDOM() LIMIT 1 " +
+        ") "
+      );
+      for (let i = 0; i < (NUM_BOOKMARKS / 2); i++) {
+        stmt.params["parent"] = aParent;
+        stmt.params["rand"] = Math.round(Math.random() * (NUM_BOOKMARKS - 1));
+        stmt.execute();
+        stmt.reset();
+      }
+      stmt.finalize();
+
+      // Build the expected ordered list of bookmarks.
+      stmt = mDBConn.createStatement(
+        "SELECT id, position " +
+        "FROM moz_bookmarks WHERE parent = :parent " +
+        "ORDER BY position ASC, ROWID ASC "
+      );
+      stmt.params["parent"] = aParent;
+      while (stmt.executeStep()) {
+        aResultArray.push(stmt.row.id);
+        print(stmt.row.id + "\t" + stmt.row.position + "\t" +
+              (aResultArray.length - 1));
+      }
+      stmt.finalize();
+    }
+
+    // Set random positions for the added bookmarks.
+    randomize_positions(PlacesUtils.unfiledBookmarksFolderId,
+                        this._unfiledBookmarks);
+    randomize_positions(PlacesUtils.toolbarFolderId, this._toolbarBookmarks);
   },
 
   check: function() {
+    function check_order(aParent, aResultArray) {
+      // Build the expected ordered list of bookmarks.
+      let stmt = mDBConn.createStatement(
+        "SELECT id, position FROM moz_bookmarks WHERE parent = :parent " +
+        "ORDER BY position ASC"
+      );
+      stmt.params["parent"] = aParent;
+      let pass = true;
+      while (stmt.executeStep()) {
+        print(stmt.row.id + "\t" + stmt.row.position);
+        if (aResultArray.indexOf(stmt.row.id) != stmt.row.position) {
+          pass = false;
+        }
+      }
+      stmt.finalize();
+      if (!pass) {
+        dump_table("moz_bookmarks");
+        do_throw("Unexpected unfiled bookmarks order.");
+      }
+    }
 
+    check_order(PlacesUtils.unfiledBookmarksFolderId, this._unfiledBookmarks);
+    check_order(PlacesUtils.toolbarFolderId, this._toolbarBookmarks);
   }
 });
 
@@ -756,6 +823,53 @@ tests.push({
     stmt.reset();
     stmt.params["item_id"] = this._livemarkFailedStatusId;
     do_check_false(stmt.executeStep());
+    stmt.finalize();
+  }
+});
+
+//------------------------------------------------------------------------------
+
+tests.push({
+  name: "D.12",
+  desc: "Fix empty-named tags",
+
+  setup: function() {
+    // Add a place to ensure place_id = 1 is valid
+    let placeId = addPlace();
+    // Create a empty-named tag.
+    this._untitledTagId = addBookmark(null, bs.TYPE_FOLDER, bs.tagsFolder, null, null, "");
+    // Insert a bookmark in the tag, otherwise it will be removed.
+    addBookmark(placeId, bs.TYPE_BOOKMARK, this._untitledTagId);
+    // Create a empty-named folder.
+    this._untitledFolderId = addBookmark(null, bs.TYPE_FOLDER, bs.toolbarFolder, null, null, "");
+    // Create a titled tag.
+    this._titledTagId = addBookmark(null, bs.TYPE_FOLDER, bs.tagsFolder, null, null, "titledTag");
+    // Insert a bookmark in the tag, otherwise it will be removed.
+    addBookmark(placeId, bs.TYPE_BOOKMARK, this._titledTagId);
+    // Create a titled folder.
+    this._titledFolderId = addBookmark(null, bs.TYPE_FOLDER, bs.toolbarFolder, null, null, "titledFolder");
+  },
+
+  check: function() {
+    // Check that valid bookmark is still there
+    let stmt = mDBConn.createStatement(
+      "SELECT title FROM moz_bookmarks WHERE id = :id"
+    );
+    stmt.params["id"] = this._untitledTagId;
+    do_check_true(stmt.executeStep());
+    do_check_eq(stmt.row.title, "(notitle)");
+    stmt.reset();
+    stmt.params["id"] = this._untitledFolderId;
+    do_check_true(stmt.executeStep());
+    do_check_eq(stmt.row.title, "");
+    stmt.reset();
+    stmt.params["id"] = this._titledTagId;
+    do_check_true(stmt.executeStep());
+    do_check_eq(stmt.row.title, "titledTag");
+    stmt.reset();
+    stmt.params["id"] = this._titledFolderId;
+    do_check_true(stmt.executeStep());
+    do_check_eq(stmt.row.title, "titledFolder");
     stmt.finalize();
   }
 });
@@ -893,7 +1007,7 @@ tests.push({
     stmt.params['anno'] = this._usedItemAttribute;
     stmt.execute();
     stmt.finalize();
-    // Add an annotation with a not existant attribute
+    // Add an annotation with a nonexistent attribute
     stmt = mDBConn.createStatement("INSERT INTO moz_items_annos (item_id, anno_attribute_id) VALUES(:item_id, 1337)");
     stmt.params['item_id'] = this._bookmarkId;
     stmt.execute();
@@ -944,7 +1058,7 @@ tests.push({
     stmt.params["anno"] = this._usedItemAttribute;
     stmt.execute();
     stmt.reset();
-    // Add an annotation to a not existant item
+    // Add an annotation to a nonexistent item
     stmt.params["item_id"] = this._invalidBookmarkId;
     stmt.params["anno"] = this._usedItemAttribute;
     stmt.execute();
@@ -962,7 +1076,7 @@ tests.push({
     stmt.params['anno'] = this._usedItemAttribute;
     do_check_true(stmt.executeStep());
     stmt.finalize();
-    // Check that annotation to a not existant page has been removed
+    // Check that an annotation to a nonexistent page has been removed
     stmt = mDBConn.createStatement("SELECT id FROM moz_items_annos WHERE item_id = 8888");
     do_check_false(stmt.executeStep());
     stmt.finalize();
@@ -1028,7 +1142,7 @@ tests.push({
     // Insert a place using the existing favicon entry
     this._validIconPlaceId = addPlace("http://www1.mozilla.org", 1);
 
-    // Insert a place using a not existant favicon entry
+    // Insert a place using a nonexistent favicon entry
     this._invalidIconPlaceId = addPlace("http://www2.mozilla.org", 1337);
   },
 
@@ -1110,12 +1224,12 @@ tests.push({
     do_check_true(bh.isVisited(this._uri2));
     
     do_check_eq(bs.getBookmarkURI(this._bookmarkId).spec, this._uri1.spec);
-    do_check_true(bs.getItemIndex(this._folderId) == 0);
+    do_check_eq(bs.getItemIndex(this._folderId), 0);
 
     do_check_eq(bs.getItemType(this._folderId), bs.TYPE_FOLDER);
     do_check_eq(bs.getItemType(this._separatorId), bs.TYPE_SEPARATOR);
 
-    do_check_true(ts.getTagsForURI(this._uri1, {}).length == 1);
+    do_check_eq(ts.getTagsForURI(this._uri1).length, 1);
     do_check_eq(bs.getKeywordForBookmark(this._bookmarkId), "testkeyword");
     do_check_eq(fs.getFaviconForPage(this._uri2).spec,
                 "http://www2.mozilla.org/favicon.ico");
@@ -1128,10 +1242,15 @@ tests.push({
 
 let observer = {
   observe: function(aSubject, aTopic, aData) {
-    if (aTopic == FINISHED_MAINTANANCE_NOTIFICATION_TOPIC) {
+    if (aTopic == FINISHED_MAINTENANCE_NOTIFICATION_TOPIC) {
+      // Check the lastMaintenance time has been saved.
+      do_check_neq(Services.prefs.getIntPref("places.database.lastMaintenance"), null);
+
       try {current_test.check();}
       catch (ex){ do_throw(ex);}
+
       cleanDatabase();
+
       if (tests.length) {
         current_test = tests.shift();
         dump("\nExecuting test: " + current_test.name + "\n" + "*** " + current_test.desc + "\n");
@@ -1139,7 +1258,7 @@ let observer = {
         PlacesDBUtils.maintenanceOnIdle();
       }
       else {
-        os.removeObserver(this, FINISHED_MAINTANANCE_NOTIFICATION_TOPIC);
+        Services.obs.removeObserver(this, FINISHED_MAINTENANCE_NOTIFICATION_TOPIC);
         // Sanity check: all roots should be intact
         do_check_eq(bs.getFolderIdForItem(bs.placesRoot), 0);
         do_check_eq(bs.getFolderIdForItem(bs.bookmarksMenuFolder), bs.placesRoot);
@@ -1151,7 +1270,7 @@ let observer = {
     }
   }
 }
-os.addObserver(observer, FINISHED_MAINTANANCE_NOTIFICATION_TOPIC, false);
+Services.obs.addObserver(observer, FINISHED_MAINTENANCE_NOTIFICATION_TOPIC, false);
 
 
 // main
@@ -1163,7 +1282,7 @@ function run_test() {
   do_check_false(bs.isBookmarked(uri("http://force.bookmarks.hash")));
 
   // Get current bookmarks max ID for cleanup
-  stmt = mDBConn.createStatement("SELECT MAX(id) FROM moz_bookmarks");
+  let stmt = mDBConn.createStatement("SELECT MAX(id) FROM moz_bookmarks");
   stmt.executeStep();
   defaultBookmarksMaxId = stmt.getInt32(0);
   stmt.finalize();

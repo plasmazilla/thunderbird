@@ -51,6 +51,7 @@ Components.utils.import("resource:///modules/errUtils.js");
 Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 Components.utils.import("resource:///modules/sessionStoreManager.js");
+Components.utils.import("resource:///modules/mailInstrumentation.js");
 
 /* This is where functions related to the 3 pane window are kept */
 
@@ -290,6 +291,20 @@ const MailPrefObserver = {
     {
       if (prefName == "mail.pane_config.dynamic")
         UpdateMailPaneConfig(true);
+      else if (prefName == "mail.showCondensedAddresses")
+      {
+        var currentDisplayNameVersion;
+        var threadTree = document.getElementById("threadTree");
+
+        currentDisplayNameVersion =
+            gPrefBranch.getIntPref("mail.displayname.version");
+
+        gPrefBranch.setIntPref("mail.displayname.version",
+                               ++currentDisplayNameVersion);
+
+        //refresh the thread pane
+        threadTree.treeBoxObject.invalid();
+      }
     }
   }
 };
@@ -332,10 +347,17 @@ function OnLoadMessenger()
 
   gPrefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
   gPrefBranch.addObserver("mail.pane_config.dynamic", MailPrefObserver, false);
+  gPrefBranch.addObserver("mail.showCondensedAddresses", MailPrefObserver,
+                          false);
 
   MailOfflineMgr.init();
   CreateMailWindowGlobals();
   GetMessagePane().collapsed = true;
+
+  // This needs to be before we throw up the account wizard on first run.
+  try {
+    mailInstrumentationManager.init();
+  } catch(ex) {logException(ex);}
 
   // - initialize tabmail system
   // Do this before LoadPostAccountWizard since that code selects the first
@@ -434,6 +456,8 @@ function LoadPostAccountWizard()
   function completeStartup() {
     // Check whether we need to show the default client dialog
     // First, check the shell service
+    let obs = Components.classes["@mozilla.org/observer-service;1"]
+                        .getService(Components.interfaces.nsIObserverService);
     var nsIShellService = Components.interfaces.nsIShellService;
     if (nsIShellService) {
       var shellService;
@@ -457,14 +481,16 @@ function LoadPostAccountWizard()
       if ((shellService && defaultAccount && shellService.shouldCheckDefaultClient
            && !shellService.isDefaultClient(true, nsIShellService.MAIL)) ||
         (SearchIntegration && !SearchIntegration.osVersionTooLow &&
-         !SearchIntegration.osComponentsNotRunning && !SearchIntegration.firstRunDone))
+         !SearchIntegration.osComponentsNotRunning && !SearchIntegration.firstRunDone)) {
         window.openDialog("chrome://messenger/content/systemIntegrationDialog.xul",
                           "SystemIntegration", "modal,centerscreen,chrome,resizable=no");
+        // On windows, there seems to be a delay between setting TB as the
+        // default client, and the isDefaultClient check succeeding.
+        if (shellService.isDefaultClient(true, nsIShellService.MAIL))
+          obs.notifyObservers(window, "mail:setAsDefault", null);
+      }
     }
-
     // All core modal dialogs are done, the user can now interact with the 3-pane window
-    var obs = Components.classes["@mozilla.org/observer-service;1"]
-                        .getService(Components.interfaces.nsIObserverService);
     obs.notifyObservers(window, "mail-startup-done", null);
   }
 
@@ -488,6 +514,7 @@ function LoadPostAccountWizard()
   //  gFolderDisplay.ensureRowIsVisible use settimeout itself to defer that
   //  calculation, but that was ugly.  Also, in theory we will open the window
   //  faster if we let the event loop start doing things sooner.
+
   if (startMsgHdr)
     window.setTimeout(loadStartMsgHdr, 0, startMsgHdr);
   else
@@ -548,11 +575,12 @@ function OnUnloadMessenger()
   accountManager.removeIncomingServerListener(gThreePaneIncomingServerListener);
   gPrefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
   gPrefBranch.removeObserver("mail.pane_config.dynamic", MailPrefObserver);
+  gPrefBranch.removeObserver("mail.showCondensedAddresses", MailPrefObserver);
 
   sessionStoreManager.unloadingWindow(window);
 
   let tabmail = document.getElementById("tabmail");
-  tabmail.closeTabs();
+  tabmail._teardown();
 
   var mailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
                               .getService(Components.interfaces.nsIMsgMailSession);
@@ -566,6 +594,9 @@ function OnUnloadMessenger()
   UnloadPanes();
 
   OnMailWindowUnload();
+  try {
+    mailInstrumentationManager.uninit();
+  } catch (ex) {logException(ex);}
 }
 
 /**
@@ -591,24 +622,84 @@ function getWindowStateForSessionPersistence()
  * @return true if the restoration was successful, false otherwise.
  */
 function atStartupRestoreTabs(aDontRestoreFirstTab) {
+
   let state = sessionStoreManager.loadingWindow(window);
+
   if (state) {
     let tabsState = state.tabs;
     let tabmail = document.getElementById("tabmail");
     tabmail.restoreTabs(tabsState, aDontRestoreFirstTab);
-    return true;
   }
 
-  return false;
+  // it's now safe to load extra Tabs.
+  setTimeout(loadExtraTabs, 0);
+
+  return state ? true : false;
 }
 
+/**
+ * Loads and restores tabs upon opening a window by evaluating window.arguments[1].
+ *
+ * The type of the object is specified by it's action property. It can be
+ * either "restore" or "open". "restore" invokes tabmail.restoreTab() for each
+ * item in the tabs array. While "open" invokes tabmail.openTab() for each item.
+ *
+ * In case a tab can't be restored it will fail silently
+ *
+ * the object need at least the following properties:
+ *
+ * {
+ *   action = "restore" | "open"
+ *   tabs = [];
+ * }
+ *
+ */
 function loadExtraTabs()
 {
-  if ("arguments" in window && window.arguments.length >= 2) {
-    if (window.arguments[1] && "tabType" in window.arguments[1]) {
-      document.getElementById('tabmail').openTab(window.arguments[1].tabType, window.arguments[1].tabParams);
-    }
+
+  if (!("arguments" in window) || window.arguments.length < 2)
+    return;
+
+  let tab = window.arguments[1];
+  if ((!tab) || (typeof tab != "object"))
+    return;
+
+  let tabmail =  document.getElementById("tabmail");
+
+  // we got no action, so suppose its "legacy" code
+  if (!("action" in tab)) {
+
+    if ("tabType" in tab)
+      tabmail.openTab(tab.tabType, tab.tabParams);
+
+    return;
   }
+
+  if (!("tabs" in tab))
+    return;
+
+  // this is used if a tab is detached to a new window.
+  if (tab.action == "restore") {
+
+    for (let i = 0; i < tab.tabs.length; i++)
+      tabmail.restoreTab(tab.tabs[i]);
+
+    // we currently do not support opening in background or opening a
+    // special position. So select the last tab opened.
+    tabmail.switchToTab(tabmail.tabInfo[tabmail.tabInfo.length-1])
+
+    return;
+  }
+
+  if (tab.action == "open") {
+
+    for (let i = 0; i < tab.tabs.length; i++)
+      if("tabType" in tabs.tab[i])
+        tabmail.openTab(tabs.tab[i].tabType,tabs.tab[i].tabParams);
+
+    return;
+  }
+
 }
 
 /**
@@ -619,8 +710,6 @@ function loadExtraTabs()
  */
 function loadStartMsgHdr(aStartMsgHdr)
 {
-  setTimeout(loadExtraTabs, 0);
-
   // We'll just clobber the default tab
   atStartupRestoreTabs(true);
 
@@ -629,7 +718,6 @@ function loadStartMsgHdr(aStartMsgHdr)
 
 function loadStartFolder(initialUri)
 {
-  setTimeout(loadExtraTabs, 0);
     var defaultServer = null;
     var startFolder;
     var isLoginAtStartUpEnabled = false;
@@ -1373,7 +1461,7 @@ var LightWeightThemeWebInstaller = {
       label: text("manageButton"),
       accessKey: text("manageButton.accesskey"),
       callback: function () {
-        openAddonsMgr("themes");
+        openAddonsMgr("addons://list/theme");
       }
     }];
 

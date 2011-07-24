@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Henri Sivonen
- * Copyright (c) 2008-2009 Mozilla Foundation
+ * Copyright (c) 2008-2011 Mozilla Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a 
  * copy of this software and associated documentation files (the "Software"), 
@@ -30,6 +30,7 @@
 
 #include "prtypes.h"
 #include "nsIAtom.h"
+#include "nsHtml5AtomTable.h"
 #include "nsString.h"
 #include "nsINameSpaceManager.h"
 #include "nsIContent.h"
@@ -39,8 +40,12 @@
 #include "nsHtml5DocumentMode.h"
 #include "nsHtml5ArrayCopy.h"
 #include "nsHtml5NamedCharacters.h"
+#include "nsHtml5NamedCharactersAccel.h"
 #include "nsHtml5Atoms.h"
 #include "nsHtml5ByteReadable.h"
+#include "nsIUnicodeDecoder.h"
+#include "nsAHtml5TreeBuilderState.h"
+#include "nsHtml5Macros.h"
 
 #include "nsHtml5Tokenizer.h"
 #include "nsHtml5TreeBuilder.h"
@@ -54,12 +59,13 @@
 
 #include "nsHtml5HtmlAttributes.h"
 
+nsHtml5HtmlAttributes* nsHtml5HtmlAttributes::EMPTY_ATTRIBUTES = nsnull;
 
 nsHtml5HtmlAttributes::nsHtml5HtmlAttributes(PRInt32 mode)
   : mode(mode),
     length(0),
-    names(jArray<nsHtml5AttributeName*,PRInt32>(5)),
-    values(jArray<nsString*,PRInt32>(5))
+    names(jArray<nsHtml5AttributeName*,PRInt32>::newJArray(5)),
+    values(jArray<nsString*,PRInt32>::newJArray(5))
 {
   MOZ_COUNT_CTOR(nsHtml5HtmlAttributes);
 }
@@ -69,8 +75,6 @@ nsHtml5HtmlAttributes::~nsHtml5HtmlAttributes()
 {
   MOZ_COUNT_DTOR(nsHtml5HtmlAttributes);
   clear(0);
-  names.release();
-  values.release();
 }
 
 PRInt32 
@@ -156,13 +160,11 @@ nsHtml5HtmlAttributes::addAttribute(nsHtml5AttributeName* name, nsString* value)
 {
   if (names.length == length) {
     PRInt32 newLen = length << 1;
-    jArray<nsHtml5AttributeName*,PRInt32> newNames = jArray<nsHtml5AttributeName*,PRInt32>(newLen);
+    jArray<nsHtml5AttributeName*,PRInt32> newNames = jArray<nsHtml5AttributeName*,PRInt32>::newJArray(newLen);
     nsHtml5ArrayCopy::arraycopy(names, newNames, names.length);
-    names.release();
     names = newNames;
-    jArray<nsString*,PRInt32> newValues = jArray<nsString*,PRInt32>(newLen);
+    jArray<nsString*,PRInt32> newValues = jArray<nsString*,PRInt32>::newJArray(newLen);
     nsHtml5ArrayCopy::arraycopy(values, newValues, values.length);
-    values.release();
     values = newValues;
   }
   names[length] = name;
@@ -220,6 +222,43 @@ void
 nsHtml5HtmlAttributes::adjustForSvg()
 {
   mode = NS_HTML5ATTRIBUTE_NAME_SVG;
+}
+
+nsHtml5HtmlAttributes* 
+nsHtml5HtmlAttributes::cloneAttributes(nsHtml5AtomTable* interner)
+{
+
+  nsHtml5HtmlAttributes* clone = new nsHtml5HtmlAttributes(0);
+  for (PRInt32 i = 0; i < length; i++) {
+    clone->addAttribute(names[i]->cloneAttributeName(interner), nsHtml5Portability::newStringFromString(values[i]));
+  }
+  return clone;
+}
+
+PRBool 
+nsHtml5HtmlAttributes::equalsAnother(nsHtml5HtmlAttributes* other)
+{
+
+  PRInt32 otherLength = other->getLength();
+  if (length != otherLength) {
+    return PR_FALSE;
+  }
+  for (PRInt32 i = 0; i < length; i++) {
+    PRBool found = PR_FALSE;
+    nsIAtom* ownLocal = names[i]->getLocal(NS_HTML5ATTRIBUTE_NAME_HTML);
+    for (PRInt32 j = 0; j < otherLength; j++) {
+      if (ownLocal == other->names[j]->getLocal(NS_HTML5ATTRIBUTE_NAME_HTML)) {
+        found = PR_TRUE;
+        if (!nsHtml5Portability::stringEqualsString(values[i], other->values[j])) {
+          return PR_FALSE;
+        }
+      }
+    }
+    if (!found) {
+      return PR_FALSE;
+    }
+  }
+  return PR_TRUE;
 }
 
 void

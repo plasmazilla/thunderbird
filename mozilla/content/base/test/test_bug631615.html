@@ -84,8 +84,7 @@ function doTest() {
   }
 
   monitor.appendChild(document.createTextNode(results));
-  // 1.9.2 returns false instead of throwing an exception.
-  is(results.slice(0, 6), "return", "looking for return");
+  is(results.slice(0, 6), "throws", "looking for an exception");
 
   postSentinel();
 }

@@ -9,12 +9,12 @@
  * You may also want to look into the test_viewWrapper_*.js tests as well.
  */
 
-load("../../mailnews/resources/logHelper.js");
-load("../../mailnews/resources/asyncTestUtils.js");
+load("../../../resources/logHelper.js");
+load("../../../resources/asyncTestUtils.js");
 
-load("../../mailnews/resources/messageGenerator.js");
-load("../../mailnews/resources/messageModifier.js");
-load("../../mailnews/resources/messageInjection.js");
+load("../../../resources/messageGenerator.js");
+load("../../../resources/messageModifier.js");
+load("../../../resources/messageInjection.js");
 
 var gMessageGenerator = new MessageGenerator();
 var gScenarioFactory = new MessageScenarioFactory(gMessageGenerator);
@@ -93,12 +93,6 @@ function make_and_add_message(aMessageArgs) {
 var WHITESPACE = "                                              ";
 /**
  * Print out the current db view as best we can.
- *
- * Because nsITreeColumns are hard (impossible?) to create in an xpcshell test
- *  and GetCellText requires a real one (because it uses GetIdConst which is not
- *  scriptable), we can't actually get at the column text.  So we approximate
- *  it.  (The right thing to do is modify nsMsgDBView and children to provide a
- *  more testable way to get at the data.)
  */
 function dump_view_contents() {
   dump("********* Current View State\n");
@@ -106,17 +100,15 @@ function dump_view_contents() {
     let level = gTreeView.getLevel(iViewIndex);
     let viewFlags = gDBView.viewFlags;
     let flags = gDBView.getFlagsAt(iViewIndex);
-    let msgHdr = gDBView.getMsgHdrAt(iViewIndex);
 
     let s = WHITESPACE.substr(0, level * 2);
     if (gTreeView.isContainer(iViewIndex))
       s += gTreeView.isContainerOpen(iViewIndex) ? "- " : "+ ";
     else
       s += ". ";
-    //s += gTreeView.getCellText(iViewIndex, )
     if (flags & MSG_VIEW_FLAG_DUMMY)
       s += "dummy: ";
-    s += msgHdr.mime2DecodedSubject;
+    s += gDBView.cellTextForColumn(iViewIndex, "subject")
 
     dump(s + "\n");
   }
@@ -253,7 +245,7 @@ function setup_view(aViewType, aViewFlags, aTestFolder) {
   dump("  View Out Count: " + outCount.value + "\n");
 
   // we need to cram messages into the search via nsIMsgSearchNotify interface
-  if (aViewType == "search" || aViewType == "quicksearch") {
+  if (aViewType == "search" || aViewType == "quicksearch" || aViewType == "xfvf") {
     let searchNotify = gDBView.QueryInterface(
       Components.interfaces.nsIMsgSearchNotify);
     searchNotify.onNewSearch();
@@ -274,6 +266,11 @@ function setup_view(aViewType, aViewFlags, aTestFolder) {
   gDBView.curCustomColumn = "authorFirstLetterCol";
 
   gTreeView = gDBView.QueryInterface(Components.interfaces.nsITreeView);
+
+  // Bug 574799
+  if (gDBView.numMsgsInView != aTestFolder.getTotalMessages(false))
+    do_throw("numMsgsInView is " + gDBView.numMsgsInView + " but should be " +
+               aTestFolder.getTotalMessages(false) + "\n");
 }
 
 /**
@@ -562,6 +559,10 @@ function test_group_dummies_under_mutation_by_date() {
   assert_view_index_is_not_dummy(1);
   assert_view_message_at_indices(smsg, 0, 1);
 
+  // we used to display total in tag column - make sure we don't do that.
+  if (gDBView.cellTextForColumn(0, "tags") != "")
+    view_throw("tag column shouldn't display total count in group view");
+
   // - move the messages to the trash
   yield async_trash_messages(synSet);
 
@@ -597,6 +598,7 @@ var view_types = [
   ["quicksearch", ViewFlags.kThreadedDisplay],
   ["search", ViewFlags.kThreadedDisplay],
   ["search", ViewFlags.kGroupBySort],
+  ["xfvf", ViewFlags.kNone],
    // group does unspeakable things to gTestFolder, so put it last.
   ["group", ViewFlags.kGroupBySort]
 ];

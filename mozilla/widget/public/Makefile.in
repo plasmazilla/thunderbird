@@ -46,19 +46,25 @@ MODULE		= widget
 XPIDL_MODULE	= widget
 GRE_MODULE	= 1
 
+EXPORTS_NAMESPACES = IPC
+
+EXPORTS_IPC = \
+		nsGUIEventIPC.h \
+		$(NULL)
+
 EXPORTS		= \
 		nsIWidget.h \
 		nsGUIEvent.h \
 		nsEvent.h \
 		nsNativeWidget.h \
 		nsWidgetInitData.h \
-		nsIEventListener.h \
 		nsWidgetsCID.h \
 		nsILookAndFeel.h \
 		nsIPluginWidget.h \
 		nsINativeKeyBindings.h \
 		nsIDeviceContextSpec.h \
 		nsIMenuRollup.h \
+		nsIRollupListener.h \
 		$(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
@@ -72,8 +78,10 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
 EXPORTS		+= nsIDragSessionOS2.h
 endif
 
-ifeq ($(MOZ_WIDGET_TOOLKIT),beos)
-EXPORTS		+= nsIDragSessionBeOS.h
+ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+EXPORTS		+= \
+		nsIPrintDialogService.h \
+		$(NULL)
 endif
 
 ifneq (,$(filter qt gtk2,$(MOZ_WIDGET_TOOLKIT)))
@@ -84,7 +92,6 @@ EXPORTS		+= \
 endif
 
 XPIDLSRCS	= \
-		nsIAccelerometer.idl \
 		nsIAppShell.idl \
 		nsIFilePicker.idl \
 		nsIToolkit.idl \
@@ -98,7 +105,6 @@ XPIDLSRCS	= \
 		nsIClipboard.idl \
 		nsIClipboardHelper.idl \
 		nsIClipboardOwner.idl \
-		nsIRollupListener.idl \
 		nsIBaseWindow.idl \
 		nsIBidiKeyboard.idl \
 		nsIScreen.idl \
@@ -108,6 +114,9 @@ XPIDLSRCS	= \
 		nsIPrintSettingsService.idl \
 		nsIPrintOptions.idl \
 		nsIIdleService.idl \
+		nsIGfxInfo.idl \
+                nsIGfxInfoDebug.idl \
+		nsIIMEPicker.idl \
 		$(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
@@ -119,6 +128,15 @@ XPIDLSRCS	+= nsIPrintSettingsWin.idl \
 		nsITaskbarPreviewController.idl \
 		nsITaskbarPreviewButton.idl \
 		nsITaskbarProgress.idl \
+		nsITaskbarPreviewButton.idl \
+		nsIJumpListBuilder.idl \
+		nsIJumpListItem.idl \
+		$(NULL)
+endif
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
+XPIDLSRCS +=	nsIMacDockSupport.idl \
+		nsIStandaloneNativeMenu.idl \
 		$(NULL)
 endif
 

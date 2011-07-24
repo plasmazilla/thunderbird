@@ -73,6 +73,12 @@ radio[pane=paneAdvanced] {
   -moz-image-region: rect(0px, 224px, 32px, 192px)
 }
 
+%ifdef MOZ_SERVICES_SYNC
+radio[pane=paneSync] {
+  list-style-image: url("chrome://browser/skin/preferences/Options-sync.png") !important;
+}
+%endif
+
 /* Applications Pane */
 #BrowserPreferences[animated="true"] #handlersView {
   height: 25em;
@@ -141,7 +147,7 @@ radio[pane=paneAdvanced] {
 
 #cookieInfoBox {
   border: 1px solid ThreeDShadow;
-  -moz-border-radius: 0px;
+  border-radius: 0px;
   margin: 4px;
   padding: 0px;
 }
@@ -158,3 +164,25 @@ radio[pane=paneAdvanced] {
 #SanitizeDialogPane > groupbox {
   margin-top: 0;
 }
+
+%ifdef MOZ_SERVICES_SYNC
+/* Sync Pane */
+
+#syncDesc {
+  padding: 0 12em;
+}
+
+#accountCaptionImage {
+  list-style-image: url("chrome://mozapps/skin/profile/profileicon.png");
+}
+
+#syncAddDeviceLabel {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+#syncEnginesList {
+  height: 10em;
+}
+
+%endif

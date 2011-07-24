@@ -1381,11 +1381,15 @@ function rotatePrivacy() {
  * This function sets the privacy of an item to the value specified by
  * the attribute "privacy" of the UI-element "target".
  *
- * @param target    the calling UI-element
+ * @param target    the calling UI-element;
+ * @param event     the UI-element selection event (only for the popup menu
+ *                  event-privacy-menupopup in the Privacy toolbar button).
  */
 function editPrivacy(target, event) {
     gPrivacy = target.getAttribute("privacy");
-    event.stopPropagation();
+    if (event) {
+        event.stopPropagation();
+    }
     updatePrivacy();
 }
 
@@ -1763,30 +1767,34 @@ function makePrettyName(aUri){
  */
 function addAttachment(attachment) {
     if (!attachment ||
-        !attachment.uri ||
-        attachment.uri.spec in gAttachMap) {
+        !attachment.hashId ||
+        attachment.hashId in gAttachMap) {
         return;
     }
 
-    var documentLink = document.getElementById("attachment-link");
-    var item = documentLink.appendChild(createXULElement("listitem"));
+    // We currently only support uri attachments
+    if (attachment.uri) {
+        let documentLink = document.getElementById("attachment-link");
+        let item = documentLink.appendChild(createXULElement("listitem"));
 
-    // Set listitem attributes
-    item.setAttribute("label", makePrettyName(attachment.uri));
-    item.setAttribute("crop", "end");
-    item.setAttribute("class", "listitem-iconic");
-    if (attachment.uri.schemeIs("file")) {
-        item.setAttribute("image", "moz-icon://" + attachment.uri);
-    } else {
-        item.setAttribute("image", "moz-icon://dummy.html");
+        // Set listitem attributes
+        item.setAttribute("label", makePrettyName(attachment.uri));
+        item.setAttribute("crop", "end");
+        item.setAttribute("class", "listitem-iconic");
+        if (attachment.uri.schemeIs("file")) {
+            item.setAttribute("image", "moz-icon://" + attachment.uri);
+        } else {
+            item.setAttribute("image", "moz-icon://dummy.html");
+        }
+
+        // full attachment object is stored here
+        item.attachment = attachment;
+
+        // Update the number of rows and save our attachment globally
+        documentLink.rows = documentLink.getRowCount();
     }
 
-    // full attachment object is stored here
-    item.attachment = attachment;
-
-    // Update the number of rows and save our attachment globally
-    documentLink.rows = documentLink.getRowCount();
-    gAttachMap[attachment.uri.spec] = attachment;
+    gAttachMap[attachment.hashId] = attachment;
     updateAttachment();
 }
 
@@ -1797,7 +1805,7 @@ function addAttachment(attachment) {
  */
 function deleteAttachment() {
     var documentLink = document.getElementById("attachment-link");
-    delete gAttachMap[documentLink.selectedItem.attachment.uri.spec];
+    delete gAttachMap[documentLink.selectedItem.attachment.hashId];
     documentLink.removeItemAt(documentLink.selectedIndex);
     updateAttachment();
 }
@@ -2813,8 +2821,8 @@ function toggleLink() {
  * This function updates dialog controls related to attendees.
  */
 function updateAttendees() {
-    var attendeeRow = document.getElementById("event-grid-attendee-row");
-    var attendeeRow2 = document.getElementById("event-grid-attendee-row-2");
+    let attendeeRow = document.getElementById("event-grid-attendee-row");
+    let attendeeRow2 = document.getElementById("event-grid-attendee-row-2");
     if (window.attendees && window.attendees.length > 0) {
         attendeeRow.removeAttribute('collapsed');
         if (isEvent(window.calendarItem)) { // sending email invitations currently only supported for events
@@ -2823,30 +2831,40 @@ function updateAttendees() {
             attendeeRow2.setAttribute('collapsed', 'true');
         }
 
-        var attendeeNames = "";
-        var numAttendees = window.attendees.length;
-        var regexp = new RegExp("^mailto:(.*)", "i");
-        for (var i = 0; i < numAttendees; i++) {
-            var attendee = window.attendees[i];
-            if (attendee.commonName && attendee.commonName.length) {
-                attendeeNames += attendee.commonName;
+        let attendeeNames = [];
+        let attendeeEmails = [];
+        let numAttendees = window.attendees.length;
+        let emailRE = new RegExp("^mailto:(.*)", "i");
+        for (let i = 0; i < numAttendees; i++) {
+            let attendee = window.attendees[i];
+            let name = attendee.commonName;
+            if (name && name.length) {
+                attendeeNames.push(name);
+                let email = attendee.id;
+                if (email && email.length) {
+                    if (emailRE.test(email)) {
+                        name += ' <' + RegExp.$1 + '>';
+                    } else {
+                        name += ' <' + email + '>';
+                    }
+                    attendeeEmails.push(name);
+                }
             } else if (attendee.id && attendee.id.length) {
-                var email = attendee.id;
-                if (regexp.test(email)) {
-                    attendeeNames += RegExp.$1;
+                let email = attendee.id;
+                if (emailRE.test(email)) {
+                    attendeeNames.push(RegExp.$1);
                 } else {
-                    attendeeNames += email;
+                    attendeeNames.push(email);
                 }
             } else {
                 continue;
             }
-            if (i + 1 < numAttendees) {
-                attendeeNames += ', ';
-            }
         }
-        var attendeeList = document.getElementById("attendee-list");
-        var callback = function func() {
-            attendeeList.setAttribute('value', attendeeNames);
+
+        let attendeeList = document.getElementById("attendee-list");
+        let callback = function func() {
+            attendeeList.setAttribute('value', attendeeNames.join(', '));
+            attendeeList.setAttribute('tooltiptext', attendeeEmails.join(', '));
         }
         setTimeout(callback, 1);
     } else {
@@ -3007,7 +3025,7 @@ function showAttendeePopup(event) {
 
     // Show the popup.
     var attendeeList = document.getElementById("attendee-list");
-    popup.showPopup(attendeeList, -1, -1, "context", "bottomleft", "topleft");
+    popup.openPopup(attendeeList, "after_start", 0, 0, true);
 }
 
 /**

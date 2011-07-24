@@ -196,9 +196,23 @@
         <xul:label class="headerName" xbl:inherits="value=label" flex="1"/>
       </xul:hbox>
       <xul:label onclick="if (event.button != 2) openUILink(event.target.value, event);"
+                 ondragstart="this.parentNode.setDataTransfer(event);"
                  class="headerValue plain text-link headerValueUrl"
                  anonid="headerValue" flex="1" readonly="true" context="copyUrlPopup"/>
     </content>
+    
+    <implementation>
+      <method name="setDataTransfer">
+        <parameter name="aEvent"/>
+        <body><![CDATA[
+          var dt = aEvent.dataTransfer;
+          var val = aEvent.target.value;
+          dt.setData('text/x-moz-url', val + "\n" + val);
+          dt.setData('text/uri-list', val);
+          dt.setData('text/plain', val);
+        ]]></body>
+      </method>
+    </implementation>
   </binding>
 
   <binding id="mail-emailheaderfield">
@@ -542,11 +556,12 @@
         <parameter name="aMessageIdNode"/>
         <parameter name="aIndex"/>
         <parameter name="aMessageId"/>
+        <parameter name="aLastId"/>
         <body>
           <![CDATA[
             var showFullMessageIds = this.showFullMessageIds;
 
-            if (showFullMessageIds)
+            if (showFullMessageIds || aIndex == aLastId)
             {
               aMessageIdNode.setAttribute("label", aMessageId);
               aMessageIdNode.removeAttribute("tooltiptext");
@@ -574,11 +589,14 @@
             while (messageIdNodes.length > numMessageIds * 2 - 1)
               headerValue.removeChild(headerValue.lastChild);
 
+            this.toggleIcon.hidden = numMessageIds <= 1;
+
             for (var index = 0; index < numMessageIds; index++)
             {
               if (index * 2 <= messageIdNodes.length - 1)
               {
-                this.updateMessageIdNode(messageIdNodes[index * 2], index + 1, this.mMessageIds[index]);
+                this.updateMessageIdNode(messageIdNodes[index * 2], index + 1,
+                                         this.mMessageIds[index], numMessageIds);
               }
               else
               {
@@ -592,7 +610,8 @@
                   headerValue.appendChild(textNode);
                 }
                 var itemInDocument = headerValue.appendChild(newMessageIdNode);
-                this.updateMessageIdNode(itemInDocument, index + 1, this.mMessageIds[index]);
+                this.updateMessageIdNode(itemInDocument, index + 1,
+                                         this.mMessageIds[index], numMessageIds);
               }
             }
           ]]>
@@ -1213,6 +1232,15 @@
                 this.setAttribute("selectedIndex", "-1");
               else
                 this.setAttribute("selectedIndex", "5");
+            }
+
+            // JunkStatus has the null field IsEmpty
+            if (this.searchAttribute == Components.interfaces.nsMsgSearchAttrib.JunkStatus) {
+              if (val == Components.interfaces.nsMsgSearchOp.IsEmpty ||
+                  val == Components.interfaces.nsMsgSearchOp.IsntEmpty)
+                this.setAttribute("selectedIndex", "-1");
+              else
+                this.setAttribute("selectedIndex", "6");
             }
 
               // if it's not sender, to, cc, alladdresses, or toorcc, we don't care

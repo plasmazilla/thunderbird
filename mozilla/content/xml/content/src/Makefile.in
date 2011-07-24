@@ -46,21 +46,6 @@ MODULE		= content
 LIBRARY_NAME	= gkconxmlcon_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  js \
-		  dom \
-		  gfx \
-		  thebes \
-		  layout \
-		  widget \
-		  necko \
-		  webshell \
-		  docshell \
-		  unicharutil \
-		  pref \
-		  locale \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsXMLElement.cpp \
@@ -79,7 +64,7 @@ INCLUDES	+= \
 		$(NULL)
 
 EXPORT_RESOURCE_CONTENT = \
-		$(srcdir)/xhtml11.dtd \
+		$(srcdir)/htmlmathml-f.ent \
 		$(NULL)
 libs::
 	$(INSTALL) $(EXPORT_RESOURCE_CONTENT) $(DIST)/bin/res/dtd

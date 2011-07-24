@@ -1,29 +1,27 @@
 toolkit.jar:
-%  content global %content/global/ xpcnativewrappers=yes contentaccessible=yes
-%  content global-platform %content/global-platform/ platform xpcnativewrappers=yes
-%  content global-region %content/global-region/ xpcnativewrappers=yes
+%  content global %content/global/ contentaccessible=yes
+%  content global-platform %content/global-platform/ platform
+%  content global-region %content/global-region/
 # provide the nsTransferable in nsDragAndDrop.js to extensions that have to
 # work with Geckos from before 1.9, when there was a separate file
 %  override chrome://global/content/nsTransferable.js chrome://global/content/nsDragAndDrop.js
-# Simplify migration from m-1.9.1 to (m-1.9.2 and) m-1.9.3.
-%  resource gre-resources resource://gre/res/
 *  content/global/license.html                (license.html)
    content/global/XPCNativeWrapper.js         (XPCNativeWrapper.js)
 *  content/global/xul.css                     (xul.css)
    content/global/textbox.css                 (textbox.css)
    content/global/menulist.css                (menulist.css)
-*  content/global/about.xhtml                 (about.xhtml)
+   content/global/about.xhtml                 (about.xhtml)
+*  content/global/aboutAbout.xhtml            (aboutAbout.xhtml)
 *  content/global/aboutRights.xhtml           (aboutRights.xhtml)
 *  content/global/aboutRights-unbranded.xhtml (aboutRights-unbranded.xhtml)
+*  content/global/aboutSupport.js
+*  content/global/aboutSupport.xhtml
    content/global/directionDetector.html
    content/global/plugins.html
    content/global/plugins.css
-*+ content/global/buildconfig.html            (buildconfig.html)
+*+  content/global/buildconfig.html            (buildconfig.html)
 +  content/global/charsetOverlay.js           (charsetOverlay.js)
 +  content/global/charsetOverlay.xul          (charsetOverlay.xul)
-*+ content/global/commonDialog.js             (commonDialog.js)
-*+ content/global/commonDialog.xul            (commonDialog.xul)
-   content/global/commonDialog.css            (commonDialog.css)
 *  content/global/contentAreaUtils.js         (contentAreaUtils.js)
 *  content/global/customizeCharset.js         (customizeCharset.js)
 *  content/global/customizeCharset.xul        (customizeCharset.xul)
@@ -35,12 +33,10 @@ toolkit.jar:
 *+ content/global/finddialog.js               (finddialog.js)
 *+ content/global/finddialog.xul              (finddialog.xul)
 *+ content/global/findUtils.js                (findUtils.js)
+   content/global/filepicker.properties       (filepicker.properties)
 *+ content/global/globalOverlay.js            (globalOverlay.js)
-*+ content/global/inlineSpellCheckUI.js       (inlineSpellCheckUI.js)
 +  content/global/mozilla.xhtml               (mozilla.xhtml)
 *+ content/global/nsDragAndDrop.js            (nsDragAndDrop.js)
-+  content/global/selectDialog.js             (selectDialog.js)
-+  content/global/selectDialog.xul            (selectDialog.xul)
 *+ content/global/viewZoomOverlay.js          (viewZoomOverlay.js)
 *+ content/global/bindings/autocomplete.xml    (widgets/autocomplete.xml)
 *+ content/global/bindings/browser.xml         (widgets/browser.xml)

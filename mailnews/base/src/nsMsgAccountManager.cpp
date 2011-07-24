@@ -56,7 +56,7 @@
 #include "prcmon.h"
 #include "prthread.h"
 #include "plstr.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsUnicharUtils.h"
 #include "nscore.h"
 #include "prprf.h"
@@ -97,6 +97,7 @@
 #include "nsIStringBundle.h"
 #include "nsMsgMessageFlags.h"
 #include "nsIMsgFilterList.h"
+#include "nsDirectoryServiceUtils.h"
 
 #define PREF_MAIL_ACCOUNTMANAGER_ACCOUNTS "mail.accountmanager.accounts"
 #define PREF_MAIL_ACCOUNTMANAGER_DEFAULTACCOUNT "mail.accountmanager.defaultaccount"
@@ -118,6 +119,9 @@ static NS_DEFINE_CID(kMsgFolderCacheCID, NS_MSGFOLDERCACHE_CID);
 #define SEARCH_FOLDER_FLAG_LEN (sizeof(SEARCH_FOLDER_FLAG) - 1)
 
 const char *kSearchFolderUriProp = "searchFolderUri";
+
+PRBool nsMsgAccountManager::m_haveShutdown = PR_FALSE;
+PRBool nsMsgAccountManager::m_shutdownInProgress = PR_FALSE;
 
 // use this to search for all servers with the given hostname/iid and
 // put them in "servers"
@@ -176,8 +180,6 @@ nsMsgAccountManager::nsMsgAccountManager() :
   m_accountsLoaded(PR_FALSE),
   m_emptyTrashInProgress(PR_FALSE),
   m_cleanupInboxInProgress(PR_FALSE),
-  m_haveShutdown(PR_FALSE),
-  m_shutdownInProgress(PR_FALSE),
   m_userAuthenticated(PR_FALSE),
   m_loadingVirtualFolders(PR_FALSE),
   m_virtualFoldersLoaded(PR_FALSE)
@@ -200,6 +202,7 @@ nsMsgAccountManager::~nsMsgAccountManager()
       observerService->RemoveObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID);
       observerService->RemoveObserver(this, "quit-application-granted");
       observerService->RemoveObserver(this, ABOUT_TO_GO_OFFLINE_TOPIC);
+      observerService->RemoveObserver(this, "sleep_notification");
     }
   }
 }
@@ -224,6 +227,7 @@ nsresult nsMsgAccountManager::Init()
     observerService->AddObserver(this, "quit-application-granted" , PR_TRUE);
     observerService->AddObserver(this, ABOUT_TO_GO_OFFLINE_TOPIC, PR_TRUE);
     observerService->AddObserver(this, "profile-before-change", PR_TRUE);
+    observerService->AddObserver(this, "sleep_notification", PR_TRUE);
   }
 
   return NS_OK;
@@ -319,6 +323,8 @@ NS_IMETHODIMP nsMsgAccountManager::Observe(nsISupports *aSubject, const char *aT
     }
     return NS_OK;
   }
+  if (!strcmp(aTopic, "sleep_notification"))
+    return CloseCachedConnections();
 
   if (!strcmp(aTopic, "profile-before-change"))
   {
@@ -1007,7 +1013,7 @@ hashCleanupOnExit(nsCStringHashKey::KeyType aKey, nsCOMPtr<nsIMsgIncomingServer>
 
            if (isImap && urlListener)
            {
-             nsIThread *thread = NS_GetCurrentThread();
+             nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
 
              PRBool inProgress = PR_FALSE;
              if (cleanupInboxOnExit)
@@ -1212,13 +1218,19 @@ nsMsgAccountManager::LoadAccounts()
   if (m_accountsLoaded)
     return NS_OK;
 
+  nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
+
+  if (NS_SUCCEEDED(rv))
+    mailSession->AddFolderListener(this, nsIFolderListener::added |
+                                         nsIFolderListener::removed |
+                                         nsIFolderListener::intPropertyChanged);
   // If we have code trying to do things after we've unloaded accounts,
   // ignore it.
   if (m_shutdownInProgress || m_haveShutdown)
     return NS_ERROR_FAILURE;
 
-  kDefaultServerAtom = do_GetAtom("DefaultServer");
-  mFolderFlagAtom = do_GetAtom("FolderFlag");
+  kDefaultServerAtom = MsgGetAtom("DefaultServer");
+  mFolderFlagAtom = MsgGetAtom("FolderFlag");
 
   //Ensure biff service has started
   nsCOMPtr<nsIMsgBiffManager> biffService =
@@ -1457,12 +1469,6 @@ nsMsgAccountManager::LoadAccounts()
       }
     }
   }
-  nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
-
-  if (NS_SUCCEEDED(rv))
-    mailSession->AddFolderListener(this, nsIFolderListener::added |
-                                         nsIFolderListener::removed |
-                                         nsIFolderListener::intPropertyChanged);
   return NS_OK;
 }
 
@@ -1533,7 +1539,14 @@ nsMsgAccountManager::SetSpecialFolders()
         {
           rv = folder->GetParent(getter_AddRefs(parent));
           if (NS_SUCCEEDED(rv) && parent)
-            rv = folder->SetFlag(nsMsgFolderFlags::Archive);
+          {
+            PRBool archiveEnabled;
+            thisIdentity->GetArchiveEnabled(&archiveEnabled);
+            if (archiveEnabled)
+              rv = folder->SetFlag(nsMsgFolderFlags::Archive);
+            else
+              rv = folder->ClearFlag(nsMsgFolderFlags::Archive);
+          }
         }
       }
       thisIdentity->GetStationeryFolder(folderUri);
@@ -2745,6 +2758,17 @@ VirtualFolderChangeListener::OnHdrPropertyChanged(nsIMsgDBHdr *aHdrChanged, PRBo
   return NS_OK;
 }
 
+void VirtualFolderChangeListener::DecrementNewMsgCount()
+{
+  PRInt32 numNewMessages;
+  m_virtualFolder->GetNumNewMessages(PR_FALSE, &numNewMessages);
+  if (numNewMessages > 0)
+    numNewMessages--;
+  m_virtualFolder->SetNumNewMessages(numNewMessages);
+  if (!numNewMessages)
+    m_virtualFolder->SetHasNewMessages(PR_FALSE);
+}
+
 NS_IMETHODIMP VirtualFolderChangeListener::OnHdrFlagsChanged(nsIMsgDBHdr *aHdrChanged, PRUint32 aOldFlags, PRUint32 aNewFlags, nsIDBChangeListener *aInstigator)
 {
   nsCOMPtr <nsIMsgDatabase> msgDB;
@@ -2805,13 +2829,8 @@ NS_IMETHODIMP VirtualFolderChangeListener::OnHdrFlagsChanged(nsIMsgDBHdr *aHdrCh
     if (totalDelta)
       dbFolderInfo->ChangeNumMessages(totalDelta);
     if (unreadDelta == -1 && aOldFlags & nsMsgMessageFlags::New)
-    {
-      PRInt32 numNewMessages;
-      m_virtualFolder->GetNumNewMessages(PR_FALSE, &numNewMessages);
-      m_virtualFolder->SetNumNewMessages(numNewMessages - 1);
-      if (numNewMessages == 1)
-        m_virtualFolder->SetHasNewMessages(PR_FALSE);
-    }
+      DecrementNewMsgCount();
+
     if (totalDelta)
     {
       nsCString searchUri;
@@ -2821,6 +2840,10 @@ NS_IMETHODIMP VirtualFolderChangeListener::OnHdrFlagsChanged(nsIMsgDBHdr *aHdrCh
 
     PostUpdateEvent(m_virtualFolder, virtDatabase);
   }
+  else if (oldMatch && (aOldFlags & nsMsgMessageFlags::New) &&
+           !(aNewFlags & nsMsgMessageFlags::New))
+    DecrementNewMsgCount();
+
   return rv;
 }
 
@@ -3014,8 +3037,8 @@ NS_IMETHODIMP nsMsgAccountManager::LoadVirtualFolders()
         if (version == -1)
         {
           buffer.Cut(0, 8);
-          PRInt32 irv;
-          version = buffer.ToInteger(&irv, 10);
+          nsresult irv;
+          version = buffer.ToInteger(&irv);
           continue;
         }
         if (Substring(buffer, 0, 4).Equals("uri="))
@@ -3698,7 +3721,8 @@ nsMsgAccountManager::FolderUriForPath(nsILocalFile *aLocalPath,
 {
   NS_ENSURE_ARG_POINTER(aLocalPath);
   PRBool equals;
-  if (NS_SUCCEEDED(aLocalPath->Equals(m_lastPathLookedUp, &equals)) && equals)
+  if (m_lastPathLookedUp &&
+      NS_SUCCEEDED(aLocalPath->Equals(m_lastPathLookedUp, &equals)) && equals)
   {
     aMailboxUri = m_lastFolderURIForPath;
     return NS_OK;

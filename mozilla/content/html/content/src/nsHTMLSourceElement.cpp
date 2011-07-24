@@ -1,7 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 et cindent: */
 /* ***** BEGIN LICENSE BLOCK *****
- * Version: ML 1.1/GPL 2.0/LGPL 2.1
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
  * 1.1 (the "License"); you may not use this file except in compliance with
@@ -40,7 +40,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsMappedAttributes.h"
 #include "nsRuleData.h"
 #include "nsHTMLMediaElement.h"
@@ -51,7 +50,7 @@ class nsHTMLSourceElement : public nsGenericHTMLElement,
                             public nsIDOMHTMLSourceElement
 {
 public:
-  nsHTMLSourceElement(nsINodeInfo *aNodeInfo);
+  nsHTMLSourceElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLSourceElement();
 
   // nsISupports
@@ -69,10 +68,6 @@ public:
   // nsIDOMHTMLSourceElement
   NS_DECL_NSIDOMHTMLSOURCEELEMENT
 
-  virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
-                                nsIAtom* aAttribute,
-                                const nsAString& aValue,
-                                nsAttrValue& aResult);
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
   // Override BindToTree() so that we can trigger a load when we add a
@@ -80,13 +75,15 @@ public:
   virtual nsresult BindToTree(nsIDocument *aDocument, nsIContent *aParent,
                               nsIContent *aBindingParent,
                               PRBool aCompileEventHandlers);
+
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Source)
 
 
-nsHTMLSourceElement::nsHTMLSourceElement(nsINodeInfo *aNodeInfo)
+nsHTMLSourceElement::nsHTMLSourceElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -99,6 +96,8 @@ nsHTMLSourceElement::~nsHTMLSourceElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLSourceElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLSourceElement, nsGenericElement)
 
+
+DOMCI_NODE_DATA(HTMLSourceElement, nsHTMLSourceElement)
 
 // QueryInterface implementation for nsHTMLSourceElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLSourceElement)
@@ -113,25 +112,6 @@ NS_IMPL_ELEMENT_CLONE(nsHTMLSourceElement)
 
 NS_IMPL_URI_ATTR(nsHTMLSourceElement, Src, src)
 NS_IMPL_STRING_ATTR(nsHTMLSourceElement, Type, type)
-
-
-PRBool
-nsHTMLSourceElement::ParseAttribute(PRInt32 aNamespaceID,
-                                nsIAtom* aAttribute,
-                                const nsAString& aValue,
-                                nsAttrValue& aResult)
-{
-  if (aNamespaceID == kNameSpaceID_None) {
-    if (aAttribute == nsGkAtoms::src) {
-      static const char* kWhitespace = " \n\r\t\b";
-      aResult.SetTo(nsContentUtils::TrimCharsInSet(kWhitespace, aValue));
-      return PR_TRUE;
-    }
-  }
-
-  return nsGenericHTMLElement::ParseAttribute(aNamespaceID, aAttribute, aValue,
-                                              aResult);
-}
 
 nsresult
 nsHTMLSourceElement::BindToTree(nsIDocument *aDocument,

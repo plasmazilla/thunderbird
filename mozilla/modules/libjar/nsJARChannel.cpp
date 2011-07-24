@@ -42,7 +42,6 @@
 #include "nsJARProtocolHandler.h"
 #include "nsMimeTypes.h"
 #include "nsNetUtil.h"
-#include "nsInt64.h"
 #include "nsEscape.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
@@ -52,7 +51,6 @@
 #include "nsIScriptSecurityManager.h"
 #include "nsIPrincipal.h"
 #include "nsIFileURL.h"
-#include "nsIJAR.h"
 
 static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 
@@ -85,19 +83,20 @@ public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIINPUTSTREAM
 
-    nsJARInputThunk(nsIFile *jarFile,
+    nsJARInputThunk(nsIZipReader *zipReader,
                     nsIURI* fullJarURI,
                     const nsACString &jarEntry,
                     nsIZipReaderCache *jarCache)
         : mJarCache(jarCache)
-        , mJarFile(jarFile)
+        , mJarReader(zipReader)
         , mJarEntry(jarEntry)
         , mContentLength(-1)
     {
-        NS_ASSERTION(mJarFile, "no jar file");
-
         if (fullJarURI) {
-            nsresult rv = fullJarURI->GetAsciiSpec(mJarDirSpec);
+#ifdef DEBUG
+            nsresult rv =
+#endif
+                fullJarURI->GetAsciiSpec(mJarDirSpec);
             NS_ASSERTION(NS_SUCCEEDED(rv), "this shouldn't fail");
         }
     }
@@ -124,7 +123,6 @@ private:
 
     nsCOMPtr<nsIZipReaderCache> mJarCache;
     nsCOMPtr<nsIZipReader>      mJarReader;
-    nsCOMPtr<nsIFile>           mJarFile;
     nsCString                   mJarDirSpec;
     nsCOMPtr<nsIInputStream>    mJarStream;
     nsCString                   mJarEntry;
@@ -140,17 +138,6 @@ nsJARInputThunk::EnsureJarStream()
         return NS_OK;
 
     nsresult rv;
-    if (mJarCache)
-        rv = mJarCache->GetZip(mJarFile, getter_AddRefs(mJarReader));
-    else {
-        // create an uncached jar reader
-        mJarReader = do_CreateInstance(kZipReaderCID, &rv);
-        if (NS_FAILED(rv)) return rv;
-
-        rv = mJarReader->Open(mJarFile);
-    }
-    if (NS_FAILED(rv)) return rv;
-
     if (ENTRY_IS_DIRECTORY(mJarEntry)) {
         // A directory stream also needs the Spec of the FullJarURI
         // because is included in the stream data itself.
@@ -304,9 +291,40 @@ nsJARChannel::CreateJarInput(nsIZipReaderCache *jarCache)
     // necessarily MT-safe
     nsCOMPtr<nsIFile> clonedFile;
     nsresult rv = mJarFile->Clone(getter_AddRefs(clonedFile));
-    if (NS_FAILED(rv)) return rv;
+    if (NS_FAILED(rv))
+        return rv;
 
-    mJarInput = new nsJARInputThunk(clonedFile, mJarURI, mJarEntry, jarCache);
+    nsCOMPtr<nsIZipReader> reader;
+    if (jarCache) {
+        if (mInnerJarEntry.IsEmpty())
+            rv = jarCache->GetZip(mJarFile, getter_AddRefs(reader));
+        else 
+            rv = jarCache->GetInnerZip(mJarFile, mInnerJarEntry.get(),
+                                       getter_AddRefs(reader));
+    } else {
+        // create an uncached jar reader
+        nsCOMPtr<nsIZipReader> outerReader = do_CreateInstance(kZipReaderCID, &rv);
+        if (NS_FAILED(rv))
+            return rv;
+
+        rv = outerReader->Open(mJarFile);
+        if (NS_FAILED(rv))
+            return rv;
+
+        if (mInnerJarEntry.IsEmpty())
+            reader = outerReader;
+        else {
+            reader = do_CreateInstance(kZipReaderCID, &rv);
+            if (NS_FAILED(rv))
+                return rv;
+
+            rv = reader->OpenInner(outerReader, mInnerJarEntry.get());
+        }
+    }
+    if (NS_FAILED(rv))
+        return rv;
+
+    mJarInput = new nsJARInputThunk(reader, mJarURI, mJarEntry, jarCache);
     if (!mJarInput)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(mJarInput);
@@ -338,6 +356,21 @@ nsJARChannel::EnsureJarInput(PRBool blocking)
         nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(mJarBaseURI);
         if (fileURL)
             fileURL->GetFile(getter_AddRefs(mJarFile));
+    }
+    // try to handle a nested jar
+    if (!mJarFile) {
+        nsCOMPtr<nsIJARURI> jarURI = do_QueryInterface(mJarBaseURI);
+        if (jarURI) {
+            nsCOMPtr<nsIFileURL> fileURL;
+            nsCOMPtr<nsIURI> innerJarURI;
+            rv = jarURI->GetJARFile(getter_AddRefs(innerJarURI));
+            if (NS_SUCCEEDED(rv))
+                fileURL = do_QueryInterface(innerJarURI);
+            if (fileURL) {
+                fileURL->GetFile(getter_AddRefs(mJarFile));
+                jarURI->GetJAREntry(mInnerJarEntry);
+            }
+        }
     }
 
     if (mJarFile) {
@@ -497,14 +530,8 @@ nsJARChannel::GetOwner(nsISupports **result)
     if (!jarReader)
         return NS_ERROR_NOT_INITIALIZED;
 
-    nsCOMPtr<nsIJAR> jar = do_QueryInterface(jarReader, &rv);
-    if (NS_FAILED(rv)) {
-        NS_ERROR("nsIJAR not supported");
-        return rv;
-    }
-
     nsCOMPtr<nsIPrincipal> cert;
-    rv = jar->GetCertificatePrincipal(mJarEntry.get(), getter_AddRefs(cert));
+    rv = jarReader->GetCertificatePrincipal(mJarEntry.get(), getter_AddRefs(cert));
     if (NS_FAILED(rv)) return rv;
 
     if (cert) {
@@ -673,7 +700,8 @@ nsJARChannel::Open(nsIInputStream **stream)
 
     // force load the jar file now so GetContentLength will return a
     // meaningful value once we return.
-    mJarInput->EnsureJarStream();
+    rv = mJarInput->EnsureJarStream();
+    if (NS_FAILED(rv)) return rv;
 
     NS_ADDREF(*stream = mJarInput);
     return NS_OK;

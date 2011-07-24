@@ -56,7 +56,7 @@ class nsIAtom;
 class nsIDOMNodeList;
 class nsIDocument;
 class nsIURI;
-class nsIXBLDocumentInfo;
+class nsXBLDocumentInfo;
 class nsIStreamListener;
 class nsStyleSet;
 class nsXBLBinding;
@@ -84,21 +84,22 @@ public:
 
   /**
    * Notify the binding manager that an element
-   * has been moved from one document to another,
+   * has been removed from its document,
    * so that it can update any bindings or
    * nsIAnonymousContentCreator-created anonymous
    * content that may depend on the document.
    * @param aContent the element that's being moved
    * @param aOldDocument the old document in which the
-   *   content resided. May be null if the the content
-   *   was not in any document.
-   * @param aNewDocument the document in which the
-   *   content will reside. May be null if the content
-   *   will not reside in any document, or if the
-   *   content is being destroyed.
+   *   content resided.
    */
-  nsresult ChangeDocumentFor(nsIContent* aContent, nsIDocument* aOldDocument,
-                             nsIDocument* aNewDocument);
+  void RemovedFromDocument(nsIContent* aContent, nsIDocument* aOldDocument)
+  {
+    if (aContent->HasFlag(NODE_MAY_BE_IN_BINDING_MNGR)) {
+      RemovedFromDocumentInternal(aContent, aOldDocument);
+    }
+  }
+  void RemovedFromDocumentInternal(nsIContent* aContent,
+                                   nsIDocument* aOldDocument);
 
   nsIAtom* ResolveTag(nsIContent* aContent, PRInt32* aNameSpaceID);
 
@@ -107,6 +108,11 @@ public:
    * that may have been inserted via XBL insertion points.
    */
   nsresult GetContentListFor(nsIContent* aContent, nsIDOMNodeList** aResult);
+
+  /**
+   * Non-COMy version of GetContentListFor.
+   */
+  nsINodeList* GetContentListFor(nsIContent* aContent);
 
   /**
    * Set the insertion point children for the specified element.
@@ -128,6 +134,11 @@ public:
    * returning a non-null list for nodes which have a binding attached.
    */
   nsresult GetAnonymousNodesFor(nsIContent* aContent, nsIDOMNodeList** aResult);
+
+  /**
+   * Same as above, but without the XPCOM goop
+   */
+  nsINodeList* GetAnonymousNodesFor(nsIContent* aContent);
 
   /**
    * Set the anonymous child content for the specified element.
@@ -162,7 +173,7 @@ public:
   // shouldn't be handing it out in our public API, since it's not useful to
   // anyone.
   nsIContent* GetInsertionPoint(nsIContent* aParent,
-                                nsIContent* aChild, PRUint32* aIndex);
+                                const nsIContent* aChild, PRUint32* aIndex);
 
   /**
    * Return the unfiltered insertion point for the specified parent
@@ -171,6 +182,11 @@ public:
    */
   nsIContent* GetSingleInsertionPoint(nsIContent* aParent, PRUint32* aIndex,
                                       PRBool* aMultipleInsertionPoints);
+
+  nsIContent* GetNestedInsertionPoint(nsIContent* aParent,
+                                      const nsIContent* aChild);
+  nsIContent* GetNestedSingleInsertionPoint(nsIContent* aParent,
+                                            PRBool* aMultipleInsertionPoints);
 
   nsresult AddLayeredBinding(nsIContent* aContent, nsIURI* aURL,
                              nsIPrincipal* aOriginPrincipal);
@@ -183,9 +199,9 @@ public:
 
   void ExecuteDetachedHandlers();
 
-  nsresult PutXBLDocumentInfo(nsIXBLDocumentInfo* aDocumentInfo);
-  nsIXBLDocumentInfo* GetXBLDocumentInfo(nsIURI* aURI);
-  void RemoveXBLDocumentInfo(nsIXBLDocumentInfo* aDocumentInfo);
+  nsresult PutXBLDocumentInfo(nsXBLDocumentInfo* aDocumentInfo);
+  nsXBLDocumentInfo* GetXBLDocumentInfo(nsIURI* aURI);
+  void RemoveXBLDocumentInfo(nsXBLDocumentInfo* aDocumentInfo);
 
   nsresult PutLoadingDocListener(nsIURI* aURL, nsIStreamListener* aListener);
   nsIStreamListener* GetLoadingDocListener(nsIURI* aURL);
@@ -199,6 +215,9 @@ public:
   nsresult WalkRules(nsIStyleRuleProcessor::EnumFunc aFunc,
                      RuleProcessorData* aData,
                      PRBool* aCutOffInheritance);
+
+  void WalkAllRules(nsIStyleRuleProcessor::EnumFunc aFunc,
+                    RuleProcessorData* aData);
   /**
    * Do any processing that needs to happen as a result of a change in
    * the characteristics of the medium, and return whether this rule
@@ -206,6 +225,8 @@ public:
    */
   nsresult MediumFeaturesChanged(nsPresContext* aPresContext,
                                  PRBool* aRulesChanged);
+
+  void AppendAllSheets(nsTArray<nsCSSStyleSheet*>& aArray);
 
   NS_HIDDEN_(void) Traverse(nsIContent *aContent,
                             nsCycleCollectionTraversalCallback &cb);
@@ -228,10 +249,6 @@ protected:
                                         PRBool* aIsAnonymousContentList);
   nsINodeList* GetAnonymousNodesInternal(nsIContent* aContent,
                                          PRBool* aIsAnonymousContentList);
-
-  nsIContent* GetNestedInsertionPoint(nsIContent* aParent, nsIContent* aChild);
-  nsIContent* GetNestedSingleInsertionPoint(nsIContent* aParent,
-                                            PRBool* aMultipleInsertionPoints);
 
   // Called by ContentAppended and ContentInserted to handle a single child
   // insertion.  aChild must not be null.  aContainer may be null.
@@ -299,10 +316,10 @@ protected:
   // both implement an XPIDL interface).
   PLDHashTable mWrapperTable;
 
-  // A mapping from a URL (a string) to nsIXBLDocumentInfo*.  This table
+  // A mapping from a URL (a string) to nsXBLDocumentInfo*.  This table
   // is the cache of all binding documents that have been loaded by a
   // given bound document.
-  nsInterfaceHashtable<nsURIHashKey,nsIXBLDocumentInfo> mDocumentTable;
+  nsRefPtrHashtable<nsURIHashKey,nsXBLDocumentInfo> mDocumentTable;
 
   // A mapping from a URL (a string) to a nsIStreamListener. This
   // table is the currently loading binding docs.  If they're in this

@@ -1,22 +1,5 @@
-#include "nsServiceManagerUtils.h"
-#include "nsIComponentManager.h"
-#include "nsIGenericFactory.h"
-#include "nsITestCrasher.h"
-
-class nsTestCrasher : public nsITestCrasher
-{
-public:
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSITESTCRASHER
-
-  nsTestCrasher() {}
-
-private:
-  ~nsTestCrasher() {};
-};
-
-
-NS_IMPL_ISUPPORTS1(nsTestCrasher, nsITestCrasher)
+#include "nscore.h"
+#include "nsXULAppAPI.h"
 
 /*
  * This pure virtual call example is from MSDN
@@ -48,39 +31,39 @@ void PureVirtualCall()
   B b;
 }
 
-/* void crash (); */
-NS_IMETHODIMP nsTestCrasher::Crash(PRInt16 how)
+// Keep these in sync with CrashTestUtils.jsm!
+const PRInt16 CRASH_INVALID_POINTER_DEREF = 0;
+const PRInt16 CRASH_PURE_VIRTUAL_CALL     = 1;
+const PRInt16 CRASH_RUNTIMEABORT          = 2;
+
+extern "C" NS_EXPORT
+void Crash(PRInt16 how)
 {
   switch (how) {
-  case nsITestCrasher::CRASH_INVALID_POINTER_DEREF: {
+  case CRASH_INVALID_POINTER_DEREF: {
     volatile int* foo = (int*)0x42;
     *foo = 0;
     // not reached
     break;
   }
-  case nsITestCrasher::CRASH_PURE_VIRTUAL_CALL: {
+  case CRASH_PURE_VIRTUAL_CALL: {
     PureVirtualCall();
     // not reached
     break;
   }
-  default:
-    return NS_ERROR_INVALID_ARG;
+  case CRASH_RUNTIMEABORT: {
+    NS_RUNTIMEABORT("Intentional crash");
+    break;
   }
-  return NS_OK;
+  default:
+    break;
+  }
 }
 
-// 54afce51-38d7-4df0-9750-2f90f9ffbca2
-#define NS_TESTCRASHER_CID \
-{ 0x54afce51, 0x38d7, 0x4df0, {0x97, 0x50, 0x2f, 0x90, 0xf9, 0xff, 0xbc, 0xa2} }
-
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsTestCrasher)
-
-static const nsModuleComponentInfo components[] = {
-    { "Test Crasher",
-      NS_TESTCRASHER_CID,
-      "@mozilla.org/testcrasher;1",
-      nsTestCrasherConstructor
-    }
-};
-
-NS_IMPL_NSGETMODULE(nsTestCrasherModule, components)
+extern "C" NS_EXPORT
+nsISupports* LockDir(nsILocalFile *directory)
+{
+  nsISupports* lockfile = nsnull;
+  XRE_LockProfileDirectory(directory, &lockfile);
+  return lockfile;
+}

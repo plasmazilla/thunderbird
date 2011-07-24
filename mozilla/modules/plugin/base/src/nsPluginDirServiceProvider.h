@@ -43,7 +43,6 @@
 
 #if defined (XP_WIN)
 #include "nsCOMArray.h"
-#include <windows.h>
 #endif
 
 class nsISimpleEnumerator;
@@ -54,7 +53,6 @@ class nsISimpleEnumerator;
 #define NS_WIN_ACROBAT_SCAN_KEY        "plugin.scan.Acrobat"
 #define NS_WIN_QUICKTIME_SCAN_KEY      "plugin.scan.Quicktime"
 #define NS_WIN_WMP_SCAN_KEY            "plugin.scan.WindowsMediaPlayer"
-#define NS_WIN_4DOTX_SCAN_KEY          "plugin.scan.4xPluginFolder"
 
 //*****************************************************************************
 // class nsPluginDirServiceProvider
@@ -71,7 +69,7 @@ public:
 #ifdef XP_WIN
    static nsresult GetPLIDDirectories(nsISimpleEnumerator **aEnumerator);
 private:
-   static nsresult GetPLIDDirectoriesWithHKEY(HKEY aKey, 
+   static nsresult GetPLIDDirectoriesWithRootKey(PRUint32 aKey,
      nsCOMArray<nsILocalFile> &aDirs);
 #endif
 

@@ -1,5 +1,75 @@
 %include mailWindow1.css
 
+#folderpane_splitter,
+#threadpane-splitter:not([orient="vertical"]) {
+  border: none;
+  border-left: 1px solid #A9B7C9;
+  min-width: 0;
+  width: 5px;
+  background-color: transparent;
+  margin-top: 0;
+  -moz-margin-end: -5px;
+  position: relative;
+  z-index: 10;
+  -moz-transition: border-width .3s ease-in;
+}
+
+/* Until Bug 621351 is fixed we need border-right and border-left in
+ * combination with -moz-locale-dir instead of -moz-border-end and
+ * -moz-border-start for -moz-transition
+ */
+
+#folderpane_splitter:-moz-locale-dir(rtl),
+#threadpane-splitter:not([orient="vertical"]):-moz-locale-dir(rtl) {
+  border-right: 1px solid #A9B7C9;
+  border-left: none;
+}
+
+#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(ltr) {
+  border-left: 4px solid highlight;
+}
+
+#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(rtl) {
+  border-right: 4px solid highlight;
+}
+
+#threadpane-splitter,
+#attachment-splitter {
+  border: none;
+  border-bottom: 1px solid #A9B7C9;
+  min-height: 0;
+  height: 5px;
+  background-color: transparent;
+  margin-top: -5px;
+  position: relative;
+  z-index: 10;
+  -moz-transition: border-width .3s ease-in;
+}
+
+#attachment-splitter:not([state="collapsed"]) {
+  border-bottom: 1px solid transparent;
+}
+
+#attachment-splitter,
+#threadpane-splitter[state="collapsed"] {
+  -moz-transition: border-color .3s;
+}
+
+#threadpane-splitter[state="collapsed"]:hover,
+#attachment-splitter[state="collapsed"]:hover {
+  border-bottom: 4px solid highlight;
+}
+
+#accountCentralBox,
+#threadTree {
+  -moz-border-end: none;
+}
+
+#messagepanebox {
+  border-top-width: 0px;
+  -moz-border-start: none;
+}
+
 .folderview-cycler {
   -moz-padding-start: 5px;
   -moz-padding-end: 5px;
@@ -26,4 +96,76 @@ treechildren::-moz-tree-image(unreadButtonColHeader) {
 
 treechildren::-moz-tree-image(junkStatusCol) {
   -moz-margin-start: -3px;
+}
+
+#viewPickerPopup menuitem, #viewPickerPopup menu {
+  -moz-appearance: none;
+  color: -moz-FieldText;
+  background-color: menuitem;
+}
+
+#viewPickerPopup menuitem[_moz-menuactive="true"], #viewPickerPopup menu[_moz-menuactive="true"] {
+  border: 1px solid highlight;
+  background-color: highlight;
+  color: highlighttext;
+}
+
+#folderLocationPopup {
+  -moz-appearance: none !important;
+  background-color: white !important;
+  color: -moz-FieldText;
+  border: 1px solid black;
+}
+
+#folderLocationPopup menuitem[_moz-menuactive="true"], #folderLocationPopup menu[_moz-menuactive="true"] {
+  -moz-appearance: none !important;
+  color: HighlightText;
+  background-color: menuitem;
+}
+
+#folderLocationPopup menuitem:first-child {
+padding: 4px 0px;
+}
+
+#threadTree treechildren::-moz-tree-row(odd) {
+  background-image: none;
+}
+
+@media all and (-moz-windows-default-theme) {
+  #folderPaneHeader {
+    -moz-appearance: none;
+    background-color: #f8f8f8;
+    border-top: 0px;
+    border-bottom: 1px solid #a9b1b8;
+  }
+
+  #folderTree {
+    -moz-appearance: none;
+    background-color: #eef3fa;
+    border-top: 1px solid #ffffff;
+    border-bottom: none;
+    border-left: none;
+  }
+
+  #folderTree treechildren::-moz-tree-cell-text(dropOn) {
+    color: -moz-FieldText;
+  }
+
+}
+
+@media all and (-moz-windows-compositor) {
+  #messengerWindow[sizemode=normal] tabpanels#tabpanelcontainer {
+    border: 1px solid rgba(10%, 10%, 10%, .4);
+    border-top: none;
+    background-clip: padding-box;
+  }
+
+  #messengerWindow[sizemode=normal] statusbar {
+    -moz-appearance: none;
+    margin-top: -1px;
+    border: 1px solid rgba(10%, 10%, 10%, .4);
+    border-top-color: threedshadow;
+    border-radius: 1px 1px 0 0;
+    background-clip: padding-box;
+  }
 }

@@ -204,7 +204,9 @@ var tests = [test_parameterCount_none, test_parameterCount_one,
              test_getColumnName, test_getColumnIndex_same_case,
              test_getColumnIndex_different_case, test_state_ready,
              test_state_executing, test_state_after_finalize,
-             test_getColumnDecltype, test_failed_execute];
+             test_getColumnDecltype,
+             test_failed_execute,
+];
 
 function run_test()
 {

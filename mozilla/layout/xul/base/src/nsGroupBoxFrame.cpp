@@ -107,7 +107,9 @@ NS_IMPL_FRAMEARENA_HELPERS(nsGroupBoxFrame)
 
 class nsDisplayXULGroupBackground : public nsDisplayItem {
 public:
-  nsDisplayXULGroupBackground(nsGroupBoxFrame* aFrame) : nsDisplayItem(aFrame) {
+  nsDisplayXULGroupBackground(nsDisplayListBuilder* aBuilder,
+                              nsGroupBoxFrame* aFrame) :
+    nsDisplayItem(aBuilder, aFrame) {
     MOZ_COUNT_CTOR(nsDisplayXULGroupBackground);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -122,7 +124,7 @@ public:
   }
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("XULGroupBackground")
+  NS_DISPLAY_DECL_NAME("XULGroupBackground", TYPE_XUL_GROUP_BACKGROUND)
 };
 
 void
@@ -130,8 +132,7 @@ nsDisplayXULGroupBackground::Paint(nsDisplayListBuilder* aBuilder,
                                    nsIRenderingContext* aCtx)
 {
   static_cast<nsGroupBoxFrame*>(mFrame)->
-    PaintBorderBackground(*aCtx, aBuilder->ToReferenceFrame(mFrame),
-                          mVisibleRect);
+    PaintBorderBackground(*aCtx, ToReferenceFrame(), mVisibleRect);
 }
 
 NS_IMETHODIMP
@@ -142,7 +143,7 @@ nsGroupBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   // Paint our background and border
   if (IsVisibleForPainting(aBuilder)) {
     nsresult rv = aLists.BorderBackground()->AppendNewToTop(new (aBuilder)
-        nsDisplayXULGroupBackground(this));
+        nsDisplayXULGroupBackground(aBuilder, this));
     NS_ENSURE_SUCCESS(rv, rv);
     
     rv = DisplayOutline(aBuilder, aLists);
@@ -181,7 +182,8 @@ nsGroupBoxFrame::PaintBorderBackground(nsIRenderingContext& aRenderingContext,
   groupRect += aPt;
 
   nsCSSRendering::PaintBackground(presContext, aRenderingContext, this,
-                                  aDirtyRect, rect, 0);
+                                  aDirtyRect, rect,
+                                  nsCSSRendering::PAINTBG_SYNC_DECODE_IMAGES);
 
   if (groupBox) {
 
@@ -196,8 +198,7 @@ nsGroupBoxFrame::PaintBorderBackground(nsIRenderingContext& aRenderingContext,
     aRenderingContext.PushState();
     aRenderingContext.SetClipRect(clipRect, nsClipCombine_kIntersect);
     nsCSSRendering::PaintBorder(presContext, aRenderingContext, this,
-                                aDirtyRect, rect, *borderStyleData,
-                                mStyleContext, skipSides);
+                                aDirtyRect, rect, mStyleContext, skipSides);
 
     aRenderingContext.PopState();
 
@@ -211,8 +212,7 @@ nsGroupBoxFrame::PaintBorderBackground(nsIRenderingContext& aRenderingContext,
     aRenderingContext.PushState();
     aRenderingContext.SetClipRect(clipRect, nsClipCombine_kIntersect);
     nsCSSRendering::PaintBorder(presContext, aRenderingContext, this,
-                                aDirtyRect, rect, *borderStyleData,
-                                mStyleContext, skipSides);
+                                aDirtyRect, rect, mStyleContext, skipSides);
 
     aRenderingContext.PopState();
 
@@ -227,15 +227,14 @@ nsGroupBoxFrame::PaintBorderBackground(nsIRenderingContext& aRenderingContext,
     aRenderingContext.PushState();
     aRenderingContext.SetClipRect(clipRect, nsClipCombine_kIntersect);
     nsCSSRendering::PaintBorder(presContext, aRenderingContext, this,
-                                aDirtyRect, rect, *borderStyleData,
-                                mStyleContext, skipSides);
+                                aDirtyRect, rect, mStyleContext, skipSides);
 
     aRenderingContext.PopState();
     
   } else {
     nsCSSRendering::PaintBorder(presContext, aRenderingContext, this,
                                 aDirtyRect, nsRect(aPt, GetSize()),
-                                *borderStyleData, mStyleContext, skipSides);
+                                mStyleContext, skipSides);
   }
 }
 

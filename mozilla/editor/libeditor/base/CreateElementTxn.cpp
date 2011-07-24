@@ -70,6 +70,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(CreateElementTxn, EditTxn)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRefNode)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+NS_IMPL_ADDREF_INHERITED(CreateElementTxn, EditTxn)
+NS_IMPL_RELEASE_INHERITED(CreateElementTxn, EditTxn)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(CreateElementTxn)
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 NS_IMETHODIMP CreateElementTxn::Init(nsEditor      *aEditor,
@@ -103,30 +105,33 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
   {
     char* nodename = ToNewCString(mTag);
     printf("Do Create Element parent = %p <%s>, offset = %d\n", 
-           mParent.get(), nodename, mOffsetInParent);
+           static_cast<void*>(mParent.get()), nodename, mOffsetInParent);
     nsMemory::Free(nodename);
   }
 #endif
 
   NS_ASSERTION(mEditor && mParent, "bad state");
-  if (!mEditor || !mParent) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mEditor && mParent, NS_ERROR_NOT_INITIALIZED);
 
   nsCOMPtr<nsIContent> newContent;
  
   //new call to use instead to get proper HTML element, bug# 39919
   nsresult result = mEditor->CreateHTMLContent(mTag, getter_AddRefs(newContent));
-  if (NS_FAILED(result)) return result;
+  NS_ENSURE_SUCCESS(result, result);
   nsCOMPtr<nsIDOMElement>newElement = do_QueryInterface(newContent);
-  if (!newElement) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(newElement, NS_ERROR_NULL_POINTER);
   mNewNode = do_QueryInterface(newElement);
   // Try to insert formatting whitespace for the new node:
   mEditor->MarkNodeDirty(mNewNode);
  
   NS_ASSERTION(((NS_SUCCEEDED(result)) && (mNewNode)), "could not create element.");
-  if (!mNewNode) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(mNewNode, NS_ERROR_NULL_POINTER);
 
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("  newNode = %p\n", mNewNode.get()); }
+  if (gNoisy)
+  {
+    printf("  newNode = %p\n", static_cast<void*>(mNewNode.get()));
+  }
 #endif
 
   // insert the new node
@@ -146,10 +151,10 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
       if (mOffsetInParent>count)
         mOffsetInParent = count;
       result = childNodes->Item(mOffsetInParent, getter_AddRefs(mRefNode));
-      if (NS_FAILED(result)) return result; // note, it's ok for mRefNode to be null.  that means append
+      NS_ENSURE_SUCCESS(result, result); // note, it's ok for mRefNode to be null.  that means append
 
       result = mParent->InsertBefore(mNewNode, mRefNode, getter_AddRefs(resultNode));
-      if (NS_FAILED(result)) return result; 
+      NS_ENSURE_SUCCESS(result, result); 
 
       // only set selection to insertion point if editor gives permission
       PRBool bAdjustSelection;
@@ -158,12 +163,12 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
       {
         nsCOMPtr<nsISelection> selection;
         result = mEditor->GetSelection(getter_AddRefs(selection));
-        if (NS_FAILED(result)) return result;
-        if (!selection) return NS_ERROR_NULL_POINTER;
+        NS_ENSURE_SUCCESS(result, result);
+        NS_ENSURE_TRUE(selection, NS_ERROR_NULL_POINTER);
 
         PRInt32 offset=0;
         result = nsEditor::GetChildOffset(mNewNode, mParent, offset);
-        if (NS_FAILED(result)) return result;
+        NS_ENSURE_SUCCESS(result, result);
 
         result = selection->Collapse(mParent, offset+1);
         NS_ASSERTION((NS_SUCCEEDED(result)), "selection could not be collapsed after insert.");
@@ -180,12 +185,16 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
 NS_IMETHODIMP CreateElementTxn::UndoTransaction(void)
 {
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("Undo Create Element, mParent = %p, node = %p\n",
-                        mParent.get(), mNewNode.get()); }
+  if (gNoisy)
+  {
+    printf("Undo Create Element, mParent = %p, node = %p\n",
+           static_cast<void*>(mParent.get()),
+           static_cast<void*>(mNewNode.get()));
+  }
 #endif
 
   NS_ASSERTION(mEditor && mParent, "bad state");
-  if (!mEditor || !mParent) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mEditor && mParent, NS_ERROR_NOT_INITIALIZED);
 
   nsCOMPtr<nsIDOMNode> resultNode;
   return mParent->RemoveChild(mNewNode, getter_AddRefs(resultNode));
@@ -198,7 +207,7 @@ NS_IMETHODIMP CreateElementTxn::RedoTransaction(void)
 #endif
 
   NS_ASSERTION(mEditor && mParent, "bad state");
-  if (!mEditor || !mParent) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mEditor && mParent, NS_ERROR_NOT_INITIALIZED);
 
   // first, reset mNewNode so it has no attributes or content
   nsCOMPtr<nsIDOMCharacterData>nodeAsText = do_QueryInterface(mNewNode);
@@ -221,10 +230,8 @@ NS_IMETHODIMP CreateElementTxn::GetTxnDescription(nsAString& aString)
 
 NS_IMETHODIMP CreateElementTxn::GetNewNode(nsIDOMNode **aNewNode)
 {
-  if (!aNewNode)
-    return NS_ERROR_NULL_POINTER;
-  if (!mNewNode)
-    return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(aNewNode, NS_ERROR_NULL_POINTER);
+  NS_ENSURE_TRUE(mNewNode, NS_ERROR_NOT_INITIALIZED);
   *aNewNode = mNewNode;
   NS_ADDREF(*aNewNode);
   return NS_OK;

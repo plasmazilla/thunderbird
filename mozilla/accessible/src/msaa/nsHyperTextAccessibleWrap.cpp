@@ -40,6 +40,8 @@
 
 #include "nsHyperTextAccessibleWrap.h"
 
+#include "nsEventShell.h"
+
 NS_IMPL_ISUPPORTS_INHERITED0(nsHyperTextAccessibleWrap,
                              nsHyperTextAccessible)
 
@@ -49,32 +51,30 @@ IMPL_IUNKNOWN_INHERITED2(nsHyperTextAccessibleWrap,
                          CAccessibleEditableText);
 
 nsresult
-nsHyperTextAccessibleWrap::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
+nsHyperTextAccessibleWrap::HandleAccEvent(AccEvent* aEvent)
 {
-  PRUint32 eventType;
-  aEvent->GetEventType(&eventType);
+  PRUint32 eventType = aEvent->GetEventType();
 
   if (eventType == nsIAccessibleEvent::EVENT_TEXT_REMOVED ||
       eventType == nsIAccessibleEvent::EVENT_TEXT_INSERTED) {
-    nsCOMPtr<nsIAccessible> accessible;
-    aEvent->GetAccessible(getter_AddRefs(accessible));
+    nsAccessible *accessible = aEvent->GetAccessible();
     if (accessible) {
-      nsCOMPtr<nsIWinAccessNode> winAccessNode(do_QueryInterface(accessible));
+      nsCOMPtr<nsIWinAccessNode> winAccessNode(do_QueryObject(accessible));
       if (winAccessNode) {
         void *instancePtr = NULL;
         nsresult rv = winAccessNode->QueryNativeInterface(IID_IAccessibleText,
                                                           &instancePtr);
         if (NS_SUCCEEDED(rv)) {
           NS_IF_RELEASE(gTextEvent);
+          NS_IF_ADDREF(gTextEvent = downcast_accEvent(aEvent));
 
-          CallQueryInterface(aEvent, &gTextEvent);
           (static_cast<IUnknown*>(instancePtr))->Release();
         }
       }
     }
   }
 
-  return nsHyperTextAccessible::FireAccessibleEvent(aEvent);
+  return nsHyperTextAccessible::HandleAccEvent(aEvent);
 }
 
 nsresult
@@ -89,24 +89,19 @@ nsHyperTextAccessibleWrap::GetModifiedText(PRBool aGetInsertedText,
 
   if (!gTextEvent)
     return NS_OK;
-    
-  PRBool isInserted;
-  gTextEvent->IsInserted(&isInserted);
+
+  PRBool isInserted = gTextEvent->IsTextInserted();
   if (aGetInsertedText != isInserted)
     return NS_OK;
 
-  nsCOMPtr<nsIAccessible> targetAcc;
-  gTextEvent->GetAccessible(getter_AddRefs(targetAcc));
+  nsAccessible *targetAcc = gTextEvent->GetAccessible();
   if (targetAcc != this)
     return NS_OK;
 
-  PRInt32 offset;
-  PRUint32 length;
+  *aStartOffset = gTextEvent->GetStartOffset();
+  *aEndOffset = *aStartOffset + gTextEvent->GetLength();
+  gTextEvent->GetModifiedText(aText);
 
-  gTextEvent->GetStart(&offset);
-  gTextEvent->GetLength(&length);
-  *aStartOffset = offset;
-  *aEndOffset = offset + length;
-  return gTextEvent->GetModifiedText(aText);
+  return NS_OK;
 }
 

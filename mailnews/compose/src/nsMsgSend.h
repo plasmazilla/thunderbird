@@ -138,6 +138,7 @@
 //
 // Necessary includes
 //
+#include "nsCOMPtr.h"
 #include "nsIMsgSend.h"
 #include "nsIStringBundle.h"
 #include "msgCore.h"
@@ -311,7 +312,8 @@ public:
                                                  // nsMsgSaveAsTemplate and nsMsgSendUnsent
   nsCOMPtr<nsIMsgDBHdr>     mMsgToReplace;       // If the mode is nsMsgSaveAsDraft, this is the message it will
                                                  // replace
-
+  nsString mSavedToFolderName; // Name of folder we're saving to, used when
+                               // displaying error on save.
   // These are needed for callbacks to the FE...
   nsCOMPtr<nsIDOMWindowInternal>  mParentWindow;
   nsCOMPtr<nsIMsgProgress>        mSendProgress;
@@ -417,6 +419,7 @@ private:
   // add Mail-Followup-To and Mail-Reply-To header
   nsresult AddMailFollowupToHeader();
   nsresult AddMailReplyToHeader();
+  nsresult AddXForwardedMessageIdHeader();
 
   nsCOMPtr<nsIMsgSendReport>  mSendReport;
   nsCString                   mSmtpPassword;            // store the smtp Password use during a send

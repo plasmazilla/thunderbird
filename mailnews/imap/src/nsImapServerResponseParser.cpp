@@ -53,6 +53,7 @@
 #include "nsIMAPNamespace.h"
 #include "nsImapStringBundle.h"
 #include "nsImapUtils.h"
+#include "nsCRT.h"
 #include "nsMsgUtils.h"
 
 ////////////////// nsImapServerResponseParser /////////////////////////
@@ -548,15 +549,15 @@ void nsImapServerResponseParser::response_data()
   {
     // Instead of comparing lots of strings and make function calls, try to
     // pre-flight the possibilities based on the first letter of the token.
-    switch (toupper(fNextToken[0]))
+    switch (NS_ToUpper(fNextToken[0]))
     {
     case 'O':   // OK
-      if (toupper(fNextToken[1]) == 'K')
+      if (NS_ToUpper(fNextToken[1]) == 'K')
         resp_cond_state(PR_FALSE);
       else SetSyntaxError(PR_TRUE);
       break;
     case 'N':   // NO
-      if (toupper(fNextToken[1]) == 'O')
+      if (NS_ToUpper(fNextToken[1]) == 'O')
         resp_cond_state(PR_FALSE);
       else if (!PL_strcasecmp(fNextToken, "NAMESPACE"))
         namespace_data();
@@ -751,6 +752,9 @@ void nsImapServerResponseParser::response_data()
         quota_data();
       else
         SetSyntaxError(PR_TRUE);
+      break;
+    case 'I':
+      id_data();
       break;
     default:
       if (IsNumericString(fNextToken))
@@ -1518,7 +1522,9 @@ void nsImapServerResponseParser::xaolenvelope_data()
           // xaol envelope switches the From with the To, so we switch them back and
           // create a fake from line From: user@aol.com
           fromLine.Append("To: ");
-          nsCAutoString fakeFromLine(NS_LITERAL_CSTRING("From: ") + nsDependentCString(fServerConnection.GetImapUserName()) + NS_LITERAL_CSTRING("@aol.com"));
+          nsCAutoString fakeFromLine(NS_LITERAL_CSTRING("From: "));
+          fakeFromLine.Append(fServerConnection.GetImapUserName());
+          fakeFromLine.Append(NS_LITERAL_CSTRING("@aol.com"));
           fServerConnection.HandleMessageDownLoadLine(fakeFromLine.get(), PR_FALSE);
         }
         else
@@ -1653,7 +1659,7 @@ void nsImapServerResponseParser::flags()
     PRBool knownFlag = PR_FALSE;					     
     if (*fNextToken == '\\')
     {
-      switch (toupper(fNextToken[1])) {
+      switch (NS_ToUpper(fNextToken[1])) {
       case 'S':
         if (!PL_strncasecmp(fNextToken, "\\Seen",5))
         {
@@ -1700,7 +1706,7 @@ void nsImapServerResponseParser::flags()
     }
     else if (*fNextToken == '$')
     {
-      switch (toupper(fNextToken[1])) {
+      switch (NS_ToUpper(fNextToken[1])) {
       case 'M':
         if ((fSupportsUserDefinedFlags & (kImapMsgSupportUserFlag |
           kImapMsgSupportMDNSentFlag))
@@ -1728,7 +1734,7 @@ void nsImapServerResponseParser::flags()
       nsCAutoString flag(fNextToken);
       PRInt32 parenIndex = flag.FindChar(')');
       if (parenIndex > 0)
-        flag.Truncate(parenIndex);
+        flag.SetLength(parenIndex);
       messageFlags |= kImapMsgCustomKeywordFlag;
       if (CurrentResponseUID() != nsMsgKey_None)
         fFlagState->AddUidCustomFlagPair(CurrentResponseUID(), flag.get());
@@ -2203,7 +2209,7 @@ void nsImapServerResponseParser::capability_data()
       nsCString token(fNextToken);
       endToken = token.FindChar(']');
       if (endToken >= 0)
-        token.Truncate(endToken);
+        token.SetLength(endToken);
 
       if(token.Equals("AUTH=LOGIN", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasAuthLoginCapability;
@@ -2217,6 +2223,8 @@ void nsImapServerResponseParser::capability_data()
         fCapabilityFlag |= kHasAuthGssApiCapability;
       else if (token.Equals("AUTH=MSN", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasAuthMSNCapability;
+      else if (token.Equals("AUTH=EXTERNAL", nsCaseInsensitiveCStringComparator()))
+        fCapabilityFlag |= kHasAuthExternalCapability;
       else if (token.Equals("STARTTLS", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasStartTLSCapability;
       else if (token.Equals("LOGINDISABLED", nsCaseInsensitiveCStringComparator()))
@@ -2235,8 +2243,8 @@ void nsImapServerResponseParser::capability_data()
         fCapabilityFlag |= kNoHierarchyRename;
       else if (token.Equals("NAMESPACE", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kNamespaceCapability;
-      else if (token.Equals("MAILBOXDATA", nsCaseInsensitiveCStringComparator()))
-        fCapabilityFlag |= kMailboxDataCapability;
+      else if (token.Equals("ID", nsCaseInsensitiveCStringComparator()))
+        fCapabilityFlag |= kHasIDCapability;
       else if (token.Equals("ACL", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kACLCapability;
       else if (token.Equals("XSERVERINFO", nsCaseInsensitiveCStringComparator()))
@@ -2261,6 +2269,10 @@ void nsImapServerResponseParser::capability_data()
         fCapabilityFlag |= kHasXListCapability;
       else if (token.Equals("COMPRESS=DEFLATE", nsCaseInsensitiveCStringComparator()))
         fCapabilityFlag |= kHasCompressDeflateCapability;
+      else if (token.Equals("MOVE", nsCaseInsensitiveCStringComparator()))
+        fCapabilityFlag |= kHasMoveCapability;
+      else if (token.Equals("HIGHESTMODSEQ", nsCaseInsensitiveCStringComparator()))
+        fCapabilityFlag |= kHasHighestModSeqCapability;
     }
   } while (fNextToken && endToken < 0 && !fAtEndOfLine && ContinueParse());
 
@@ -2657,9 +2669,11 @@ void nsImapServerResponseParser::bodystructure_data()
   {
     // Turn the BODYSTRUCTURE response into a form that the nsIMAPBodypartMessage can be constructed from.
     // FIXME: Follow up on bug 384210 to investigate why the caller has to duplicate the two in-param strings.
-    nsIMAPBodypartMessage *message = new nsIMAPBodypartMessage(NULL, NULL, PR_TRUE,
-                                                               strdup("message"), strdup("rfc822"),
-                                                               NULL, NULL, NULL, 0);
+    nsIMAPBodypartMessage *message =
+      new nsIMAPBodypartMessage(NULL, NULL, PR_TRUE, strdup("message"),
+                                strdup("rfc822"),
+                                NULL, NULL, NULL, 0,
+                                fServerConnection.GetPreferPlainText());
     nsIMAPBodypart *body = bodystructure_part(PL_strdup("1"), message);
     if (body)
       message->SetBody(body);
@@ -2788,12 +2802,17 @@ nsImapServerResponseParser::bodystructure_leaf(char *partNum, nsIMAPBodypart *pa
     {
       skip_to_close_paren();
       return new nsIMAPBodypartLeaf(partNum, parentPart, bodyType, bodySubType,
-          bodyID, bodyDescription, bodyEncoding, partLength);
+                                    bodyID, bodyDescription, bodyEncoding,
+                                    partLength,
+                                    fServerConnection.GetPreferPlainText());
     }
     
     // This part is of type "message/rfc822"  (probably a forwarded message)
-    nsIMAPBodypartMessage *message = new nsIMAPBodypartMessage(partNum, parentPart, PR_FALSE,
-      bodyType, bodySubType, bodyID, bodyDescription, bodyEncoding, partLength);
+    nsIMAPBodypartMessage *message =
+      new nsIMAPBodypartMessage(partNum, parentPart, PR_FALSE,
+                                bodyType, bodySubType, bodyID, bodyDescription,
+                                bodyEncoding, partLength,
+                                fServerConnection.GetPreferPlainText());
 
     // there are three additional fields: envelope structure, bodystructure, and size in lines    
     // historical note: this code was originally in nsIMAPBodypartMessage::ParseIntoObjects()
@@ -2999,6 +3018,16 @@ void nsImapServerResponseParser::quota_data()
   }
   else
     SetSyntaxError(PR_TRUE);
+}
+
+void nsImapServerResponseParser::id_data()
+{
+  AdvanceToNextToken();
+  if (!PL_strcasecmp(fNextToken, "NIL"))
+    AdvanceToNextToken();
+  else
+    fServerIdResponse.Adopt(CreateParenGroup());
+  skip_to_CRLF();
 }
 
 PRBool nsImapServerResponseParser::GetFillingInShell()

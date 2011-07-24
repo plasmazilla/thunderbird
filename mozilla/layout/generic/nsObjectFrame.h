@@ -48,6 +48,9 @@
 #include "nsFrame.h"
 #include "nsRegion.h"
 #include "nsDisplayList.h"
+#include "nsIReflowCallback.h"
+#include "Layers.h"
+#include "ImageLayers.h"
 
 #ifdef ACCESSIBILITY
 class nsIAccessible;
@@ -59,11 +62,20 @@ class nsIPluginInstance;
 class nsPresContext;
 class nsDisplayPlugin;
 class nsIDOMElement;
+class nsIOSurface;
+class PluginBackgroundSink;
 
 #define nsObjectFrameSuper nsFrame
 
-class nsObjectFrame : public nsObjectFrameSuper, public nsIObjectFrame {
+class nsObjectFrame : public nsObjectFrameSuper,
+                      public nsIObjectFrame,
+                      public nsIReflowCallback {
 public:
+  typedef mozilla::LayerState LayerState;
+  typedef mozilla::layers::Layer Layer;
+  typedef mozilla::layers::LayerManager LayerManager;
+  typedef mozilla::layers::ImageContainer ImageContainer;
+
   NS_DECL_FRAMEARENA_HELPERS
 
   friend nsIFrame* NS_NewObjectFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
@@ -90,6 +102,12 @@ public:
                           nsGUIEvent* aEvent,
                           nsEventStatus* aEventStatus);
 
+#ifdef XP_MACOSX
+  NS_IMETHOD HandlePress(nsPresContext* aPresContext,
+                         nsGUIEvent*    aEvent,
+                         nsEventStatus* aEventStatus);
+#endif
+
   virtual nsIAtom* GetType() const;
 
   virtual PRBool IsFrameOfType(PRUint32 aFlags) const
@@ -103,7 +121,7 @@ public:
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
 #endif
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
 
@@ -121,11 +139,7 @@ public:
    */
   void StopPluginInternal(PRBool aDelayedStop);
 
-  /* fail on any requests to get a cursor from us because plugins set their own! see bug 118877 */
-  NS_IMETHOD GetCursor(const nsPoint& aPoint, nsIFrame::Cursor& aCursor) 
-  {
-    return NS_ERROR_NOT_IMPLEMENTED;
-  }
+  NS_IMETHOD GetCursor(const nsPoint& aPoint, nsIFrame::Cursor& aCursor);
 
   // Compute the desired position of the plugin's widget, on the assumption
   // that it is not visible (clipped out or covered by opaque content).
@@ -143,7 +157,7 @@ public:
 
   // accessibility support
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #ifdef XP_WIN
   NS_IMETHOD GetPluginPort(HWND *aPort);
 #endif
@@ -155,6 +169,46 @@ public:
   // for a given aRoot, this walks the frame tree looking for the next outFrame
   static nsIObjectFrame* GetNextObjectFrame(nsPresContext* aPresContext,
                                             nsIFrame* aRoot);
+
+  // nsIReflowCallback
+  virtual PRBool ReflowFinished();
+  virtual void ReflowCallbackCanceled();
+
+  void UpdateImageLayer(ImageContainer* aContainer, const gfxRect& aRect);
+
+  /**
+   * Builds either an ImageLayer or a ReadbackLayer, depending on the type
+   * of aItem (TYPE_PLUGIN or TYPE_PLUGIN_READBACK respectively).
+   */
+  already_AddRefed<Layer> BuildLayer(nsDisplayListBuilder* aBuilder,
+                                     LayerManager* aManager,
+                                     nsDisplayItem* aItem);
+
+  virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
+                                   LayerManager* aManager);
+
+  already_AddRefed<ImageContainer> GetImageContainer(LayerManager* aManager = nsnull);
+  /**
+   * Get the rectangle (relative to this frame) which it will paint. Normally
+   * the frame's content-box but may be smaller if the plugin is rendering
+   * asynchronously and has a different-sized image temporarily.
+   */
+  nsRect GetPaintedRect(nsDisplayPlugin* aItem);
+
+  /**
+   * If aContent has a nsObjectFrame, then prepare it for a DocShell swap.
+   * @see nsSubDocumentFrame::BeginSwapDocShells.
+   * There will be a call to EndSwapDocShells after we were moved to the
+   * new view tree.
+   */
+  static void BeginSwapDocShells(nsIContent* aContent, void*);
+  /**
+   * If aContent has a nsObjectFrame, then set it up after a DocShell swap.
+   * @see nsSubDocumentFrame::EndSwapDocShells.
+   */
+  static void EndSwapDocShells(nsIContent* aContent, void*);
+
+  nsIWidget* GetWidget() { return mWidget; }
 
 protected:
   nsObjectFrame(nsStyleContext* aContext);
@@ -179,7 +233,7 @@ protected:
   /**
    * Sets up the plugin window and calls SetWindow on the plugin.
    */
-  void CallSetWindow();
+  nsresult CallSetWindow(PRBool aCheckIsHidden = PR_TRUE);
 
   PRBool IsFocusable(PRInt32 *aTabIndex = nsnull, PRBool aWithMouse = PR_FALSE);
 
@@ -187,6 +241,7 @@ protected:
   PRBool IsHidden(PRBool aCheckVisibilityStyle = PR_TRUE) const;
 
   PRBool IsOpaque() const;
+  PRBool IsTransparentMode() const;
 
   void NotifyContentObjectWrapper();
 
@@ -197,7 +252,8 @@ protected:
                                const nsRect& aDirtyRect, nsPoint aPt);
   void PrintPlugin(nsIRenderingContext& aRenderingContext,
                    const nsRect& aDirtyRect);
-  void PaintPlugin(nsIRenderingContext& aRenderingContext,
+  void PaintPlugin(nsDisplayListBuilder* aBuilder,
+                   nsIRenderingContext& aRenderingContext,
                    const nsRect& aDirtyRect, const nsRect& aPluginRect);
 
   /**
@@ -219,8 +275,6 @@ protected:
                              const nsPoint& aPluginOrigin,
                              nsTArray<nsIWidget::Configuration>* aConfigurations);
 
-  nsIWidget* GetWidget() { return mWidget; }
-
   nsresult SetAbsoluteScreenPosition(nsIDOMElement* element,
                                      nsIDOMClientRect* position,
                                      nsIDOMClientRect* clip);
@@ -229,6 +283,7 @@ protected:
 
   friend class nsPluginInstanceOwner;
   friend class nsDisplayPlugin;
+  friend class PluginBackgroundSink;
 
 private:
   
@@ -246,20 +301,28 @@ private:
   nsIView*                        mInnerView;
   nsCOMPtr<nsIWidget>             mWidget;
   nsIntRect                       mWindowlessRect;
-#ifdef XP_WIN
-  PRUint32                        mDoublePassEvent;
-#endif
+  /**
+   * This is owned by the ReadbackLayer for this nsObjectFrame. It is
+   * automatically cleared if the PluginBackgroundSink is destroyed.
+   */
+  PluginBackgroundSink*           mBackgroundSink;
 
   // For assertions that make it easier to determine if a crash is due
   // to the underlying problem described in bug 136927, and to prevent
   // reentry into instantiation.
   PRBool mPreventInstantiation;
+
+  PRPackedBool mReflowCallbackPosted;
+
+  // A reference to the ImageContainer which contains the current frame
+  // of plugin to display.
+  nsRefPtr<ImageContainer> mImageContainer;
 };
 
 class nsDisplayPlugin : public nsDisplayItem {
 public:
-  nsDisplayPlugin(nsIFrame* aFrame)
-    : nsDisplayItem(aFrame)
+  nsDisplayPlugin(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame)
+    : nsDisplayItem(aBuilder, aFrame)
   {
     MOZ_COUNT_CTOR(nsDisplayPlugin);
   }
@@ -269,26 +332,42 @@ public:
   }
 #endif
 
-  virtual Type GetType() { return TYPE_PLUGIN; }
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder);
-  virtual PRBool IsOpaque(nsDisplayListBuilder* aBuilder);
+  virtual nsRegion GetOpaqueRegion(nsDisplayListBuilder* aBuilder,
+                                   PRBool* aForceTransparentSurface = nsnull);
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
   virtual PRBool ComputeVisibility(nsDisplayListBuilder* aBuilder,
                                    nsRegion* aVisibleRegion,
-                                   nsRegion* aVisibleRegionBeforeMove);
+                                   const nsRect& aAllowVisibleRegionExpansion,
+                                   PRBool& aContainsRootContentDocBG);
 
-  NS_DISPLAY_DECL_NAME("Plugin")
+  NS_DISPLAY_DECL_NAME("Plugin", TYPE_PLUGIN)
 
   // Compute the desired position and clip region of the plugin's widget.
   // This will only be called for plugins which have been registered
   // with the root pres context for geometry updates.
   // The widget, its new position, size and clip region are appended as
   // a Configuration record to aConfigurations.
-  // If there is no widget associated with the plugin, this
-  // simply does nothing.
+  // If the plugin has no widget, no configuration is added, but
+  // the plugin visibility state may be adjusted.
   void GetWidgetConfiguration(nsDisplayListBuilder* aBuilder,
                               nsTArray<nsIWidget::Configuration>* aConfigurations);
+
+  virtual already_AddRefed<Layer> BuildLayer(nsDisplayListBuilder* aBuilder,
+                                             LayerManager* aManager)
+  {
+    return static_cast<nsObjectFrame*>(mFrame)->BuildLayer(aBuilder,
+                                                           aManager, 
+                                                           this);
+  }
+
+  virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
+                                   LayerManager* aManager)
+  {
+    return static_cast<nsObjectFrame*>(mFrame)->GetLayerState(aBuilder,
+                                                              aManager);
+  }
 
 private:
   nsRegion mVisibleRegion;

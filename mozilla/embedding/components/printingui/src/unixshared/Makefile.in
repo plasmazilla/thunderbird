@@ -44,18 +44,9 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= embedcomponents
 LIBRARY_NAME	= printingui_s
+EXPORT_LIBRARY	= ..
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  windowwatcher \
-		  widget \
-		  gfx \
-		  layout \
-		  uriloader \
-		  webbrwsr \
-		  $(NULL)
 
 CPPSRCS		= \
       nsPrintingPromptService.cpp \

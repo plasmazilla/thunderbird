@@ -87,13 +87,7 @@ public:
   /* ------------ nsIEditorMailSupport overrides -------------- */
   NS_DECL_NSIEDITORMAILSUPPORT
 
-  /* ------------ nsIEditorIMESupport overrides -------------- */
-  NS_IMETHOD SetCompositionString(const nsAString &aCompositionString,
-                                  nsIPrivateTextRangeList *aTextRange,
-                                  nsTextEventReply *aReply);
-
   /* ------------ Overrides of nsEditor interface methods -------------- */
-  NS_IMETHOD BeginComposition(nsTextEventReply* aReply);
   NS_IMETHOD SetAttributeOrEquivalent(nsIDOMElement * aElement,
                                       const nsAString & aAttribute,
                                       const nsAString & aValue,
@@ -103,7 +97,7 @@ public:
                                          PRBool aSuppressTransaction);
 
   /** prepare the editor for use */
-  NS_IMETHOD Init(nsIDOMDocument *aDoc, nsIPresShell *aPresShell,  nsIContent *aRoot, nsISelectionController *aSelCon, PRUint32 aFlags);
+  NS_IMETHOD Init(nsIDOMDocument *aDoc, nsIContent *aRoot, nsISelectionController *aSelCon, PRUint32 aFlags);
   
   NS_IMETHOD GetDocumentIsEmpty(PRBool *aDocumentIsEmpty);
   NS_IMETHOD GetIsDocumentEditable(PRBool *aIsDocumentEditable);
@@ -111,9 +105,6 @@ public:
   NS_IMETHOD DeleteSelection(EDirection aAction);
 
   NS_IMETHOD SetDocumentCharacterSet(const nsACString & characterSet);
-
-  NS_IMETHOD GetFlags(PRUint32 *aFlags);
-  NS_IMETHOD SetFlags(PRUint32 aFlags);
 
   NS_IMETHOD Undo(PRUint32 aCount);
   NS_IMETHOD Redo(PRUint32 aCount);
@@ -124,6 +115,8 @@ public:
   NS_IMETHOD CanCopy(PRBool *aCanCopy);
   NS_IMETHOD Paste(PRInt32 aSelectionType);
   NS_IMETHOD CanPaste(PRInt32 aSelectionType, PRBool *aCanPaste);
+  NS_IMETHOD PasteTransferable(nsITransferable *aTransferable);
+  NS_IMETHOD CanPasteTransferable(nsITransferable *aTransferable, PRBool *aCanPaste);
 
   NS_IMETHOD CanDrag(nsIDOMEvent *aDragEvent, PRBool *aCanDrag);
   NS_IMETHOD DoDrag(nsIDOMEvent *aDragEvent);
@@ -150,6 +143,14 @@ public:
   /** make the given selection span the entire document */
   NS_IMETHOD SelectEntireDocument(nsISelection *aSelection);
 
+  virtual nsresult HandleKeyPressEvent(nsIDOMKeyEvent* aKeyEvent);
+
+  virtual already_AddRefed<nsPIDOMEventTarget> GetPIDOMEventTarget();
+
+  virtual nsresult BeginIMEComposition();
+  virtual nsresult UpdateIMEComposition(const nsAString &aCompositionString,
+                                        nsIPrivateTextRangeList *aTextRange);
+
   /* ------------ Utility Routines, not part of public API -------------- */
   NS_IMETHOD TypedText(const nsAString& aString, PRInt32 aAction);
 
@@ -174,14 +175,14 @@ public:
   nsresult ExtendSelectionForDelete(nsISelection* aSelection,
                                     nsIEditor::EDirection *aAction);
 
+  static void GetDefaultEditorPrefs(PRInt32 &aNewLineHandling,
+                                    PRInt32 &aCaretStyle);
+
 protected:
 
   NS_IMETHOD  InitRules();
   void        BeginEditorInit();
   nsresult    EndEditorInit();
-
-  // Create the event listeners for the editor to install.
-  virtual nsresult CreateEventListeners();
 
   // Helpers for output routines
   NS_IMETHOD GetAndInitDocEncoder(const nsAString& aFormatType,
@@ -217,10 +218,8 @@ protected:
   PRBool   mIgnoreSpuriousDragEvent;
   NS_IMETHOD IgnoreSpuriousDragEvent(PRBool aIgnoreSpuriousDragEvent) {mIgnoreSpuriousDragEvent = aIgnoreSpuriousDragEvent; return NS_OK;}
 
-  // Wrapper for nsCopySupport::GetClipboardEventTarget, finds target to fire
-  // [cut,copy,paste] and [beforecut,beforecopy,beforepaste] events at.
-  nsresult GetClipboardEventTarget(nsIDOMNode** aEventTarget);
-  nsresult FireClipboardEvent(PRUint32 msg, PRBool* aPreventDefault);
+  PRBool CanCutOrCopy();
+  PRBool FireClipboardEvent(PRInt32 aType);
 
 // Data members
 protected:

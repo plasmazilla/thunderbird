@@ -1,4 +1,4 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+// /* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -116,16 +116,24 @@
             isPhishingURL(ceParams.linkNode, false, href))
           return false;
         handleLinkClick(event, href, ceParams.linkNode);
+
+        // Mark the page as a user followed link.  This is done so that history can
+        // distinguish automatic embed visits from user activated ones.  For example
+        // pages loaded in frames are embed visits and lost with the session, while
+        // visits across frames should be preserved.
+        try {
+          PlacesUIUtils.markPageAsFollowedLink(href);
+        } catch (ex) { /* Skip invalid URIs. */ }
       }
       return true;
     }
 
     if (pref && !isKeyCommand && event.button == 1 &&
-        pref.getBoolPref("middlemouse.contentLoadURL")) {
-      if (middleMousePaste(event)) {
-        event.stopPropagation();
-      }
+        pref.getBoolPref("middlemouse.contentLoadURL") &&
+        !pref.getBoolPref("general.autoScroll")) {
+      middleMousePaste(event);
     }
+
     return true;
   }
 
@@ -133,7 +141,7 @@
   {
     // should we open it in a new tab?
     if (pref && pref.getBoolPref("browser.tabs.opentabfor.middleclick")) {
-      openNewTabWith(href, doc, event.shiftKey);
+      openNewTabWith(href, doc, null, event);
       event.stopPropagation();
       return true;
     }
@@ -189,11 +197,11 @@
   var gGlobalHistory = null;
   var gURIFixup = null;
 
-  function middleMousePaste( event )
+  function middleMousePaste(event)
   {
     var url = readFromClipboard();
     if (!url)
-      return false;
+      return;
     addToUrlbarHistory(url);
     url = getShortcutOrURI(url);
 
@@ -207,14 +215,16 @@
 
       url = gURIFixup.createFixupURI(url, nsIURIFixup.FIXUP_FLAGS_MAKE_ALTERNATE_URI).spec;
 
-      return openNewTabOrWindow(event, url, null);
+      if (openNewTabOrWindow(event, url, null))
+        event.stopPropagation();
+      return;
     }
 
     // If ctrl wasn't down, then just load the url in the targeted win/tab.
     var browser = getBrowser();
     var tab = event.originalTarget;
     if (tab.localName == "tab" &&
-        tab.parentNode == browser.mTabContainer) {
+        tab.parentNode == browser.tabContainer) {
       tab.linkedBrowser.userTypedValue = url;
       if (tab == browser.mCurrentTab && url != "about:blank") {
           gURLBar.value = url;
@@ -234,9 +244,7 @@
       }
       loadURI(url);
     }
-
     event.stopPropagation();
-    return true;
   }
 
   function addToUrlbarHistory(aUrlToAdd)

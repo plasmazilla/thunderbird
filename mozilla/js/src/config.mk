@@ -62,7 +62,7 @@ OS_ARCH         := IRIX
 endif
 
 # Handle output from win32 unames other than Netscape's version
-ifeq (,$(filter-out Windows_95 Windows_98 CYGWIN_95-4.0 CYGWIN_98-4.10, $(OS_ARCH)))
+ifeq (,$(filter-out Windows_95 Windows_98, $(OS_ARCH)))
 	OS_ARCH   := WIN95
 endif
 ifeq ($(OS_ARCH),WIN95)
@@ -76,13 +76,6 @@ ifeq ($(OS_ARCH), Windows_NT)
 		OS_MINOR_RELEASE = 0
 	endif
 	OS_RELEASE := $(OS_RELEASE).$(OS_MINOR_RELEASE)
-endif
-ifeq (CYGWIN_NT,$(findstring CYGWIN_NT,$(OS_ARCH)))
-	OS_RELEASE := $(patsubst CYGWIN_NT-%,%,$(OS_ARCH))
-	OS_ARCH    := WINNT
-endif
-ifeq ($(OS_ARCH), CYGWIN32_NT)
-	OS_ARCH    := WINNT
 endif
 ifeq (MINGW32_NT,$(findstring MINGW32_NT,$(OS_ARCH)))
 	OS_RELEASE := $(patsubst MINGW32_NT-%,%,$(OS_ARCH))
@@ -127,9 +120,9 @@ INTERP_OPTIMIZER = -O2 -GL
 BUILTINS_OPTIMIZER = -O2 -GL
 LDFLAGS    += -LTCG
 else
-OPTIMIZER           = -Os -fstrict-aliasing -fno-exceptions -fno-rtti -Wstrict-aliasing=2
-BUILTINS_OPTIMIZER  = -O9 -fstrict-aliasing -fno-exceptions -fno-rtti
-INTERP_OPTIMIZER    = -O3 -fstrict-aliasing -fno-exceptions -fno-rtti
+OPTIMIZER           = -Os -fno-exceptions -fno-rtti -fstrict-aliasing -Wstrict-aliasing=3
+BUILTINS_OPTIMIZER  = -O9 -fno-exceptions -fno-rtti -fstrict-aliasing
+INTERP_OPTIMIZER    = -O3 -fno-exceptions -fno-rtti -fstrict-aliasing
 endif
 DEFINES    += -UDEBUG -DNDEBUG -UDEBUG_$(USER)
 OBJDIR_TAG = _OPT
@@ -139,7 +132,7 @@ OPTIMIZER  = -Zi
 INTERP_OPTIMIZER = -Zi
 BUILTINS_OPTIMIZER = $(INTERP_OPTIMIZER)
 else
-OPTIMIZER          = -g3 -fstrict-aliasing -fno-exceptions -fno-rtti -Wstrict-aliasing=2
+OPTIMIZER          = -g3 -fstrict-aliasing -fno-exceptions -fno-rtti -Wstrict-aliasing=3
 INTERP_OPTIMIZER   = -g3 -fstrict-aliasing -fno-exceptions -fno-rtti
 BUILTINS_OPTIMIZER = $(INTERP_OPTIMIZER)
 endif
@@ -150,17 +143,6 @@ endif
 SO_SUFFIX = so
 
 NS_USE_NATIVE = 1
-
-ifdef MOZ_OJI
-# Java stuff
-CLASSDIR     = $(DEPTH)/liveconnect/classes
-JAVA_CLASSES = $(patsubst %.java,%.class,$(JAVA_SRCS))
-TARGETS     += $(addprefix $(CLASSDIR)/$(OBJDIR)/$(JARPATH)/, $(JAVA_CLASSES))
-JAVAC        = $(JDK)/bin/javac
-JAVAC_FLAGS  = -classpath "$(CLASSPATH)" -d $(CLASSDIR)/$(OBJDIR)
-SEP        = :
-CLASSPATH    = $(JDK)/lib/classes.zip$(SEP)$(CLASSDIR)/$(OBJDIR)
-endif
 
 include $(DEPTH)/ref-config/$(OS_CONFIG).mk
 

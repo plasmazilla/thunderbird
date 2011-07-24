@@ -49,7 +49,6 @@
 #include "nsIHttpChannel.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsNetError.h"
-#include "nsPIDOMWindow.h"
 
 //*****************************************************************************
 //***    nsDSURIContentListener: Object Management
@@ -147,6 +146,12 @@ nsDSURIContentListener::DoContent(const char* aContentType,
     }
 
     rv = mDocShell->CreateContentViewer(aContentType, request, aContentHandler);
+
+    if (rv == NS_ERROR_REMOTE_XUL) {
+      request->Cancel(rv);
+      return NS_OK;
+    }
+
     if (NS_FAILED(rv)) {
        // it's okay if we don't know how to handle the content   
         return NS_OK;
@@ -324,7 +329,6 @@ bool nsDSURIContentListener::CheckFrameOptions(nsIRequest* request)
         nsCOMPtr<nsIDocShellTreeItem> parentDocShellItem,
                                       curDocShellItem = thisDocShellItem;
         nsCOMPtr<nsIDocument> topDoc;
-        nsCOMPtr<nsPIDOMWindow> parentWin;
         nsresult rv;
         nsCOMPtr<nsIScriptSecurityManager> ssm =
             do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
@@ -336,21 +340,16 @@ bool nsDSURIContentListener::CheckFrameOptions(nsIRequest* request)
         while (NS_SUCCEEDED(curDocShellItem->GetParent(getter_AddRefs(parentDocShellItem))) &&
                parentDocShellItem) {
             PRBool system = PR_FALSE;
-            parentWin = do_GetInterface(parentDocShellItem);
-            if (parentWin) {
-                topDoc = do_QueryInterface(parentWin->GetExtantDocument());
-                if (topDoc) {
-                    if (NS_SUCCEEDED(ssm->IsSystemPrincipal(topDoc->NodePrincipal(),
-                                                            &system)) && system) {
-                        break;
-                    }
+            topDoc = do_GetInterface(parentDocShellItem);
+            if (topDoc) {
+                if (NS_SUCCEEDED(ssm->IsSystemPrincipal(topDoc->NodePrincipal(),
+                                                        &system)) && system) {
+                    break;
                 }
-                else
-                    return false;
             }
-            else
+            else {
                 return false;
-
+            }
             curDocShellItem = parentDocShellItem;
         }
 
@@ -364,20 +363,12 @@ bool nsDSURIContentListener::CheckFrameOptions(nsIRequest* request)
         if (xfoHeaderValue.LowerCaseEqualsLiteral("sameorigin")) {
             nsCOMPtr<nsIURI> uri;
             httpChannel->GetURI(getter_AddRefs(uri));
-            parentWin = do_GetInterface(curDocShellItem);
-            if (parentWin) {
-                topDoc = do_QueryInterface(parentWin->GetExtantDocument());
-                if (topDoc) {
-                    nsCOMPtr<nsIURI> topUri;
-                    topDoc->NodePrincipal()->GetURI(getter_AddRefs(topUri));
-                    if (NS_SUCCEEDED(ssm->CheckSameOriginURI(uri, topUri, PR_TRUE)))
-                        return true;
-                }
-                else
-                    return false;
-            }
-            else
-                return false;
+            topDoc = do_GetInterface(curDocShellItem);
+            nsCOMPtr<nsIURI> topUri;
+            topDoc->NodePrincipal()->GetURI(getter_AddRefs(topUri));
+            rv = ssm->CheckSameOriginURI(uri, topUri, PR_TRUE);
+            if (NS_SUCCEEDED(rv))
+                return true;
         }
 
         else {

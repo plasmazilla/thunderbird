@@ -48,12 +48,8 @@ LIBRARY_NAME	= xpcomds_s
 GRE_MODULE	= 1
 MOZILLA_INTERNAL_API = 1
 
-REQUIRES	= \
-		  string \
-		  $(NULL)
 
 CPPSRCS		= \
-		TimeStamp.cpp \
 		nsArray.cpp \
 		nsAtomTable.cpp \
 		nsAtomService.cpp \
@@ -80,6 +76,12 @@ CPPSRCS		= \
 		nsVariant.cpp \
 		$(NULL)
 
+ifdef HAVE_CLOCK_MONOTONIC
+CPPSRCS += TimeStamp_posix.cpp
+else
+CPPSRCS += TimeStamp.cpp
+endif
+
 EXPORTS_NAMESPACES = mozilla
 
 EXPORTS_mozilla = \
@@ -98,7 +100,6 @@ EXPORTS		= \
 		nsHashtable.h \
 		nsIByteBuffer.h \
 		nsIUnicharBuffer.h \
-		nsInt64.h \
 		nsMathUtils.h \
 		nsObserverService.h \
 		nsRecyclingAllocator.h \
@@ -111,7 +112,8 @@ EXPORTS		= \
 		nsStringEnumerator.h \
 		nsHashPropertyBag.h \
 		nsWhitespaceTokenizer.h \
-		nsCommaSeparatedTokenizer.h \
+		nsCharSeparatedTokenizer.h \
+		CheckedInt.h \
 		$(NULL)			
 
 XPIDLSRCS	= \
@@ -154,6 +156,7 @@ endif
 
 EXTRA_COMPONENTS = \
   nsINIProcessor.js \
+  nsINIProcessor.manifest \
   $(NULL)
 
 # we don't want the shared lib, but we want to force the creation of a static lib.

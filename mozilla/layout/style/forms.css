@@ -96,6 +96,12 @@ input {
   color: -moz-FieldText;
   font: -moz-field;
   text-rendering: optimizeLegibility;
+  /*
+   * Note that the "UA !important" tests in
+   * layout/style/test/test_animations.html depend on this rule, because
+   * they need some UA !important rule to test.  If this changes, use a
+   * different one there.
+   */
   line-height: normal !important;
   text-align: start;
   text-transform: none;
@@ -114,6 +120,20 @@ input > .anonymous-div {
   line-height: -moz-block-height;
 }
 
+/* Make sure that the location bar's alignment in RTL mode changes according
+   to the input box direction if the user switches the text direction using
+   cmd_switchTextDirection (which applies a dir attribute to the input box's
+   anonymous div. */
+@-moz-document url-prefix(chrome://) {
+  input.uri-element-right-align:-moz-locale-dir(rtl) > .anonymous-div {
+    text-align: right !important;
+  }
+
+  input.uri-element-right-align:-moz-locale-dir(rtl) > .anonymous-div[dir=ltr] {
+    text-align: left !important;
+  }
+}
+
 textarea {
   margin: 1px 0 1px 0;
   border: 2px inset ThreeDFace;
@@ -127,6 +147,7 @@ textarea {
   letter-spacing: normal;
   vertical-align: text-bottom;
   cursor: text;
+  resize: both;
   -moz-binding: url("chrome://global/content/platformHTMLBindings.xml#textAreas");
   -moz-appearance: textfield-multiline;
   text-indent: 0;
@@ -151,6 +172,7 @@ input > .anonymous-div {
      but it's needed to make 'text-decoration' "work" on text inputs. */
   text-decoration: inherit;
   ime-mode: inherit;
+  resize: inherit;
 }
 
 textarea > .anonymous-div.wrap,
@@ -160,6 +182,27 @@ input > .anonymous-div.wrap {
 textarea > .anonymous-div.inherit-overflow,
 input > .anonymous-div.inherit-overflow {
   overflow: inherit;
+}
+
+input:-moz-placeholder,
+textarea:-moz-placeholder {
+  color: GrayText;
+}
+
+input > .placeholder,
+textarea > .placeholder {
+  overflow: hidden;
+  pointer-events: none;
+  resize: none;
+}
+
+textarea > .placeholder {
+  white-space: pre-wrap;
+}
+
+input > .placeholder.hidden,
+textarea > .placeholder.hidden {
+  visibility: hidden;
 }
 
 input:-moz-read-write,
@@ -212,7 +255,7 @@ select[size="1"] {
   -moz-appearance: menulist;
 }
 
-select > input[type="button"] {
+select > button {
   width: 12px;
   height: 12px;
   white-space: nowrap;
@@ -234,7 +277,7 @@ select > input[type="button"] {
   vertical-align: top !important;
 }
 
-select > input[type="button"]:active {
+select > button:active {
   background-image: url("arrowd.gif") !important;
 }
 
@@ -250,7 +293,6 @@ select:empty {
   padding-bottom: 1px;
   -moz-padding-start: 4px;
   -moz-padding-end: 0;
-  background-color: inherit;
   color: inherit;
   white-space: nowrap;
   text-align: inherit;
@@ -258,10 +300,6 @@ select:empty {
   /* Make sure to size correctly if the combobox has a non-auto height. */
   height: 100% ! important;
   -moz-box-sizing: border-box ! important;
-}
-
-select::-moz-scrolled-content {
-  display: block !important;
 }
 
 option {
@@ -338,11 +376,13 @@ optgroup:before {
   border-left-width: 2px ! important;
 } 
 
-input[disabled],
-textarea[disabled],
-option[disabled],
-optgroup[disabled],
-select[disabled] {
+input:disabled,
+textarea:disabled,
+option:disabled,
+optgroup:disabled,
+select:disabled:disabled /* Need the pseudo-class twice to have the specificity
+                            be at least the same as select[size][multiple] above */
+{
   -moz-user-input: disabled;
   -moz-user-focus: ignore;
   color: GrayText;
@@ -350,8 +390,8 @@ select[disabled] {
   cursor: inherit;
 }
 
-option[disabled],
-optgroup[disabled] {
+option:disabled,
+optgroup:disabled {
   background-color: transparent;
 }
 
@@ -378,11 +418,11 @@ input[type="image"] {
   -moz-binding: none;
 }
 
-input[type="image"][disabled] {
+input[type="image"]:disabled {
   cursor: inherit;
 }
 
-input[type="image"]:focus {
+input[type="image"]:-moz-focusring {
   /* Don't specify the outline-color, we should always use initial value. */
   outline: 1px dotted;
 }
@@ -411,20 +451,21 @@ input[type="file"] > input[type="button"] {
   height: inherit;
   font-size: inherit;
   letter-spacing: inherit;
+  cursor: inherit;
 }
 
 /* radio buttons */
 input[type="radio"] {
   -moz-appearance: radio;
   margin: 3px 3px 0px 5px;
-  -moz-border-radius: 100% !important;
+  border-radius: 100% !important;
 }
 
 /* check boxes */
 input[type="checkbox"] {
   -moz-appearance: checkbox;
   margin: 3px 3px 3px 4px;
-  -moz-border-radius: 0 !important;
+  border-radius: 0 !important;
 }
 
 /* common features of radio buttons and check boxes */
@@ -448,14 +489,14 @@ input[type="checkbox"] {
   border: 2px inset ThreeDFace ! important;
 }
 
-input[type="radio"][disabled],
-input[type="radio"][disabled]:active,
-input[type="radio"][disabled]:hover,
-input[type="radio"][disabled]:hover:active,
-input[type="checkbox"][disabled],
-input[type="checkbox"][disabled]:active,
-input[type="checkbox"][disabled]:hover,
-input[type="checkbox"][disabled]:hover:active {
+input[type="radio"]:disabled,
+input[type="radio"]:disabled:active,
+input[type="radio"]:disabled:hover,
+input[type="radio"]:disabled:hover:active,
+input[type="checkbox"]:disabled,
+input[type="checkbox"]:disabled:active,
+input[type="checkbox"]:disabled:hover,
+input[type="checkbox"]:disabled:hover:active {
   padding: 1px;
   border: 1px inset ThreeDShadow ! important;
   /* same as above, but !important */
@@ -464,8 +505,8 @@ input[type="checkbox"][disabled]:hover:active {
   cursor: inherit; 
 }
 
-input[type="checkbox"]:focus,
-input[type="radio"]:focus {
+input[type="checkbox"]:-moz-focusring,
+input[type="radio"]:-moz-focusring {
   border-style: groove !important;
 }
 
@@ -540,23 +581,23 @@ input[type="file"] > input[type="button"]::-moz-focus-inner {
   border: 1px dotted transparent;
 }
 
-button:focus::-moz-focus-inner,
-input[type="reset"]:focus::-moz-focus-inner,
-input[type="button"]:focus::-moz-focus-inner,
-input[type="submit"]:focus::-moz-focus-inner,
-input[type="file"] > input[type="button"]:focus::-moz-focus-inner {
+button:-moz-focusring::-moz-focus-inner,
+input[type="reset"]:-moz-focusring::-moz-focus-inner,
+input[type="button"]:-moz-focusring::-moz-focus-inner,
+input[type="submit"]:-moz-focusring::-moz-focus-inner,
+input[type="file"] > input[type="button"]:-moz-focusring::-moz-focus-inner {
   border-color: ButtonText;
 }
 
-button[disabled]:active, button[disabled],
-input[type="reset"][disabled]:active,
-input[type="reset"][disabled],
-input[type="button"][disabled]:active,
-input[type="button"][disabled],
-select[disabled] > input[type="button"],
-select[disabled] > input[type="button"]:active,
-input[type="submit"][disabled]:active,
-input[type="submit"][disabled] {
+button:disabled:active, button:disabled,
+input[type="reset"]:disabled:active,
+input[type="reset"]:disabled,
+input[type="button"]:disabled:active,
+input[type="button"]:disabled,
+select:disabled > button,
+select:disabled > button,
+input[type="submit"]:disabled:active,
+input[type="submit"]:disabled {
   /* The sum of border-top, border-bottom, padding-top, padding-bottom
      must be the same here and for text inputs */
   padding: 0px 6px 0px 6px;
@@ -599,6 +640,21 @@ optgroup:before {
 input[type="file"] > input[type="text"] {
   direction: ltr !important;
   text-align: inherit;
+}
+
+/**
+ * Set default style for invalid elements.
+ */
+:not(output):-moz-ui-invalid {
+  box-shadow: 0 0 1.5px 1px red;
+}
+
+:not(output):-moz-ui-invalid:-moz-focusring {
+  box-shadow: 0 0 2px 2px rgba(255,0,0,0.4);
+}
+
+output:-moz-ui-invalid {
+  color: red;
 }
 
 @media print {

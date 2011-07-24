@@ -41,26 +41,12 @@
 #
 # ***** END LICENSE BLOCK *****
 
-/*
- * No magic constructor behaviour, as is de rigeur for XPCOM.
- * If you must perform some initialization, and it could possibly fail (even
- * due to an out-of-memory condition), you should use an Init method, which
- * can convey failure appropriately (thrown exception in JS,
- * NS_FAILED(nsresult) return in C++).
- *
- * In JS, you can actually cheat, because a thrown exception will cause the
- * CreateInstance call to fail in turn, but not all languages are so lucky.
- * (Though ANSI C++ provides exceptions, they are verboten in Mozilla code
- * for portability reasons -- and even when you're building completely
- * platform-specific code, you can't throw across an XPCOM method boundary.)
- */
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const DEBUG = false; /* set to false to suppress debug messages */
 
-const SIDEBAR_CONTRACTID        = "@mozilla.org/sidebar;1";
 const SIDEBAR_CID               = Components.ID("{22117140-9c6e-11d3-aaf1-00805f8a4905}");
 const nsISupports               = Components.interfaces.nsISupports;
-const nsIFactory                = Components.interfaces.nsIFactory;
 const nsISidebar                = Components.interfaces.nsISidebar;
 const nsISidebarExternal        = Components.interfaces.nsISidebarExternal;
 const nsIClassInfo              = Components.interfaces.nsIClassInfo;
@@ -80,6 +66,8 @@ function nsSidebar()
     this.searchService =
       Components.classes[SEARCHSERVICE_CONTRACTID].getService(nsIBrowserSearchService);
 }
+
+nsSidebar.prototype.classID = SIDEBAR_CID;
 
 nsSidebar.prototype.nc = "http://home.netscape.com/NC-rdf#";
 
@@ -116,8 +104,10 @@ function (aTitle, aContentURL, aCustomizeURL, aPersist)
 {
     var WINMEDSVC = Components.classes['@mozilla.org/appshell/window-mediator;1']
                               .getService(Components.interfaces.nsIWindowMediator);
+
+    // XXX Bug 620418: We shouldn't do this anymore. Instead, we should find the
+    // global object for our caller and use it.
     var win = WINMEDSVC.getMostRecentWindow( "navigator:browser" );
-                                                                                
     if (!sidebarURLSecurityCheck(aContentURL))
       return;
 
@@ -129,7 +119,16 @@ function (aTitle, aContentURL, aCustomizeURL, aPersist)
     }
     catch(ex) { return; }
 
-    win.PlacesUIUtils.showMinimalAddBookmarkUI(uri, aTitle, null, null, true, true);
+    win.PlacesUIUtils.showBookmarkDialog({ action: "add"
+                                         , type: "bookmark"
+                                         , hiddenRows: [ "description"
+                                                       , "keyword"
+                                                       , "location"
+                                                       , "loadInSidebar" ]
+                                         , uri: uri
+                                         , title: aTitle
+                                         , loadBookmarkInSidebar: true
+                                         }, win, true);
 }
 
 nsSidebar.prototype.validateSearchEngine =
@@ -137,14 +136,13 @@ function (engineURL, iconURL)
 {
   try
   {
-    // Make sure we're using HTTP, HTTPS, or FTP.
-    if (! /^(https?|ftp):\/\//i.test(engineURL))
+    // Make sure the URLs are HTTP, HTTPS, or FTP.
+    var isWeb = /^(https?|ftp):\/\//i;
+
+    if (!isWeb.test(engineURL))
       throw "Unsupported search engine URL";
   
-    // Make sure we're using HTTP, HTTPS, or FTP and refering to a
-    // .gif/.jpg/.jpeg/.png/.ico file for the icon.
-    if (iconURL &&
-        ! /^(https?|ftp):\/\/.+\.(gif|jpg|jpeg|png|ico)$/i.test(iconURL))
+    if (iconURL && !isWeb.test(iconURL))
       throw "Unsupported search icon URL.";
   }
   catch(ex)
@@ -210,7 +208,7 @@ function (aDescriptionURL)
   if (browser.shouldLoadFavIcon(browser.selectedBrowser
                                        .contentDocument
                                        .documentURIObject))
-    iconURL = win.gProxyFavIcon.getAttribute("src");
+    iconURL = win.gBrowser.getIcon();
   
   if (!this.validateSearchEngine(aDescriptionURL, iconURL))
     return;
@@ -225,7 +223,7 @@ function (aDescriptionURL)
 // However, it is currently stubbed out due to security/privacy concerns
 // stemming from difficulties in determining what domain issued the request.
 // See bug 340604 and
-// http://msdn.microsoft.com/workshop/author/dhtml/reference/methods/issearchproviderinstalled.asp .
+// http://msdn.microsoft.com/en-us/library/aa342526%28VS.85%29.aspx .
 // XXX Implement this!
 nsSidebar.prototype.IsSearchProviderInstalled =
 function (aSearchURL)
@@ -283,76 +281,9 @@ function (iid) {
         return this;
 
     throw Components.results.NS_ERROR_NO_INTERFACE;
-}
+};
 
-var sidebarModule = new Object();
-
-sidebarModule.registerSelf =
-function (compMgr, fileSpec, location, type)
-{
-    debug("registering (all right -- a JavaScript module!)");
-    compMgr = compMgr.QueryInterface(Components.interfaces.nsIComponentRegistrar);
-
-    compMgr.registerFactoryLocation(SIDEBAR_CID,
-                                    "Sidebar JS Component",
-                                    SIDEBAR_CONTRACTID,
-                                    fileSpec,
-                                    location,
-                                    type);
-
-    const CATMAN_CONTRACTID = "@mozilla.org/categorymanager;1";
-    const nsICategoryManager = Components.interfaces.nsICategoryManager;
-    var catman = Components.classes[CATMAN_CONTRACTID].
-                            getService(nsICategoryManager);
-
-    const JAVASCRIPT_GLOBAL_PROPERTY_CATEGORY = "JavaScript global property";
-    catman.addCategoryEntry(JAVASCRIPT_GLOBAL_PROPERTY_CATEGORY,
-                            "sidebar",
-                            SIDEBAR_CONTRACTID,
-                            true,
-                            true);
-
-    catman.addCategoryEntry(JAVASCRIPT_GLOBAL_PROPERTY_CATEGORY,
-                            "external",
-                            SIDEBAR_CONTRACTID,
-                            true,
-                            true);
-}
-
-sidebarModule.getClassObject =
-function (compMgr, cid, iid) {
-    if (!cid.equals(SIDEBAR_CID))
-        throw Components.results.NS_ERROR_NO_INTERFACE;
-
-    if (!iid.equals(Components.interfaces.nsIFactory))
-        throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-
-    return sidebarFactory;
-}
-
-sidebarModule.canUnload =
-function(compMgr)
-{
-    debug("Unloading component.");
-    return true;
-}
-
-/* factory object */
-var sidebarFactory = new Object();
-
-sidebarFactory.createInstance =
-function (outer, iid) {
-    debug("CI: " + iid);
-    if (outer != null)
-        throw Components.results.NS_ERROR_NO_AGGREGATION;
-
-    return (new nsSidebar()).QueryInterface(iid);
-}
-
-/* entrypoint */
-function NSGetModule(compMgr, fileSpec) {
-    return sidebarModule;
-}
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([nsSidebar]);
 
 /* static functions */
 if (DEBUG)

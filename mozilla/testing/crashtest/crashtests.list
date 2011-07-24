@@ -8,6 +8,7 @@ include ../../content/canvas/crashtests/crashtests.list
 include ../../content/events/crashtests/crashtests.list
 include ../../content/html/document/crashtests/crashtests.list
 include ../../content/html/content/crashtests/crashtests.list
+include ../../content/smil/crashtests/crashtests.list
 include ../../content/svg/content/src/crashtests/crashtests.list
 include ../../content/xml/content/crashtest/crashtests.list
 include ../../content/xml/document/crashtests/crashtests.list
@@ -25,11 +26,7 @@ include ../../dom/base/crashtests/crashtests.list
 include ../../dom/src/offline/crashtests/crashtests.list
 include ../../dom/src/jsurl/crashtests/crashtests.list
 
-include ../../editor/libeditor/html/crashtests/crashtests.list
-include ../../editor/libeditor/base/crashtests/crashtests.list
-include ../../editor/libeditor/text/crashtests/crashtests.list
-include ../../editor/composer/src/crashtests/crashtests.list
-include ../../editor/txmgr/tests/crashtests/crashtests.list
+include ../../editor/crashtests.list
 
 include ../../intl/lwbrk/src/crashtests/crashtests.list
 include ../../intl/uconv/crashtests/crashtests.list
@@ -47,8 +44,7 @@ include ../../layout/xul/base/src/crashtests/crashtests.list
 include ../../layout/xul/base/src/grid/crashtests/crashtests.list
 include ../../layout/xul/base/src/tree/src/crashtests/crashtests.list
 
-include ../../gfx/src/thebes/crashtests/crashtests.list
-include ../../gfx/thebes/crashtests/crashtests.list
+include ../../gfx/tests/crashtests/crashtests.list
 
 include ../../modules/libpr0n/test/crashtests/crashtests.list
 include ../../modules/plugin/test/crashtests/crashtests.list

@@ -37,20 +37,22 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsXFormsWidgetsAccessible.h"
- 
+
+////////////////////////////////////////////////////////////////////////////////
 // nsXFormsDropmarkerWidgetAccessible
+////////////////////////////////////////////////////////////////////////////////
 
 nsXFormsDropmarkerWidgetAccessible::
-nsXFormsDropmarkerWidgetAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell):
-  nsLeafAccessible(aNode, aShell)
+  nsXFormsDropmarkerWidgetAccessible(nsIContent *aContent,
+                                     nsIWeakReference *aShell) :
+  nsLeafAccessible(aContent, aShell)
 {
 }
 
-nsresult
-nsXFormsDropmarkerWidgetAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsXFormsDropmarkerWidgetAccessible::NativeRole()
 {
-  *aRole = nsIAccessibleRole::ROLE_PUSHBUTTON;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_PUSHBUTTON;
 }
 
 nsresult
@@ -71,7 +73,8 @@ nsXFormsDropmarkerWidgetAccessible::GetStateInternal(PRUint32 *aState,
     *aExtraState = 0;
 
   PRBool isOpen = PR_FALSE;
-  nsresult rv = sXFormsService->IsDropmarkerOpen(mDOMNode, &isOpen);
+  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
+  nsresult rv = sXFormsService->IsDropmarkerOpen(DOMNode, &isOpen);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (isOpen)
@@ -97,7 +100,8 @@ nsXFormsDropmarkerWidgetAccessible::GetActionName(PRUint8 aIndex,
     return NS_ERROR_INVALID_ARG;
 
   PRBool isOpen = PR_FALSE;
-  nsresult rv = sXFormsService->IsDropmarkerOpen(mDOMNode, &isOpen);
+  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
+  nsresult rv = sXFormsService->IsDropmarkerOpen(DOMNode, &isOpen);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (isOpen)
@@ -114,39 +118,43 @@ nsXFormsDropmarkerWidgetAccessible::DoAction(PRUint8 aIndex)
   if (aIndex != eAction_Click)
     return NS_ERROR_INVALID_ARG;
 
-  return sXFormsService->ToggleDropmarkerState(mDOMNode);
+  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
+  return sXFormsService->ToggleDropmarkerState(DOMNode);
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 // nsXFormsCalendarWidgetAccessible
+////////////////////////////////////////////////////////////////////////////////
 
 nsXFormsCalendarWidgetAccessible::
-nsXFormsCalendarWidgetAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell):
-  nsAccessibleWrap(aNode, aShell)
+nsXFormsCalendarWidgetAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsAccessibleWrap(aContent, aShell)
 {
 }
 
-nsresult
-nsXFormsCalendarWidgetAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsXFormsCalendarWidgetAccessible::NativeRole()
 {
-  *aRole = nsIAccessibleRole::ROLE_CALENDAR;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_CALENDAR;
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 // nsXFormsComboboxPopupWidgetAccessible
+////////////////////////////////////////////////////////////////////////////////
 
 nsXFormsComboboxPopupWidgetAccessible::
-  nsXFormsComboboxPopupWidgetAccessible(nsIDOMNode *aNode, nsIWeakReference *aShell):
-  nsXFormsAccessible(aNode, aShell)
+  nsXFormsComboboxPopupWidgetAccessible(nsIContent *aContent,
+                                        nsIWeakReference *aShell) :
+  nsXFormsAccessible(aContent, aShell)
 {
 }
 
-nsresult
-nsXFormsComboboxPopupWidgetAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsXFormsComboboxPopupWidgetAccessible::NativeRole()
 {
-  *aRole = nsIAccessibleRole::ROLE_LIST;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_LIST;
 }
 
 nsresult
@@ -159,7 +167,8 @@ nsXFormsComboboxPopupWidgetAccessible::GetStateInternal(PRUint32 *aState,
   NS_ENSURE_A11Y_SUCCESS(rv, rv);
 
   PRBool isOpen = PR_FALSE;
-  rv = sXFormsService->IsDropmarkerOpen(mDOMNode, &isOpen);
+  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
+  rv = sXFormsService->IsDropmarkerOpen(DOMNode, &isOpen);
   NS_ENSURE_SUCCESS(rv, rv);
 
   *aState |= nsIAccessibleStates::STATE_FOCUSABLE;
@@ -197,9 +206,7 @@ nsXFormsComboboxPopupWidgetAccessible::GetDescription(nsAString& aDescription)
 void
 nsXFormsComboboxPopupWidgetAccessible::CacheChildren()
 {
-  nsCOMPtr<nsIDOMNode> parent;
-  mDOMNode->GetParentNode(getter_AddRefs(parent));
-
+  nsCOMPtr<nsIDOMNode> parent = do_QueryInterface(mContent->GetNodeParent());
   // Parent node must be an xforms:select1 element.
   CacheSelectChildren(parent);
 }

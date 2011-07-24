@@ -49,34 +49,9 @@
 #include "pratom.h"
 
 #include "nsAlgorithm.h"
-#include "nsAutoLock.h"
 #include "nsCOMPtr.h"
 #include "nsString.h"
-
-#if defined(XP_WIN)
-#include <windows.h>
-#endif
-
-#if defined(MOZ_PLATFORM_MAEMO)
-#include <osso-mem.h>
-#include <fcntl.h>
-#include <unistd.h>
-static const char kHighMark[] = "/sys/kernel/high_watermark";
-#endif
-
-// Some platforms notify you when system memory is low, others do not.
-// In the case of those that do not, we want to post low memory
-// notifications from IsLowMemory().  For those that can notify us, that
-// code usually lives in toolkit.
-#ifdef WINCE
-#define NOTIFY_LOW_MEMORY
-#endif
-
-#ifdef WINCE_WINDOWS_MOBILE
-#include "aygshell.h"
-#endif
-
-#include "nsITimer.h"
+#include "mozilla/Services.h"
 
 static nsMemoryImpl sGlobalMemory;
 
@@ -106,62 +81,11 @@ nsMemoryImpl::HeapMinimize(PRBool aImmediate)
     return FlushMemory(NS_LITERAL_STRING("heap-minimize").get(), aImmediate);
 }
 
-/* this magic number is something greater than 40mb
- * and after all, 40mb should be good enough for any web app
- * unless it's part of an office suite.
- */
-static const int kRequiredMemory = 0x3000000;
-
 NS_IMETHODIMP
 nsMemoryImpl::IsLowMemory(PRBool *result)
 {
-#if defined(WINCE_WINDOWS_MOBILE)
+    NS_ERROR("IsLowMemory is deprecated.  See bug 592308.");
     *result = PR_FALSE;
-    // See bug 475595 -- this is incorrect right now, and causes a big
-    // perf hit since GlobalMemoryStatus has to grab a kernel VM lock
-    // and do a bunch of munging through VM pages to get the data
-    // that's requested.  We call IsLowMemory in some performance
-    // critical code (e.g. during painting), so that's bad.
-    MEMORYSTATUS stat;
-    GlobalMemoryStatus(&stat);
-    *result = (stat.dwMemoryLoad >= 98);
-#elif defined(WINCE)
-    // Bug 525323 - GlobalMemoryStatus kills perf on WinCE.
-    *result = PR_FALSE;
-#elif defined(XP_WIN)
-    MEMORYSTATUSEX stat;
-    stat.dwLength = sizeof stat;
-    GlobalMemoryStatusEx(&stat);
-    *result = (stat.ullAvailPageFile < kRequiredMemory) &&
-        ((float)stat.ullAvailPageFile / stat.ullTotalPageFile) < 0.1;
-#elif defined(MOZ_PLATFORM_MAEMO)
-    static int osso_highmark_fd = -1;
-    if (osso_highmark_fd == -1) {
-        osso_highmark_fd = open (kHighMark, O_RDONLY);
-
-        if (osso_highmark_fd == -1) {
-            NS_ERROR("can't find the osso highmark file");    
-            *result = PR_FALSE;
-            return NS_OK;
-        }
-    }
-
-    // be kind, rewind.
-    lseek(osso_highmark_fd, 0L, SEEK_SET);
-
-    int c = 0;
-    read (osso_highmark_fd, &c, 1);
-
-    *result = (c == '1');
-#else
-    *result = PR_FALSE;
-#endif
-
-#ifdef NOTIFY_LOW_MEMORY
-    if (*result) {
-        sGlobalMemory.FlushMemory(NS_LITERAL_STRING("low-memory").get(), PR_FALSE);
-    }
-#endif
     return NS_OK;
 }
 
@@ -175,7 +99,7 @@ nsMemoryImpl::Create(nsISupports* outer, const nsIID& aIID, void **aResult)
 nsresult
 nsMemoryImpl::FlushMemory(const PRUnichar* aReason, PRBool aImmediate)
 {
-    nsresult rv;
+    nsresult rv = NS_OK;
 
     if (aImmediate) {
         // They've asked us to run the flusher *immediately*. We've
@@ -187,7 +111,7 @@ nsMemoryImpl::FlushMemory(const PRUnichar* aReason, PRBool aImmediate)
         }
     }
 
-    PRInt32 lastVal = PR_AtomicSet(&sIsFlushing, 1);
+    PRInt32 lastVal = PR_ATOMIC_SET(&sIsFlushing, 1);
     if (lastVal)
         return NS_OK;
 
@@ -213,7 +137,7 @@ nsMemoryImpl::FlushMemory(const PRUnichar* aReason, PRBool aImmediate)
 nsresult
 nsMemoryImpl::RunFlushers(const PRUnichar* aReason)
 {
-    nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+    nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
     if (os) {
 
         // Instead of:
@@ -282,7 +206,7 @@ NS_Alloc(PRSize size)
     if (size > PR_INT32_MAX)
         return nsnull;
 
-    void* result = PR_Malloc(size);
+    void* result = moz_malloc(size);
     if (! result) {
         // Request an asynchronous flush
         sGlobalMemory.FlushMemory(NS_LITERAL_STRING("alloc-failure").get(), PR_FALSE);
@@ -296,7 +220,7 @@ NS_Realloc(void* ptr, PRSize size)
     if (size > PR_INT32_MAX)
         return nsnull;
 
-    void* result = PR_Realloc(ptr, size);
+    void* result = moz_realloc(ptr, size);
     if (! result && size != 0) {
         // Request an asynchronous flush
         sGlobalMemory.FlushMemory(NS_LITERAL_STRING("alloc-failure").get(), PR_FALSE);
@@ -307,7 +231,7 @@ NS_Realloc(void* ptr, PRSize size)
 XPCOM_API(void)
 NS_Free(void* ptr)
 {
-    PR_Free(ptr);
+    moz_free(ptr);
 }
 
 nsresult

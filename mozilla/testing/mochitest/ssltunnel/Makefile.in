@@ -43,17 +43,13 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
+# This isn't XPCOM code, but it wants to use STL, so disable the STL
+# wrappers
+STL_FLAGS =
+
 PROGRAM = ssltunnel$(BIN_SUFFIX)
 
 CPPSRCS = ssltunnel.cpp
-
-# Despite not catching exceptions, we're using STL
-ENABLE_CXX_EXCEPTIONS=1
-
-REQUIRES = \
-	nspr \
-	nss \
-	$(NULL)
 
 # Use local includes because they are inserted before INCLUDES
 # so that Mozilla's nss.h is used, not glibc's

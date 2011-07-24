@@ -42,9 +42,9 @@
 #include <stdlib.h>
 
 #include "prtypes.h"
+#include "prinrval.h"
 #include "prlock.h"
 #include "nscore.h"
-#include "nsAutoLock.h"
 
 #include "nsDebugHelpWin32.h"
 #include "nsTraceMallocCallbacks.h"
@@ -62,6 +62,8 @@
 #define NS_DEBUG_CRT "msvcr80d.dll"
 #elif _MSC_VER == 1500
 #define NS_DEBUG_CRT "msvcr90d.dll"
+#elif _MSC_VER == 1600
+#define NS_DEBUG_CRT "msvcr100d.dll"
 #else
 #error "Don't know filename of MSVC debug library."
 #endif

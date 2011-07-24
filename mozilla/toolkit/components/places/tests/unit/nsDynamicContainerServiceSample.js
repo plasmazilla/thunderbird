@@ -14,7 +14,7 @@
  *
  * The Original Code is Places Dynamic Containers unit test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -92,12 +92,8 @@ RemoteContainerSampleService.prototype = {
     return this.QueryInterface(iid);
   },
 
-  classDescription: "Remote Container Sample Service",
-  contractID: "@mozilla.org/browser/remote-container-sample;1",
   classID: Components.ID("{0d42adc5-f07a-4da2-b8da-3e2ef114cb67}"),
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIDynamicContainer]),
 };
 
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([RemoteContainerSampleService]);
-}
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([RemoteContainerSampleService]);

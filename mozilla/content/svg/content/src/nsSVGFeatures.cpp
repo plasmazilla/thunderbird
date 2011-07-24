@@ -51,17 +51,13 @@
 #include "nsIContent.h"
 #include "nsContentUtils.h"
 #include "nsWhitespaceTokenizer.h"
-#include "nsCommaSeparatedTokenizer.h"
+#include "nsCharSeparatedTokenizer.h"
 #include "nsStyleUtil.h"
 #include "nsSVGUtils.h"
 
 /*static*/ PRBool
 nsSVGFeatures::HaveFeature(const nsAString& aFeature)
 {
-  if (!NS_SVGEnabled()) {
-    return PR_FALSE;
-  }
-
 #define SVG_SUPPORTED_FEATURE(str) if (aFeature.Equals(NS_LITERAL_STRING(str).get())) return PR_TRUE;
 #define SVG_UNSUPPORTED_FEATURE(str)
 #include "nsSVGFeaturesList.h"
@@ -113,11 +109,11 @@ nsSVGFeatures::MatchesLanguagePreferences(const nsSubstring& aAttribute,
 {
   const nsDefaultStringComparator defaultComparator;
 
-  nsCommaSeparatedTokenizer attributeTokenizer(aAttribute);
+  nsCharSeparatedTokenizer attributeTokenizer(aAttribute, ',');
 
   while (attributeTokenizer.hasMoreTokens()) {
     const nsSubstring &attributeToken = attributeTokenizer.nextToken();
-    nsCommaSeparatedTokenizer languageTokenizer(aAcceptLangs);
+    nsCharSeparatedTokenizer languageTokenizer(aAcceptLangs, ',');
     while (languageTokenizer.hasMoreTokens()) {
       if (nsStyleUtil::DashMatchCompare(attributeToken,
                                         languageTokenizer.nextToken(),
@@ -135,12 +131,12 @@ nsSVGFeatures::GetBestLanguagePreferenceRank(const nsSubstring& aAttribute,
 {
   const nsDefaultStringComparator defaultComparator;
 
-  nsCommaSeparatedTokenizer attributeTokenizer(aAttribute);
+  nsCharSeparatedTokenizer attributeTokenizer(aAttribute, ',');
   PRInt32 lowestRank = -1;
 
   while (attributeTokenizer.hasMoreTokens()) {
     const nsSubstring &attributeToken = attributeTokenizer.nextToken();
-    nsCommaSeparatedTokenizer languageTokenizer(aAcceptLangs);
+    nsCharSeparatedTokenizer languageTokenizer(aAcceptLangs, ',');
     PRInt32 index = 0;
     while (languageTokenizer.hasMoreTokens()) {
       const nsSubstring &languageToken = languageTokenizer.nextToken();
@@ -179,7 +175,7 @@ const nsString * const nsSVGFeatures::kIgnoreSystemLanguage = (nsString *) 0x01;
 nsSVGFeatures::PassesConditionalProcessingTests(nsIContent *aContent,
                                                 const nsString *aAcceptLangs)
 {
-  if (!aContent->IsNodeOfType(nsINode::eELEMENT)) {
+  if (!aContent->IsElement()) {
     return PR_FALSE;
   }
 
@@ -212,9 +208,6 @@ nsSVGFeatures::PassesConditionalProcessingTests(nsIContent *aContent,
     return PR_TRUE;
   }
 
-  const nsString& acceptLangs = aAcceptLangs ? *aAcceptLangs :
-    nsContentUtils::GetLocalizedStringPref("intl.accept_languages");
-
   // systemLanguage
   //
   // Evaluates to "true" if one of the languages indicated by user preferences
@@ -224,6 +217,10 @@ nsSVGFeatures::PassesConditionalProcessingTests(nsIContent *aContent,
   // that the first tag character following the prefix is "-".
   if (aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::systemLanguage,
                         value)) {
+
+    const nsAutoString acceptLangs(aAcceptLangs ? *aAcceptLangs :
+      nsContentUtils::GetLocalizedStringPref("intl.accept_languages"));
+
     // Get our language preferences
     if (!acceptLangs.IsEmpty()) {
       return MatchesLanguagePreferences(value, acceptLangs);

@@ -37,8 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _mozStorageBindingParamsArray_h_
-#define _mozStorageBindingParamsArray_h_
+#ifndef mozStorageBindingParamsArray_h
+#define mozStorageBindingParamsArray_h
 
 #include "nsAutoPtr.h"
 #include "nsTArray.h"
@@ -48,18 +48,19 @@
 namespace mozilla {
 namespace storage {
 
-class BindingParams;
-class Statement;
+class StorageBaseStatementInternal;
 
 class BindingParamsArray : public mozIStorageBindingParamsArray
 {
+  typedef nsTArray< nsCOMPtr<mozIStorageBindingParams> > array_type;
+
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_MOZISTORAGEBINDINGPARAMSARRAY
 
-  BindingParamsArray(Statement *aOwningStatement);
+  BindingParamsArray(StorageBaseStatementInternal *aOwningStatement);
 
-  typedef nsTArray_base::size_type size_type;
+  typedef array_type::size_type size_type;
 
   /**
    * Locks the array and prevents further modification to it (such as adding
@@ -70,7 +71,7 @@ public:
   /**
    * @return the pointer to the owning BindingParamsArray.
    */
-  const Statement *getOwner() const;
+  const StorageBaseStatementInternal *getOwner() const;
 
   /**
    * @return the number of elemets the array contains.
@@ -100,7 +101,7 @@ public:
     {
       return !(*this == aOther);
     }
-    BindingParams *operator*()
+    mozIStorageBindingParams *operator*()
     {
       NS_ASSERTION(mIndex < mArray->length(),
                    "Dereferenceing an invalid value!");
@@ -132,8 +133,8 @@ public:
     return iterator(this, length());
   }
 private:
-  nsRefPtr<Statement> mOwningStatement;
-  nsTArray< nsRefPtr<BindingParams> > mArray;
+  nsCOMPtr<StorageBaseStatementInternal> mOwningStatement;
+  array_type mArray;
   bool mLocked;
 
   friend class iterator;
@@ -142,4 +143,4 @@ private:
 } // namespace storage
 } // namespace mozilla
 
-#endif // _mozStorageBindingParamsArray_h_
+#endif // mozStorageBindingParamsArray_h

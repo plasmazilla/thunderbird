@@ -57,19 +57,9 @@
 #include "nsIScriptError.h"
 #include "nsIStringBundle.h"
 #include "nsContentUtils.h"
-
-// Don't bother collecting whitespace characters in token's mIdent buffer
-#undef COLLECT_WHITESPACE
-
-static const PRUnichar CSS_ESCAPE = PRUnichar('\\');
-static const PRUint8 IS_DIGIT = 0x01;
-static const PRUint8 IS_HEX_DIGIT = 0x02;
-static const PRUint8 START_IDENT = 0x04;
-static const PRUint8 IS_IDENT = 0x08;
-static const PRUint8 IS_WHITESPACE = 0x10;
-
-static PRBool gLexTableSetup = PR_FALSE;
-static PRUint8 gLexTable[256];
+#include "mozilla/Services.h"
+#include "mozilla/css/Loader.h"
+#include "nsCSSStyleSheet.h"
 
 #ifdef CSS_REPORT_PARSE_ERRORS
 static PRBool gReportErrors = PR_TRUE;
@@ -78,36 +68,65 @@ static nsIFactory *gScriptErrorFactory;
 static nsIStringBundle *gStringBundle;
 #endif
 
-static void
-BuildLexTable()
-{
-  gLexTableSetup = PR_TRUE;
+// Don't bother collecting whitespace characters in token's mIdent buffer
+#undef COLLECT_WHITESPACE
 
-  PRUint8* lt = gLexTable;
-  int i;
-  lt[CSS_ESCAPE] = START_IDENT;
-  lt['-'] |= IS_IDENT;
-  lt['_'] |= IS_IDENT | START_IDENT;
-  lt[' '] |= IS_WHITESPACE;   // space
-  lt['\t'] |= IS_WHITESPACE;  // horizontal tab
-  lt['\r'] |= IS_WHITESPACE;  // carriage return
-  lt['\n'] |= IS_WHITESPACE;  // line feed
-  lt['\f'] |= IS_WHITESPACE;  // form feed
-  for (i = 161; i <= 255; i++) {
-    lt[i] |= IS_IDENT | START_IDENT;
-  }
-  for (i = '0'; i <= '9'; i++) {
-    lt[i] |= IS_DIGIT | IS_HEX_DIGIT | IS_IDENT;
-  }
-  for (i = 'A'; i <= 'Z'; i++) {
-    if ((i >= 'A') && (i <= 'F')) {
-      lt[i] |= IS_HEX_DIGIT;
-      lt[i+32] |= IS_HEX_DIGIT;
-    }
-    lt[i] |= IS_IDENT | START_IDENT;
-    lt[i+32] |= IS_IDENT | START_IDENT;
-  }
-}
+// Table of character classes
+static const PRUnichar CSS_ESCAPE  = PRUnichar('\\');
+
+static const PRUint8 IS_HEX_DIGIT  = 0x01;
+static const PRUint8 START_IDENT   = 0x02;
+static const PRUint8 IS_IDENT      = 0x04;
+static const PRUint8 IS_WHITESPACE = 0x08;
+
+#define W   IS_WHITESPACE
+#define I   IS_IDENT
+#define S            START_IDENT
+#define SI  IS_IDENT|START_IDENT
+#define XI  IS_IDENT            |IS_HEX_DIGIT
+#define XSI IS_IDENT|START_IDENT|IS_HEX_DIGIT
+
+static const PRUint8 gLexTable[256] = {
+//                                     TAB LF      FF  CR
+   0,  0,  0,  0,  0,  0,  0,  0,  0,  W,  W,  0,  W,  W,  0,  0,
+//
+   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+// SPC !   "   #   $   %   &   '   (   )   *   +   ,   -   .   /
+   W,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  I,  0,  0,
+// 0   1   2   3   4   5   6   7   8   9   :   ;   <   =   >   ?
+   XI, XI, XI, XI, XI, XI, XI, XI, XI, XI, 0,  0,  0,  0,  0,  0,
+// @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O
+   0,  XSI,XSI,XSI,XSI,XSI,XSI,SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// P   Q   R   S   T   U   V   W   X   Y   Z   [   \   ]   ^   _
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, 0,  S,  0,  0,  SI,
+// `   a   b   c   d   e   f   g   h   i   j   k   l   m   n   o
+   0,  XSI,XSI,XSI,XSI,XSI,XSI,SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// p   q   r   s   t   u   v   w   x   y   z   {   |   }   ~
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, 0,  0,  0,  0,  0,
+//
+   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+//
+   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+// NBSP¡   ¢   £   ¤   ¥   ¦   §   ¨   ©   ª   «   ¬   ­   ®   ¯
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// °   ±   ²   ³   ´   µ   ¶   ·   ¸   ¹   º   »   ¼   ½   ¾   ¿
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// À   Á   Â   Ã   Ä   Å   Æ   Ç   È   É   Ê   Ë   Ì   Í   Î   Ï
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// Ð   Ñ   Ò   Ó   Ô   Õ   Ö   ×   Ø   Ù   Ú   Û   Ü   Ý   Þ   ß
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// à   á   â   ã   ä   å   æ   ç   è   é   ê   ë   ì   í   î   ï
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+// ð   ñ   ò   ó   ô   õ   ö   ÷   ø   ù   ú   û   ü   ý   þ   ÿ
+   SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI, SI,
+};
+
+#undef W
+#undef S
+#undef I
+#undef XI
+#undef SI
+#undef XSI
 
 static inline PRBool
 IsIdentStart(PRInt32 aChar)
@@ -130,7 +149,7 @@ IsWhitespace(PRInt32 ch) {
 
 static inline PRBool
 IsDigit(PRInt32 ch) {
-  return PRUint32(ch) < 256 && (gLexTable[ch] & IS_DIGIT) != 0;
+  return (ch >= '0') && (ch <= '9');
 }
 
 static inline PRBool
@@ -143,12 +162,31 @@ IsIdent(PRInt32 ch) {
   return ch >= 0 && (ch >= 256 || (gLexTable[ch] & IS_IDENT) != 0);
 }
 
+static inline PRUint32
+DecimalDigitValue(PRInt32 ch)
+{
+  return ch - '0';
+}
+
+static inline PRUint32
+HexDigitValue(PRInt32 ch)
+{
+  if (IsDigit(ch)) {
+    return DecimalDigitValue(ch);
+  } else {
+    // Note: c&7 just keeps the low three bits which causes
+    // upper and lower case alphabetics to both yield their
+    // "relative to 10" value for computing the hex value.
+    return (ch & 0x7) + 9;
+  }
+}
+
 nsCSSToken::nsCSSToken()
 {
   mType = eCSSToken_Symbol;
 }
 
-void 
+void
 nsCSSToken::AppendToString(nsString& aBuffer)
 {
   switch (mType) {
@@ -157,10 +195,25 @@ nsCSSToken::AppendToString(nsString& aBuffer)
     case eCSSToken_Ident:
     case eCSSToken_WhiteSpace:
     case eCSSToken_Function:
-    case eCSSToken_URL:
-    case eCSSToken_InvalidURL:
     case eCSSToken_HTMLComment:
+    case eCSSToken_URange:
       aBuffer.Append(mIdent);
+      if (mType == eCSSToken_Function)
+        aBuffer.Append(PRUnichar('('));
+      break;
+    case eCSSToken_URL:
+    case eCSSToken_Bad_URL:
+      aBuffer.AppendLiteral("url(");
+      if (mSymbol != PRUnichar(0)) {
+        aBuffer.Append(mSymbol);
+      }
+      aBuffer.Append(mIdent);
+      if (mSymbol != PRUnichar(0)) {
+        aBuffer.Append(mSymbol);
+      }
+      if (mType == eCSSToken_URL) {
+        aBuffer.Append(PRUnichar(')'));
+      }
       break;
     case eCSSToken_Number:
       if (mIntegerValid) {
@@ -210,7 +263,7 @@ nsCSSToken::AppendToString(nsString& aBuffer)
     case eCSSToken_Containsmatch:
       aBuffer.AppendLiteral("*=");
       break;
-    case eCSSToken_Error:
+    case eCSSToken_Bad_String:
       aBuffer.Append(mSymbol);
       aBuffer.Append(mIdent);
       break;
@@ -224,18 +277,16 @@ nsCSSScanner::nsCSSScanner()
   : mInputStream(nsnull)
   , mReadPointer(nsnull)
   , mLowLevelError(NS_OK)
-#ifdef MOZ_SVG
   , mSVGMode(PR_FALSE)
-#endif
 #ifdef CSS_REPORT_PARSE_ERRORS
   , mError(mErrorBuf, NS_ARRAY_LENGTH(mErrorBuf), 0)
+  , mWindowID(0)
+  , mWindowIDCached(PR_FALSE)
+  , mSheet(nsnull)
+  , mLoader(nsnull)
 #endif
 {
   MOZ_COUNT_CTOR(nsCSSScanner);
-  if (!gLexTableSetup) {
-    // XXX need a monitor
-    BuildLexTable();
-  }
   mPushback = mLocalPushback;
   mPushbackSize = NS_ARRAY_LENGTH(mLocalPushback);
   // No need to init the other members, since they represent state
@@ -312,7 +363,8 @@ nsCSSScanner::ReleaseGlobals()
 void
 nsCSSScanner::Init(nsIUnicharInputStream* aInput, 
                    const PRUnichar * aBuffer, PRUint32 aCount, 
-                   nsIURI* aURI, PRUint32 aLineNumber)
+                   nsIURI* aURI, PRUint32 aLineNumber,
+                   nsCSSStyleSheet* aSheet, mozilla::css::Loader* aLoader)
 {
   NS_PRECONDITION(!mInputStream, "Should not have an existing input stream!");
   NS_PRECONDITION(!mReadPointer, "Should not have an existing input buffer!");
@@ -353,6 +405,8 @@ nsCSSScanner::Init(nsIUnicharInputStream* aInput,
 
 #ifdef CSS_REPORT_PARSE_ERRORS
   mColNumber = 0;
+  mSheet = aSheet;
+  mLoader = aLoader;
 #endif
 }
 
@@ -388,19 +442,35 @@ nsCSSScanner::OutputError()
   // Log it to the Error console
 
   if (InitGlobals() && gReportErrors) {
+    if (!mWindowIDCached) {
+      if (mSheet) {
+        mWindowID = mSheet->FindOwningWindowID();
+      }
+      if (mWindowID == 0 && mLoader) {
+        nsIDocument* doc = mLoader->GetDocument();
+        if (doc) {
+          mWindowID = doc->OuterWindowID();
+        }
+      }
+      mWindowIDCached = PR_TRUE;
+    }
+
     nsresult rv;
-    nsCOMPtr<nsIScriptError> errorObject =
+    nsCOMPtr<nsIScriptError2> errorObject =
       do_CreateInstance(gScriptErrorFactory, &rv);
+
     if (NS_SUCCEEDED(rv)) {
-      rv = errorObject->Init(mError.get(),
-                             NS_ConvertUTF8toUTF16(mFileName).get(),
-                             EmptyString().get(),
-                             mErrorLineNumber,
-                             mErrorColNumber,
-                             nsIScriptError::warningFlag,
-                             "CSS Parser");
-      if (NS_SUCCEEDED(rv))
-        gConsoleService->LogMessage(errorObject);
+      rv = errorObject->InitWithWindowID(mError.get(),
+                                         NS_ConvertUTF8toUTF16(mFileName).get(),
+                                         EmptyString().get(),
+                                         mErrorLineNumber,
+                                         mErrorColNumber,
+                                         nsIScriptError::warningFlag,
+                                         "CSS Parser", mWindowID);
+      if (NS_SUCCEEDED(rv)) {
+        nsCOMPtr<nsIScriptError> logError = do_QueryInterface(errorObject);
+        gConsoleService->LogMessage(logError);
+      }
     }
   }
   ClearError();
@@ -413,7 +483,7 @@ InitStringBundle()
     return PR_TRUE;
 
   nsCOMPtr<nsIStringBundleService> sbs =
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID);
+    mozilla::services::GetStringBundleService();
   if (!sbs)
     return PR_FALSE;
 
@@ -547,6 +617,10 @@ nsCSSScanner::Close()
   mFileName.Truncate();
   mURI = nsnull;
   mError.Truncate();
+  mWindowID = 0;
+  mWindowIDCached = PR_FALSE;
+  mSheet = nsnull;
+  mLoader = nsnull;
 #endif
   if (mPushback != mLocalPushback) {
     delete [] mPushback;
@@ -670,6 +744,20 @@ nsCSSScanner::LookAhead(PRUnichar aChar)
   return PR_FALSE;
 }
 
+PRBool
+nsCSSScanner::LookAheadOrEOF(PRUnichar aChar)
+{
+  PRInt32 ch = Read();
+  if (ch < 0) {
+    return PR_TRUE;
+  }
+  if (ch == aChar) {
+    return PR_TRUE;
+  }
+  Pushback(ch);
+  return PR_FALSE;
+}
+
 void
 nsCSSScanner::EatWhiteSpace()
 {
@@ -693,6 +781,10 @@ nsCSSScanner::Next(nsCSSToken& aToken)
     if (ch < 0) {
       return PR_FALSE;
     }
+
+    // UNICODE-RANGE
+    if ((ch == 'u' || ch == 'U') && Peek() == '+')
+      return ParseURange(ch, aToken);
 
     // IDENT
     if (StartsIdent(ch, Peek()))
@@ -744,7 +836,7 @@ nsCSSScanner::Next(nsCSSToken& aToken)
       EatWhiteSpace();
       return PR_TRUE;
     }
-    if (ch == '/') {
+    if (ch == '/' && !IsSVGMode()) {
       PRInt32 nextChar = Peek();
       if (nextChar == '*') {
         (void) Read();
@@ -822,6 +914,8 @@ nsCSSScanner::Next(nsCSSToken& aToken)
 PRBool
 nsCSSScanner::NextURL(nsCSSToken& aToken)
 {
+  EatWhiteSpace();
+
   PRInt32 ch = Read();
   if (ch < 0) {
     return PR_FALSE;
@@ -829,14 +923,26 @@ nsCSSScanner::NextURL(nsCSSToken& aToken)
 
   // STRING
   if ((ch == '"') || (ch == '\'')) {
-    return ParseString(ch, aToken);
-  }
+#ifdef DEBUG
+    PRBool ok =
+#endif
+      ParseString(ch, aToken);
+    NS_ABORT_IF_FALSE(ok, "ParseString should never fail, "
+                          "since there's always something read");
 
-  // WS
-  if (IsWhitespace(ch)) {
-    aToken.mType = eCSSToken_WhiteSpace;
-    aToken.mIdent.Assign(PRUnichar(ch));
-    EatWhiteSpace();
+    NS_ABORT_IF_FALSE(aToken.mType == eCSSToken_String ||
+                      aToken.mType == eCSSToken_Bad_String,
+                      "unexpected token type");
+    if (NS_LIKELY(aToken.mType == eCSSToken_String)) {
+      EatWhiteSpace();
+      if (LookAheadOrEOF(')')) {
+        aToken.mType = eCSSToken_URL;
+      } else {
+        aToken.mType = eCSSToken_Bad_URL;
+      }
+    } else {
+      aToken.mType = eCSSToken_Bad_URL;
+    }
     return PR_TRUE;
   }
 
@@ -845,12 +951,13 @@ nsCSSScanner::NextURL(nsCSSToken& aToken)
   // Because of this the normal rules for tokenizing the input don't
   // apply very well. To simplify the parser and relax some of the
   // requirements on the scanner we parse url's here. If we find a
-  // malformed URL then we emit a token of type "InvalidURL" so that
+  // malformed URL then we emit a token of type "Bad_URL" so that
   // the CSS1 parser can ignore the invalid input.  The parser must
-  // treat an InvalidURL token like a Function token, and process
+  // treat a Bad_URL token like a Function token, and process
   // tokens until a matching parenthesis.
 
-  aToken.mType = eCSSToken_InvalidURL;
+  aToken.mType = eCSSToken_Bad_URL;
+  aToken.mSymbol = PRUnichar(0);
   nsString& ident = aToken.mIdent;
   ident.SetLength(0);
 
@@ -863,26 +970,19 @@ nsCSSScanner::NextURL(nsCSSToken& aToken)
     if (ch < 0) break;
     if (ch == CSS_ESCAPE) {
       ParseAndAppendEscape(ident);
-    } else if ((ch == '"') || (ch == '\'') || (ch == '(')) {
+    } else if (IsWhitespace(ch)) {
+      // Whitespace is allowed at the end of the URL
+      EatWhiteSpace();
+      // Consume the close paren if we have it; if not we're an invalid URL.
+      ok = LookAheadOrEOF(')');
+      break;
+    } else if (ch == '"' || ch == '\'' || ch == '(' || ch < PRUnichar(' ')) {
       // This is an invalid URL spec
       ok = PR_FALSE;
       Pushback(ch); // push it back so the parser can match tokens and
                     // then closing parenthesis
       break;
-    } else if (IsWhitespace(ch)) {
-      // Whitespace is allowed at the end of the URL
-        EatWhiteSpace();
-        if (LookAhead(')')) {
-        Pushback(')');  // leave the closing symbol
-        // done!
-        break;
-      }
-      // Whitespace is followed by something other than a
-      // ")". This is an invalid url spec.
-      ok = PR_FALSE;
-      break;
     } else if (ch == ')') {
-      Pushback(ch);
       // All done
       break;
     } else {
@@ -921,14 +1021,7 @@ nsCSSScanner::ParseAndAppendEscape(nsString& aOutput)
         Pushback(ch);
         break;
       } else if (IsHexDigit(ch)) {
-        if (IsDigit(ch)) {
-          rv = rv * 16 + (ch - '0');
-        } else {
-          // Note: c&7 just keeps the low three bits which causes
-          // upper and lower case alphabetics to both yield their
-          // "relative to 10" value for computing the hex value.
-          rv = rv * 16 + ((ch & 0x7) + 9);
-        }
+        rv = rv * 16 + HexDigitValue(ch);
       } else {
         NS_ASSERTION(IsWhitespace(ch), "bad control flow");
         // single space ends escape
@@ -1053,8 +1146,14 @@ nsCSSScanner::ParseIdent(PRInt32 aChar, nsCSSToken& aToken)
 
   nsCSSTokenType tokenType = eCSSToken_Ident;
   // look for functions (ie: "ident(")
-  if (PRUnichar('(') == PRUnichar(Peek())) { // this is a function definition
+  if (Peek() == PRUnichar('(')) {
+    Read();
     tokenType = eCSSToken_Function;
+
+    if (ident.LowerCaseEqualsLiteral("url")) {
+      NextURL(aToken); // ignore return value, since *we* read something
+      return PR_TRUE;
+    }
   }
 
   aToken.mType = tokenType;
@@ -1068,8 +1167,6 @@ nsCSSScanner::ParseAtKeyword(PRInt32 aChar, nsCSSToken& aToken)
   aToken.mType = eCSSToken_AtKeyword;
   return GatherIdent(0, aToken.mIdent);
 }
-
-#define CHAR_TO_DIGIT(_c) ((_c) - '0')
 
 PRBool
 nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
@@ -1109,7 +1206,7 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
     // Parse the integer part of the mantisssa
     NS_ASSERTION(IsDigit(c), "Why did we get called?");
     do {
-      intPart = 10*intPart + CHAR_TO_DIGIT(c);
+      intPart = 10*intPart + DecimalDigitValue(c);
       c = Read();
       // The IsDigit check will do the right thing even if Read() returns < 0
     } while (IsDigit(c));
@@ -1124,7 +1221,7 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
     // Power of ten by which we need to divide our next digit
     float divisor = 10;
     do {
-      fracPart += CHAR_TO_DIGIT(c) / divisor;
+      fracPart += DecimalDigitValue(c) / divisor;
       divisor *= 10;
       c = Read();
       // The IsDigit check will do the right thing even if Read() returns < 0
@@ -1132,7 +1229,6 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
   }
 
   PRBool gotE = PR_FALSE;
-#ifdef MOZ_SVG
   if (IsSVGMode() && (c == 'e' || c == 'E')) {
     PRInt32 nextChar = Peek();
     PRInt32 expSignChar = 0;
@@ -1149,7 +1245,7 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
       c = Read();
       NS_ASSERTION(IsDigit(c), "Peek() must have lied");
       do {
-        exponent = 10*exponent + CHAR_TO_DIGIT(c);
+        exponent = 10*exponent + DecimalDigitValue(c);
         c = Read();
         // The IsDigit check will do the right thing even if Read() returns < 0
       } while (IsDigit(c));
@@ -1159,7 +1255,6 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
       }
     }
   }
-#endif
 
   nsCSSTokenType type = eCSSToken_Number;
 
@@ -1175,11 +1270,12 @@ nsCSSScanner::ParseNumber(PRInt32 c, nsCSSToken& aToken)
     // overloaded pow() on Windows.
     value *= pow(10.0, double(expSign * exponent));
   } else if (!gotDot) {
-    if (intPart > PR_INT32_MAX) {
-      // Just clamp it.
-      intPart = PR_INT32_MAX;
+    // Clamp values outside of integer range.
+    if (sign > 0) {
+      aToken.mInteger = PRInt32(NS_MIN(intPart, double(PR_INT32_MAX)));
+    } else {
+      aToken.mInteger = PRInt32(NS_MAX(-intPart, double(PR_INT32_MIN)));
     }
-    aToken.mInteger = PRInt32(sign * intPart);
     aToken.mIntegerValid = PR_TRUE;
   }
 
@@ -1262,7 +1358,7 @@ nsCSSScanner::ParseString(PRInt32 aStop, nsCSSToken& aToken)
       break;
     }
     if (ch == '\n') {
-      aToken.mType = eCSSToken_Error;
+      aToken.mType = eCSSToken_Bad_String;
 #ifdef CSS_REPORT_PARSE_ERRORS
       ReportUnexpectedToken(aToken, "SEUnterminatedString");
 #endif
@@ -1274,5 +1370,97 @@ nsCSSScanner::ParseString(PRInt32 aStop, nsCSSToken& aToken)
       aToken.mIdent.Append(ch);
     }
   }
+  return PR_TRUE;
+}
+
+// UNICODE-RANGE tokens match the regular expression
+//
+//     u\+[0-9a-f?]{1,6}(-[0-9a-f]{1,6})?
+//
+// However, some such tokens are "invalid".  There are three valid forms:
+//
+//     u+[0-9a-f]{x}              1 <= x <= 6
+//     u+[0-9a-f]{x}\?{y}         1 <= x+y <= 6
+//     u+[0-9a-f]{x}-[0-9a-f]{y}  1 <= x <= 6, 1 <= y <= 6
+//
+// All unicode-range tokens have their text recorded in mIdent; valid ones
+// are also decoded into mInteger and mInteger2, and mIntegerValid is set.
+
+PRBool
+nsCSSScanner::ParseURange(PRInt32 aChar, nsCSSToken& aResult)
+{
+  PRInt32 intro2 = Read();
+  PRInt32 ch = Peek();
+
+  // We should only ever be called if these things are true.
+  NS_ASSERTION(aChar == 'u' || aChar == 'U',
+               "unicode-range called with improper introducer (U)");
+  NS_ASSERTION(intro2 == '+',
+               "unicode-range called with improper introducer (+)");
+
+  // If the character immediately after the '+' is not a hex digit or
+  // '?', this is not really a unicode-range token; push everything
+  // back and scan the U as an ident.
+  if (!IsHexDigit(ch) && ch != '?') {
+    Pushback(intro2);
+    Pushback(aChar);
+    return ParseIdent(aChar, aResult);
+  }
+
+  aResult.mIdent.Truncate();
+  aResult.mIdent.Append(aChar);
+  aResult.mIdent.Append(intro2);
+
+  PRBool valid = PR_TRUE;
+  PRBool haveQues = PR_FALSE;
+  PRUint32 low = 0;
+  PRUint32 high = 0;
+  int i = 0;
+
+  for (;;) {
+    ch = Read();
+    i++;
+    if (i == 7 || !(IsHexDigit(ch) || ch == '?')) {
+      break;
+    }
+
+    aResult.mIdent.Append(ch);
+    if (IsHexDigit(ch)) {
+      if (haveQues) {
+        valid = PR_FALSE; // all question marks should be at the end
+      }
+      low = low*16 + HexDigitValue(ch);
+      high = high*16 + HexDigitValue(ch);
+    } else {
+      haveQues = PR_TRUE;
+      low = low*16 + 0x0;
+      high = high*16 + 0xF;
+    }
+  }
+
+  if (ch == '-' && IsHexDigit(Peek())) {
+    if (haveQues) {
+      valid = PR_FALSE;
+    }
+
+    aResult.mIdent.Append(ch);
+    high = 0;
+    i = 0;
+    for (;;) {
+      ch = Read();
+      i++;
+      if (i == 7 || !IsHexDigit(ch)) {
+        break;
+      }
+      aResult.mIdent.Append(ch);
+      high = high*16 + HexDigitValue(ch);
+    }
+  }
+  Pushback(ch);
+
+  aResult.mInteger = low;
+  aResult.mInteger2 = high;
+  aResult.mIntegerValid = valid;
+  aResult.mType = eCSSToken_URange;
   return PR_TRUE;
 }

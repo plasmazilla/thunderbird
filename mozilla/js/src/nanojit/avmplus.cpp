@@ -32,153 +32,45 @@
  *
  ***** END LICENSE BLOCK ***** */
 
+#include <signal.h>
 #include "nanojit.h"
 
 #ifdef SOLARIS
-	#include <ucontext.h>
-	#include <dlfcn.h>
-	#include <procfs.h>
-	#include <sys/stat.h>
-    extern "C" caddr_t _getfp(void);
     typedef caddr_t maddr_ptr;
 #else
     typedef void *maddr_ptr;
 #endif
 
-#if defined(AVMPLUS_ARM) && defined(UNDER_CE)
-extern "C" bool
-blx_lr_broken() {
-    return false;
-}
-#endif
-
 using namespace avmplus;
-
-Config AvmCore::config;
 
 void
 avmplus::AvmLog(char const *msg, ...) {
+    va_list ap;
+    va_start(ap, msg);
+    VMPI_vfprintf(stderr, msg, ap);
+    va_end(ap);
 }
 
 #ifdef _DEBUG
-// NanoAssertFail matches JS_Assert in jsutil.cpp.
-void NanoAssertFail()
-{
-    #if defined(WIN32)
+namespace avmplus {
+    void AvmAssertFail(const char* /* msg */) {
+        fflush(stderr);
+#if defined(WIN32)
         DebugBreak();
         exit(3);
-    #elif defined(XP_OS2) || (defined(__GNUC__) && defined(__i386))
-        asm("int $3");
-    #endif
-
-    abort();
+#elif defined(__APPLE__)
+        /*
+         * On Mac OS X, Breakpad ignores signals. Only real Mach exceptions are
+         * trapped.
+         */
+        *((int *) NULL) = 0;  /* To continue from here in GDB: "return" then "continue". */
+        raise(SIGABRT);  /* In case above statement gets nixed by the optimizer. */
+#else
+        raise(SIGABRT);  /* To continue from here in GDB: "signal 0". */
+#endif
+    }
 }
 #endif
-
-#ifdef WIN32
-void
-VMPI_setPageProtection(void *address,
-                       size_t size,
-                       bool executableFlag,
-                       bool writeableFlag)
-{
-    DWORD oldProtectFlags = 0;
-    DWORD newProtectFlags = 0;
-    if ( executableFlag && writeableFlag ) {
-        newProtectFlags = PAGE_EXECUTE_READWRITE;
-    } else if ( executableFlag ) {
-        newProtectFlags = PAGE_EXECUTE_READ;
-    } else if ( writeableFlag ) {
-        newProtectFlags = PAGE_READWRITE;
-    } else {
-        newProtectFlags = PAGE_READONLY;
-    }
-
-    BOOL retval;
-    MEMORY_BASIC_INFORMATION mbi;
-    do {
-        VirtualQuery(address, &mbi, sizeof(MEMORY_BASIC_INFORMATION));
-        size_t markSize = size > mbi.RegionSize ? mbi.RegionSize : size;
-
-        retval = VirtualProtect(address, markSize, newProtectFlags, &oldProtectFlags);
-        NanoAssert(retval);
-
-        address = (char*) address + markSize;
-        size -= markSize;
-    } while(size > 0 && retval);
-
-    // We should not be clobbering PAGE_GUARD protections
-    NanoAssert((oldProtectFlags & PAGE_GUARD) == 0);
-}
-
-#elif defined(AVMPLUS_OS2)
-
-void
-VMPI_setPageProtection(void *address,
-                       size_t size,
-                       bool executableFlag,
-                       bool writeableFlag)
-{
-    ULONG flags = PAG_READ;
-    if (executableFlag) {
-        flags |= PAG_EXECUTE;
-    }
-    if (writeableFlag) {
-        flags |= PAG_WRITE;
-    }
-    address = (void*)((size_t)address & ~(0xfff));
-    size = (size + 0xfff) & ~(0xfff);
-
-    ULONG attribFlags = PAG_FREE;
-    while (size) {
-        ULONG attrib;
-        ULONG range = size;
-        ULONG retval = DosQueryMem(address, &range, &attrib);
-        AvmAssert(retval == 0);
-
-        // exit if this is the start of the next memory object
-        if (attrib & attribFlags) {
-            break;
-        }
-        attribFlags |= PAG_BASE;
-
-        range = size > range ? range : size;
-        retval = DosSetMem(address, range, flags);
-        AvmAssert(retval == 0);
-
-        address = (char*)address + range;
-        size -= range;
-    }
-}
-
-#else // !WIN32 && !AVMPLUS_OS2
-
-void VMPI_setPageProtection(void *address,
-                            size_t size,
-                            bool executableFlag,
-                            bool writeableFlag)
-{
-  int bitmask = sysconf(_SC_PAGESIZE) - 1;
-  // mprotect requires that the addresses be aligned on page boundaries
-  void *endAddress = (void*) ((char*)address + size);
-  void *beginPage = (void*) ((size_t)address & ~bitmask);
-  void *endPage   = (void*) (((size_t)endAddress + bitmask) & ~bitmask);
-  size_t sizePaged = (size_t)endPage - (size_t)beginPage;
-
-  int flags = PROT_READ;
-  if (executableFlag) {
-    flags |= PROT_EXEC;
-  }
-  if (writeableFlag) {
-    flags |= PROT_WRITE;
-  }
-  int retval = mprotect((maddr_ptr)beginPage, (unsigned int)sizePaged, flags);
-  AvmAssert(retval == 0);
-  (void)retval;
-}
-
-#endif // WIN32
-
 
 #ifdef WINCE
 
@@ -195,11 +87,13 @@ void*
 nanojit::CodeAlloc::allocCodeChunk(size_t nbytes) {
     void * buffer;
     posix_memalign(&buffer, 4096, nbytes);
+    VMPI_setPageProtection(buffer, nbytes, true /* exec */, true /* write */);
     return buffer;
 }
 
 void
 nanojit::CodeAlloc::freeCodeChunk(void *p, size_t nbytes) {
+    VMPI_setPageProtection(p, nbytes, false /* exec */, true /* write */);
     ::free(p);
 }
 
@@ -214,7 +108,7 @@ nanojit::CodeAlloc::allocCodeChunk(size_t nbytes) {
 }
 
 void
-nanojit::CodeAlloc::freeCodeChunk(void *p, size_t nbytes) {
+nanojit::CodeAlloc::freeCodeChunk(void *p, size_t) {
     VirtualFree(p, 0, MEM_RELEASE);
 }
 
@@ -261,13 +155,28 @@ nanojit::CodeAlloc::freeCodeChunk(void *p, size_t nbytes) {
 
 void*
 nanojit::CodeAlloc::allocCodeChunk(size_t nbytes) {
-    return valloc(nbytes);
+    void* mem = valloc(nbytes);
+    VMPI_setPageProtection(mem, nbytes, true /* exec */, true /* write */);
+    return mem;
 }
 
 void
 nanojit::CodeAlloc::freeCodeChunk(void *p, size_t nbytes) {
+    VMPI_setPageProtection(p, nbytes, false /* exec */, true /* write */);
     ::free(p);
 }
 
 #endif // WIN32
+
+// All of the allocCodeChunk/freeCodeChunk implementations above allocate
+// code memory as RWX and then free it, so the explicit page protection api's
+// below are no-ops.
+
+void
+nanojit::CodeAlloc::markCodeChunkWrite(void*, size_t)
+{}
+
+void
+nanojit::CodeAlloc::markCodeChunkExec(void*, size_t)
+{}
 

@@ -44,56 +44,13 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= msgcompose
 LIBRARY_NAME	= msgcompose_s
-META_COMPONENT = mail
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  layout \
-		  editor \
-		  uriloader \
-		  msgbase \
-		  necko \
-		  mime \
-		  pref \
-		  intl \
-		  lwbrk \
-		  uconv \
-		  locale \
-		  unicharutil \
-		  content \
-		  msgbaseutil \
-		  msgdb \
-		  rdf \
-		  appshell \
-		  toolkitcomps \
-		  appcomps \
-		  msgimap \
-		  msgnews \
-		  docshell \
-		  addrbook \
-		  widget \
-		  htmlparser \
-		  txmgr \
-		  caps \
-		  exthandler \
-		  nkcache \
-		  mimetype \
-		  windowwatcher \
-		  gfx \
-		  zipwriter \
-		  loginmgr \
-		  $(NULL)
-
-ifdef MOZ_THUNDERBIRD
-REQUIRES	+= xulapp
-endif
-
 EXTRA_COMPONENTS = \
 		nsSMTPProtocolHandler.js \
+		nsSMTPProtocolHandler.manifest \
 		$(NULL)
 
 CPPSRCS		= \

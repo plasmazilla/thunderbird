@@ -46,7 +46,7 @@
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
 /* Inactive window state */
-#msgcomposeWindow:not([active="true"]) > #compose-toolbox > toolbar {
+#compose-toolbox > toolbar:-moz-window-inactive {
   border-top-color: rgba(255,255,255,0.45);
   border-bottom-color: rgba(0,0,0,0.35);
   background-color: #cfcfcf;
@@ -356,6 +356,10 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   height: 7px;
 }
 
+#attachmentBucketSize {
+  color: #888a85;
+}
+
 /* ::::: attachment reminder ::::: */
 
 #attachmentNotificationBox > notification .messageImage {
@@ -379,8 +383,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 
 /* XXX I should really have a selector rule here to select just .listcell-icon objects underneath the attachmentList listbox */
 
-.listcell-icon
-{
+.listcell-icon {
   -moz-margin-start: 2px;
   margin-top: 2px;
 }
@@ -390,6 +393,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 }
 
 #msgSubject {
+  -moz-margin-start: 1px;
   -moz-margin-end: 1px;
 }
 
@@ -431,12 +435,20 @@ treechildren::-moz-tree-image(remote-err) {
 
 #addressingWidget {
   -moz-user-focus: none;
+  -moz-appearance: none;
   width: 0;
   margin: 5px 0px;
+  border: none;
+  background-color: transparent;
 }
 
-#typecol-addressingWidget {
-  min-width: 9em;
+#addressingWidget listboxbody {
+  margin: 1px 0;
+}
+
+#textcol-addressingWidget {
+  border: 1px solid threedshadow;
+  background-color: -moz-field;
 }
 
 .addressingWidgetItem,
@@ -451,14 +463,9 @@ treechildren::-moz-tree-image(remote-err) {
   padding: 0px;
 }
 
-.addressingWidgetCell:first-child {
-  border-top: none;
-}
-
+.addressingWidgetCell:first-child,
 .dummy-row-cell:first-child {
-  border-top: none;
-  border-bottom: 1px solid #DCDCDC;
-  border-right: 1px solid #DCDCDC;
+  border-bottom-color: transparent;
 }
 
 .person-icon {
@@ -466,23 +473,26 @@ treechildren::-moz-tree-image(remote-err) {
   list-style-image: url("chrome://messenger/skin/addressbook/icons/abcard.png");
 }
 
+.aw-menulist:-moz-locale-dir(ltr),
+.aw-menulist > .menulist-label-box:-moz-locale-dir(rtl) {
+  direction: rtl; 
+}
+
+.aw-menulist:-moz-locale-dir(rtl),
+.aw-menulist > .menulist-label-box:-moz-locale-dir(ltr) {
+  direction: ltr;
+}
+
 .aw-menulist {
-  -moz-appearance: none;
-  border: none;
-  list-style-image: url("chrome://global/skin/arrow/arrow-dn.png");
-  background-color: #FFFFFF;
-  border-right: 1px solid #DCDCDC;
-  -moz-padding-start: 5px;
+  -moz-appearance: menulist;
+  -moz-margin-start: 5px;
 }
 
 .aw-menulist > .menulist-label {
   font: icon;
-  -moz-margin-end: 3px;
-}
-
-.aw-menulist:focus {
-  outline: 2px solid -moz-mac-focusring;
-  outline-offset: -2px;
+  margin: 0 1px !important;
+  font-size: 10px;
+  text-align: start;
 }
 
 /* ::::: format toolbar ::::: */
@@ -490,10 +500,10 @@ treechildren::-moz-tree-image(remote-err) {
 #FormatToolbar {
   border-bottom: none;
   background-image: none;
-  padding-top: 2px;
+  padding-top: 5px;
 }
 
-#FormatToolbar > toolbarbutton {
+toolbarbutton.formatting-button {
   height: 26px;
   padding: 3px 0px 2px;
   margin: 0px;
@@ -574,16 +584,16 @@ treechildren::-moz-tree-image(remote-err) {
   background: url("chrome://messenger/skin/messengercompose/right-button-disabled.png") no-repeat;
 }
 
-#FormatToolbar > toolbarbutton > .toolbarbutton-menu-dropmarker {
+toolbarbutton.formatting-button > .toolbarbutton-menu-dropmarker {
   margin: 0px;
   padding: 0px;
 }
 
-#FormatToolbar > toolbarbutton > .toolbarbutton-menubutton-icon {
+toolbarbutton.formatting-button > .toolbarbutton-menubutton-icon {
   -moz-padding-start: 2px;
 }
 
-#FormatToolbar > toolbarbutton > .toolbarbutton-menubutton-dropmarker {
+toolbarbutton.formatting-button > .toolbarbutton-menubutton-dropmarker {
   margin: 0px;
   padding: 0px;
 }
@@ -918,7 +928,8 @@ treechildren::-moz-tree-image(remote-err) {
 
 /* ::::: address book sidebar ::::: */
 .ab-closebutton {
-  list-style-image: url("chrome://global/skin/icons/closetab.png") !important;
+  list-style-image: url("chrome://global/skin/icons/close.png") !important;
+  -moz-image-region: rect(0, 16px, 16px, 0);
 }
 
 .ab-closebutton > .toolbarbutton-text {

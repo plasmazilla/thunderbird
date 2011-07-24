@@ -53,15 +53,14 @@ SDK_XPIDLSRCS   = \
               $(NULL)
 
 XPIDLSRCS	= \
-              nsIPref.idl \
               nsIPrefBranchInternal.idl \
-              nsISecurityPref.idl \
               nsIRelativeFilePref.idl \
               $(NULL)
 
-EXPORTS = \
-          nsPrefsCID.h \
-          $(NULL)
+EXPORTS     = \
+              PPrefTuple.h \
+              PrefTuple.h
+              $(NULL)
 
 include $(topsrcdir)/config/rules.mk
 

@@ -45,34 +45,22 @@ MODULE		= html5
 LIBRARY_NAME	= html5p_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= \
-		gfx \
-		thebes \
-		locale \
-		js \
-		pref \
-		necko \
-		xpcom \
-		string \
-		htmlparser \
-		content \
-		layout \
-		widget \
-		dom \
-		uconv \
-		xpconnect \
-		util \
-		webshell \
-		docshell \
-		chardet \
-		$(NULL)
 
 EXPORTS		= \
 		nsHtml5Module.h \
+		nsAHtml5FragmentParser.h \
 		$(NULL)
+
+ifdef MOZ_SVG
+EXPORTS += \
+		nsHtml5SVGLoadDispatcher.h \
+		$(NULL)
+endif
 
 CPPSRCS		= \
 		nsHtml5Atoms.cpp \
+		nsHtml5Atom.cpp \
+		nsHtml5AtomTable.cpp \
 		nsHtml5Parser.cpp \
 		nsHtml5AttributeName.cpp \
 		nsHtml5ElementName.cpp \
@@ -80,6 +68,7 @@ CPPSRCS		= \
 		nsHtml5StackNode.cpp \
 		nsHtml5UTF16Buffer.cpp \
 		nsHtml5NamedCharacters.cpp \
+		nsHtml5NamedCharactersAccel.cpp \
 		nsHtml5Tokenizer.cpp \
 		nsHtml5TreeBuilder.cpp \
 		nsHtml5Portability.cpp \
@@ -88,8 +77,19 @@ CPPSRCS		= \
 		nsHtml5ReleasableElementName.cpp \
 		nsHtml5MetaScanner.cpp \
 		nsHtml5TreeOperation.cpp \
+		nsHtml5TreeOpStage.cpp \
 		nsHtml5StateSnapshot.cpp \
+		nsHtml5TreeOpExecutor.cpp \
+		nsHtml5StreamParser.cpp \
+		nsHtml5Speculation.cpp \
+		nsHtml5SpeculativeLoad.cpp \
 		$(NULL)
+
+ifdef MOZ_SVG
+CPPSRCS += \
+		nsHtml5SVGLoadDispatcher.cpp \
+		$(NULL)
+endif
 
 FORCE_STATIC_LIB = 1
 

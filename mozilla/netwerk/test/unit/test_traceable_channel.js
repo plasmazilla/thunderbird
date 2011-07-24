@@ -20,12 +20,20 @@ TracingListener.prototype = {
 
     gotOnStartRequest = true;
 
+    request.QueryInterface(Components.interfaces.nsIHttpChannelInternal);
+    do_check_eq(request.localAddress, "127.0.0.1");
+    do_check_eq(request.localPort > 0, true);
+    do_check_neq(request.localPort, 4444);
+    do_check_eq(request.remoteAddress, "127.0.0.1");
+    do_check_eq(request.remotePort, 4444);
+
     // Make sure listener can't be replaced after OnStartRequest was called.
     request.QueryInterface(Components.interfaces.nsITraceableChannel);
     try {
       var newListener = new TracingListener();
       newListener.listener = request.setNewListener(newListener);
     } catch(e) {
+      dump("TracingListener.onStartRequest swallowing exception: " + e + "\n");
       return; // OK
     }
     do_throw("replaced channel's listener during onStartRequest.");
@@ -35,21 +43,25 @@ TracingListener.prototype = {
     dump("*** tracing listener onStopRequest\n");
     
     do_check_eq(gotOnStartRequest, true);
-    
-    var sin = Components.classes["@mozilla.org/scriptableinputstream;1"].
-        createInstance(Ci.nsIScriptableInputStream);
 
-    streamSink.close();
-    var input = pipe.inputStream;
-    sin.init(input);
-    do_check_eq(sin.available(), originalBody.length);
+    try {
+      var sin = Components.classes["@mozilla.org/scriptableinputstream;1"].
+          createInstance(Ci.nsIScriptableInputStream);
+
+      streamSink.close();
+      var input = pipe.inputStream;
+      sin.init(input);
+      do_check_eq(sin.available(), originalBody.length);
     
-    var result = sin.read(originalBody.length);
-    do_check_eq(result, originalBody);
+      var result = sin.read(originalBody.length);
+      do_check_eq(result, originalBody);
     
-    input.close();
-    
-    httpserver.stop(do_test_finished);
+      input.close();
+    } catch (e) {
+      dump("TracingListener.onStopRequest swallowing exception: " + e + "\n");
+    } finally {
+      httpserver.stop(do_test_finished);
+    }
   },
 
   QueryInterface: function(iid) {
@@ -71,10 +83,12 @@ HttpResponseExaminer.prototype = {
     Cc["@mozilla.org/observer-service;1"].
       getService(Components.interfaces.nsIObserverService).
       addObserver(this, "http-on-examine-response", true);
+    dump("Did HttpResponseExaminer.register\n");
   },
 
   // Replace channel's listener.
   observe: function(subject, topic, data) {
+    dump("In HttpResponseExaminer.observe\n");
     try {
       subject.QueryInterface(Components.interfaces.nsITraceableChannel);
       
@@ -86,11 +100,11 @@ HttpResponseExaminer.prototype = {
       streamSink = pipe.outputStream;
       
       var originalListener = subject.setNewListener(tee);
-      tee.QueryInterface(Components.interfaces.nsIStreamListenerTee_1_9_2);
-      tee.initWithObserver(originalListener, streamSink, newListener);
+      tee.init(originalListener, streamSink, newListener);
     } catch(e) {
       do_throw("can't replace listener " + e);
     }
+    dump("Did HttpResponseExaminer.observe\n");
   },
 
   QueryInterface: function(iid) {

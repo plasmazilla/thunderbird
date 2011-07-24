@@ -51,10 +51,22 @@ MOZ_PKG_PLATFORM := $(TARGET_OS)-$(TARGET_CPU)
 
 # TARGET_OS/TARGET_CPU may be unintuitive, so we hardcode some special formats
 ifeq ($(OS_ARCH),WINNT)
-MOZ_PKG_PLATFORM := win$(MOZ_BITS)
+ifeq ($(TARGET_CPU),x86_64)
+MOZ_PKG_PLATFORM := win64-$(TARGET_CPU)
+else
+MOZ_PKG_PLATFORM := win32
+endif
 endif
 ifeq ($(OS_ARCH),Darwin)
+ifdef UNIVERSAL_BINARY
 MOZ_PKG_PLATFORM := mac
+else
+ifeq ($(TARGET_CPU),x86_64)
+MOZ_PKG_PLATFORM := mac64
+else
+MOZ_PKG_PLATFORM := mac
+endif
+endif
 endif
 ifeq ($(TARGET_OS),linux-gnu)
 MOZ_PKG_PLATFORM := linux-$(TARGET_CPU)
@@ -62,25 +74,6 @@ endif
 ifeq ($(OS_ARCH),OS2)
 MOZ_PKG_PLATFORM := os2
 endif
-ifeq ($(OS_ARCH),BeOS)
-ifeq (,$(filter-out 6.%, $(OS_RELEASE)))
-MOZ_PKG_PLATFORM := Zeta
-else
-ifeq (,$(filter-out 5.1, $(OS_RELEASE)))
-MOZ_PKG_PLATFORM := BeOS-bone
-else
-ifeq (,$(filter-out 5.0.4, $(OS_RELEASE)))
-MOZ_PKG_PLATFORM := BeOS-bone
-else
-ifeq (,$(filter-out 5.0, $(OS_RELEASE)))
-MOZ_PKG_PLATFORM := BeOS-net_server
-else
-MOZ_PKG_PLATFORM := BeOS-$(OS_RELEASE)
-endif # 5.0
-endif # 5.0.4
-endif # 5.1
-endif # 6.
-endif # OS_ARCH BeOS
 endif #MOZ_PKG_PLATFORM
 
 ifdef MOZ_PKG_SPECIAL
@@ -119,10 +112,7 @@ MOZ_PKG_APPNAME_LC = $(shell echo $(MOZ_PKG_APPNAME) | tr '[A-Z]' '[a-z]')
 
 
 ifndef MOZ_PKG_LONGVERSION
-MOZ_PKG_LONGVERSION = $(shell echo $(MOZ_PKG_VERSION) |\
-                       sed -e 's/a\([0-9][0-9]*\)$$/ Alpha \1/' |\
-                       sed -e 's/b\([0-9][0-9]*\)$$/ Beta \1/' |\
-                       sed -e 's/rc\([0-9][0-9]*\)$$/ RC \1/')
+MOZ_PKG_LONGVERSION = $(shell echo $(MOZ_PKG_VERSION))
 endif
 
 ifeq (,$(filter-out Darwin OS2, $(OS_ARCH))) # Mac and OS2
@@ -157,6 +147,7 @@ PKG_SRCPACK_PATH = source/
 endif # MOZ_PKG_PRETTYNAMES
 
 # Symbol package naming
+SYMBOL_FULL_ARCHIVE_BASENAME = $(PKG_BASENAME).crashreporter-symbols-full
 SYMBOL_ARCHIVE_BASENAME = $(PKG_BASENAME).crashreporter-symbols
 
 # Test package naming
@@ -168,7 +159,7 @@ else
 BUILDID = $(shell $(PYTHON) $(MOZILLA_DIR)/config/printconfigsetting.py $(DIST)/bin/platform.ini Build BuildID)
 endif
 
-MOZ_SOURCE_STAMP = $(shell hg -R $(MOZILLA_DIR) parent --template="{node|short}\n" 2>/dev/null)
+MOZ_SOURCE_STAMP = $(firstword $(shell hg -R $(MOZILLA_DIR) parent --template="{node|short}\n" 2>/dev/null))
 
 # strip a trailing slash from the repo URL because it's not always present,
 # and we want to construct a working URL in the sourcestamp file.

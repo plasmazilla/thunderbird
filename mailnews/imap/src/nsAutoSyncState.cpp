@@ -13,7 +13,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Messaging, Inc.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -43,6 +43,8 @@
 #include "nsMsgFolderFlags.h"
 #include "nsIAutoSyncManager.h"
 #include "nsIAutoSyncMsgStrategy.h"
+#include "nsServiceManagerUtils.h"
+#include "nsComponentManagerUtils.h"
 
 extern PRLogModuleInfo *gAutoSyncLog;
 
@@ -174,7 +176,7 @@ nsresult nsAutoSyncState::PlaceIntoDownloadQ(const nsTArray<nsMsgKey> &aMsgKeyLi
         }
       }
     }//endfor
-    
+
     if (mIsDownloadQChanged)
     {
       LogOwnerFolderName("Download Q is created for ");
@@ -353,16 +355,16 @@ NS_IMETHODIMP nsAutoSyncState::GetNextGroupOfMessages(PRUint32 aSuggestedGroupSi
 NS_IMETHODIMP nsAutoSyncState::ProcessExistingHeaders(PRUint32 aNumOfHdrsToProcess, PRUint32 *aLeftToProcess)
 {
   NS_ENSURE_ARG_POINTER(aLeftToProcess);
-  
+
   nsresult rv;
   nsCOMPtr <nsIMsgFolder> folder = do_QueryReferent(mOwnerFolder, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  
+
   nsCOMPtr<nsIMsgDatabase> database;
   rv = folder->GetMsgDatabase(getter_AddRefs(database));
   if (!database)
     return NS_ERROR_FAILURE;
-  
+
   // create a queue to process existing headers for the first time
   if (mExistingHeadersQ.IsEmpty())
   {
@@ -370,7 +372,7 @@ NS_IMETHODIMP nsAutoSyncState::ProcessExistingHeaders(PRUint32 aNumOfHdrsToProce
     NS_ENSURE_SUCCESS(rv, rv);
     mProcessPointer = 0;
   }
-  
+
   // process the existing headers and find the messages not downloaded yet
   PRUint32 lastIdx = mProcessPointer;
   nsTArray<nsMsgKey> msgKeys;
@@ -383,7 +385,7 @@ NS_IMETHODIMP nsAutoSyncState::ProcessExistingHeaders(PRUint32 aNumOfHdrsToProce
     {
       PRUint32 msgFlags = 0;
       hdr->GetFlags(&msgFlags);
-      
+
       if (!(msgFlags & nsMsgMessageFlags::Offline))
         msgKeys.AppendElement(mExistingHeadersQ[mProcessPointer]);
     }
@@ -400,9 +402,9 @@ NS_IMETHODIMP nsAutoSyncState::ProcessExistingHeaders(PRUint32 aNumOfHdrsToProce
     if (NS_FAILED(rv))
       mProcessPointer = lastIdx;
   }
-      
+
   *aLeftToProcess = keyCount - mProcessPointer;
-    
+
   // cleanup if we are done processing
   if (0 == *aLeftToProcess)
   {
@@ -411,13 +413,27 @@ NS_IMETHODIMP nsAutoSyncState::ProcessExistingHeaders(PRUint32 aNumOfHdrsToProce
     mProcessPointer = 0;
     folder->SetMsgDatabase(nsnull);
   }
-  
+
   return rv;
 }
 
-nsresult nsAutoSyncState::OnNewHeaderFetchCompleted(const nsTArray<nsMsgKey> &aMsgKeyList)
+void nsAutoSyncState::OnNewHeaderFetchCompleted(const nsTArray<nsMsgKey> &aMsgKeyList)
 {
-  return PlaceIntoDownloadQ(aMsgKeyList);
+  SetLastUpdateTime(PR_Now());
+  if (!aMsgKeyList.IsEmpty())
+    PlaceIntoDownloadQ(aMsgKeyList);
+}
+
+NS_IMETHODIMP nsAutoSyncState::UpdateFolder()
+{
+  nsresult rv;
+  nsCOMPtr<nsIAutoSyncManager> autoSyncMgr = do_GetService(NS_AUTOSYNCMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIUrlListener> autoSyncMgrListener = do_QueryInterface(autoSyncMgr, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr <nsIMsgImapMailFolder> imapFolder = do_QueryReferent(mOwnerFolder, &rv);
+  SetState(nsAutoSyncState::stUpdateIssued);
+  return imapFolder->UpdateFolderWithListener(nsnull, autoSyncMgrListener);
 }
 
 NS_IMETHODIMP nsAutoSyncState::OnStartRunningUrl(nsIURI* aUrl)
@@ -431,7 +447,7 @@ NS_IMETHODIMP nsAutoSyncState::OnStartRunningUrl(nsIURI* aUrl)
   
   // TODO: is there a way to make sure that download started without
   // problem through nsIURI interface?
-   
+
   nsCOMPtr<nsIAutoSyncManager> autoSyncMgr = do_GetService(NS_AUTOSYNCMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   
@@ -468,7 +484,7 @@ NS_IMETHODIMP nsAutoSyncState::OnStopRunningUrl(nsIURI* aUrl, nsresult aExitCode
       PR_LOG(gAutoSyncLog, PR_LOG_DEBUG,
              ("serverTotal = %lx lastServerTotal = %lx serverRecent = %lx lastServerRecent = %lx\n",
               serverTotal, mLastServerTotal, serverRecent, mLastServerRecent));
-
+      SetServerCounts(serverTotal, serverRecent, serverUnseen, serverNextUID);
       SetState(nsAutoSyncState::stUpdateIssued);
       return imapFolder->UpdateFolderWithListener(nsnull, autoSyncMgrListener);
     }
@@ -499,8 +515,9 @@ NS_IMETHODIMP nsAutoSyncState::GetState(PRInt32 *aState)
   return NS_OK;
 }
 
-const char *stateStrings[] = {"idle", "status issued", "update issued", "downloading",
-                            "ready to download"};
+const char *stateStrings[] = {"idle", "status issued", "update needed",
+                              "update issued", "downloading",
+                              "ready to download"};
 
 NS_IMETHODIMP nsAutoSyncState::SetState(PRInt32 aState)
 {

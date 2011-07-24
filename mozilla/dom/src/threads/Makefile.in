@@ -48,25 +48,6 @@ LIBRARY_NAME     = domthreads_s
 LIBXUL_LIBRARY   = 1
 FORCE_STATIC_LIB = 1
 
-REQUIRES = \
-  caps \
-  content \
-  docshell \
-  gfx \
-  js \
-  layout \
-  locale \
-  necko \
-  plugin \
-  pref \
-  string \
-  thebes \
-  uconv \
-  widget \
-  xpcom \
-  xpconnect \
-  $(NULL)
-
 CPPSRCS = \
   nsDOMThreadService.cpp \
   nsDOMWorker.cpp \
@@ -83,10 +64,11 @@ CPPSRCS = \
   $(NULL)
 
 LOCAL_INCLUDES = \
-  -I$(topsrcdir)/dom/base \
-  -I$(topsrcdir)/dom/src/json \
   -I$(topsrcdir)/content/base/src \
   -I$(topsrcdir)/content/events/src \
+  -I$(topsrcdir)/dom/base \
+  -I$(topsrcdir)/dom/src/json \
+  -I$(topsrcdir)/js/src/xpconnect/src \
   $(NULL)
 
 ifdef ENABLE_TESTS

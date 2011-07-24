@@ -23,6 +23,7 @@
  * Dan Mills <thunder@mozilla.com>
  * Andrew Sutherland <asutherland@asutherland.org>
  * David Ascher <dascher@mozillamessaging.com>
+ * Philipp von Weitershausen <philipp@weitershausen.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -45,16 +46,14 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-
 const MODE_RDONLY   = 0x01;
 const MODE_WRONLY   = 0x02;
 const MODE_CREATE   = 0x08;
 const MODE_APPEND   = 0x10;
 const MODE_TRUNCATE = 0x20;
 
-const PERMS_FILE      = 0644;
-const PERMS_DIRECTORY = 0755;
+const PERMS_FILE      = parseInt("0644", 8);
+const PERMS_DIRECTORY = parseInt("0755", 8);
 
 const ONE_BYTE = 1;
 const ONE_KILOBYTE = 1024 * ONE_BYTE;
@@ -192,6 +191,7 @@ let Log4Moz = {
   get Appender() { return Appender; },
   get DumpAppender() { return DumpAppender; },
   get ConsoleAppender() { return ConsoleAppender; },
+  get TimeAwareMemoryBucketAppender() { return TimeAwareMemoryBucketAppender; },
   get FileAppender() { return FileAppender; },
   get SocketAppender() { return SocketAppender; },
   get RotatingFileAppender() { return RotatingFileAppender; },
@@ -238,7 +238,7 @@ let Log4Moz = {
 };
 
 function LoggerContext() {
-  this._started = this.lastStateChange = Date.now();
+  this._started = this._lastStateChange = Date.now();
   this._state = "started";
 }
 LoggerContext.prototype = {
@@ -271,8 +271,6 @@ function LogMessage(loggerName, level, messageObjects){
   this.time = Date.now();
 }
 LogMessage.prototype = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
-
   get levelDesc() {
     if (this.level in Log4Moz.Level.Desc)
       return Log4Moz.Level.Desc[this.level];
@@ -298,13 +296,11 @@ Logger.prototype = {
     if (!repository)
       repository = Log4Moz.repository;
     this._name = name;
-    this._appenders = [];
+    this.children = [];
+    this.ownAppenders = [];
+    this.appenders = [];
     this._repository = repository;
   },
-
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
-
-  parent: null,
 
   get name() {
     return this._name;
@@ -323,19 +319,46 @@ Logger.prototype = {
     this._level = level;
   },
 
-  _appenders: null,
-  get appenders() {
-    if (!this.parent)
-      return this._appenders;
-    return this._appenders.concat(this.parent.appenders);
+  _parent: null,
+  get parent() this._parent,
+  set parent(parent) {
+    if (this._parent == parent) {
+      return;
+    }
+    // Remove ourselves from parent's children
+    if (this._parent) {
+      let index = this._parent.children.indexOf(this);
+      if (index != -1) {
+        this._parent.children.splice(index, 1);
+      }
+    }
+    this._parent = parent;
+    parent.children.push(this);
+    this.updateAppenders();
+  },
+
+  updateAppenders: function updateAppenders() {
+    if (this._parent) {
+      let notOwnAppenders = this._parent.appenders.filter(function(appender) {
+        return this.ownAppenders.indexOf(appender) == -1;
+      }, this);
+      this.appenders = notOwnAppenders.concat(this.ownAppenders);
+    } else {
+      this.appenders = this.ownAppenders.slice();
+    }
+
+    // Update children's appenders.
+    for (let i = 0; i < this.children.length; i++) {
+      this.children[i].updateAppenders();
+    }
   },
 
   addAppender: function Logger_addAppender(appender) {
-    for (let i = 0; i < this._appenders.length; i++) {
-      if (this._appenders[i] == appender)
-        return;
+    if (this.ownAppenders.indexOf(appender) != -1) {
+      return;
     }
-    this._appenders.push(appender);
+    this.ownAppenders.push(appender);
+    this.updateAppenders();
   },
 
   _nextContextId: 0,
@@ -357,33 +380,56 @@ Logger.prototype = {
     }
   },
 
+  removeAppender: function Logger_removeAppender(appender) {
+    let index = this.ownAppenders.indexOf(appender);
+    if (index == -1) {
+      return;
+    }
+    this.ownAppenders.splice(index, 1);
+    this.updateAppenders();
+  },
+
+  log: function Logger_log(level, args) {
+    if (this.level > level)
+      return;
+
+    // Hold off on creating the message object until we actually have
+    // an appender that's responsible.
+    let message;
+    let appenders = this.appenders;
+    for (let i = 0; i < appenders.length; i++){
+      let appender = appenders[i];
+      if (appender.level > level)
+        continue;
+
+      if (!message)
+        message = new LogMessage(this._name, level,
+                                 Array.prototype.slice.call(args));
+
+      appender.append(message);
+    }
+  },
+
   fatal: function Logger_fatal() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Fatal,
-                            Array.prototype.slice.call(arguments)));
+    this.log(Log4Moz.Level.Fatal, arguments);
   },
   error: function Logger_error() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Error,
-                            Array.prototype.slice.call(arguments)));
-   },
+    this.log(Log4Moz.Level.Error, arguments);
+  },
   warn: function Logger_warn() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Warn,
-                            Array.prototype.slice.call(arguments)));
-   },
-  info: function Logger_info() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Info,
-                            Array.prototype.slice.call(arguments)));
-   },
-  config: function Logger_config() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Config,
-                            Array.prototype.slice.call(arguments)));
-   },
-  debug: function Logger_debug() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Debug,
-                            Array.prototype.slice.call(arguments)));
-   },
-  trace: function Logger_trace() {
-    this.log(new LogMessage(this._name, Log4Moz.Level.Trace,
-                            Array.prototype.slice.call(arguments)));
+    this.log(Log4Moz.Level.Warn, arguments);
+  },
+  info: function Logger_info(string) {
+    this.log(Log4Moz.Level.Info, arguments);
+  },
+  config: function Logger_config(string) {
+    this.log(Log4Moz.Level.Config, arguments);
+  },
+  debug: function Logger_debug(string) {
+    this.log(Log4Moz.Level.Debug, arguments);
+  },
+  trace: function Logger_trace(string) {
+    this.log(Log4Moz.Level.Trace, arguments);
   }
 };
 
@@ -394,8 +440,6 @@ Logger.prototype = {
 
 function LoggerRepository() {}
 LoggerRepository.prototype = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
-
   _loggers: {},
 
   _rootLogger: null,
@@ -406,10 +450,9 @@ LoggerRepository.prototype = {
     }
     return this._rootLogger;
   },
-  // FIXME: need to update all parent values if we do this
-  //set rootLogger(logger) {
-  //  this._rootLogger = logger;
-  //},
+  set rootLogger(logger) {
+    throw "Cannot change the root logger";
+  },
 
   _updateParents: function LogRep__updateParents(name) {
     let pieces = name.split('.');
@@ -441,8 +484,6 @@ LoggerRepository.prototype = {
   },
 
   getLogger: function LogRep_getLogger(name) {
-    if (!name)
-      name = this.getLogger.caller.name;
     if (name in this._loggers)
       return this._loggers[name];
     this._loggers[name] = new Logger(name, this);
@@ -460,11 +501,10 @@ LoggerRepository.prototype = {
 // Abstract formatter
 function Formatter() {}
 Formatter.prototype = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
   format: function Formatter_format(message) {}
 };
 
-// FIXME: should allow for formatting the whole string, not just the date
+// services' log4moz lost the date formatting default...
 function BasicFormatter(dateFormat) {
   if (dateFormat)
     this.dateFormat = dateFormat;
@@ -486,8 +526,10 @@ BasicFormatter.prototype = {
 
   format: function BF_format(message) {
     let date = new Date(message.time);
+    // The trick below prevents errors further down because mo is null or
+    //  undefined.
     let messageString = [
-      ((typeof(mo) == "object") ? mo.toString() : mo) for each
+      ("" + mo) for each
       ([,mo] in Iterator(message.messageObjects))].join(" ");
     return date.toLocaleFormat(this.dateFormat) + "\t" +
       message.loggerName + "\t" + message.levelDesc + "\t" +
@@ -528,6 +570,12 @@ JSONFormatter.prototype = {
   __proto__: Formatter.prototype,
 
   format: function JF_format(message) {
+    // XXX I did all kinds of questionable things in here; they should be
+    //  resolved...
+    // 1) JSON does not walk the __proto__ chain; there is no need to clobber
+    //   it.
+    // 2) Our net mutation is sorta redundant messageObjects alongside
+    //   msgObjects, although we only serialize one.
     let origMessageObjects = message.messageObjects;
     message.messageObjects = [];
     let reProto = [];
@@ -565,15 +613,10 @@ function Appender(formatter) {
   this._formatter = formatter? formatter : new BasicFormatter();
 }
 Appender.prototype = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
-
-  _level: Log4Moz.Level.All,
-  get level() { return this._level; },
-  set level(level) { this._level = level; },
+  level: Log4Moz.Level.All,
 
   append: function App_append(message) {
-    if(this._level <= message.level)
-      this.doAppend(this._formatter.format(message));
+    this.doAppend(this._formatter.format(message));
   },
   toString: function App_toString() {
     return this._name + " [level=" + this._level +
@@ -597,6 +640,65 @@ DumpAppender.prototype = {
   doAppend: function DApp_doAppend(message) {
     dump(message);
   }
+};
+
+/**
+ * An in-memory appender that always logs to its in-memory bucket and associates
+ * each message with a timestamp.  Whoever creates us is responsible for causing
+ * us to switch to a new bucket using whatever criteria is appropriate.
+ *
+ * This is intended to be used roughly like an in-memory circular buffer.  The
+ * expectation is that we are being used for unit tests and that each unit test
+ * function will get its own bucket.  In the event that a test fails we would
+ * be asked for the contents of the current bucket and some portion of the
+ * previous bucket using up to some duration.
+ */
+function TimeAwareMemoryBucketAppender() {
+  this._name = "TimeAwareMemoryBucketAppender";
+  this._level = Log4Moz.Level.All;
+
+  this._lastBucket = null;
+  // to minimize object construction, even indices are timestamps, odd indices
+  //  are the message objects.
+  this._curBucket = [];
+  this._curBucketStartedAt = Date.now();
+}
+TimeAwareMemoryBucketAppender.prototype = {
+  get level() { return this._level; },
+  set level(level) { this._level = level; },
+
+  append: function TAMBA_append(message) {
+    if (this._level <= message.level)
+      this._curBucket.push(message);
+  },
+
+  newBucket: function() {
+    this._lastBucket = this._curBucket;
+    this._curBucketStartedAt = Date.now();
+    this._curBucket = [];
+  },
+
+  getPreviousBucketEvents: function(aNumMS) {
+    let lastBucket = this._lastBucket;
+    if (lastBucket == null || !lastBucket.length)
+      return [];
+    let timeBound = this._curBucketStartedAt - aNumMS;
+    // seek backwards through the list...
+    let i;
+    for (i = lastBucket.length - 1; i >= 0; i --) {
+      if (lastBucket[i].time < timeBound)
+        break;
+    }
+    return lastBucket.slice(i+1);
+  },
+
+  getBucketEvents: function() {
+    return this._curBucket.concat();
+  },
+
+  toString: function() {
+    return "[TimeAwareMemoryBucketAppender]";
+  },
 };
 
 /*

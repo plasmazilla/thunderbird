@@ -72,13 +72,15 @@ class TableBackgroundPainter
       * relative to aRenderingContext
       * @param aPt               - offset of the table frame relative to
       * aRenderingContext
+      * @param aBGPaintFlags - Flags of the nsCSSRendering::PAINTBG_* variety
       */
     TableBackgroundPainter(nsTableFrame*        aTableFrame,
                            Origin               aOrigin,
                            nsPresContext*       aPresContext,
                            nsIRenderingContext& aRenderingContext,
                            const nsRect&        aDirtyRect,
-                           const nsPoint&       aPt);
+                           const nsPoint&       aPt,
+                           PRUint32             aBGPaintFlags);
 
     /** Destructor */
     ~TableBackgroundPainter();
@@ -181,11 +183,11 @@ class TableBackgroundPainter
       nsIFrame*                 mFrame;
       /** mRect is the rect of mFrame in the current coordinate system */
       nsRect                    mRect;
-      const nsStyleBackground*  mBackground;
+      PRBool                    mVisible;
       const nsStyleBorder*      mBorder;
 
       /** Data is valid & frame is visible */
-      PRBool IsVisible() const { return mBackground != nsnull; }
+      PRBool IsVisible() const { return mVisible; }
 
       /** Constructor */
       TableBackgroundData();
@@ -247,6 +249,7 @@ class TableBackgroundPainter
     nsRect               mCellRect; //current cell's rect
 
     nsStyleBorder        mZeroBorder;  //cached zero-width border
+    PRUint32             mBGPaintFlags;
 };
 
 #endif

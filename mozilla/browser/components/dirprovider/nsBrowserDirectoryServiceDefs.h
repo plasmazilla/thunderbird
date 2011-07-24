@@ -13,7 +13,7 @@
  *
  * The Original Code is the Mozilla Firefox browser.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  *
  * Portions created by the Initial Developer are Copyright (C) 2006
  * the Initial Developer. All Rights Reserved.
@@ -52,13 +52,6 @@
 // Files and directories that exist on a per-browser basis.
 // ----------------------------------------------------------------------------
 
-#define NS_APP_MICROSUMMARY_DIR                 "MicsumGens"
 #define NS_APP_EXISTING_PREF_OVERRIDE           "ExistingPrefOverride"
 
-// ----------------------------------------------------------------------------
-// Files and directories that exist on a per-profile basis.
-// ----------------------------------------------------------------------------
-
-#define NS_APP_USER_MICROSUMMARY_DIR            "UsrMicsumGens"
-         
 #endif

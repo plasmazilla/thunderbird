@@ -44,14 +44,14 @@
 #include "nsXULMenuAccessible.h"
 
 /**
- * An individual tab, xul:tab element
+ * An individual tab, xul:tab element.
  */
-class nsXULTabAccessible : public nsLeafAccessible
+class nsXULTabAccessible : public nsAccessibleWrap
 {
 public:
   enum { eAction_Switch = 0 };
 
-  nsXULTabAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXULTabAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
   NS_IMETHOD GetNumActions(PRUint8 *_retval);
@@ -61,32 +61,20 @@ public:
                                nsIAccessibleRelation **aRelation);
 
   // nsAccessible
-  virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual void GetPositionAndSizeInternal(PRInt32 *aPosInSet,
+                                          PRInt32 *aSetSize);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 
-/** 
-  * Contains a tabs object and a tabPanels object. A complete
-  *    entity with relationships between tabs and content to
-  *    be displayed in the tabpanels object
-  */
-class nsXULTabBoxAccessible : public nsAccessibleWrap
-{
-public:
-  nsXULTabBoxAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
-
-  // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
-};
 
 /**
- * A container of tab obejcts, xul:tabs element.
+ * A container of tab objects, xul:tabs element.
  */
 class nsXULTabsAccessible : public nsXULSelectableAccessible
 {
 public:
-  nsXULTabsAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXULTabsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
   NS_IMETHOD GetNumActions(PRUint8 *_retval);
@@ -94,26 +82,44 @@ public:
 
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 };
+
+
+/** 
+ * A container of tab panels, xul:tabpanels element.
+ */
+class nsXULTabpanelsAccessible : public nsAccessibleWrap
+{
+public:
+  nsXULTabpanelsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+
+  // nsAccessible
+  virtual PRUint32 NativeRole();
+};
+
 
 /**
  * A tabpanel object, child elements of xul:tabpanels element. Note,the object
  * is created from nsAccessibilityService::GetAccessibleForDeckChildren()
  * method and we do not use nsIAccessibleProvider interface here because
  * all children of xul:tabpanels element acts as xul:tabpanel element.
+ *
+ * XXX: we need to move the class logic into generic class since
+ * for example we do not create instance of this class for XUL textbox used as
+ * a tabpanel.
  */
 class nsXULTabpanelAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULTabpanelAccessible(nsIDOMNode *aNode, nsIWeakReference *aShell);
+  nsXULTabpanelAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
   NS_IMETHOD GetRelationByType(PRUint32 aRelationType,
                                nsIAccessibleRelation **aRelation);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 };
 
 #endif

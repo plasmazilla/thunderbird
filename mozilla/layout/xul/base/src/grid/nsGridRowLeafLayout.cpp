@@ -216,7 +216,7 @@ nsGridRowLeafLayout::PopulateBoxSizes(nsIBox* aBox, nsBoxLayoutState& aState, ns
       }
     
       // initialize the box size here 
-      max = PR_MAX(min, max);
+      max = NS_MAX(min, max);
       pref = nsBox::BoundsCheck(min, pref, max);
    
       current = new (aState) nsBoxSize();
@@ -268,11 +268,15 @@ nsGridRowLeafLayout::ComputeChildSizes(nsIBox* aBox,
       nsIBox* scrollbox = nsGrid::GetScrollBox(parentBox);
       nsIScrollableFrame *scrollable = do_QueryFrame(scrollbox);
       if (scrollable) {
-        nsMargin scrollbarSizes = scrollable->GetActualScrollbarSizes();
+        // Don't call GetActualScrollbarSizes here because it's not safe
+        // to call that while we're reflowing the contents of the scrollframe,
+        // which we are here.
+        nsMargin scrollbarSizes = scrollable->GetDesiredScrollbarSizes(&aState);
+        PRUint32 visible = scrollable->GetScrollbarVisibility();
 
-        if (isHorizontal) {
+        if (isHorizontal && (visible & nsIScrollableFrame::VERTICAL)) {
           diff += scrollbarSizes.left + scrollbarSizes.right;
-        } else {
+        } else if (!isHorizontal && (visible & nsIScrollableFrame::HORIZONTAL)) {
           diff += scrollbarSizes.top + scrollbarSizes.bottom;
         }
       }

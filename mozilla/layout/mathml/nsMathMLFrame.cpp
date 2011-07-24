@@ -39,16 +39,14 @@
 #include "nsINameSpaceManager.h"
 #include "nsMathMLFrame.h"
 #include "nsMathMLChar.h"
-#include "nsCSSAnonBoxes.h"
+#include "nsCSSPseudoElements.h"
 
 // used to map attributes into CSS rules
 #include "nsIDocument.h"
 #include "nsStyleSet.h"
 #include "nsIStyleSheet.h"
-#include "nsICSSStyleSheet.h"
 #include "nsIDOMCSSStyleSheet.h"
 #include "nsICSSRule.h"
-#include "nsICSSStyleRule.h"
 #include "nsStyleChangeList.h"
 #include "nsFrameManager.h"
 #include "nsNetUtil.h"
@@ -164,12 +162,13 @@ nsMathMLFrame::ResolveMathMLCharStyle(nsPresContext*  aPresContext,
                                       nsMathMLChar*    aMathMLChar,
                                       PRBool           aIsMutableChar)
 {
-  nsIAtom* pseudoStyle = (aIsMutableChar) ?
-    nsCSSAnonBoxes::mozMathStretchy :
-    nsCSSAnonBoxes::mozMathAnonymous; // savings
+  nsCSSPseudoElements::Type pseudoType = (aIsMutableChar) ?
+    nsCSSPseudoElements::ePseudo_mozMathStretchy :
+    nsCSSPseudoElements::ePseudo_mozMathAnonymous; // savings
   nsRefPtr<nsStyleContext> newStyleContext;
   newStyleContext = aPresContext->StyleSet()->
-    ResolvePseudoStyleFor(aContent, pseudoStyle, aParentStyleContext);
+    ResolvePseudoElementStyle(aContent->AsElement(), pseudoType,
+                              aParentStyleContext);
 
   if (newStyleContext)
     aMathMLChar->SetStyleContext(newStyleContext);
@@ -348,15 +347,15 @@ nsMathMLFrame::CalcLength(nsPresContext*   aPresContext,
   NS_ASSERTION(aCSSValue.IsLengthUnit(), "not a length unit");
 
   if (aCSSValue.IsFixedLengthUnit()) {
-    return aPresContext->TwipsToAppUnits(aCSSValue.GetLengthTwips());
+    return aCSSValue.GetFixedLength(aPresContext);
+  }
+  if (aCSSValue.IsPixelLengthUnit()) {
+    return aCSSValue.GetPixelLength();
   }
 
   nsCSSUnit unit = aCSSValue.GetUnit();
 
-  if (eCSSUnit_Pixel == unit) {
-    return nsPresContext::CSSPixelsToAppUnits(aCSSValue.GetFloatValue());
-  }
-  else if (eCSSUnit_EM == unit) {
+  if (eCSSUnit_EM == unit) {
     const nsStyleFont* font = aStyleContext->GetStyleFont();
     return NSToCoordRound(aCSSValue.GetFloatValue() * (float)font->mFont.size);
   }
@@ -368,6 +367,8 @@ nsMathMLFrame::CalcLength(nsPresContext*   aPresContext,
     return NSToCoordRound(aCSSValue.GetFloatValue() * (float)xHeight);
   }
 
+  // MathML doesn't specify other CSS units such as rem or ch
+  NS_ERROR("Unsupported unit");
   return 0;
 }
 
@@ -452,8 +453,9 @@ nsCSSMapping {
 #if defined(NS_DEBUG) && defined(SHOW_BOUNDING_BOX)
 class nsDisplayMathMLBoundingMetrics : public nsDisplayItem {
 public:
-  nsDisplayMathMLBoundingMetrics(nsIFrame* aFrame, const nsRect& aRect)
-    : nsDisplayItem(aFrame), mRect(aRect) {
+  nsDisplayMathMLBoundingMetrics(nsDisplayListBuilder* aBuilder,
+                                 nsIFrame* aFrame, const nsRect& aRect)
+    : nsDisplayItem(aBuilder, aFrame), mRect(aRect) {
     MOZ_COUNT_CTOR(nsDisplayMathMLBoundingMetrics);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -464,7 +466,7 @@ public:
 
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("MathMLBoundingMetrics")
+  NS_DISPLAY_DECL_NAME("MathMLBoundingMetrics", TYPE_MATHML_BOUNDING_METRICS)
 private:
   nsRect    mRect;
 };
@@ -473,7 +475,7 @@ void nsDisplayMathMLBoundingMetrics::Paint(nsDisplayListBuilder* aBuilder,
                                            nsIRenderingContext* aCtx)
 {
   aCtx->SetColor(NS_RGB(0,0,255));
-  aCtx->DrawRect(mRect + aBuilder->ToReferenceFrame(mFrame));
+  aCtx->DrawRect(mRect + ToReferenceFrame());
 }
 
 nsresult
@@ -490,14 +492,15 @@ nsMathMLFrame::DisplayBoundingMetrics(nsDisplayListBuilder* aBuilder,
   nscoord h = aMetrics.ascent + aMetrics.descent;
 
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-      nsDisplayMathMLBoundingMetrics(this, nsRect(x,y,w,h)));
+      nsDisplayMathMLBoundingMetrics(aBuilder, this, nsRect(x,y,w,h)));
 }
 #endif
 
 class nsDisplayMathMLBar : public nsDisplayItem {
 public:
-  nsDisplayMathMLBar(nsIFrame* aFrame, const nsRect& aRect)
-    : nsDisplayItem(aFrame), mRect(aRect) {
+  nsDisplayMathMLBar(nsDisplayListBuilder* aBuilder,
+                     nsIFrame* aFrame, const nsRect& aRect)
+    : nsDisplayItem(aBuilder, aFrame), mRect(aRect) {
     MOZ_COUNT_CTOR(nsDisplayMathMLBar);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -508,7 +511,7 @@ public:
 
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("MathMLBar")
+  NS_DISPLAY_DECL_NAME("MathMLBar", TYPE_MATHML_BAR)
 private:
   nsRect    mRect;
 };
@@ -518,7 +521,7 @@ void nsDisplayMathMLBar::Paint(nsDisplayListBuilder* aBuilder,
 {
   // paint the bar with the current text color
   aCtx->SetColor(mFrame->GetStyleColor()->mColor);
-  aCtx->FillRect(mRect + aBuilder->ToReferenceFrame(mFrame));
+  aCtx->FillRect(mRect + ToReferenceFrame());
 }
 
 nsresult
@@ -529,5 +532,5 @@ nsMathMLFrame::DisplayBar(nsDisplayListBuilder* aBuilder,
     return NS_OK;
 
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-      nsDisplayMathMLBar(aFrame, aRect));
+      nsDisplayMathMLBar(aBuilder, aFrame, aRect));
 }

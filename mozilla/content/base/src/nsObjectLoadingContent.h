@@ -37,7 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 /*
- * A base class implementING nsIObjectLoadingContent for use by
+ * A base class implementing nsIObjectLoadingContent for use by
  * various content nodes that want to provide plugin/document/image
  * loading functionality (eg <embed>, <object>, <applet>, etc).
  */
@@ -52,7 +52,7 @@
 #include "nsIChannelEventSink.h"
 #include "nsIObjectLoadingContent.h"
 #include "nsIRunnable.h"
-#include "nsIChannelClassifier.h"
+#include "nsIFrame.h"
 
 class nsAsyncInstantiateEvent;
 class AutoNotifier;
@@ -90,7 +90,6 @@ class nsObjectLoadingContent : public nsImageLoadingContent
                              , public nsIStreamListener
                              , public nsIFrameLoaderOwner
                              , public nsIObjectLoadingContent
-                             , public nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH
                              , public nsIInterfaceRequestor
                              , public nsIChannelEventSink
 {
@@ -116,7 +115,6 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     NS_DECL_NSISTREAMLISTENER
     NS_DECL_NSIFRAMELOADEROWNER
     NS_DECL_NSIOBJECTLOADINGCONTENT
-    NS_DECL_NSIOBJECTLOADINGCONTENT_MOZILLA_1_9_2_BRANCH
     NS_DECL_NSIINTERFACEREQUESTOR
     NS_DECL_NSICHANNELEVENTSINK
 
@@ -134,8 +132,12 @@ class nsObjectLoadingContent : public nsImageLoadingContent
      * NS_EVENT_STATE_BROKEN, NS_EVENT_STATE_USERDISABLED and
      * NS_EVENT_STATE_SUPPRESSED representing the current state of the object.
      */
-    PRInt32 ObjectState() const;
+    nsEventStates ObjectState() const;
 
+    void SetIsNetworkCreated(PRBool aNetworkCreated)
+    {
+      mNetworkCreated = aNetworkCreated;
+    }
   protected:
     /**
      * Load the object from the given URI.
@@ -224,6 +226,7 @@ class nsObjectLoadingContent : public nsImageLoadingContent
 
     void Traverse(nsCycleCollectionTraversalCallback &cb);
 
+    void CreateStaticClone(nsObjectLoadingContent* aDest) const;
   private:
     /**
      * Check whether the given request represents a successful load.
@@ -256,7 +259,7 @@ class nsObjectLoadingContent : public nsImageLoadingContent
      * @param aSync If a synchronous frame construction is required. If false,
      *              the construction may either be sync or async.
      */
-    void NotifyStateChanged(ObjectType aOldType, PRInt32 aOldState,
+    void NotifyStateChanged(ObjectType aOldType, nsEventStates aOldState,
                             PRBool aSync);
 
     /**
@@ -329,21 +332,6 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     nsresult Instantiate(nsIObjectFrame* aFrame, const nsACString& aMIMEType, nsIURI* aURI);
 
     /**
-     * Check the channel load against the URI classifier service (if it
-     * exists).  The channel will be suspended until the classification is
-     * complete.
-     */
-    nsresult CheckClassifier(nsIChannel *aChannel);
-
-    /**
-     * Whether to treat this content as a plugin, even though we can't handle
-     * the type. This function impl should match the checks in the plugin host.
-     * aContentType is the MIME type we ended up with.
-     */
-    static PRBool ShouldShowDefaultPlugin(nsIContent* aContent,
-                                          const nsCString& aContentType);
-
-    /**
      * Get the plugin support state for the given content node and MIME type.
      * This is used for purposes of determining whether to fire PluginNotFound
      * events etc.  aContentType is the MIME type we ended up with.
@@ -403,11 +391,6 @@ class nsObjectLoadingContent : public nsImageLoadingContent
     nsCOMPtr<nsIURI>            mURI;
 
     /**
-     * Suspends/resumes channels based on the URI classifier.
-     */
-    nsCOMPtr<nsIChannelClassifier> mClassifier;
-
-    /**
      * Type of the currently-loaded content.
      */
     ObjectType                  mType          : 16;
@@ -416,12 +399,20 @@ class nsObjectLoadingContent : public nsImageLoadingContent
      * Whether we are about to call instantiate on our frame. If we aren't,
      * SetFrame needs to asynchronously call Instantiate.
      */
-    PRBool                      mInstantiating : 1;
+    PRPackedBool                mInstantiating : 1;
     // Blocking status from content policy
-    PRBool                      mUserDisabled  : 1;
-    PRBool                      mSuppressed    : 1;
+    PRPackedBool                mUserDisabled  : 1;
+    PRPackedBool                mSuppressed    : 1;
+
+    // True when the object is created for an element which the parser has
+    // created using NS_FROM_PARSER_NETWORK flag. If the element is modified,
+    // it may lose the flag.
+    PRPackedBool                mNetworkCreated : 1;
+
     // A specific state that caused us to fallback
     PluginSupportState          mFallbackReason;
+
+    nsWeakFrame                 mPrintFrame;
 
     friend class nsAsyncInstantiateEvent;
 };

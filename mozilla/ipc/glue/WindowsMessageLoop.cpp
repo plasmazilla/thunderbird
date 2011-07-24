@@ -47,7 +47,7 @@
 #include "nsIXULAppInfo.h"
 
 #include "mozilla/Mutex.h"
-#include "PaintTracker.h"
+#include "mozilla/PaintTracker.h"
 
 using mozilla::ipc::SyncChannel;
 using mozilla::ipc::RPCChannel;
@@ -102,6 +102,9 @@ using namespace mozilla::ipc::windows;
  * these in-calls are blocked.
  */
 
+// pulled from widget's nsAppShell
+extern const PRUnichar* kAppShellEventId;
+
 namespace {
 
 const wchar_t kOldWndProcProp[] = L"MozillaIPCOldWndProc";
@@ -122,6 +125,7 @@ HHOOK gDeferredCallWndProcHook = NULL;
 
 DWORD gUIThreadId = 0;
 int gEventLoopDepth = 0;
+static UINT sAppShellGeckoMsgId;
 
 LRESULT CALLBACK
 DeferredMessageHook(int nCode,
@@ -210,6 +214,7 @@ ProcessOrDeferMessage(HWND hwnd,
     case WM_PARENTNOTIFY:
     case WM_SETFOCUS:
     case WM_SYSCOMMAND:
+    case WM_DISPLAYCHANGE:
     case WM_SHOWWINDOW: // Intentional fall-through.
     case WM_XP_THEMECHANGED: {
       deferred = new DeferredSendMessage(hwnd, uMsg, wParam, lParam);
@@ -298,26 +303,31 @@ ProcessOrDeferMessage(HWND hwnd,
     case WM_SYNCPAINT:
       return 0;
 
-    // Unknown messages only.
     default: {
+      if (uMsg && uMsg == sAppShellGeckoMsgId) {
+        // Widget's registered native event callback
+        deferred = new DeferredSendMessage(hwnd, uMsg, wParam, lParam);
+      } else {
+        // Unknown messages only
 #ifdef DEBUG
-      nsCAutoString log("Received \"nonqueued\" message ");
-      log.AppendInt(uMsg);
-      log.AppendLiteral(" during a synchronous IPC message for window ");
-      log.AppendInt((PRInt64)hwnd);
+        nsCAutoString log("Received \"nonqueued\" message ");
+        log.AppendInt(uMsg);
+        log.AppendLiteral(" during a synchronous IPC message for window ");
+        log.AppendInt((PRInt64)hwnd);
 
-      wchar_t className[256] = { 0 };
-      if (GetClassNameW(hwnd, className, sizeof(className) - 1) > 0) {
-        log.AppendLiteral(" (\"");
-        log.Append(NS_ConvertUTF16toUTF8((PRUnichar*)className));
-        log.AppendLiteral("\")");
-      }
+        wchar_t className[256] = { 0 };
+        if (GetClassNameW(hwnd, className, sizeof(className) - 1) > 0) {
+          log.AppendLiteral(" (\"");
+          log.Append(NS_ConvertUTF16toUTF8((PRUnichar*)className));
+          log.AppendLiteral("\")");
+        }
 
-      log.AppendLiteral(", sending it to DefWindowProc instead of the normal "
-                        "window procedure.");
-      NS_ERROR(log.get());
+        log.AppendLiteral(", sending it to DefWindowProc instead of the normal "
+                          "window procedure.");
+        NS_ERROR(log.get());
 #endif
-      return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+      }
     }
   }
 
@@ -334,6 +344,9 @@ ProcessOrDeferMessage(HWND hwnd,
   return res;
 }
 
+} // anonymous namespace
+
+// We need the pointer value of this in PluginInstanceChild.
 LRESULT CALLBACK
 NeuteredWindowProc(HWND hwnd,
                    UINT uMsg,
@@ -351,6 +364,8 @@ NeuteredWindowProc(HWND hwnd,
   // DefWindowProc, or defer it for later.
   return ProcessOrDeferMessage(hwnd, uMsg, wParam, lParam);
 }
+
+namespace {
 
 static bool
 WindowIsDeferredWindow(HWND hWnd)
@@ -459,8 +474,7 @@ RestoreWindowProcedure(HWND hWnd)
 {
   NS_ASSERTION(WindowIsDeferredWindow(hWnd),
                "Not a deferred window, this shouldn't be in our list!");
-
-  LONG_PTR oldWndProc = (LONG_PTR)RemoveProp(hWnd, kOldWndProcProp);
+  LONG_PTR oldWndProc = (LONG_PTR)GetProp(hWnd, kOldWndProcProp);
   if (oldWndProc) {
     NS_ASSERTION(oldWndProc != (LONG_PTR)NeuteredWindowProc,
                  "This shouldn't be possible!");
@@ -470,6 +484,7 @@ RestoreWindowProcedure(HWND hWnd)
     NS_ASSERTION(currentWndProc == (LONG_PTR)NeuteredWindowProc,
                  "This should never be switched out from under us!");
   }
+  RemoveProp(hWnd, kOldWndProcProp);
 }
 
 LRESULT CALLBACK
@@ -525,6 +540,7 @@ Init()
   NS_ASSERTION(gUIThreadId, "ThreadId should not be 0!");
   NS_ASSERTION(gUIThreadId == GetCurrentThreadId(),
                "Running on different threads!");
+  sAppShellGeckoMsgId = RegisterWindowMessageW(kAppShellEventId);
 }
 
 // This timeout stuff assumes a sane value of mTimeoutMs (less than the overflow

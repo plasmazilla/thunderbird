@@ -56,9 +56,10 @@ public:
   ~FormatEtc() { if (mFormat.ptd) CoTaskMemFree(mFormat.ptd); }
 
   void CopyIn(const FORMATETC *aSrc) {
-    memset(&mFormat, 0, sizeof(FORMATETC));
-    if (!aSrc)
+    if (!aSrc) {
+        memset(&mFormat, 0, sizeof(FORMATETC));
         return;
+    }
     mFormat = *aSrc;
     if (aSrc->ptd) {
         mFormat.ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));

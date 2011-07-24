@@ -215,20 +215,12 @@ MimeExternalObject_parse_buffer (const char *buffer, PRInt32 size, MimeObject *o
   NS_ASSERTION(!obj->closed_p, "1.1 <rhp@netscape.com> 19 Mar 1999 12:00");
   if (obj->closed_p) return -1;
 
-  if (obj->output_p &&
-    obj->options &&
-    !obj->options->write_html_p)
-  {
-    /* The data will be base64-decoded and passed to
+  // Currently, we always want to stream, in order to determine the size of the
+  // MIME object.
+
+  /* The data will be base64-decoded and passed to
      MimeExternalObject_parse_decoded_buffer. */
-    return ((MimeObjectClass*)&MIME_SUPERCLASS)->parse_buffer(buffer, size,
-                                obj);
-  }
-  else
-  {
-    /* Otherwise, simply ignore the data. */
-    return 0;
-  }
+  return ((MimeObjectClass*)&MIME_SUPERCLASS)->parse_buffer(buffer, size, obj);
 }
 
 
@@ -246,15 +238,18 @@ MimeExternalObject_parse_decoded_buffer (const char *buf, PRInt32 size,
    buffer the decoded data -- we want to simply pass it along to the
    backend, without going through our `parse_line' method.
    */
-  if (!obj->output_p ||
-    !obj->options ||
-    obj->options->write_html_p)
-  {
-    NS_ERROR("MimeObject is missing some data");
-    return -1;
-  }
 
-  return MimeObject_write(obj, buf, size, PR_TRUE);
+  /* Don't do a roundtrip through XPConnect when we're only interested in
+   * metadata and size. This includes when we are writing HTML (otherwise, the
+   * contents of binary attachments will just get dumped into messages when
+   * reading them) and the JS emitter (which doesn't care about attachment data
+   * at all). 0 means ok, the caller just checks for negative return value.
+   */
+  if (obj->options && (obj->options->metadata_only ||
+                       obj->options->write_html_p))
+    return 0;
+  else
+    return MimeObject_write(obj, buf, size, PR_TRUE);
 }
 
 

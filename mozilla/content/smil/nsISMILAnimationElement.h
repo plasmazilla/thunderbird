@@ -40,20 +40,27 @@
 #define NS_ISMILANIMATIONELEMENT_H_
 
 #include "nsISupports.h"
-#include "nsIContent.h"
-
-class nsISMILAttr;
 
 //////////////////////////////////////////////////////////////////////////////
 // nsISMILAnimationElement: Interface for elements that control the animation of
 // some property of another element, e.g. <animate>, <set>.
 
 #define NS_ISMILANIMATIONELEMENT_IID \
-{ 0x70ac6eed, 0x0dba, 0x4c11, { 0xa6, 0xc5, 0x15, 0x73, 0xbc, 0x2f, 0x1a, 0xd8 } }
+{ 0xaf92584b, 0x75b0, 0x4584,        \
+  { 0x87, 0xd2, 0xa8, 0x3, 0x34, 0xf0, 0x5, 0xaf } }
 
+class nsISMILAttr;
 class nsSMILAnimationFunction;
 class nsSMILTimeContainer;
 class nsSMILTimedElement;
+class nsIAtom;
+class nsAttrValue;
+
+namespace mozilla {
+namespace dom {
+class Element;
+} // namespace dom
+} // namespace mozilla
 
 enum nsSMILTargetAttrType {
   eSMILTargetAttrType_auto,
@@ -67,14 +74,14 @@ public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISMILANIMATIONELEMENT_IID)
 
   /*
-   * Returns this element as nsIContent.
+   * Returns this element as a mozilla::dom::Element.
    */
-  virtual const nsIContent& Content() const = 0;
+  virtual const mozilla::dom::Element& AsElement() const = 0;
 
   /*
-   * Non-const version of Content()
+   * Non-const version of Element()
    */
-  virtual nsIContent& Content() = 0;
+  virtual mozilla::dom::Element& AsElement() = 0;
 
   /*
    * Returns the source attribute as an nsAttrValue. The global namespace will
@@ -98,28 +105,23 @@ public:
    * @returns PR_TRUE if the attribute was set (even when set to empty string)
    *          PR_FALSE when not set.
    */
-  PRBool GetAnimAttr(nsIAtom* aAttName, nsAString &aResult) const
-  {
-    return Content().GetAttr(kNameSpaceID_None, aAttName, aResult);
-  }
+  virtual PRBool GetAnimAttr(nsIAtom* aAttName, nsAString& aResult) const = 0;
 
   /*
    * Check for the presence of an attribute in the global namespace.
    */
-  PRBool HasAnimAttr(nsIAtom* aAttName) const
-  {
-    return Content().HasAttr(kNameSpaceID_None, aAttName);
-  }
+  virtual PRBool HasAnimAttr(nsIAtom* aAttName) const = 0;
 
   /*
    * Returns the target (animated) element.
    */
-  virtual nsIContent* GetTargetElementContent() = 0;
+  virtual mozilla::dom::Element* GetTargetElementContent() = 0;
 
   /*
    * Returns the name of the target (animated) attribute or property.
    */
-  virtual nsIAtom* GetTargetAttributeName() const = 0;
+  virtual PRBool GetTargetAttributeName(PRInt32* aNamespaceID,
+                                        nsIAtom** aLocalName) const = 0;
 
   /*
    * Returns the type of the target (animated) attribute or property.

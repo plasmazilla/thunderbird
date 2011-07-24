@@ -43,13 +43,14 @@
 #ifndef _nsAccessibleWrap_H_
 #define _nsAccessibleWrap_H_
 
+#include "nsAccessible.h"
+#include "nsAccUtils.h"
+
 #include "nsCOMPtr.h"
 #include "nsRect.h"
 
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
-
-#include "nsAccessible.h"
 
 struct AccessibleWrapper;
 struct objc_class;
@@ -57,11 +58,11 @@ struct objc_class;
 class nsAccessibleWrap : public nsAccessible
 {
   public: // construction, destruction
-    nsAccessibleWrap(nsIDOMNode*, nsIWeakReference *aShell);
+    nsAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell);
     virtual ~nsAccessibleWrap();
     
     // creates the native accessible connected to this one.
-    NS_IMETHOD Init ();
+    virtual PRBool Init ();
     
     // get the native obj-c object (mozAccessible)
     NS_IMETHOD GetNativeInterface (void **aOutAccessible);
@@ -70,14 +71,11 @@ class nsAccessibleWrap : public nsAccessible
     // should be instantied with.   used on runtime to determine the
     // right type for this accessible's associated native object.
     virtual objc_class* GetNativeType ();
-    
-    // returns a pointer to the native window for this accessible tree.
-    void GetNativeWindow (void **aOutNativeWindow);
-    
-    virtual nsresult Shutdown ();
+
+    virtual void Shutdown ();
     virtual void InvalidateChildren();
 
-    virtual nsresult FireAccessibleEvent(nsIAccessibleEvent *aEvent);
+    virtual nsresult HandleAccEvent(AccEvent* aEvent);
 
     // ignored means that the accessible might still have children, but is not displayed
     // to the user. it also has no native accessible object represented for it.
@@ -97,27 +95,12 @@ class nsAccessibleWrap : public nsAccessible
     
   protected:
 
-    virtual nsresult FirePlatformEvent(nsIAccessibleEvent *aEvent);
+    virtual nsresult FirePlatformEvent(AccEvent* aEvent);
 
-    PRBool AncestorIsFlat() {
-      // we don't create a native object if we're child of a "flat" accessible; for example, on OS X buttons 
-      // shouldn't have any children, because that makes the OS confused. 
-      //
-      // to maintain a scripting environment where the XPCOM accessible hierarchy look the same 
-      // on all platforms, we still let the C++ objects be created though.
-      
-      nsCOMPtr<nsIAccessible> curParent = GetParent();
-      while (curParent) {
-        if (nsAccUtils::MustPrune(curParent))
-          return PR_TRUE;
-
-        nsCOMPtr<nsIAccessible> newParent;
-        curParent->GetParent(getter_AddRefs(newParent));
-        curParent.swap(newParent);
-      }
-      // no parent was flat
-      return PR_FALSE;
-    }
+  /**
+   * Return true if the parent doesn't have children to expose to AT.
+   */
+  PRBool AncestorIsFlat();
 
     // Wrapper around our native object.
     AccessibleWrapper *mNativeWrapper;

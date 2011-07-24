@@ -47,35 +47,27 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= content
 LIBRARY_NAME	= gkcontentsvg_s
 LIBXUL_LIBRARY	= 1
-REQUIRES	= xpcom \
-		  string \
-		  layout \
-		  widget \
-		  gfx \
-		  dom \
-		  js \
-		  locale \
-		  view \
-		  pref \
-		  necko \
-		  xpconnect \
-		  webshell \
-		  xuldoc \
-		  unicharutil \
-		  imglib2 \
-		  docshell \
-		  thebes
 
 CPPSRCS		= \
+		DOMSVGAnimatedLengthList.cpp \
+		DOMSVGAnimatedNumberList.cpp \
+		DOMSVGLength.cpp \
+		DOMSVGLengthList.cpp \
+		DOMSVGNumber.cpp \
+		DOMSVGNumberList.cpp \
+		DOMSVGPathSeg.cpp \
+		DOMSVGPathSegList.cpp \
+		DOMSVGPoint.cpp \
+		DOMSVGPointList.cpp \
 		nsDOMSVGZoomEvent.cpp \
 		nsDOMSVGEvent.cpp \
 		nsSVGAElement.cpp \
+		nsSVGAltGlyphElement.cpp \
 		nsSVGAngle.cpp \
-		nsSVGAnimatedLengthList.cpp \
-		nsSVGAnimatedNumberList.cpp \
 		nsSVGAnimatedTransformList.cpp \
 		nsSVGBoolean.cpp \
 		nsSVGCircleElement.cpp \
+		nsSVGClass.cpp \
 		nsSVGClipPathElement.cpp \
 		nsSVGDataParser.cpp \
 		nsSVGDefsElement.cpp \
@@ -93,29 +85,20 @@ CPPSRCS		= \
 		nsSVGGraphicElement.cpp \
 		nsSVGImageElement.cpp \
 		nsSVGInteger.cpp \
-		nsSVGLength.cpp \
 		nsSVGLength2.cpp \
-		nsSVGLengthList.cpp \
 		nsSVGLineElement.cpp \
 		nsSVGMarkerElement.cpp \
 		nsSVGMaskElement.cpp \
 		nsSVGMatrix.cpp \
 		nsSVGMetadataElement.cpp \
-		nsSVGNumber.cpp \
 		nsSVGNumber2.cpp \
-		nsSVGNumberList.cpp \
 		nsSVGPathDataParser.cpp \
 		nsSVGPathElement.cpp \
 		nsSVGPathGeometryElement.cpp \
-		nsSVGPathSeg.cpp \
-		nsSVGPathSegList.cpp \
 		nsSVGPatternElement.cpp \
-		nsSVGPoint.cpp \
-		nsSVGPointList.cpp \
 		nsSVGPolyElement.cpp \
 		nsSVGPolygonElement.cpp \
 		nsSVGPolylineElement.cpp \
-		nsSVGPreserveAspectRatio.cpp \
 		nsSVGScriptElement.cpp \
 		nsSVGString.cpp \
 		nsSVGStringProxyValue.cpp \
@@ -131,6 +114,7 @@ CPPSRCS		= \
 		nsSVGTextContentElement.cpp \
 		nsSVGTextElement.cpp \
 		nsSVGTextPathElement.cpp \
+		nsSVGTextPositioningElement.cpp \
 		nsSVGTitleElement.cpp \
 		nsSVGTransform.cpp \
 		nsSVGTransformList.cpp \
@@ -138,15 +122,38 @@ CPPSRCS		= \
 		nsSVGUseElement.cpp \
 		nsSVGValue.cpp \
 		nsSVGViewBox.cpp \
+		SVGAnimatedLengthList.cpp \
+		SVGAnimatedNumberList.cpp \
+		SVGAnimatedPathSegList.cpp \
+		SVGAnimatedPointList.cpp \
+		SVGAnimatedPreserveAspectRatio.cpp \
+		SVGLength.cpp \
+		SVGLengthList.cpp \
+		SVGNumberList.cpp \
+		SVGPathData.cpp \
+		SVGPathSegUtils.cpp \
+		SVGPointList.cpp \
 		$(NULL)
 
 ifdef MOZ_SMIL
 CPPSRCS += nsSVGAnimateElement.cpp \
            nsSVGAnimateTransformElement.cpp \
+           nsSVGAnimateMotionElement.cpp \
            nsSVGAnimationElement.cpp \
+           nsSVGMpathElement.cpp \
            nsSVGSetElement.cpp \
            nsSVGTransformSMILType.cpp \
            nsSVGTransformSMILAttr.cpp \
+           SVGLengthListSMILType.cpp \
+           SVGMotionSMILType.cpp \
+           SVGMotionSMILAttr.cpp \
+           SVGMotionSMILAnimationFunction.cpp \
+           SVGMotionSMILPathUtils.cpp \
+           SVGNumberListSMILType.cpp \
+           SVGOrientSMILType.cpp \
+           SVGPathSegListSMILType.cpp \
+           SVGPointListSMILType.cpp \
+           SVGViewBoxSMILType.cpp \
            $(NULL)
 endif
 
@@ -160,9 +167,7 @@ EXPORTS =  			\
 	nsISVGValueObserver.h      \
 	nsISVGValueUtils.h         \
 	nsSVGFeatures.h            \
-	nsSVGNumber.h              \
 	nsSVGRect.h                \
-	nsSVGPoint.h               \
 	nsSVGMatrix.h              \
 	$(NULL)
 

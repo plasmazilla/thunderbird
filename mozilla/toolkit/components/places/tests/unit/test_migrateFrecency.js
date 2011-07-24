@@ -13,7 +13,7 @@
  *
  * The Original Code is Places Test Code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -72,7 +72,7 @@ function run_test() {
 
           _("Now that places has migrated, check that it calculated frecencies");
           var stmt = places.DBConnection.createStatement(
-              "SELECT COUNT(*) FROM moz_places_view WHERE frecency < 0");
+              "SELECT COUNT(*) FROM moz_places WHERE frecency < 0");
           stmt.executeAsync({
               handleResult: function(results) {
                 _("Should always get a result from COUNT(*)");

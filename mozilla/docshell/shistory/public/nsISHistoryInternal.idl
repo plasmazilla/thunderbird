@@ -50,9 +50,14 @@ interface nsIDocShell;
   { 0xb9, 0x04, 0x3a, 0xc9, 0x68, 0x11, 0x6e, 0x88 } }
 
 #define NS_SHISTORY_INTERNAL_CONTRACTID "@mozilla.org/browser/shistory-internal;1"
+
+template<class E, class A> class nsTArray;
+struct nsTArrayDefaultAllocator;
 %}
 
-[scriptable, uuid(7ca0fd71-437c-48ad-985d-11ce9e2429b4)]
+[ref] native nsDocshellIDArray(nsTArray<PRUint64, nsTArrayDefaultAllocator>);
+
+[scriptable, uuid(2dede933-25e1-47a3-8f61-0127c785ea01)]
 interface nsISHistoryInternal: nsISupports
 {
   /**
@@ -81,7 +86,7 @@ interface nsISHistoryInternal: nsISupports
 
   /**
    * Replace the nsISHEntry at a particular index
-   * @param aIndex - The index at which the entry shoud be replaced
+   * @param aIndex - The index at which the entry should be replaced
    * @param aReplaceEntry - The replacement entry for the index.
    */
    void replaceEntry(in long aIndex, in nsISHEntry aReplaceEntry);
@@ -110,4 +115,11 @@ interface nsISHistoryInternal: nsISupports
     * Evict all the content viewers in this session history
     */
    void evictAllContentViewers();
+
+   /**
+    * Removes entries from the history if their docshellID is in
+    * aIDs array.
+    */
+  [noscript, notxpcom] void RemoveEntries(in nsDocshellIDArray aIDs,
+                                          in long aStartIndex);
 };

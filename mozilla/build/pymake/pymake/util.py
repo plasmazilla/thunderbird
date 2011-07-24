@@ -2,7 +2,7 @@ import os
 
 class MakeError(Exception):
     def __init__(self, message, loc=None):
-        self.message = message
+        self.msg = message
         self.loc = loc
 
     def __str__(self):
@@ -10,7 +10,16 @@ class MakeError(Exception):
         if self.loc is not None:
             locstr = "%s:" % (self.loc,)
 
-        return "%s%s" % (locstr, self.message)
+        return "%s%s" % (locstr, self.msg)
+
+def normaljoin(path, suffix):
+    """
+    Combine the given path with the suffix, and normalize if necessary to shrink the path to avoid hitting path length limits
+    """
+    result = os.path.join(path, suffix)
+    if len(result) > 255:
+        result = os.path.normpath(result)
+    return result
 
 def joiniter(fd, it):
     """
@@ -32,6 +41,8 @@ def checkmsyscompat():
     letting Python use the system shell."""
     if 'SHELL' in os.environ:
         shell = os.environ['SHELL']
+    elif 'MOZILLABUILD' in os.environ:
+        shell = os.environ['MOZILLABUILD'] + '/msys/bin/sh.exe'
     elif 'COMSPEC' in os.environ:
         shell = os.environ['COMSPEC']
     else:

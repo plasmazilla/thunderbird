@@ -55,6 +55,7 @@
 <stringbundle id="bundle_subscribe" src="chrome://messenger/locale/subscribe.properties"/>
 <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
 
+<script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
 <script type="application/javascript" src="chrome://messenger/content/mailWindow.js"/>
 <script type="application/javascript" src="chrome://messenger/content/subscribe.js"/>
 <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
@@ -156,7 +157,7 @@
                                   <treerow>
                                     <treecell label="?LeafName"
                                               properties="ServerType-?ServerType Subscribable-?Subscribable"/>
-                                    <treecell properties="Subscribed-?Subscribed Subscribable-?Subscribable"/>
+                                    <treecell value="?Subscribed" properties="Subscribed-?Subscribed Subscribable-?Subscribable"/>
                                   </treerow>
                                 </treeitem>
                               </treechildren>
@@ -168,7 +169,7 @@
                         <treecol id="nameColumn" primary="true"
                                  sort="?LeafName" flex="10" hideheader="true"/>
                         <splitter class="tree-splitter"/>
-                        <treecol id="subscribedColumn"  
+                        <treecol id="subscribedColumn" type="checkbox"
                                  sort="?Subscribed" flex="1" hideheader="true"/>
                       </treecols>
                     </tree>

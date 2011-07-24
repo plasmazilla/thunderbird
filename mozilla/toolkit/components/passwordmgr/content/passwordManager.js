@@ -107,7 +107,7 @@ var signonsTreeView = {
 function LoadSignons() {
   // loads signons into table
   try {
-    signons = passwordmanager.getAllLogins({});
+    signons = passwordmanager.getAllLogins();
   } catch (e) {
     signons = [];
   }
@@ -228,7 +228,7 @@ function FinalizeSignonDeletions(syncNeeded) {
   // See bug 405389.
   if (syncNeeded) {
     try {
-      signons = passwordmanager.getAllLogins({});
+      signons = passwordmanager.getAllLogins();
     } catch (e) {
       signons = [];
     }
@@ -369,4 +369,22 @@ function _filterPasswords()
     signonsTreeView.selection.select(0);
 
   document.getElementById("signonsIntro").textContent = kSignonBundle.getString("loginsSpielFiltered");
+}
+
+function CopyPassword() {
+  // Copy selected signon's password to clipboard
+  var clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"].
+                  getService(Components.interfaces.nsIClipboardHelper);
+  var row = document.getElementById("signonsTree").currentIndex;
+  var password = signonsTreeView.getCellText(row, {id : "passwordCol" });
+  clipboard.copyString(password);
+}
+
+function UpdateCopyPassword() {
+  var singleSelection = (signonsTreeView.selection.count == 1);
+  var menuitem = document.getElementById("context-copypassword");
+  if (singleSelection)
+    menuitem.removeAttribute("disabled");
+  else
+    menuitem.setAttribute("disabled", "true");
 }

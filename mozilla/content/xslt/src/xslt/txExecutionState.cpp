@@ -146,7 +146,7 @@ txExecutionState::init(const txXPathNode& aNode,
     mInitialEvalContext = mEvalContext;
 
     // Set up output and result-handler
-    txAXMLEventHandler* handler = 0;
+    txAXMLEventHandler* handler;
     rv = mOutputHandlerFactory->
         createHandlerWith(mStylesheet->getOutputFormat(), &handler);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -186,8 +186,7 @@ txExecutionState::init(const txXPathNode& aNode,
     txExpandedName nullName;
     txInstruction* templ = mStylesheet->findTemplate(aNode, nullName,
                                                      this, nsnull, &frame);
-    rv = pushTemplateRule(frame, nullName, nsnull);
-    NS_ENSURE_SUCCESS(rv, rv);
+    pushTemplateRule(frame, nullName, nsnull);
 
     return runTemplate(templ);
 }
@@ -288,9 +287,7 @@ txExecutionState::getVariable(PRInt32 aNamespace, nsIAtom* aLName,
         rv = runTemplate(var->mFirstInstruction);
         NS_ENSURE_SUCCESS(rv, rv);
 
-        rv = pushTemplateRule(nsnull, txExpandedName(), nsnull);
-        NS_ENSURE_SUCCESS(rv, rv);
-
+        pushTemplateRule(nsnull, txExpandedName(), nsnull);
         rv = txXSLTProcessor::execute(*this);
         NS_ENSURE_SUCCESS(rv, rv);
 
@@ -398,20 +395,16 @@ txExecutionState::popResultHandler()
     return oldHandler;
 }
 
-nsresult
+void
 txExecutionState::pushTemplateRule(txStylesheet::ImportFrame* aFrame,
                                    const txExpandedName& aMode,
                                    txVariableMap* aParams)
 {
     TemplateRule* rule = mTemplateRules.AppendElement();
-    NS_ENSURE_TRUE(rule, NS_ERROR_OUT_OF_MEMORY);
-
     rule->mFrame = aFrame;
     rule->mModeNsId = aMode.mNamespaceID;
     rule->mModeLocalName = aMode.mLocalName;
     rule->mParams = aParams;
-
-    return NS_OK;
 }
 
 void
@@ -446,22 +439,19 @@ txExecutionState::retrieveDocument(const nsAString& aUri)
         return nsnull;
     }
 
-    if (!entry->mDocument) {
+    if (!entry->mDocument && !entry->LoadingFailed()) {
         // open URI
         nsAutoString errMsg;
         // XXX we should get the loader from the actual node
         // triggering the load, but this will do for the time being
-        nsresult rv;
-        rv = txParseDocumentFromURI(aUri, *mLoadedDocuments.mSourceDocument,
-                                    errMsg,
-                                    getter_Transfers(entry->mDocument));
+        entry->mLoadResult =
+            txParseDocumentFromURI(aUri, *mLoadedDocuments.mSourceDocument,
+                                   errMsg, getter_Transfers(entry->mDocument));
 
-        if (NS_FAILED(rv) || !entry->mDocument) {
-            mLoadedDocuments.RawRemoveEntry(entry);
+        if (entry->LoadingFailed()) {
             receiveError(NS_LITERAL_STRING("Couldn't load document '") +
-                         aUri + NS_LITERAL_STRING("': ") + errMsg, rv);
-
-            return nsnull;
+                         aUri + NS_LITERAL_STRING("': ") + errMsg,
+                         entry->mLoadResult);
         }
     }
 

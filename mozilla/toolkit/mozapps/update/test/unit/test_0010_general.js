@@ -60,9 +60,6 @@ function run_test() {
   // Check if updates can be applied
   logTestInfo("testing nsIApplicationUpdateService:canApplyUpdates");
   do_check_true(gAUS.canApplyUpdates);
-  // Check if the update dir can be written to
-  logTestInfo("testing nsIApplicationUpdateService:canUpdate");
-  do_check_true(gAUS.canUpdate);
 
   do_test_finished();
 }

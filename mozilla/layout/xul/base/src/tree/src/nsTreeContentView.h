@@ -61,7 +61,9 @@ class nsTreeContentView : public nsINativeTreeView,
 
     ~nsTreeContentView(void);
 
-    NS_DECL_ISUPPORTS
+    NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+    NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsTreeContentView,
+                                             nsINativeTreeView)
 
     NS_DECL_NSITREEVIEW
     // nsINativeTreeView: Untrusted code can use us
@@ -70,10 +72,6 @@ class nsTreeContentView : public nsINativeTreeView,
     NS_DECL_NSITREECONTENTVIEW
 
     // nsIDocumentObserver
-    virtual void ContentStatesChanged(nsIDocument* aDocument,
-                                      nsIContent* aContent1,
-                                      nsIContent* aContent2,
-                                      PRInt32 aStateMask);
     NS_DECL_NSIMUTATIONOBSERVER_ATTRIBUTECHANGED
     NS_DECL_NSIMUTATIONOBSERVER_CONTENTAPPENDED
     NS_DECL_NSIMUTATIONOBSERVER_CONTENTINSERTED
@@ -92,12 +90,6 @@ class nsTreeContentView : public nsINativeTreeView,
 
     void SerializeSeparator(nsIContent* aContent, PRInt32 aParentIndex,
                             PRInt32* aIndex, nsTArray<Row*>& aRows);
-
-    void SerializeOption(nsIContent* aContent, PRInt32 aParentIndex, PRInt32* aIndex,
-                         nsTArray<Row*>& aRows);
-
-    void SerializeOptGroup(nsIContent* aContent, PRInt32 aParentIndex, PRInt32* aIndex,
-                           nsTArray<Row*>& aRows);
 
     void GetIndexInSubtree(nsIContent* aContainer, nsIContent* aContent, PRInt32* aResult);
     
@@ -135,8 +127,6 @@ class nsTreeContentView : public nsINativeTreeView,
     nsIDocument*                        mDocument;      // WEAK
     nsFixedSizeAllocator                mAllocator;
     nsTArray<Row*>                      mRows;
-
-    PRPackedBool                        mUpdateSelection;
 };
 
 #endif // nsTreeContentView_h__

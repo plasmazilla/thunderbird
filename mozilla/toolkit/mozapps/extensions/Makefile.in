@@ -34,17 +34,50 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH		= ../../..
-topsrcdir	= @top_srcdir@
-srcdir		= @srcdir@
-VPATH		= @srcdir@
+DEPTH     = ../../..
+topsrcdir = @top_srcdir@
+srcdir    = @srcdir@
+VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-DIRS = public src
+MODULE = extensions
+
+XPIDLSRCS = \
+  amIInstallTrigger.idl \
+  amIWebInstallListener.idl \
+  amIWebInstaller.idl \
+  $(NULL)
+
+EXTRA_PP_COMPONENTS = \
+  extensions.manifest \
+  nsBlocklistService.js \
+  addonManager.js \
+  amContentHandler.js \
+  amWebInstallListener.js \
+  $(NULL)
+
+EXTRA_PP_JS_MODULES = \
+  AddonLogging.jsm \
+  AddonManager.jsm \
+  AddonRepository.jsm \
+  AddonUpdateChecker.jsm \
+  PluginProvider.jsm \
+  XPIProvider.jsm \
+  $(NULL)
+
+EXTRA_JS_MODULES = \
+  LightweightThemeManager.jsm \
+  $(NULL)
 
 ifdef ENABLE_TESTS
 DIRS += test
 endif
+
+EXTRA_DSO_LDOPTS = \
+  $(MOZ_JS_LIBS) \
+  $(MOZ_UNICHARUTIL_LIBS) \
+  $(MOZ_COMPONENT_LIBS) \
+  $(NULL)
 
 include $(topsrcdir)/config/rules.mk

@@ -47,19 +47,23 @@ LIBRARY_NAME	= platlocale_s
 FORCE_STATIC_LIB	= 1
 LIBXUL_LIBRARY  = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  unicharutil \
-		  uconv \
-		  intl \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsCollationWin.cpp \
 		nsDateTimeFormatWin.cpp \
 		nsIWin32LocaleImpl.cpp \
+		nsWinCharset.cpp \
 		$(NULL)
 
 include $(topsrcdir)/config/rules.mk
 
 INCLUDES	+= -I$(srcdir)/..
+
+nsWinCharset.$(OBJ_SUFFIX): wincharset.properties.h
+
+wincharset.properties.h: $(srcdir)/../props2arrays.py wincharset.properties
+	$(PYTHON) $^ $@
+
+GARBAGE += \
+	wincharset.properties.h \
+	$(NULL)

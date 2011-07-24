@@ -39,7 +39,9 @@
 
 #include "nsTextEquivUtils.h"
 
+#include "nsAccessibilityService.h"
 #include "nsAccessible.h"
+#include "nsAccUtils.h"
 
 #include "nsIDOMXULLabeledControlEl.h"
 
@@ -52,7 +54,7 @@ NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_GENERAL, 0x24)
 // nsTextEquivUtils. Public.
 
 nsresult
-nsTextEquivUtils::GetNameFromSubtree(nsIAccessible *aAccessible,
+nsTextEquivUtils::GetNameFromSubtree(nsAccessible *aAccessible,
                                      nsAString& aName)
 {
   aName.Truncate();
@@ -62,16 +64,10 @@ nsTextEquivUtils::GetNameFromSubtree(nsIAccessible *aAccessible,
 
   gInitiatorAcc = aAccessible;
 
-  PRUint32 role = nsAccUtils::Role(aAccessible);
-  PRUint32 nameRule = gRoleToNameRulesMap[role];
-
+  PRUint32 nameRule = gRoleToNameRulesMap[aAccessible->Role()];
   if (nameRule == eFromSubtree) {
-    nsCOMPtr<nsIAccessNode> accessNode(do_QueryInterface(aAccessible));
-
-    nsCOMPtr<nsIDOMNode> DOMNode;
-    accessNode->GetDOMNode(getter_AddRefs(DOMNode));
-    nsCOMPtr<nsIContent> content(do_QueryInterface(DOMNode));
-    if (content) {
+    //XXX: is it necessary to care the accessible is not a document?
+    if (aAccessible->IsContent()) {
       nsAutoString name;
       AppendFromAccessibleChildren(aAccessible, &name);
       name.CompressWhitespace();
@@ -86,41 +82,24 @@ nsTextEquivUtils::GetNameFromSubtree(nsIAccessible *aAccessible,
 }
 
 nsresult
-nsTextEquivUtils::GetTextEquivFromIDRefs(nsIAccessible *aAccessible,
+nsTextEquivUtils::GetTextEquivFromIDRefs(nsAccessible *aAccessible,
                                          nsIAtom *aIDRefsAttr,
                                          nsAString& aTextEquiv)
 {
   aTextEquiv.Truncate();
 
-  nsCOMPtr<nsIAccessNode> accessNode(do_QueryInterface(aAccessible));
-
-  nsCOMPtr<nsIDOMNode> DOMNode;
-  accessNode->GetDOMNode(getter_AddRefs(DOMNode));
-
-  nsCOMPtr<nsIContent> content = nsCoreUtils::GetRoleContent(DOMNode);
+  nsIContent* content = aAccessible->GetContent();
   if (!content)
     return NS_OK;
 
-  nsCOMPtr<nsIArray> refElms;
-  nsCoreUtils::GetElementsByIDRefsAttr(content, aIDRefsAttr,
-                                       getter_AddRefs(refElms));
-
-  if (!refElms)
-    return NS_OK;
-
-  PRUint32 count = 0;
-  nsresult rv = refElms->GetLength(&count);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIContent> refContent;
-  for (PRUint32 idx = 0; idx < count; idx++) {
-    refContent = do_QueryElementAt(refElms, idx, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
-
+  nsIContent* refContent = nsnull;
+  IDRefsIterator iter(content, aIDRefsAttr);
+  while ((refContent = iter.NextElem())) {
     if (!aTextEquiv.IsEmpty())
       aTextEquiv += ' ';
 
-    rv = AppendTextEquivFromContent(aAccessible, refContent, &aTextEquiv);
+    nsresult rv = AppendTextEquivFromContent(aAccessible, refContent,
+                                             &aTextEquiv);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -128,7 +107,7 @@ nsTextEquivUtils::GetTextEquivFromIDRefs(nsIAccessible *aAccessible,
 }
 
 nsresult
-nsTextEquivUtils::AppendTextEquivFromContent(nsIAccessible *aInitiatorAcc,
+nsTextEquivUtils::AppendTextEquivFromContent(nsAccessible *aInitiatorAcc,
                                              nsIContent *aContent,
                                              nsAString *aString)
 {
@@ -138,8 +117,7 @@ nsTextEquivUtils::AppendTextEquivFromContent(nsIAccessible *aInitiatorAcc,
 
   gInitiatorAcc = aInitiatorAcc;
 
-  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(aContent));
-  nsCOMPtr<nsIPresShell> shell = nsCoreUtils::GetPresShellFor(DOMNode);
+  nsCOMPtr<nsIWeakReference> shell = nsCoreUtils::GetWeakShellFor(aContent);
   if (!shell) {
     NS_ASSERTION(PR_TRUE, "There is no presshell!");
     gInitiatorAcc = nsnull;
@@ -149,17 +127,16 @@ nsTextEquivUtils::AppendTextEquivFromContent(nsIAccessible *aInitiatorAcc,
   // If the given content is not visible or isn't accessible then go down
   // through the DOM subtree otherwise go down through accessible subtree and
   // calculate the flat string.
-  nsIFrame *frame = shell->GetPrimaryFrameFor(aContent);
+  nsIFrame *frame = aContent->GetPrimaryFrame();
   PRBool isVisible = frame && frame->GetStyleVisibility()->IsVisible();
 
-  nsresult rv;
+  nsresult rv = NS_ERROR_FAILURE;
   PRBool goThroughDOMSubtree = PR_TRUE;
 
   if (isVisible) {
-    nsCOMPtr<nsIAccessible> accessible;
-    rv = nsAccessNode::GetAccService()->
-      GetAccessibleInShell(DOMNode, shell, getter_AddRefs(accessible));
-    if (NS_SUCCEEDED(rv) && accessible) {
+    nsAccessible *accessible =
+      GetAccService()->GetAccessibleInWeakShell(aContent, shell);
+    if (accessible) {
       rv = AppendFromAccessible(accessible, aString);
       goThroughDOMSubtree = PR_FALSE;
     }
@@ -177,16 +154,11 @@ nsTextEquivUtils::AppendTextEquivFromTextContent(nsIContent *aContent,
                                                  nsAString *aString)
 {
   if (aContent->IsNodeOfType(nsINode::eTEXT)) {
-    
-    nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(aContent));
-    
     PRBool isHTMLBlock = PR_FALSE;
-    nsCOMPtr<nsIPresShell> shell = nsCoreUtils::GetPresShellFor(DOMNode);
-    NS_ENSURE_STATE(shell);
-    
+
     nsIContent *parentContent = aContent->GetParent();
     if (parentContent) {
-      nsIFrame *frame = shell->GetPrimaryFrameFor(parentContent);
+      nsIFrame *frame = parentContent->GetPrimaryFrame();
       if (frame) {
         // If this text is inside a block level frame (as opposed to span
         // level), we need to add spaces around that block's text, so we don't
@@ -203,7 +175,7 @@ nsTextEquivUtils::AppendTextEquivFromTextContent(nsIContent *aContent,
     }
     
     if (aContent->TextLength() > 0) {
-      nsIFrame *frame = shell->GetPrimaryFrameFor(aContent);
+      nsIFrame *frame = aContent->GetPrimaryFrame();
       if (frame) {
         nsresult rv = frame->GetRenderedText(aString);
         NS_ENSURE_SUCCESS(rv, rv);
@@ -219,7 +191,7 @@ nsTextEquivUtils::AppendTextEquivFromTextContent(nsIContent *aContent,
     return NS_OK;
   }
   
-  if (aContent->IsNodeOfType(nsINode::eHTML) &&
+  if (aContent->IsHTML() &&
       aContent->NodeInfo()->Equals(nsAccessibilityAtoms::br)) {
     aString->AppendLiteral("\r\n");
     return NS_OK;
@@ -231,40 +203,32 @@ nsTextEquivUtils::AppendTextEquivFromTextContent(nsIContent *aContent,
 ////////////////////////////////////////////////////////////////////////////////
 // nsTextEquivUtils. Private.
 
-nsCOMPtr<nsIAccessible> nsTextEquivUtils::gInitiatorAcc;
+nsRefPtr<nsAccessible> nsTextEquivUtils::gInitiatorAcc;
 
 nsresult
-nsTextEquivUtils::AppendFromAccessibleChildren(nsIAccessible *aAccessible,
+nsTextEquivUtils::AppendFromAccessibleChildren(nsAccessible *aAccessible,
                                                nsAString *aString)
 {
-  nsCOMPtr<nsIAccessible> accChild, accNextChild;
-  aAccessible->GetFirstChild(getter_AddRefs(accChild));
-
   nsresult rv = NS_OK_NO_NAME_CLAUSE_HANDLED;
-  while (accChild) {
-    rv = AppendFromAccessible(accChild, aString);
-    NS_ENSURE_SUCCESS(rv, rv);
 
-    accChild->GetNextSibling(getter_AddRefs(accNextChild));
-    accChild.swap(accNextChild);
+  PRInt32 childCount = aAccessible->GetChildCount();
+  for (PRInt32 childIdx = 0; childIdx < childCount; childIdx++) {
+    nsAccessible *child = aAccessible->GetChildAt(childIdx);
+    rv = AppendFromAccessible(child, aString);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
   return rv;
 }
 
 nsresult
-nsTextEquivUtils::AppendFromAccessible(nsIAccessible *aAccessible,
+nsTextEquivUtils::AppendFromAccessible(nsAccessible *aAccessible,
                                        nsAString *aString)
 {
-  nsCOMPtr<nsIAccessNode> accessNode(do_QueryInterface(aAccessible));
-
-  nsCOMPtr<nsIDOMNode> DOMNode;
-  accessNode->GetDOMNode(getter_AddRefs(DOMNode));
-  nsCOMPtr<nsIContent> content(do_QueryInterface(DOMNode));
-  NS_ASSERTION(content, "There is no content!");
-
-  if (content) {
-    nsresult rv = AppendTextEquivFromTextContent(content, aString);
+  //XXX: is it necessary to care the accessible is not a document?
+  if (aAccessible->IsContent()) {
+    nsresult rv = AppendTextEquivFromTextContent(aAccessible->GetContent(),
+                                                 aString);
     if (rv != NS_OK_NO_NAME_CLAUSE_HANDLED)
       return rv;
   }
@@ -291,9 +255,7 @@ nsTextEquivUtils::AppendFromAccessible(nsIAccessible *aAccessible,
   // into subtree if accessible allows "text equivalent from subtree rule" or
   // it's not root and not control.
   if (isEmptyTextEquiv) {
-    PRUint32 role = nsAccUtils::Role(aAccessible);
-    PRUint32 nameRule = gRoleToNameRulesMap[role];
-
+    PRUint32 nameRule = gRoleToNameRulesMap[aAccessible->Role()];
     if (nameRule & eFromSubtreeIfRec) {
       rv = AppendFromAccessibleChildren(aAccessible, aString);
       NS_ENSURE_SUCCESS(rv, rv);
@@ -313,12 +275,10 @@ nsTextEquivUtils::AppendFromAccessible(nsIAccessible *aAccessible,
 }
 
 nsresult
-nsTextEquivUtils::AppendFromValue(nsIAccessible *aAccessible,
+nsTextEquivUtils::AppendFromValue(nsAccessible *aAccessible,
                                   nsAString *aString)
 {
-  PRUint32 role = nsAccUtils::Role(aAccessible);
-  PRUint32 nameRule = gRoleToNameRulesMap[role];
-
+  PRUint32 nameRule = gRoleToNameRulesMap[aAccessible->Role()];
   if (nameRule != eFromValue)
     return NS_OK_NO_NAME_CLAUSE_HANDLED;
 
@@ -336,13 +296,11 @@ nsTextEquivUtils::AppendFromValue(nsIAccessible *aAccessible,
       NS_OK : NS_OK_NO_NAME_CLAUSE_HANDLED;
   }
 
-  nsRefPtr<nsAccessible> acc = nsAccUtils::QueryAccessible(aAccessible);
-  nsCOMPtr<nsIDOMNode> node;
-  acc->GetDOMNode(getter_AddRefs(node));
-  NS_ENSURE_STATE(node);
+  //XXX: is it necessary to care the accessible is not a document?
+  if (aAccessible->IsDocument())
+    return NS_ERROR_UNEXPECTED;
 
-  nsCOMPtr<nsIContent> content(do_QueryInterface(node));
-  NS_ENSURE_STATE(content);
+  nsIContent *content = aAccessible->GetContent();
 
   nsCOMPtr<nsIContent> parent = content->GetParent();
   PRInt32 indexOf = parent->IndexOf(content);
@@ -393,7 +351,7 @@ nsTextEquivUtils::AppendFromDOMNode(nsIContent *aContent, nsAString *aString)
   if (rv != NS_OK_NO_NAME_CLAUSE_HANDLED)
     return NS_OK;
 
-  if (aContent->IsNodeOfType(nsINode::eXUL)) {
+  if (aContent->IsXUL()) {
     nsAutoString textEquivalent;
     nsCOMPtr<nsIDOMXULLabeledControlElement> labeledEl =
       do_QueryInterface(aContent);
@@ -458,7 +416,7 @@ nsTextEquivUtils::IsWhitespace(PRUnichar aChar)
 
 PRUint32 nsTextEquivUtils::gRoleToNameRulesMap[] =
 {
-  eNoRule,           // ROLE_NOTHING
+  eFromSubtreeIfRec, // ROLE_NOTHING
   eNoRule,           // ROLE_TITLEBAR
   eNoRule,           // ROLE_MENUBAR
   eNoRule,           // ROLE_SCROLLBAR

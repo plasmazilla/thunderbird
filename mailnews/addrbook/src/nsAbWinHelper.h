@@ -42,7 +42,7 @@
 #include <mapix.h>
 
 #include "nsStringGlue.h"
-#include "nsVoidArray.h"
+#include "mozilla/Mutex.h"
  
 struct nsMapiEntry
 {
@@ -94,7 +94,7 @@ public:
     BOOL GetPropertyUString(const nsMapiEntry& aObject, ULONG aPropertyTag, nsString& aValue) ;
     // Get multiple string MAPI properties in one call.
     BOOL GetPropertiesUString(const nsMapiEntry& aObject, const ULONG *aPropertiesTag, 
-                              ULONG aNbProperties, nsStringArray& aValues) ;
+                              ULONG aNbProperties, nsString *aValues);
     // Get the value of a MAPI property of type SYSTIME
     BOOL GetPropertyDate(const nsMapiEntry& aObject, ULONG aPropertyTag, 
                          WORD& aYear, WORD& aMonth, WORD& aDay) ;
@@ -130,7 +130,7 @@ protected:
     HRESULT mLastError ;
     LPADRBOOK mAddressBook ;
     static PRUint32 mEntryCounter ;
-    static PRLock *mMutex ;
+    static mozilla::Mutex mMutex ;
 
     // Retrieve the contents of a container, with an optional restriction
     BOOL GetContents(const nsMapiEntry& aParent, LPSRestriction aRestriction, 

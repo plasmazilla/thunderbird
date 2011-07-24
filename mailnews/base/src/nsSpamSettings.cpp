@@ -473,7 +473,7 @@ nsresult nsSpamSettings::UpdateJunkFolderState()
       // XXX TODO
       // JUNK MAIL RELATED
       // (in ClearFlag?) we need to make sure that this folder
-      // is not a the junk folder for another account
+      // is not the junk folder for another account
       // the same goes for set flag.  have fun with all that.
       oldJunkFolder->ClearFlag(nsMsgFolderFlags::Junk);
     }
@@ -704,7 +704,9 @@ NS_IMETHODIMP nsSpamSettings::LogJunkHit(nsIMsgDBHdr *aMsgHdr, PRBool aMoveMessa
   nsCString buffer;
   // this is big enough to hold a log entry.
   // do this so we avoid growing and copying as we append to the log.
+#ifdef MOZILLA_INTERNAL_API
   buffer.SetCapacity(512);
+#endif
 
   nsCOMPtr<nsIStringBundleService> bundleService =
     do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);

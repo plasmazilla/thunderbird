@@ -43,7 +43,7 @@ relativesrcdir  = toolkit/content/tests/chrome
 
 include $(DEPTH)/config/autoconf.mk
 
-DIRS = rtltest
+DIRS = rtltest rtlchrome
 
 include $(topsrcdir)/config/rules.mk
 
@@ -63,15 +63,13 @@ _TEST_FILES = 	findbar_window.xul \
 		test_bug418874.xul \
 		bug429723_window.xul \
 		test_bug429723.xul \
-		bug437844.css \
-		bug437844.dtd \
-		bug437844.manifest \
 		test_bug437844.xul \
 		bug451286_window.xul \
 		test_bug451286.xul \
 		bug451540_window.xul \
 		test_bug451540.xul \
 		test_bug471776.xul \
+		test_bug570192.xul \
 		test_popup_preventdefault_chrome.xul \
 		window_popup_preventdefault_chrome.xul \
 		test_largemenu.xul \
@@ -89,18 +87,32 @@ _TEST_FILES = 	findbar_window.xul \
 		test_keys.xul \
 		window_keys.xul \
 		test_showcaret.xul \
+		window_showcaret.xul \
 		test_righttoleft.xul \
+		test_dialogfocus.xul \
+		dialog_dialogfocus.xul \
 		test_screenPersistence.xul \
 		window_screenPosSize.xul \
+		test_titlebar.xul \
+		window_titlebar.xul \
+		test_browser_drop.xul \
+		window_browser_drop.xul \
+		test_subframe_origin.xul \
+		window_subframe_origin.xul \
+		frame_subframe_origin_subframe1.xul \
+		frame_subframe_origin_subframe2.xul \
+		RegisterUnregisterChrome.js \
+		test_panel.xul \
+		window_panel.xul \
 		$(NULL)
 
 # test_panel_focus.xul won't work if the Full Keyboard Access preference is set to
 # textboxes and lists only, so skip this test on Mac
-ifeq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 _TEST_FILES += test_panel_focus.xul \
                window_panel_focus.xul \
-               test_dialogfocus.xul \
-               dialog_dialogfocus.xul
+               test_chromemargin.xul \
+               window_chromemargin.xul
 else
 _TEST_FILES += test_autocomplete.xul
 endif

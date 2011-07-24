@@ -40,8 +40,6 @@
 <overlay id="cookieContextOverlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <script type="application/javascript" src="chrome://communicator/content/permissions/permissionsOverlay.js"/>
-
   <script type="application/javascript">
   <![CDATA[
     // Code from nsContextMenu.js. Note that we extend the prototype here,
@@ -129,23 +127,23 @@
   </script>
 
   <!-- context menu -->
-  <popup id="contentAreaContextMenu">
+  <menupopup id="contentAreaContextMenu">
     <menuitem id="context-blockimage"
               oncommand="cookieContextMenu.toggleImageBlocking(true);"
               insertafter="context-viewimage"/>
     <menuitem id="context-unblockimage"
               oncommand="cookieContextMenu.toggleImageBlocking(false);"
               insertafter="context-viewimage"/>
-  </popup>
+  </menupopup>
 
   <!-- Mail context menu -->
-  <popup id="mailContext">
+  <menupopup id="mailContext">
     <menuitem id="context-blockimage"
               oncommand="cookieContextMenu.toggleImageBlocking(true);"
               insertafter="context-viewimage"/>
     <menuitem id="context-unblockimage"
               oncommand="cookieContextMenu.toggleImageBlocking(false);"
               insertafter="context-viewimage"/>
-  </popup>
+  </menupopup>
 
 </overlay>

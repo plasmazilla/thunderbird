@@ -172,19 +172,6 @@ StandaloneFolderDisplayWidget.prototype = {
   onMessageCountsChanged:
       function StandaloneFolderDisplayWidget_onMessageCountsChaned() {
     UpdateStatusMessageCounts();
-  },
-
-  onMessagesRemoved: function StandaloneFolderDisplayWidget_onMessagesRemoved() {
-    // Close the stand alone window if there's nothing selected (i.e. the
-    // message that was displayed is now deleted) and the pref to close window
-    // on delete is set
-    if (this.treeSelection.count == 0 &&
-        pref.getBoolPref("mail.close_message_window.on_delete")) {
-      window.close();
-    }
-    else {
-      this.__proto__.__proto__.onMessagesRemoved.call(this);
-    }
   }
 };
 
@@ -196,12 +183,6 @@ StandaloneFolderDisplayWidget.prototype = {
  */
 function StandaloneMessageDisplayWidget() {
   MessageDisplayWidget.call(this);
-  /**
-   * Indicate whether the message being displayed is a 'dummy' because it is
-   *  backed not by an nsIMsgDBHdr but instead by a file on disk or an
-   *  attachment on some mail message.
-   */
-  this.isDummy = false;
   /**
    * When displaying a dummy message, this is the URI of the message that we are
    *  displaying.  If we are not displaying a dummy message, this is null.
@@ -304,6 +285,15 @@ StandaloneMessageDisplayWidget.prototype = {
       return true;
     }
     return false;
+  },
+
+  onMessagesRemoved:
+      function StandaloneMessageDisplayWidget_onMessagesRemoved() {
+    if (this.folderDisplay.treeSelection.count == 0 &&
+        pref.getBoolPref("mail.close_message_window.on_delete")) {
+      window.close();
+      return true;
+    }
   },
 };
 
@@ -679,7 +669,12 @@ function GetNumSelectedMessages()
 
 function ReloadMessage()
 {
-  gFolderDisplay.view.dbView.reloadMessage();
+  // If the current message was loaded from a file or attachment, so the dbView
+  // can't handle reloading it. Let's do it ourselves, instead.
+  if (window.arguments[0] instanceof Components.interfaces.nsIURI)
+    gMessageDisplay.displayExternalMessage(window.arguments[0].spec);
+  else
+    gFolderDisplay.view.dbView.reloadMessage();
 }
 
 function MsgDeleteMessageFromMessageWindow(reallyDelete, fromToolbar)
@@ -714,7 +709,9 @@ var MessageWindowController =
       case "cmd_shiftDelete":
       case "cmd_tag":
       case "button_mark":
+      case "cmd_toggleRead":
       case "cmd_markAsRead":
+      case "cmd_markAsUnread":
       case "cmd_markAllRead":
       case "cmd_markThreadAsRead":
       case "cmd_markReadByDate":
@@ -734,7 +731,6 @@ var MessageWindowController =
       case "cmd_viewPageSource":
       case "cmd_getMsgsForAuthAccounts":
       case "button_file":
-      case "cmd_file":
       case "cmd_nextMsg":
       case "button_next":
       case "button_previous":
@@ -813,12 +809,9 @@ var MessageWindowController =
         // fall through
       case "button_delete":
         UpdateDeleteToolbarButton();
-        // fall through
+        return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteMsg);
       case "cmd_shiftDelete":
-        return gFolderDisplay.selectedMessage &&
-               gFolderDisplay.displayedFolder &&
-               (gFolderDisplay.displayedFolder.canDeleteMessages ||
-                gFolderDisplay.view.isNewsFolder);
+        return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteNoTrash);
       case "button_junk":
         UpdateJunkToolbarButton();
         // fall through
@@ -830,10 +823,7 @@ var MessageWindowController =
                gFolderDisplay.getCommandStatus(nsMsgViewCommandType.runJunkControls);
       case "cmd_archive":
       case "button_archive":
-        var folder = gFolderDisplay.displayedFolder;
-        return folder &&
-          !folder.isSpecialFolder(Components.interfaces.nsMsgFolderFlags.Archive,
-                                  true);
+        return gFolderDisplay.canArchiveSelectedMessages;
       case "cmd_reply":
       case "button_reply":
       case "cmd_replyall":
@@ -860,17 +850,20 @@ var MessageWindowController =
       case "cmd_find":
       case "cmd_tag":
       case "button_mark":
-      case "cmd_markAsRead":
       case "cmd_markAllRead":
       case "cmd_markThreadAsRead":
       case "cmd_markReadByDate":
       case "cmd_viewAllHeader":
       case "cmd_viewNormalHeader":
       case "cmd_stop":
+      case "cmd_toggleRead":
         return true;
+      case "cmd_markAsRead":
+        return CanMarkMsgAsRead(true);
+      case "cmd_markAsUnread":
+        return CanMarkMsgAsRead(false);
       case "cmd_markAsFlagged":
       case "button_file":
-      case "cmd_file":
         return ( gFolderDisplay.selectedMessage != null);
       case "cmd_printSetup":
         return true;
@@ -1054,8 +1047,16 @@ var MessageWindowController =
         MsgSearchMessages();
         break;
       case "button_mark":
-      case "cmd_markAsRead":
         MsgMarkMsgAsRead();
+        return;
+      case "cmd_toggleRead":
+        MsgMarkMsgAsRead();
+        return;
+      case "cmd_markAsRead":
+        MsgMarkMsgAsRead(true);
+        return;
+      case "cmd_markAsUnread":
+        MsgMarkMsgAsRead(false);
         return;
       case "cmd_markThreadAsRead":
         ClearPendingReadTimer();

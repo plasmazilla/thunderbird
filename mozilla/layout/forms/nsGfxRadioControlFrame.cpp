@@ -40,7 +40,7 @@
 #include "nsCOMPtr.h"
 #include "nsCSSRendering.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 #include "nsIServiceManager.h"
 #include "nsITheme.h"
@@ -64,23 +64,17 @@ nsGfxRadioControlFrame::~nsGfxRadioControlFrame()
 {
 }
 
-NS_QUERYFRAME_HEAD(nsGfxRadioControlFrame)
-  NS_QUERYFRAME_ENTRY(nsIRadioControlFrame)
-NS_QUERYFRAME_TAIL_INHERITING(nsFormControlFrame)
-
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP
-nsGfxRadioControlFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsGfxRadioControlFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService
-    = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    return accService->CreateHTMLRadioButtonAccessible(
-      static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLRadioButtonAccessible(mContent,
+                                                       PresContext()->PresShell());
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
 
@@ -124,13 +118,7 @@ nsGfxRadioControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     return NS_OK;
     
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-    nsDisplayGeneric(this, PaintCheckedRadioButton, "CheckedRadioButton"));
-}
-
-NS_IMETHODIMP
-nsGfxRadioControlFrame::OnChecked(nsPresContext* aPresContext,
-                                  PRBool aChecked)
-{
-  InvalidateOverflowRect();
-  return NS_OK;
+    nsDisplayGeneric(aBuilder, this, PaintCheckedRadioButton,
+                     "CheckedRadioButton",
+                     nsDisplayItem::TYPE_CHECKED_RADIOBUTTON));
 }

@@ -44,10 +44,46 @@
 #include "prtypes.h"
 #include "nsStringGlue.h"
 #include "nsTArray.h"
+#include "gfx3DMatrix.h"
+#include "gfxColor.h"
+#include "gfxMatrix.h"
+#include "gfxPattern.h"
+#include "nsRect.h"
+#include "nsRegion.h"
+#include "gfxASurface.h"
+#include "Layers.h"
 
 #ifdef _MSC_VER
 #pragma warning( disable : 4800 )
 #endif
+
+#if !defined(OS_POSIX)
+// This condition must be kept in sync with the one in
+// ipc_message_utils.h, but this dummy definition of
+// base::FileDescriptor acts as a static assert that we only get one
+// def or the other (or neither, in which case code using
+// FileDescriptor fails to build)
+namespace base { class FileDescriptor { }; }
+#endif
+
+using mozilla::layers::LayerManager;
+
+namespace mozilla {
+
+typedef gfxPattern::GraphicsFilter GraphicsFilterType;
+typedef gfxASurface::gfxSurfaceType gfxSurfaceType;
+typedef LayerManager::LayersBackend LayersBackend;
+
+// XXX there are out of place and might be generally useful.  Could
+// move to nscore.h or something.
+struct void_t {
+  bool operator==(const void_t&) const { return true; }
+};
+struct null_t {
+  bool operator==(const null_t&) const { return true; }
+};
+
+} // namespace mozilla
 
 namespace IPC {
 
@@ -92,6 +128,22 @@ struct ParamTraits<PRUint8>
     return true;
   }
 };
+
+#if !defined(OS_POSIX)
+// See above re: keeping definitions in sync
+template<>
+struct ParamTraits<base::FileDescriptor>
+{
+  typedef base::FileDescriptor paramType;
+  static void Write(Message* aMsg, const paramType& aParam) {
+    NS_RUNTIMEABORT("FileDescriptor isn't meaningful on this platform");
+  }
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult) {
+    NS_RUNTIMEABORT("FileDescriptor isn't meaningful on this platform");
+    return false;
+  }
+};
+#endif  // !defined(OS_POSIX)
 
 template <>
 struct ParamTraits<nsACString>
@@ -208,16 +260,26 @@ struct ParamTraits<nsCString> : ParamTraits<nsACString>
   typedef nsCString paramType;
 };
 
+#ifdef MOZILLA_INTERNAL_API
+
+template<>
+struct ParamTraits<nsCAutoString> : ParamTraits<nsCString>
+{
+  typedef nsCAutoString paramType;
+};
+
+#endif  // MOZILLA_INTERNAL_API
+
 template <>
 struct ParamTraits<nsString> : ParamTraits<nsAString>
 {
   typedef nsString paramType;
 };
 
-template <typename E>
-struct ParamTraits<nsTArray<E> >
+template <typename E, class A>
+struct ParamTraits<nsTArray<E, A> >
 {
-  typedef nsTArray<E> paramType;
+  typedef nsTArray<E, A> paramType;
 
   static void Write(Message* aMsg, const paramType& aParam)
   {
@@ -235,6 +297,7 @@ struct ParamTraits<nsTArray<E> >
       return false;
     }
 
+    aResult->SetCapacity(length);
     for (PRUint32 index = 0; index < length; index++) {
       E* element = aResult->AppendElement();
       if (!(element && ReadParam(aMsg, aIter, element))) {
@@ -254,6 +317,28 @@ struct ParamTraits<nsTArray<E> >
       LogParam(aParam[index], aLog);
     }
   }
+};
+
+template<typename E>
+struct ParamTraits<InfallibleTArray<E> > :
+  ParamTraits<nsTArray<E, nsTArrayInfallibleAllocator> >
+{
+  typedef InfallibleTArray<E> paramType;
+
+  // use nsTArray Write() method
+
+  // deserialize the array fallibly, but return an InfallibleTArray
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    nsTArray<E> temp;
+    if (!ReadParam(aMsg, aIter, &temp))
+      return false;
+
+    aResult->SwapElements(temp);
+    return true;
+  }
+
+  // use nsTArray Log() method
 };
 
 template<>
@@ -278,6 +363,345 @@ struct ParamTraits<float>
   static void Log(const paramType& aParam, std::wstring* aLog)
   {
     aLog->append(StringPrintf(L"%g", aParam));
+  }
+};
+
+template<>
+struct ParamTraits<gfxMatrix>
+{
+  typedef gfxMatrix paramType;
+
+  static void Write(Message* aMsg, const paramType& aParam)
+  {
+    WriteParam(aMsg, aParam.xx);
+    WriteParam(aMsg, aParam.xy);
+    WriteParam(aMsg, aParam.yx);
+    WriteParam(aMsg, aParam.yy);
+    WriteParam(aMsg, aParam.x0);
+    WriteParam(aMsg, aParam.y0);
+  }
+
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    if (ReadParam(aMsg, aIter, &aResult->xx) &&
+        ReadParam(aMsg, aIter, &aResult->xy) &&
+        ReadParam(aMsg, aIter, &aResult->yx) &&
+        ReadParam(aMsg, aIter, &aResult->yy) &&
+        ReadParam(aMsg, aIter, &aResult->x0) &&
+        ReadParam(aMsg, aIter, &aResult->y0))
+      return true;
+
+    return false;
+  }
+
+  static void Log(const paramType& aParam, std::wstring* aLog)
+  {
+    aLog->append(StringPrintf(L"[[%g %g] [%g %g] [%g %g]]", aParam.xx, aParam.xy, aParam.yx, aParam.yy,
+	  						    aParam.x0, aParam.y0));
+  }
+};
+
+template<>
+struct ParamTraits<gfx3DMatrix>
+{
+  typedef gfx3DMatrix paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+#define Wr(_f)  WriteParam(msg, param. _f)
+    Wr(_11); Wr(_12); Wr(_13); Wr(_14);
+    Wr(_21); Wr(_22); Wr(_23); Wr(_24);
+    Wr(_31); Wr(_32); Wr(_33); Wr(_34);
+    Wr(_41); Wr(_42); Wr(_43); Wr(_44);
+#undef Wr
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+#define Rd(_f)  ReadParam(msg, iter, &result-> _f)
+    return (Rd(_11) && Rd(_12) && Rd(_13) && Rd(_14) &&
+            Rd(_21) && Rd(_22) && Rd(_23) && Rd(_24) &&
+            Rd(_31) && Rd(_32) && Rd(_33) && Rd(_34) &&
+            Rd(_41) && Rd(_42) && Rd(_43) && Rd(_44));
+#undef Rd
+  }
+};
+
+ template<>
+struct ParamTraits<mozilla::GraphicsFilterType>
+{
+  typedef mozilla::GraphicsFilterType paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    switch (param) {
+    case gfxPattern::FILTER_FAST:
+    case gfxPattern::FILTER_GOOD:
+    case gfxPattern::FILTER_BEST:
+    case gfxPattern::FILTER_NEAREST:
+    case gfxPattern::FILTER_BILINEAR:
+    case gfxPattern::FILTER_GAUSSIAN:
+      WriteParam(msg, int32(param));
+      return;
+
+    default:
+      NS_RUNTIMEABORT("not reached");
+      return;
+    }
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    int32 filter;
+    if (!ReadParam(msg, iter, &filter))
+      return false;
+
+    switch (filter) {
+    case gfxPattern::FILTER_FAST:
+    case gfxPattern::FILTER_GOOD:
+    case gfxPattern::FILTER_BEST:
+    case gfxPattern::FILTER_NEAREST:
+    case gfxPattern::FILTER_BILINEAR:
+    case gfxPattern::FILTER_GAUSSIAN:
+      *result = paramType(filter);
+      return true;
+
+    default:
+      return false;
+    }
+  }
+};
+
+ template<>
+struct ParamTraits<mozilla::gfxSurfaceType>
+{
+  typedef mozilla::gfxSurfaceType paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    if (gfxASurface::SurfaceTypeImage <= param &&
+        param < gfxASurface::SurfaceTypeMax) {
+      WriteParam(msg, int32(param));
+      return;
+    }
+    NS_RUNTIMEABORT("surface type not reached");
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    int32 filter;
+    if (!ReadParam(msg, iter, &filter))
+      return false;
+
+    if (gfxASurface::SurfaceTypeImage <= filter &&
+        filter < gfxASurface::SurfaceTypeMax) {
+      *result = paramType(filter);
+      return true;
+    }
+    return false;
+  }
+};
+
+ template<>
+struct ParamTraits<mozilla::LayersBackend>
+{
+  typedef mozilla::LayersBackend paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    if (LayerManager::LAYERS_NONE < param &&
+        param < LayerManager::LAYERS_LAST) {
+      WriteParam(msg, int32(param));
+      return;
+    }
+    NS_RUNTIMEABORT("surface type not reached");
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    int32 type;
+    if (!ReadParam(msg, iter, &type))
+      return false;
+
+    if (LayerManager::LAYERS_NONE < type &&
+        type < LayerManager::LAYERS_LAST) {
+      *result = paramType(type);
+      return true;
+    }
+    return false;
+  }
+};
+
+template<>
+struct ParamTraits<gfxRGBA>
+{
+  typedef gfxRGBA paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.r);
+    WriteParam(msg, param.g);
+    WriteParam(msg, param.b);
+    WriteParam(msg, param.a);
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->r) &&
+            ReadParam(msg, iter, &result->g) &&
+            ReadParam(msg, iter, &result->b) &&
+            ReadParam(msg, iter, &result->a));
+  }
+};
+
+template<>
+struct ParamTraits<mozilla::void_t>
+{
+  typedef mozilla::void_t paramType;
+  static void Write(Message* aMsg, const paramType& aParam) { }
+  static bool
+  Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    *aResult = paramType();
+    return true;
+  }
+};
+
+template<>
+struct ParamTraits<mozilla::null_t>
+{
+  typedef mozilla::null_t paramType;
+  static void Write(Message* aMsg, const paramType& aParam) { }
+  static bool
+  Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    *aResult = paramType();
+    return true;
+  }
+};
+
+template<>
+struct ParamTraits<nsIntPoint>
+{
+  typedef nsIntPoint paramType;
+  
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.x);
+    WriteParam(msg, param.y);
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->x) &&
+            ReadParam(msg, iter, &result->y));
+  }
+};
+
+template<>
+struct ParamTraits<nsIntRect>
+{
+  typedef nsIntRect paramType;
+  
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.x);
+    WriteParam(msg, param.y);
+    WriteParam(msg, param.width);
+    WriteParam(msg, param.height);
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->x) &&
+            ReadParam(msg, iter, &result->y) &&
+            ReadParam(msg, iter, &result->width) &&
+            ReadParam(msg, iter, &result->height));
+  }
+};
+
+template<>
+struct ParamTraits<nsIntRegion>
+{
+  typedef nsIntRegion paramType;
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    nsIntRegionRectIterator it(param);
+    while (const nsIntRect* r = it.Next())
+      WriteParam(msg, *r);
+    // empty rects are sentinel values because nsRegions will never
+    // contain them
+    WriteParam(msg, nsIntRect());
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    nsIntRect rect;
+    while (ReadParam(msg, iter, &rect)) {
+      if (rect.IsEmpty())
+        return true;
+      result->Or(*result, rect);
+    }
+    return false;
+  }
+};
+
+template<>
+struct ParamTraits<nsIntSize>
+{
+  typedef nsIntSize paramType;
+  
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.width);
+    WriteParam(msg, param.height); 
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->width) &&
+            ReadParam(msg, iter, &result->height));
+  }
+};
+
+template<>
+struct ParamTraits<nsRect>
+{
+  typedef nsRect paramType;
+  
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.x);
+    WriteParam(msg, param.y);
+    WriteParam(msg, param.width);
+    WriteParam(msg, param.height);
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->x) &&
+            ReadParam(msg, iter, &result->y) &&
+            ReadParam(msg, iter, &result->width) &&
+            ReadParam(msg, iter, &result->height));
+  }
+};
+
+template<>
+struct ParamTraits<gfxIntSize>
+{
+  typedef gfxIntSize paramType;
+  
+  static void Write(Message* msg, const paramType& param)
+  {
+    WriteParam(msg, param.width);
+    WriteParam(msg, param.height); 
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    return (ReadParam(msg, iter, &result->width) &&
+            ReadParam(msg, iter, &result->height));
   }
 };
 

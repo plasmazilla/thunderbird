@@ -1,16 +1,24 @@
 /* General */
-.wizard-button > .button-box {
-  padding-left: 15px !important;
-  padding-right: 15px !important;
+/* Specify the size for the wizardpage so the billboard has a fixed size. 3rd
+   party themes should typically specify the same values. */
+wizardpage {
+  height: 360px;
+  width: 700px;
 }
 
-remotecontent {
-  margin-top: 1px;
-  margin-bottom: 2px;
-  -moz-margin-start: 6px;
-  -moz-margin-end: 5px;
-  -moz-appearance: listbox;
-  padding-bottom: 1px;
+/* Remove margin and padding so the billboard will extend to the edge of the
+   window. 3rd party themes should typically specify the same values. */
+#updates, .wizard-page-box {
+  margin: 0;
+  padding: 0;
+}
+
+.update-header {
+  padding: 0px 10px;
+}
+
+.update-content {
+  padding: 10px;
 }
 
 .loadingBox {
@@ -29,11 +37,8 @@ remotecontent {
   list-style-image: url("chrome://global/skin/icons/notfound.png");
 }
 
-#updates[currentpageid="updatesfoundbasic"] .wizard-button[dlgtype="next"],
-#updates[currentpageid="updatesfoundbillboard"] .wizard-button[dlgtype="next"],
-#updates[currentpageid="finished"] .wizard-button[dlgtype="finish"],
-#updates[currentpageid="finishedBackground"] .wizard-button[dlgtype="finish"] {
-  font-weight: bold;
+.wizard-buttons-separator {
+  margin-top: 0 !important;
 }
 
 #licenseContent, #incompatibleListbox {
@@ -58,7 +63,7 @@ remotecontent {
 }
 
 /* Downloading Page */
-#downloadStatusTop, #downloadStatusLine {
+#downloadStatusLine {
   -moz-box-align: center;
 }
 
@@ -71,7 +76,7 @@ remotecontent {
 }
 
 #pauseButton {
-  list-style-image: url(chrome://mozapps/skin/downloads/downloadButtons.png);
+  list-style-image: url(chrome://mozapps/skin/update/downloadButtons.png);
   -moz-image-region: rect(0px, 48px, 16px, 32px);
   -moz-appearance: none;
   background-color: transparent;

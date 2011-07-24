@@ -15,7 +15,7 @@
  *
  * The Original Code is mozilla.com code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -104,7 +104,7 @@ function run_test() {
   // file pointer to legacy bookmarks file
   var bookmarksFileOld = do_get_file("bookmarks.preplaces.html");
   // file pointer to a new places-exported bookmarks file
-  var bookmarksFileNew = dirSvc.get("ProfD", Ci.nsILocalFile);
+  var bookmarksFileNew = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
   bookmarksFileNew.append("bookmarks.exported.html");
 
   // create bookmarks.exported.html
@@ -206,10 +206,10 @@ function testCanonicalBookmarks(aFolder) {
 
   // 6-2: the toolbar folder and unfiled bookmarks folder imported to the
   // corresponding places folders
-  do_check_eq(rootNode.childCount, 4);
+  do_check_eq(rootNode.childCount, DEFAULT_BOOKMARKS_ON_MENU + 1);
 
   // get test folder
-  var testFolder = rootNode.getChild(3);
+  var testFolder = rootNode.getChild(DEFAULT_BOOKMARKS_ON_MENU);
   do_check_eq(testFolder.type, testFolder.RESULT_TYPE_FOLDER);
   do_check_eq(testFolder.title, "test");
 

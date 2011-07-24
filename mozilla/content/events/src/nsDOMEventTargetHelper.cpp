@@ -86,10 +86,8 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMEventTargetHelper)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSEventTarget)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsDOMEventTargetHelper,
-                                          nsPIDOMEventTarget)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsDOMEventTargetHelper,
-                                           nsPIDOMEventTarget)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsDOMEventTargetHelper)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsDOMEventTargetHelper)
 
 
 NS_IMETHODIMP
@@ -97,13 +95,7 @@ nsDOMEventTargetHelper::AddEventListener(const nsAString& aType,
                                          nsIDOMEventListener* aListener,
                                          PRBool aUseCapture)
 {
-  nsresult rv;
-  nsIScriptContext* context =
-    GetContextForEventHandlers(&rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsIDocument> doc = nsContentUtils::GetDocumentFromScriptContext(context);
-  PRBool wantsUntrusted = doc && !nsContentUtils::IsChromeDoc(doc);
-  return AddEventListener(aType, aListener, aUseCapture, wantsUntrusted);
+  return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 0);
 }
 
 NS_IMETHODIMP
@@ -124,14 +116,31 @@ NS_IMETHODIMP
 nsDOMEventTargetHelper::AddEventListener(const nsAString& aType,
                                          nsIDOMEventListener *aListener,
                                          PRBool aUseCapture,
-                                         PRBool aWantsUntrusted)
+                                         PRBool aWantsUntrusted,
+                                         PRUint8 optional_argc)
 {
+  NS_ASSERTION(!aWantsUntrusted || optional_argc > 0,
+               "Won't check if this is chrome, you want to set "
+               "aWantsUntrusted to PR_FALSE or make the aWantsUntrusted "
+               "explicit by making optional_argc non-zero.");
+
   nsIEventListenerManager* elm = GetListenerManager(PR_TRUE);
   NS_ENSURE_STATE(elm);
   PRInt32 flags = aUseCapture ? NS_EVENT_FLAG_CAPTURE : NS_EVENT_FLAG_BUBBLE;
+
+  if (optional_argc == 0) {
+    nsresult rv;
+    nsIScriptContext* context = GetContextForEventHandlers(&rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIDocument> doc =
+      nsContentUtils::GetDocumentFromScriptContext(context);
+    aWantsUntrusted = doc && !nsContentUtils::IsChromeDoc(doc);
+  }
+
   if (aWantsUntrusted) {
     flags |= NS_PRIV_EVENT_UNTRUSTED_PERMITTED;
   }
+
   return elm->AddEventListenerByType(aListener, aType, flags, nsnull);
 }
 

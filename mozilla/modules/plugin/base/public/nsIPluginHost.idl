@@ -41,10 +41,10 @@
 #include "nsIStreamListener.idl"
 #include "nsIStringStream.idl"
 #include "nsIPluginTag.idl"
+#include "nsIFile.idl"
 
 %{C++
 #include "nsPluginNativeWindow.h"
-#include "nsplugindefs.h"
 #ifdef MOZILLA_INTERNAL_API
 #include "nsString.h"
 #include "nsNetUtil.h"
@@ -62,10 +62,9 @@ interface nsIChannel;
 interface nsIPluginStreamListener;
 
 [ptr] native PRLibraryPtr(PRLibrary);
-[ref] native nsIStreamListenerRef(nsIStreamListener *);
 [ptr] native nsPluginNativeWindowPtr(nsPluginNativeWindow);
 
-[scriptable, uuid(30C7C529-B05C-4950-B5B8-9AF673E46521)]
+[scriptable, uuid(C198DEAA-3F93-482D-A47C-85FF6514FE07)]
 interface nsIPluginHost : nsISupports
 {
   [noscript] void init();
@@ -87,7 +86,10 @@ interface nsIPluginHost : nsISupports
 
   [noscript] void instantiateEmbeddedPlugin(in string aMimeType, in nsIURI aURL, in nsIPluginInstanceOwner aOwner);
 
-  [noscript] void instantiateFullPagePlugin(in string aMimeType, in nsIURI aURI, in nsIStreamListenerRef aStreamListener, in nsIPluginInstanceOwner aOwner);
+  [noscript] void instantiateFullPagePlugin(in string aMimeType,
+                                            in nsIURI aURI,
+                                            in nsIPluginInstanceOwner aOwner,
+                                            out nsIStreamListener aStreamListener);
 
   /**
    * Instantiate an embedded plugin for an existing channel. The caller is
@@ -111,7 +113,7 @@ interface nsIPluginHost : nsISupports
   
   [noscript] void getPlugins(in unsigned long aPluginCount, out /*array*/ nsIDOMPlugin aPluginArray);
 
-  void getPluginTags(out unsigned long aPluginCount,
+  void getPluginTags([optional] out unsigned long aPluginCount,
     [retval, array, size_is(aPluginCount)] out nsIPluginTag aResults);
 
   [noscript] void stopPluginInstance(in nsIPluginInstance aInstance);
@@ -139,16 +141,13 @@ interface nsIPluginHost : nsISupports
    *  specify PR_FALSE) 
    * @result - NS_OK if this operation was successful
    */
-%{C++
-  NS_IMETHOD
-  GetURL(nsISupports* pluginInst,
-         const char* url,
-         const char* target = NULL,
-         nsIPluginStreamListener* streamListener = NULL,
-         const char* altHost = NULL,
-         const char* referrer = NULL,
-         PRBool forceJSEnabled = PR_FALSE) = 0;
-%}
+  [noscript] void getURL(in nsISupports pluginInt,
+                         in string url,
+                         in string target,
+                         in nsIPluginStreamListener streamListener,
+                         in string altHost,
+                         in string referrer,
+                         in boolean forceJSEnabled);
 
   /**
    * Posts to a URL with post data and/or post headers.
@@ -181,21 +180,18 @@ interface nsIPluginHost : nsISupports
    * post headers
    * @result - NS_OK if this operation was successful
    */
-%{C++
-  NS_IMETHOD
-  PostURL(nsISupports* pluginInst,
-          const char* url,
-          PRUint32 postDataLen,
-          const char* postData,
-          PRBool isFile = PR_FALSE,
-          const char* target = NULL,
-          nsIPluginStreamListener* streamListener = NULL,
-          const char* altHost = NULL,
-          const char* referrer = NULL,
-          PRBool forceJSEnabled = PR_FALSE,
-          PRUint32 postHeadersLength = 0,
-          const char* postHeaders = NULL) = 0;
-%}
+  [noscript] void postURL(in nsISupports pluginInst,
+                          in string url,
+                          in PRUint32 postDataLen,
+                          in string postData,
+                          in boolean isFile,
+                          in string target,
+                          in nsIPluginStreamListener streamListener,
+                          in string altHost,
+                          in string referrer,
+                          in boolean forceJSEnabled,
+                          in PRUint32 postHeadersLength,
+                          in string postHeaders);
 
   /**
    * Returns the proxy info for a given URL. The caller is required to
@@ -210,14 +206,9 @@ interface nsIPluginHost : nsISupports
    *
    * Which proxy/SOCKS to use is determined by the plugin.
    */
-  void findProxyForURL(in string aURL, out string aResult);
+  [noscript] void findProxyForURL(in string aURL, out string aResult);
 
   [noscript] void UserAgent(in nativeChar resultingAgentString);
-
-  /**
-   * To notify the plugin manager that the plugin created a script object 
-   */
-  [noscript] void setIsScriptableInstance(in nsIPluginInstance aInstance, in boolean aScriptable);
 
   /**
    * This method parses post buffer to find out case insensitive "Content-length" string
@@ -248,9 +239,9 @@ interface nsIPluginHost : nsISupports
                                               out unsigned long aOutPostDataLen);
 
   /**
-   * To create tmp file with Content len header in, it will use by http POST
+   * To create temp file with Content len header in, it will use by http POST
    */
-  [noscript] void createTmpFileToPost(in string aPostDataURL, out string aTmpFileName);
+  [noscript] nsIFile createTempFileToPost(in string aPostDataURL);
 
   /**
    *  Creates a new plugin native window object
@@ -286,65 +277,54 @@ interface nsIPluginHost : nsISupports
    * @return plugin tag object
    */
   [noscript] nsIPluginTag getPluginTagForInstance(in nsIPluginInstance aInstance);
+  
+  [noscript, notxpcom] void addIdleTimeTarget(in nsIPluginInstanceOwner objectFrame, in boolean isVisible);
+  [noscript, notxpcom] void removeIdleTimeTarget(in nsIPluginInstanceOwner objectFrame);
+
+  /*
+   * Flags for use with clearSiteData.
+   *
+   * FLAG_CLEAR_ALL: clear all data associated with a site.
+   * FLAG_CLEAR_CACHE: clear cached data that can be retrieved again without
+   *                   loss of functionality. To be used out of concern for
+   *                   space and not necessarily privacy.
+   */
+  const PRUint32 FLAG_CLEAR_ALL = 0;
+  const PRUint32 FLAG_CLEAR_CACHE = 1;
+
+  /*
+   * Clear site data for a given plugin.
+   *
+   * @param plugin: the plugin to clear data for, such as one returned by
+   *                nsIPluginHost.getPluginTags.
+   * @param domain: the domain to clear data for. If this argument is null,
+   *                clear data for all domains. Otherwise, it must be a domain
+   *                only (not a complete URI or IRI). The base domain for the
+   *                given site will be determined; any data for the base domain
+   *                or its subdomains will be cleared.
+   * @param flags: a flag value defined above.
+   * @param maxAge: the maximum age in seconds of data to clear, inclusive. If
+   *                maxAge is 0, no data is cleared; if it is -1, all data is
+   *                cleared.
+   *
+   * @throws NS_ERROR_INVALID_ARG if the domain argument is malformed.
+   * @throws NS_ERROR_PLUGIN_TIME_RANGE_NOT_SUPPORTED if maxAge is a value other
+   *         than -1 and the plugin does not support clearing by timerange in
+   *         general or for that particular site and/or flag combination.
+   */
+  void clearSiteData(in nsIPluginTag plugin, in AUTF8String domain,
+                     in PRUint64 flags, in PRInt64 maxAge);
+
+  /*
+   * Determine if a plugin has stored data for a given site.
+   *
+   * @param plugin: the plugin to query, such as one returned by
+   *                nsIPluginHost.getPluginTags.
+   * @param domain: the domain to test. If this argument is null, test if data
+   *                is stored for any site. The base domain for the given domain
+   *                will be determined; if any data for the base domain or its
+   *                subdomains is found, return true.
+   */
+  boolean siteHasData(in nsIPluginTag plugin, in AUTF8String domain);
 };
 
-%{C++
-#ifdef MOZILLA_INTERNAL_API
-/**
- * Used for creating the correct input stream for plugins
- * We can either have raw data (with or without \r\n\r\n) or a path to a file (but it must be native!)
- * When making an nsIInputStream stream for the plugins POST data, be sure to take into 
- * account that it could be binary and full of nulls, see bug 105417. Also, we need 
- * to make a copy of the buffer because the plugin may have allocated it on the stack.
- * For an example of this, see Shockwave registration or bug 108966
- * We malloc only for headers here, buffer for data itself is malloced by ParsePostBufferToFixHeaders()
- */
-
-inline nsresult
-NS_NewPluginPostDataStream(nsIInputStream **result,
-                           const char *data,
-                           PRUint32 contentLength,
-                           PRBool isFile = PR_FALSE,
-                           PRBool headers = PR_FALSE)
-{
-  nsresult rv = NS_ERROR_UNEXPECTED;
-  if (!data)
-    return rv;
-
-  if (!isFile) { // do raw data case first
-    if (contentLength < 1)
-      return rv;
-    
-    char *buf = (char*) data;
-    if (headers) {
-      // in assumption we got correctly formated headers just passed in
-      if (!(buf = (char*)nsMemory::Alloc(contentLength)))
-        return NS_ERROR_OUT_OF_MEMORY;
-      memcpy(buf, data, contentLength);
-    }
-    nsCOMPtr<nsIStringInputStream> sis = do_CreateInstance("@mozilla.org/io/string-input-stream;1",&rv);
-    if (NS_SUCCEEDED(rv)) {
-      sis->AdoptData(buf, contentLength);  // let the string stream manage our data
-      rv = CallQueryInterface(sis, result);
-    }
-    else if (headers) {
-      nsMemory::Free(buf); // Cleanup the memory if the data was copied.
-    }
-  } else {
-    nsCOMPtr<nsILocalFile> file; // tmp file will be deleted on release of stream
-    nsCOMPtr<nsIInputStream> fileStream;
-    if (NS_SUCCEEDED(rv = NS_NewNativeLocalFile(nsDependentCString(data), PR_FALSE, getter_AddRefs(file))) &&
-        NS_SUCCEEDED(rv = NS_NewLocalFileInputStream(getter_AddRefs(fileStream),
-                                                     file,
-                                                     PR_RDONLY,
-                                                     0600,
-                                                     nsIFileInputStream::DELETE_ON_CLOSE |
-                                                     nsIFileInputStream::CLOSE_ON_EOF))) {
-      // wrap the file stream with a buffered input stream
-      return NS_NewBufferedInputStream(result, fileStream, 8192);
-    }
-  }
-  return rv;
-}
-#endif
-%}

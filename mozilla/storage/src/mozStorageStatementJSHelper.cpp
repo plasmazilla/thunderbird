@@ -74,14 +74,18 @@ stepFunc(JSContext *aCtx,
     return JS_FALSE;
   }
 
-  Statement *stmt = static_cast<Statement *>(wrapper->Native());
-
 #ifdef DEBUG
   {
-    nsCOMPtr<mozIStorageStatement> isStatement(do_QueryInterface(stmt));
+    nsCOMPtr<mozIStorageStatement> isStatement(
+      do_QueryInterface(wrapper->Native())
+    );
     NS_ASSERTION(isStatement, "How is this not a statement?!");
   }
 #endif
+
+  Statement *stmt = static_cast<Statement *>(
+    static_cast<mozIStorageStatement *>(wrapper->Native())
+  );
 
   PRBool hasMore = PR_FALSE;
   rv = stmt->ExecuteStep(&hasMore);
@@ -201,27 +205,30 @@ NS_IMETHODIMP
 StatementJSHelper::GetProperty(nsIXPConnectWrappedNative *aWrapper,
                                JSContext *aCtx,
                                JSObject *aScopeObj,
-                               jsval aId,
+                               jsid aId,
                                jsval *_result,
                                PRBool *_retval)
 {
-  if (!JSVAL_IS_STRING(aId))
+  if (!JSID_IS_STRING(aId))
     return NS_OK;
-
-  Statement *stmt = static_cast<Statement *>(aWrapper->Native());
 
 #ifdef DEBUG
   {
-    nsCOMPtr<mozIStorageStatement> isStatement(do_QueryInterface(stmt));
+    nsCOMPtr<mozIStorageStatement> isStatement(
+                                     do_QueryInterface(aWrapper->Native()));
     NS_ASSERTION(isStatement, "How is this not a statement?!");
   }
 #endif
 
-  const char *propName = ::JS_GetStringBytes(JSVAL_TO_STRING(aId));
-  if (::strcmp(propName, "row") == 0)
+  Statement *stmt = static_cast<Statement *>(
+    static_cast<mozIStorageStatement *>(aWrapper->Native())
+  );
+
+  JSFlatString *str = JSID_TO_FLAT_STRING(aId);
+  if (::JS_FlatStringEqualsAscii(str, "row"))
     return getRow(stmt, aCtx, aScopeObj, _result);
 
-  if (::strcmp(propName, "params") == 0)
+  if (::JS_FlatStringEqualsAscii(str, "params"))
     return getParams(stmt, aCtx, aScopeObj, _result);
 
   return NS_OK;
@@ -232,18 +239,17 @@ NS_IMETHODIMP
 StatementJSHelper::NewResolve(nsIXPConnectWrappedNative *aWrapper,
                               JSContext *aCtx,
                               JSObject *aScopeObj,
-                              jsval aId,
+                              jsid aId,
                               PRUint32 aFlags,
                               JSObject **_objp,
                               PRBool *_retval)
 {
-  if (!JSVAL_IS_STRING(aId))
+  if (!JSID_IS_STRING(aId))
     return NS_OK;
 
-  const char *name = ::JS_GetStringBytes(JSVAL_TO_STRING(aId));
-  if (::strcmp(name, "step") == 0) {
-    *_retval = ::JS_DefineFunction(aCtx, aScopeObj, "step", (JSNative)stepFunc,
-                                   0, JSFUN_FAST_NATIVE) != nsnull;
+  if (::JS_FlatStringEqualsAscii(JSID_TO_FLAT_STRING(aId), "step")) {
+    *_retval = ::JS_DefineFunction(aCtx, aScopeObj, "step", stepFunc,
+                                   0, 0) != nsnull;
     *_objp = aScopeObj;
     return NS_OK;
   }

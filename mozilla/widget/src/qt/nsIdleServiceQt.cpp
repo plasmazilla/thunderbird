@@ -37,15 +37,16 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef MOZ_PLATFORM_MAEMO
+#include <QX11Info>
+#endif
+
 #include "nsIdleServiceQt.h"
 #include "nsIServiceManager.h"
 #include "nsDebug.h"
 #include "prlink.h"
 
-
-#ifdef Q_WS_X11
-#include <QX11Info>
-
+#ifndef MOZ_PLATFORM_MAEMO
 typedef PRBool (*_XScreenSaverQueryExtension_fn)(Display* dpy, int* event_base,
                                                  int* error_base);
 
@@ -54,16 +55,19 @@ typedef XScreenSaverInfo* (*_XScreenSaverAllocInfo_fn)(void);
 typedef void (*_XScreenSaverQueryInfo_fn)(Display* dpy, Drawable drw,
                                           XScreenSaverInfo *info);
 
-static PRBool sInitialized = PR_FALSE;
 static _XScreenSaverQueryExtension_fn _XSSQueryExtension = nsnull;
 static _XScreenSaverAllocInfo_fn _XSSAllocInfo = nsnull;
 static _XScreenSaverQueryInfo_fn _XSSQueryInfo = nsnull;
+#endif
 
+static PRBool sInitialized = PR_FALSE;
 
-NS_IMPL_ISUPPORTS1(nsIdleServiceQt, nsIIdleService)
+NS_IMPL_ISUPPORTS2(nsIdleServiceQt, nsIIdleService, nsIdleService)
 
 nsIdleServiceQt::nsIdleServiceQt()
+#ifndef MOZ_PLATFORM_MAEMO
     : mXssInfo(nsnull)
+#endif
 {
 }
 
@@ -71,6 +75,7 @@ static void Initialize()
 {
     sInitialized = PR_TRUE;
 
+#ifndef MOZ_PLATFORM_MAEMO
     // This will leak - See comments in ~nsIdleServiceQt().
     PRLibrary* xsslib = PR_LoadLibrary("libXss.so.1");
     if (!xsslib) {
@@ -83,10 +88,12 @@ static void Initialize()
         PR_FindFunctionSymbol(xsslib, "XScreenSaverAllocInfo");
     _XSSQueryInfo = (_XScreenSaverQueryInfo_fn)
         PR_FindFunctionSymbol(xsslib, "XScreenSaverQueryInfo");
+#endif
 }
 
 nsIdleServiceQt::~nsIdleServiceQt()
 {
+#ifndef MOZ_PLATFORM_MAEMO
     if (mXssInfo)
         XFree(mXssInfo);
 
@@ -99,25 +106,27 @@ nsIdleServiceQt::~nsIdleServiceQt()
         xsslib = nsnull;
     }
 #endif
+#endif
 }
 
-NS_IMETHODIMP
-nsIdleServiceQt::GetIdleTime(PRUint32 *aTimeDiff)
+bool
+nsIdleServiceQt::PollIdleTime(PRUint32 *aIdleTime)
 {
+#ifndef MOZ_PLATFORM_MAEMO
     // Ask xscreensaver about idle time:
-    *aTimeDiff = 0;
+    *aIdleTime = 0;
 
     // We might not have a display (cf. in xpcshell)
     Display *dplay = QX11Info::display();
     if (!dplay) {
-        return NS_ERROR_FAILURE;
+        return false;
     }
 
     if (!sInitialized) {
         Initialize();
     }
     if (!_XSSQueryExtension || !_XSSAllocInfo || !_XSSQueryInfo) {
-        return NS_ERROR_FAILURE;
+        return false;
     }
 
     int event_base, error_base;
@@ -125,36 +134,23 @@ nsIdleServiceQt::GetIdleTime(PRUint32 *aTimeDiff)
         if (!mXssInfo)
             mXssInfo = _XSSAllocInfo();
         if (!mXssInfo)
-            return NS_ERROR_OUT_OF_MEMORY;
+            return false;
 
         _XSSQueryInfo(dplay, QX11Info::appRootWindow(), mXssInfo);
-        *aTimeDiff = mXssInfo->idle;
-        return NS_OK;
+        *aIdleTime = mXssInfo->idle;
+        return true;
     }
-
-    return NS_ERROR_FAILURE;
-}
-
-#else
-
-NS_IMPL_ISUPPORTS1(nsIdleServiceQt, nsIIdleService)
-
-nsIdleServiceQt::nsIdleServiceQt()
-{
-}
-
-static void Initialize()
-{
-}
-
-nsIdleServiceQt::~nsIdleServiceQt()
-{
-}
-
-NS_IMETHODIMP
-nsIdleServiceQt::GetIdleTime(PRUint32 *aTimeDiff)
-{
-    return NS_ERROR_FAILURE;
-}
-
 #endif
+
+    return false;
+}
+
+bool
+nsIdleServiceQt::UsePollMode()
+{
+#ifdef MOZ_PLATFORM_MAEMO
+    return false;
+#endif
+    return true;
+}
+

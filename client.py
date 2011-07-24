@@ -1,26 +1,38 @@
 #!/usr/bin/env python
 
-# LDAP
-LDAPCSDKS_REPO = 'http://hg.mozilla.org/projects/ldap-sdks/'
-LDAPCSDKS_REV = 'LDAPCSDK_6_0_6E_MOZILLA_RTM'
+# Warning, this file must be compatible with Python 2.4, for our
+# various tools, such as http://mxr.mozilla.org/ see-also: Bug 601207
 
-# URL of the default hg repository to clone for ChatZilla.
-DEFAULT_CHATZILLA_REPO = 'http://hg.mozilla.org/chatzilla/'
-DEFAULT_CHATZILLA_REV = "default"
+# Repo Defaults
+# 'REV' controls the default rev for All the various repo's
+# Define x_REV to override. Where x can be one of:
+#  "COMM", "MOZILLA", "CHATZILLA", "INSPECTOR", "VENKMAN", "LDAPSDKS"
+DEFAULTS = {
+  # Global Default Revision
+  'REV': "default",
 
-# URL of the default hg repository to clone for DOM Inspector.
-DEFAULT_INSPECTOR_REPO = 'http://hg.mozilla.org/dom-inspector/'
-DEFAULT_INSPECTOR_REV = "COMM_1_9_2_BRANCH"
+  # LDAPSDKS
+  'LDAPSDKS_REPO': 'http://hg.mozilla.org/projects/ldap-sdks/',
+  'LDAPSDKS_REV': 'LDAPCSDK_6_0_7A_RTM',
 
-# URL of the default hg repository to clone for Venkman.
-DEFAULT_VENKMAN_REPO = 'http://hg.mozilla.org/venkman/'
-DEFAULT_VENKMAN_REV = "default"
+  # URL of the default hg repository to clone for ChatZilla.
+  'CHATZILLA_REPO': 'http://hg.mozilla.org/chatzilla/',
 
-DEFAULT_COMM_REV = "default"
+  # URL of the default hg repository to clone for DOM Inspector.
+  'INSPECTOR_REPO': 'http://hg.mozilla.org/dom-inspector/',
 
-# URL of the default hg repository to clone for Mozilla.
-DEFAULT_MOZILLA_REPO = 'http://hg.mozilla.org/releases/mozilla-1.9.2/'
-DEFAULT_MOZILLA_REV = "default"
+  # URL of the default hg repository to clone for Venkman.
+  'VENKMAN_REPO': 'http://hg.mozilla.org/venkman/',
+
+  # URL of the default hg repository to clone for Mozilla.
+  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-miramar/',
+}
+
+def get_DEFAULT_tag(index):
+  if index in DEFAULTS:
+    return DEFAULTS[index]
+  else:
+    return DEFAULTS['REV']
 
 # The set of defaults below relate to the current switching mechanism between
 # trunk or branches and back again if it is required.
@@ -41,7 +53,7 @@ SWITCH_MOZILLA_REPO_BACKUP_LOCATION = ".mozilla-1.9.1"
 # This is the potential location for a repository from the last time we
 # switched. Can be blank for no effect.
 SWITCH_MOZILLA_REPO_OLD_REPO_LOCATION = ".mozilla-trunk"
-# This should be the same as DEFAULT_MOZILLA_REPO but using %s instead of http
+# This should be the same as DEFAULTS['MOZILLA_REPO'] but using %s instead of http
 # for the scheme.
 SWITCH_MOZILLA_REPO_REPLACE = '%s://hg.mozilla.org/mozilla-central/'
 SWITCH_MOZILLA_BASE_REV = "GECKO_1_9_1_BASE"
@@ -52,7 +64,9 @@ pyver = sys.version_info
 if pyver[0] <= 1 or (pyver[0] == 2 and pyver[1] < 4):
   sys.exit("ERROR: Python 2.4 or newer required")
 elif pyver[0] >= 3:
-  sys.exit("ERROR: Python series 3 is not supported, use series 2 > 2.4")
+  # Python series 3 will syntax error here, Hack needed per Bug 601649c#8
+  print "ERROR: Python series 3 is not supported, use series 2 >= 2.4"
+  sys.exit() # Do an explicit sys.exit for code clarity.
 del pyver
 
 import os
@@ -338,58 +352,58 @@ o.add_option("--skip-comm", dest="skip_comm",
              action="store_true", default=False,
              help="Skip pulling the comm (Calendar/Mail/Suite) repository.")
 o.add_option("--comm-rev", dest="comm_rev",
-             default=DEFAULT_COMM_REV,
-             help="Revision of comm (Calendar/Mail/Suite) repository to update to. Default: \"" + DEFAULT_COMM_REV + "\"")
+             default=None,
+             help="Revision of comm (Calendar/Mail/Suite) repository to update to. Default: \"" + get_DEFAULT_tag('COMM_REV') + "\"")
 
 o.add_option("-z", "--mozilla-repo", dest="mozilla_repo",
              default=None,
-             help="URL of Mozilla repository to pull from (default: use hg default in mozilla/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULT_MOZILLA_REPO + "\".)")
+             help="URL of Mozilla repository to pull from (default: use hg default in mozilla/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULTS['MOZILLA_REPO'] + "\".)")
 o.add_option("--skip-mozilla", dest="skip_mozilla",
              action="store_true", default=False,
              help="Skip pulling the Mozilla repository.")
 o.add_option("--mozilla-rev", dest="mozilla_rev",
-             default=DEFAULT_MOZILLA_REV,
-             help="Revision of Mozilla repository to update to. Default: \"" + DEFAULT_MOZILLA_REV + "\"")
+             default=None,
+             help="Revision of Mozilla repository to update to. Default: \"" + get_DEFAULT_tag('MOZILLA_REV') + "\"")
 
 o.add_option("--inspector-repo", dest="inspector_repo",
              default=None,
-             help="URL of DOM Inspector repository to pull from (default: use hg default in mozilla/extensions/inspector/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULT_INSPECTOR_REPO + "\".)")
+             help="URL of DOM Inspector repository to pull from (default: use hg default in mozilla/extensions/inspector/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULTS['INSPECTOR_REPO'] + "\".)")
 o.add_option("--skip-inspector", dest="skip_inspector",
              action="store_true", default=False,
              help="Skip pulling the DOM Inspector repository.")
 o.add_option("--inspector-rev", dest="inspector_rev",
-             default=DEFAULT_INSPECTOR_REV,
-             help="Revision of DOM Inspector repository to update to. Default: \"" + DEFAULT_INSPECTOR_REV + "\"")
+             default=None,
+             help="Revision of DOM Inspector repository to update to. Default: \"" + get_DEFAULT_tag('INSPECTOR_REV') + "\"")
 
 o.add_option("--ldap-repo", dest="ldap_repo",
              default=None,
-             help="URL of LDAP repository to pull from (default: use hg default in ldap/sdks/.hg/hgrc; or if that file doesn't exist use \"" + LDAPCSDKS_REPO + "\".)")
+             help="URL of LDAP repository to pull from (default: use hg default in ldap/sdks/.hg/hgrc; or if that file doesn't exist use \"" + DEFAULTS['LDAPSDKS_REPO'] + "\".)")
 o.add_option("--skip-ldap", dest="skip_ldap",
              action="store_true", default=False,
              help="Skip pulling the LDAP repository.")
 o.add_option("--ldap-rev", dest="ldap_rev",
              default=None,
-             help="Revision of LDAP repository to update to. Default: \"" + LDAPCSDKS_REV + "\"")
+             help="Revision of LDAP repository to update to. Default: \"" + get_DEFAULT_tag('LDAPSDKS_REV') + "\"")
 
 o.add_option("--chatzilla-repo", dest = "chatzilla_repo",
              default = None,
-             help = "URL of ChatZilla repository to pull from (default: use hg default in mozilla/extensions/irc/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULT_CHATZILLA_REPO + "\".)")
+             help = "URL of ChatZilla repository to pull from (default: use hg default in mozilla/extensions/irc/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULTS['CHATZILLA_REPO'] + "\".)")
 o.add_option("--skip-chatzilla", dest="skip_chatzilla",
              action="store_true", default=False,
              help="Skip pulling the ChatZilla repository.")
 o.add_option("--chatzilla-rev", dest = "chatzilla_rev",
-             default = DEFAULT_CHATZILLA_REV,
-             help = "Revision of ChatZilla repository to update to. Default: \"" + DEFAULT_CHATZILLA_REV + "\"")
+             default = None,
+             help = "Revision of ChatZilla repository to update to. Default: \"" + get_DEFAULT_tag('CHATZILLA_REV') + "\"")
 
 o.add_option("--venkman-repo", dest = "venkman_repo",
              default = None,
-             help = "URL of Venkman repository to pull from (default: use hg default in mozilla/extensions/venkman/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULT_VENKMAN_REPO + "\".)")
+             help = "URL of Venkman repository to pull from (default: use hg default in mozilla/extensions/venkman/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULTS['VENKMAN_REPO'] + "\".)")
 o.add_option("--skip-venkman", dest="skip_venkman",
              action="store_true", default=False,
              help="Skip pulling the Venkman repository.")
 o.add_option("--venkman-rev", dest = "venkman_rev",
-             default = DEFAULT_VENKMAN_REV,
-             help = "Revision of Venkman repository to update to. Default: \"" + DEFAULT_VENKMAN_REV + "\"")
+             default = None,
+             help = "Revision of Venkman repository to update to. Default: \"" + get_DEFAULT_tag('VENKMAN_REV') + "\"")
 
 o.add_option("--hg", dest="hg", default=os.environ.get('HG', 'hg'),
              help="The location of the hg binary")
@@ -404,6 +418,10 @@ o.add_option("--hg-clone-options", dest="hgcloneopts",
 o.add_option("--retries", dest="retries", type="int", metavar="NUM",
              default=1, help="Number of times to retry a failed command before giving up. (default: 1)",
              action="callback", callback=check_retries_option)
+
+o.add_option("-r", "--rev", dest = "default_rev",
+             default = None,
+             help = "Revision of all repositories to update to, unless otherwise specified.")
 
 o.add_option("--apply-patches", dest="apply_patches",
              action="store_true", default=False,
@@ -425,6 +443,9 @@ def fixup_comm_repo_options(options):
         print "Error: the -m option is required for the initial checkout!"
         sys.exit(2)
 
+    if options.comm_rev is None:
+        options.comm_rev = get_DEFAULT_tag("COMM_REV")
+
 def fixup_mozilla_repo_options(options):
     """Handle special case: initial checkout of Mozilla.
 
@@ -432,7 +453,10 @@ def fixup_mozilla_repo_options(options):
     """
     if options.mozilla_repo is None and \
             not os.path.exists(os.path.join(topsrcdir, 'mozilla')):
-        options.mozilla_repo = DEFAULT_MOZILLA_REPO
+        options.mozilla_repo = DEFAULTS['MOZILLA_REPO']
+    
+    if options.mozilla_rev is None:
+        options.mozilla_rev = get_DEFAULT_tag("MOZILLA_REV")
 
 def fixup_chatzilla_repo_options(options):
     """Handle special case: initial hg checkout of Chatzilla.
@@ -446,7 +470,10 @@ def fixup_chatzilla_repo_options(options):
     backup_cvs_extension('Chatzilla', 'irc', extensionPath)
 
     if options.chatzilla_repo is None and not os.path.exists(extensionPath):
-        options.chatzilla_repo = DEFAULT_CHATZILLA_REPO
+        options.chatzilla_repo = DEFAULTS['CHATZILLA_REPO']
+
+    if options.chatzilla_rev is None:
+        options.chatzilla_rev = get_DEFAULT_tag("CHATZILLA_REV")
 
 def fixup_inspector_repo_options(options):
     """Handle special case: initial checkout of DOM Inspector.
@@ -458,7 +485,10 @@ def fixup_inspector_repo_options(options):
     # Mozilla hg repository.
     if options.inspector_repo is None and \
             not os.path.exists(os.path.join(topsrcdir, 'mozilla', 'extensions', 'inspector')):
-        options.inspector_repo = DEFAULT_INSPECTOR_REPO
+        options.inspector_repo = DEFAULTS['INSPECTOR_REPO']
+
+    if options.inspector_rev is None:
+        options.inspector_rev = get_DEFAULT_tag("INSPECTOR_REV")
 
 def fixup_venkman_repo_options(options):
     """Handle special case: initial hg checkout of Venkman.
@@ -472,7 +502,10 @@ def fixup_venkman_repo_options(options):
     backup_cvs_extension('Venkman', 'venkman', extensionPath)
 
     if options.venkman_repo is None and not os.path.exists(extensionPath):
-        options.venkman_repo = DEFAULT_VENKMAN_REPO
+        options.venkman_repo = DEFAULTS['VENKMAN_REPO']
+
+    if options.venkman_rev is None:
+        options.venkman_rev = get_DEFAULT_tag("VENKMAN_REV")
 
 def fixup_ldap_repo_options(options):
     """Handle special case: initial checkout of LDAP.
@@ -483,16 +516,26 @@ def fixup_ldap_repo_options(options):
     # No cvs backup needed as LDAP directory name changed when it moved to hg
     if options.ldap_repo is None and \
             not os.path.exists(os.path.join(topsrcdir, 'ldap', 'sdks')):
-        options.ldap_repo = LDAPCSDKS_REPO
+        options.ldap_repo = DEFAULTS['LDAPSDKS_REPO']
 
     if options.ldap_rev is None:
-        options.ldap_rev = LDAPCSDKS_REV
+        options.ldap_rev = get_DEFAULT_tag("LDAPSDKS_REV")
 
 try:
     (options, (action,)) = o.parse_args()
 except ValueError:
     o.print_help()
     sys.exit(2)
+
+if options.default_rev:
+  # We now wish to override all the DEFAULTS.
+  DEFAULTS['REV'] = options.default_rev
+  for index in ['CHATZILLA', 'INSPECTOR', 'VENKMAN', 'COMM', 'MOZILLA',
+                'LDAPSDKS']:
+    index += "_REV"
+    # Clear the rest from file-defaults
+    if index in DEFAULTS:
+      del DEFAULTS[index]
 
 if action in ('checkout', 'co'):
     # Update Comm repository configuration.
@@ -524,7 +567,7 @@ if action in ('checkout', 'co'):
 
     if not options.skip_ldap:
         fixup_ldap_repo_options(options)
-        do_hg_pull(os.path.join('directory', 'sdks'), options.ldap_repo, options.hg, options.ldap_rev)
+        do_hg_pull(os.path.join('ldap', 'sdks'), options.ldap_repo, options.hg, options.ldap_rev)
 
     if not options.skip_venkman:
         fixup_venkman_repo_options(options)

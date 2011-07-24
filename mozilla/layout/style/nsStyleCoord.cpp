@@ -42,6 +42,7 @@
 #include "nsCRT.h"
 #include "prlog.h"
 #include "nsMathUtils.h"
+#include "nsStyleContext.h"
 
 nsStyleCoord::nsStyleCoord(nsStyleUnit aUnit)
   : mUnit(aUnit)
@@ -51,12 +52,6 @@ nsStyleCoord::nsStyleCoord(nsStyleUnit aUnit)
     mUnit = eStyleUnit_Null;
   }
   mValue.mInt = 0;
-}
-
-nsStyleCoord::nsStyleCoord(nscoord aValue)
-  : mUnit(eStyleUnit_Coord)
-{
-  mValue.mInt = aValue;
 }
 
 nsStyleCoord::nsStyleCoord(PRInt32 aValue, nsStyleUnit aUnit)
@@ -87,11 +82,17 @@ nsStyleCoord::nsStyleCoord(float aValue, nsStyleUnit aUnit)
   }
 }
 
+// FIXME: In C++0x we can rely on the default copy constructor since
+// default copy construction is defined properly for unions.  But when
+// can we actually use that?  (It seems to work in gcc 4.4.)
 nsStyleCoord& nsStyleCoord::operator=(const nsStyleCoord& aCopy)
 {
   mUnit = aCopy.mUnit;
   if ((eStyleUnit_Percent <= mUnit) && (mUnit < eStyleUnit_Coord)) {
     mValue.mFloat = aCopy.mValue.mFloat;
+  }
+  else if (IsPointerValue()) {
+    mValue.mPointer = aCopy.mValue.mPointer;
   }
   else {
     mValue.mInt = aCopy.mValue.mInt;
@@ -101,18 +102,33 @@ nsStyleCoord& nsStyleCoord::operator=(const nsStyleCoord& aCopy)
 
 PRBool nsStyleCoord::operator==(const nsStyleCoord& aOther) const
 {
-  if (mUnit == aOther.mUnit) {
-    if ((eStyleUnit_Percent <= mUnit) && (mUnit < eStyleUnit_Coord)) {
-      return PRBool(mValue.mFloat == aOther.mValue.mFloat);
-    }
-    else {
-      return PRBool(mValue.mInt == aOther.mValue.mInt);
-    }
+  if (mUnit != aOther.mUnit) {
+    return PR_FALSE;
   }
+  switch (mUnit) {
+    case eStyleUnit_Null:
+    case eStyleUnit_Normal:
+    case eStyleUnit_Auto:
+    case eStyleUnit_None:
+      return PR_TRUE;
+    case eStyleUnit_Percent:
+    case eStyleUnit_Factor:
+    case eStyleUnit_Degree:
+    case eStyleUnit_Grad:
+    case eStyleUnit_Radian:
+      return mValue.mFloat == aOther.mValue.mFloat;
+    case eStyleUnit_Coord:
+    case eStyleUnit_Integer:
+    case eStyleUnit_Enumerated:
+      return mValue.mInt == aOther.mValue.mInt;
+    case eStyleUnit_Calc:
+      return *this->GetCalcValue() == *aOther.GetCalcValue();
+  }
+  NS_ABORT_IF_FALSE(PR_FALSE, "unexpected unit");
   return PR_FALSE;
 }
 
-void nsStyleCoord::Reset(void)
+void nsStyleCoord::Reset()
 {
   mUnit = eStyleUnit_Null;
   mValue.mInt = 0;
@@ -163,19 +179,25 @@ void nsStyleCoord::SetAngleValue(float aValue, nsStyleUnit aUnit)
   }
 }
 
-void nsStyleCoord::SetNormalValue(void)
+void nsStyleCoord::SetCalcValue(Calc* aValue)
+{
+  mUnit = eStyleUnit_Calc;
+  mValue.mPointer = aValue;
+}
+
+void nsStyleCoord::SetNormalValue()
 {
   mUnit = eStyleUnit_Normal;
   mValue.mInt = 0;
 }
 
-void nsStyleCoord::SetAutoValue(void)
+void nsStyleCoord::SetAutoValue()
 {
   mUnit = eStyleUnit_Auto;
   mValue.mInt = 0;
 }
 
-void nsStyleCoord::SetNoneValue(void)
+void nsStyleCoord::SetNoneValue()
 {
   mUnit = eStyleUnit_None;
   mValue.mInt = 0;
@@ -216,7 +238,7 @@ nsStyleCoord::GetAngleValueInRadians() const
   PR_END_MACRO
 
 
-nsStyleSides::nsStyleSides(void)
+nsStyleSides::nsStyleSides()
 {
   memset(this, 0x00, sizeof(nsStyleSides));
 }
@@ -229,7 +251,7 @@ PRBool nsStyleSides::operator==(const nsStyleSides& aOther) const
   return PR_TRUE;
 }
 
-void nsStyleSides::Reset(void)
+void nsStyleSides::Reset()
 {
   memset(this, 0x00, sizeof(nsStyleSides));
 }
@@ -248,7 +270,7 @@ nsStyleCorners::operator==(const nsStyleCorners& aOther) const
   return PR_TRUE;
 }
 
-void nsStyleCorners::Reset(void)
+void nsStyleCorners::Reset()
 {
   memset(this, 0x00, sizeof(nsStyleCorners));
 }

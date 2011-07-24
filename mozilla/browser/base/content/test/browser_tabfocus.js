@@ -44,17 +44,14 @@ function test() {
                      browser2.contentWindow, null, true,
                      "focusedElement after tab change, focus in new tab");
 
-    // switching tabs when the urlbar is focused and nothing in the new tab is focused
+    // switching tabs when nothing in the new tab is focused
     // should focus the browser
-    expectFocusShift(function () gURLBar.focus(),
-                     window, gURLBar.inputField, true,
-                     "url field focused");
     expectFocusShift(function () gBrowser.selectedTab = tab1,
                      browser1.contentWindow, null, true,
                      "focusedElement after tab change, focus in new tab");
 
     // focusing a button in the current tab should focus it
-    var button1 = browser1.contentWindow.document.getElementById("button1");
+    var button1 = browser1.contentDocument.getElementById("button1");
     expectFocusShift(function () button1.focus(),
                      browser1.contentWindow, button1, true,
                      "focusedWindow after focus in focused tab");
@@ -62,7 +59,7 @@ function test() {
     // focusing a button in a background tab should not change the actual
     // focus, but should set the focus that would be in that background tab to
     // that button.
-    var button2 = browser2.contentWindow.document.getElementById("button2");
+    var button2 = browser2.contentDocument.getElementById("button2");
     button2.focus();
 
     expectFocusShift(function () button2.focus(),
@@ -89,6 +86,9 @@ function test() {
                      window, gURLBar.inputField, true,
                      "focusedWindow after url field focused");
     is(fm.getFocusedElementForWindow(browser2.contentWindow, false, {}), button2, "url field focused, button in tab");
+    expectFocusShift(function () gURLBar.blur(),
+                     window, null, true,
+                     "focusedWindow after browser focused");
 
     // when a chrome element is focused, switching tabs to a tab with a button
     // with the current focus should focus the button
@@ -122,6 +122,22 @@ function test() {
     expectFocusShift(function () gBrowser.selectedTab = tab1,
                      browser1.contentWindow, null, true,
                      "focusedWindow after tab switch from no focus to no focus");
+
+    gURLBar.focus();
+    _browser_tabfocus_test_events = "";
+    _browser_tabfocus_test_lastfocus = gURLBar;
+    _browser_tabfocus_test_lastfocuswindow = window;
+
+    expectFocusShift(function () EventUtils.synthesizeKey("VK_F6", { }),
+                     browser1.contentWindow, browser1.contentDocument.documentElement,
+                     true, "switch document forward with f6");
+    EventUtils.synthesizeKey("VK_F6", { });
+    is(fm.focusedWindow, window, "switch document forward again with f6");
+
+    browser1.style.MozUserFocus = "ignore";
+    browser1.clientWidth;
+    EventUtils.synthesizeKey("VK_F6", { });
+    is(fm.focusedWindow, window, "switch document forward again with f6 when browser non-focusable");
 
     window.addEventListener("focus", _browser_tabfocus_test_eventOccured, true);
     window.addEventListener("blur", _browser_tabfocus_test_eventOccured, true);
@@ -207,7 +223,7 @@ function expectFocusShift(callback, expectedWindow, expectedElement, focusChange
                         "focus: " + windowid + "-window";
     }
 
-    if (expectedElement) {
+    if (expectedElement && expectedElement != expectedElement.ownerDocument.documentElement) {
       if (expectedEvents)
         expectedEvents += " ";
       expectedEvents += "focus: " + getId(expectedElement);

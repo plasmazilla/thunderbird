@@ -355,7 +355,7 @@ protected:
     virtual ~InMemoryDataSource();
     nsresult Init();
 
-    friend NS_IMETHODIMP
+    friend nsresult
     NS_NewRDFInMemoryDataSource(nsISupports* aOuter, const nsIID& aIID, void** aResult);
 
 public:
@@ -636,7 +636,7 @@ InMemoryAssertionEnumeratorImpl::GetNext(nsISupports** aResult)
  * <tt>nsIRDFArcsOutCursor</tt> and <tt>nsIRDFArcsInCursor</tt> interfaces.
  * Because the structure of the in-memory graph is pretty flexible, it's
  * fairly easy to parameterize this class. The only funky thing to watch
- * out for is the mutliple inheritance clashes.
+ * out for is the multiple inheritance clashes.
  */
 
 class InMemoryArcsEnumeratorImpl : public nsISimpleEnumerator
@@ -852,7 +852,7 @@ InMemoryArcsEnumeratorImpl::GetNext(nsISupports** aResult)
 ////////////////////////////////////////////////////////////////////////
 // InMemoryDataSource
 
-NS_IMETHODIMP
+nsresult
 NS_NewRDFInMemoryDataSource(nsISupports* aOuter, const nsIID& aIID, void** aResult)
 {
     NS_PRECONDITION(aResult != nsnull, "null ptr");

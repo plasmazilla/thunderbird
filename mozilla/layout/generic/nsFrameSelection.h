@@ -41,7 +41,6 @@
 #include "nsIFrame.h"
 #include "nsIContent.h"
 #include "nsISelectionController.h"
-#include "nsIScrollableViewProvider.h"
 #include "nsITableLayout.h"
 #include "nsITableCellLayout.h"
 #include "nsIDOMElement.h"
@@ -80,6 +79,7 @@ struct SelectionDetails
 };
 
 class nsIPresShell;
+class nsIScrollableFrame;
 
 enum EWordMovementType { eStartWord, eEndWord, eDefaultBehavior };
 
@@ -202,7 +202,7 @@ struct nsPrevNextBidiLevels
 };
 
 class nsTypedSelection;
-class nsIScrollableView;
+class nsIScrollableFrame;
 
 /**
  * Methods which are marked with *unsafe* should be handled with special care.
@@ -225,25 +225,6 @@ public:
    *  @param aLimiter limits the selection to nodes with aLimiter parents
    */
   void Init(nsIPresShell *aShell, nsIContent *aLimiter);
-
-  /**
-   * SetScrollableViewProvider sets the scroll view provider.
-   * @param aProvider The provider of the scroll view.
-   */
-  void SetScrollableViewProvider(nsIScrollableViewProvider* aProvider)
-  {
-    mScrollableViewProvider = aProvider;
-  }
-
-  /**
-   * GetScrollableView returns the current scroll view.
-   */
-  nsIScrollableView* GetScrollableView() const
-  {
-    return mScrollableViewProvider
-      ? mScrollableViewProvider->GetScrollableView()
-      : nsnull;
-  }
 
   /** HandleClick will take the focus to the new frame at the new offset and 
    *  will either extend the selection from the old anchor, or replace the old anchor.
@@ -344,16 +325,18 @@ public:
                                             PRInt32 aEndRowIndex,
                                             PRInt32 aEndColumnIndex);
 
-  /** StartAutoScrollTimer is responsible for scrolling views so that aPoint is always
-   *  visible, and for selecting any frame that contains aPoint. The timer will also reset
-   *  itself to fire again if we have not scrolled to the end of the document.
-   *  @param aView is view to use when searching for the closest frame to the point,
-   *  which is the view that is capturing the mouse
-   *  @param aPoint is relative to the view.
+  /** StartAutoScrollTimer is responsible for scrolling frames so that
+   *  aPoint is always visible, and for selecting any frame that contains
+   *  aPoint. The timer will also reset itself to fire again if we have
+   *  not scrolled to the end of the document.
+   *  @param aFrame is the outermost frame to use when searching for
+   *  the closest frame for the point, i.e. the frame that is capturing
+   *  the mouse
+   *  @param aPoint is relative to aFrame.
    *  @param aDelay is the timer's interval.
    */
   /*unsafe*/
-  nsresult StartAutoScrollTimer(nsIView *aView,
+  nsresult StartAutoScrollTimer(nsIFrame *aFrame,
                                 nsPoint aPoint,
                                 PRUint32 aDelay);
 
@@ -405,13 +388,17 @@ public:
    *
    * @param aType the selection to scroll into view.
    * @param aRegion the region inside the selection to scroll into view.
-   * @param aIsSynchronous when PR_TRUE, scrolls the selection into view
-   * at some point after the method returns.request which is processed
+   * @param aFlags the scroll flags.  Valid bits include:
+   * SCROLL_SYNCHRONOUS: when set, scrolls the selection into view
+   * before returning. If not set, posts a request which is processed
+   * at some point after the method returns.
+   * SCROLL_FIRST_ANCESTOR_ONLY: if set, only the first ancestor will be scrolled
+   * into view.
    */
   /*unsafe*/
   nsresult ScrollSelectionIntoView(SelectionType aType,
                                    SelectionRegion aRegion,
-                                   PRBool aIsSynchronous) const;
+                                   PRInt16 aFlags) const;
 
   /** RepaintSelection repaints the selected frames that are inside the selection
    *  specified by aSelectionType.
@@ -440,12 +427,12 @@ public:
    *
    * @param aForward if PR_TRUE, scroll forward if not scroll backward
    * @param aExtend  if PR_TRUE, extend selection to the new point
-   * @param aScrollableView the view that needs the scrolling
+   * @param aScrollableFrame the frame to scroll
    */
   /*unsafe*/
   void CommonPageMove(PRBool aForward,
                       PRBool aExtend,
-                      nsIScrollableView *aScrollableView);
+                      nsIScrollableFrame* aScrollableFrame);
 
   void SetHint(HINT aHintRight) { mHint = aHintRight; }
   HINT GetHint() const { return mHint; }
@@ -479,6 +466,12 @@ public:
    */
   /*unsafe*/
   nsresult CharacterExtendForDelete();
+
+  /** CharacterExtendForBackspace extends the selection backward (logically) to
+   * the previous character cell, so that the selected cell can be deleted.
+   */
+  /*unsafe*/
+  nsresult CharacterExtendForBackspace();
 
   /** WordMove will generally be called from the nsiselectioncontroller implementations.
    *  the effect being the selection will move one word left or right.
@@ -652,13 +645,16 @@ private:
 
   void ResizeBuffer(PRUint32 aNewBufSize);
 /*HELPER METHODS*/
-  nsresult     MoveCaret(PRUint32 aKeycode, PRBool aContinueSelection, nsSelectionAmount aAmount);
+  nsresult     MoveCaret(PRUint32 aKeycode, PRBool aContinueSelection,
+                         nsSelectionAmount aAmount);
+  nsresult     MoveCaret(PRUint32 aKeycode, PRBool aContinueSelection,
+                         nsSelectionAmount aAmount,
+                         PRBool aVisualMovement);
 
   nsresult     FetchDesiredX(nscoord &aDesiredX); //the x position requested by the Key Handling for up down
   void         InvalidateDesiredX(); //do not listen to mDesiredX you must get another.
   void         SetDesiredX(nscoord aX); //set the mDesiredX
 
-  nsresult     GetRootForContentSubtree(nsIContent *aContent, nsIContent **aParent);
   nsresult     ConstrainFrameAndPointToAnchorSubtree(nsIFrame *aFrame, nsPoint& aPoint, nsIFrame **aRetFrame, nsPoint& aRetPoint);
 
   PRUint32     GetBatching() const {return mBatching; }
@@ -730,7 +726,6 @@ private:
 #endif
 
   PRInt32 mDesiredX;
-  nsIScrollableViewProvider* mScrollableViewProvider;
 
   nsMouseEvent mDelayedMouseEvent;
 

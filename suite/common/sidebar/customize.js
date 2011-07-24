@@ -141,8 +141,7 @@ var panels_observer = {
     //debug ("observer: assert");
     // "refresh" is asserted by select menu and by customize.js.
     if (prop == RDF.GetResource(NC + "link")) {
-      setTimeout("fixup_remote_container('"+src.Value+"')",100);
-      //fixup_remote_container(src.Value);
+      setTimeout(fixup_remote_container, 100, src.Value);
     }
   },
   onUnassert : function(ds,src,prop,target) {
@@ -234,7 +233,7 @@ function ClickOnOtherPanels(event)
         add_datasource_to_other_panels(link);
         treeitem.setAttribute('loaded_link', 'true');
       } else {
-        setTimeout('fixup_children("'+ treeitem.getAttribute('id') +'")', 100);
+        setTimeout(fixup_children, 100, treeitem.getAttribute('id'));
       }
     }
   }
@@ -503,7 +502,16 @@ function Save()
   current_panels = sidebarObj.container.GetElements();
   while (current_panels.hasMoreElements()) {
     panel = current_panels.getNext().QueryInterface(Components.interfaces.nsIRDFResource);
-    if (panel.Value in panels) {
+
+    // "Check if the item is one of the broadcaster panels imported to RDF from
+    // mainBroadcasterSet. If so, then don't remove it from datasource.
+    var master_list = sidebarObj.datasource.GetTarget(RDF.GetResource(allPanelsObj.resource), RDF.GetResource(NC + "panel-list"), true);
+    var masterSeq = Components.classes["@mozilla.org/rdf/container;1"]
+                              .createInstance(Components.interfaces.nsIRDFContainer);
+    masterSeq.Init(sidebarObj.datasource, master_list);
+    var inmaster = (masterSeq.IndexOf(panel) != -1);
+
+    if (panel.Value in panels || inmaster) {
       // This panel will remain in the sidebar.
       // Remove the resource, but keep all the other attributes.
       // Removing it will allow it to be added in the correct order.

@@ -137,7 +137,7 @@ nsScrollbarFrame::AttributeChanged(PRInt32 aNameSpaceID,
   if (!scrollable)
     return rv;
 
-  scrollable->CurPosAttributeChanged(mContent, aModType);
+  scrollable->CurPosAttributeChanged(mContent);
   return rv;
 }
 
@@ -185,8 +185,7 @@ nsScrollbarFrame::GetScrollbarMediator()
 {
   if (!mScrollbarMediator)
     return nsnull;
-  nsIFrame* f =
-    PresContext()->PresShell()->GetPrimaryFrameFor(mScrollbarMediator);
+  nsIFrame* f = mScrollbarMediator->GetPrimaryFrame();
   if (!f)
     return nsnull;
 

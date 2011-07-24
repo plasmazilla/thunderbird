@@ -37,20 +37,28 @@
 
 /* internal interface for all rule types in a CSS style sheet */
 
-#ifndef nsICSSRule_h___
-#define nsICSSRule_h___
+#ifndef nsICSSRule_h
+#define nsICSSRule_h
 
 #include "nsIStyleRule.h"
 #include "nsIDOMCSSRule.h"
 
-class nsICSSStyleSheet;
-class nsICSSGroupRule;
+class nsCSSStyleSheet;
 class nsAString;
+template<class T> struct already_AddRefed;
+class nsIStyleSheet;
 
-// IID for the nsICSSRule interface {98d426f7-2ef9-44f5-8d06-e064f486a18c}
+namespace mozilla {
+namespace css {
+class GroupRule;
+}
+}
+
+// IID for the nsICSSRule interface
 #define NS_ICSS_RULE_IID     \
-{ 0x98d426f7, 0x2ef9, 0x44f5, \
- { 0x8d, 0x06, 0xe0, 0x64, 0xf4, 0x86, 0xa1, 0x8c } }
+{ 0x471d733e, 0xc138, 0x4a50, \
+ { 0x9e, 0x1a, 0xd1, 0x3c, 0xbb, 0x65, 0xb5, 0x26 } }
+
 
 // inheriting from nsIStyleRule is only for style rules, not other rule types
 class nsICSSRule : public nsIStyleRule {
@@ -70,16 +78,23 @@ public:
     MEDIA_RULE,
     FONT_FACE_RULE,
     PAGE_RULE,
+#ifdef MOZ_CSS_ANIMATIONS
+    KEYFRAME_RULE,
+    KEYFRAMES_RULE,
+#endif
     DOCUMENT_RULE
   };
 
-  NS_IMETHOD GetType(PRInt32& aType) const = 0;
+  virtual PRInt32 GetType() const = 0;
 
-  NS_IMETHOD GetStyleSheet(nsIStyleSheet*& aSheet) const = 0;
-  NS_IMETHOD SetStyleSheet(nsICSSStyleSheet* aSheet) = 0;
-  NS_IMETHOD SetParentRule(nsICSSGroupRule* aRule) = 0;
+  virtual nsIStyleSheet* GetStyleSheet() const = 0;
+  virtual void SetStyleSheet(nsCSSStyleSheet* aSheet) = 0;
+  virtual void SetParentRule(mozilla::css::GroupRule* aRule) = 0;
 
-  NS_IMETHOD Clone(nsICSSRule*& aClone) const = 0;
+  /**
+   * Clones |this|. Never returns NULL.
+   */
+  virtual already_AddRefed<nsICSSRule> Clone() const = 0;
 
   // Note that this returns null for inline style rules since they aren't
   // supposed to have a DOM rule representation (and our code wouldn't work).
@@ -94,10 +109,4 @@ public:
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsICSSRule, NS_ICSS_RULE_IID)
 
-/* Define global NS_New* functions for rules that don't need their own
-   interfaces here */
-nsresult
-NS_NewCSSCharsetRule(nsICSSRule** aInstancePtrResult,
-                     const nsAString& aEncoding);
-
-#endif /* nsICSSRule_h___ */
+#endif /* nsICSSRule_h */

@@ -39,6 +39,7 @@
 const nsISupports             = Components.interfaces.nsISupports;
 const nsIBrowserDOMWindow     = Components.interfaces.nsIBrowserDOMWindow;
 const nsIBrowserHistory       = Components.interfaces.nsIBrowserHistory;
+const nsIBrowserSearchService = Components.interfaces.nsIBrowserSearchService;
 const nsIChannel              = Components.interfaces.nsIChannel;
 const nsICommandLine          = Components.interfaces.nsICommandLine;
 const nsICommandLineHandler   = Components.interfaces.nsICommandLineHandler;
@@ -247,6 +248,33 @@ function handURIToExistingBrowser(uri, location, features)
     openWindow(null, getBrowserURL(), features, uri.spec);
 }
 
+function doSearch(aSearchTerm, aFeatures) {
+  var ss = Components.classes["@mozilla.org/browser/search-service;1"]
+                     .getService(nsIBrowserSearchService);
+
+  var submission = ss.defaultEngine.getSubmission(aSearchTerm);
+  
+  // fill our nsIMutableArray with uri-as-wstring, null, null, postData
+  var sa = Components.classes["@mozilla.org/array;1"]
+                     .createInstance(Components.interfaces.nsIMutableArray);
+  
+  var uristring = Components.classes["@mozilla.org/supports-string;1"]
+                            .createInstance(nsISupportsString);
+  uristring.data = submission.uri.spec;
+
+  sa.appendElement(uristring, false);
+  sa.appendElement(null, false);
+  sa.appendElement(null, false);
+  sa.appendElement(submission.postData, false);
+
+  // XXXbsmedberg: use handURIToExistingBrowser to obey tabbed-browsing
+  // preferences, but need nsIBrowserDOMWindow extensions
+  var wwatch = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
+                         .getService(nsIWindowWatcher);
+
+  return wwatch.openWindow(null, getBrowserURL(), "_blank", aFeatures, sa);
+}
+
 var nsBrowserContentHandler = {
   get wrappedJSObject() {
     return this;
@@ -440,6 +468,12 @@ var nsBrowserContentHandler = {
     } catch (e) {
     }
 
+    var searchParam = cmdLine.handleFlagWithParam("search", false);
+    if (searchParam) {
+      doSearch(searchParam, features);
+      cmdLine.preventDefault = true;
+    }
+
     if (cmdLine.handleFlag("preferences", false)) {
       openPreferences();
       cmdLine.preventDefault = true;
@@ -467,7 +501,7 @@ var nsBrowserContentHandler = {
                                  .getService(nsIPrefService)
                                  .getBranch("general.startup.");
 
-      var startupArray = prefBranch.getChildList("", {});
+      var startupArray = prefBranch.getChildList("");
 
       for (var i = 0; i < startupArray.length; ++i) {
         this.currentArgument = startupArray[i];
@@ -537,8 +571,12 @@ var nsBrowserContentHandler = {
   },
 
   helpInfo: "  -browser <url>     Open a browser window.\n" +
+            "  -new-window <url>  Open <url> in a new browser window.\n" +
+            "  -new-tab <url>     Open <url> in a new browser tab.\n" +
             "  -url <url>         Open the specified url.\n" +
-            "  -chrome <url>      Open the specified chrome.\n",
+            "  -chrome <url>      Open the specified chrome.\n" +
+            "  -search <term>     Search <term> with your default search engine.\n" +
+            "  -preferences       Open Preferences dialog.\n",
 
   /* nsICommandLine */
   length: 1,
@@ -625,93 +663,10 @@ var nsBrowserContentHandler = {
   }
 };
 
-const CONTRACTID_PREFIX = "@mozilla.org/uriloader/content-handler;1?type=";
-const BROWSER_CONTRACTID = NS_GENERAL_STARTUP_PREFIX + "browser";
 const BROWSER_CID = Components.ID("{c2343730-dc2c-11d3-98b3-001083010e9b}");
 
-var Module = {
-  /* nsISupports */
-  QueryInterface: function QueryInterface(iid) {
-    if (iid.equals(Components.interfaces.nsIModule) ||
-        iid.equals(Components.interfaces.nsISupports))
-      return this;
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
-  },
-
-  /* nsIModule */
-  getClassObject: function getClassObject(compMgr, cid, iid) {
-    if (cid.equals(BROWSER_CID))
-      return nsBrowserContentHandler.QueryInterface(iid);
-
-    throw Components.results.NS_ERROR_FACTORY_NOT_REGISTERED;
-  },
-    
-  registerSelf: function registerSelf(compMgr, fileSpec, location, type) {
-    var compReg = compMgr.QueryInterface(nsIComponentRegistrar);
-
-    compReg.registerFactoryLocation(BROWSER_CID,
-                                    "nsBrowserContentHandler",
-                                    BROWSER_CONTRACTID,
-                                    fileSpec,
-                                    location,
-                                    type);
-
-    function registerType(contentType) {
-      compReg.registerFactoryLocation(BROWSER_CID,
-				      "Browser Content Handler",
-				      CONTRACTID_PREFIX + contentType,
-				      fileSpec,
-				      location,
-				      type);
-    }
-
-    registerType("text/html");
-    registerType("application/vnd.mozilla.xul+xml");
-    registerType("image/svg+xml");
-    registerType("text/rdf");
-    registerType("text/xml");
-    registerType("application/xhtml+xml");
-    registerType("text/css");
-    registerType("text/plain");
-    registerType("image/gif");
-    registerType("image/jpeg");
-    registerType("image/jpg");
-    registerType("image/png");
-    registerType("image/bmp");
-    registerType("image/x-icon");
-    registerType("image/vnd.microsoft.icon");
-    registerType("application/http-index-format");
-
-    var catMan = Components.classes["@mozilla.org/categorymanager;1"]
-                           .getService(nsICategoryManager);
-
-    catMan.addCategoryEntry("command-line-handler", "x-default",
-                            BROWSER_CONTRACTID, true, true);
-    catMan.addCategoryEntry("command-line-validator",
-                            "b-default",
-                            BROWSER_CONTRACTID, true, true);
-  },
-    
-  unregisterSelf: function unregisterSelf(compMgr, location, type) {
-    var compReg = compMgr.QueryInterface(nsIComponentRegistrar);
-    compReg.unregisterFactoryLocation(BROWSER_CID, location);
-
-    var catMan = Components.classes["@mozilla.org/categorymanager;1"]
-                           .getService(nsICategoryManager);
-
-    catMan.deleteCategoryEntry("command-line-handler",
-                               "x-default", true);
-    catMan.deleteCategoryEntry("command-line-validator",
-                               "b-default", true);
-  },
-
-  canUnload: function canUnload(compMgr) {
-    return true;
-  }
-};
-
-// NSGetModule: Return the nsIModule object.
-function NSGetModule(compMgr, fileSpec) {
-  return Module;
+function NSGetFactory(cid) {
+  if (cid.number == BROWSER_CID)
+    return nsBrowserContentHandler;
+  throw Components.results.NS_ERROR_FACTORY_NOT_REGISTERED;
 }

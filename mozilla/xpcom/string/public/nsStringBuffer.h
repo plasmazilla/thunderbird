@@ -39,6 +39,7 @@
 #ifndef nsStringBuffer_h__
 #define nsStringBuffer_h__
 
+
 /**
  * This structure precedes the string buffers "we" allocate.  It may be the
  * case that nsTAString::mData does not point to one of these special
@@ -51,6 +52,7 @@
 class nsStringBuffer
   {
     private:
+      friend class CheckStaticAtomSizes;
 
       PRInt32  mRefCount;
       PRUint32 mStorageSize;
@@ -163,8 +165,10 @@ class nsStringBuffer
        *       however, string length is always measured in storage units
        *       (2-byte units for wide strings).
        */
-      NS_COM void ToString(PRUint32 len, nsAString &str);
-      NS_COM void ToString(PRUint32 len, nsACString &str);
+      NS_COM void ToString(PRUint32 len, nsAString &str,
+                           PRBool aMoveOwnership = PR_FALSE);
+      NS_COM void ToString(PRUint32 len, nsACString &str,
+                           PRBool aMoveOwnership = PR_FALSE);
   };
 
 #endif /* !defined(nsStringBuffer_h__ */

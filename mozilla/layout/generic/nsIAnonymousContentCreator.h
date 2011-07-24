@@ -47,7 +47,7 @@
 #include "nsIContent.h"
 
 class nsIFrame;
-template <class T> class nsTArray;
+template <class T, class A> class nsTArray;
 
 /**
  * Any source for anonymous content can implement this interface to provide it.
@@ -70,6 +70,15 @@ public:
    *       them).
    */
   virtual nsresult CreateAnonymousContent(nsTArray<nsIContent*>& aElements)=0;
+
+  /**
+   * Appends "native" anonymous children created by CreateAnonymousContent()
+   * to the given content list depending on the filter.
+   *
+   * @see nsIContent::GetChildren for set of values used for filter.
+   */
+  virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
+                                        PRUint32 aFilter) = 0;
 
   /**
    * Implementations can override this method to create special frames for the

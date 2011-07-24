@@ -56,15 +56,14 @@ class nsIDOMNode;
 class nsIFrame;
 class nsPresContext;
 class nsIImageLoadingContent;
-class nsICanvasElement;
+class nsICanvasElementExternal;
 
 /**
  * XP DragService wrapper base class
  */
 
 class nsBaseDragService : public nsIDragService,
-                          public nsIDragSession,
-                          public nsIDragSession_1_9_2
+                          public nsIDragSession
 {
 
 public:
@@ -77,9 +76,10 @@ public:
   //nsIDragSession and nsIDragService
   NS_DECL_NSIDRAGSERVICE
   NS_DECL_NSIDRAGSESSION
-  NS_DECL_NSIDRAGSESSION_1_9_2
 
   void SetDragEndPoint(nsIntPoint aEndDragPoint) { mEndDragPoint = aEndDragPoint; }
+
+  PRUint16 GetInputSource() { return mInputSource; }
 
 protected:
 
@@ -117,7 +117,7 @@ protected:
    */
   nsresult DrawDragForImage(nsPresContext* aPresContext,
                             nsIImageLoadingContent* aImageLoader,
-                            nsICanvasElement* aCanvas,
+                            nsICanvasElementExternal* aCanvas,
                             PRInt32 aScreenX, PRInt32 aScreenY,
                             nsIntRect* aScreenDragRect,
                             gfxASurface** aSurface);
@@ -153,7 +153,7 @@ protected:
   // set if a selection is being dragged
   nsCOMPtr<nsISelection> mSelection;
 
-  // the screen position where drag gesture occured, used for positioning the
+  // the screen position where drag gesture occurred, used for positioning the
   // drag image when no image is specified. If a value is -1, no event was
   // supplied so the screen position is not known
   PRInt32 mScreenX;
@@ -163,6 +163,9 @@ protected:
   nsIntPoint mEndDragPoint;
 
   PRUint32 mSuppressLevel;
+
+  // The input source of the drag event. Possible values are from nsIDOMNSMouseEvent.
+  PRUint16 mInputSource;
 };
 
 #endif // nsBaseDragService_h__

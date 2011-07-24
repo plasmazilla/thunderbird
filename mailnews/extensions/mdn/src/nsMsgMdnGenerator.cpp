@@ -952,7 +952,8 @@ nsresult nsMsgMdnGenerator::InitAndProcess(PRBool *needToAskUser)
                 if (NS_FAILED(rv))
                   continue;
                 ident->GetEmail(identEmail);
-                if (!mailTo.IsEmpty() && !identEmail.IsEmpty() && mailTo.Find(identEmail, PR_TRUE) != -1)
+                if (!mailTo.IsEmpty() && !identEmail.IsEmpty() &&
+                    mailTo.Find(identEmail, CaseInsensitiveCompare) != kNotFound)
                 {
                   m_identity = ident;
                   break;
@@ -967,7 +968,8 @@ nsresult nsMsgMdnGenerator::InitAndProcess(PRBool *needToAskUser)
                   if (NS_FAILED(rv))
                     continue;
                   ident->GetEmail(identEmail);
-                  if (!mailCC.IsEmpty() && !identEmail.IsEmpty() && mailCC.Find(identEmail, PR_TRUE) != -1)
+                  if (!mailCC.IsEmpty() && !identEmail.IsEmpty() &&
+                      mailCC.Find(identEmail, CaseInsensitiveCompare) != kNotFound)
                   {
                     m_identity = ident;
                     break;

@@ -76,10 +76,12 @@ static inline PRBool IS_TABLE_CELL(nsIAtom* frameType) {
 class nsDisplayTableItem : public nsDisplayItem
 {
 public:
-  nsDisplayTableItem(nsIFrame* aFrame) : nsDisplayItem(aFrame),
+  nsDisplayTableItem(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame) : 
+      nsDisplayItem(aBuilder, aFrame),
       mPartHasFixedBackground(PR_FALSE) {}
 
-  virtual PRBool IsVaryingRelativeToMovingFrame(nsDisplayListBuilder* aBuilder);
+  virtual PRBool IsVaryingRelativeToMovingFrame(nsDisplayListBuilder* aBuilder,
+                                                nsIFrame* aFrame);
   // With collapsed borders, parts of the collapsed border can extend outside
   // the table part frames, so allow this display element to blow out to our
   // overflow rect. This is also useful for row frames that have spanning
@@ -159,11 +161,6 @@ public:
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
 
-
-  static void* GetProperty(nsIFrame*            aFrame,
-                           nsIAtom*             aPropertyName,
-                           PRBool               aCreateIfNecessary = PR_FALSE);
-
   static float GetTwipsToPixels(nsPresContext* aPresContext);
 
   // Return true if aParentReflowState.frame or any of its ancestors within
@@ -182,7 +179,7 @@ public:
 
   static void RePositionViews(nsIFrame* aFrame);
 
-  static PRBool PageBreakAfter(nsIFrame& aSourceFrame,
+  static PRBool PageBreakAfter(nsIFrame* aSourceFrame,
                                nsIFrame* aNextFrame);
 
   nsPoint GetFirstSectionOrigin(const nsHTMLReflowState& aReflowState) const;
@@ -193,8 +190,8 @@ public:
                            nsIContent*     aContent, 
                            nsIAtom*        aAttribute); 
 
-  /** @see nsIFrame::Destroy */
-  virtual void Destroy();
+  /** @see nsIFrame::DestroyFrom */
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
   
   /** @see nsIFrame::DidSetStyleContext */
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
@@ -245,9 +242,7 @@ public:
   static nsIFrame* GetFrameAtOrBefore(nsIFrame*       aParentFrame,
                                       nsIFrame*       aPriorChildFrame,
                                       nsIAtom*        aChildType);
-  PRBool IsAutoWidth(PRBool* aIsPctWidth = nsnull);
   PRBool IsAutoHeight();
-  static PRBool IsPctHeight(nsStyleContext* aStyleContext);
   
   /** @return PR_TRUE if aDisplayType represents a rowgroup of any sort
     * (header, footer, or body)
@@ -276,7 +271,7 @@ public:
    */
   void PaintTableBorderBackground(nsIRenderingContext& aRenderingContext,
                                   const nsRect& aDirtyRect,
-                                  nsPoint aPt);
+                                  nsPoint aPt, PRUint32 aBGPaintFlags);
 
   /** Get the outer half (i.e., the part outside the height and width of
    *  the table) of the largest segment (?) of border-collapsed border on
@@ -386,9 +381,6 @@ public:
   /** return the width of the column at aColIndex    */
   virtual PRInt32 GetColumnWidth(PRInt32 aColIndex);
 
-  /** set the width of the column at aColIndex to aWidth    */
-  virtual void SetColumnWidth(PRInt32 aColIndex, nscoord aWidth);
-
   /** helper to get the cell spacing X style value */
   virtual nscoord GetCellSpacingX();
 
@@ -427,11 +419,6 @@ public:
     * or is spanned from the rows above
     */
   PRBool HasMoreThanOneCell(PRInt32 aRowIndex) const;
-
-  /** return the value of the COLS attribute, adjusted for the 
-    * actual number of columns in the table
-    */
-  PRInt32 GetEffectiveCOLSAttribute();
 
   /** return the column frame associated with aColIndex
     * returns nsnull if the col frame has not yet been allocated, or if
@@ -480,16 +467,11 @@ public:
   virtual void RemoveCell(nsTableCellFrame* aCellFrame,
                           PRInt32           aRowIndex);
 
-  void AppendRows(nsTableRowGroupFrame&       aRowGroupFrame,
+  void AppendRows(nsTableRowGroupFrame*       aRowGroupFrame,
                   PRInt32                     aRowIndex,
                   nsTArray<nsTableRowFrame*>& aRowFrames);
 
-  PRInt32 InsertRow(nsTableRowGroupFrame& aRowGroupFrame,
-                    nsIFrame&             aFrame,
-                    PRInt32               aRowIndex,
-                    PRBool                aConsiderSpans);
-
-  PRInt32 InsertRows(nsTableRowGroupFrame&       aRowGroupFrame,
+  PRInt32 InsertRows(nsTableRowGroupFrame*       aRowGroupFrame,
                      nsTArray<nsTableRowFrame*>& aFrames,
                      PRInt32                     aRowIndex,
                      PRBool                      aConsiderSpans);
@@ -530,13 +512,13 @@ public:
    *
    * @param aFrame The frame to invalidate
    * @param aOrigRect The original rect of aFrame (before the change).
-   * @param aOrigOverflowRect The original overflow rect of aFrame.
+   * @param aOrigVisualOverflow The original overflow rect of aFrame.
    * @param aIsFirstReflow True if the size/position change is due to the
    *                       first reflow of aFrame.
    */
   static void InvalidateFrame(nsIFrame* aFrame,
                               const nsRect& aOrigRect,
-                              const nsRect& aOrigOverflowRect,
+                              const nsRect& aOrigVisualOverflow,
                               PRBool aIsFirstReflow);
 
 protected:
@@ -567,10 +549,10 @@ protected:
                                   nsTableRowGroupFrame* aFrame,
                                   nscoord* aDesiredHeight);
 
-  NS_METHOD ReflowChildren(nsTableReflowState&  aReflowState,
-                           nsReflowStatus&      aStatus,
-                           nsIFrame*&           aLastChildReflowed,
-                           nsRect&              aOverflowArea);
+  nsresult ReflowChildren(nsTableReflowState&  aReflowState,
+                          nsReflowStatus&      aStatus,
+                          nsIFrame*&           aLastChildReflowed,
+                          nsOverflowAreas&     aOverflowAreas);
 
   // This calls the col group and column reflow methods, which do two things:
   //  (1) set all the dimensions to 0
@@ -626,16 +608,21 @@ protected:
                   nsIFrame*            aKidFrame,
                   nsHTMLReflowMetrics& aKidDesiredSize,
                   const nsRect&        aOriginalKidRect,
-                  const nsRect&        aOriginalKidOverflowRect);
+                  const nsRect&        aOriginalKidVisualOverflow);
+   void PlaceRepeatedFooter(nsTableReflowState& aReflowState,
+                            nsTableRowGroupFrame *aTfoot,
+                            nscoord aFooterHeight);
 
   nsIFrame* GetFirstBodyRowGroupFrame();
+public:
+  typedef nsAutoTPtrArray<nsTableRowGroupFrame, 8> RowGroupArray;
   /**
-   * Push all our child frames from the aFrames array, in order, starting from the
-   * frame at aPushFrom to the end of the array. The frames are put on our overflow
-   * list or moved directly to our next-in-flow if one exists.
+   * Push all our child frames from the aRowGroups array, in order, starting
+   * from the frame at aPushFrom to the end of the array. The frames are put on
+   * our overflow list or moved directly to our next-in-flow if one exists.
    */
-  typedef nsAutoTPtrArray<nsIFrame, 8> FrameArray;
-  void PushChildren(const FrameArray& aFrames, PRInt32 aPushFrom);
+protected:
+  void PushChildren(const RowGroupArray& aRowGroups, PRInt32 aPushFrom);
 
 public:
   // put the children frames in the display order (e.g. thead before tbodies
@@ -643,8 +630,10 @@ public:
   // children, and not append nulls, so the array is guaranteed to contain
   // nsTableRowGroupFrames.  If there are multiple theads or tfoots, all but
   // the first one are treated as tbodies instead.
-  typedef nsAutoTPtrArray<nsTableRowGroupFrame, 8> RowGroupArray;
-  void OrderRowGroups(RowGroupArray& aChildren) const;
+
+  void OrderRowGroups(RowGroupArray& aChildren,
+                      nsTableRowGroupFrame** aHead = nsnull,
+                      nsTableRowGroupFrame** aFoot = nsnull) const;
 
   // Return the thead, if any
   nsTableRowGroupFrame* GetTHead() const;
@@ -652,25 +641,6 @@ public:
   // Return the tfoot, if any
   nsTableRowGroupFrame* GetTFoot() const;
 
-protected:
-  // As above, but does NOT actually call GetRowGroupFrame() on the kids, so
-  // returns an array of nsIFrames.  This is to be used when you really want
-  // the flowable kids of the table, not the rowgroups.  This outputs the thead
-  // and tfoot if they happen to be rowgroups.  All the child nsIFrames of the
-  // table that return null if you call GetRowGroupFrame() on them will appear
-  // at the end of the array, after the tfoot, if any.
-  //
-  // aHead and aFoot must not be null.
-  //
-  // @return the number of frames in aChildren which return non-null if you
-  // call GetRowGroupFrame() on them.
-  //
-  // XXXbz why do we really care about the non-rowgroup kids?
-  PRUint32 OrderRowGroups(FrameArray& aChildren,
-                          nsTableRowGroupFrame** aHead,
-                          nsTableRowGroupFrame** aFoot) const;
-
-public:
   // Returns PR_TRUE if there are any cells above the row at
   // aRowIndex and spanning into the row at aRowIndex, the number of
   // effective columns limits the search up to that column
@@ -680,14 +650,6 @@ public:
   // which spans into the next row,  the number of effective
   // columns limits the search up to that column
   PRBool RowHasSpanningCells(PRInt32 aRowIndex, PRInt32 aNumEffCols);
-
-  // Returns PR_TRUE if there are any cells to the left of the column at
-  // aColIndex and spanning into the column at aColIndex     
-  PRBool ColIsSpannedInto(PRInt32 aColIndex);
-
-  // Returns PR_TRUE if there is a cell originating in aColIndex
-  // which spans into the next col
-  PRBool ColHasSpanningCells(PRInt32 aColIndex);
 
 protected:
 
@@ -742,11 +704,6 @@ public:
 
   nsTArray<nsTableColFrame*>& GetColCache();
 
-  /** Return aFrame's child if aFrame is an nsScrollFrame, otherwise return aFrame
-    */
-  static nsTableRowGroupFrame* GetRowGroupFrame(nsIFrame* aFrame,
-                                                nsIAtom*  aFrameTypeIn = nsnull);
-
 protected:
 
   void SetBorderCollapse(PRBool aValue);
@@ -763,7 +720,7 @@ protected:
 
 public: /* ----- Cell Map public methods ----- */
 
-  PRInt32 GetStartRowIndex(nsTableRowGroupFrame& aRowGroupFrame);
+  PRInt32 GetStartRowIndex(nsTableRowGroupFrame* aRowGroupFrame);
 
   /** returns the number of rows in this table.
     */

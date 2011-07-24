@@ -69,6 +69,7 @@
 #include "nsIWebNavigationInfo.h"
 #include "nsIScriptChannel.h"
 #include "nsIBlocklistService.h"
+#include "nsIAsyncVerifyRedirectCallback.h"
 
 #include "nsPluginError.h"
 
@@ -83,16 +84,19 @@
 #include "nsGkAtoms.h"
 #include "nsThreadUtils.h"
 #include "nsNetUtil.h"
-#include "nsPresShellIterator.h"
 #include "nsMimeTypes.h"
 #include "nsStyleUtil.h"
 #include "nsGUIEvent.h"
+#include "nsUnicharUtils.h"
 
 // Concrete classes
 #include "nsFrameLoader.h"
 
 #include "nsObjectLoadingContent.h"
 #include "mozAutoDocUpdate.h"
+#include "nsIContentSecurityPolicy.h"
+#include "nsIChannelPolicy.h"
+#include "nsChannelPolicy.h"
 
 #ifdef PR_LOGGING
 static PRLogModuleInfo* gObjectLog = PR_NewLogModule("objlc");
@@ -356,7 +360,7 @@ class AutoNotifier {
     nsObjectLoadingContent*            mContent;
     PRBool                             mNotify;
     nsObjectLoadingContent::ObjectType mOldType;
-    PRInt32                            mOldState;
+    nsEventStates                      mOldState;
 };
 
 /**
@@ -475,6 +479,7 @@ nsObjectLoadingContent::nsObjectLoadingContent()
   , mInstantiating(PR_FALSE)
   , mUserDisabled(PR_FALSE)
   , mSuppressed(PR_FALSE)
+  , mNetworkCreated(PR_TRUE)
   , mFallbackReason(ePluginOtherState)
 {
 }
@@ -497,9 +502,6 @@ nsObjectLoadingContent::OnStartRequest(nsIRequest *aRequest,
     // previous one got here
     return NS_BINDING_ABORTED;
   }
-
-  // We're done with the classifier
-  mClassifier = nsnull;
 
   AutoNotifier notifier(this, PR_TRUE);
 
@@ -632,7 +634,7 @@ nsObjectLoadingContent::OnStartRequest(nsIRequest *aRequest,
       break;
     case eType_Document: {
       if (!mFrameLoader) {
-        mFrameLoader = nsFrameLoader::Create(thisContent);
+        mFrameLoader = nsFrameLoader::Create(thisContent, mNetworkCreated);
         if (!mFrameLoader) {
           Fallback(PR_FALSE);
           return NS_ERROR_UNEXPECTED;
@@ -811,6 +813,14 @@ nsObjectLoadingContent::GetFrameLoader(nsIFrameLoader** aFrameLoader)
   return NS_OK;
 }
 
+NS_IMETHODIMP_(already_AddRefed<nsFrameLoader>)
+nsObjectLoadingContent::GetFrameLoader()
+{
+  nsFrameLoader* loader = mFrameLoader;
+  NS_IF_ADDREF(loader);
+  return loader;
+}
+
 NS_IMETHODIMP
 nsObjectLoadingContent::SwapFrameLoaders(nsIFrameLoaderOwner* aOtherLoader)
 {
@@ -873,11 +883,7 @@ nsObjectLoadingContent::EnsureInstantiation(nsIPluginInstance** aInstance)
       return NS_OK;
     }
 
-    nsPresShellIterator iter(doc);
-    nsCOMPtr<nsIPresShell> shell;
-    while ((shell = iter.GetNextShell())) {
-      shell->RecreateFramesFor(thisContent);
-    }
+    doc->FlushPendingNotifications(Flush_Frames);
 
     mInstantiating = PR_FALSE;
 
@@ -923,6 +929,14 @@ nsObjectLoadingContent::HasNewFrame(nsIObjectFrame* aFrame)
 {
   LOG(("OBJLC [%p]: Got frame %p (mInstantiating=%i)\n", this, aFrame,
        mInstantiating));
+
+  nsCOMPtr<nsIContent> thisContent = 
+    do_QueryInterface(static_cast<nsIImageLoadingContent*>(this));
+  NS_ASSERTION(thisContent, "must be a content");
+  nsIDocument* doc = thisContent->GetOwnerDoc();
+  if (!doc || doc->IsStaticDocument() || doc->IsBeingUsedAsImage()) {
+    return NS_OK;
+  }
 
   // "revoke" any existing instantiate event as it likely has out of
   // date data (frame pointer etc).
@@ -1011,9 +1025,10 @@ nsObjectLoadingContent::GetInterface(const nsIID & aIID, void **aResult)
 
 // nsIChannelEventSink
 NS_IMETHODIMP
-nsObjectLoadingContent::OnChannelRedirect(nsIChannel *aOldChannel,
-                                          nsIChannel *aNewChannel,
-                                          PRUint32    aFlags)
+nsObjectLoadingContent::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
+                                               nsIChannel *aNewChannel,
+                                               PRUint32 aFlags,
+                                               nsIAsyncVerifyRedirectCallback *cb)
 {
   // If we're already busy with a new load, or have no load at all,
   // cancel the redirect.
@@ -1021,16 +1036,13 @@ nsObjectLoadingContent::OnChannelRedirect(nsIChannel *aOldChannel,
     return NS_BINDING_ABORTED;
   }
 
-  if (mClassifier) {
-    mClassifier->OnRedirect(aOldChannel, aNewChannel);
-  }
-
   mChannel = aNewChannel;
+  cb->OnRedirectVerifyCallback(NS_OK);
   return NS_OK;
 }
 
 // <public>
-PRInt32
+nsEventStates
 nsObjectLoadingContent::ObjectState() const
 {
   switch (mType) {
@@ -1043,7 +1055,7 @@ nsObjectLoadingContent::ObjectState() const
       // These are OK. If documents start to load successfully, they display
       // something, and are thus not broken in this sense. The same goes for
       // plugins.
-      return 0;
+      return nsEventStates();
     case eType_Null:
       if (mSuppressed)
         return NS_EVENT_STATE_SUPPRESSED;
@@ -1051,7 +1063,7 @@ nsObjectLoadingContent::ObjectState() const
         return NS_EVENT_STATE_USERDISABLED;
 
       // Otherwise, broken
-      PRInt32 state = NS_EVENT_STATE_BROKEN;
+      nsEventStates state = NS_EVENT_STATE_BROKEN;
       switch (mFallbackReason) {
         case ePluginDisabled:
           state |= NS_EVENT_STATE_HANDLER_DISABLED;
@@ -1070,7 +1082,7 @@ nsObjectLoadingContent::ObjectState() const
   };
   NS_NOTREACHED("unknown type?");
   // this return statement only exists to avoid a compile warning
-  return 0;
+  return nsEventStates();
 }
 
 // <protected>
@@ -1183,7 +1195,7 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
   NS_ASSERTION(thisContent, "must be a content");
 
   nsIDocument* doc = thisContent->GetOwnerDoc();
-  if (!doc) {
+  if (!doc || doc->IsBeingUsedAsImage()) {
     return NS_OK;
   }
 
@@ -1191,11 +1203,6 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
   // possibly-loading channel should be aborted.
   if (mChannel) {
     LOG(("OBJLC [%p]: Cancelling existing load\n", this));
-
-    if (mClassifier) {
-      mClassifier->Cancel();
-      mClassifier = nsnull;
-    }
 
     // These three statements are carefully ordered:
     // - onStopRequest should get a channel whose status is the same as the
@@ -1214,7 +1221,9 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
 
   // Security checks
   if (doc->IsLoadedAsData()) {
-    Fallback(PR_FALSE);
+    if (!doc->IsStaticDocument()) {
+      Fallback(PR_FALSE);
+    }
     return NS_OK;
   }
 
@@ -1277,7 +1286,7 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
       // Must have a frameloader before creating a frame, or the frame will
       // create its own.
       if (!mFrameLoader && newType == eType_Document) {
-        mFrameLoader = nsFrameLoader::Create(thisContent);
+        mFrameLoader = nsFrameLoader::Create(thisContent, mNetworkCreated);
         if (!mFrameLoader) {
           mURI = nsnull;
           return NS_OK;
@@ -1412,8 +1421,19 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
 
   nsCOMPtr<nsILoadGroup> group = doc->GetDocumentLoadGroup();
   nsCOMPtr<nsIChannel> chan;
+  nsCOMPtr<nsIChannelPolicy> channelPolicy;
+  nsCOMPtr<nsIContentSecurityPolicy> csp;
+  rv = doc->NodePrincipal()->GetCsp(getter_AddRefs(csp));
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (csp) {
+    channelPolicy = do_CreateInstance("@mozilla.org/nschannelpolicy;1");
+    channelPolicy->SetContentSecurityPolicy(csp);
+    channelPolicy->SetLoadType(nsIContentPolicy::TYPE_OBJECT);
+  }
   rv = NS_NewChannel(getter_AddRefs(chan), aURI, nsnull, group, this,
-                     nsIChannel::LOAD_CALL_CONTENT_SNIFFERS);
+                     nsIChannel::LOAD_CALL_CONTENT_SNIFFERS |
+                     nsIChannel::LOAD_CLASSIFY_URI,
+                     channelPolicy);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Referrer
@@ -1456,12 +1476,6 @@ nsObjectLoadingContent::LoadObject(nsIURI* aURI,
   rv = chan->AsyncOpen(this, nsnull);
   if (NS_SUCCEEDED(rv)) {
     LOG(("OBJLC [%p]: Channel opened.\n", this));
-
-    rv = CheckClassifier(chan);
-    if (NS_FAILED(rv)) {
-      chan->Cancel(rv);
-      return rv;
-    }
 
     mChannel = chan;
     mType = eType_Loading;
@@ -1509,7 +1523,7 @@ nsObjectLoadingContent::RemovedFromDocument()
 void
 nsObjectLoadingContent::Traverse(nsCycleCollectionTraversalCallback &cb)
 {
-  cb.NoteXPCOMChild(mFrameLoader);
+  cb.NoteXPCOMChild(static_cast<nsIFrameLoader*>(mFrameLoader));
 }
 
 // <private>
@@ -1619,11 +1633,11 @@ nsObjectLoadingContent::UnloadContent()
 
 void
 nsObjectLoadingContent::NotifyStateChanged(ObjectType aOldType,
-                                          PRInt32 aOldState,
-                                          PRBool aSync)
+                                          nsEventStates aOldState, PRBool aSync)
 {
-  LOG(("OBJLC [%p]: Notifying about state change: (%u, %x) -> (%u, %x) (sync=%i)\n",
-       this, aOldType, aOldState, mType, ObjectState(), aSync));
+  LOG(("OBJLC [%p]: Notifying about state change: (%u, %llx) -> (%u, %llx) (sync=%i)\n",
+       this, aOldType, aOldState.GetInternalValue(), mType,
+       ObjectState().GetInternalValue(), aSync));
 
   nsCOMPtr<nsIContent> thisContent = 
     do_QueryInterface(static_cast<nsIImageLoadingContent*>(this));
@@ -1634,16 +1648,16 @@ nsObjectLoadingContent::NotifyStateChanged(ObjectType aOldType,
     return; // Nothing to do
   }
 
-  PRInt32 newState = ObjectState();
+  nsEventStates newState = ObjectState();
 
   if (newState != aOldState) {
     // This will trigger frame construction
     NS_ASSERTION(thisContent->IsInDoc(), "Something is confused");
-    PRInt32 changedBits = aOldState ^ newState;
+    nsEventStates changedBits = aOldState ^ newState;
 
     {
       mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-      doc->ContentStatesChanged(thisContent, nsnull, changedBits);
+      doc->ContentStateChanged(thisContent, changedBits);
     }
     if (aSync) {
       // Make sure that frames are actually constructed, and do it after
@@ -1653,10 +1667,8 @@ nsObjectLoadingContent::NotifyStateChanged(ObjectType aOldType,
   } else if (aOldType != mType) {
     // If our state changed, then we already recreated frames
     // Otherwise, need to do that here
-
-    nsPresShellIterator iter(doc);
-    nsCOMPtr<nsIPresShell> shell;
-    while ((shell = iter.GetNextShell())) {
+    nsCOMPtr<nsIPresShell> shell = doc->GetShell();
+    if (shell) {
       shell->RecreateFramesFor(thisContent);
     }
   }
@@ -1700,14 +1712,6 @@ nsObjectLoadingContent::GetTypeOfContent(const nsCString& aMIMEType)
     return eType_Plugin;
   }
 
-  nsCOMPtr<nsIContent> thisContent = 
-    do_QueryInterface(static_cast<nsIImageLoadingContent*>(this));
-  NS_ASSERTION(thisContent, "must be a content");
-
-  if (ShouldShowDefaultPlugin(thisContent, aMIMEType)) {
-    return eType_Plugin;
-  }
-
   return eType_Null;
 }
 
@@ -1729,7 +1733,7 @@ nsObjectLoadingContent::TypeForClassID(const nsAString& aClassID,
   }
 
   // If it starts with "clsid:", this is ActiveX content
-  if (StringBeginsWith(aClassID, NS_LITERAL_STRING("clsid:"))) {
+  if (StringBeginsWith(aClassID, NS_LITERAL_STRING("clsid:"), nsCaseInsensitiveStringComparator())) {
     // Check if we have a plugin for that
 
     if (NS_SUCCEEDED(pluginHost->IsPluginEnabledForType("application/x-oleobject"))) {
@@ -1775,17 +1779,7 @@ nsObjectLoadingContent::GetExistingFrame(FlushType aFlushType)
 
   nsIFrame* frame;
   do {
-    nsIDocument* doc = thisContent->GetCurrentDoc();
-    if (!doc) {
-      return nsnull; // No current doc -> no frame
-    }
-
-    nsIPresShell* shell = doc->GetPrimaryShell();
-    if (!shell) {
-      return nsnull; // No presentation -> no frame
-    }
-
-    frame = shell->GetPrimaryFrameFor(thisContent);
+    frame = thisContent->GetPrimaryFrame();
     if (!frame) {
       return nsnull;
     }
@@ -1796,6 +1790,8 @@ nsObjectLoadingContent::GetExistingFrame(FlushType aFlushType)
     
     // OK, let's flush out and try again.  Note that we want to reget
     // the document, etc, since flushing might run script.
+    nsIDocument* doc = thisContent->GetCurrentDoc();
+    NS_ASSERTION(doc, "Frame but no document?");
     mozFlushType flushType =
       aFlushType == eFlushLayout ? Flush_Layout : Flush_ContentAndNotify;
     doc->FlushPendingNotifications(flushType);
@@ -1922,38 +1918,11 @@ nsObjectLoadingContent::Instantiate(nsIObjectFrame* aFrame,
   return rv;
 }
 
-nsresult
-nsObjectLoadingContent::CheckClassifier(nsIChannel *aChannel)
-{
-  nsresult rv;
-  nsCOMPtr<nsIChannelClassifier> classifier =
-    do_CreateInstance(NS_CHANNELCLASSIFIER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = classifier->Start(aChannel, PR_FALSE);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  mClassifier = classifier;
-
-  return NS_OK;
-}
-
-/* static */ PRBool
-nsObjectLoadingContent::ShouldShowDefaultPlugin(nsIContent* aContent,
-                                                const nsCString& aContentType)
-{
-  if (nsContentUtils::GetBoolPref("plugin.default_plugin_disabled", PR_FALSE)) {
-    return PR_FALSE;
-  }
-
-  return GetPluginSupportState(aContent, aContentType) == ePluginUnsupported;
-}
-
 /* static */ PluginSupportState
 nsObjectLoadingContent::GetPluginSupportState(nsIContent* aContent,
                                               const nsCString& aContentType)
 {
-  if (!aContent->IsNodeOfType(nsINode::eHTML)) {
+  if (!aContent->IsHTML()) {
     return ePluginOtherState;
   }
 
@@ -1970,7 +1939,7 @@ nsObjectLoadingContent::GetPluginSupportState(nsIContent* aContent,
     nsIContent* child = aContent->GetChildAt(i);
     NS_ASSERTION(child, "GetChildCount lied!");
 
-    if (child->IsNodeOfType(nsINode::eHTML) &&
+    if (child->IsHTML() &&
         child->Tag() == nsGkAtoms::param) {
       if (child->AttrValueIs(kNameSpaceID_None, nsGkAtoms::name,
                              NS_LITERAL_STRING("pluginurl"), eIgnoreCase)) {
@@ -1999,6 +1968,40 @@ nsObjectLoadingContent::GetPluginDisabledState(const nsCString& aContentType)
   if (rv == NS_ERROR_PLUGIN_BLOCKLISTED)
     return ePluginBlocklisted;
   return ePluginUnsupported;
+}
+
+void
+nsObjectLoadingContent::CreateStaticClone(nsObjectLoadingContent* aDest) const
+{
+  nsImageLoadingContent::CreateStaticImageClone(aDest);
+
+  aDest->mType = mType;
+  nsObjectLoadingContent* thisObj = const_cast<nsObjectLoadingContent*>(this);
+  if (thisObj->mPrintFrame.IsAlive()) {
+    aDest->mPrintFrame = thisObj->mPrintFrame;
+  } else {
+    nsIObjectFrame* frame =
+      const_cast<nsObjectLoadingContent*>(this)->GetExistingFrame(eDontFlush);
+    nsIFrame* f = do_QueryFrame(frame);
+    aDest->mPrintFrame = f;
+  }
+
+  if (mFrameLoader) {
+    nsCOMPtr<nsIContent> content =
+      do_QueryInterface(static_cast<nsIImageLoadingContent*>((aDest)));
+    nsFrameLoader* fl = nsFrameLoader::Create(content, PR_FALSE);
+    if (fl) {
+      aDest->mFrameLoader = fl;
+      mFrameLoader->CreateStaticClone(fl);
+    }
+  }
+}
+
+NS_IMETHODIMP
+nsObjectLoadingContent::GetPrintFrame(nsIFrame** aFrame)
+{
+  *aFrame = mPrintFrame.GetFrame();
+  return NS_OK;
 }
 
 NS_IMETHODIMP

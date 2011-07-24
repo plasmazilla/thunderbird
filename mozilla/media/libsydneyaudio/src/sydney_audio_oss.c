@@ -258,6 +258,7 @@ sa_stream_open(sa_stream_t *s) {
 int
 sa_stream_destroy(sa_stream_t *s) {
   int result = SA_SUCCESS;
+  pthread_t thread_id;
 
   if (s == NULL) {
     return SA_SUCCESS;
@@ -265,8 +266,10 @@ sa_stream_destroy(sa_stream_t *s) {
 
   pthread_mutex_lock(&s->mutex);
 
+  thread_id = s->thread_id;
+
   /*
-   * This causes the thread sending data to ALSA to stop
+   * This causes the thread sending data to OSS to stop
    */
   s->thread_id = 0;
 
@@ -280,6 +283,8 @@ sa_stream_destroy(sa_stream_t *s) {
   }
 
   pthread_mutex_unlock(&s->mutex);
+
+  pthread_join(thread_id, NULL);
 
   /*
    * Release resources.
@@ -713,6 +718,7 @@ UNSUPPORTED(int sa_stream_pwrite(sa_stream_t *s, const void *data, size_t nbytes
 UNSUPPORTED(int sa_stream_pwrite_ni(sa_stream_t *s, unsigned int channel, const void *data, size_t nbytes, int64_t offset, sa_seek_t whence))
 UNSUPPORTED(int sa_stream_get_read_size(sa_stream_t *s, size_t *size))
 UNSUPPORTED(int sa_stream_drain(sa_stream_t *s))
+UNSUPPORTED(int sa_stream_get_min_write(sa_stream_t *s, size_t *samples))
 
 const char *sa_strerror(int code) { return NULL; }
 

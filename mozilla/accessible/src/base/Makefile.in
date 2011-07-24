@@ -46,35 +46,16 @@ MODULE = accessibility
 LIBRARY_NAME = accessibility_base_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= appshell \
-		  commandhandler \
-		  composer \
-		  content \
-		  docshell \
-		  dom \
-		  editor \
-		  gfx \
-		  thebes \
-		  intl \
-		  layout \
-		  locale \
-		  necko \
-		  plugin \
-		  pref \
-		  string \
-		  unicharutil \
-		  uriloader \
-		  view \
-		  webshell \
-		  widget \
-		  xpcom \
-		  xuldoc \
-		  imglib2 \
-		  $(NULL)
 
 CPPSRCS = \
+  AccCollector.cpp \
+  AccEvent.cpp \
+  AccGroupInfo.cpp \
+  AccIterator.cpp \
+  filters.cpp \
+  NotificationController.cpp \
+  nsAccDocManager.cpp \
   nsAccessNode.cpp \
-  nsAccessibleEventData.cpp \
   nsARIAGridAccessible.cpp \
   nsARIAMap.cpp \
   nsDocAccessible.cpp \
@@ -86,8 +67,9 @@ CPPSRCS = \
   nsAccessibilityService.cpp \
   nsAccessible.cpp \
   nsAccessibleRelation.cpp \
-  nsAccessibleTreeWalker.cpp \
+  nsAccTreeWalker.cpp \
   nsBaseWidgetAccessible.cpp \
+  nsEventShell.cpp \
   nsFormControlAccessible.cpp \
   nsRootAccessible.cpp \
   nsApplicationAccessible.cpp \
@@ -95,12 +77,16 @@ CPPSRCS = \
   nsTextAccessible.cpp \
   nsTextEquivUtils.cpp \
   nsTextAttrs.cpp \
+  TextUpdater.cpp \
   $(NULL)
 
 EXPORTS = \
-  nsRootAccessible.h \
-  nsAccessibleEventData.h \
+  a11yGeneric.h \
+  nsAccDocManager.h \
+  nsAccessibilityService.h \
+  nsAccessible.h \
   nsAccessNode.h \
+  nsARIAMap.h \
   $(NULL)
 
 # we don't want the shared lib, but we want to force the creation of a static lib.
@@ -110,6 +96,7 @@ include $(topsrcdir)/config/rules.mk
 
 LOCAL_INCLUDES += \
   -I$(srcdir) \
+  -I$(srcdir)/../xpcom \
   -I$(srcdir)/../html \
   -I$(srcdir)/../xul \
   -I$(srcdir)/../../../layout/generic \

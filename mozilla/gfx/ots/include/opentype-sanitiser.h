@@ -14,12 +14,16 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#include <Winsock2.h>  // for htons/ntohs
+#else
+#include <stdint.h>
+#endif
+
+#ifdef _WIN32
+#include <winsock2.h>  // for htons/ntohs
 #undef min
 #undef max
 #else
 #include <arpa/inet.h>
-#include <stdint.h>
 #endif
 
 #include <algorithm>  // for std::min
@@ -64,8 +68,10 @@ class OTSStream {
     }
 
     while (length >= 4) {
-      chksum_ += ntohl(*reinterpret_cast<const uint32_t*>(
-          reinterpret_cast<const uint8_t*>(data) + offset));
+      uint32_t tmp;
+      std::memcpy(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
+        sizeof(uint32_t));
+      chksum_ += ntohl(tmp);
       length -= 4;
       offset += 4;
     }

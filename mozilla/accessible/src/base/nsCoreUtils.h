@@ -41,6 +41,7 @@
 
 #include "nsAccessibilityAtoms.h"
 
+#include "nsIDOMDocumentXBL.h"
 #include "nsIDOMNode.h"
 #include "nsIContent.h"
 #include "nsIBoxObject.h"
@@ -49,18 +50,23 @@
 
 #include "nsIFrame.h"
 #include "nsIDocShellTreeItem.h"
-#include "nsIArray.h"
+#include "nsIDOMCSSStyleDeclaration.h"
+#include "nsIDOMDOMStringList.h"
 #include "nsIMutableArray.h"
 #include "nsPoint.h"
+#include "nsTArray.h"
 
+/**
+ * Core utils.
+ */
 class nsCoreUtils
 {
 public:
   /**
-   * Return true if the given node has registered event listener of the given
-   * type.
+   * Return true if the given node has registered click, mousedown or mouseup
+   * event listeners.
    */
-  static PRBool HasListener(nsIContent *aContent, const nsAString& aEventType);
+  static PRBool HasClickListener(nsIContent *aContent);
 
   /**
    * Dispatch click event to XUL tree cell.
@@ -114,45 +120,44 @@ public:
    * Return DOM element related with the given node, i.e.
    * a) itself if it is DOM element
    * b) parent element if it is text node
-   * c) body element if it is HTML document node
-   * d) document element if it is document node.
+   * c) otherwise nsnull
    *
    * @param aNode  [in] the given DOM node
    */
-  static already_AddRefed<nsIDOMElement> GetDOMElementFor(nsIDOMNode *aNode);
+  static nsIContent* GetDOMElementFor(nsIContent *aContent);
 
   /**
    * Return DOM node for the given DOM point.
    */
-  static already_AddRefed<nsIDOMNode> GetDOMNodeFromDOMPoint(nsIDOMNode *aNode,
-                                                             PRUint32 aOffset);
+  static nsINode *GetDOMNodeFromDOMPoint(nsINode *aNode, PRUint32 aOffset);
+
   /**
    * Return the nsIContent* to check for ARIA attributes on -- this may not
    * always be the DOM node for the accessible. Specifically, for doc
    * accessibles, it is not the document node, but either the root element or
-   * <body> in HTML. Similar with GetDOMElementFor() method.
+   * <body> in HTML.
    *
-   * @param aDOMNode  DOM node for the accessible that may be affected by ARIA
-   * @return          the nsIContent which may have ARIA markup
+   * @param aNode  [in] DOM node for the accessible that may be affected by ARIA
+   * @return        the nsIContent which may have ARIA markup
    */
-  static nsIContent *GetRoleContent(nsIDOMNode *aDOMNode);
+  static nsIContent* GetRoleContent(nsINode *aNode);
 
   /**
    * Is the first passed in node an ancestor of the second?
    * Note: A node is not considered to be the ancestor of itself.
-   * @param aPossibleAncestorNode -- node to test for ancestor-ness of aPossibleDescendantNode
-   * @param aPossibleDescendantNode -- node to test for descendant-ness of aPossibleAncestorNode
-   * @return PR_TRUE if aPossibleAncestorNode is an ancestor of aPossibleDescendantNode
+   *
+   * @param  aPossibleAncestorNode   [in] node to test for ancestor-ness of
+   *                                   aPossibleDescendantNode
+   * @param  aPossibleDescendantNode [in] node to test for descendant-ness of
+   *                                   aPossibleAncestorNode
+   * @param  aRootNode               [in, optional] the root node that search
+   *                                   search should be performed within
+   * @return PR_TRUE                  if aPossibleAncestorNode is an ancestor of
+   *                                   aPossibleDescendantNode
    */
-   static PRBool IsAncestorOf(nsIDOMNode *aPossibleAncestorNode,
-                              nsIDOMNode *aPossibleDescendantNode);
-
-  /**
-   * Are the first node and the second siblings?
-   * @return PR_TRUE if aDOMNode1 and aDOMNode2 have same parent
-   */
-   static PRBool AreSiblings(nsIDOMNode *aDOMNode1,
-                             nsIDOMNode *aDOMNode2);
+   static PRBool IsAncestorOf(nsINode *aPossibleAncestorNode,
+                              nsINode *aPossibleDescendantNode,
+                              nsINode *aRootNode = nsnull);
 
   /**
    * Helper method to scroll range into view, used for implementation of
@@ -210,18 +215,28 @@ public:
    *
    * @param aNode  the DOM node hosted in the window.
    */
-  static nsIntPoint GetScreenCoordsForWindow(nsIDOMNode *aNode);
+  static nsIntPoint GetScreenCoordsForWindow(nsINode *aNode);
 
   /**
    * Return document shell tree item for the given DOM node.
    */
   static already_AddRefed<nsIDocShellTreeItem>
-    GetDocShellTreeItemFor(nsIDOMNode *aNode);
+    GetDocShellTreeItemFor(nsINode *aNode);
 
   /**
-   * Retrun frame for the given DOM element.
+   * Return true if the given document is root document.
    */
-  static nsIFrame* GetFrameFor(nsIDOMElement *aElm);
+  static PRBool IsRootDocument(nsIDocument *aDocument);
+
+  /**
+   * Return true if the given document is content document (not chrome).
+   */
+  static PRBool IsContentDocument(nsIDocument *aDocument);
+
+  /**
+   * Return true if the given document is an error page.
+   */
+  static PRBool IsErrorPage(nsIDocument *aDocument);
 
   /**
    * Retrun true if the type of given frame equals to the given frame type.
@@ -234,7 +249,17 @@ public:
   /**
    * Return presShell for the document containing the given DOM node.
    */
-  static already_AddRefed<nsIPresShell> GetPresShellFor(nsIDOMNode *aNode);
+  static nsIPresShell *GetPresShellFor(nsINode *aNode)
+  {
+    nsIDocument *document = aNode->GetOwnerDoc();
+    return document ? document->GetShell() : nsnull;
+  }
+  static already_AddRefed<nsIWeakReference> GetWeakShellFor(nsINode *aNode)
+  {
+    nsCOMPtr<nsIWeakReference> weakShell =
+      do_GetWeakReference(GetPresShellFor(aNode));
+    return weakShell.forget();
+  }
 
   /**
    * Return document node for the given document shell tree item.
@@ -249,6 +274,13 @@ public:
    * @return          PR_TRUE if there is an ID set for this node
    */
   static PRBool GetID(nsIContent *aContent, nsAString& aID);
+
+  /**
+   * Convert attribute value of the given node to positive integer. If no
+   * attribute or wrong value then false is returned.
+   */
+  static PRBool GetUIntAttr(nsIContent *aContent, nsIAtom *aAttr,
+                            PRInt32 *aUInt);
 
   /**
    * Check if the given element is XLink.
@@ -269,122 +301,11 @@ public:
                              nsAString& aLanguage);
 
   /**
-   * Return the array of elements the given node is referred to by its
-   * IDRefs attribute.
-   *
-   * @param aContent     [in] the given node
-   * @param aAttr        [in] IDRefs attribute on the given node
-   * @param aRefElements [out] result array of elements
-   */
-  static void GetElementsByIDRefsAttr(nsIContent *aContent, nsIAtom *aAttr,
-                                      nsIArray **aRefElements);
-
-  /**
-   * Return the array of elements having IDRefs that points to the given node.
-   *
-   * @param  aRootContent  [in] root element to search inside
-   * @param  aContent      [in] an element having ID attribute
-   * @param  aIDRefsAttr   [in] IDRefs attribute
-   * @param  aElements     [out] result array of elements
-   */
-  static void GetElementsHavingIDRefsAttr(nsIContent *aRootContent,
-                                          nsIContent *aContent,
-                                          nsIAtom *aIDRefsAttr,
-                                          nsIArray **aElements);
-
-  /**
-   * Helper method for GetElementsHavingIDRefsAttr.
-   */
-  static void GetElementsHavingIDRefsAttrImpl(nsIContent *aRootContent,
-                                              nsCString& aIdWithSpaces,
-                                              nsIAtom *aIDRefsAttr,
-                                              nsIMutableArray *aElements);
-
-  /**
    * Return computed styles declaration for the given node.
    */
-  static void GetComputedStyleDeclaration(const nsAString& aPseudoElt,
-                                          nsIDOMNode *aNode,
-                                          nsIDOMCSSStyleDeclaration **aCssDecl);
-
-  /**
-   * Search element in neighborhood of the given element by tag name and
-   * attribute value that equals to ID attribute of the given element.
-   * ID attribute can be either 'id' attribute or 'anonid' if the element is
-   * anonymous.
-   * The first matched content will be returned.
-   *
-   * @param aForNode - the given element the search is performed for
-   * @param aRelationAttrs - an array of attributes, element is attribute name of searched element, ignored if aAriaProperty passed in
-   * @param aAttrNum - how many attributes in aRelationAttrs
-   * @param aTagName - tag name of searched element, or nsnull for any -- ignored if aAriaProperty passed in
-   * @param aAncestorLevelsToSearch - points how is the neighborhood of the
-   *                                  given element big.
-   */
-  static nsIContent *FindNeighbourPointingToNode(nsIContent *aForNode,
-                                                 nsIAtom **aRelationAttrs, 
-                                                 PRUint32 aAttrNum,
-                                                 nsIAtom *aTagName = nsnull,
-                                                 PRUint32 aAncestorLevelsToSearch = 5);
-
-  /**
-   * Overloaded version of FindNeighbourPointingToNode to accept only one
-   * relation attribute.
-   */
-  static nsIContent *FindNeighbourPointingToNode(nsIContent *aForNode,
-                                                 nsIAtom *aRelationAttr, 
-                                                 nsIAtom *aTagName = nsnull,
-                                                 PRUint32 aAncestorLevelsToSearch = 5);
-
-  /**
-   * Search for element that satisfies the requirements in subtree of the given
-   * element. The requirements are tag name, attribute name and value of
-   * attribute.
-   * The first matched content will be returned.
-   *
-   * @param aId - value of searched attribute
-   * @param aLookContent - element that search is performed inside
-   * @param aRelationAttrs - an array of searched attributes
-   * @param aAttrNum - how many attributes in aRelationAttrs
-   * @param                 if both aAriaProperty and aRelationAttrs are null, then any element with aTagType will do
-   * @param aExcludeContent - element that is skiped for search
-   * @param aTagType - tag name of searched element, by default it is 'label' --
-   *                   ignored if aAriaProperty passed in
-   */
-  static nsIContent *FindDescendantPointingToID(const nsString *aId,
-                                                nsIContent *aLookContent,
-                                                nsIAtom **aRelationAttrs,
-                                                PRUint32 aAttrNum = 1,
-                                                nsIContent *aExcludeContent = nsnull,
-                                                nsIAtom *aTagType = nsAccessibilityAtoms::label);
-
-  /**
-   * Overloaded version of FindDescendantPointingToID to accept only one
-   * relation attribute.
-   */
-  static nsIContent *FindDescendantPointingToID(const nsString *aId,
-                                                nsIContent *aLookContent,
-                                                nsIAtom *aRelationAttr,
-                                                nsIContent *aExcludeContent = nsnull,
-                                                nsIAtom *aTagType = nsAccessibilityAtoms::label);
-
-  // Helper for FindDescendantPointingToID(), same args
-  static nsIContent *FindDescendantPointingToIDImpl(nsCString& aIdWithSpaces,
-                                                    nsIContent *aLookContent,
-                                                    nsIAtom **aRelationAttrs,
-                                                    PRUint32 aAttrNum = 1,
-                                                    nsIContent *aExcludeContent = nsnull,
-                                                    nsIAtom *aTagType = nsAccessibilityAtoms::label);
-
-  /**
-   * Return the label element for the given DOM element.
-   */
-  static nsIContent *GetLabelContent(nsIContent *aForNode);
-
-  /**
-   * Return the HTML label element for the given HTML element.
-   */
-  static nsIContent *GetHTMLLabelContent(nsIContent *aForNode);
+  static already_AddRefed<nsIDOMCSSStyleDeclaration>
+    GetComputedStyleDeclaration(const nsAString& aPseudoElt,
+                                nsIContent *aContent);
 
   /**
    * Return box object for XUL treechildren element by tree box object.
@@ -395,8 +316,8 @@ public:
   /**
    * Return tree box object from any levels DOMNode under the XUL tree.
    */
-  static void
-    GetTreeBoxObject(nsIDOMNode* aDOMNode, nsITreeBoxObject** aBoxObject);
+  static already_AddRefed<nsITreeBoxObject>
+    GetTreeBoxObject(nsIContent* aContent);
 
   /**
    * Return first sensible column for the given tree box object.
@@ -413,7 +334,7 @@ public:
   /**
    * Return sensible columns count for the given tree box object.
    */
-  static PRUint32 GetSensiblecolumnCount(nsITreeBoxObject *aTree);
+  static PRUint32 GetSensibleColumnCount(nsITreeBoxObject *aTree);
 
   /**
    * Return sensible column at the given index for the given tree box object.
@@ -446,6 +367,71 @@ public:
     return aContent->NodeInfo()->Equals(nsAccessibilityAtoms::th) ||
       aContent->HasAttr(kNameSpaceID_None, nsAccessibilityAtoms::scope);
   }
+
+  /**
+   * Generates frames for popup subtree.
+   *
+   * @param aContent [in] DOM node containing the menupopup element as a child
+   * @param aIsAnon  [in] specifies whether popup should be searched inside of
+   *                  anonymous or explicit content
+   */
+  static void GeneratePopupTree(nsIContent *aContent,
+                                PRBool aIsAnon = PR_FALSE);
+};
+
+
+/**
+ * nsIDOMDOMStringList implementation.
+ */
+class nsAccessibleDOMStringList : public nsIDOMDOMStringList
+{
+public:
+  nsAccessibleDOMStringList() {};
+  virtual ~nsAccessibleDOMStringList() {};
+
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIDOMDOMSTRINGLIST
+
+  PRBool Add(const nsAString& aName) {
+    return mNames.AppendElement(aName) != nsnull;
+  }
+
+private:
+  nsTArray<nsString> mNames;
+};
+
+/**
+ * Used to iterate through IDs or elements pointed by IDRefs attribute. Note,
+ * any method used to iterate through IDs or elements moves iterator to next
+ * position.
+ */
+class IDRefsIterator
+{
+public:
+  IDRefsIterator(nsIContent* aContent, nsIAtom* aIDRefsAttr);
+
+  /**
+   * Return next ID.
+   */
+  const nsDependentSubstring NextID();
+
+  /**
+   * Return next element.
+   */
+  nsIContent* NextElem();
+
+  /**
+   * Return the element with the given ID.
+   */
+  nsIContent* GetElem(const nsDependentSubstring& aID);
+
+private:
+  nsString mIDs;
+  nsAString::index_type mCurrIdx;
+
+  nsIDocument* mDocument;
+  nsCOMPtr<nsIDOMDocumentXBL> mXBLDocument;
+  nsCOMPtr<nsIDOMElement> mBindingParent;
 };
 
 #endif

@@ -31,6 +31,7 @@ function shortWait() {
 
 function onChildHashchange(e) {
   // gGen might be undefined when we refresh the page, so we have to check here
+  dump("onChildHashchange() called.\n");
   if(gGen)
     gGen.next();
 }
@@ -48,28 +49,33 @@ function runTest() {
                            "menubar=yes,status=yes,toolbar=yes,dependent=yes");
   popup.hashchangeCallback = onChildHashchange;
   popup.onload = onChildLoad;
-  yield; // wait for load
+  dump('Waiting for initial load.\n');
+  yield;
 
-  // Not sure why this wait is necessary, but without it, the change to
-  // location.hash below doesn't create a SHEntry or enable the back button.
+  // Without this wait, the change to location.hash below doesn't create a
+  // SHEntry or enable the back button.
   shortWait();
+  dump('Got initial load.  Spinning event loop.\n');
   yield;
 
   popup.location.hash = "#1";
-  yield; // wait for hashchange
+  dump('Waiting for hashchange.\n');
+  yield;
 
   popup.history.back();
+  dump('Waiting for second hashchange.\n');
   yield; // wait for hashchange
 
   popup.document.title = "Changed";
 
   // Wait for listeners to be notified of the title change.
   shortWait();
+  dump('Got second hashchange.  Spinning event loop.\n');
   yield;
 
   var sh = popup.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                 .getInterface(Components.interfaces.nsIWebNavigation)
-                 .sessionHistory;
+                .getInterface(Components.interfaces.nsIWebNavigation)
+                .sessionHistory;
 
   // Get the title of the inner popup's current SHEntry 
   var sheTitle = sh.getEntryAtIndex(sh.index, false).title;
@@ -78,6 +84,7 @@ function runTest() {
   popup.close();
 
   SimpleTest.executeSoon(SimpleTest.finish);
+  dump('Final yield.\n');
   yield;
 }
 

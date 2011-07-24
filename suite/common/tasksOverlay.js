@@ -47,13 +47,6 @@ function toNavigator()
     OpenBrowserWindow();
 }
 
-function toPasswordManager()
-{
-  toOpenWindowByType("Toolkit:PasswordManager",
-                     "chrome://communicator/content/passwordManager.xul",
-                     "resizable");
-}
-
 function ExpirePassword()
 {
   // Queries the HTTP Auth Manager and clears all sessions
@@ -80,25 +73,21 @@ function toDownloadManager()
     dlUI.show(window);
   }
 }
-  
-function toEM( aPane )
-{
-  var theEM = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                        .getService(Components.interfaces.nsIWindowMediator)
-                        .getMostRecentWindow("Extension:Manager");
-  if (theEM) {
-    theEM.focus();
-    if (aPane)
-      theEM.showView(aPane);
-    return;
-  }
 
-  const EMURL = "chrome://mozapps/content/extensions/extensions.xul";
-  const EMFEATURES = "all,dialog=no";
-  if (aPane)
-    window.openDialog(EMURL, "", EMFEATURES, aPane);
-  else
-    window.openDialog(EMURL, "", EMFEATURES);
+function toDataManager(aView)
+{
+  switchToTabHavingURI("about:data", true, function(browser) {
+    if (aView)
+      browser.contentWindow.wrappedJSObject.gDataman.loadView(aView);
+  });
+}
+
+function toEM(aView)
+{
+  switchToTabHavingURI("about:addons", true, function(browser) {
+    if (aView)
+      browser.contentWindow.wrappedJSObject.loadView(aView);
+  });
 }
 
 function toBookmarksManager()

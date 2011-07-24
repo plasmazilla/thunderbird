@@ -43,6 +43,8 @@ var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var mozmill = {};
 Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
+var EventUtils = {};
+Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
 
 const MODULE_NAME = 'account-manager-helpers';
 const RELATIVE_ROOT = '../shared-modules';
@@ -65,6 +67,7 @@ function installInto(module) {
   module.open_advanced_settings = open_advanced_settings;
   module.open_advanced_settings_from_account_wizard =
     open_advanced_settings_from_account_wizard;
+  module.click_account_tree_row = click_account_tree_row;
 }
 
 /**
@@ -77,7 +80,7 @@ function open_advanced_settings(aCallback, aController) {
     aController = mc;
 
   wh.plan_for_modal_dialog("mailnews:accountmanager", aCallback);
-  aController.click(new elib.Elem(mc.menus.tasksMenu.menu_accountmgr));
+  aController.click(mc.eid("menu_accountmgr"));
   return wh.wait_for_modal_dialog("mailnews:accountmanager");
 }
 
@@ -88,7 +91,37 @@ function open_advanced_settings(aCallback, aController) {
  */
 function open_advanced_settings_from_account_wizard(aCallback, aController) {
   wh.plan_for_modal_dialog("mailnews:accountmanager", aCallback);
-  aController.e("advanced_settings").click();
+  aController.e("manual-edit_button").click();
+  aController.e("advanced-setup_button").click();
   return wh.wait_for_modal_dialog("mailnews:accountmanager");
 }
 
+/**
+ * Click a row in the account settings tree
+ *
+ * @param controller the Mozmill controller for the account settings dialog
+ * @param rowIndex the row to click
+ */
+function click_account_tree_row(controller, rowIndex) {
+  controller.waitForEval("subject.currentAccount != null", 6000, 600,
+                         controller.window);
+
+  var tree = controller.window.document.getElementById("accounttree");
+  var selection = tree.view.selection;
+  selection.select(rowIndex);
+  tree.treeBoxObject.ensureRowIsVisible(rowIndex);
+
+  // get cell coordinates
+  var x = {}, y = {}, width = {}, height = {};
+  var column = tree.columns[0];
+  tree.treeBoxObject.getCoordsForCellItem(rowIndex, column, "text",
+                                           x, y, width, height);
+
+  controller.sleep(0);
+  EventUtils.synthesizeMouse(tree.body, x.value + 4, y.value + 4,
+                             {}, tree.ownerDocument.defaultView);
+  controller.sleep(0);
+
+  controller.waitForEval("subject.pendingAccount == null", 6000, 600,
+                         controller.window);
+}

@@ -61,13 +61,13 @@
 #endif
             buttonlabelextra1="&continueButton.label;"
             width="&window.width;"
-            ondialogaccept="onOK()"
+            ondialogaccept="return onOK()"
             ondialogcancel="onCancel()"
             ondialogextra1="window.close()"
             onload="onLoad();"
             buttondisabledaccept="true">
 
-  <script type="application/x-javascript" src="chrome://browser/content/safeMode.js"/>
+  <script type="application/javascript" src="chrome://browser/content/safeMode.js"/>
 
   <stringbundle id="preferencesBundle" src="chrome://browser/locale/preferences/preferences.properties"/>
 

@@ -3,8 +3,8 @@
  */
 var imports = [ "SimpleTest", "is", "isnot", "ok", "onerror", "todo", 
   "todo_is", "todo_isnot" ];
-for each (var import in imports) {
-  window[import] = window.opener.wrappedJSObject[import];
+for each (var name in imports) {
+  window[name] = window.opener.wrappedJSObject[name];
 }
 
 /**
@@ -25,6 +25,8 @@ var gNavType = NAV_NONE;      // defines the most recent navigation type
                               // executed by doPageNavigation
 var gOrigMaxTotalViewers =    // original value of max_total_viewers,
   undefined;                  // to be restored at end of test
+
+var gExtractedPath = null;    //used to cache file path for extracting files from a .jar file
 
 /**
  * The doPageNavigation() function performs page navigations asynchronously, 
@@ -240,7 +242,7 @@ function pageEventListener(event) {
   try {
     dump("TEST: eventListener received a " + event.type + " event for page " +
       event.originalTarget.title + ", persisted=" + event.persisted + "\n");
-  }catch(e) {
+  } catch(e) {
     // Ignore any exception.
   }
   
@@ -293,8 +295,8 @@ function pageEventListener(event) {
   
   if (typeof(expected.persisted) != "undefined") {
     is(event.persisted, expected.persisted, 
-      "The persisted property of the " + event.type + "event on page " +
-      event.originalTarget.title + " had an unexpected value"); 
+      "The persisted property of the " + event.type + " event on page " +
+      event.originalTarget.location + " had an unexpected value"); 
   }
 
   // If we're out of expected events, let doPageNavigation() return.
@@ -321,8 +323,9 @@ function finish() {
   }
 
   // Close the test window and signal the framework that the test is done.
+  let opener = window.opener;
   window.close();
-  window.opener.wrappedJSObject.SimpleTest.finish();
+  opener.wrappedJSObject.SimpleTest.finish();
 }
 
 /**
@@ -405,12 +408,36 @@ function enableBFCache(enable) {
   }
 }
 
+/*
+ * get http root for local tests.  Use a single extractJarToTmp instead of 
+ * extracting for each test.  
+ * Returns a file://path if we have a .jar file
+ */
+function getHttpRoot() {
+  var location = window.location.href;
+  location = getRootDirectory(location);
+  var jar = getJar(location);
+  if (jar != null) {
+    if (gExtractedPath == null) {
+      var resolved = extractJarToTmp(jar);
+      gExtractedPath = resolved.path;
+    }
+  } else {
+    return null;
+  }
+  return "file://" + gExtractedPath + '/';
+}
+
 /**
  * Returns the full HTTP url for a file in the mochitest docshell test 
  * directory.
  */
 function getHttpUrl(filename) {
-  return "http://localhost:8888/chrome/docshell/test/chrome/" + filename;
+  var root = getHttpRoot();
+  if (root == null) {
+    root = "http://mochi.test:8888/chrome/docshell/test/chrome/";
+  }
+  return root + filename;
 }
 
 /**

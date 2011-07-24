@@ -58,11 +58,8 @@ include $(srcdir)/../objs.mk
 EXTRA_DEPS += $(srcdir)/../objs.mk
 
 LOCAL_INCLUDES	+= -I$(srcdir)/.. \
+  -I$(srcdir)/../../src
 
-REQUIRES=xpcom \
-		string \
-		uconv \
-		$(NULL)
 
 CPPSRCS	= $(INTL_UNICHARUTIL_UTIL_LCPPSRCS)
 

@@ -10,10 +10,6 @@
 
 #filter substitution
 
-#ifdef MOZILLA_1_9_2_BRANCH
-bin/.autoreg
-#endif
-
 [@AB_CD@]
 bin\chrome\@AB_CD@.jar
 bin\chrome\@AB_CD@.manifest
@@ -31,11 +27,7 @@ bin\updater.ini
 
 [xpcom]
 bin\components\components.list
-#ifdef MOZILLA_1_9_2_BRANCH
-bin\js3250.dll
-#else
 bin\mozjs.dll
-#endif
 bin\plc4.dll
 bin\plds4.dll
 bin\xpcom.dll
@@ -67,8 +59,8 @@ bin\components\appstartup.xpt
 bin\components\autocomplete.xpt
 bin\components\autoconfig.xpt
 bin\components\calbase.xpt
+bin\components\calbasecomps.dll
 bin\components\calbaseinternal.xpt
-bin\components\calbscmp.dll
 bin\components\caldav.xpt
 bin\components\caps.xpt
 bin\components\chardet.xpt
@@ -77,18 +69,13 @@ bin\components\commandhandler.xpt
 bin\components\commandlines.xpt
 bin\components\composer.xpt
 bin\components\content_base.xpt
-#ifndef MOZILLA_1_9_2_BRANCH
 bin\components\content_canvas.xpt
-#endif
 bin\components\content_events.xpt
 bin\components\content_html.xpt
 bin\components\content_htmldoc.xpt
 bin\components\content_xmldoc.xpt
 bin\components\content_xslt.xpt
 bin\components\content_xtf.xpt
-#ifdef MOZILLA_1_9_2_BRANCH
-bin\components\contentprefs.xpt
-#endif
 bin\components\cookie.xpt
 bin\components\docshell_base.xpt
 bin\components\dom.xpt
@@ -99,6 +86,7 @@ bin\components\dom_css.xpt
 bin\components\dom_events.xpt
 bin\components\dom_geolocation.xpt
 bin\components\dom_html.xpt
+bin\components\dom_indexeddb.xpt
 bin\components\dom_json.xpt
 bin\components\dom_loadsave.xpt
 bin\components\dom_offline.xpt
@@ -200,13 +188,13 @@ bin\components\zipwriter.xpt
 
 ; JavaScript components
 bin\components\calCompositeCalendar.js
-bin\components\calDavCalendarModule.js
+bin\components\calDavCalendar.js
 bin\components\calendarService.js
-bin\components\calICSCalendarModule.js
+bin\components\calICSCalendar.js
 bin\components\calImportExportModule.js
 bin\components\calItemModule.js
-bin\components\calMemoryCalendarModule.js
-bin\components\calStorageCalendarModule.js
+bin\components\calMemoryCalendar.js
+bin\components\calStorageCalendar.js
 bin\components\calWcapCalendarModule.js
 bin\components\jsconsole-clhandler.js
 bin\components\NetworkGeolocationProvider.js
@@ -246,26 +234,22 @@ bin\calendar-js\calCachedCalendar.js
 bin\calendar-js\calCalendarManager.js
 bin\calendar-js\calCalendarSearchService.js
 bin\calendar-js\calDateTimeFormatter.js
-bin\calendar-js\calDavCalendar.js
 bin\calendar-js\calDavRequestHandlers.js
 bin\calendar-js\calEvent.js
 bin\calendar-js\calFilter.js
 bin\calendar-js\calFreeBusyService.js
 bin\calendar-js\calHtmlExport.js
-bin\calendar-js\calICSCalendar.js
 bin\calendar-js\calIcsImportExport.js
 bin\calendar-js\calIcsParser.js
 bin\calendar-js\calIcsSerializer.js
 bin\calendar-js\calItemBase.js
 bin\calendar-js\calItipItem.js
 bin\calendar-js\calListFormatter.js
-bin\calendar-js\calMemoryCalendar.js
 bin\calendar-js\calMonthGridPrinter.js
 bin\calendar-js\calOutlookCSVImportExport.js
 bin\calendar-js\calProtocolHandler.js
 bin\calendar-js\calRecurrenceInfo.js
 bin\calendar-js\calRelation.js
-bin\calendar-js\calStorageCalendar.js
 bin\calendar-js\calTimezoneService.js
 bin\calendar-js\calTodo.js
 bin\calendar-js\calTransactionManager.js
@@ -318,13 +302,7 @@ bin\extensions\calendar-timezones@mozilla.org\defaults\preferences\preferences.j
 ; All the pref files must be part of base to prevent migration bugs
 bin\defaults\pref\sunbird.js
 bin\defaults\pref\channel-prefs.js
-#ifdef MOZILLA_1_9_2_BRANCH
-bin\greprefs\all.js
-bin\greprefs\security-prefs.js
-bin\greprefs\xpinstall.js
-#else
 bin\greprefs.js
-#endif
 bin\defaults\autoconfig\platform.js
 bin\defaults\autoconfig\prefcalls.js
 

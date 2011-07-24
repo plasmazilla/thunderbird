@@ -99,11 +99,13 @@ private:
     PRBool mIsCaseSensitive;
 };
 
+DOMCI_DATA(XPathEvaluator, nsXPathEvaluator)
+
 NS_IMPL_AGGREGATED(nsXPathEvaluator)
 NS_INTERFACE_MAP_BEGIN_AGGREGATED(nsXPathEvaluator)
     NS_INTERFACE_MAP_ENTRY(nsIDOMXPathEvaluator)
     NS_INTERFACE_MAP_ENTRY(nsIXPathEvaluatorInternal)
-    NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(XPathEvaluator)
+    NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XPathEvaluator)
 NS_INTERFACE_MAP_END
 
 nsXPathEvaluator::nsXPathEvaluator(nsISupports *aOuter)
@@ -224,7 +226,7 @@ nsXPathEvaluator::CreateExpression(const nsAString & aExpression,
     nsCOMPtr<nsIDocument> doc = do_QueryReferent(mDocument);
     nsXPathEvaluatorParseContext pContext(*this, aResolver, aNamespaceIDs,
                                           aContractIDs, aState,
-                                          !doc || doc->IsCaseSensitive());
+                                          !(doc && doc->IsHTML()));
 
     nsAutoPtr<Expr> expression;
     rv = txExprParser::createExpr(PromiseFlatString(aExpression), &pContext,

@@ -135,7 +135,7 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   if ((self = [super init])) {
     mGeckoAccessible = geckoAccessible;
     mIsExpired = NO;
-    geckoAccessible->GetRole(&mRole);
+    mRole = geckoAccessible->Role();
     
     // Check for OS X "role skew"; the role constants in nsIAccessible.idl need to match the ones
     // in nsRoleMap.h.
@@ -365,7 +365,7 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   // (which might be the owning NSWindow in the application, for example).
   //
   // get the native root accessible, and tell it to return its first parent unignored accessible.
-  nsRefPtr<nsRootAccessible> root(mGeckoAccessible->GetRootAccessible());
+  nsRootAccessible* root = mGeckoAccessible->RootAccessible();
   id nativeParent = GetNativeFromGeckoAccessible(static_cast<nsIAccessible*>(root));
   NSAssert1 (nativeParent, @"!!! we can't find a parent for %@", self);
   
@@ -594,9 +594,13 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
   nsAccessibleWrap *accWrap = static_cast<nsAccessibleWrap*>(mGeckoAccessible);
+
+  // Get a pointer to the native window (NSWindow) we reside in.
   NSWindow *nativeWindow = nil;
-  accWrap->GetNativeWindow ((void**)&nativeWindow);
-  
+  nsDocAccessible* docAcc = accWrap->GetDocAccessible();
+  if (docAcc)
+    nativeWindow = static_cast<NSWindow*>(docAcc->GetNativeWindow());
+
   NSAssert1(nativeWindow, @"Could not get native window for %@", self);
   return nativeWindow;
 

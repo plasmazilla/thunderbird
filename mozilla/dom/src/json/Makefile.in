@@ -14,7 +14,7 @@
 #
 # The Original Code is mozilla.org code.
 #
-# The Initial Developer of the Original Code is Mozilla Corporation.
+# The Initial Developer of the Original Code is Mozilla Foundation.
 # Portions created by the Initial Developer are Copyright (C) 2007
 # the Initial Developer. All Rights Reserved.
 #
@@ -46,21 +46,13 @@ MODULE         = dom
 LIBRARY_NAME   = json_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES       = xpcom         \
-                 string        \
-                 content       \
-                 js            \
-                 layout        \
-                 necko         \
-                 pref          \
-                 uconv         \
-                 widget        \
-                 xpconnect     \
-                 $(NULL)
 
 CPPSRCS =                      \
        nsJSON.cpp              \
        $(NULL)
+
+EXPORTS = nsJSON.h \
+          $(NULL)
 
 FORCE_STATIC_LIB = 1
 

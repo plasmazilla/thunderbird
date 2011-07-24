@@ -124,8 +124,8 @@ let QuickFilterBarMuxer = {
    *   update their state.
    * - Update UI to reflect some/no matches.
    */
-  onActiveAllMessagesLoaded:
-      function QFBM_onFolderDisplayAllMessagesLoaded(aFolderDisplay) {
+  onActiveMessagesLoaded:
+      function QFBM_onFolderDisplayMessagesLoaded(aFolderDisplay) {
     let filterer = this.maybeActiveFilterer;
     if (!filterer)
       return;
@@ -159,7 +159,7 @@ let QuickFilterBarMuxer = {
 
   /**
    * If we're searching, update the filter results.  (If we stop searching,
-   *  we're going to end up in the onFolderDisplayAllMessagesLoaded
+   *  we're going to end up in the onFolderDisplayMessagesLoaded
    *  notification.  Mayhaps we should lose that vector and just use this one.)
    */
   onSearching: function QFBM_onSearching(
@@ -466,7 +466,8 @@ let QuickFilterBarMuxer = {
     if (!("quickFilter" in aTab._ext))
       return null;
 
-    if (aCommand == "cmd_stop" || aCommand == "cmd_find" ||
+    if (aCommand == "cmd_popQuickFilterBarStack" ||
+        aCommand == "cmd_find" ||
         aCommand == "cmd_toggleQuickFilterBar")
       return true;
     else
@@ -477,7 +478,8 @@ let QuickFilterBarMuxer = {
     if (!("quickFilter" in aTab._ext))
       return null;
 
-    if (aCommand == "cmd_stop" || aCommand == "cmd_find" ||
+    if (aCommand == "cmd_popQuickFilterBarStack" ||
+        aCommand == "cmd_find" ||
         aCommand == "cmd_toggleQuickFilterBar")
       return true;
     else
@@ -488,7 +490,7 @@ let QuickFilterBarMuxer = {
     if (!("quickFilter" in aTab._ext))
       return null;
 
-    if (aCommand == "cmd_stop") {
+    if (aCommand == "cmd_popQuickFilterBarStack") {
       QuickFilterBarMuxer.cmdEscapeFilterStack();
       return true;
     }

@@ -101,8 +101,8 @@ NS_IMETHODIMP nsEudoraEditor::GetSelection(nsISelection * *aSelection)
 }
 
 
-// [noscript] void init (in nsIDOMDocument doc, in nsIPresShellPtr shell, in nsIContentPtr aRoot, in nsISelectionController aSelCon, in unsigned long aFlags)
-NS_IMETHODIMP nsEudoraEditor::Init(nsIDOMDocument *doc, nsIPresShell * shell, nsIContent * aRoot, nsISelectionController *aSelCon, PRUint32 aFlags)
+// [noscript] void init (in nsIDOMDocument doc, in nsIContentPtr aRoot, in nsISelectionController aSelCon, in unsigned long aFlags)
+NS_IMETHODIMP nsEudoraEditor::Init(nsIDOMDocument *doc, nsIContent * aRoot, nsISelectionController *aSelCon, PRUint32 aFlags)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -405,8 +405,6 @@ NS_IMETHODIMP nsEudoraEditor::CanPaste(PRInt32 aSelectionType, PRBool *_retval)
 }
 
 
-#ifndef MOZILLA_1_9_2_BRANCH
-
 class nsITransferable;
 
 // void pasteTransferable(in nsITransferable aTransferable)
@@ -421,8 +419,6 @@ NS_IMETHODIMP nsEudoraEditor::CanPasteTransferable(nsITransferable *aTransferabl
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
-
-#endif
 
 
 // void selectAll ()
@@ -624,6 +620,11 @@ NS_IMETHODIMP nsEudoraEditor::DebugUnitTests(PRInt32 *outNumTests, PRInt32 *outN
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+//  readonly attribute boolean transactionManager
+NS_IMETHODIMP nsEudoraEditor::GetLastKeypressEventTrusted(PRBool *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // void pasteAsQuotation (in long aSelectionType)
 NS_IMETHODIMP nsEudoraEditor::PasteAsQuotation(PRInt32 aSelectionType)
@@ -1067,13 +1068,6 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetPrefix(nsAString & aPrefix)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
-NS_IMETHODIMP nsEudoraHTMLImageElement::SetPrefix(const nsAString & aPrefix)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-
 // readonly attribute DOMString localName
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetLocalName(nsAString & aLocalName)
 {
@@ -1264,6 +1258,30 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetClassName(const nsAString & aClassNam
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKey(nsAString &aAccessKey)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetAccessKey(const nsAString &aAccessKey)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::Blur()
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::Focus()
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::Click()
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // attribute DOMString name
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetName(nsAString & aName)
@@ -1297,8 +1315,47 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetAlt(nsAString & aAlt)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetAlt(const nsAString & aAlt)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// attribute DOMString lowsrc
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetLowsrc(nsAString &aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetLowsrc(const nsAString &aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// readonly attribute DOMString complete
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetComplete(PRBool *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// readonly attribute long naturalWidth
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalWidth(PRInt32 *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// readonly attribute long naturalHeight
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalHeight(PRInt32 *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// readonly attribute long x
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetX(PRInt32 *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+// readonly attribute long y
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetY(PRInt32 *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

@@ -57,7 +57,7 @@
 #include "nsITimer.h"
 #include "nsCRT.h"
 #include "nsIPrintSettings.h"
-#include "nsPropertyTable.h"
+#include "FramePropertyTable.h"
 #include "nsGkAtoms.h"
 #include "nsIDocument.h"
 #include "nsRefPtrHashtable.h"
@@ -72,6 +72,7 @@
 #include "nsContentUtils.h"
 #include "nsIWidget.h"
 #include "mozilla/TimeStamp.h"
+#include "nsIContent.h"
 
 class nsImageLoader;
 #ifdef IBMBIDI
@@ -82,7 +83,6 @@ struct nsRect;
 
 class imgIRequest;
 
-class nsIContent;
 class nsIFontMetrics;
 class nsIFrame;
 class nsFrameManager;
@@ -101,6 +101,12 @@ class gfxUserFontSet;
 class nsUserFontSet;
 struct nsFontFaceRuleContainer;
 class nsObjectFrame;
+class nsTransitionManager;
+#ifdef MOZ_CSS_ANIMATIONS
+class nsAnimationManager;
+#endif
+class nsRefreshDriver;
+class imgIContainer;
 
 #ifdef MOZ_REFLOW_PERF
 class nsIRenderingContext;
@@ -171,6 +177,8 @@ class nsRootPresContext;
 
 class nsPresContext : public nsIObserver {
 public:
+  typedef mozilla::FramePropertyTable FramePropertyTable;
+
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_NSIOBSERVER
   NS_DECL_AND_IMPL_ZEROING_OPERATOR_NEW
@@ -231,6 +239,13 @@ public:
 
   nsFrameManager* FrameManager()
     { return GetPresShell()->FrameManager(); } 
+
+  nsTransitionManager* TransitionManager() { return mTransitionManager; }
+#ifdef MOZ_CSS_ANIMATIONS
+  nsAnimationManager* AnimationManager() { return mAnimationManager; }
+#endif
+
+  nsRefreshDriver* RefreshDriver() { return mRefreshDriver; }
 #endif
 
   /**
@@ -270,7 +285,6 @@ public:
    * Access the image animation mode for this context
    */
   PRUint16     ImageAnimationMode() const { return mImageAnimationMode; }
-  void RestoreImageAnimationMode() { SetImageAnimationMode(mImageAnimationModePref); }
   virtual NS_HIDDEN_(void) SetImageAnimationModeExternal(PRUint16 aMode);
   NS_HIDDEN_(void) SetImageAnimationModeInternal(PRUint16 aMode);
 #ifdef _IMPL_NS_LAYOUT
@@ -364,7 +378,7 @@ public:
     // this switch statement away.
     switch (aPrefType) {
     case kPresContext_MinimumFontSize:
-      return mMinimumFontSize;
+      return mMinimumFontSizePref;
     case kPresContext_ScrollbarSide:
       return mPrefScrollbarSide;
     case kPresContext_BidiDirection:
@@ -532,7 +546,7 @@ public:
 
   nsIDeviceContext* DeviceContext() { return mDeviceContext; }
   nsIEventStateManager* EventStateManager() { return mEventManager; }
-  nsIAtom* GetLangGroup() { return mLangGroup; }
+  nsIAtom* GetLanguageFromCharset() { return mLanguage; }
 
   float TextZoom() { return mTextZoom; }
   void SetTextZoom(float aZoom) {
@@ -540,6 +554,23 @@ public:
       return;
 
     mTextZoom = aZoom;
+    if (HasCachedStyleData()) {
+      // Media queries could have changed since we changed the meaning
+      // of 'em' units in them.
+      MediaFeatureValuesChanged(PR_TRUE);
+      RebuildAllStyleData(NS_STYLE_HINT_REFLOW);
+    }
+  }
+
+  PRInt32 MinFontSize() const {
+    return NS_MAX(mMinFontSize, mMinimumFontSizePref);
+  }
+
+  void SetMinFontSize(PRInt32 aMinFontSize) {
+    if (aMinFontSize == mMinFontSize)
+      return;
+
+    mMinFontSize = aMinFontSize;
     if (HasCachedStyleData()) {
       // Media queries could have changed since we changed the meaning
       // of 'em' units in them.
@@ -557,7 +588,7 @@ public:
   
   static PRInt32 AppUnitsPerCSSPixel() { return nsIDeviceContext::AppUnitsPerCSSPixel(); }
   PRInt32 AppUnitsPerDevPixel() const  { return mDeviceContext->AppUnitsPerDevPixel(); }
-  PRInt32 AppUnitsPerInch() const      { return mDeviceContext->AppUnitsPerInch(); }
+  static PRInt32 AppUnitsPerCSSInch() { return nsIDeviceContext::AppUnitsPerCSSInch(); }
 
   static nscoord CSSPixelsToAppUnits(PRInt32 aPixels)
   { return NSIntPixelsToAppUnits(aPixels,
@@ -611,19 +642,19 @@ public:
                    AppUnitsToGfxUnits(aAppRect.width),
                    AppUnitsToGfxUnits(aAppRect.height)); }
 
-  nscoord TwipsToAppUnits(PRInt32 aTwips) const
-  { return NSToCoordRound(NS_TWIPS_TO_INCHES(aTwips) *
-                          mDeviceContext->AppUnitsPerInch()); }
+  static nscoord CSSTwipsToAppUnits(float aTwips)
+  { return NSToCoordRoundWithClamp(
+      nsIDeviceContext::AppUnitsPerCSSInch() * NS_TWIPS_TO_INCHES(aTwips)); }
 
   // Margin-specific version, since they often need TwipsToAppUnits
-  nsMargin TwipsToAppUnits(const nsIntMargin &marginInTwips) const
-  { return nsMargin(TwipsToAppUnits(marginInTwips.left), 
-                    TwipsToAppUnits(marginInTwips.top),
-                    TwipsToAppUnits(marginInTwips.right),
-                    TwipsToAppUnits(marginInTwips.bottom)); }
+  static nsMargin CSSTwipsToAppUnits(const nsIntMargin &marginInTwips)
+  { return nsMargin(CSSTwipsToAppUnits(float(marginInTwips.left)), 
+                    CSSTwipsToAppUnits(float(marginInTwips.top)),
+                    CSSTwipsToAppUnits(float(marginInTwips.right)),
+                    CSSTwipsToAppUnits(float(marginInTwips.bottom))); }
 
-  nscoord PointsToAppUnits(float aPoints) const
-  { return NSToCoordRound(aPoints * mDeviceContext->AppUnitsPerInch() /
+  static nscoord CSSPointsToAppUnits(float aPoints)
+  { return NSToCoordRound(aPoints * nsIDeviceContext::AppUnitsPerCSSInch() /
                           POINTS_PER_INCH_FLOAT); }
 
   nscoord RoundAppUnitsToNearestDevPixels(nscoord aAppUnits) const
@@ -635,6 +666,12 @@ public:
     PRUint8 mHorizontal, mVertical;
     ScrollbarStyles(PRUint8 h, PRUint8 v) : mHorizontal(h), mVertical(v) {}
     ScrollbarStyles() {}
+    PRBool operator==(const ScrollbarStyles& aStyles) const {
+      return aStyles.mHorizontal == mHorizontal && aStyles.mVertical == mVertical;
+    }
+    PRBool operator!=(const ScrollbarStyles& aStyles) const {
+      return aStyles.mHorizontal != mHorizontal || aStyles.mVertical != mVertical;
+    }
   };
   void SetViewportOverflowOverride(PRUint8 aX, PRUint8 aY)
   {
@@ -671,8 +708,8 @@ public:
    *
    *  @lina 07/12/2000
    */
-  virtual NS_HIDDEN_(PRBool) BidiEnabledExternal() const;
-  NS_HIDDEN_(PRBool) BidiEnabledInternal() const;
+  virtual PRBool BidiEnabledExternal() const { return BidiEnabledInternal(); }
+  PRBool BidiEnabledInternal() const { return Document()->GetBidiEnabled(); }
 #ifdef _IMPL_NS_LAYOUT
   PRBool BidiEnabled() const { return BidiEnabledInternal(); }
 #else
@@ -732,6 +769,10 @@ public:
    * include nsIDocument.
    */  
   NS_HIDDEN_(PRUint32) GetBidi() const;
+
+  PRUint32 GetBidiMemoryUsed();
+#else
+  PRUint32 GetBidiMemoryUsed() { return 0; }
 #endif // IBMBIDI
 
   /**
@@ -744,6 +785,8 @@ public:
   }
 
   PRBool IsRenderingOnlySelection() const { return mIsRenderingOnlySelection; }
+
+  NS_HIDDEN_(PRBool) IsTopLevelWindowInactive();
 
   /*
    * Obtain a native them for rendering our widgets (both form controls and html)
@@ -769,7 +812,7 @@ public:
   nsIPrintSettings* GetPrintSettings() { return mPrintSettings; }
 
   /* Accessor for table of frame properties */
-  nsPropertyTable* PropertyTable() { return &mPropertyTable; }
+  FramePropertyTable* PropertyTable() { return &mPropertyTable; }
 
   /* Helper function that ensures that this prescontext is shown in its
      docshell if it's the most recent prescontext for the docshell.  Returns
@@ -794,7 +837,20 @@ public:
                               mType == eContext_PrintPreview); }
 
   // Is this presentation in a chrome docshell?
-  PRBool IsChrome() const;
+  PRBool IsChrome() const
+  {
+    return mIsChromeIsCached ? mIsChrome : IsChromeSlow();
+  }
+
+  virtual void InvalidateIsChromeCacheExternal();
+  void InvalidateIsChromeCacheInternal() { mIsChromeIsCached = PR_FALSE; }
+#ifdef _IMPL_NS_LAYOUT
+  void InvalidateIsChromeCache()
+  { InvalidateIsChromeCacheInternal(); }
+#else
+  void InvalidateIsChromeCache()
+  { InvalidateIsChromeCacheExternal(); }
+#endif
 
   // Public API for native theme code to get style internals.
   virtual PRBool HasAuthorSpecifiedRules(nsIFrame *aFrame, PRUint32 ruleTypeMask) const;
@@ -822,15 +878,41 @@ public:
   // user font set is changed and fonts become unavailable).
   void UserFontSetUpdated();
 
-  PRBool MayHavePaintEventListener();
+  // Ensure that it is safe to hand out CSS rules outside the layout
+  // engine by ensuring that all CSS style sheets have unique inners
+  // and, if necessary, synchronously rebuilding all style data.
+  // Returns true on success and false on failure (not safe).
+  PRBool EnsureSafeToHandOutCSSRules();
+
   void NotifyInvalidation(const nsRect& aRect, PRUint32 aFlags);
+  void NotifyDidPaintForSubtree();
   void FireDOMPaintEvent();
+
   PRBool IsDOMPaintEventPending() {
     return !mInvalidateRequests.mRequests.IsEmpty();
   }
-
   void ClearMozAfterPaintEvents() {
     mInvalidateRequests.mRequests.Clear();
+  }
+
+  PRBool IsProcessingRestyles() const {
+    return mProcessingRestyles;
+  }
+
+  void SetProcessingRestyles(PRBool aProcessing) {
+    NS_ASSERTION(aProcessing != PRBool(mProcessingRestyles),
+                 "should never nest");
+    mProcessingRestyles = aProcessing;
+  }
+
+  PRBool IsProcessingAnimationStyleChange() const {
+    return mProcessingAnimationStyleChange;
+  }
+
+  void SetProcessingAnimationStyleChange(PRBool aProcessing) {
+    NS_ASSERTION(aProcessing != PRBool(mProcessingAnimationStyleChange),
+                 "should never nest");
+    mProcessingAnimationStyleChange = aProcessing;
   }
 
   /**
@@ -885,6 +967,51 @@ public:
    */
   PRBool HasPendingInterrupt() { return mHasPendingInterrupt; }
 
+  /**
+   * If we have a presshell, and if the given content's current
+   * document is the same as our presshell's document, return the
+   * content's primary frame.  Otherwise, return null.  Only use this
+   * if you care about which presshell the primary frame is in.
+   */
+  nsIFrame* GetPrimaryFrameFor(nsIContent* aContent) {
+    NS_PRECONDITION(aContent, "Don't do that");
+    if (GetPresShell() &&
+        GetPresShell()->GetDocument() == aContent->GetCurrentDoc()) {
+      return aContent->GetPrimaryFrame();
+    }
+    return nsnull;
+  }
+
+  void NotifyDestroyingFrame(nsIFrame* aFrame)
+  {
+    PropertyTable()->DeleteAllFor(aFrame);
+  }
+  inline void ForgetUpdatePluginGeometryFrame(nsIFrame* aFrame);
+
+  PRBool GetContainsUpdatePluginGeometryFrame()
+  {
+    return mContainsUpdatePluginGeometryFrame;
+  }
+
+  void SetContainsUpdatePluginGeometryFrame(PRBool aValue)
+  {
+    mContainsUpdatePluginGeometryFrame = aValue;
+  }
+
+  PRBool MayHaveFixedBackgroundFrames() { return mMayHaveFixedBackgroundFrames; }
+  void SetHasFixedBackgroundFrame() { mMayHaveFixedBackgroundFrames = PR_TRUE; }
+
+  PRUint32 EstimateMemoryUsed() {
+    PRUint32 result = 0;
+
+    result += sizeof(nsPresContext);
+    result += GetBidiMemoryUsed();
+
+    return result;
+  }
+
+  PRBool IsRootContentDocument();
+
 protected:
   friend class nsRunnableMethod<nsPresContext>;
   NS_HIDDEN_(void) ThemeChangedInternal();
@@ -908,6 +1035,10 @@ protected:
 
   NS_HIDDEN_(void) UpdateCharSet(const nsAFlatCString& aCharSet);
 
+  void AppUnitsPerDevPixelChanged();
+
+  PRBool MayHavePaintEventListener();
+
   void HandleRebuildUserFontSet() {
     mPostedFlushUserFontSet = PR_FALSE;
     FlushUserFontSet();
@@ -917,6 +1048,8 @@ protected:
 
   // Can't be inline because we can't include nsStyleSet.h.
   PRBool HasCachedStyleData();
+
+  PRBool IsChromeSlow() const;
 
   // IMPORTANT: The ownership implicit in the following member variables
   // has been explicitly checked.  If you add any members to this class,
@@ -932,17 +1065,29 @@ protected:
                                         // from gfx back to layout.
   nsIEventStateManager* mEventManager;  // [STRONG]
   nsILookAndFeel*       mLookAndFeel;   // [STRONG]
+  nsRefPtr<nsRefreshDriver> mRefreshDriver;
+  nsRefPtr<nsTransitionManager> mTransitionManager;
+#ifdef MOZ_CSS_ANIMATIONS
+  nsRefPtr<nsAnimationManager> mAnimationManager;
+#endif
   nsIAtom*              mMedium;        // initialized by subclass ctors;
                                         // weak pointer to static atom
 
   nsILinkHandler*       mLinkHandler;   // [WEAK]
-  nsIAtom*              mLangGroup;     // [STRONG]
+
+  // Formerly mLangGroup; moving from charset-oriented langGroup to
+  // maintaining actual language settings everywhere (see bug 524107).
+  // This may in fact hold a langGroup such as x-western rather than
+  // a specific language, however (e.g, if it is inferred from the
+  // charset rather than explicitly specified as a lang attribute).
+  nsIAtom*              mLanguage;      // [STRONG]
 
   nsRefPtrHashtable<nsVoidPtrHashKey, nsImageLoader>
                         mImageLoaders[IMAGE_LOAD_TYPE_COUNT];
 
   nsWeakPtr             mContainer;
 
+  PRInt32               mMinFontSize;   // Min font size, defaults to 0
   float                 mTextZoom;      // Text zoom, defaults to 1.0
   float                 mFullZoom;      // Page zoom, defaults to 1.0
 
@@ -950,7 +1095,7 @@ protected:
   PRInt32               mAutoQualityMinFontSizePixelsPref;
 
 #ifdef IBMBIDI
-  nsBidiPresUtils*      mBidiUtils;
+  nsAutoPtr<nsBidiPresUtils> mBidiUtils;
 #endif
 
   nsCOMPtr<nsITheme> mTheme;
@@ -958,7 +1103,7 @@ protected:
   nsCOMPtr<nsIPrintSettings> mPrintSettings;
   nsCOMPtr<nsITimer>    mPrefChangedTimer;
 
-  nsPropertyTable       mPropertyTable;
+  FramePropertyTable    mPropertyTable;
 
   nsInvalidateRequestList mInvalidateRequests;
 
@@ -968,7 +1113,7 @@ protected:
   nsTArray<nsFontFaceRuleContainer> mFontFaceRules;
   
   PRInt32               mFontScaler;
-  nscoord               mMinimumFontSize;
+  nscoord               mMinimumFontSizePref;
 
   nsRect                mVisibleArea;
   nsSize                mPageSize;
@@ -1010,6 +1155,7 @@ protected:
   unsigned              mUseDocumentFonts : 1;
   unsigned              mUseDocumentColors : 1;
   unsigned              mUnderlineLinks : 1;
+  unsigned              mSendAfterPaintToContent : 1;
   unsigned              mUseFocusColors : 1;
   unsigned              mFocusRingOnAnything : 1;
   unsigned              mFocusRingStyle : 1;
@@ -1028,6 +1174,7 @@ protected:
   unsigned              mPendingThemeChanged : 1;
   unsigned              mPendingMediaFeatureValuesChanged : 1;
   unsigned              mPrefChangePendingNeedsReflow : 1;
+  unsigned              mMayHaveFixedBackgroundFrames : 1;
 
   // Is the current mUserFontSet valid?
   unsigned              mUserFontSetDirty : 1;
@@ -1036,14 +1183,24 @@ protected:
   // Do we currently have an event posted to call FlushUserFontSet?
   unsigned              mPostedFlushUserFontSet : 1;
 
-  // resize reflow is supressed when the only change has been to zoom
+  // resize reflow is suppressed when the only change has been to zoom
   // the document rather than to change the document's dimensions
   unsigned              mSupressResizeReflow : 1;
 
-#ifdef IBMBIDI
   unsigned              mIsVisual : 1;
 
-#endif
+  unsigned              mProcessingRestyles : 1;
+  unsigned              mProcessingAnimationStyleChange : 1;
+
+  unsigned              mContainsUpdatePluginGeometryFrame : 1;
+  unsigned              mFireAfterPaintEvents : 1;
+
+  // Cache whether we are chrome or not because it is expensive.  
+  // mIsChromeIsCached tells us if mIsChrome is valid or we need to get the
+  // value the slow way.
+  mutable unsigned      mIsChromeIsCached : 1;
+  mutable unsigned      mIsChrome : 1;
+
 #ifdef DEBUG
   PRBool                mInitialized;
 #endif
@@ -1083,6 +1240,20 @@ public:
   virtual ~nsRootPresContext();
 
   /**
+   * Ensure that NotifyDidPaintForSubtree is eventually called on this
+   * object after a timeout.
+   */
+  void EnsureEventualDidPaintEvent();
+
+  void CancelDidPaintTimer()
+  {
+    if (mNotifyDidPaintTimer) {
+      mNotifyDidPaintTimer->Cancel();
+      mNotifyDidPaintTimer = nsnull;
+    }
+  }
+
+  /**
    * Registers a plugin to receive geometry updates (position and clip
    * region) so it can update its widget.
    * Callers must call UnregisterPluginForGeometryUpdates before
@@ -1099,10 +1270,9 @@ public:
   /**
    * Iterate through all plugins that are registered for geometry updates
    * and update their position and clip region to match the current frame
-   * tree. Only frames at or under aChangedRoot can have changed their
-   * geometry.
+   * tree.
    */
-  void UpdatePluginGeometry(nsIFrame* aChangedRoot);
+  void UpdatePluginGeometry();
 
   /**
    * Iterate through all plugins that are registered for geometry updates
@@ -1123,9 +1293,68 @@ public:
 
   virtual PRBool IsRoot() { return PR_TRUE; }
 
+  /**
+   * This method is called off an event to force the plugin geometry to
+   * be updated. First we try to paint, since updating plugin geometry
+   * during paint is best for keeping plugins in sync with content.
+   * But we also force geometry updates in case painting doesn't work.
+   */
+  void SynchronousPluginGeometryUpdate();
+
+  /**
+   * Call this after reflow and scrolling to ensure that the geometry
+   * of any windowed plugins is updated. aFrame is the root of the
+   * frame subtree whose geometry has changed.
+   */
+  void RequestUpdatePluginGeometry(nsIFrame* aFrame);
+
+  /**
+   * Call this when a frame is being destroyed and
+   * mContainsUpdatePluginGeometryFrame is set in the frame's prescontext.
+   */
+  void RootForgetUpdatePluginGeometryFrame(nsIFrame* aFrame);
+
+  /**
+   * Call this when a document is going to no longer be valid for plugin updates
+   * (say by going into the bfcache). If mContainsUpdatePluginGeometryFrame is
+   * set in the prescontext then it will be cleared along with
+   * mUpdatePluginGeometryForFrame.
+   */
+  void RootForgetUpdatePluginGeometryFrameForPresContext(nsPresContext* aPresContext);
+
+  /**
+   * Increment DOM-modification generation counter to indicate that
+   * the DOM has changed in a way that might lead to style changes/
+   * reflows/frame creation and destruction.
+   */
+  void IncrementDOMGeneration() { mDOMGeneration++; }
+
+  /**
+   * Get the current DOM generation counter.
+   */
+  PRUint32 GetDOMGeneration() { return mDOMGeneration; }
+
 private:
+  nsCOMPtr<nsITimer> mNotifyDidPaintTimer;
   nsTHashtable<nsPtrHashKey<nsObjectFrame> > mRegisteredPlugins;
+  // if mNeedsToUpdatePluginGeometry is set, then this is the frame to
+  // use as the root of the subtree to search for plugin updates, or
+  // null to use the root frame of this prescontext
+  nsIFrame* mUpdatePluginGeometryForFrame;
+  PRUint32 mDOMGeneration;
+  PRPackedBool mNeedsToUpdatePluginGeometry;
 };
+
+inline void
+nsPresContext::ForgetUpdatePluginGeometryFrame(nsIFrame* aFrame)
+{
+  if (mContainsUpdatePluginGeometryFrame) {
+    nsRootPresContext* rootPC = GetRootPresContext();
+    if (rootPC) {
+      rootPC->RootForgetUpdatePluginGeometryFrame(aFrame);
+    }
+  }
+}
 
 #ifdef DEBUG
 

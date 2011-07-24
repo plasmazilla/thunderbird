@@ -38,10 +38,16 @@
 function test() {
   let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
                getService(Ci.mozIJSSubScriptLoader);
-  loader.loadSubScript("chrome://mochikit/content/browser/browser/components/preferences/tests/privacypane_tests.js", this);
+
+  let rootDir = getRootDirectory(gTestPath);
+  let jar = getJar(rootDir);
+  if (jar) {
+    let tmpdir = extractJarToTmp(jar);
+    rootDir = "file://" + tmpdir.path + '/';
+  }
+  loader.loadSubScript(rootDir + "privacypane_tests.js", this);
 
   run_test_subset([
-    test_locbar_emptyText,
     test_pane_visibility,
     test_dependent_elements,
     test_dependent_cookie_elements,

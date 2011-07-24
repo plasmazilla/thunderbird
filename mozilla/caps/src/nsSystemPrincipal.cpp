@@ -49,7 +49,9 @@
 #include "nsString.h"
 #include "nsIClassInfoImpl.h"
 
-
+NS_IMPL_CLASSINFO(nsSystemPrincipal, NULL,
+                  nsIClassInfo::SINGLETON | nsIClassInfo::MAIN_THREAD_ONLY,
+                  NS_SYSTEMPRINCIPAL_CID)
 NS_IMPL_QUERY_INTERFACE2_CI(nsSystemPrincipal,
                             nsIPrincipal,
                             nsISerializable)
@@ -61,7 +63,7 @@ NS_IMETHODIMP_(nsrefcnt)
 nsSystemPrincipal::AddRef()
 {
   NS_PRECONDITION(PRInt32(mJSPrincipals.refcount) >= 0, "illegal refcnt");
-  nsrefcnt count = PR_AtomicIncrement((PRInt32 *)&mJSPrincipals.refcount);
+  nsrefcnt count = PR_ATOMIC_INCREMENT(&mJSPrincipals.refcount);
   NS_LOG_ADDREF(this, count, "nsSystemPrincipal", sizeof(*this));
   return count;
 }
@@ -70,10 +72,10 @@ NS_IMETHODIMP_(nsrefcnt)
 nsSystemPrincipal::Release()
 {
   NS_PRECONDITION(0 != mJSPrincipals.refcount, "dup release");
-  nsrefcnt count = PR_AtomicDecrement((PRInt32 *)&mJSPrincipals.refcount);
+  nsrefcnt count = PR_ATOMIC_DECREMENT(&mJSPrincipals.refcount);
   NS_LOG_RELEASE(this, count, "nsSystemPrincipal");
   if (count == 0) {
-    NS_DELETEXPCOM(this);
+    delete this;
   }
 
   return count;
@@ -187,7 +189,7 @@ nsSystemPrincipal::GetURI(nsIURI** aURI)
 NS_IMETHODIMP 
 nsSystemPrincipal::GetOrigin(char** aOrigin)
 {
-    *aOrigin = ToNewCString(NS_LITERAL_CSTRING("[System]"));
+    *aOrigin = ToNewCString(NS_LITERAL_CSTRING("[System Principal]"));
     return *aOrigin ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
@@ -221,6 +223,20 @@ nsSystemPrincipal::GetHasCertificate(PRBool* aResult)
 {
     *aResult = PR_FALSE;
     return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSystemPrincipal::GetCsp(nsIContentSecurityPolicy** aCsp)
+{
+  *aCsp = nsnull;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsSystemPrincipal::SetCsp(nsIContentSecurityPolicy* aCsp)
+{
+  // CSP on a null principal makes no sense
+  return NS_OK;
 }
 
 NS_IMETHODIMP

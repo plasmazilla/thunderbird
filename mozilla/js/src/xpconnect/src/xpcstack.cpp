@@ -141,16 +141,16 @@ XPCJSStackFrame::CreateStack(JSContext* cx, JSStackFrame* fp,
     {
         NS_ADDREF(self);
 
-        if(fp->down)
+        if(fp->prev())
         {
-            if(NS_FAILED(CreateStack(cx, fp->down,
+            if(NS_FAILED(CreateStack(cx, fp->prev(),
                          (XPCJSStackFrame**) &self->mCaller)))
                 failed = JS_TRUE;
         }
 
         if(!failed)
         {
-            if (JS_IsNativeFrame(cx, fp))
+            if (!JS_IsScriptFrame(cx, fp))
                 self->mLanguage = nsIProgrammingLanguage::CPLUSPLUS;
             else
                 self->mLanguage = nsIProgrammingLanguage::JAVASCRIPT;
@@ -160,26 +160,37 @@ XPCJSStackFrame::CreateStack(JSContext* cx, JSStackFrame* fp,
                 jsbytecode* pc = JS_GetFramePC(cx, fp);
                 if(script && pc)
                 {
-                    const char* filename = JS_GetScriptFilename(cx, script);
-                    if(filename)
+                    JS::AutoEnterScriptCompartment ac;
+                    if(ac.enter(cx, script))
                     {
-                        self->mFilename = (char*)
-                                nsMemory::Clone(filename,
-                                        sizeof(char)*(strlen(filename)+1));
-                    }
-
-                    self->mLineno = (PRInt32) JS_PCToLineNumber(cx, script, pc);
-
-
-                    JSFunction* fun = JS_GetFrameFunction(cx, fp);
-                    if(fun)
-                    {
-                        const char* funname = JS_GetFunctionName(fun);
-                        if(funname)
+                        const char* filename = JS_GetScriptFilename(cx, script);
+                        if(filename)
                         {
-                        self->mFunname = (char*)
-                                nsMemory::Clone(funname,
-                                        sizeof(char)*(strlen(funname)+1));
+                            self->mFilename = (char*)
+                                    nsMemory::Clone(filename,
+                                            sizeof(char)*(strlen(filename)+1));
+                        }
+
+                        self->mLineno = (PRInt32) JS_PCToLineNumber(cx, script, pc);
+
+
+                        JSFunction* fun = JS_GetFrameFunction(cx, fp);
+                        if(fun)
+                        {
+                            JSString *funid = JS_GetFunctionId(fun);
+                            if(funid)
+                            {
+                                size_t length = JS_GetStringEncodingLength(cx, funid);
+                                if(length != size_t(-1))
+                                {
+                                    self->mFunname = static_cast<char *>(nsMemory::Alloc(length + 1));
+                                    if(self->mFunname)
+                                    {
+                                        JS_EncodeStringToBuffer(funid, self->mFunname, length);
+                                        self->mFunname[length] = '\0';
+                                    }
+                                }
+                            }
                         }
                     }
                 }

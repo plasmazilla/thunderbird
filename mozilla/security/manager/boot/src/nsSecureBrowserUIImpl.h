@@ -42,6 +42,7 @@
 #ifndef nsSecureBrowserUIImpl_h_
 #define nsSecureBrowserUIImpl_h_
 
+#include "mozilla/Monitor.h"
 #include "nsCOMPtr.h"
 #include "nsXPIDLString.h"
 #include "nsString.h"
@@ -60,7 +61,6 @@
 #include "nsISSLStatusProvider.h"
 #include "nsIAssociatedContentSecurity.h"
 #include "pldhash.h"
-#include "prmon.h"
 #include "nsINetUtil.h"
 
 class nsITransportSecurityInfo;
@@ -93,10 +93,11 @@ public:
 
   NS_IMETHOD Notify(nsIDOMHTMLFormElement* formNode, nsIDOMWindowInternal* window,
                     nsIURI *actionURL, PRBool* cancelSubmit);
+  NS_IMETHOD NotifyInvalidSubmit(nsIDOMHTMLFormElement* formNode,
+                                 nsIArray* invalidElements) { return NS_OK; };
   
 protected:
-  PRMonitor *mMonitor;
-  PRInt32 mOnStateLocationChangeReentranceDetection;
+  mozilla::Monitor mMonitor;
   
   nsWeakPtr mWindow;
   nsCOMPtr<nsINetUtil> mIOService;
@@ -127,6 +128,10 @@ protected:
   PRInt32 mSubRequestsLowSecurity;
   PRInt32 mSubRequestsBrokenSecurity;
   PRInt32 mSubRequestsNoSecurity;
+#ifdef DEBUG
+  /* related to mMonitor */
+  PRInt32 mOnStateLocationChangeReentranceDetection;
+#endif
 
   static already_AddRefed<nsISupports> ExtractSecurityInfo(nsIRequest* aRequest);
   static nsresult MapInternalToExternalState(PRUint32* aState, lockIconState lock, PRBool ev);

@@ -39,14 +39,13 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsMappedAttributes.h"
 
 class nsHTMLDivElement : public nsGenericHTMLElement,
                          public nsIDOMHTMLDivElement
 {
 public:
-  nsHTMLDivElement(nsINodeInfo *aNodeInfo);
+  nsHTMLDivElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLDivElement();
 
   // nsISupports
@@ -71,13 +70,15 @@ public:
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Div)
 
 
-nsHTMLDivElement::nsHTMLDivElement(nsINodeInfo *aNodeInfo)
+nsHTMLDivElement::nsHTMLDivElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -90,7 +91,7 @@ nsHTMLDivElement::~nsHTMLDivElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLDivElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLDivElement, nsGenericElement) 
 
-
+DOMCI_NODE_DATA(HTMLDivElement, nsHTMLDivElement)
 
 // QueryInterface implementation for nsHTMLDivElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLDivElement)
@@ -115,10 +116,10 @@ nsHTMLDivElement::ParseAttribute(PRInt32 aNamespaceID,
     if (mNodeInfo->Equals(nsGkAtoms::marquee)) {
       if ((aAttribute == nsGkAtoms::width) ||
           (aAttribute == nsGkAtoms::height)) {
-        return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+        return aResult.ParseSpecialIntValue(aValue);
       }
       if (aAttribute == nsGkAtoms::bgcolor) {
-        return aResult.ParseColor(aValue, GetOwnerDoc());
+        return aResult.ParseColor(aValue);
       }
       if ((aAttribute == nsGkAtoms::hspace) ||
           (aAttribute == nsGkAtoms::vspace)) {
@@ -185,3 +186,4 @@ nsHTMLDivElement::GetAttributeMappingFunction() const
   }  
   return nsGenericHTMLElement::GetAttributeMappingFunction();
 }
+

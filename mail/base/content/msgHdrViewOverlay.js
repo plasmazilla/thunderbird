@@ -169,7 +169,7 @@ function createHeaderEntry(prefix, headerListInfo)
 
   // stash this so that the <mail-multi-emailheaderfield/> binding can
   // later attach it to any <mail-emailaddress> tags it creates for later
-  // extraction and use by AddExtraAddressProcessing.
+  // extraction and use by UpdateEmailNodeDetails.
   this.enclosingBox.headerName = headerListInfo.name;
 
 }
@@ -275,24 +275,39 @@ function OnLoadMsgHeaderPane()
   var headerViewElement = document.getElementById("msgHeaderView");
   headerViewElement.dispatchEvent(event);
 
-  var toolbox = document.getElementById("header-view-toolbox");
+  initInlineToolbox("header-view-toolbox", "header-view-toolbar",
+                    "CustomizeHeaderToolbar");
+  initInlineToolbox("attachment-view-toolbox", "attachment-view-toolbar",
+                    "CustomizeAttachmentToolbar");
+}
+
+/**
+ * Initialize an inline toolbox and its toolbar to have the appropriate
+ * attributes necessary for customization and persistence.
+ *
+ * @param toolboxId the id for the toolbox to initialize
+ * @param toolbarId the id for the toolbar to initialize
+ * @param popupId the id for the menupopup to initialize
+ */
+function initInlineToolbox(toolboxId, toolbarId, popupId) {
+  let toolbox = document.getElementById(toolboxId);
   toolbox.customizeDone = function(aEvent) {
-    MailToolboxCustomizeDone(aEvent, "CustomizeHeaderToolbar");
+    MailToolboxCustomizeDone(aEvent, popupId);
   };
 
-  var toolbarset = document.getElementById('customToolbars');
+  let toolbarset = document.getElementById("customToolbars");
   toolbox.toolbarset = toolbarset;
 
   // Check whether we did an upgrade to a customizable header pane.
   // If yes, set the header pane toolbar mode to icons besides text
-  var toolbar = document.getElementById("header-view-toolbar");
+  let toolbar = document.getElementById(toolbarId);
   if (toolbox && toolbar) {
     if (!toolbox.getAttribute("mode")) {
 
       /* set toolbox attributes to default values */
-      var mode = toolbox.getAttribute("defaultmode");
-      var align = toolbox.getAttribute("defaultlabelalign");
-      var iconsize = toolbox.getAttribute("defaulticonsize");
+      let mode = toolbox.getAttribute("defaultmode");
+      let align = toolbox.getAttribute("defaultlabelalign");
+      let iconsize = toolbox.getAttribute("defaulticonsize");
       toolbox.setAttribute("mode", mode);
       toolbox.setAttribute("labelalign", align);
       toolbox.setAttribute("iconsize", iconsize);
@@ -493,7 +508,8 @@ var messageHeaderSink = {
             this.mDummyMsgHeader.messageId = header.headerValue;
           else if (lowerCaseHeaderName == "list-post")
             this.mDummyMsgHeader.listPost = header.headerValue;
-
+          else if (lowerCaseHeaderName == "delivered-to")
+            this.mDummyMsgHeader.deliveredTo = header.headerValue;
         }
         // according to RFC 2822, certain headers
         // can occur "unlimited" times
@@ -559,15 +575,29 @@ var messageHeaderSink = {
 
       if (!this.mSaveHdr)
         this.mSaveHdr = messenger.messageServiceFromURI(uri).messageURIToMsgHdr(uri);
-      if (contentType == "text/x-vcard")
-      {
+      if (contentType == "text/x-vcard") {
         var inlineAttachments = pref.getBoolPref("mail.inline_attachments");
         var displayHtmlAs = pref.getIntPref("mailnews.display.html_as");
         if (inlineAttachments && !displayHtmlAs)
           return;
       }
 
-      currentAttachments.push (new createNewAttachmentInfo(contentType, url, displayName, uri, isExternalAttachment));
+      var size = null;
+      if (isExternalAttachment) {
+        var fileHandler = Components.classes["@mozilla.org/network/io-service;1"]
+                                    .getService(Components.interfaces.nsIIOService)
+                                    .getProtocolHandler("file")
+                                    .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+        try {
+          size = fileHandler.getFileFromURLSpec(url).fileSize;
+        }
+        catch(e) {
+          dump("Couldn't open external attachment!");
+        }
+      }
+
+      currentAttachments.push (new createNewAttachmentInfo(contentType, url, displayName,
+                                                           uri, isExternalAttachment, size));
       // If we have an attachment, set the nsMsgMessageFlags.Attachment flag
       // on the hdr to cause the "message with attachment" icon to show up
       // in the thread pane.
@@ -584,20 +614,46 @@ var messageHeaderSink = {
       }
     },
 
+    addAttachmentField: function(field, value)
+    {
+      let last = currentAttachments[currentAttachments.length-1];
+      if (field == "X-Mozilla-PartSize" && !last.isExternalAttachment &&
+          last.contentType != "text/x-moz-deleted") {
+        let size = parseInt(value);
+
+        // libmime returns -1 if it never managed to figure out the size.
+        if (size != -1)
+          last.size = size;
+      }
+      else if (field == "X-Mozilla-PartDownloaded" && value == "0") {
+        // We haven't downloaded the attachment, so any size we get from
+        // libmime is almost certainly inaccurate. Just get rid of it. (Note:
+        // this relies on the fact that PartDownloaded comes after PartSize from
+        // the MIME emitter.)
+        last.size = null;
+      }
+    },
+
     onEndAllAttachments: function()
     {
       displayAttachmentsForExpandedView();
 
-      gMessageDisplay.onLoadCompleted();
-
-      for (index in gMessageListeners) {
-        if ("onEndAttachments" in gMessageListeners[index])
-          gMessageListeners[index].onEndAttachments();
+      for each (let [, listener] in Iterator(gMessageListeners)) {
+        if ("onEndAttachments" in listener)
+          listener.onEndAttachments();
       }
     },
 
+    /**
+     * This event is generated by nsMsgStatusFeedback when it gets an
+     * OnStateChange event for STATE_STOP.  This is the same event that
+     * generates the "msgLoaded" property flag change event.  This best
+     * corresponds to the end of the streaming process.
+     */
     onEndMsgDownload: function(url)
     {
+      gMessageDisplay.onLoadCompleted();
+
       // if we don't have any attachments, turn off the attachments flag
       if (!this.mSaveHdr)
       {
@@ -734,9 +790,8 @@ function OnTagsChange()
 // table
 function ClearHeaderView(headerTable)
 {
-  for (index in headerTable)
+  for each (let [, headerEntry] in Iterator(headerTable))
   {
-     var headerEntry = headerTable[index];
      if (headerEntry.enclosingBox.clearHeaderValues)
      {
        headerEntry.enclosingBox.clearHeaderValues();
@@ -749,20 +804,16 @@ function ClearHeaderView(headerTable)
 // make sure that any valid header entry in the table is collapsed
 function hideHeaderView(headerTable)
 {
-  for (index in headerTable)
-  {
-    headerTable[index].enclosingRow.collapsed = true;
-  }
+  for each (let [, headerEntry] in Iterator(headerTable))
+    headerEntry.enclosingRow.collapsed = true;
 }
 
 // make sure that any valid header entry in the table specified is
 // visible
 function showHeaderView(headerTable)
 {
-  var headerEntry;
-  for (index in headerTable)
+  for each (let [, headerEntry] in Iterator(headerTable))
   {
-    headerEntry = headerTable[index];
     if (headerEntry.valid)
     {
       headerEntry.enclosingRow.collapsed = false;
@@ -780,9 +831,9 @@ function EnsureMinimumNumberOfHeaders (headerTable)
     return;
 
   var numVisibleHeaders = 0;
-  for (index in headerTable)
+  for each (let [, headerEntry] in Iterator(headerTable))
   {
-    if (headerTable[index].valid)
+    if (headerEntry.valid)
       numVisibleHeaders ++;
   }
 
@@ -792,11 +843,11 @@ function EnsureMinimumNumberOfHeaders (headerTable)
     var numEmptyHeaders = gMinNumberOfHeaders - numVisibleHeaders;
 
     // we may have already dynamically created our empty rows and we just need to make them visible
-    for (index in headerTable)
+    for each (let [index, headerEntry] in Iterator(headerTable))
     {
       if (index.indexOf("Dummy-Header") == 0 && numEmptyHeaders)
       {
-        headerTable[index].valid = true;
+        headerEntry.valid = true;
         numEmptyHeaders--;
       }
     }
@@ -920,9 +971,8 @@ function createNewHeaderView(headerName, label)
  */
 function RemoveNewHeaderViews(aHeaderTable)
 {
-  for (var index in aHeaderTable)
+  for each (let [, headerEntry] in Iterator(aHeaderTable))
   {
-    var headerEntry = aHeaderTable[index];
     if (headerEntry.isNewHeader)
       headerEntry.enclosingRow.parentNode.removeChild(headerEntry.enclosingRow);
   }
@@ -1110,83 +1160,80 @@ function OutputEmailAddresses(headerEntry, emailAddresses)
 
 function updateEmailAddressNode(emailAddressNode, address)
 {
-  emailAddressNode.setAttribute("label", address.fullAddress || address.displayName);
   emailAddressNode.setAttribute("emailAddress", address.emailAddress);
   emailAddressNode.setAttribute("fullAddress", address.fullAddress);
   emailAddressNode.setAttribute("displayName", address.displayName);
   emailAddressNode.removeAttribute("tooltiptext");
 
-  AddExtraAddressProcessing(address.emailAddress, emailAddressNode);
+  UpdateEmailNodeDetails(address.emailAddress, emailAddressNode);
 }
 
-function AddExtraAddressProcessing(emailAddress, documentNode)
+/**
+ * Take an email address and compose a sensible display name based on the
+ * header display name and/or the display name from the address book. If no
+ * appropriate name can be made (e.g. there is no card for this address),
+ * returns |null|.
+ *
+ * @param aEmailAddress       the email address to format
+ * @param aHeaderDisplayName  the display name from the header, if any
+ * @param aContext            the field being formatted (e.g. "to", "from")
+ * @param aCard               the address book card, if any
+ * @return The formatted display name, or null
+ */
+function FormatDisplayName(aEmailAddress, aHeaderDisplayName, aContext, aCard)
 {
-  // Always get the card details so we can show add or edit menu options.
-  var cardDetails = getCardForEmail(emailAddress);
-  documentNode.cardDetails = cardDetails;
-
-  if (!cardDetails.card) {
-    documentNode.setAttribute("hascard", "false");
-    documentNode.setAttribute("tooltipstar",
-      document.getElementById("addToAddressBookItem").label);
-  }
-  else {
-    documentNode.setAttribute("hascard", "true");
-    documentNode.setAttribute("tooltipstar",
-      document.getElementById("editContactItem").label);
-  }
-
-  if (!gShowCondensedEmailAddresses)
-    return;
+  var displayName = null;
+  var identity = getBestIdentity(accountManager.allIdentities, aEmailAddress);
+  var card = aCard || getCardForEmail(aEmailAddress).card;
 
   // If this address is one of the user's identities...
-  var displayName;
-  var identity = getBestIdentity(accountManager.allIdentities);
-  if (emailAddress == identity.email) {
+  if (aEmailAddress == identity.email) {
 
     // ...pick a localized version of the word "You" appropriate to this
     // specific header; fall back to the version used by the "to" header
     // if nothing else is available.
-    let headerName = documentNode.getAttribute("headerName");
     try {
-      displayName = gMessengerBundle.getString("header" + headerName +
+      displayName = gMessengerBundle.getString("header" + aContext +
                                                "FieldYou");
     } catch (ex) {
       displayName = gMessengerBundle.getString("headertoFieldYou");
     }
-  }
-  else
-  {
-    if (!cardDetails.card)
-      return;
-    displayName = cardDetails.card.displayName;
+
+    // Make sure we have an unambiguous name if there are multiple identities
+    if (accountManager.allIdentities.Count() > 1)
+      displayName += " <"+identity.email+">";
   }
 
-  if (!displayName)
-    return;
+  // If we don't have a card, refuse to generate a display name. Places calling
+  // this are then responsible for falling back to something else (e.g. the
+  // value from the message header).
+  if (card) {
+    if (!displayName)
+      displayName = aHeaderDisplayName;
 
-  documentNode.setAttribute("label", displayName);
-  documentNode.setAttribute("tooltiptext", emailAddress);
+    // getProperty may return a "1" or "0" string, we want a boolean
+    if (!displayName || card.getProperty("PreferDisplayName", true) != false)
+      displayName = card.displayName;
+  }
+
+  return displayName;
 }
 
 function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
   // If we haven't been given specific details, search for a card.
   var cardDetails = aCardDetails ? aCardDetails :
                                    getCardForEmail(aEmailAddress);
-  var displayName = null;
-
   aDocumentNode.cardDetails = cardDetails;
 
-  if (cardDetails.card) {
-    displayName = cardDetails.card.displayName;
-    aDocumentNode.setAttribute("hascard", "true");
-    aDocumentNode.setAttribute("tooltipstar",
-                               document.getElementById("editContactItem").label);
-  }
-  else {
+  if (!cardDetails.card) {
     aDocumentNode.setAttribute("hascard", "false");
     aDocumentNode.setAttribute("tooltipstar",
-                               document.getElementById("addToAddressBookItem").label);
+      document.getElementById("addToAddressBookItem").label);
+  }
+  else {
+    aDocumentNode.setAttribute("hascard", "true");
+    aDocumentNode.setAttribute("tooltipstar",
+      document.getElementById("editContactItem").label);
   }
 
   // When we are adding cards, we don't want to move the display around if the
@@ -1195,14 +1242,19 @@ function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
   if (aDocumentNode.hasAttribute("updatingUI"))
     return;
 
+  var displayName = FormatDisplayName(aEmailAddress,
+                                      aDocumentNode.getAttribute("displayName"),
+                                      aDocumentNode.getAttribute("headerName"),
+                                      aDocumentNode.cardDetails.card);
+
   if (gShowCondensedEmailAddresses && displayName) {
     aDocumentNode.setAttribute("label", displayName);
     aDocumentNode.setAttribute("tooltiptext", aEmailAddress);
   }
   else
     aDocumentNode.setAttribute("label",
-                              aDocumentNode.getAttribute("fullAddress") ||
-                              aDocumentNode.getAttribute("displayName"));
+      aDocumentNode.getAttribute("fullAddress") ||
+      aDocumentNode.getAttribute("displayName"));
 }
 
 function UpdateExtraAddressProcessing(aAddressData, aDocumentNode, aAction,
@@ -1214,7 +1266,10 @@ function UpdateExtraAddressProcessing(aAddressData, aDocumentNode, aAction,
         aDocumentNode.cardDetails.card &&
         aItem.hasEmailAddress(aAddressData.emailAddress)) {
       aDocumentNode.cardDetails.card = aItem;
-      var displayName = aItem.displayName;
+      var displayName = FormatDisplayName(aAddressData.emailAddress,
+                                          aDocumentNode.getAttribute("displayName"),
+                                          aDocumentNode.getAttribute("headerName"),
+                                          aDocumentNode.cardDetails.card);
 
       if (gShowCondensedEmailAddresses && displayName)
         aDocumentNode.setAttribute("label", displayName);
@@ -1356,26 +1411,34 @@ function onClickEmailStar(event, emailAddressNode)
     AddContact(emailAddressNode);
 }
 
+/**
+ * Takes the email address node, adds a new contact from the node's
+ * displayName and emailAddress attributes to the personal address book.
+ * @param emailAddressNode a node with displayName and emailAddress attributes
+ */
 function AddContact(emailAddressNode)
 {
-  if (emailAddressNode) {
-    // When we collect an address, it updates the AB which sends out
-    // notifications to update the UI. In the add case we don't want to update
-    // the UI so that accidentally double-clicking on the star doesn't lead
-    // to something strange (i.e star would be moved out from underneath,
-    // leaving something else there).
-    emailAddressNode.setAttribute("updatingUI", true);
+  // When we collect an address, it updates the AB which sends out
+  // notifications to update the UI. In the add case we don't want to update
+  // the UI so that accidentally double-clicking on the star doesn't lead
+  // to something strange (i.e star would be moved out from underneath,
+  // leaving something else there).
+  emailAddressNode.setAttribute("updatingUI", true);
 
-    // Just save the new node straight away
-    Components.classes["@mozilla.org/addressbook/services/addressCollector;1"]
-      .getService(Components.interfaces.nsIAbAddressCollector)
-      .collectSingleAddress(emailAddressNode.getAttribute("emailAddress"),
-                            emailAddressNode.getAttribute("displayName"), true,
-                            Components.interfaces.nsIAbPreferMailFormat.unknown,
-                            true);
+  let abManager = Components.classes["@mozilla.org/abmanager;1"]
+                            .getService(Components.interfaces.nsIAbManager);
+  const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
+  let addressBook = abManager.getDirectory(kPersonalAddressbookURI);
 
-    emailAddressNode.removeAttribute("updatingUI");
-  }
+  let card = Components.classes["@mozilla.org/addressbook/cardproperty;1"]
+                       .createInstance(Components.interfaces.nsIAbCard);
+  card.displayName = emailAddressNode.getAttribute("displayName");
+  card.primaryEmail = emailAddressNode.getAttribute("emailAddress");
+
+  // Just save the new node straight away.
+  addressBook.addCard(card);
+
+  emailAddressNode.removeAttribute("updatingUI");
 }
 
 function EditContact(emailAddressNode)
@@ -1545,15 +1608,27 @@ function CopyNewsgroupURL(newsgroupNode)
   clipboard.copyString(decodeURI(url));
 }
 
-// createnewAttachmentInfo --> constructor method for creating new attachment object which goes into the
-// data attachment array.
-function createNewAttachmentInfo(contentType, url, displayName, uri, isExternalAttachment)
+/**
+ * Create a new attachment object which goes into the data attachment array.
+ * This method checks whether the passed attachment is empty or not.
+ *
+ * @param contentType The attachment's mimetype
+ * @param url The URL for the attachment
+ * @param displayName The name to be displayed for this attachment (usually the
+          filename)
+ * @param uri The URI for the message containing the attachment
+ * @param isExternalAttachment True if the attachment has been detached
+ * @param size The size in bytes of the attachment
+ */
+function createNewAttachmentInfo(contentType, url, displayName, uri,
+                                 isExternalAttachment, size)
 {
   this.contentType = contentType;
   this.url = url;
   this.displayName = displayName;
   this.uri = uri;
   this.isExternalAttachment = isExternalAttachment;
+  this.size = size;
 }
 
 function saveAttachment(aAttachment)
@@ -1650,19 +1725,39 @@ function ContentTypeIsSMIME(contentType)
   return /application\/(x-)?pkcs7-(mime|signature)/.test(contentType);
 }
 
+/**
+ * Set up the attachment context menu, showing or hiding the appropriate menu
+ * items.
+ */
 function onShowAttachmentContextMenu()
 {
-  // if no attachments are selected, disable the Open and Save...
   var attachmentList = document.getElementById('attachmentList');
-  var selectedAttachments = attachmentList.selectedItems;
+  var attachmentName = document.getElementById('attachmentName');
+  var contextMenu = document.getElementById('attachmentListContext');
+
   var openMenu = document.getElementById('context-openAttachment');
   var saveMenu = document.getElementById('context-saveAttachment');
+  var menuSeparator = document.getElementById('context-menu-separator');
   var detachMenu = document.getElementById('context-detachAttachment');
   var deleteMenu = document.getElementById('context-deleteAttachment');
-  var menuSeparator = document.getElementById('context-menu-separator');
+
+  var openAllMenu = document.getElementById('context-openAllAttachments');
   var saveAllMenu = document.getElementById('context-saveAllAttachments');
+  var menuSeparatorAll = document.getElementById('context-menu-separator-all');
   var detachAllMenu = document.getElementById('context-detachAllAttachments');
   var deleteAllMenu = document.getElementById('context-deleteAllAttachments');
+
+  // If we opened the context menu from the attachmentName label, just grab
+  // the first (and only) attachment as our "selected" attachments.
+  var selectedAttachments;
+  if (contextMenu.triggerNode == attachmentName) {
+    selectedAttachments = [attachmentList.getItemAtIndex(0).attachment];
+    attachmentName.setAttribute('selected', true);
+  }
+  else
+    selectedAttachments = [item.attachment for each([, item] in
+                           Iterator(attachmentList.selectedItems))];
+  contextMenu.attachments = selectedAttachments;
 
   var canDetach = CanDetachAttachments();
   var deletedAmongSelected = false;
@@ -1674,11 +1769,11 @@ function onShowAttachmentContextMenu()
   // Check if one or more of the selected attachments are deleted.
   for (var i = 0; i < selectedAttachments.length && !deletedAmongSelected; i++)
     deletedAmongSelected =
-      (selectedAttachments[i].attachment.contentType == 'text/x-moz-deleted');
+      (selectedAttachments[i].contentType == 'text/x-moz-deleted');
 
   // Check if one or more of the selected attachments are detached.
   for (var i = 0; i < selectedAttachments.length && !detachedAmongSelected; i++)
-    detachedAmongSelected = selectedAttachments[i].attachment.isExternalAttachment;
+    detachedAmongSelected = selectedAttachments[i].isExternalAttachment;
 
   // Check if any attachments are deleted.
   for (var i = 0; i < currentAttachments.length && !anyDeleted; i++)
@@ -1690,10 +1785,12 @@ function onShowAttachmentContextMenu()
 
   openMenu.setAttribute('hidden', selectNone);
   saveMenu.setAttribute('hidden', selectNone);
+  menuSeparator.setAttribute('hidden', selectNone);
   detachMenu.setAttribute('hidden', selectNone);
   deleteMenu.setAttribute('hidden', selectNone);
-  menuSeparator.setAttribute('hidden', selectNone);
+  openAllMenu.setAttribute('hidden', !selectNone);
   saveAllMenu.setAttribute('hidden', !selectNone);
+  menuSeparatorAll.setAttribute('hidden', !selectNone);
   detachAllMenu.setAttribute('hidden', !selectNone);
   deleteAllMenu.setAttribute('hidden', !selectNone);
 
@@ -1712,6 +1809,61 @@ function onShowAttachmentContextMenu()
     detachAllMenu.setAttribute('disabled', !canDetach || anyDeleted || anyDetached);
     deleteAllMenu.setAttribute('disabled', !canDetach || anyDeleted || anyDetached);
   }
+}
+
+/**
+ * Close the attachment context menu, performing any cleanup as necessary.
+ */
+function onHideAttachmentContextMenu()
+{
+  let attachmentName = document.getElementById('attachmentName');
+  let contextMenu = document.getElementById('attachmentListContext');
+
+  // If we opened the context menu from the attachmentName label, we need to
+  // get rid of the "selected" attribute.
+  if (contextMenu.triggerNode == attachmentName)
+    attachmentName.removeAttribute('selected');
+}
+
+/**
+ * Enable/disable menu items as appropriate for the single-attachment save all
+ * toolbar button.
+ */
+function onShowSaveAttachmentMenuSingle()
+{
+  let openItem   = document.getElementById('button-openAttachment');
+  let saveItem   = document.getElementById('button-saveAttachment');
+  let detachItem = document.getElementById('button-detachAttachment');
+  let deleteItem = document.getElementById('button-deleteAttachment');
+
+  let detached = currentAttachments[0].isExternalAttachment;
+  let deleted  = currentAttachments[0].contentType == 'text/x-moz-deleted';
+  let canDetach = CanDetachAttachments() && !deleted && !detached;
+
+  openItem.setAttribute('disabled', deleted);
+  saveItem.setAttribute('disabled', deleted);
+  detachItem.setAttribute('disabled', !canDetach);
+  deleteItem.setAttribute('disabled', !canDetach);
+}
+
+/**
+ * Enable/disable menu items as appropriate for the multiple-attachment save all
+ * toolbar button.
+ */
+function onShowSaveAttachmentMenuMultiple()
+{
+  let saveAllItem   = document.getElementById('button-saveAllAttachments');
+  let detachAllItem = document.getElementById('button-detachAllAttachments');
+  let deleteAllItem = document.getElementById('button-deleteAllAttachments');
+
+  let anyDetached = currentAttachments.some(function(i) i.isExternalAttachment);
+  let anyDeleted  = currentAttachments.some(function(i) i.contentType ==
+                                            'text/x-moz-deleted');
+  let canDetach = CanDetachAttachments() && !anyDeleted && !anyDetached;
+
+  saveAllItem.setAttribute('disabled', anyDeleted);
+  detachAllItem.setAttribute('disabled', !canDetach);
+  deleteAllItem.setAttribute('disabled', !canDetach);
 }
 
 function MessageIdClick(node, event)
@@ -1747,6 +1899,7 @@ function cloneAttachment(aAttachment)
   obj.displayName = aAttachment.displayName;
   obj.uri = aAttachment.uri;
   obj.isExternalAttachment = aAttachment.isExternalAttachment;
+  obj.size = aAttachment.size;
   return obj;
 }
 
@@ -1763,70 +1916,148 @@ function createAttachmentDisplayName(aAttachment)
 function displayAttachmentsForExpandedView()
 {
   var numAttachments = currentAttachments.length;
-  var expandedAttachmentBox = document.getElementById('attachmentView');
+  var totalSize = 0;
+  var attachmentView = document.getElementById('attachmentView');
   var attachmentSplitter = document.getElementById('attachment-splitter');
 
   if (numAttachments <= 0)
   {
-    expandedAttachmentBox.collapsed = true;
+    attachmentView.collapsed = true;
     attachmentSplitter.collapsed = true;
   }
   else if (!gBuildAttachmentsForCurrentMsg)
   {
-    // IMPORTANT: make sure we uncollapse the attachment box BEFORE we start adding
-    // our attachments to the view. Otherwise, layout doesn't calculate the correct height for
-    // the attachment view and we end up with a box that is too tall.
-    expandedAttachmentBox.collapsed = false;
-    attachmentSplitter.collapsed = false;
+    attachmentView.collapsed = false;
+
+    var attachmentList = document.getElementById('attachmentList');
 
     var showLargeAttView = Components.classes["@mozilla.org/preferences-service;1"]
                              .getService(Components.interfaces.nsIPrefBranch2)
                              .getBoolPref("mailnews.attachments.display.largeView")
-    if (showLargeAttView)
-      expandedAttachmentBox.setAttribute("largeView", "true");
+    attachmentList.setAttribute("largeView", showLargeAttView);
 
-    // Remove height attribute, or the attachments box could be drawn badly:
-    expandedAttachmentBox.removeAttribute("height");
+    toggleAttachmentList(false);
 
-    var attachmentList = document.getElementById('attachmentList');
-    for (index in currentAttachments)
+    var unknownSize = false;
+    for each (let [, attachment] in Iterator(currentAttachments))
     {
-      var attachment = currentAttachments[index];
-
       // Create a new attachment widget
       var displayName = createAttachmentDisplayName(attachment);
-      var attachmentView = attachmentList.appendItem(displayName);
+      var item;
+      if (attachment.size != null) {
+        var size = messenger.formatFileSize(attachment.size);
+        var nameAndSize = gMessengerBundle.getFormattedString(
+          "attachmentNameAndSize", [displayName, size]);
+        item = attachmentList.appendItem(nameAndSize);
+        totalSize += attachment.size;
+      }
+      else {
+        if (attachment.contentType != "text/x-moz-deleted")
+          unknownSize = true;
+        item = attachmentList.appendItem(displayName);
+      }
 
-      attachmentView.setAttribute("class", "descriptionitem-iconic");
+      item.setAttribute("class", "descriptionitem-iconic");
 
-      if (showLargeAttView)
-        attachmentView.setAttribute("largeView", "true");
+      setApplicationIconForAttachment(attachment, item, showLargeAttView);
+      item.setAttribute("tooltiptext", attachment.displayName);
+      item.setAttribute("context", "attachmentListContext");
 
-      setApplicationIconForAttachment(attachment, attachmentView, showLargeAttView);
-      attachmentView.setAttribute("tooltiptext", attachment.displayName);
-      attachmentView.setAttribute("context", "attachmentListContext");
+      item.attachment = cloneAttachment(attachment);
+      item.setAttribute("attachmentUrl", attachment.url);
+      item.setAttribute("attachmentContentType", attachment.contentType);
+      item.setAttribute("attachmentUri", attachment.uri);
+      item.setAttribute("attachmentSize", attachment.size);
 
-      attachmentView.attachment = cloneAttachment(attachment);
-      attachmentView.setAttribute("attachmentUrl", attachment.url);
-      attachmentView.setAttribute("attachmentContentType", attachment.contentType);
-      attachmentView.setAttribute("attachmentUri", attachment.uri);
-
-      var item = attachmentList.appendChild(attachmentView);
+      attachmentList.appendChild(item);
     } // for each attachment
-    gBuildAttachmentsForCurrentMsg = true;
 
-    // Switch overflow off (via css attribute selector) temporarily to get the preferred window height:
-    var attachmentContainer = document.getElementById('attachmentView');
-    attachmentContainer.setAttribute("attachmentOverflow", "false");
-    var attachmentHeight = expandedAttachmentBox.boxObject.height;
-    attachmentContainer.setAttribute("attachmentOverflow", "true");
+    // Show the appropriate toolbar button and label based on the number of
+    // attachments.
+    let saveAllSingle   = document.getElementById("attachmentSaveAllSingle");
+    let saveAllMultiple = document.getElementById("attachmentSaveAllMultiple");
+    let attachmentCount = document.getElementById("attachmentCount");
+    let attachmentName  = document.getElementById("attachmentName");
+    let attachmentSize  = document.getElementById("attachmentSize");
+
+    if (numAttachments == 1) {
+      let count = gMessengerBundle.getString("attachmentCountSingle");
+      let name = createAttachmentDisplayName(currentAttachments[0]);
+
+      saveAllSingle.hidden = false;
+      saveAllMultiple.hidden = true;
+      attachmentCount.setAttribute("value", count);
+      attachmentName.hidden = false;
+      attachmentName.setAttribute("value", name);
+    }
+    else {
+      let words = gMessengerBundle.getString("attachmentCount");
+      let count = PluralForm.get(currentAttachments.length, words)
+                            .replace("#1", currentAttachments.length);
+
+      saveAllSingle.hidden = true;
+      saveAllMultiple.hidden = false;
+      attachmentCount.setAttribute("value", count);
+      attachmentName.hidden = true;
+    }
+
+    let sizeStr = messenger.formatFileSize(totalSize);
+    if (unknownSize) {
+      if (totalSize == 0)
+        sizeStr = gMessengerBundle.getString("attachmentSizeUnknown");
+      else
+        sizeStr = gMessengerBundle.getFormattedString("attachmentSizeAtLeast",
+                                                      [sizeStr]);
+    }
+    attachmentSize.setAttribute("value", sizeStr);
+
+    gBuildAttachmentsForCurrentMsg = true;
+  }
+}
+
+/**
+ * Expand/collapse the attachment list. When expanding it, automatically resize
+ * it to an appropriate height (1/4 the message pane or smaller).
+ *
+ * @param expanded True if the attachment list should be expanded, false
+ *                 otherwise. If |expanded| is not specified, toggle the state.
+ */
+function toggleAttachmentList(expanded)
+{
+  var attachmentToggle      = document.getElementById("attachmentToggle");
+  var attachmentView        = document.getElementById("attachmentView");
+  var attachmentSplitter    = document.getElementById("attachment-splitter");
+  var attachmentListWrapper = document.getElementById("attachmentListWrapper");
+
+  if (expanded === undefined)
+    expanded = !attachmentToggle.checked;
+  attachmentToggle.checked = expanded;
+
+  if (expanded) {
+    attachmentListWrapper.collapsed = false;
+    attachmentSplitter.collapsed = false;
+
+    var attachmentHeight = attachmentView.boxObject.height;
 
     // If the attachments box takes up too much of the message pane, downsize:
-    var maxAttachmentHeight = document.getElementById('messagepanebox').boxObject.height / 4;
-    if (attachmentHeight > maxAttachmentHeight)
-      attachmentHeight = maxAttachmentHeight;
-    expandedAttachmentBox.setAttribute("height", attachmentHeight);
- }
+    var maxAttachmentHeight = document.getElementById("messagepanebox")
+                                      .boxObject.height / 4;
+
+    attachmentListWrapper.setAttribute("attachmentOverflow", "true");
+    attachmentView.setAttribute("height", Math.min(attachmentHeight,
+                                                   maxAttachmentHeight));
+    attachmentView.setAttribute("maxheight", attachmentHeight);
+  }
+  else {
+    attachmentListWrapper.collapsed = true;
+    attachmentSplitter.collapsed = true;
+    attachmentView.removeAttribute("height");
+    attachmentView.removeAttribute("maxheight");
+
+    // Switch overflow off so that when we expand again we can get the
+    // preferred size. (Doing this when expanding hits a race condition.)
+    attachmentListWrapper.setAttribute("attachmentOverflow", "false");
+  }
 }
 
 /**
@@ -1859,21 +2090,18 @@ function FillAttachmentListPopup(popup)
   if (!gBuildAttachmentPopupForCurrentMsg)
     return;
 
-  var attachmentIndex = 0;
-
   // otherwise we need to build the attachment view...
   // First clear out the old view...
   ClearAttachmentMenu(popup);
 
   var canDetachOrDeleteAll = CanDetachAttachments();
 
-  for (index in currentAttachments)
+  for each (let [attachmentIndex, attachment] in Iterator(currentAttachments))
   {
-    ++attachmentIndex;
-    addAttachmentToPopup(popup, currentAttachments[index], attachmentIndex);
+    addAttachmentToPopup(popup, attachment, attachmentIndex);
     if (canDetachOrDeleteAll &&
-        (currentAttachments[index].isExternalAttachment ||
-        currentAttachments[index].contentType == 'text/x-moz-deleted'))
+        (attachment.isExternalAttachment ||
+         attachment.contentType == 'text/x-moz-deleted'))
       canDetachOrDeleteAll = false;
   }
 
@@ -2032,7 +2260,10 @@ function HandleMultipleAttachments(attachments, action)
      messenger.saveAllAttachments(attachmentContentTypeArray.length,
                                   attachmentContentTypeArray, attachmentUrlArray,
                                   attachmentDisplayNameArray, attachmentMessageUriArray);
-   else if ( action == 'detach' )
+   else if ( action == 'detach' && attachments.length > 1 )
+     // 'detach' on a multiple selection of attachments is so far not really supported.
+     // As a workaround, resort to normal detach-'all'.
+     // See also the comment on 'detaching a multiple selection of attachments' below.
      messenger.detachAllAttachments(attachmentContentTypeArray.length,
                                     attachmentContentTypeArray, attachmentUrlArray,
                                     attachmentDisplayNameArray, attachmentMessageUriArray,
@@ -2042,8 +2273,8 @@ function HandleMultipleAttachments(attachments, action)
                                     attachmentContentTypeArray, attachmentUrlArray,
                                     attachmentDisplayNameArray, attachmentMessageUriArray,
                                     false); // don't save
-   else if ( action == 'open'|| action == 'saveAs' ) {
-     // XXX hack alert. If we sit in tight loop and open/save multiple attachments,
+   else if ( action == 'open' || action == 'saveAs' || action == 'detach' ) {
+     // XXX hack alert. If we sit in tight loop and open/save/detach multiple attachments,
      // we get chrome errors in layout as we start loading the first helper app dialog
      // then before it loads, we kick off the next one and the next one. Subsequent helper
      // app dialogs were failing because we were still loading the chrome files for the
@@ -2051,6 +2282,13 @@ function HandleMultipleAttachments(attachments, action)
      // by doing the first helper app dialog right away, then waiting a bit before we
      // launch the rest.
      var actionFunction = (action == 'open') ? openAttachment : saveAttachment;
+     if ( action == 'detach' )
+       actionFunction = function (aAttachment) { detachAttachment(aAttachment, true); }
+       // Detaching a multiple selection of attachments is so far not supported.
+       // Therefore this code should only be reached if attachments.length == 1.
+       // Note hat detaching multiple attachments one-by-one in the below loop does not work
+       // (even if the loop iterates through the attachments in backward fashion
+       //  in order to avoid invalidating the positions of the attachments before).
      for (var i = 0; i < attachments.length; i++)
      {
        if (i == 0)
@@ -2083,6 +2321,25 @@ function ClearAttachmentList()
     list.removeChild(list.lastChild);
 }
 
+var attachmentListDNDObserver = {
+  onDragStart: function (aEvent, aAttachmentData, aDragAction)
+  {
+    var target = aEvent.target;
+
+    if (target.localName == "descriptionitem")
+      aAttachmentData.data = CreateAttachmentTransferData(target.attachment);
+  }
+};
+
+var attachmentNameDNDObserver = {
+  onDragStart: function (aEvent, aAttachmentData, aDragAction)
+  {
+    var attachmentList = document.getElementById("attachmentList");
+    aAttachmentData.data = CreateAttachmentTransferData(
+      attachmentList.getItemAtIndex(0).attachment);
+  }
+};
+
 function ShowEditMessageBox()
 {
   // it would be nice if we passed in the msgHdr from the back end
@@ -2113,89 +2370,6 @@ function CopyWebsiteAddress(websiteAddressNode)
     var iid = Components.interfaces.nsIClipboardHelper;
     var clipboard = Components.classes[contractid].getService(iid);
     clipboard.copyString(websiteAddress);
-  }
-}
-
-var attachmentAreaDNDObserver = {
-  onDragStart: function (aEvent, aAttachmentData, aDragAction)
-  {
-    var target = aEvent.target;
-    if (target.localName == "descriptionitem")
-    {
-      var attachment = target.attachment;
-      if (attachment.contentType == "text/x-moz-deleted")
-        return;
-
-      var data = new TransferData();
-      if (attachment.url && attachment.displayName)
-      {
-        var info = attachment.url + "&type=" + attachment.contentType +
-                   "&filename=" + encodeURIComponent(attachment.displayName);
-        data.addDataForFlavour("text/x-moz-url",
-                               info + "\n" + attachment.displayName);
-        data.addDataForFlavour("text/x-moz-url-data", attachment.url);
-        data.addDataForFlavour("text/x-moz-url-desc", attachment.displayName);
-        data.addDataForFlavour("application/x-moz-file-promise-url",
-                               attachment.url);
-        data.addDataForFlavour("application/x-moz-file-promise",
-                               new nsFlavorDataProvider(), 0,
-                               Components.interfaces.nsISupports);
-      }
-      aAttachmentData.data = data;
-    }
-  }
-};
-
-function nsFlavorDataProvider()
-{
-}
-
-nsFlavorDataProvider.prototype =
-{
-  QueryInterface : function(iid)
-  {
-      if (iid.equals(Components.interfaces.nsIFlavorDataProvider) ||
-          iid.equals(Components.interfaces.nsISupports))
-        return this;
-      throw Components.results.NS_NOINTERFACE;
-  },
-
-  getFlavorData : function(aTransferable, aFlavor, aData, aDataLen)
-  {
-    // get the url for the attachment
-    if (aFlavor == "application/x-moz-file-promise")
-    {
-      var urlPrimitive = { };
-      var dataSize = { };
-      aTransferable.getTransferData("application/x-moz-file-promise-url", urlPrimitive, dataSize);
-
-      var srcUrlPrimitive = urlPrimitive.value.QueryInterface(Components.interfaces.nsISupportsString);
-
-      // now get the destination file location from kFilePromiseDirectoryMime
-      var dirPrimitive = {};
-      aTransferable.getTransferData("application/x-moz-file-promise-dir", dirPrimitive, dataSize);
-      var destDirectory = dirPrimitive.value.QueryInterface(Components.interfaces.nsILocalFile);
-
-      // now save the attachment to the specified location
-      // XXX: we need more information than just the attachment url to save it, fortunately, we have an array
-      // of all the current attachments so we can cheat and scan through them
-
-      var attachment = null;
-      for (index in currentAttachments)
-      {
-        attachment = currentAttachments[index];
-        if (attachment.url == srcUrlPrimitive)
-          break;
-      }
-
-      // call our code for saving attachments
-      if (attachment)
-      {
-        var destFilePath = messenger.saveAttachmentToFolder(attachment.contentType, attachment.url, encodeURIComponent(attachment.displayName), attachment.uri, destDirectory);
-        aData.value = destFilePath.QueryInterface(Components.interfaces.nsISupports);
-        aDataLen.value = 4;
-      }
-    }
   }
 }
 
@@ -2315,4 +2489,3 @@ ConversationOpener.prototype = {
 }
 
 var gConversationOpener = new ConversationOpener();
-

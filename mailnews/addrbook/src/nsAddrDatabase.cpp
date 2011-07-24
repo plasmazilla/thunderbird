@@ -68,6 +68,8 @@
 #include "nsIVariant.h"
 #include "nsCOMArray.h"
 #include "nsArrayEnumerator.h"
+#include "nsIPrefService.h"
+#include "nsIPrefBranch.h"
 
 #define ID_PAB_TABLE            1
 #define ID_DELETEDCARDS_TABLE           2
@@ -200,7 +202,7 @@ NS_IMETHODIMP_(nsrefcnt) nsAddrDatabase::Release(void)
       m_mdbDeletedCardsTable->Release();
     NS_IF_RELEASE(m_mdbStore);
     NS_IF_RELEASE(m_mdbEnv);
-    NS_DELETEXPCOM(this);
+    delete this;
     return 0;
   }
   return count;
@@ -242,6 +244,15 @@ NS_IMETHODIMP nsAddrDatabase::NotifyCardAttribChange(PRUint32 abCode)
 
 NS_IMETHODIMP nsAddrDatabase::NotifyCardEntryChange(PRUint32 aAbCode, nsIAbCard *aCard, nsIAbDirectory *aParent)
 {
+  PRInt32 currentDisplayNameVersion = 0;
+
+  //Update "mail.displayname.version" prefernce
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+
+  prefs->GetIntPref("mail.displayname.version",&currentDisplayNameVersion);
+
+  prefs->SetIntPref("mail.displayname.version",++currentDisplayNameVersion);
+
   NS_OBSERVER_ARRAY_NOTIFY_OBSERVERS(m_ChangeListeners, nsIAddrDBListener,
                                      OnCardEntryChange, (aAbCode, aCard, aParent));
   return NS_OK;
@@ -1252,10 +1263,46 @@ NS_IMETHODIMP nsAddrDatabase::CreateNewCardAndAddToDB(nsIAbCard *aNewCard, PRBoo
 {
   nsCOMPtr <nsIMdbRow> cardRow;
 
-  if (!aNewCard || !m_mdbPabTable || !m_mdbEnv)
+  if (!aNewCard || !m_mdbPabTable || !m_mdbEnv || !m_mdbStore)
     return NS_ERROR_NULL_POINTER;
 
-  nsresult rv = GetNewRow(getter_AddRefs(cardRow));
+  // Per the UUID requirements, we want to try to reuse the local id if at all
+  // possible. nsACString::ToInteger probably won't fail if the local id looks
+  // like "23bozo" (returning 23 instead), but it's okay since we aren't going
+  // to overwrite anything with 23 if it already exists and the id for the row
+  // doesn't matter otherwise.
+  nsresult rv;
+
+  nsCAutoString id;
+  aNewCard->GetLocalId(id);
+
+  mdbOid rowId;
+  rowId.mOid_Scope = m_CardRowScopeToken;
+  rowId.mOid_Id = id.ToInteger(&rv);
+  if (NS_SUCCEEDED(rv))
+  {
+    // Mork is being very naughty here. If the table does not have the oid, we
+    // should be able to reuse it. To be on the safe side, however, we're going
+    // to reference the store's reference count.
+    mdb_count rowCount = 1;
+    m_mdbStore->GetRowRefCount(m_mdbEnv, &rowId, &rowCount);
+    if (rowCount == 0)
+    {
+      // So apparently, the row can have a count of 0 yet still exist (probably
+      // meaning we haven't flushed it out of memory). In this case, we need to
+      // get the row and cut its cells.
+      rv = m_mdbStore->GetRow(m_mdbEnv, &rowId, getter_AddRefs(cardRow));
+      if (NS_SUCCEEDED(rv) && cardRow)
+        cardRow->CutAllColumns(m_mdbEnv);
+      else
+        rv = m_mdbStore->NewRowWithOid(m_mdbEnv, &rowId, getter_AddRefs(cardRow));
+    }
+  }
+
+  // If we don't have a cardRow yet, just get one with any ol' id.
+  if (!cardRow)
+    rv = GetNewRow(getter_AddRefs(cardRow));
+
   if (NS_SUCCEEDED(rv) && cardRow)
   {
     AddAttributeColumnsToRow(aNewCard, cardRow);
@@ -1266,6 +1313,15 @@ NS_IMETHODIMP nsAddrDatabase::CreateNewCardAndAddToDB(nsIAbCard *aNewCard, PRBoo
     rv = GetIntColumn(cardRow, m_RecordKeyColumnToken, &key, 0);
     if (NS_SUCCEEDED(rv))
       aNewCard->SetPropertyAsUint32(kRecordKeyColumn, key);
+    
+    aNewCard->GetPropertyAsAUTF8String(kRowIDProperty, id);
+    aNewCard->SetLocalId(id);
+
+    nsCOMPtr<nsIAbDirectory> abDir = do_QueryReferent(m_dbDirectory);
+    if (abDir)
+      abDir->GetUuid(id);
+
+    aNewCard->SetDirectoryId(id);
 
     mdb_err merror = m_mdbPabTable->AddRow(m_mdbEnv, cardRow);
     if (merror != NS_OK) return NS_ERROR_FAILURE;
@@ -1632,6 +1688,9 @@ NS_IMETHODIMP nsAddrDatabase::DeleteCard(nsIAbCard *aCard, PRBool aNotify, nsIAb
   NS_ENSURE_SUCCESS(err,err);
   if (!pCardRow)
     return NS_OK;
+
+  // Reset the directory id
+  aCard->SetDirectoryId(EmptyCString());
 
   // Add the deleted card to the deletedcards table
   nsCOMPtr <nsIMdbRow> cardRow;
@@ -2786,7 +2845,7 @@ nsListAddressEnumerator::GetNext(nsISupports **aResult)
 NS_IMETHODIMP nsAddrDatabase::EnumerateCards(nsIAbDirectory *directory, nsISimpleEnumerator **result)
 {
     nsAddrDBEnumerator* e = new nsAddrDBEnumerator(this);
-    m_dbDirectory = directory;
+    m_dbDirectory = do_GetWeakReference(directory);
     if (!e)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(e);
@@ -2805,7 +2864,7 @@ NS_IMETHODIMP nsAddrDatabase::GetMailingListsFromDB(nsIAbDirectory *parentDir)
   if (!m_mdbEnv)
     return NS_ERROR_NULL_POINTER;
 
-    m_dbDirectory = parentDir;
+  m_dbDirectory = do_GetWeakReference(parentDir);
 
     nsIMdbTable*                dbTable = GetPabTable();
 
@@ -2848,7 +2907,7 @@ NS_IMETHODIMP nsAddrDatabase::EnumerateListAddresses(nsIAbDirectory *directory, 
     dbdirectory->GetDbRowID((PRUint32*)&rowID);
 
     nsListAddressEnumerator* e = new nsListAddressEnumerator(this, rowID);
-    m_dbDirectory = directory;
+    m_dbDirectory = do_GetWeakReference(directory);
     if (!e)
         return NS_ERROR_OUT_OF_MEMORY;
     NS_ADDREF(e);
@@ -2907,6 +2966,16 @@ nsresult nsAddrDatabase::CreateCard(nsIMdbRow* cardRow, mdb_id listRowID, nsIAbC
         InitCardFromRow(personCard, cardRow);
         personCard->SetPropertyAsUint32(kRowIDProperty, rowID);
 
+        nsCAutoString id;
+        id.AppendInt(rowID);
+        personCard->SetLocalId(id);
+
+        nsCOMPtr<nsIAbDirectory> abDir(do_QueryReferent(m_dbDirectory));
+        if (abDir)
+         abDir->GetUuid(id);
+
+        personCard->SetDirectoryId(id);
+
         NS_IF_ADDREF(*result = personCard);
     }
 
@@ -2940,10 +3009,11 @@ nsresult nsAddrDatabase::CreateABListCard(nsIMdbRow* listRow, nsIAbCard **result
     listURI = PR_smprintf("%s%s/MailList%ld", kMDBDirectoryRoot, NS_ConvertUTF16toUTF8(fileName).get(), rowID);
 
     nsCOMPtr<nsIAbCard> personCard;
-    nsCOMPtr<nsIAbMDBDirectory> dbm_dbDirectory(do_QueryInterface(m_dbDirectory, &rv));
-    if(NS_SUCCEEDED(rv) && dbm_dbDirectory)
+    nsCOMPtr<nsIAbMDBDirectory> dbm_dbDirectory(do_QueryReferent(m_dbDirectory,
+                                                                 &rv));
+    if (NS_SUCCEEDED(rv) && dbm_dbDirectory)
     {
-    personCard = do_CreateInstance(NS_ABMDBCARD_CONTRACTID, &rv);
+        personCard = do_CreateInstance(NS_ABMDBCARD_CONTRACTID, &rv);
         NS_ENSURE_SUCCESS(rv,rv);
 
         if (personCard)
@@ -2953,6 +3023,15 @@ nsresult nsAddrDatabase::CreateABListCard(nsIMdbRow* listRow, nsIAbCard **result
             personCard->SetPropertyAsUint32(kRowIDProperty, rowID);
             personCard->SetIsMailList(PR_TRUE);
             personCard->SetMailListURI(listURI);
+
+            nsCAutoString id;
+            id.AppendInt(rowID);
+            personCard->SetLocalId(id);
+
+            nsCOMPtr<nsIAbDirectory> abDir(do_QueryReferent(m_dbDirectory));
+            if (abDir)
+             abDir->GetUuid(id);
+            personCard->SetDirectoryId(id);
         }
 
         NS_IF_ADDREF(*result = personCard);
@@ -2986,8 +3065,9 @@ nsresult nsAddrDatabase::CreateABList(nsIMdbRow* listRow, nsIAbDirectory **resul
     listURI = PR_smprintf("%s%s/MailList%ld", kMDBDirectoryRoot, NS_ConvertUTF16toUTF8(fileName).get(), rowID);
 
     nsCOMPtr<nsIAbDirectory> mailList;
-    nsCOMPtr<nsIAbMDBDirectory> dbm_dbDirectory(do_QueryInterface(m_dbDirectory, &rv));
-    if(NS_SUCCEEDED(rv) && dbm_dbDirectory)
+    nsCOMPtr<nsIAbMDBDirectory> dbm_dbDirectory(do_QueryReferent(m_dbDirectory,
+                                                                 &rv));
+    if (NS_SUCCEEDED(rv) && dbm_dbDirectory)
     {
         rv = dbm_dbDirectory->AddDirectory(listURI, getter_AddRefs(mailList));
 
@@ -3074,7 +3154,7 @@ NS_IMETHODIMP nsAddrDatabase::GetCardFromAttribute(nsIAbDirectory *aDirectory,
 {
   NS_ENSURE_ARG_POINTER(aCardResult);
 
-  m_dbDirectory = aDirectory;
+  m_dbDirectory = do_GetWeakReference(aDirectory);
   nsCOMPtr<nsIMdbRow> cardRow;
   if (NS_SUCCEEDED(GetRowFromAttribute(aName, aUTF8Value, aCaseInsensitive,
                                        getter_AddRefs(cardRow), nsnull)) && cardRow)
@@ -3092,7 +3172,7 @@ NS_IMETHODIMP nsAddrDatabase::GetCardsFromAttribute(nsIAbDirectory *aDirectory,
 {
   NS_ENSURE_ARG_POINTER(cards);
 
-  m_dbDirectory = aDirectory;
+  m_dbDirectory = do_GetWeakReference(aDirectory);
   nsCOMPtr<nsIMdbRow> row;
   PRBool done = PR_FALSE;
   nsCOMArray<nsIAbCard> list;
@@ -3144,7 +3224,7 @@ NS_IMETHODIMP nsAddrDatabase::AddListDirNode(nsIMdbRow * listRow)
                                    getter_AddRefs( parentDir));
         if (parentDir)
         {
-            m_dbDirectory = parentDir;
+            m_dbDirectory = do_GetWeakReference(parentDir);
             nsCOMPtr<nsIAbDirectory> mailList;
             rv = CreateABList(listRow, getter_AddRefs(mailList));
             if (mailList)

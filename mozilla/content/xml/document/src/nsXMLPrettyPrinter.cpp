@@ -51,9 +51,12 @@
 #include "nsIDOMDocument.h"
 #include "nsIServiceManager.h"
 #include "nsNetUtil.h"
-#include "nsIContent.h"
+#include "mozilla/dom/Element.h"
 #include "nsIDOMDocumentFragment.h"
 #include "nsBindingManager.h"
+#include "nsIScriptSecurityManager.h"
+
+using namespace mozilla::dom;
 
 NS_IMPL_ISUPPORTS2(nsXMLPrettyPrinter,
                    nsIDocumentObserver,
@@ -77,7 +80,7 @@ nsXMLPrettyPrinter::PrettyPrint(nsIDocument* aDocument,
     *aDidPrettyPrint = PR_FALSE;
     
     // Check for iframe with display:none. Such iframes don't have presshells
-    if (!aDocument->GetPrimaryShell()) {
+    if (!aDocument->GetShell()) {
         return NS_OK;
     }
 
@@ -155,20 +158,26 @@ nsXMLPrettyPrinter::PrettyPrint(nsIDocument* aDocument,
     NS_ASSERTION(xblDoc, "xml document doesn't implement nsIDOMDocumentXBL");
     NS_ENSURE_TRUE(xblDoc, NS_ERROR_FAILURE);
 
-    xblDoc->LoadBindingDocument(NS_LITERAL_STRING("chrome://global/content/xml/XMLPrettyPrint.xml"));
+    nsCOMPtr<nsIURI> bindingUri;
+    rv = NS_NewURI(getter_AddRefs(bindingUri),
+        NS_LITERAL_STRING("chrome://global/content/xml/XMLPrettyPrint.xml#prettyprint"));
+    NS_ENSURE_SUCCESS(rv, rv);
+    
+    nsCOMPtr<nsIPrincipal> sysPrincipal;
+    nsContentUtils::GetSecurityManager()->
+        GetSystemPrincipal(getter_AddRefs(sysPrincipal));
+    aDocument->BindingManager()->LoadBindingDocument(aDocument, bindingUri,
+                                                     sysPrincipal);
 
-    nsCOMPtr<nsIDOMElement> rootElem;
-    sourceDocument->GetDocumentElement(getter_AddRefs(rootElem));
-    NS_ENSURE_TRUE(rootElem, NS_ERROR_UNEXPECTED);
+    nsCOMPtr<nsIContent> rootCont = aDocument->GetRootElement();
+    NS_ENSURE_TRUE(rootCont, NS_ERROR_UNEXPECTED);
 
-    rv = xblDoc->AddBinding(rootElem,
-                            NS_LITERAL_STRING("chrome://global/content/xml/XMLPrettyPrint.xml#prettyprint"));
+    rv = aDocument->BindingManager()->AddLayeredBinding(rootCont, bindingUri,
+                                                        sysPrincipal);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Hand the result document to the binding
     nsCOMPtr<nsIObserver> binding;
-    nsCOMPtr<nsIContent> rootCont = do_QueryInterface(rootElem);
-    NS_ASSERTION(rootCont, "Element doesn't implement nsIContent");
     aDocument->BindingManager()->GetBindingImplementation(rootCont,
                                               NS_GET_IID(nsIObserver),
                                               (void**)getter_AddRefs(binding));
@@ -235,18 +244,18 @@ nsXMLPrettyPrinter::EndUpdate(nsIDocument* aDocument, nsUpdateType aUpdateType)
 
 void
 nsXMLPrettyPrinter::AttributeChanged(nsIDocument* aDocument,
-                                     nsIContent* aContent,
+                                     Element* aElement,
                                      PRInt32 aNameSpaceID,
                                      nsIAtom* aAttribute,
-                                     PRInt32 aModType,
-                                     PRUint32 aStateMask)
+                                     PRInt32 aModType)
 {
-    MaybeUnhook(aContent);
+    MaybeUnhook(aElement);
 }
 
 void
 nsXMLPrettyPrinter::ContentAppended(nsIDocument* aDocument,
                                     nsIContent* aContainer,
+                                    nsIContent* aFirstNewContent,
                                     PRInt32 aNewIndexInContainer)
 {
     MaybeUnhook(aContainer);
@@ -265,7 +274,8 @@ void
 nsXMLPrettyPrinter::ContentRemoved(nsIDocument* aDocument,
                                    nsIContent* aContainer,
                                    nsIContent* aChild,
-                                   PRInt32 aIndexInContainer)
+                                   PRInt32 aIndexInContainer,
+                                   nsIContent* aPreviousSibling)
 {
     MaybeUnhook(aContainer);
 }

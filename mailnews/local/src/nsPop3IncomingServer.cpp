@@ -54,6 +54,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsIMutableArray.h"
 #include "nsMsgUtils.h"
+#include "nsComponentManagerUtils.h"
 
 static NS_DEFINE_CID(kCPop3ServiceCID, NS_POP3SERVICE_CID);
 
@@ -254,8 +255,8 @@ NS_IMETHODIMP nsPop3IncomingServer::SetDeferredToAccount(const nsACString& aAcco
       // if isDeferred state has changed, send notification
       if (aAccountKey.IsEmpty() != deferredToAccount.IsEmpty())
       {
-        nsCOMPtr <nsIAtom> deferAtom = getter_AddRefs(NS_NewAtom("isDeferred"));
-        nsCOMPtr <nsIAtom> canFileAtom = getter_AddRefs(NS_NewAtom("CanFileMessages"));
+        nsCOMPtr <nsIAtom> deferAtom = MsgGetAtom("isDeferred");
+        nsCOMPtr <nsIAtom> canFileAtom = MsgGetAtom("CanFileMessages");
         folderListenerManager->OnItemBoolPropertyChanged(rootFolder, deferAtom,
                   !deferredToAccount.IsEmpty(), deferredToAccount.IsEmpty());
         folderListenerManager->OnItemBoolPropertyChanged(rootFolder, canFileAtom,
@@ -446,9 +447,7 @@ NS_IMETHODIMP nsPop3IncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
     }
   }
   else
-    rv = pop3Service->CheckForNewMail(nsnull, urlListener, inbox, this, nsnull);
-    // it's important to pass in null for the msg window if we are performing biff
-        // this makes sure that we don't show any kind of UI during biff.
+    rv = pop3Service->CheckForNewMail(aMsgWindow, urlListener, inbox, this, nsnull);
   return NS_OK;
 }
 

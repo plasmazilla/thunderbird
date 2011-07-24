@@ -35,8 +35,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+function browserWindowsCount() {
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  return count;
+}
+
 function test() {
   /** Test for Bug 491577 **/
+  is(browserWindowsCount(), 1, "Only one browser window should be open initially");
   
   // test setup
   let ss = Cc["@mozilla.org/browser/sessionstore;1"].getService(Ci.nsISessionStore);
@@ -115,6 +126,7 @@ function test() {
   // open a window and add the above closed window list
   let newWin = openDialog(location, "_blank", "chrome,all,dialog=no");
   newWin.addEventListener("load", function(aEvent) {
+    this.removeEventListener("load", arguments.callee, false);
     gPrefService.setIntPref("browser.sessionstore.max_windows_undo",
                             test_state._closedWindows.length);
     ss.setWindowState(newWin, JSON.stringify(test_state), true);
@@ -148,6 +160,7 @@ function test() {
 
     // clean up
     newWin.close();
+    is(browserWindowsCount(), 1, "Only one browser window should be open eventually");
     if (gPrefService.prefHasUserValue("browser.sessionstore.max_windows_undo"))
       gPrefService.clearUserPref("browser.sessionstore.max_windows_undo");
     finish();

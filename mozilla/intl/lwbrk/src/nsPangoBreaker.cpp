@@ -75,14 +75,15 @@ NS_GetComplexLineBreaks(const PRUnichar* aText, PRUint32 aLength,
         aBreakBefore[++u16Offset] = PR_FALSE; // Skip high surrogate
       ++u16Offset;
 
-      PRUint32 ch = UTF8CharEnumerator::NextChar(&p, end);
+      PRBool err;
+      PRUint32 ch = UTF8CharEnumerator::NextChar(&p, end, &err);
       ++attr;
 
-      if (ch == 0) {
+      if (ch == 0 || err) {
         // pango_break (pango 1.16.2) only analyses text before the
         // first NUL (but sets one extra attr). Workaround loop to call
         // pango_break again to analyse after the NUL is done somewhere else
-        // (gfx/thebes/src/gfxPangoFonts.cpp: SetupClusterBoundaries()).
+        // (gfx/thebes/gfxPangoFonts.cpp: SetupClusterBoundaries()).
         // So, we do the same here for pango_get_log_attrs.
         break;
       }

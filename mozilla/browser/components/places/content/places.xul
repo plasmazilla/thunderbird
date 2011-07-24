@@ -78,7 +78,7 @@
         toggletoolbar="true"
         persist="width height screenX screenY sizemode">
 
-  <script type="application/x-javascript"
+  <script type="application/javascript"
           src="chrome://browser/content/places/places.js"/>
   <script type="application/javascript"
           src="chrome://browser/content/utilityOverlay.js"/>
@@ -179,10 +179,10 @@
   </keyset>
 
   <popupset id="placesPopupset">
-    <popup id="placesContext"/>
-    <popup id="placesColumnsContext"
-           onpopupshowing="ViewMenu.fillWithColumns(event, null, null, 'checkbox', null);"
-           oncommand="ViewMenu.showHideColumn(event.target); event.stopPropagation();"/>
+    <menupopup id="placesContext"/>
+    <menupopup id="placesColumnsContext"
+               onpopupshowing="ViewMenu.fillWithColumns(event, null, null, 'checkbox', null);"
+               oncommand="ViewMenu.showHideColumn(event.target); event.stopPropagation();"/>
   </popupset>
 
   <toolbox id="placesToolbox">
@@ -204,7 +204,8 @@
       <menubar id="placesMenu">
         <menu accesskey="&organize.accesskey;" class="menu-iconic"
 #endif
-              id="organizeButton" label="&organize.label;">
+              id="organizeButton" label="&organize.label;"
+              tooltiptext="&organize.tooltip;">
           <menupopup id="organizeButtonPopup">
             <menuitem id="newbookmark"
                       command="placesCmd_new:bookmark"
@@ -287,27 +288,9 @@
         </menu>
         <menu accesskey="&views.accesskey;" class="menu-iconic"
 #endif
-              id="viewMenu" label="&views.label;">
+              id="viewMenu" label="&views.label;"
+              tooltiptext="&views.tooltip;">
           <menupopup id="viewMenuPopup">
-<!--
-            <menuitem id="viewDetails"
-                      type="radio"
-#ifdef XP_MACOSX
-                      label="&view.detailsMacOSX.label;"
-#else
-                      label="&view.details.label;"
-#endif
-                      accesskey="&view.details.accesskey;">
-            </menuitem>
-
-            <menuseparator id="addonsSeparator"/>
-
-            <menuitem id="viewAddons"
-                      command=""
-                      label="&view.addons.label;"
-                      accesskey="&view.addons.label;"/>
-            <menuseparator id="sortingSeparator"/>
--->
 
             <menu id="viewColumns" 
                   label="&view.columns.label;" accesskey="&view.columns.accesskey;">
@@ -331,14 +314,6 @@
                           oncommand="ViewMenu.setSortColumn(null, 'descending'); event.stopPropagation();"/>
               </menupopup>
             </menu>
-<!--
-            <menuseparator id="groupingSeparator" observes="placesBC_grouping:separator"/>
-
-            <menuitem id="viewGroupNone" type="radio" name="group"
-                      observes="placesBC_grouping:off"/>
-            <menuitem id="viewGroupGroup" type="radio" name="group"
-                      observes="placesBC_grouping:on"/>
--->
           </menupopup>
 #ifdef XP_MACOSX
         </toolbarbutton>
@@ -347,7 +322,8 @@
         </menu>
         <menu accesskey="&maintenance.accesskey;" class="menu-iconic"
 #endif
-              id="maintenanceButton" label="&maintenance.label;">
+              id="maintenanceButton" label="&maintenance.label;"
+              tooltiptext="&maintenance.tooltip;">
           <menupopup id="maintenanceButtonPopup">
             <menuitem id="backupBookmarks"
                       command="OrganizerCommand_backup"
@@ -415,7 +391,7 @@
         <vbox id="defaultView" flex="1">
           <vbox id="searchModifiers" hidden="true">
             <toolbar id="organizerScopeBar" class="chromeclass-toolbar" align="center">
-              <label id="scopeBarTitle" value="&search.label;"/>
+              <label id="scopeBarTitle" value="&search.in.label;"/>
               <toolbarbutton id="scopeBarAll" type="radio" group="scopeBar"
                              oncommand="PlacesQueryBuilder.onScopeSelected(this);"
                              label="&search.scopeBookmarks.label;"
@@ -441,18 +417,8 @@
               <button id="saveSearch" class="small" 
                        label="&saveSearch.label;" accesskey="&saveSearch.accesskey;"
                        command="OrganizerCommand_search:save"/>
-#ifdef PLACES_QUERY_BUILDER
-              <button id="organizerScopeBarExpander"
-                      class="expander-down"
-                      tooltiptext="&search.scopeBarExpanderDown.tooltip;"
-                      tooltiptextdown="&search.scopeBarExpanderDown.tooltip;"
-                      tooltiptextup="&search.scopeBarExpanderUp.tooltip;"
-                      oncommand="PlacesQueryBuilder.toggleVisibility();"/>
             </toolbar>
-#include advancedSearch.inc
-#else
-            </toolbar>
-#endif
+
           </vbox>
           <vbox flex="1">
             <tree id="placeContent" class="placesTree" context="placesContext"

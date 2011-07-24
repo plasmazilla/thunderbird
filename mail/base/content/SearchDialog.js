@@ -38,6 +38,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
 var gCurrentFolder;
 
@@ -101,8 +102,7 @@ var nsSearchResultsController =
           case "cmd_shiftDelete":
           case "button_delete":
             // this assumes that advanced searches don't cross accounts
-            if (GetNumSelectedMessages() <= 0 ||
-                isNewsURI(gFolderDisplay.view.dbView.getURIForViewIndex(0)))
+            if (GetNumSelectedMessages() <= 0)
               enabled = false;
             break;
           case "saveas_vf_button":
@@ -238,15 +238,17 @@ SearchFolderDisplayWidget.prototype = {
   },
 
   updateStatusResultText: function() {
-    let statusMsg, rowCount = this.view.dbView.rowCount;
-    // if there are no hits, it means no matches were found in the search.
-    if (rowCount == 0)
-      statusMsg = gSearchBundle.getString("searchFailureMessage");
-    else if (rowCount == 1)
-      statusMsg = gSearchBundle.getString("searchSuccessMessage");
-    else
-      statusMsg = gSearchBundle.getFormattedString("searchSuccessMessages",
-                                                   [rowCount]);
+    let rowCount = this.view.dbView.rowCount;
+    let statusMsg;
+
+    if (rowCount == 0) {
+      statusMsg = gSearchBundle.getString("noMatchesFound");
+    }
+    else {
+      statusMsg = PluralForm.get(rowCount,
+                                 gSearchBundle.getString("matchesFound"));
+      statusMsg = statusMsg.replace("#1", rowCount);
+    }
 
     gStatusFeedback.showStatusString(statusMsg);
   },
@@ -619,11 +621,6 @@ function GetNumSelectedMessages()
 
 function MsgDeleteSelectedMessages(aCommandType)
 {
-    // we don't delete news messages, we just return in that case
-    if (gFolderDisplay.selectedMessageIsNews)
-        return;
-
-    // if mail messages delete
     gFolderDisplay.hintAboutToDeleteMessages();
     gFolderDisplay.doCommand(aCommandType);
 }
@@ -640,16 +637,9 @@ function MoveMessageInSearch(destFolder)
   let destMsgFolder = GetMsgFolderFromUri(destUri).QueryInterface(
                         Components.interfaces.nsIMsgFolder);
 
-  // we don't move news messages, we copy them
-  if (gFolderDisplay.selectedMessageIsNews) {
-    gFolderDisplay.doCommandWithFolder(nsMsgViewCommandType.copyMessages,
-                                       destMsgFolder);
-  }
-  else {
-    gFolderDisplay.hintAboutToDeleteMessages();
-    gFolderDisplay.doCommandWithFolder(nsMsgViewCommandType.moveMessages,
-                                       destMsgFolder);
-  }
+  gFolderDisplay.hintAboutToDeleteMessages();
+  gFolderDisplay.doCommandWithFolder(nsMsgViewCommandType.moveMessages,
+                                     destMsgFolder);
 }
 
 function OpenInFolder()

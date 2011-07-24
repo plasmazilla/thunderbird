@@ -44,7 +44,9 @@
 
 /* ::::: menu/menuitem ::::: */
 
-menu, menuitem {
+menu,
+menuitem,
+.splitmenu-menuitem {
   -moz-appearance: menuitem;
   -moz-box-align: center;
   max-width: 42em;
@@ -62,13 +64,15 @@ menuitem[default="true"] {
 }
 
 menu[_moz-menuactive="true"],
-menuitem[_moz-menuactive="true"] {
+menuitem[_moz-menuactive="true"],
+.splitmenu-menuitem[_moz-menuactive="true"] {
   color: -moz-menuhovertext;
   background-color: -moz-menuhover;
 }
 
 menu[disabled="true"],
-menuitem[disabled="true"] {
+menuitem[disabled="true"],
+.splitmenu-menuitem[disabled="true"] {
   color: GrayText;
 }
 
@@ -86,7 +90,7 @@ menubar:-moz-lwtheme > menu:not([open="true"]) {
   text-shadow: inherit;
 }
 
-menubar > menu[_moz-menuactive="true"] {
+menubar > menu[_moz-menuactive="true"]:not([open]):not([disabled="true"]):not(:-moz-lwtheme) {
   color: -moz-menubartext;
 }
 
@@ -104,10 +108,7 @@ menuitem.spell-suggestion {
 menulist > menupopup > menuitem,
 .menulist-menupopup > menu,
 menulist > menupopup > menu {
-  padding-top: 1px;
-  padding-bottom: 1px;
-  -moz-padding-start: 1px;
-  -moz-padding-end: 30px;
+  padding: 1px 5px;
   max-width: none;
   font: message-box;
 }

@@ -1,31 +1,67 @@
 
+function sleep(delay)
+{
+    var start = Date.now();
+    while (Date.now() < start + delay);
+}
+
+function force_prompt(allow) {
+  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+  var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
+  prefs.setBoolPref("geo.prompt.testing", true);
+  prefs.setBoolPref("geo.prompt.testing.allow", allow);
+}
+
+function reset_prompt() {
+  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+  var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
+  prefs.setBoolPref("geo.prompt.testing", false);
+  prefs.setBoolPref("geo.prompt.testing.allow", false);
+}
+
 
 function start_sending_garbage()
 {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
-  prefs.setCharPref("geo.wifi.uri", "http://localhost:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs?action=respond-garbage");
+  prefs.setCharPref("geo.wifi.uri", "http://mochi.test:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs?action=respond-garbage");
+
+  // we need to be sure that all location data has been purged/set.
+  sleep(1000);
 }
 
 function stop_sending_garbage()
 {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
-  prefs.setCharPref("geo.wifi.uri", "http://localhost:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs");
+  prefs.setCharPref("geo.wifi.uri", "http://mochi.test:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs");
+
+  // we need to be sure that all location data has been purged/set.
+  sleep(1000);
 }
 
 function stop_geolocationProvider()
 {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
-  prefs.setCharPref("geo.wifi.uri", "http://localhost:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs?action=stop-responding");
+  prefs.setCharPref("geo.wifi.uri", "http://mochi.test:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs?action=stop-responding");
+
+  // we need to be sure that all location data has been purged/set.
+  sleep(1000);
+}
+
+function worse_geolocationProvider()
+{
+  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+  var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
+  prefs.setCharPref("geo.wifi.uri", "http://mochi.test:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs?action=worse-accuracy");
 }
 
 function resume_geolocationProvider()
 {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
-  prefs.setCharPref("geo.wifi.uri", "http://localhost:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs");
+  prefs.setCharPref("geo.wifi.uri", "http://mochi.test:8888/tests/dom/tests/mochitest/geolocation/network_geolocation.sjs");
 }
 
 function check_geolocation(location) {
@@ -52,50 +88,4 @@ function check_geolocation(location) {
   ok (location.coords.longitude == -122.08769, "lon matches known value");
   ok(location.coords.altitude == 42, "alt matches known value");
   ok(location.coords.altitudeAccuracy == 42, "alt acc matches known value");
-
 }
-
-
-function getNotificationBox()
-{
-  const Ci = Components.interfaces;
-  
-  function getChromeWindow(aWindow) {
-      var chromeWin = aWindow 
-          .QueryInterface(Ci.nsIInterfaceRequestor)
-          .getInterface(Ci.nsIWebNavigation)
-          .QueryInterface(Ci.nsIDocShellTreeItem)
-          .rootTreeItem
-          .QueryInterface(Ci.nsIInterfaceRequestor)
-          .getInterface(Ci.nsIDOMWindow)
-          .QueryInterface(Ci.nsIDOMChromeWindow);
-      return chromeWin;
-  }
-
-  var notifyWindow = window.top;
-
-  var chromeWin = getChromeWindow(notifyWindow);
-
-  var notifyBox = chromeWin.getNotificationBox(notifyWindow);
-
-  return notifyBox;
-}
-
-
-function clickNotificationButton(aButtonIndex) {
-  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-
-  // This is a bit of a hack. The notification doesn't have an API to
-  // trigger buttons, so we dive down into the implementation and twiddle
-  // the buttons directly.
-  var box = getNotificationBox();
-  ok(box, "Got notification box");
-  var bar = box.getNotificationWithValue("geolocation");
-  ok(bar, "Got geolocation notification");
-  var button = bar.getElementsByTagName("button").item(aButtonIndex);
-  ok(button, "Got button");
-  button.doCommand();
-}
-
-const kAcceptButton = 0;
-const kDenyButton = 1;

@@ -108,6 +108,7 @@ mailnews/import/public/Makefile
 mailnews/import/src/Makefile
 mailnews/import/test/Makefile
 mailnews/import/text/src/Makefile
+mailnews/import/vcard/src/Makefile
 mailnews/import/winlivemail/Makefile
 mailnews/local/Makefile
 mailnews/local/build/Makefile
@@ -137,4 +138,5 @@ mailnews/news/build/Makefile
 mailnews/news/public/Makefile
 mailnews/news/src/Makefile
 mailnews/news/test/Makefile
+mailnews/test/performance/bloat/Makefile
 "

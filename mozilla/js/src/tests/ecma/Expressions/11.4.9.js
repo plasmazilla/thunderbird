@@ -36,7 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestfile = '11.4.9.js';
 
 /**
    File Name:          11.4.9.js
@@ -55,9 +54,6 @@ startTest();
 var TITLE   = "Logical NOT operator (!)";
 
 writeHeaderToLog( SECTION + " "+ TITLE);
-
-//    version("130")
-
 
 new TestCase( SECTION,   "!(null)",                true,   !(null) );
 new TestCase( SECTION,   "!(var x)",               true,   !(eval("var x")) );

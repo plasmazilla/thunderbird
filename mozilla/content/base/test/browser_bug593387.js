@@ -25,7 +25,7 @@ function testXFOFrameInChrome() {
   // Insert an iframe that specifies "X-Frame-Options: DENY" and verify
   // that it loads, since the top context is chrome
   var frame = newBrowser.contentDocument.createElement("iframe");
-  frame.src = "http://localhost:8888/tests/content/base/test/file_x-frame-options_page.sjs?testid=deny&xfo=deny";
+  frame.src = "http://mochi.test:8888/tests/content/base/test/file_x-frame-options_page.sjs?testid=deny&xfo=deny";
   frame.addEventListener("load", function() {
     // Test that the frame loaded
     var test = this.contentDocument.getElementById("test");
@@ -46,7 +46,7 @@ function testXFOFrameInContent() {
   // Insert an iframe that specifies "X-Frame-Options: DENY" and verify that it
   // is blocked from loading since the top browsing context is another site
   var frame = newBrowser.contentDocument.createElement("iframe");
-  frame.src = "http://localhost:8888/tests/content/base/test/file_x-frame-options_page.sjs?testid=deny&xfo=deny";
+  frame.src = "http://mochi.test:8888/tests/content/base/test/file_x-frame-options_page.sjs?testid=deny&xfo=deny";
   frame.addEventListener("load", function() {
     // Test that the frame DID NOT load
     var test = this.contentDocument.getElementById("test");

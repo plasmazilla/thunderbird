@@ -51,6 +51,7 @@
 #include "jsapi.h"
 #include "nsIScriptContext.h"
 #include "nsIChannelEventSink.h"
+#include "nsIAsyncVerifyRedirectCallback.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIHttpHeaderVisitor.h"
 #include "nsIProgressEventSink.h"
@@ -59,134 +60,27 @@
 #include "nsTArray.h"
 #include "nsIJSNativeInitializer.h"
 #include "nsIDOMLSProgressEvent.h"
-#include "nsClassHashtable.h"
-#include "nsHashKeys.h"
-#include "prclist.h"
-#include "prtime.h"
 #include "nsIDOMNSEvent.h"
 #include "nsITimer.h"
 #include "nsIPrivateDOMEvent.h"
 #include "nsDOMProgressEvent.h"
-#include "nsDOMEventTargetHelper.h"
+#include "nsDOMEventTargetWrapperCache.h"
+#include "nsContentUtils.h"
 
 class nsILoadGroup;
+class AsyncVerifyRedirectCallbackForwarder;
 
-class nsAccessControlLRUCache
+class nsXHREventTarget : public nsDOMEventTargetWrapperCache,
+                         public nsIXMLHttpRequestEventTarget
 {
 public:
-  struct TokenTime
-  {
-    nsCString token;
-    PRTime expirationTime;
-  };
-
-  struct CacheEntry : public PRCList
-  {
-    CacheEntry(nsCString& aKey)
-      : mKey(aKey)
-    {
-      MOZ_COUNT_CTOR(nsAccessControlLRUCache::CacheEntry);
-    }
-    
-    ~CacheEntry()
-    {
-      MOZ_COUNT_DTOR(nsAccessControlLRUCache::CacheEntry);
-    }
-
-    void PurgeExpired(PRTime now);
-    PRBool CheckRequest(const nsCString& aMethod,
-                        const nsTArray<nsCString>& aCustomHeaders);
-
-    nsCString mKey;
-    nsTArray<TokenTime> mMethods;
-    nsTArray<TokenTime> mHeaders;
-  };
-
-  nsAccessControlLRUCache()
-  {
-    MOZ_COUNT_CTOR(nsAccessControlLRUCache);
-    PR_INIT_CLIST(&mList);
-  }
-
-  ~nsAccessControlLRUCache()
-  {
-    Clear();
-    MOZ_COUNT_DTOR(nsAccessControlLRUCache);
-  }
-
-  PRBool Initialize()
-  {
-    return mTable.Init();
-  }
-
-  CacheEntry* GetEntry(nsIURI* aURI, nsIPrincipal* aPrincipal,
-                       PRBool aWithCredentials, PRBool aCreate);
-  void RemoveEntries(nsIURI* aURI, nsIPrincipal* aPrincipal);
-
-  void Clear();
-
-private:
-  static PLDHashOperator
-    RemoveExpiredEntries(const nsACString& aKey, nsAutoPtr<CacheEntry>& aValue,
-                         void* aUserData);
-
-  static PRBool GetCacheKey(nsIURI* aURI, nsIPrincipal* aPrincipal,
-                            PRBool aWithCredentials, nsACString& _retval);
-
-  nsClassHashtable<nsCStringHashKey, CacheEntry> mTable;
-  PRCList mList;
-};
-
-class nsXHREventTarget : public nsDOMEventTargetHelper,
-                         public nsIXMLHttpRequestEventTarget,
-                         public nsWrapperCache
-{
-public:
-  virtual ~nsXHREventTarget();
+  virtual ~nsXHREventTarget() {}
   NS_DECL_ISUPPORTS_INHERITED
-
-  class NS_CYCLE_COLLECTION_INNERCLASS
-    : public NS_CYCLE_COLLECTION_CLASSNAME(nsDOMEventTargetHelper)
-  {
-    NS_IMETHOD RootAndUnlinkJSObjects(void *p);
-    NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_BODY(nsXHREventTarget,
-                                                  nsDOMEventTargetHelper)
-    NS_IMETHOD_(void) Trace(void *p, TraceCallback cb, void *closure);
-  };
-  NS_CYCLE_COLLECTION_PARTICIPANT_INSTANCE
-
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsXHREventTarget,
+                                           nsDOMEventTargetWrapperCache)
   NS_DECL_NSIXMLHTTPREQUESTEVENTTARGET
   NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
   NS_FORWARD_NSIDOMNSEVENTTARGET(nsDOMEventTargetHelper::)
-
-  void GetParentObject(nsIScriptGlobalObject **aParentObject)
-  {
-    if (mOwner) {
-      CallQueryInterface(mOwner, aParentObject);
-    }
-    else {
-      *aParentObject = nsnull;
-    }
-  }
-
-  static nsXHREventTarget* FromSupports(nsISupports* aSupports)
-  {
-    nsPIDOMEventTarget* target =
-      static_cast<nsPIDOMEventTarget*>(aSupports);
-#ifdef DEBUG
-    {
-      nsCOMPtr<nsPIDOMEventTarget> target_qi =
-        do_QueryInterface(aSupports);
-
-      // If this assertion fires the QI implementation for the object in
-      // question doesn't use the nsPIDOMEventTarget pointer as the
-      // nsISupports pointer. That must be fixed, or we'll crash...
-      NS_ASSERTION(target_qi == target, "Uh, fix QI!");
-    }
-#endif
-
-    return static_cast<nsXHREventTarget*>(target);
-  }
 
 protected:
   nsRefPtr<nsDOMEventListenerWrapper> mOnLoadListener;
@@ -194,6 +88,7 @@ protected:
   nsRefPtr<nsDOMEventListenerWrapper> mOnAbortListener;
   nsRefPtr<nsDOMEventListenerWrapper> mOnLoadStartListener;
   nsRefPtr<nsDOMEventListenerWrapper> mOnProgressListener;
+  nsRefPtr<nsDOMEventListenerWrapper> mOnLoadendListener;
 };
 
 class nsXMLHttpRequestUpload : public nsXHREventTarget,
@@ -316,31 +211,7 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsXMLHttpRequest,
                                            nsXHREventTarget)
 
-  static PRBool EnsureACCache()
-  {
-    if (sAccessControlCache)
-      return PR_TRUE;
-
-    nsAutoPtr<nsAccessControlLRUCache> newCache(new nsAccessControlLRUCache());
-    NS_ENSURE_TRUE(newCache, PR_FALSE);
-
-    if (newCache->Initialize()) {
-      sAccessControlCache = newCache.forget();
-      return PR_TRUE;
-    }
-
-    return PR_FALSE;
-  }
-
-  static void ShutdownACCache()
-  {
-    delete sAccessControlCache;
-    sAccessControlCache = nsnull;
-  }
-
   PRBool AllowUploadProgress();
-
-  static nsAccessControlLRUCache* sAccessControlCache;
 
 protected:
   friend class nsMultipartProxyListener;
@@ -369,6 +240,10 @@ protected:
 
   already_AddRefed<nsIHttpChannel> GetCurrentHttpChannel();
 
+  bool IsSystemXHR() {
+    return !!nsContentUtils::IsSystemPrincipal(mPrincipal);
+  }
+
   /**
    * Check if aChannel is ok for a cross-site request by making sure no
    * inappropriate headers are set, and no username/password is set.
@@ -379,14 +254,17 @@ protected:
 
   void StartProgressEventTimer();
 
+  friend class AsyncVerifyRedirectCallbackForwarder;
+  void OnRedirectVerifyCallback(nsresult result);
+
   nsCOMPtr<nsISupports> mContext;
   nsCOMPtr<nsIPrincipal> mPrincipal;
   nsCOMPtr<nsIChannel> mChannel;
   // mReadRequest is different from mChannel for multipart requests
   nsCOMPtr<nsIRequest> mReadRequest;
   nsCOMPtr<nsIDOMDocument> mResponseXML;
-  nsCOMPtr<nsIChannel> mACGetChannel;
-  nsTArray<nsCString> mACUnsafeHeaders;
+  nsCOMPtr<nsIChannel> mCORSPreflightChannel;
+  nsTArray<nsCString> mCORSUnsafeHeaders;
 
   nsRefPtr<nsDOMEventListenerWrapper> mOnUploadProgressListener;
   nsRefPtr<nsDOMEventListenerWrapper> mOnReadystatechangeListener;
@@ -405,7 +283,15 @@ protected:
     nsCString mHeaders;
   };
 
+  // The bytes of our response body
   nsCString mResponseBody;
+
+  // The Unicode version of our response body.  This is just a cache; if the
+  // string is not void, we have a cached value.  This works because we only
+  // allow looking at this value once state is INTERACTIVE, and at that
+  // point our charset can only change due to more data coming in, which
+  // will cause us to clear the cached value anyway.
+  nsString mResponseBodyUnicode;
 
   nsCString mOverrideMimeType;
 
@@ -444,6 +330,9 @@ protected:
   nsCOMPtr<nsITimer> mProgressNotifier;
 
   PRPackedBool mFirstStartRequestSeen;
+  
+  nsCOMPtr<nsIAsyncVerifyRedirectCallback> mRedirectCallback;
+  nsCOMPtr<nsIChannel> mNewRedirectChannel;
 };
 
 // helper class to expose a progress DOM Event
@@ -485,6 +374,15 @@ public:
   NS_IMETHOD SetTrusted(PRBool aTrusted)
   {
     return mInner->SetTrusted(aTrusted);
+  }
+  virtual void Serialize(IPC::Message* aMsg,
+                         PRBool aSerializeInterfaceType)
+  {
+    mInner->Serialize(aMsg, aSerializeInterfaceType);
+  }
+  virtual PRBool Deserialize(const IPC::Message* aMsg, void** aIter)
+  {
+    return mInner->Deserialize(aMsg, aIter);
   }
 
 protected:

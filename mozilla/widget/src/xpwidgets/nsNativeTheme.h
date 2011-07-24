@@ -46,14 +46,21 @@
 #include "nsMargin.h"
 #include "nsILookAndFeel.h"
 #include "nsWidgetAtoms.h"
+#include "nsEventStates.h"
+#include "nsTArray.h"
+#include "nsITimer.h"
 
+class nsIContent;
 class nsIFrame;
 class nsIPresShell;
 class nsPresContext;
 
-class nsNativeTheme
+class nsNativeTheme : public nsITimerCallback
 {
  protected:
+
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSITIMERCALLBACK
 
   enum ScrollbarButtonType {
     eScrollbarButton_UpTop   = 0,
@@ -70,7 +77,7 @@ class nsNativeTheme
   nsNativeTheme();
 
   // Returns the content state (hover, focus, etc), see nsIEventStateManager.h
-  PRInt32 GetContentState(nsIFrame* aFrame, PRUint8 aWidgetType);
+  nsEventStates GetContentState(nsIFrame* aFrame, PRUint8 aWidgetType);
 
   // Returns whether the widget is already styled by content
   // Normally called from ThemeSupportsWidget to turn off native theming
@@ -80,10 +87,7 @@ class nsNativeTheme
 
   // Accessors to widget-specific state information
 
-  // all widgets:
-  PRBool IsDisabled(nsIFrame* aFrame) {
-    return CheckBooleanAttr(aFrame, nsWidgetAtoms::disabled);
-  }
+  bool IsDisabled(nsIFrame* aFrame, nsEventStates aEventStates);
 
   // RTL chrome direction
   PRBool IsFrameRTL(nsIFrame* aFrame);
@@ -180,4 +184,12 @@ class nsNativeTheme
 
   PRBool GetCheckedOrSelected(nsIFrame* aFrame, PRBool aCheckSelected);
   PRBool GetIndeterminate(nsIFrame* aFrame);
+
+  PRBool QueueAnimatedContentForRefresh(nsIContent* aContent,
+                                        PRUint32 aMinimumFrameRate);
+
+ private:
+  PRUint32 mAnimatedContentTimeout;
+  nsCOMPtr<nsITimer> mAnimatedContentTimer;
+  nsAutoTArray<nsCOMPtr<nsIContent>, 20> mAnimatedContentList;
 };

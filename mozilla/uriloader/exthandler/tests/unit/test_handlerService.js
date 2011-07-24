@@ -59,6 +59,17 @@ function run_test() {
 
   const rootPrefBranch = prefSvc.getBranch("");
   
+  let isWin7OrHigher = false;
+  let isWindows = ("@mozilla.org/windows-registry-key;1" in Components.classes);
+  if (isWindows) {
+    try {
+      let version = Cc["@mozilla.org/system-info;1"]
+                      .getService(Ci.nsIPropertyBag2)
+                      .getProperty("version");
+      isWin7OrHigher = (parseFloat(version) >= 6.1);
+    } catch (ex) { }
+  }
+
   //**************************************************************************//
   // Sample Data
 
@@ -171,18 +182,28 @@ function run_test() {
     do_check_eq(2, protoInfo.possibleApplicationHandlers.length);
   else
     do_check_eq(0, protoInfo.possibleApplicationHandlers.length);
-  do_check_false(protoInfo.alwaysAskBeforeHandling);
+
+  // Win7 doesn't have a default mailto: handler
+  if (isWin7OrHigher)
+    do_check_true(protoInfo.alwaysAskBeforeHandling);
+  else
+    do_check_false(protoInfo.alwaysAskBeforeHandling);
 
   // OS default exists, injected default exists, explicit warning pref: true
   prefSvc.setBoolPref(kExternalWarningPrefPrefix + "mailto", true);
   protoInfo = protoSvc.getProtocolHandlerInfo("mailto");
   if (haveDefaultHandlersVersion) {
     do_check_eq(2, protoInfo.possibleApplicationHandlers.length);
+    // Win7 doesn't have a default mailto: handler, but on other platforms
     // alwaysAskBeforeHandling is expected to be false here, because although
     // the pref is true, the value in RDF is false. The injected mailto handler
     // carried over the default pref value, and so when we set the pref above
     // to true it's ignored.
-    do_check_false(protoInfo.alwaysAskBeforeHandling);
+    if (isWin7OrHigher)
+      do_check_true(protoInfo.alwaysAskBeforeHandling);
+    else
+      do_check_false(protoInfo.alwaysAskBeforeHandling);
+
   } else {
     do_check_eq(0, protoInfo.possibleApplicationHandlers.length);
     do_check_true(protoInfo.alwaysAskBeforeHandling);
@@ -342,13 +363,77 @@ function run_test() {
   do_check_eq(webPossibleHandler.name, webHandler.name);
   do_check_true(webPossibleHandler.equals(webHandler));
 
+  //////////////////////////////////////////////////////
+  // handler info command line parameters and equality
+  var localApp = Cc["@mozilla.org/uriloader/local-handler-app;1"].
+                 createInstance(Ci.nsILocalHandlerApp);
+  var handlerApp = localApp.QueryInterface(Ci.nsIHandlerApp);
+
+  do_check_true(handlerApp.equals(localApp));
+
+  localApp.executable = executable;
+
+  do_check_eq(0, localApp.parameterCount);
+  localApp.appendParameter("-test1");
+  do_check_eq(1, localApp.parameterCount);
+  localApp.appendParameter("-test2");
+  do_check_eq(2, localApp.parameterCount);
+  do_check_true(localApp.parameterExists("-test1"));
+  do_check_true(localApp.parameterExists("-test2"));
+  do_check_false(localApp.parameterExists("-false"));
+  localApp.clearParameters();
+  do_check_eq(0, localApp.parameterCount);
+
+  var localApp2 = Cc["@mozilla.org/uriloader/local-handler-app;1"].
+                  createInstance(Ci.nsILocalHandlerApp);
+  
+  localApp2.executable = executable;
+
+  localApp.clearParameters();
+  do_check_true(localApp.equals(localApp2));
+
+  // equal:
+  // cut -d 1 -f 2
+  // cut -d 1 -f 2
+
+  localApp.appendParameter("-test1");
+  localApp.appendParameter("-test2");
+  localApp.appendParameter("-test3");
+  localApp2.appendParameter("-test1");
+  localApp2.appendParameter("-test2");
+  localApp2.appendParameter("-test3");
+  do_check_true(localApp.equals(localApp2));
+
+  // not equal:
+  // cut -d 1 -f 2
+  // cut -f 1 -d 2
+
+  localApp.clearParameters();
+  localApp2.clearParameters();
+
+  localApp.appendParameter("-test1");
+  localApp.appendParameter("-test2");
+  localApp.appendParameter("-test3");
+  localApp2.appendParameter("-test2");
+  localApp2.appendParameter("-test1");
+  localApp2.appendParameter("-test3");
+  do_check_false(localApp2.equals(localApp));
+
+  var str;
+  str = localApp.getParameter(0)
+  do_check_eq(str, "-test1");
+  str = localApp.getParameter(1)
+  do_check_eq(str, "-test2");
+  str = localApp.getParameter(2)
+  do_check_eq(str, "-test3");
+
   // FIXME: test round trip integrity for a protocol.
   // FIXME: test round trip integrity for a handler info with a web handler.
 
   //**************************************************************************//
   // getTypeFromExtension tests
 
-  // test non-existent extension
+  // test nonexistent extension
   var lolType = handlerSvc.getTypeFromExtension("lolcat");
   do_check_eq(lolType, "");
 

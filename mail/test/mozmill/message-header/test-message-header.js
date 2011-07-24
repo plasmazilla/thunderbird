@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -42,7 +42,8 @@
 var MODULE_NAME = 'test-message-header';
 
 var RELATIVE_ROOT = '../shared-modules';
-var MODULE_REQUIRES = ['folder-display-helpers', 'window-helpers'];
+var MODULE_REQUIRES = ['folder-display-helpers', 'window-helpers',
+                       'address-book-helpers'];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
@@ -54,12 +55,15 @@ function setupModule(module) {
   fdh.installInto(module);
   let wh = collector.getModule('window-helpers');
   wh.installInto(module);
+  let abh = collector.getModule('address-book-helpers');
+  abh.installInto(module);
 
   folder = create_folder("MessageWindowA");
 
   // create a message that has the interesting headers that commonly
   // show up in the message header pane for testing
-  let msg = create_message({cc: [["John Doe", "john.doe@momo.invalid"]],
+  let msg = create_message({cc: msgGen.makeNamesAndAddresses(20), // YYY
+                            subject: "This is a really, really, really, really, really, really, really, really, long subject.",
                             clobberHeaders: {
                               "Newsgroups": "alt.test",
                               "Reply-To": "J. Doe <j.doe@momo.invalid>",
@@ -67,6 +71,11 @@ function setupModule(module) {
                               "Bcc": "Richard Roe <richard.roe@momo.invalid>"
                             }});
 
+  add_message_to_folder(folder, msg);
+
+  // create a message that has boring headers to be able to switch to and
+  // back from, to force the more button to collapse again.
+  msg = create_message();
   add_message_to_folder(folder, msg);
 }
 
@@ -222,7 +231,7 @@ let gAccRetrieval = Cc["@mozilla.org/accessibleRetrieval;1"].
  *                              for details.
  */
 function verify_header_a11y(aHeaderInfo) {
-
+  // XXX Don't use eval here.
   let headerValueElement = eval(aHeaderInfo.headerValueElement);
 
   let headerAccessible = gAccRetrieval.getAccessibleFor(headerValueElement);
@@ -232,6 +241,7 @@ function verify_header_a11y(aHeaderInfo) {
                     aHeaderInfo.expectedRole);
   }
 
+  // XXX Don't use eval here.
   let expectedName = eval(aHeaderInfo.expectedName);
   if (headerAccessible.name != expectedName) {
     throw new Error("headerAccessible.name for " + aHeaderInfo.headerName +
@@ -242,6 +252,13 @@ function verify_header_a11y(aHeaderInfo) {
 
 /**
  * Test the accessibility attributes of the various message headers.
+ *
+ * XXX This test used to be after test_more_button_with_many_recipients,
+ * however, there were some accessibility changes that it didn't seem to play
+ * nicely with, and the toggling of the "more" button on the cc field was
+ * causing this test to fail on the cc element. Tests with accessibilty
+ * hardware/software showed that the code was working fine. Therefore the test
+ * may be suspect.
  */
 function test_a11y_attrs() {
   // skip this test on platforms that don't support accessibility
@@ -258,6 +275,229 @@ function test_a11y_attrs() {
   assert_selected_and_displayed(mc, curMessage);
 
   headersToTest.forEach(verify_header_a11y);
+}
+
+function test_more_button_with_many_recipients()
+{
+  // Start on the interesting message.
+  let curMessage = select_click_row(0);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // Check the mode of the header.
+  let headerBox = mc.eid("expandedHeaderView");
+  let previousHeaderMode = headerBox.node.getAttribute("show_header_mode");
+
+  // Click the "more" button.
+  let moreIndicator = mc.eid("expandedccBox");
+  moreIndicator = mc.window.document.getAnonymousElementByAttribute(
+                    moreIndicator.node, "anonid", "more");
+  moreIndicator = new elementslib.Elem(moreIndicator);
+  mc.click(moreIndicator);
+
+  // Check the new mode of the header.
+  if (headerBox.node.getAttribute("show_header_mode") != "all")
+    throw new Error("Header Mode didn't change to 'all'!  " + "old=" +
+                    previousHeaderMode + ", new=" +
+                    headerBox.node.getAttribute("show_header_mode"));
+
+  // Switch to the boring message, to force the more button to collapse.
+  curMessage = select_click_row(1);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // Check the even newer mode of the header.
+  if (headerBox.node.getAttribute("show_header_mode") != previousHeaderMode)
+    throw new Error("Header Mode changed from " + previousHeaderMode +
+                    " to " + headerBox.node.getAttribute("show_header_mode") +
+                    " and didn't change back.");
+}
+
+/**
+ * Test that we can open up the inline contact editor when we
+ * click on the star.
+ */
+function test_clicking_star_opens_inline_contact_editor()
+{
+  // Make sure we're in the right folder
+  be_in_folder(folder);
+
+  // Add a new message
+  let msg = create_message();
+  add_message_to_folder(folder, msg);
+
+  // Open the latest message
+  let curMessage = select_click_row(-1);
+  // Make sure the star is clicked, and we add the
+  // new contact to our address book
+  let toDescription = mc.a('expandedtoBox', {class: "headerValue"});
+
+  // Ensure that the inline contact editing panel is not open
+  let contactPanel = mc.eid('editContactPanel').getNode();
+  assert_not_equals(contactPanel.state, "open");
+  subtest_more_widget_star_click(toDescription);
+
+  // Ok, if we're here, then the star has been clicked, and
+  // the contact has been added to our AB.
+  let addrs = toDescription.getElementsByTagName('mail-emailaddress');
+  let lastAddr = addrs[addrs.length-1];
+
+  // Click on the star, and ensure that the inline contact
+  // editing panel opens
+  mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
+  assert_equals(contactPanel.state, "open");
+  contactPanel.hidePopup();
+}
+
+/**
+ * Test that if a contact belongs to a mailing list within their
+ * address book, then the inline contact editor will not allow
+ * the user to change what address book the contact belongs to.
+ * The editor should also show a message to explain why the
+ * contact cannot be moved.
+ */
+function test_address_book_switch_disabled_on_contact_in_mailing_list()
+{
+  const MAILING_LIST_DIRNAME = "Some Mailing List";
+  const ADDRESS_BOOK_NAME = "Some Address Book";
+  // Add a new message
+  let msg = create_message();
+  add_message_to_folder(folder, msg);
+
+  // Make sure we're in the right folder
+  be_in_folder(folder);
+
+  // Open the latest message
+  let curMessage = select_click_row(-1);
+
+  // Make sure the star is clicked, and we add the
+  // new contact to our address book
+  let toDescription = mc.a('expandedtoBox', {class: "headerValue"});
+
+  // Ensure that the inline contact editing panel is not open
+  let contactPanel = mc.eid('editContactPanel').getNode();
+  assert_not_equals(contactPanel.state, "open");
+
+  subtest_more_widget_star_click(toDescription);
+
+  // Ok, if we're here, then the star has been clicked, and
+  // the contact has been added to our AB.
+  let addrs = toDescription.getElementsByTagName('mail-emailaddress');
+  let lastAddr = addrs[addrs.length-1];
+
+  // Click on the star, and ensure that the inline contact
+  // editing panel opens
+  mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
+  assert_equals(contactPanel.state, "open");
+
+  let abDrop = mc.eid('editContactAddressBookList').getNode();
+  let warningMsg = mc.eid('contactMoveDisabledText').getNode();
+
+  // Ensure that the address book dropdown is not disabled
+  assert_true(!abDrop.disabled);
+  // We should not be displaying any warning
+  assert_true(warningMsg.collapsed);
+
+  // Now close the popup
+  contactPanel.hidePopup();
+
+  // For the contact that was added, create a mailing list in the
+  // address book it resides in, and then add that contact to the
+  // mailing list
+  addrs = toDescription.getElementsByTagName('mail-emailaddress');
+  let targetAddr = addrs[addrs.length-1].getAttribute("emailAddress");
+
+  let cards = get_cards_in_all_address_books_for_email(targetAddr);
+
+  // There should be only one copy of this email address
+  // in the address books.
+  assert_equals(cards.length, 1);
+  let card = cards[0];
+
+  // Remove the card from any of the address books
+  ensure_no_card_exists(targetAddr);
+
+  // Add the card to a new address book, and insert it
+  // into a mailing list under that address book
+  let ab = create_mork_address_book(ADDRESS_BOOK_NAME);
+  ab.dropCard(card, false);
+  let ml = create_mailing_list(MAILING_LIST_DIRNAME);
+  ab.addMailList(ml);
+
+  // Now we have to retrieve the mailing list from
+  // the address book, in order for us to add and
+  // delete cards from it.
+  ml = get_mailing_list_from_address_book(ab, MAILING_LIST_DIRNAME);
+
+  ml.addressLists.appendElement(card, false);
+
+  // Re-open the inline contact editing panel
+  mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
+  assert_equals(contactPanel.state, "open");
+
+  // The dropdown should be disabled now
+  assert_true(abDrop.disabled);
+  // We should be displaying a warning
+  assert_true(!warningMsg.collapsed);
+
+  contactPanel.hidePopup();
+
+  // And if we remove the contact from the mailing list, the
+  // warning should be gone and the address book switching
+  // menu re-enabled.
+
+  let cardArray = Cc["@mozilla.org/array;1"]
+                  .createInstance(Ci.nsIMutableArray);
+  cardArray.appendElement(card, false);
+  ml.deleteCards(cardArray);
+
+  // Re-open the inline contact editing panel
+  mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
+  assert_equals(contactPanel.state, "open");
+
+  // Ensure that the address book dropdown is not disabled
+  assert_true(!abDrop.disabled);
+  // We should not be displaying any warning
+  assert_true(warningMsg.collapsed);
+
+  contactPanel.hidePopup();
+}
+
+/**
+ * Test that clicking the adding an address node adds it to the address book.
+ */
+function test_add_contact_from_context_menu() {
+  // Click the contact to show the emailAddressPopup popup menu.
+  mc.click(mc.aid("expandedfromBox", {tagName: "mail-emailaddress"}));
+
+  var addToAddressBookItem = mc.window.document.getElementById("addToAddressBookItem");
+  if (addToAddressBookItem.hidden)
+    throw new Error("addToAddressBookItem is hidden for unknown contact");
+  var editContactItem = mc.window.document.getElementById("editContactItem");
+  if (!editContactItem.getAttribute("hidden"))
+    throw new Error("editContactItem is NOT hidden for unknown contact");
+
+  // Click the Add to Address Book context menu entry.
+  mc.click(mc.eid("addToAddressBookItem"));
+  // (for reasons unknown, the pop-up does not close itself)
+  close_popup(mc, mc.eid("emailAddressPopup"));
+
+  // Now click the contact again, the context menu should now show the
+  // Edit Contact menu instead.
+  mc.click(mc.aid("expandedfromBox", {tagName: "mail-emailaddress"}));
+  // (for reasons unknown, the pop-up does not close itself)
+  close_popup(mc, mc.eid("emailAddressPopup"));
+
+  addToAddressBookItem = mc.window.document.getElementById("addToAddressBookItem");
+  if (!addToAddressBookItem.hidden)
+    throw new Error("addToAddressBookItem is NOT hidden for known contact");
+  editContactItem = mc.window.document.getElementById("editContactItem");
+  if (editContactItem.hidden)
+    throw new Error("editContactItem is hidden for known contact");
 }
 
 function test_that_msg_without_date_clears_previous_headers() {
@@ -317,6 +557,50 @@ function test_more_widget() {
 }
 
 /**
+ * Test that all addresses are shown in show all header mode
+ */
+function test_show_all_header_mode() {
+  // generate message with 35 recips (effectively guarantees overflow for n=3)
+  be_in_folder(folder);
+  let msg = create_message({toCount: 35});
+
+  // add the message to the end of the folder
+  add_message_to_folder(folder, msg);
+
+  // select and open the last message
+  let curMessage = select_click_row(-1);
+
+  // make sure it loads
+  wait_for_message_display_completion(mc);
+  assert_selected_and_displayed(mc, curMessage);
+
+  // get the description element containing the addresses
+  let toDescription = mc.a('expandedtoBox', {class: "headerValue"});
+
+  change_to_header_normal_mode();
+  subtest_more_widget_display(toDescription);
+  subtest_change_to_all_header_mode(toDescription);
+  change_to_header_normal_mode();
+  subtest_more_widget_click(toDescription);
+}
+
+function change_to_header_normal_mode() {
+  // XXX Clicking on check menu items doesn't work in 1.4.1b1 (bug 474486)...
+  //  mc.click(new elib.Elem(mc.menus.View.viewheadersmenu.viewnormalheaders));
+  // ... so call the function instead.
+  mc.window.MsgViewNormalHeaders();
+  mc.sleep(0);
+}
+
+function change_to_all_header_mode() {
+  // XXX Clicking on check menu items doesn't work in 1.4.1b1 (bug 474486)...
+  //  mc.click(new elib.Elem(mc.menus.View.viewheadersmenu.viewallheaders));
+  // ... so call the function instead.
+  mc.window.MsgViewAllHeaders();
+  mc.sleep(0);
+}
+
+/**
  * Get the number of lines in one of the multi-address fields
  * @param node the description element containing the addresses
  * @return the number of lines
@@ -324,32 +608,6 @@ function test_more_widget() {
 function help_get_num_lines(node) {
   let style = mc.window.getComputedStyle(node, null);
   return style.height / style.lineHeight;
-}
-
-/**
- * Make sure that there is no card for this email address
- * @param emailAddress the address that should have no cards
- */
-function ensure_no_card_exists(emailAddress)
-{
-  var books = Components.classes["@mozilla.org/abmanager;1"]
-                        .getService(Components.interfaces.nsIAbManager)
-                        .directories;
-
-  while (books.hasMoreElements()) {
-    var ab = books.getNext()
-                  .QueryInterface(Components.interfaces.nsIAbDirectory);
-    try {
-      var card = ab.cardForEmailAddress(emailAddress);
-      if (card) {
-        let cardArray = Cc["@mozilla.org/array;1"]
-                          .createInstance(Ci.nsIMutableArray);
-        cardArray.appendElement(card, false);
-        ab.deleteCards(cardArray);
-      }
-    }
-    catch (ex) { }
-  }
 }
 
 /**
@@ -402,6 +660,28 @@ function subtest_more_widget_click(toDescription) {
   let newNumLines = help_get_num_lines(toDescription);
   if (newNumLines <= oldNumLines) {
     throw new Error("number of address lines present after more clicked = " +
+      newNumLines + "<= number of lines present beforehand = " + oldNumLines);
+  }
+}
+
+/**
+ * Test that changing to all header lines mode displays all the addresses.
+ * @param toDescription the description node for the "to" field
+ */
+function subtest_change_to_all_header_mode(toDescription) {
+  let oldNumLines = help_get_num_lines(toDescription);
+
+  change_to_all_header_mode();
+  // test that (n more) is gone
+  let moreNode = mc.a('expandedtoBox', {class: 'moreIndicator'});
+  if (!moreNode.collapsed) {
+    throw new Error("more node should be collapsed in all header lines mode");
+  }
+
+  // test that we actually have more lines than we did before!
+  let newNumLines = help_get_num_lines(toDescription);
+  if (newNumLines <= oldNumLines) {
+    throw new Error("number of address lines present in all header lines mode = " +
       newNumLines + "<= number of lines present beforehand = " + oldNumLines);
   }
 }
@@ -601,3 +881,4 @@ function test_get_msg_button_customize_header_toolbar(){
                     originalServerCount);
   }
 }
+

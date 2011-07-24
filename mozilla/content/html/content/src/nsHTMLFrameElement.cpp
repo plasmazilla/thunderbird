@@ -37,17 +37,18 @@
 #include "nsIDOMHTMLFrameElement.h"
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
-#include "nsIPresShell.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
 #include "nsDOMError.h"
 
+using namespace mozilla::dom;
 
 class nsHTMLFrameElement : public nsGenericHTMLFrameElement,
                            public nsIDOMHTMLFrameElement
 {
 public:
-  nsHTMLFrameElement(nsINodeInfo *aNodeInfo);
+  nsHTMLFrameElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                     mozilla::dom::FromParser aFromParser = mozilla::dom::NOT_FROM_PARSER);
   virtual ~nsHTMLFrameElement();
 
   // nsISupports
@@ -73,14 +74,16 @@ public:
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
   nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
-NS_IMPL_NS_NEW_HTML_ELEMENT(Frame)
+NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(Frame)
 
 
-nsHTMLFrameElement::nsHTMLFrameElement(nsINodeInfo *aNodeInfo)
-  : nsGenericHTMLFrameElement(aNodeInfo)
+nsHTMLFrameElement::nsHTMLFrameElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                                       FromParser aFromParser)
+  : nsGenericHTMLFrameElement(aNodeInfo, aFromParser)
 {
 }
 
@@ -92,6 +95,8 @@ nsHTMLFrameElement::~nsHTMLFrameElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLFrameElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLFrameElement, nsGenericElement)
 
+
+DOMCI_NODE_DATA(HTMLFrameElement, nsHTMLFrameElement)
 
 // QueryInterface implementation for nsHTMLFrameElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLFrameElement)
@@ -128,16 +133,16 @@ nsHTMLFrameElement::ParseAttribute(PRInt32 aNamespaceID,
 {
   if (aNamespaceID == kNameSpaceID_None) {
     if (aAttribute == nsGkAtoms::bordercolor) {
-      return aResult.ParseColor(aValue, GetOwnerDoc());
+      return aResult.ParseColor(aValue);
     }
     if (aAttribute == nsGkAtoms::frameborder) {
       return ParseFrameborderValue(aValue, aResult);
     }
     if (aAttribute == nsGkAtoms::marginwidth) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::marginheight) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::scrolling) {
       return ParseScrollingValue(aValue, aResult);

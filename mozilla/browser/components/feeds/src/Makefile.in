@@ -54,13 +54,16 @@ DEFINES += \
 	-DMOZ_APP_DISPLAYNAME=$(MOZ_APP_DISPLAYNAME) \
 	$(NULL)
 
+EXTRA_COMPONENTS = \
+  BrowserFeeds.manifest \
+  $(NULL)
+
 EXTRA_PP_COMPONENTS = \
 	FeedConverter.js \
 	FeedWriter.js \
 	WebContentConverter.js \
 	$(NULL)
 
-REQUIRES = xpcom string necko mimetype
 
 CPPSRCS = nsFeedSniffer.cpp
 

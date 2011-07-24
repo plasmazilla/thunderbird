@@ -111,11 +111,12 @@ StreamListener.prototype = {
   },
 
   // nsIChannelEventSink
-  onChannelRedirect: function (aOldChannel, aNewChannel, aFlags) {
+  asyncOnChannelRedirect: function (aOldChannel, aNewChannel, aFlags, callback) {
     netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
     ghist3.addDocumentRedirect(aOldChannel, aNewChannel, aFlags, true);
     // If redirecting, store the new channel
     this.mChannel = aNewChannel;
+    callback.onRedirectVerifyCallback(Components.results.NS_OK);
   },
 
   // nsIInterfaceRequestor
@@ -156,22 +157,15 @@ function checkDB(data){
   var referrer = this.mChannel.QueryInterface(Ci.nsIHttpChannel).referrer;
   ghist.addURI(this.mChannel.URI, true, true, referrer);
 
-  // We have to wait since we use lazy_add, lazy_timer is 3s
-  setTimeout("checkDBOnTimeout()", 4000);
-}
-
-function checkDBOnTimeout() {
-  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-
   // Get all pages visited from the original typed one
-  var sql = "SELECT url FROM moz_historyvisits_view " +
-            "JOIN moz_places_view h ON h.id = place_id " +
+  var sql = "SELECT url FROM moz_historyvisits " +
+            "JOIN moz_places h ON h.id = place_id " +
             "WHERE from_visit IN " +
-              "(SELECT v.id FROM moz_historyvisits_view v " +
-              "JOIN moz_places_view p ON p.id = v.place_id " +
+              "(SELECT v.id FROM moz_historyvisits v " +
+              "JOIN moz_places p ON p.id = v.place_id " +
               "WHERE p.url = ?1)";
   var stmt = mDBConn.createStatement(sql);
-  stmt.bindUTF8StringParameter(0, typedURI.spec);
+  stmt.bindByIndex(0, typedURI.spec);
 
   var empty = true;
   while (stmt.executeStep()) {

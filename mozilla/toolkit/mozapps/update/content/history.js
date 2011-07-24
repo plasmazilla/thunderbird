@@ -63,7 +63,7 @@ var gUpdateHistory = {
 
         // Don't display updates that are downloading since they don't have
         // valid statusText for the UI (bug 485493).
-        if (!update.statusText || update.statusText == "undefined")
+        if (!update.statusText)
           continue;
 
         var element = document.createElementNS(NS_XUL, "update");

@@ -15,17 +15,17 @@
 * - Adding new messages directly to mailboxes
 */
 
-load("../../mailnews/resources/msgFolderListenerSetup.js");
+load("../../../resources/msgFolderListenerSetup.js");
 
 // Globals
 var gRootFolder;
 var gIMAPInbox, gIMAPFolder2, gIMAPFolder3, gIMAPTrashFolder;
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
-const gMsgFile1 = do_get_file("../../mailnews/data/bugmail10");
-const gMsgFile2 = do_get_file("../../mailnews/data/bugmail11");
-const gMsgFile3 = do_get_file("../../mailnews/data/draft1");
-const gMsgFile4 = do_get_file("../../mailnews/data/bugmail7");
-const gMsgFile5 = do_get_file("../../mailnews/data/bugmail6");
+const gMsgFile1 = do_get_file("../../../data/bugmail10");
+const gMsgFile2 = do_get_file("../../../data/bugmail11");
+const gMsgFile3 = do_get_file("../../../data/draft1");
+const gMsgFile4 = do_get_file("../../../data/bugmail7");
+const gMsgFile5 = do_get_file("../../../data/bugmail6");
 
 // Copied straight from the example files
 const gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
@@ -33,6 +33,9 @@ const gMsgId2 = "200804111417.m3BEHTk4030129@mrapp51.mozilla.org";
 const gMsgId3 = "4849BF7B.2030800@example.com";
 const gMsgId4 = "bugmail7.m47LtAEf007542@mrapp51.mozilla.org";
 const gMsgId5 = "bugmail6.m47LtAEf007542@mrapp51.mozilla.org";
+var gMsgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
+                  .createInstance(Components.interfaces.nsIMsgWindow);
+
 
 function addFolder(parent, folderName, storeIn)
 {
@@ -126,20 +129,22 @@ function copyMessages(messages, isMove, srcFolder, destFolder)
   {
     array.appendElement(message, false);
   });
-  gExpectedEvents = [[gMFNService.msgsMoveCopyCompleted, isMove, messages, destFolder]];
+  gExpectedEvents = [[gMFNService.msgsMoveCopyCompleted, isMove, messages, destFolder, true]];
   // We'll also get the msgAdded events when we go and update the destination
   // folder
   messages.forEach(function (message)
   {
     // We can't use the headers directly, because the notifications we'll
     // receive are for message headers in the destination folder
+    gExpectedEvents.push([gMFNService.msgKeyChanged,
+                          {expectedMessageId: message.messageId}]);
     gExpectedEvents.push([gMFNService.msgAdded,
                           {expectedMessageId: message.messageId}]);
   });
   gExpectedEvents.push([gMFNService.msgsClassified,
                         [hdr.messageId for each (hdr in messages)],
                         false, false]);
-  gCopyService.CopyMessages(srcFolder, array, destFolder, isMove, copyListener, null, true);
+  gCopyService.CopyMessages(srcFolder, array, destFolder, isMove, copyListener, gMsgWindow, true);
   gCurrStatus |= kStatus.functionCallDone;
 
   gServer.performTest("COPY");
@@ -184,7 +189,7 @@ const gTestArray =
   },
 
   // Moving/copying messages (this doesn't work right now)
-  /* function testCopyMessages1() { copyMessages([gMsgHdrs[0].hdr, gMsgHdrs[1].hdr], false, gIMAPInbox, gIMAPFolder3) } */
+  function testCopyMessages1() { copyMessages([gMsgHdrs[0].hdr, gMsgHdrs[1].hdr], false, gIMAPInbox, gIMAPFolder3) }
 ];
 
 function run_test()
@@ -270,6 +275,7 @@ function doTest(test)
     // Cleanup, null out everything, close all cached connections and stop the
     // server
     gRootFolder = null;
+    gIMAPInbox.msgDatabase = null;
     gIMAPInbox = null;
     gIMAPFolder2 = null;
     gIMAPFolder3 = null;

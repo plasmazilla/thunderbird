@@ -48,7 +48,6 @@
 #include "nsINntpService.h"  // for actually posting the message...
 #include "nsIMsgMailSession.h"
 #include "nsIMsgIdentity.h"
-#include "nsEscape.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "nsIMsgMailNewsUrl.h"
@@ -63,7 +62,6 @@
 #include "nsNetUtil.h"
 #include "nsIFileURL.h"
 #include "nsMsgCopy.h"
-#include "nsReadableUtils.h"
 #include "nsUnicharUtils.h"
 #include "nsMsgPrompts.h"
 #include "nsIDOMHTMLBodyElement.h"
@@ -108,7 +106,8 @@
 #include "nsIMsgHdr.h"
 #include "nsIMsgFolder.h"
 #include "nsComposeStrings.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
+#include "nsMsgUtils.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 
@@ -321,14 +320,11 @@ nsMsgComposeAndSend::nsMsgComposeAndSend() :
   mCompFieldRemoteAttachments = 0;
   mMessageWarningSize = 0;
 
-  NS_NEWXPCOM(mSendReport, nsMsgSendReport);
+  mSendReport = new nsMsgSendReport();
 }
 
 nsMsgComposeAndSend::~nsMsgComposeAndSend()
 {
-#ifdef NS_DEBUG
-  printf("\nTHE DESTRUCTOR FOR nsMsgComposeAndSend() WAS CALLED\n");
-#endif
   PR_Free(m_attachment1_type);
   PR_Free(m_attachment1_encoding);
   PR_Free(m_attachment1_body);
@@ -411,7 +407,7 @@ nsresult nsMsgComposeAndSend::GetNotificationCallbacks(nsIInterfaceRequestor** a
     msgWindow->GetNotificationCallbacks(getter_AddRefs(notificationCallbacks));
     if (notificationCallbacks) {
       nsCOMPtr<nsIInterfaceRequestor> aggregrateIR;
-      NS_NewInterfaceRequestorAggregation(notificationCallbacks, ir, getter_AddRefs(aggregrateIR));
+      MsgNewInterfaceRequestorAggregation(notificationCallbacks, ir, getter_AddRefs(aggregrateIR));
       ir = aggregrateIR;
     }
     if (ir) {
@@ -1003,7 +999,7 @@ nsMsgComposeAndSend::GatherMimeAttachments()
 
   //
   // Now we need to process attachments and slot them in the
-  // correct heirarchy.
+  // correct hierarchy.
   //
   if (m_attachment_count > 0)
   {
@@ -1171,6 +1167,7 @@ nsMsgComposeAndSend::PreProcessPart(nsMsgAttachmentHandler  *ma,
   }
 
   ma->PickEncoding (mCompFields->GetCharacterSet(), this);
+  ma->PickCharset();
 
   part = new nsMsgSendPart(this);
   if (!part)
@@ -1428,7 +1425,7 @@ nsMsgComposeAndSend::GetEmbeddedObjectInfo(nsIDOMNode *node, nsMsgAttachmentData
         // got from the GetSrc() call....
         NS_ConvertUTF8toUTF16 workURL(spec);
 
-        PRInt32 loc = workURL.RFind("/");
+        PRInt32 loc = workURL.RFindChar('/');
         if (loc >= 0)
           workURL.SetLength(loc+1);
         workURL.Append(tUrl);
@@ -1445,11 +1442,11 @@ nsMsgComposeAndSend::GetEmbeddedObjectInfo(nsIDOMNode *node, nsMsgAttachmentData
 
     rv = image->GetName(tName);
     NS_ENSURE_SUCCESS(rv, rv);
-    attachment->real_name = ToNewCString(tName); // XXX i18n
 
-    image->GetLongDesc(tDesc);
+    attachment->real_name = ToNewCString(NS_LossyConvertUTF16toASCII(tName)); // XXX i18n
+    rv = image->GetLongDesc(tDesc);
     NS_ENSURE_SUCCESS(rv, rv);
-    attachment->description = ToNewCString(tDesc); // XXX i18n
+    attachment->description = ToNewCString(NS_LossyConvertUTF16toASCII(tDesc)); // XXX i18n
 
   }
   else if (link)        // Is this a link?
@@ -1483,7 +1480,7 @@ nsMsgComposeAndSend::GetEmbeddedObjectInfo(nsIDOMNode *node, nsMsgAttachmentData
 
     rv = anchor->GetName(tName);
     NS_ENSURE_SUCCESS(rv, rv);
-    attachment->real_name = ToNewCString(tName);
+    attachment->real_name = ToNewCString(NS_LossyConvertUTF16toASCII(tName));
   }
   else
   {
@@ -1734,7 +1731,7 @@ nsMsgComposeAndSend::GetBodyFromEditor()
           }
           if (!disableFallback)
           {
-            CopyUTF16toUTF8(bodyText, outCString);
+            CopyUTF16toUTF8(nsDependentString(bodyText), outCString);
             mCompFields->SetCharacterSet("UTF-8");
           }
         }
@@ -1764,7 +1761,7 @@ nsMsgComposeAndSend::GetBodyFromEditor()
       }
     }
 
-    Recycle(bodyText);    //Don't need it anymore
+    NS_Free(bodyText);    //Don't need it anymore
   }
   else
     return NS_ERROR_FAILURE;
@@ -2053,7 +2050,7 @@ nsMsgComposeAndSend::ProcessMultipartRelated(PRInt32 *aMailboxCount, PRInt32 *aN
       }
 
       if (!domURL.IsEmpty())
-        domSaveArray[j].url = ToNewCString(domURL);
+        domSaveArray[j].url = ToNewCString(NS_LossyConvertUTF16toASCII(domURL));
     }
   }
 
@@ -2154,19 +2151,9 @@ nsMsgComposeAndSend::CountCompFieldAttachments()
       // Check to see if this is a file URL, if so, don't retrieve
       // like a remote URL...
         if (nsMsgIsLocalFile(url.get()))
-      {
-        mCompFieldLocalAttachments++;
-#if defined(DEBUG_ducarroz)
-          printf("Counting LOCAL attachment %d: %s\n", mCompFieldLocalAttachments, url.get());
-#endif
-      }
+          mCompFieldLocalAttachments++;
       else    // This is a remote URL...
-      {
         mCompFieldRemoteAttachments++;
-#if defined(DEBUG_ducarroz)
-          printf("Counting REMOTE attachment %d: %s\n", mCompFieldRemoteAttachments, url.get());
-#endif
-      }
     }
     }
   }
@@ -2210,9 +2197,6 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
         // Just look for local file:// attachments and do the right thing.
         if (nsMsgIsLocalFile(url.get()))
         {
-  #if defined(DEBUG_ducarroz)
-          printf("Adding LOCAL attachment %d: %s\n", newLoc, url.get());
-  #endif
           //
           // Now we have to setup the m_attachments entry for the file://
           // URL that is passed in...
@@ -2300,7 +2284,8 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
                     // rtf and vcs files may look like text to sniffers,
                     // but they're not human readable.
                     if (type.IsEmpty() && !fileExt.IsEmpty() &&
-                         (fileExt.LowerCaseEqualsLiteral("rtf") || fileExt.LowerCaseEqualsLiteral("vcs")))
+                         (MsgLowerCaseEqualsLiteral(fileExt, "rtf") ||
+                          MsgLowerCaseEqualsLiteral(fileExt, "vcs")))
                       m_attachments[newLoc].m_type = PL_strdup(APPLICATION_OCTET_STREAM);
                     }
                   }
@@ -2388,9 +2373,6 @@ nsMsgComposeAndSend::AddCompFieldRemoteAttachments(PRUint32   aStartLocation,
         // the right thing.
         if (! nsMsgIsLocalFile(url.get()))
         {
-#if defined(DEBUG_ducarroz)
-          printf("Adding REMOTE attachment %d: %s\n", newLoc, url.get());
-#endif
           PRBool isAMessageAttachment = !PL_strncasecmp(url.get(), "mailbox-message://", 18) ||
               !PL_strncasecmp(url.get(), "imap-message://", 15) ||
               !PL_strncasecmp(url.get(), "news-message://", 15);
@@ -2939,7 +2921,7 @@ nsMsgComposeAndSend::InitCompositionFields(nsMsgCompFields *fields,
       {
         nsCString uri;
         GetFolderURIFromUserPrefs(nsMsgDeliverNow, mUserIdentity, uri);
-        mCompFields->SetFcc(uri.LowerCaseEqualsLiteral("nocopy://") ? "" : uri.get());
+        mCompFields->SetFcc(MsgLowerCaseEqualsLiteral(uri, "nocopy://") ? "" : uri.get());
       }
     }
   }
@@ -3001,6 +2983,10 @@ nsMsgComposeAndSend::InitCompositionFields(nsMsgCompFields *fields,
 
   AddMailFollowupToHeader();
   AddMailReplyToHeader();
+
+  if (aType == nsIMsgCompType::ForwardInline ||
+      aType == nsIMsgCompType::ForwardAsAttachment)
+    AddXForwardedMessageIdHeader();
 
   pStr = fields->GetPriority();
   if (pStr)
@@ -3070,8 +3056,8 @@ nsMsgComposeAndSend::AddDefaultCustomHeaders() {
         len = end - start;
       }
       // grab the name of the current header pref
-      nsCAutoString headerName(NS_LITERAL_CSTRING("header.") +
-                               Substring(headersList, start, len));
+      nsCAutoString headerName("header.");
+      headerName.Append(Substring(headersList, start, len));
       start = end + 1;
 
       nsCString headerVal;
@@ -3111,8 +3097,8 @@ nsMsgComposeAndSend::AddMailFollowupToHeader() {
   nsDependentCString customHeaders(mCompFields->GetOtherRandomHeaders());
   // ...and look for MFT-Header.  Stop here if MFT is already set.
   NS_NAMED_LITERAL_CSTRING(mftHeaderLabel, "Mail-Followup-To: ");
-  if ((StringHead(customHeaders, mftHeaderLabel.Length()) == mftHeaderLabel) ||
-      (customHeaders.Find(NS_LITERAL_CSTRING("\r\n") + mftHeaderLabel) != -1))
+  if (StringBeginsWith(customHeaders, mftHeaderLabel) ||
+      customHeaders.Find("\r\nMail-Followup-To: ") != -1)
     return NS_OK;
 
   // Get list of subscribed mailing lists
@@ -3188,8 +3174,10 @@ nsMsgComposeAndSend::AddMailReplyToHeader() {
   nsDependentCString customHeaders(mCompFields->GetOtherRandomHeaders());
   // ...and look for MRT-Header.  Stop here if MRT is already set.
   NS_NAMED_LITERAL_CSTRING(mrtHeaderLabel, "Mail-Reply-To: ");
+  nsCAutoString headers_match = nsCAutoString("\r\n");
+  headers_match.Append(mrtHeaderLabel);
   if ((StringHead(customHeaders, mrtHeaderLabel.Length()) == mrtHeaderLabel) ||
-      (customHeaders.Find(NS_LITERAL_CSTRING("\r\n") + mrtHeaderLabel) != -1))
+      (customHeaders.Find(headers_match) != -1))
     return NS_OK;
 
   // Get list of reply-to mangling mailing lists
@@ -3268,6 +3256,16 @@ nsMsgComposeAndSend::AddMailReplyToHeader() {
   mCompFields->SetOtherRandomHeaders(customHeaders.get());
   PR_Free(mimeHeader);
   return NS_OK;
+}
+
+nsresult
+nsMsgComposeAndSend::AddXForwardedMessageIdHeader() {
+  nsCAutoString otherHeaders;
+  otherHeaders.Append(nsDependentCString(mCompFields->GetOtherRandomHeaders()));
+  otherHeaders.Append(NS_LITERAL_CSTRING("X-Forwarded-Message-Id: "));
+  otherHeaders.Append(nsDependentCString(mCompFields->GetReferences()));
+  otherHeaders.Append(NS_LITERAL_CSTRING("\r\n"));
+  return mCompFields->SetOtherRandomHeaders(otherHeaders.get());
 }
 
 nsresult
@@ -3697,11 +3695,13 @@ nsMsgComposeAndSend::DeliverFileAsMail()
 
   strip_nonprintable(buf);
 
-  convbuf = nsEscape(buf, url_Path);
-  if (convbuf)
+  nsCString escaped_buf;
+  MsgEscapeString(nsDependentCString(buf), nsINetUtil::ESCAPE_URL_PATH, escaped_buf);
+
+  if (!escaped_buf.IsEmpty())
   {
     NS_Free(buf);
-    buf = convbuf;
+    buf = ToNewCString(escaped_buf);
   }
 
   nsCOMPtr<nsISmtpService> smtpService(do_GetService(NS_SMTPSERVICE_CONTRACTID, &rv));
@@ -3864,9 +3864,6 @@ nsMsgComposeAndSend::DoDeliveryExitProcessing(nsIURI * aUri, nsresult aExitCode,
   // the user and exit.
   if (NS_FAILED(aExitCode))
   {
-#ifdef NS_DEBUG
-  printf("\nMessage Delivery Failed!\n");
-#endif
 
     nsString eMsg;
     if (aExitCode == NS_ERROR_SMTP_SEND_FAILED_UNKNOWN_SERVER ||
@@ -3891,10 +3888,6 @@ nsMsgComposeAndSend::DoDeliveryExitProcessing(nsIURI * aUri, nsresult aExitCode,
     NotifyListenerOnStopSending(nsnull, aExitCode, nsnull, nsnull);
     return;
   }
-#ifdef NS_DEBUG
-  else
-    printf("\nMessage Delivery SUCCEEDED!\n");
-#endif
 
   if (aCheckForMail)
   {
@@ -3929,20 +3922,7 @@ nsMsgComposeAndSend::DoDeliveryExitProcessing(nsIURI * aUri, nsresult aExitCode,
   // way until later...
   //
 
-  nsresult retCode = DoFcc();
-  if (NS_FAILED(retCode))
-  {
-#ifdef NS_DEBUG
-  printf("\nDoDeliveryExitProcessing(): DoFcc() call Failed!\n");
-#endif
-    return;
-  }
-  else
-  {
-    // Either we started the copy...cleanup happens later...or cleanup will
-    // be take care of by a listener...
-    return;
-  }
+  DoFcc();
 }
 
 NS_IMETHODIMP
@@ -3999,9 +3979,6 @@ nsMsgComposeAndSend::DoFcc()
   const char* fcc = mCompFields->GetFcc();
   if (!fcc || !*fcc || !CanSaveMessagesToFolder(fcc))
   {
-#ifdef NS_DEBUG
-    printf("\nCopy operation disabled by user!\n");
-#endif
 
     // It is the caller's responsibility to say we've stopped sending, so just
     // let the listeners know we're not doing a copy.
@@ -4149,13 +4126,28 @@ nsMsgComposeAndSend::NotifyListenerOnStopCopy(nsresult aStatus)
   if (NS_FAILED(aStatus))
   {
     PRBool retry = PR_FALSE;
-    nsMsgAskBooleanQuestionByID(prompt, NS_MSG_ERROR_DOING_FCC, &retry, nsnull /* what title */);
-    if (retry)
-    {
-      mSendProgress = nsnull; // this was cancelled, so we need to clear it.
-      return SendToMagicFolder(m_deliver_mode);
-    }
+    nsresult rv;
+    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIStringBundle> bundle;
+    rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
+    NS_ENSURE_SUCCESS(rv, rv);
 
+    nsString msg;
+    const PRUnichar *formatStrings[] = { mSavedToFolderName.get() };
+
+    rv = bundle->FormatStringFromName(NS_LITERAL_STRING("errorSavingMsg").get(),
+                                      formatStrings, 1,
+                                      getter_Copies(msg));
+    if (NS_SUCCEEDED(rv))
+    {
+      nsMsgAskBooleanQuestionByString(prompt, msg.get(), &retry, nsnull);
+      if (retry)
+      {
+        mSendProgress = nsnull; // this was cancelled, so we need to clear it.
+        return SendToMagicFolder(m_deliver_mode);
+      }
+    }
   }
   // Ok, now to support a second copy operation, we need to figure
   // out which copy request just finished. If the user has requested
@@ -4454,7 +4446,6 @@ nsMsgComposeAndSend::MimeDoFCC(nsIFile          *input_file,
   PRBool        folderIsLocal = PR_TRUE;
   nsCString     turi;
   PRUnichar     *printfString = nsnull;
-  nsString folderName;
   nsString msg;
   nsCOMPtr<nsIMsgFolder> folder;
 
@@ -4559,10 +4550,10 @@ nsMsgComposeAndSend::MimeDoFCC(nsIFile          *input_file,
       rdfService->GetResource(turi, getter_AddRefs(res));
       nsCOMPtr<nsIMsgFolder> folder = do_QueryInterface(res);
       if (folder)
-        folder->GetName(folderName);
+        folder->GetName(mSavedToFolderName);
     }
-    if (!folderName.IsEmpty())
-      printfString = nsTextFormatter::smprintf(msg.get(), folderName.get());
+    if (!mSavedToFolderName.IsEmpty())
+      printfString = nsTextFormatter::smprintf(msg.get(), mSavedToFolderName.get());
     else
       printfString = nsTextFormatter::smprintf(msg.get(), "?");
     if (printfString)

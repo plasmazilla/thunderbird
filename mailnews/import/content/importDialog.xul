@@ -60,6 +60,8 @@
 
   <stringbundle id="bundle_importMsgs" src="chrome://messenger/locale/importMsgs.properties"/>
   <stringbundle id="bundle_addressbook" src="chrome://messenger/locale/addressbook/addressBook.properties"/>
+  <stringbundle id="bundle_vcardImportMsgs" src="chrome://messenger/locale/vCardImportMsgs.properties"/>
+  <stringbundle id="bundle_comm4xImportMsgs" src="chrome://messenger/locale/comm4xMailImportMsgs.properties"/>
   <script type="application/javascript" src="chrome://messenger/content/importDialog.js"/>
 
   <keyset id="dialogKeys"/>
@@ -125,22 +127,6 @@
       <hbox style="overflow: auto" class="inset" flex="1">
         <description id="results" flex="1"/>
       </hbox>
-    </vbox>
-    <vbox class="wizard-box">
-      <description>&FieldDiscInputText1.label;</description>
-      <description>&FieldDiscInputText2.label;</description>
-      <separator/>
-      <separator class="thin"/>
-      <radiogroup id="homeorwork" class="indent">
-        <radio value="Home" id="homeRadio" label="&importHome.label;"
-               accesskey="&importHome.accesskey;"/>
-        <radio value="Work" id="workRadio" label="&importWork.label;"
-               accesskey="&importWork.accesskey;"/>
-      </radiogroup>
-         <separator/>
-         <separator/>
-         <description>&FieldDiscWarning.label;</description>
-         <label id="warning" flex="1"/>
     </vbox>
   </deck>
 

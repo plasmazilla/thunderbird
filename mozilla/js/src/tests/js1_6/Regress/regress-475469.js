@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-475469.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 475469;
 var summary = 'TM: Do not crash @ FramePCOffset';
@@ -58,7 +57,7 @@ function test()
 //  print('jit are necessary for the crash.');
 
   jit(true);
-  [1,2,3].map(/a/gi);
+  [1,2,3].map(function(v, i, t) { return /a/gi.exec(v); });
   jit(false);
 
   reportCompare(expect, actual, summary);

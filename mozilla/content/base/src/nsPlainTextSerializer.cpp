@@ -57,6 +57,9 @@
 #include "nsUnicharUtils.h"
 #include "nsCRT.h"
 #include "nsIParserService.h"
+#include "mozilla/dom/Element.h"
+
+using namespace mozilla::dom;
 
 #define PREF_STRUCTS "converter.html2txt.structs"
 #define PREF_HEADER_STRATEGY "converter.html2txt.header_strategy"
@@ -71,7 +74,7 @@ static const  PRInt32 kIndentSizeHeaders = 2;  /* Indention of h1, if
 static const  PRInt32 kIndentIncrementHeaders = 2;  /* If mHeaderStrategy = 1,
                                                 indent h(x+1) this many
                                                 columns more than h(x) */
-static const  PRInt32 kIndentSizeList = (kTabSize > kOLNumberWidth+3) ? kTabSize: kOLNumberWidth+3;
+static const  PRInt32 kIndentSizeList = kTabSize;
                                // Indention of non-first lines of ul and ol
 static const  PRInt32 kIndentSizeDD = kTabSize;  // Indention of <dd>
 static const  PRUnichar  kNBSP = 160;
@@ -129,7 +132,7 @@ nsPlainTextSerializer::nsPlainTextSerializer()
   mTagStackIndex = 0;
   mIgnoreAboveIndex = (PRUint32)kNotFound;
 
-  // initialize the OL stack, where numbers for ordered lists are kept:
+  // initialize the OL stack, where numbers for ordered lists are kept
   mOLStack = new PRInt32[OLStackSize];
   mOLStackIndex = 0;
 
@@ -290,7 +293,7 @@ nsPlainTextSerializer::Initialize(nsAString* aOutString,
 }
 
 NS_IMETHODIMP 
-nsPlainTextSerializer::AppendText(nsIDOMText* aText, 
+nsPlainTextSerializer::AppendText(nsIContent* aText,
                                   PRInt32 aStartOffset,
                                   PRInt32 aEndOffset, 
                                   nsAString& aStr)
@@ -309,7 +312,7 @@ nsPlainTextSerializer::AppendText(nsIDOMText* aText,
   PRInt32 length = 0;
   nsAutoString textstr;
 
-  nsCOMPtr<nsIContent> content = do_QueryInterface(aText);
+  nsIContent* content = aText;
   const nsTextFragment* frag;
   if (!content || !(frag = content->GetText())) {
     return NS_ERROR_FAILURE;
@@ -372,7 +375,7 @@ nsPlainTextSerializer::AppendText(nsIDOMText* aText,
 }
 
 NS_IMETHODIMP
-nsPlainTextSerializer::AppendCDATASection(nsIDOMCDATASection* aCDATASection,
+nsPlainTextSerializer::AppendCDATASection(nsIContent* aCDATASection,
                                           PRInt32 aStartOffset,
                                           PRInt32 aEndOffset,
                                           nsAString& aStr)
@@ -381,14 +384,13 @@ nsPlainTextSerializer::AppendCDATASection(nsIDOMCDATASection* aCDATASection,
 }
 
 NS_IMETHODIMP
-nsPlainTextSerializer::AppendElementStart(nsIDOMElement *aElement,
-                                          nsIDOMElement *aOriginalElement,
+nsPlainTextSerializer::AppendElementStart(Element* aElement,
+                                          Element* aOriginalElement,
                                           nsAString& aStr)
 {
   NS_ENSURE_ARG(aElement);
 
-  mContent = do_QueryInterface(aElement);
-  if (!mContent) return NS_ERROR_FAILURE;
+  mContent = aElement;
 
   nsresult rv;
   PRInt32 id = GetIdForContent(mContent);
@@ -415,13 +417,12 @@ nsPlainTextSerializer::AppendElementStart(nsIDOMElement *aElement,
 } 
  
 NS_IMETHODIMP 
-nsPlainTextSerializer::AppendElementEnd(nsIDOMElement *aElement,
+nsPlainTextSerializer::AppendElementEnd(Element* aElement,
                                         nsAString& aStr)
 {
   NS_ENSURE_ARG(aElement);
 
-  mContent = do_QueryInterface(aElement);
-  if (!mContent) return NS_ERROR_FAILURE;
+  mContent = aElement;
 
   nsresult rv;
   PRInt32 id = GetIdForContent(mContent);
@@ -456,8 +457,8 @@ nsPlainTextSerializer::Flush(nsAString& aStr)
 }
 
 NS_IMETHODIMP
-nsPlainTextSerializer::AppendDocumentStart(nsIDOMDocument *aDocument,
-                                             nsAString& aStr)
+nsPlainTextSerializer::AppendDocumentStart(nsIDocument *aDocument,
+                                           nsAString& aStr)
 {
   return NS_OK;
 }
@@ -701,21 +702,26 @@ nsPlainTextSerializer::DoOpenContainer(const nsIParserNode* aNode, PRInt32 aTag)
   }
   else if (type == eHTMLTag_ol) {
     EnsureVerticalSpace(mULCount + mOLStackIndex == 0 ? 1 : 0);
-    // Must end the current line before we change indention
-    if (mOLStackIndex < OLStackSize) {
-      nsAutoString startAttr;
-      PRInt32 startVal = 1;
-      if(NS_SUCCEEDED(GetAttributeValue(aNode, nsGkAtoms::start, startAttr))){
-        PRInt32 rv = 0;
-        startVal = startAttr.ToInteger(&rv);
-        if (NS_FAILED(rv))
-          startVal = 1;
+    if (mFlags & nsIDocumentEncoder::OutputFormatted) {
+      // Must end the current line before we change indention
+      if (mOLStackIndex < OLStackSize) {
+        nsAutoString startAttr;
+        PRInt32 startVal = 1;
+        if(NS_SUCCEEDED(GetAttributeValue(aNode, nsGkAtoms::start, startAttr))){
+          PRInt32 rv = 0;
+          startVal = startAttr.ToInteger(&rv);
+          if (NS_FAILED(rv))
+            startVal = 1;
+        }
+        mOLStack[mOLStackIndex++] = startVal;
       }
-      mOLStack[mOLStackIndex++] = startVal;
+    } else {
+      mOLStackIndex++;
     }
     mIndent += kIndentSizeList;  // see ul
   }
-  else if (type == eHTMLTag_li) {
+  else if (type == eHTMLTag_li &&
+           (mFlags & nsIDocumentEncoder::OutputFormatted)) {
     if (mTagStackIndex > 1 && IsInOL()) {
       if (mOLStackIndex > 0) {
         nsAutoString valueAttr;
@@ -741,7 +747,7 @@ nsPlainTextSerializer::DoOpenContainer(const nsIParserNode* aNode, PRInt32 aTag)
       char bulletChar = bulletCharArray[index % 4];
       mInIndentString.Append(PRUnichar(bulletChar));
     }
-    
+
     mInIndentString.Append(PRUnichar(' '));
   }
   else if (type == eHTMLTag_dl) {
@@ -920,14 +926,15 @@ nsPlainTextSerializer::DoCloseContainer(PRInt32 aTag)
     if (mFloatingLines < 0)
       mFloatingLines = 0;
     mLineBreakDue = PR_TRUE;
-  } 
-  else if ((type == eHTMLTag_li) ||
-           (type == eHTMLTag_dt)) {
+  }
+  else if (((type == eHTMLTag_li) ||
+            (type == eHTMLTag_dt)) &&
+           (mFlags & nsIDocumentEncoder::OutputFormatted)) {
     // Items that should always end a line, but get no more whitespace
     if (mFloatingLines < 0)
       mFloatingLines = 0;
     mLineBreakDue = PR_TRUE;
-  } 
+  }
   else if (type == eHTMLTag_pre) {
     mFloatingLines = GetLastBool(mIsInCiteBlockquote) ? 0 : 1;
     mLineBreakDue = PR_TRUE;
@@ -1385,7 +1392,7 @@ nsPlainTextSerializer::AddToLine(const PRUnichar * aLineFragment,
         // try to find another place to break
         goodSpace=(prefixwidth>mWrapColumn+1)?1:mWrapColumn-prefixwidth+1;
         if (mLineBreaker) {
-          if (goodSpace < mCurrentLine.Length())
+          if ((PRUint32)goodSpace < mCurrentLine.Length())
             goodSpace = mLineBreaker->Next(mCurrentLine.get(), 
                                            mCurrentLine.Length(), goodSpace);
           if (goodSpace == NS_LINEBREAKER_NEED_MORE_TEXT)
@@ -1412,8 +1419,10 @@ nsPlainTextSerializer::AddToLine(const PRUnichar * aLineFragment,
         else {
           mCurrentLine.Right(restOfLine, linelength-goodSpace);
         }
+        // if breaker was U+0020, it has to consider for delsp=yes support
+        PRBool breakBySpace = mCurrentLine.CharAt(goodSpace) == ' ';
         mCurrentLine.Truncate(goodSpace); 
-        EndLine(PR_TRUE);
+        EndLine(PR_TRUE, breakBySpace);
         mCurrentLine.Truncate();
         // Space stuff new line?
         if(mFlags & nsIDocumentEncoder::OutputFormatFlowed) {
@@ -1451,7 +1460,7 @@ nsPlainTextSerializer::AddToLine(const PRUnichar * aLineFragment,
  * preformatted.
  */
 void
-nsPlainTextSerializer::EndLine(PRBool aSoftlinebreak)
+nsPlainTextSerializer::EndLine(PRBool aSoftlinebreak, PRBool aBreakBySpace)
 {
   PRUint32 currentlinelength = mCurrentLine.Length();
 
@@ -1483,7 +1492,13 @@ nsPlainTextSerializer::EndLine(PRBool aSoftlinebreak)
     // Add the soft part of the soft linebreak (RFC 2646 4.1)
     // We only do this when there is no indentation since format=flowed
     // lines and indentation doesn't work well together.
-    mCurrentLine.Append(PRUnichar(' '));
+
+    // If breaker character is ASCII space with RFC 3676 support (delsp=yes),
+    // add twice space.
+    if (mFlags & nsIDocumentEncoder::OutputFormatDelSp && aBreakBySpace)
+      mCurrentLine.Append(NS_LITERAL_STRING("  "));
+    else
+      mCurrentLine.Append(PRUnichar(' '));
   }
 
   if(aSoftlinebreak) {
@@ -1817,8 +1832,7 @@ nsPlainTextSerializer::GetAttributeValue(const nsIParserNode* aNode,
     }
   }
   else if (aNode) {
-    nsAutoString name; 
-    aName->ToString(name);
+    nsDependentAtomString name(aName); 
 
     PRInt32 count = aNode->GetAttributeCount();
     for (PRInt32 i=0;i<count;i++) {
@@ -1852,7 +1866,7 @@ nsPlainTextSerializer::IsCurrentNodeConverted(const nsIParserNode* aNode)
 PRInt32
 nsPlainTextSerializer::GetIdForContent(nsIContent* aContent)
 {
-  if (!aContent->IsNodeOfType(nsINode::eHTML)) {
+  if (!aContent->IsHTML()) {
     return eHTMLTag_unknown;
   }
 

@@ -405,9 +405,10 @@ NS_IMETHODIMP nsPK11Token::ChangePassword(const PRUnichar *oldPassword, const PR
   SECStatus rv;
   NS_ConvertUTF16toUTF8 aUtf8OldPassword(oldPassword);
   NS_ConvertUTF16toUTF8 aUtf8NewPassword(newPassword);
+
   rv = PK11_ChangePW(mSlot, 
-               const_cast<char *>(aUtf8OldPassword.get()), 
-               const_cast<char *>(aUtf8NewPassword.get()));
+         (oldPassword != NULL ? const_cast<char *>(aUtf8OldPassword.get()) : NULL), 
+         (newPassword != NULL ? const_cast<char *>(aUtf8NewPassword.get()) : NULL));
   return (rv == SECSuccess) ? NS_OK : NS_ERROR_FAILURE;
 }
 
@@ -514,12 +515,12 @@ done:
 NS_IMETHODIMP nsPK11TokenDB::ListTokens(nsIEnumerator* *_retval)
 {
   nsNSSShutDownPreventionLock locker;
-  nsresult rv = NS_OK;
   nsCOMPtr<nsISupportsArray> array;
   PK11SlotList *list = 0;
   PK11SlotListElement *le;
 
-  rv = NS_NewISupportsArray(getter_AddRefs(array));
+  *_retval = nsnull;
+  nsresult rv = NS_NewISupportsArray(getter_AddRefs(array));
   if (NS_FAILED(rv)) { goto done; }
 
   /* List all tokens, creating PK11Token objects and putting them
@@ -530,8 +531,15 @@ NS_IMETHODIMP nsPK11TokenDB::ListTokens(nsIEnumerator* *_retval)
 
   for (le = PK11_GetFirstSafe(list); le; le = PK11_GetNextSafe(list, le, PR_FALSE)) {
     nsCOMPtr<nsIPK11Token> token = new nsPK11Token(le->slot);
+    rv = token
+      ? array->AppendElement(token)
+      : NS_ERROR_OUT_OF_MEMORY;
 
-    array->AppendElement(token);
+    if (NS_FAILED(rv)) {
+      PK11_FreeSlotListElement(list, le);
+      rv = NS_ERROR_OUT_OF_MEMORY;
+      goto done;
+    }
   }
 
   rv = array->Enumerate(_retval);

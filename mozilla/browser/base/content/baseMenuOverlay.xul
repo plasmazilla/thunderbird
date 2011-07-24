@@ -48,7 +48,7 @@
          xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-<script type="application/x-javascript" src="chrome://browser/content/utilityOverlay.js"/>
+<script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
 
 #ifdef XP_MACOSX
 <!-- nsMenuBarX hides these and uses them to build the Application menu.
@@ -78,40 +78,33 @@
       <menupopup id="menu_HelpPopup" onpopupshowing="buildHelpMenu();">
         <menuitem id="menu_openHelp"
                   oncommand="openHelpLink('firefox-help')"
+                  onclick="checkForMiddleClick(this, event);"
                   label="&productHelp.label;"
                   accesskey="&productHelp.accesskey;"
 #ifdef XP_MACOSX
                   key="key_openHelpMac"/>
 #else
-                  key="key_openHelp"/>
-#endif
-# Show IE Users menu item on Windows only
-#ifdef XP_WIN
-        <menuitem label="&helpForIEUsers.label;"
-                  accesskey="&helpForIEUsers.accesskey;"
-                  oncommand="openHelpLink('ieusers');"/>
+                  />
 #endif
         <menuitem id="troubleShooting"
-                  accesskey="&helpTroubleshooting.accesskey;"
-                  label="&helpTroubleshooting.label;"
+                  accesskey="&helpTroubleshootingInfo.accesskey;"
+                  label="&helpTroubleshootingInfo.label;"
                   oncommand="openTroubleshootingPage()"
                   onclick="checkForMiddleClick(this, event);"/>
-        <menuitem id="releaseNotes"
-                  accesskey="&helpReleaseNotes.accesskey;"
-                  label="&helpReleaseNotes.label;"
-                  oncommand="openReleaseNotes()"
+        <menuitem id="feedbackPage"
+                  accesskey="&helpFeedbackPage.accesskey;"
+                  label="&helpFeedbackPage.label;"
+                  oncommand="openFeedbackPage()"
                   onclick="checkForMiddleClick(this, event);"/>
-        <menuseparator id="updateSeparator"/>
-#ifdef MOZ_UPDATER
-        <menuitem id="checkForUpdates"
-                  label="&updateCmd.label;"
-                  class="menuitem-iconic"
-                  oncommand="checkForUpdates();"/>
-#endif
+        <menuitem id="helpSafeMode"
+                  accesskey="&helpSafeMode.accesskey;"
+                  label="&helpSafeMode.label;"
+                  oncommand="safeModeRestart();"/>
+        <menuseparator/>
         <menuseparator id="aboutSeparator"/>
         <menuitem id="aboutName"
-                  accesskey="&aboutCmd.accesskey;"
-                  label="&aboutCmd.label;"
+                  accesskey="&aboutProduct.accesskey;"
+                  label="&aboutProduct.label;"
                   oncommand="openAboutDialog();"/>
       </menupopup>
     </menu>
@@ -132,10 +125,6 @@
         <key id="key_hideOtherAppsCmdMac"
              key="&hideOtherAppsCmdMac.commandkey;"
              modifiers="accel,alt"/>
-#else
-        <key id="key_openHelp"
-            oncommand="openHelpLink('firefox-f1');"
-            keycode="&openHelp.commandkey;"/>
 #endif
     </keyset>
 

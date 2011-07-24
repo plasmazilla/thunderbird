@@ -49,52 +49,61 @@
 #include "nsString.h"
 #include "nsGenericElement.h"
 
-class nsICSSStyleRule;
+namespace mozilla {
+namespace css {
+class StyleRule;
+}
+}
 
 typedef nsGenericElement nsStyledElementBase;
 
-class nsStyledElement : public nsStyledElementBase
+class nsStyledElementNotElementCSSInlineStyle : public nsStyledElementBase
 {
 
 protected:
 
-  inline nsStyledElement(nsINodeInfo *aNodeInfo)
+  inline nsStyledElementNotElementCSSInlineStyle(already_AddRefed<nsINodeInfo> aNodeInfo)
     : nsStyledElementBase(aNodeInfo)
   {}
 
 public:
 
-  // nsIContent interface methods for styling
+  // nsIContent interface methods
   virtual nsIAtom* GetClassAttributeName() const;
   virtual nsIAtom* GetIDAttributeName() const;
+  virtual nsIAtom* DoGetID() const;
   virtual const nsAttrValue* DoGetClasses() const;
 
-  virtual nsICSSStyleRule* GetInlineStyleRule();
-  NS_IMETHOD SetInlineStyleRule(nsICSSStyleRule* aStyleRule, PRBool aNotify);
+  virtual mozilla::css::StyleRule* GetInlineStyleRule();
+  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, PRBool aNotify);
 
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                               nsIContent* aBindingParent,
                               PRBool aCompileEventHandlers);
+  virtual void UnbindFromTree(PRBool aDeep, PRBool aNullParent);
+
+  virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+                             PRBool aNotify);
+  virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+                                const nsAString* aValue, PRBool aNotify);
+
+  nsIDOMCSSStyleDeclaration* GetStyle(nsresult* retval);
+
+protected:
 
   /**
    * Parse a style attr value into a CSS rulestruct (or, if there is no
    * document, leave it as a string) and return as nsAttrValue.
-   * Note: this function is used by other classes than nsStyledElement
    *
    * @param aValue the value to parse
    * @param aResult the resulting HTMLValue [OUT]
    */
-  static void ParseStyleAttribute(nsIContent* aContent,
-                                  const nsAString& aValue,
-                                  nsAttrValue& aResult,
-                                  PRBool aForceInDataDoc);
-
-protected:
+  void ParseStyleAttribute(const nsAString& aValue,
+                           nsAttrValue& aResult,
+                           PRBool aForceInDataDoc);
 
   virtual PRBool ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
                                 const nsAString& aValue, nsAttrValue& aResult);
-
-  nsresult GetStyle(nsIDOMCSSStyleDeclaration** aStyle);
 
   /**
    * Create the style struct from the style attr.  Used when an element is
@@ -103,6 +112,13 @@ protected:
    * document.
    */
   nsresult  ReparseStyleAttribute(PRBool aForceInDataDoc);
+};
+
+class nsStyledElement : public nsStyledElementNotElementCSSInlineStyle {
+protected:
+  inline nsStyledElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+    : nsStyledElementNotElementCSSInlineStyle(aNodeInfo)
+  {}
 };
 
 #endif // __NS_STYLEDELEMENT_H_

@@ -51,6 +51,7 @@ nsBrowserStatusHandler.prototype =
   jsDefaultStatus : "",
   overLink : "",
   feeds : [],
+  popupNotifications : null,
 
   QueryInterface : function(aIID)
   {
@@ -101,12 +102,14 @@ nsBrowserStatusHandler.prototype =
     this.feedsMenu       = null;
   },
 
+  // nsIXULBrowserWindow
   setJSStatus : function(status)
   {
     this.jsStatus = status;
     this.updateStatusField();
   },
 
+  // nsIXULBrowserWindow
   setJSDefaultStatus : function(status)
   {
     this.jsDefaultStatus = status;
@@ -119,6 +122,7 @@ nsBrowserStatusHandler.prototype =
     this.updateStatusField();
   },
 
+  // nsIXULBrowserWindow
   setOverLink : function(link, context)
   {
     this.overLink = link;
@@ -132,6 +136,12 @@ nsBrowserStatusHandler.prototype =
       this.statusTextField.setAttribute('crop', 'end');
   },
 
+  // nsIXULBrowserWindow
+  // Called before links are navigated to to allow us to retarget them if needed.
+  onBeforeLinkTraversal: function(originalTarget, linkURI, linkNode, isAppTab) {
+    return originalTarget;
+  },
+
   updateStatusField : function()
   {
     var text = this.overLink || this.status || this.jsStatus || this.jsDefaultStatus || this.defaultStatus;
@@ -142,6 +152,15 @@ nsBrowserStatusHandler.prototype =
       this.statusTextField.label = text;
   },
 
+/**
+ * Returns true if |aMimeType| is text-based, false otherwise.
+ *
+ * @param aMimeType
+ *        The MIME type to check.
+ *
+ * If adding types to this function, please also check the similar
+ * function in mozilla/toolkit/content/widgets/findbar.xml.
+ */
   mimeTypeIsTextBased : function(contentType)
   {
     return /^text\/|\+xml$/.test(contentType) ||
@@ -314,6 +333,11 @@ nsBrowserStatusHandler.prototype =
      }
    }
 
+    // Hide the form invalid popup.
+    if (gFormSubmitObserver.panelIsOpen()) {
+      gFormSubmitObserver.panel.hidePopup();
+    }
+
     // XXX temporary hack for bug 104532.
     // Depends heavily on setOverLink implementation
     if (!aRequest)
@@ -342,9 +366,23 @@ nsBrowserStatusHandler.prototype =
         SetPageProxyState("invalid", null);
       }
 
+      // Only dismiss notifications if this onLocationChange represents an
+      // actual load (or an error page).
+      if (this.popupNotifications &&
+          (aWebProgress.isLoadingDocument ||
+           (aRequest && !Components.isSuccessCode(aRequest.status))))
+        this.popupNotifications.locationChange();
+
+      PlacesStarButton.updateState();
+
       this.feedsMenu.setAttribute("disabled", "true");
       this.feedsButton.hidden = true;
       this.feeds = [];
+
+      // When background tab comes into foreground or loading a new page
+      // (aRequest set), might want to update zoom.
+      if (FullZoom.updateBackgroundTabs || aRequest)
+        FullZoom.onLocationChange(getBrowser().currentURI, !aRequest, browser);
     }
     UpdateBackForwardButtons();
 
@@ -418,7 +456,15 @@ nsBrowserStatusHandler.prototype =
     var observerService = Components.classes["@mozilla.org/observer-service;1"]
                                     .getService(Components.interfaces.nsIObserverService);
 
-    if (!gURLBar.value && getWebNavigation().currentURI.spec == "about:blank")
+    // clear out search-engine data
+    getBrowser().selectedBrowser.engines = null;
+
+    // Set the URI now if it isn't already set, so that the user can tell which
+    // site is loading. Only do this if user requested the load via chrome UI,
+    // to minimise spoofing risk.
+    if (!content.opener &&
+        !gURLBar.value &&
+        getWebNavigation().currentURI.spec == "about:blank")
       URLBarSetURI(uri);
 
     try {

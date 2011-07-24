@@ -16,9 +16,10 @@ TestLatencyParent::TestLatencyParent() :
     mStart(),
     mPPTimeTotal(),
     mPP5TimeTotal(),
+    mRpcTimeTotal(),
     mPPTrialsToGo(NR_TRIALS),
     mPP5TrialsToGo(NR_TRIALS),
-    mPongsToGo(0)
+    mSpamsToGo(NR_TRIALS)
 {
     MOZ_COUNT_CTOR(TestLatencyParent);
 }
@@ -31,11 +32,15 @@ TestLatencyParent::~TestLatencyParent()
 void
 TestLatencyParent::Main()
 {
-    if (TimeDuration::Resolution().ToSeconds() > kTimingResolutionCutoff) {
+    TimeDuration resolution = TimeDuration::Resolution();
+    if (resolution.ToSeconds() > kTimingResolutionCutoff) {
         puts("  (skipping TestLatency, timing resolution is too poor)");
         Close();
         return;
     }
+
+    printf("  timing resolution: %g seconds\n",
+           resolution.ToSecondsSigDigits());
 
     if (mozilla::ipc::LoggingEnabled())
         NS_RUNTIMEABORT("you really don't want to log all IPC messages during this test, trust me");
@@ -47,27 +52,21 @@ void
 TestLatencyParent::PingPongTrial()
 {
     mStart = TimeStamp::Now();
-    SendPing();
+    if (!SendPing())
+        fail("sending Ping()");
 }
 
 void
 TestLatencyParent::Ping5Pong5Trial()
 {
     mStart = TimeStamp::Now();
-    // HACK
-    mPongsToGo = 5;
 
-    SendPing5();
-    SendPing5();
-    SendPing5();
-    SendPing5();
-    SendPing5();
-}
-
-void
-TestLatencyParent::Exit()
-{
-    Close();
+    if (!SendPing5() ||
+        !SendPing5() ||
+        !SendPing5() ||
+        !SendPing5() ||
+        !SendPing5())
+        fail("sending Ping5()");
 }
 
 bool
@@ -76,7 +75,7 @@ TestLatencyParent::RecvPong()
     TimeDuration thisTrial = (TimeStamp::Now() - mStart);
     mPPTimeTotal += thisTrial;
 
-    if (0 == ((mPPTrialsToGo % 1000)))
+    if (0 == (mPPTrialsToGo % 1000))
         printf("  PP trial %d: %g\n",
                mPPTrialsToGo, thisTrial.ToSecondsSigDigits());
 
@@ -90,25 +89,67 @@ TestLatencyParent::RecvPong()
 bool
 TestLatencyParent::RecvPong5()
 {
-    // HACK
-    if (0 < --mPongsToGo)
+    if (PTestLatency::PING5 != state())
         return true;
 
     TimeDuration thisTrial = (TimeStamp::Now() - mStart);
     mPP5TimeTotal += thisTrial;
 
-    if (0 == ((mPP5TrialsToGo % 1000)))
+    if (0 == (mPP5TrialsToGo % 1000))
         printf("  PP5 trial %d: %g\n",
                mPP5TrialsToGo, thisTrial.ToSecondsSigDigits());
 
     if (0 < --mPP5TrialsToGo)
         Ping5Pong5Trial();
     else
-        Exit();
+        RpcTrials();
 
     return true;
 }
 
+void
+TestLatencyParent::RpcTrials()
+{
+    TimeStamp start = TimeStamp::Now();
+    for (int i = 0; i < NR_TRIALS; ++i) {
+        if (!CallRpc())
+            fail("can't call Rpc()");
+        if (0 == (i % 1000))
+            printf("  Rpc trial %d\n", i);
+    }
+    mRpcTimeTotal = (TimeStamp::Now() - start);
+
+    SpamTrial();
+}
+
+void
+TestLatencyParent::SpamTrial()
+{
+    TimeStamp start = TimeStamp::Now();
+    for (int i = 0; i < NR_SPAMS - 1; ++i) {
+        if (!SendSpam())
+            fail("sending Spam()");
+        if (0 == (i % 10000))
+            printf("  Spam trial %d\n", i);
+    }
+
+    // Synchronize with the child process to ensure all messages have
+    // been processed.  This adds the overhead of a reply message from
+    // child-->here, but should be insignificant compared to >>
+    // NR_SPAMS.
+    if (!CallSynchro())
+        fail("calling Synchro()");
+
+    mSpamTimeTotal = (TimeStamp::Now() - start);
+
+    Exit();
+}
+
+void
+TestLatencyParent::Exit()
+{
+    Close();
+}
 
 //-----------------------------------------------------------------------------
 // child
@@ -133,10 +174,37 @@ TestLatencyChild::RecvPing()
 bool
 TestLatencyChild::RecvPing5()
 {
-    SendPong5();
+    if (PTestLatency::PONG1 != state())
+        return true;
+
+    if (!SendPong5() ||
+        !SendPong5() ||
+        !SendPong5() ||
+        !SendPong5() ||
+        !SendPong5())
+        fail("sending Pong5()");
+
     return true;
 }
 
+bool
+TestLatencyChild::AnswerRpc()
+{
+    return true;
+}
+
+bool
+TestLatencyChild::RecvSpam()
+{
+    // no-op
+    return true;
+}
+
+bool
+TestLatencyChild::AnswerSynchro()
+{
+    return true;
+}
 
 } // namespace _ipdltest
 } // namespace mozilla

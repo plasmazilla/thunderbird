@@ -1,6 +1,5 @@
 #include "nsILocalFile.h"
 #include "nsMsgFileStream.h"
-#include "nsInt64.h"
 #include "prerr.h"
 #include "prerror.h"
 
@@ -31,6 +30,7 @@ ErrorAccordingToNSPR()
 nsMsgFileStream::nsMsgFileStream() 
 {
   mFileDesc = nsnull;
+  mSeekedToEnd = PR_FALSE;
 }
 
 nsMsgFileStream::~nsMsgFileStream()
@@ -51,11 +51,17 @@ nsMsgFileStream::Seek(PRInt32 whence, PRInt64 offset)
 {
   if (mFileDesc == nsnull)
     return NS_BASE_STREAM_CLOSED;
-  
-  nsInt64 cnt = PR_Seek64(mFileDesc, offset, (PRSeekWhence)whence);
-  if (cnt == nsInt64(-1)) {
+
+  PRBool seekingToEnd = whence == PR_SEEK_END && offset == 0;
+  if (seekingToEnd && mSeekedToEnd)
+    return NS_OK;
+
+  PRInt64 cnt = PR_Seek64(mFileDesc, offset, (PRSeekWhence)whence);
+  if (cnt == PRInt64(-1)) {
     return ErrorAccordingToNSPR();
   }
+
+  mSeekedToEnd = seekingToEnd;
   return NS_OK;
 }
 
@@ -65,8 +71,8 @@ nsMsgFileStream::Tell(PRInt64 *result)
   if (mFileDesc == nsnull)
     return NS_BASE_STREAM_CLOSED;
   
-  nsInt64 cnt = PR_Seek64(mFileDesc, 0, PR_SEEK_CUR);
-  if (cnt == nsInt64(-1)) {
+  PRInt64 cnt = PR_Seek64(mFileDesc, 0, PR_SEEK_CUR);
+  if (cnt == PRInt64(-1)) {
     return ErrorAccordingToNSPR();
   }
   *result = cnt;

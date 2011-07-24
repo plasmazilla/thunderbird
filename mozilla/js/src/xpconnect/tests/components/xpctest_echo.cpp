@@ -483,7 +483,7 @@ xpctestEcho::PrintArgTypes(void)
         else if (JSVAL_IS_VOID(argv[i]))
             type = "void";
 
-        printf(type);
+        fputs(type, stdout);
 
         if(i < argc-1)
             printf(", ");
@@ -593,7 +593,7 @@ NS_IMETHODIMP xpctestEcho::SetSomeValue(PRInt32 aSomeValue)
 /***************************************************************************/
 
 // static
-NS_IMETHODIMP
+nsresult
 xpctest::ConstructEcho(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 {
     nsresult rv;

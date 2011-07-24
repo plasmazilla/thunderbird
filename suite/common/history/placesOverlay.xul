@@ -54,8 +54,6 @@
   <script type="application/javascript"
           src="chrome://global/content/globalOverlay.js"/>
   <script type="application/javascript"
-          src="chrome://communicator/content/bookmarks/bookmarks.js"/>
-  <script type="application/javascript"
           src="chrome://communicator/content/history/history.js"/>
   <script type="application/javascript"
           src="chrome://communicator/content/history/utils.js"/>
@@ -82,7 +80,7 @@
              oncommand="goDoCommand('placesCmd_delete:domain');"/>
   </commandset>
 
-  <popup id="placesContext"
+  <menupopup id="placesContext"
          onpopupshowing="this._view = PlacesUIUtils.getViewForNode(document.popupNode);
                          return this._view.buildContextMenu(this);"
          onpopuphiding="this._view.destroyContextMenu();">
@@ -93,15 +91,15 @@
               default="true"
               selectiontype="single"
               selection="link"/>
-    <menuitem id="placesContext_open:newwindow"
-              command="placesCmd_open:window"
-              label="&cmd.open_window.label;"
-              accesskey="&cmd.open_window.accesskey;"
-              selection="link"/>
     <menuitem id="placesContext_open:newtab"
               command="placesCmd_open:tab"
               label="&cmd.open_tab.label;"
               accesskey="&cmd.open_tab.accesskey;"
+              selection="link"/>
+    <menuitem id="placesContext_open:newwindow"
+              command="placesCmd_open:window"
+              label="&cmd.open_window.label;"
+              accesskey="&cmd.open_window.accesskey;"
               selection="link"/>
     <menuseparator id="placesContext_openSeparator"/>
     <menuitem id="addBookmarkContextItem"
@@ -138,7 +136,7 @@
               label="&selectAllCmd.label;"
               accesskey="&selectAllCmd.accesskey;"
               selection="any"/>
-  </popup>
+  </menupopup>
 
   <menupopup id="viewPopup">
     <menu id="viewColumns"

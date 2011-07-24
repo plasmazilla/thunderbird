@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-361617.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 361617;
 var summary = 'Do not crash with getter, watch and gc';
@@ -53,9 +52,11 @@ function test()
   printBugNumber(BUGNUMBER);
   printStatus (summary);
  
-  (function() { this.x getter= function(){} })();
+  (function() {
+    Object.defineProperty(this, "x", { get: function(){}, enumerable: true, configurable: true });
+  })();
   this.watch('x', print);
-  this.x getter= function(){};
+  Object.defineProperty(this, "x", { get: function(){}, enumerable: true, configurable: true });
   gc();
   this.unwatch('x');
   x;

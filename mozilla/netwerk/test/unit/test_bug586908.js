@@ -65,7 +65,9 @@ function run_test() {
   // Ensure we're using system-properties
   const prefs = Cc["@mozilla.org/preferences-service;1"]
                    .getService(Ci.nsIPrefBranch);
-  prefs.setIntPref("network.proxy.type", 5); // Note: hardcoded in this branch
+  prefs.setIntPref(
+    "network.proxy.type",
+    Components.interfaces.nsIProtocolProxyService.PROXYCONFIG_SYSTEM);
 
   // clear cache
   getCacheService().

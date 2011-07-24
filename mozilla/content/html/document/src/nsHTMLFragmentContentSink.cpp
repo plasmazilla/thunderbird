@@ -67,17 +67,17 @@
 #include "nsContentSink.h"
 #include "nsTHashtable.h"
 #include "nsCycleCollectionParticipant.h"
-#include "nsICSSLoader.h"
-#include "nsICSSParser.h"
+#include "nsCSSParser.h"
 #include "nsCSSProperty.h"
-#include "nsCSSDeclaration.h"
-#include "nsICSSStyleRule.h"
+#include "mozilla/css/Declaration.h"
+#include "mozilla/css/StyleRule.h"
 #include "nsUnicharInputStream.h"
 #include "nsCSSStyleSheet.h"
 #include "nsICSSRuleList.h"
-#include "nsCSSDeclaration.h"
-#include "nsCSSProperty.h"
 #include "nsIDOMCSSRule.h"
+
+using namespace mozilla::dom;
+namespace css = mozilla::css;
 
 //
 // XXX THIS IS TEMPORARY CODE
@@ -149,11 +149,7 @@ public:
                                  nsIContent* aContent);
 
   nsresult AddText(const nsAString& aString);
-  nsresult AddTextToContent(nsIContent* aContent, const nsAString& aText);
   nsresult FlushText();
-
-  void ProcessBaseTag(nsIContent* aContent);
-  void AddBaseTagInfo(nsIContent* aContent);
 
   PRPackedBool mAllContent;
   PRPackedBool mProcessing;
@@ -169,9 +165,6 @@ public:
   PRUnichar* mText;
   PRInt32 mTextLength;
   PRInt32 mTextSize;
-
-  nsCOMPtr<nsIURI> mBaseHref;
-  nsCOMPtr<nsIAtom> mBaseTarget;
 
   nsCOMPtr<nsIDocument> mTargetDocument;
   nsRefPtr<nsNodeInfoManager> mNodeInfoManager;
@@ -240,10 +233,8 @@ nsHTMLFragmentContentSink::~nsHTMLFragmentContentSink()
   }
 }
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsHTMLFragmentContentSink,
-                                          nsIContentSink)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsHTMLFragmentContentSink,
-                                           nsIContentSink)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsHTMLFragmentContentSink)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsHTMLFragmentContentSink)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsHTMLFragmentContentSink)
   NS_INTERFACE_MAP_ENTRY(nsIFragmentContentSink)
@@ -342,63 +333,6 @@ nsHTMLFragmentContentSink::OpenHead()
   return NS_OK;
 }
 
-void
-nsHTMLFragmentContentSink::ProcessBaseTag(nsIContent* aContent)
-{
-  nsAutoString value;
-  if (aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::href, value)) {
-    nsCOMPtr<nsIURI> baseHrefURI;
-    nsresult rv = 
-      nsContentUtils::NewURIWithDocumentCharset(getter_AddRefs(baseHrefURI),
-                                                value, mTargetDocument,
-                                                nsnull);
-    if (NS_FAILED(rv))
-      return;
-
-    nsIScriptSecurityManager *securityManager =
-      nsContentUtils::GetSecurityManager();
-
-    NS_ASSERTION(aContent->NodePrincipal() == mTargetDocument->NodePrincipal(),
-                 "How'd that happpen?");
-    
-    rv = securityManager->
-      CheckLoadURIWithPrincipal(mTargetDocument->NodePrincipal(), baseHrefURI,
-                                nsIScriptSecurityManager::STANDARD);
-    if (NS_SUCCEEDED(rv)) {
-      mBaseHref = baseHrefURI;
-    }
-  }
-  if (aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::target, value)) {
-    mBaseTarget = do_GetAtom(value);
-  }
-}
-
-void
-nsHTMLFragmentContentSink::AddBaseTagInfo(nsIContent* aContent)
-{
-  if (!aContent) {
-    return;
-  }
-
-  nsresult rv;
-  if (mBaseHref) {
-    rv = aContent->SetProperty(nsGkAtoms::htmlBaseHref, mBaseHref,
-                               nsPropertyTable::SupportsDtorFunc, PR_TRUE);
-    if (NS_SUCCEEDED(rv)) {
-      // circumvent nsDerivedSafe
-      NS_ADDREF(static_cast<nsIURI*>(mBaseHref));
-    }
-  }
-  if (mBaseTarget) {
-    rv = aContent->SetProperty(nsGkAtoms::htmlBaseTarget, mBaseTarget,
-                               nsPropertyTable::SupportsDtorFunc, PR_TRUE);
-    if (NS_SUCCEEDED(rv)) {
-      // circumvent nsDerivedSafe
-      NS_ADDREF(static_cast<nsIAtom*>(mBaseTarget));
-    }
-  }
-}
-
 NS_IMETHODIMP
 nsHTMLFragmentContentSink::OpenContainer(const nsIParserNode& aNode)
 {
@@ -429,10 +363,9 @@ nsHTMLFragmentContentSink::OpenContainer(const nsIParserNode& aNode)
     nsCOMPtr<nsINodeInfo> nodeInfo;
 
     if (nodeType == eHTMLTag_userdefined) {
-      NS_ConvertUTF16toUTF8 tmp(aNode.GetText());
-      ToLowerCase(tmp);
-
-      nsCOMPtr<nsIAtom> name = do_GetAtom(tmp);
+      nsAutoString lower;
+      nsContentUtils::ASCIIToLower(aNode.GetText(), lower);
+      nsCOMPtr<nsIAtom> name = do_GetAtom(lower);
       nodeInfo = mNodeInfoManager->GetNodeInfo(name, 
                                                nsnull, 
                                                kNameSpaceID_XHTML);
@@ -457,7 +390,8 @@ nsHTMLFragmentContentSink::OpenContainer(const nsIParserNode& aNode)
       NS_ADDREF(mNodeInfoCache[nodeType] = nodeInfo);
     }
 
-    content = CreateHTMLElement(nodeType, nodeInfo, PR_FALSE).get();
+    content =
+      CreateHTMLElement(nodeType, nodeInfo.forget(), NOT_FROM_PARSER).get();
     NS_ENSURE_TRUE(content, NS_ERROR_OUT_OF_MEMORY);
 
     result = AddAttributes(aNode, content);
@@ -473,16 +407,6 @@ nsHTMLFragmentContentSink::OpenContainer(const nsIParserNode& aNode)
 
     parent->AppendChildTo(content, PR_FALSE);
     PushContent(content);
-
-    if (nodeType == eHTMLTag_table
-        || nodeType == eHTMLTag_thead
-        || nodeType == eHTMLTag_tbody
-        || nodeType == eHTMLTag_tfoot
-        || nodeType == eHTMLTag_tr
-        || nodeType == eHTMLTag_td
-        || nodeType == eHTMLTag_th)
-      // XXX if navigator_quirks_mode (only body in html supports background)
-      AddBaseTagInfo(content); 
   }
   else if (mProcessing && mIgnoreContainer) {
     mIgnoreContainer = PR_FALSE;
@@ -534,10 +458,9 @@ nsHTMLFragmentContentSink::AddLeaf(const nsIParserNode& aNode)
         nsCOMPtr<nsINodeInfo> nodeInfo;
 
         if (nodeType == eHTMLTag_userdefined) {
-          NS_ConvertUTF16toUTF8 tmp(aNode.GetText());
-          ToLowerCase(tmp);
-
-          nsCOMPtr<nsIAtom> name = do_GetAtom(tmp);
+          nsAutoString lower;
+          nsContentUtils::ASCIIToLower(aNode.GetText(), lower);
+          nsCOMPtr<nsIAtom> name = do_GetAtom(lower);
           nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull,
                                                    kNameSpaceID_XHTML);
           NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
@@ -555,7 +478,8 @@ nsHTMLFragmentContentSink::AddLeaf(const nsIParserNode& aNode)
           NS_ADDREF(mNodeInfoCache[nodeType] = nodeInfo);
         }
 
-        content = CreateHTMLElement(nodeType, nodeInfo, PR_FALSE);
+        content =
+          CreateHTMLElement(nodeType, nodeInfo.forget(), NOT_FROM_PARSER);
         NS_ENSURE_TRUE(content, NS_ERROR_OUT_OF_MEMORY);
 
         result = AddAttributes(aNode, content);
@@ -567,12 +491,6 @@ nsHTMLFragmentContentSink::AddLeaf(const nsIParserNode& aNode)
         }
 
         parent->AppendChildTo(content, PR_FALSE);
-
-        if (nodeType == eHTMLTag_img || nodeType == eHTMLTag_frame
-            || nodeType == eHTMLTag_input)    // elements with 'SRC='
-            AddBaseTagInfo(content);
-        else if (nodeType == eHTMLTag_base)
-            ProcessBaseTag(content);
       }
       break;
     case eToken_text:
@@ -777,26 +695,6 @@ nsHTMLFragmentContentSink::AddText(const nsAString& aString)
 }
 
 nsresult
-nsHTMLFragmentContentSink::AddTextToContent(nsIContent* aContent, const nsAString& aText) {
-  NS_ASSERTION(aContent !=nsnull, "can't add text w/o a content");
-
-  nsresult result=NS_OK;
-
-  if(aContent) {
-    if (!aText.IsEmpty()) {
-      nsCOMPtr<nsIContent> text;
-      result = NS_NewTextNode(getter_AddRefs(text), mNodeInfoManager);
-      if (NS_SUCCEEDED(result)) {
-        text->SetText(aText, PR_TRUE);
-
-        result = aContent->AppendChildTo(text, PR_FALSE);
-      }
-    }
-  }
-  return result;
-}
-
-nsresult
 nsHTMLFragmentContentSink::FlushText()
 {
   if (0 == mTextLength) {
@@ -840,7 +738,7 @@ nsHTMLFragmentContentSink::AddAttributes(const nsIParserNode& aNode,
     return NS_OK;
   }
 
-  nsCAutoString k;
+  nsAutoString k;
   nsHTMLTag nodeType = nsHTMLTag(aNode.GetNodeType());
 
   // The attributes are on the parser node in the order they came in in the
@@ -854,12 +752,7 @@ nsHTMLFragmentContentSink::AddAttributes(const nsIParserNode& aNode,
 
   for (PRInt32 i = ac - 1; i >= 0; i--) {
     // Get lower-cased key
-    const nsAString& key = aNode.GetKeyAt(i);
-    // Copy up-front to avoid shared-buffer overhead (and convert to UTF-8
-    // at the same time since that's what the atom table uses).
-    CopyUTF16toUTF8(key, k);
-    ToLowerCase(k);
-
+    nsContentUtils::ASCIIToLower(aNode.GetKeyAt(i), k);
     nsCOMPtr<nsIAtom> keyAtom = do_GetAtom(k);
 
     // Get value and remove mandatory quotes
@@ -919,8 +812,9 @@ protected:
   nsresult NameFromNode(const nsIParserNode& aNode,
                         nsIAtom **aResult);
 
-  void SanitizeStyleRule(nsICSSStyleRule *aRule, nsAutoString &aRuleText);
-  
+  // The return value will be true if we have sanitized the rule
+  PRBool SanitizeStyleRule(css::StyleRule *aRule, nsAutoString &aRuleText);
+
   PRPackedBool mSkip; // used when we descend into <style> or <script>
   PRPackedBool mProcessStyle; // used when style is explicitly white-listed
   PRPackedBool mInStyle; // whether we're inside a style element
@@ -998,12 +892,10 @@ nsHTMLParanoidFragmentSink::Cleanup()
 nsresult
 NS_NewHTMLParanoidFragmentSink(nsIFragmentContentSink** aResult)
 {
-  nsHTMLParanoidFragmentSink* it = new nsHTMLParanoidFragmentSink();
-  if (!it) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
   nsresult rv = nsHTMLParanoidFragmentSink::Init();
   NS_ENSURE_SUCCESS(rv, rv);
+
+  nsHTMLParanoidFragmentSink* it = new nsHTMLParanoidFragmentSink();
   NS_ADDREF(*aResult = it);
   
   return NS_OK;
@@ -1090,7 +982,7 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
     return NS_OK;
   }
 
-  nsCAutoString k;
+  nsAutoString k;
   nsHTMLTag nodeType = nsHTMLTag(aNode.GetNodeType());
 
   nsresult rv;
@@ -1105,10 +997,7 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
 
   for (PRInt32 i = ac - 1; i >= 0; i--) {
     rv = NS_OK;
-    const nsAString& key = aNode.GetKeyAt(i);
-    CopyUTF16toUTF8(key, k);
-    ToLowerCase(k);
-
+    nsContentUtils::ASCIIToLower(aNode.GetKeyAt(i), k);
     nsCOMPtr<nsIAtom> keyAtom = do_GetAtom(k);
 
     // Check if this is an allowed attribute, or a style attribute in case
@@ -1116,8 +1005,8 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
     // attribute, or an attribute which begins with "_".
     if ((!sAllowedAttributes || !sAllowedAttributes->GetEntry(keyAtom)) &&
         (!mProcessStyle || keyAtom != nsGkAtoms::style) &&
-        !(StringBeginsWith(key, NS_LITERAL_STRING("data-")) ||
-          StringBeginsWith(key, NS_LITERAL_STRING("_")))) {
+        !(StringBeginsWith(k, NS_LITERAL_STRING("data-")) ||
+          StringBeginsWith(k, NS_LITERAL_STRING("_")))) {
       continue;
     }
 
@@ -1153,24 +1042,27 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
       if (!baseURI) {
         baseURI = aContent->GetBaseURI();
       }
-      nsICSSLoader* cssLoader = mTargetDocument->CSSLoader();
-      nsCOMPtr<nsICSSParser> parser;
-      rv = cssLoader->GetParserFor(nsnull, getter_AddRefs(parser));
+
+      // Pass the CSS Loader object to the parser, to allow parser error reports
+      // to include the outer window ID.
+      nsCSSParser parser(mTargetDocument->CSSLoader());
+      nsRefPtr<css::StyleRule> rule;
+      rv = parser.ParseStyleAttribute(aNode.GetValueAt(i),
+                                      mTargetDocument->GetDocumentURI(),
+                                      baseURI,
+                                      mTargetDocument->NodePrincipal(),
+                                      getter_AddRefs(rule));
       if (NS_SUCCEEDED(rv)) {
-        nsCOMPtr<nsICSSStyleRule> rule;
-        rv = parser->ParseStyleAttribute(aNode.GetValueAt(i),
-                                         mTargetDocument->GetDocumentURI(),
-                                         baseURI,
-                                         mTargetDocument->NodePrincipal(),
-                                         getter_AddRefs(rule));
-        if (NS_SUCCEEDED(rv)) {
-          nsAutoString cleanValue;
-          SanitizeStyleRule(rule, cleanValue);
+        nsAutoString cleanValue;
+        PRBool didSanitize = SanitizeStyleRule(rule, cleanValue);
+        if (didSanitize) {
           aContent->SetAttr(kNameSpaceID_None, keyAtom, cleanValue, PR_FALSE);
         } else {
-          // we couldn't sanitize the style attribute, ignore it
-          continue;
+          aContent->SetAttr(kNameSpaceID_None, keyAtom, v, PR_FALSE);
         }
+      } else {
+        // we couldn't sanitize the style attribute, ignore it
+        continue;
       }
     } else if (nodeType == eHTMLTag_a && keyAtom == nsGkAtoms::name) {
       NS_ConvertUTF16toUTF8 cname(v);
@@ -1180,16 +1072,6 @@ nsHTMLParanoidFragmentSink::AddAttributes(const nsIParserNode& aNode,
     } else {
       // Add attribute to content
       aContent->SetAttr(kNameSpaceID_None, keyAtom, v, PR_FALSE);
-    }
-
-    if (nodeType == eHTMLTag_a || 
-        nodeType == eHTMLTag_form ||
-        nodeType == eHTMLTag_img ||
-        nodeType == eHTMLTag_map ||
-        nodeType == eHTMLTag_q ||
-        nodeType == eHTMLTag_blockquote ||
-        nodeType == eHTMLTag_input) {
-      AddBaseTagInfo(aContent);
     }
   }
 
@@ -1267,6 +1149,7 @@ nsHTMLParanoidFragmentSink::CloseContainer(const nsHTMLTag aTag)
     nsAutoString sanitizedStyleText;
     nsIContent* style = GetCurrentContent();
     if (style) {
+      PRBool didSanitize = PR_FALSE;
       // styleText will hold the text inside the style element.
       nsAutoString styleText;
       nsContentUtils::GetNodeTextContent(style, PR_FALSE, styleText);
@@ -1276,46 +1159,35 @@ nsHTMLParanoidFragmentSink::CloseContainer(const nsHTMLTag aTag)
         CreateInstanceFromString(styleText, getter_AddRefs(uin));
       if (NS_SUCCEEDED(rv)) {
         // Create a sheet to hold the parsed CSS
-        nsRefPtr<nsICSSStyleSheet> sheet;
+        nsRefPtr<nsCSSStyleSheet> sheet;
         rv = NS_NewCSSStyleSheet(getter_AddRefs(sheet));
         if (NS_SUCCEEDED(rv)) {
           nsCOMPtr<nsIURI> baseURI = style->GetBaseURI();
           sheet->SetURIs(mTargetDocument->GetDocumentURI(), nsnull, baseURI);
           sheet->SetPrincipal(mTargetDocument->NodePrincipal());
           // Create the CSS parser, and parse the CSS text.
-          nsICSSLoader* cssLoader = mTargetDocument->CSSLoader();
-          nsCOMPtr<nsICSSParser> parser;
-          rv = cssLoader->GetParserFor(sheet, getter_AddRefs(parser));
-          if (NS_SUCCEEDED(rv)) {
-            rv = parser->Parse(uin, mTargetDocument->GetDocumentURI(),
-                               baseURI, mTargetDocument->NodePrincipal(),
-                               0, PR_FALSE);
-          }
+          nsCSSParser parser(nsnull, sheet);
+          rv = parser.Parse(uin, mTargetDocument->GetDocumentURI(),
+                            baseURI, mTargetDocument->NodePrincipal(),
+                            0, PR_FALSE);
           // Mark the sheet as complete.
           if (NS_SUCCEEDED(rv)) {
-            sheet->SetModified(PR_FALSE);
+            NS_ABORT_IF_FALSE(!sheet->IsModified(),
+                              "should not get marked modified during parsing");
             sheet->SetComplete();
           }
           if (NS_SUCCEEDED(rv)) {
             // Loop through all the rules found in the CSS text
-            PRInt32 ruleCount = 0;
-            sheet->StyleRuleCount(ruleCount);
+            PRInt32 ruleCount = sheet->StyleRuleCount();
             for (PRInt32 i = 0; i < ruleCount; ++i) {
               nsRefPtr<nsICSSRule> rule;
               rv = sheet->GetStyleRuleAt(i, *getter_AddRefs(rule));
               if (NS_FAILED(rv))
                 continue;
               NS_ASSERTION(rule, "We should have a rule by now");
-              PRInt32 type;
-              rv = rule->GetType(type);
-              if (NS_FAILED(rv))
-                continue;
-              switch (type) {
-                case nsICSSRule::UNKNOWN_RULE:
-                case nsICSSRule::CHARSET_RULE:
-                case nsICSSRule::IMPORT_RULE:
-                case nsICSSRule::MEDIA_RULE:
-                case nsICSSRule::PAGE_RULE:
+              switch (rule->GetType()) {
+                default:
+                  didSanitize = PR_TRUE;
                   // Ignore these rule types.
                   break;
                 case nsICSSRule::NAMESPACE_RULE:
@@ -1334,40 +1206,40 @@ nsHTMLParanoidFragmentSink::CloseContainer(const nsHTMLTag aTag)
                 case nsICSSRule::STYLE_RULE: {
                   // For style rules, we will just look for and remove the
                   // -moz-binding properties.
-                  nsCOMPtr<nsICSSStyleRule> styleRule = do_QueryInterface(rule);
+                  nsRefPtr<css::StyleRule> styleRule = do_QueryObject(rule);
                   NS_ASSERTION(styleRule, "Must be a style rule");
                   nsAutoString decl;
-                  SanitizeStyleRule(styleRule, decl);
-                  rv = styleRule->GetCssText(decl);
-                  // Only add the rule when sanitized.
-                  if (NS_SUCCEEDED(rv)) {
-                    sanitizedStyleText.Append(decl);
-                  }
+                  didSanitize = SanitizeStyleRule(styleRule, decl) || didSanitize;
+                  styleRule->GetCssText(decl);
+                  sanitizedStyleText.Append(decl);
                 }
               }
             }
           }
         }
       }
-      // Replace the style element content with its sanitized style text
-      nsContentUtils::SetNodeTextContent(style, sanitizedStyleText, PR_TRUE);
+      if (didSanitize) {
+        // Replace the style element content with its sanitized style text
+        nsContentUtils::SetNodeTextContent(style, sanitizedStyleText, PR_TRUE);
+      }
     }
   }
 
   return nsHTMLFragmentContentSink::CloseContainer(aTag);
 }
 
-void
-nsHTMLParanoidFragmentSink::SanitizeStyleRule(nsICSSStyleRule *aRule, nsAutoString &aRuleText)
+PRBool
+nsHTMLParanoidFragmentSink::SanitizeStyleRule(css::StyleRule *aRule, nsAutoString &aRuleText)
 {
+  PRBool didSanitize = PR_FALSE;
   aRuleText.Truncate();
-  nsCSSDeclaration *style = aRule->GetDeclaration();
+  css::Declaration *style = aRule->GetDeclaration();
   if (style) {
-    nsresult rv = style->RemoveProperty(eCSSProperty_binding);
-    if (NS_SUCCEEDED(rv)) {
-      style->ToString(aRuleText);
-    }
+    didSanitize = style->HasProperty(eCSSProperty_binding);
+    style->RemoveProperty(eCSSProperty_binding);
+    style->ToString(aRuleText);
   }
+  return didSanitize;
 }
 
 NS_IMETHODIMP
@@ -1389,21 +1261,8 @@ nsHTMLParanoidFragmentSink::AddLeaf(const nsIParserNode& aNode)
     rv = NameFromNode(aNode, getter_AddRefs(name));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    // We will process base tags, but we won't include them
-    // in the output
+    // Don't include base tags in output.
     if (name == nsGkAtoms::base) {
-      nsCOMPtr<nsIContent> content;
-      nsCOMPtr<nsINodeInfo> nodeInfo;
-      nsIParserService* parserService = nsContentUtils::GetParserService();
-      if (!parserService)
-        return NS_ERROR_OUT_OF_MEMORY;
-      nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull,
-                                               kNameSpaceID_XHTML);
-      NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
-      rv = NS_NewHTMLElement(getter_AddRefs(content), nodeInfo, PR_FALSE);
-      NS_ENSURE_SUCCESS(rv, rv);
-      AddAttributes(aNode, content);
-      ProcessBaseTag(content);
       return NS_OK;
     }
 

@@ -48,7 +48,6 @@
 #include "nsIDOMDocumentTraversal.h"
 #include "nsISelection.h"
 #include "nsISelectionController.h"
-#include "nsIPresShell.h"
 #include "nsIFrame.h"
 #include "nsITextControlFrame.h"
 #include "nsIFormControl.h"
@@ -74,6 +73,10 @@ static NS_DEFINE_CID(kCPreContentIteratorCID, NS_PRECONTENTITERATOR_CID);
 static NS_DEFINE_IID(kRangeCID, NS_RANGE_CID);
 
 #define CH_SHY ((PRUnichar) 0xAD)
+
+// nsFind::Find casts CH_SHY to char before calling StripChars
+// This works correctly if and only if CH_SHY <= 255
+PR_STATIC_ASSERT(CH_SHY <= 255);
 
 // -----------------------------------------------------------------------
 // nsFindContentIterator is a special iterator that also goes through
@@ -344,10 +347,9 @@ nsFindContentIterator::MaybeSetupInnerIterator()
     return;
 
   nsCOMPtr<nsIFormControl> formControl(do_QueryInterface(content));
-  PRInt32 controlType = formControl->GetType();
-  if (controlType != NS_FORM_TEXTAREA && 
-      controlType != NS_FORM_INPUT_TEXT)
+  if (!formControl->IsTextControl(PR_TRUE)) {
     return;
+  }
 
   SetupInnerIterator(content);
   if (mInnerIterator) {
@@ -376,16 +378,7 @@ nsFindContentIterator::SetupInnerIterator(nsIContent* aContent)
   }
   NS_ASSERTION(!aContent->IsRootOfNativeAnonymousSubtree(), "invalid call");
 
-  nsIDocument* doc = aContent->GetDocument();
-  nsIPresShell* shell = doc ? doc->GetPrimaryShell() : nsnull;
-  if (!shell)
-    return;
-
-  nsIFrame* frame = shell->GetPrimaryFrameFor(aContent);
-  if (!frame)
-    return;
-
-  nsITextControlFrame* tcFrame = do_QueryFrame(frame);
+  nsITextControlFrame* tcFrame = do_QueryFrame(aContent->GetPrimaryFrame());
   if (!tcFrame)
     return;
 
@@ -789,7 +782,7 @@ nsFind::NextNode(nsIDOMRange* aSearchRange,
 
 PRBool nsFind::IsBlockNode(nsIContent* aContent)
 {
-  if (!aContent->IsNodeOfType(nsINode::eHTML)) {
+  if (!aContent->IsHTML()) {
     return PR_FALSE;
   }
 
@@ -827,15 +820,7 @@ PRBool nsFind::IsVisibleNode(nsIDOMNode *aDOMNode)
   if (!content)
     return PR_FALSE;
 
-  nsCOMPtr<nsIDocument> doc = content->GetDocument();
-  if (!doc)
-    return PR_FALSE;
-
-  nsIPresShell *presShell = doc->GetPrimaryShell();
-  if (!presShell)
-    return PR_FALSE;
-
-  nsIFrame *frame = presShell->GetPrimaryFrameFor(content);
+  nsIFrame *frame = content->GetPrimaryFrame();
   if (!frame) {
     // No frame! Not visible then.
     return PR_FALSE;
@@ -854,7 +839,7 @@ PRBool nsFind::SkipNode(nsIContent* aContent)
   // We may not need to skip comment nodes,
   // now that IsTextNode distinguishes them from real text nodes.
   return (aContent->IsNodeOfType(nsINode::eCOMMENT) ||
-          (aContent->IsNodeOfType(nsINode::eHTML) &&
+          (aContent->IsHTML() &&
            (atom == sScriptAtom ||
             atom == sNoframesAtom ||
             atom == sSelectAtom)));
@@ -871,7 +856,7 @@ PRBool nsFind::SkipNode(nsIContent* aContent)
     atom = content->Tag();
 
     if (aContent->IsNodeOfType(nsINode::eCOMMENT) ||
-        (content->IsNodeOfType(nsINode::eHTML) &&
+        (content->IsHTML() &&
          (atom == sScriptAtom ||
           atom == sNoframesAtom ||
           atom == sSelectAtom)))
@@ -962,7 +947,7 @@ nsFind::Find(const PRUnichar *aPatText, nsIDOMRange* aSearchRange,
     ToLowerCase(patAutoStr);
 
   // Ignore soft hyphens in the pattern  
-  static const char kShy[] = { CH_SHY, 0 };
+  static const char kShy[] = { char(CH_SHY), 0 };
   patAutoStr.StripChars(kShy);
 
   const PRUnichar* patStr = patAutoStr.get();
@@ -988,9 +973,6 @@ nsFind::Find(const PRUnichar *aPatText, nsIDOMRange* aSearchRange,
   // Keep track of when we're in whitespace:
   // (only matters when we're matching)
   PRBool inWhitespace = PR_FALSE;
-
-  // Have we extended a search past the endpoint?
-  PRBool continuing = PR_FALSE;
 
   // Place to save the range start point in case we find a match:
   nsCOMPtr<nsIDOMNode> matchAnchorNode;
@@ -1019,7 +1001,7 @@ nsFind::Find(const PRUnichar *aPatText, nsIDOMRange* aSearchRange,
       {
         // Are we in the middle of a match?
         // If so, try again with continuation.
-        if (matchAnchorNode && !continuing)
+        if (matchAnchorNode)
           NextNode(aSearchRange, aStartPoint, aEndPoint, PR_TRUE);
 
         // Reset the iterator, so this nsFind will be usable if
@@ -1140,7 +1122,7 @@ nsFind::Find(const PRUnichar *aPatText, nsIDOMRange* aSearchRange,
 
     // Have we gone past the endpoint yet?
     // If we have, and we're not in the middle of a match, return.
-    if (mIterNode == endNode && !continuing &&
+    if (mIterNode == endNode &&
         ((mFindBackward && (findex < endOffset)) ||
          (!mFindBackward && (findex > endOffset))))
     {
@@ -1293,11 +1275,6 @@ nsFind::Find(const PRUnichar *aPatText, nsIDOMRange* aSearchRange,
 #ifdef DEBUG_FIND
     printf("NOT: %c == %c\n", c, patc);
 #endif
-    // If we were continuing, then this ends our search.
-    if (continuing) {
-      ResetAll();
-      return NS_OK;
-    }
 
     // If we didn't match, go back to the beginning of patStr,
     // and set findex back to the next char after

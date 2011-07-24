@@ -25,14 +25,13 @@
 #endif
 
 [@AB_CD@]
-@BINPATH@/chrome/@AB_CD@.jar
+@BINPATH@/chrome/@AB_CD@@JAREXT@
 @BINPATH@/chrome/@AB_CD@.manifest
 @BINPATH@/defaults/messenger/mailViews.dat
 @BINPATH@/defaults/profile/bookmarks.html
 @BINPATH@/defaults/profile/localstore.rdf
 @BINPATH@/defaults/profile/mimeTypes.rdf
 @BINPATH@/defaults/profile/panels.rdf
-@BINPATH@/defaults/profile/search.rdf
 @BINPATH@/defaults/profile/chrome/*
 @BINPATH@/@PREF_DIR@/suite-l10n.js
 @BINPATH@/dictionaries/*
@@ -47,35 +46,52 @@
 
 [xpcom]
 @BINPATH@/dependentlibs.list
-#ifdef MOZ_IPC
-@BINPATH@/mozilla-runtime@BIN_SUFFIX@
-#endif
+#ifndef MOZ_STATIC_JS
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
+#endif
 @BINPATH@/@DLL_PREFIX@plc4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plds4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@xpcom@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/@DLL_PREFIX@xpcomcor@DLL_SUFFIX@
-#else
-@BINPATH@/@DLL_PREFIX@xpcom_core@DLL_SUFFIX@
-#endif
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
-#ifndef MOZ_STATIC_BUILD
-@BINPATH@/@DLL_PREFIX@mozz@DLL_SUFFIX@
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
 @BINPATH@/@DLL_PREFIX@xul@DLL_SUFFIX@
 #endif
+#ifdef MOZ_IPC
+#ifdef XP_MACOSX
+@BINPATH@/@MOZ_CHILD_PROCESS_NAME@.app/
+#else
+@BINPATH@/@MOZ_CHILD_PROCESS_NAME@
+#endif
+#endif
+; ANGLE GLES-on-D3D rendering library
+#ifdef MOZ_ANGLE
+@BINPATH@/libEGL.dll
+@BINPATH@/libGLESv2.dll
+@BINPATH@/@MOZ_D3DX9_DLL@
+@BINPATH@/@MOZ_D3DCOMPILER_DLL@
 #endif
 #ifdef WINCE
 @BINPATH@/mozce_shunt.dll
 #elifdef XP_WIN32
 #ifndef MOZ_MEMORY
+#ifndef MOZ_DEBUG
+#if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
 @BINPATH@/msvcm80.dll
 @BINPATH@/msvcp80.dll
 @BINPATH@/msvcr80.dll
+#elif _MSC_VER == 1500
+@BINPATH@/Microsoft.VC90.CRT.manifest
+@BINPATH@/msvcm90.dll
+@BINPATH@/msvcp90.dll
+@BINPATH@/msvcr90.dll
+#elif _MSC_VER == 1600
+@BINPATH@/msvcp100.dll
+@BINPATH@/msvcr100.dll
+#endif
+#endif
 #else
 @BINPATH@/mozcrt19.dll
 @BINPATH@/mozcpp19.dll
@@ -95,17 +111,6 @@
 #endif
 @BINPATH@/application.ini
 @BINPATH@/platform.ini
-#ifdef XP_MACOSX
-@BINPATH@/plugins/DefaultPlugin.plugin/
-#elifdef XP_UNIX
-@BINPATH@/plugins/libnullplugin.so
-#elifdef XP_WIN32
-#ifndef WINCE
-@BINPATH@/plugins/npnul32.dll
-#endif
-#elifdef XP_OS2
-@BINPATH@/plugins/npnulos2.dll
-#endif
 #ifdef XP_OS2
 @BINPATH@/@DLL_PREFIX@mozsqlt3@DLL_SUFFIX@
 #else
@@ -122,161 +127,12 @@
 @BINPATH@/mozilla-xremote-client
 @BINPATH@/run-mozilla.sh
 #endif
-#ifndef MOZ_STATIC_BUILD
-#ifdef XP_UNIX
-@BINPATH@/@DLL_PREFIX@gfxpsshar@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@gtkxtbin@DLL_SUFFIX@
-#endif
-@BINPATH@/@DLL_PREFIX@gfxutils@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@gkgfx@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@ycbcr@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@layers@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@thebes@DLL_SUFFIX@
-#endif
 
 ; [Components]
-#ifndef MOZ_STATIC_BUILD
-; shared component binaries
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@access@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@appcomps@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@auth@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@autocfg@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@autoconfig@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@caps@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@chardet@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@chrome@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@cmdlines@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@commandlines@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@composer@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@cookie@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@docshell@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@embedcmp@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@embedcomponents@DLL_SUFFIX@
-#endif
-#ifdef XP_UNIX
-@BINPATH@/components/@DLL_PREFIX@fileview@DLL_SUFFIX@
-#endif
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@gkgfxthb@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@gkgfxthebes@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@gklayout@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@gkplugin@DLL_SUFFIX@
-#ifdef XP_WIN32
-@BINPATH@/components/@DLL_PREFIX@gkwidget@DLL_SUFFIX@
-#endif
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@gkparser@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@htmlpars@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@i18n@DLL_SUFFIX@
-#ifdef WIN_OR_OS2
-@BINPATH@/components/@DLL_PREFIX@imgicon@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@imglib2@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@intlapp@DLL_SUFFIX@
-#ifdef BUILD_CTYPES
-@BINPATH@/components/@DLL_PREFIX@jsctypes@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@mork@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@mozfind@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@necko@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@appshell@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@perms@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@nsappshell@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@permissions@DLL_SUFFIX@
-#endif
-#ifdef XP_MACOSX
-@BINPATH@/components/@DLL_PREFIX@osxproxy@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@places@DLL_SUFFIX@
-#ifdef XP_WIN32
-@BINPATH@/components/@DLL_PREFIX@xppref32@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@pref@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@rdf@DLL_SUFFIX@
-#ifdef UNIX_BUT_NOT_MAC
-@BINPATH@/components/@DLL_PREFIX@remoteservice@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@satchel@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@spellchk@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@strgcmps@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@spellchecker@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@storagecomps@DLL_SUFFIX@
-#endif
-#ifdef UNIX_BUT_NOT_MAC
-@BINPATH@/components/@DLL_PREFIX@system-pref@DLL_SUFFIX@
-#endif
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@tkautoc@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@tkitcmps@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@tkautocomplete@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@toolkitcomps@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@txmgr@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@mozuconv@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@uconv@DLL_SUFFIX@
-#endif
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@ucdet@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@universalchardet@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@webbrwsr@DLL_SUFFIX@
-#ifdef MOZ_GTK2
-@BINPATH@/components/@DLL_PREFIX@widget_gtk2@DLL_SUFFIX@
-#elifdef XP_MACOSX
-@BINPATH@/components/@DLL_PREFIX@widget_mac@DLL_SUFFIX@
-#elifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@wdgtos2@DLL_SUFFIX@
-#endif
-#ifdef XP_WIN32
-@BINPATH@/components/@DLL_PREFIX@windowsproxy@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@windowds@DLL_SUFFIX@
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@xpautoc@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@xpautocomplete@DLL_SUFFIX@
-#endif
-#ifdef XP_WIN32
-@BINPATH@/components/@DLL_PREFIX@xpc3250@DLL_SUFFIX@
-#elifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@xpconect@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@xpconnect@DLL_SUFFIX@
-#endif
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@zipwrite@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@zipwriter@DLL_SUFFIX@
-#endif
-; ! MOZ_STATIC_BUILD
-#endif
-
-@BINPATH@/components/components.list
+; Although components.manifest ends up being shipped inside omni.jar
+; it still needs listing here as it is parsed for various binary
+; components before being packaged inside omni.jar.
+@BINPATH@/components/components.manifest
 #ifdef ACCESSIBILITY
 #ifdef XP_WIN32
 @BINPATH@/AccessibleMarshal.dll
@@ -320,8 +176,10 @@
 @BINPATH@/components/dom_events.xpt
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_html.xpt
+@BINPATH@/components/dom_indexeddb.xpt
 @BINPATH@/components/dom_json.xpt
 @BINPATH@/components/dom_loadsave.xpt
+@BINPATH@/components/dom_notification.xpt
 @BINPATH@/components/dom_offline.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_sidebar.xpt
@@ -341,6 +199,7 @@
 @BINPATH@/components/editor.xpt
 @BINPATH@/components/embed_base.xpt
 @BINPATH@/components/extensions.xpt
+@BINPATH@/components/extensions.manifest
 @BINPATH@/components/exthandler.xpt
 @BINPATH@/components/exthelper.xpt
 @BINPATH@/components/fastfind.xpt
@@ -355,25 +214,16 @@
 @BINPATH@/components/imglib2.xpt
 @BINPATH@/components/inspector.xpt
 @BINPATH@/components/intl.xpt
-#ifndef MOZ_STATIC_BUILD
-@BINPATH@/components/@DLL_PREFIX@jar50@DLL_SUFFIX@
-#endif
 @BINPATH@/components/jar.xpt
+@BINPATH@/components/jetpack.xpt
 @BINPATH@/components/jsdservice.xpt
-#ifdef XP_WIN32
-@BINPATH@/components/@DLL_PREFIX@jsd3250@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@jsd@DLL_SUFFIX@
-#endif
 @BINPATH@/components/layout_base.xpt
+@BINPATH@/components/layout_forms.xpt
 #ifdef NS_PRINTING
 @BINPATH@/components/layout_printing.xpt
 #endif
 @BINPATH@/components/layout_xul_tree.xpt
 @BINPATH@/components/layout_xul.xpt
-#ifdef UNIX_BUT_NOT_MAC
-@BINPATH@/components/libimgicon.so
-#endif
 @BINPATH@/components/locale.xpt
 @BINPATH@/components/loginmgr.xpt
 @BINPATH@/components/lwbrk.xpt
@@ -395,8 +245,9 @@
 @BINPATH@/components/necko_strconv.xpt
 @BINPATH@/components/necko_viewsource.xpt
 @BINPATH@/components/necko_wifi.xpt
+@BINPATH@/components/necko_wyciwyg.xpt
 #ifdef MOZ_ENABLE_GNOMEVFS
-bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
+@BINPATH@/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 #endif
 @BINPATH@/components/parentalcontrols.xpt
 @BINPATH@/components/places.xpt
@@ -407,23 +258,31 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 @BINPATH@/components/proxyObject.xpt
 @BINPATH@/components/rdf.xpt
 @BINPATH@/components/satchel.xpt
+@BINPATH@/components/satchel.manifest
 @BINPATH@/components/saxparser.xpt
+@BINPATH@/components/services-crypto.xpt
+@BINPATH@/components/services-crypto-component.xpt
 @BINPATH@/components/shellservice.xpt
 @BINPATH@/components/shistory.xpt
 @BINPATH@/components/smile.xpt
 @BINPATH@/components/spellchecker.xpt
+@BINPATH@/components/startupcache.xpt
 @BINPATH@/components/storage.xpt
 @BINPATH@/components/@DLL_PREFIX@suite@DLL_SUFFIX@
-@BINPATH@/components/suitebrowser.xpt
+@BINPATH@/components/SuiteBrowser.manifest
 @BINPATH@/components/suitecommon.xpt
+@BINPATH@/components/SuiteCommon.manifest
 @BINPATH@/components/suitefeeds.xpt
+@BINPATH@/components/SuiteFeeds.manifest
 #ifndef WINCE
 @BINPATH@/components/suitemigration.xpt
 #endif
+@BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitprofile.xpt
 #ifdef UNIX_BUT_NOT_MAC
 @BINPATH@/components/toolkitremote.xpt
 #endif
+@BINPATH@/components/toolkitsearch.manifest
 @BINPATH@/components/txmgr.xpt
 @BINPATH@/components/txtsvc.xpt
 #ifdef MOZ_USE_NATIVE_UCONV
@@ -431,9 +290,6 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 #endif
 @BINPATH@/components/uconv.xpt
 @BINPATH@/components/unicharutil.xpt
-#ifdef UNIX_BUT_NOT_MAC
-@BINPATH@/components/@DLL_PREFIX@unixproxy@DLL_SUFFIX@
-#endif
 @BINPATH@/components/update.xpt
 @BINPATH@/components/uriloader.xpt
 @BINPATH@/components/urlformatter.xpt
@@ -455,57 +311,83 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 @BINPATH@/components/xpcom_threads.xpt
 @BINPATH@/components/xpcom_xpti.xpt
 @BINPATH@/components/xpconnect.xpt
-#ifdef XP_OS2
-@BINPATH@/components/@DLL_PREFIX@xpinstal@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@xpinstall@DLL_SUFFIX@
-#endif
-@BINPATH@/components/xpinstall.xpt
 @BINPATH@/components/xulapp.xpt
 @BINPATH@/components/xuldoc.xpt
 @BINPATH@/components/xultmpl.xpt
 @BINPATH@/components/zipwriter.xpt
 
 ; JavaScript components
+@BINPATH@/components/addonManager.js
+@BINPATH@/components/amContentHandler.js
+@BINPATH@/components/amWebInstallListener.js
+@BINPATH@/components/ConsoleAPI.js
+@BINPATH@/components/ConsoleAPI.manifest
 @BINPATH@/components/contentAreaDropListener.js
+@BINPATH@/components/contentAreaDropListener.manifest
 @BINPATH@/components/contentSecurityPolicy.js
+@BINPATH@/components/contentSecurityPolicy.manifest
 @BINPATH@/components/crypto-SDR.js
 @BINPATH@/components/FeedConverter.js
 @BINPATH@/components/FeedProcessor.js
+@BINPATH@/components/FeedProcessor.manifest
 @BINPATH@/components/FeedWriter.js
 @BINPATH@/components/GPSDGeolocationProvider.js
+@BINPATH@/components/GPSDGeolocationProvider.manifest
 @BINPATH@/components/jsconsole-clhandler.js
+@BINPATH@/components/jsconsole-clhandler.manifest
+; This is not used yet, so don't package it at all
+;#ifdef MOZ_IPC
+;@BINPATH@/components/messageWakeupService.js
+;@BINPATH@/components/messageWakeupService.manifest
+;#endif
 @BINPATH@/components/NetworkGeolocationProvider.js
-@BINPATH@/components/nsAboutAbout.js
+@BINPATH@/components/NetworkGeolocationProvider.manifest
+@BINPATH@/components/nsAbout.js
 @BINPATH@/components/nsAboutCertError.js
+@BINPATH@/components/nsAboutData.js
 @BINPATH@/components/nsAboutFeeds.js
+@BINPATH@/components/nsAboutLife.js
 @BINPATH@/components/nsAboutRights.js
 @BINPATH@/components/nsAboutSessionRestore.js
-@BINPATH@/components/nsAddonRepository.js
 @BINPATH@/components/nsBadCertHandler.js
+@BINPATH@/components/nsBadCertHandler.manifest
 @BINPATH@/components/nsBlocklistService.js
 @BINPATH@/components/nsBrowserContentHandler.js
 @BINPATH@/components/nsComposerCmdLineHandler.js
+@BINPATH@/components/nsComposerCmdLineHandler.manifest
 @BINPATH@/components/nsContentDispatchChooser.js
+@BINPATH@/components/nsContentDispatchChooser.manifest
 @BINPATH@/components/nsContentPrefService.js
+@BINPATH@/components/nsContentPrefService.manifest
 @BINPATH@/components/nsDefaultCLH.js
-@BINPATH@/components/nsExtensionManager.js
+@BINPATH@/components/nsDefaultCLH.manifest
 #ifdef MOZ_GTK2
 @BINPATH@/components/nsFilePicker.js
+@BINPATH@/components/nsFilePicker.manifest
 #endif
 @BINPATH@/components/nsFormAutoComplete.js
+@BINPATH@/components/nsFormHistory.js
 @BINPATH@/components/nsHandlerService.js
+@BINPATH@/components/nsHandlerService.manifest
 @BINPATH@/components/nsHelperAppDlg.js
+@BINPATH@/components/nsHelperAppDlg.manifest
 @BINPATH@/components/nsINIProcessor.js
+@BINPATH@/components/nsINIProcessor.manifest
+@BINPATH@/components/nsInputListAutoComplete.js
 @BINPATH@/components/nsLivemarkService.js
 @BINPATH@/components/nsLoginInfo.js
 @BINPATH@/components/nsLoginManager.js
 @BINPATH@/components/nsLoginManagerPrompter.js
 @BINPATH@/components/nsMicrosummaryService.js
 @BINPATH@/components/nsPlacesAutoComplete.js
-@BINPATH@/components/nsPlacesDBFlush.js
+@BINPATH@/components/nsPlacesAutoComplete.manifest
 @BINPATH@/components/nsPlacesExpiration.js
+@BINPATH@/components/nsPrompter.js
+@BINPATH@/components/nsPrompter.manifest
 @BINPATH@/components/nsProxyAutoConfig.js
+@BINPATH@/components/nsProxyAutoConfig.manifest
+@BINPATH@/components/nsSearchService.js
+@BINPATH@/components/nsSearchSuggestions.js
 @BINPATH@/components/nsSessionStartup.js
 @BINPATH@/components/nsSessionStore.js
 @BINPATH@/components/nsSidebar.js
@@ -513,46 +395,71 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 @BINPATH@/components/nsSuiteGlue.js
 #ifdef XP_WIN32
 @BINPATH@/components/nsSetDefault.js
+@BINPATH@/components/nsSetDefault.manifest
 #endif
 @BINPATH@/components/nsTaggingService.js
 @BINPATH@/components/nsTryToClose.js
+@BINPATH@/components/nsTryToClose.manifest
 @BINPATH@/components/nsTypeAheadFind.js
 #ifdef MOZ_UPDATER
 @BINPATH@/components/nsUpdateService.js
+@BINPATH@/components/nsUpdateService.manifest
 @BINPATH@/components/nsUpdateServiceStub.js
 #endif
 @BINPATH@/components/nsUpdateTimerManager.js
+@BINPATH@/components/nsUpdateTimerManager.manifest
+#ifndef MOZILLA_5_0_BRANCH
+@BINPATH@/components/nsUrlClassifierHashCompleter.js
+#endif
 @BINPATH@/components/nsURLFormatter.js
+@BINPATH@/components/nsURLFormatter.manifest
 @BINPATH@/components/nsWebHandlerApp.js
-@BINPATH@/components/pluginGlue.js
+@BINPATH@/components/nsWebHandlerApp.manifest
+@BINPATH@/components/passwordmgr.manifest
+@BINPATH@/components/PlacesCategoriesStarter.js
+@BINPATH@/components/pluginGlue.manifest
 @BINPATH@/components/smileApplication.js
+@BINPATH@/components/smileApplication.manifest
 @BINPATH@/components/storage-Legacy.js
 @BINPATH@/components/storage-mozStorage.js
 @BINPATH@/components/txEXSLTRegExFunctions.js
+@BINPATH@/components/txEXSLTRegExFunctions.manifest
 @BINPATH@/components/WebContentConverter.js
+@BINPATH@/components/nsAboutSyncTabs.js
+@BINPATH@/components/SyncComponents.manifest
+@BINPATH@/components/Weave.js
 
 ; Modules
 @BINPATH@/modules/*
 
 ; [Browser Chrome Files]
-@BINPATH@/chrome/comm.jar
+@BINPATH@/chrome/comm@JAREXT@
 @BINPATH@/chrome/comm.manifest
-@BINPATH@/chrome/toolkit.jar
+@BINPATH@/chrome/toolkit@JAREXT@
 @BINPATH@/chrome/toolkit.manifest
 
 ; classic theme
-@BINPATH@/chrome/classic.jar
+@BINPATH@/chrome/classic@JAREXT@
 @BINPATH@/chrome/classic.manifest
+#ifdef MOZ_OMNIJAR
+@BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}.xpi
+#else
+@BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
+#endif
 
 ; modern theme
-@BINPATH@/extensions/modern@themes.mozilla.org/chrome/modern.jar
+#ifdef MOZ_OMNIJAR
+@BINPATH@/extensions/modern@themes.mozilla.org.xpi
+#else
+@BINPATH@/extensions/modern@themes.mozilla.org/chrome/modern@JAREXT@
 @BINPATH@/extensions/modern@themes.mozilla.org/chrome.manifest
 @BINPATH@/extensions/modern@themes.mozilla.org/icon.png
 @BINPATH@/extensions/modern@themes.mozilla.org/install.rdf
 @BINPATH@/extensions/modern@themes.mozilla.org/preview.png
+#endif
 
 ; shell icons
 #ifdef MOZ_GTK2
@@ -622,13 +529,21 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 ; All the browser/general pref files must be part of base to prevent migration bugs
 @BINPATH@/@PREF_DIR@/browser-prefs.js
 @BINPATH@/@PREF_DIR@/channel-prefs.js
+@BINPATH@/@PREF_DIR@/services-sync.js
 @BINPATH@/@PREF_DIR@/composer.js
-@BINPATH@/@PREF_DIR@/reporter.js
 @BINPATH@/greprefs.js
 @BINPATH@/defaults/autoconfig/platform.js
 @BINPATH@/defaults/autoconfig/prefcalls.js
 
 ; [Layout Engine Resources]
+; Layout debug extension.
+#ifdef ENABLE_TESTS
+#ifdef MOZ_DEBUG
+@BINPATH@/chrome/layoutdebug@JAREXT@
+@BINPATH@/chrome/layoutdebug.manifest
+@BINPATH@/components/layout_debug.xpt
+#endif
+#endif
 ; Style Sheets, Graphics and other Resources used by the layout engine. 
 @BINPATH@/res/contenteditable.css
 @BINPATH@/res/designmode.css
@@ -668,11 +583,6 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 
 ; [Personal Security Manager]
 ;
-#ifndef MOZ_STATIC_BUILD
-@BINPATH@/components/@DLL_PREFIX@pipboot@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@pipnss@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@pippki@DLL_SUFFIX@
-#endif
 @BINPATH@/components/pipboot.xpt
 @BINPATH@/components/pipnss.xpt
 @BINPATH@/components/pippki.xpt
@@ -693,7 +603,7 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@nssdbm3.chk
 #endif
 #endif
-@BINPATH@/chrome/pippki.jar
+@BINPATH@/chrome/pippki@JAREXT@
 @BINPATH@/chrome/pippki.manifest
 
 ; for Solaris SPARC
@@ -707,9 +617,6 @@ bin/libfreebl_32int64_3.so
 #endif
 
 ; LDAP components need to be in the browser for AutoConfig
-#ifndef MOZ_STATIC_BUILD
-@BINPATH@/components/@DLL_PREFIX@mozldap@DLL_SUFFIX@
-#endif
 @BINPATH@/components/mozldap.xpt
 @BINPATH@/components/nsLDAPProtocolHandler.js
 #ifdef XP_WIN32
@@ -742,7 +649,7 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/Throbber-small.gif
 #endif
 #endif
-; MOZ_CRASHREPORTER
+@BINPATH@/crashreporter-override.ini
 #endif
 
 ; [ActiveX]
@@ -759,58 +666,25 @@ bin/libfreebl_32int64_3.so
 ; [OS/2]
 #ifdef XP_OS2
 @BINPATH@/MozSounds.cmd
+@BINPATH@/*.xqs
+@BINPATH@/components/*.xqs
 #endif
 
 [mail]
-; MailNews component binaries
-#ifndef MOZ_STATIC_BUILD
-@BINPATH@/components/@DLL_PREFIX@import@DLL_SUFFIX@
-#ifdef XP_WIN32
-@BINPATH@/components/msgMapi.dll
-#endif
-@BINPATH@/components/@DLL_PREFIX@msgsmime@DLL_SUFFIX@
-
-#ifdef MOZ_STATIC_MAIL_BUILD
-@BINPATH@/components/@DLL_PREFIX@mail@DLL_SUFFIX@
-#else
-@BINPATH@/components/@DLL_PREFIX@addrbook@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@bayesflt@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@fts3tok@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@mailview@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@mime@DLL_SUFFIX@
-#ifdef WIN_OR_OS2
-; To become |#ifdef XP_OS2| in bug 534408.
-@BINPATH@/components/mimeemit.dll
-@BINPATH@/msgbsutl.dll
-@BINPATH@/components/msgcompo.dll
-#else
-@BINPATH@/components/@DLL_PREFIX@mimeemitter@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msgcompose@DLL_SUFFIX@
-#endif
-@BINPATH@/components/@DLL_PREFIX@msgbase@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msgdb@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msgimap@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msglocal@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msgmdn@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@msgnews@DLL_SUFFIX@
-@BINPATH@/components/@DLL_PREFIX@vcard@DLL_SUFFIX@
-; ! MOZ_STATIC_MAIL_BUILD
-#endif
-; ! MOZ_STATIC_BUILD
-#endif
-
 ; MailNews component xpts
 @BINPATH@/components/addrbook.xpt
+@BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/fts3tok.xpt
 @BINPATH@/components/import.xpt
 @BINPATH@/components/impComm4xMail.xpt
+@BINPATH@/components/ldapComponents.manifest
 @BINPATH@/components/mailview.xpt
 @BINPATH@/components/mime.xpt
 #ifdef XP_WIN32
 @BINPATH@/components/mapihook.xpt
 #endif
 @BINPATH@/components/msgbase.xpt
+@BINPATH@/components/msgBase.manifest
 @BINPATH@/components/msgcompose.xpt
 @BINPATH@/components/msgdb.xpt
 @BINPATH@/components/msgimap.xpt
@@ -821,21 +695,27 @@ bin/libfreebl_32int64_3.so
 
 ; MailNews JS components
 @BINPATH@/components/mdn-service.js
+@BINPATH@/components/mdn-service.manifest
 @BINPATH@/components/msgAsyncPrompter.js
 @BINPATH@/components/newsblog.js
+@BINPATH@/components/newsblog.manifest
 @BINPATH@/components/nsAbAutoCompleteMyDomain.js
 @BINPATH@/components/nsAbAutoCompleteSearch.js
 @BINPATH@/components/nsAbLDAPAttributeMap.js
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
 @BINPATH@/components/nsMsgTraitService.js
+@BINPATH@/components/nsMsgTraitService.manifest
 @BINPATH@/components/nsSMTPProtocolHandler.js
+@BINPATH@/components/nsSMTPProtocolHandler.manifest
 @BINPATH@/components/offlineStartup.js
+@BINPATH@/components/offlineStartup.manifest
 @BINPATH@/components/smime-service.js
+@BINPATH@/components/smime-service.manifest
 
 ; MailNews chrome
-@BINPATH@/chrome/messenger.jar
+@BINPATH@/chrome/messenger@JAREXT@
 @BINPATH@/chrome/messenger.manifest
-@BINPATH@/chrome/newsblog.jar
+@BINPATH@/chrome/newsblog@JAREXT@
 @BINPATH@/chrome/newsblog.manifest
 #ifdef MOZ_GTK2
 @BINPATH@/chrome/icons/default/abcardWindow.png
@@ -879,14 +759,17 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/isp/SpamPal.sfd
 
 ; Gloda
-@BINPATH@/chrome/gloda.jar
+@BINPATH@/chrome/gloda@JAREXT@
 @BINPATH@/chrome/gloda.manifest
 @BINPATH@/components/glautocomp.js
 @BINPATH@/components/jsmimeemitter.js
-@BINPATH@/modules/gloda/*
+@BINPATH@/components/gloda.manifest
 
 [chatzilla]
-@BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/chatzilla.jar
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi
+#else
+@BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/chatzilla@JAREXT@
 #ifdef MOZ_GTK2
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.xpm
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window16.xpm
@@ -897,30 +780,46 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/chatzilla-service.js
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/components.list
 @BINPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/install.rdf
+#endif
 #ifdef LOCALE_BUILD
-@BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/chrome/chatzilla.jar
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/langpack-@AB_CD@@chatzilla.mozilla.org.xpi
+#else
+@BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/chrome/chatzilla@JAREXT@
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/chrome.manifest
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/install.js
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/install.rdf
 #endif
+#endif
 
 [venkman]
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/venkman.jar
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi
+#else
+@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/venkman@JAREXT@
 @BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome.manifest
 @BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/components.list
 @BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/venkman-service.js
 @BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/install.rdf
+#endif
 #ifdef LOCALE_BUILD
-@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/chrome/venkman.jar
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/langpack-@AB_CD@@venkman.mozilla.org.xpi
+#else
+@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/chrome/venkman@JAREXT@
 @BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/chrome.manifest
 @BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/install.js
 @BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/install.rdf
 #endif
+#endif
 
 [inspector]
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/inspector@mozilla.org.xpi
+#else
 @BINPATH@/extensions/inspector@mozilla.org/install.rdf
 @BINPATH@/extensions/inspector@mozilla.org/chrome.manifest
-@BINPATH@/extensions/inspector@mozilla.org/chrome/inspector.jar
+@BINPATH@/extensions/inspector@mozilla.org/chrome/inspector@JAREXT@
 #ifdef MOZ_GTK2
 @BINPATH@/extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain16.xpm
 @BINPATH@/extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain.xpm
@@ -932,11 +831,16 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/extensions/inspector@mozilla.org/components/components.list
 @BINPATH@/extensions/inspector@mozilla.org/components/inspector-cmdline.js
 @BINPATH@/extensions/inspector@mozilla.org/defaults/preferences/inspector.js
+#endif
 
 [debugqa]
+#ifdef MOZ_OMNIJAR
+@BINPATH@/distribution/extensions/debugQA@mozilla.org.xpi
+#else
 @BINPATH@/extensions/debugQA@mozilla.org/install.rdf
 @BINPATH@/extensions/debugQA@mozilla.org/chrome.manifest
-@BINPATH@/extensions/debugQA@mozilla.org/chrome/debugqa.jar
+@BINPATH@/extensions/debugQA@mozilla.org/chrome/debugqa@JAREXT@
+#endif
 
 ; [FastStart]
 #ifdef WINCE

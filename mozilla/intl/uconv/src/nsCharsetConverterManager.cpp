@@ -52,26 +52,23 @@
 #include "nsTArray.h"
 #include "nsStringEnumerator.h"
 #include "nsThreadUtils.h"
-#include "nsIProxyObjectManager.h"
+#include "mozilla/Services.h"
 
 #include "nsXPCOM.h"
+#include "nsComponentManagerUtils.h"
 #include "nsISupportsPrimitives.h"
 
 // just for CONTRACTIDs
 #include "nsCharsetConverterManager.h"
 
-#ifdef MOZ_USE_NATIVE_UCONV
-#include "nsNativeUConvService.h"
-#endif
-
 // Class nsCharsetConverterManager [implementation]
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsCharsetConverterManager,
-                              nsICharsetConverterManager,
-                              nsICharsetConverterManager_1_9_BRANCH)
+NS_IMPL_THREADSAFE_ISUPPORTS1(nsCharsetConverterManager,
+                              nsICharsetConverterManager)
 
 nsCharsetConverterManager::nsCharsetConverterManager() 
-  :mDataBundle(NULL), mTitleBundle(NULL)
+  : mDataBundle(NULL)
+  , mTitleBundle(NULL)
 {
 #ifdef MOZ_USE_NATIVE_UCONV
   mNativeUC = do_GetService(NS_NATIVE_UCONV_SERVICE_CONTRACT_ID);
@@ -84,40 +81,14 @@ nsCharsetConverterManager::~nsCharsetConverterManager()
   NS_IF_RELEASE(mTitleBundle);
 }
 
-nsresult nsCharsetConverterManager::RegisterConverterManagerData()
-{
-  nsresult rv;
-  nsCOMPtr<nsICategoryManager> catman = do_GetService(NS_CATEGORYMANAGER_CONTRACTID, &rv);
-  if (NS_FAILED(rv))
-    return rv;
-
-  RegisterConverterCategory(catman, NS_TITLE_BUNDLE_CATEGORY,
-                            "chrome://global/locale/charsetTitles.properties");
-  RegisterConverterCategory(catman, NS_DATA_BUNDLE_CATEGORY,
-                            "resource://gre/res/charsetData.properties");
-
-  return NS_OK;
-}
-
-nsresult
-nsCharsetConverterManager::RegisterConverterCategory(nsICategoryManager* catman,
-                                                     const char* aCategory,
-                                                     const char* aURL)
-{
-  return catman->AddCategoryEntry(aCategory, aURL, "",
-                                  PR_TRUE, PR_TRUE, nsnull);
-}
-
 nsresult nsCharsetConverterManager::LoadExtensibleBundle(
                                     const char* aCategory, 
                                     nsIStringBundle ** aResult)
 {
-  nsresult rv = NS_OK;
-
-  nsCOMPtr<nsIStringBundleService> sbServ = 
-           do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  if (NS_FAILED(rv))
-    return rv;
+  nsCOMPtr<nsIStringBundleService> sbServ =
+    mozilla::services::GetStringBundleService();
+  if (!sbServ)
+    return NS_ERROR_FAILURE;
 
   return sbServ->CreateExtensibleBundle(aCategory, aResult);
 }
@@ -179,21 +150,6 @@ nsCharsetConverterManager::GetUnicodeEncoderRaw(const char * aDest,
   *aResult= nsnull;
   nsCOMPtr<nsIUnicodeEncoder> encoder;
 
-#ifdef MOZ_USE_NATIVE_UCONV
-  if (mNativeUC) {
-    nsCOMPtr<nsISupports> supports;
-    mNativeUC->GetNativeConverter("UCS-2", 
-                                  aDest,
-                                  getter_AddRefs(supports));
-
-    encoder = do_QueryInterface(supports);
-
-    if (encoder) {
-      NS_ADDREF(*aResult = encoder);
-      return NS_OK;
-    }
-  }
-#endif  
   nsresult rv = NS_OK;
 
   nsCAutoString
@@ -262,21 +218,6 @@ nsCharsetConverterManager::GetUnicodeDecoderRawInternal(const char * aSrc,
   *aResult= nsnull;
   nsCOMPtr<nsIUnicodeDecoder> decoder;
 
-#ifdef MOZ_USE_NATIVE_UCONV
-  if (mNativeUC) {
-    nsCOMPtr<nsISupports> supports;
-    mNativeUC->GetNativeConverter(aSrc,
-                                  "UCS-2", 
-                                  getter_AddRefs(supports));
-    
-    decoder = do_QueryInterface(supports);
-
-    if (decoder) {
-      NS_ADDREF(*aResult = decoder);
-      return NS_OK;
-    }
-  }
-#endif
   nsresult rv = NS_OK;
 
   NS_NAMED_LITERAL_CSTRING(contractbase, NS_UNICODEDECODER_CONTRACTID_BASE);
@@ -375,18 +316,6 @@ nsCharsetConverterManager::GetCharsetAlias(const char * aCharset,
   if (!aCharset)
     return NS_ERROR_NULL_POINTER;
 
-  // We must not use the charset alias from a background thread
-  if (!NS_IsMainThread()) {
-    nsCOMPtr<nsICharsetConverterManager> self;
-    nsresult rv =
-    NS_GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                         NS_GET_IID(nsICharsetConverterManager),
-                         this, NS_PROXY_SYNC | NS_PROXY_ALWAYS,
-                         getter_AddRefs(self));
-    NS_ENSURE_SUCCESS(rv, rv);
-    return self->GetCharsetAlias(aCharset, aResult);
-  }
-
   // We try to obtain the preferred name for this charset from the charset 
   // aliases. If we don't get it from there, we just use the original string
   nsDependentCString charset(aCharset);
@@ -474,8 +403,10 @@ nsCharsetConverterManager::GetCharsetLangGroupRaw(const char * aCharset,
   nsAutoString langGroup;
   rv = GetBundleValue(mDataBundle, aCharset, NS_LITERAL_STRING(".LangGroup"), langGroup);
 
-  if (NS_SUCCEEDED(rv))
+  if (NS_SUCCEEDED(rv)) {
+    ToLowerCase(langGroup); // use lowercase for all language atoms
     *aResult = NS_NewAtom(langGroup);
+  }
 
   return rv;
 }

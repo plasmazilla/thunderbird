@@ -15,7 +15,7 @@
    - The Original Code is Thunderbird Special Tabs.
    -
    - The Initial Developer of the Original Code is
-   - Mozilla Messaging.
+   - the Mozilla Foundation.
    - Portions created by the Initial Developer are Copyright (C) 2009
    - the Initial Developer. All Rights Reserved.
    -
@@ -41,8 +41,7 @@
 
   <popupset id="mainPopupSet">
     <!-- for search and content formfill/pw manager -->
-    <panel type="autocomplete" id="PopupAutoComplete" level="top"
-           noautofocus="true"/>
+    <panel type="autocomplete" id="PopupAutoComplete" noautofocus="true"/>
   </popupset>
 
   <vbox id="contentTab" collapsed="true">

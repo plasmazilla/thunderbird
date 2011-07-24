@@ -1,15 +1,65 @@
+%include ../../global/shared.inc
+
 /* General */
-.wizard-page-box {
-  padding: 15px 10px 15px 10px;
+/* Specify the size for the wizardpage so the billboard has a fixed size. 3rd
+   party themes should typically specify the same values. */
+wizardpage {
+  height: 360px;
+  width: 700px;
 }
 
-remotecontent {
-  margin-top: 1px;
-  margin-bottom: 4px;
-  -moz-margin-start: 6px;
-  -moz-margin-end: 5px;
-  -moz-appearance: listbox;
-  padding-bottom: 1px;
+/* Remove margin and padding so the billboard will extend to the edge of the
+   window. 3rd party themes should typically specify the same values. */
+#updates, .wizard-page-box {
+  margin: 0;
+  padding: 0;
+}
+
+.update-content {
+  padding: 6px 12px 12px 12px;
+}
+
+.wizard-header-box-text {
+  padding: 0;
+}
+
+.wizard-header {
+  margin: 12px 12px 0 12px;
+}
+
+.wizard-buttons-btm {
+  padding: 15px 12px;
+  -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
+}
+
+/* Don't use top margin - it can cause a scrollbar on the incompatible page */
+.wizard-buttons {
+  padding: 0;
+  -moz-appearance: statusbar;
+}
+
+.wizard-buttons button {
+  -moz-appearance: none;
+  min-height: 22px;
+  margin: 0 6px;
+  padding: 0 2px;
+  text-shadow: @loweredShadow@;
+  border: 1px solid @toolbarbuttonBorderColor@;
+  border-radius: @toolbarbuttonCornerRadius@;
+  box-shadow: @loweredShadow@;
+  background: @toolbarbuttonBackground@;
+  background-origin: border-box;
+}
+
+.wizard-buttons button:hover:active:not([disabled="true"]) {
+  background: @toolbarbuttonPressedBackgroundColor@;
+  text-shadow: @loweredShadow@;
+  box-shadow: @toolbarbuttonPressedInnerShadow@, @loweredShadow@;
+}
+
+.wizard-buttons button:-moz-window-inactive {
+  border-color: @toolbarbuttonInactiveBorderColor@;
+  background-image: @toolbarbuttonInactiveBackgroundImage@;
 }
 
 .loadingBox {
@@ -37,29 +87,10 @@ remotecontent {
   -moz-margin-end: 6px;
 }
 
-#separatorGroove {
-  display: none;
-}
-
 /* Update Found Basic Page */
 #updateName, #updateFinishedName {
   font-weight: bold;
   font-size: larger;
-  -moz-margin-start: 0px;
-}
-
-#updatesfoundContent {
-  -moz-margin-start: 8px;
-  -moz-margin-end: 8px;
-}
-
-wizard[currentpageid="updatesfound"] .wizard-page-box {
-  margin: 0px;
-}
-
-#updateMoreInfoURL, #updateMoreInfoURLLabel {
-  -moz-margin-start: 0px;
-  -moz-margin-end: 0px;
 }
 
 /* License Page */
@@ -68,8 +99,12 @@ wizard[currentpageid="updatesfound"] .wizard-page-box {
 }
 
 /* Downloading Page */
-#downloadStatusTop, #downloadStatusLine {
+#downloadStatusLine {
   -moz-box-align: center;
+}
+
+#downloadStatus {
+  height: 3em !important;
 }
 
 #downloadStatusProgress {

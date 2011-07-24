@@ -53,6 +53,7 @@
 #include "nsNetUtil.h"
 #include "nsIFileURL.h"
 #include "nsIFile.h"
+#include "nsMsgUtils.h"
 
 // QueryInterface, AddRef, and Release
 //
@@ -75,7 +76,6 @@ nsStatusBarBiffManager::~nsStatusBarBiffManager()
 #define PREF_NEW_MAIL_SOUND_TYPE         "mail.biff.play_sound.type"
 #define SYSTEM_SOUND_TYPE 0
 #define CUSTOM_SOUND_TYPE 1
-#define DEFAULT_SYSTEM_SOUND NS_LITERAL_STRING("_moz_mailbeep")
 
 nsresult nsStatusBarBiffManager::Init()
 {
@@ -84,7 +84,7 @@ nsresult nsStatusBarBiffManager::Init()
 
   nsresult rv;
 
-  kBiffStateAtom = NS_NewAtom("BiffState");
+  kBiffStateAtom = MsgNewAtom("BiffState");
 
   nsCOMPtr<nsIMsgMailSession> mailSession = 
     do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv); 
@@ -158,7 +158,7 @@ nsresult nsStatusBarBiffManager::PlayBiffSound()
     // Mac has no specific event sounds, so just beep instead.
     rv = mSound->Beep();
 #else
-    rv = mSound->PlaySystemSound(DEFAULT_SYSTEM_SOUND);
+    rv = mSound->PlayEventSound(nsISound::EVENT_NEW_MAIL_RECEIVED);
 #endif
     NS_ENSURE_SUCCESS(rv, rv);
   }

@@ -59,6 +59,7 @@
 #include "nsIWidget.h"
 #include "nsIWritablePropertyBag2.h"
 #include "nsIPrefService.h"
+#include "mozilla/Services.h"
 
 #include <stdlib.h>
 #include <glib.h>
@@ -70,7 +71,7 @@
 #include <X11/Xatom.h>
 #endif
 
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
 struct DBusMessage;  /* libosso.h references internals of dbus */
 
 #include <dbus/dbus.h>
@@ -116,49 +117,20 @@ typedef enum {
 typedef GnomeProgram * (*_gnome_program_init_fn)(const char *, const char *,
                                                  const GnomeModuleInfo *, int,
                                                  char **, const char *, ...);
+typedef GnomeProgram * (*_gnome_program_get_fn)(void);
 typedef const GnomeModuleInfo * (*_libgnomeui_module_info_get_fn)();
 typedef GnomeClient * (*_gnome_master_client_fn)(void);
-typedef void (*GnomeInteractFunction)(GnomeClient *, gint, GnomeDialogType,
-                                      gpointer);
-typedef void (*_gnome_client_request_interaction_fn)(GnomeClient *,
-                                                     GnomeDialogType,
-                                                     GnomeInteractFunction,
-                                                     gpointer);
-typedef void (*_gnome_interaction_key_return_fn)(gint, gboolean);
 typedef void (*_gnome_client_set_restart_command_fn)(GnomeClient*, gint, gchar*[]);
 
-static _gnome_client_request_interaction_fn gnome_client_request_interaction;
-static _gnome_interaction_key_return_fn gnome_interaction_key_return;
 static _gnome_client_set_restart_command_fn gnome_client_set_restart_command;
-
-void interact_cb(GnomeClient *client, gint key,
-                 GnomeDialogType type, gpointer data)
-{
-  nsCOMPtr<nsIObserverService> obsServ =
-    do_GetService("@mozilla.org/observer-service;1");
-  nsCOMPtr<nsISupportsPRBool> cancelQuit =
-    do_CreateInstance(NS_SUPPORTS_PRBOOL_CONTRACTID);
-
-  cancelQuit->SetData(PR_FALSE);
-
-  obsServ->NotifyObservers(cancelQuit, "quit-application-requested", nsnull);
-
-  PRBool abortQuit;
-  cancelQuit->GetData(&abortQuit);
-
-  gnome_interaction_key_return(key, abortQuit);
-}
 
 gboolean save_yourself_cb(GnomeClient *client, gint phase,
                           GnomeSaveStyle style, gboolean shutdown,
                           GnomeInteractStyle interact, gboolean fast,
                           gpointer user_data)
 {
-  if (!shutdown)
-    return TRUE;
-
   nsCOMPtr<nsIObserverService> obsServ =
-    do_GetService("@mozilla.org/observer-service;1");
+    mozilla::services::GetObserverService();
 
   nsCOMPtr<nsISupportsPRBool> didSaveSession =
     do_CreateInstance(NS_SUPPORTS_PRBOOL_CONTRACTID);
@@ -166,50 +138,24 @@ gboolean save_yourself_cb(GnomeClient *client, gint phase,
   if (!obsServ || !didSaveSession)
     return TRUE; // OOM
 
+  // Notify observers to save the session state
   didSaveSession->SetData(PR_FALSE);
   obsServ->NotifyObservers(didSaveSession, "session-save", nsnull);
 
   PRBool status;
   didSaveSession->GetData(&status);
 
-  // Didn't save, or no way of saving. So signal for quit-application.
-  if (!status) {
-    if (interact == GNOME_INTERACT_ANY)
-      gnome_client_request_interaction(client, GNOME_DIALOG_NORMAL,
-                                       interact_cb, nsnull);
-    return TRUE;
-  }
-  
-  // Is there a request to suppress default binary launcher? 
-  char* argv1 = getenv("MOZ_APP_LAUNCHER");
+  // If there was no session saved and the save_yourself request is
+  // caused by upcoming shutdown we like to prepare for it
+  if (!status && shutdown) {
+    nsCOMPtr<nsISupportsPRBool> cancelQuit =
+      do_CreateInstance(NS_SUPPORTS_PRBOOL_CONTRACTID);
 
-  if(!argv1) {
-    // Tell GNOME the command for restarting us so that we can be part of XSMP session restore
-    NS_ASSERTION(gDirServiceProvider, "gDirServiceProvider is NULL! This shouldn't happen!");
-    nsCOMPtr<nsIFile> executablePath;
-    nsresult rv;
+    cancelQuit->SetData(PR_FALSE);
+    obsServ->NotifyObservers(cancelQuit, "quit-application-requested", nsnull);
 
-    PRBool dummy;
-    rv = gDirServiceProvider->GetFile(XRE_EXECUTABLE_FILE, &dummy, getter_AddRefs(executablePath));
-
-    if (NS_SUCCEEDED(rv)) {
-      nsCAutoString path;
-
-      // Strip off the -bin suffix to get the shell script we should run; this is what Breakpad does
-      nsCAutoString leafName;
-      rv = executablePath->GetNativeLeafName(leafName);
-      if (NS_SUCCEEDED(rv) && StringEndsWith(leafName, NS_LITERAL_CSTRING("-bin"))) {
-        leafName.SetLength(leafName.Length() - strlen("-bin"));
-        executablePath->SetNativeLeafName(leafName);
-      }
-  
-      executablePath->GetNativePath(path);
-      argv1 = (char*)(path.get());
-    }
-  }
-
-  if(argv1) {
-    gnome_client_set_restart_command(client, 1, &argv1);
+    PRBool abortQuit;
+    cancelQuit->GetData(&abortQuit);
   }
 
   return TRUE;
@@ -232,7 +178,7 @@ public:
   NS_IMETHOD Enable();
 
 private:
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
   osso_context_t *m_osso_context;    
   /* A note about why we need to have m_hw_state:
      the osso hardware callback does not tell us what changed, just
@@ -243,7 +189,7 @@ private:
 #endif
 };
 
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
 static nsresult
 GetMostRecentWindow(const PRUnichar* aType, nsIDOMWindowInternal** aWindow)
 {
@@ -289,7 +235,7 @@ OssoSetWindowOrientation(PRBool aPortrait)
   // NOTE: We only update the most recent top-level window so this is only
   //       suitable for apps with only one window.
   nsCOMPtr<nsIDOMWindowInternal> window;
-  GetMostRecentWindow(NS_LITERAL_STRING("").get(), getter_AddRefs(window));
+  GetMostRecentWindow(EmptyString().get(), getter_AddRefs(window));
   GtkWidget* widget = WidgetForDOMWindow(window);
   if (widget && widget->window) {
     GdkWindow *gdk = widget->window;
@@ -352,7 +298,7 @@ static void OssoRequestAccelerometer(osso_context_t *ctx, PRBool aEnabled)
 
 static void OssoDisplayCallback(osso_display_state_t state, gpointer data)
 {
-  nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+  nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
   if (!os)
       return;
 
@@ -381,16 +327,14 @@ static void OssoHardwareCallback(osso_hw_state_t *state, gpointer data)
     return;
   }
 
-  if (state->memory_low_ind) {
-      if (! ourState->memory_low_ind) {
-      nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
-      if (os)
-        os->NotifyObservers(nsnull, "memory-pressure", NS_LITERAL_STRING("low-memory").get());
-    }
+  if (state->memory_low_ind && !ourState->memory_low_ind) {
+    nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
+    if (os)
+      os->NotifyObservers(nsnull, "memory-pressure", NS_LITERAL_STRING("low-memory").get());
   }
   
   if (state->system_inactivity_ind != ourState->system_inactivity_ind) {
-      nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+      nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
       if (!os)
         return;
  
@@ -507,7 +451,7 @@ nsNativeAppSupportUnix::Start(PRBool *aRetVal)
     exit(0);
   }
 
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
   /* zero state out. */
   memset(&m_hw_state, 0, sizeof(osso_hw_state_t));
 
@@ -564,8 +508,10 @@ nsNativeAppSupportUnix::Start(PRBool *aRetVal)
 
   _gnome_program_init_fn gnome_program_init =
     (_gnome_program_init_fn)PR_FindFunctionSymbol(gnomeLib, "gnome_program_init");
-  _libgnomeui_module_info_get_fn libgnomeui_module_info_get = (_libgnomeui_module_info_get_fn)PR_FindFunctionSymbol(gnomeuiLib, "libgnomeui_module_info_get");
-  if (!gnome_program_init || !libgnomeui_module_info_get) {
+  _gnome_program_get_fn gnome_program_get =
+    (_gnome_program_get_fn)PR_FindFunctionSymbol(gnomeLib, "gnome_program_get"); 
+ _libgnomeui_module_info_get_fn libgnomeui_module_info_get = (_libgnomeui_module_info_get_fn)PR_FindFunctionSymbol(gnomeuiLib, "libgnomeui_module_info_get");
+  if (!gnome_program_init || !gnome_program_get || !libgnomeui_module_info_get) {
     PR_UnloadLibrary(gnomeuiLib);
     PR_UnloadLibrary(gnomeLib);
     return NS_OK;
@@ -583,7 +529,9 @@ nsNativeAppSupportUnix::Start(PRBool *aRetVal)
 #endif
 
 #ifdef MOZ_X11
-  gnome_program_init("Gecko", "1.0", libgnomeui_module_info_get(), gArgc, gArgv, NULL);
+  if (!gnome_program_get()) {
+    gnome_program_init("Gecko", "1.0", libgnomeui_module_info_get(), gArgc, gArgv, NULL);
+  }
 #endif /* MOZ_X11 */
 
 #ifdef ACCESSIBILITY
@@ -599,10 +547,6 @@ nsNativeAppSupportUnix::Start(PRBool *aRetVal)
   // crashes will occur if these libraries are unloaded.
 
 #ifdef MOZ_X11
-  gnome_client_request_interaction = (_gnome_client_request_interaction_fn)
-    PR_FindFunctionSymbol(gnomeuiLib, "gnome_client_request_interaction");
-  gnome_interaction_key_return = (_gnome_interaction_key_return_fn)
-    PR_FindFunctionSymbol(gnomeuiLib, "gnome_interaction_key_return");
   gnome_client_set_restart_command = (_gnome_client_set_restart_command_fn)
     PR_FindFunctionSymbol(gnomeuiLib, "gnome_client_set_restart_command");
 
@@ -612,6 +556,39 @@ nsNativeAppSupportUnix::Start(PRBool *aRetVal)
   GnomeClient *client = gnome_master_client();
   g_signal_connect(client, "save-yourself", G_CALLBACK(save_yourself_cb), NULL);
   g_signal_connect(client, "die", G_CALLBACK(die_cb), NULL);
+
+  // Set the correct/requested restart command in any case.
+
+  // Is there a request to suppress default binary launcher?
+  nsCAutoString path;
+  char* argv1 = getenv("MOZ_APP_LAUNCHER");
+
+  if(!argv1) {
+    // Tell the desktop the command for restarting us so that we can be part of XSMP session restore
+    NS_ASSERTION(gDirServiceProvider, "gDirServiceProvider is NULL! This shouldn't happen!");
+    nsCOMPtr<nsIFile> executablePath;
+    nsresult rv;
+
+    PRBool dummy;
+    rv = gDirServiceProvider->GetFile(XRE_EXECUTABLE_FILE, &dummy, getter_AddRefs(executablePath));
+
+    if (NS_SUCCEEDED(rv)) {
+      // Strip off the -bin suffix to get the shell script we should run; this is what Breakpad does
+      nsCAutoString leafName;
+      rv = executablePath->GetNativeLeafName(leafName);
+      if (NS_SUCCEEDED(rv) && StringEndsWith(leafName, NS_LITERAL_CSTRING("-bin"))) {
+        leafName.SetLength(leafName.Length() - strlen("-bin"));
+        executablePath->SetNativeLeafName(leafName);
+      }
+
+      executablePath->GetNativePath(path);
+      argv1 = (char*)(path.get());
+    }
+  }
+
+  if (argv1) {
+    gnome_client_set_restart_command(client, 1, &argv1);
+  }
 #endif /* MOZ_X11 */
 
   return NS_OK;
@@ -623,7 +600,7 @@ nsNativeAppSupportUnix::Stop(PRBool *aResult)
   NS_ENSURE_ARG(aResult);
   *aResult = PR_TRUE;
 
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
   if (m_osso_context) {
     // Disable the accelerometer when closing
     OssoRequestAccelerometer(m_osso_context, PR_FALSE);
@@ -644,7 +621,7 @@ nsNativeAppSupportUnix::Stop(PRBool *aResult)
 NS_IMETHODIMP
 nsNativeAppSupportUnix::Enable()
 {
-#ifdef MOZ_PLATFORM_MAEMO
+#if (MOZ_PLATFORM_MAEMO == 5)
   // Enable the accelerometer for orientation support
   if (OssoIsScreenOn(m_osso_context))
       OssoRequestAccelerometer(m_osso_context, PR_TRUE);

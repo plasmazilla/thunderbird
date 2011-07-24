@@ -104,8 +104,7 @@ HEADERS = \
 
 export:: $(TARGETS) $(HEADERS)
 	$(INSTALL) $(IFLAGS1) $(HEADERS) $(DIST)/include
-	-rm -f $(FINAL_LINK_COMPS) $(FINAL_LINK_LIBS) $(FINAL_LINK_COMP_NAMES)
-	-rm -f $(DIST)/bin/chrome/chromelist.txt
+	-$(RM) $(FINAL_LINK_COMPS) $(FINAL_LINK_LIBS) $(FINAL_LINK_COMP_NAMES)
 ifdef HOST_PROGRAM
 	$(INSTALL) $(HOST_PROGRAM) $(DIST)/bin
 endif
@@ -125,6 +124,7 @@ export::
 	$(PERL) $(topsrcdir)/config/preprocessor.pl $(DEFINES) $(ACDEFINES) \
 		-DBUILD_STATIC_LIBS=$(BUILD_STATIC_LIBS) \
 		-DMOZ_TREE_CAIRO=$(MOZ_TREE_CAIRO) \
+		-DMOZ_TREE_PIXMAN=$(MOZ_TREE_PIXMAN) \
 		-DMOZ_ENABLE_LIBXUL=$(MOZ_ENABLE_LIBXUL) \
 		-DMOZ_NATIVE_HUNSPELL=$(MOZ_NATIVE_HUNSPELL) \
 		-DMOZ_NATIVE_BZ2=$(MOZ_NATIVE_BZ2) \
@@ -132,17 +132,42 @@ export::
 		-DMOZ_NATIVE_PNG=$(MOZ_NATIVE_PNG) \
 		-DMOZ_NATIVE_JPEG=$(MOZ_NATIVE_JPEG) \
 		-DMOZ_NATIVE_LIBEVENT=$(MOZ_NATIVE_LIBEVENT) \
+		-DMOZ_NATIVE_LIBVPX=$(MOZ_NATIVE_LIBVPX) \
 		$(srcdir)/system-headers | $(PERL) $(topsrcdir)/nsprpub/config/make-system-wrappers.pl system_wrappers
 	$(INSTALL) system_wrappers $(DIST)
 
 GARBAGE_DIRS += system_wrappers
 endif
 
+ifdef WRAP_STL_INCLUDES
+ifdef GNU_CXX
+stl_compiler = gcc
+else
+ifdef _MSC_VER
+stl_compiler = msvc
+endif
+endif
+endif
+
+ifdef stl_compiler
+STL_WRAPPERS_SENTINEL = $(DIST)/stl_wrappers/sentinel
+
+$(STL_WRAPPERS_SENTINEL): $(srcdir)/make-stl-wrappers.py $(srcdir)/$(stl_compiler)-stl-wrapper.template.h $(srcdir)/stl-headers $(GLOBAL_DEPS)
+	$(PYTHON) $(srcdir)/make-stl-wrappers.py stl_wrappers $(stl_compiler) $(srcdir)/$(stl_compiler)-stl-wrapper.template.h $(srcdir)/stl-headers
+	$(PYTHON) $(srcdir)/nsinstall.py stl_wrappers $(DIST)
+	touch $(STL_WRAPPERS_SENTINEL)
+
+export:: $(STL_WRAPPERS_SENTINEL)
+
+GARBAGE += $(STL_WRAPPERS_SENTINEL)
+GARBAGE_DIRS += stl_wrappers
+endif
+
 install::
 	$(SYSINSTALL) $(IFLAGS1) $(DEPTH)/mozilla-config.h $(DESTDIR)$(includedir)
 
 GARBAGE += \
-	$(FINAL_LINK_COMPS) $(FINAL_LINK_LIBS) $(FINAL_LINK_COMP_NAMES) buildid $(srcdir)/*.pyc
+  $(FINAL_LINK_COMPS) $(FINAL_LINK_LIBS) $(FINAL_LINK_COMP_NAMES) buildid $(srcdir)/*.pyc *.pyc
 
 ifndef CROSS_COMPILE
 ifdef USE_ELF_DYNSTR_GC
@@ -164,6 +189,8 @@ PYUNITS := \
   unit-nsinstall.py \
   unit-printprereleasesuffix.py \
   unit-JarMaker.py \
+  unit-buildlist.py \
+  unit-expandlibs.py \
   $(NULL)
 
 check:: check-python-modules check-jar-mn

@@ -39,7 +39,7 @@
 #include "nsISupports.idl"
 interface nsISHEntry;
 
-[scriptable, uuid(89caa9f0-8b1c-47fb-b0d3-f0aef0bff749)]
+[scriptable, uuid(077af5fd-7450-48db-8f03-16617d441141)]
 interface nsIDocShellHistory : nsISupports
 {
   /**
@@ -48,15 +48,35 @@ interface nsIDocShellHistory : nsISupports
   nsISHEntry getChildSHEntry(in long aChildOffset);
 
   /**
-   * Add a Child SHEntry for a frameset page
+   * Add a Child SHEntry for a frameset page, given the child's loadtype.
+   * If aCloneChildren is true, then aCloneReference's children will be
+   * cloned onto aHistoryEntry.
    */
   void addChildSHEntry(in nsISHEntry aCloneReference,
                        in nsISHEntry aHistoryEntry,
-                       in long aChildOffset);
+                       in long aChildOffset,
+                       in unsigned long aLoadType,
+                       in boolean aCloneChilden);
 
-  /*
+  /**
    * Whether this docshell should save entries in global history.
    */
   attribute boolean useGlobalHistory;
+
+  /**
+   * Removes nsISHEntry objects related to this docshell from session history.
+   * Use this only with subdocuments, like iframes.
+   */
+  void removeFromSessionHistory();
+
+  /**
+   * Set when an iframe/frame is added dynamically.
+   */
+  attribute boolean createdDynamically;
+
+  /**
+   * Returns false for mLSHE, true for mOSHE
+   */
+  boolean getCurrentSHEntry(out nsISHEntry aEntry);
 };
 

@@ -37,19 +37,10 @@
    -
    - ***** END LICENSE BLOCK ***** -->
 <!DOCTYPE bindings [
-<!ENTITY % bindingsDTD SYSTEM "chrome://mozapps/locale/plugins/plugins.dtd">
-<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
-%bindingsDTD;
-%globalDTD;
-<!ENTITY reloadPlugin.pre    "">
-<!ENTITY reloadPlugin.middle "Reload the page">
-<!ENTITY reloadPlugin.post   " to try again">
-<!ENTITY report.please       "Send crash report">
-<!ENTITY report.submitting   "Sending report…">
-<!ENTITY report.submitted    "Crash report sent.">
-<!ENTITY report.disabled     "Crash reporting disabled.">
-<!ENTITY report.failed       "Submission failed.">
-<!ENTITY report.unavailable  "No report available.">
+  <!ENTITY % pluginsDTD SYSTEM "chrome://mozapps/locale/plugins/plugins.dtd">
+  <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd">
+  %pluginsDTD;
+  %globalDTD;
 ]>
 
 <bindings id="pluginBindings"
@@ -58,7 +49,6 @@
               xmlns:html="http://www.w3.org/1999/xhtml">
 <binding id="pluginProblem" inheritstyle="false">
     <resources>
-        <stylesheet src="chrome://mozapps/content/plugins/pluginProblemLorentz.css"/>
         <stylesheet src="chrome://mozapps/skin/plugins/pluginProblem.css"/>
         <stylesheet src="chrome://mozapps/content/plugins/pluginProblemContent.css"/>
     </resources>

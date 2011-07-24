@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-351503-02.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 351503;
 var summary = 'decompilation of TypeError messages';
@@ -85,7 +84,7 @@ function test()
   }
   reportCompare(expect, actual, summary + ': 3');
 
-  expect = 'TypeError: ({}) is not a function';
+  expect = "TypeError: can't convert ({toString:{}}) to primitive type";
   try
   {
     3 + ({toString:({}) }) ;

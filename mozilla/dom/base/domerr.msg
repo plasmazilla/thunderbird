@@ -82,6 +82,26 @@ DOM_MSG_DEF(NS_ERROR_DOM_SVG_MATRIX_NOT_INVERTABLE, "The matrix could not be com
 DOM_MSG_DEF(NS_ERROR_DOM_INVALID_EXPRESSION_ERR, "The expression is not a legal expression.")
 DOM_MSG_DEF(NS_ERROR_DOM_TYPE_ERR, "The expression cannot be converted to return the specified type.")
 
+/* HTML5 error codes http://dev.w3.org/html5/spec/Overview.html */
+
+DOM_MSG_DEF(NS_ERROR_DOM_DATA_CLONE_ERR, "The object could not be cloned.")
+
+/* IndexedDB error codes http://dvcs.w3.org/hg/IndexedDB/raw-file/tip/Overview.html */
+
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR, "The operation failed for reasons unrelated to the database itself and not covered by any other error code.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_NON_TRANSIENT_ERR, "This error occurred because an operation was not allowed on an object. A retry of the same operation would fail unless the cause of the error is corrected.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_NOT_FOUND_ERR, "The operation failed because the requested database object could not be found. For example, an object store did not exist but was being opened.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_CONSTRAINT_ERR, "A mutation operation in the transaction failed because a constraint was not satisfied. For example, an object such as an object store or index already exists and a new one was being attempted to be created.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_DATA_ERR, "Data provided to an operation does not meet requirements.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_NOT_ALLOWED_ERR, "A mutation operation was attempted on a database that did not allow mutations.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_TRANSACTION_INACTIVE_ERR, "A request was placed against a transaction which is currently not active, or which is finished.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_ABORT_ERR, "A request was aborted, for example through a call to IDBTransaction.abort.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_READ_ONLY_ERR, "A mutation operation was attempted in a READ_ONLY transaction.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_RECOVERABLE_ERR, "The operation failed because the database was prevented from taking an action. The operation might be able to succeed if the application performs some recovery steps and retries the entire transaction. For example, there was not enough remaining storage space, or the storage quota was reached and the user declined to give more space to the database.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_TRANSIENT_ERR, "The operation failed because of some temporary problems. The failed operation might be able to succeed when the operation is retried without any intervention by application-level functionality.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_TIMEOUT_ERR, "A lock for the transaction could not be obtained in a reasonable time.")
+DOM_MSG_DEF(NS_ERROR_DOM_INDEXEDDB_DEADLOCK_ERR, "The current transaction was automatically rolled back by the database because of deadlock or other transaction serialization failures.")
+
 /* DOM error codes defined by us */
 
 /* XXX string should be specified by norris */
@@ -103,6 +123,8 @@ DOM_MSG_DEF(NS_ERROR_DOM_QUOTA_REACHED, "Persistent storage maximum size reached
 
 DOM_MSG_DEF(NS_ERROR_DOM_FILE_NOT_FOUND_ERR, "File was not found")
 DOM_MSG_DEF(NS_ERROR_DOM_FILE_NOT_READABLE_ERR, "File could not be read")
+
+DOM_MSG_DEF(NS_ERROR_DOM_UNSPECIFIED_EVENT_TYPE_ERR, "Unspecified event type")
 
 /* common global codes (from nsError.h) */
 

@@ -37,8 +37,6 @@
 /*Factory for internal browser security resource managers*/
 
 #include "nsCOMPtr.h"
-#include "nsIModule.h"
-#include "nsIGenericFactory.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsScriptSecurityManager.h"
 #include "nsIPrincipal.h"
@@ -46,36 +44,19 @@
 #include "nsSystemPrincipal.h"
 #include "nsNullPrincipal.h"
 #include "nsIScriptNameSpaceManager.h"
-#include "nsIScriptExternalNameSet.h"
 #include "nsIScriptContext.h"
 #include "nsICategoryManager.h"
 #include "nsXPIDLString.h"
 #include "nsCOMPtr.h"
 #include "nsIServiceManager.h"
 #include "nsString.h"
-#include "nsPrefsCID.h"
 #include "nsNetCID.h"
 #include "nsIClassInfoImpl.h"
+#include "jsobj.h"
 
 ///////////////////////
 // nsSecurityNameSet //
 ///////////////////////
-
-#define NS_SECURITYNAMESET_CID \
- { 0x7c02eadc, 0x76, 0x4d03, \
- { 0x99, 0x8d, 0x80, 0xd7, 0x79, 0xc4, 0x85, 0x89 } }
-#define NS_SECURITYNAMESET_CONTRACTID "@mozilla.org/security/script/nameset;1"
-
-class nsSecurityNameSet : public nsIScriptExternalNameSet 
-{
-public:
-    nsSecurityNameSet();
-    virtual ~nsSecurityNameSet();
-    
-    NS_DECL_ISUPPORTS
-
-    NS_IMETHOD InitializeNameSet(nsIScriptContext* aScriptContext);
-};
 
 nsSecurityNameSet::nsSecurityNameSet()
 {
@@ -87,7 +68,7 @@ nsSecurityNameSet::~nsSecurityNameSet()
 
 NS_IMPL_ISUPPORTS1(nsSecurityNameSet, nsIScriptExternalNameSet)
 
-static char *
+static JSString *
 getStringArgument(JSContext *cx, JSObject *obj, PRUint16 argNum, uintN argc, jsval *argv)
 {
     if (argc <= argNum || !JSVAL_IS_STRING(argv[argNum])) {
@@ -99,20 +80,25 @@ getStringArgument(JSContext *cx, JSObject *obj, PRUint16 argNum, uintN argc, jsv
      * We don't want to use JS_ValueToString because we want to be able
      * to have an object to represent a target in subsequent versions.
      */
-    JSString *str = JSVAL_TO_STRING(argv[argNum]);
-    if (!str)
-        return nsnull;
+    return JSVAL_TO_STRING(argv[argNum]);
+}
 
-    return JS_GetStringBytes(str);
+static bool
+getBytesArgument(JSContext *cx, JSObject *obj, PRUint16 argNum, uintN argc, jsval *argv,
+                 JSAutoByteString *bytes)
+{
+    JSString *str = getStringArgument(cx, obj, argNum, argc, argv);
+    return str && bytes->encode(cx, str);
 }
 
 static void
 getUTF8StringArgument(JSContext *cx, JSObject *obj, PRUint16 argNum,
                       uintN argc, jsval *argv, nsCString& aRetval)
 {
+    aRetval.Truncate();
+
     if (argc <= argNum || !JSVAL_IS_STRING(argv[argNum])) {
         JS_ReportError(cx, "String argument expected");
-        aRetval.Truncate();
         return;
     }
 
@@ -121,44 +107,54 @@ getUTF8StringArgument(JSContext *cx, JSObject *obj, PRUint16 argNum,
      * to have an object to represent a target in subsequent versions.
      */
     JSString *str = JSVAL_TO_STRING(argv[argNum]);
-    if (!str) {
-        aRetval.Truncate();
+    if (!str)
         return;
-    }
 
-    PRUnichar *data = (PRUnichar*)JS_GetStringChars(str);
+    const PRUnichar *data = JS_GetStringCharsZ(cx, str);
+    if (!data)
+        return;
+
     CopyUTF16toUTF8(data, aRetval);
 }
 
 static JSBool
-netscape_security_isPrivilegeEnabled(JSContext *cx, JSObject *obj, uintN argc,
-                                     jsval *argv, jsval *rval)
+netscape_security_isPrivilegeEnabled(JSContext *cx, uintN argc, jsval *vp)
 {
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
     JSBool result = JS_FALSE;
-    char *cap = getStringArgument(cx, obj, 0, argc, argv);
-    if (cap) {
+    if (JSString *str = getStringArgument(cx, obj, 0, argc, JS_ARGV(cx, vp))) {
+        JSAutoByteString cap(cx, str);
+        if (!cap)
+            return JS_FALSE;
+
         nsresult rv;
         nsCOMPtr<nsIScriptSecurityManager> securityManager = 
                  do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
         if (NS_SUCCEEDED(rv)) {
             //            NS_ASSERTION(cx == GetCurrentContext(), "unexpected context");
 
-            rv = securityManager->IsCapabilityEnabled(cap, &result);
+            rv = securityManager->IsCapabilityEnabled(cap.ptr(), &result);
             if (NS_FAILED(rv)) 
                 result = JS_FALSE;
         }
     }
-    *rval = BOOLEAN_TO_JSVAL(result);
+    JS_SET_RVAL(cx, vp, BOOLEAN_TO_JSVAL(result));
     return JS_TRUE;
 }
 
 
 static JSBool
-netscape_security_enablePrivilege(JSContext *cx, JSObject *obj, uintN argc,
-                                  jsval *argv, jsval *rval)
+netscape_security_enablePrivilege(JSContext *cx, uintN argc, jsval *vp)
 {
-    char *cap = getStringArgument(cx, obj, 0, argc, argv);
-    if (!cap)
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
+    JSAutoByteString cap;
+    if (!getBytesArgument(cx, obj, 0, argc, JS_ARGV(cx, vp), &cap))
         return JS_FALSE;
 
     nsresult rv;
@@ -169,18 +165,22 @@ netscape_security_enablePrivilege(JSContext *cx, JSObject *obj, uintN argc,
 
     //    NS_ASSERTION(cx == GetCurrentContext(), "unexpected context");
 
-    rv = securityManager->EnableCapability(cap);
+    rv = securityManager->EnableCapability(cap.ptr());
     if (NS_FAILED(rv))
         return JS_FALSE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSBool
-netscape_security_disablePrivilege(JSContext *cx, JSObject *obj, uintN argc,
-                                   jsval *argv, jsval *rval)
+netscape_security_disablePrivilege(JSContext *cx, uintN argc, jsval *vp)
 {
-    char *cap = getStringArgument(cx, obj, 0, argc, argv);
-    if (!cap)
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
+    JSAutoByteString cap;
+    if (!getBytesArgument(cx, obj, 0, argc, JS_ARGV(cx, vp), &cap))
         return JS_FALSE;
 
     nsresult rv;
@@ -191,18 +191,22 @@ netscape_security_disablePrivilege(JSContext *cx, JSObject *obj, uintN argc,
 
     //    NS_ASSERTION(cx == GetCurrentContext(), "unexpected context");
 
-    rv = securityManager->DisableCapability(cap);
+    rv = securityManager->DisableCapability(cap.ptr());
     if (NS_FAILED(rv))
         return JS_FALSE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSBool
-netscape_security_revertPrivilege(JSContext *cx, JSObject *obj, uintN argc,
-                                  jsval *argv, jsval *rval)
+netscape_security_revertPrivilege(JSContext *cx, uintN argc, jsval *vp)
 {
-    char *cap = getStringArgument(cx, obj, 0, argc, argv);
-    if (!cap)
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
+    JSAutoByteString cap;
+    if (!getBytesArgument(cx, obj, 0, argc, JS_ARGV(cx, vp), &cap))
         return JS_FALSE;
 
     nsresult rv;
@@ -213,20 +217,25 @@ netscape_security_revertPrivilege(JSContext *cx, JSObject *obj, uintN argc,
 
     //    NS_ASSERTION(cx == GetCurrentContext(), "unexpected context");
 
-    rv = securityManager->RevertCapability(cap);
+    rv = securityManager->RevertCapability(cap.ptr());
     if (NS_FAILED(rv))
         return JS_FALSE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSBool
-netscape_security_setCanEnablePrivilege(JSContext *cx, JSObject *obj, uintN argc,
-                                        jsval *argv, jsval *rval)
+netscape_security_setCanEnablePrivilege(JSContext *cx, uintN argc, jsval *vp)
 {
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
     if (argc < 2) return JS_FALSE;
     nsCAutoString principalFingerprint;
-    getUTF8StringArgument(cx, obj, 0, argc, argv, principalFingerprint);
-    char *cap = getStringArgument(cx, obj, 1, argc, argv);
+    getUTF8StringArgument(cx, obj, 0, argc, JS_ARGV(cx, vp), principalFingerprint);
+    JSAutoByteString cap;
+    getBytesArgument(cx, obj, 1, argc, JS_ARGV(cx, vp), &cap);
     if (principalFingerprint.IsEmpty() || !cap)
         return JS_FALSE;
 
@@ -238,19 +247,24 @@ netscape_security_setCanEnablePrivilege(JSContext *cx, JSObject *obj, uintN argc
 
     //    NS_ASSERTION(cx == GetCurrentContext(), "unexpected context");
 
-    rv = securityManager->SetCanEnableCapability(principalFingerprint, cap, 
+    rv = securityManager->SetCanEnableCapability(principalFingerprint,
+                                                 cap.ptr(), 
                                                  nsIPrincipal::ENABLE_GRANTED);
     if (NS_FAILED(rv))
         return JS_FALSE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSBool
-netscape_security_invalidate(JSContext *cx, JSObject *obj, uintN argc,
-                             jsval *argv, jsval *rval)
+netscape_security_invalidate(JSContext *cx, uintN argc, jsval *vp)
 {
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
     nsCAutoString principalFingerprint;
-    getUTF8StringArgument(cx, obj, 0, argc, argv, principalFingerprint);
+    getUTF8StringArgument(cx, obj, 0, argc, JS_ARGV(cx, vp), principalFingerprint);
     if (principalFingerprint.IsEmpty())
         return JS_FALSE;
 
@@ -267,19 +281,20 @@ netscape_security_invalidate(JSContext *cx, JSObject *obj, uintN argc,
                                                  nsIPrincipal::ENABLE_GRANTED);
     if (NS_FAILED(rv))
         return JS_FALSE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSFunctionSpec PrivilegeManager_static_methods[] = {
-    { "isPrivilegeEnabled", netscape_security_isPrivilegeEnabled,   1,0,0},
-    { "enablePrivilege",    netscape_security_enablePrivilege,      1,0,0},
-    { "disablePrivilege",   netscape_security_disablePrivilege,     1,0,0},
-    { "revertPrivilege",    netscape_security_revertPrivilege,      1,0,0},
+    { "isPrivilegeEnabled", netscape_security_isPrivilegeEnabled,   1,0},
+    { "enablePrivilege",    netscape_security_enablePrivilege,      1,0},
+    { "disablePrivilege",   netscape_security_disablePrivilege,     1,0},
+    { "revertPrivilege",    netscape_security_revertPrivilege,      1,0},
     //-- System Cert Functions
     { "setCanEnablePrivilege", netscape_security_setCanEnablePrivilege,
-                                                                    2,0,0},
-    { "invalidate",            netscape_security_invalidate,        1,0,0},
-    {nsnull,nsnull,0,0,0}
+                                                                    2,0},
+    { "invalidate",            netscape_security_invalidate,        1,0},
+    {nsnull,nsnull,0,0}
 };
 
 /*
@@ -291,6 +306,7 @@ nsSecurityNameSet::InitializeNameSet(nsIScriptContext* aScriptContext)
 {
     JSContext *cx = (JSContext *) aScriptContext->GetNativeContext();
     JSObject *global = JS_GetGlobalObject(cx);
+    OBJ_TO_INNER_OBJECT(cx, global);
 
     /*
      * Find Object.prototype's class by walking up the global object's
@@ -337,171 +353,3 @@ nsSecurityNameSet::InitializeNameSet(nsIScriptContext* aScriptContext)
            ? NS_OK
            : NS_ERROR_FAILURE;
 }
-
-
-
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsPrincipal)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsSecurityNameSet)
-NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsSystemPrincipal,
-    nsScriptSecurityManager::SystemPrincipalSingletonConstructor)
-NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsNullPrincipal, Init)
-
-NS_DECL_CLASSINFO(nsPrincipal)
-NS_DECL_CLASSINFO(nsSystemPrincipal)
-NS_DECL_CLASSINFO(nsNullPrincipal)
-
-static NS_IMETHODIMP
-Construct_nsIScriptSecurityManager(nsISupports *aOuter, REFNSIID aIID, 
-                                   void **aResult)
-{
-    if (!aResult)
-        return NS_ERROR_NULL_POINTER;
-    *aResult = nsnull;
-    if (aOuter)
-        return NS_ERROR_NO_AGGREGATION;
-    nsScriptSecurityManager *obj = nsScriptSecurityManager::GetScriptSecurityManager();
-    if (!obj) 
-        return NS_ERROR_OUT_OF_MEMORY;
-    if (NS_FAILED(obj->QueryInterface(aIID, aResult)))
-        return NS_ERROR_FAILURE;
-    return NS_OK;
-}
-
-static NS_METHOD 
-RegisterSecurityNameSet(nsIComponentManager *aCompMgr,
-                        nsIFile *aPath,
-                        const char *registryLocation,
-                        const char *componentType,
-                        const nsModuleComponentInfo *info)
-{
-    nsresult rv = NS_OK;
-
-    nsCOMPtr<nsICategoryManager> catman =
-        do_GetService(NS_CATEGORYMANAGER_CONTRACTID, &rv);
-
-    if (NS_FAILED(rv))
-        return rv;
-
-    nsXPIDLCString previous;
-    rv = catman->AddCategoryEntry(JAVASCRIPT_GLOBAL_STATIC_NAMESET_CATEGORY,
-                                  "PrivilegeManager",
-                                  NS_SECURITYNAMESET_CONTRACTID,
-                                  PR_TRUE, PR_TRUE, getter_Copies(previous));
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    rv = catman->AddCategoryEntry("app-startup", "Script Security Manager",
-                                  "service," NS_SCRIPTSECURITYMANAGER_CONTRACTID,
-                                  PR_TRUE, PR_TRUE,
-                                  getter_Copies(previous));
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    return rv;
-}
-
-
-static const nsModuleComponentInfo capsComponentInfo[] =
-{
-    { NS_SCRIPTSECURITYMANAGER_CLASSNAME, 
-      NS_SCRIPTSECURITYMANAGER_CID, 
-      NS_SCRIPTSECURITYMANAGER_CONTRACTID,
-      Construct_nsIScriptSecurityManager,
-      RegisterSecurityNameSet,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsIClassInfo::MAIN_THREAD_ONLY
-    },
-
-    { NS_SCRIPTSECURITYMANAGER_CLASSNAME, 
-      NS_SCRIPTSECURITYMANAGER_CID, 
-      NS_GLOBAL_PREF_SECURITY_CHECK,
-      Construct_nsIScriptSecurityManager,
-      RegisterSecurityNameSet,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsIClassInfo::MAIN_THREAD_ONLY
-    },
-
-    { NS_SCRIPTSECURITYMANAGER_CLASSNAME,
-      NS_SCRIPTSECURITYMANAGER_CID,
-      NS_GLOBAL_CHANNELEVENTSINK_CONTRACTID,
-      Construct_nsIScriptSecurityManager,
-      RegisterSecurityNameSet,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsIClassInfo::MAIN_THREAD_ONLY
-    },
-
-
-
-    { NS_PRINCIPAL_CLASSNAME, 
-      NS_PRINCIPAL_CID, 
-      NS_PRINCIPAL_CONTRACTID,
-      nsPrincipalConstructor,
-      nsnull,
-      nsnull,
-      nsnull,
-      NS_CI_INTERFACE_GETTER_NAME(nsPrincipal),
-      nsnull,
-      &NS_CLASSINFO_NAME(nsPrincipal),
-      nsIClassInfo::MAIN_THREAD_ONLY | nsIClassInfo::EAGER_CLASSINFO
-    },
-
-    { NS_SYSTEMPRINCIPAL_CLASSNAME, 
-      NS_SYSTEMPRINCIPAL_CID, 
-      NS_SYSTEMPRINCIPAL_CONTRACTID,
-      nsSystemPrincipalConstructor,
-      nsnull,
-      nsnull,
-      nsnull,
-      NS_CI_INTERFACE_GETTER_NAME(nsSystemPrincipal),
-      nsnull,
-      &NS_CLASSINFO_NAME(nsSystemPrincipal),
-      nsIClassInfo::SINGLETON | nsIClassInfo::MAIN_THREAD_ONLY |
-      nsIClassInfo::EAGER_CLASSINFO
-    },
-
-    { NS_NULLPRINCIPAL_CLASSNAME, 
-      NS_NULLPRINCIPAL_CID, 
-      NS_NULLPRINCIPAL_CONTRACTID,
-      nsNullPrincipalConstructor,
-      nsnull,
-      nsnull,
-      nsnull,
-      NS_CI_INTERFACE_GETTER_NAME(nsNullPrincipal),
-      nsnull,
-      &NS_CLASSINFO_NAME(nsNullPrincipal),
-      nsIClassInfo::MAIN_THREAD_ONLY | nsIClassInfo::EAGER_CLASSINFO
-    },
-
-    { "Security Script Name Set",
-      NS_SECURITYNAMESET_CID,
-      NS_SECURITYNAMESET_CONTRACTID,
-      nsSecurityNameSetConstructor,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsnull,
-      nsIClassInfo::MAIN_THREAD_ONLY
-    }
-};
-
-
-void
-CapsModuleDtor(nsIModule* thisModules)
-{
-    nsScriptSecurityManager::Shutdown();
-}
-
-NS_IMPL_NSGETMODULE_WITH_DTOR(nsSecurityManagerModule, capsComponentInfo,
-                              CapsModuleDtor)

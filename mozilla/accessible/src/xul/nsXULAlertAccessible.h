@@ -40,13 +40,14 @@
 
 #include "nsAccessibleWrap.h"
 
-/* Accessible for supporting XUL alerts
+/**
+ * Accessible for supporting XUL alerts.
  */
 
 class nsXULAlertAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULAlertAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXULAlertAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   NS_DECL_ISUPPORTS_INHERITED
 
@@ -54,7 +55,7 @@ public:
   NS_IMETHOD GetName(nsAString& aName);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 

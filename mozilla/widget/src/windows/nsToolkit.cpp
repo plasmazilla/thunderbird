@@ -69,6 +69,14 @@ HINSTANCE nsToolkit::mDllInstance = 0;
 PRBool    nsToolkit::mIsWinXP     = PR_FALSE;
 static PRBool dummy = nsToolkit::InitVersionInfo();
 
+static const unsigned long kD3DUsageDelay = 5000;
+
+static void
+StartAllowingD3D9(nsITimer *aTimer, void *aClosure)
+{
+  nsWindow::StartAllowingD3D9(true);
+}
+
 #if !defined(MOZ_STATIC_COMPONENT_LIBS) && !defined(MOZ_ENABLE_LIBXUL)
 //
 // Dll entry point. Keep the dll instance
@@ -239,6 +247,14 @@ nsToolkit::Shutdown()
     ::UnregisterClassW(L"nsToolkitClass", nsToolkit::mDllInstance);
 }
 
+void
+nsToolkit::StartAllowingD3D9()
+{
+  nsIToolkit *toolkit;
+  NS_GetCurrentToolkit(&toolkit);
+  static_cast<nsToolkit*>(toolkit)->mD3D9Timer->Cancel();
+  nsWindow::StartAllowingD3D9(false);
+}
 
 //-------------------------------------------------------------------------
 //
@@ -294,7 +310,7 @@ void nsToolkit::CreateUIThread()
                                     0);
 
     // wait for the gui thread to start
-    while(gThreadState == PR_FALSE) {
+    while(!gThreadState) {
         ::PR_Wait(monitor, PR_INTERVAL_NO_TIMEOUT);
     }
 
@@ -318,6 +334,12 @@ NS_METHOD nsToolkit::Init(PRThread *aThread)
         // create a thread where the message pump will run
         CreateUIThread();
     }
+
+    mD3D9Timer = do_CreateInstance("@mozilla.org/timer;1");
+    mD3D9Timer->InitWithFuncCallback(::StartAllowingD3D9,
+                                     NULL,
+                                     kD3DUsageDelay,
+                                     nsITimer::TYPE_ONE_SHOT);
 
     nsWidgetAtoms::RegisterAtoms();
 
@@ -538,7 +560,7 @@ void MouseTrailer::TimerProc(nsITimer* aTimer, void* aClosure)
     if (mtrailer->mMouseTrailerWindow != mouseWnd) {
 #ifndef WINCE
       // Notify someone that a mouse exit happened.
-      PostMessage(mtrailer->mMouseTrailerWindow, WM_MOUSELEAVE, NULL, NULL);
+      PostMessage(mtrailer->mMouseTrailerWindow, WM_MOUSELEAVE, 0, 0);
 #endif
 
       // we are out of this window, destroy timer

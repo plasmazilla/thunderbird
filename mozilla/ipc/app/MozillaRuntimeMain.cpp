@@ -48,43 +48,36 @@
 #ifdef XP_WIN
 #include <windows.h>
 // we want a wmain entry point
+// but we don't want its DLL load protection, because we'll handle it here
+#define XRE_DONT_PROTECT_DLL_LOAD
 #include "nsWindowsWMain.cpp"
+
+#include "nsSetDllDirectory.h"
 #endif
 
 int
 main(int argc, char* argv[])
 {
-#if defined(MOZ_CRASHREPORTER)
-    if (argc < 2)
-        return 1;
-    const char* const crashReporterArg = argv[--argc];
-
-#  if defined(XP_WIN)
-    // on windows, |crashReporterArg| is the named pipe on which the
-    // server is listening for requests, or "-" if crash reporting is
-    // disabled.
-    if (0 != strcmp("-", crashReporterArg)
-        && !XRE_SetRemoteExceptionHandler(crashReporterArg))
-        return 1;
-#  elif defined(OS_LINUX)
-    // on POSIX, |crashReporterArg| is "true" if crash reporting is
-    // enabled, false otherwise
-    if (0 != strcmp("false", crashReporterArg)
-        && !XRE_SetRemoteExceptionHandler(NULL))
-        return 1;
-#  else
-#    error "OOP crash reporting unsupported on this platform"
-#  endif   
-#endif // if defined(MOZ_CRASHREPORTER)
-
 #if defined(XP_WIN) && defined(DEBUG_bent)
     MessageBox(NULL, L"Hi", L"Hi", MB_OK);
 #endif
 
-    GeckoProcessType proctype =
-        XRE_StringToChildProcessType(argv[argc - 1]);
+    // Check for the absolute minimum number of args we need to move
+    // forward here. We expect the last arg to be the child process type.
+    if (argc < 1)
+      return 1;
+    GeckoProcessType proctype = XRE_StringToChildProcessType(argv[--argc]);
 
-    nsresult rv = XRE_InitChildProcess(argc - 1, argv, proctype);
+#ifdef XP_WIN
+    // For plugins, this is done in PluginProcessChild::Init, as we need to
+    // avoid it for unsupported plugins.  See PluginProcessChild::Init for
+    // the details.
+    if (proctype != GeckoProcessType_Plugin) {
+        mozilla::NS_SetDllDirectory(L"");
+    }
+#endif
+
+    nsresult rv = XRE_InitChildProcess(argc, argv, proctype);
     NS_ENSURE_SUCCESS(rv, 1);
 
     return 0;

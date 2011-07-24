@@ -49,34 +49,30 @@
 #include "nsString.h"
 #include "nsCOMPtr.h"
 #include "nsINodeInfo.h"
-#include "nsIDOM3Node.h"
 #include "nsIDOM3Attr.h"
 #include "nsDOMAttributeMap.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsContentUtils.h"
-#include "nsIDOMXPathNSResolver.h"
-
-class nsDOMAttribute;
+#include "nsStubMutationObserver.h"
 
 // Attribute helper class used to wrap up an attribute with a dom
 // object that implements nsIDOMAttr, nsIDOM3Attr, nsIDOMNode, nsIDOM3Node
 class nsDOMAttribute : public nsIAttribute,
                        public nsIDOMAttr,
                        public nsIDOM3Attr,
-                       public nsIDOMXPathNSResolver
+                       public nsStubMutationObserver
 {
 public:
-  nsDOMAttribute(nsDOMAttributeMap* aAttrMap, nsINodeInfo *aNodeInfo,
-                 const nsAString& aValue);
+  nsDOMAttribute(nsDOMAttributeMap* aAttrMap,
+                 already_AddRefed<nsINodeInfo> aNodeInfo,
+                 const nsAString& aValue,
+                 PRBool aNsAware);
   virtual ~nsDOMAttribute();
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
   // nsIDOMNode interface
   NS_DECL_NSIDOMNODE
-
-  // nsIDOM3Node interface
-  NS_DECL_NSIDOM3NODE
 
   // nsIDOMAttr interface
   NS_DECL_NSIDOMATTR
@@ -115,6 +111,10 @@ public:
     return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+  virtual already_AddRefed<nsIURI> GetBaseURI() const;
+  virtual PRBool IsEqualNode(nsINode *aOtherNode);
+  virtual void GetTextContent(nsAString &aTextContent);
+  virtual nsresult SetTextContent(const nsAString& aTextContent);
 
   static void Initialize();
   static void Shutdown();
@@ -122,19 +122,26 @@ public:
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(nsDOMAttribute,
                                                          nsIAttribute)
 
+  NS_DECL_NSIMUTATIONOBSERVER_ATTRIBUTECHANGED
+
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
+  virtual mozilla::dom::Element* GetNameSpaceElement()
+  {
+    return GetContentInternal();
+  }
+
   static PRBool sInitialized;
 
 private:
-  nsresult EnsureChildState(PRBool aSetText, PRBool &aHasChild) const;
+  already_AddRefed<nsIAtom> GetNameAtom(nsIContent* aContent);
 
-  PRUint32 GetChildCount(PRBool aSetText) const
-  {
-    PRBool hasChild;
-    EnsureChildState(aSetText, hasChild);
+  void EnsureChildState();
 
-    return hasChild ? 1 : 0;
-  }
+  /**
+   * Really removing the attribute child (unbind and release).
+   */
+  void doRemoveChild(bool aNotify);
 
   nsString mValue;
   // XXX For now, there's only a single child - a text element
@@ -142,7 +149,7 @@ private:
   // pointer so we can implement GetChildArray().
   nsIContent* mChild;
 
-  nsIContent *GetContentInternal() const
+  mozilla::dom::Element *GetContentInternal() const
   {
     return mAttrMap ? mAttrMap->GetContent() : nsnull;
   }

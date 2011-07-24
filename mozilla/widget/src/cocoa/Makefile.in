@@ -51,35 +51,12 @@ XPIDL_MODULE	= widget_cocoa
 GRE_MODULE	= 1
 LIBXUL_LIBRARY = 1
 
-REQUIRES = xpcom \
-		  gfx \
-		  string \
-		  uconv \
-		  dom \
-		  plugin \
-		  content \
-		  layout \
-		  view \
-		  necko \
-		  locale \
-		  pref \
-		  intl \
-		  exthandler \
-		  appshell \
-		  qcms \
-		  thebes \
-		  js \
-		  xpconnect \
-		  imglib2 \
-		  $(NULL)
 
-ifdef ACCESSIBILITY
-REQUIRES += accessibility
-endif
 
 EXPORTS = \
 		mozView.h \
 		nsChangeObserver.h \
+		nsCocoaUtils.h \
 		$(NULL)
 
 CMMSRCS = \
@@ -90,6 +67,7 @@ CMMSRCS = \
 		nsMenuItemX.mm \
 		nsMenuItemIconX.mm \
 		nsMenuUtilsX.mm \
+		nsMenuGroupOwnerX.mm \
 		nsFilePicker.mm \
 		nsDragService.mm \
 		nsToolkit.mm \
@@ -111,8 +89,15 @@ CMMSRCS = \
 		nsPrintOptionsX.mm \
 		nsPrintSettingsX.mm \
 		nsIdleServiceX.mm \
-		nsAccelerometerX.mm \
+		nsCocoaTextInputHandler.mm \
+		nsMacDockSupport.mm \
+		nsStandaloneNativeMenu.mm \
+		GfxInfo.mm \
 		$(NULL)
+
+ifeq (x86_64,$(TARGET_CPU))
+CMMSRCS += ComplexTextInputPanel.mm
+endif
 
 XPIDLSRCS	+= \
 		nsPIWidgetCocoa.idl \

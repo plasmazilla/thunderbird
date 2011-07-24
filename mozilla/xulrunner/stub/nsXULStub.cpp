@@ -75,12 +75,8 @@
 #endif
 
 #ifdef XP_WIN
+#define XRE_DONT_PROTECT_DLL_LOAD
 #include "nsWindowsWMain.cpp"
-#endif
-
-#ifdef XP_BEOS
-#include <Entry.h>
-#include <Path.h>
 #endif
 
 #define VERSION_MAXLEN 128
@@ -293,17 +289,6 @@ main(int argc, char **argv)
    DosGetInfoBlocks(&ptib, &ppib);
    DosQueryModuleName(ppib->pib_hmte, sizeof(iniPath), iniPath);
 
-#elif defined(XP_BEOS)
-   BEntry e((const char *)argv[0], true); // traverse symlink
-   BPath p;
-   status_t err;
-   err = e.GetPath(&p);
-   NS_ASSERTION(err == B_OK, "realpath failed");
-
-   if (err == B_OK)
-     // p.Path returns a pointer, so use strcpy to store path in iniPath
-     strcpy(iniPath, p.Path());
-
 #else
   // on unix, there is no official way to get the path of the current binary.
   // instead of using the MOZILLA_FIVE_HOME hack, which doesn't scale to
@@ -450,54 +435,9 @@ main(int argc, char **argv)
 #endif
 
   if (!greFound) {
-    char minVersion[VERSION_MAXLEN];
-
-    // If a gecko maxVersion is not specified, we assume that the app uses only
-    // frozen APIs, and is therefore compatible with any xulrunner 1.x.
-    char maxVersion[VERSION_MAXLEN] = "1.*";
-
-    GREVersionRange range = {
-      minVersion,
-      PR_TRUE,
-      maxVersion,
-      PR_TRUE
-    };
-
-    rv = parser.GetString("Gecko", "MinVersion", minVersion, sizeof(minVersion));
-    if (NS_FAILED(rv)) {
-      fprintf(stderr,
-              "The application.ini does not specify a [Gecko] MinVersion\n");
+    Output(PR_FALSE,
+           "Could not find the Mozilla runtime.\n");
       return 1;
-    }
-
-    rv = parser.GetString("Gecko", "MaxVersion", maxVersion, sizeof(maxVersion));
-    if (NS_SUCCEEDED(rv))
-      range.upperInclusive = PR_TRUE;
-
-    static const GREProperty kProperties[] = {
-      { "xulrunner", "true" }
-    };
-
-    rv = GRE_GetGREPathWithProperties(&range, 1,
-                                      kProperties, NS_ARRAY_LENGTH(kProperties),
-                                      greDir, sizeof(greDir));
-    if (NS_FAILED(rv)) {
-      // XXXbsmedberg: Do something much smarter here: notify the
-      // user/offer to download/?
-
-      Output(PR_FALSE,
-             "Could not find compatible GRE between version %s and %s.\n",
-             range.lower, range.upper);
-      return 1;
-    }
-#ifdef XP_UNIX
-    // Using a symlinked greDir will fail during startup. Not sure why, but if
-    // we resolve the symlink, everything works as expected.
-    char resolved_greDir[MAXPATHLEN] = "";  
-    if (realpath(greDir, resolved_greDir) && *resolved_greDir) {
-      strncpy(greDir, resolved_greDir, MAXPATHLEN);
-    }
-#endif
   }
 
 #ifdef XP_OS2

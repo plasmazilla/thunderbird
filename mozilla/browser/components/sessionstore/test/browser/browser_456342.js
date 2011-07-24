@@ -42,20 +42,29 @@ function test() {
   // make sure we do save form data
   gPrefService.setIntPref("browser.sessionstore.privacy_level", 0);
   
-  let testURL = "chrome://mochikit/content/browser/" +
-    "browser/components/sessionstore/test/browser/browser_456342_sample.xhtml";
+  let rootDir = getRootDirectory(gTestPath);
+  let testURL = rootDir + "browser_456342_sample.xhtml";
   let tab = gBrowser.addTab(testURL);
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
+    this.removeEventListener("load", arguments.callee, true);
+
+    let expectedValue = "try to save me";
+    // Since bug 537289 we only save non-default values, so we need to set each
+    // form field's value after load.
+    let formEls = aEvent.originalTarget.forms[0].elements;
+    for (let i = 0; i < formEls.length; i++)
+      formEls[i].value = expectedValue;
+
     gBrowser.removeTab(tab);
     
     let ss = Cc["@mozilla.org/browser/sessionstore;1"]
                .getService(Ci.nsISessionStore);
-    let undoItems = eval("(" + ss.getClosedTabData(window) + ")");
+    let undoItems = JSON.parse(ss.getClosedTabData(window));
     let savedFormData = undoItems[0].state.entries[0].formdata;
     
     let countGood = 0, countBad = 0;
     for each (let value in savedFormData) {
-      if (value == "save me")
+      if (value == expectedValue)
         countGood++;
       else
         countBad++;

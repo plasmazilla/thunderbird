@@ -1,16 +1,14 @@
 // Tests encoding of characters below U+0020
-const Ci = Components.interfaces;
-const Cc = Components.classes;
+load('CharsetConversionTests.js');
+
 const inString = "Hello\u000aWorld";
 const expectedString = "Hello\nWorld";
-
 
 function run_test() {
     var failures = false;
     var ccManager = Cc["@mozilla.org/charset-converter-manager;1"]
         .getService(Ci.nsICharsetConverterManager);
-    var encodingConverter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
-        .createInstance(Ci.nsIScriptableUnicodeConverter);
+    var encodingConverter = CreateScriptableConverter();
 
     var charsetList = ccManager.getDecoderList();
     var counter = 0;
@@ -20,7 +18,6 @@ function run_test() {
 
 	// exclude known non-ASCII compatible charsets
 	if (charset.substr(0, "UTF-16".length) == "UTF-16" ||
-	    charset.substr(0, "UTF-32".length) == "UTF-32" ||
 	    charset == "x-imap4-modified-utf7") {
 	    dump("skipping " + counter + " " + charset + "\n");
 	    continue;

@@ -41,7 +41,7 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=major&showDetails=1" +
+  let url = URL_UPDATE + "?showBillboard=1&showDetails=1&showPrompt=1" +
             getVersionParams();
   setUpdateURLOverride(url);
 

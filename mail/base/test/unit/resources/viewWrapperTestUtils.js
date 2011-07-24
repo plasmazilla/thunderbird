@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -122,8 +122,10 @@ var gMockViewWrapperListener = {
   threadPaneCommandUpdater: gFakeCommandUpdater,
   // event handlers
   allMessagesLoadedEventCount: 0,
-  onAllMessagesLoaded: function() {
-    dump("ALL LOADED\n");
+  onMessagesLoaded: function(aAll) {
+    dump(aAll ? "ALL LOADED\n" : "SOME LOADED\n");
+    if (!aAll)
+      return;
     this.allMessagesLoadedEventCount++;
     if (this.pendingLoad) {
       this.pendingLoad = false;
@@ -230,7 +232,7 @@ function clone_view_wrapper(aViewWrapper) {
 
 /**
  * Open a folder for view display.  This is an async operation, relying on the
- *  onAllMessagesLoaded notification to get he test going again.
+ *  onMessagesLoaded(true) notification to get he test going again.
  */
 function async_view_open(aViewWrapper, aFolder) {
   aViewWrapper.listener.pendingLoad = true;
@@ -354,7 +356,7 @@ function dump_view_contents(aViewWrapper) {
     //s += treeView.getCellText(iViewIndex, )
     if (flags & MSG_VIEW_FLAG_DUMMY)
       s += "dummy: ";
-    s += msgHdr.mime2DecodedSubject;
+    s += dbView.cellTextForColumn(iViewIndex, "subject");
     s += " [" + msgHdr.folder.prettyName + "," + msgHdr.messageKey + "]";
 
     dump(s + "\n");
@@ -445,7 +447,8 @@ function verify_messages_in_view(aSynSets, aViewWrapper) {
       dump_message_header(msgHdr);
       dump("View State:\n");
       dump_view_state(aViewWrapper);
-      do_throw("view contains header that should not be present!");
+      mark_failure(["view contains header that should not be present!",
+                    msgHdr]);
     }
   }
 
@@ -458,7 +461,8 @@ function verify_messages_in_view(aSynSets, aViewWrapper) {
       dump_message_header(msgHdr);
       dump("View State:\n");
       dump_view_state(aViewWrapper);
-      do_throw("view does not contain a header that should be present!");
+      mark_failure(["view does not contain a header that should be present!",
+                    msgHdr]);
     }
   }
 }

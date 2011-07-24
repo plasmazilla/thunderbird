@@ -24,7 +24,7 @@
    -   Ben Goodger <ben@netscape.com> (ass'td polish fixes)
    -   Håkan Waara <hwaara@chello.se>
    -   Neil Rashbrook <neil@parkwaycc.co.uk> (ass'td polish fix)
-   -   Ian Neal <bugzilla@arlen.demon.co.uk>
+   -   Ian Neal <iann_bugzilla@blueyonder.co.uk>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -76,6 +76,9 @@
         onclose="return DoCommandClose()"
         onfocus="EditorOnFocus()"
         title="&msgComposeWindow.title;"
+        toggletoolbar="true"
+        lightweightthemes="true"
+        lightweightthemesfooter="status-bar"
         windowtype="msgcompose"
         width="640" height="480"
         persist="screenX screenY width height sizemode">
@@ -88,7 +91,6 @@
   <stringbundle id="brandBundle" src="chrome://branding/locale/brand.properties"/>
 </stringbundleset>
 
-<script type="application/javascript" src="chrome://communicator/content/contentAreaDD.js"/>
 <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
 <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
@@ -106,11 +108,7 @@
     events="focus"
     oncommandupdate="CommandUpdate_MsgCompose()"/>
 
-  <commandset id="globalEditMenuItems"/>
-  <commandset id="selectEditMenuItems"/>
-  <commandset id="undoEditMenuItems"/>
-  <commandset id="clipboardEditMenuItems"/>
-
+  <commandset id="editorCommands"/>
   <commandset id="commonEditorMenuItems"/>
   <commandset id="composerMenuItems"/>
   <commandset id="composerEditMenuItems"/>
@@ -119,8 +117,6 @@
   <commandset id="composerListMenuItems"/>
   <commandset id="tasksCommands"/>
   <!-- File Menu -->
-  <command id="cmd_newNavigator"/>
-  <command id="cmd_newEditor"/>
   <command id="cmd_new" oncommand="goDoCommand('cmd_newMessage')"/>
   <command id="cmd_attachFile" oncommand="goDoCommand('cmd_attachFile')"/>
   <command id="cmd_attachPage" oncommand="goDoCommand('cmd_attachPage')"/>
@@ -143,11 +139,6 @@
   <command id="cmd_openAttachment" oncommand="goDoCommand('cmd_openAttachment')"/>
   <command id="cmd_account" oncommand="goDoCommand('cmd_account')"/>
 
-  <!-- View Menu -->
-  <command id="cmd_showComposeToolbar" oncommand="goDoCommand('cmd_showComposeToolbar')"/>
-  <command id="cmd_showFormatToolbar" oncommand="goDoCommand('cmd_showFormatToolbar')"/>
-  <command id="toggleSidebar"/>
-
   <!-- Options Menu -->
   <command id="cmd_selectAddress" oncommand="goDoCommand('cmd_selectAddress')"/>
   <command id="cmd_outputFormat" oncommand="OutputFormatMenuSelect(event.target)"/>
@@ -157,10 +148,11 @@
 </commandset>
 
 <broadcasterset id="composeBroadcasters">
-  <broadcaster id="Editor:Throbber" busy="false"/>
   <broadcaster id="Communicator:WorkMode"/>
   <broadcaster id="args" value="editorType=default"/>
 </broadcasterset>
+
+<broadcasterset id="mainBroadcasterSet"/>
 
 <keyset id="tasksKeys">
   <!-- File Menu -->
@@ -198,41 +190,78 @@
 </keyset>
 <keyset id="editorKeys"/>
 
-<popup id="sidebarPopup"/>
-<popup id="popupNotificationMenu"/>
+  <popupset id="msgComposePopupSet">
+    <menupopup id="sidebarPopup"/>
+    <menupopup id="popupNotificationMenu"/>
+    <menupopup id="toolbar-context-menu"/>
+    <panel id="customizeToolbarSheetPopup"/>
 
-<popup id="msgComposeContext" onpopupshowing="openEditorContextMenu(this);">
-  <menuitem id="spellCheckNoSuggestions" label="&spellCheckNoSuggestions.label;" disabled="true"/>
-  <menuseparator id="spellCheckAddSep"/>
-  <menuitem id="spellCheckAddToDictionary" label="&spellCheckAddToDictionary.label;" accesskey="&spellCheckAddToDictionary.accesskey;"
-            oncommand="InlineSpellCheckerUI.addToDictionary();"/>
-  <menuitem id="spellCheckIgnoreWord" label="&spellCheckIgnoreWord.label;" accesskey="&spellCheckIgnoreWord.accesskey;"
-            oncommand="InlineSpellCheckerUI.ignoreWord()"/>
-  <menuseparator id="spellCheckSuggestionsSeparator"/>
+    <menupopup id="msgComposeContext"
+               onpopupshowing="openEditorContextMenu(this);">
+      <menuitem id="spellCheckNoSuggestions"
+                label="&spellCheckNoSuggestions.label;"
+                disabled="true"/>
+      <menuseparator id="spellCheckAddSep"/>
+      <menuitem id="spellCheckAddToDictionary"
+                label="&spellCheckAddToDictionary.label;"
+                accesskey="&spellCheckAddToDictionary.accesskey;"
+                oncommand="InlineSpellCheckerUI.addToDictionary();"/>
+      <menuitem id="spellCheckIgnoreWord"
+                label="&spellCheckIgnoreWord.label;"
+                accesskey="&spellCheckIgnoreWord.accesskey;"
+                oncommand="InlineSpellCheckerUI.ignoreWord()"/>
+      <menuseparator id="spellCheckSuggestionsSeparator"/>
 
-  <menuitem label="&undo.label;" accesskey="&undo.accesskey;" command="cmd_undo"/>
-  <menuseparator/>
-  <menuitem label="&cut.label;" accesskey="&cut.accesskey;" command="cmd_cut"/>
-  <menuitem label="&copy.label;" accesskey="&copy.accesskey;" command="cmd_copy"/>
-  <menuitem label="&paste.label;" accesskey="&paste.accesskey;" command="cmd_paste"/>
-  <menuitem command="cmd_pasteNoFormatting"/>
-  <menuitem label="&pasteQuote.label;" accesskey="&pasteQuote.accesskey;" command="cmd_pasteQuote"/>
-  <menuitem label="&delete.label;" accesskey="&delete.accesskey;" command="cmd_delete"/>
-  <menuseparator/>
-  <menuitem label="&selectAll.label;" accesskey="&selectAll.accesskey;" command="cmd_selectAll"/>
-</popup>
+      <menuitem label="&undo.label;"
+                accesskey="&undo.accesskey;"
+                command="cmd_undo"/>
+      <menuseparator/>
+      <menuitem label="&cut.label;"
+                accesskey="&cut.accesskey;"
+                command="cmd_cut"/>
+      <menuitem label="&copy.label;"
+                accesskey="&copy.accesskey;"
+                command="cmd_copy"/>
+      <menuitem label="&paste.label;"
+                accesskey="&paste.accesskey;"
+                command="cmd_paste"/>
+      <menuitem command="cmd_pasteNoFormatting"/>
+      <menuitem label="&pasteQuote.label;"
+                accesskey="&pasteQuote.accesskey;"
+                command="cmd_pasteQuote"/>
+      <menuitem label="&delete.label;"
+                accesskey="&delete.accesskey;"
+                command="cmd_delete"/>
+      <menuseparator/>
+      <menuitem label="&selectAll.label;"
+                accesskey="&selectAll.accesskey;"
+                command="cmd_selectAll"/>
+    </menupopup>
 
-<popup id="msgComposeAttachmentContext" onpopupshowing="updateEditItems();">
-  <menuitem label="&openAttachment.label;" accesskey="&openAttachment.accesskey;" command="cmd_openAttachment"/>
-  <menuitem label="&delete.label;" accesskey="&delete.accesskey;" command="cmd_delete"/>
-  <menuitem label="&renameAttachment.label;" accesskey="&renameAttachment.accesskey;" command="cmd_renameAttachment"/>
-  <menuitem label="&selectAll.label;" accesskey="&selectAll.accesskey;" command="cmd_selectAll"/>
-  <menuseparator/>
-  <menuitem label="&attachFile.label;" accesskey="&attachFile.accesskey;" command="cmd_attachFile"/>
-  <menuitem label="&attachPage.label;" accesskey="&attachPage.accesskey;" command="cmd_attachPage"/>
-</popup>
+    <menupopup id="msgComposeAttachmentContext"
+               onpopupshowing="updateEditItems();">
+      <menuitem label="&openAttachment.label;"
+                accesskey="&openAttachment.accesskey;"
+                command="cmd_openAttachment"/>
+      <menuitem label="&delete.label;"
+                accesskey="&delete.accesskey;"
+                command="cmd_delete"/>
+      <menuitem label="&renameAttachment.label;"
+                accesskey="&renameAttachment.accesskey;"
+                command="cmd_renameAttachment"/>
+      <menuitem label="&selectAll.label;"
+                accesskey="&selectAll.accesskey;"
+                command="cmd_selectAll"/>
+      <menuseparator/>
+      <menuitem label="&attachFile.label;"
+                accesskey="&attachFile.accesskey;"
+                command="cmd_attachFile"/>
+      <menuitem label="&attachPage.label;"
+                accesskey="&attachPage.accesskey;"
+                command="cmd_attachPage"/>
+    </menupopup>
+  </popupset>
 
-<popup id="toolbar-context-menu"/>
   <toolbox id="compose-toolbox"
            class="toolbox-top"
            mode="full"
@@ -382,19 +411,14 @@
           <menu id="menu_View">
             <menupopup id="menu_View_Popup">
               <menu id="menu_Toolbars">
-                <menupopup id="view_toolbars_popup">
-                  <menuitem id="menu_showComposeToolbar"
-                            type="checkbox"
-                            label="&showComposeToolbarCmd.label;"
-                            accesskey="&showComposeToolbarCmd.accesskey;"
-                            command="cmd_showComposeToolbar"
-                            checked="true"/>
+                <menupopup id="view_toolbars_popup"
+                           onpopupshowing="onViewToolbarsPopupShowing(event)"
+                           oncommand="onViewToolbarCommand(event);">
                   <menuitem id="menu_showFormatToolbar"
                             type="checkbox"
                             label="&showFormatToolbarCmd.label;"
                             accesskey="&showFormatToolbarCmd.accesskey;"
-                            command="cmd_showFormatToolbar"
-                            checked="true"/>
+                            command="cmd_viewFormatToolbar"/>
                   <menuitem id="menu_showTaskbar"/>
                 </menupopup>
               </menu>
@@ -419,8 +443,7 @@
           <menu id="optionsMenu"
                 label="&optionsMenu.label;"
                 accesskey="&optionsMenu.accesskey;">
-            <menupopup id="optionsMenuPopup"
-                       onpopupshowing="updateOptionItems();">
+            <menupopup id="optionsMenuPopup">
               <menuitem id="menu_selectAddress"
                         label="&selectAddressCmd.label;"
                         accesskey="&selectAddressCmd.accesskey;"
@@ -549,7 +572,6 @@
              accesskey="&showComposeToolbarCmd.accesskey;"
              customizable="true"
              defaultset="button-send,separator,button-address,button-attach,spellingButton,button-security,separator,button-save,spring,throbber-box"
-             togglemenuitem="menu_showComposeToolbar"
              context="toolbar-context-menu">
     </toolbar>
 
@@ -605,10 +627,10 @@
              persist="collapsed"
              grippytooltiptext="&formatToolbar.tooltip;"
              nowindowdrag="true">
-      <menulist id="ParagraphSelect"/>
-      <menulist id="FontFaceSelect"/>
-      <stack id="ColorButtons"
-             disableoncustomize="true"/>
+      <toolbaritem id="paragraph-select-container"/>
+      <toolbaritem id="font-face-select-container"/>
+      <toolbaritem id="color-buttons-container"
+                   disableoncustomize="true"/>
       <toolbarbutton id="DecreaseFontSizeButton"/>
       <toolbarbutton id="IncreaseFontSizeButton"/>
       <toolbarseparator class="toolbarseparator-standard"/>
@@ -708,10 +730,9 @@
       <toolbaritem id="throbber-box"
                    align="center">
           <button id="navigator-throbber"
-                  oncommand="goClickThrobber('compose.throbber.url')"
-                  tooltiptext="&throbber.tooltip;">
-            <observes element="broadcaster_throbber" attribute="busy"/>
-          </button>
+                  oncommand="goClickThrobber('compose.throbber.url', event)"
+                  onclick="checkForMiddleClick(this, event);"
+                  tooltiptext="&throbber.tooltip;"/>
       </toolbaritem>
     </toolbarpalette>
 
@@ -736,8 +757,6 @@
             context="msgComposeContext"/>
   </vbox>
 </hbox>
-
-  <panel id="customizeToolbarSheetPopup"/>
 
   <statusbar id="status-bar" class="chromeclass-status">
     <statusbarpanel id="component-bar"/>

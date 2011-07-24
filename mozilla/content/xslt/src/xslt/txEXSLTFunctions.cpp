@@ -88,10 +88,10 @@ convertRtfToNode(txIEvalContext *aContext, txResultTreeFragment *aRtf)
     txOutputFormat format;
     txMozillaXMLOutput mozHandler(&format, domFragment, PR_TRUE);
 
-    txAXMLEventHandler* handler = &mozHandler;
-    rv = aRtf->flushToHandler(&handler);
-    NS_ASSERTION(handler == &mozHandler,
-                 "This handler shouldn't have been replaced!");
+    rv = aRtf->flushToHandler(&mozHandler);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = mozHandler.closePrevious(PR_TRUE);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // The txResultTreeFragment will own this.
@@ -125,6 +125,9 @@ createTextNode(txIEvalContext *aContext, nsString& aValue,
     nsIDocument *doc = txXPathNativeNode::getDocument(document);
     nsCOMPtr<nsIContent> text;
     nsresult rv = NS_NewTextNode(getter_AddRefs(text), doc->NodeInfoManager());
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = text->SetText(aValue, PR_FALSE);
     NS_ENSURE_SUCCESS(rv, rv);
 
     *aResult = txXPathNativeNode::createXPathNode(text, PR_TRUE);
@@ -166,7 +169,8 @@ createAndAddToResult(nsIAtom* aName, const nsSubstring& aValue,
 
     nsIDocument* doc = aResultHolder->GetOwnerDoc();
     nsCOMPtr<nsIContent> elem;
-    nsresult rv = doc->CreateElem(aName, nsnull, kNameSpaceID_None, PR_FALSE,
+    nsresult rv = doc->CreateElem(nsDependentAtomString(aName),
+                                  nsnull, kNameSpaceID_None, PR_FALSE,
                                   getter_AddRefs(elem));
     NS_ENSURE_SUCCESS(rv, rv);
 

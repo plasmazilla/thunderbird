@@ -601,8 +601,9 @@ calItemBase.prototype = {
     addAttachment: function cIB_addAttachment(attachment) {
         this.modify();
         this.mAttachments = this.getAttachments({});
-        this.mAttachments.push(attachment);
-        // XXX ensure that the attachment isn't already there?
+        if (!this.mAttachments.some(function(x) x.hashId == attachment.hashId)) {
+            this.mAttachments.push(attachment);
+        }
     },
 
     // void removeAllAttachments();
@@ -842,11 +843,11 @@ calItemBase.prototype = {
                 switch (recprop.propertyName) {
                     case "RRULE":
                     case "EXRULE":
-                        ritem = new CalRecurrenceRule();
+                        ritem = cal.createRecurrenceRule();
                         break;
                     case "RDATE":
                     case "EXDATE":
-                        ritem = new CalRecurrenceDate();
+                        ritem = cal.createRecurrenceDate();
                         break;
                     default:
                         continue;
@@ -854,8 +855,7 @@ calItemBase.prototype = {
                 ritem.icalProperty = recprop;
 
                 if (!rec) {
-                    rec = new calRecurrenceInfo();
-                    rec.item = this;
+                    rec = cal.createRecurrenceInfo(this);
                 }
                 rec.appendRecurrenceItem(ritem);
             }

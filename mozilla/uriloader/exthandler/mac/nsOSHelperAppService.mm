@@ -39,6 +39,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "nsOSHelperAppService.h"
 #include "nsObjCExceptions.h"
 #include "nsISupports.h"
@@ -56,7 +58,8 @@
 #include "nsMIMEInfoMac.h"
 #include "nsEmbedCID.h"
 
-#import <Carbon/Carbon.h>
+#import <CoreFoundation/CoreFoundation.h>
+#import <ApplicationServices/ApplicationServices.h>
 
 // chrome URL's
 #define HELPERAPPLAUNCHER_BUNDLE_URL "chrome://global/locale/helperAppLauncher.properties"
@@ -92,6 +95,9 @@ extern "C" {
 
 nsOSHelperAppService::nsOSHelperAppService() : nsExternalHelperAppService()
 {
+  mode_t mask = umask(0777);
+  umask(mask);
+  mPermissions = 0666 & ~mask;
 }
 
 nsOSHelperAppService::~nsOSHelperAppService()
@@ -276,13 +282,13 @@ nsOSHelperAppService::GetMIMEInfoFromOS(const nsACString& aMIMEType,
   FSRef extAppFSRef;
 
   if (!aMIMEType.IsEmpty()) {
+    CFURLRef appURL = NULL;
     // CFStringCreateWithCString() can fail even if we're not out of memory --
     // for example if the 'cStr' parameter is something very wierd (like "ÿÿ~"
     // aka "\xFF\xFF~"), or possibly if it can't be interpreted as using what's
     // specified in the 'encoding' parameter.  See bug 548719.
     CFStringRef CFType = ::CFStringCreateWithCString(NULL, flatType.get(), kCFStringEncodingUTF8);
     if (CFType) {
-      CFURLRef appURL = NULL;
       err = ::LSCopyApplicationForMIMEType(CFType, kLSRolesAll, &appURL);
       if ((err == noErr) && appURL && ::CFURLGetFSRef(appURL, &typeAppFSRef)) {
         haveAppForType = PR_TRUE;
@@ -471,4 +477,10 @@ nsOSHelperAppService::GetProtocolHandlerInfoFromOS(const nsACString &aScheme,
   handlerInfo->SetDefaultDescription(desc);
 
   return NS_OK;
+}
+
+void
+nsOSHelperAppService::FixFilePermissions(nsILocalFile* aFile)
+{
+  aFile->SetPermissions(mPermissions);
 }

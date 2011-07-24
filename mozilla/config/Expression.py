@@ -109,7 +109,8 @@ class Expression:
     rv = None
     word_len = re.match('[0-9]*', self.content).end()
     if word_len:
-      rv = Expression.__ASTLeaf('int', int(self.content[:word_len]))
+      value = int(self.content[:word_len])
+      rv = Expression.__ASTLeaf('int', value)
     else:
       word_len = re.match('\w*', self.content).end()
       if word_len:

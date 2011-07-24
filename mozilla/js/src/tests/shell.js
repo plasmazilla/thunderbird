@@ -39,12 +39,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// Spidermonkey shell now defaults to 1.8, so set the basic version to
-// 1.5 for backwards compatibility.
-
+// Explicitly set the default version.
+// See https://bugzilla.mozilla.org/show_bug.cgi?id=522760#c11
 if (typeof version != 'undefined')
 {
-  version(150);
+  version(0);
 }
 
 var STATUS = "STATUS: ";
@@ -53,16 +52,6 @@ var SECT_PREFIX = 'Section ';
 var SECT_SUFFIX = ' of test - ';
 var callStack = new Array();
 
-// hack to output test path at beginning of the test
-if (typeof __defineGetter__ == 'function' && typeof __defineSetter__ == 'function')
-{
-  __defineGetter__('gTestfile', (function () { return this._gTestfile; }));
-  __defineSetter__('gTestfile', (function (v) { print('begin test: ' + gTestsuite + '/' + gTestsubsuite + '/' + v); this._gTestfile = v; }));
-}
-
-var gTestPath;
-var gTestsuite;
-var gTestsubsuite;
 var gDelayTestDriverEnd = false;
 
 var gTestcases = new Array();
@@ -109,46 +98,10 @@ function startTest() {
   if ( BUGNUMBER ) {
     print ("BUGNUMBER: " + BUGNUMBER );
   }
-  if ( typeof version != 'function') {
-    return;
-  }
-
-  // JavaScript 1.3 is supposed to be compliant ecma version 1.0
-  if ( VERSION == "ECMA_1" ) {
-    version ( "130" );
-  }
-  else if ( VERSION == "JS_1.8"  || gTestsuite == 'js1_8') {
-    version ( "180" );
-  }
-  else if ( VERSION == "JS_1.7"  || gTestsuite == 'js1_7') {
-    version ( "170" );
-  }
-  else if ( VERSION == "JS_1.6"  || gTestsuite == 'js1_6') {
-    version ( "160" );
-  }
-  else if ( VERSION == "JS_1.5"  || gTestsuite == 'js1_5') {
-    version ( "150" );
-  }
-  else if ( VERSION == "JS_1.4"  || gTestsuite == 'js1_4') {
-    version ( "140" );
-  }
-  else if ( VERSION == "JS_1.3"  || gTestsuite == 'js1_3') {
-    version ( "130" );
-  }
-  else if ( VERSION == "JS_1.2"  || gTestsuite == 'js1_2') {
-    version ( "120" );
-  }
-  else if ( VERSION  == "JS_1.1" || gTestsuite == 'js1_1') {
-    version ( "110" );
-  }
 }
 
 function TestCase(n, d, e, a)
 {
-  this.path = (typeof gTestPath == 'undefined') ?
-    (gTestsuite + '/' + gTestsubsuite + '/' + gTestfile) :
-    gTestPath;
-  this.file = gTestfile;
   this.name = n;
   this.description = d;
   this.expect = e;
@@ -367,18 +320,21 @@ function reportCompare (expected, actual, description) {
                  "' matched actual value '" + toPrinted(actual) + "'");
   }
 
-  var testcase = new TestCase(gTestfile, description, expected, actual);
+  var testcase = new TestCase("unknown-test-name", description, expected, actual);
   testcase.reason = output;
 
-  if (testcase.passed)
-  {
-    print(PASSED + description);
+  // if running under reftest, let it handle result reporting.
+  if (typeof document != "object" ||
+      !document.location.href.match(/jsreftest.html/)) {
+    if (testcase.passed)
+    {
+      print(PASSED + description);
+    }
+    else
+    {
+      reportFailure (description + " : " + output);
+    }
   }
-  else
-  {
-    reportFailure (description + " : " + output);
-  }
-
   return testcase.passed;
 }
 
@@ -425,18 +381,21 @@ function reportMatch (expectedRegExp, actual, description) {
                  "' matched actual value '" + toPrinted(actual) + "'");
   }
 
-  var testcase = new TestCase(gTestfile, description, true, matches);
+  var testcase = new TestCase("unknown-test-name", description, true, matches);
   testcase.reason = output;
 
-  if (testcase.passed)
-  {
-    print(PASSED + description);
+  // if running under reftest, let it handle result reporting.
+  if (typeof document != "object" ||
+      !document.location.href.match(/jsreftest.html/)) {
+    if (testcase.passed)
+    {
+      print(PASSED + description);
+    }
+    else
+    {
+      reportFailure (description + " : " + output);
+    }
   }
-  else
-  {
-    reportFailure (description + " : " + output);
-  }
-
   return testcase.passed;
 }
 
@@ -683,11 +642,16 @@ function optionsInit() {
 function optionsClear() {
        
   // turn off current settings
+  // except jit.
   var optionNames = options().split(',');
   for (var i = 0; i < optionNames.length; i++)
   {
     var optionName = optionNames[i];
-    if (optionName)
+    if (optionName &&
+        optionName != "methodjit" &&
+        optionName != "tracejit" &&
+        optionName != "jitprofiling" &&
+        optionName != "methodjit_always")
     {
       options(optionName);
     }
@@ -734,8 +698,10 @@ function optionsReset() {
     optionsClear();
 
     // turn on initial settings
-    for (optionName in options.initvalues)
+    for (var optionName in options.initvalues)
     {
+      if (!options.hasOwnProperty(optionName))
+        continue;
       options(optionName);
     }
   }
@@ -822,7 +788,11 @@ function test() {
 
 function writeTestCaseResult( expect, actual, string ) {
   var passed = getTestCaseResult( expect, actual );
-  writeFormattedResult( expect, actual, string, passed );
+  // if running under reftest, let it handle result reporting.
+  if (typeof document != "object" ||
+      !document.location.href.match(/jsreftest.html/)) {
+    writeFormattedResult( expect, actual, string, passed );
+  }
   return passed;
 }
 function writeFormattedResult( expect, actual, string, passed ) {
@@ -863,6 +833,18 @@ function getFailedCases() {
   }
 }
 
+var JSTest = {
+  waitForExplicitFinish: function () {
+    gDelayTestDriverEnd = true;
+  },
+
+  testFinished: function () {
+    gDelayTestDriverEnd = false;
+    jsTestDriverEnd();
+    quit();
+  }
+};
+
 function jsTestDriverEnd()
 {
   // gDelayTestDriverEnd is used to
@@ -896,13 +878,13 @@ function jsTestDriverEnd()
 
 function jit(on)
 {
-  if (on && !options().match(/jit/))
+  if (on && !options().match(/tracejit/))
   {
-    options('jit');
+    options('tracejit');
   }
-  else if (!on && options().match(/jit/))
+  else if (!on && options().match(/tracejit/))
   {
-    options('jit');
+    options('tracejit');
   }
 }
 

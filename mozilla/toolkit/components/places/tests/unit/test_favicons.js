@@ -50,8 +50,7 @@ function setAndGetFaviconData(aFilename, aData, aMimeType) {
   } catch (ex) {}
   var mimeTypeOutparam = {};
 
-  var outData = iconsvc.getFaviconData(iconURI,
-                         mimeTypeOutparam, {});
+  var outData = iconsvc.getFaviconData(iconURI, mimeTypeOutparam);
 
   return [outData, mimeTypeOutparam.value];
 }
@@ -332,6 +331,7 @@ try {
                          icon1MimeType, Number.MAX_VALUE);
 } catch (ex) {}
 iconsvc.setFaviconUrlForPage(page1URI, icon1URI);
+do_check_guid_for_uri(page1URI);
 var savedIcon1URI = iconsvc.getFaviconForPage(page1URI);
 
 // set second page icon
@@ -340,6 +340,7 @@ try {
                          icon2MimeType, Number.MAX_VALUE);
 } catch (ex) {}
 iconsvc.setFaviconUrlForPage(page2URI, icon2URI);
+do_check_guid_for_uri(page2URI);
 var savedIcon2URI = iconsvc.getFaviconForPage(page2URI);
 
 // set third page icon as the same as first page one
@@ -348,23 +349,24 @@ try {
                          icon1MimeType, Number.MAX_VALUE);
 } catch (ex) {}
 iconsvc.setFaviconUrlForPage(page3URI, icon1URI);
+do_check_guid_for_uri(page3URI);
 var savedIcon3URI = iconsvc.getFaviconForPage(page3URI);
 
 // check first page icon
 var out1MimeType = {};
-var out1Data = iconsvc.getFaviconData(savedIcon1URI, out1MimeType, {});
+var out1Data = iconsvc.getFaviconData(savedIcon1URI, out1MimeType);
 do_check_eq(icon1MimeType, out1MimeType.value);
 checkArrays(icon1Data, out1Data);
 
 // check second page icon
 var out2MimeType = {};
-var out2Data = iconsvc.getFaviconData(savedIcon2URI, out2MimeType, {});
+var out2Data = iconsvc.getFaviconData(savedIcon2URI, out2MimeType);
 do_check_eq(icon2MimeType, out2MimeType.value);
 checkArrays(icon2Data, out2Data);
 
 // check third page icon
 var out3MimeType = {};
-var out3Data = iconsvc.getFaviconData(savedIcon3URI, out3MimeType, {});
+var out3Data = iconsvc.getFaviconData(savedIcon3URI, out3MimeType);
 do_check_eq(icon1MimeType, out3MimeType.value);
 checkArrays(icon1Data, out3Data);
 
@@ -391,6 +393,28 @@ iconsvc.addFailedFavicon(faviconURI);
 do_check_true(iconsvc.isFailedFavicon(faviconURI));
 iconsvc.removeFailedFavicon(faviconURI);
 do_check_false(iconsvc.isFailedFavicon(faviconURI));
+
+
+/* ========== 13 ========== */
+testnum++;
+testdesc = "test getFaviconData on the default favicon ";
+
+outMimeType = {};
+outData = iconsvc.getFaviconData(iconsvc.defaultFavicon, outMimeType);
+do_check_eq(outMimeType.value, "image/png");
+
+// Read in the icon and compare it to what the API returned above.
+var istream = NetUtil.newChannel(iconsvc.defaultFavicon).open();
+var bistream = Cc["@mozilla.org/binaryinputstream;1"].
+               createInstance(Ci.nsIBinaryInputStream);
+bistream.setInputStream(istream);
+expectedData = [];
+var avail;
+while (avail = bistream.available()) {
+  expectedData = expectedData.concat(bistream.readByteArray(avail));
+}
+bistream.close();
+checkArrays(outData, expectedData);
 
 
 /* ========== end ========== */

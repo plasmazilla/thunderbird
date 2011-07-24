@@ -286,7 +286,7 @@ static  PRInt32     attIndex = 0;
 
 nsresult
 GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayOptions *options,
-                       PRBool isAnAppleDoublePart, nsMsgAttachmentData *aAttachData)
+                       PRBool isAnAppleDoublePart, PRInt32 attSize, nsMsgAttachmentData *aAttachData)
 {
   nsCString imappart;
   nsCString part;
@@ -343,6 +343,11 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
   tmp->real_type = object->content_type ? strdup(object->content_type) : nsnull;
   tmp->real_encoding = object->encoding ? strdup(object->encoding) : nsnull;
   tmp->isExternalAttachment = isExternalAttachment;
+  tmp->size = attSize;
+
+  char *part_addr = mime_imap_part_address(object);
+  tmp->isDownloaded = (part_addr == nsnull);
+  PR_FREEIF(part_addr);
 
   PRInt32 i;
   char *charset = nsnull;
@@ -399,6 +404,9 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
           nsMemory::Free(charset);
           disp = MimeHeaders_get(((MimeContainer *)object)->children[i]->headers, HEADER_CONTENT_TYPE, PR_FALSE, PR_FALSE);
           tmp->real_name = MimeHeaders_get_parameter(disp, "name", &charset, nsnull);
+          tmp->real_type =
+            MimeHeaders_get(((MimeContainer *)object)->children[i]->headers,
+                            HEADER_CONTENT_TYPE, PR_TRUE, PR_FALSE);
         }
 
       if (tmp->real_name)
@@ -470,13 +478,30 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
   return NS_OK;
 }
 
+nsresult MimeGetSize(MimeObject *child, PRInt32 *size) {
+  PRBool isLeaf = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeLeafClass);
+  PRBool isContainer = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeContainerClass);
+
+  if (isLeaf) {
+    *size += ((MimeLeaf *)child)->sizeSoFar;
+  } else if (isContainer) {
+    int i;
+    MimeContainer *cont = (MimeContainer *)child;
+    for (i = 0; i < cont->nchildren; ++i) {
+      MimeGetSize(cont->children[i], size);
+    }
+  }
+  return NS_OK;
+}
+
 nsresult
 BuildAttachmentList(MimeObject *anObject, nsMsgAttachmentData *aAttachData, const char *aMessageURL)
 {
   nsresult              rv;
   PRInt32               i;
   MimeContainer         *cobj = (MimeContainer *) anObject;
-
+  PRBool                found_output = PR_FALSE;
+  
   if ( (!anObject) || (!cobj->children) || (!cobj->nchildren) ||
        (mime_typep(anObject, (MimeObjectClass *)&mimeExternalBodyClass)))
     return NS_OK;
@@ -485,17 +510,25 @@ BuildAttachmentList(MimeObject *anObject, nsMsgAttachmentData *aAttachData, cons
   {
     MimeObject    *child = cobj->children[i];
 
-    // Skip the first child if it's in fact a message body
-    if (i == 0)                                         // it's the first child
+    // Skip attachments that are not being output
+    if (! child->output_p)
+      continue;
+    
+    // Skip the first child that's being output if it's in fact a message body
+    PRBool first_output = !found_output;
+    found_output = PR_TRUE;
+    if (first_output)                                   // it's the first child being output
       if (child->content_type)                          // and it's content-type is one of folowing...
         if (!PL_strcasecmp (child->content_type, TEXT_PLAIN) ||
             !PL_strcasecmp (child->content_type, TEXT_HTML) ||
             !PL_strcasecmp (child->content_type, TEXT_MDL))
         {
+                              // and it doesn't have a filename
           if (child->headers) // and finally, be sure it doesn't have a content-disposition: attachment
           {
             char * disp = MimeHeaders_get (child->headers, HEADER_CONTENT_DISPOSITION, PR_TRUE, PR_FALSE);
-            if (!disp || PL_strcasecmp (disp, "attachment"))
+            if (!MimeHeaders_get_name(child->headers, nsnull) &&
+                (!disp || PL_strcasecmp(disp, "attachment")))
               continue;
           }
           else
@@ -515,9 +548,15 @@ BuildAttachmentList(MimeObject *anObject, nsMsgAttachmentData *aAttachData, cons
     PRBool isAnAppleDoublePart = mime_typep(child, (MimeObjectClass *) &mimeMultipartAppleDoubleClass) &&
                                  ((MimeContainer *)child)->nchildren == 2;
 
+    // The function below does not necessarily set the size to something (I
+    // don't think it will work for external objects, for instance, since they
+    // are neither containers nor leafs).
+    PRInt32 attSize = 0;
+    MimeGetSize(child, &attSize);
+
     if (isALeafObject || isAnInlineMessage || isAnAppleDoublePart)
     {
-      rv = GenerateAttachmentData(child, aMessageURL, anObject->options, isAnAppleDoublePart, aAttachData);
+      rv = GenerateAttachmentData(child, aMessageURL, anObject->options, isAnAppleDoublePart, attSize, aAttachData);
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
@@ -582,7 +621,7 @@ MimeGetAttachmentList(MimeObject *tobj, const char *aMessageURL, nsMsgAttachment
 
   if (isAnInlineMessage)
   {
-    rv = GenerateAttachmentData(obj, aMessageURL, obj->options, PR_FALSE, *data);
+    rv = GenerateAttachmentData(obj, aMessageURL, obj->options, PR_FALSE, -1, *data);
     NS_ENSURE_SUCCESS(rv, rv);
   }
   return BuildAttachmentList((MimeObject *) cobj, *data, aMessageURL);
@@ -636,8 +675,15 @@ NotifyEmittersOfAttachmentList(MimeDisplayOptions     *opt,
     if ( tmp->url )
       tmp->url->GetSpec(spec);
 
+    nsCAutoString sizeStr;
+    sizeStr.AppendInt(tmp->size);
+    nsCAutoString downloadedStr;
+    downloadedStr.AppendInt(tmp->isDownloaded);
+
     mimeEmitterStartAttachment(opt, tmp->real_name, tmp->real_type, spec.get(), tmp->isExternalAttachment);
     mimeEmitterAddAttachmentField(opt, HEADER_X_MOZILLA_PART_URL, spec.get());
+    mimeEmitterAddAttachmentField(opt, HEADER_X_MOZILLA_PART_SIZE, sizeStr.get());
+    mimeEmitterAddAttachmentField(opt, HEADER_X_MOZILLA_PART_DOWNLOADED, downloadedStr.get());
 
     if ( (opt->format_out == nsMimeOutput::nsMimeMessageQuoting) ||
          (opt->format_out == nsMimeOutput::nsMimeMessageBodyQuoting) ||
@@ -650,7 +696,7 @@ NotifyEmittersOfAttachmentList(MimeDisplayOptions     *opt,
 
       /* rhp - for now, just leave these here, but they are really
                not necessary
-      printf("URL for Part      : %s\n", spec);
+      printf("URL for Part      : %s\n", spec.get());
       printf("Real Name         : %s\n", tmp->real_name);
       printf("Desired Type      : %s\n", tmp->desired_type);
       printf("Real Type         : %s\n", tmp->real_type);
@@ -658,6 +704,7 @@ NotifyEmittersOfAttachmentList(MimeDisplayOptions     *opt,
       printf("Description       : %s\n", tmp->description);
       printf("Mac Type          : %s\n", tmp->x_mac_type);
       printf("Mac Creator       : %s\n", tmp->x_mac_creator);
+      printf("Size              : %d\n", tmp->size);
       */
     }
 
@@ -1288,64 +1335,59 @@ mime_get_main_object(MimeObject* obj)
   return nsnull;
 }
 
-PRBool MimeObjectChildIsMessageBody(MimeObject *obj,
-                   PRBool *isAlternativeOrRelated)
+static
+PRBool MimeObjectIsMessageBodyNoClimb(MimeObject *parent,
+                                      MimeObject *looking_for,
+                                      PRBool *stop)
 {
-  char *disp = 0;
-  PRBool bRet = PR_FALSE;
-  MimeObject *firstChild = 0;
-  MimeContainer *container = (MimeContainer*) obj;
+  MimeContainer *container = (MimeContainer *)parent;
+  PRInt32 i;
+  char *disp;
 
-  if (isAlternativeOrRelated)
-    *isAlternativeOrRelated = PR_FALSE;
+  NS_ASSERTION(stop, "NULL stop to MimeObjectIsMessageBodyNoClimb");
 
-  if (!container ||
-    !mime_subclass_p(obj->clazz,
-             (MimeObjectClass*) &mimeContainerClass))
-  {
-    return bRet;
+  for (i = 0; i < container->nchildren; i++) {
+    MimeObject *child = container->children[i];
+    PRBool is_body = PR_FALSE;
+
+    // The body can't be something we're not displaying.
+    if (! child->output_p)
+      is_body = PR_FALSE;
+    else if ((disp = MimeHeaders_get (child->headers, HEADER_CONTENT_DISPOSITION,
+                                      PR_TRUE, PR_FALSE))) {
+      PR_Free(disp);
+      is_body = PR_FALSE;
+    }
+    else if (PL_strcasecmp (child->content_type, TEXT_PLAIN) &&
+             PL_strcasecmp (child->content_type, TEXT_HTML) &&
+             PL_strcasecmp (child->content_type, TEXT_MDL) &&
+             PL_strcasecmp (child->content_type, MESSAGE_NEWS) &&
+             PL_strcasecmp (child->content_type, MESSAGE_RFC822))
+      is_body = PR_FALSE;
+
+    if (is_body || child == looking_for) {
+      *stop = PR_TRUE;
+      return child == looking_for;
+    }
+
+    // The body could be down inside a multipart child, so search recursively.
+    if (mime_subclass_p(child->clazz, (MimeObjectClass*) &mimeContainerClass)) {
+      is_body = MimeObjectIsMessageBodyNoClimb(child, looking_for, stop);
+      if (is_body || *stop)
+        return is_body;
+    }
   }
-  else if (mime_subclass_p(obj->clazz, (MimeObjectClass*)
-               &mimeMultipartRelatedClass))
-  {
-    if (isAlternativeOrRelated)
-      *isAlternativeOrRelated = PR_TRUE;
-    return bRet;
-  }
-  else if (mime_subclass_p(obj->clazz, (MimeObjectClass*)
-               &mimeMultipartAlternativeClass))
-  {
-    if (isAlternativeOrRelated)
-      *isAlternativeOrRelated = PR_TRUE;
-    return bRet;
-  }
+  return PR_FALSE;
+}
 
-  if (container->children)
-    firstChild = container->children[0];
-
-  if (!firstChild ||
-    !firstChild->content_type ||
-    !firstChild->headers)
-    return bRet;
-
-  disp = MimeHeaders_get (firstChild->headers,
-              HEADER_CONTENT_DISPOSITION,
-              PR_TRUE,
-              PR_FALSE);
-  if (disp /* && !PL_strcasecmp (disp, "attachment") */)
-    bRet = PR_FALSE;
-  else if (!PL_strcasecmp (firstChild->content_type, TEXT_PLAIN) ||
-       !PL_strcasecmp (firstChild->content_type, TEXT_HTML) ||
-       !PL_strcasecmp (firstChild->content_type, TEXT_MDL) ||
-       !PL_strcasecmp (firstChild->content_type, MULTIPART_ALTERNATIVE) ||
-       !PL_strcasecmp (firstChild->content_type, MULTIPART_RELATED) ||
-       !PL_strcasecmp (firstChild->content_type, MESSAGE_NEWS) ||
-       !PL_strcasecmp (firstChild->content_type, MESSAGE_RFC822))
-    bRet = PR_TRUE;
-  else
-    bRet = PR_FALSE;
-  PR_FREEIF(disp);
-  return bRet;
+/* Should this be static in mimemult.cpp? */
+PRBool MimeObjectIsMessageBody(MimeObject *looking_for)
+{
+  PRBool stop = PR_FALSE;
+  MimeObject *root = looking_for;
+  while (root->parent)
+    root = root->parent;
+  return MimeObjectIsMessageBodyNoClimb(root, looking_for, &stop);
 }
 
 //
@@ -1448,6 +1490,7 @@ MimeDisplayOptions::MimeDisplayOptions()
   quote_attachment_inline_p = PR_FALSE;
   notify_nested_bodies = PR_FALSE;
   write_pure_bodies = PR_FALSE;
+  metadata_only = PR_FALSE;
 }
 
 MimeDisplayOptions::~MimeDisplayOptions()

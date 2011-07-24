@@ -31,16 +31,19 @@
 // Implementation of dwarf2reader::LineInfo, dwarf2reader::CompilationUnit,
 // and dwarf2reader::CallFrameInfo. See dwarf2reader.h for details.
 
-#include <cassert>
-#include <cstdio>
-#include <cstring>
+#include "common/dwarf/dwarf2reader.h"
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 #include <map>
 #include <memory>
 #include <stack>
 #include <utility>
 
 #include "common/dwarf/bytereader-inl.h"
-#include "common/dwarf/dwarf2reader.h"
 #include "common/dwarf/bytereader.h"
 #include "common/dwarf/line_state_machine.h"
 
@@ -88,7 +91,7 @@ void CompilationUnit::ReadAbbrevs() {
   while (1) {
     CompilationUnit::Abbrev abbrev;
     size_t len;
-    const uint32 number = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+    const uint64 number = reader_->ReadUnsignedLEB128(abbrevptr, &len);
 
     if (number == 0)
       break;
@@ -96,7 +99,7 @@ void CompilationUnit::ReadAbbrevs() {
     abbrevptr += len;
 
     assert(abbrevptr < abbrev_start + abbrev_length);
-    const uint32 tag = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+    const uint64 tag = reader_->ReadUnsignedLEB128(abbrevptr, &len);
     abbrevptr += len;
     abbrev.tag = static_cast<enum DwarfTag>(tag);
 
@@ -107,11 +110,11 @@ void CompilationUnit::ReadAbbrevs() {
     assert(abbrevptr < abbrev_start + abbrev_length);
 
     while (1) {
-      const uint32 nametemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+      const uint64 nametemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
       abbrevptr += len;
 
       assert(abbrevptr < abbrev_start + abbrev_length);
-      const uint32 formtemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+      const uint64 formtemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
       abbrevptr += len;
       if (nametemp == 0 && formtemp == 0)
         break;
@@ -513,7 +516,7 @@ void CompilationUnit::ProcessDIEs() {
       continue;
     }
 
-    const Abbrev& abbrev = abbrevs_->at(abbrev_num);
+    const Abbrev& abbrev = abbrevs_->at(static_cast<size_t>(abbrev_num));
     const enum DwarfTag tag = abbrev.tag;
     if (!handler_->StartDIE(absolute_offset, tag, abbrev.attributes)) {
       dieptr = SkipDIE(dieptr, abbrev);
@@ -616,8 +619,8 @@ void LineInfo::ReadHeader() {
 
       uint64 filelength = reader_->ReadUnsignedLEB128(lineptr, &len);
       lineptr += len;
-      handler_->DefineFile(filename, fileindex, dirindex, mod_time,
-                           filelength);
+      handler_->DefineFile(filename, fileindex, static_cast<uint32>(dirindex), 
+                           mod_time, filelength);
       fileindex++;
     }
   }
@@ -647,7 +650,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     opcode -= header.opcode_base;
     const int64 advance_address = (opcode / header.line_range)
                                   * header.min_insn_length;
-    const int64 advance_line = (opcode % header.line_range)
+    const int32 advance_line = (opcode % header.line_range)
                                + header.line_base;
 
     // Check if the lsm passes "pc". If so, mark it as passed.
@@ -687,7 +690,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     case DW_LNS_advance_line: {
       const int64 advance_line = reader->ReadSignedLEB128(start, &templen);
       oplen += templen;
-      lsm->line_num += advance_line;
+      lsm->line_num += static_cast<int32>(advance_line);
 
       // With gcc 4.2.1, we can get the line_no here for the first time
       // since DW_LNS_advance_line is called after DW_LNE_set_address is
@@ -701,13 +704,13 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     case DW_LNS_set_file: {
       const uint64 fileno = reader->ReadUnsignedLEB128(start, &templen);
       oplen += templen;
-      lsm->file_num = fileno;
+      lsm->file_num = static_cast<uint32>(fileno);
     }
       break;
     case DW_LNS_set_column: {
       const uint64 colno = reader->ReadUnsignedLEB128(start, &templen);
       oplen += templen;
-      lsm->column_num = colno;
+      lsm->column_num = static_cast<uint32>(colno);
     }
       break;
     case DW_LNS_negate_stmt: {
@@ -746,7 +749,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     }
       break;
     case DW_LNS_extended_op: {
-      const size_t extended_op_len = reader->ReadUnsignedLEB128(start,
+      const uint64 extended_op_len = reader->ReadUnsignedLEB128(start,
                                                                 &templen);
       start += templen;
       oplen += templen + extended_op_len;
@@ -788,8 +791,8 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
           oplen += templen;
 
           if (handler) {
-            handler->DefineFile(filename, -1, dirindex, mod_time,
-                                filelength);
+            handler->DefineFile(filename, -1, static_cast<uint32>(dirindex), 
+                                mod_time, filelength);
           }
         }
           break;
@@ -801,7 +804,6 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
       // Ignore unknown opcode  silently
       if (header.std_opcode_lengths) {
         for (int i = 0; i < (*header.std_opcode_lengths)[opcode]; i++) {
-          size_t templen;
           reader->ReadUnsignedLEB128(start, &templen);
           start += templen;
           oplen += templen;
@@ -919,7 +921,8 @@ class CallFrameInfo::UndefinedRule: public CallFrameInfo::Rule {
     return handler->UndefinedRule(address, reg);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const UndefinedRule *our_rhs = dynamic_cast<const UndefinedRule *>(&rhs);
     return (our_rhs != NULL);
   }
@@ -935,7 +938,8 @@ class CallFrameInfo::SameValueRule: public CallFrameInfo::Rule {
     return handler->SameValueRule(address, reg);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const SameValueRule *our_rhs = dynamic_cast<const SameValueRule *>(&rhs);
     return (our_rhs != NULL);
   }
@@ -953,7 +957,8 @@ class CallFrameInfo::OffsetRule: public CallFrameInfo::Rule {
     return handler->OffsetRule(address, reg, base_register_, offset_);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const OffsetRule *our_rhs = dynamic_cast<const OffsetRule *>(&rhs);
     return (our_rhs &&
             base_register_ == our_rhs->base_register_ &&
@@ -966,7 +971,7 @@ class CallFrameInfo::OffsetRule: public CallFrameInfo::Rule {
   // computes the address at which a register is saved, not a value.
  private:
   int base_register_;
-  int offset_;
+  long offset_;
 };
 
 // Rule: the value the register had in the caller is the value of
@@ -981,7 +986,8 @@ class CallFrameInfo::ValOffsetRule: public CallFrameInfo::Rule {
     return handler->ValOffsetRule(address, reg, base_register_, offset_);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const ValOffsetRule *our_rhs = dynamic_cast<const ValOffsetRule *>(&rhs);
     return (our_rhs &&
             base_register_ == our_rhs->base_register_ &&
@@ -992,7 +998,7 @@ class CallFrameInfo::ValOffsetRule: public CallFrameInfo::Rule {
   void SetOffset(long long offset) { offset_ = offset; }
  private:
   int base_register_;
-  int offset_;
+  long offset_;
 };
 
 // Rule: the register has been saved in another register REGISTER_NUMBER_.
@@ -1005,7 +1011,8 @@ class CallFrameInfo::RegisterRule: public CallFrameInfo::Rule {
     return handler->RegisterRule(address, reg, register_number_);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const RegisterRule *our_rhs = dynamic_cast<const RegisterRule *>(&rhs);
     return (our_rhs && register_number_ == our_rhs->register_number_);
   }
@@ -1024,7 +1031,8 @@ class CallFrameInfo::ExpressionRule: public CallFrameInfo::Rule {
     return handler->ExpressionRule(address, reg, expression_);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const ExpressionRule *our_rhs = dynamic_cast<const ExpressionRule *>(&rhs);
     return (our_rhs && expression_ == our_rhs->expression_);
   }
@@ -1043,7 +1051,8 @@ class CallFrameInfo::ValExpressionRule: public CallFrameInfo::Rule {
     return handler->ValExpressionRule(address, reg, expression_);
   }
   bool operator==(const Rule &rhs) const {
-    // dynamic_cast is prohibited by Google C++ Style Guide, but justified.
+    // dynamic_cast is allowed by the Google C++ Style Guide, if the use has
+    // been carefully considered; cheap RTTI-like workarounds are forbidden.
     const ValExpressionRule *our_rhs =
         dynamic_cast<const ValExpressionRule *>(&rhs);
     return (our_rhs && expression_ == our_rhs->expression_);
@@ -1870,7 +1879,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
 
   // If we don't recognize the version, we can't parse any more fields
   // of the CIE. For DWARF CFI, we handle versions 1 through 3 (there
-  // was never a version 2 fo CFI data). For .eh_frame, we handle only
+  // was never a version 2 of CFI data). For .eh_frame, we handle only
   // version 1.
   if (eh_frame_) {
     if (cie->version != 1) {
@@ -1878,7 +1887,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
       return false;
     }
   } else {
-    if (cie->version < 1 || 3 < cie->version) {
+    if (cie->version < 1 || cie->version > 3) {
       reporter_->UnrecognizedVersion(cie->offset, cie->version);
       return false;
     }
@@ -1893,18 +1902,18 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
   // Skip the terminating '\0'.
   cursor++;
 
-  // Is this an augmentation we recognize?
-  if (cie->augmentation.empty()) {
-    ; // Stock DWARF CFI.
-  } else if (cie->augmentation[0] == 'z') {
-    // Linux C++ ABI 'z' augmentation, used for exception handling data.
-    cie->has_z_augmentation = true;
-  } else {
-    // Not an augmentation we recognize. Augmentations can have
-    // arbitrary effects on the form of rest of the content, so we
-    // have to give up.
-    reporter_->UnrecognizedAugmentation(cie->offset, cie->augmentation);
-    return false;
+  // Is this CFI augmented?
+  if (!cie->augmentation.empty()) {
+    // Is it an augmentation we recognize?
+    if (cie->augmentation[0] == DW_Z_augmentation_start) {
+      // Linux C++ ABI 'z' augmentation, used for exception handling data.
+      cie->has_z_augmentation = true;
+    } else {
+      // Not an augmentation we recognize. Augmentations can have arbitrary
+      // effects on the form of rest of the content, so we have to give up.
+      reporter_->UnrecognizedAugmentation(cie->offset, cie->augmentation);
+      return false;
+    }
   }
 
   // Parse the code alignment factor.
@@ -1931,7 +1940,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
   // If we have a 'z' augmentation string, find the augmentation data and
   // use the augmentation string to parse it.
   if (cie->has_z_augmentation) {
-    size_t data_size = reader_->ReadUnsignedLEB128(cursor, &len);
+    uint64_t data_size = reader_->ReadUnsignedLEB128(cursor, &len);
     if (size_t(cie->end - cursor) < len + data_size)
       return ReportIncomplete(cie);
     cursor += len;
@@ -1947,7 +1956,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
     // augmentation data as the string directs.
     for (size_t i = 1; i < cie->augmentation.size(); i++) {
       switch (cie->augmentation[i]) {
-        case 'L':
+        case DW_Z_has_LSDA:
           // The CIE's augmentation data holds the language-specific data
           // area pointer's encoding, and the FDE's augmentation data holds
           // the pointer itself.
@@ -1965,7 +1974,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
           // LSDA to use, since it appears in the FDE.
           break;
 
-        case 'P':
+        case DW_Z_has_personality_routine:
           // The CIE's augmentation data holds the personality routine
           // pointer's encoding, followed by the pointer itself.
           cie->has_z_personality = true;
@@ -1992,7 +2001,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
           data += len;
           break;
 
-        case 'R':
+        case DW_Z_has_FDE_address_encoding:
           // The CIE's augmentation data holds the pointer encoding to use
           // for addresses in the FDE.
           if (data >= data_end) return ReportIncomplete(cie);
@@ -2009,7 +2018,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
           }
           break;
 
-        case 'S':
+        case DW_Z_is_signal_trampoline:
           // Frames using this CIE are signal delivery frames.
           cie->has_z_signal_frame = true;
           break;
@@ -2051,7 +2060,7 @@ bool CallFrameInfo::ReadFDEFields(FDE *fde) {
   // If the CIE has a 'z' augmentation string, then augmentation data
   // appears here.
   if (fde->cie->has_z_augmentation) {
-    size_t data_size = reader_->ReadUnsignedLEB128(cursor, &size);
+    uint64_t data_size = reader_->ReadUnsignedLEB128(cursor, &size);
     if (size_t(fde->end - cursor) < size + data_size)
       return ReportIncomplete(fde);
     cursor += size;
@@ -2295,7 +2304,8 @@ void CallFrameInfo::Reporter::UnusablePointerEncoding(uint64 offset,
                                                       uint8 encoding) {
   fprintf(stderr,
           "%s: CFI common information entry at offset 0x%llx in '%s':"
-          " 'z' augmentation specifies a pointer encoding for which we have no base address: 0x%02x\n",
+          " 'z' augmentation specifies a pointer encoding for which"
+          " we have no base address: 0x%02x\n",
           filename_.c_str(), offset, section_.c_str(), encoding);
 }
 

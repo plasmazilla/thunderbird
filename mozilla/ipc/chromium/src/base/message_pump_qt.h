@@ -5,10 +5,17 @@
 #ifndef BASE_MESSAGE_PUMP_QT_H_
 #define BASE_MESSAGE_PUMP_QT_H_
 
+#ifdef mozilla_mozalloc_macro_wrappers_h
+/* The "anti-header" */
+#  include "mozilla/mozalloc_undef_macro_wrappers.h"
+#endif
+ 
 #include <qobject.h>
 
 #include "base/message_pump.h"
 #include "base/time.h"
+
+class QTimer;
 
 namespace base {
 
@@ -22,9 +29,14 @@ class MessagePumpQt : public QObject {
   ~MessagePumpQt();
 
   virtual bool event (QEvent *e);
+  void scheduleDelayedIfNeeded(const Time& delayed_work_time);
+
+ public slots:
+  void dispatchDelayed();
 
  private:
   base::MessagePumpForUI &pump;
+  QTimer* mTimer;
 };
 
 // This class implements a MessagePump needed for TYPE_UI MessageLoops on
@@ -56,10 +68,6 @@ class MessagePumpForUI : public MessagePump {
 
     // Used to count how many Run() invocations are on the stack.
     int run_depth;
-
-    // Used internally for controlling whether we want a message pump
-    // iteration to be blocking or not.
-    bool more_work_is_plausible;
   };
 
   RunState* state_;

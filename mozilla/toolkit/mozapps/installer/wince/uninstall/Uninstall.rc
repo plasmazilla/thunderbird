@@ -37,7 +37,7 @@
 
 // Microsoft Visual C++ generated resource script.
 //
-#include "Uninstall.rh"
+#include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 #include "resdefce.h"

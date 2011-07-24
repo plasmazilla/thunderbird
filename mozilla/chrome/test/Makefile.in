@@ -38,6 +38,7 @@
 DEPTH = ../..
 topsrcdir = @top_srcdir@
 srcdir = @srcdir@
+relativesrcdir = chrome/test
 VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
@@ -46,5 +47,9 @@ MODULE = test_chrome
 
 XPCSHELL_TESTS = unit \
                  $(NULL)
+# FIXME/bug 575918: out-of-process xpcshell is broken on OS X
+ifneq ($(OS_ARCH),Darwin)
+XPCSHELL_TESTS += unit_ipc
+endif
 
 include $(topsrcdir)/config/rules.mk

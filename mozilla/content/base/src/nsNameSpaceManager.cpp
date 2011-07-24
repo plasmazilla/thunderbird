@@ -57,9 +57,7 @@
 static NS_DEFINE_CID(kXTFServiceCID, NS_XTFSERVICE_CID);
 #endif
 
-#ifdef MOZ_SVG
-PRBool NS_SVGEnabled();
-#endif
+using namespace mozilla::dom;
 
 #define kXMLNSNameSpaceURI "http://www.w3.org/2000/xmlns/"
 #define kXMLNameSpaceURI "http://www.w3.org/XML/1998/namespace"
@@ -227,7 +225,7 @@ NameSpaceManagerImpl::GetNameSpaceID(const nsAString& aURI)
 
 nsresult
 NS_NewElement(nsIContent** aResult, PRInt32 aElementType,
-              nsINodeInfo* aNodeInfo, PRBool aFromParser)
+              already_AddRefed<nsINodeInfo> aNodeInfo, FromParser aFromParser)
 {
   if (aElementType == kNameSpaceID_XHTML) {
     return NS_NewHTMLElement(aResult, aNodeInfo, aFromParser);
@@ -242,11 +240,9 @@ NS_NewElement(nsIContent** aResult, PRInt32 aElementType,
     return NS_NewMathMLElement(aResult, aNodeInfo);
   }
 #endif
-#ifdef MOZ_SVG
-  if (aElementType == kNameSpaceID_SVG && NS_SVGEnabled()) {
+  if (aElementType == kNameSpaceID_SVG) {
     return NS_NewSVGElement(aResult, aNodeInfo, aFromParser);
   }
-#endif
   if (aElementType == kNameSpaceID_XMLEvents) {
     return NS_NewXMLEventsElement(aResult, aNodeInfo);
   }
@@ -287,7 +283,7 @@ nsresult NameSpaceManagerImpl::AddNameSpace(const nsAString& aURI,
     return NS_ERROR_OUT_OF_MEMORY;
   }
   
-  NS_ASSERTION(aNameSpaceID - 1 == mURIArray.Length(),
+  NS_ASSERTION(aNameSpaceID - 1 == (PRInt32) mURIArray.Length(),
                "BAD! AddNameSpace not called in right order!");
 
   nsString* uri = new nsString(aURI);

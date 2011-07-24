@@ -1,8 +1,49 @@
+#ifdef XP_UNIX
+#ifndef XP_MACOSX
+#define UNIX_BUT_NOT_MAC
+#endif
+#endif
 .autoreg
 chrome/app-chrome.manifest
 chrome/chatzilla.jar
 chrome/debugqa.jar
 chrome/debugqa.manifest
+chrome/classic.manifest
+chrome/comm.manifest
+chrome/be.manifest
+chrome/ca.manifest
+chrome/cs.manifest
+chrome/de.manifest
+chrome/en-GB.manifest
+chrome/en-US.manifest
+chrome/es-AR.manifest
+chrome/es-ES.manifest
+chrome/fi.manifest
+chrome/fr.manifest
+chrome/gl.manifest
+chrome/hu.manifest
+chrome/it.manifest
+chrome/ja.manifest
+chrome/ja-JP-mac.manifest
+chrome/ka.manifest
+chrome/lt.manifest
+chrome/nb-NO.manifest
+chrome/nl.manifest
+chrome/pl.manifest
+chrome/pt-BR.manifest
+chrome/pt-PT.manifest
+chrome/ro.manifest
+chrome/ru.manifest
+chrome/sv-SE.manifest
+chrome/si.manifest
+chrome/sk.manifest
+chrome/tr.manifest
+chrome/zh-CN.manifest
+chrome/gloda.manifest
+chrome/messenger.manifest
+chrome/newsblog.manifest
+chrome/pippki.manifest
+chrome/toolkit.manifest
 chrome/icons/default/abcardWindow.xpm
 chrome/icons/default/abcardWindow16.xpm
 chrome/icons/default/ablistWindow.xpm
@@ -41,23 +82,39 @@ chrome/icons/default/msgcomposeWindow16.xpm
 chrome/icons/default/venkman-window.xpm
 chrome/icons/default/venkman-window16.xpm
 chrome/installed-chrome.txt
+#ifndef ENABLE_TESTS
+chrome/layoutdebug.jar
+#else
+#ifndef MOZ_DEBUG
+chrome/layoutdebug.jar
+#endif
+#endif
 chrome/reporter.jar
 chrome/reporter.manifest
 chrome/venkman.jar
 components/airbag.xpt
 components/@DLL_PREFIX@bookmark@DLL_SUFFIX@
 components/bookmarks.xpt
+components/@DLL_PREFIX@caps@DLL_SUFFIX@
 components/chatzilla-service.js
+components/@DLL_PREFIX@chrome@DLL_SUFFIX@
+components/components.list
+components/compreg.dat
 components/crashreporter.xpt
 components/downloadmanager.xpt
+components/@DLL_PREFIX@intlapp@DLL_SUFFIX@
+components/@DLL_PREFIX@jar50@DLL_SUFFIX@
 components/mozbrwsr.xpt
+components/@DLL_PREFIX@mozfind@DLL_SUFFIX@
 components/@DLL_PREFIX@myspell@DLL_SUFFIX@
 components/nsCloseAllWindows.js
 components/nsDictionary.js
 components/nsDownloadProgressListener.js
+components/nsExtensionManager.js
 components/nsInterfaceInfoToIDL.js
 components/nsKillAll.js
 components/nsLDAPPrefsService.js
+components/nsPlacesDBFlush.js
 #ifdef XP_WIN
 components/nsPostUpdateWin.js
 #endif
@@ -73,6 +130,7 @@ components/nsUpdateServiceStub.js
 #endif
 components/nsXmlRpcClient.js
 components/@DLL_PREFIX@oji@DLL_SUFFIX@
+components/pluginGlue.js
 components/progressDlg.xpt
 components/search.xpt
 components/sidebar.xpt
@@ -95,8 +153,26 @@ components/wlltvwrs.dll
 #endif
 components/xml-rpc.xpt
 components/@DLL_PREFIX@xmlextras@DLL_SUFFIX@
+#ifdef XP_OS2
+components/@DLL_PREFIX@xpconect@DLL_SUFFIX@
+components/@DLL_PREFIX@xpinstal@DLL_SUFFIX@
+#else
 #ifdef XP_WIN
+components/xpc3250.dll
 components/xpinstal.dll
+#else
+components/@DLL_PREFIX@xpconnect@DLL_SUFFIX@
+#endif
+components/@DLL_PREFIX@xpinstall@DLL_SUFFIX@
+#endif
+components/xpti.dat
+components/nsAboutAbout.js
+components/nsAddonRepository.js
+#ifdef XP_WIN
+components/nsIQTScriptablePlugin.xpt
+#endif
+#ifdef UNIX_BUT_NOT_MAC
+components/nsFilePicker.js
 #endif
 #ifndef MOZ_CRASHREPORTER
 #ifdef XP_MACOSX
@@ -106,6 +182,8 @@ crashreporter@BIN_SUFFIX@
 crashreporter.ini
 #endif
 #endif
+defaults/pref/reporter.js
+defaults/profile/search.rdf
 defaults/wallet/DistinguishedSchema.tbl
 defaults/wallet/FieldSchema.tbl
 defaults/wallet/PositionalSchema.tbl
@@ -122,6 +200,13 @@ extensions/p@m/defaults/preferences/palmsync.js
 extensions/p@m/install.rdf
 extensions/p@m/mozABConduit.dll
 #endif
+extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/components.list
+extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/components.list
+extensions/inspector@mozilla.org/components/components.list
+#ifdef UNIX_BUT_NOT_MAC
+@DLL_PREFIX@gfxpsshar@DLL_SUFFIX@
+#endif
+@DLL_PREFIX@gfxutils@DLL_SUFFIX@
 #ifdef XP_WIN
 gksvggdiplus.dll
 #endif
@@ -129,43 +214,120 @@ greprefs/all.js
 greprefs/security-prefs.js
 greprefs/xpinstall.js
 greprefs/
+#ifdef XP_MACOSX
+isp/dotmac.rdf
+#endif
 #ifdef XP_WIN
 js3250.dll
 jsj3250.dll
 #else
 @DLL_PREFIX@jsj@DLL_SUFFIX@
 #endif
+@DLL_PREFIX@layers@DLL_SUFFIX@
 LICENSE
 #ifdef XP_MACOSX
 libwidget.rsrc
 #endif
+modules/HUDService.jsm
 modules/JSON.jsm
+modules/autoconfigUtils.jsm
 modules/dbViewWrapper.js
 modules/mailViewManager.js
 modules/quickSearchManager.js
 modules/searchSpec.js
+#ifdef MOZ_STATIC_JS
+@DLL_PREFIX@mozjs@DLL_SUFFIX@
+#endif
+@DLL_PREFIX@mozz@DLL_SUFFIX@
 #ifdef XP_WIN
 #ifdef MOZ_MEMORY
 Microsoft.VC80.CRT.manifest
+Microsoft.VC90.CRT.manifest
 msvcm80.dll
+msvcm90.dll
+msvcp100.dll
 msvcp80.dll
+msvcp90.dll
+msvcr100.dll
 msvcr80.dll
+msvcr90.dll
 #else
 mozcpp19.dll
 mozcrt19.dll
+#if _MSC_VER == 1400
+Microsoft.VC90.CRT.manifest
+msvcm90.dll
+msvcp100.dll
+msvcp90.dll
+msvcr100.dll
+msvcr90.dll
+#elif _MSC_VER == 1500
+Microsoft.VC80.CRT.manifest
+msvcm80.dll
+msvcp100.dll
+msvcp80.dll
+msvcr100.dll
+msvcr80.dll
+#elif _MSC_VER == 1600
+Microsoft.VC80.CRT.manifest
+Microsoft.VC90.CRT.manifest
+msvcm80.dll
+msvcm90.dll
+msvcp80.dll
+msvcp90.dll
+msvcr80.dll
+msvcr90.dll
 #endif
 #endif
-#ifndef MOZ_IPC
-mozilla-runtime@BIN_SUFFIX@
 #endif
 @DLL_PREFIX@mozlcms@DLL_SUFFIX@
 #ifdef XP_MACOSX
-../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
-../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
-../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/Localizable.strings
-../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/classes.nib
-../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/info.nib
-../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
+  ../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
+  ../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/Localizable.strings
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/classes.nib
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/info.nib
+  ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
+  ../Resources/seamonkey-bin.rsrc
+  components/mozldap.xpt
+  components/pipboot.xpt
+  components/pipnss.xpt
+  components/pippki.xpt
+  plugins/Default Plugin.plugin/Contents/Info.plist
+  plugins/Default Plugin.plugin/Contents/MacOS/Default Plugin
+  plugins/Default Plugin.plugin/Contents/PkgInfo
+  plugins/Default Plugin.plugin/Contents/Resources/Default Plugin.rsrc
+  plugins/Default Plugin.plugin/Contents/Resources/English.lproj/InfoPlist.strings
+  plugins/DefaultPlugin.plugin/Contents/Info.plist
+  plugins/DefaultPlugin.plugin/Contents/MacOS/DefaultPlugin
+  plugins/DefaultPlugin.plugin/Contents/Resources/English.lproj/InfoPlist.strings
+  plugins/DefaultPlugin.plugin/Contents/Resources/plugin.png
+  plugins/JavaEmbeddingPlugin.bundle/Contents/Info.plist
+  plugins/JavaEmbeddingPlugin.bundle/Contents/MacOS/JavaEmbeddingPlugin
+  plugins/JavaEmbeddingPlugin.bundle/Contents/MacOS/JavaEmbeddingPlugin.policy
+  plugins/JavaEmbeddingPlugin.bundle/Contents/PkgInfo
+  plugins/JavaEmbeddingPlugin.bundle/Contents/Resources/English.lproj/InfoPlist.strings
+  plugins/JavaEmbeddingPlugin.bundle/Contents/Resources/Java/JavaEmbeddingPlugin.jar
+  plugins/MRJPlugin.plugin/Contents/Info.plist
+  plugins/MRJPlugin.plugin/Contents/MacOS/MRJPlugin
+  plugins/MRJPlugin.plugin/Contents/MacOS/MRJPlugin.jar
+  plugins/MRJPlugin.plugin/Contents/MacOS/MRJPlugin.policy
+  plugins/MRJPlugin.plugin/Contents/MacOS/MRJPlugin.properties
+  plugins/MRJPlugin.plugin/Contents/PkgInfo
+  plugins/MRJPlugin.plugin/Contents/Resources/English.lproj/InfoPlist.strings
+  plugins/MRJPlugin.plugin/Contents/Resources/MRJPlugin.rsrc
+  regxpcom
+  run-mozilla.sh
+  updater.app/Contents/MacOS/updater.ini
+#endif
+#ifdef XP_OS2
+plugins/npnulos2.dll
+#elifdef XP_WIN
+plugins/npnul32.dll
+#elifdef XP_UNIX
+plugins/libnullplugin.so
 #endif
 #ifdef XP_WIN
 regxpcom.exe
@@ -190,6 +352,141 @@ res/ua.css
 res/unixcharset.properties
 res/viewsource.css
 res/wincharset.properties
+res/html/gopher-audio.gif
+res/html/gopher-binary.gif
+res/html/gopher-find.gif
+res/html/gopher-image.gif
+res/html/gopher-menu.gif
+res/html/gopher-movie.gif
+res/html/gopher-sound.gif
+res/html/gopher-telnet.gif
+res/html/gopher-text.gif
+res/html/gopher-unknown.gif
+searchplugins/
+searchplugins/allegro.png
+searchplugins/allegro.src
+searchplugins/amazon-jp.png
+searchplugins/amazon-jp.src
+searchplugins/atlas-sk.png
+searchplugins/atlas-sk.src
+searchplugins/azet-sk.png
+searchplugins/azet-sk.src
+searchplugins/dmoz.png
+searchplugins/dmoz.src
+searchplugins/dnp_cikk.png
+searchplugins/dnp_cikk.src
+searchplugins/dnp_forum.png
+searchplugins/dnp_forum.src
+searchplugins/dnp.png
+searchplugins/dnp.src
+searchplugins/dunaj-sk.png
+searchplugins/dunaj-sk.src
+searchplugins/excite_eiwa.png
+searchplugins/excite_eiwa.src
+searchplugins/excite_enja.png
+searchplugins/excite_enja.src
+searchplugins/excite_jaen.png
+searchplugins/excite_jaen.src
+searchplugins/excite_waei.png
+searchplugins/excite_waei.src
+searchplugins/goliat.png
+searchplugins/goliat.src
+searchplugins/google.png
+searchplugins/google.src
+searchplugins/google-at.png
+searchplugins/google-at.src
+searchplugins/google-ch.png
+searchplugins/google-ch.src
+searchplugins/google-de.png
+searchplugins/google-de.src
+searchplugins/google-jp.png
+searchplugins/google-jp.png
+searchplugins/google-jp.src
+searchplugins/google-jp.src
+searchplugins/googlePL.png
+searchplugins/googlePL.src
+searchplugins/google-ru.png
+searchplugins/google-ru.src
+searchplugins/google-SE.png
+searchplugins/google-SE.src
+searchplugins/hirkereso.png
+searchplugins/hirkereso.src
+searchplugins/hwswc.png
+searchplugins/hwswc.src
+searchplugins/hwswh.png
+searchplugins/hwswh.src
+searchplugins/jeeves.png
+searchplugins/jeeves.src
+searchplugins/jyxo.png
+searchplugins/jyxo.src
+searchplugins/kereso.png
+searchplugins/kereso.src
+searchplugins/nepszabadsag.png
+searchplugins/nepszabadsag.src
+searchplugins/origo.png
+searchplugins/origo.src
+searchplugins/priceru.png
+searchplugins/priceru.src
+searchplugins/pwn.png
+searchplugins/pwn.src
+searchplugins/rambler.png
+searchplugins/rambler.src
+searchplugins/seznam.png
+searchplugins/seznam.src
+searchplugins/slovari.yandex.ru.png
+searchplugins/slovari.yandex.ru.src
+searchplugins/startlap.png
+searchplugins/startlap.src
+searchplugins/sxc.png
+searchplugins/sxc.src
+searchplugins/sztaki_en-hu.png
+searchplugins/sztaki_en-hu.src
+searchplugins/sztaki_fra-hu.png
+searchplugins/sztaki_fra-hu.src
+searchplugins/sztaki_ger-hu.png
+searchplugins/sztaki_ger-hu.src
+searchplugins/sztaki_hu-en.png
+searchplugins/sztaki_hu-en.src
+searchplugins/sztaki_hu-fra.png
+searchplugins/sztaki_hu-fra.src
+searchplugins/sztaki_hu-ger.png
+searchplugins/sztaki_hu-ger.src
+searchplugins/sztaki_hu-ita.png
+searchplugins/sztaki_hu-ita.src
+searchplugins/sztaki_hu-nl.png
+searchplugins/sztaki_hu-nl.src
+searchplugins/sztaki_ita-hu.png
+searchplugins/sztaki_ita-hu.src
+searchplugins/sztaki_nl-hu.png
+searchplugins/sztaki_nl-hu.src
+searchplugins/sztakiw.png
+searchplugins/sztakiw.src
+searchplugins/szukacz.png
+searchplugins/szukacz.src
+searchplugins/telepuleskereso.png
+searchplugins/telepuleskereso.src
+searchplugins/utcakereso.png
+searchplugins/utcakereso.src
+searchplugins/wikipedia-cs.png
+searchplugins/wikipedia-cs.src
+searchplugins/wikipedia-hu.png
+searchplugins/wikipedia-hu.src
+searchplugins/wikipedia-lt.png
+searchplugins/wikipedia-lt.src
+searchplugins/wikipedia-pl.png
+searchplugins/wikipedia-pl.src
+searchplugins/wikipedia-ru.png
+searchplugins/wikipedia-ru.src
+searchplugins/wikipedia-sk.png
+searchplugins/wikipedia-sk.src
+searchplugins/wni.png
+searchplugins/wni.src
+searchplugins/yahoo-jp.png
+searchplugins/yahoo-jp.src
+searchplugins/yandex.png
+searchplugins/yandex.src
+searchplugins/zoznam-sk.png
+searchplugins/zoznam-sk.src
 @DLL_PREFIX@sqlite3@DLL_SUFFIX@
 #ifndef MOZ_CRASHREPORTER
 #ifdef XP_UNIX
@@ -201,43 +498,516 @@ Throbber-small.gif
 #ifdef XP_MACOSX
 updater.app/Contents/MacOS/updater.ini
 #endif
+#ifdef XP_OS2
+  @DLL_PREFIX@xpcomcor@DLL_SUFFIX@
+#else
+  @DLL_PREFIX@xpcom_core@DLL_SUFFIX@
+#endif
 xpicleanup@BIN_SUFFIX@
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
 
-#ifndef MOZ_STATIC_MAIL_BUILD
-; '! MOZ_STATIC_BUILD' case.
-components/@DLL_PREFIX@mail@DLL_SUFFIX@
+#ifdef MOZ_OMNIJAR
+  chrome/be.jar
+  chrome/ca.jar
+  chrome/cs.jar
+  chrome/de.jar
+  chrome/en-GB.jar
+  chrome/en-US.jar
+  chrome/es-AR.jar
+  chrome/es-ES.jar
+  chrome/fi.jar
+  chrome/fr.jar
+  chrome/gl.jar
+  chrome/hu.jar
+  chrome/it.jar
+  chrome/ja.jar
+  chrome/ja-JP-mac.jar
+  chrome/ka.jar
+  chrome/lt.jar
+  chrome/nb-NO.jar
+  chrome/nl.jar
+  chrome/pl.jar
+  chrome/pt-BR.jar
+  chrome/pt-PT.jar
+  chrome/ro.jar
+  chrome/ru.jar
+  chrome/si.jar
+  chrome/sk.jar
+  chrome/sv-SE.jar
+  chrome/tr.jar
+  chrome/zh-CN.jar
+  chrome/comm.jar
+  chrome/toolkit.jar
+  chrome/classic.jar
+  chrome/pippki.jar
+  chrome/messenger.jar
+  chrome/newsblog.jar
+  chrome/gloda.jar
+  chrome/nonlocalized.manifest
+  chrome/localized.manifest
+  components/addonManager.js
+  components/amContentHandler.js
+  components/amWebInstallListener.js
+  components/ConsoleAPI.js
+  components/contentAreaDropListener.js
+  components/contentSecurityPolicy.js
+  components/crypto-SDR.js
+  components/FeedConverter.js
+  components/FeedProcessor.js
+  components/FeedWriter.js
+  components/GPSDGeolocationProvider.js
+  components/jsconsole-clhandler.js
+  components/NetworkGeolocationProvider.js
+  components/nsAbout.js
+  components/nsAboutCertError.js
+  components/nsAboutData.js
+  components/nsAboutFeeds.js
+  components/nsAboutLife.js
+  components/nsAboutRights.js
+  components/nsAboutSessionRestore.js
+  components/nsBadCertHandler.js
+  components/nsBlocklistService.js
+  components/nsBrowserContentHandler.js
+  components/nsComposerCmdLineHandler.js
+  components/nsContentDispatchChooser.js
+  components/nsContentPrefService.js
+  components/nsDefaultCLH.js
+  #ifdef UNIX_BUT_NOT_MAC
+    components/nsFilePicker.js
+  #endif
+  components/nsFormAutoComplete.js
+  components/nsFormHistory.js
+  components/nsHandlerService.js
+  components/nsHelperAppDlg.js
+  components/nsINIProcessor.js
+  components/nsInputListAutoComplete.js
+  components/nsLivemarkService.js
+  components/nsLoginInfo.js
+  components/nsLoginManager.js
+  components/nsLoginManagerPrompter.js
+  components/nsMicrosummaryService.js
+  components/nsPlacesAutoComplete.js
+  components/nsPlacesDBFlush.js
+  components/nsPlacesExpiration.js
+  components/nsPrompter.js
+  components/nsProxyAutoConfig.js
+  components/nsSearchService.js
+  components/nsSearchSuggestions.js
+  components/nsSessionStartup.js
+  components/nsSessionStore.js
+  #ifdef XP_WIN
+    components/nsSetDefault.js
+  #endif
+  components/nsSidebar.js
+  components/nsSuiteDownloadManagerUI.js
+  components/nsSuiteGlue.js
+  components/nsTaggingService.js
+  components/nsTryToClose.js
+  components/nsTypeAheadFind.js
+  components/nsUpdateService.js
+  components/nsUpdateServiceStub.js
+  components/nsUpdateTimerManager.js
+  components/nsURLFormatter.js
+  components/nsWebHandlerApp.js
+  components/PlacesCategoriesStarter.js
+  components/smileApplication.js
+  components/storage-Legacy.js
+  components/storage-mozStorage.js
+  components/txEXSLTRegExFunctions.js
+  components/WebContentConverter.js
+  components/nsLDAPProtocolHandler.js
+  components/mdn-service.js
+  components/msgAsyncPrompter.js
+  components/newsblog.js
+  components/nsAbAutoCompleteMyDomain.js
+  components/nsAbAutoCompleteSearch.js
+  components/nsAbLDAPAttributeMap.js
+  components/nsMailNewsCommandLineHandler.js
+  components/nsMsgTraitService.js
+  components/nsSMTPProtocolHandler.js
+  components/offlineStartup.js
+  components/smime-service.js
+  components/glautocomp.js
+  components/jsmimeemitter.js
+  components/browser.xpt
+  components/interfaces.manifest
+  components/mail.xpt
+  components/components.manifest
+  defaults/profile/bookmarks.html
+  defaults/profile/mimeTypes.rdf
+  defaults/profile/chrome/
+  defaults/profile/chrome/userChrome-example.css
+  defaults/profile/chrome/userContent-example.css
+  defaults/pref/suite-l10n.js
+  defaults/pref/browser-prefs.js
+  defaults/pref/composer.js
+  defaults/pref/mailnews.js
+  defaults/pref/mdn.js
+  defaults/pref/smime.js
+  defaults/autoconfig/
+  defaults/autoconfig/platform.js
+  defaults/autoconfig/prefcalls.js
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/chatzilla.jar
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.xpm
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window16.xpm
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.ico
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome.manifest
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/chatzilla-service.js
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/install.rdf
+  extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi
+  extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/
+  extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
+  extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
+  extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
+  extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/venkman.jar
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome.manifest
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/venkman-service.js
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/install.rdf
+  extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi
+  extensions/debugQA@mozilla.org/
+  extensions/debugQA@mozilla.org/install.rdf
+  extensions/debugQA@mozilla.org/chrome.manifest
+  extensions/debugQA@mozilla.org/chrome/
+  extensions/debugQA@mozilla.org/chrome/debugqa.jar
+  extensions/debugQA@mozilla.org.xpi
+  extensions/inspector@mozilla.org/
+  extensions/inspector@mozilla.org/install.rdf
+  extensions/inspector@mozilla.org/chrome.manifest
+  extensions/inspector@mozilla.org/chrome/
+  extensions/inspector@mozilla.org/chrome/inspector.jar
+  extensions/inspector@mozilla.org/platform/
+  extensions/inspector@mozilla.org/platform/Linux/
+  extensions/inspector@mozilla.org/platform/Linux/chrome/
+  extensions/inspector@mozilla.org/platform/Linux/chrome/icons/
+  extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/
+  extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain16.xpm
+  extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain.xpm
+  extensions/inspector@mozilla.org/platform/OS2/chrome/icons/default/winInspectorMain.ico
+  extensions/inspector@mozilla.org/platform/WINNT/chrome/icons/default/winInspectorMain.ico
+  extensions/inspector@mozilla.org/components/
+  extensions/inspector@mozilla.org/components/inspector-cmdline.js
+  extensions/inspector@mozilla.org/defaults/
+  extensions/inspector@mozilla.org/defaults/preferences/
+  extensions/inspector@mozilla.org/defaults/preferences/inspector.js
+  extensions/inspector@mozilla.org.xpi
+  extensions/langpack-ca@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-ca@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-ca@chatzilla.mozilla.org/install.js
+  extensions/langpack-ca@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-ca@chatzilla.mozilla.org.xpi
+  extensions/langpack-cs@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-cs@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-cs@chatzilla.mozilla.org/install.js
+  extensions/langpack-cs@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-cs@chatzilla.mozilla.org.xpi
+  extensions/langpack-de@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-de@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-de@chatzilla.mozilla.org/install.js
+  extensions/langpack-de@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-de@chatzilla.mozilla.org.xpi
+  extensions/langpack-es-ES@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-es-ES@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-es-ES@chatzilla.mozilla.org/install.js
+  extensions/langpack-es-ES@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-es-ES@chatzilla.mozilla.org.xpi
+  extensions/langpack-fi@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-fi@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-fi@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-fi@chatzilla.mozilla.org/install.js
+  extensions/langpack-fi@chatzilla.mozilla.org.xpi
+  extensions/langpack-fr@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-fr@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-fr@chatzilla.mozilla.org/install.js
+  extensions/langpack-fr@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-fr@chatzilla.mozilla.org.xpi
+  extensions/langpack-it@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-it@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-it@chatzilla.mozilla.org/install.js
+  extensions/langpack-it@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-it@chatzilla.mozilla.org.xpi
+  extensions/langpack-ja@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-ja@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-ja@chatzilla.mozilla.org/install.js
+  extensions/langpack-ja@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-ja@chatzilla.mozilla.org.xpi
+  extensions/langpack-ja-JP-mac@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-ja-JP-mac@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-ja-JP-mac@chatzilla.mozilla.org/install.js
+  extensions/langpack-ja-JP-mac@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-ja-JP-mac@chatzilla.mozilla.org.xpi
+  extensions/langpack-nb-NO@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-nb-NO@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-nb-NO@chatzilla.mozilla.org/install.js
+  extensions/langpack-nb-NO@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-nb-NO@chatzilla.mozilla.org.xpi
+  extensions/langpack-pl@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-pl@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-pl@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-pl@chatzilla.mozilla.org/install.js
+  extensions/langpack-pl@chatzilla.mozilla.org.xpi
+  extensions/langpack-pt-BR@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-pt-BR@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-pt-BR@chatzilla.mozilla.org/install.js
+  extensions/langpack-pt-BR@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-pt-BR@chatzilla.mozilla.org.xpi
+  extensions/langpack-pt-PT@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-pt-PT@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-pt-PT@chatzilla.mozilla.org/install.js
+  extensions/langpack-pt-PT@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-pt-PT@chatzilla.mozilla.org.xpi
+  extensions/langpack-ru@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-ru@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-ru@chatzilla.mozilla.org/install.js
+  extensions/langpack-ru@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-ru@chatzilla.mozilla.org.xpi
+  extensions/langpack-si@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-si@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-si@chatzilla.mozilla.org/install.js
+  extensions/langpack-si@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-si@chatzilla.mozilla.org.xpi
+  extensions/langpack-sk@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-sk@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-sk@chatzilla.mozilla.org/install.js
+  extensions/langpack-sk@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-sk@chatzilla.mozilla.org.xpi
+  extensions/langpack-sv-SE@chatzilla.mozilla.org/chrome/chatzilla.jar
+  extensions/langpack-sv-SE@chatzilla.mozilla.org/chrome.manifest
+  extensions/langpack-sv-SE@chatzilla.mozilla.org/install.js
+  extensions/langpack-sv-SE@chatzilla.mozilla.org/install.rdf
+  extensions/langpack-sv-SE@chatzilla.mozilla.org.xpi
+  extensions/langpack-ca@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-ca@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-ca@venkman.mozilla.org/install.rdf
+  extensions/langpack-ca@venkman.mozilla.org.xpi
+  extensions/langpack-de@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-de@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-de@venkman.mozilla.org/install.rdf
+  extensions/langpack-de@venkman.mozilla.org.xpi
+  extensions/langpack-es-ES@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-es-ES@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-es-ES@venkman.mozilla.org/install.rdf
+  extensions/langpack-es-ES@venkman.mozilla.org.xpi
+  extensions/langpack-fr@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-fr@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-fr@venkman.mozilla.org/install.rdf
+  extensions/langpack-fr@venkman.mozilla.org.xpi
+  extensions/langpack-it@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-it@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-it@venkman.mozilla.org/install.rdf
+  extensions/langpack-it@venkman.mozilla.org.xpi
+  extensions/langpack-ja@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-ja@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-ja@venkman.mozilla.org/install.rdf
+  extensions/langpack-ja@venkman.mozilla.org.xpi
+  extensions/langpack-ja-JP-mac@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-ja-JP-mac@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-ja-JP-mac@venkman.mozilla.org/install.rdf
+  extensions/langpack-ja-JP-mac@venkman.mozilla.org.xpi
+  extensions/langpack-nb-NO@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-nb-NO@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-nb-NO@venkman.mozilla.org/install.rdf
+  extensions/langpack-nb-NO@venkman.mozilla.org.xpi
+  extensions/langpack-pl@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-pl@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-pl@venkman.mozilla.org/install.rdf
+  extensions/langpack-pl@venkman.mozilla.org.xpi
+  extensions/langpack-ru@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-ru@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-ru@venkman.mozilla.org/install.rdf
+  extensions/langpack-ru@venkman.mozilla.org.xpi
+  extensions/langpack-sv-SE@venkman.mozilla.org/chrome/venkman.jar
+  extensions/langpack-sv-SE@venkman.mozilla.org/chrome.manifest
+  extensions/langpack-sv-SE@venkman.mozilla.org/install.rdf
+  extensions/langpack-sv-SE@venkman.mozilla.org.xpi
+  extensions/modern@themes.mozilla.org/
+  extensions/modern@themes.mozilla.org/chrome/
+  extensions/modern@themes.mozilla.org/chrome/modern.jar
+  extensions/modern@themes.mozilla.org/chrome.manifest
+  extensions/modern@themes.mozilla.org/icon.png
+  extensions/modern@themes.mozilla.org/install.rdf
+  extensions/modern@themes.mozilla.org/preview.png
+  modules/
+  modules/AddonLogging.jsm
+  modules/AddonManager.jsm
+  modules/AddonRepository.jsm
+  modules/AddonUpdateChecker.jsm
+  modules/CertUtils.jsm
+  modules/CommonDialog.jsm
+  modules/CrashSubmit.jsm
+  modules/CSPUtils.jsm
+  modules/ctypes.jsm
+  modules/debug.js
+  modules/dictUtils.js
+  modules/DownloadLastDir.jsm
+  modules/DownloadPaths.jsm
+  modules/DownloadTaskbarProgress.jsm
+  modules/DownloadUtils.jsm
+  modules/errUtils.js
+  modules/FileUtils.jsm
+  modules/folderUtils.jsm
+  modules/Geometry.jsm
+  modules/gloda/
+  modules/gloda/mimeTypeCategories.js
+  modules/gloda/log4moz.js
+  modules/gloda/gloda.js
+  modules/gloda/datamodel.js
+  modules/gloda/databind.js
+  modules/gloda/index_ab.js
+  modules/gloda/msg_search.js
+  modules/gloda/public.js
+  modules/gloda/noun_freetag.js
+  modules/gloda/utils.js
+  modules/gloda/suffixtree.js
+  modules/gloda/indexer.js
+  modules/gloda/fundattr.js
+  modules/gloda/dbview.js
+  modules/gloda/datastore.js
+  modules/gloda/everybody.js
+  modules/gloda/collection.js
+  modules/gloda/query.js
+  modules/gloda/noun_tag.js
+  modules/gloda/connotent.js
+  modules/gloda/noun_mimetype.js
+  modules/gloda/index_msg.js
+  modules/gloda/mimemsg.js
+  modules/gloda/explattr.js
+  modules/gloda/facet.js
+  modules/InlineSpellChecker.jsm
+  modules/IOUtils.js
+  modules/ISO8601DateUtils.jsm
+  modules/iteratorUtils.jsm
+  modules/jsTreeSelection.js
+  modules/LightweightThemeConsumer.jsm
+  modules/LightweightThemeManager.jsm
+  modules/mailnewsMigrator.js
+  modules/MailUtils.js
+  modules/Microformats.js
+  modules/NetUtil.jsm
+  modules/nsFormAutoCompleteResult.jsm
+  modules/PerfMeasurement.jsm
+  modules/PlacesDBUtils.jsm
+  modules/PlacesUIUtils.jsm
+  modules/PlacesUtils.jsm
+  modules/PluginProvider.jsm
+  modules/PluralForm.jsm
+  modules/PopupNotifications.jsm
+  modules/Sanitizer.jsm
+  modules/Services.jsm
+  modules/SpatialNavigation.js
+  modules/StringBundle.js
+  modules/templateUtils.js
+  modules/traceHelper.js
+  modules/utils.js
+  modules/virtualFolderWrapper.js
+  modules/WindowDraggingUtils.jsm
+  modules/WorkerTest.jsm
+  modules/WorkerTest_subworker.js
+  modules/WorkerTest_worker.js
+  modules/XPCOMUtils.jsm
+  modules/XPIProvider.jsm
+  greprefs.js
+  res/contenteditable.css
+  res/designmode.css
+  res/EditorOverride.css
+  res/grabber.gif
+  res/langGroups.properties
+  res/language.properties
+  res/svg.css
+  res/table-add-column-after-active.gif
+  res/table-add-column-after-hover.gif
+  res/table-add-column-after.gif
+  res/table-add-column-before-active.gif
+  res/table-add-column-before-hover.gif
+  res/table-add-column-before.gif
+  res/table-add-row-after-active.gif
+  res/table-add-row-after-hover.gif
+  res/table-add-row-after.gif
+  res/table-add-row-before-active.gif
+  res/table-add-row-before-hover.gif
+  res/table-add-row-before.gif
+  res/table-remove-column-active.gif
+  res/table-remove-column-hover.gif
+  res/table-remove-column.gif
+  res/table-remove-row-active.gif
+  res/table-remove-row-hover.gif
+  res/table-remove-row.gif
+  res/fonts/
+  res/fonts/mathfont.properties
+  res/fonts/mathfontStandardSymbolsL.properties
+  res/fonts/mathfontSTIXNonUnicode.properties
+  res/fonts/mathfontSTIXSize1.properties
+  res/fonts/mathfontSTIXSizeOneSym.properties
+  #ifdef XP_WIN
+    res/fonts/mathfontSymbol.properties
+  #endif
+  res/fonts/mathfontUnicode.properties
+  res/dtd/
+  res/dtd/mathml.dtd
+  res/dtd/xhtml11.dtd
+  res/html/
+  res/html/folder.png
+  res/entityTables/
+  res/entityTables/html40Latin1.properties
+  res/entityTables/html40Special.properties
+  res/entityTables/html40Symbols.properties
+  res/entityTables/htmlEntityVersions.properties
+  res/entityTables/mathml20.properties
+  res/entityTables/transliterate.properties
 #else
+  components/binary.manifest
+  omni.jar
+#endif
+
+; pre-libxul static mail library
+components/@DLL_PREFIX@mail@DLL_SUFFIX@
+; shared mail libraries
 components/@DLL_PREFIX@addrbook@DLL_SUFFIX@
 components/@DLL_PREFIX@bayesflt@DLL_SUFFIX@
 components/@DLL_PREFIX@fts3tok@DLL_SUFFIX@
 components/@DLL_PREFIX@mailview@DLL_SUFFIX@
 components/@DLL_PREFIX@mime@DLL_SUFFIX@
-#ifdef WIN_OR_OS2
-; To become |#ifdef XP_OS2| in bug 534408.
-; At that time, copy these entries into the following |#ifdef XP_WIN| block. (Or just don't.!.)
+#ifdef XP_OS2
 components/mimeemit.dll
-msgbsutl.dll
-components/msgcompo.dll
 #else
 components/@DLL_PREFIX@mimeemitter@DLL_SUFFIX@
-@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
-components/@DLL_PREFIX@msgcompose@DLL_SUFFIX@
 #endif
 components/@DLL_PREFIX@msgbase@DLL_SUFFIX@
+#ifdef XP_OS2
+components/msgcompo.dll
+#else
+components/@DLL_PREFIX@msgcompose@DLL_SUFFIX@
+#endif
 components/@DLL_PREFIX@msgdb@DLL_SUFFIX@
 components/@DLL_PREFIX@msgimap@DLL_SUFFIX@
 components/@DLL_PREFIX@msglocal@DLL_SUFFIX@
 components/@DLL_PREFIX@msgmdn@DLL_SUFFIX@
 components/@DLL_PREFIX@msgnews@DLL_SUFFIX@
 components/@DLL_PREFIX@vcard@DLL_SUFFIX@
+#ifdef XP_OS2
+msgbsutl.dll
+#else
+@DLL_PREFIX@msgbaseutil@DLL_SUFFIX@
+#endif
+#ifdef XP_WIN
+  components/@DLL_PREFIX@jsd3250@DLL_SUFFIX@
+#else
+  components/@DLL_PREFIX@jsd@DLL_SUFFIX@
+#endif
 
-#ifdef MOZ_STATIC_BUILD
+; pre-static-build, pre-libxul shared libraries
 components/@DLL_PREFIX@accessibility@DLL_SUFFIX@
 components/@DLL_PREFIX@appcomps@DLL_SUFFIX@
 components/@DLL_PREFIX@auth@DLL_SUFFIX@
 components/@DLL_PREFIX@autoconfig@DLL_SUFFIX@
-components/@DLL_PREFIX@caps@DLL_SUFFIX@
 components/@DLL_PREFIX@chardet@DLL_SUFFIX@
 components/@DLL_PREFIX@chrome@DLL_SUFFIX@
 components/@DLL_PREFIX@commandlines@DLL_SUFFIX@
@@ -245,21 +1015,20 @@ components/@DLL_PREFIX@composer@DLL_SUFFIX@
 components/@DLL_PREFIX@cookie@DLL_SUFFIX@
 components/@DLL_PREFIX@docshell@DLL_SUFFIX@
 components/@DLL_PREFIX@embedcomponents@DLL_SUFFIX@
+#ifdef UNIX_BUT_NOT_MAC
 components/@DLL_PREFIX@fileview@DLL_SUFFIX@
+#endif
 components/@DLL_PREFIX@gkgfxthebes@DLL_SUFFIX@
 components/@DLL_PREFIX@gklayout@DLL_SUFFIX@
 components/@DLL_PREFIX@gkplugin@DLL_SUFFIX@
 components/@DLL_PREFIX@htmlpars@DLL_SUFFIX@
 components/@DLL_PREFIX@i18n@DLL_SUFFIX@
+components/@DLL_PREFIX@imgicon@DLL_SUFFIX@
 components/@DLL_PREFIX@imglib2@DLL_SUFFIX@
 components/@DLL_PREFIX@import@DLL_SUFFIX@
-components/@DLL_PREFIX@intlapp@DLL_SUFFIX@
-components/@DLL_PREFIX@jar50@DLL_SUFFIX@
 components/@DLL_PREFIX@jsctypes@DLL_SUFFIX@
-; 'MOZ_STATIC_BUILD' case.
 components/@DLL_PREFIX@mail@DLL_SUFFIX@
 components/@DLL_PREFIX@mork@DLL_SUFFIX@
-components/@DLL_PREFIX@mozfind@DLL_SUFFIX@
 components/@DLL_PREFIX@mozldap@DLL_SUFFIX@
 components/@DLL_PREFIX@msgsmime@DLL_SUFFIX@
 components/@DLL_PREFIX@necko@DLL_SUFFIX@
@@ -270,6 +1039,15 @@ components/@DLL_PREFIX@pipnss@DLL_SUFFIX@
 components/@DLL_PREFIX@pippki@DLL_SUFFIX@
 components/@DLL_PREFIX@places@DLL_SUFFIX@
 components/@DLL_PREFIX@pref@DLL_SUFFIX@
+#ifdef XP_WIN
+components/@DLL_PREFIX@windowsproxy@DLL_SUFFIX@
+#elifdef XP_UNIX
+#ifdef XP_MACOSX
+components/@DLL_PREFIX@osxproxy@DLL_SUFFIX@
+#else
+components/@DLL_PREFIX@unixproxy@DLL_SUFFIX@
+#endif
+#endif
 components/@DLL_PREFIX@rdf@DLL_SUFFIX@
 components/@DLL_PREFIX@remoteservice@DLL_SUFFIX@
 components/@DLL_PREFIX@satchel@DLL_SUFFIX@
@@ -281,41 +1059,24 @@ components/@DLL_PREFIX@toolkitcomps@DLL_SUFFIX@
 components/@DLL_PREFIX@txmgr@DLL_SUFFIX@
 components/@DLL_PREFIX@uconv@DLL_SUFFIX@
 components/@DLL_PREFIX@universalchardet@DLL_SUFFIX@
-components/@DLL_PREFIX@unixproxy@DLL_SUFFIX@
 components/@DLL_PREFIX@webbrwsr@DLL_SUFFIX@
 components/@DLL_PREFIX@widget_gtk2@DLL_SUFFIX@
 components/@DLL_PREFIX@windowds@DLL_SUFFIX@
 components/@DLL_PREFIX@xpautocomplete@DLL_SUFFIX@
-components/@DLL_PREFIX@xpconnect@DLL_SUFFIX@
 components/@DLL_PREFIX@zipwriter@DLL_SUFFIX@
 #ifdef XP_MACOSX
-components/libimgicon.dylib
-components/libjar50.dylib
-components/libosxproxy.dylib
 components/libwidget_mac.dylib
 #endif
 #ifdef XP_WIN
 components/gkwidget.dll
-components/imgicon.dll
 components/msgMapi.dll
-components/windowsproxy.dll
-components/xpc3250.dll
 components/xppref32.dll
 #endif
-@DLL_PREFIX@gfxpsshar@DLL_SUFFIX@
 @DLL_PREFIX@gkgfx@DLL_SUFFIX@
+#ifdef UNIX_BUT_NOT_MAC
 @DLL_PREFIX@gtkxtbin@DLL_SUFFIX@
-@DLL_PREFIX@layers@DLL_SUFFIX@
-@DLL_PREFIX@mozz@DLL_SUFFIX@
+#endif
 @DLL_PREFIX@thebes@DLL_SUFFIX@
-@DLL_PREFIX@xul@DLL_SUFFIX@
-#ifdef XP_MACOSX
-XUL
-#endif
-; MOZ_STATIC_BUILD
-#endif
-; MOZ_STATIC_MAIL_BUILD
-#endif
 
 ; Library files which used to have a short name.
 #ifdef XP_WIN
@@ -468,6 +1229,7 @@ components/webBrowser_core.xpt
 components/webbrowserpersist.xpt
 components/webshell_idls.xpt
 components/widget.xpt
+components/widget_cocoa.xpt
 components/windowds.xpt
 components/windowwatcher.xpt
 components/xpautocomplete.xpt

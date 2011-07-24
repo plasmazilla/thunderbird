@@ -13,7 +13,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -35,12 +35,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 function test() {
-  /* Permaorange on Linux right now, so disable there. */
-  let osString = Components.classes["@mozilla.org/xre/app-info;1"].
-                 getService(Components.interfaces.nsIXULRuntime).OS;
-  if (osString == "Linux")
-    return;
-
   /** Tests for NetworkPrioritizer.jsm (Bug 514490) **/
 
   waitForExplicitFinish();
@@ -92,7 +86,7 @@ function test() {
     let tab_A2 = window_A.gBrowser.addTab("http://example.com");
     let tab_A3 = window_A.gBrowser.addTab("about:config");
     tab_A3.linkedBrowser.addEventListener("load", function(aEvent) {
-      tab_A3.removeEventListener("load", arguments.callee, true);
+      tab_A3.linkedBrowser.removeEventListener("load", arguments.callee, true);
 
       // tab_A2 isn't focused yet
       isWindowState(window_A, [-10, 0, 0]);
@@ -135,7 +129,6 @@ function test() {
               }, window_B);
             }, window_A);
           }, window_B);
-
         }, true);
       }, false);
     }, true);

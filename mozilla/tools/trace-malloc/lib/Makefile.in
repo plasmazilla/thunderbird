@@ -51,7 +51,7 @@ FORCE_STATIC_LIB = 1
 
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom
+STL_FLAGS	=
 
 CSRCS		= \
 		nsTraceMalloc.c \
@@ -69,6 +69,8 @@ ifeq ($(OS_ARCH),WINNT)
 CPPSRCS		+= nsDebugHelpWin32.cpp nsWinTraceMalloc.cpp
 OS_LIBS		+= shell32.lib ole32.lib uuid.lib imagehlp.lib
 endif
+
+DEFINES		+= -DMOZ_NO_MOZALLOC
 
 ifdef WRAP_SYSTEM_INCLUDES
 DEFINES		+= -DWRAP_SYSTEM_INCLUDES

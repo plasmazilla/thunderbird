@@ -103,7 +103,7 @@ public:
   NS_IMETHOD DidReflow(nsPresContext*           aPresContext, 
                        const nsHTMLReflowState*  aReflowState, 
                        nsDidReflowStatus         aStatus);
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               const nsRect&           aDirtyRect,
@@ -131,7 +131,6 @@ public:
                                   PRUint32 aFlags);
 
 #ifdef DEBUG
-    // nsIFrameDebug
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
 #endif
 
@@ -145,7 +144,7 @@ public:
 
     // for accessibility purposes
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
     // nsHTMLContainerFrame
@@ -189,7 +188,6 @@ public:
   // nsISelectControlFrame
   NS_IMETHOD AddOption(PRInt32 index);
   NS_IMETHOD RemoveOption(PRInt32 index);
-  NS_IMETHOD GetOptionSelected(PRInt32 aIndex, PRBool* aValue);
   NS_IMETHOD DoneAddingChildren(PRBool aIsDone);
 
   /**
@@ -273,6 +271,11 @@ public:
   PRBool IsInDropDownMode() const;
 
   /**
+   * Dropdowns need views
+   */
+  virtual PRBool NeedsView() { return IsInDropDownMode(); }
+
+  /**
    * Frees statics owned by this class.
    */
   static void Shutdown();
@@ -294,10 +297,12 @@ protected:
   PRBool     UpdateSelection();
 
   /**
-   * Returns whether the nsIDOMHTMLSelectElement supports 
-   * multiple selection.
+   * Returns whether mContent supports multiple selection.
    */
-  PRBool     GetMultiple(nsIDOMHTMLSelectElement* aSelect = nsnull) const;
+  PRBool     GetMultiple() const {
+    return mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::multiple);
+  }
+
 
   /**
    * Toggles (show/hide) the combobox dropdown menu.
@@ -454,12 +459,12 @@ protected:
   // At the time of our last dropdown, the backstop color to draw in case we
   // are translucent.
   nscolor mLastDropdownBackstopColor;
-
+  
   nsRefPtr<nsListEventListener> mEventListener;
 
   static nsListControlFrame * mFocused;
   static nsString * sIncrementalString;
-  
+
 #ifdef DO_REFLOW_COUNTER
   PRInt32 mReflowId;
 #endif

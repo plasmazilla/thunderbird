@@ -119,6 +119,7 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 !insertmacro InstallOnInitCommon
 !insertmacro InstallStartCleanupCommon
 !insertmacro LeaveDirectoryCommon
+!insertmacro LeaveOptionsCommon
 !insertmacro OnEndCommon
 !insertmacro PreDirectoryCommon
 
@@ -224,41 +225,59 @@ Section "-InstallStartCleanup"
     ; If ChatZilla is installed and this install includes ChatZilla remove it
     ; from the installation directory. This will remove it if the user
     ; deselected ChatZilla on the components page.
-    ${If} ${FileExists} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
-      RmDir /r "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+        RmDir /r "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+      ${EndIf}
     ${EndIf}
-    ${If} ${FileExists} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
-      RmDir /r "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+        RmDir /r "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+      ${EndIf}
     ${EndIf}
 
     ; If DOMi is installed and this install includes DOMi remove it from
     ; the installation directory. This will remove it if the user deselected
     ; DOMi on the components page.
-    ${If} ${FileExists} "$INSTDIR\extensions\inspector@mozilla.org"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\inspector@mozilla.org"
-      RmDir /r "$INSTDIR\extensions\inspector@mozilla.org"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\inspector@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\inspector@mozilla.org.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\inspector@mozilla.org"
+        RmDir /r "$INSTDIR\extensions\inspector@mozilla.org"
+      ${EndIf}
     ${EndIf}
 
     ; If DebugQA is installed and this install includes DebugQA remove it
     ; from the installation directory. This will remove it if the user
     ; deselected DebugQA on the components page.
-    ${If} ${FileExists} "$INSTDIR\extensions\debugQA@mozilla.org"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\debugQA@mozilla.org"
-      RmDir /r "$INSTDIR\extensions\debugQA@mozilla.org"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\debugQA@mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\debugQA@mozilla.org.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\debugQA@mozilla.org"
+        RmDir /r "$INSTDIR\extensions\debugQA@mozilla.org"
+      ${EndIf}
     ${EndIf}
 
     ; If Venkman is installed and this install includes Venkman remove it
     ; from the installation directory. This will remove it if the user
     ; deselected Venkman on the components page.
-    ${If} ${FileExists} "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
-      RmDir /r "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
+        RmDir /r "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
+      ${EndIf}
     ${EndIf}
-    ${If} ${FileExists} "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org"
-    ${AndIf} ${FileExists} "$EXEDIR\optional\extensions\langpack-${AB_CD}@venkman.mozilla.org"
-      RmDir /r "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\distribution\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
+      ${DeleteFile} "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
+      ${If} ${FileExists} "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org"
+        RmDir /r "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org"
+      ${EndIf}
     ${EndIf}
   ${EndIf}
 
@@ -276,7 +295,7 @@ Section "-Application" APP_IDX
   SetDetailsPrint none
 
   ${LogHeader} "Installing Main Files"
-  ${CopyFilesFromDir} "$EXEDIR\nonlocalized" "$INSTDIR" \
+  ${CopyFilesFromDir} "$EXEDIR\core" "$INSTDIR" \
                       "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
                       "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
 
@@ -289,7 +308,7 @@ Section "-Application" APP_IDX
     Rename "$INSTDIR\MapiProxy_InUse.dll" "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
     Delete /REBOOTOK "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
   ${EndIf}
-  CopyFiles /SILENT "$EXEDIR\nonlocalized\MapiProxy.dll" "$INSTDIR\MapiProxy_InUse.dll"
+  CopyFiles /SILENT "$EXEDIR\core\MapiProxy.dll" "$INSTDIR\MapiProxy_InUse.dll"
   ${LogMsg} "Installed File: $INSTDIR\MapiProxy_InUse.dll"
   ${LogUninstall} "File: \MapiProxy_InUse.dll"
 
@@ -300,7 +319,7 @@ Section "-Application" APP_IDX
     Rename "$INSTDIR\mozMapi32_InUse.dll" "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
     Delete /REBOOTOK "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
   ${EndIf}
-  CopyFiles /SILENT "$EXEDIR\nonlocalized\mozMapi32.dll" "$INSTDIR\mozMapi32_InUse.dll"
+  CopyFiles /SILENT "$EXEDIR\core\mozMapi32.dll" "$INSTDIR\mozMapi32_InUse.dll"
   ${LogMsg} "Installed File: $INSTDIR\mozMapi32_InUse.dll"
   ${LogUninstall} "File: \mozMapi32_InUse.dll"
 
@@ -325,44 +344,12 @@ Section "-Application" APP_IDX
   ; parent directories will be removed.
   ${LogUninstall} "File: \components\compreg.dat"
   ${LogUninstall} "File: \components\xpti.dat"
-  ${LogUninstall} "File: \.autoreg"
   ${LogUninstall} "File: \active-update.xml"
   ${LogUninstall} "File: \install.log"
   ${LogUninstall} "File: \install_status.log"
   ${LogUninstall} "File: \install_wizard.log"
   ${LogUninstall} "File: \updates.xml"
 
-  SetDetailsPrint both
-  DetailPrint $(STATUS_INSTALL_LANG)
-  SetDetailsPrint none
-
-  ${LogHeader} "Installing Localized Files"
-  ${CopyFilesFromDir} "$EXEDIR\localized" "$INSTDIR" \
-                      "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                      "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
-
-  ${LogHeader} "Adding Additional Files"
-  ; Check if QuickTime is installed and copy the nsIQTScriptablePlugin.xpt from 
-  ; directory into the app's components directory.
-  ClearErrors
-  ReadRegStr $R0 HKLM "Software\Apple Computer, Inc.\QuickTime" "InstallDir"
-  ${Unless} ${Errors}
-    ${GetLongPath} "$R0" $R0
-    ${Unless} "$R0" == ""
-      ClearErrors
-      GetFullPathName $R0 "$R0\Plugins\nsIQTScriptablePlugin.xpt"
-      ${Unless} ${Errors}
-        ${LogHeader} "Copying QuickTime Scriptable Component"
-        CopyFiles /SILENT "$R0" "$INSTDIR\components"
-        ${If} ${Errors}
-          ${LogMsg} "** ERROR Installing File: $INSTDIR\components\nsIQTScriptablePlugin.xpt **"
-        ${Else}
-          ${LogMsg} "Installed File: $INSTDIR\components\nsIQTScriptablePlugin.xpt"
-          ${LogUninstall} "File: \components\nsIQTScriptablePlugin.xpt"
-        ${EndIf}
-      ${EndUnless}
-    ${EndUnless}
-  ${EndUnless}
   ClearErrors
 
   ; Default for creating Start Menu folder and shortcuts
@@ -461,6 +448,8 @@ Section "-Application" APP_IDX
 
   StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\$R9"
   ${CreateRegKey} "$TmpVal" "$0" 0
+  StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\plugin-container.exe"
+  ${CreateRegKey} "$TmpVal" "$0" 0
 
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 
@@ -485,8 +474,10 @@ Section "-Application" APP_IDX
       ${LogMsg} "Added Start Menu Directory: $SMPROGRAMS\$StartMenuDir"
     ${EndUnless}
     CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ApplicationID::Set "$SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk"
     CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk" "$INSTDIR\${FileMainEXE}" "-safe-mode" "$INSTDIR\${FileMainEXE}" 0
+    ApplicationID::Set "$SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk"
     CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName} $(MAILNEWS_TEXT).lnk" "$INSTDIR\${FileMainEXE}" "-mail" "$INSTDIR\chrome\icons\default\messengerWindow.ico" 0
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName} $(MAILNEWS_TEXT).lnk"
@@ -496,11 +487,13 @@ Section "-Application" APP_IDX
 
   ${If} $AddQuickLaunchSC == 1
     CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ApplicationID::Set "$QUICKLAUNCH\${BrandFullName}.lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $QUICKLAUNCH\${BrandFullName}.lnk"
   ${EndIf}
 
   ${If} $AddDesktopSC == 1
     CreateShortCut "$DESKTOP\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    ApplicationID::Set "$DESKTOP\${BrandFullName}.lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $DESKTOP\${BrandFullName}.lnk"
   ${EndIf}
 
@@ -508,79 +501,79 @@ Section "-Application" APP_IDX
 SectionEnd
 
 Section /o "IRC Client" CZ_IDX 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
     SetDetailsPrint both 
     DetailPrint $(STATUS_INSTALL_OPTIONAL)
     SetDetailsPrint none
 
     ${RemoveDir} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
     ${RemoveDir} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    ${DeleteFile} "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
     ClearErrors
     ${LogHeader} "Installing IRC Client"
-    ${CopyFilesFromDir} "$EXEDIR\optional\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}" \
-                        "$INSTDIR\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}" \
-                        "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                        "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
-    ${If} ${FileExists} "$EXEDIR\optional\extensions\langpack-${AB_CD}@chatzilla.mozilla.org"
-      ${CopyFilesFromDir} "$EXEDIR\optional\extensions\langpack-${AB_CD}@chatzilla.mozilla.org" \
-                          "$INSTDIR\extensions\langpack-${AB_CD}@chatzilla.mozilla.org" \
-                          "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                          "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi" \
+                      "$INSTDIR\distribution\extensions\"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi"
+      CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@chatzilla.mozilla.org.xpi" \
+                        "$INSTDIR\distribution\extensions\"
     ${EndIf}
   ${EndIf}
 SectionEnd
 
 Section /o "Developer Tools" DOMI_IDX 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\inspector@mozilla.org"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
     SetDetailsPrint both 
     DetailPrint $(STATUS_INSTALL_OPTIONAL)
     SetDetailsPrint none
 
     ${RemoveDir} "$INSTDIR\extensions\inspector@mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\inspector@mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\inspector@mozilla.org.xpi"
     ClearErrors
     ${LogHeader} "Installing Developer Tools"
-    ${CopyFilesFromDir} "$EXEDIR\optional\extensions\inspector@mozilla.org" \
-                        "$INSTDIR\extensions\inspector@mozilla.org" \
-                        "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                        "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi" \
+                      "$INSTDIR\distribution\extensions\"
   ${EndIf} 
 SectionEnd
 
 Section /o "Debug and QA Tools" DEBUG_IDX 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\debugQA@mozilla.org"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
     SetDetailsPrint both 
     DetailPrint $(STATUS_INSTALL_OPTIONAL)
     SetDetailsPrint none
 
     ${RemoveDir} "$INSTDIR\extensions\debugQA@mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\debugQA@mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\debugQA@mozilla.org.xpi"
     ClearErrors
     ${LogHeader} "Installing Debug and QA Tools"
-    ${CopyFilesFromDir} "$EXEDIR\optional\extensions\debugQA@mozilla.org" \
-                        "$INSTDIR\extensions\debugQA@mozilla.org" \
-                        "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                        "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi" \
+                      "$INSTDIR\distribution\extensions\"
   ${EndIf}
 SectionEnd
 
 Section /o "JavaScript Debugger" VENKMAN_IDX 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
     SetDetailsPrint both 
     DetailPrint $(STATUS_INSTALL_OPTIONAL)
     SetDetailsPrint none
 
     ${RemoveDir} "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
     ${RemoveDir} "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org"
+    ${DeleteFile} "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
+    ${DeleteFile} "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
+    ${DeleteFile} "$INSTDIR\distribution\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
     ClearErrors
     ${LogHeader} "Installing JavaScript Debugger"
-    ${CopyFilesFromDir} "$EXEDIR\optional\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}" \
-                        "$INSTDIR\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}" \
-                        "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                        "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
-    ${If} ${FileExists} "$EXEDIR\optional\extensions\langpack-${AB_CD}@venkman.mozilla.org"
-      ${CopyFilesFromDir} "$EXEDIR\optional\extensions\langpack-${AB_CD}@venkman.mozilla.org" \
-                          "$INSTDIR\extensions\langpack-${AB_CD}@venkman.mozilla.org" \
-                          "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                          "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
+    CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi" \
+                      "$INSTDIR\distribution\extensions\"
+    ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi"
+      CopyFiles /SILENT "$EXEDIR\optional\distribution\extensions\langpack-${AB_CD}@venkman.mozilla.org.xpi" \
+                        "$INSTDIR\distribution\extensions\"
     ${EndIf}
   ${EndIf}
 SectionEnd
@@ -591,11 +584,10 @@ Section "-InstallEndCleanup"
   DetailPrint "$(STATUS_CLEANUP)"
   SetDetailsPrint none
 
-  ${LogHeader} "Updating Uninstall Log With Previous Uninstall Log"
-  ${InstallEndCleanupCommon}
-
   ; Refresh desktop icons
   System::Call "shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)"
+
+  ${InstallEndCleanupCommon}
 
   ; If we have to reboot give SHChangeNotify time to finish the refreshing
   ; the icons so the OS doesn't display the icons from helper.exe
@@ -698,17 +690,17 @@ BrandingText " "
 # Page pre and leave functions
 
 Function preWelcome
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-wizard.bmp"
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-wizard.bmp"
     Delete "$PLUGINSDIR\modern-wizard.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
   ${EndIf}
 FunctionEnd
 
 Function showLicense
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-header.bmp"
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-header.bmp"
   ${AndIf} $hHeaderBitmap == ""
     Delete "$PLUGINSDIR\modern-header.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
     ${ChangeMUIHeaderImage} "$PLUGINSDIR\modern-header.bmp"
   ${EndIf}
 FunctionEnd
@@ -730,19 +722,9 @@ Function leaveOptions
   StrCmp $R0 "1" +1 +2
   StrCpy $InstallType ${INSTALLTYPE_CUSTOM}
 
-  ${If} $InstallType != ${INSTALLTYPE_CUSTOM}
-!ifndef NO_INSTDIR_FROM_REG
-    SetShellVarContext all      ; Set SHCTX to HKLM
-    ${GetSingleInstallPath} "Software\Mozilla\${BrandFullNameInternal}" $R9
-    StrCmp "$R9" "false" +1 fix_install_dir
-    SetShellVarContext current  ; Set SHCTX to HKCU
-    ${GetSingleInstallPath} "Software\Mozilla\${BrandFullNameInternal}" $R9
+  ${LeaveOptionsCommon}
 
-    fix_install_dir:
-    StrCmp "$R9" "false" +2 +1
-    StrCpy $INSTDIR "$R9"
-!endif
-
+  ${If} $InstallType == ${INSTALLTYPE_BASIC}
     Call CheckExistingInstall
   ${EndIf}
 FunctionEnd
@@ -759,8 +741,8 @@ Function leaveComponents
   ; If ChatZilla doesn't exist then DOMi will be Field 2 (when ChatZilla and DOMi
   ; don't exist, debugQA will be Field 2).
   StrCpy $R1 2
-  
- ${If} ${FileExists} "$EXEDIR\optional\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}"
+
+ ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi"
     ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
     ; State will be 1 for checked and 0 for unchecked so we can use that to set
     ; the section flags for installation.
@@ -770,7 +752,7 @@ Function leaveComponents
     SectionSetFlags ${CZ_IDX} 0 ; Disable install for chatzilla
   ${EndIf}
 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\inspector@mozilla.org"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\inspector@mozilla.org.xpi"
     ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
     ; State will be 1 for checked and 0 for unchecked so we can use that to set
     ; the section flags for installation.
@@ -780,7 +762,7 @@ Function leaveComponents
     SectionSetFlags ${DOMI_IDX} 0 ; Disable install for DOMi
   ${EndIf}
 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\debugQA@mozilla.org"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\debugQA@mozilla.org.xpi"
     ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
     ; State will be 1 for checked and 0 for unchecked so we can use that to set
     ; the section flags for installation.
@@ -790,7 +772,7 @@ Function leaveComponents
     SectionSetFlags ${DEBUG_IDX} 0 ; Disable install for debugQA
   ${EndIf}
 
-  ${If} ${FileExists} "$EXEDIR\optional\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}"
+  ${If} ${FileExists} "$EXEDIR\optional\distribution\extensions\{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi"
     ${MUI_INSTALLOPTIONS_READ} $R0 "components.ini" "Field $R1" "State"
     ; State will be 1 for checked and 0 for unchecked so we can use that to set
     ; the section flags for installation.
@@ -806,6 +788,9 @@ Function preDirectory
 FunctionEnd
 
 Function leaveDirectory
+  ${If} $InstallType == ${INSTALLTYPE_BASIC}
+    Call CheckExistingInstall
+  ${EndIf}
   ${LeaveDirectoryCommon} "$(WARN_DISK_SPACE)" "$(WARN_WRITE_ACCESS)"
 FunctionEnd
 
@@ -823,6 +808,13 @@ Function leaveShortcuts
   ${MUI_INSTALLOPTIONS_READ} $AddDesktopSC "shortcuts.ini" "Field 2" "State"
   ${MUI_INSTALLOPTIONS_READ} $AddStartMenuSC "shortcuts.ini" "Field 3" "State"
   ${MUI_INSTALLOPTIONS_READ} $AddQuickLaunchSC "shortcuts.ini" "Field 4" "State"
+
+  ; If Start Menu shortcuts won't be created call CheckExistingInstall here
+  ; since leaveStartMenu will not be called.
+  ${If} $AddStartMenuSC != 1
+  ${AndIf} $InstallType == ${INSTALLTYPE_CUSTOM}
+    Call CheckExistingInstall
+  ${EndIf}
 FunctionEnd
 
 Function preStartMenu
@@ -946,7 +938,7 @@ FunctionEnd
 
 Function .onInit
   StrCpy $LANGUAGE 0
-  ${SetBrandNameVars} "$EXEDIR\localized\distribution\setup.ini"
+  ${SetBrandNameVars} "$EXEDIR\core\distribution\setup.ini"
 
   ${InstallOnInitCommon} "$(WARN_UNSUPPORTED_MSG)"
 
@@ -1034,9 +1026,8 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" Bottom "70"
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" State  "1"
 
-  ; There must always be nonlocalized and localized directories.
-  ${GetSize} "$EXEDIR\nonlocalized\" "/S=0K" $R5 $R7 $R8
-  ${GetSize} "$EXEDIR\localized\" "/S=0K" $R6 $R7 $R8
+  ; There must always be a core directory
+  ${GetSize} "$EXEDIR\core\" "/S=0K" $R5 $R7 $R8
   IntOp $R8 $R5 + $R6
   ; Add 1024 Kb to the diskspace requirement since the installer makes a copy
   ; of the MAPI dll's (around 20 Kb)... also, see Bug 434338.

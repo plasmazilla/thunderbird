@@ -42,7 +42,7 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifneq (,$(filter qt gtk2 photon beos,$(MOZ_WIDGET_TOOLKIT)))
+ifdef MOZ_PDF_PRINTING
 PLATFORM_DIR += unixshared
 endif
 
@@ -54,13 +54,10 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
 PLATFORM_DIR = win
 endif
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 PLATFORM_DIR = mac
 endif
 
 DIRS = $(PLATFORM_DIR)
 
 include $(topsrcdir)/config/rules.mk
-
-libs::
-	$(INSTALL) $(PLATFORM_DIR)/$(LIB_PREFIX)printingui_s.$(LIB_SUFFIX) .

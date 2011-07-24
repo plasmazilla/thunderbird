@@ -54,7 +54,7 @@
 #include "nsCOMPtr.h"
 #include "nsIDOMHTMLTableCellElement.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 #include "nsIServiceManager.h"
 #include "nsIDOMNode.h"
@@ -153,14 +153,14 @@ nsTableCellFrame::NotifyPercentHeight(const nsHTMLReflowState& aReflowState)
            rs = rs->parentReflowState) {
         rs->frame->AddStateBits(NS_FRAME_CONTAINS_RELATIVE_HEIGHT);
       }
-      
+
       nsTableFrame::RequestSpecialHeightReflow(*cellRS);
     }
   }
 }
 
 // The cell needs to observe its block and things inside its block but nothing below that
-PRBool 
+PRBool
 nsTableCellFrame::NeedsToObserve(const nsHTMLReflowState& aReflowState)
 {
   const nsHTMLReflowState *rs = aReflowState.parentReflowState;
@@ -192,7 +192,7 @@ nsTableCellFrame::NeedsToObserve(const nsHTMLReflowState& aReflowState)
           fType == nsGkAtoms::tableOuterFrame);
 }
 
-nsresult 
+nsresult
 nsTableCellFrame::GetRowIndex(PRInt32 &aRowIndex) const
 {
   nsresult result;
@@ -208,9 +208,9 @@ nsTableCellFrame::GetRowIndex(PRInt32 &aRowIndex) const
   return result;
 }
 
-nsresult 
+nsresult
 nsTableCellFrame::GetColIndex(PRInt32 &aColIndex) const
-{  
+{
   if (GetPrevInFlow()) {
     return ((nsTableCellFrame*)GetFirstInFlow())->GetColIndex(aColIndex);
   }
@@ -235,7 +235,7 @@ nsTableCellFrame::AttributeChanged(PRInt32         aNameSpaceID,
   // let the table frame decide what to do
   nsTableFrame* tableFrame = nsTableFrame::GetTableFrame(this);
   if (tableFrame) {
-    tableFrame->AttributeChangedFor(this, mContent, aAttribute); 
+    tableFrame->AttributeChangedFor(this, mContent, aAttribute);
   }
   return NS_OK;
 }
@@ -245,9 +245,9 @@ nsTableCellFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
 {
   if (!aOldStyleContext) //avoid this on init
     return;
-     
+
   nsTableFrame* tableFrame = nsTableFrame::GetTableFrame(this);
-    
+
   if (tableFrame->IsBorderCollapse() &&
       tableFrame->BCRecalcNeeded(aOldStyleContext, GetStyleContext())) {
     PRInt32 colIndex, rowIndex;
@@ -258,7 +258,7 @@ nsTableCellFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
   }
 }
 
-     
+
 NS_IMETHODIMP
 nsTableCellFrame::AppendFrames(nsIAtom*        aListName,
                                nsFrameList&    aFrameList)
@@ -285,7 +285,7 @@ nsTableCellFrame::RemoveFrame(nsIAtom*        aListName,
 }
 
 void nsTableCellFrame::SetColIndex(PRInt32 aColIndex)
-{  
+{
   mColIndex = aColIndex;
 }
 
@@ -363,27 +363,31 @@ nsTableCellFrame::DecorateForSelection(nsIRenderingContext& aRenderingContext,
 void
 nsTableCellFrame::PaintBackground(nsIRenderingContext& aRenderingContext,
                                   const nsRect&        aDirtyRect,
-                                  nsPoint              aPt)
+                                  nsPoint              aPt,
+                                  PRUint32             aFlags)
 {
   nsRect rect(aPt, GetSize());
   nsCSSRendering::PaintBackground(PresContext(), aRenderingContext, this,
-                                  aDirtyRect, rect, 0);
+                                  aDirtyRect, rect, aFlags);
 }
 
 // Called by nsTablePainter
 void
 nsTableCellFrame::PaintCellBackground(nsIRenderingContext& aRenderingContext,
-                                      const nsRect& aDirtyRect, nsPoint aPt)
+                                      const nsRect& aDirtyRect, nsPoint aPt,
+                                      PRUint32 aFlags)
 {
   if (!GetStyleVisibility()->IsVisible())
     return;
 
-  PaintBackground(aRenderingContext, aDirtyRect, aPt);
+  PaintBackground(aRenderingContext, aDirtyRect, aPt, aFlags);
 }
 
 class nsDisplayTableCellBackground : public nsDisplayTableItem {
 public:
-  nsDisplayTableCellBackground(nsTableCellFrame* aFrame) : nsDisplayTableItem(aFrame) {
+  nsDisplayTableCellBackground(nsDisplayListBuilder* aBuilder,
+                               nsTableCellFrame* aFrame) :
+    nsDisplayTableItem(aBuilder, aFrame) {
     MOZ_COUNT_CTOR(nsDisplayTableCellBackground);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -400,14 +404,15 @@ public:
                      nsIRenderingContext* aCtx);
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder);
 
-  NS_DISPLAY_DECL_NAME("TableCellBackground")
+  NS_DISPLAY_DECL_NAME("TableCellBackground", TYPE_TABLE_CELL_BACKGROUND)
 };
 
 void nsDisplayTableCellBackground::Paint(nsDisplayListBuilder* aBuilder,
                                          nsIRenderingContext* aCtx)
 {
   static_cast<nsTableCellFrame*>(mFrame)->
-    PaintBackground(*aCtx, mVisibleRect, aBuilder->ToReferenceFrame(mFrame));
+    PaintBackground(*aCtx, mVisibleRect, ToReferenceFrame(),
+                    aBuilder->GetBackgroundPaintFlags());
 }
 
 nsRect
@@ -435,14 +440,14 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
   DO_GLOBAL_REFLOW_COUNT_DSP("nsTableCellFrame");
   nsTableFrame* tableFrame = nsTableFrame::GetTableFrame(this);
-  
+
   PRInt32 emptyCellStyle = GetContentEmpty() && !tableFrame->IsBorderCollapse() ?
                               GetStyleTableBorder()->mEmptyCells
                               : NS_STYLE_TABLE_EMPTY_CELLS_SHOW;
   // take account of 'empty-cells'
   if (GetStyleVisibility()->IsVisible() &&
       (NS_STYLE_TABLE_EMPTY_CELLS_HIDE != emptyCellStyle)) {
-    
+
 
     PRBool isRoot = aBuilder->IsAtRootOfPseudoStackingContext();
     if (!isRoot) {
@@ -455,8 +460,8 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     // display outset box-shadows if we need to.
     PRBool hasBoxShadow = !!(GetStyleBorder()->mBoxShadow);
     if (hasBoxShadow) {
-      nsDisplayItem* item = new (aBuilder) nsDisplayBoxShadowOuter(this);
-      nsresult rv = aLists.BorderBackground()->AppendNewToTop(item);
+      nsresult rv = aLists.BorderBackground()->AppendNewToTop(
+          new (aBuilder) nsDisplayBoxShadowOuter(aBuilder, this));
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
@@ -467,7 +472,8 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       // The cell background was not painted by the nsTablePainter,
       // so we need to do it. We have special background processing here
       // so we need to duplicate some code from nsFrame::DisplayBorderBackgroundOutline
-      nsDisplayTableItem* item = new (aBuilder) nsDisplayTableCellBackground(this);
+      nsDisplayTableItem* item =
+        new (aBuilder) nsDisplayTableCellBackground(aBuilder, this);
       nsresult rv = aLists.BorderBackground()->AppendNewToTop(item);
       NS_ENSURE_SUCCESS(rv, rv);
       item->UpdateForFrameBackground(this);
@@ -475,16 +481,16 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
     // display inset box-shadows if we need to.
     if (hasBoxShadow) {
-      nsDisplayItem* item = new (aBuilder) nsDisplayBoxShadowInner(this);
-      nsresult rv = aLists.BorderBackground()->AppendNewToTop(item);
+      nsresult rv = aLists.BorderBackground()->AppendNewToTop(
+          new (aBuilder) nsDisplayBoxShadowInner(aBuilder, this));
       NS_ENSURE_SUCCESS(rv, rv);
     }
-    
+
     // display borders if we need to
     if (!tableFrame->IsBorderCollapse() && HasBorder() &&
         emptyCellStyle == NS_STYLE_TABLE_EMPTY_CELLS_SHOW) {
       nsresult rv = aLists.BorderBackground()->AppendNewToTop(new (aBuilder)
-          nsDisplayBorder(this));
+          nsDisplayBorder(aBuilder, this));
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
@@ -493,7 +499,9 @@ nsTableCellFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       (GetStateBits() & NS_FRAME_SELECTED_CONTENT) == NS_FRAME_SELECTED_CONTENT;
     if (isSelected) {
       nsresult rv = aLists.BorderBackground()->AppendNewToTop(new (aBuilder)
-          nsDisplayGeneric(this, ::PaintTableCellSelection, "TableCellSelection"));
+          nsDisplayGeneric(aBuilder, this, ::PaintTableCellSelection,
+                           "TableCellSelection",
+                           nsDisplayItem::TYPE_TABLE_CELL_SELECTION));
       NS_ENSURE_SUCCESS(rv, rv);
     }
   }
@@ -531,38 +539,23 @@ nsTableCellFrame::GetSkipSides() const
   return skip;
 }
 
-/* virtual */ void
-nsTableCellFrame::GetSelfOverflow(nsRect& aOverflowArea)
+/* virtual */ nsMargin
+nsTableCellFrame::GetBorderOverflow()
 {
-  aOverflowArea = nsRect(nsPoint(0,0), GetSize());
+  return nsMargin(0, 0, 0, 0);
 }
 
 // Align the cell's child frame within the cell
 
 void nsTableCellFrame::VerticallyAlignChild(nscoord aMaxAscent)
 {
-  const nsStyleTextReset* textStyle = GetStyleTextReset();
   /* It's the 'border-collapse' on the table that matters */
   nsMargin borderPadding = GetUsedBorderAndPadding();
 
   nscoord topInset = borderPadding.top;
   nscoord bottomInset = borderPadding.bottom;
 
-  // As per bug 10207, we map 'sub', 'super', 'text-top', 'text-bottom', 
-  // length and percentage values to 'baseline'
-  // XXX It seems that we don't get to see length and percentage values here
-  //     because the Style System has already fixed the error and mapped them
-  //     to whatever is inherited from the parent, i.e, 'middle' in most cases.
-  PRUint8 verticalAlignFlags = NS_STYLE_VERTICAL_ALIGN_BASELINE;
-  if (textStyle->mVerticalAlign.GetUnit() == eStyleUnit_Enumerated) {
-    verticalAlignFlags = textStyle->mVerticalAlign.GetIntValue();
-    if (verticalAlignFlags != NS_STYLE_VERTICAL_ALIGN_TOP &&
-        verticalAlignFlags != NS_STYLE_VERTICAL_ALIGN_MIDDLE &&
-        verticalAlignFlags != NS_STYLE_VERTICAL_ALIGN_BOTTOM)
-    {
-      verticalAlignFlags = NS_STYLE_VERTICAL_ALIGN_BASELINE;
-    }
-  }
+  PRUint8 verticalAlignFlags = GetVerticalAlign();
 
   nscoord height = mRect.height;
   nsIFrame* firstKid = mFrames.FirstChild();
@@ -572,43 +565,46 @@ void nsTableCellFrame::VerticallyAlignChild(nscoord aMaxAscent)
 
   // Vertically align the child
   nscoord kidYTop = 0;
-  switch (verticalAlignFlags) 
+  switch (verticalAlignFlags)
   {
     case NS_STYLE_VERTICAL_ALIGN_BASELINE:
-      // Align the baselines of the child frame with the baselines of 
+      // Align the baselines of the child frame with the baselines of
       // other children in the same row which have 'vertical-align: baseline'
       kidYTop = topInset + aMaxAscent - GetCellBaseline();
     break;
 
     case NS_STYLE_VERTICAL_ALIGN_TOP:
-      // Align the top of the child frame with the top of the content area, 
+      // Align the top of the child frame with the top of the content area,
       kidYTop = topInset;
     break;
 
     case NS_STYLE_VERTICAL_ALIGN_BOTTOM:
-      // Align the bottom of the child frame with the bottom of the content area, 
+      // Align the bottom of the child frame with the bottom of the content area,
       kidYTop = height - childHeight - bottomInset;
     break;
 
     default:
     case NS_STYLE_VERTICAL_ALIGN_MIDDLE:
-      // Align the middle of the child frame with the middle of the content area, 
+      // Align the middle of the child frame with the middle of the content area,
       kidYTop = (height - childHeight - bottomInset + topInset) / 2;
   }
   // if the content is larger than the cell height align from top
-  kidYTop = PR_MAX(0, kidYTop);
+  kidYTop = NS_MAX(0, kidYTop);
 
   if (kidYTop != kidRect.y) {
     // Invalidate at the old position first
-    firstKid->InvalidateOverflowRect();
+    firstKid->InvalidateFrameSubtree();
   }
-  
+
   firstKid->SetPosition(nsPoint(kidRect.x, kidYTop));
   nsHTMLReflowMetrics desiredSize;
   desiredSize.width = mRect.width;
   desiredSize.height = mRect.height;
-  GetSelfOverflow(desiredSize.mOverflowArea);
-  ConsiderChildOverflow(desiredSize.mOverflowArea, firstKid);
+
+  nsRect overflow(nsPoint(0,0), GetSize());
+  overflow.Inflate(GetBorderOverflow());
+  desiredSize.mOverflowAreas.SetAllTo(overflow);
+  ConsiderChildOverflow(desiredSize.mOverflowAreas, firstKid);
   FinishAndStoreOverflow(&desiredSize);
   if (kidYTop != kidRect.y) {
     // Make sure any child views are correctly positioned. We know the inner table
@@ -616,37 +612,33 @@ void nsTableCellFrame::VerticallyAlignChild(nscoord aMaxAscent)
     nsContainerFrame::PositionChildViews(firstKid);
 
     // Invalidate new overflow rect
-    firstKid->InvalidateOverflowRect();
+    firstKid->InvalidateFrameSubtree();
   }
   if (HasView()) {
     nsContainerFrame::SyncFrameViewAfterReflow(PresContext(), this,
                                                GetView(),
-                                               &desiredSize.mOverflowArea, 0);
+                                               desiredSize.VisualOverflow(), 0);
   }
 }
 
-// As per bug 10207, we map 'sub', 'super', 'text-top', 'text-bottom', 
-// length and percentage values to 'baseline'
-// XXX It seems that we don't get to see length and percentage values here
-//     because the Style System has already fixed the error and mapped them
-//     to whatever is inherited from the parent, i.e, 'middle' in most cases.
-PRBool
-nsTableCellFrame::HasVerticalAlignBaseline()
+// Per CSS 2.1, we map 'sub', 'super', 'text-top', 'text-bottom',
+// length, percentage, and calc() values to 'baseline'.
+PRUint8
+nsTableCellFrame::GetVerticalAlign() const
 {
-  const nsStyleTextReset* textStyle = GetStyleTextReset();
-  if (textStyle->mVerticalAlign.GetUnit() == eStyleUnit_Enumerated) {
-    PRUint8 verticalAlignFlags = textStyle->mVerticalAlign.GetIntValue();
-    if (verticalAlignFlags == NS_STYLE_VERTICAL_ALIGN_TOP ||
-        verticalAlignFlags == NS_STYLE_VERTICAL_ALIGN_MIDDLE ||
-        verticalAlignFlags == NS_STYLE_VERTICAL_ALIGN_BOTTOM)
-    {
-      return PR_FALSE;
+  const nsStyleCoord& verticalAlign = GetStyleTextReset()->mVerticalAlign;
+  if (verticalAlign.GetUnit() == eStyleUnit_Enumerated) {
+    PRUint8 value = verticalAlign.GetIntValue();
+    if (value == NS_STYLE_VERTICAL_ALIGN_TOP ||
+        value == NS_STYLE_VERTICAL_ALIGN_MIDDLE ||
+        value == NS_STYLE_VERTICAL_ALIGN_BOTTOM) {
+      return value;
     }
   }
-  return PR_TRUE;
+  return NS_STYLE_VERTICAL_ALIGN_BASELINE;
 }
 
-PRBool 
+PRBool
 nsTableCellFrame::CellHasVisibleContent(nscoord       height,
                                         nsTableFrame* tableFrame,
                                         nsIFrame*     kidFrame)
@@ -673,7 +665,7 @@ nsTableCellFrame::CellHasVisibleContent(nscoord       height,
         return PR_TRUE;
     }
     innerFrame = innerFrame->GetNextSibling();
-  }	 
+  }	
   return PR_FALSE;
 }
 
@@ -692,34 +684,34 @@ nsTableCellFrame::GetCellBaseline() const
 }
 
 PRInt32 nsTableCellFrame::GetRowSpan()
-{  
+{
   PRInt32 rowSpan=1;
   nsGenericHTMLElement *hc = nsGenericHTMLElement::FromContent(mContent);
 
   // Don't look at the content's rowspan if we're a pseudo cell
-  if (hc && !GetStyleContext()->GetPseudoType()) {
+  if (hc && !GetStyleContext()->GetPseudo()) {
     const nsAttrValue* attr = hc->GetParsedAttr(nsGkAtoms::rowspan);
     // Note that we don't need to check the tag name, because only table cells
     // and table headers parse the "rowspan" attribute into an integer.
-    if (attr && attr->Type() == nsAttrValue::eInteger) { 
-       rowSpan = attr->GetIntegerValue(); 
+    if (attr && attr->Type() == nsAttrValue::eInteger) {
+       rowSpan = attr->GetIntegerValue();
     }
   }
   return rowSpan;
 }
 
 PRInt32 nsTableCellFrame::GetColSpan()
-{  
+{
   PRInt32 colSpan=1;
   nsGenericHTMLElement *hc = nsGenericHTMLElement::FromContent(mContent);
 
   // Don't look at the content's colspan if we're a pseudo cell
-  if (hc && !GetStyleContext()->GetPseudoType()) {
-    const nsAttrValue* attr = hc->GetParsedAttr(nsGkAtoms::colspan); 
+  if (hc && !GetStyleContext()->GetPseudo()) {
+    const nsAttrValue* attr = hc->GetParsedAttr(nsGkAtoms::colspan);
     // Note that we don't need to check the tag name, because only table cells
     // and table headers parse the "colspan" attribute into an integer.
-    if (attr && attr->Type() == nsAttrValue::eInteger) { 
-       colSpan = attr->GetIntegerValue(); 
+    if (attr && attr->Type() == nsAttrValue::eInteger) {
+       colSpan = attr->GetIntegerValue();
     }
   }
   return colSpan;
@@ -768,8 +760,8 @@ nsTableCellFrame::IntrinsicWidthOffsets(nsIRenderingContext* aRenderingContext)
 #ifdef DEBUG
 #define PROBABLY_TOO_LARGE 1000000
 static
-void DebugCheckChildSize(nsIFrame*            aChild, 
-                         nsHTMLReflowMetrics& aMet, 
+void DebugCheckChildSize(nsIFrame*            aChild,
+                         nsHTMLReflowMetrics& aMet,
                          nsSize&              aAvailSize)
 {
   if ((aMet.width < 0) || (aMet.width > PROBABLY_TOO_LARGE)) {
@@ -780,11 +772,11 @@ void DebugCheckChildSize(nsIFrame*            aChild,
 #endif
 
 // the computed height for the cell, which descendants use for percent height calculations
-// it is the height (minus border, padding) of the cell's first in flow during its final 
+// it is the height (minus border, padding) of the cell's first in flow during its final
 // reflow without an unconstrained height.
 static nscoord
 CalcUnpaginagedHeight(nsPresContext*        aPresContext,
-                      nsTableCellFrame&     aCellFrame, 
+                      nsTableCellFrame&     aCellFrame,
                       nsTableFrame&         aTableFrame,
                       nscoord               aVerticalBorderPadding)
 {
@@ -840,7 +832,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
   nsMargin border;
   GetBorderWidth(border);
   borderPadding += border;
-  
+
   nscoord topInset    = borderPadding.top;
   nscoord rightInset  = borderPadding.right;
   nscoord bottomInset = borderPadding.bottom;
@@ -874,7 +866,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
       const_cast<nsHTMLReflowState&>(aReflowState).SetComputedHeight(computedUnpaginatedHeight);
       DISPLAY_REFLOW_CHANGE();
     }
-  }      
+  }
   else {
     SetHasPctOverHeight(PR_FALSE);
   }
@@ -893,7 +885,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
   }
   // Don't propagate special height reflow state to our kids
   kidReflowState.mFlags.mSpecialHeightReflow = PR_FALSE;
-  
+
   if (aReflowState.mFlags.mSpecialHeightReflow ||
       (GetFirstInFlow()->GetStateBits() & NS_TABLE_CELL_HAD_SPECIAL_REFLOW)) {
     // We need to force the kid to have mVResize set if we've had a
@@ -904,7 +896,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
 
   nsPoint kidOrigin(leftInset, topInset);
   nsRect origRect = firstKid->GetRect();
-  nsRect origOverflowRect = firstKid->GetOverflowRect();
+  nsRect origVisualOverflow = firstKid->GetVisualOverflowRect();
   PRBool firstReflow = (firstKid->GetStateBits() & NS_FRAME_FIRST_REFLOW) != 0;
 
   ReflowChild(firstKid, aPresContext, kidSize, kidReflowState,
@@ -918,14 +910,14 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
 
   // XXXbz is this invalidate actually needed, really?
   if (GetStateBits() & NS_FRAME_IS_DIRTY) {
-    InvalidateOverflowRect();
+    InvalidateFrameSubtree();
   }
 
 #ifdef NS_DEBUG
   DebugCheckChildSize(firstKid, kidSize, availSize);
 #endif
 
-  // 0 dimensioned cells need to be treated specially in Standard/NavQuirks mode 
+  // 0 dimensioned cells need to be treated specially in Standard/NavQuirks mode
   // see testcase "emptyCells.html"
   nsIFrame* prevInFlow = GetPrevInFlow();
   PRBool isEmpty;
@@ -940,9 +932,9 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
   FinishReflowChild(firstKid, aPresContext, &kidReflowState, kidSize,
                     kidOrigin.x, kidOrigin.y, 0);
 
-  nsTableFrame::InvalidateFrame(firstKid, origRect, origOverflowRect,
+  nsTableFrame::InvalidateFrame(firstKid, origRect, origVisualOverflow,
                                 firstReflow);
-    
+
   // first, compute the height which can be set w/o being restricted by aMaxSize.height
   nscoord cellHeight = kidSize.height;
 
@@ -955,7 +947,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
 
   // factor in border and padding
   if (NS_UNCONSTRAINEDSIZE != cellWidth) {
-    cellWidth += leftInset + rightInset;    
+    cellWidth += leftInset + rightInset;
   }
 
   // set the cell's desired size and max element size
@@ -966,7 +958,7 @@ NS_METHOD nsTableCellFrame::Reflow(nsPresContext*           aPresContext,
 
   if (aReflowState.mFlags.mSpecialHeightReflow) {
     if (aDesiredSize.height > mRect.height) {
-      // set a bit indicating that the pct height contents exceeded 
+      // set a bit indicating that the pct height contents exceeded
       // the height that they could honor in the pass 2 reflow
       SetHasPctOverHeight(PR_TRUE);
     }
@@ -997,15 +989,16 @@ NS_QUERYFRAME_HEAD(nsTableCellFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsHTMLContainerFrame)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsTableCellFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsTableCellFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    return accService->CreateHTMLTableCellAccessible(static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLTableCellAccessible(mContent,
+                                                     PresContext()->PresShell());
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
 
@@ -1036,7 +1029,7 @@ NS_NewTableCellFrame(nsIPresShell*   aPresShell,
 
 NS_IMPL_FRAMEARENA_HELPERS(nsBCTableCellFrame)
 
-nsMargin* 
+nsMargin*
 nsTableCellFrame::GetBorderWidth(nsMargin&  aBorder) const
 {
   aBorder = GetStyleBorder()->GetActualBorder();
@@ -1089,6 +1082,15 @@ nsBCTableCellFrame::GetUsedBorder() const
   return result;
 }
 
+/* virtual */ PRBool
+nsBCTableCellFrame::GetBorderRadii(nscoord aRadii[8]) const
+{
+  NS_FOR_CSS_HALF_CORNERS(corner) {
+    aRadii[corner] = 0;
+  }
+  return PR_FALSE;
+}
+
 #ifdef DEBUG
 NS_IMETHODIMP
 nsBCTableCellFrame::GetFrameName(nsAString& aResult) const
@@ -1097,7 +1099,7 @@ nsBCTableCellFrame::GetFrameName(nsAString& aResult) const
 }
 #endif
 
-nsMargin* 
+nsMargin*
 nsBCTableCellFrame::GetBorderWidth(nsMargin&  aBorder) const
 {
   PRInt32 aPixelsToTwips = nsPresContext::AppUnitsPerCSSPixel();
@@ -1109,7 +1111,7 @@ nsBCTableCellFrame::GetBorderWidth(nsMargin&  aBorder) const
 }
 
 BCPixelSize
-nsBCTableCellFrame::GetBorderWidth(PRUint8 aSide) const
+nsBCTableCellFrame::GetBorderWidth(mozilla::css::Side aSide) const
 {
   switch(aSide) {
   case NS_SIDE_TOP:
@@ -1123,8 +1125,8 @@ nsBCTableCellFrame::GetBorderWidth(PRUint8 aSide) const
   }
 }
 
-void 
-nsBCTableCellFrame::SetBorderWidth(PRUint8 aSide,
+void
+nsBCTableCellFrame::SetBorderWidth(mozilla::css::Side aSide,
                                    BCPixelSize aValue)
 {
   switch(aSide) {
@@ -1142,8 +1144,8 @@ nsBCTableCellFrame::SetBorderWidth(PRUint8 aSide,
   }
 }
 
-/* virtual */ void
-nsBCTableCellFrame::GetSelfOverflow(nsRect& aOverflowArea)
+/* virtual */ nsMargin
+nsBCTableCellFrame::GetBorderOverflow()
 {
   nsMargin halfBorder;
   PRInt32 p2t = nsPresContext::AppUnitsPerCSSPixel();
@@ -1151,17 +1153,15 @@ nsBCTableCellFrame::GetSelfOverflow(nsRect& aOverflowArea)
   halfBorder.right = BC_BORDER_RIGHT_HALF_COORD(p2t, mRightBorder);
   halfBorder.bottom = BC_BORDER_BOTTOM_HALF_COORD(p2t, mBottomBorder);
   halfBorder.left = BC_BORDER_LEFT_HALF_COORD(p2t, mLeftBorder);
-
-  nsRect overflow(nsPoint(0,0), GetSize());
-  overflow.Inflate(halfBorder);
-  aOverflowArea = overflow;
+  return halfBorder;
 }
 
 
 void
 nsBCTableCellFrame::PaintBackground(nsIRenderingContext& aRenderingContext,
                                     const nsRect&        aDirtyRect,
-                                    nsPoint              aPt)
+                                    nsPoint              aPt,
+                                    PRUint32             aFlags)
 {
   // make border-width reflect the half of the border-collapse
   // assigned border that's inside the cell
@@ -1169,6 +1169,11 @@ nsBCTableCellFrame::PaintBackground(nsIRenderingContext& aRenderingContext,
   GetBorderWidth(borderWidth);
 
   nsStyleBorder myBorder(*GetStyleBorder());
+  // We're making an ephemeral stack copy here, so just copy this debug-only
+  // member to prevent assertions.
+#ifdef DEBUG
+  myBorder.mImageTracked = GetStyleBorder()->mImageTracked;
+#endif
 
   NS_FOR_CSS_SIDES(side) {
     myBorder.SetBorderWidth(side, borderWidth.side(side));
@@ -1179,6 +1184,10 @@ nsBCTableCellFrame::PaintBackground(nsIRenderingContext& aRenderingContext,
   // of frame cannot be used for the root element
   nsCSSRendering::PaintBackgroundWithSC(PresContext(), aRenderingContext, this,
                                         aDirtyRect, rect,
-                                        *GetStyleBackground(), myBorder,
-                                        0, nsnull);
+                                        GetStyleContext(), myBorder,
+                                        aFlags, nsnull);
+
+#ifdef DEBUG
+  myBorder.mImageTracked = false;
+#endif
 }

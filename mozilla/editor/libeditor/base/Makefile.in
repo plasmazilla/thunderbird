@@ -50,25 +50,6 @@ MODULE		= editor
 LIBRARY_NAME	= editorbase_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  locale \
-		  layout \
-		  content \
-		  txmgr \
-		  txtsvc \
-		  htmlparser \
-		  necko \
-		  pref \
-		  view \
-		  gfx \
-		  thebes \
-		  widget \
-		  unicharutil \
-		  commandhandler \
-		  docshell \
-		  $(NULL)
 
 # Internal header files, needed by other editor sublibs:
 INTERNAL_HDR_DIR = ../internal
@@ -77,6 +58,7 @@ CPPSRCS		=                           \
 		nsEditor.cpp                \
 		nsEditorCommands.cpp        \
 		nsEditorController.cpp      \
+		nsEditorEventListener.cpp   \
 		nsEditorUtils.cpp           \
 		nsSelectionState.cpp        \
 		$(NULL)
@@ -108,6 +90,8 @@ FORCE_STATIC_LIB = 1
 include $(topsrcdir)/config/rules.mk
 
 INCLUDES	+= \
+		-I$(topsrcdir)/editor/libeditor/text \
 		-I$(topsrcdir)/content/base/src \
+		-I$(topsrcdir)/content/events/src \
 		-I$(topsrcdir)/layout/style \
 		$(NULL)

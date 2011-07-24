@@ -41,6 +41,7 @@
 #include "nscore.h"
 #include "nsISupports.h"
 #include "nsTArray.h"
+#include "prenv.h"
 #include "prprf.h"
 #include "prlog.h"
 #include "plstr.h"
@@ -52,7 +53,6 @@
 #include "nsStackWalk.h"
 #include "nsString.h"
 
-#ifdef MOZ_IPC
 #include "nsXULAppAPI.h"
 #ifdef XP_WIN
 #include <process.h>
@@ -60,11 +60,14 @@
 #else
 #include <unistd.h>
 #endif
+
+#ifdef NS_TRACE_MALLOC
+#include "nsTraceMalloc.h"
 #endif
 
 #include "mozilla/BlockingResourceBase.h"
 
-#ifdef HAVE_LIBDL
+#ifdef HAVE_DLOPEN
 #include <dlfcn.h>
 #endif
 
@@ -99,6 +102,8 @@ NS_MeanAndStdDev(double n, double sumOfValues, double sumOfSquaredValues,
 
 #include "prlock.h"
 
+// TraceRefcnt has to use bare PRLock instead of mozilla::Mutex
+// because TraceRefcnt can be used very early in startup.
 static PRLock* gTraceLock;
 
 #define LOCK_TRACELOG()   PR_Lock(gTraceLock)
@@ -152,10 +157,29 @@ struct nsTraceRefcntStats {
 };
 
   // I hope to turn this on for everybody once we hit it a little less.
-#define ASSERT_ACTIVITY_IS_LEGAL                                             \
-  NS_WARN_IF_FALSE(gActivityTLS != BAD_TLS_INDEX &&                          \
-             NS_PTR_TO_INT32(PR_GetThreadPrivate(gActivityTLS)) == 0,        \
-             "XPCOM objects created/destroyed from static ctor/dtor");
+#ifdef DEBUG
+static const char kStaticCtorDtorWarning[] =
+  "XPCOM objects created/destroyed from static ctor/dtor";
+
+static void
+AssertActivityIsLegal()
+{
+  if (gActivityTLS == BAD_TLS_INDEX ||
+      NS_PTR_TO_INT32(PR_GetThreadPrivate(gActivityTLS)) != 0) {
+    if (PR_GetEnv("MOZ_FATAL_STATIC_XPCOM_CTORS_DTORS")) {
+      NS_RUNTIMEABORT(kStaticCtorDtorWarning);
+    } else {
+      NS_WARNING(kStaticCtorDtorWarning);
+    }
+  }
+}
+#  define ASSERT_ACTIVITY_IS_LEGAL              \
+  PR_BEGIN_MACRO                                \
+    AssertActivityIsLegal();                    \
+  PR_END_MACRO
+#else
+#  define ASSERT_ACTIVITY_IS_LEGAL PR_BEGIN_MACRO PR_END_MACRO
+#endif  // DEBUG
 
 // These functions are copied from nsprpub/lib/ds/plhash.c, with changes
 // to the functions not called Default* to free the serialNumberRecord or
@@ -332,12 +356,8 @@ public:
   }
 
   PRBool PrintDumpHeader(FILE* out, const char* msg, nsTraceRefcntImpl::StatisticsType type) {
-#ifdef MOZ_IPC
     fprintf(out, "\n== BloatView: %s, %s process %d\n", msg,
             XRE_ChildProcessTypeToString(XRE_GetProcessType()), getpid());
-#else
-    fprintf(out, "\n== BloatView: %s\n", msg);
-#endif
     nsTraceRefcntStats& stats =
       (type == nsTraceRefcntImpl::NEW_STATS) ? mNewStats : mAllStats;
     if (gLogLeaksOnly && !HaveLeaks(&stats))
@@ -572,10 +592,6 @@ static PRBool LogThisType(const char* aTypeName)
 
 static PRInt32 GetSerialNumber(void* aPtr, PRBool aCreate)
 {
-#ifdef GC_LEAK_DETECTOR
-  // need to disguise this pointer, so the table won't keep the object alive.
-  aPtr = (void*) ~PLHashNumber(aPtr);
-#endif
   PLHashEntry** hep = PL_HashTableRawLookup(gSerialNumbers, PLHashNumber(NS_PTR_TO_INT32(aPtr)), aPtr);
   if (hep && *hep) {
     return PRInt32((reinterpret_cast<serialNumberRecord*>((*hep)->value))->serialNumber);
@@ -595,10 +611,6 @@ static PRInt32 GetSerialNumber(void* aPtr, PRBool aCreate)
 
 static PRInt32* GetRefCount(void* aPtr)
 {
-#ifdef GC_LEAK_DETECTOR
-  // need to disguise this pointer, so the table won't keep the object alive.
-  aPtr = (void*) ~PLHashNumber(aPtr);
-#endif
   PLHashEntry** hep = PL_HashTableRawLookup(gSerialNumbers, PLHashNumber(NS_PTR_TO_INT32(aPtr)), aPtr);
   if (hep && *hep) {
     return &((reinterpret_cast<serialNumberRecord*>((*hep)->value))->refCount);
@@ -609,10 +621,6 @@ static PRInt32* GetRefCount(void* aPtr)
 
 static PRInt32* GetCOMPtrCount(void* aPtr)
 {
-#ifdef GC_LEAK_DETECTOR
-  // need to disguise this pointer, so the table won't keep the object alive.
-  aPtr = (void*) ~PLHashNumber(aPtr);
-#endif
   PLHashEntry** hep = PL_HashTableRawLookup(gSerialNumbers, PLHashNumber(NS_PTR_TO_INT32(aPtr)), aPtr);
   if (hep && *hep) {
     return &((reinterpret_cast<serialNumberRecord*>((*hep)->value))->COMPtrCount);
@@ -623,10 +631,6 @@ static PRInt32* GetCOMPtrCount(void* aPtr)
 
 static void RecycleSerialNumberPtr(void* aPtr)
 {
-#ifdef GC_LEAK_DETECTOR
-  // need to disguise this pointer, so the table won't keep the object alive.
-  aPtr = (void*) ~PLHashNumber(aPtr);
-#endif
   PL_HashTableRemove(gSerialNumbers, aPtr);
 }
 
@@ -660,7 +664,6 @@ static PRBool InitLog(const char* envVar, const char* msg, FILE* *result)
     else {
       FILE *stream;
       nsCAutoString fname(value);
-#ifdef MOZ_IPC
       if (XRE_GetProcessType() != GeckoProcessType_Default) {
         bool hasLogExtension = 
             fname.RFind(".log", PR_TRUE, -1, 4) == kNotFound ? false : true;
@@ -673,7 +676,6 @@ static PRBool InitLog(const char* envVar, const char* msg, FILE* *result)
         if (hasLogExtension)
           fname.AppendLiteral(".log");
       }
-#endif
       stream = ::fopen(fname.get(), "w" FOPEN_NO_INHERIT);
       if (stream != NULL) {
         *result = stream;
@@ -722,7 +724,7 @@ static void InitTraceLog(void)
   if (defined) {
     gLogToLeaky = PR_TRUE;
     PRFuncPtr p = nsnull, q = nsnull;
-#ifdef HAVE_LIBDL
+#ifdef HAVE_DLOPEN
     {
       PRLibrary *lib = nsnull;
       p = PR_FindFunctionSymbolAndLibrary("__log_addref", &lib);
@@ -872,7 +874,7 @@ static void PrintStackFrame(void *aPC, void *aClosure)
 
   NS_DescribeCodeAddress(aPC, &details);
   NS_FormatCodeAddressDetails(aPC, &details, buf, sizeof(buf));
-  fprintf(stream, buf);
+  fputs(buf, stream);
 }
 
 }
@@ -924,6 +926,13 @@ NS_LogInit()
 #ifdef NS_IMPL_REFCNT_LOGGING
   if (++gInitCount)
     nsTraceRefcntImpl::SetActivityIsLegal(PR_TRUE);
+#endif
+
+#ifdef NS_TRACE_MALLOC
+  // XXX we don't have to worry about shutting down trace-malloc; it
+  // handles this itself, through an atexit() callback.
+  if (!NS_TraceMallocHasStarted())
+    NS_TraceMallocStartup(-1);  // -1 == no logging
 #endif
 }
 
@@ -989,7 +998,7 @@ NS_LogAddRef(void* aPtr, nsrefcnt aRefcnt,
       }
     }
 
-    // Here's the case where neither NS_NEWXPCOM nor MOZ_COUNT_CTOR were used,
+    // Here's the case where MOZ_COUNT_CTOR was not used,
     // yet we still want to see creation information:
 
     PRBool loggingThisType = (!gTypesToLog || LogThisType(aClazz));
@@ -1073,7 +1082,7 @@ NS_LogRelease(void* aPtr, nsrefcnt aRefcnt, const char* aClazz)
       }
     }
 
-    // Here's the case where neither NS_DELETEXPCOM nor MOZ_COUNT_DTOR were used,
+    // Here's the case where MOZ_COUNT_DTOR was not used,
     // yet we still want to see deletion information:
 
     if (aRefcnt == 0 && gAllocLog && loggingThisType && loggingThisObject) {

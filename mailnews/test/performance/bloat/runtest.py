@@ -15,7 +15,7 @@
 # The Original Code is Mail Bloat Test.
 #
 # The Initial Developer of the Original Code is
-# Mozilla Messaging.
+# the Mozilla Foundation.
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
 #
@@ -45,12 +45,8 @@ import sys
 import os
 import shutil
 
-# The try case handles trunk. The exception case handles MOZILLA_1_9_2_BRANCH.
-try:
-    from automation import Automation
-    automation = Automation()
-except ImportError:
-    import automation
+from automation import Automation
+automation = Automation()
 
 from automationutils import checkForCrashes
 
@@ -118,7 +114,8 @@ if automation.IS_MAC:
 else:
   EXECUTABLE = options.bin
 BIN = os.path.join(BINDIR, EXECUTABLE)
-PROFILE = os.path.join(DISTDIR, '..', '_leaktest', 'leakprofile')
+EXTENSIONDIR = os.path.join(DISTDIR, '..', '_tests', 'mailbloat', 'mailbloat')
+PROFILE = os.path.join(DISTDIR, '..', '_tests', 'mailbloat', 'leakprofile')
 print BIN
 print EXECUTABLE
 
@@ -146,13 +143,7 @@ COMMANDS = [
     'args': ['-CreateProfile', 'bloat ' + PROFILE],
   },
   {
-   'name': 'setupTests',
-   'bin':  sys.executable,
-   'args': ['setUpBloatTest.py',
-            '--profile-dir=' + PROFILE,
-            '--binary-dir=' + BINDIR,
-           ],
-    'cwd': SCRIPTDIR,
+    'name': 'setupProfile'
   },
   {
    'name': 'bloatTests',
@@ -167,16 +158,6 @@ COMMANDS = [
            ],
    'env': {'XPCOM_MEM_BLOAT_LOG': 'trace-bloat.log'},
   },
-  {
-   'name': 'cleanup tests',
-   'bin':  sys.executable,
-   'args': ['setUpBloatTest.py',
-            '--profile-dir=' + PROFILE,
-            '--binary-dir=' + BINDIR,
-            '--cleanup'
-           ],
-    'cwd': SCRIPTDIR,
-  }
 ]
 
 
@@ -186,6 +167,11 @@ for cmd in COMMANDS:
   if 'cwd' in cmd:
     cwd = cmd['cwd']
   os.chdir(cwd)
+
+  if cmd['name'] == 'setupProfile':
+      automation.installExtension(EXTENSIONDIR, PROFILE, "mailbloat@mozilla.org")
+      print "Hello"
+      continue
 
   # Set up the environment
   mailnewsEnv = defaultEnv

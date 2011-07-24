@@ -82,9 +82,16 @@ enum nsChangeHint {
    */
   nsChangeHint_UpdateEffects = 0x80,
 
+  /**
+   * Visual change only, but the change can be handled entirely by
+   * updating the layer(s) for the frame.
+   */
+  nsChangeHint_UpdateOpacityLayer = 0x100,
+  nsChangeHint_UpdateTransformLayer = 0x200,
+
   // change requires frame change (e.g., display:).
   // This subsumes all the above.
-  nsChangeHint_ReconstructFrame = 0x100
+  nsChangeHint_ReconstructFrame = 0x400
 };
 
 // Redefine these operators to return nothing. This will catch any use
@@ -139,13 +146,14 @@ inline PRBool NS_IsHintSubset(nsChangeHint aSubset, nsChangeHint aSuperSet) {
   nsChangeHint(NS_STYLE_HINT_REFLOW | nsChangeHint_ReconstructFrame)
 
 /**
- * |nsReStyleHint| is a bitfield for the result of |HasStateDependentStyle|
- * and |HasAttributeDependentStyle|.  All values have an implied "and
- * descendants."  When no restyling is necessary, use |nsReStyleHint(0)|.
+ * |nsRestyleHint| is a bitfield for the result of
+ * |HasStateDependentStyle| and |HasAttributeDependentStyle|.  When no
+ * restyling is necessary, use |nsRestyleHint(0)|.
  */
-enum nsReStyleHint {
-  eReStyle_Self = 0x1,
-  eReStyle_LaterSiblings = 0x2
+enum nsRestyleHint {
+  eRestyle_Self = 0x1,
+  eRestyle_Subtree = 0x2, /* self and descendants */
+  eRestyle_LaterSiblings = 0x4 /* implies "and descendants" */
 };
 
 

@@ -45,26 +45,6 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= content
 LIBRARY_NAME	= gkconevents_s
 LIBXUL_LIBRARY  = 1
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  js \
-		  locale \
-		  gfx \
-		  thebes \
-		  layout \
-		  widget \
-		  caps \
-		  xpconnect \
-		  webshell \
-		  docshell \
-		  pref \
-		  view \
-		  necko \
-		  unicharutil \
-		  imglib2 \
-		  editor \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsEventListenerManager.cpp \
@@ -98,18 +78,30 @@ CPPSRCS		= \
 		nsDOMProgressEvent.cpp \
 		nsDOMDataTransfer.cpp \
 		nsDOMNotifyPaintEvent.cpp \
+		nsDOMNotifyAudioAvailableEvent.cpp \
 		nsDOMSimpleGestureEvent.cpp \
+		nsDOMMozTouchEvent.cpp \
 		nsDOMEventTargetHelper.cpp \
 		nsDOMScrollAreaEvent.cpp \
+		nsDOMTransitionEvent.cpp \
+		nsDOMPopStateEvent.cpp \
+		nsDOMCloseEvent.cpp \
 		$(NULL)
+
+ifdef MOZ_CSS_ANIMATIONS
+CPPSRCS		+= nsDOMAnimationEvent.cpp 
+endif
 
 # we don't want the shared lib, but we want to force the creation of a static lib.
 FORCE_STATIC_LIB = 1
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
-LOCAL_INCLUDES	= \
+LOCAL_INCLUDES	+= \
              -I$(srcdir)/../../base/src \
+             -I$(srcdir)/../../html/content/src \
              -I$(srcdir)/../../html/base/src \
              -I$(srcdir)/../../xul/content/src \
              -I$(srcdir)/../../xml/content/src \

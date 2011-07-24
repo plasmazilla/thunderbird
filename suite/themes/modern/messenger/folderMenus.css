@@ -90,6 +90,14 @@
   list-style-image: url("chrome://messenger/skin/icons/folder-template-open.gif");
 }
 
+.folderMenuItem[SpecialFolder="Outbox"] {
+  list-style-image: url("chrome://messenger/skin/icons/folder-outbox.gif");
+}
+
+.folderMenuItem[SpecialFolder="Outbox"][open="true"] {
+  list-style-image: url("chrome://messenger/skin/icons/folder-outbox-open.gif");
+}
+
 .folderMenuItem[SpecialFolder="Junk"] {
   list-style-image: url("chrome://messenger/skin/icons/folder-junk.gif");
 }

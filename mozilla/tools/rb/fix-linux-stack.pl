@@ -243,9 +243,6 @@ sub addr2line_pipe($) {
     return $pipe;
 }
 
-# Ignore SIGPIPE as a workaround for addr2line crashes in some situations.
-$SIG{PIPE} = 'IGNORE';
-
 select STDOUT; $| = 1; # make STDOUT unbuffered
 while (<>) {
     my $line = $_;
@@ -265,10 +262,8 @@ while (<>) {
             printf {$out} "0x%X\n", $address;
             chomp(my $symbol = <$in>);
             chomp(my $fileandline = <$in>);
-            if (!$symbol || $symbol eq '??') { $symbol = $badsymbol; }
-            if (!$fileandline || $fileandline eq '??:0') {
-                $fileandline = $file;
-            }
+            if ($symbol eq '??') { $symbol = $badsymbol; }
+            if ($fileandline eq '??:0') { $fileandline = $file; }
             print "$before$symbol ($fileandline)$after\n";
         } else {
             print STDERR "Warning: File \"$file\" does not exist.\n";

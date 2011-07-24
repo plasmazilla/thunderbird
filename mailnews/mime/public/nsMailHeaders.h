@@ -112,6 +112,8 @@
 #define HEADER_PARM_TYPE                    "TYPE"
 
 #define HEADER_X_MOZILLA_PART_URL           "X-Mozilla-PartURL"
+#define HEADER_X_MOZILLA_PART_SIZE          "X-Mozilla-PartSize"
+#define HEADER_X_MOZILLA_PART_DOWNLOADED    "X-Mozilla-PartDownloaded"
 #define HEADER_X_MOZILLA_IDENTITY_KEY       "X-Identity-Key"
 #define HEADER_X_MOZILLA_ACCOUNT_KEY       "X-Account-Key"
 #define HEADER_X_MOZILLA_KEYWORDS          "X-Mozilla-Keys"

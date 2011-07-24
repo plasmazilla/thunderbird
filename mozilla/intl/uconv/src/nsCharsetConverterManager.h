@@ -41,16 +41,12 @@
 #include "nsICharsetConverterManager.h"
 #include "nsIStringBundle.h"
 #include "nsInterfaceHashtable.h"
+#include "mozilla/Mutex.h"
 
-#ifdef MOZ_USE_NATIVE_UCONV
-#include "nsINativeUConvService.h"
-#endif
-
-class nsCharsetConverterManager : public nsICharsetConverterManager_1_9_BRANCH
+class nsCharsetConverterManager : public nsICharsetConverterManager
 {
   NS_DECL_ISUPPORTS
   NS_DECL_NSICHARSETCONVERTERMANAGER
-  NS_DECL_NSICHARSETCONVERTERMANAGER_1_9_BRANCH
 
 public:
 
@@ -62,16 +58,8 @@ private:
   nsIStringBundle * mDataBundle;
   nsIStringBundle * mTitleBundle;
 
-#ifdef MOZ_USE_NATIVE_UCONV
-  nsCOMPtr<nsINativeUConvService> mNativeUC;
-#endif
-
   nsresult LoadExtensibleBundle(const char * aRegistryKey, 
       nsIStringBundle ** aResult);
-
-  static nsresult RegisterConverterCategory(nsICategoryManager*,
-                                            const char* aCategory,
-                                            const char* aURL);
 
   nsresult GetBundleValue(nsIStringBundle * aBundle,
                           const char * aName, 
@@ -83,10 +71,6 @@ private:
   nsresult GetList(const nsACString& aCategory,
                    const nsACString& aPrefix,
                    nsIUTF8StringEnumerator** aResult);
-
-public:
-  static nsresult RegisterConverterManagerData();
-
 };
 
 #endif // nsCharsetConverterManager_h__

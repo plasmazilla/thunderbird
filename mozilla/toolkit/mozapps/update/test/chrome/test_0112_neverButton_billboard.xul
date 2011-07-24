@@ -44,8 +44,7 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=major" +
-            getVersionParams();
+  let url = URL_UPDATE + "?showBillboard=1&showNever=1" + getVersionParams();
   setUpdateURLOverride(url);
 
   // add the never preference for this version to verify that checking for

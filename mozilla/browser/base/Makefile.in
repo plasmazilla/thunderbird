@@ -56,12 +56,13 @@ endif
 EXTRA_JS_MODULES = \
 	content/openLocationLastURL.jsm \
 	content/NetworkPrioritizer.jsm \
+	content/domplate.jsm \
+	content/stylePanel.jsm \
 	$(NULL)
 
 include $(topsrcdir)/config/rules.mk
 
-PRE_RELEASE_SUFFIX := $(shell $(PYTHON) $(topsrcdir)/config/printprereleasesuffix.py \
-                        $(shell cat $(srcdir)/../config/version.txt))
+PRE_RELEASE_SUFFIX := ""
 
 DEFINES += \
 	-DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
@@ -69,16 +70,23 @@ DEFINES += \
 	-DPRE_RELEASE_SUFFIX="$(PRE_RELEASE_SUFFIX)" \
 	$(NULL)
 
-ifneq (,$(filter windows gtk2 mac cocoa, $(MOZ_WIDGET_TOOLKIT)))
+ifneq (,$(filter windows gtk2 cocoa, $(MOZ_WIDGET_TOOLKIT)))
 DEFINES += -DHAVE_SHELL_SERVICE=1
 endif
 
-ifdef MOZ_UPDATER
-DEFINES += -DMOZ_UPDATER=1
-endif
-
-ifneq (,$(filter windows mac cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
+ifneq (,$(filter windows cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
 ifneq ($(OS_ARCH),WINCE)
 DEFINES += -DCONTEXT_COPY_IMAGE_CONTENTS=1
 endif
 endif
+
+ifneq (,$(filter windows, $(MOZ_WIDGET_TOOLKIT)))
+DEFINES += -DCAN_DRAW_IN_TITLEBAR=1
+endif
+
+ifneq (,$(filter windows gtk2, $(MOZ_WIDGET_TOOLKIT)))
+DEFINES += -DMENUBAR_CAN_AUTOHIDE=1
+endif
+
+libs::
+	$(NSINSTALL) $(srcdir)/content/tabview/modules/* $(FINAL_TARGET)/modules/tabview

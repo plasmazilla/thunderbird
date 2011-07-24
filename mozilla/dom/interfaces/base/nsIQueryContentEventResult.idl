@@ -59,4 +59,3 @@ interface nsIQueryContentEventResult : nsISupports
   readonly attribute boolean succeeded;
   readonly attribute boolean notFound;
 };
-

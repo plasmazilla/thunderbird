@@ -41,11 +41,14 @@
 #ifndef __nsWindow_h__
 #define __nsWindow_h__
 
+#include <QKeyEvent>
+#include <qgraphicswidget.h>
+#include <QTime>
+
 #include "nsAutoPtr.h"
 
 #include "nsBaseWidget.h"
 #include "nsGUIEvent.h"
-#include <QKeyEvent>
 
 #include "nsWeakReference.h"
 
@@ -95,8 +98,11 @@ extern PRLogModuleInfo *gWidgetDrawLog;
 #endif /* MOZ_LOGGING */
 
 class QEvent;
+class QGraphicsView;
 
 class MozQWidget;
+
+class nsIdleService;
 
 class nsWindow : public nsBaseWidget,
                  public nsSupportsWeakReference
@@ -104,6 +110,8 @@ class nsWindow : public nsBaseWidget,
 public:
     nsWindow();
     virtual ~nsWindow();
+
+    nsEventStatus DoPaint( QPainter* aPainter, const QStyleOptionGraphicsItem * aOption, QWidget* aWidget);
 
     static void ReleaseGlobals();
 
@@ -123,9 +131,20 @@ public:
                               nsIAppShell      *aAppShell,
                               nsIToolkit       *aToolkit,
                               nsWidgetInitData *aInitData);
+
+    virtual already_AddRefed<nsIWidget>
+    CreateChild(const nsIntRect&  aRect,
+                EVENT_CALLBACK    aHandleEventFunction,
+                nsIDeviceContext* aContext,
+                nsIAppShell*      aAppShell = nsnull,
+                nsIToolkit*       aToolkit = nsnull,
+                nsWidgetInitData* aInitData = nsnull,
+                PRBool            aForceUseIWidgetParent = PR_TRUE);
+
     NS_IMETHOD         Destroy(void);
     NS_IMETHOD         SetParent(nsIWidget* aNewParent);
     virtual nsIWidget *GetParent(void);
+    virtual float      GetDPI();
     NS_IMETHOD         Show(PRBool aState);
     NS_IMETHOD         SetModal(PRBool aModal);
     NS_IMETHOD         IsVisible(PRBool & aState);
@@ -142,7 +161,6 @@ public:
                               PRInt32 aWidth,
                               PRInt32 aHeight,
                               PRBool   aRepaint);
-    NS_IMETHOD         SetZIndex(PRInt32 aZIndex);
     NS_IMETHOD         PlaceBehind(nsTopLevelWidgetZPlacement  aPlacement,
                                    nsIWidget                  *aWidget,
                                    PRBool                      aActivate);
@@ -159,14 +177,9 @@ public:
     NS_IMETHOD         GetHasTransparentBackground(PRBool& aTransparent);
     NS_IMETHOD         HideWindowChrome(PRBool aShouldHide);
     NS_IMETHOD         MakeFullScreen(PRBool aFullScreen);
-    NS_IMETHOD         Validate();
-    NS_IMETHOD         Invalidate(PRBool aIsSynchronous);
     NS_IMETHOD         Invalidate(const nsIntRect &aRect,
                                   PRBool        aIsSynchronous);
     NS_IMETHOD         Update();
-    void               Scroll(const nsIntPoint&,
-                              const nsIntRect&,
-                              const nsTArray<nsIWidget::Configuration>&);
 
     virtual void*      GetNativeData(PRUint32 aDataType);
     NS_IMETHOD         SetTitle(const nsAString& aTitle);
@@ -177,6 +190,7 @@ public:
     NS_IMETHOD         EnableDragDrop(PRBool aEnable);
     NS_IMETHOD         CaptureMouse(PRBool aCapture);
     NS_IMETHOD         CaptureRollupEvents(nsIRollupListener *aListener,
+                                           nsIMenuRollup *aMenuRollup,
                                            PRBool aDoCapture,
                                            PRBool aConsumeRollupEvent);
 
@@ -185,12 +199,12 @@ public:
     NS_IMETHOD         GetAttention(PRInt32 aCycleCount);
     NS_IMETHOD         BeginResizeDrag   (nsGUIEvent* aEvent, PRInt32 aHorizontal, PRInt32 aVertical);
 
+    NS_IMETHODIMP      SetInputMode(const IMEContext& aContext);
+    NS_IMETHODIMP      GetInputMode(IMEContext& aContext);
+
     //
     // utility methods
     //
-
-    qint32             ConvertBorderStyles(nsBorderStyle aStyle);
-
     void               QWidgetDestroyed();
 
     /***** from CommonWidget *****/
@@ -199,6 +213,8 @@ public:
 
     void DispatchActivateEvent(void);
     void DispatchDeactivateEvent(void);
+    void DispatchActivateEventOnTopLevelWindow(void);
+    void DispatchDeactivateEventOnTopLevelWindow(void);
     void DispatchResizeEvent(nsIntRect &aRect, nsEventStatus &aStatus);
 
     nsEventStatus DispatchEvent(nsGUIEvent *aEvent) {
@@ -216,6 +232,10 @@ public:
     // called to check and see if a widget's dimensions are sane
     PRBool AreBoundsSane(void);
 
+    NS_IMETHOD         ReparentNativeWidget(nsIWidget* aNewParent);
+
+    QWidget* GetViewWidget();
+
 protected:
     nsCOMPtr<nsIWidget> mParent;
     // Is this a toplevel window?
@@ -231,6 +251,12 @@ protected:
     // shouldn't be automatically set to 0,0 for first show.
     PRBool              mPlaced;
 
+    // Remember the last sizemode so that we can restore it when
+    // leaving fullscreen
+    nsSizeMode         mLastSizeMode;
+
+    IMEContext          mIMEContext;
+
     /**
      * Event handlers (proxied from the actual qwidget).
      * They follow normal Qt widget semantics.
@@ -240,34 +266,40 @@ protected:
     friend class InterceptContainer;
     friend class MozQWidget;
 
-    virtual nsEventStatus OnPaintEvent(QPaintEvent *);
-    virtual nsEventStatus OnMoveEvent(QMoveEvent *);
-    virtual nsEventStatus OnResizeEvent(QResizeEvent *);
+    virtual nsEventStatus OnMoveEvent(QGraphicsSceneHoverEvent *);
+    virtual nsEventStatus OnResizeEvent(QGraphicsSceneResizeEvent *);
     virtual nsEventStatus OnCloseEvent(QCloseEvent *);
-    virtual nsEventStatus OnEnterNotifyEvent(QEvent *);
-    virtual nsEventStatus OnLeaveNotifyEvent(QEvent *);
-    virtual nsEventStatus OnMotionNotifyEvent(QMouseEvent *);
-    virtual nsEventStatus OnButtonPressEvent(QMouseEvent *);
-    virtual nsEventStatus OnButtonReleaseEvent(QMouseEvent *);
-    virtual nsEventStatus mouseDoubleClickEvent(QMouseEvent *);
-    virtual nsEventStatus OnFocusInEvent(QFocusEvent *);
-    virtual nsEventStatus OnFocusOutEvent(QFocusEvent *);
+    virtual nsEventStatus OnEnterNotifyEvent(QGraphicsSceneHoverEvent *);
+    virtual nsEventStatus OnLeaveNotifyEvent(QGraphicsSceneHoverEvent *);
+    virtual nsEventStatus OnMotionNotifyEvent(QPointF, Qt::KeyboardModifiers);
+    virtual nsEventStatus OnButtonPressEvent(QGraphicsSceneMouseEvent *);
+    virtual nsEventStatus OnButtonReleaseEvent(QGraphicsSceneMouseEvent *);
+    virtual nsEventStatus OnMouseDoubleClickEvent(QGraphicsSceneMouseEvent *);
+    virtual nsEventStatus OnFocusInEvent(QEvent *);
+    virtual nsEventStatus OnFocusOutEvent(QEvent *);
     virtual nsEventStatus OnKeyPressEvent(QKeyEvent *);
     virtual nsEventStatus OnKeyReleaseEvent(QKeyEvent *);
-    virtual nsEventStatus OnScrollEvent(QWheelEvent *);
+    virtual nsEventStatus OnScrollEvent(QGraphicsSceneWheelEvent *);
 
-    virtual nsEventStatus contextMenuEvent(QContextMenuEvent *);
-    virtual nsEventStatus imStartEvent(QEvent *);
-    virtual nsEventStatus imComposeEvent(QEvent *);
-    virtual nsEventStatus imEndEvent(QEvent *);
-    virtual nsEventStatus OnDragEnter (QDragEnterEvent *);
-    virtual nsEventStatus OnDragMotionEvent(QDragMoveEvent *);
-    virtual nsEventStatus OnDragLeaveEvent(QDragLeaveEvent *);
-    virtual nsEventStatus OnDragDropEvent (QDropEvent *);
+    virtual nsEventStatus contextMenuEvent(QGraphicsSceneContextMenuEvent *);
+    virtual nsEventStatus imComposeEvent(QInputMethodEvent *, PRBool &handled);
+    virtual nsEventStatus OnDragEnter (QGraphicsSceneDragDropEvent *);
+    virtual nsEventStatus OnDragMotionEvent(QGraphicsSceneDragDropEvent *);
+    virtual nsEventStatus OnDragLeaveEvent(QGraphicsSceneDragDropEvent *);
+    virtual nsEventStatus OnDragDropEvent (QGraphicsSceneDragDropEvent *);
     virtual nsEventStatus showEvent(QShowEvent *);
     virtual nsEventStatus hideEvent(QHideEvent *);
 
-    nsEventStatus         OnWindowStateEvent(QEvent *aEvent);
+//Gestures are only supported in qt > 4.6
+#if (QT_VERSION >= QT_VERSION_CHECK(4, 6, 0))
+    virtual nsEventStatus OnTouchEvent(QTouchEvent *event, PRBool &handled);
+
+    virtual nsEventStatus OnGestureEvent(QGestureEvent *event, PRBool &handled);
+    nsEventStatus DispatchGestureEvent(PRUint32 aMsg, PRUint32 aDirection,
+                                       double aDelta, const nsIntPoint& aRefPoint);
+
+    double DistanceBetweenPoints(const QPointF &aFirstPoint, const QPointF &aSecondPoint);
+#endif
 
     void               NativeResize(PRInt32 aWidth,
                                     PRInt32 aHeight,
@@ -288,31 +320,45 @@ protected:
     };
 
     void               SetPluginType(PluginType aPluginType);
-    void               SetNonXEmbedPluginFocus(void);
-    void               LoseNonXEmbedPluginFocus(void);
 
     void               ThemeChanged(void);
 
-   gfxASurface        *GetThebesSurface();
+    gfxASurface*       GetThebesSurface();
 
 private:
-    void               GetToplevelWidget(QWidget **aWidget);
-    void               SetUrgencyHint(QWidget *top_window, PRBool state);
-    void              *SetupPluginPort(void);
+    typedef struct {
+        QPointF centerPoint;
+        QPointF touchPoint;
+        double delta;
+        bool needDispatch;
+        double startDistance;
+        double prevDistance;
+    } MozCachedTouchEvent;
+
+    typedef struct {
+        QPointF pos;
+        Qt::KeyboardModifiers modifiers;
+        bool needDispatch;
+    } MozCachedMoveEvent;
+
+    void*              SetupPluginPort(void);
     nsresult           SetWindowIconList(const nsTArray<nsCString> &aIconList);
     void               SetDefaultIcon(void);
-    void               InitButtonEvent(nsMouseEvent &event, QMouseEvent *aEvent, int aClickCount = 1);
+    void               InitButtonEvent(nsMouseEvent &event, QGraphicsSceneMouseEvent *aEvent, int aClickCount = 1);
     PRBool             DispatchCommandEvent(nsIAtom* aCommand);
-    MozQWidget        *createQWidget(QWidget *parent, nsWidgetInitData *aInitData);
+    MozQWidget*        createQWidget(MozQWidget *parent, nsWidgetInitData *aInitData);
 
-    MozQWidget * mWidget;
+    PRBool             IsAcceleratedQView(QGraphicsView* aView);
 
-    PRUint32            mIsVisible : 1,
-                        mActivatePending : 1;
-    PRInt32             mSizeState;
-    PluginType          mPluginType;
+    MozQWidget*        mWidget;
+
+    PRUint32           mIsVisible : 1,
+                       mActivatePending : 1;
+    PRInt32            mSizeState;
+    PluginType         mPluginType;
 
     nsRefPtr<gfxASurface> mThebesSurface;
+    nsCOMPtr<nsIdleService> mIdleService;
 
     PRBool       mIsTransparent;
  
@@ -354,6 +400,63 @@ private:
     }
     PRInt32 mQCursor;
 
+    // Call this function when the users activity is the direct cause of an
+    // event (like a keypress or mouse click).
+    void UserActivity();
+
+    inline void ProcessMotionEvent() {
+        if (mPinchEvent.needDispatch) {
+            double distance = DistanceBetweenPoints(mPinchEvent.centerPoint, mPinchEvent.touchPoint);
+            distance *= 2;
+            mPinchEvent.delta = distance - mPinchEvent.prevDistance;
+            nsIntPoint centerPoint(mPinchEvent.centerPoint.x(), mPinchEvent.centerPoint.y());
+            DispatchGestureEvent(NS_SIMPLE_GESTURE_MAGNIFY_UPDATE,
+                                 0, mPinchEvent.delta, centerPoint);
+            mPinchEvent.prevDistance = distance;
+        }
+        if (mMoveEvent.needDispatch) {
+            nsMouseEvent event(PR_TRUE, NS_MOUSE_MOVE, this, nsMouseEvent::eReal);
+
+            event.refPoint.x = nscoord(mMoveEvent.pos.x());
+            event.refPoint.y = nscoord(mMoveEvent.pos.y());
+
+            event.isShift         = ((mMoveEvent.modifiers & Qt::ShiftModifier) != 0);
+            event.isControl       = ((mMoveEvent.modifiers & Qt::ControlModifier) != 0);
+            event.isAlt           = ((mMoveEvent.modifiers & Qt::AltModifier) != 0);
+            event.isMeta          = ((mMoveEvent.modifiers & Qt::MetaModifier) != 0);
+            event.clickCount      = 0;
+
+            DispatchEvent(&event);
+            mMoveEvent.needDispatch = false;
+        }
+
+        mTimerStarted = PR_FALSE;
+    }
+
+    void DispatchMotionToMainThread() {
+        if (!mTimerStarted) {
+            nsCOMPtr<nsIRunnable> event =
+                NS_NewRunnableMethod(this, &nsWindow::ProcessMotionEvent);
+            NS_DispatchToMainThread(event);
+            mTimerStarted = PR_TRUE;
+        }
+    }
+
+    // Remember dirty area caused by ::Scroll
+    QRegion mDirtyScrollArea;
+
+#if (QT_VERSION >= QT_VERSION_CHECK(4, 6, 0))
+    QTime mLastMultiTouchTime;
+#endif
+
+    PRPackedBool mNeedsResize;
+    PRPackedBool mNeedsMove;
+    PRPackedBool mListenForResizes;
+    PRPackedBool mNeedsShow;
+    PRPackedBool mGesturesCancelled;
+    MozCachedTouchEvent mPinchEvent;
+    MozCachedMoveEvent mMoveEvent;
+    PRPackedBool mTimerStarted;
 };
 
 class nsChildWindow : public nsWindow
@@ -362,16 +465,16 @@ public:
     nsChildWindow();
     ~nsChildWindow();
 
-  PRInt32 mChildID;
+    PRInt32 mChildID;
 };
 
 class nsPopupWindow : public nsWindow
 {
 public:
-  nsPopupWindow ();
-  ~nsPopupWindow ();
+    nsPopupWindow ();
+    ~nsPopupWindow ();
 
-  PRInt32 mChildID;
+    PRInt32 mChildID;
 };
 #endif /* __nsWindow_h__ */
 

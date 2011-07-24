@@ -33,7 +33,7 @@
 ;
 ; ***** END LICENSE BLOCK *****
 
-LIBRARY sqlite3.dll
+LIBRARY mozsqlite3.dll
 
 EXPORTS
         sqlite3_aggregate_context
@@ -84,6 +84,7 @@ EXPORTS
         sqlite3_data_count
         sqlite3_db_handle
         sqlite3_db_mutex
+        sqlite3_db_status
         sqlite3_declare_vtab
         sqlite3_enable_load_extension
         sqlite3_enable_shared_cache
@@ -152,12 +153,14 @@ EXPORTS
         sqlite3_sleep
         sqlite3_snprintf
         sqlite3_sql
+        sqlite3_status
         sqlite3_step
         sqlite3_stmt_status
         sqlite3_thread_cleanup
         sqlite3_total_changes
         sqlite3_trace
         sqlite3_transfer_bindings
+        sqlite3_unlock_notify
         sqlite3_update_hook
         sqlite3_user_data
         sqlite3_value_blob

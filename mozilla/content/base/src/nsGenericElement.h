@@ -46,7 +46,7 @@
 
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
-#include "nsIContent.h"
+#include "mozilla/dom/Element.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMDocumentFragment.h"
 #include "nsIDOMEventTarget.h"
@@ -65,6 +65,7 @@
 #include "nsIDocument.h"
 #include "nsIDOMNodeSelector.h"
 #include "nsIDOMXPathNSResolver.h"
+#include "nsPresContext.h"
 
 #ifdef MOZ_SMIL
 #include "nsISMILAttr.h"
@@ -74,14 +75,14 @@ class nsIDOMAttr;
 class nsIDOMEventListener;
 class nsIFrame;
 class nsIDOMNamedNodeMap;
-class nsDOMCSSDeclaration;
+class nsICSSDeclaration;
 class nsIDOMCSSStyleDeclaration;
 class nsIURI;
 class nsINodeInfo;
 class nsIControllers;
 class nsIDOMNSFeatureFactory;
 class nsIEventListenerManager;
-class nsIScrollableView;
+class nsIScrollableFrame;
 class nsContentList;
 class nsDOMTokenList;
 struct nsRect;
@@ -117,7 +118,7 @@ public:
     mNode = nsnull;
   }
 
-  nsISupports* GetParentObject()
+  nsINode* GetParentObject()
   {
     return mNode;
   }
@@ -155,26 +156,15 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsNode3Tearoff, nsIDOM3Node)
 
-  nsNode3Tearoff(nsIContent *aContent) : mContent(aContent)
+  nsNode3Tearoff(nsINode *aNode) : mNode(aNode)
   {
   }
-
-  /**
-   * Determines whether two nodes are equal.
-   *
-   * @param aContent1 The first node to compare.
-   * @param aContent2 The second node to compare.
-   *
-   * @return PR_TRUE if the nodes are equal.
-   */
-  static PRBool AreNodesEqual(nsIContent* aContent1,
-                              nsIContent* aContent2);
 
 protected:
   virtual ~nsNode3Tearoff() {}
 
 private:
-  nsCOMPtr<nsIContent> mContent;
+  nsCOMPtr<nsINode> mNode;
 };
 
 /**
@@ -314,7 +304,7 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS(nsNodeSelectorTearoff)
 
-  nsNodeSelectorTearoff(nsIContent *aContent) : mContent(aContent)
+  nsNodeSelectorTearoff(nsINode *aNode) : mNode(aNode)
   {
   }
 
@@ -322,7 +312,7 @@ private:
   ~nsNodeSelectorTearoff() {}
 
 private:
-  nsCOMPtr<nsIContent> mContent;
+  nsCOMPtr<nsINode> mNode;
 };
 
 // Forward declare to allow being a friend
@@ -332,10 +322,10 @@ class nsNSElementTearoff;
  * A generic base class for DOM elements, implementing many nsIContent,
  * nsIDOMNode and nsIDOMElement methods.
  */
-class nsGenericElement : public nsIContent
+class nsGenericElement : public mozilla::dom::Element
 {
 public:
-  nsGenericElement(nsINodeInfo *aNodeInfo);
+  nsGenericElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsGenericElement();
 
   friend class nsNSElementTearoff;
@@ -371,6 +361,16 @@ public:
   {
     return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
+  virtual void GetTextContent(nsAString &aTextContent)
+  {
+    nsContentUtils::GetNodeTextContent(this, PR_TRUE, aTextContent);
+  }
+  virtual nsresult SetTextContent(const nsAString& aTextContent)
+  {
+    // Batch possible DOMSubtreeModified events.
+    mozAutoSubtreeModified subtree(GetOwnerDoc(), nsnull);
+    return nsContentUtils::SetNodeTextContent(this, aTextContent, PR_FALSE);
+  }
 
   // nsIContent interface methods
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
@@ -378,7 +378,7 @@ public:
                               PRBool aCompileEventHandlers);
   virtual void UnbindFromTree(PRBool aDeep = PR_TRUE,
                               PRBool aNullParent = PR_TRUE);
-  virtual nsIAtom *GetIDAttributeName() const;
+  virtual already_AddRefed<nsINodeList> GetChildren(PRUint32 aFilter);
   virtual nsIAtom *GetClassAttributeName() const;
   virtual already_AddRefed<nsINodeInfo> GetExistingAttrNameFromQName(const nsAString& aStr) const;
   nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
@@ -386,8 +386,30 @@ public:
   {
     return SetAttr(aNameSpaceID, aName, nsnull, aValue, aNotify);
   }
+  /**
+   * Helper for SetAttr/SetParsedAttr. This method will return true if aNotify
+   * is true or there are mutation listeners that must be triggered, the
+   * attribute is currently set, and the new value that is about to be set is
+   * different to the current value. As a perf optimization the new and old
+   * values will not actually be compared if we aren't notifying and we don't
+   * have mutation listeners (in which case it's cheap to just return PR_FALSE
+   * and let the caller go ahead and set the value).
+   * @param aOldValue Set to the old value of the attribute, but only if there
+   *   are event listeners
+   * @param aModType Set to nsIDOMMutationEvent::MODIFICATION or to
+   *   nsIDOMMutationEvent::ADDITION, but only if this helper returns true
+   * @param aHasListeners Set to true if there are mutation event listeners
+   *   listening for NS_EVENT_BITS_MUTATION_ATTRMODIFIED
+   */
+  PRBool MaybeCheckSameAttrVal(PRInt32 aNamespaceID, nsIAtom* aName,
+                               nsIAtom* aPrefix, const nsAString& aValue,
+                               PRBool aNotify, nsAutoString* aOldValue,
+                               PRUint8* aModType, PRBool* aHasListeners);
   virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName, nsIAtom* aPrefix,
                            const nsAString& aValue, PRBool aNotify);
+  virtual nsresult SetParsedAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+                                 nsIAtom* aPrefix, nsAttrValue& aParsedValue,
+                                 PRBool aNotify);
   virtual PRBool GetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                          nsAString& aResult) const;
   virtual PRBool HasAttr(PRInt32 aNameSpaceID, nsIAtom* aName) const;
@@ -420,10 +442,7 @@ public:
   virtual void AppendTextTo(nsAString& aResult);
   virtual nsIContent *GetBindingParent() const;
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
-  virtual already_AddRefed<nsIURI> GetBaseURI() const;
   virtual PRBool IsLink(nsIURI** aURI) const;
-  virtual void SetMayHaveFrame(PRBool aMayHaveFrame);
-  virtual PRBool MayHaveFrame() const;
 
   virtual PRUint32 GetScriptTypeID() const;
   NS_IMETHOD SetScriptTypeID(PRUint32 aLang);
@@ -432,10 +451,14 @@ public:
   virtual void SaveSubtreeState();
 
 #ifdef MOZ_SMIL
-  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* /*aName*/)
+  virtual nsISMILAttr* GetAnimatedAttr(PRInt32 /*aNamespaceID*/, nsIAtom* /*aName*/)
   {
     return nsnull;
   }
+  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle();
+  virtual mozilla::css::StyleRule* GetSMILOverrideStyleRule();
+  virtual nsresult SetSMILOverrideStyleRule(mozilla::css::StyleRule* aStyleRule,
+                                            PRBool aNotify);
 #endif // MOZ_SMIL
 
 #ifdef DEBUG
@@ -448,11 +471,10 @@ public:
   void ListAttributes(FILE* out) const;
 #endif
 
-  virtual nsIAtom* GetID() const;
   virtual const nsAttrValue* DoGetClasses() const;
   NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker);
-  virtual nsICSSStyleRule* GetInlineStyleRule();
-  NS_IMETHOD SetInlineStyleRule(nsICSSStyleRule* aStyleRule, PRBool aNotify);
+  virtual mozilla::css::StyleRule* GetInlineStyleRule();
+  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, PRBool aNotify);
   NS_IMETHOD_(PRBool)
     IsAttributeMapped(const nsIAtom* aAttribute) const;
   virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
@@ -484,18 +506,26 @@ public:
   NS_IMETHOD GetAttributes(nsIDOMNamedNodeMap** aAttributes);
   NS_IMETHOD GetNamespaceURI(nsAString& aNamespaceURI);
   NS_IMETHOD GetPrefix(nsAString& aPrefix);
-  NS_IMETHOD SetPrefix(const nsAString& aPrefix);
   NS_IMETHOD Normalize();
   NS_IMETHOD IsSupported(const nsAString& aFeature,
                          const nsAString& aVersion, PRBool* aReturn);
   NS_IMETHOD HasAttributes(PRBool* aHasAttributes);
   NS_IMETHOD HasChildNodes(PRBool* aHasChildNodes);
-  NS_IMETHOD InsertBefore(nsIDOMNode* aNewChild, nsIDOMNode* aRefChild,
-                          nsIDOMNode** aReturn);
-  NS_IMETHOD ReplaceChild(nsIDOMNode* aNewChild, nsIDOMNode* aOldChild,
-                          nsIDOMNode** aReturn);
-  NS_IMETHOD RemoveChild(nsIDOMNode* aOldChild, nsIDOMNode** aReturn);
-  NS_IMETHOD AppendChild(nsIDOMNode* aNewChild, nsIDOMNode** aReturn)
+  nsresult InsertBefore(nsIDOMNode* aNewChild, nsIDOMNode* aRefChild,
+                        nsIDOMNode** aReturn)
+  {
+    return ReplaceOrInsertBefore(PR_FALSE, aNewChild, aRefChild, aReturn);
+  }
+  nsresult ReplaceChild(nsIDOMNode* aNewChild, nsIDOMNode* aOldChild,
+                        nsIDOMNode** aReturn)
+  {
+    return ReplaceOrInsertBefore(PR_TRUE, aNewChild, aOldChild, aReturn);
+  }
+  nsresult RemoveChild(nsIDOMNode* aOldChild, nsIDOMNode** aReturn)
+  {
+    return nsINode::RemoveChild(aOldChild, aReturn);
+  }
+  nsresult AppendChild(nsIDOMNode* aNewChild, nsIDOMNode** aReturn)
   {
     return InsertBefore(aNewChild, nsnull, aReturn);
   }
@@ -534,7 +564,7 @@ public:
                             PRBool* aReturn);
   nsresult CloneNode(PRBool aDeep, nsIDOMNode **aResult)
   {
-    return nsNodeUtils::CloneNodeImpl(this, aDeep, aResult);
+    return nsNodeUtils::CloneNodeImpl(this, aDeep, PR_TRUE, aResult);
   }
 
   //----------------------------------------
@@ -576,97 +606,24 @@ public:
                                       const nsAString& aVersion,
                                       PRBool* aReturn);
 
-  static nsresult InternalGetFeature(nsISupports* aObject,
-                                     const nsAString& aFeature,
-                                     const nsAString& aVersion,
-                                     nsISupports** aReturn);
-
-  static already_AddRefed<nsIDOMNSFeatureFactory>
-    GetDOMFeatureFactory(const nsAString& aFeature, const nsAString& aVersion);
-
   static PRBool ShouldBlur(nsIContent *aContent);
 
   /**
-   * Actual implementation of the DOM InsertBefore and ReplaceChild methods.
-   * Shared by nsDocument. When called from nsDocument, aParent will be null.
-   *
-   * @param aReplace  True if aNewChild should replace aRefChild. False if
-   *                  aNewChild should be inserted before aRefChild.
-   * @param aNewChild The child to insert
-   * @param aRefChild The child to insert before or replace
-   * @param aParent The parent to use for the new child
-   * @param aDocument The document to use for the new child.
-   *                  Must be non-null, if aParent is null and must match
-   *                  aParent->GetCurrentDoc() if aParent is not null.
-   * @param aReturn [out] the child we insert
+   * If there are listeners for DOMNodeInserted event, fires the event on all
+   * aNodes
    */
-  static nsresult doReplaceOrInsertBefore(PRBool aReplace, nsIDOMNode* aNewChild, nsIDOMNode* aRefChild,
-                                          nsIContent* aParent, nsIDocument* aDocument,
-                                          nsIDOMNode** aReturn);
-
-  /**
-   * Actual implementation of the DOM RemoveChild method.  Shared by
-   * nsDocument.  When called from nsDocument, aParent will be null.
-   *
-   * @param aOldChild The child to remove
-   * @param aParent The parent to use for the new child
-   * @param aDocument The document to use for the new child.
-   *                  Must be non-null if aParent is null and must match
-   *                  aParent->GetCurrentDoc() if aParent is not null.
-   * @param aReturn [out] the child we remove
-   */
-  static nsresult doRemoveChild(nsIDOMNode* aOldChild,
-                                nsIContent* aParent, nsIDocument* aDocument,
-                                nsIDOMNode** aReturn);
-
-  /**
-   * Most of the implementation of the nsINode InsertChildAt method.  Shared by
-   * nsDocument.  When called from nsDocument, aParent will be null.
-   *
-   * @param aKid The child to insert.
-   * @param aIndex The index to insert at.
-   * @param aNotify Whether to notify.
-   * @param aParent The parent to use for the new child.
-   * @param aDocument The document to use for the notifications.  Must be
-   *                  non-null if aParent is null (in which case aKid is being
-   *                  inserted as its child) and must match
-   *                  aParent->GetCurrentDoc() if aParent is not null.
-   * @param aChildArray The child array to work with
-   */
-  static nsresult doInsertChildAt(nsIContent* aKid, PRUint32 aIndex,
-                                  PRBool aNotify, nsIContent* aParent,
-                                  nsIDocument* aDocument,
-                                  nsAttrAndChildArray& aChildArray);
-
-  /**
-   * Most of the implementation of the nsINode RemoveChildAt method.  Shared by
-   * nsDocument.  When called from nsDocument, aParent will be null.
-   *
-   * @param aIndex The index to remove at.
-   * @param aNotify Whether to notify.
-   * @param aKid The kid at aIndex.  Must not be null.
-   * @param aParent The parent we're removing from.
-   * @param aDocument The document to use for the notifications.  Must be
-   *                  non-null if aParent is null (in which case aKid is being
-   *                  removed as its child) and must match
-   *                  aParent->GetCurrentDoc() if aParent is not null.
-   * @param aChildArray The child array to work with
-   */
-  static nsresult doRemoveChildAt(PRUint32 aIndex, PRBool aNotify,
-                                  nsIContent* aKid, nsIContent* aParent,
-                                  nsIDocument* aDocument,
-                                  nsAttrAndChildArray& aChildArray,
-                                  PRBool aMutationEvent);
+  static void FireNodeInserted(nsIDocument* aDoc,
+                               nsINode* aParent,
+                               nsCOMArray<nsIContent>& aNodes);
 
   /**
    * Helper methods for implementing querySelector/querySelectorAll
    */
-  static nsresult doQuerySelector(nsINode* aRoot, const nsAString& aSelector,
-                                  nsIDOMElement **aReturn);
+  static nsIContent* doQuerySelector(nsINode* aRoot, const nsAString& aSelector,
+                                     nsresult *aResult NS_OUTPARAM);
   static nsresult doQuerySelectorAll(nsINode* aRoot,
                                      const nsAString& aSelector,
                                      nsIDOMNodeList **aReturn);
-  static PRBool doMatchesSelector(nsIContent* aNode, const nsAString& aSelector);
 
   /**
    * Default event prehandling for content objects. Handles event retargeting.
@@ -701,32 +658,15 @@ public:
                                 nsEventStatus* aStatus);
 
   /**
-   * Get the primary frame for this content without flushing (see
-   * GetPrimaryFrameFor)
-   *
-   * @return the primary frame
-   */
-  nsIFrame* GetPrimaryFrame();
-
-  /**
-   * Get the primary frame for this content with flushing (see
-   * GetPrimaryFrameFor).
+   * Get the primary frame for this content with flushing
    *
    * @param aType the kind of flush to do, typically Flush_Frames or
    *              Flush_Layout
    * @return the primary frame
    */
   nsIFrame* GetPrimaryFrame(mozFlushType aType);
-
-  /**
-   * Get the primary frame for a piece of content without flushing.
-   *
-   * @param aContent the content to get the primary frame for
-   * @param aDocument the document for this content
-   * @return the primary frame
-   */
-  static nsIFrame* GetPrimaryFrameFor(nsIContent* aContent,
-                                      nsIDocument* aDocument);
+  // Work around silly C++ name hiding stuff
+  nsIFrame* GetPrimaryFrame() const { return nsIContent::GetPrimaryFrame(); }
 
   /**
    * Struct that stores info on an attribute.  The name and value must
@@ -742,6 +682,8 @@ public:
     const nsAttrValue* mValue;
   };
 
+  // Be careful when using this method. This does *NOT* handle
+  // XUL prototypes. You may want to use GetAttrInfo.
   const nsAttrValue* GetParsedAttr(nsIAtom* aAttr) const
   {
     return mAttrsAndChildren.GetAttr(aAttr);
@@ -763,12 +705,94 @@ public:
   {
   }
 
+  // nsIDOMNSElement methods
+  nsresult GetElementsByClassName(const nsAString& aClasses,
+                                  nsIDOMNodeList** aReturn)
+  {
+    return nsContentUtils::GetElementsByClassName(this, aClasses, aReturn);
+  }
+  nsresult GetClientRects(nsIDOMClientRectList** aResult);
+  nsresult GetBoundingClientRect(nsIDOMClientRect** aResult);
+  PRInt32 GetScrollTop();
+  void SetScrollTop(PRInt32 aScrollTop);
+  PRInt32 GetScrollLeft();
+  void SetScrollLeft(PRInt32 aScrollLeft);
+  PRInt32 GetScrollHeight();
+  PRInt32 GetScrollWidth();
+  PRInt32 GetClientTop()
+  {
+    return nsPresContext::AppUnitsToIntCSSPixels(GetClientAreaRect().y);
+  }
+  PRInt32 GetClientLeft()
+  {
+    return nsPresContext::AppUnitsToIntCSSPixels(GetClientAreaRect().x);
+  }
+  PRInt32 GetClientHeight()
+  {
+    return nsPresContext::AppUnitsToIntCSSPixels(GetClientAreaRect().height);
+  }
+  PRInt32 GetClientWidth()
+  {
+    return nsPresContext::AppUnitsToIntCSSPixels(GetClientAreaRect().width);
+  }
+  nsIContent* GetFirstElementChild();
+  nsIContent* GetLastElementChild();
+  nsIContent* GetPreviousElementSibling();
+  nsIContent* GetNextElementSibling();
+  nsresult GetChildElementCount(PRUint32* aResult)
+  {
+    nsContentList* list = GetChildrenList();
+    if (!list) {
+      *aResult = 0;
+
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
+
+    *aResult = list->Length(PR_TRUE);
+
+    return NS_OK;
+  }
+  nsresult GetChildren(nsIDOMNodeList** aResult)
+  {
+    nsContentList* list = GetChildrenList();
+    if (!list) {
+      *aResult = nsnull;
+
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
+
+    NS_ADDREF(*aResult = list);
+
+    return NS_OK;
+  }
+  nsIDOMDOMTokenList* GetClassList(nsresult *aResult);
+  void SetCapture(PRBool aRetargetToElement);
+  void ReleaseCapture();
+  PRBool MozMatchesSelector(const nsAString& aSelector, nsresult* aResult);
+
+  /**
+   * Get the attr info for the given namespace ID and attribute name.  The
+   * namespace ID must not be kNameSpaceID_Unknown and the name must not be
+   * null.  Note that this can only return info on attributes that actually
+   * live on this element (and is only virtual to handle XUL prototypes).  That
+   * is, this should only be called from methods that only care about attrs
+   * that effectively live in mAttrsAndChildren.
+   */
+  virtual nsAttrInfo GetAttrInfo(PRInt32 aNamespaceID, nsIAtom* aName) const;
+
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsGenericElement)
+
+  virtual void NodeInfoChanged(nsINodeInfo* aOldNodeInfo)
+  {
+  }
 
 protected:
   /**
    * Set attribute and (if needed) notify documentobservers and fire off
-   * mutation events.
+   * mutation events.  This will send the AttributeChanged notification.
+   * Callers of this method are responsible for calling AttributeWillChange,
+   * since that needs to happen before the new attr value has been set, and
+   * in particular before it has been parsed.
    *
    * @param aNamespaceID  namespace of attribute
    * @param aAttribute    local-name of attribute
@@ -776,7 +800,7 @@ protected:
    * @param aOldValue     previous value of attribute. Only needed if
    *                      aFireMutation is true.
    * @param aParsedValue  parsed new value of attribute
-   * @param aModification is this a attribute-modification or addition. Only
+   * @param aModType      nsIDOMMutationEvent::MODIFICATION or ADDITION.  Only
    *                      needed if aFireMutation or aNotify is true.
    * @param aFireMutation should mutation-events be fired?
    * @param aNotify       should we notify document-observers?
@@ -788,7 +812,7 @@ protected:
                             nsIAtom* aPrefix,
                             const nsAString& aOldValue,
                             nsAttrValue& aParsedValue,
-                            PRBool aModification,
+                            PRUint8 aModType,
                             PRBool aFireMutation,
                             PRBool aNotify,
                             const nsAString* aValueForAfterSetAttr);
@@ -830,8 +854,9 @@ protected:
   /**
    * Hook that is called by nsGenericElement::SetAttr to allow subclasses to
    * deal with attribute sets.  This will only be called after we verify that
-   * we're actually doing an attr set and will be called before ParseAttribute
-   * and hence before we've set the new value.
+   * we're actually doing an attr set and will be called before
+   * AttributeWillChange and before ParseAttribute and hence before we've set
+   * the new value.
    *
    * @param aNamespaceID the namespace of the attr being set
    * @param aName the localname of the attribute being set
@@ -850,7 +875,8 @@ protected:
   /**
    * Hook that is called by nsGenericElement::SetAttr to allow subclasses to
    * deal with attribute sets.  This will only be called after we have called
-   * SetAndTakeAttr (that is, after we have actually set the attr).
+   * SetAndTakeAttr and AttributeChanged (that is, after we have actually set
+   * the attr).
    *
    * @param aNamespaceID the namespace of the attr being set
    * @param aName the localname of the attribute being set
@@ -876,16 +902,6 @@ protected:
                                    PRBool* aDefer);
 
   /**
-   * Get the attr info for the given namespace ID and attribute name.  The
-   * namespace ID must not be kNameSpaceID_Unknown and the name must not be
-   * null.  Note that this can only return info on attributes that actually
-   * live on this element (and is only virtual to handle XUL prototypes).  That
-   * is, this should only be called from methods that only care about attrs
-   * that effectively live in mAttrsAndChildren.
-   */
-  virtual nsAttrInfo GetAttrInfo(PRInt32 aNamespaceID, nsIAtom* aName) const;
-
-  /**
    * Copy attributes and state to another element
    * @param aDest the object to copy to
    */
@@ -907,6 +923,11 @@ protected:
 
   nsIFrame* GetStyledFrame();
 
+  virtual mozilla::dom::Element* GetNameSpaceElement()
+  {
+    return this;
+  }
+
 public:
   // Because of a bug in MS C++ compiler nsDOMSlots must be declared public,
   // otherwise nsXULElement::nsXULSlots doesn't compile.
@@ -921,14 +942,25 @@ public:
   class nsDOMSlots : public nsINode::nsSlots
   {
   public:
-    nsDOMSlots(PtrBits aFlags);
+    nsDOMSlots();
     virtual ~nsDOMSlots();
 
     /**
      * The .style attribute (an interface that forwards to the actual
      * style rules)
      * @see nsGenericHTMLElement::GetStyle */
-    nsRefPtr<nsDOMCSSDeclaration> mStyle;
+    nsCOMPtr<nsICSSDeclaration> mStyle;
+
+    /**
+     * SMIL Overridde style rules (for SMIL animation of CSS properties)
+     * @see nsIContent::GetSMILOverrideStyle
+     */
+    nsCOMPtr<nsICSSDeclaration> mSMILOverrideStyle;
+
+    /**
+     * Holds any SMIL override style rules for this element.
+     */
+    nsRefPtr<mozilla::css::StyleRule> mSMILOverrideStyleRule;
 
     /**
      * An object implementing nsIDOMNamedNodeMap for this content (attributes)
@@ -950,11 +982,6 @@ public:
     };
 
     /**
-     * Weak reference to this node
-     */
-    nsNodeWeakReference* mWeakReference;
-
-    /**
      * An object implementing the .children property for this element.
      */
     nsRefPtr<nsContentList> mChildrenList;
@@ -969,7 +996,7 @@ protected:
   // Override from nsINode
   virtual nsINode::nsSlots* CreateSlots();
 
-  nsDOMSlots *GetDOMSlots()
+  nsDOMSlots *DOMSlots()
   {
     return static_cast<nsDOMSlots*>(GetSlots());
   }
@@ -993,15 +1020,29 @@ protected:
   }
 
   /**
-   * GetContentsAsText will take all the textnodes that are children
-   * of |this| and concatenate the text in them into aText.  It
-   * completely ignores any non-text-node children of |this|; in
-   * particular it does not descend into any children of |this| that
-   * happen to be container elements.
-   *
-   * @param aText the resulting text [OUT]
+   * Add/remove this element to the documents id cache
    */
-  void GetContentsAsText(nsAString& aText);
+  void AddToIdTable(nsIAtom* aId) {
+    NS_ASSERTION(HasID(), "Node doesn't have an ID?");
+    nsIDocument* doc = GetCurrentDoc();
+    if (doc && (!IsInAnonymousSubtree() || doc->IsXUL())) {
+      doc->AddToIdTable(this, aId);
+    }
+  }
+  void RemoveFromIdTable() {
+    if (HasID()) {
+      nsIDocument* doc = GetCurrentDoc();
+      if (doc) {
+        nsIAtom* id = DoGetID();
+        // id can be null during mutation events evilness. Also, XUL elements
+        // loose their proto attributes during cc-unlink, so this can happen
+        // during cc-unlink too.
+        if (id) {
+          doc->RemoveFromIdTable(this, DoGetID());
+        }
+      }
+    }
+  }
 
   /**
    * Functions to carry out event default actions for links of all types
@@ -1045,6 +1086,17 @@ protected:
    * Array containing all attributes and children for this element
    */
   nsAttrAndChildArray mAttrsAndChildren;
+
+private:
+  /**
+   * Get this element's client area rect in app units.
+   * @return the frame's client area
+   */
+  nsRect GetClientAreaRect();
+
+  nsIScrollableFrame* GetScrollFrame(nsIFrame **aStyledFrame = nsnull);
+
+  nsContentList* GetChildrenList();
 };
 
 /**
@@ -1056,8 +1108,8 @@ nsresult                                                                    \
 _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
 {                                                                           \
   *aResult = nsnull;                                                        \
-                                                                            \
-  _elementName *it = new _elementName(aNodeInfo);                           \
+  nsCOMPtr<nsINodeInfo> ni = aNodeInfo;                                     \
+  _elementName *it = new _elementName(ni.forget());                         \
   if (!it) {                                                                \
     return NS_ERROR_OUT_OF_MEMORY;                                          \
   }                                                                         \
@@ -1076,8 +1128,8 @@ nsresult                                                                    \
 _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
 {                                                                           \
   *aResult = nsnull;                                                        \
-                                                                            \
-  _elementName *it = new _elementName(aNodeInfo);                           \
+  nsCOMPtr<nsINodeInfo> ni = aNodeInfo;                                     \
+  _elementName *it = new _elementName(ni.forget());                         \
   if (!it) {                                                                \
     return NS_ERROR_OUT_OF_MEMORY;                                          \
   }                                                                         \
@@ -1091,6 +1143,14 @@ _elementName::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const        \
                                                                             \
   return rv;                                                                \
 }
+
+#define DOMCI_NODE_DATA(_interface, _class)                             \
+  DOMCI_DATA(_interface, _class)                                        \
+  nsXPCClassInfo* _class::GetClassInfo()                                \
+  {                                                                     \
+    return static_cast<nsXPCClassInfo*>(                                \
+      NS_GetDOMClassInfoInstance(eDOMClassInfo_##_interface##_id));     \
+  }
 
 /**
  * Yet another tearoff class for nsGenericElement
@@ -1110,27 +1170,7 @@ public:
   }
 
 private:
-  nsContentList* GetChildrenList();
-
   nsRefPtr<nsGenericElement> mContent;
-
-  /**
-   * Get this element's client area rect in app units.
-   * @return the frame's client area
-   */
-  nsRect GetClientAreaRect();
-
-private:
-
-  /**
-   * Get the element's styled frame (the primary frame or, for tables, the inner
-   * table frame) and closest scrollable view.
-   * @note This method flushes pending notifications (Flush_Layout).
-   * @param aScrollableView the scrollable view [OUT]
-   * @param aFrame (optional) the frame [OUT]
-   */
-  void GetScrollInfo(nsIScrollableView **aScrollableView,
-                     nsIFrame **aFrame = nsnull);
 };
 
 #define NS_ELEMENT_INTERFACE_TABLE_TO_MAP_SEGUE                               \

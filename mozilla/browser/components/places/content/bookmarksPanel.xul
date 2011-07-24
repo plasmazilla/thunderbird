@@ -50,16 +50,16 @@
       xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
       xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       onload="init();"
-      onunload="SidebarUtils.clearURLFromStatusBar();">
+      onunload="SidebarUtils.setMouseoverURL('');">
 
-  <script type="application/x-javascript" 
+  <script type="application/javascript" 
           src="chrome://browser/content/bookmarks/sidebarUtils.js"/>
-  <script type="application/x-javascript" 
+  <script type="application/javascript" 
           src="chrome://browser/content/bookmarks/bookmarksPanel.js"/>
 
   <commandset id="placesCommands"/>
   <commandset id="editMenuCommands"/>
-  <popup id="placesContext"/>
+  <menupopup id="placesContext"/>
 
   <!-- Bookmarks and history tooltip -->
   <tooltip id="bhTooltip"/>
@@ -79,7 +79,7 @@
         onkeypress="SidebarUtils.handleTreeKeyPress(event);"
         onclick="SidebarUtils.handleTreeClick(this, event, true);"
         onmousemove="SidebarUtils.handleTreeMouseMove(event);"
-        onmouseout="SidebarUtils.clearURLFromStatusBar();">
+        onmouseout="SidebarUtils.setMouseoverURL('');">
     <treecols>
       <treecol id="title" flex="1" primary="true" hideheader="true"/>
     </treecols>

@@ -15,7 +15,7 @@
  *
  * The Original Code is C++ pointer array template.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2006
  * the Initial Developer. All Rights Reserved.
  *
@@ -47,11 +47,11 @@
 // nsTArray and has all the features of that class, in addition to an
 // implementation of SafeElementAt that returns null for out of bounds access
 //
-template<class E>
-class nsTPtrArray : public nsTArray<E*> {
+template<class E, class Alloc=nsTArrayDefaultAllocator>
+class nsTPtrArray : public nsTArray<E*, Alloc> {
   public:
-    typedef nsTPtrArray<E> self_type;
-    typedef nsTArray<E*> base_type;
+  typedef nsTPtrArray<E, Alloc> self_type;
+  typedef nsTArray<E*, Alloc> base_type;
     typedef typename base_type::size_type size_type;
     typedef typename base_type::elem_type elem_type;
     typedef typename base_type::index_type index_type;
@@ -64,13 +64,13 @@ class nsTPtrArray : public nsTArray<E*> {
 
     // Initialize this array and pre-allocate some number of elements.
     explicit nsTPtrArray(size_type capacity) {
-      SetCapacity(capacity);
+      this->SetCapacity(capacity);
     }
     
     // The array's copy-constructor performs a 'deep' copy of the given array.
     // @param other  The array object to copy.
     nsTPtrArray(const self_type& other) {
-      AppendElements(other);
+      this->AppendElements(other);
     }
 
     //
@@ -94,18 +94,18 @@ class nsTPtrArray : public nsTArray<E*> {
     }
 };
 
-template<class E, PRUint32 N>
-class nsAutoTPtrArray : public nsTPtrArray<E> {
+template<class E, PRUint32 N, class Alloc=nsTArrayDefaultAllocator>
+class nsAutoTPtrArray : public nsTPtrArray<E, Alloc> {
   public:
-    typedef nsTPtrArray<E> base_type;
+    typedef nsTPtrArray<E, Alloc> base_type;
     typedef typename base_type::Header Header;
     typedef typename base_type::elem_type elem_type;
 
     nsAutoTPtrArray() {
-      base_type::mHdr = reinterpret_cast<Header*>(&mAutoBuf);
-      base_type::mHdr->mLength = 0;
-      base_type::mHdr->mCapacity = N;
-      base_type::mHdr->mIsAutoArray = 1;
+      *base_type::PtrToHdr() = reinterpret_cast<Header*>(&mAutoBuf);
+      base_type::Hdr()->mLength = 0;
+      base_type::Hdr()->mCapacity = N;
+      base_type::Hdr()->mIsAutoArray = 1;
 
       NS_ASSERTION(base_type::GetAutoArrayBuffer() ==
                    reinterpret_cast<Header*>(&mAutoBuf),
@@ -113,7 +113,10 @@ class nsAutoTPtrArray : public nsTPtrArray<E> {
     }
 
   protected:
-    char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
+    union {
+      char mAutoBuf[sizeof(Header) + N * sizeof(elem_type)];
+      PRUint64 dummy;
+    };
 };
 
 #endif  // nsTPtrArray_h__

@@ -97,6 +97,8 @@
 #define NS_ERROR_MODULE_STORAGE    30
 #define NS_ERROR_MODULE_SCHEMA     31
 #define NS_ERROR_MODULE_DOM_FILE   32
+#define NS_ERROR_MODULE_DOM_INDEXEDDB 33
+#define NS_ERROR_MODULE_DOM_EVENTS 34
 
 /* NS_ERROR_MODULE_GENERAL should be used by modules that do not
  * care if return code values overlap. Callers of methods that
@@ -307,6 +309,10 @@ inline int NS_SUCCEEDED(nsresult _nsresult) {
 
 #define NS_SUCCESS_LOSS_OF_INSIGNIFICANT_DATA   NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCOM,  1)
 
+/* Result codes used by nsIThreadManager */
+
+#define NS_ERROR_NOT_SAME_THREAD                NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_XPCOM,  4)
+
 /**
  * Various operations are not permitted during XPCOM shutdown and will fail
  * with this exception.
@@ -328,6 +334,11 @@ NS_ErrorAccordingToNSPR();
 #ifdef _MSC_VER
 #pragma warning(disable: 4251) /* 'nsCOMPtr<class nsIInputStream>' needs to have dll-interface to be used by clients of class 'nsInputStream' */
 #pragma warning(disable: 4275) /* non dll-interface class 'nsISupports' used as base for dll-interface class 'nsIRDFNode' */
+#endif
+
+#ifdef XP_WIN
+extern NS_COM PRBool sXPCOMHasLoadedNewDLLs;
+NS_EXPORT void NS_SetHasLoadedNewDLLs();
 #endif
 
 #endif

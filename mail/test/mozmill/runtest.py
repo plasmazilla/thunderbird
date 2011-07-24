@@ -52,14 +52,19 @@ import jsbridge
 import mozmill
 import socket
 import copy
+
+# Python 2.6 has the json module, but Python 2.5 doesn't.
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
 SCRIPT_DIRECTORY = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
 sys.path.append(SCRIPT_DIRECTORY)
-# The try case handles trunk. The exception case handles MOZILLA_1_9_2_BRANCH.
-try:
-    from automation import Automation
-    automation = Automation()
-except ImportError:
-    import automation
+
+from automation import Automation
+automation = Automation()
+
 from automationutils import checkForCrashes
 from time import sleep
 import imp
@@ -104,13 +109,15 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         # say yes to debug output via dump
         'browser.dom.window.dump.enabled': True,
         # say no to slow script warnings
-        'dom.max_chrome_script_run_time': 200,
+        'dom.max_chrome_script_run_time': 0,
         'dom.max_script_run_time': 0,
         # disable extension stuffs
         'extensions.update.enabled'    : False,
         'extensions.update.notifyUser' : False,
         # do not ask about being the default mail client
         'mail.shell.checkDefaultClient': False,
+        # do not tell us about the greatness that is mozilla (about:rights)
+        'mail.rights.override': True,
         # disable non-gloda indexing daemons
         'mail.winsearch.enable': False,
         'mail.winsearch.firstRunDone': True,
@@ -121,8 +128,34 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'ldap_2.servers.oe.position': 0,
         # disable the first use junk dialog
         'mailnews.ui.junk.firstuse': False,
-        # other unknown voodoo
-        # -- dummied up local accounts to stop the account wizard
+        # set the relative dirs properly
+        'mail.root.none-rel' :  "[ProfD]Mail",
+        'mail.root.pop3-rel' :  "[ProfD]Mail",
+        # Do not allow check new mail to be set
+        'mail.startup.enabledMailCheckOnce' :  True,
+        # Disable compatibility checking
+        'extensions.checkCompatibility.5.0b': False,
+        'extensions.checkCompatibility.5.0': False,
+        # In case a developer is working on a laptop without a network
+        # connection, don't detect offline mode; hence we'll still startup
+        # online which is what mozmill currently requires. It'll also protect us
+        # from any random network failures.
+        'offline.autoDetect': False,
+        # Don't load what's new or the remote start page - keep everything local
+        # under our control.
+        'mailnews.start_page_override.mstone' :  "ignore",
+        'mailnews.start_page.url': "about:blank",
+        # Do not enable gloda
+        'mailnews.database.global.indexer.enabled': False,
+        # But do have gloda log if it does anything.  (When disabled, queries
+        # are still serviced; they just should not result in any matches.)
+        'mailnews.database.global.logging.upstream': True,
+        # Do not allow fonts to be upgraded
+        'mail.font.windows.version': 2
+        }
+
+    # Dummied up local accounts to stop the account wizard
+    account_preferences = {
         'mail.account.account1.server' :  "server1",
         'mail.account.account2.identities' :  "id1,id2",
         'mail.account.account2.server' :  "server2",
@@ -141,8 +174,6 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.identity.id2.smtpServer' : "smtp1",
         'mail.identity.id2.useremail' : "tinderboxpushlog@invalid.com",
         'mail.identity.id2.valid' : True,
-        'mail.root.none-rel' :  "[ProfD]Mail",
-        'mail.root.pop3-rel' :  "[ProfD]Mail",
         'mail.server.server1.directory-rel' :  "[ProfD]Mail/Local Folders",
         'mail.server.server1.hostname' :  "Local Folders",
         'mail.server.server1.name' :  "Local Folders",
@@ -160,23 +191,7 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.smtpserver.smtp1.hostname' :  "tinderbox",
         'mail.smtpserver.smtp1.username' :  "tinderbox",
         'mail.smtpservers' :  "smtp1",
-        'mail.startup.enabledMailCheckOnce' :  True,
-        'extensions.checkCompatibility.3.1b': False,
-        'extensions.checkCompatibility.3.2a': False,
-        # In case a developer is working on a laptop without a network
-        # connection, don't detect offline mode; hence we'll still startup
-        # online which is what mozmill currently requires. It'll also protect us
-        # from any random network failures.
-        'offline.autoDetect': False,
-        # Don't load what's new or the remote start page - keep everything local
-        # under our control.
-        'mailnews.start_page_override.mstone' :  "ignore",
-        'mailnews.start_page.url': "about:blank",
-        # Do not enable gloda
-        'mailnews.database.global.indexer.enabled': False,
-        # Do not allow fonts to be upgraded
-        'mail.font.windows.version': 1
-        }
+    }
 
     def create_new_profile(self, binary):
         '''
@@ -189,11 +204,16 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
             shutil.rmtree(PROFILE_DIR, onerror=rmtree_onerror)
         os.makedirs(PROFILE_DIR)
 
-        # If there's a wrapper, call it
         if wrapper is not None and hasattr(wrapper, "on_profile_created"):
             # It's a little dangerous to allow on_profile_created access to the
             # profile object, because it isn't fully initalized yet
             wrapper.on_profile_created(PROFILE_DIR)
+
+        if (wrapper is not None and hasattr(wrapper, "NO_ACCOUNTS")
+            and wrapper.NO_ACCOUNTS):
+            pass
+        else:
+            self.preferences.update(self.account_preferences)
 
         return PROFILE_DIR
 
@@ -278,7 +298,6 @@ class ThunderTestCLI(mozmill.CLI):
     profile_class = ThunderTestProfile
     runner_class = ThunderTestRunner
     parser_options = copy.copy(mozmill.CLI.parser_options)
-    parser_options[('-m', '--bloat-tests')] = {"default":None, "dest":"created_profile", "help":"Log file name."}
     parser_options[('--symbols-path',)] = {"default": None, "dest": "symbols",
                                            "help": "The path to the symbol files from build_symbols"}
 
@@ -295,7 +314,8 @@ class ThunderTestCLI(mozmill.CLI):
 
         self.mozmill = self.mozmill_class(runner_class=self.runner_class,
                                           profile_class=self.profile_class,
-                                          jsbridge_port=int(self.options.port))
+                                          jsbridge_port=int(self.options.port),
+                                          jsbridge_timeout=300)
 
         self.mozmill.add_global_listener(mozmill.LoggerListener())
 
@@ -322,20 +342,33 @@ class ThunderTestCLI(mozmill.CLI):
                     fd.close()
 
 TEST_RESULTS = []
-# override mozmill's default logging case, which I hate.
-def logFailure(obj):
-    FAILURE_LIST.append(obj)
+# Versions of MozMill prior to 1.5 did not output test-pass /
+# TEST-UNEXPECTED-FAIL. Since 1.5 happened this gets output, so we only want
+# a summary at the end to make it easy for developers.
 def logEndTest(obj):
+    # If we've got a string here, we know we're later than 1.5, and we can just
+    # display a summary at the end as 1.5 will do TEST-UNEXPECTED-FAIL for us.
+    if isinstance(obj, str):
+        obj = json.loads(obj)
+        obj['summary'] = True
     TEST_RESULTS.append(obj)
-#mozmill.LoggerListener.cases['mozmill.fail'] = logFailure
 mozmill.LoggerListener.cases['mozmill.endTest'] = logEndTest
 
-def prettifyFilename(path):
-    lslash = path.rfind('/')
-    if lslash != -1:
-        return path[lslash+1:]
-    else:
-        return path
+# We now send extended meta-data about failures.  We do not want the entire
+# message dumped with this extra data, so clobber the default mozmill.fail
+# with one that wraps it and only tells it the exception message rather than
+# the whole JSON blob.
+ORIGINAL_FAILURE_LOGGER = mozmill.LoggerListener.cases['mozmill.fail']
+def logFailure(obj):
+    if isinstance(obj, basestring):
+        obj = json.loads(obj)
+    ORIGINAL_FAILURE_LOGGER(obj["exception"]["message"])
+mozmill.LoggerListener.cases['mozmill.fail'] = logFailure
+
+
+def prettifyFilename(path, tail_segs_desired=1):
+    parts = path.split('/')
+    return '/'.join(parts[-tail_segs_desired:])
 
 def prettyPrintException(e):
     print '  EXCEPTION:', e.get('message', 'no message!')
@@ -365,20 +398,36 @@ def prettyPrintException(e):
                 print '           ', prettifyFilename(path), line
 
 
-import pprint
+# Tests that are useless and shouldn't be printed if successful
+TEST_BLACKLIST = ["setupModule", "setupTest", "teardownTest", "teardownModule"]
+
+import pprint, atexit
+@atexit.register
 def prettyPrintResults():
     for result in TEST_RESULTS:
         #pprint.pprint(result)
+        testOrSummary = 'TEST'
+        if 'summary' in result:
+            testOrSummary = 'SUMMARY'
         if len(result['fails']) == 0:
-            print 'TEST-PASS | ', result['name']
+            if result['name'] not in TEST_BLACKLIST:
+                print '%s-PASS | %s' % (testOrSummary, result['name'])
         else:
-            print 'TEST-UNEXPECTED-FAIL | %s | %s' % (prettifyFilename(result['filename']), result['name'])
+            print '%s-UNEXPECTED-FAIL | %s | %s' % (testOrSummary, prettifyFilename(result['filename']), result['name'])
         for failure in result['fails']:
             if 'exception' in failure:
                 prettyPrintException(failure['exception'])
 
-import atexit
-atexit.register(prettyPrintResults)
+@atexit.register
+def dumpRichResults():
+    print '##### MOZMILL-RICH-FAILURES-BEGIN #####'
+    for result in TEST_RESULTS:
+        if len(result['fails']) > 0:
+            for failure in result['fails']:
+                failure['fileName'] = prettifyFilename(result['filename'], 2)
+                failure['testName'] = result['name']
+                print json.dumps(failure)
+    print '##### MOZMILL-RICH-FAILURES-END #####'
 
 def checkCrashesAtExit():
     if checkForCrashes(os.path.join(PROFILE_DIR, 'minidumps'), SYMBOLS_PATH,

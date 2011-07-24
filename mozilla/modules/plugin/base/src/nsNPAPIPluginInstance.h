@@ -42,35 +42,21 @@
 
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
-#include "nsIPlugin.h"
 #include "nsIPluginInstance.h"
-#include "nsIPluginTagInfo.h"
 #include "nsPIDOMWindow.h"
-#include "nsIPluginInstanceOwner.h"
 #include "nsITimer.h"
-#ifdef OJI
-#include "nsIPluginInstanceOld.h"
-#include "nsIPluginInstancePeer2.h"
-#include "nsPIPluginInstancePeer.h"
-#include "nsIScriptablePlugin.h"
-#include "nsIPluginInstanceInternal.h"
-#include "nsIJVMPluginInstance.h"
-#endif
+#include "nsIPluginTagInfo.h"
+#include "nsIURI.h"
+#include "nsIChannel.h"
+#include "nsInterfaceHashtable.h"
+#include "nsHashKeys.h"
 
-#include "npfunctions.h"
+#include "mozilla/TimeStamp.h"
 #include "mozilla/PluginLibrary.h"
 
-class nsNPAPIPluginStreamListener;
-class nsPIDOMWindow;
-
-struct nsInstanceStream
-{
-  nsInstanceStream *mNext;
-  nsNPAPIPluginStreamListener *mPluginStreamListener;
-
-  nsInstanceStream();
-  ~nsInstanceStream();
-};
+class nsPluginStreamListenerPeer; // browser-initiated stream class
+class nsNPAPIPluginStreamListener; // plugin-initiated stream class
+class nsIPluginInstanceOwner;
 
 class nsNPAPITimer
 {
@@ -82,12 +68,6 @@ public:
 };
 
 class nsNPAPIPluginInstance : public nsIPluginInstance
-#ifdef OJI
-                             ,public nsIPluginInstanceOld,
-                              public nsIScriptablePlugin,
-                              public nsIPluginInstanceInternal,
-                              public nsIJVMPluginInstance
-#endif
 {
 private:
   typedef mozilla::PluginLibrary PluginLibrary;
@@ -96,33 +76,12 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIPLUGININSTANCE
 
-#ifdef OJI
-  NS_DECL_NSISCRIPTABLEPLUGIN
-  NS_DECL_NSIJVMPLUGININSTANCE
-
-  // nsIPluginInstanceOld methods not declared elsewhere
-  NS_IMETHOD Initialize(nsIPluginInstancePeer* peer);
-
-  NS_IMETHOD GetPeer(nsIPluginInstancePeer* *resultingPeer);
-
-  NS_IMETHOD Destroy(void);
-
-  NS_IMETHOD NewStream(nsIPluginStreamListener** listener);
-
-  // nsIPluginInstanceInternal methods not declared elsewhere
-  virtual JSObject *GetJSObject(JSContext *cx);
-
-  virtual PRUint16 GetPluginAPIVersion();
-
-  // Helper methods
-  void SetShadow(nsIPluginInstanceOld *shadow);
-  nsIPluginInstanceOld *GetShadow();
-#endif
+  nsNPAPIPlugin* GetPlugin();
 
   nsresult GetNPP(NPP * aNPP);
 
-  // Return the callbacks for the plugin instance.
-  nsresult GetCallbacks(const NPPluginFuncs ** aCallbacks);
+  void SetURI(nsIURI* uri);
+  nsIURI* GetURI();
 
   NPError SetWindowless(PRBool aWindowless);
 
@@ -132,34 +91,39 @@ public:
 
   NPError SetWantsAllNetworkStreams(PRBool aWantsAllNetworkStreams);
 
+  NPError SetUsesDOMForCursor(PRBool aUsesDOMForCursor);
+  PRBool UsesDOMForCursor();
+
 #ifdef XP_MACOSX
   void SetDrawingModel(NPDrawingModel aModel);
-  NPDrawingModel GetDrawingModel();
+  void SetEventModel(NPEventModel aModel);
 #endif
 
-  nsresult NewNotifyStream(nsIPluginStreamListener** listener, 
-                           void* notifyData, 
-                           PRBool aCallNotify,
-                           const char * aURL);
+  nsresult NewStreamListener(const char* aURL, void* notifyData,
+                             nsIPluginStreamListener** listener);
 
-#ifdef OJI
-  nsNPAPIPluginInstance(nsIPluginInstanceOld *aShadow);
-#endif
-
-  nsNPAPIPluginInstance(NPPluginFuncs* callbacks, PluginLibrary* aLibrary);
-
-  // Use Release() to destroy this
+  nsNPAPIPluginInstance(nsNPAPIPlugin* plugin);
   virtual ~nsNPAPIPluginInstance();
 
-  // returns the state of mStarted
+  // To be called when an instance becomes orphaned, when
+  // it's plugin is no longer guaranteed to be around.
+  void Destroy();
+
+  // Indicates whether the plugin is running normally.
   bool IsRunning() {
     return RUNNING == mRunning;
+  }
+  bool HasStartedDestroying() {
+    return mRunning >= DESTROYING;
   }
 
   // Indicates whether the plugin is running normally or being shut down
   bool CanFireNotifications() {
     return mRunning == RUNNING || mRunning == DESTROYING;
   }
+
+  // return is only valid when the plugin is not running
+  mozilla::TimeStamp LastStopTime();
 
   // cache this NPAPI plugin
   nsresult SetCached(PRBool aCache);
@@ -173,23 +137,31 @@ public:
   nsNPAPITimer* TimerWithID(uint32_t id, PRUint32* index);
   uint32_t      ScheduleTimer(uint32_t interval, NPBool repeat, void (*timerFunc)(NPP npp, uint32_t timerID));
   void          UnscheduleTimer(uint32_t timerID);
+  NPError       PopUpContextMenu(NPMenu* menu);
+  NPBool        ConvertPoint(double sourceX, double sourceY, NPCoordinateSpace sourceSpace, double *destX, double *destY, NPCoordinateSpace destSpace);
+
+
+  nsTArray<nsNPAPIPluginStreamListener*> *StreamListeners();
+
+  nsTArray<nsPluginStreamListenerPeer*> *FileCachedStreamListeners();
+
+  nsresult AsyncSetWindow(NPWindow& window);
+
+  void URLRedirectResponse(void* notifyData, NPBool allow);
+
+  // Called when the instance fails to instantiate beceause the Carbon
+  // event model is not supported.
+  void CarbonNPAPIFailure();
+
 protected:
   nsresult InitializePlugin();
-
-  // Calls NPP_GetValue
-  nsresult GetValueInternal(NPPVariable variable, void* value);
 
   nsresult GetTagType(nsPluginTagType *result);
   nsresult GetAttributes(PRUint16& n, const char*const*& names,
                          const char*const*& values);
   nsresult GetParameters(PRUint16& n, const char*const*& names,
                          const char*const*& values);
-  nsresult GetMode(nsPluginMode *result);
-
-  // A pointer to the plugin's callback functions. This information
-  // is actually stored in the plugin class (<b>nsPluginClass</b>),
-  // and is common for all plugins of the class.
-  NPPluginFuncs* mCallbacks;
+  nsresult GetMode(PRInt32 *result);
 
   // The structure used to communicate between the plugin instance and
   // the browser.
@@ -213,14 +185,21 @@ protected:
   PRPackedBool mTransparent;
   PRPackedBool mCached;
   PRPackedBool mWantsAllNetworkStreams;
+  PRPackedBool mUsesDOMForCursor;
 
 public:
   // True while creating the plugin, or calling NPP_SetWindow() on it.
   PRPackedBool mInPluginInitCall;
-  PluginLibrary* mLibrary;
-  nsInstanceStream *mStreams;
+
+  nsXPIDLCString mFakeURL;
 
 private:
+  nsNPAPIPlugin* mPlugin;
+
+  nsTArray<nsNPAPIPluginStreamListener*> mStreamListeners;
+
+  nsTArray<nsPluginStreamListenerPeer*> mFileCachedStreamListeners;
+
   nsTArray<PopupControlState> mPopupStates;
 
   char* mMIMEType;
@@ -231,9 +210,16 @@ private:
 
   nsTArray<nsNPAPITimer*> mTimers;
 
-#ifdef OJI
-  nsIPluginInstanceOld *mShadow; // Strong
-#endif
+  // non-null during a HandleEvent call
+  void* mCurrentPluginEvent;
+
+  // Timestamp for the last time this plugin was stopped.
+  // This is only valid when the plugin is actually stopped!
+  mozilla::TimeStamp mStopTime;
+
+  nsCOMPtr<nsIURI> mURI;
+
+  PRPackedBool mUsePluginLayersPref;
 };
 
 #endif // nsNPAPIPluginInstance_h_

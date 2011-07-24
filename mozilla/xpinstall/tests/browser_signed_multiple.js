@@ -1,7 +1,9 @@
 // Load in the test harness
 var scriptLoader = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
                              .getService(Components.interfaces.mozIJSSubScriptLoader);
-scriptLoader.loadSubScript("chrome://mochikit/content/browser/xpinstall/tests/harness.js", this);
+
+var rootDir = getRootDirectory(window.location.href);
+scriptLoader.loadSubScript(rootDir + "harness.js", this);
 
 // ----------------------------------------------------------------------------
 // Tests installing two signed add-ons in the same trigger works.
@@ -12,8 +14,7 @@ function test() {
   Harness.installsCompletedCallback = finish_test;
   Harness.setup();
 
-  var pm = Components.classes["@mozilla.org/permissionmanager;1"]
-                     .getService(Components.interfaces.nsIPermissionManager);
+  var pm = Services.perms;
   pm.add(makeURI("http://example.com/"), "install", pm.ALLOW_ACTION);
 
   var triggers = encodeURIComponent(JSON.stringify({
@@ -48,11 +49,8 @@ function finish_test() {
   em.cancelInstallItem("signed-xpi@tests.mozilla.org");
   em.cancelInstallItem("signed-xpi2@tests.mozilla.org");
 
-  var pm = Components.classes["@mozilla.org/permissionmanager;1"]
-                     .getService(Components.interfaces.nsIPermissionManager);
-  pm.remove("example.com", "install");
+  Services.perms.remove("example.com", "install");
 
   gBrowser.removeCurrentTab();
   Harness.finish();
 }
-// ----------------------------------------------------------------------------

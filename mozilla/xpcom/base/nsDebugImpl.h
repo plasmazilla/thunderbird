@@ -40,11 +40,12 @@
 class nsDebugImpl : public nsIDebug2
 {
 public:
+    nsDebugImpl() {}
     NS_DECL_ISUPPORTS
     NS_DECL_NSIDEBUG
     NS_DECL_NSIDEBUG2
     
-    static NS_METHOD Create(nsISupports* outer, const nsIID& aIID, void* *aInstancePtr);
+    static nsresult Create(nsISupports* outer, const nsIID& aIID, void* *aInstancePtr);
 };
 
 

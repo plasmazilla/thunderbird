@@ -49,11 +49,12 @@ GRE_MODULE	= 1
 MOZILLA_INTERNAL_API =1
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= string \
-		  $(NULL)
+# TODO: we do this in crashreporter too, should be centralized
+ifeq ($(OS_ARCH),Linux)
+DEFINES += -DXP_LINUX
+endif
 
 CPPSRCS		= \
-		nsAllocator.cpp \
 		nsVersionComparatorImpl.cpp \
 		nsConsoleMessage.cpp \
 		nsConsoleService.cpp \
@@ -68,15 +69,10 @@ CPPSRCS		= \
 		nsCycleCollector.cpp \
 		nsStackWalk.cpp \
 		nsMemoryReporterManager.cpp \
+		FunctionTimer.cpp \
 		$(NULL)
 
-ifdef GC_LEAK_DETECTOR
-CSRCS += nsGarbageCollector.c
-CPPSRCS += nsLeakDetector.cpp
-REQUIRES	+= boehm
-endif
-
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 CPPSRCS		+= nsMacUtilsImpl.cpp
 endif
 
@@ -93,6 +89,17 @@ EXPORTS		= \
 		nsWeakPtr.h \
 		nsInterfaceRequestorAgg.h \
 		$(NULL)
+
+EXPORTS_NAMESPACES = mozilla
+
+EXPORTS_mozilla = \
+	FunctionTimer.h \
+	$(NULL)
+
+ifeq (windows,$(MOZ_WIDGET_TOOLKIT))
+CPPSRCS += nsSetDllDirectory.cpp
+CPPSRCS += nsCrashOnException.cpp
+endif
 
 ifeq ($(OS_ARCH),WINNT)
 ifdef MOZ_DEBUG
@@ -116,6 +123,7 @@ SDK_HEADERS     = \
 		nsError.h \
 		nsISupportsBase.h \
 		nscore.h \
+		nsAtomicRefcnt.h \
 		nsCycleCollector.h \
 		nsObjCExceptions.h \
 
@@ -123,6 +131,7 @@ XPIDLSRCS	= \
 		nsIConsoleListener.idl \
 		nsIConsoleMessage.idl \
 		nsIConsoleService.idl \
+		nsICycleCollectorListener.idl \
 		nsIDebug2.idl \
 		nsIErrorService.idl \
 		nsIException.idl \
@@ -133,11 +142,7 @@ XPIDLSRCS	= \
 		nsIMemoryReporter.idl \
 		$(NULL)
 
-ifdef GC_LEAK_DETECTOR
-XPIDLSRCS       += nsILeakDetector.idl
-endif
-
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 XPIDLSRCS	+= nsIMacUtils.idl
 endif
 

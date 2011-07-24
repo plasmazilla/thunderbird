@@ -40,13 +40,11 @@
 #include  <dbus/dbus.h>
 #include "nsDBusHandlerApp.h"
 #include "nsIURI.h"
-#include "nsIGenericFactory.h"
 #include "nsIClassInfoImpl.h"
 #include "nsCOMPtr.h"
+#include "nsCExternalHandlerService.h"
 
 #if (MOZ_PLATFORM_MAEMO == 5)
-#include <libosso.h>
-
 #define APP_LAUNCH_BANNER_SERVICE           "com.nokia.hildon-desktop"
 #define APP_LAUNCH_BANNER_METHOD_INTERFACE  "com.nokia.hildon.hdwm.startupnotification"
 #define APP_LAUNCH_BANNER_METHOD_PATH       "/com/nokia/hildon/hdwm"
@@ -56,6 +54,7 @@
 
 // XXX why does nsMIMEInfoImpl have a threadsafe nsISupports?  do we need one 
 // here too?
+NS_IMPL_CLASSINFO(nsDBusHandlerApp, NULL, 0, NS_DBUSHANDLERAPP_CID)
 NS_IMPL_ISUPPORTS2_CI(nsDBusHandlerApp, nsIDBusHandlerApp, nsIHandlerApp)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +69,20 @@ NS_IMETHODIMP nsDBusHandlerApp::GetName(nsAString& aName)
 NS_IMETHODIMP nsDBusHandlerApp::SetName(const nsAString & aName)
 {
   mName.Assign(aName);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsDBusHandlerApp::SetDetailedDescription(const nsAString & aDescription)
+{
+  mDetailedDescription.Assign(aDescription);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsDBusHandlerApp::GetDetailedDescription(nsAString& aDescription)
+{
+  aDescription.Assign(mDetailedDescription);
+  
   return NS_OK;
 }
 
@@ -224,7 +237,5 @@ NS_IMETHODIMP nsDBusHandlerApp::SetObjectPath(const nsACString & aObjpath)
   mObjpath.Assign(aObjpath);
   return NS_OK;
 }
-
-NS_DECL_CLASSINFO(nsDBusHandlerApp)
 
 

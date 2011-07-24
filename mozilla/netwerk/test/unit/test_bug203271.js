@@ -121,13 +121,12 @@ function checkValueAndTrigger(request, data, ctx) {
     if (index < tests.length - 1) {
         var delay = tests[index++].delay;
         if (delay) {
-            do_timeout(delay, "triggerNextTest()");
+            do_timeout(delay, triggerNextTest);
         } else {
             triggerNextTest();
         }
     } else {
-        do_test_finished();
-        httpserver.stop();
+        httpserver.stop(do_test_finished);
     }
 }
 

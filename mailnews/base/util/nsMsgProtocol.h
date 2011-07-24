@@ -53,6 +53,8 @@
 #include "nsITransport.h"
 #include "nsIAsyncOutputStream.h"
 #include "nsIAuthModule.h"
+#include "nsStringGlue.h"
+#include "nsWeakReference.h"
 
 class nsIMsgWindow;
 
@@ -126,6 +128,9 @@ protected:
   virtual nsresult OpenFileSocket(nsIURI * aURL, PRUint32 aStartPosition, PRInt32 aReadCount); // used to open a file socket connection
 
   nsresult GetTopmostMsgWindow(nsIMsgWindow **aWindow);
+
+  virtual const char* GetType() {return nsnull;}
+  nsresult GetQoSBits(PRUint8 *aQoSBits);
 
   // a Protocol typically overrides this method. They free any of their own connection state and then
   // they call up into the base class to free the generic connection objects
@@ -203,6 +208,7 @@ protected:
 // and news want to leverage aysnc write. We don't want everyone who inherits from nsMsgProtocol to have to
 // pick up the extra overhead.
 class NS_MSG_BASE nsMsgAsyncWriteProtocol : public nsMsgProtocol
+                                          , public nsSupportsWeakReference
 {
 public:
   NS_DECL_ISUPPORTS_INHERITED

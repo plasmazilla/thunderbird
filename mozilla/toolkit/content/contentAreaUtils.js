@@ -47,6 +47,14 @@ var ContentAreaUtils = {
     return this.ioService =
       Components.classes["@mozilla.org/network/io-service;1"]
                 .getService(Components.interfaces.nsIIOService);
+  },
+
+  get stringBundle() {
+    delete this.stringBundle;
+    return this.stringBundle =
+      Components.classes["@mozilla.org/intl/stringbundle;1"]
+                .getService(Components.interfaces.nsIStringBundleService)
+                .createBundle("chrome://global/locale/contentAreaCommands.properties");
   }
 }
 
@@ -80,8 +88,13 @@ function urlSecurityCheck(aURL, aPrincipal, aFlags)
     else
       secMan.checkLoadURIStrWithPrincipal(aPrincipal, aURL, aFlags);
   } catch (e) {
-    // XXXmano: dump the principal url here too
-    throw "Load of " + aURL + " denied.";
+    let principalStr = "";
+    try {
+      principalStr = " from " + aPrincipal.URI.spec;
+    }
+    catch(e2) { }
+
+    throw "Load of " + aURL + principalStr + " denied.";
   }
 }
 
@@ -152,13 +165,6 @@ function saveImageURL(aURL, aFileName, aFilePickerTitleKey, aShouldBypassCache,
   internalSave(aURL, null, aFileName, contentDisposition, contentType,
                aShouldBypassCache, aFilePickerTitleKey, null, aReferrer,
                aSkipPrompt, null);
-}
-
-function saveFrameDocument()
-{
-  var focusedWindow = document.commandDispatcher.focusedWindow;
-  if (isContentFrame(focusedWindow))
-    saveDocument(focusedWindow.document);
 }
 
 function saveDocument(aDocument, aSkipPrompt)
@@ -429,9 +435,9 @@ function internalPersist(persistArgs)
       filesFolder = persistArgs.targetFile.clone();
 
       var nameWithoutExtension = getFileBaseName(filesFolder.leafName);
-      var filesFolderLeafName = getStringBundle().formatStringFromName("filesFolder",
-                                                                       [nameWithoutExtension],
-                                                                       1);
+      var filesFolderLeafName =
+        ContentAreaUtils.stringBundle
+                        .formatStringFromName("filesFolder", [nameWithoutExtension], 1);
 
       filesFolder.leafName = filesFolderLeafName;
     }
@@ -560,15 +566,6 @@ function getTargetFile(aFpP, /* optional */ aSkipPrompt)
   if (!aSkipPrompt)
     useDownloadDir = false;
 
-  var inPrivateBrowsing = false;
-  try {
-    var pbs = Components.classes["@mozilla.org/privatebrowsing;1"]
-                        .getService(Components.interfaces.nsIPrivateBrowsingService);
-    inPrivateBrowsing = pbs.privateBrowsingEnabled;
-  }
-  catch (e) {
-  }
-
   // Default to the user's default downloads directory configured
   // through download prefs.
   var dlMgr = Components.classes["@mozilla.org/download-manager;1"]
@@ -590,11 +587,7 @@ function getTargetFile(aFpP, /* optional */ aSkipPrompt)
     // file picker if it is still valid. Otherwise, keep the default of the
     // user's default downloads directory. If it doesn't exist, it will be
     // changed to the user's desktop later.
-    var lastDir;
-    if (inPrivateBrowsing && gDownloadLastDir.file)
-      lastDir = gDownloadLastDir.file;
-    else
-      lastDir = prefs.getComplexValue("lastDir", nsILocalFile);
+    var lastDir = gDownloadLastDir.file;
     if (lastDir.exists()) {
       dir = lastDir;
       dirExists = true;
@@ -610,8 +603,7 @@ function getTargetFile(aFpP, /* optional */ aSkipPrompt)
 
   var fp = makeFilePicker();
   var titleKey = aFpP.fpTitleKey || "SaveLinkTitle";
-  var bundle = getStringBundle();
-  fp.init(window, bundle.GetStringFromName(titleKey),
+  fp.init(window, ContentAreaUtils.stringBundle.GetStringFromName(titleKey),
           Components.interfaces.nsIFilePicker.modeSave);
 
   fp.displayDirectory = dir;
@@ -639,10 +631,7 @@ function getTargetFile(aFpP, /* optional */ aSkipPrompt)
 
   // Do not store the last save directory as a pref inside the private browsing mode
   var directory = fp.file.parent.QueryInterface(nsILocalFile);
-  if (inPrivateBrowsing)
-    gDownloadLastDir.file = directory;
-  else
-    prefs.setComplexValue("lastDir", nsILocalFile, directory);
+  gDownloadLastDir.file = directory;
 
   fp.file.leafName = validateFileName(fp.file.leafName);
   
@@ -693,7 +682,6 @@ const SAVEMODE_COMPLETE_TEXT = 0x02;
 // filter must be the third filter appended.
 function appendFiltersForContentType(aFilePicker, aContentType, aFileExtension, aSaveMode)
 {
-  var bundle = getStringBundle();
   // The bundle name for saving only a specific content type.
   var bundleName;
   // The corresponding filter string for a specific content type.
@@ -749,10 +737,12 @@ function appendFiltersForContentType(aFilePicker, aContentType, aFileExtension, 
   }
 
   if (aSaveMode & SAVEMODE_COMPLETE_DOM) {
-    aFilePicker.appendFilter(bundle.GetStringFromName("WebPageCompleteFilter"), filterString);
+    aFilePicker.appendFilter(ContentAreaUtils.stringBundle.GetStringFromName("WebPageCompleteFilter"),
+                             filterString);
     // We should always offer a choice to save document only if
     // we allow saving as complete.
-    aFilePicker.appendFilter(bundle.GetStringFromName(bundleName), filterString);
+    aFilePicker.appendFilter(ContentAreaUtils.stringBundle.GetStringFromName(bundleName),
+                             filterString);
   }
 
   if (aSaveMode & SAVEMODE_COMPLETE_TEXT)
@@ -765,24 +755,21 @@ function appendFiltersForContentType(aFilePicker, aContentType, aFileExtension, 
 function getPostData(aDocument)
 {
   try {
-    var sessionHistory = aDocument.defaultView
-                                  .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                                  .getInterface(Components.interfaces.nsIWebNavigation)
-                                  .sessionHistory;
-    return sessionHistory.getEntryAtIndex(sessionHistory.index, false)
-                         .QueryInterface(Components.interfaces.nsISHEntry)
-                         .postData;
+    // Find the session history entry corresponding to the given document. In
+    // the current implementation, nsIWebPageDescriptor.currentDescriptor always
+    // returns a session history entry.
+    var sessionHistoryEntry =
+        aDocument.defaultView
+                 .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                 .getInterface(Components.interfaces.nsIWebNavigation)
+                 .QueryInterface(Components.interfaces.nsIWebPageDescriptor)
+                 .currentDescriptor
+                 .QueryInterface(Components.interfaces.nsISHEntry);
+    return sessionHistoryEntry.postData;
   }
   catch (e) {
   }
   return null;
-}
-
-function getStringBundle()
-{
-  return Components.classes["@mozilla.org/intl/stringbundle;1"]
-                   .getService(Components.interfaces.nsIStringBundleService)
-                   .createBundle("chrome://global/locale/contentAreaCommands.properties");
 }
 
 // Get the preferences branch ("browser.download." for normal 'save' mode)...
@@ -927,7 +914,7 @@ function getDefaultFileName(aDefaultFileName, aURI, aDocument,
   }
   try {
     // 7) Use the default file name
-    return getStringBundle().GetStringFromName("DefaultSaveFileName");
+    return ContentAreaUtils.stringBundle.GetStringFromName("DefaultSaveFileName");
   } catch (e) {
     //in case localized string cannot be found
   }
@@ -947,7 +934,41 @@ function validateFileName(aFileName)
   }
   else if (navigator.appVersion.indexOf("Macintosh") != -1)
     re = /[\:\/]+/g;
-  
+  else if (navigator.appVersion.indexOf("Android") != -1 ||
+           navigator.appVersion.indexOf("Maemo") != -1) {
+    // On mobile devices, the filesystem may be very limited in what
+    // it considers valid characters. To avoid errors, we sanitize
+    // conservatively.
+    const dangerousChars = "*?<>|\":/\\[];,+=";
+    var processed = "";
+    for (var i = 0; i < aFileName.length; i++)
+      processed += aFileName.charCodeAt(i) >= 32 &&
+                   !(dangerousChars.indexOf(aFileName[i]) >= 0) ? aFileName[i]
+                                                                : "_";
+
+    // Last character should not be a space
+    processed = processed.trim();
+
+    // If a large part of the filename has been sanitized, then we
+    // will use a default filename instead
+    if (processed.replace(/_/g, "").length <= processed.length/2) {
+      // We purposefully do not use a localized default filename,
+      // which we could have done using
+      // ContentAreaUtils.stringBundle.GetStringFromName("DefaultSaveFileName")
+      // since it may contain invalid characters.
+      var original = processed;
+      processed = "download";
+
+      // Preserve a suffix, if there is one
+      if (original.indexOf(".") >= 0) {
+        var suffix = original.split(".").slice(-1)[0];
+        if (suffix && suffix.indexOf("_") < 0)
+          processed += "." + suffix;
+      }
+    }
+    return processed;
+  }
+
   return aFileName.replace(re, "_");
 }
 

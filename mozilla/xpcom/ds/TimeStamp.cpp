@@ -41,19 +41,65 @@
 
 namespace mozilla {
 
-static PRLock* gTimeStampLock;
+struct TimeStampInitialization
+{
+  TimeStampInitialization() {
+    TimeStamp::Startup();
+  }
+  ~TimeStampInitialization() {
+    TimeStamp::Shutdown();
+  }
+};
+
+static TimeStampInitialization initOnce;
+
+static PRLock* gTimeStampLock = 0;
 static PRUint32 gRolloverCount;
 static PRIntervalTime gLastNow;
 
-nsresult TimeStamp::Startup()
+double
+TimeDuration::ToSeconds() const
 {
+ return double(mValue)/PR_TicksPerSecond();
+}
+
+double
+TimeDuration::ToSecondsSigDigits() const
+{
+  return ToSeconds();
+}
+
+TimeDuration
+TimeDuration::FromMilliseconds(double aMilliseconds)
+{
+  static double kTicksPerMs = double(PR_TicksPerSecond()) / 1000.0;
+  return TimeDuration::FromTicks(aMilliseconds * kTicksPerMs);
+}
+
+TimeDuration
+TimeDuration::Resolution()
+{
+  // This is grossly nonrepresentative of actual system capabilities
+  // on some platforms
+  return TimeDuration::FromTicks(PRInt64(1));
+}
+
+nsresult
+TimeStamp::Startup()
+{
+  if (gTimeStampLock)
+    return NS_OK;
+
+  // TimeStamp has to use bare PRLock instead of mozilla::Mutex
+  // because TimeStamp can be used very early in startup.
   gTimeStampLock = PR_NewLock();
   gRolloverCount = 1;
   gLastNow = 0;
   return gTimeStampLock ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
-void TimeStamp::Shutdown()
+void
+TimeStamp::Shutdown()
 {
   if (gTimeStampLock) {
     PR_DestroyLock(gTimeStampLock);
@@ -61,7 +107,8 @@ void TimeStamp::Shutdown()
   }
 }
 
-TimeStamp TimeStamp::Now()
+TimeStamp
+TimeStamp::Now()
 {
   // XXX this could be considerably simpler and faster if we had
   // 64-bit atomic operations

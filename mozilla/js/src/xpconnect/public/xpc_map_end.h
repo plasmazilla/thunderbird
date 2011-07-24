@@ -118,10 +118,6 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::GetScriptableFlags(PRUint32 *aFlags)
 #ifdef XPC_MAP_WANT_OUTER_OBJECT
     nsIXPCScriptable::WANT_OUTER_OBJECT |
 #endif
-#ifdef XPC_MAP_WANT_INNER_OBJECT
-    nsIXPCScriptable::WANT_INNER_OBJECT |
-#endif
-
 #ifdef XPC_MAP_FLAGS
     XPC_MAP_FLAGS |
 #endif
@@ -148,22 +144,22 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::PostCreate(nsIXPConnectWrappedNative *wrapper, 
 #endif
 
 #ifndef XPC_MAP_WANT_ADDPROPERTY
-NS_IMETHODIMP XPC_MAP_CLASSNAME::AddProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, jsval * vp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::AddProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, jsval * vp, PRBool *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
 #ifndef XPC_MAP_WANT_DELPROPERTY
-NS_IMETHODIMP XPC_MAP_CLASSNAME::DelProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, jsval * vp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::DelProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, jsval * vp, PRBool *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
 #ifndef XPC_MAP_WANT_GETPROPERTY
-NS_IMETHODIMP XPC_MAP_CLASSNAME::GetProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, jsval * vp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::GetProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, jsval * vp, PRBool *_retval)
     {NS_WARNING("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
 #ifndef XPC_MAP_WANT_SETPROPERTY
-NS_IMETHODIMP XPC_MAP_CLASSNAME::SetProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, jsval * vp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::SetProperty(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, jsval * vp, PRBool *_retval)
     {NS_WARNING("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
@@ -178,7 +174,7 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::Enumerate(nsIXPConnectWrappedNative *wrapper, J
 #endif
 
 #ifndef XPC_MAP_WANT_NEWRESOLVE
-NS_IMETHODIMP XPC_MAP_CLASSNAME::NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, PRUint32 flags, JSObject * *objp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, PRUint32 flags, JSObject * *objp, PRBool *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
@@ -193,7 +189,7 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::Finalize(nsIXPConnectWrappedNative *wrapper, JS
 #endif
 
 #ifndef XPC_MAP_WANT_CHECKACCESS
-NS_IMETHODIMP XPC_MAP_CLASSNAME::CheckAccess(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval id, PRUint32 mode, jsval * vp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::CheckAccess(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsid id, PRUint32 mode, jsval * vp, PRBool *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
@@ -208,7 +204,7 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::Construct(nsIXPConnectWrappedNative *wrapper, J
 #endif
 
 #ifndef XPC_MAP_WANT_HASINSTANCE
-NS_IMETHODIMP XPC_MAP_CLASSNAME::HasInstance(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval val, PRBool *bp, PRBool *_retval)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::HasInstance(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, const jsval &val, PRBool *bp, PRBool *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
@@ -218,17 +214,12 @@ NS_IMETHODIMP XPC_MAP_CLASSNAME::Trace(nsIXPConnectWrappedNative *wrapper, JSTra
 #endif
 
 #ifndef XPC_MAP_WANT_EQUALITY
-NS_IMETHODIMP XPC_MAP_CLASSNAME::Equality(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, jsval val, PRBool *bp)
+NS_IMETHODIMP XPC_MAP_CLASSNAME::Equality(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, const jsval &val, PRBool *bp)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 
 #ifndef XPC_MAP_WANT_OUTER_OBJECT
 NS_IMETHODIMP XPC_MAP_CLASSNAME::OuterObject(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, JSObject * *_retval)
-    {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
-#endif
-
-#ifndef XPC_MAP_WANT_INNER_OBJECT
-NS_IMETHODIMP XPC_MAP_CLASSNAME::InnerObject(nsIXPConnectWrappedNative *wrapper, JSContext * cx, JSObject * obj, JSObject * *_retval)
     {NS_ERROR("never called"); return NS_ERROR_NOT_IMPLEMENTED;}
 #endif
 

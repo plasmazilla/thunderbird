@@ -43,7 +43,16 @@ VPATH = @srcdir@
 include $(DEPTH)/config/autoconf.mk
 
 ifdef ENABLE_TESTS
-DIRS += crashinjectdll
+
+ifdef _MSC_VER
+ifneq ($(OS_TEST),x86_64)
+DIRS += vmwarerecordinghelper
+endif
+endif
+
+DIRS += \
+  crashinjectdll \
+  $(NULL)
 
 PROGRAM = crashinject$(BIN_SUFFIX)
 USE_STATIC_LIBS = 1

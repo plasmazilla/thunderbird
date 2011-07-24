@@ -14,8 +14,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is
- *   Mozilla Corp
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -206,6 +205,8 @@ continue_loading:
 #ifdef DEBUG_very_verbose
   printf_stderr("LdrLoadDll: continuing load... ('%S')\n", moduleFileName->Buffer);
 #endif
+
+  NS_SetHasLoadedNewDLLs();
 
   return stub_LdrLoadDll(filePath, flags, moduleFileName, handle);
 }

@@ -44,6 +44,13 @@ interface nsISelection;
 interface nsIDOMNode;
 interface nsIOutputStream;
 
+%{ C++
+class nsINode;
+class nsIDocument;
+%}
+[ptr] native nsINodePtr(nsINode);
+[ptr] native nsIDocumentPtr(nsIDocument);
+
 [scriptable, uuid(c0da5b87-0ba7-4d7c-8cb3-fcb02af4253d)]
 interface nsIDocumentEncoderNodeFixup : nsISupports
 {
@@ -61,7 +68,7 @@ interface nsIDocumentEncoderNodeFixup : nsISupports
   nsIDOMNode fixupNode(in nsIDOMNode aNode, out boolean aSerializeCloneKids);
 };
 
-[scriptable, uuid(f85c5a20-258d-11db-a98b-0800200c9a66)]
+[scriptable, uuid(7222bdf1-c2b9-41f1-a40a-a3d65283a95b)]
 interface nsIDocumentEncoder : nsISupports
 {
   // Output methods flag bits. There are a frightening number of these,
@@ -214,7 +221,21 @@ interface nsIDocumentEncoder : nsISupports
    * This flag suppresses that behavior.
    */
   const unsigned long OutputDontRewriteEncodingDeclaration = (1 << 18);
+ 
+  /**
+   * When using the HTML or XHTML serializer, skip elements that are not
+   * visible when this flag is set.  Elements are not visible when they
+   * have CSS style display:none or visibility:collapse, for example.
+   */
+  const unsigned long SkipInvisibleContent = (1 << 19);
   
+  /**
+   * Output for delsp=yes (RFC 3676). This is used with OutputFormatFlowed
+   * when converting to text for mail sending.
+   * PlainText output only.
+   */
+  const unsigned long OutputFormatDelSp  = (1 << 20);
+ 
   /**
    * Initialize with a pointer to the document and the mime type.
    * @param aDocument Document to encode.
@@ -224,6 +245,9 @@ interface nsIDocumentEncoder : nsISupports
   void init(in nsIDOMDocument aDocument,
             in AString aMimeType,
             in unsigned long aFlags);
+  [noscript] void nativeInit(in nsIDocumentPtr aDocument,
+                             in AString aMimeType,
+                             in unsigned long aFlags);
 
   /**
    *  If the selection is set to a non-null value, then the
@@ -256,6 +280,7 @@ interface nsIDocumentEncoder : nsISupports
    *  @param aContainer The node which child nodes will be encoded.
    */
   void setContainerNode(in nsIDOMNode aContainer);
+  [noscript] void setNativeContainerNode(in nsINodePtr aContainer);
 
   /**
    *  Documents typically have an intrinsic character set,
@@ -302,7 +327,7 @@ interface nsIDocumentEncoder : nsISupports
   /**
    * Encode the document into a string. Stores the extra context information
    * into the two arguments.
-   * @param [OUT] aContextString The string where the parent heirarchy
+   * @param [OUT] aContextString The string where the parent hierarchy
    *              information will be stored.
    * @param [OUT] aInfoString The string where extra context info will
    *              be stored.

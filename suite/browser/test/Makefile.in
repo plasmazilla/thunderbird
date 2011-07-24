@@ -51,10 +51,18 @@ _TEST_FILES =	test_feed_discovery.html \
 		subtst_contextmenu.html \
 		ctxmenu-image.png \
 		video.ogg \
+		test_bug364677.html \
+		bug364677-data.xml \
+		bug364677-data.xml^headers^ \
 		$(NULL)
 
 _BROWSER_FILES = browser_bug413915.js \
                  browser_bug427559.js \
+                 browser_bug561636.js \
+                 browser_bug562649.js \
+                 browser_bug585511.js \
+                 browser_bug595507.js \
+                 browser_fayt.js \
                  browser_page_style_menu.js \
                  page_style_sample.html \
                  browser_feed_tab.js \
@@ -64,9 +72,13 @@ _BROWSER_FILES = browser_bug413915.js \
                  plugin_test.html \
                  plugin_both.html \
                  plugin_both2.html \
+                 browser_popupNotification.js \
                  browser_scope.js \
                  browser_alltabslistener.js \
                  alltabslistener.html \
+                 browser_relatedTabs.js \
+                 browser_selectTabAtIndex.js \
+                 browser_bug519216.js \
     $(NULL)
 
 ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))

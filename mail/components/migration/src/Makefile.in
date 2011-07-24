@@ -8,29 +8,13 @@ include $(DEPTH)/config/autoconf.mk
 MODULE=mailprofilemigration
 LIBRARY_NAME = profilemigration_s
 MODULE_NAME = nsMailProfileMigratorModule
-ifdef BUILD_STATIC_LIBS
-MOZILLA_INTERNAL_API = 1
-else
+# Linux builds should use external API except when we are building libxul.
 ifneq ($(MOZ_WIDGET_TOOLKIT), gtk2)
 MOZILLA_INTERNAL_API = 1
 endif
+ifdef MOZ_ENABLE_LIBXUL
+MOZILLA_INTERNAL_API = 1
 endif
-
-REQUIRES = \
-	string \
-	xpcom \
-	xulapp \
-	libreg \
-	windowwatcher \
-	dom \
-	pref \
-	rdf \
-	necko \
-	intl \
-	uconv \
-	import \
-	msgbase \
-	$(NULL)
 
 CPPSRCS = \
 	nsProfileMigrator.cpp \
@@ -38,10 +22,6 @@ CPPSRCS = \
 	nsNetscapeProfileMigratorBase.cpp \
 	nsSeamonkeyProfileMigrator.cpp \
 	$(NULL)
-
-ifneq ($(OS_ARCH),BeOS)
-CPPSRCS += nsDogbertProfileMigrator.cpp
-endif
 
 ifeq ($(OS_ARCH),WINNT)
 CPPSRCS += \

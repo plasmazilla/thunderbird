@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Global Database.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -50,14 +50,14 @@
  *  adds a lot of runtime overhead which makes certain debugging strategies like
  *  using chronicle-recorder impractical.
  */
-load("../../mailnews/resources/mailDirService.js");
-load("../../mailnews/resources/mailTestUtils.js");
-load("../../mailnews/resources/logHelper.js");
-load("../../mailnews/resources/asyncTestUtils.js");
+load("../../../../resources/mailDirService.js");
+load("../../../../resources/mailTestUtils.js");
+load("../../../../resources/logHelper.js");
+load("../../../../resources/asyncTestUtils.js");
 
-load("../../mailnews/resources/messageGenerator.js");
-load("../../mailnews/resources/messageModifier.js");
-load("../../mailnews/resources/messageInjection.js");
+load("../../../../resources/messageGenerator.js");
+load("../../../../resources/messageModifier.js");
+load("../../../../resources/messageInjection.js");
 
 // Create a message generator
 const msgGen = gMessageGenerator = new MessageGenerator();
@@ -71,6 +71,12 @@ var partHtml = new SyntheticPartLeaf(
   "<html><head></head><body>I am HTML! Woo! </body></html>",
   {
     contentType: "text/html"
+  }
+);
+var partEnriched = new SyntheticPartLeaf(
+  "<bold><italic>I am not a popular format! sad woo :(</italic></bold>",
+  {
+    contentType: "text/enriched"
   }
 );
 var partAlternative = new SyntheticPartMultiAlternative([partText, partHtml]);
@@ -117,6 +123,11 @@ var messageInfos = [
   {
     name: 'text/html',
     bodyPart: partHtml,
+  },
+  // -- simply ugly
+  {
+    name: 'text/enriched',
+    bodyPart: partEnriched,
   },
   // -- simple w/attachment
   {
@@ -252,6 +263,12 @@ var messageInfos = [
     name: 'multipart/parallel',
     bodyPart: new SyntheticPartMultiParallel([partText, partTachImage]),
   },
+  // --- previous bugs
+  // -- bug 495057, text/enriched was being dumb
+  {
+    name: 'text/enriched inside related',
+    bodyPart: new SyntheticPartMultiRelated([partEnriched]),
+  },
   // -- empty sections
   // This was a crasher because the empty part made us try and close the
   //  child preceding the empty part a second time.  The nested multipart led
@@ -282,9 +299,29 @@ function test_stream_message(info) {
   MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
     verify_stream_message(info, synMsg, aMsgHdr, aMimeMsg);
   });
+
+  yield false;
 }
 
 var deathToNewlineTypeThings = /[\r\n]+/g;
+
+/**
+ * Applies any transformations to the synthetic body part that we would expect
+ *  to happen to a message during its libmime journey.  It may be better to
+ *  just put the expected translations in the synthetic body part instead of
+ *  trying to make this method do anything complex.
+ */
+function synTransformBody(aSynBodyPart) {
+  let text = aSynBodyPart.body.trim();
+  // this transforms things into HTML apparently...
+  if (aSynBodyPart._contentType == "text/enriched") {
+    // Our job here is just to transform just enough for our example above.
+    // We also could have provided a manual translation on the body part.
+    text = text.replace("bold", "B", "g")
+               .replace("italic", "I", "g") + "\n<BR>";
+  }
+  return text;
+}
 
 function verify_body_part_equivalence(aSynBodyPart, aMimePart) {
   // the content-type devoid of parameters should match
@@ -302,7 +339,8 @@ function verify_body_part_equivalence(aSynBodyPart, aMimePart) {
   // XXX body part checking will get brittle if we ever actually encode things!
   if (aSynBodyPart.body && !aSynBodyPart._filename &&
       aSynBodyPart._contentType.indexOf("text/") == 0)
-    do_check_eq(aSynBodyPart.body.trim(), aMimePart.body.trim());
+    do_check_eq(synTransformBody(aSynBodyPart),
+                aMimePart.body.trim().replace("\r", "", "g"));
   if (aSynBodyPart.parts) {
     let iPart;
     let realPartOffsetCompensator = 0;
@@ -346,14 +384,16 @@ function verify_stream_message(aInfo, aSynMsg, aMsgHdr, aMimeMsg) {
     dump("Something was wrong with the MIME rep!\n!!!!!!!!\n");
     dump("Synthetic looks like:\n  " + aSynMsg.prettyString() +
          "\n\n");
-    dump("MIME looks like:  \n" + aMimeMsg.prettyString(true, "  ") + "\n\n");
+    dump("MIME looks like:  \n" + aMimeMsg.prettyString(true, "  ", true) +
+         "\n\n");
     do_throw(ex);
   }
 
   dump("Everything is just fine.\n");
   dump("Synthetic looks like:\n  " + aSynMsg.prettyString() +
        "\n\n");
-  dump("MIME looks like:\n  " + aMimeMsg.prettyString(true, "  ") + "\n\n");
+  dump("MIME looks like:\n  " + aMimeMsg.prettyString(true, "  ", false) +
+       "\n\n");
 
   async_driver();
 }
@@ -386,6 +426,86 @@ function test_sane_bodies() {
       do_throw("Mime body length is " + bodyPart.body.length + " bytes long but should not be!");
     async_driver();
   }, false, {saneBodySize: true});
+
+  yield false;
+}
+
+// additional testing for the correctness of allAttachments and
+// allUserAttachments representation
+
+var partTachNestedMessages = [
+  msgGen.makeMessage(),
+  msgGen.makeMessage({
+      attachments: [tachImage]
+    }),
+  msgGen.makeMessage({
+      attachments: [tachImage, tachApplication]
+    })
+];
+
+var attMessagesParams = [
+  {
+    name: 'attached rfc822',
+    bodyPart: new SyntheticPartMultiMixed([partAlternative,
+                                           partTachNestedMessages[0]]),
+  },
+  {
+    name: 'attached rfc822 w. image inside',
+    bodyPart: new SyntheticPartMultiMixed([partAlternative,
+                                           partTachNestedMessages[1]]),
+  },
+  {
+    name: 'attached x/funky + attached rfc822 w. (image + x/funky) inside',
+    bodyPart: new SyntheticPartMultiMixed([partAlternative,
+                                           partTachApplication,
+                                           partTachNestedMessages[2]]),
+  }
+];
+
+var expectedAttachmentsInfo = [
+  {
+    allAttachmentsContentTypes: [],
+    allUserAttachmentsContentTypes: ["message/rfc822"]
+  },
+  {
+    allAttachmentsContentTypes: ["image/png"],
+    allUserAttachmentsContentTypes: ["message/rfc822"]
+  },
+  {
+    allAttachmentsContentTypes: ["application/x-funky", "image/png", "application/x-funky"],
+    allUserAttachmentsContentTypes: ["application/x-funky", "message/rfc822"]
+  },
+];
+
+function test_attachments_correctness () {
+  for each (let [i, params] in Iterator(attMessagesParams)) {
+    let synMsg = gMessageGenerator.makeMessage(params);
+    let synSet = new SyntheticMessageSet([synMsg]);
+    yield add_sets_to_folder(gInbox, [synSet]);
+
+    let msgHdr = synSet.getMsgHdr(0);
+
+    MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
+      try {
+        let expected = expectedAttachmentsInfo[i];
+
+        do_check_eq(aMimeMsg.allAttachments.length, expected.allAttachmentsContentTypes.length);
+        for each (let [j, att] in Iterator(aMimeMsg.allAttachments))
+          do_check_eq(att.contentType, expected.allAttachmentsContentTypes[j]);
+
+        do_check_eq(aMimeMsg.allUserAttachments.length, expected.allUserAttachmentsContentTypes.length);
+        for each (let [j, att] in Iterator(aMimeMsg.allUserAttachments))
+          do_check_eq(att.contentType, expected.allUserAttachmentsContentTypes[j]);
+      } catch (e) {
+        dump(aMimeMsg.prettyString()+"\n");
+        do_throw(e);
+      }
+
+      async_driver();
+    }, false);
+
+    yield false;
+  }
 }
 
 /* ===== Driver ===== */
@@ -393,6 +513,7 @@ function test_sane_bodies() {
 var tests = [
   parameterizeTest(test_stream_message, messageInfos),
   test_sane_bodies,
+  test_attachments_correctness,
 ];
 
 var gInbox;

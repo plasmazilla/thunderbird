@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -80,6 +80,10 @@ MessageDisplayWidget.prototype = {
    * Set pane visibility based on this.singleMessageDisplay.
    */
   _updateActiveMessagePane: function MessageDisplayWidget_updateMessagePane() {
+    // If we're summarizing, might as well clear the message display so that
+    // when we return to it, we don't display prev selected message.
+    if (!this.singleMessageDisplay)
+      this.clearDisplay();
     // _singleMessageDisplay can be null, so use the property (getter)
     document.getElementById("singlemessage").hidden =
       !this.singleMessageDisplay;
@@ -109,6 +113,13 @@ MessageDisplayWidget.prototype = {
    * The currently displayed message's nsIMsgDBHdr.  null if there's no message.
    */
   displayedMessage: null,
+
+  /**
+   * Indicate whether the message being displayed is a 'dummy' because it is
+   *  backed not by an nsIMsgDBHdr but instead by a file on disk or an
+   *  attachment on some mail message.
+   */
+  isDummy: false,
   //@}
 
   /**
@@ -263,6 +274,17 @@ MessageDisplayWidget.prototype = {
   },
 
   /**
+   * FolderDisplayWidget will alert us when a message has been removed so that
+   * we can decide whether we want to handle it here, e.g. by closing the
+   * window/tab.
+   *
+   * @return true if the MessageDisplayWidget handled this event and the
+   *         FolderDisplayWidget should stop processing
+   */
+  onMessagesRemoved: function MessageDisplayWidget_onMessagesRemoved() {
+  },
+
+  /**
    * If we are already summarized and we get a new request to summarize, require
    *  that the selection has been stable for at least this many milliseconds
    *  before resummarizing.
@@ -338,10 +360,15 @@ MessageDisplayWidget.prototype = {
 
     // figure out if we're looking at one thread or more than one thread
     let selectedMessages = this.folderDisplay.selectedMessages;
-    let firstThreadId = selectedMessages[0].threadId;
+    let selectedIndices = this.folderDisplay.selectedIndices;
+    let dbView = this.folderDisplay.view.dbView;
+    let firstThreadId = dbView.getThreadContainingIndex(selectedIndices[0])
+      .getChildHdrAt(0).messageKey;
     let oneThread = true;
-    for (let i = 0; i < selectedMessages.length; i++) {
-      if (selectedMessages[i].threadId != firstThreadId) {
+    for (let i = 0; i < selectedIndices.length; i++) {
+      let threadId = dbView.getThreadContainingIndex(selectedIndices[i])
+        .getChildHdrAt(0).messageKey;
+      if (threadId != firstThreadId) {
         oneThread = false;
         break;
       }
@@ -513,7 +540,7 @@ MessageTabDisplayWidget.prototype = {
       if (!this.closing) {
         this.closing = true;
         document.getElementById('tabmail').closeTab(
-            this.folderDisplay._tabInfo);
+            this.folderDisplay._tabInfo, true);
       }
       return true;
     }
@@ -532,6 +559,15 @@ MessageTabDisplayWidget.prototype = {
     }
   },
 
+  onMessagesRemoved: function MessageTabDisplayWidget_onMessagesRemoved() {
+    if (this.folderDisplay.treeSelection.count == 0 &&
+        pref.getBoolPref("mail.close_message_window.on_delete")) {
+      document.getElementById("tabmail").closeTab(this.folderDisplay._tabInfo,
+                                                  true);
+      return true;
+    }
+  },
+
   /**
    * A message tab should never ever be blank.  Close the tab if we become
    *  blank.
@@ -539,7 +575,8 @@ MessageTabDisplayWidget.prototype = {
   clearDisplay: function MessageTabDisplayWidget_clearDisplay() {
     if (!this.closing) {
       this.closing = true;
-      document.getElementById('tabmail').closeTab(this.folderDisplay._tabInfo);
+      document.getElementById('tabmail').closeTab(this.folderDisplay._tabInfo,
+                                                  true);
     }
   }
 };

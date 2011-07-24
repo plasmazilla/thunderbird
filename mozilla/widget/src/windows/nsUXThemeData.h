@@ -37,22 +37,19 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+#ifndef __UXThemeData_h__
+#define __UXThemeData_h__
 #include <windows.h>
+#include <uxtheme.h>
+
 #include "nscore.h"
+#include "nsILookAndFeel.h"
 
 #if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
 #include <dwmapi.h>
 #endif
 
-#if defined(WINCE) || (MOZ_WINSDK_TARGETVER == MOZ_NTDDI_WS03)
-struct MARGINS
-{
-  int cxLeftWidth;
-  int cxRightWidth;
-  int cyTopHeight;
-  int cyBottomHeight;
-};
-#endif
+#include "nsWindowDefs.h"
 
 // These window messages are not defined in dwmapi.h
 #ifndef WM_DWMCOMPOSITIONCHANGED
@@ -91,9 +88,30 @@ enum nsUXThemeClass {
   eUXHeader,
   eUXListview,
   eUXMenu,
+  eUXWindowFrame,
   eUXNumClasses
 };
 
+// Native windows style constants
+enum WindowsTheme {
+  WINTHEME_UNRECOGNIZED = 0,
+  WINTHEME_CLASSIC      = 1, // no theme
+  WINTHEME_AERO         = 2,
+  WINTHEME_LUNA         = 3,
+  WINTHEME_ROYALE       = 4,
+  WINTHEME_ZUNE         = 5
+};
+enum WindowsThemeColor {
+  WINTHEMECOLOR_UNRECOGNIZED = 0,
+  WINTHEMECOLOR_NORMAL       = 1,
+  WINTHEMECOLOR_HOMESTEAD    = 2,
+  WINTHEMECOLOR_METALLIC     = 3
+};
+
+#define CMDBUTTONIDX_MINIMIZE    0
+#define CMDBUTTONIDX_RESTORE     1
+#define CMDBUTTONIDX_CLOSE       2
+#define CMDBUTTONIDX_BUTTONBOX   3
 
 class nsUXThemeData {
   static HMODULE sThemeDLL;
@@ -112,15 +130,28 @@ public:
   static BOOL sFlatMenus;
   static PRPackedBool sIsXPOrLater;
   static PRPackedBool sIsVistaOrLater;
-  static PRPackedBool sHaveCompositor;
+  static PRBool sTitlebarInfoPopulatedAero;
+  static PRBool sTitlebarInfoPopulatedThemed;
+  static SIZE sCommandButtons[4];
+  static nsILookAndFeel::WindowsThemeIdentifier sThemeId;
+  static PRBool sIsDefaultWindowsTheme;
+
   static void Initialize();
   static void Teardown();
   static void Invalidate();
   static HANDLE GetTheme(nsUXThemeClass cls);
   static HMODULE GetThemeDLL();
 #if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-   static HMODULE GetDwmDLL();
+  static HMODULE GetDwmDLL();
 #endif
+
+  // nsWindow calls this to update desktop settings info
+  static void InitTitlebarInfo();
+  static void UpdateTitlebarInfo(HWND aWnd);
+
+  static void UpdateNativeThemeInfo();
+  static nsILookAndFeel::WindowsThemeIdentifier GetNativeThemeId();
+  static PRBool IsDefaultWindowTheme();
 
   static inline BOOL IsAppThemed() {
     return isAppThemed && isAppThemed();
@@ -163,6 +194,7 @@ public:
                                                   LPWSTR pszColorBuff, int cchMaxColorChars,
                                                   LPWSTR pszSizeBuff, int cchMaxSizeChars);
   typedef COLORREF (WINAPI*GetThemeSysColorPtr)(HANDLE hTheme, int iColorID);
+  typedef BOOL (WINAPI*IsThemeBackgroundPartiallyTransparentPtr)(HANDLE hTheme, int iPartId, int iStateId);
 
   static OpenThemeDataPtr openTheme;
   static CloseThemeDataPtr closeTheme;
@@ -177,6 +209,7 @@ public:
   static IsAppThemedPtr isAppThemed;
   static GetCurrentThemeNamePtr getCurrentThemeName;
   static GetThemeSysColorPtr getThemeSysColor;
+  static IsThemeBackgroundPartiallyTransparentPtr isThemeBackgroundPartiallyTransparent;
 
 #if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   // dwmapi.dll function typedefs and declarations
@@ -184,21 +217,35 @@ public:
   typedef HRESULT (WINAPI*DwmIsCompositionEnabledProc)(BOOL *pfEnabled);
   typedef HRESULT (WINAPI*DwmSetIconicThumbnailProc)(HWND hWnd, HBITMAP hBitmap, DWORD dwSITFlags);
   typedef HRESULT (WINAPI*DwmSetIconicLivePreviewBitmapProc)(HWND hWnd, HBITMAP hBitmap, POINT *pptClient, DWORD dwSITFlags);
+  typedef HRESULT (WINAPI*DwmGetWindowAttributeProc)(HWND hWnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
   typedef HRESULT (WINAPI*DwmSetWindowAttributeProc)(HWND hWnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
   typedef HRESULT (WINAPI*DwmInvalidateIconicBitmapsProc)(HWND hWnd);
+  typedef HRESULT (WINAPI*DwmDefWindowProcProc)(HWND hWnd, UINT msg, LPARAM lParam, WPARAM wParam, LRESULT *aRetValue);
 
   static DwmExtendFrameIntoClientAreaProc dwmExtendFrameIntoClientAreaPtr;
   static DwmIsCompositionEnabledProc dwmIsCompositionEnabledPtr;
   static DwmSetIconicThumbnailProc dwmSetIconicThumbnailPtr;
   static DwmSetIconicLivePreviewBitmapProc dwmSetIconicLivePreviewBitmapPtr;
+  static DwmGetWindowAttributeProc dwmGetWindowAttributePtr;
   static DwmSetWindowAttributeProc dwmSetWindowAttributePtr;
   static DwmInvalidateIconicBitmapsProc dwmInvalidateIconicBitmapsPtr;
-
-  static PRBool CheckForCompositor() {
-    BOOL compositionIsEnabled = FALSE;
-    if(dwmIsCompositionEnabledPtr)
-      dwmIsCompositionEnabledPtr(&compositionIsEnabled);
-    return sHaveCompositor = (compositionIsEnabled != 0);
-  }
+  static DwmDefWindowProcProc dwmDwmDefWindowProcPtr;
 #endif // MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+
+  // This method returns the cached compositor state. Most
+  // callers should call without the argument. The cache
+  // should be modified only when the application receives
+  // WM_DWMCOMPOSITIONCHANGED. This rule prevents inconsistent
+  // results for two or more calls which check the state during
+  // composition transition.
+  static PRBool CheckForCompositor(PRBool aUpdateCache = PR_FALSE) {
+    static BOOL sCachedValue = FALSE;
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+    if(aUpdateCache && dwmIsCompositionEnabledPtr) {
+      dwmIsCompositionEnabledPtr(&sCachedValue);
+    }
+#endif // MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+    return (sCachedValue != FALSE);
+  }
 };
+#endif // __UXThemeData_h__

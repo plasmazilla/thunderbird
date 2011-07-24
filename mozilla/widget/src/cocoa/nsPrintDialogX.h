@@ -36,8 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef nsPrintDialog_h__
-#define nsPrintDialog_h__
+#ifndef nsPrintDialog_h_
+#define nsPrintDialog_h_
 
 #include "nsIPrintDialogService.h"
 #include "nsCOMPtr.h"
@@ -46,6 +46,7 @@
 #import <Cocoa/Cocoa.h>
 
 class nsIPrintSettings;
+class nsIStringBundle;
 
 class nsPrintDialogServiceX : public nsIPrintDialogService
 {
@@ -65,6 +66,7 @@ public:
 @interface PrintPanelAccessoryView : NSView
 {
   nsIPrintSettings* mSettings;
+  nsIStringBundle* mPrintBundle;
   NSButton* mPrintSelectionOnlyCheckbox;
   NSButton* mShrinkToFitCheckbox;
   NSButton* mPrintBGColorsCheckbox;
@@ -86,14 +88,7 @@ public:
 
 @end
 
-@interface PrintPanelAccessoryController : NSObject
-{
-  NSView* mView;
-}
-
-- (void)setView:(NSView*)aView;
-
-- (NSView*)view;
+@interface PrintPanelAccessoryController : NSViewController <NSPrintPanelAccessorizing>
 
 - (id)initWithSettings:(nsIPrintSettings*)aSettings;
 
@@ -101,4 +96,4 @@ public:
 
 @end
 
-#endif
+#endif // nsPrintDialog_h_

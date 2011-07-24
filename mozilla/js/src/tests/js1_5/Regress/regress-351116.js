@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-351116.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 351116;
 var summary = 'formal parameter and inner function have same name';
@@ -52,12 +51,9 @@ function test()
   printBugNumber(BUGNUMBER);
   printStatus (summary);
  
-  var f = function (s) { function s() { } }
+  var f = function (s) { function s() { } };
 
-  if (typeof window != 'undefined')
-  {
-    window.open('javascript:function (s) { function s() { } }');
-  }
+  function g(s) { function s() { } }
 
   reportCompare(expect, actual, summary);
 

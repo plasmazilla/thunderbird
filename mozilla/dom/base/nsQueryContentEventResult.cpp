@@ -182,4 +182,3 @@ nsQueryContentEventResult::SetEventResult(nsIWidget* aWidget,
     aWidget->WidgetToScreenOffset() - topWidget->WidgetToScreenOffset();
   mRect.MoveBy(-offset);
 }
-

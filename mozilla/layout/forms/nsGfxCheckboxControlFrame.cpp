@@ -40,13 +40,13 @@
 #include "nsCOMPtr.h"
 #include "nsCSSRendering.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 #include "nsIServiceManager.h"
 #include "nsIDOMHTMLInputElement.h"
 #include "nsDisplayList.h"
 #include "nsCSSAnonBoxes.h"
-#include "nsIDOMNSHTMLInputElement.h"
+#include "nsIDOMHTMLInputElement.h"
 
 static void
 PaintCheckMark(nsIFrame* aFrame,
@@ -65,7 +65,7 @@ PaintCheckMark(nsIFrame* aFrame,
                                     // of the 7x7 unit checkmark
 
   // Scale the checkmark based on the smallest dimension
-  nscoord paintScale = PR_MIN(rect.width, rect.height) / checkSize;
+  nscoord paintScale = NS_MIN(rect.width, rect.height) / checkSize;
   nsPoint paintCenter(rect.x + rect.width  / 2,
                       rect.y + rect.height / 2);
 
@@ -119,35 +119,19 @@ nsGfxCheckboxControlFrame::~nsGfxCheckboxControlFrame()
 {
 }
 
-
-NS_QUERYFRAME_HEAD(nsGfxCheckboxControlFrame)
-  NS_QUERYFRAME_ENTRY(nsICheckboxControlFrame)
-NS_QUERYFRAME_TAIL_INHERITING(nsFormControlFrame)
-
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP
-nsGfxCheckboxControlFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsGfxCheckboxControlFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService
-    = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    return accService->CreateHTMLCheckboxAccessible(
-      static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLCheckboxAccessible(mContent,
+                                                    PresContext()->PresShell());
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
-
-//------------------------------------------------------------
-NS_IMETHODIMP
-nsGfxCheckboxControlFrame::OnChecked(nsPresContext* aPresContext,
-                                     PRBool aChecked)
-{
-  InvalidateOverflowRect();
-  return NS_OK;
-}
 
 //------------------------------------------------------------
 NS_IMETHODIMP
@@ -167,10 +151,11 @@ nsGfxCheckboxControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     return NS_OK; // No need to paint the checkmark. The theme will do it.
 
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-    nsDisplayGeneric(this,
+    nsDisplayGeneric(aBuilder, this,
                      IsIndeterminate()
                      ? PaintIndeterminateMark : PaintCheckMark,
-                     "CheckedCheckbox"));
+                     "CheckedCheckbox",
+                     nsDisplayItem::TYPE_CHECKED_CHECKBOX));
 }
 
 //------------------------------------------------------------
@@ -186,7 +171,7 @@ nsGfxCheckboxControlFrame::IsChecked()
 PRBool
 nsGfxCheckboxControlFrame::IsIndeterminate()
 {
-  nsCOMPtr<nsIDOMNSHTMLInputElement> elem(do_QueryInterface(mContent));
+  nsCOMPtr<nsIDOMHTMLInputElement> elem(do_QueryInterface(mContent));
   PRBool retval = PR_FALSE;
   elem->GetIndeterminate(&retval);
   return retval;

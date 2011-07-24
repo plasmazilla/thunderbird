@@ -8,6 +8,10 @@
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="text/javascript" src="property_database.js"></script>
   <style type="text/css" id="stylesheet"></style>
+  <style type="text/css">
+  /* For 'width', 'height', etc., need a constant size container. */
+  #display { width: 500px; height: 200px }
+  </style>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
   <script type="text/javascript">
   SimpleTest.waitForExplicitFinish();
@@ -40,31 +44,39 @@ var gBadComputed = {
   "page-break-after": [ "avoid" ],
   "page-break-before": [ "avoid" ],
 
-  // These are probably bogus tests...
-  "-moz-outline-radius": [ "0%" ],
-  "-moz-outline-radius-bottomleft": [ "0%" ],
-  "-moz-outline-radius-bottomright": [ "0%" ],
-  "-moz-outline-radius-topleft": [ "0%" ],
-  "-moz-outline-radius-topright": [ "0%" ],
-  // These are probably bogus tests... (why not just when no frame?)
-  "-moz-margin-end": [ "0%" ],
-  "-moz-margin-start": [ "0%" ],
-  "-moz-padding-end": [ "0%" ],
-  "-moz-padding-start": [ "0%" ],
+  // This is the only SVG-length property (i.e., length allowing
+  // unitless lengths) whose initial value is zero.
+  "stroke-dashoffset": [ "0" ],
 };
 
 var gBadComputedNoFrame = {
   // These are probably bogus tests...
+  "border-radius": [ "0%", "-moz-calc(-1%)", "-moz-calc(0px) -moz-calc(0pt) -moz-calc(0%) -moz-calc(0em)" ],
+  "border-bottom-left-radius": [ "0%", "-moz-calc(-1%)" ],
+  "border-bottom-right-radius": [ "0%", "-moz-calc(-1%)" ],
+  "border-top-left-radius": [ "0%", "-moz-calc(-1%)" ],
+  "border-top-right-radius": [ "0%", "-moz-calc(-1%)" ],
+  "-moz-margin-end": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "-moz-margin-start": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "-moz-outline-radius": [ "0%", "-moz-calc(-1%)", "-moz-calc(0px) -moz-calc(0pt) -moz-calc(0%) -moz-calc(0em)" ],
+  "-moz-outline-radius-bottomleft": [ "0%", "-moz-calc(-1%)" ],
+  "-moz-outline-radius-bottomright": [ "0%", "-moz-calc(-1%)" ],
+  "-moz-outline-radius-topleft": [ "0%", "-moz-calc(-1%)" ],
+  "-moz-outline-radius-topright": [ "0%", "-moz-calc(-1%)" ],
+  "-moz-padding-end": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "-moz-padding-start": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
   "margin": [ "0% 0px 0em 0pt" ],
-  "margin-bottom": [ "0%" ],
-  "margin-left": [ "0%" ],
-  "margin-right": [ "0%" ],
-  "margin-top": [ "0%" ],
-  "padding": [ "0% 0px 0em 0pt" ],
-  "padding-bottom": [ "0%" ],
-  "padding-left": [ "0%" ],
-  "padding-right": [ "0%" ],
-  "padding-top": [ "0%" ],
+  "margin-bottom": [ "0%", "-moz-calc(0% + 0px)" ],
+  "margin-left": [ "0%", "-moz-calc(0% + 0px)" ],
+  "margin-right": [ "0%", "-moz-calc(0% + 0px)" ],
+  "margin-top": [ "0%", "-moz-calc(0% + 0px)" ],
+  "min-height": [ "-moz-calc(-1%)" ],
+  "min-width": [ "-moz-calc(-1%)" ],
+  "padding": [ "0% 0px 0em 0pt", "-moz-calc(0px) -moz-calc(0em) -moz-calc(-2px) -moz-calc(-1%)" ],
+  "padding-bottom": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "padding-left": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "padding-right": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
+  "padding-top": [ "0%", "-moz-calc(0% + 0px)", "-moz-calc(-1%)" ],
 };
 
 function xfail_value(property, value, is_initial, has_frame) {
@@ -77,6 +89,17 @@ function xfail_value(property, value, is_initial, has_frame) {
     return true;
 
   return false;
+}
+
+var gSwapInitialWhenHaveFrame = {
+  // When there's a frame, '-moz-available' works out to the same as
+  // 'auto' given the prerequisites of only 'display: block'.
+  "width": [ "-moz-available" ],
+};
+
+function swap_when_frame(property, value) {
+  return (property in gSwapInitialWhenHaveFrame) &&
+         gSwapInitialWhenHaveFrame[property].indexOf(value) != -1;
 }
 
 var gElementN = document.getElementById("elementn");
@@ -95,6 +118,9 @@ function setup_initial_values(id, ivalprop, prereqprop) {
   window[ivalprop] = iframe.contentWindow.getComputedStyle(
                        iframe.contentDocument.documentElement.firstChild, "");
   var sheet = iframe.contentDocument.styleSheets[0];
+  // For 'width', 'height', etc., need a constant size container.
+  sheet.insertRule(":root { height: 200px; width: 500px }", sheet.cssRules.length);
+
   window[prereqprop] = sheet.cssRules[sheet.insertRule(":root > * {}", sheet.cssRules.length)];
 }
 
@@ -157,9 +183,11 @@ function test_value(property, val, is_initial)
     (xfail_value(property, val, is_initial, false) ? todo_isnot : isnot)(
        val_computed_n, initial_computed_n,
        "should not get initial value for '" + property + ":" + val + "' on elementn.");
-    (xfail_value(property, val, is_initial, true) ? todo_isnot : isnot)(
+    var swap = swap_when_frame(property, val);
+    (xfail_value(property, val, is_initial, true) ? todo_isnot : (swap ? is : isnot))(
        val_computed_f, initial_computed_f,
-       "should not get initial value for '" + property + ":" + val + "' on elementf.");
+       "should " + (swap ? "" : "not ") +
+       "get initial value for '" + property + ":" + val + "' on elementf.");
   }
   if (is_initial)
     gRule1.style.removeProperty(property);
@@ -177,6 +205,14 @@ function test_value(property, val, is_initial)
     gElementN.parentNode.style.removeProperty(property);
     gElementF.parentNode.style.removeProperty(property);
   }
+
+  // FIXME: Something (maybe with the -moz-binding values) causes
+  // gElementF's frame to get lost.  Force it to get recreated after
+  // each property.
+  gElementF.parentNode.style.display = "none";
+  get_computed_value(getComputedStyle(gElementF, ""), "width");
+  gElementF.parentNode.style.display = "";
+  get_computed_value(getComputedStyle(gElementF, ""), "width");
 }
 
 function test_property(prop) {

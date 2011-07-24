@@ -53,20 +53,19 @@
   min-height: 20px;
   min-width: 0;
   border: 1px solid rgba(59, 59, 59, 0.9);
-  -moz-border-radius: 3px;
-  -moz-box-shadow: 0 1px rgba(255, 255, 255, 0.4);
+  border-radius: 3px;
+  box-shadow: 0 1px rgba(255, 255, 255, 0.4);
   background-color: #B5B5B5;
   background-image: -moz-linear-gradient(top, #FFFFFF, #ADADAD);
 }
 
 #clearListButton:active:hover:not([disabled="true"]) {
   background-image: none;
-  -moz-box-shadow: inset rgba(0, 0, 0, 0.3) 0 -6px 14px, inset #000000 0 1px 4px, inset rgba(0, 0, 0, 0.2) 0 1px 4px, 0 1px rgba(255, 255, 255, .4);
+  box-shadow: inset rgba(0, 0, 0, 0.3) 0 -6px 10px, inset #000000 0 1px 3px, inset rgba(0, 0, 0, 0.2) 0 1px 3px, 0 1px rgba(255, 255, 255, .4);
 }
 
 #clearListButton[disabled="true"],
-:root:not([active]) #clearListButton {
-  color: #7C7C7C !important; /* remove this when we support click-through */
+#clearListButton:-moz-window-inactive {
   border-color: rgba(146, 146, 146, 0.84);
   background-image: -moz-linear-gradient(top, #FFFFFF, #CCCCCC);
 }
@@ -138,7 +137,7 @@ treechildren:-moz-system-metric(mac-graphite-theme)::-moz-tree-progressmeter {
   color: rgba(43, 71, 106, 0.5);
 }
 
-:root:not([active]) treechildren::-moz-tree-progressmeter {
+treechildren:-moz-window-inactive::-moz-tree-progressmeter {
   color: rgba(0, 0, 0, 0.1);
 }
 

@@ -8,7 +8,8 @@
 <body>
 <p id="display"></p>
 <div id="content" style="display: none">
-<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="120px" height="120px">
+<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="120px" height="120px"
+     onload="this.pauseAnimations()">
   <circle cx="20" cy="20" r="15" fill="blue">
     <animate attributeName="cx" attributeType="XML" 
       from="20" to="100" begin="indefinite" dur="1s" id="anim"/>
@@ -20,15 +21,24 @@
 <![CDATA[
 /** Test for getStartTime Behavior  **/
 
-/* Global Variables */
-var svg = document.getElementById("svg");
-var anim = document.getElementById("anim");
-
 SimpleTest.waitForExplicitFinish();
 
 function main() {
+  var svg = document.getElementById("svg");
+  ok(svg.animationsPaused(), "should be paused by <svg> load handler");
+  is(svg.getCurrentTime(), 0, "should be paused at 0 in <svg> load handler");
+
+  var anim = document.getElementById("anim");
   // indefinite 
-  is(anim.getStartTime(), 0, "Unexpected start time with indefinite begin");
+  var exceptionCaught = false;
+  try {
+    anim.getStartTime();
+  } catch(e) {
+    exceptionCaught = true;
+    is(e.code, DOMException.INVALID_STATE_ERR,
+       "Unexpected exception code from getStartTime.");
+  }
+  ok(exceptionCaught, "No exception thrown for indefinite start time.");
 
   // 1s
   anim.setAttribute("begin", "1s");
@@ -39,6 +49,16 @@ function main() {
   // special rules for throwing away intervals that end before t=0
   anim.setAttribute("begin", "-0.5s");
   is(anim.getStartTime(), -0.5, "Unexpected start time with begin=-0.5s");
+
+  // Once the animation has begun, the begin time is fixed so we need to end the
+  // element (or advance the timeline) to override the previous start time
+  anim.endElement();
+
+  // However, now we have an end instance, and the SMIL model dictates that if
+  // we have end instances and no end event conditions and all end instances are
+  // before our next begin, there's no valid interval. To overcome this we add
+  // an indefinite end.
+  anim.setAttribute("end", "indefinite");
 
   // Now test over the lifetime of the animation when there are multiple
   // intervals
@@ -53,13 +73,21 @@ function main() {
   is(anim.getStartTime(), 1, "Unexpected start time during first interval");
 
   svg.setCurrentTime(2);
-  is(anim.getStartTime(), 1, "Unexpected start time after first interval");
+  is(anim.getStartTime(), 3, "Unexpected start time after first interval");
 
   svg.setCurrentTime(3);
   is(anim.getStartTime(), 3, "Unexpected start time during second interval");
 
   svg.setCurrentTime(4);
-  is(anim.getStartTime(), 3, "Unexpected start time after second interval");
+  exceptionCaught = false;
+  try {
+    anim.getStartTime();
+  } catch(e) {
+    exceptionCaught = true;
+    is(e.code, DOMException.INVALID_STATE_ERR,
+       "Unexpected exception code from getStartTime.");
+  }
+  ok(exceptionCaught, "No exception thrown for in postactive state.");
 
   SimpleTest.finish();
 }

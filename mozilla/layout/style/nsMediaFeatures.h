@@ -63,12 +63,13 @@ struct nsMediaFeature {
         // was given (in addition to the types listed below).
         eLength,     // values are such that nsCSSValue::IsLengthUnit() is true
         eInteger,    // values are eCSSUnit_Integer
+        eFloat,      // values are eCSSUnit_Number
         eBoolInteger,// values are eCSSUnit_Integer (0, -0, or 1 only)
         eIntRatio,   // values are eCSSUnit_Array of two eCSSUnit_Integer
         eResolution, // values are in eCSSUnit_Inch (for dpi) or
                      //   eCSSUnit_Centimeter (for dpcm)
-        eEnumerated  // values are eCSSUnit_Enumerated (uses keyword table)
-
+        eEnumerated, // values are eCSSUnit_Enumerated (uses keyword table)
+        eIdent       // values are eCSSUnit_Ident
         // Note that a number of pieces of code (both for parsing and
         // for matching of valueless expressions) assume that all numeric
         // value types cannot be negative.  The parsing code also does

@@ -44,7 +44,6 @@
 #include "nsIUrlListener.h"
 #include "nsIMsgWindow.h"
 #include "nsITimer.h"
-#include "nsMsgSearchArray.h"
 #include "nsISupportsArray.h"
 #include "nsCOMArray.h"
 #include "nsWeakReference.h"
@@ -52,6 +51,7 @@
 
 class nsMsgSearchAdapter;
 class nsMsgSearchBoolExpression;
+class nsMsgSearchScopeTerm;
 
 class nsMsgSearchSession : public nsIMsgSearchSession, public nsIUrlListener, public nsSupportsWeakReference
 {
@@ -80,7 +80,7 @@ protected:
   void EnableFolderNotifications(PRBool aEnable);
   void ReleaseFolderDBRef();
 
-  nsMsgSearchScopeTermArray m_scopeList;
+  nsTArray<nsMsgSearchScopeTerm*> m_scopeList;
   nsCOMPtr <nsISupportsArray> m_termList;
 
   nsTArray<nsCOMPtr<nsIMsgSearchNotify> > m_listenerList;
@@ -103,11 +103,8 @@ protected:
    */
   PRInt32 m_iListener;
 
-  nsMsgResultArray m_resultList;
-
   void DestroyTermList ();
   void DestroyScopeList ();
-  void DestroyResultList ();
 
   static void TimerCallback(nsITimer *aTimer, void *aClosure);
   // support for searching multiple scopes in serial
@@ -115,7 +112,7 @@ protected:
   nsresult TimeSliceParallel ();
 
   nsMsgSearchAttribValue m_sortAttribute;
-  PRInt32 m_idxRunningScope;
+  PRUint32 m_idxRunningScope;
   nsMsgSearchType m_searchType;
   PRBool m_handlingError;
   PRInt32 m_urlQueueIndex;

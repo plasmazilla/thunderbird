@@ -1,17 +1,17 @@
-include protocol "PTestDesc.ipdl";
-include protocol "PTestDescSubsub.ipdl";
+include protocol PTestDesc;
+include protocol PTestDescSubsub;
 
 namespace mozilla {
 namespace _ipdltest {
 
-protocol PTestDescSub {
+rpc protocol PTestDescSub {
     manager PTestDesc;
     manages PTestDescSubsub;
 
 child:
     __delete__();
 
-    PTestDescSubsub();
+    rpc PTestDescSubsub();
 };
 
 }

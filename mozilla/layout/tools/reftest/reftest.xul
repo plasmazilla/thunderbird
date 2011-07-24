@@ -34,15 +34,23 @@
    - the terms of any one of the MPL, the GPL or the LGPL.
    -
    - ***** END LICENSE BLOCK ***** -->
+<?xml-stylesheet type="text/css" href="data:text/css,
+
+#_box_windowsDefaultTheme:-moz-system-metric(windows-default-theme) {
+  display: none;
+}
+
+" ?>
+
 <window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         id="reftest-window"
+        hidechrome="true"
         onload="OnRefTestLoad();"
         onunload="OnRefTestUnload();"
-        width="800"
-        height="1000"
-        style="background:white"
+        style="background:white; overflow:hidden"
         >
     <script type="application/ecmascript" src="quit.js" />
     <script type="application/ecmascript" src="reftest.js" />
-    <browser id="browser" flex="1" type="content-primary" style="width: 800px; height: 1000px" />
+    <script type="application/ecmascript" src="MozillaFileLogger.js" />
+    <!-- The reftest browser element is dynamically created, here -->
 </window>

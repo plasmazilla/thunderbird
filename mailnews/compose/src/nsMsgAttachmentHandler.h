@@ -50,6 +50,7 @@
 #ifdef XP_MACOSX
 
 #include "nsMsgAppleDouble.h"
+#include "nsILocalFileMac.h"
 
 class AppleDoubleEncodeObject
 {
@@ -96,6 +97,7 @@ public:
 public:
   nsresult              SnarfAttachment(nsMsgCompFields *compFields);
   int                   PickEncoding (const char *charset, nsIMsgSend* mime_delivery_state);
+  nsresult              PickCharset();
   void                  AnalyzeSnarfedFile ();      // Analyze a previously-snarfed file.
                                                     // (Currently only used for plaintext
                                                     // converted from HTML.) 
@@ -121,7 +123,7 @@ private:
                                                nsILocalFileMac *aSourceFile);
   // zips this attachment and does the work to make this attachment handler handle it properly.
   nsresult ConvertToZipFile(nsILocalFileMac *aSourceFile);
-  PRBool HasResourceFork(FSSpec *fsSpec);
+  PRBool HasResourceFork(FSRef *fsRef);
 #endif
 
   //

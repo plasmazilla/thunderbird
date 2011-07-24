@@ -139,7 +139,7 @@ nsWindowsRegKey::OpenChild(const nsAString &path, PRUint32 mode,
   if (!child)
     return NS_ERROR_OUT_OF_MEMORY;
   
-  nsresult rv = child->Open((PRUint32) mKey, path, mode);
+  nsresult rv = child->Open((uintptr_t) mKey, path, mode);
   if (NS_FAILED(rv))
     return rv;
 
@@ -157,7 +157,7 @@ nsWindowsRegKey::CreateChild(const nsAString &path, PRUint32 mode,
   if (!child)
     return NS_ERROR_OUT_OF_MEMORY;
   
-  nsresult rv = child->Create((PRUint32) mKey, path, mode);
+  nsresult rv = child->Create((uintptr_t) mKey, path, mode);
   if (NS_FAILED(rv))
     return rv;
 
@@ -204,7 +204,7 @@ nsWindowsRegKey::HasChild(const nsAString &name, PRBool *result)
 {
   NS_ENSURE_TRUE(mKey, NS_ERROR_NOT_INITIALIZED);
 
-  // Check for the existance of a child key by opening the key with minimal
+  // Check for the existence of a child key by opening the key with minimal
   // rights.  Perhaps there is a more efficient way to do this?
 
   HKEY key;
@@ -328,8 +328,35 @@ nsWindowsRegKey::ReadStringValue(const nsAString &name, nsAString &result)
   if (begin.size_forward() != resultLen)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  rv = RegQueryValueExW(mKey, flatName.get(), 0, NULL, (LPBYTE) begin.get(),
+  rv = RegQueryValueExW(mKey, flatName.get(), 0, &type, (LPBYTE) begin.get(),
                         &size);
+
+  // Expand the environment variables if needed
+  if (type == REG_EXPAND_SZ) {
+    const nsString &flatSource = PromiseFlatString(result);
+    resultLen = ExpandEnvironmentStringsW(flatSource.get(), NULL, 0);
+    if (resultLen > 0) {
+      nsAutoString expandedResult;
+      // |resultLen| includes the terminating null character
+      --resultLen;
+      expandedResult.SetLength(resultLen);
+      nsAString::iterator begin;
+      expandedResult.BeginWriting(begin);
+      if (begin.size_forward() != resultLen)
+        return NS_ERROR_OUT_OF_MEMORY;
+
+      resultLen = ExpandEnvironmentStringsW(flatSource.get(),
+                                            begin.get(),
+                                            resultLen + 1);
+      if (resultLen <= 0) {
+        rv = ERROR_UNKNOWN_FEATURE;
+        result.Truncate();
+      } else {
+        rv = ERROR_SUCCESS;
+        result = expandedResult;
+      }
+    }
+  }
 
   return (rv == ERROR_SUCCESS) ? NS_OK : NS_ERROR_FAILURE;
 }
@@ -512,7 +539,7 @@ NS_NewWindowsRegKey(nsIWindowsRegKey **result)
 
 //-----------------------------------------------------------------------------
 
-NS_METHOD
+nsresult
 nsWindowsRegKeyConstructor(nsISupports *delegate, const nsIID &iid,
                            void **result)
 {

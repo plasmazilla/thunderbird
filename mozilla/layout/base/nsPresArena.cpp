@@ -82,8 +82,6 @@
 # endif
 #endif
 
-#ifndef DEBUG_TRACEMALLOC_PRESARENA
-
 // Size to use for PLArena block allocations.
 static const size_t ARENA_PAGE_SIZE = 4096;
 
@@ -275,6 +273,7 @@ ARENA_POISON_init()
   return PR_SUCCESS;
 }
 
+#ifndef DEBUG_TRACEMALLOC_PRESARENA
 
 // All keys to this hash table fit in 32 bits (see below) so we do not
 // bother actually hashing them.
@@ -389,12 +388,33 @@ struct nsPresArena::State {
   }
 };
 
+PRUint32
+nsPresArena::Size()
+{
+  PLArena *arena = &mState->mPool.first;
+  PRUint32 result = 0;
+
+  while (arena) {
+    result += arena->limit - arena->base;
+    arena = arena->next;
+  }
+
+  return result;
+}
+
 #else
 // Stub implementation that forwards everything to malloc and does not
-// poison.
+// poison allocations (it still initializes the poison value though,
+// for external use through GetPoisonValue()).
 
 struct nsPresArena::State
 {
+
+  State()
+  {
+    PR_CallOnce(&ARENA_POISON_guard, ARENA_POISON_init);
+  }
+
   void* Allocate(PRUint32 /* unused */, size_t aSize)
   {
     return PR_Malloc(aSize);
@@ -405,6 +425,12 @@ struct nsPresArena::State
     PR_Free(aPtr);
   }
 };
+
+PRUint32
+nsPresArena::Size()
+{
+  return 0;
+}
 
 #endif // DEBUG_TRACEMALLOC_PRESARENA
 
@@ -443,4 +469,10 @@ void
 nsPresArena::FreeByCode(nsQueryFrame::FrameIID aCode, void* aPtr)
 {
   mState->Free(aCode, aPtr);
+}
+
+/* static */ PRUword
+nsPresArena::GetPoisonValue()
+{
+  return ARENA_POISON;
 }

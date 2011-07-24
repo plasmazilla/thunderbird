@@ -20,17 +20,14 @@
   <script type="application/javascript"
           src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"/>
   <script type="application/javascript"
-          src="chrome://mochikit/content/chrome/toolkit/mozapps/downloads/tests/chrome/utils.js"/>
+          src="utils.js"/>
 
   <script type="application/javascript">
   <![CDATA[
 
 const DLMGR_UI_DONE = "download-manager-ui-done";
 
-let Services = {
-  wm: Cc["@mozilla.org/appshell/window-mediator;1"].getService(Ci.nsIWindowMediator),
-  obs: Cc["@mozilla.org/observer-service;1"].getService(Ci.nsIObserverService)
-}
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 let gGen, dm, dmui, chromeWindow, testCleanup;
 
@@ -125,18 +122,18 @@ function testSetup()
                   QueryInterface(Components.interfaces.nsIInterfaceRequestor).
                   getInterface(Components.interfaces.nsIDOMWindow);
 
-  // Change the window type so this one doesn't count as a browser window
-  let oldWinType = chromeWindow.document.documentElement.getAttribute("windowtype");
-  chromeWindow.document.documentElement.setAttribute("windowtype", "navigator:testrunner");
-
-  dm = Cc["@mozilla.org/download-manager;1"].
-       getService(Ci.nsIDownloadManager);
-
   dmui = getDMUI();
   if (!dmui) {
     todo(false, "skip test for toolkit download manager UI");
     return false;
   }
+
+  dm = Cc["@mozilla.org/download-manager;1"].
+       getService(Ci.nsIDownloadManager);
+
+  // Change the window type so this one doesn't count as a browser window
+  let oldWinType = chromeWindow.document.documentElement.getAttribute("windowtype");
+  chromeWindow.document.documentElement.setAttribute("windowtype", "navigator:testrunner");
 
   downloadListener = {
 

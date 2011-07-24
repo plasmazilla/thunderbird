@@ -39,6 +39,7 @@ DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = intl/uconv/tests
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -48,12 +49,6 @@ XPCSHELL_TESTS	= unit
 ifndef MOZ_ENABLE_LIBXUL
 MOZILLA_INTERNAL_API = 1
 
-REQUIRES	= \
-		string \
-		xpcom \
-		uconv \
-		locale \
-		$(NULL)
 
 CPPSRCS		= \
 		TestUConv.cpp \

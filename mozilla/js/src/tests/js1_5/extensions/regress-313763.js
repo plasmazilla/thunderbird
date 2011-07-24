@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-313763.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 313763;
 var summary = 'Root jsarray.c creatures';
@@ -51,7 +50,7 @@ var array = Array(N);
 array[N - 1] = 1;
 array[N - 2] = 2;
 
-// Set getter not to wait untill engine loops through 2^31 holes in the array.
+// Set getter not to wait until engine loops through 2^31 holes in the array.
 var LOOP_TERMINATOR = "stop_long_loop";
 array.__defineGetter__(N - 2, function() {
 			 throw "stop_long_loop";

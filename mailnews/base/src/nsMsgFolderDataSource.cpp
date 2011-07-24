@@ -44,6 +44,7 @@
 #include "nsMsgFolderDataSource.h"
 #include "nsMsgFolderFlags.h"
 
+#include "nsMsgUtils.h"
 #include "nsMsgRDFUtils.h"
 
 #include "rdf.h"
@@ -52,9 +53,8 @@
 #include "nsIRDFNode.h"
 #include "nsEnumeratorUtils.h"
 
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsCOMPtr.h"
-#include "nsReadableUtils.h"
 
 #include "nsIMsgMailSession.h"
 #include "nsIMsgCopyService.h"
@@ -72,6 +72,10 @@
 #include "nsIMsgAccountManager.h"
 #include "nsArrayEnumerator.h"
 #include "nsArrayUtils.h"
+#include "nsComponentManagerUtils.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMemory.h"
+#include "nsMsgUtils.h"
 
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
 
@@ -146,9 +150,6 @@ nsIAtom * nsMsgFolderDataSource::kIsSecureAtom = nsnull;
 nsIAtom * nsMsgFolderDataSource::kCanFileMessagesAtom = nsnull;
 nsIAtom * nsMsgFolderDataSource::kInVFEditSearchScopeAtom = nsnull;
 
-PRUnichar * nsMsgFolderDataSource::kKiloByteString = nsnull;
-PRUnichar * nsMsgFolderDataSource::kMegaByteString = nsnull;
-
 static const PRUint32 kDisplayBlankCount = 0xFFFFFFFE;
 static const PRUint32 kDisplayQuestionCount = 0xFFFFFFFF;
 
@@ -217,33 +218,19 @@ nsMsgFolderDataSource::nsMsgFolderDataSource()
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_RENAME), &kNC_Rename);
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_EMPTYTRASH), &kNC_EmptyTrash);
 
-    kTotalMessagesAtom           = NS_NewAtom("TotalMessages");
-    kTotalUnreadMessagesAtom     = NS_NewAtom("TotalUnreadMessages");
-    kFolderSizeAtom              = NS_NewAtom("FolderSize");
-    kBiffStateAtom               = NS_NewAtom("BiffState");
-    kSortOrderAtom               = NS_NewAtom("SortOrder");
-    kNewMessagesAtom             = NS_NewAtom("NewMessages");
-    kNameAtom                    = NS_NewAtom("Name");
-    kSynchronizeAtom             = NS_NewAtom("Synchronize");
-    kOpenAtom                    = NS_NewAtom("open");
-    kIsDeferredAtom              = NS_NewAtom("isDeferred");
-    kIsSecureAtom                = NS_NewAtom("isSecure");
-    kCanFileMessagesAtom         = NS_NewAtom("canFileMessages");
-    kInVFEditSearchScopeAtom     = NS_NewAtom("inVFEditSearchScope");
-
-    nsCOMPtr<nsIStringBundleService> sBundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &res);
-
-    if (NS_SUCCEEDED(res) && sBundleService)
-      res = sBundleService->CreateBundle(MESSENGER_STRING_URL, getter_AddRefs(sMessengerStringBundle));
-
-    if (NS_SUCCEEDED(res) && sMessengerStringBundle)
-    {
-      if (!NS_SUCCEEDED(sMessengerStringBundle->GetStringFromName(NS_LITERAL_STRING("kiloByteAbbreviation").get(), &kKiloByteString)))
-        kKiloByteString = ToNewUnicode(NS_LITERAL_STRING("kiloByteAbbreviation"));
-
-      if (!NS_SUCCEEDED(sMessengerStringBundle->GetStringFromName(NS_LITERAL_STRING("megaByteAbbreviation").get(), &kMegaByteString)))
-        kMegaByteString = ToNewUnicode(NS_LITERAL_STRING("megaByteAbbreviation"));
-    }
+    kTotalMessagesAtom           = MsgNewAtom("TotalMessages");
+    kTotalUnreadMessagesAtom     = MsgNewAtom("TotalUnreadMessages");
+    kFolderSizeAtom              = MsgNewAtom("FolderSize");
+    kBiffStateAtom               = MsgNewAtom("BiffState");
+    kSortOrderAtom               = MsgNewAtom("SortOrder");
+    kNewMessagesAtom             = MsgNewAtom("NewMessages");
+    kNameAtom                    = MsgNewAtom("Name");
+    kSynchronizeAtom             = MsgNewAtom("Synchronize");
+    kOpenAtom                    = MsgNewAtom("open");
+    kIsDeferredAtom              = MsgNewAtom("isDeferred");
+    kIsSecureAtom                = MsgNewAtom("isSecure");
+    kCanFileMessagesAtom         = MsgNewAtom("canFileMessages");
+    kInVFEditSearchScopeAtom     = MsgNewAtom("inVFEditSearchScope");
   }
 
   CreateLiterals(rdf);
@@ -322,8 +309,6 @@ nsMsgFolderDataSource::~nsMsgFolderDataSource (void)
     NS_RELEASE(kIsSecureAtom);
     NS_RELEASE(kCanFileMessagesAtom);
     NS_RELEASE(kInVFEditSearchScopeAtom);
-    nsMemory::Free(kKiloByteString);
-    nsMemory::Free(kMegaByteString);
   }
 }
 
@@ -1109,7 +1094,7 @@ nsMsgFolderDataSource::createFolderSpecialNode(nsIMsgFolder *folder,
   else if (flags & nsMsgFolderFlags::Trash)
     specialFolderString.AssignLiteral("Trash");
   else if (flags & nsMsgFolderFlags::Queue)
-    specialFolderString.AssignLiteral("Unsent Messages");
+    specialFolderString.AssignLiteral("Outbox");
   else if (flags & nsMsgFolderFlags::SentMail)
     specialFolderString.AssignLiteral("Sent");
   else if (flags & nsMsgFolderFlags::Drafts)
@@ -1322,7 +1307,7 @@ nsMsgFolderDataSource::createFolderSyncDisabledNode(nsIMsgFolder* folder,
   rv = server->GetType(serverType);
   if (NS_FAILED(rv)) return rv;
 
-  *target = isServer || serverType.LowerCaseEqualsLiteral("none") || serverType.LowerCaseEqualsLiteral("pop3") ?
+  *target = isServer || MsgLowerCaseEqualsLiteral(serverType, "none") || MsgLowerCaseEqualsLiteral(serverType, "pop3") ?
             kTrueLiteral : kFalseLiteral;
   NS_IF_ADDREF(*target);
   return NS_OK;
@@ -1838,11 +1823,10 @@ nsMsgFolderDataSource::GetNumMessagesNode(PRInt32 aNumMessages, nsIRDFNode **nod
   return NS_OK;
 }
 
-#define DIVISIONWITHCEIL(num, div) (num/div+((num%div>0)?1:0))
-
 nsresult
 nsMsgFolderDataSource::GetFolderSizeNode(PRInt32 aFolderSize, nsIRDFNode **aNode)
 {
+  nsresult rv;
   PRUint32 folderSize = aFolderSize;
   if (folderSize == kDisplayBlankCount || folderSize == 0)
     createNode(EmptyString().get(), aNode, getRDFService());
@@ -1851,15 +1835,9 @@ nsMsgFolderDataSource::GetFolderSizeNode(PRInt32 aFolderSize, nsIRDFNode **aNode
   else
   {
     nsAutoString sizeString;
-    // use Round or Ceil - bug #251202
-    folderSize = DIVISIONWITHCEIL(folderSize, 1024);  // normalize into k;
-    PRBool sizeInMB = (folderSize > 999); // 999, not 1024 - bug #251204
+    rv = FormatFileSize(folderSize, true, sizeString);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    // kKiloByteString/kMegaByteString are localized strings that we use
-    // to get the right format to add on the "KB"/"MB" or equivalent
-    nsTextFormatter::ssprintf(sizeString,
-                              (sizeInMB) ? kMegaByteString : kKiloByteString,
-                              (sizeInMB) ? DIVISIONWITHCEIL(folderSize, 1024) : folderSize);
     createNode(sizeString.get(), aNode, getRDFService());
   }
   return NS_OK;
@@ -2158,6 +2136,7 @@ nsresult nsMsgFolderDataSource::DoFolderHasAssertion(nsIMsgFolder *folder,
 
 nsMsgFlatFolderDataSource::nsMsgFlatFolderDataSource()
 {
+  m_builtFolders = PR_FALSE;
 }
 
 nsMsgFlatFolderDataSource::~nsMsgFlatFolderDataSource()
@@ -2179,6 +2158,7 @@ nsresult nsMsgFlatFolderDataSource::Init()
 void nsMsgFlatFolderDataSource::Cleanup()
 {
   m_folders.Clear();
+  m_builtFolders = PR_FALSE;
   nsMsgFolderDataSource::Cleanup();
 }
 
@@ -2201,19 +2181,32 @@ NS_IMETHODIMP nsMsgFlatFolderDataSource::GetTargets(nsIRDFResource* source,
   if (kNC_Child != property)
     return nsMsgFolderDataSource::GetTargets(source, property, tv, targets);
 
-  nsresult rv = NS_RDF_NO_VALUE;
   if(!targets)
     return NS_ERROR_NULL_POINTER;
 
   if (ResourceIsOurRoot(source))
   {
+    EnsureFolders();
+    return NS_NewArrayEnumerator(targets, m_folders);
+  }
+  return NS_NewSingletonEnumerator(targets, property);
+}
+
+void nsMsgFlatFolderDataSource::EnsureFolders()
+{
+  if (!m_builtFolders)
+  {
+    m_builtFolders = PR_TRUE; // in case something goes wrong
+
     // need an enumerator that gives all folders with unread
+    nsresult rv;
     nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
+    if (NS_FAILED(rv))
+      return;
 
     nsCOMPtr<nsISupportsArray> allServers;
     rv = accountManager->GetAllServers(getter_AddRefs(allServers));
-    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);;
+    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
     if (NS_SUCCEEDED(rv) && allServers)
     {
       PRUint32 count = 0;
@@ -2236,31 +2229,19 @@ NS_IMETHODIMP nsMsgFlatFolderDataSource::GetTargets(nsIRDFResource* source,
             rv = rootFolder->ListDescendents(allFolders);
             PRUint32 newLastEntry;
             allFolders->Count(&newLastEntry);
-            for (PRUint32 newEntryIndex = lastEntry; newEntryIndex < newLastEntry;)
+            for (PRUint32 newEntryIndex = lastEntry; newEntryIndex < newLastEntry; newEntryIndex++)
             {
               nsCOMPtr <nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, newEntryIndex);
-              if (!WantsThisFolder(curFolder))
+              if (WantsThisFolder(curFolder))
               {
-                allFolders->RemoveElementAt(newEntryIndex);
-                newLastEntry--;
-              }
-              else
-              {
-                // unfortunately, we need a separate array for this since
-                // ListDescendents takes an nsISupportsArray. But we want
-                // to use an nsCOMArrray for the DS since that's the
-                // preferred mechanism.
                 m_folders.AppendObject(curFolder);
-                newEntryIndex++;
               }
             }
           }
         }
       }
-      return NS_NewArrayEnumerator(targets, allFolders);
     }
   }
-  return NS_NewSingletonEnumerator(targets, property);
 }
 
 
@@ -2330,8 +2311,8 @@ PRBool nsMsgFlatFolderDataSource::ResourceIsOurRoot(nsIRDFResource *resource)
 
 PRBool nsMsgFlatFolderDataSource::WantsThisFolder(nsIMsgFolder *folder)
 {
-  NS_ASSERTION(PR_FALSE, "must be overridden");
-  return PR_FALSE;
+  EnsureFolders();
+  return m_folders.IndexOf(folder) != kNotFound;
 }
 
 nsresult nsMsgFlatFolderDataSource::GetFolderDisplayName(nsIMsgFolder *folder, nsString& folderName)
@@ -2406,23 +2387,25 @@ PRBool nsMsgFavoriteFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
 
 void nsMsgRecentFoldersDataSource::Cleanup()
 {
-  m_builtRecentFolders = PR_FALSE;
   m_cutOffDate = 0;
   nsMsgFlatFolderDataSource::Cleanup();
 }
 
 
-PRBool nsMsgRecentFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
+void nsMsgRecentFoldersDataSource::EnsureFolders()
 {
-  if (!m_builtRecentFolders)
+  if (!m_builtFolders)
   {
+    m_builtFolders = PR_TRUE;
+
     nsresult rv;
     nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
+    if (NS_FAILED(rv))
+      return;
 
     nsCOMPtr<nsISupportsArray> allServers;
     rv = accountManager->GetAllServers(getter_AddRefs(allServers));
-    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);;
+    nsCOMPtr <nsISupportsArray> allFolders = do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv);
     if (NS_SUCCEEDED(rv) && allServers)
     {
       PRUint32 count = 0;
@@ -2449,9 +2432,9 @@ PRBool nsMsgRecentFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
             {
               nsCOMPtr <nsIMsgFolder> curFolder = do_QueryElementAt(allFolders, newEntryIndex);
               nsCString dateStr;
-              PRInt32 err;
+              nsresult err;
               curFolder->GetStringProperty(MRU_TIME_PROPERTY, dateStr);
-              PRUint32 curFolderDate = (PRUint32) dateStr.ToInteger(&err, 10);
+              PRUint32 curFolderDate = (PRUint32) dateStr.ToInteger(&err);
               if (err)
                 curFolderDate = 0;
               if (curFolderDate > m_cutOffDate)
@@ -2469,7 +2452,7 @@ PRBool nsMsgRecentFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
                   {
                     nsCString curFaveFolderDateStr;
                     m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
-                    PRUint32 curFaveFolderDate = (PRUint32) curFaveFolderDateStr.ToInteger(&err, 10);
+                    PRUint32 curFaveFolderDate = (PRUint32) curFaveFolderDateStr.ToInteger(&err);
                     if (!oldestFaveDate || curFaveFolderDate < oldestFaveDate)
                     {
                       indexOfOldestFolder = index;
@@ -2497,7 +2480,7 @@ PRBool nsMsgRecentFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
                 {
                   nsCString curFaveFolderDateStr;
                   m_folders[index]->GetStringProperty(MRU_TIME_PROPERTY, curFaveFolderDateStr);
-                  PRUint32 curFaveFolderDate = (PRUint32) curFaveFolderDateStr.ToInteger(&err, 10);
+                  PRUint32 curFaveFolderDate = (PRUint32) curFaveFolderDateStr.ToInteger(&err);
                   NS_ASSERTION(curFaveFolderDate > curFolderDate, "folder newer then faves but not added");
                 }
               }
@@ -2508,8 +2491,6 @@ PRBool nsMsgRecentFoldersDataSource::WantsThisFolder(nsIMsgFolder *folder)
       }
     }
   }
-  m_builtRecentFolders = PR_TRUE;
-  return m_folders.IndexOf(folder) != kNotFound;
 }
 
 NS_IMETHODIMP nsMsgRecentFoldersDataSource::OnItemAdded(nsIMsgFolder *parentItem, nsISupports *item)
@@ -2518,7 +2499,7 @@ NS_IMETHODIMP nsMsgRecentFoldersDataSource::OnItemAdded(nsIMsgFolder *parentItem
   // since just added items are by definition new.
   // I think this means newly discovered imap folders (ones w/o msf files) will
   // get added, but maybe that's OK.
-  if (m_builtRecentFolders)
+  if (m_builtFolders)
   {
     nsCOMPtr<nsIMsgFolder> folder(do_QueryInterface(item));
     if (folder && m_folders.IndexOf(folder) == kNotFound)

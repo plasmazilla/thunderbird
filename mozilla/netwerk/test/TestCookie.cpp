@@ -63,6 +63,8 @@ static const char kCookiesP3PString[] = "network.cookie.p3p";
 static const char kCookiesAskPermission[] = "network.cookie.warnAboutCookies";
 static const char kCookiesMaxPerHost[] = "network.cookie.maxPerHost";
 
+static char *sBuffer;
+
 nsresult
 SetACookie(nsICookieService *aCookieService, const char *aSpec1, const char *aSpec2, const char* aCookieString, const char *aServerTime)
 {
@@ -71,15 +73,15 @@ SetACookie(nsICookieService *aCookieService, const char *aSpec1, const char *aSp
     if (aSpec2)
         NS_NewURI(getter_AddRefs(uri2), aSpec2);
 
-    printf("    for host \"%s\": SET ", aSpec1);
+    sBuffer = PR_sprintf_append(sBuffer, "    for host \"%s\": SET ", aSpec1);
     nsresult rv = aCookieService->SetCookieStringFromHttp(uri1, uri2, nsnull, (char *)aCookieString, aServerTime, nsnull);
     // the following code is useless. the cookieservice blindly returns NS_OK
     // from SetCookieString. we have to call GetCookie to see if the cookie was
     // set correctly...
     if (NS_FAILED(rv)) {
-        printf("nothing\n");
+        sBuffer = PR_sprintf_append(sBuffer, "nothing\n");
     } else {
-        printf("\"%s\"\n", aCookieString);
+        sBuffer = PR_sprintf_append(sBuffer, "\"%s\"\n", aCookieString);
     }
     return rv;
 }
@@ -90,15 +92,15 @@ SetACookieNoHttp(nsICookieService *aCookieService, const char *aSpec, const char
     nsCOMPtr<nsIURI> uri;
     NS_NewURI(getter_AddRefs(uri), aSpec);
 
-    printf("    for host \"%s\": SET ", aSpec);
+    sBuffer = PR_sprintf_append(sBuffer, "    for host \"%s\": SET ", aSpec);
     nsresult rv = aCookieService->SetCookieString(uri, nsnull, (char *)aCookieString, nsnull);
     // the following code is useless. the cookieservice blindly returns NS_OK
     // from SetCookieString. we have to call GetCookie to see if the cookie was
     // set correctly...
     if (NS_FAILED(rv)) {
-        printf("nothing\n");
+        sBuffer = PR_sprintf_append(sBuffer, "nothing\n");
     } else {
-        printf("\"%s\"\n", aCookieString);
+        sBuffer = PR_sprintf_append(sBuffer, "\"%s\"\n", aCookieString);
     }
     return rv;
 }
@@ -113,13 +115,15 @@ GetACookie(nsICookieService *aCookieService, const char *aSpec1, const char *aSp
     if (aSpec2)
         NS_NewURI(getter_AddRefs(uri2), aSpec2);
 
-    printf("             \"%s\": GOT ", aSpec1);
+    sBuffer = PR_sprintf_append(sBuffer, "             \"%s\": GOT ", aSpec1);
     nsresult rv = aCookieService->GetCookieStringFromHttp(uri1, uri2, nsnull, aCookie);
-    if (NS_FAILED(rv)) printf("XXX GetCookieString() failed!\n");
+    if (NS_FAILED(rv)) {
+      sBuffer = PR_sprintf_append(sBuffer, "XXX GetCookieString() failed!\n");
+    }
     if (!*aCookie) {
-        printf("nothing\n");
+        sBuffer = PR_sprintf_append(sBuffer, "nothing\n");
     } else {
-        printf("\"%s\"\n", *aCookie);
+        sBuffer = PR_sprintf_append(sBuffer, "\"%s\"\n", *aCookie);
     }
     return *aCookie != nsnull;
 }
@@ -132,13 +136,15 @@ GetACookieNoHttp(nsICookieService *aCookieService, const char *aSpec, char **aCo
     nsCOMPtr<nsIURI> uri;
     NS_NewURI(getter_AddRefs(uri), aSpec);
 
-    printf("             \"%s\": GOT ", aSpec);
+    sBuffer = PR_sprintf_append(sBuffer, "             \"%s\": GOT ", aSpec);
     nsresult rv = aCookieService->GetCookieString(uri, nsnull, aCookie);
-    if (NS_FAILED(rv)) printf("XXX GetCookieString() failed!\n");
+    if (NS_FAILED(rv)) {
+      sBuffer = PR_sprintf_append(sBuffer, "XXX GetCookieString() failed!\n");
+    }
     if (!*aCookie) {
-        printf("nothing\n");
+        sBuffer = PR_sprintf_append(sBuffer, "nothing\n");
     } else {
-        printf("\"%s\"\n", *aCookie);
+        sBuffer = PR_sprintf_append(sBuffer, "\"%s\"\n", *aCookie);
     }
     return *aCookie != nsnull;
 }
@@ -184,17 +190,17 @@ PRBool
 PrintResult(const PRBool aResult[], PRUint32 aSize)
 {
     PRBool failed = PR_FALSE;
-    printf("*** tests ");
+    sBuffer = PR_sprintf_append(sBuffer, "*** tests ");
     for (PRUint32 i = 0; i < aSize; ++i) {
         if (!aResult[i]) {
             failed = PR_TRUE;
-            printf("%d ", i);
+            sBuffer = PR_sprintf_append(sBuffer, "%d ", i);
         }
     }
     if (failed) {
-        printf("FAILED!\a\n");
+        sBuffer = PR_sprintf_append(sBuffer, "FAILED!\a\n");
     } else {
-        printf("passed.\n");
+        sBuffer = PR_sprintf_append(sBuffer, "passed.\n");
     }
     return !failed;
 }
@@ -255,15 +261,6 @@ main(PRInt32 argc, char *argv[])
       PRBool rv[20];
       nsCString cookie;
 
-      // call NS_NewURI just to force chrome registrations, so all our
-      // printf'ed messages are together.
-      {
-        nsCOMPtr<nsIURI> foo;
-        NS_NewURI(getter_AddRefs(foo), "http://foo.com");
-      }
-      printf("\n");
-
-
       /* The basic idea behind these tests is the following:
        *
        * we set() some cookie, then try to get() it in various ways. we have
@@ -303,7 +300,7 @@ main(PRInt32 argc, char *argv[])
        */
 
       // *** basic tests
-      printf("*** Beginning basic tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning basic tests...\n");
 
       // test some basic variations of the domain & path
       SetACookie(cookieService, "http://www.basic.com", nsnull, "test=basic", nsnull);
@@ -327,7 +324,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** domain tests
-      printf("*** Beginning domain tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning domain tests...\n");
 
       // test some variations of the domain & path, for different domains of
       // a domain cookie
@@ -363,11 +360,23 @@ main(PRInt32 argc, char *argv[])
       GetACookie(cookieService, "http://foo.domain.com", nsnull, getter_Copies(cookie));
       rv[10] = CheckResult(cookie.get(), MUST_BE_NULL);
 
-      allTestsPassed = PrintResult(rv, 11) && allTestsPassed;
+      SetACookie(cookieService, "http://www.domain.com", nsnull, "test=domain; domain=domain.com.", nsnull);
+      GetACookie(cookieService, "http://foo.domain.com", nsnull, getter_Copies(cookie));
+      rv[11] = CheckResult(cookie.get(), MUST_BE_NULL);
+
+      SetACookie(cookieService, "http://www.domain.com", nsnull, "test=domain; domain=..domain.com", nsnull);
+      GetACookie(cookieService, "http://foo.domain.com", nsnull, getter_Copies(cookie));
+      rv[12] = CheckResult(cookie.get(), MUST_BE_NULL);
+
+      SetACookie(cookieService, "http://www.domain.com", nsnull, "test=domain; domain=..domain.com.", nsnull);
+      GetACookie(cookieService, "http://foo.domain.com", nsnull, getter_Copies(cookie));
+      rv[13] = CheckResult(cookie.get(), MUST_BE_NULL);
+
+      allTestsPassed = PrintResult(rv, 14) && allTestsPassed;
 
 
       // *** path tests
-      printf("*** Beginning path tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning path tests...\n");
 
       // test some variations of the domain & path, for different paths of
       // a path cookie
@@ -440,7 +449,7 @@ main(PRInt32 argc, char *argv[])
 
       // *** expiry & deletion tests
       // XXX add server time str parsing tests here
-      printf("*** Beginning expiry & deletion tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning expiry & deletion tests...\n");
 
       // test some variations of the expiry time,
       // and test deletion of previously set cookies
@@ -450,46 +459,55 @@ main(PRInt32 argc, char *argv[])
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; max-age=0", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
       rv[1] = CheckResult(cookie.get(), MUST_BE_NULL);
+      SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; expires=bad", nsnull);
+      GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
+      rv[2] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; expires=Thu, 10 Apr 1980 16:33:12 GMT", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[2] = CheckResult(cookie.get(), MUST_BE_NULL);
+      rv[3] = CheckResult(cookie.get(), MUST_BE_NULL);
+      SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; expires=\"Thu, 10 Apr 1980 16:33:12 GMT", nsnull);
+      GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
+      rv[4] = CheckResult(cookie.get(), MUST_BE_NULL);
+      SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; expires=\"Thu, 10 Apr 1980 16:33:12 GMT\"", nsnull);
+      GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
+      rv[5] = CheckResult(cookie.get(), MUST_BE_NULL);
 
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; max-age=60", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[3] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
+      rv[6] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; max-age=-20", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[4] = CheckResult(cookie.get(), MUST_BE_NULL);
+      rv[7] = CheckResult(cookie.get(), MUST_BE_NULL);
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; max-age=60", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[5] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
+      rv[8] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; expires=Thu, 10 Apr 1980 16:33:12 GMT", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[6] = CheckResult(cookie.get(), MUST_BE_NULL);
+      rv[9] = CheckResult(cookie.get(), MUST_BE_NULL);
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=expiry; max-age=60", nsnull);
       SetACookie(cookieService, "http://expireme.org/", nsnull, "newtest=expiry; max-age=60", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[7] = CheckResult(cookie.get(), MUST_CONTAIN, "test=expiry");
-      rv[8] = CheckResult(cookie.get(), MUST_CONTAIN, "newtest=expiry");
+      rv[10] = CheckResult(cookie.get(), MUST_CONTAIN, "test=expiry");
+      rv[11] = CheckResult(cookie.get(), MUST_CONTAIN, "newtest=expiry");
       SetACookie(cookieService, "http://expireme.org/", nsnull, "test=differentvalue; max-age=0", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[9] = CheckResult(cookie.get(), MUST_EQUAL, "newtest=expiry");
+      rv[12] = CheckResult(cookie.get(), MUST_EQUAL, "newtest=expiry");
       SetACookie(cookieService, "http://expireme.org/", nsnull, "newtest=evendifferentvalue; max-age=0", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[10] = CheckResult(cookie.get(), MUST_BE_NULL);
+      rv[13] = CheckResult(cookie.get(), MUST_BE_NULL);
 
       SetACookie(cookieService, "http://foo.expireme.org/", nsnull, "test=expiry; domain=.expireme.org; max-age=60", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[11] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
+      rv[14] = CheckResult(cookie.get(), MUST_EQUAL, "test=expiry");
       SetACookie(cookieService, "http://bar.expireme.org/", nsnull, "test=differentvalue; domain=.expireme.org; max-age=0", nsnull);
       GetACookie(cookieService, "http://expireme.org/", nsnull, getter_Copies(cookie));
-      rv[12] = CheckResult(cookie.get(), MUST_BE_NULL);
+      rv[15] = CheckResult(cookie.get(), MUST_BE_NULL);
 
-      allTestsPassed = PrintResult(rv, 13) && allTestsPassed;
+      allTestsPassed = PrintResult(rv, 16) && allTestsPassed;
 
 
       // *** multiple cookie tests
-      printf("*** Beginning multiple cookie tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning multiple cookie tests...\n");
 
       // test the setting of multiple cookies, and test the order of precedence
       // (a later cookie overwriting an earlier one, in the same header string)
@@ -515,7 +533,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** parser tests
-      printf("*** Beginning parser tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning parser tests...\n");
 
       // test the cookie header parser, under various circumstances.
       SetACookie(cookieService, "http://parser.test/", nsnull, "test=parser; domain=.parser.test; ;; ;=; ,,, ===,abc,=; abracadabra! max-age=20;=;;", nsnull);
@@ -526,7 +544,7 @@ main(PRInt32 argc, char *argv[])
       rv[1] = CheckResult(cookie.get(), MUST_BE_NULL);
       SetACookie(cookieService, "http://parser.test/", nsnull, "test=\"fubar! = foo;bar\\\";\" parser; domain=.parser.test; max-age=6\nfive; max-age=2.63,", nsnull);
       GetACookie(cookieService, "http://parser.test/", nsnull, getter_Copies(cookie));
-      rv[2] = CheckResult(cookie.get(), MUST_CONTAIN, "test=\"fubar! = foo;bar\\\";\"");
+      rv[2] = CheckResult(cookie.get(), MUST_CONTAIN, "test=\"fubar! = foo");
       rv[3] = CheckResult(cookie.get(), MUST_CONTAIN, "five");
       SetACookie(cookieService, "http://parser.test/", nsnull, "test=kill; domain=.parser.test; max-age=0 \n five; max-age=0", nsnull);
       GetACookie(cookieService, "http://parser.test/", nsnull, getter_Copies(cookie));
@@ -552,7 +570,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** mailnews tests
-      printf("*** Beginning mailnews tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning mailnews tests...\n");
 
       // test some mailnews cookies to ensure blockage.
       // we use null firstURI's deliberately, since we have hacks to deal with
@@ -575,7 +593,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** path ordering tests
-      printf("*** Beginning path ordering tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning path ordering tests...\n");
 
       // test that cookies are returned in path order - longest to shortest.
       // if the header doesn't specify a path, it's taken from the host URI.
@@ -591,7 +609,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** httponly tests 
-      printf("*** Beginning httponly tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning httponly tests...\n");
 
       // Since this cookie is NOT set via http, setting it fails
       SetACookieNoHttp(cookieService, "http://httponly.test/", "test=httponly; httponly");
@@ -636,7 +654,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** nsICookieManager{2} interface tests
-      printf("*** Beginning nsICookieManager{2} interface tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning nsICookieManager{2} interface tests...\n");
       nsCOMPtr<nsICookieManager> cookieMgr = do_GetService(NS_COOKIEMANAGER_CONTRACTID, &rv0);
       if (NS_FAILED(rv0)) return -1;
       nsCOMPtr<nsICookieManager2> cookieMgr2 = do_QueryInterface(cookieMgr);
@@ -720,10 +738,11 @@ main(PRInt32 argc, char *argv[])
       rv[13] = NS_SUCCEEDED(cookieMgr2->CookieExists(newDomainCookie, &found)) && !found;
       // sleep four seconds, to make sure the second cookie has expired
       PR_Sleep(4 * PR_TicksPerSecond());
-      // check CountCookiesFromHost() and CookieExists() don't count the expired cookie
+      // check that both CountCookiesFromHost() and CookieExists() count the
+      // expired cookie
       rv[14] = NS_SUCCEEDED(cookieMgr2->CountCookiesFromHost(NS_LITERAL_CSTRING("cookiemgr.test"), &hostCookies)) &&
-              hostCookies == 1;
-      rv[15] = NS_SUCCEEDED(cookieMgr2->CookieExists(expiredCookie, &found)) && !found;
+              hostCookies == 2;
+      rv[15] = NS_SUCCEEDED(cookieMgr2->CookieExists(expiredCookie, &found)) && found;
       // double-check RemoveAll() using the enumerator
       rv[16] = NS_SUCCEEDED(cookieMgr->RemoveAll());
       rv[17] = NS_SUCCEEDED(cookieMgr->GetEnumerator(getter_AddRefs(enumerator))) &&
@@ -734,7 +753,7 @@ main(PRInt32 argc, char *argv[])
 
 
       // *** eviction and creation ordering tests
-      printf("*** Beginning eviction and creation ordering tests...\n");
+      sBuffer = PR_sprintf_append(sBuffer, "*** Beginning eviction and creation ordering tests...\n");
 
       // test that cookies are
       // a) returned by order of creation time (oldest first, newest last)
@@ -747,12 +766,6 @@ main(PRInt32 argc, char *argv[])
         name += NS_LITERAL_CSTRING("=creation");
         SetACookie(cookieService, "http://creation.ordering.tests/", nsnull, name.get(), nsnull);
 
-        if (i == 9) {
-          // sleep a couple of seconds, to make sure the first 10 cookies are older than
-          // subsequent ones (timer resolution varies on different platforms).
-          PR_Sleep(2 * PR_TicksPerSecond());
-        }
-
         if (i >= 10) {
           expected += name;
           if (i < 59)
@@ -762,41 +775,7 @@ main(PRInt32 argc, char *argv[])
       GetACookie(cookieService, "http://creation.ordering.tests/", nsnull, getter_Copies(cookie));
       rv[0] = CheckResult(cookie.get(), MUST_EQUAL, expected.get());
 
-      // test that cookies are evicted by order of lastAccessed time, if the limit on total cookies
-      // (3000) is reached
-      nsCAutoString host;
-      for (PRInt32 i = 0; i < 3010; ++i) {
-        host = NS_LITERAL_CSTRING("http://eviction.");
-        host.AppendInt(i);
-        host += NS_LITERAL_CSTRING(".tests/");
-        SetACookie(cookieService, host.get(), nsnull, "test=eviction", nsnull);
-
-        if (i == 9) {
-          // sleep a couple of seconds, to make sure the first 10 cookies are older than
-          // subsequent ones (timer resolution varies on different platforms).
-          PR_Sleep(2 * PR_TicksPerSecond());
-        }
-      }
-      rv[1] = NS_SUCCEEDED(cookieMgr->GetEnumerator(getter_AddRefs(enumerator)));
-      i = 0;
-      rv[2] = PR_FALSE; // init to failure in case we break from the while loop
-      while (NS_SUCCEEDED(enumerator->HasMoreElements(&more)) && more) {
-        nsCOMPtr<nsISupports> cookie;
-        if (NS_FAILED(enumerator->GetNext(getter_AddRefs(cookie)))) break;
-        ++i;
-        
-        // keep tabs on the third cookie, so we can check it later
-        nsCOMPtr<nsICookie2> cookie2(do_QueryInterface(cookie));
-        if (!cookie2) break;
-        nsCAutoString domain;
-        cookie2->GetRawHost(domain);
-        PRInt32 hostNumber;
-        PRInt32 numInts = PR_sscanf(domain.get(), "eviction.%ld.tests", &hostNumber);
-        if (numInts != 1 || hostNumber < 10) break;
-      }
-      rv[2] = i == 3000;
-
-      allTestsPassed = PrintResult(rv, 3) && allTestsPassed;
+      allTestsPassed = PrintResult(rv, 1) && allTestsPassed;
 
 
       // XXX the following are placeholders: add these tests please!
@@ -805,9 +784,17 @@ main(PRInt32 argc, char *argv[])
       // *** speed tests
 
 
-      printf("\n*** Result: %s!\n\n", allTestsPassed ? "all tests passed" : "TEST(S) FAILED");
-
+      sBuffer = PR_sprintf_append(sBuffer, "\n*** Result: %s!\n\n", allTestsPassed ? "all tests passed" : "TEST(S) FAILED");
     }
-    
-    return allTestsPassed ? 0 : 1;
+
+    if (!allTestsPassed) {
+      // print the entire log
+      printf("%s", sBuffer);
+      return 1;
+    }
+
+    PR_smprintf_free(sBuffer);
+    sBuffer = nsnull;
+
+    return 0;
 }

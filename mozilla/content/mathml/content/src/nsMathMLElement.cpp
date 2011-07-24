@@ -22,6 +22,7 @@
  * Contributor(s):
  *    Vlad Sukhoy <vladimir.sukhoy@gmail.com> (original developer)
  *    Daniel Kraft <d@domob.eu> (nsMathMLElement patch, attachment 262925)
+ *    Frederic Wang <fred.wang@free.fr>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -47,7 +48,6 @@
 #include "nsStyleConsts.h"
 #include "nsIDocument.h"
 #include "nsIEventStateManager.h"
-#include "nsPresShellIterator.h"
 #include "nsIPresShell.h"
 #include "nsPresContext.h"
 #include "nsDOMClassInfoID.h"
@@ -56,13 +56,15 @@
 //----------------------------------------------------------------------
 // nsISupports methods:
 
+DOMCI_NODE_DATA(MathMLElement, nsMathMLElement)
+
 NS_INTERFACE_TABLE_HEAD(nsMathMLElement)
   NS_NODE_OFFSET_AND_INTERFACE_TABLE_BEGIN(nsMathMLElement)
     NS_INTERFACE_TABLE_ENTRY(nsMathMLElement, nsIDOMNode)
     NS_INTERFACE_TABLE_ENTRY(nsMathMLElement, nsIDOMElement)
   NS_OFFSET_AND_INTERFACE_TABLE_END
   NS_ELEMENT_INTERFACE_TABLE_TO_MAP_SEGUE
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(MathMLElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MathMLElement)
 NS_ELEMENT_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF_INHERITED(nsMathMLElement, nsMathMLElementBase)
@@ -73,7 +75,7 @@ nsMathMLElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                             nsIContent* aBindingParent,
                             PRBool aCompileEventHandlers)
 {
-  static const char kMathMLStyleSheetURI[] = "resource://gre/res/mathml.css";
+  static const char kMathMLStyleSheetURI[] = "resource://gre-resources/mathml.css";
 
   nsresult rv = nsMathMLElementBase::BindToTree(aDocument, aParent,
                                                 aBindingParent,
@@ -87,15 +89,11 @@ nsMathMLElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     aDocument->SetMathMLEnabled();
     aDocument->EnsureCatalogStyleSheet(kMathMLStyleSheetURI);
 
-    // Rebuild style data for all the presshells, because style system
+    // Rebuild style data for the presshell, because style system
     // optimizations may have taken place assuming MathML was disabled.
     // (See nsRuleNode::CheckSpecifiedProperties.)
-    // nsPresShellIterator skips hidden presshells, but that's OK because
-    // if we're changing the document for one of those presshells the whole
-    // presshell will be torn down.
-    nsPresShellIterator iter(aDocument);
-    nsCOMPtr<nsIPresShell> shell;
-    while ((shell = iter.GetNextShell()) != nsnull) {
+    nsCOMPtr<nsIPresShell> shell = aDocument->GetShell();
+    if (shell) {
       shell->GetPresContext()->PostRebuildAllStyleDataEvent(nsChangeHint(0));
     }
   }
@@ -114,7 +112,7 @@ nsMathMLElement::ParseAttribute(PRInt32 aNamespaceID,
         aAttribute == nsGkAtoms::mathcolor_ ||
         aAttribute == nsGkAtoms::background ||
         aAttribute == nsGkAtoms::mathbackground_) {
-      return aResult.ParseColor(aValue, GetOwnerDoc());
+      return aResult.ParseColor(aValue);
     }
   }
 
@@ -125,9 +123,7 @@ nsMathMLElement::ParseAttribute(PRInt32 aNamespaceID,
 static nsGenericElement::MappedAttributeEntry sTokenStyles[] = {
   { &nsGkAtoms::mathsize_ },
   { &nsGkAtoms::fontsize_ },
-  { &nsGkAtoms::mathcolor_ },
   { &nsGkAtoms::color },
-  { &nsGkAtoms::mathbackground_ },
   { &nsGkAtoms::fontfamily_ },
   { nsnull }
 };
@@ -140,27 +136,67 @@ static nsGenericElement::MappedAttributeEntry sEnvironmentStyles[] = {
   { nsnull }
 };
 
+static nsGenericElement::MappedAttributeEntry sCommonPresStyles[] = {
+  { &nsGkAtoms::mathcolor_ },
+  { &nsGkAtoms::mathbackground_ },
+  { nsnull }
+};
+
 PRBool
 nsMathMLElement::IsAttributeMapped(const nsIAtom* aAttribute) const
 {
   static const MappedAttributeEntry* const tokenMap[] = {
-    sTokenStyles
+    sTokenStyles,
+    sCommonPresStyles
   };
   static const MappedAttributeEntry* const mstyleMap[] = {
     sTokenStyles,
-    sEnvironmentStyles
+    sEnvironmentStyles,
+    sCommonPresStyles
+  };
+  static const MappedAttributeEntry* const commonPresMap[] = {
+    sCommonPresStyles
   };
   
   // We don't support mglyph (yet).
   nsIAtom* tag = Tag();
   if (tag == nsGkAtoms::ms_ || tag == nsGkAtoms::mi_ ||
       tag == nsGkAtoms::mn_ || tag == nsGkAtoms::mo_ ||
-      tag == nsGkAtoms::mtext_)
+      tag == nsGkAtoms::mtext_ || tag == nsGkAtoms::mspace_)
     return FindAttributeDependence(aAttribute, tokenMap,
                                    NS_ARRAY_LENGTH(tokenMap));
   if (tag == nsGkAtoms::mstyle_)
     return FindAttributeDependence(aAttribute, mstyleMap,
                                    NS_ARRAY_LENGTH(mstyleMap));
+
+  if (tag == nsGkAtoms::maction_ ||
+      tag == nsGkAtoms::maligngroup_ ||
+      tag == nsGkAtoms::malignmark_ ||
+      tag == nsGkAtoms::math ||
+      tag == nsGkAtoms::menclose_ ||
+      tag == nsGkAtoms::merror_ ||
+      tag == nsGkAtoms::mfenced_ ||
+      tag == nsGkAtoms::mfrac_ ||
+      tag == nsGkAtoms::mover_ ||
+      tag == nsGkAtoms::mpadded_ ||
+      tag == nsGkAtoms::mphantom_ ||
+      tag == nsGkAtoms::mprescripts_ ||
+      tag == nsGkAtoms::mroot_ ||
+      tag == nsGkAtoms::mrow_ ||
+      tag == nsGkAtoms::msqrt_ ||
+      tag == nsGkAtoms::msub_ ||
+      tag == nsGkAtoms::msubsup_ ||
+      tag == nsGkAtoms::msup_ ||
+      tag == nsGkAtoms::mtable_ ||
+      tag == nsGkAtoms::mtd_ ||
+      tag == nsGkAtoms::mtr_ ||
+      tag == nsGkAtoms::munder_ ||
+      tag == nsGkAtoms::munderover_ ||
+      tag == nsGkAtoms::none) {
+    return FindAttributeDependence(aAttribute, commonPresMap,
+                                   NS_ARRAY_LENGTH(commonPresMap));
+  }
+
   return PR_FALSE;
 }
 
@@ -290,8 +326,10 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Font)) {
     const nsAttrValue* value =
       aAttributes->GetAttr(nsGkAtoms::scriptsizemultiplier_);
+    nsCSSValue* scriptSizeMultiplier =
+      aData->ValueForScriptSizeMultiplier();
     if (value && value->Type() == nsAttrValue::eString &&
-        aData->mFontData->mScriptSizeMultiplier.GetUnit() == eCSSUnit_Null) {
+        scriptSizeMultiplier->GetUnit() == eCSSUnit_Null) {
       nsAutoString str(value->GetStringValue());
       str.CompressWhitespace();
       // MathML numbers can't have leading '+'
@@ -300,22 +338,22 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
         float floatValue = str.ToFloat(&errorCode);
         // Negative scriptsizemultipliers are not parsed
         if (NS_SUCCEEDED(errorCode) && floatValue >= 0.0f) {
-          aData->mFontData->mScriptSizeMultiplier.
-            SetFloatValue(floatValue, eCSSUnit_Number);
+          scriptSizeMultiplier->SetFloatValue(floatValue, eCSSUnit_Number);
         }
       }
     }
 
     value = aAttributes->GetAttr(nsGkAtoms::scriptminsize_);
+    nsCSSValue* scriptMinSize = aData->ValueForScriptMinSize();
     if (value && value->Type() == nsAttrValue::eString &&
-        aData->mFontData->mScriptMinSize.GetUnit() == eCSSUnit_Null) {
-      ParseNumericValue(value->GetStringValue(),
-                        aData->mFontData->mScriptMinSize, 0);
+        scriptMinSize->GetUnit() == eCSSUnit_Null) {
+      ParseNumericValue(value->GetStringValue(), *scriptMinSize, 0);
     }
 
     value = aAttributes->GetAttr(nsGkAtoms::scriptlevel_);
+    nsCSSValue* scriptLevel = aData->ValueForScriptLevel();
     if (value && value->Type() == nsAttrValue::eString &&
-        aData->mFontData->mScriptLevel.GetUnit() == eCSSUnit_Null) {
+        scriptLevel->GetUnit() == eCSSUnit_Null) {
       nsAutoString str(value->GetStringValue());
       str.CompressWhitespace();
       if (str.Length() > 0) {
@@ -328,9 +366,9 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
           // to indicate that the scriptlevel is absolute.
           PRUnichar ch = str.CharAt(0);
           if (ch == '+' || ch == '-') {
-            aData->mFontData->mScriptLevel.SetIntValue(intValue, eCSSUnit_Integer);
+            scriptLevel->SetIntValue(intValue, eCSSUnit_Integer);
           } else {
-            aData->mFontData->mScriptLevel.SetFloatValue(intValue, eCSSUnit_Number);
+            scriptLevel->SetFloatValue(intValue, eCSSUnit_Number);
           }
         }
       }
@@ -342,10 +380,11 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
       parseSizeKeywords = PR_FALSE;
       value = aAttributes->GetAttr(nsGkAtoms::fontsize_);
     }
+    nsCSSValue* fontSize = aData->ValueForFontSize();
     if (value && value->Type() == nsAttrValue::eString &&
-        aData->mFontData->mSize.GetUnit() == eCSSUnit_Null) {
+        fontSize->GetUnit() == eCSSUnit_Null) {
       nsAutoString str(value->GetStringValue());
-      if (!ParseNumericValue(str, aData->mFontData->mSize, 0) &&
+      if (!ParseNumericValue(str, *fontSize, 0) &&
           parseSizeKeywords) {
         static const char sizes[3][7] = { "small", "normal", "big" };
         static const PRInt32 values[NS_ARRAY_LENGTH(sizes)] = {
@@ -355,7 +394,7 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
         str.CompressWhitespace();
         for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(sizes); ++i) {
           if (str.EqualsASCII(sizes[i])) {
-            aData->mFontData->mSize.SetIntValue(values[i], eCSSUnit_Enumerated);
+            fontSize->SetIntValue(values[i], eCSSUnit_Enumerated);
             break;
           }
         }
@@ -363,11 +402,10 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
     }
 
     value = aAttributes->GetAttr(nsGkAtoms::fontfamily_);
+    nsCSSValue* fontFamily = aData->ValueForFontFamily();
     if (value && value->Type() == nsAttrValue::eString &&
-        aData->mFontData->mFamily.GetUnit() == eCSSUnit_Null) {
-      aData->mFontData->mFamily.SetStringValue(value->GetStringValue(),
-                                               eCSSUnit_Families);
-      aData->mFontData->mFamilyFromHTML = PR_FALSE;
+        fontFamily->GetUnit() == eCSSUnit_Null) {
+      fontFamily->SetStringValue(value->GetStringValue(), eCSSUnit_Families);
     }
   }
 
@@ -377,10 +415,11 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
     if (!value) {
       value = aAttributes->GetAttr(nsGkAtoms::background);
     }
-    if (value && aData->mColorData->mBackColor.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* backgroundColor = aData->ValueForBackgroundColor();
+    if (value && backgroundColor->GetUnit() == eCSSUnit_Null) {
       nscolor color;
       if (value->GetColorValue(color)) {
-        aData->mColorData->mBackColor.SetColorValue(color);
+        backgroundColor->SetColorValue(color);
       }
     }
   }
@@ -391,26 +430,27 @@ nsMathMLElement::MapMathMLAttributesInto(const nsMappedAttributes* aAttributes,
       value = aAttributes->GetAttr(nsGkAtoms::color);
     }
     nscolor color;
+    nsCSSValue* colorValue = aData->ValueForColor();
     if (value && value->GetColorValue(color) &&
-        aData->mColorData->mColor.GetUnit() == eCSSUnit_Null) {
-      aData->mColorData->mColor.SetColorValue(color);
+        colorValue->GetUnit() == eCSSUnit_Null) {
+      colorValue->SetColorValue(color);
     }
   }
 }
 
 NS_IMPL_ELEMENT_CLONE(nsMathMLElement)
 
-PRInt32
+nsEventStates
 nsMathMLElement::IntrinsicState() const
 {
   return nsMathMLElementBase::IntrinsicState() |
-    (mIncrementScriptLevel ? NS_EVENT_STATE_INCREMENT_SCRIPT_LEVEL : 0);
+    (mIncrementScriptLevel ? NS_EVENT_STATE_INCREMENT_SCRIPT_LEVEL : nsEventStates());
 }
 
 PRBool
 nsMathMLElement::IsNodeOfType(PRUint32 aFlags) const
 {
-  return !(aFlags & ~(eCONTENT | eELEMENT | eMATHML));
+  return !(aFlags & ~eCONTENT);
 }
 
 void
@@ -428,6 +468,5 @@ nsMathMLElement::SetIncrementScriptLevel(PRBool aIncrementScriptLevel,
     return;
 
   mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-  doc->ContentStatesChanged(this, nsnull,
-                            NS_EVENT_STATE_INCREMENT_SCRIPT_LEVEL);
+  doc->ContentStateChanged(this, NS_EVENT_STATE_INCREMENT_SCRIPT_LEVEL);
 }

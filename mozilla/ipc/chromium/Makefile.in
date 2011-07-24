@@ -48,7 +48,6 @@ FORCE_STATIC_LIB = 1
 LIBXUL_LIBRARY = 1
 EXPORT_LIBRARY = 1
 
-ENABLE_CXX_EXCEPTIONS = 1
 ACDEFINES =
 
 ifndef MOZ_NATIVE_LIBEVENT # {
@@ -63,7 +62,6 @@ endif # }
 
 vpath %.cc \
   $(srcdir)/src/base \
-  $(srcdir)/src/base/third_party/dmg_fp \
   $(srcdir)/src/base/third_party/nspr \
   $(srcdir)/src/base/third_party/nss \
   $(srcdir)/src/chrome/common \
@@ -74,18 +72,10 @@ vpath %.mm \
   $(srcdir)/src/chrome/common \
   $(NULL)
 
-# TODO: remove this hack when we switch to GCC 4.3! GCC 4.1
-# instantiates template declarations in wrapped system headers with
-# the wrong visibility, which is causing the Linux tinderboxen to die in
-# std::string internals.
-VISIBILITY_FLAGS=
-
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
 
 CPPSRCS += \
-  dtoa.cc \
-  g_fmt.cc \
   prtime.cc \
   at_exit.cc \
   base_paths.cc \
@@ -140,6 +130,7 @@ CPPSRCS += \
   message_router.cc \
   notification_service.cc \
   task_queue.cc \
+  sha512.cc \
   $(NULL)
 
 ifdef OS_WIN # {
@@ -174,6 +165,7 @@ CPPSRCS += \
   waitable_event_win.cc \
   win_util.cc \
   chrome_paths_win.cc \
+  chrome_constants.cc \
   ipc_channel_win.cc \
   process_watcher_win.cc \
   transport_dib_win.cc \
@@ -184,7 +176,6 @@ endif # } OS_WIN
 ifdef OS_POSIX # {
 
 CPPSRCS += \
-  sha512.cc \
   condition_variable_posix.cc \
   debug_util_posix.cc \
   event_recorder_stubs.cc \
@@ -210,6 +201,13 @@ CPPSRCS += \
   process_watcher_posix_sigchld.cc \
   $(NULL)
 
+ifeq ($(OS_TARGET),Android)
+DEFINES += -DANDROID -D_POSIX_MONOTONIC_CLOCK=0
+CPPSRCS += \
+  message_pump_android.cc \
+  $(NULL)
+endif # Android
+
 endif # } OS_POSIX
 
 ifdef OS_MACOSX # {
@@ -228,10 +226,10 @@ CMMSRCS += \
   chrome_paths_mac.mm \
   mach_ipc_mac.mm \
   platform_util_mac.mm \
+  chrome_application_mac.mm \
   $(NULL)
 
 CPPSRCS += \
-  data_pack.cc \
   debug_util_mac.cc \
   hmac_mac.cc \
   idle_timer.cc \
@@ -316,6 +314,15 @@ endif # }
 endif # }
 
 endif # }
+
+ifneq (86,$(findstring 86,$(OS_TEST))) # {
+ifneq (arm,$(findstring arm,$(OS_TEST))) # {
+# Use mutex-backed atomics
+CPPSRCS += atomicops_internals_mutex.cc
+endif # }
+endif # }
+
+OS_CXXFLAGS += $(TK_CFLAGS)
 
 include $(topsrcdir)/config/rules.mk
 

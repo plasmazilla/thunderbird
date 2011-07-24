@@ -25,6 +25,7 @@
 #   Daniel Brooks <db48x@yahoo.com>
 #   Florian QUEZE <f.qu@queze.net>
 #   Erik Fabert <jerfa@yahoo.com>
+#   Tanner M. Young <mozilla@alyoung.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -168,13 +169,22 @@ const COPYCOL_IMAGE = COL_IMAGE_ADDRESS;
 var gMetaView = new pageInfoTreeView(COPYCOL_META_CONTENT);
 var gImageView = new pageInfoTreeView(COPYCOL_IMAGE);
 
-gImageView.getCellProperties = function(row, col, props) {
-  var aserv = Components.classes[ATOM_CONTRACTID]
-                        .getService(Components.interfaces.nsIAtomService);
 
-  if (gImageView.data[row][COL_IMAGE_SIZE] == gStrings.unknown &&
-      !/^https:/.test(gImageView.data[row][COL_IMAGE_ADDRESS]))
-    props.AppendElement(aserv.getAtom("broken"));
+var atomSvc = Components.classes["@mozilla.org/atom-service;1"]
+                        .getService(Components.interfaces.nsIAtomService);
+gImageView._ltrAtom = atomSvc.getAtom("ltr");
+gImageView._brokenAtom = atomSvc.getAtom("broken");
+
+gImageView.getCellProperties = function(row, col, props) {
+  var data = gImageView.data[row];
+  var item = gImageView.data[row][COL_IMAGE_NODE];
+  if (!checkProtocol(data) ||
+      item instanceof HTMLEmbedElement ||
+      (item instanceof HTMLObjectElement && !/^image\//.test(item.type)))
+    props.AppendElement(this._brokenAtom);
+
+  if (col.element.id == "image-address")
+    props.AppendElement(this._ltrAtom);
 };
 
 var gImageHash = { };
@@ -278,6 +288,10 @@ function onLoadPageInfo()
   gStrings.mediaEmbed = gBundle.getString("mediaEmbed");
   gStrings.mediaLink = gBundle.getString("mediaLink");
   gStrings.mediaInput = gBundle.getString("mediaInput");
+#ifdef MOZ_MEDIA
+  gStrings.mediaVideo = gBundle.getString("mediaVideo");
+  gStrings.mediaAudio = gBundle.getString("mediaAudio");
+#endif
 
   var args = "arguments" in window &&
              window.arguments.length >= 1 &&
@@ -622,6 +636,14 @@ function grabAll(elem)
     } catch (e) { }
   }
 #endif
+#ifdef MOZ_MEDIA
+  else if (elem instanceof HTMLVideoElement) {
+    addImage(elem.currentSrc, gStrings.mediaVideo, "", elem, false);
+  }
+  else if (elem instanceof HTMLAudioElement) {
+    addImage(elem.currentSrc, gStrings.mediaAudio, "", elem, false);
+  }
+#endif
   else if (elem instanceof HTMLLinkElement) {
     if (elem.rel && /\bicon\b/i.test(elem.rel))
       addImage(elem.href, gStrings.mediaLink, "", elem, false);
@@ -813,6 +835,7 @@ function makePreview(row)
   var item = getSelectedImage(imageTree);
   var url = gImageView.data[row][COL_IMAGE_ADDRESS];
   var isBG = gImageView.data[row][COL_IMAGE_BG];
+  var isAudio = false;
 
   setItemValue("imageurltext", url);
 
@@ -876,10 +899,17 @@ function makePreview(row)
   if (!mimeType)
     mimeType = getContentTypeFromHeaders(cacheEntryDescriptor);
 
+  // if we have a data url, get the MIME type from the url
+  if (!mimeType && /^data:/.test(url)) {
+    let dataMimeType = /^data:(image\/[^;,]+)/i.exec(url);
+    if (dataMimeType)
+      mimeType = dataMimeType[1].toLowerCase();
+  }
+
   var imageType;
   if (mimeType) {
     // We found the type, try to display it nicely
-    var imageMimeType = /^image\/(.*)/.exec(mimeType);
+    let imageMimeType = /^image\/(.*)/i.exec(mimeType);
     if (imageMimeType) {
       imageType = imageMimeType[1].toUpperCase();
       if (numFrames > 1)
@@ -902,13 +932,10 @@ function makePreview(row)
   var imageContainer = document.getElementById("theimagecontainer");
   var oldImage = document.getElementById("thepreviewimage");
 
-  const regex = /^(https?|ftp|file|gopher|about|chrome|resource):/;
-  var isProtocolAllowed = regex.test(url);
-  if (/^data:/.test(url) && /^image\//.test(mimeType))
-    isProtocolAllowed = true;
+  var isProtocolAllowed = checkProtocol(gImageView.data[row]);
 
-  var newImage = new Image();
-  newImage.setAttribute("id", "thepreviewimage");
+  var newImage = new Image;
+  newImage.id = "thepreviewimage";
   var physWidth = 0, physHeight = 0;
   var width = 0, height = 0;
 
@@ -949,6 +976,29 @@ function makePreview(row)
     document.getElementById("theimagecontainer").collapsed = false
     document.getElementById("brokenimagecontainer").collapsed = true;
   }
+#ifdef MOZ_MEDIA
+  else if (item instanceof HTMLVideoElement && isProtocolAllowed) {
+    newImage = document.createElementNS("http://www.w3.org/1999/xhtml", "video");
+    newImage.id = "thepreviewimage";
+    newImage.mozLoadFrom(item);
+    newImage.controls = true;
+    width = physWidth = item.videoWidth;
+    height = physHeight = item.videoHeight;
+
+    document.getElementById("theimagecontainer").collapsed = false;
+    document.getElementById("brokenimagecontainer").collapsed = true;
+  }
+  else if (item instanceof HTMLAudioElement && isProtocolAllowed) {
+    newImage = new Audio;
+    newImage.id = "thepreviewimage";
+    newImage.src = url;
+    newImage.controls = true;
+    isAudio = true;
+
+    document.getElementById("theimagecontainer").collapsed = false;
+    document.getElementById("brokenimagecontainer").collapsed = true;
+  }
+#endif
   else {
     // fallback image for protocols not allowed (e.g., data: or javascript:)
     // or elements not [yet] handled (e.g., object, embed).
@@ -957,7 +1007,7 @@ function makePreview(row)
   }
 
   var imageSize = "";
-  if (url) {
+  if (url && !isAudio) {
     if (width != physWidth || height != physHeight) {
       imageSize = gBundle.getFormattedString("mediaDimensionsScaled",
                                              [formatNumber(physWidth),
@@ -1166,7 +1216,8 @@ function doSelectAll()
     elem.view.selection.selectAll();
 }
 
-function selectImage() {
+function selectImage()
+{
   if (!gImageElement)
     return;
 
@@ -1180,4 +1231,13 @@ function selectImage() {
       return;
     }
   }
+}
+
+function checkProtocol(img)
+{
+  var url = img[COL_IMAGE_ADDRESS];
+  if (/^data:/.test(url) && /^image\//.test(img[COL_IMAGE_NODE].type))
+    return true;
+  const regex = /^(https?|ftp|file|about|chrome|resource):/;
+  return regex.test(url);
 }

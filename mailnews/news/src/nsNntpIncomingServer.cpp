@@ -51,7 +51,6 @@
 #include "nsNNTPProtocol.h"
 #include "nsIDirectoryService.h"
 #include "nsMailDirServiceDefs.h"
-#include "nsInt64.h"
 #include "nsMsgUtils.h"
 #include "nsIPrompt.h"
 #include "nsIStringBundle.h"
@@ -66,9 +65,10 @@
 #include "nsILineInputStream.h"
 #include "nsNetUtil.h"
 #include "nsISimpleEnumerator.h"
+#include "nsMsgUtils.h"
 
 #define INVALID_VERSION         0
-#define VALID_VERSION           1
+#define VALID_VERSION           2
 #define NEW_NEWS_DIR_NAME       "News"
 #define PREF_MAIL_NEWSRC_ROOT   "mail.newsrc_root"
 #define PREF_MAIL_NEWSRC_ROOT_REL "mail.newsrc_root-rel"
@@ -131,8 +131,8 @@ nsNntpIncomingServer::nsNntpIncomingServer()
   mLastUpdatedTime = 0;
 
   // these atoms are used for subscribe search
-  mSubscribedAtom = do_GetAtom("subscribed");
-  mNntpAtom = do_GetAtom("nntp");
+  mSubscribedAtom = MsgGetAtom("subscribed");
+  mNntpAtom = MsgGetAtom("nntp");
 
   // we have server wide and per group filters
   m_canHaveFilters = PR_TRUE;
@@ -279,7 +279,7 @@ nsNntpIncomingServer::GetNewsrcRootPath(nsILocalFile **aNewsrcRootPath)
 
 nsresult nsNntpIncomingServer::SetupNewsrcSaveTimer()
 {
-  nsInt64 ms(300000);   // hard code, 5 minutes.
+  PRInt64 ms(300000);   // hard code, 5 minutes.
   //Convert biffDelay into milliseconds
   PRUint32 timeInMSUint32 = (PRUint32)ms;
   //Can't currently reset a timer when it's in the process of
@@ -810,9 +810,8 @@ writeGroupToHostInfoFile(nsCString &aElement, void *aData)
         return PR_FALSE;
     }
     PRUint32 bytesWritten;
-    // XXX todo ",,1,0,0" is a temporary hack, fix it
     stream->Write(aElement.get(), aElement.Length(), &bytesWritten);
-    stream->Write(",,1,0,0"MSG_LINEBREAK, 7 + MSG_LINEBREAK_LEN, &bytesWritten);
+    stream->Write(MSG_LINEBREAK, MSG_LINEBREAK_LEN, &bytesWritten);
     return PR_TRUE;
 }
 
@@ -1261,6 +1260,8 @@ nsNntpIncomingServer::HandleLine(const char* line, PRUint32 line_size)
   // ###TODO - make this truly const, maybe pass in an nsCString &
 
   if (mHasSeenBeginGroups) {
+    // v1 hostinfo files had additional data fields delimited by commas.
+    // with v2 hostinfo files, the additional data fields are removed.
     char *commaPos = (char *) PL_strchr(line,',');
     if (commaPos) *commaPos = 0;
 
@@ -1708,7 +1709,7 @@ nsresult
 nsNntpIncomingServer::AppendIfSearchMatch(nsCString& newsgroupName)
 {
   NS_ConvertUTF8toUTF16 groupName(newsgroupName);
-  if (groupName.Find(mSearchValue, CaseInsensitiveCompare) != kNotFound)
+  if (CaseInsensitiveFindInReadable(mSearchValue, groupName))
       mSubscribeSearchResult.AppendCString(newsgroupName);
   return NS_OK;
 }
@@ -2153,7 +2154,7 @@ nsNntpIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName, const n
   rv = serverFolder->GetSubFolders(getter_AddRefs(subFolders));
   NS_ENSURE_SUCCESS(rv,rv);
 
-  nsStringArray groupList;
+  nsTArray<nsString> groupList;
   nsString folderName;
 
   // Prepare the group list
@@ -2168,34 +2169,30 @@ nsNntpIncomingServer::OnUserOrHostNameChanged(const nsACString& oldName, const n
 
     rv = newsgroupFolder->GetName(folderName);
     NS_ENSURE_SUCCESS(rv,rv);
-    groupList.AppendString(folderName);
+    groupList.AppendElement(folderName);
   }
 
   // If nothing subscribed then we're done.
-  if (groupList.Count() == 0)
+  if (groupList.Length() == 0)
     return NS_OK;
 
   // Now unsubscribe & subscribe.
-  int i, cnt=groupList.Count();
-  nsAutoString groupStr;
+  PRUint32 i;
+  PRUint32 cnt = groupList.Length();
   nsCAutoString cname;
-  for (i=0; i<cnt; i++)
+  for (i = 0; i < cnt; i++)
   {
     // unsubscribe.
-    groupList.StringAt(i, groupStr);
-    rv = Unsubscribe(groupStr.get());
+    rv = Unsubscribe(groupList[i].get());
     NS_ENSURE_SUCCESS(rv,rv);
   }
 
-  for (i=0; i<cnt; i++)
+  for (i = 0; i < cnt; i++)
   {
     // subscribe.
-    groupList.StringAt(i, groupStr);
-    rv = SubscribeToNewsgroup(NS_ConvertUTF16toUTF8(groupStr));
+    rv = SubscribeToNewsgroup(NS_ConvertUTF16toUTF8(groupList[i]));
     NS_ENSURE_SUCCESS(rv,rv);
   }
-
-  groupList.Clear();
 
   // Force updating the rc file.
   return CommitSubscribeChanges();

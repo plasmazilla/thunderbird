@@ -75,7 +75,20 @@ nsAbDirProperty::~nsAbDirProperty(void)
 #endif
 }
 
-NS_IMPL_ISUPPORTS1(nsAbDirProperty,nsIAbDirectory)
+NS_IMPL_ISUPPORTS4(nsAbDirProperty, nsIAbDirectory, nsISupportsWeakReference,
+                   nsIAbCollection, nsIAbItem)
+
+NS_IMETHODIMP nsAbDirProperty::GetUuid(nsACString &uuid)
+{
+  // XXX: not all directories have a dirPrefId...
+  nsresult rv = GetDirPrefId(uuid);
+  NS_ENSURE_SUCCESS(rv, rv);
+  uuid.Append('&');
+  nsString dirName;
+  GetDirName(dirName);
+  uuid.Append(NS_ConvertUTF16toUTF8(dirName));
+  return rv;
+}
 
 NS_IMETHODIMP nsAbDirProperty::GenerateName(PRInt32 aGenerateFormat,
                                             nsIStringBundle *aBundle,
@@ -148,7 +161,9 @@ NS_IMETHODIMP nsAbDirProperty::SetDirName(const nsAString &aDirName)
   nsCOMPtr<nsIAbManager> abManager = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
 
   if (NS_SUCCEEDED(rv))
-    abManager->NotifyItemPropertyChanged(this, "DirName", oldDirName.get(),
+    // We inherit from nsIAbDirectory, so this static cast should be safe.
+    abManager->NotifyItemPropertyChanged(static_cast<nsIAbDirectory*>(this),
+                                         "DirName", oldDirName.get(),
                                          nsString(aDirName).get());
 
   return NS_OK;

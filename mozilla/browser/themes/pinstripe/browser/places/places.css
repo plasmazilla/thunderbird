@@ -1,3 +1,5 @@
+%include ../shared.inc
+
 /* Sidebars */
 
 .sidebar-placesTree {
@@ -24,11 +26,6 @@
   border: none;
 }
 
-.sidebar-placesTreechildren::-moz-tree-row(selected) {
-  background: -moz-linear-gradient(top, #B5B5B5, #8A8A8A) repeat-x;
-  border-top: 1px solid #979797;
-}
-
 .sidebar-placesTreechildren::-moz-tree-separator {
   border-top: 1px solid #505d6d;
   margin: 0 10px;
@@ -38,9 +35,24 @@
   border-top: 1px solid #bebebe;
 }
 
+.sidebar-placesTreechildren::-moz-tree-row(selected) {
+  background: @sidebarItemBackground@;
+  border-top: @sidebarItemBorderTop@;
+}
+
 .sidebar-placesTreechildren::-moz-tree-row(selected,focus) {
-  background: -moz-linear-gradient(top, #A2B1D0, #6E81A9) repeat-x;
-  border-top: 1px solid #91a0c0;
+  background: @sidebarItemFocusedBackground@;
+  border-top: @sidebarItemFocusedBorderTop@;
+}
+
+.sidebar-placesTreechildren:-moz-system-metric(mac-graphite-theme)::-moz-tree-row(selected) {
+  background: @sidebarItemGraphiteBackground@;
+  border-top: @sidebarItemGraphiteBorderTop@;
+}
+
+.sidebar-placesTreechildren:-moz-system-metric(mac-graphite-theme)::-moz-tree-row(selected,focus) {
+  background: @sidebarItemGraphiteFocusedBackground@;
+  border-top: @sidebarItemGraphiteFocusedBorderTop@;
 }
 
 .sidebar-placesTreechildren::-moz-tree-cell-text(selected) {  
@@ -55,8 +67,8 @@
 #viewButton {
   -moz-appearance: none;
   border: 1px solid #7F7F7F;
-  -moz-border-radius: 10px;
-  background: -moz-linear-gradient(top, #FFF, #BBB);
+  border-radius: 10px;
+  background: @toolbarbuttonBackground@;
   min-width: 0px;
   min-height: 0px;
   -moz-padding-start: 5px;

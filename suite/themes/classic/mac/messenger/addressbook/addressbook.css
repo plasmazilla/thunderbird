@@ -23,6 +23,7 @@
  *   Joe Hewitt <hewitt@netscape.com>
  *   Manuel Reimer <Manuel.Reimer@gmx.de>
  *   Stefan Hermes <stefanh@inbox.com>
+ *   Jens Hatlak <jh@junetz.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -52,17 +53,10 @@
   background-color: #EEEEEE;
 }
 
-#addressbookWindow[chromehidden~="toolbar"][chromehidden~="location"][chromehidden~="directories"] {
-  border-top: 1px solid rgba(0,0,0,0.65);
-}
-
 /* ::::: primary toolbar buttons ::::: */
 
-.toolbarbutton-1 {
-  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
-}
-
 #button-newcard {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(60px 29px 89px 0);
 }
 
@@ -75,6 +69,7 @@
 }
 
 #button-newlist {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(90px 29px 119px 0);
 }
 
@@ -87,6 +82,7 @@
 }
 
 #button-editcard {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(30px 29px 59px 0);
 }
 
@@ -112,6 +108,7 @@
 } 
 
 #button-newim {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(120px 29px 149px 0);
 }
 
@@ -123,15 +120,16 @@
   -moz-image-region: rect(120px 89px 149px 60px);
 }
 
-#button-delete {
+#button-abdelete {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(0 29px 29px 0);
 }
 
-#button-delete:hover:active  {
+#button-abdelete:hover:active  {
   -moz-image-region: rect(0 59px 29px 30px);
 } 
 
-#button-delete[disabled] {
+#button-abdelete[disabled] {
   -moz-image-region: rect(0 89px 29px 60px);
 }
 
@@ -153,16 +151,13 @@
 #dirTree-splitter[state="collapsed"] {
   min-width: 5px;
   background-color: #D6DDE5;
-  cursor: e-resize;
 }
 
 #dirTreeBox {
   background-color: #D6DDE5;
 }
 
-/* Inactive window */
-
-#addressbookWindow:not([active="true"]) > hbox > #dirTreeBox {
+#dirTreeBox:-moz-window-inactive {
   background-color: #E8E8E8;
 }
 
@@ -195,7 +190,7 @@
 }
 
 /* CardView styles - used in the Card View Pane */
-
+ 
 #CardViewBox {
   -moz-user-focus: ignore;
   overflow: auto;
@@ -267,14 +262,10 @@ html|p {
   border: none !important;
 }
 
-/* ::::: border adjustments ::::: */
+/* ::::: lightweight themes ::::: */
 
-#dirTree,
-#resultsTree { 
-  border: none;
-  margin: 0px !important;
-}
-
-#resultsTree {
-  border-left: 1px solid ThreeDShadow;
+#CardViewOuterBox:-moz-lwtheme {
+  background-color: -moz-dialog;
+  color: -moz-dialogtext;
+  text-shadow: none
 }

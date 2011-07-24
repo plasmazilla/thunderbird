@@ -41,7 +41,6 @@ var inputElementType = "";
 var gListCard;
 var gEditList;
 var oldListName = "";
-var rdf = Components.classes["@mozilla.org/rdf/rdf-service;1"].getService(Components.interfaces.nsIRDFService);
 var gPromptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
 var gHeaderParser = Components.classes["@mozilla.org/messenger/headerparser;1"].getService(Components.interfaces.nsIMsgHeaderParser);
 
@@ -501,7 +500,7 @@ function _awSetFocus()
     if (top.awFocusRetry < 8)
     {
       dump("_awSetFocus failed, try it again...\n");
-      setTimeout("_awSetFocus();", 0);
+      setTimeout(_awSetFocus, 0);
     }
     else
       dump("_awSetFocus failed, forget about it!\n");

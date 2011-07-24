@@ -15,7 +15,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -41,8 +41,6 @@
 #include "nsString.h"
 #include "ImageErrors.h"
 #include "imgIContainer.h"
-#include "imgILoad.h"
-#include "imgIDecoder.h"
 #include "imgIEncoder.h"
 #include "imgIDecoderObserver.h"
 #include "imgIContainerObserver.h"
@@ -53,131 +51,9 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsStreamUtils.h"
 #include "nsNetUtil.h"
+#include "RasterImage.h"
 
-
-/* ========== Utility classes ========== */
-
-
-class HelperLoader : public imgILoad,
-                     public imgIDecoderObserver,
-                     public nsSupportsWeakReference
-{
-  public:
-    NS_DECL_ISUPPORTS
-    NS_DECL_IMGILOAD
-    NS_DECL_IMGIDECODEROBSERVER
-    NS_DECL_IMGICONTAINEROBSERVER
-    HelperLoader(void);
-
-  private:
-    nsCOMPtr<imgIContainer> mContainer;
-};
-
-NS_IMPL_ISUPPORTS4 (HelperLoader, imgILoad, imgIDecoderObserver, imgIContainerObserver, nsISupportsWeakReference)
-
-HelperLoader::HelperLoader (void)
-{
-}
-
-/* Implement imgILoad::image getter */
-NS_IMETHODIMP
-HelperLoader::GetImage(imgIContainer **aImage)
-{
-  *aImage = mContainer;
-  NS_IF_ADDREF (*aImage);
-  return NS_OK;
-}
-
-/* Implement imgILoad::image setter */
-NS_IMETHODIMP
-HelperLoader::SetImage(imgIContainer *aImage)
-{
-  mContainer = aImage;
-  return NS_OK;
-}
-
-/* Implement imgILoad::isMultiPartChannel getter */
-NS_IMETHODIMP
-HelperLoader::GetIsMultiPartChannel(PRBool *aIsMultiPartChannel)
-{
-  *aIsMultiPartChannel = PR_FALSE;
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStartRequest() */
-NS_IMETHODIMP
-HelperLoader::OnStartRequest(imgIRequest *aRequest)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStartDecode() */
-NS_IMETHODIMP
-HelperLoader::OnStartDecode(imgIRequest *aRequest)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStartContainer() */
-NS_IMETHODIMP
-HelperLoader::OnStartContainer(imgIRequest *aRequest, imgIContainer
-*aContainer)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStartFrame() */
-NS_IMETHODIMP
-HelperLoader::OnStartFrame(imgIRequest *aRequest, PRUint32 aFrame)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onDataAvailable() */
-NS_IMETHODIMP
-HelperLoader::OnDataAvailable(imgIRequest *aRequest, PRBool aCurrentFrame, const nsIntRect * aRect)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStopFrame() */
-NS_IMETHODIMP
-HelperLoader::OnStopFrame(imgIRequest *aRequest, PRUint32 aFrame)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStopContainer() */
-NS_IMETHODIMP
-HelperLoader::OnStopContainer(imgIRequest *aRequest, imgIContainer
-*aContainer)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStopDecode() */
-NS_IMETHODIMP
-HelperLoader::OnStopDecode(imgIRequest *aRequest, nsresult status, const
-PRUnichar *statusArg)
-{
-  return NS_OK;
-}
-
-/* Implement imgIDecoderObserver::onStopRequest() */
-NS_IMETHODIMP
-HelperLoader::OnStopRequest(imgIRequest *aRequest, PRBool aIsLastPart)
-{
-  return NS_OK;
-}
-  
-/* implement imgIContainerObserver::frameChanged() */
-NS_IMETHODIMP
-HelperLoader::FrameChanged(imgIContainer *aContainer, nsIntRect * aDirtyRect)
-{
-  return NS_OK;
-}
-
-
+using namespace mozilla::imagelib;
 
 /* ========== imgITools implementation ========== */
 
@@ -201,25 +77,24 @@ NS_IMETHODIMP imgTools::DecodeImageData(nsIInputStream* aInStr,
                                         imgIContainer **aContainer)
 {
   nsresult rv;
+  RasterImage* image;  // convenience alias for *aContainer
 
-  // Get an image decoder for our media type
-  nsCAutoString decoderCID(
-    NS_LITERAL_CSTRING("@mozilla.org/image/decoder;2?type=") + aMimeType);
+  NS_ENSURE_ARG_POINTER(aInStr);
 
-  nsCOMPtr<imgIDecoder> decoder = do_CreateInstance(decoderCID.get());
-  if (!decoder)
-    return NS_IMAGELIB_ERROR_NO_DECODER;
+  // If the caller didn't provide an imgIContainer, create one.
+  if (*aContainer) {
+    NS_ABORT_IF_FALSE((*aContainer)->GetType() == imgIContainer::TYPE_RASTER,
+                      "wrong type of imgIContainer for decoding into");
+    image = static_cast<RasterImage*>(*aContainer);
+  } else {
+    *aContainer = image = new RasterImage();
+    NS_ADDREF(image);
+  }
 
-  // Init the decoder, we use a small utility class here.
-  nsCOMPtr<imgILoad> loader = new HelperLoader();
-  if (!loader)
-    return NS_ERROR_OUT_OF_MEMORY;
-
-  // If caller provided an existing container, use it.
-  if (*aContainer)
-    loader->SetImage(*aContainer);
-
-  rv = decoder->Init(loader);
+  // Initialize the Image. If we're using the one from the caller, we
+  // require that it not be initialized.
+  nsCString mimeType(aMimeType);
+  rv = image->Init(nsnull, mimeType.get(), "<unknown>", Image::INIT_FLAG_NONE);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIInputStream> inStream = aInStr;
@@ -230,31 +105,33 @@ NS_IMETHODIMP imgTools::DecodeImageData(nsIInputStream* aInStr,
       inStream = bufStream;
   }
 
+  // Figure out how much data we've been passed
   PRUint32 length;
   rv = inStream->Available(&length);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUint32 written;
-  rv = decoder->WriteFrom(inStream, length, &written);
+  // Send the source data to the Image. WriteToRasterImage always
+  // consumes everything it gets.
+  PRUint32 bytesRead;
+  rv = inStream->ReadSegments(RasterImage::WriteToRasterImage,
+                              static_cast<void*>(image),
+                              length, &bytesRead);
   NS_ENSURE_SUCCESS(rv, rv);
-  if (written != length)
-    NS_WARNING("decoder didn't eat all of its vegetables");
-  rv = decoder->Flush();
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = decoder->Close();
+  NS_ABORT_IF_FALSE(bytesRead == length, "WriteToRasterImage should consume everything!");
+
+
+  // Let the Image know we've sent all the data
+  rv = image->SourceDataComplete();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // If caller didn't provide an existing container, return the new one.
-  if (!*aContainer)
-    loader->GetImage(aContainer);
-
+  // All done
   return NS_OK;
 }
 
 
 NS_IMETHODIMP imgTools::EncodeImage(imgIContainer *aContainer,
-                                          const nsACString& aMimeType,
-                                          nsIInputStream **aStream)
+                                    const nsACString& aMimeType,
+                                    nsIInputStream **aStream)
 {
     return EncodeScaledImage(aContainer, aMimeType, 0, 0, aStream);
 }
@@ -290,7 +167,8 @@ NS_IMETHODIMP imgTools::EncodeScaledImage(imgIContainer *aContainer,
 
   // Use frame 0 from the image container.
   nsRefPtr<gfxImageSurface> frame;
-  rv = aContainer->CopyCurrentFrame(getter_AddRefs(frame));
+  rv = aContainer->CopyFrame(imgIContainer::FRAME_CURRENT, PR_TRUE,
+                             getter_AddRefs(frame));
   NS_ENSURE_SUCCESS(rv, rv);
   if (!frame)
     return NS_ERROR_NOT_AVAILABLE;

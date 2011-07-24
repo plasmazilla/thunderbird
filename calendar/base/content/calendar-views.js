@@ -340,7 +340,7 @@ function switchToView(aViewType) {
     ["previous-view-button",
      "today-view-button",
      "next-view-button"].forEach(function(x) setupViewNode(x, "tooltiptext"));
-    
+
     try {
         selectedDay = viewDeck.selectedPanel.selectedDay;
         currentSelection = viewDeck.selectedPanel.getSelectedItems({});
@@ -530,7 +530,7 @@ var categoryManagement = {
                                   .getService(Components.interfaces.nsIPrefService);
       categoryPrefBranch = prefService.getBranch("calendar.category.color.")
                                       .QueryInterface(Components.interfaces.nsIPrefBranch2);
-      let categories = categoryPrefBranch.getChildList("", {});
+      let categories = categoryPrefBranch.getChildList("");
 
       // Fix illegally formatted category prefs.
       for (let i in categories) {

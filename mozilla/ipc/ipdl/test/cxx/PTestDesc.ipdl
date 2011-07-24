@@ -1,26 +1,30 @@
-include protocol "PTestDescSub.ipdl";
-include protocol "PTestDescSubsub.ipdl";
+include protocol PTestDescSub;
+include protocol PTestDescSubsub;
 
 namespace mozilla {
 namespace _ipdltest {
 
-protocol PTestDesc {
+rpc protocol PTestDesc {
     manages PTestDescSub; 
 child:
-    PTestDescSub();
+    rpc PTestDescSub(nullable PTestDescSubsub dummy);
 
     Test(PTestDescSubsub a);
+
+    __delete__();
 
 parent:
     Ok(PTestDescSubsub a);
 
 
-state START:
+state CONSTRUCT:
+    call PTestDescSub goto TEST;
+state TEST:
     send Test goto ACK;
-
 state ACK:
-    recv Ok goto ACK;
-    // delete
+    recv Ok goto DEAD;
+state DEAD:
+    send __delete__;
 };
 
 }

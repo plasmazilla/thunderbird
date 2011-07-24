@@ -5,23 +5,38 @@
   <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
+  <script type="text/javascript" src="manifest.js"></script>
 </head>
 <body>
 <pre id="test">
 <script class="testbody" type="text/javascript">
-SimpleTest.waitForExplicitFinish();
 
-var a = document.createElement('audio');
-a.src = 'r11025_u8_c1.wav';
-a.load();
-is(a.paused, true, "Must be paused at start");
-a.play();
-is(a.paused, false, "Must not be paused after play");
+var manager = new MediaTestManager;
 
-a.addEventListener("ended", function () {
-  is(a.paused, false, "Must not be paused after end");
-  SimpleTest.finish();
-}, false);
+function ended(evt) {
+  var v = evt.target;
+  is(v.paused, false, v._name + " must not be paused after end");
+  manager.finished(v.token);
+}
+
+function startTest(test, token) {
+  var v = document.createElement('video');
+  v.token = token;
+  manager.started(v.token);
+  v.src = test.name;
+  v._name = test.name;
+  v._finished = false;
+  v.load();
+  is(v.paused, true,  v._name + " must be paused at start");
+
+  v.play();
+  is(v.paused, false, v._name + " must not be paused after play");
+
+  v.addEventListener("ended", ended, false);
+}
+
+manager.runTests(gPausedAfterEndedTests, startTest);
+
 </script>
 </pre>
 </body>

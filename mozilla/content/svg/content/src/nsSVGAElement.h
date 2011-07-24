@@ -35,23 +35,29 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef NS_SVGAELEMENT_H_
+#define NS_SVGAELEMENT_H_
+
 #include "nsSVGGraphicElement.h"
 #include "nsIDOMSVGAElement.h"
 #include "nsIDOMSVGURIReference.h"
 #include "nsILink.h"
 #include "nsSVGString.h"
 
+#include "Link.h"
+
 typedef nsSVGGraphicElement nsSVGAElementBase;
 
 class nsSVGAElement : public nsSVGAElementBase,
                       public nsIDOMSVGAElement,
                       public nsIDOMSVGURIReference,
-                      public nsILink
+                      public nsILink,
+                      public mozilla::dom::Link
 {
 protected:
   friend nsresult NS_NewSVGAElement(nsIContent **aResult,
-                                    nsINodeInfo *aNodeInfo);
-  nsSVGAElement(nsINodeInfo *aNodeInfo);
+                                    already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGAElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
 public:
   // interfaces:
@@ -75,13 +81,30 @@ public:
   NS_IMETHOD LinkRemoved() { return NS_OK; }
 
   // nsIContent
-  virtual PRBool IsFocusable(PRInt32 *aTabIndex = nsnull);
+  virtual nsresult BindToTree(nsIDocument *aDocument, nsIContent *aParent,
+                              nsIContent *aBindingParent,
+                              PRBool aCompileEventHandlers);
+  virtual void UnbindFromTree(PRBool aDeep = PR_TRUE,
+                              PRBool aNullParent = PR_TRUE);
+  NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
+  virtual PRBool IsFocusable(PRInt32 *aTabIndex = nsnull, PRBool aWithMouse = PR_FALSE);
   virtual PRBool IsLink(nsIURI** aURI) const;
   virtual void GetLinkTarget(nsAString& aTarget);
   virtual nsLinkState GetLinkState() const;
-  virtual void SetLinkState(nsLinkState aState);
   virtual already_AddRefed<nsIURI> GetHrefURI() const;
+  virtual nsEventStates IntrinsicState() const;
+  nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+                   const nsAString& aValue, PRBool aNotify)
+  {
+    return SetAttr(aNameSpaceID, aName, nsnull, aValue, aNotify);
+  }
+  virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+                           nsIAtom* aPrefix, const nsAString& aValue,
+                           PRBool aNotify);
+  virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
+                             PRBool aNotify);
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
 
   virtual StringAttributesInfo GetStringInfo();
@@ -89,7 +112,6 @@ protected:
   enum { HREF, TARGET };
   nsSVGString mStringAttributes[2];
   static StringInfo sStringInfo[2];
-
-  // The cached visited state (for the implementation of nsILink)
-  nsLinkState mLinkState;
 };
+
+#endif // NS_SVGAELEMENT_H_

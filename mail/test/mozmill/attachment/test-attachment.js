@@ -21,6 +21,7 @@
  * Contributor(s):
  *   Jie Zhang <jzhang918@gmail.com>
  *   Blake Winton <bwinton@latte.ca>
+ *   Jim Porter <squibblyflabbetydoo@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -44,126 +45,133 @@ var MODULE_NAME = 'test-attachment';
 
 var RELATIVE_ROOT = '../shared-modules';
 var MODULE_REQUIRES = ['folder-display-helpers', 'compose-helpers'];
-var jumlib = {};
-Components.utils.import("resource://mozmill/modules/jum.js", jumlib);
+
 var elib = {};
-Components.utils.import('resource://mozmill/modules/elementslib.js', elib);
+Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var EventUtils = {};
-Cu.import('resource://mozmill/modules/EventUtils.js', EventUtils);
+Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
 
-var folder = null;
-var composeHelper = null;
-var gMsgNo = 0;
 
-/**
- * The TESTS array is constructed from objects containing the following:
- *
- * type:            The type of the test being run.
- * attachment:      The attachment to be inserted into the body of the message
- *                  under test.
- */
-const TESTS = [
-  {
-    type: "txt",
-    attachment: 'Content-Type: text/plain; name="test.txt"\n' +
-'Content-Disposition: attachment; filename="test.txt"\n' +
-'Content-Transfer-Encoding: base64\n' +
-'\n' +
-'VGhpcyBpcyBhY3R1YWxseSBwbGFpbiB0ZXh0LgoK\n',
-  },
-  {
-    type: "unknown",
-    attachment: 'Content-Type: application/octet-stream; name="test.xxyyzz"\n' +
-'Content-Disposition: attachment; filename="test.xxyyzz"\n' +
-'Content-Transfer-Encoding: base64\n' +
-'X-Attachment-Id: f_g6gfk9os0\n' +
-'\n' +
-'VGhpcyBpcyBhY3R1YWxseSBwbGFpbiB0ZXh0LgoK\n',
-  }
-];
+var folder;
+
+const textAttachment =
+  "One of these days... people like me will rise up and overthrow you, and " +
+  "the end of tyranny by the homeostatic machine will have arrived. The day " +
+  "of human values and compassion and simple warmth will return, and when " +
+  "that happens someone like myself who has gone through an ordeal and who " +
+  "genuinely needs hot coffee to pick him up and keep him functioning when " +
+  "he has to function will get the hot coffee whether he happens to have a " +
+  "poscred readily available or not.";
+
+const binaryAttachment = textAttachment;
 
 var setupModule = function (module) {
   let fdh = collector.getModule('folder-display-helpers');
   fdh.installInto(module);
-  composeHelper = collector.getModule('compose-helpers');
+  let composeHelper = collector.getModule('compose-helpers');
   composeHelper.installInto(module);
 
-  folder = create_folder("generalContentPolicy");
+  folder = create_folder("AttachmentA");
+
+  // create some messages that have various types of attachments
+  messages = [
+    // no attachment
+    {},
+    // text attachment
+    { attachments: [{ body: textAttachment,
+                      filename: 'ubik.txt',
+                      format: '' }],
+    },
+    // binary attachment
+    { attachments: [{ body: binaryAttachment,
+                      contentType: 'application/octet-stream',
+                      filename: 'ubik.xxyyzz',
+                      format: '' }],
+    },
+    // multiple attachments
+    { attachments: [{ body: textAttachment,
+                      filename: 'ubik.txt',
+                      format: '' },
+                    { body: binaryAttachment,
+                      contentType: 'application/octet-stream',
+                      filename: 'ubik.xxyyzz',
+                      format: '' }],
+    },
+  ];
+
+  for (let i = 0; i < messages.length; i++)
+    add_message_to_folder(folder, create_message(messages[i]));
 };
 
-function addToFolder(aSubject, aAttachments, aFolder) {
-
-  let msgId = Components.classes["@mozilla.org/uuid-generator;1"]
-                          .getService(Components.interfaces.nsIUUIDGenerator)
-                          .generateUUID() +"@mozillamessaging.invalid";
-
-  aAttachments = ["Content-Type: text/plain; charset=ISO-8859-1\n\n\n\n"]
-                   .concat(aAttachments);
-  let source = "From - Sat Nov  1 12:39:54 2008\n" +
-               "X-Mozilla-Status: 0001\n" +
-               "X-Mozilla-Status2: 00000000\n" +
-               "Message-ID: <" + msgId + ">\n" +
-               "Date: Wed, 11 Jun 2008 20:32:02 -0400\n" +
-               "From: Tester <tests@mozillamessaging.invalid>\n" +
-               "User-Agent: Thunderbird 3.0a2pre (Macintosh/2008052122)\n" +
-               "MIME-Version: 1.0\n" +
-               "To: recipient@mozillamessaging.invalid\n" +
-               "Subject: " + aSubject + "\n" +
-               "Content-Type: multipart/mixed; boundary=0015174be8a60dc5b10481218b29\n" +
-               "\n--0015174be8a60dc5b10481218b29\n" +
-               aAttachments.join("--0015174be8a60dc5b10481218b29\n") +
-               "--0015174be8a60dc5b10481218b29--"
-
-  aFolder.QueryInterface(Components.interfaces.nsIMsgLocalMailFolder);
-  aFolder.gettingNewMessages = true;
-
-  aFolder.addMessage(source);
-  aFolder.gettingNewMessages = false;
-
-  return aFolder.msgDatabase.getMsgHdrForMessageID(msgId);
-}
-
-function addMsgToFolderAndCheckAttachment(folder, type, attachment) {
-  let msgDbHdr = addToFolder(type + "attachment test message " + gMsgNo,
-                             attachment, folder);
-
-  // select the newly created message
-  let msgHdr = select_click_row(gMsgNo);
-
-  if (msgDbHdr != msgHdr)
-    throw new Error("Selected Message Header is not the same as generated header");
-
-  assert_selected_and_displayed(gMsgNo);
-  if (mc.eid("attachmentView").node.collapsed)
-    throw new Error("attachment with `" + type +
-                    "' extension file name has no attachment");
-
-  ++gMsgNo;
-  return gMsgNo-1;
-}
-
-function test_attachment() {
-  let folderTab = mc.tabmail.currentTabInfo;
+function test_attachment_view_collapsed() {
   be_in_folder(folder);
 
-  assert_nothing_selected();
+  select_click_row(0);
+  assert_selected_and_displayed(0);
 
-  for (let i = 0; i < TESTS.length; ++i) {
-    // Check for attachment in mail
-    addMsgToFolderAndCheckAttachment(folder, TESTS[i].type, TESTS[i].attachment);
+  if (!mc.e("attachmentView").collapsed)
+    throw new Error("Attachment pane expanded when it shouldn't be!");
+}
+
+function test_attachment_view_expanded() {
+  be_in_folder(folder);
+
+  for (let i = 1; i < messages.length; i++) {
+    select_click_row(i);
+    assert_selected_and_displayed(i);
+
+    if (mc.e("attachmentView").collapsed)
+      throw new Error("Attachment pane collapsed (on message #"+i+
+                      " when it shouldn't be!");
   }
+}
+
+function test_attachment_name_click() {
+  be_in_folder(folder);
+
+  select_click_row(1);
+  assert_selected_and_displayed(1);
+
+  // Ensure the context menu appears when right-clicking the attachment name
+  mc.rightClick(mc.eid("attachmentName"));
+  assert_equals(mc.e("attachmentListContext").state, "open");
+  close_popup(mc, mc.eid("attachmentListContext"));
+}
+
+function test_attachment_list_expansion() {
+  be_in_folder(folder);
+
+  select_click_row(1);
+  assert_selected_and_displayed(1);
+
+  assert_true(mc.e("attachmentListWrapper").collapsed,
+              "Attachment list should start out collapsed!");
+
+  mc.click(mc.eid("attachmentToggle"));
+  assert_true(!mc.e("attachmentListWrapper").collapsed,
+              "Attachment list should be expanded after clicking twisty!");
+
+  mc.click(mc.eid("attachmentToggle"));
+  assert_true(mc.e("attachmentListWrapper").collapsed,
+              "Attachment list should be collapsed after clicking twisty again!");
+
+  mc.click(mc.eid("attachmentBar"));
+  assert_true(!mc.e("attachmentListWrapper").collapsed,
+              "Attachment list should be expanded after clicking bar!");
+
+  mc.click(mc.eid("attachmentBar"));
+  assert_true(mc.e("attachmentListWrapper").collapsed,
+              "Attachment list should be collapsed after clicking bar again!");
 }
 
 function test_selected_attachments_are_cleared() {
   be_in_folder(folder);
-  // Add a message with one attachment.
-  let single = addMsgToFolderAndCheckAttachment(folder, "single",
-                                                TESTS[0].attachment);
 
-  // Add and select a message with two attachments.
-  let multiple = addMsgToFolderAndCheckAttachment(folder, "multiple",
-                                                  [TESTS[0].attachment,
-                                                   TESTS[1].attachment]);
+  // First, select the message with two attachments.
+  select_click_row(3);
+
+  // Expand the attachment list.
+  mc.click(mc.eid("attachmentToggle"));
 
   // Select both the attachments.
   let attachmentList = mc.e("attachmentList");
@@ -171,17 +179,64 @@ function test_selected_attachments_are_cleared() {
                 "We had selected items on first load, when we shouldn't have!");
 
   // We can just click on the first element, but the second one needs a
-  // ctrl-click (or cmd-click for those Mac-heads among us.
+  // ctrl-click (or cmd-click for those Mac-heads among us).
   mc.click(new elib.Elem(attachmentList.children[0]));
-  //mc.click(new elib.Elem(attachmentList.children[1]));
   EventUtils.synthesizeMouse(attachmentList.children[1], 5, 5,
                              {accelKey: true}, mc.window);
 
-  assert_equals(mc.e("attachmentList").selectedItems.length, 2,
+  assert_equals(attachmentList.selectedItems.length, 2,
                 "We had the wrong number of selected items after selecting some!");
-  // Switch to the message with one attachments, and make sure there are no
+
+  // Switch to the message with one attachment, and make sure there are no
   // selected attachments.
-  select_click_row(single);
-  assert_equals(mc.e("attachmentList").selectedItems.length, 0,
+  select_click_row(2);
+
+  // Expand the attachment list again.
+  mc.click(mc.eid("attachmentToggle"));
+
+  assert_equals(attachmentList.selectedItems.length, 0,
                 "We had selected items after loading a new message!");
+}
+
+function test_attachments_compose_menu() {
+  be_in_folder(folder);
+
+  // First, select the message with two attachments.
+  select_click_row(3);
+
+  let cwc = open_compose_with_forward();
+  let attachment = cwc.e("attachmentBucket");
+
+  // Focus the attachmentBucket
+  attachment.focus();
+  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachments",
+                "attachmentBucket is focused!");
+
+  // Select 1 attachment, and
+  // focus the subject to see the label change and to execute isCommandEnabled
+  cwc.click(new elib.Elem(attachment.children[0]));
+  cwc.e("msgSubject").focus();
+  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Delete",
+                "attachmentBucket is not focused!");
+
+  // Focus back to the attachmentBucket
+  attachment.focus();
+  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachment",
+                "Only 1 attachment is selected!");
+
+  // Select 2 attachments, and focus the identity for the same purpose
+  attachment.focus();
+  cwc.click(new elib.Elem(attachment.children[1]));
+  EventUtils.synthesizeMouse(attachment.children[0], 0, 0,
+                             {accelKey: true}, cwc.window);
+  cwc.e("msgIdentity").focus();
+  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Delete",
+                "attachmentBucket is not focused!");
+
+  // Focus back to the attachmentBucket
+  attachment.focus();
+  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachments",
+                "Multiple attachments are selected!");
+
+  close_compose_window(cwc);
 }

@@ -42,6 +42,9 @@ srcdir		= @srcdir@
 VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
+CC_WRAPPER =
+CXX_WRAPPER =
+include $(topsrcdir)/config/config.mk
 
 MODULE = psm
 
@@ -68,10 +71,10 @@ ifndef MOZ_NATIVE_NSS
 ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
 SDK_LIBS = \
   $(DIST)/lib/$(LIB_PREFIX)crmf.$(LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)smime3.$(IMPORT_LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)ssl3.$(IMPORT_LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)nss3.$(IMPORT_LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)nssutil3.$(IMPORT_LIB_SUFFIX) \
+  $(DIST)/lib/$(LIB_PREFIX)smime3.$(LIB_SUFFIX) \
+  $(DIST)/lib/$(LIB_PREFIX)ssl3.$(LIB_SUFFIX) \
+  $(DIST)/lib/$(LIB_PREFIX)nss3.$(LIB_SUFFIX) \
+  $(DIST)/lib/$(LIB_PREFIX)nssutil3.$(LIB_SUFFIX) \
   $(NULL)
 else
 SDK_LIBS = \
@@ -132,7 +135,7 @@ FREEBL_64FPU_LIB = libfreebl_64fpu_3$(DLL_SUFFIX)
 FREEBL_64FPU_CHK = libfreebl_64fpu_3.chk
 endif
 
-ABS_DIST := $(shell cd $(DIST) && pwd)
+ABS_DIST := $(call core_abspath,$(DIST))
 ifeq ($(HOST_OS_ARCH),WINNT)
 ifdef CYGDRIVE_MOUNT
 ABS_DIST := $(shell cygpath -w $(ABS_DIST) | sed -e 's|\\|/|g')
@@ -160,6 +163,7 @@ export DLLFLAGS
 endif
 
 ifndef WINCE
+# why is this disabled on WINCE?  See bug 514295.
 # To get debug symbols from NSS
 export MOZ_DEBUG_SYMBOLS
 endif
@@ -174,16 +178,22 @@ endif
 DEFAULT_GMAKE_FLAGS = MAKE="$(NSSMAKE) -j1" -j1
 DEFAULT_GMAKE_FLAGS += CC="$(CC)"
 DEFAULT_GMAKE_FLAGS += SOURCE_MD_DIR=$(ABS_DIST)
+DEFAULT_GMAKE_FLAGS += SOURCE_MDHEADERS_DIR=$(NSPR_INCLUDE_DIR)
 DEFAULT_GMAKE_FLAGS += DIST=$(ABS_DIST)
 DEFAULT_GMAKE_FLAGS += NSPR_INCLUDE_DIR=$(NSPR_INCLUDE_DIR)
 DEFAULT_GMAKE_FLAGS += NSPR_LIB_DIR=$(NSPR_LIB_DIR)
 DEFAULT_GMAKE_FLAGS += MOZILLA_CLIENT=1
 DEFAULT_GMAKE_FLAGS += NO_MDUPDATE=1
 DEFAULT_GMAKE_FLAGS += NSS_ENABLE_ECC=1
+DEFAULT_GMAKE_FLAGS += NSINSTALL="$(NSINSTALL)"
+ifndef MOZ_NATIVE_SQLITE
+DEFAULT_GMAKE_FLAGS += SQLITE_LIB_NAME=mozsqlite3
+DEFAULT_GMAKE_FLAGS += SQLITE_INCLUDE_DIR=$(ABS_DIST)/include
+endif
 ifdef NSS_DISABLE_DBM 
 DEFAULT_GMAKE_FLAGS += NSS_DISABLE_DBM=1
 endif
-ABS_topsrcdir   := $(shell cd $(topsrcdir); pwd)
+ABS_topsrcdir   := $(call core_abspath,$(topsrcdir))
 ifneq ($(ABS_topsrcdir),$(MOZ_BUILD_ROOT))
 DEFAULT_GMAKE_FLAGS += BUILD_TREE=$(MOZ_BUILD_ROOT)
 endif
@@ -216,10 +226,6 @@ ifdef MOZ_OS2_HIGH_MEMORY
 DEFAULT_GMAKE_FLAGS += MOZ_OS2_HIGH_MEMORY=1
 endif
 endif # OS2
-# OS_CFLAGS needs to be passed on down.
-ifeq ($(OS_ARCH),OpenVMS)
-DEFAULT_GMAKE_FLAGS += XCFLAGS="$(OS_CFLAGS)"
-endif
 ifeq ($(OS_ARCH),Darwin)
 # Make nsinstall use absolute symlinks by default when building NSS
 # for Mozilla on Mac OS X. (Bugzilla bug 193164)
@@ -231,18 +237,17 @@ DEFAULT_GMAKE_FLAGS += MACOS_SDK_DIR=$(MACOS_SDK_DIR)
 endif
 endif
 
-# Turn off TLS compression support because NSS 3.12.6 can't be built
-# with Mozilla's zlib.h.  See bug 527659 comment 10.
+# Turn off TLS compression support because it requires system zlib.
+# See bug 580679 comment 18.
 DEFAULT_GMAKE_FLAGS += NSS_ENABLE_ZLIB=
 
 # Disable building of the test programs in security/nss/lib/zlib
 DEFAULT_GMAKE_FLAGS += PROGRAMS=
- 
+
 ifdef CROSS_COMPILE
 
 ifdef WINCE
 DEFAULT_GMAKE_FLAGS += \
-	NSINSTALL="$(NSINSTALL)" \
 	NATIVE_CC="$(HOST_CC)" \
 	CC="$(CC)" \
 	CCC="$(CC)" \
@@ -260,7 +265,6 @@ DEFAULT_GMAKE_FLAGS += \
 	$(NULL)
 else
 DEFAULT_GMAKE_FLAGS += \
-	NSINSTALL="$(NSINSTALL)" \
 	NATIVE_CC="$(HOST_CC)" \
 	CC="$(CC)" \
 	CCC="$(CXX)" \
@@ -275,31 +279,50 @@ DEFAULT_GMAKE_FLAGS += \
 	$(NULL)
 endif
 
+# Android has pthreads integrated into -lc, so OS_LIBS is set to nothing
+ifeq ($(OS_TARGET), Android)
+DEFAULT_GMAKE_FLAGS += \
+	OS_RELEASE="2.6" \
+	OS_LIBS= \
+	STANDARDS_CFLAGS="-std=gnu89" \
+	DSO_CFLAGS="$(CFLAGS) -DCHECK_FORK_GETPID -DRTLD_NOLOAD=0 -DANDROID_VERSION=$(ANDROID_VERSION) -include $(ABS_topsrcdir)/security/manager/android_stub.h" \
+	DSO_LDOPTS="-shared $(LDFLAGS) $(WRAP_MALLOC_CFLAGS) $(WRAP_MALLOC_LIB) " \
+	$(NULL)
+endif
+
+ifndef UNIVERSAL_BINARY
 SKIP_CHK=1
 endif
+endif
+ifdef WRAP_MALLOC_CFLAGS
+DEFAULT_GMAKE_FLAGS += \
+	LDFLAGS="$(LDFLAGS) $(WRAP_MALLOC_CFLAGS) $(WRAP_MALLOC_LIB) " \
+	$(NULL)
+endif
+
 SUBMAKEFILES = boot/Makefile ssl/Makefile pki/Makefile locales/Makefile
 
 include $(topsrcdir)/config/rules.mk
 
-# Attempt to properly handle NSS' refusal to implement a dependency system
-export:: .nss.cleaned
+ifdef MOZ_NSS_PATCH
+# If we're applying a patch, we'll copy the NSS source to the objdir
+# and build it from there.
+NSS_SRCDIR = $(CURDIR)/nss
 
-.nss.cleaned: .nss.checkout
-ifndef MOZ_NATIVE_NSS
-	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
-ifndef SKIP_CHK
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
-endif
-	touch $@
-endif
-
-GARBAGE += .nss.cleaned
-
-.nss.checkout:
-ifndef MOZ_NATIVE_NSS
-	touch $(srcdir)/$@
+# This will copy and patch the NSS source for every build.
+# Since we "cp -p", it won't force rebuilds for most files, just
+# for patched files, but that's easier than trying to track
+# dependencies for patched files.
+export::
+	rm -rf $(NSS_SRCDIR)
+	$(NSINSTALL) -D $(NSS_SRCDIR)/security
+	cp -Rp $(topsrcdir)/security/nss $(NSS_SRCDIR)/security
+	cp -Rp $(topsrcdir)/security/coreconf $(NSS_SRCDIR)/security
+	cp -Rp $(topsrcdir)/security/dbm $(NSS_SRCDIR)/security
+	cp -Rp $(topsrcdir)/dbm $(NSS_SRCDIR)
+	(cd $(NSS_SRCDIR) && patch -p1 < $(call core_abspath,$(MOZ_NSS_PATCH)))
+else
+NSS_SRCDIR = $(topsrcdir)
 endif
 
 dependclean export packages chrome::
@@ -312,22 +335,22 @@ endif
 
 libs::
 ifndef MOZ_NATIVE_NSS
-	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS)
 ifndef NSS_DISABLE_DBM
-	$(NSSMAKE) -C $(topsrcdir)/security/dbm $(DEFAULT_GMAKE_FLAGS) 
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/dbm $(DEFAULT_GMAKE_FLAGS) 
 endif
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/lib $(DEFAULT_GMAKE_FLAGS)
 ifdef ENABLE_TESTS
-	# Need certutil binary for mochitest certificates generation
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/certutil $(DEFAULT_GMAKE_FLAGS)
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/pk12util $(DEFAULT_GMAKE_FLAGS)
+# Need certutil binary for mochitest certificates generation
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/certutil $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/pk12util $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/modutil $(DEFAULT_GMAKE_FLAGS)
 endif
 ifndef SKIP_CHK
 ifndef ENABLE_TESTS # Just avoid secondary compile
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS)
 endif
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS)
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS)
 endif
 	$(INSTALL) -m 755 $(DIST)/lib/$(LOADABLE_ROOT_MODULE) $(DIST)/bin
 ifndef SKIP_CHK
@@ -449,17 +472,10 @@ ifdef MOZ_XUL
 	$(MAKE) -C pki $@
 endif
 ifndef MOZ_NATIVE_NSS
-	$(NSSMAKE) -C $(topsrcdir)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/coreconf $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/lib $(DEFAULT_GMAKE_FLAGS) clean
 ifndef SKIP_CHK
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
-	$(NSSMAKE) -C $(topsrcdir)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/lib $(DEFAULT_GMAKE_FLAGS) clean
+	$(NSSMAKE) -C $(NSS_SRCDIR)/security/nss/cmd/shlibsign $(DEFAULT_GMAKE_FLAGS) clean
 endif
 endif
-
-echo-requires-recursive::
-	$(MAKE) -C boot $@
-	$(MAKE) -C ssl $@
-	$(MAKE) -C pki $@
-	$(MAKE) -C locales $@
-

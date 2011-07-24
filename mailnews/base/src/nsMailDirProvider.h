@@ -41,9 +41,9 @@
 #define nsMailDirProvider_h__
 
 #include "nsIDirectoryService.h"
-#include "nsIGenericFactory.h"
 #include "nsISimpleEnumerator.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
+#include "nsCOMPtr.h"
 
 class nsMailDirProvider : public nsIDirectoryServiceProvider2
 {
@@ -51,15 +51,6 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDIRECTORYSERVICEPROVIDER
   NS_DECL_NSIDIRECTORYSERVICEPROVIDER2
-
-  static NS_METHOD Register(nsIComponentManager* aCompMgr,
-			    nsIFile* aPath, const char *aLoaderStr,
-			    const char *aType,
-			    const nsModuleComponentInfo *aInfo);
-
-  static NS_METHOD Unregister(nsIComponentManager* aCompMgr,
-			      nsIFile* aPath, const char *aLoaderStr,
-			      const nsModuleComponentInfo *aInfo);
 
 private:
   nsresult EnsureDirectory(nsIFile *aDirectory);

@@ -15,7 +15,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation.
+ * Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -43,8 +43,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULListboxAccessibleWrap::
-  nsXULListboxAccessibleWrap(nsIDOMNode *aDOMNode, nsIWeakReference *aShell) :
-  nsXULListboxAccessible(aDOMNode, aShell)
+  nsXULListboxAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsXULListboxAccessible(aContent, aShell)
 {
 }
 
@@ -62,8 +62,8 @@ IMPL_IUNKNOWN_QUERY_TAIL
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULListCellAccessibleWrap::
-  nsXULListCellAccessibleWrap(nsIDOMNode *aDOMNode, nsIWeakReference *aShell) :
-  nsXULListCellAccessible(aDOMNode, aShell)
+  nsXULListCellAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsXULListCellAccessible(aContent, aShell)
 {
 }
 

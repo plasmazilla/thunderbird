@@ -36,13 +36,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== global.css =====================================================
-  == Styles that apply everywhere.
-  ======================================================================= */
-
 /* all localizable skin settings shall live here */
 @import url("chrome://global/locale/intl.css");
 
+%include shared.inc
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
 /* ::::: XBL bindings ::::: */
@@ -54,10 +51,6 @@ menulist > menupopup,
 
 .menulist-compact {
   -moz-binding: url("chrome://global/content/bindings/menulist.xml#menulist-compact");
-}
-
-progressmeter[mode="undetermined"] {
-  -moz-binding: url("chrome://global/content/bindings/progressmeter.xml#progressmeter-periodic-redraw");
 }
 
 /* ::::: draggable elements ::::: */
@@ -147,6 +140,7 @@ statusbar {
   Prevents hiding of scrollbars in browser when window is made smaller.*/
   min-height: 15px !important;
   margin: 0px !important;
+  /* need to use -moz-padding-end when/if bug 631729 gets fixed: */
   padding: 0px 16px 1px 1px;
   -moz-appearance: statusbar;
   text-shadow: rgba(255, 255, 255, 0.4) 0 1px;
@@ -170,11 +164,11 @@ statusbarpanel {
 }
 
 :root:-moz-lwtheme-darktext {
-  text-shadow: 1px 1px 2px white;
+  text-shadow: 1px 1px 1.5px white;
 }
 
 :root:-moz-lwtheme-brighttext {
-  text-shadow: 1px 1px 2px black;
+  text-shadow: 1px 1px 1.5px black;
 }
 
 statusbar:-moz-lwtheme {
@@ -284,7 +278,7 @@ description {
   cursor: pointer;
 }
   
-.text-link:focus {
+.text-link:-moz-focusring {
   border: 1px dotted -moz-DialogText;
 }
 
@@ -298,27 +292,24 @@ notification > button {
   min-width: 60px;
   min-height: 16px;
   -moz-appearance: none;
-  border: 1px solid rgba(0, 0, 0, .4);
-  -moz-border-radius: 100%;
-  background: -moz-linear-gradient(top, #FFF, #CACACA) repeat-x;
-  text-shadow: 0 1px rgba(255, 255, 255, .4);
-  -moz-box-shadow: 0 1px 0 rgba(255, 255, 255, .4);
+  border-radius: 10000px;
+  border: @roundButtonBorder@;
+  text-shadow: @loweredShadow@;
+  background: @roundButtonBackground@;
+  box-shadow: @roundButtonShadow@;
 }
 
 notification > button:active:hover {
-  background: #CCC;
-  -moz-box-shadow: inset 0 1px 4px rgba(0, 0, 0, .2),
-                   0 1px rgba(255, 255, 255, .4);
+  background: @roundButtonPressedBackground@;
+  box-shadow: @roundButtonPressedShadow@;
 }
 
-notification > button:focus {
-  -moz-box-shadow: 0 0 3px 2px -moz-mac-focusring;
+notification > button:-moz-focusring {
+  box-shadow: @focusRingShadow@, @roundButtonShadow@;
 }
 
-notification > button:active:hover:focus {
-  -moz-box-shadow: 0 0 3px 2px -moz-mac-focusring,
-                   inset 0 1px 4px rgba(0, 0, 0, .2),
-                   0 1px rgba(255, 255, 255, .4);
+notification > button:active:hover:-moz-focusring {
+  box-shadow: @focusRingShadow@, @roundButtonPressedShadow@;
 }
 
 notification > button > .button-box > .button-text {
@@ -346,4 +337,33 @@ notification > button > .button-box > .button-text {
 
 .autoscroller[scrolldir="EW"] {
   background-position: right bottom;
+}
+
+/* autorepeatbuttons in menus */
+
+.popup-internal-box > autorepeatbutton {
+  height: 15px;
+  position: relative;
+  /* Here we're using a little magic.
+   * The arrow button is supposed to overlay the scrollbox, blocking
+   * everything under it from reaching the screen. However, the menu background
+   * is slightly transparent, so how can we block something completely without
+   * messing up the transparency? It's easy: The native theming of the
+   * "menuitem" appearance uses CGContextClearRect before drawing, which
+   * clears everything under it.
+   * Without help from native theming this effect wouldn't be achievable.
+   */
+  -moz-appearance: menuitem;
+}
+
+.popup-internal-box > .autorepeatbutton-up {
+  margin-bottom: -15px;
+}
+
+.popup-internal-box > .autorepeatbutton-down {
+  margin-top: -15px;
+}
+
+.popup-internal-box > autorepeatbutton[disabled="true"] {
+  visibility: collapse;
 }

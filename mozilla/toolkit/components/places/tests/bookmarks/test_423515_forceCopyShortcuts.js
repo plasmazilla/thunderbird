@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 384370 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -35,8 +35,6 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-
-Components.utils.import("resource://gre/modules/utils.js");
 
 const DEFAULT_INDEX = PlacesUtils.bookmarks.DEFAULT_INDEX;
 

@@ -75,6 +75,14 @@ list-style-image: url("chrome://messenger/skin/icons/folder-open.png");
   list-style-image: url("chrome://messenger/skin/icons/folder-sent-open.png");
 }
 
+.folderMenuItem[SpecialFolder="Outbox"] {
+  list-style-image: url("chrome://messenger/skin/icons/folder-outbox.png");
+}
+
+.folderMenuItem[SpecialFolder="Outbox"][open="true"] {
+  list-style-image: url("chrome://messenger/skin/icons/folder-outbox-open.png");
+}
+
 .folderMenuItem[SpecialFolder="Drafts"] {
   list-style-image: url("chrome://messenger/skin/icons/folder-draft.png");
 }

@@ -39,14 +39,15 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include <limits.h>
 #include <stdio.h>
 
 #include "nsError.h"
 #include "nsMemory.h"
-#include "nsProxyRelease.h"
 #include "nsThreadUtils.h"
 #include "nsIClassInfoImpl.h"
 #include "nsIProgrammingLanguage.h"
+#include "Variant.h"
 
 #include "mozIStorageError.h"
 
@@ -60,6 +61,8 @@
 
 #include "prlog.h"
 
+#include "mozilla/FunctionTimer.h"
+
 #ifdef PR_LOGGING
 extern PRLogModuleInfo* gStorageLog;
 #endif
@@ -68,54 +71,15 @@ namespace mozilla {
 namespace storage {
 
 ////////////////////////////////////////////////////////////////////////////////
-//// Local Classes
-
-namespace {
-
-/**
- * Used to finalize an asynchronous statement on the background thread.
- */
-class AsyncStatementFinalizer : public nsRunnable
-{
-public:
-  /**
-   * Constructor for the event.
-   *
-   * @param aStatement
-   *        The sqlite3_stmt to finalize on the background thread.
-   * @param aConnection
-   *        The Connection that aStatement was created on.  We hold a reference
-   *        to this to ensure that if we are the last reference to the
-   *        Connection, that we release it on the proper thread.  The release
-   *        call is proxied to the appropriate thread.
-   */
-  AsyncStatementFinalizer(sqlite3_stmt *aStatement,
-                          Connection *aConnection)
-  : mStatement(aStatement)
-  , mConnection(aConnection)
-  {
-  }
-
-  NS_IMETHOD Run()
-  {
-    (void)::sqlite3_finalize(mStatement);
-    (void)::NS_ProxyRelease(mConnection->threadOpenedOn, mConnection);
-    return NS_OK;
-  }
-private:
-  sqlite3_stmt *mStatement;
-  nsCOMPtr<Connection> mConnection;
-};
-
-} // anonymous namespace
-
-////////////////////////////////////////////////////////////////////////////////
 //// nsIClassInfo
 
-NS_IMPL_CI_INTERFACE_GETTER2(
+NS_IMPL_CI_INTERFACE_GETTER5(
   Statement,
   mozIStorageStatement,
-  mozIStorageValueArray
+  mozIStorageBaseStatement,
+  mozIStorageBindingParams,
+  mozIStorageValueArray,
+  mozilla::storage::StorageBaseStatementInternal
 )
 
 class StatementClassInfo : public nsIClassInfo
@@ -194,11 +158,10 @@ static StatementClassInfo sStatementClassInfo;
 //// Statement
 
 Statement::Statement()
-: mDBConnection(nsnull)
+: StorageBaseStatementInternal()
 , mDBStatement(NULL)
 , mColumnNames()
 , mExecuting(false)
-, mCachedAsyncStatement(NULL)
 {
 }
 
@@ -212,8 +175,7 @@ Statement::initialize(Connection *aDBConnection,
   sqlite3 *db = aDBConnection->GetNativeConnection();
   NS_ASSERTION(db, "We should never be called with a null sqlite3 database!");
 
-  int srv = ::sqlite3_prepare_v2(db, PromiseFlatCString(aSQLStatement).get(),
-                                 -1, &mDBStatement, NULL);
+  int srv = prepareStmt(db, PromiseFlatCString(aSQLStatement), &mDBStatement);
   if (srv != SQLITE_OK) {
 #ifdef PR_LOGGING
       PR_LOG(gStorageLog, PR_LOG_ERROR,
@@ -265,7 +227,7 @@ Statement::initialize(Connection *aDBConnection,
       // or @, all of which are valid characters for binding a parameter.
       // We will warn the consumer that they may not be safely using LIKE.
       NS_WARNING("Unsafe use of LIKE detected!  Please ensure that you "
-                 "are using mozIStorageConnection::escapeStringForLIKE "
+                 "are using mozIStorageStatement::escapeStringForLIKE "
                  "and that you are binding that result to the statement "
                  "to prevent SQL injection attacks.");
     }
@@ -279,48 +241,7 @@ Statement::initialize(Connection *aDBConnection,
   return NS_OK;
 }
 
-nsresult
-Statement::getAsynchronousStatementData(StatementData &_data)
-{
-  if (!mDBStatement)
-    return NS_ERROR_UNEXPECTED;
-
-  sqlite3_stmt *stmt;
-  int rc = getAsyncStatement(&stmt);
-  if (rc != SQLITE_OK)
-    return convertResultCode(rc);
-
-  _data = StatementData(stmt, bindingParamsArray(), this);
-
-  return NS_OK;
-}
-
-int
-Statement::getAsyncStatement(sqlite3_stmt **_stmt)
-{
-  // If we have no statement, we shouldn't be calling this method!
-  NS_ASSERTION(mDBStatement != NULL, "We have no statement to clone!");
-
-  // If we do not yet have a cached async statement, clone our statement now.
-  if (!mCachedAsyncStatement) {
-    int rc = ::sqlite3_prepare_v2(mDBConnection->GetNativeConnection(),
-                                  ::sqlite3_sql(mDBStatement), -1,
-                                  &mCachedAsyncStatement, NULL);
-    if (rc != SQLITE_OK)
-      return rc;
-
-#ifdef PR_LOGGING
-    PR_LOG(gStorageLog, PR_LOG_NOTICE,
-           ("Cloned statement 0x%p to 0x%p", mDBStatement,
-            mCachedAsyncStatement));
-#endif
-  }
-
-  *_stmt = mCachedAsyncStatement;
-  return SQLITE_OK;
-}
-
-BindingParams *
+mozIStorageBindingParams *
 Statement::getParams()
 {
   nsresult rv;
@@ -344,7 +265,7 @@ Statement::getParams()
 
     // We have to unlock our params because AddParams locks them.  This is safe
     // because no reference to the params object was, or ever will be given out.
-    params->unlock();
+    params->unlock(this);
 
     // We also want to lock our array at this point - we don't want anything to
     // be added to it.  Nothing has, or will ever get a reference to it, but we
@@ -357,24 +278,93 @@ Statement::getParams()
 
 Statement::~Statement()
 {
-  (void)Finalize();
+  (void)internalFinalize(true);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//// nsISupports
 
 NS_IMPL_THREADSAFE_ADDREF(Statement)
 NS_IMPL_THREADSAFE_RELEASE(Statement)
 
 NS_INTERFACE_MAP_BEGIN(Statement)
   NS_INTERFACE_MAP_ENTRY(mozIStorageStatement)
+  NS_INTERFACE_MAP_ENTRY(mozIStorageBaseStatement)
+  NS_INTERFACE_MAP_ENTRY(mozIStorageBindingParams)
   NS_INTERFACE_MAP_ENTRY(mozIStorageValueArray)
+  NS_INTERFACE_MAP_ENTRY(mozilla::storage::StorageBaseStatementInternal)
   if (aIID.Equals(NS_GET_IID(nsIClassInfo))) {
     foundInterface = static_cast<nsIClassInfo *>(&sStatementClassInfo);
   }
   else
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, mozIStorageStatement)
 NS_INTERFACE_MAP_END
+
+
+////////////////////////////////////////////////////////////////////////////////
+//// StorageBaseStatementInternal
+
+Connection *
+Statement::getOwner()
+{
+  return mDBConnection;
+}
+
+int
+Statement::getAsyncStatement(sqlite3_stmt **_stmt)
+{
+  // If we have no statement, we shouldn't be calling this method!
+  NS_ASSERTION(mDBStatement != NULL, "We have no statement to clone!");
+
+  // If we do not yet have a cached async statement, clone our statement now.
+  if (!mAsyncStatement) {
+    nsDependentCString sql(::sqlite3_sql(mDBStatement));
+    int rc = prepareStmt(mDBConnection->GetNativeConnection(), sql,
+                     &mAsyncStatement);
+    if (rc != SQLITE_OK) {
+      *_stmt = nsnull;
+      return rc;
+    }
+
+#ifdef PR_LOGGING
+    PR_LOG(gStorageLog, PR_LOG_NOTICE,
+           ("Cloned statement 0x%p to 0x%p", mDBStatement, mAsyncStatement));
+#endif
+  }
+
+  *_stmt = mAsyncStatement;
+  return SQLITE_OK;
+}
+
+nsresult
+Statement::getAsynchronousStatementData(StatementData &_data)
+{
+  if (!mDBStatement)
+    return NS_ERROR_UNEXPECTED;
+
+  sqlite3_stmt *stmt;
+  int rc = getAsyncStatement(&stmt);
+  if (rc != SQLITE_OK)
+    return convertResultCode(rc);
+
+  _data = StatementData(stmt, bindingParamsArray(), this);
+
+  return NS_OK;
+}
+
+already_AddRefed<mozIStorageBindingParams>
+Statement::newBindingParams(mozIStorageBindingParamsArray *aOwner)
+{
+  nsCOMPtr<mozIStorageBindingParams> params = new BindingParams(aOwner, this);
+  return params.forget();
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //// mozIStorageStatement
+
+// proxy to StorageBaseStatementInternal using its define helper.
+MIXIN_IMPL_STORAGEBASESTATEMENTINTERNAL(Statement, (void)0;)
 
 NS_IMETHODIMP
 Statement::Clone(mozIStorageStatement **_statement)
@@ -393,6 +383,12 @@ Statement::Clone(mozIStorageStatement **_statement)
 NS_IMETHODIMP
 Statement::Finalize()
 {
+  return internalFinalize(false);
+}
+
+nsresult
+Statement::internalFinalize(bool aDestructing)
+{
   if (!mDBStatement)
     return NS_OK;
 
@@ -404,26 +400,13 @@ Statement::Finalize()
   int srv = ::sqlite3_finalize(mDBStatement);
   mDBStatement = NULL;
 
-  // We need to finalize our async statement too, but want to make sure that any
-  // queued up statements run first.  Dispatch an event to the background thread
-  // that will do this for us.
-  if (mCachedAsyncStatement) {
-    nsCOMPtr<nsIEventTarget> target = mDBConnection->getAsyncExecutionTarget();
-    if (!target) {
-      // However, if we cannot get the background thread, we have to assume it
-      // has been shutdown (or is in the process of doing so).  As a result, we
-      // should just finalize it here and now.
-      (void)::sqlite3_finalize(mCachedAsyncStatement);
-    }
-    else {
-      nsCOMPtr<nsIRunnable> event =
-        new AsyncStatementFinalizer(mCachedAsyncStatement, mDBConnection);
-      NS_ENSURE_TRUE(event, NS_ERROR_OUT_OF_MEMORY);
-
-      nsresult rv = target->Dispatch(event, NS_DISPATCH_NORMAL);
-      NS_ENSURE_SUCCESS(rv, rv);
-      mCachedAsyncStatement = NULL;
-    }
+  if (mAsyncStatement) {
+    // If the destructor called us, there are no pending async statements (they
+    // hold a reference to us) and we can/must just kill the statement directly.
+    if (aDestructing)
+      destructorAsyncFinalize();
+    else
+      asyncFinalize();
   }
 
   // We are considered dead at this point, so any wrappers for row or params
@@ -571,97 +554,6 @@ Statement::Reset()
 }
 
 NS_IMETHODIMP
-Statement::BindUTF8StringParameter(PRUint32 aParamIndex,
-                                   const nsACString &aValue)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindUTF8StringByIndex(aParamIndex, aValue);
-}
-
-NS_IMETHODIMP
-Statement::BindStringParameter(PRUint32 aParamIndex,
-                               const nsAString &aValue)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindStringByIndex(aParamIndex, aValue);
-}
-
-NS_IMETHODIMP
-Statement::BindDoubleParameter(PRUint32 aParamIndex,
-                               double aValue)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindDoubleByIndex(aParamIndex, aValue);
-}
-
-NS_IMETHODIMP
-Statement::BindInt32Parameter(PRUint32 aParamIndex,
-                              PRInt32 aValue)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindInt32ByIndex(aParamIndex, aValue);
-}
-
-NS_IMETHODIMP
-Statement::BindInt64Parameter(PRUint32 aParamIndex,
-                              PRInt64 aValue)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindInt64ByIndex(aParamIndex, aValue);
-}
-
-NS_IMETHODIMP
-Statement::BindNullParameter(PRUint32 aParamIndex)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindNullByIndex(aParamIndex);
-}
-
-NS_IMETHODIMP
-Statement::BindBlobParameter(PRUint32 aParamIndex,
-                             const PRUint8 *aValue,
-                             PRUint32 aValueSize)
-{
-  if (!mDBStatement)
-    return NS_ERROR_NOT_INITIALIZED;
-
-  BindingParams *params = getParams();
-  NS_ENSURE_TRUE(params, NS_ERROR_OUT_OF_MEMORY);
-
-  return params->BindBlobByIndex(aParamIndex, aValue, aValueSize);
-}
-
-NS_IMETHODIMP
 Statement::BindParameters(mozIStorageBindingParamsArray *aParameters)
 {
   if (!mDBStatement)
@@ -671,20 +563,12 @@ Statement::BindParameters(mozIStorageBindingParamsArray *aParameters)
   if (array->getOwner() != this)
     return NS_ERROR_UNEXPECTED;
 
+  if (array->length() == 0)
+    return NS_ERROR_UNEXPECTED;
+
   mParamsArray = array;
   mParamsArray->lock();
 
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-Statement::NewBindingParamsArray(mozIStorageBindingParamsArray **_array)
-{
-  nsCOMPtr<mozIStorageBindingParamsArray> array =
-    new BindingParamsArray(this);
-  NS_ENSURE_TRUE(array, NS_ERROR_OUT_OF_MEMORY);
-
-  array.forget(_array);
   return NS_OK;
 }
 
@@ -707,6 +591,9 @@ Statement::ExecuteStep(PRBool *_moreResults)
   if (!mDBStatement)
     return NS_ERROR_NOT_INITIALIZED;
 
+  NS_TIME_FUNCTION_MIN_FMT(5, "mozIStorageStatement::ExecuteStep(%s) (0x%p)",
+                           mDBConnection->getFilename().get(), mDBStatement);
+
   // Bind any parameters first before executing.
   if (mParamsArray) {
     // If we have more than one row of parameters to bind, they shouldn't be
@@ -715,8 +602,9 @@ Statement::ExecuteStep(PRBool *_moreResults)
       return NS_ERROR_UNEXPECTED;
 
     BindingParamsArray::iterator row = mParamsArray->begin();
-    nsCOMPtr<mozIStorageError> error;
-    error = (*row)->bind(mDBStatement);
+    nsCOMPtr<IStorageBindingParamsInternal> bindingInternal = 
+      do_QueryInterface(*row);
+    nsCOMPtr<mozIStorageError> error = bindingInternal->bind(mDBStatement);
     if (error) {
       PRInt32 srv;
       (void)error->GetResult(&srv);
@@ -726,7 +614,7 @@ Statement::ExecuteStep(PRBool *_moreResults)
     // We have bound, so now we can clear our array.
     mParamsArray = nsnull;
   }
-  int srv = ::sqlite3_step(mDBStatement);
+  int srv = stepStmt(mDBStatement);
 
 #ifdef PR_LOGGING
   if (srv != SQLITE_ROW && srv != SQLITE_DONE) {
@@ -764,14 +652,6 @@ Statement::ExecuteStep(PRBool *_moreResults)
   return convertResultCode(srv);
 }
 
-nsresult
-Statement::ExecuteAsync(mozIStorageStatementCallback *aCallback,
-                        mozIStoragePendingStatement **_stmt)
-{
-  mozIStorageStatement *stmts[1] = {this};
-  return mDBConnection->ExecuteAsync(stmts, 1, aCallback, _stmt);
-}
-
 NS_IMETHODIMP
 Statement::GetState(PRInt32 *_state)
 {
@@ -782,25 +662,6 @@ Statement::GetState(PRInt32 *_state)
   else
     *_state = MOZ_STORAGE_STATEMENT_READY;
 
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-Statement::EscapeStringForLIKE(const nsAString &aValue,
-                               const PRUnichar aEscapeChar,
-                               nsAString &_escapedString)
-{
-  const PRUnichar MATCH_ALL('%');
-  const PRUnichar MATCH_ONE('_');
-
-  _escapedString.Truncate(0);
-
-  for (PRUint32 i = 0; i < aValue.Length(); i++) {
-    if (aValue[i] == aEscapeChar || aValue[i] == MATCH_ALL ||
-        aValue[i] == MATCH_ONE)
-      _escapedString += aEscapeChar;
-    _escapedString += aValue[i];
-  }
   return NS_OK;
 }
 
@@ -818,7 +679,7 @@ Statement::GetColumnDecltype(PRUint32 aParamIndex,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//// mozIStorageValueArray
+//// mozIStorageValueArray (now part of mozIStorageStatement too)
 
 NS_IMETHODIMP
 Statement::GetNumEntries(PRUint32 *_length)
@@ -842,19 +703,19 @@ Statement::GetTypeOfIndex(PRUint32 aIndex,
   int t = ::sqlite3_column_type(mDBStatement, aIndex);
   switch (t) {
     case SQLITE_INTEGER:
-      *_type = VALUE_TYPE_INTEGER;
+      *_type = mozIStorageStatement::VALUE_TYPE_INTEGER;
       break;
     case SQLITE_FLOAT:
-      *_type = VALUE_TYPE_FLOAT;
+      *_type = mozIStorageStatement::VALUE_TYPE_FLOAT;
       break;
     case SQLITE_TEXT:
-      *_type = VALUE_TYPE_TEXT;
+      *_type = mozIStorageStatement::VALUE_TYPE_TEXT;
       break;
     case SQLITE_BLOB:
-      *_type = VALUE_TYPE_BLOB;
+      *_type = mozIStorageStatement::VALUE_TYPE_BLOB;
       break;
     case SQLITE_NULL:
-      *_type = VALUE_TYPE_NULL;
+      *_type = mozIStorageStatement::VALUE_TYPE_NULL;
       break;
     default:
       return NS_ERROR_FAILURE;
@@ -921,8 +782,8 @@ Statement::GetUTF8String(PRUint32 aIndex,
   PRInt32 type;
   nsresult rv = GetTypeOfIndex(aIndex, &type);
   NS_ENSURE_SUCCESS(rv, rv);
-  if (type == VALUE_TYPE_NULL) {
-    // NULL columns should have IsVod set to distinguis them from an empty
+  if (type == mozIStorageStatement::VALUE_TYPE_NULL) {
+    // NULL columns should have IsVoid set to distinguish them from the empty
     // string.
     _value.Truncate(0);
     _value.SetIsVoid(PR_TRUE);
@@ -944,8 +805,8 @@ Statement::GetString(PRUint32 aIndex,
   PRInt32 type;
   nsresult rv = GetTypeOfIndex(aIndex, &type);
   NS_ENSURE_SUCCESS(rv, rv);
-  if (type == VALUE_TYPE_NULL) {
-    // NULL columns should have IsVod set to distinguis them from an empty
+  if (type == mozIStorageStatement::VALUE_TYPE_NULL) {
+    // NULL columns should have IsVoid set to distinguish them from the empty
     // string.
     _value.Truncate(0);
     _value.SetIsVoid(PR_TRUE);
@@ -1028,9 +889,17 @@ Statement::GetIsNull(PRUint32 aIndex,
   PRInt32 type;
   nsresult rv = GetTypeOfIndex(aIndex, &type);
   NS_ENSURE_SUCCESS(rv, rv);
-  *_isNull = (type == VALUE_TYPE_NULL);
+  *_isNull = (type == mozIStorageStatement::VALUE_TYPE_NULL);
   return NS_OK;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//// mozIStorageBindingParams
+
+BOILERPLATE_BIND_PROXIES(
+  Statement, 
+  if (!mDBStatement) return NS_ERROR_NOT_INITIALIZED;
+)
 
 } // namespace storage
 } // namespace mozilla

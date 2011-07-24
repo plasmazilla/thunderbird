@@ -38,6 +38,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "msgCore.h"  // for pre-compiled headers
+#include "nsISimpleEnumerator.h"
 
 #include "nsIAbCard.h"
 #include "nsAbBaseCID.h"
@@ -45,8 +46,6 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch2.h"
 #include "nsIMsgHeaderParser.h"
-#include "nsIRDFService.h"
-#include "nsRDFCID.h"
 #include "nsStringGlue.h"
 #include "prmem.h"
 #include "nsServiceManagerUtils.h"
@@ -309,6 +308,9 @@ nsAbAddressCollector::SetNamesForCard(nsIAbCard *aSenderCard,
   if (!lastName.IsEmpty() &&
       NS_SUCCEEDED(aSenderCard->SetLastName(NS_ConvertUTF8toUTF16(lastName))))
     modifiedCard = PR_TRUE;
+
+  if (modifiedCard)
+    aSenderCard->SetPropertyAsBool("PreferDisplayName", false);
 
   return modifiedCard;
 }

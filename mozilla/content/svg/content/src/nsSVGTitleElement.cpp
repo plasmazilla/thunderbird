@@ -47,8 +47,8 @@ class nsSVGTitleElement : public nsSVGTitleElementBase,
 {
 protected:
   friend nsresult NS_NewSVGTitleElement(nsIContent **aResult,
-                                        nsINodeInfo *aNodeInfo);
-  nsSVGTitleElement(nsINodeInfo *aNodeInfo);
+                                        already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGTitleElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   nsresult Init();
 
 public:
@@ -79,6 +79,7 @@ public:
 
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
 
+  virtual nsXPCClassInfo* GetClassInfo();
 private:
   void SendTitleChangeEvent(PRBool aBound);
 };
@@ -92,18 +93,20 @@ NS_IMPL_NS_NEW_SVG_ELEMENT(Title)
 NS_IMPL_ADDREF_INHERITED(nsSVGTitleElement, nsSVGTitleElementBase)
 NS_IMPL_RELEASE_INHERITED(nsSVGTitleElement, nsSVGTitleElementBase)
 
+DOMCI_NODE_DATA(SVGTitleElement, nsSVGTitleElement)
+
 NS_INTERFACE_TABLE_HEAD(nsSVGTitleElement)
   NS_NODE_INTERFACE_TABLE5(nsSVGTitleElement, nsIDOMNode, nsIDOMElement,
                            nsIDOMSVGElement, nsIDOMSVGTitleElement,
                            nsIMutationObserver)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGTitleElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGTitleElement)
 NS_INTERFACE_MAP_END_INHERITING(nsSVGTitleElementBase)
 
 
 //----------------------------------------------------------------------
 // Implementation
 
-nsSVGTitleElement::nsSVGTitleElement(nsINodeInfo *aNodeInfo)
+nsSVGTitleElement::nsSVGTitleElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGTitleElementBase(aNodeInfo)
 {
   AddMutationObserver(this);
@@ -126,6 +129,7 @@ nsSVGTitleElement::CharacterDataChanged(nsIDocument *aDocument,
 void
 nsSVGTitleElement::ContentAppended(nsIDocument *aDocument,
                                    nsIContent *aContainer,
+                                   nsIContent *aFirstNewContent,
                                    PRInt32 aNewIndexInContainer)
 {
   SendTitleChangeEvent(PR_FALSE);
@@ -144,7 +148,8 @@ void
 nsSVGTitleElement::ContentRemoved(nsIDocument *aDocument,
                                   nsIContent *aContainer,
                                   nsIContent *aChild,
-                                  PRInt32 aIndexInContainer)
+                                  PRInt32 aIndexInContainer,
+                                  nsIContent *aPreviousSibling)
 {
   SendTitleChangeEvent(PR_FALSE);
 }

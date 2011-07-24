@@ -50,19 +50,6 @@ MODULE_NAME	= nsImageLib2Module
 GRE_MODULE	= 1
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  thebes \
-		  necko \
-		  nkcache \
-		  gfx \
-		  caps \
-		  $(JPEG_REQUIRES) \
-		  $(PNG_REQUIRES) \
-		  $(ZLIB_REQUIRES) \
-		  qcms \
-		  $(NULL)
-
 CPPSRCS = \
 		nsImageModule.cpp \
 		$(NULL)
@@ -70,18 +57,15 @@ CPPSRCS = \
 LOCAL_INCLUDES	= \
 		-I. \
 		-I$(srcdir)/../src \
-		$(foreach d,$(filter-out icon,$(MOZ_IMG_DECODERS)), \
-			-I$(srcdir)/../decoders/${d}) \
-		$(foreach d,$(MOZ_IMG_ENCODERS), \
-			-I$(srcdir)/../encoders/${d}) \
+		-I$(srcdir)/../encoders/png \
+		-I$(srcdir)/../encoders/jpeg \
 		$(NULL)
 
 SHARED_LIBRARY_LIBS = \
 		../src/$(LIB_PREFIX)imglib2_s.$(LIB_SUFFIX) \
-		$(foreach d,$(filter-out icon,$(MOZ_IMG_DECODERS)), \
-			../decoders/${d}/$(LIB_PREFIX)img${d}_s.$(LIB_SUFFIX))\
-		$(foreach d,$(MOZ_IMG_ENCODERS), \
-			../encoders/${d}/$(LIB_PREFIX)img${d}e_s.$(LIB_SUFFIX))\
+		../decoders/$(LIB_PREFIX)imgdecoders_s.$(LIB_SUFFIX) \
+		../encoders/png/$(LIB_PREFIX)imgpnge_s.$(LIB_SUFFIX)\
+		../encoders/jpeg/$(LIB_PREFIX)imgjpege_s.$(LIB_SUFFIX)\
 		$(NULL)
 
 EXTRA_DSO_LIBS	= \
@@ -97,24 +81,6 @@ EXTRA_DSO_LDOPTS = \
 		$(EXTRA_DSO_LIBS) \
 		$(MOZ_COMPONENT_LIBS) \
 		$(NULL)
-
-# Force a rebuild of nsImageModule when either of MOZ_IMG_{DE,EN}CODERS changes
-
-GARBAGE += _img_list nsImgBuildDefines.h
-
-export::
-	{ \
-	$(foreach d,$(filter-out icon,$(MOZ_IMG_DECODERS)), \
-		echo "#define IMG_BUILD_DECODER_${d}" ; ) \
-	$(foreach d,$(MOZ_IMG_ENCODERS), \
-		echo "#define IMG_BUILD_ENCODER_${d}" ; ) \
-	} > nsImgBuildDefines.tmp
-	@if `cmp -s nsImgBuildDefines.h nsImgBuildDefines.tmp`; then \
-		rm -f nsImgBuildDefines.tmp; \
-	else \
-		rm -f nsImgBuildDefines.h; \
-		mv nsImgBuildDefines.tmp nsImgBuildDefines.h; \
-	fi
 
 include $(topsrcdir)/config/rules.mk
 

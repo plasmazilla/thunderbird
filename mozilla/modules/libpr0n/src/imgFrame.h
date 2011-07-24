@@ -15,7 +15,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -47,6 +47,7 @@
 #include "gfxIFormats.h"
 #include "gfxContext.h"
 #include "gfxPattern.h"
+#include "gfxDrawable.h"
 #include "gfxImageSurface.h"
 #if defined(XP_WIN)
 #include "gfxWindowsSurface.h"
@@ -134,11 +135,32 @@ public:
     return mImageSurface;
   }
 
+  // returns an estimate of the memory used by this imgFrame
+  PRUint32 EstimateMemoryUsed() const;
 
 private: // methods
   PRUint32 PaletteDataLength() const {
     return ((1 << mPaletteDepth) * sizeof(PRUint32));
   }
+
+  struct SurfaceWithFormat {
+    nsRefPtr<gfxDrawable> mDrawable;
+    gfxImageSurface::gfxImageFormat mFormat;
+    SurfaceWithFormat() {}
+    SurfaceWithFormat(gfxDrawable* aDrawable, gfxImageSurface::gfxImageFormat aFormat)
+     : mDrawable(aDrawable), mFormat(aFormat) {}
+    PRBool IsValid() { return !!mDrawable; }
+  };
+
+  SurfaceWithFormat SurfaceForDrawing(PRBool             aDoPadding,
+                                      PRBool             aDoPartialDecode,
+                                      PRBool             aDoTile,
+                                      const nsIntMargin& aPadding,
+                                      gfxMatrix&         aUserSpaceToImageSpace,
+                                      gfxRect&           aFill,
+                                      gfxRect&           aSubimage,
+                                      gfxRect&           aSourceRect,
+                                      gfxRect&           aImageRect);
 
 private: // data
   nsRefPtr<gfxImageSurface> mImageSurface;

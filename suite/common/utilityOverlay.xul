@@ -21,6 +21,8 @@
   <script type="application/javascript"
           src="chrome://communicator/content/utilityOverlay.js"/>
   <script type="application/javascript"
+          src="chrome://communicator/content/sync/syncUI.js"/>
+  <script type="application/javascript"
           src="chrome://help/content/contextHelp.js"/>
 
   <stringbundleset>
@@ -34,7 +36,7 @@
                type="checkbox"
                oncommand="toggleOfflineStatus();"/>
 
-  <popup id="networkProperties" onpopupshown="InitProxyMenu();">
+  <menupopup id="networkProperties" onpopupshown="InitProxyMenu();">
     <menuitem id="network-proxy-no"
               type="radio"
               name="status"
@@ -70,17 +72,17 @@
     <menuitem label="&proxy.label;"
               accesskey="&proxy.accesskey;"
               oncommand="goPreferences('proxies_pane');"/>
-  </popup>
+  </menupopup>
 
-  <popup id="toolbar-context-menu"
+  <menupopup id="toolbar-context-menu"
          onpopupshowing="onViewToolbarsPopupShowing(event);"
          oncommand="onViewToolbarCommand(event);">
     <menuseparator id="toolbarmode-sep"/>
     <menu id="toolbarmode-context-menu"
           label="&customizeToolbar.toolbarmode.label;"
           accesskey="&customizeToolbar.toolbarmode.accesskey;">
-      <menupopup id="toolbarmodePopup"
-                 onpopupshowing="event.stopPropagation();"
+      <menupopup id="toolbarModePopup"
+                 onpopupshowing="onToolbarModePopupShowing(event);"
                  oncommand="goSetToolbarState(event);">
         <menuitem type="radio" name="mode" value="icons"
                   label="&customizeToolbar.icons.label;"
@@ -114,11 +116,9 @@
               label="&customizeToolbarContext.label;"
               accesskey="&customizeToolbarContext.accesskey;"/>
 
-  </popup>
+  </menupopup>
 
-  <panel id="customizeToolbarSheetPopup"
-         noautohide="true"
-         onpopupshown="this.moveTo(this.boxObject.screenX + (window.innerWidth - this.boxObject.width) / 2, this.boxObject.screenY);">
+  <panel id="customizeToolbarSheetPopup" noautohide="true">
     <iframe id="customizeToolbarSheetIFrame"
             style="&dialog.style;"
             hidden="true"/>
@@ -316,12 +316,11 @@
            oncommand="goDoCommand('cmd_selectAll')"
            disabled="true"/>
   <command id="cmd_switchTextDirection"
-           oncommand="goDoCommand('cmd_switchTextDirection');"
-           disabled="true"/>
+           oncommand="goDoCommand('cmd_switchTextDirection');"/>
   <command id="cmd_findTypeText" 
-           oncommand="goDoCommand('cmd_findTypeText')"/>
+           oncommand="findTextAsYouType();"/>
   <command id="cmd_findTypeLinks" 
-           oncommand="goDoCommand('cmd_findTypeLinks')"/>
+           oncommand="findLinksAsYouType();"/>
         
   <!-- Not needed yet, window will need this: -->
   <!-- broadcaster id="cmd_preferences"/ -->
@@ -356,13 +355,21 @@
                 id="help"
                 key="key_openHelp"
                 command="cmd_openHelp"/>
-
-      <menuitem accesskey="&releaseCmd.accesskey;"
+      <!-- For Internet Explorer Users is inserted here on Windows -->
+      <menuitem id="troubleShooting"
+                accesskey="&helpTroubleshootingInfo.accesskey;"
+                label="&helpTroubleshootingInfo.label;"
+                oncommand="goTroubleshootingPage();"/>
+      <menuitem id="releaseUrl"
+                accesskey="&releaseCmd.accesskey;"
                 label="&releaseCmd.label;"
-                id="releaseUrl"
                 oncommand="goReleaseNotes();"/>
+      <menuitem id="helpSafeMode"
+                accesskey="&helpSafeMode.accesskey;"
+                label="&helpSafeMode.label;"
+                oncommand="safeModeRestart();"/>
 
-      <menuseparator id="menu_HelpUpdatesSeparator"/>
+      <menuseparator id="updateSeparator"/>
 
       <menuitem accesskey="&updateCmd.accesskey;" label="&updateCmd.label;"
                 id="checkForUpdates" oncommand="checkForUpdates();"/>
@@ -381,19 +388,24 @@
     </menupopup>
   </menu>
 
-  <popup id="popupNotificationMenu"
+  <menupopup id="popupNotificationMenu"
          oncommand="popupBlockerMenuCommand(event.target);"
          onpopupshowing="return popupNotificationMenuShowing(event)">
     <menuitem id="allowPopupsForSite" hidden="true" accesskey="&allowPopups.accesskey;"
               oncommand="this.notificationbox.allowPopupsForSite(event);"/>
     <menuitem id="showPopupManager" label="&showPopupManager.label;"
               accesskey="&showPopupManager.accesskey;"
-              oncommand="viewPopups(this.hostport)"/>
+              oncommand="toDataManager(this.hostport + '|permissions|add|popup')"/>
     <menuitem id="dontShowMessage" label="&dontShowMessage.label;"
               accesskey="&dontShowMessage.accesskey;"
               oncommand="disablePopupBlockerNotifications();"/>
     <menuseparator id="popupNotificationMenuSeparator" hidden="true"/>
     <!-- Additional items are generated, see popupNotificationMenuShowing() -->
-  </popup>
+  </menupopup>
 
+  <!-- Sync toolbar button -->
+  <toolbarbutton id="sync-button"
+                 class="toolbarbutton-1 chromeclass-toolbar-additional"
+                 label="&syncToolbarButton.label;"
+                 oncommand="gSyncUI.handleToolbarButton();"/>
 </overlay>

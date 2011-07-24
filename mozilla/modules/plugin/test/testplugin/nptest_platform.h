@@ -126,4 +126,23 @@ void pluginDoInternalConsistencyCheck(InstanceData* instanceData, std::string& e
  */
 std::string pluginGetClipboardText(InstanceData* instanceData);
 
+/**
+ * Crash while in a nested event loop.  The goal is to catch the
+ * browser processing the XPCOM event generated from the plugin's
+ * crash while other plugin code is still on the stack. 
+ * See https://bugzilla.mozilla.org/show_bug.cgi?id=550026.
+ */
+bool pluginCrashInNestedLoop(InstanceData* instanceData);
+
+/**
+ * Destroy gfx things that might be shared with the parent process
+ * when we're run out-of-process.  It's not expected that this
+ * function will be called when the test plugin is loaded in-process,
+ * and bad things will happen if it is called.
+ *
+ * This call leaves the plugin subprocess in an undefined state.  It
+ * must not be used after this call or weird things will happen.
+ */
+bool pluginDestroySharedGfxStuff(InstanceData* instanceData);
+
 #endif // nptest_platform_h_

@@ -54,16 +54,16 @@ var bh = histsvc.QueryInterface(Ci.nsIBrowserHistory);
  * @returns the place id for aURI.
  */
 function add_visit(aURI, aReferrer) {
-  var placeID = histsvc.addVisit(aURI,
+  var visitId = histsvc.addVisit(aURI,
                                  Date.now() * 1000,
                                  aReferrer,
                                  histsvc.TRANSITION_TYPED, // user typed in URL bar
                                  false, // not redirect
                                  0);
-  dump("### Added visit with id of " + placeID + "\n");
-  do_check_true(placeID > 0);
+  dump("### Added visit with id of " + visitId + "\n");
   do_check_true(gh.isVisited(aURI));
-  return placeID;
+  do_check_guid_for_uri(aURI);
+  return visitId;
 }
 
 /**
@@ -184,12 +184,12 @@ function run_test() {
   do_check_eq(result.root.childCount, 1);
   do_check_eq(result.root.getChild(0).uri, "http://google.com/");
 
-  // by default, browser.history_expire_days is 9
+  // By default history is enabled.
   do_check_true(!histsvc.historyDisabled);
 
   // test getPageTitle
   var title = histsvc.getPageTitle(uri("http://mozilla.com"));
-  do_check_eq(title, "mozilla.com");
+  do_check_eq(title, null);
 
   // query for the visit
   do_check_true(uri_in_db(testURI));
@@ -227,7 +227,7 @@ function run_test() {
 
   // test to ensure history.dat gets deleted if all history is being cleared
   var file = do_get_file("history.dat");
-  var histFile = dirSvc.get("ProfD", Ci.nsIFile);
+  var histFile = Services.dirsvc.get("ProfD", Ci.nsIFile);
   file.copyTo(histFile, "history.dat");
   histFile.append("history.dat");
   do_check_true(histFile.exists());

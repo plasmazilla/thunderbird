@@ -37,18 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== toolbar.css ====================================================
-  == Styles used by XUL toolbar-related elements.
-  ======================================================================= */
-
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
-
-/* ::::: toolbox ::::: */
-
-toolbox {
-}
-
-/* ::::: toolbar & menubar ::::: */
 
 toolbar {
   min-width: 1px;
@@ -56,6 +45,7 @@ toolbar {
   -moz-appearance: toolbar;
 }
 
+menubar:-moz-lwtheme,
 toolbar:-moz-lwtheme {
   -moz-appearance: none;
   background: none;
@@ -71,26 +61,17 @@ menubar {
   min-width: 1px;
 }
 
-/* ::::: toolbarseparator ::::: */
+.toolbar-primary {
+  min-height: 24px;
+}
 
 toolbarseparator {
-  -moz-appearance       : none;
-  margin: 3px 4px 3px 4px;
+  -moz-appearance: none;
+  margin: 3px 4px;
   background: url("chrome://global/skin/toolbar/toolbar-separator.png") transparent repeat-y;
-  
-  padding: 0px;
+  padding: 0;
   width: 1px !important;
 }
-
-.toolbar-primary {
-	min-height: 24px;
-}
-
-.toolbar-primary,
-window > toolbox:nth-of-type(1) > toolbar:nth-of-type(1) {
-  -moz-appearance: -moz-mac-unified-toolbar;
-}
-
 
 /* ::::: toolbarpaletteitem ::::: */
 
@@ -99,11 +80,11 @@ toolbarpaletteitem {
 }
 
 toolbar[iconsize="small"] toolbarpaletteitem[type="spacer"] {
-	min-width: 24px !important;
+  min-width: 24px !important;
 }
 
 toolbarpaletteitem[type="spacer"] {
-	min-width: 32px !important;
+  min-width: 32px !important;
 }
 
 .toolbarpaletteitem-box[type="spacer"] {
@@ -151,10 +132,10 @@ toolbarpaletteitem[dragover="right"] {
 }
 
 toolbar[iconsize="small"] toolbarspacer {
-	min-width: 24px !important;
+  min-width: 24px !important;
 }
 
 toolbarspacer {
-	min-width: 32px !important;
+  min-width: 32px !important;
 }
 

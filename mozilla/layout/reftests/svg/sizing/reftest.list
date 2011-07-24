@@ -257,14 +257,14 @@
 # We could certainly expand on these tests, but they provide reasonable base
 # coverage.
 
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--display-block--01.xhtml         inline--display-block--01-ref.xhtml
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--display-inline--01.xhtml        inline--display-inline--01-ref.xhtml
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--display-inline-block--01.xhtml  inline--display-inline-block--01-ref.xhtml
+HTTP(../..) == inline--display-block--01.xhtml        inline--display-block--01-ref.xhtml
+HTTP(../..) == inline--display-inline--01.xhtml       inline--display-inline--01-ref.xhtml
+HTTP(../..) == inline--display-inline-block--01.xhtml inline--display-inline-block--01-ref.xhtml
 == inline--float-left--01.xhtml            inline--float-left--01-ref.xhtml
 == inline--float-right--01.xhtml           inline--float-right--01-ref.xhtml
 == inline--position-absolute--01.xhtml     inline--position-absolute--01-ref.xhtml
 == inline--position-absolute--02.xhtml     pass.svg
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--position-relative--01.xhtml     inline--position-relative--01-ref.xhtml
+HTTP(../..) == inline--position-relative--01.xhtml    inline--position-relative--01-ref.xhtml
 
 
 # Embedded by reference tests
@@ -291,7 +291,7 @@ fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--position-relative--01.xhtml    
 #== object--auto-auto--pct-px.html       object--auto-auto--pct-px--ref.html
 == object--auto-auto--px-0.html         object--auto-auto--px-0--ref.html
 #== object--auto-auto--px-pct.html       object--auto-auto--px-pct--ref.html
-== object--auto-auto--px-px.html        object--auto-auto--px-px--ref.html
+random-if(Android) == object--auto-auto--px-px.html        object--auto-auto--px-px--ref.html
 #== object--pct-pct--0-0.html            pass.svg
 
 
@@ -306,7 +306,7 @@ fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == inline--position-relative--01.xhtml    
 == dynamic--inline-resize-cb-height.xhtml       pass.svg
 == dynamic--inline-resize-cb-width.xhtml        pass.svg
 skip == dynamic--inline-resize-window-height.xhtml  pass.svg # XXX breaks the reftest run as the window height somehow is not restored
-== dynamic--inline-resize-window-width.xhtml    pass.svg
+skip == dynamic--inline-resize-window-width.xhtml    pass.svg # Fails way too much
 fails == dynamic--object-svg-unloaded.xhtml     pass.svg
 # == dynamic--object--auto-auto--pct-px.html 
 

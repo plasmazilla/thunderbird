@@ -343,7 +343,6 @@ private:
     static void ActivateLastWindow();
     static nsresult OpenWindow( const char *urlstr, const char *args );
     static nsresult OpenBrowserWindow();
-    static nsresult ReParent( nsISupports *window, HWND newParent );
     static void     SetupSysTrayIcon();
     static void     RemoveSysTrayIcon();
 
@@ -390,7 +389,7 @@ nsNativeAppSupportWin::CheckConsole() {
                 // all cases.  See http://support.microsoft.com/support/kb/articles/q105/3/05.asp.
 
                 // stdout
-                int hCrt = ::_open_osfhandle( (long)GetStdHandle( STD_OUTPUT_HANDLE ),
+                int hCrt = ::_open_osfhandle( (intptr_t)GetStdHandle( STD_OUTPUT_HANDLE ),
                                             _O_TEXT );
                 if ( hCrt != -1 ) {
                     FILE *hf = ::_fdopen( hCrt, "w" );
@@ -403,7 +402,7 @@ nsNativeAppSupportWin::CheckConsole() {
                 }
 
                 // stderr
-                hCrt = ::_open_osfhandle( (long)::GetStdHandle( STD_ERROR_HANDLE ),
+                hCrt = ::_open_osfhandle( (intptr_t)::GetStdHandle( STD_ERROR_HANDLE ),
                                           _O_TEXT );
                 if ( hCrt != -1 ) {
                     FILE *hf = ::_fdopen( hCrt, "w" );
@@ -647,7 +646,7 @@ struct MessageWindow {
             // Get current window and return its window handle.
             nsCOMPtr<nsIDOMWindowInternal> win;
             GetMostRecentWindow( 0, getter_AddRefs( win ) );
-            return win ? (long)hwndForDOMWindow( win ) : 0;
+            return win ? (LRESULT)hwndForDOMWindow( win ) : 0;
         }
         return DefWindowProc( msgWindow, msg, wp, lp );
     }
@@ -665,7 +664,7 @@ private:
  *        If not, then this is the first instance of Mozilla.  In
  *        that case, we create and set up the message window.
  *
- *        The checking for existance of the message window must
+ *        The checking for existence of the message window must
  *        be protected by use of a mutex semaphore.
  */
 NS_IMETHODIMP
@@ -863,8 +862,7 @@ nsNativeAppSupportWin::Enable()
 {
     mCanHandleRequests = PR_TRUE;
 
-    nsCOMPtr<nsIObserverService> obs
-        (do_GetService("@mozilla.org/observer-service;1"));
+    nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
     if (obs) {
         obs->AddObserver(this, "quit-application", PR_FALSE);
     } else {
@@ -1162,8 +1160,6 @@ nsNativeAppSupportWin::HandleDDENotification( UINT uType,       // transaction t
 #if MOZ_DEBUG_DDE
             printf( "Handling dde request: [%s]...\n", (char*)request );
 #endif
-            // Default is to open in current window.
-            PRBool new_window = PR_FALSE;
 
             nsAutoString url;
             ParseDDEArg((const WCHAR*) request, 0, url);
@@ -1263,7 +1259,7 @@ void nsNativeAppSupportWin::ParseDDEArg( const WCHAR* args, int index, nsString&
 
 // Utility to parse out argument from a DDE item string.
 void nsNativeAppSupportWin::ParseDDEArg( HSZ args, int index, nsString& aString) {
-    DWORD argLen = DdeQueryStringW( mInstance, args, NULL, NULL, CP_WINUNICODE );
+    DWORD argLen = DdeQueryStringW( mInstance, args, NULL, 0, CP_WINUNICODE );
     // there wasn't any string, so return empty string
     if ( !argLen ) return;
     nsAutoString temp;
@@ -1602,7 +1598,7 @@ nsNativeAppSupportWin::OpenBrowserWindow()
           }
         }
 
-        NS_ERROR("failed to hand off external URL to extant window\n");
+        NS_ERROR("failed to hand off external URL to extant window");
     } while ( PR_FALSE );
 
     // open a new window if caller requested it or if anything above failed

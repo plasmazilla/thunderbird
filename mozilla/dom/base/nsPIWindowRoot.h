@@ -43,21 +43,32 @@
 #include "nsISupports.h"
 #include "nsPIDOMEventTarget.h"
 
-class nsIDOMWindow;
-class nsIFocusController;
+class nsPIDOMWindow;
+class nsIControllers;
+class nsIController;
+struct JSContext;
 
-// 440f8d32-818d-468a-ac75-5916fa1ea198
+// 426C1B56-E38A-435E-B291-BE1557F2A0A2
 #define NS_IWINDOWROOT_IID \
-{ 0x440f8d32, 0x818d, 0x468a, \
-  { 0xac, 0x75, 0x59, 0x16, 0xfa, 0x1e, 0xa1, 0x98 } }
+{ 0x426c1b56, 0xe38a, 0x435e, \
+  { 0xb2, 0x91, 0xbe, 0x15, 0x57, 0xf2, 0xa0, 0xa2 } }
 
 class nsPIWindowRoot : public nsPIDOMEventTarget {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IWINDOWROOT_IID)
 
-  NS_IMETHOD GetFocusController(nsIFocusController** aResult)=0;
+  virtual nsPIDOMWindow* GetWindow()=0;
 
-  virtual nsIDOMWindow* GetWindow()=0;
+  // get and set the node that is the context of a popup menu
+  virtual nsIDOMNode* GetPopupNode() = 0;
+  virtual void SetPopupNode(nsIDOMNode* aNode) = 0;
+
+  virtual nsresult GetControllerForCommand(const char *aCommand,
+                                           nsIController** aResult) = 0;
+  virtual nsresult GetControllers(nsIControllers** aResult) = 0;
+
+  virtual void SetParentTarget(nsPIDOMEventTarget* aTarget) = 0;
+  virtual nsPIDOMEventTarget* GetParentTarget() = 0;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsPIWindowRoot, NS_IWINDOWROOT_IID)

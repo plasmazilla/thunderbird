@@ -36,16 +36,9 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsSMILCompositor.h"
+#include "nsSMILCSSProperty.h"
+#include "nsCSSProps.h"
 #include "nsHashKeys.h"
-
-// nsSMILCompositorKey methods
-inline PRBool
-nsSMILCompositorKey::Equals(const nsSMILCompositorKey &aOther) const
-{
-  return (aOther.mElement       == mElement &&
-          aOther.mAttributeName == mAttributeName &&
-          aOther.mIsCSS         == mIsCSS);
-}
 
 // PLDHashEntryHdr methods
 PRBool
@@ -57,11 +50,12 @@ nsSMILCompositor::KeyEquals(KeyTypePointer aKey) const
 /*static*/ PLDHashNumber
 nsSMILCompositor::HashKey(KeyTypePointer aKey)
 {
-  // Combine the 3 values into one numeric value, which will be hashed
-  const char *attrName = nsnull;
-  aKey->mAttributeName->GetUTF8String(&attrName);
-  return NS_PTR_TO_UINT32(aKey->mElement.get()) +
-    HashString(attrName) +
+  // Combine the 3 values into one numeric value, which will be hashed.
+  // NOTE: We right-shift one of the pointers by 2 to get some randomness in
+  // its 2 lowest-order bits. (Those shifted-off bits will always be 0 since
+  // our pointers will be word-aligned.)
+  return (NS_PTR_TO_UINT32(aKey->mElement.get()) >> 2) +
+    NS_PTR_TO_UINT32(aKey->mAttributeName.get()) +
     (aKey->mIsCSS ? 1 : 0);
 }
 
@@ -85,19 +79,6 @@ nsSMILCompositor::AddAnimationFunction(nsSMILAnimationFunction* aFunc)
   }
 }
 
-nsISMILAttr*
-nsSMILCompositor::CreateSMILAttr()
-{
-  if (mKey.mIsCSS) {
-    // XXX Look up style system for the CSS property. The set of CSS properties
-    // should be the same for all elements so we don't need to query the element
-    // itself.
-  } else {
-    return mKey.mElement->GetAnimatedAttr(mKey.mAttributeName);
-  }
-  return nsnull;
-}
-
 void
 nsSMILCompositor::ComposeAttribute()
 {
@@ -108,7 +89,13 @@ nsSMILCompositor::ComposeAttribute()
   // give animated value to)
   nsAutoPtr<nsISMILAttr> smilAttr(CreateSMILAttr());
   if (!smilAttr) {
-    // Target attribute not found
+    // Target attribute not found (or, out of memory)
+    return;
+  }
+  if (mAnimationFunctions.IsEmpty()) {
+    // No active animation functions. (We can still have a nsSMILCompositor in
+    // that case if an animation function has *just* become inactive)
+    smilAttr->ClearAnimValue();
     return;
   }
 
@@ -118,51 +105,31 @@ nsSMILCompositor::ComposeAttribute()
 
   // THIRD: Step backwards through animation functions to find out
   // which ones we actually care about.
-  //  PRBool changed = PR_FALSE; // XXXdholbert removing until we have
-                                 //  HasChangedTarget
-  PRUint32 length = mAnimationFunctions.Length();
-  PRUint32 i;
-  for (i = length; i > 0; --i) {
-    nsSMILAnimationFunction* curAnimFunc = mAnimationFunctions[i-1];
-    // XXXdholbert we need to add another function
-    // nsSMILAnimationFunction::HasChangedTarget(elem, smilAttr, isCSS) that
-    // we call here (in addition to HasChanged(), because even if function
-    // value hasn't changed, its target might have.
-    // For this to work, the nsSMILAnimationFunction needs to cache its last
-    // elem/smilAttr/isCSS values, and then check them against the new values
-    // here.
-    /*
-    if (!changed && curAnimFunc->HasChanged()) {
-      changed = PR_TRUE;
-    }
-    */
+  PRUint32 firstFuncToCompose = GetFirstFuncToAffectSandwich();
 
-    if (curAnimFunc->WillReplace()) {
-      --i;
-      break;
-    }
+  // FOURTH: Get & cache base value
+  nsSMILValue sandwichResultValue;
+  if (!mAnimationFunctions[firstFuncToCompose]->WillReplace()) {
+    sandwichResultValue = smilAttr->GetBaseValue();
   }
-  // NOTE: 'i' is now the index of the first animation function that we need
-  // to use in compositing.
+  UpdateCachedBaseValue(sandwichResultValue);
 
-  // if (!changed) // XXXdholbert removing until we have HasChangedTarget
-  //  return;
-
-  // FOURTH: Compose animation functions (starting with base value)
-  nsSMILValue resultValue = smilAttr->GetBaseValue();
-  if (resultValue.IsNull()) {
-    NS_WARNING("nsISMILAttr::GetBaseValue failed");
+  if (!mForceCompositing) {
     return;
   }
-  for (; i < length; ++i) {
-    nsSMILAnimationFunction* curAnimFunc = mAnimationFunctions[i];
-    if (curAnimFunc) {
-      curAnimFunc->ComposeResult(*smilAttr, resultValue);
-    }
+
+  // FIFTH: Compose animation functions
+  PRUint32 length = mAnimationFunctions.Length();
+  for (PRUint32 i = firstFuncToCompose; i < length; ++i) {
+    mAnimationFunctions[i]->ComposeResult(*smilAttr, sandwichResultValue);
+  }
+  if (sandwichResultValue.IsNull()) {
+    smilAttr->ClearAnimValue();
+    return;
   }
 
-  // FIFTH: Set the animated value to the final composited result.
-  nsresult rv = smilAttr->SetAnimValue(resultValue);
+  // SIXTH: Set the animated value to the final composited result.
+  nsresult rv = smilAttr->SetAnimValue(sandwichResultValue);
   if (NS_FAILED(rv)) {
     NS_WARNING("nsISMILAttr::SetAnimValue failed");
   }
@@ -182,3 +149,54 @@ nsSMILCompositor::ClearAnimationEffects()
   smilAttr->ClearAnimValue();
 }
 
+// Protected Helper Functions
+// --------------------------
+nsISMILAttr*
+nsSMILCompositor::CreateSMILAttr()
+{
+  if (mKey.mIsCSS) {
+    nsCSSProperty propId =
+      nsCSSProps::LookupProperty(nsDependentAtomString(mKey.mAttributeName));
+    if (nsSMILCSSProperty::IsPropertyAnimatable(propId)) {
+      return new nsSMILCSSProperty(propId, mKey.mElement.get());
+    }
+  } else {
+    return mKey.mElement->GetAnimatedAttr(mKey.mAttributeNamespaceID,
+                                          mKey.mAttributeName);
+  }
+  return nsnull;
+}
+
+PRUint32
+nsSMILCompositor::GetFirstFuncToAffectSandwich()
+{
+  PRUint32 i;
+  for (i = mAnimationFunctions.Length(); i > 0; --i) {
+    nsSMILAnimationFunction* curAnimFunc = mAnimationFunctions[i-1];
+    if (curAnimFunc->UpdateCachedTarget(mKey) ||
+        (!mForceCompositing && curAnimFunc->HasChanged())) {
+      mForceCompositing = PR_TRUE;
+    }
+
+    if (curAnimFunc->WillReplace()) {
+      --i;
+      break;
+    }
+  }
+  return i;
+}
+
+void
+nsSMILCompositor::UpdateCachedBaseValue(const nsSMILValue& aBaseValue)
+{
+  if (!mCachedBaseValue) {
+    // We don't have last sample's base value cached. Assume it's changed.
+    mCachedBaseValue = new nsSMILValue(aBaseValue);
+    NS_WARN_IF_FALSE(mCachedBaseValue, "failed to cache base value (OOM?)");
+    mForceCompositing = PR_TRUE;
+  } else if (*mCachedBaseValue != aBaseValue) {
+    // Base value has changed since last sample.
+    *mCachedBaseValue = aBaseValue;
+    mForceCompositing = PR_TRUE;
+  }
+}

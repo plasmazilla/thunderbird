@@ -85,7 +85,7 @@ public:
                           PRInt32 aFlags, nsIDBChangeListener *aInstigator);
   NS_IMETHOD OnHdrFlagsChanged(nsIMsgDBHdr *aHdrChanged, PRUint32 aOldFlags,
                                PRUint32 aNewFlags, nsIDBChangeListener *aInstigator);
-  NS_IMETHODIMP GetNumMsgsInView(PRInt32 *aNumMsgs);
+  NS_IMETHOD GetNumMsgsInView(PRInt32 *aNumMsgs);
   // override to get location
   NS_IMETHOD GetCellText(PRInt32 aRow, nsITreeColumn* aCol, nsAString& aValue);
   virtual nsresult GetMsgHdrForViewIndex(nsMsgViewIndex index, nsIMsgDBHdr **msgHdr);
@@ -97,8 +97,9 @@ public:
   virtual nsCOMArray<nsIMsgFolder>* GetFolders();
   virtual nsresult GetFolderFromMsgURI(const char *aMsgURI, nsIMsgFolder **aFolder);
 
-  NS_IMETHODIMP SetCurCustomColumn(const nsAString& aColID);
-  NS_IMETHODIMP GetCurCustomColumn(nsAString &result);
+  NS_IMETHOD SetCurCustomColumn(const nsAString& aColID);
+  NS_IMETHOD GetCurCustomColumn(nsAString &result);
+  NS_IMETHOD GetThreadContainingMsgHdr(nsIMsgDBHdr *msgHdr, nsIMsgThread **pThread);
 
 protected:
   virtual void InternalClose();
@@ -120,7 +121,6 @@ protected:
   virtual void RemoveRows(nsMsgViewIndex viewIndex, PRInt32 numRows);
   virtual nsMsgViewIndex FindHdr(nsIMsgDBHdr *msgHdr, nsMsgViewIndex startIndex = 0,
                                  PRBool allowDummy=PR_FALSE);
-  virtual nsresult GetThreadContainingMsgHdr(nsIMsgDBHdr *msgHdr, nsIMsgThread **pThread);
   nsresult GetFoldersAndHdrsForSelection(nsMsgViewIndex *indices, PRInt32 numIndices);
   nsresult GroupSearchResultsByFolder();
   nsresult PartitionSelectionByFolder(nsMsgViewIndex *indices, PRInt32 numIndices, nsTArray<PRUint32> **indexArrays, PRInt32 *numArrays);
@@ -149,20 +149,22 @@ protected:
   nsresult ProcessRequestsInAllFolders(nsIMsgWindow *window);
   // these are for doing threading of the search hits
 
-
+  // used for assigning thread id's to xfview threads.
+  nsMsgKey m_nextThreadId;
   // this maps message-ids and reference message ids to
   // the corresponding nsMsgXFViewThread object. If we're 
   // doing subject threading, we would throw subjects
   // into the same table.
-  nsInterfaceHashtable <nsStringHashKey, nsIMsgThread> m_threadsTable;
+  nsInterfaceHashtable <nsCStringHashKey, nsIMsgThread> m_threadsTable;
 
   // map message-ids to msg hdrs in the view, used for threading.
-  nsInterfaceHashtable <nsStringHashKey, nsIMsgDBHdr> m_hdrsTable;
+  nsInterfaceHashtable <nsCStringHashKey, nsIMsgDBHdr> m_hdrsTable;
+  PRUint32 m_totalMessagesInView;
 
-  PR_STATIC_CALLBACK(PLDHashOperator) ThreadTableCloner(const nsAString &aKey, 
+  PR_STATIC_CALLBACK(PLDHashOperator) ThreadTableCloner(const nsACString &aKey, 
                                                         nsIMsgThread* aThread, 
                                                         void* aArg);
-  PR_STATIC_CALLBACK(PLDHashOperator) MsgHdrTableCloner(const nsAString &aKey, 
+  PR_STATIC_CALLBACK(PLDHashOperator) MsgHdrTableCloner(const nsACString &aKey, 
                                                         nsIMsgDBHdr* aMsgHdr, 
                                                         void* aArg);
   virtual nsMsgGroupThread *CreateGroupThread(nsIMsgDatabase *db);

@@ -31,11 +31,14 @@ function testtag_tree(treeid, treerowinfoid, seltype, columnstype, testid)
   document.addEventListener("keypress", preventDefault, false);
 
   var multiple = (seltype == "multiple");
-  var editable = false;
 
   var tree = document.getElementById(treeid);
   var treerowinfo = document.getElementById(treerowinfoid);
-  var rowInfo = convertDOMtoTreeRowInfo(treerowinfo, 0, { value: -1 });
+  var rowInfo;
+  if (testid =="tree view")
+    rowInfo = getCustomTreeViewCellInfo();
+  else
+    rowInfo = convertDOMtoTreeRowInfo(treerowinfo, 0, { value: -1 });
   var columnInfo = (columnstype == "simple") ? columns_simpletree : columns_hiertree;
 
   is(tree.view.selection.currentColumn, null, testid + " initial currentColumn");
@@ -56,7 +59,7 @@ function testtag_tree(treeid, treerowinfoid, seltype, columnstype, testid)
 
   testtag_tree_TreeView(tree, testid, rowInfo);
 
-  is(tree.editable, editable, "editable");
+  is(tree.editable, false, "tree should not be editable");
   // currently, the editable flag means that tree editing cannot be invoked
   // by the user. However, editing can still be started with a script.
   is(tree.editingRow, -1, testid + " initial editingRow");
@@ -64,8 +67,20 @@ function testtag_tree(treeid, treerowinfoid, seltype, columnstype, testid)
 
   testtag_tree_UI_editing(tree, testid, rowInfo);
 
+  is(tree.editable, false, "tree should not be editable after testtag_tree_UI_editing");
+  // currently, the editable flag means that tree editing cannot be invoked
+  // by the user. However, editing can still be started with a script.
+  is(tree.editingRow, -1, testid + " initial editingRow (continued)");
+  is(tree.editingColumn, null, testid + " initial editingColumn (continued)");
+
   var ecolumn = tree.columns[0];
-  tree.startEditing(1, ecolumn);
+  ok(!tree.startEditing(1, ecolumn), "non-editable trees shouldn't start editing");
+  is(tree.editingRow, -1, testid + " failed startEditing shouldn't set editingRow");
+  is(tree.editingColumn, null, testid + " failed startEditing shouldn't set editingColumn");  
+  
+  tree.editable = true;
+
+  ok(tree.startEditing(1, ecolumn), "startEditing should have returned true");
   is(tree.editingRow, 1, testid + " startEditing editingRow");
   is(tree.editingColumn, ecolumn, testid + " startEditing editingColumn");
   is(tree.getAttribute("editing"), "true", testid + " startEditing editing attribute");
@@ -91,14 +106,18 @@ function testtag_tree(treeid, treerowinfoid, seltype, columnstype, testid)
   tree.stopEditing(true);
   is(tree.view.getCellText(1, ecolumn), "Changed Value", testid + "edit cell accept");
 
-  // this cell cannot be edited
+  // this cell can be edited, but stopEditing(false) means don't accept the change.
   tree.startEditing(1, ecolumn);
   inputField.value = "Second Value";
   tree.stopEditing(false);
   is(tree.view.getCellText(1, ecolumn), "Changed Value", testid + "edit cell no accept");
 
+  tree.editable = false;
+
   // do the sorting tests last as it will cause the rows to rearrange
-  testtag_tree_TreeView_rows_sort(tree, testid, rowInfo);
+  // skip them for the custom tree view
+  if (testid !="tree view")
+    testtag_tree_TreeView_rows_sort(tree, testid, rowInfo);
 
   testtag_tree_mousescroll(tree);
 
@@ -602,6 +621,24 @@ function testtag_tree_UI_editing(tree, testid, rowInfo)
   if (tree.view.isContainer(row))
     wasOpen = tree.view.isContainerOpen(row);
 
+  // Test whether a keystroke can enter text entry, and another can exit.
+  if (tree.selType == "cell")
+  {
+    tree.stopEditing(false);
+    ok(!tree.editingColumn, "Should not be editing tree cell now");
+    tree.view.selection.currentColumn = ecolumn;
+    tree.currentIndex = rowIndex;
+
+    const isMac = (navigator.platform.indexOf("Mac") >= 0);
+    const StartEditingKey = isMac ? "VK_ENTER" : "VK_F2";
+    synthesizeKey(StartEditingKey, {});
+    is(tree.editingColumn, ecolumn, "Should be editing tree cell now");
+    synthesizeKey("VK_ESCAPE", {});
+    ok(!tree.editingColumn, "Should not be editing tree cell now");
+    is(tree.currentIndex, rowIndex, "Current index should not have changed");
+    is(tree.view.selection.currentColumn, ecolumn, "Current column should not have changed");
+  }
+
   mouseDblClickOnCell(tree, rowIndex, ecolumn, testid + "edit on double click");
   is(tree.editingColumn, ecolumn, testid + "editing column");
   is(tree.editingRow, rowIndex, testid + "editing row");
@@ -636,23 +673,8 @@ function testtag_tree_UI_editing(tree, testid, rowInfo)
   // tree.stopEditing(true);
   // is(tree.view.getCellText(0, ecolumn), "b", testid + "edit cell");
 
-  if (1) // XXXndeakin disable these tests for now
-    return;
-
-  tree.startEditing(0, ecolumn);
-  inputField.value = "Value for Return";
-  synthesizeKey("VK_RETURN", {});
-  is(tree.view.getCellText(0, ecolumn), "Value for Return", testid + "edit cell return");
-
-  tree.startEditing(0, ecolumn);
-  inputField.value = "Value for Enter";
-  synthesizeKey("VK_ENTER", {});
-  is(tree.view.getCellText(0, ecolumn), "Value for Enter", testid + "edit cell enter");
-
-  tree.startEditing(0, ecolumn);
-  inputField.value = "Value for Escape";
-  synthesizeKey("VK_ESCAPE", {});
-  is(tree.view.getCellText(0, ecolumn), "Value for Enter", testid + "edit cell escape");
+  // Restore initial state.
+  tree.stopEditing(false);
 }
 
 function testtag_tree_TreeSelection_UI_cell(tree, testid, rowInfo)
@@ -998,7 +1020,7 @@ function testtag_tree_TreeView_rows_sort(tree, testid, rowInfo)
 
   // Now simulate a double click.
   mouseClickOnColumnHeader(columns, columnIndex, 0, 2);
-  if (navigator.platform == "Win32") {
+  if (navigator.platform.indexOf("Win") == 0) {
     // Windows cycles only once on double click.
     is(columnElement.getAttribute("sortDirection"), "descending",
        "double click cycleHeader column sortDirection descending");
@@ -1009,6 +1031,20 @@ function testtag_tree_TreeView_rows_sort(tree, testid, rowInfo)
   // Check we have gone back to natural sorting.
   is(columnElement.getAttribute("sortDirection"), "",
      "cycleHeader column sortDirection");
+
+  columnElement.setAttribute("sorthints", "twostate");
+  view.cycleHeader(column);
+  is(tree.getAttribute("sortDirection"), "ascending", "cycleHeader sortDirection ascending twostate");
+  view.cycleHeader(column);
+  is(tree.getAttribute("sortDirection"), "descending", "cycleHeader sortDirection ascending twostate");
+  view.cycleHeader(column);
+  is(tree.getAttribute("sortDirection"), "ascending", "cycleHeader sortDirection ascending twostate again");
+  columnElement.removeAttribute("sorthints");
+  view.cycleHeader(column);
+  view.cycleHeader(column);
+
+  is(columnElement.getAttribute("sortDirection"), "",
+     "cycleHeader column sortDirection reset");
 }
 
 // checks if the current and selected rows are correct

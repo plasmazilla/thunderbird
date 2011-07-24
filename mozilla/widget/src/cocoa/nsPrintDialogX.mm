@@ -107,8 +107,8 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
   NSPrintPanel* panel = [NSPrintPanel printPanel];
   PrintPanelAccessoryController* viewController =
     [[PrintPanelAccessoryController alloc] initWithSettings:aSettings];
-  [panel setAccessoryView:[viewController view]];
-  [[viewController view] release];
+  [panel addAccessoryController:viewController];
+  [viewController release];
 
   // Show the dialog.
   nsCocoaUtils::PrepareForNativeAppModalDialog();
@@ -118,6 +118,7 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
   settingsX->SetCocoaPrintInfo([[[NSPrintOperation currentOperation] printInfo] copy]);
   [NSPrintOperation setCurrentOperation:nil];
   [printInfo release];
+  [tmpView release];
 
   if (button != NSOKButton)
     return NS_ERROR_ABORT;
@@ -133,7 +134,7 @@ nsPrintDialogServiceX::Show(nsIDOMWindow *aParent, nsIPrintSettings *aSettings,
     OSStatus status = ::PMGetFirstPage(nativePrintSettings, &firstPage);
     if (status == noErr) {
       status = ::PMGetLastPage(nativePrintSettings, &lastPage);
-      if (status == noErr && lastPage != LONG_MAX) {
+      if (status == noErr && lastPage != PR_UINT32_MAX) {
         aSettings->SetPrintRange(nsIPrintSettings::kRangeSpecifiedPageRange);
         aSettings->SetStartPageRange(firstPage);
         aSettings->SetEndPageRange(lastPage);
@@ -206,6 +207,14 @@ nsPrintDialogServiceX::ShowPageSetup(nsIDOMWindow *aParent,
 
 - (void)addHeaderFooterSection;
 
+- (NSString*)summaryValueForCheckbox:(NSButton*)aCheckbox;
+
+- (NSString*)framesSummaryValue;
+
+- (NSString*)headerSummaryValue;
+
+- (NSString*)footerSummaryValue;
+
 @end
 
 static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
@@ -219,6 +228,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   [super initWithFrame:NSMakeRect(0, 0, 540, 270)];
 
   mSettings = aSettings;
+  [self initBundle];
   [self addOptionsSection];
   [self addAppearanceSection];
   [self addFramesSection];
@@ -242,14 +252,30 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 
 - (void)dealloc
 {
+  NS_IF_RELEASE(mPrintBundle);
   [super dealloc];
 }
 
 // Localization
 
+- (void)initBundle
+{
+  nsCOMPtr<nsIStringBundleService> bundleSvc = do_GetService(NS_STRINGBUNDLE_CONTRACTID);
+  bundleSvc->CreateBundle("chrome://global/locale/printdialog.properties", &mPrintBundle);
+}
+
 - (NSString*)localizedString:(const char*)aKey
 {
-  return [NSString stringWithUTF8String:aKey];
+  if (!mPrintBundle)
+    return @"";
+
+  nsXPIDLString intlString;
+  mPrintBundle->GetStringFromName(NS_ConvertUTF8toUTF16(aKey).get(), getter_Copies(intlString));
+  NSMutableString* s = [NSMutableString stringWithUTF8String:NS_ConvertUTF16toUTF8(intlString).get()];
+
+  // Remove all underscores (they're used in the GTK dialog for accesskeys).
+  [s replaceOccurrencesOfString:@"_" withString:@"" options:0 range:NSMakeRange(0, [s length])];
+  return s;
 }
 
 // Widget helpers
@@ -306,12 +332,12 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   [list setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
   [[list cell] setControlSize:NSSmallControlSize];
   NSArray* items =
-    [NSArray arrayWithObjects:NSLocalizedString(@"--blank--", nil),
-                              NSLocalizedString(@"Title", nil),
-                              NSLocalizedString(@"URL", nil),
-                              NSLocalizedString(@"Date/Time", nil),
-                              NSLocalizedString(@"Page #", nil),
-                              NSLocalizedString(@"Page # of #", nil),
+    [NSArray arrayWithObjects:[self localizedString:"headerFooterBlank"],
+                              [self localizedString:"headerFooterTitle"],
+                              [self localizedString:"headerFooterURL"],
+                              [self localizedString:"headerFooterDate"],
+                              [self localizedString:"headerFooterPage"],
+                              [self localizedString:"headerFooterPageTotal"],
                               nil];
   [list addItemsWithTitles:items];
 
@@ -331,10 +357,10 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 - (void)addOptionsSection
 {
   // Title
-  [self addLabel:[NSLocalizedString(@"Options:", nil) UTF8String] withFrame:NSMakeRect(0, 240, 151, 22)];
+  [self addLabel:"optionsTitleMac" withFrame:NSMakeRect(0, 240, 151, 22)];
 
   // "Print Selection Only"
-  mPrintSelectionOnlyCheckbox = [self checkboxWithLabel:[NSLocalizedString(@"Print Selection Only", nil) UTF8String]
+  mPrintSelectionOnlyCheckbox = [self checkboxWithLabel:"selectionOnly"
                                                andFrame:NSMakeRect(156, 240, 0, 0)];
 
   PRBool canPrintSelection;
@@ -351,7 +377,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   [self addSubview:mPrintSelectionOnlyCheckbox];
 
   // "Shrink To Fit"
-  mShrinkToFitCheckbox = [self checkboxWithLabel:[NSLocalizedString(@"Ignore Scaling and Shrink To Fit Page Width", nil) UTF8String]
+  mShrinkToFitCheckbox = [self checkboxWithLabel:"shrinkToFit"
                                         andFrame:NSMakeRect(156, 218, 0, 0)];
 
   PRBool shrinkToFit;
@@ -364,10 +390,10 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 - (void)addAppearanceSection
 {
   // Title
-  [self addLabel:[NSLocalizedString(@"Appearance:", nil) UTF8String] withFrame:NSMakeRect(0, 188, 151, 22)];
+  [self addLabel:"appearanceTitleMac" withFrame:NSMakeRect(0, 188, 151, 22)];
 
   // "Print Background Colors"
-  mPrintBGColorsCheckbox = [self checkboxWithLabel:[NSLocalizedString(@"Print Background Colors", nil) UTF8String]
+  mPrintBGColorsCheckbox = [self checkboxWithLabel:"printBGColors"
                                           andFrame:NSMakeRect(156, 188, 0, 0)];
 
   PRBool geckoBool;
@@ -377,7 +403,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   [self addSubview:mPrintBGColorsCheckbox];
 
   // "Print Background Images"
-  mPrintBGImagesCheckbox = [self checkboxWithLabel:[NSLocalizedString(@"Print Background Images", nil) UTF8String]
+  mPrintBGImagesCheckbox = [self checkboxWithLabel:"printBGImages"
                                           andFrame:NSMakeRect(156, 166, 0, 0)];
 
   mSettings->GetPrintBGImages(&geckoBool);
@@ -389,7 +415,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 - (void)addFramesSection
 {
   // Title
-  [self addLabel:[NSLocalizedString(@"Frames:", nil) UTF8String] withFrame:NSMakeRect(0, 124, 151, 22)];
+  [self addLabel:"framesTitleMac" withFrame:NSMakeRect(0, 124, 151, 22)];
 
   // Radio matrix
   NSButtonCell *radio = [[NSButtonCell alloc] init];
@@ -408,9 +434,9 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   mAsLaidOutRadio = [cellArray objectAtIndex:0];
   mSelectedFrameRadio = [cellArray objectAtIndex:1];
   mSeparateFramesRadio = [cellArray objectAtIndex:2];
-  [mAsLaidOutRadio setTitle:NSLocalizedString(@"As Laid Out on the Screen", nil)];
-  [mSelectedFrameRadio setTitle:NSLocalizedString(@"The Selected Frame", nil)];
-  [mSeparateFramesRadio setTitle:NSLocalizedString(@"Each Frame on Separate Pages", nil)];
+  [mAsLaidOutRadio setTitle:[self localizedString:"asLaidOut"]];
+  [mSelectedFrameRadio setTitle:[self localizedString:"selectedFrame"]];
+  [mSeparateFramesRadio setTitle:[self localizedString:"separateFrames"]];
 
   // Radio enabled state
   PRInt16 frameUIFlag;
@@ -442,11 +468,11 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 - (void)addHeaderFooterSection
 {
   // Labels
-  [self addLabel:[NSLocalizedString(@"Page Headers:", nil) UTF8String] withFrame:NSMakeRect(0, 44, 151, 22)];
-  [self addLabel:[NSLocalizedString(@"Page Footers:", nil) UTF8String] withFrame:NSMakeRect(0, 0, 151, 22)];
-  [self addCenteredLabel:[NSLocalizedString(@"Left", nil) UTF8String] withFrame:NSMakeRect(156, 22, 100, 22)];
-  [self addCenteredLabel:[NSLocalizedString(@"Center", nil) UTF8String] withFrame:NSMakeRect(256, 22, 100, 22)];
-  [self addCenteredLabel:[NSLocalizedString(@"Right", nil) UTF8String] withFrame:NSMakeRect(356, 22, 100, 22)];
+  [self addLabel:"pageHeadersTitleMac" withFrame:NSMakeRect(0, 44, 151, 22)];
+  [self addLabel:"pageFootersTitleMac" withFrame:NSMakeRect(0, 0, 151, 22)];
+  [self addCenteredLabel:"left" withFrame:NSMakeRect(156, 22, 100, 22)];
+  [self addCenteredLabel:"center" withFrame:NSMakeRect(256, 22, 100, 22)];
+  [self addCenteredLabel:"right" withFrame:NSMakeRect(356, 22, 100, 22)];
 
   // Lists
   nsXPIDLString sel;
@@ -524,6 +550,76 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   mSettings->SetFooterStrRight(NS_ConvertUTF8toUTF16(headerFooterStr).get());
 }
 
+// Summary
+
+- (NSString*)summaryValueForCheckbox:(NSButton*)aCheckbox
+{
+  if (![aCheckbox isEnabled])
+    return [self localizedString:"summaryNAValue"];
+
+  return [aCheckbox state] == NSOnState ?
+    [self localizedString:"summaryOnValue"] :
+    [self localizedString:"summaryOffValue"];
+}
+
+- (NSString*)framesSummaryValue
+{
+  switch([self chosenFrameSetting]) {
+    case nsIPrintSettings::kFramesAsIs:
+      return [self localizedString:"asLaidOut"];
+    case nsIPrintSettings::kSelectedFrame:
+      return [self localizedString:"selectedFrame"];
+    case nsIPrintSettings::kEachFrameSep:
+      return [self localizedString:"separateFrames"];
+  }
+  return [self localizedString:"summaryNAValue"];
+}
+
+- (NSString*)headerSummaryValue
+{
+  return [[mHeaderLeftList titleOfSelectedItem] stringByAppendingString:
+    [@", " stringByAppendingString:
+      [[mHeaderCenterList titleOfSelectedItem] stringByAppendingString:
+        [@", " stringByAppendingString:
+          [mHeaderRightList titleOfSelectedItem]]]]];
+}
+
+- (NSString*)footerSummaryValue
+{
+  return [[mFooterLeftList titleOfSelectedItem] stringByAppendingString:
+    [@", " stringByAppendingString:
+      [[mFooterCenterList titleOfSelectedItem] stringByAppendingString:
+        [@", " stringByAppendingString:
+          [mFooterRightList titleOfSelectedItem]]]]];
+}
+
+- (NSArray*)localizedSummaryItems
+{
+  return [NSArray arrayWithObjects:
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryFramesTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self framesSummaryValue], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summarySelectionOnlyTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self summaryValueForCheckbox:mPrintSelectionOnlyCheckbox], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryShrinkToFitTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self summaryValueForCheckbox:mShrinkToFitCheckbox], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryPrintBGColorsTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self summaryValueForCheckbox:mPrintBGColorsCheckbox], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryPrintBGImagesTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self summaryValueForCheckbox:mPrintBGImagesCheckbox], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryHeaderTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self headerSummaryValue], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    [NSDictionary dictionaryWithObjectsAndKeys:
+      [self localizedString:"summaryFooterTitle"], NSPrintPanelAccessorySummaryItemNameKey,
+      [self footerSummaryValue], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
+    nil];
+}
+
 @end
 
 // Accessory controller
@@ -532,7 +628,8 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 
 - (id)initWithSettings:(nsIPrintSettings*)aSettings
 {
-  [super init];
+  [super initWithNibName:nil bundle:nil];
+
   NSView* accView = [[PrintPanelAccessoryView alloc] initWithSettings:aSettings];
   [self setView:accView];
   [accView release];
@@ -544,20 +641,9 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   return [(PrintPanelAccessoryView*)[self view] exportSettings];
 }
 
-- (void)setView:(NSView*)aView
+- (NSArray *)localizedSummaryItems
 {
-  mView = [aView retain];
-}
-
-- (NSView*)view
-{
-  return mView;
-}
-
-- (void)dealloc
-{
-  [mView release];
-  [super dealloc];
+  return [(PrintPanelAccessoryView*)[self view] localizedSummaryItems];
 }
 
 @end

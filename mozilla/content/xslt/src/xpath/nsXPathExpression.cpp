@@ -51,15 +51,16 @@
 
 NS_IMPL_CYCLE_COLLECTION_1(nsXPathExpression, mDocument)
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsXPathExpression,
-                                          nsIDOMXPathExpression)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsXPathExpression,
-                                           nsIDOMXPathExpression)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsXPathExpression)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsXPathExpression)
+
+DOMCI_DATA(XPathExpression, nsXPathExpression)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsXPathExpression)
   NS_INTERFACE_MAP_ENTRY(nsIDOMXPathExpression)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSXPathExpression)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMXPathExpression)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(XPathExpression)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XPathExpression)
 NS_INTERFACE_MAP_END
 
 nsXPathExpression::nsXPathExpression(nsAutoPtr<Expr>& aExpression,

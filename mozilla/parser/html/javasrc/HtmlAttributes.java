@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Henri Sivonen
- * Copyright (c) 2008-2009 Mozilla Foundation
+ * Copyright (c) 2008-2011 Mozilla Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a 
  * copy of this software and associated documentation files (the "Software"), 
@@ -23,11 +23,13 @@
 
 package nu.validator.htmlparser.impl;
 
+import nu.validator.htmlparser.annotation.Auto;
 import nu.validator.htmlparser.annotation.IdType;
 import nu.validator.htmlparser.annotation.Local;
 import nu.validator.htmlparser.annotation.NsUri;
 import nu.validator.htmlparser.annotation.Prefix;
 import nu.validator.htmlparser.annotation.QName;
+import nu.validator.htmlparser.common.Interner;
 import nu.validator.htmlparser.common.XmlViolationPolicy;
 
 import org.xml.sax.Attributes;
@@ -57,9 +59,9 @@ public final class HtmlAttributes implements Attributes {
 
     private int length;
 
-    private AttributeName[] names;
+    private @Auto AttributeName[] names;
 
-    private String[] values; // XXX perhaps make this @NoLength?
+    private @Auto String[] values; // XXX perhaps make this @NoLength?
 
     // [NOCPP[
 
@@ -112,8 +114,6 @@ public final class HtmlAttributes implements Attributes {
 
     void destructor() {
         clear(0);
-        Portability.releaseArray(names);
-        Portability.releaseArray(values);
     }
     
     /**
@@ -214,7 +214,7 @@ public final class HtmlAttributes implements Attributes {
 
     public @IdType String getType(int index) {
         if (index < length && index >= 0) {
-            return names[index].getType(mode);
+            return (names[index] == AttributeName.ID) ? "ID" : "CDATA";
         } else {
             return null;
         }
@@ -372,11 +372,9 @@ public final class HtmlAttributes implements Attributes {
             // Hixie
             AttributeName[] newNames = new AttributeName[newLen];
             System.arraycopy(names, 0, newNames, 0, names.length);
-            Portability.releaseArray(names);
             names = newNames;
             String[] newValues = new String[newLen];
             System.arraycopy(values, 0, newValues, 0, values.length);
-            Portability.releaseArray(values);
             values = newValues;
         }
         names[length] = name;
@@ -447,6 +445,52 @@ public final class HtmlAttributes implements Attributes {
         mode = AttributeName.SVG;
     }
 
+    public HtmlAttributes cloneAttributes(Interner interner) throws SAXException {
+        assert (length == 0 && xmlnsLength == 0) || mode == 0 || mode == 3;
+        HtmlAttributes clone = new HtmlAttributes(0);
+        for (int i = 0; i < length; i++) {
+            clone.addAttribute(names[i].cloneAttributeName(interner), Portability.newStringFromString(values[i])
+            // [NOCPP[
+                   , XmlViolationPolicy.ALLOW
+            // ]NOCPP]
+            );
+        }
+        // [NOCPP[
+        for (int i = 0; i < xmlnsLength; i++) {
+            clone.addAttribute(xmlnsNames[i],
+                    xmlnsValues[i], XmlViolationPolicy.ALLOW);
+        }
+        // ]NOCPP]
+        return clone; // XXX!!!
+    }
+    
+    public boolean equalsAnother(HtmlAttributes other) {
+        assert mode == 0 || mode == 3 : "Trying to compare attributes in foreign content.";
+        int otherLength = other.getLength();
+        if (length != otherLength) {
+            return false;
+        }
+        for (int i = 0; i < length; i++) {
+            // Work around the limitations of C++
+            boolean found = false;
+            // The comparing just the local names is OK, since these attribute
+            // holders are both supposed to belong to HTML formatting elements
+            @Local String ownLocal = names[i].getLocal(AttributeName.HTML);
+            for (int j = 0; j < otherLength; j++) {
+                if (ownLocal == other.names[j].getLocal(AttributeName.HTML)) {
+                    found = true;
+                    if (!Portability.stringEqualsString(values[i], other.values[j])) {
+                        return false;
+                    }
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
     // [NOCPP[
     
     void processNonNcNames(TreeBuilder<?> treeBuilder, XmlViolationPolicy namePolicy) throws SAXException {
@@ -480,6 +524,7 @@ public final class HtmlAttributes implements Attributes {
             }
         }
     }
+
 
     // ]NOCPP]
     

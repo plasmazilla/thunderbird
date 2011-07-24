@@ -207,7 +207,6 @@ function test_restore_single_3pane_persistence() {
   let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"].
                        getService(Ci.nsIWindowMediator);
   let mail3PaneWindow = windowMediator.getMostRecentWindow("mail:3pane");
-  let state = mail3PaneWindow.getWindowStateForSessionPersistence();
 
   // make sure we have a different window open, so that we don't start shutting
   // down just because the last window was closed

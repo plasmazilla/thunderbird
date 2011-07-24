@@ -60,7 +60,7 @@ function do_get_profile_startup() {
       throw Components.results.NS_ERROR_FAILURE;
     },
     QueryInterface: function(iid) {
-      if (iid.equals(Components.interfaces.nsIDirectoryProvider) ||
+      if (iid.equals(Components.interfaces.nsIDirectoryServiceProvider) ||
           iid.equals(Components.interfaces.nsISupports)) {
         return this;
       }
@@ -76,7 +76,7 @@ function do_get_profile_startup() {
 function get_test_plugintag() {
   var host = Cc["@mozilla.org/plugin/host;1"].
              getService(Ci.nsIPluginHost);
-  var tags = host.getPluginTags({});
+  var tags = host.getPluginTags();
   for (var i = 0; i < tags.length; i++) {
     if (tags[i].name == "Test Plug-in")
       return tags[i];

@@ -36,7 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIPropertyBag.idl"
+#include "nsISupports.idl"
 
 interface nsIInputStream;
 interface nsILocalFile;
@@ -46,7 +46,7 @@ interface nsISimpleEnumerator;
 interface nsIHttpServer;
 interface nsIHttpServerStoppedCallback;
 interface nsIHttpRequestHandler;
-interface nsIHttpRequestMetadata;
+interface nsIHttpRequest;
 interface nsIHttpResponse;
 interface nsIHttpServerIdentity;
 
@@ -261,8 +261,8 @@ interface nsIHttpServerIdentity : nsISupports
 {
   /**
    * The primary scheme at which the corresponding server is located, defaulting
-   * to 'http'.  This name will be the value of nsIHttpRequestMetadata.scheme
-   * for HTTP/1.0 requests.
+   * to 'http'.  This name will be the value of nsIHttpRequest.scheme for
+   * HTTP/1.0 requests.
    *
    * This value is always set when the corresponding server is running.  If the
    * server is not running, this value is set only if it has been set to a
@@ -273,8 +273,8 @@ interface nsIHttpServerIdentity : nsISupports
 
   /**
    * The primary name by which the corresponding server is known, defaulting to
-   * 'localhost'.  This name will be the value of nsIHttpRequestMetadata.host
-   * for HTTP/1.0 requests.
+   * 'localhost'.  This name will be the value of nsIHttpRequest.host for
+   * HTTP/1.0 requests.
    *
    * This value is always set when the corresponding server is running.  If the
    * server is not running, this value is set only if it has been set to a
@@ -286,7 +286,7 @@ interface nsIHttpServerIdentity : nsISupports
   /**
    * The primary port on which the corresponding server runs, defaulting to the
    * associated server's port.  This name will be the value of
-   * nsIHttpRequestMetadata.port for HTTP/1.0 requests.
+   * nsIHttpRequest.port for HTTP/1.0 requests.
    *
    * This value is always set when the corresponding server is running.  If the
    * server is not running, this value is set only if it has been set to a
@@ -362,36 +362,37 @@ interface nsIHttpServerIdentity : nsISupports
 interface nsIHttpRequestHandler : nsISupports
 {
   /**
-   * Processes the HTTP request represented by metadata and initializes the
-   * passed-in response to reflect the correct HTTP response.
+   * Processes an HTTP request and initializes the passed-in response to reflect
+   * the correct HTTP response.
    *
    * If this method throws an exception, externally observable behavior depends
-   * upon whether is being processed asynchronously and the connection has had
-   * any data written to it (even an explicit zero bytes of data being written)
-   * or whether seizePower() has been called on it.  If such has happened, sent
-   * data will be exactly that data written at the time the exception was
-   * thrown.  If no data has been written, the response has not had seizePower()
-   * called on it, and it is not being asynchronously created, an error handler
-   * will be invoked (usually 500 unless otherwise specified).  Note that some
-   * uses of nsIHttpRequestHandler may require this method to never throw an
-   * exception; in the general case, however, this method may throw an exception
-   * (causing an HTTP 500 response to occur).
+   * upon whether is being processed asynchronously.  If such is the case, the
+   * output is some prefix (perhaps all, perhaps none, perhaps only some) of the
+   * data which would have been sent if, instead, the response had been finished
+   * at that point.  If no data has been written, the response has not had
+   * seizePower() called on it, and it is not being asynchronously created, an
+   * error handler will be invoked (usually 500 unless otherwise specified).
    *
-   * @param metadata
+   * Some uses of nsIHttpRequestHandler may require this method to never throw
+   * an exception; in the general case, however, this method may throw an
+   * exception (causing an HTTP 500 response to occur, if the above conditions
+   * are met).
+   *
+   * @param request
    *   data representing an HTTP request
    * @param response
    *   an initially-empty response which must be modified to reflect the data
    *   which should be sent as the response to the request described by metadata
    */
-  void handle(in nsIHttpRequestMetadata metadata, in nsIHttpResponse response);
+  void handle(in nsIHttpRequest request, in nsIHttpResponse response);
 };
 
 
 /**
  * A representation of the data included in an HTTP request.
  */
-[scriptable, uuid(80cbca71-dc51-4fa0-9010-1cec262dbd4a)]
-interface nsIHttpRequestMetadata : nsIPropertyBag
+[scriptable, uuid(978cf30e-ad73-42ee-8f22-fe0aaf1bf5d2)]
+interface nsIHttpRequest : nsISupports
 {
   /**
    * The request type for this request (see RFC 2616, section 5.1.1).
@@ -556,12 +557,6 @@ interface nsIHttpResponse : nsISupports
    * both in the server socket and in the client may delay written data; be
    * prepared for delays at any time.
    *
-   * @note
-   *   Although in the asynchronous cases writes to the underlying transport
-   *   are not buffered, care must still be taken not to block for too long on
-   *   any such writes; it is even possible for deadlock to occur in the case
-   *   that the server and the client reside in the same process.  Write data in
-   *   small chunks if necessary to avoid this problem.
    * @throws NS_ERROR_NOT_AVAILABLE
    *   if accessed after this response is fully constructed
    */

@@ -35,14 +35,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 #include "nsIDOMHTMLImageElement.h"
-#include "nsIDOMNSHTMLImageElement.h"
 #include "nsIDOMEventTarget.h"
 #include "nsGenericHTMLElement.h"
 #include "nsImageLoadingContent.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
 #include "nsPresContext.h"
-#include "nsIPresShell.h"
 #include "nsMappedAttributes.h"
 #include "nsIJSNativeInitializer.h"
 #include "nsSize.h"
@@ -60,6 +58,7 @@
 #include "nsGUIEvent.h"
 #include "nsContentPolicyUtils.h"
 #include "nsIDOMWindow.h"
+#include "nsFocusManager.h"
 
 #include "imgIContainer.h"
 #include "imgILoader.h"
@@ -77,16 +76,17 @@
 
 #include "nsLayoutUtils.h"
 
+using namespace mozilla::dom;
+
 // XXX nav attrs: suppress
 
 class nsHTMLImageElement : public nsGenericHTMLElement,
                            public nsImageLoadingContent,
                            public nsIDOMHTMLImageElement,
-                           public nsIDOMNSHTMLImageElement,
                            public nsIJSNativeInitializer
 {
 public:
-  nsHTMLImageElement(nsINodeInfo *aNodeInfo);
+  nsHTMLImageElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLImageElement();
 
   // nsISupports
@@ -103,9 +103,6 @@ public:
 
   // nsIDOMHTMLImageElement
   NS_DECL_NSIDOMHTMLIMAGEELEMENT
-
-  // nsIDOMNSHTMLImageElement
-  NS_DECL_NSIDOMNSHTMLIMAGEELEMENT
 
   // override from nsGenericHTMLElement
   NS_IMETHOD GetDraggable(PRBool* aDraggable);
@@ -126,7 +123,7 @@ public:
 
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
 
-  PRBool IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex);
+  PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
 
   // SetAttr override.  C++ is stupid, so have to override both
   // overloaded methods.
@@ -145,17 +142,21 @@ public:
                               nsIContent* aBindingParent,
                               PRBool aCompileEventHandlers);
 
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+
   void MaybeLoadImage();
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
   nsPoint GetXY();
   nsSize GetWidthHeight();
 };
 
 nsGenericHTMLElement*
-NS_NewHTMLImageElement(nsINodeInfo *aNodeInfo, PRBool aFromParser)
+NS_NewHTMLImageElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                       FromParser aFromParser)
 {
   /*
    * nsHTMLImageElement's will be created without a nsINodeInfo passed in
@@ -173,10 +174,10 @@ NS_NewHTMLImageElement(nsINodeInfo *aNodeInfo, PRBool aFromParser)
     NS_ENSURE_TRUE(nodeInfo, nsnull);
   }
 
-  return new nsHTMLImageElement(nodeInfo);
+  return new nsHTMLImageElement(nodeInfo.forget());
 }
 
-nsHTMLImageElement::nsHTMLImageElement(nsINodeInfo *aNodeInfo)
+nsHTMLImageElement::nsHTMLImageElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -191,11 +192,12 @@ NS_IMPL_ADDREF_INHERITED(nsHTMLImageElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLImageElement, nsGenericElement)
 
 
+DOMCI_NODE_DATA(HTMLImageElement, nsHTMLImageElement)
+
 // QueryInterface implementation for nsHTMLImageElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLImageElement)
-  NS_HTML_CONTENT_INTERFACE_TABLE6(nsHTMLImageElement,
+  NS_HTML_CONTENT_INTERFACE_TABLE5(nsHTMLImageElement,
                                    nsIDOMHTMLImageElement,
-                                   nsIDOMNSHTMLImageElement,
                                    nsIJSNativeInitializer,
                                    imgIDecoderObserver,
                                    nsIImageLoadingContent,
@@ -367,11 +369,6 @@ nsHTMLImageElement::ParseAttribute(PRInt32 aNamespaceID,
     if (aAttribute == nsGkAtoms::align) {
       return ParseAlignValue(aValue, aResult);
     }
-    if (aAttribute == nsGkAtoms::src) {
-      static const char* kWhitespace = " \n\r\t\b";
-      aResult.SetTo(nsContentUtils::TrimCharsInSet(kWhitespace, aValue));
-      return PR_TRUE;
-    }
     if (ParseImageAttribute(aAttribute, aValue, aResult)) {
       return PR_TRUE;
     }
@@ -447,7 +444,8 @@ nsHTMLImageElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 }
 
 PRBool
-nsHTMLImageElement::IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex)
+nsHTMLImageElement::IsHTMLFocusable(PRBool aWithMouse,
+                                    PRBool *aIsFocusable, PRInt32 *aTabIndex)
 {
   PRInt32 tabIndex;
   GetTabIndex(&tabIndex);
@@ -478,8 +476,11 @@ nsHTMLImageElement::IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex)
     *aTabIndex = (sTabFocusModel & eTabFocus_formElementsMask)? tabIndex : -1;
   }
 
-  *aIsFocusable = tabIndex >= 0 ||
-                  HasAttr(kNameSpaceID_None, nsGkAtoms::tabindex);
+  *aIsFocusable = 
+#ifdef XP_MACOSX
+    (!aWithMouse || nsFocusManager::sMouseFocusesFormControl) &&
+#endif
+    (tabIndex >= 0 || HasAttr(kNameSpaceID_None, nsGkAtoms::tabindex));
 
   return PR_FALSE;
 }
@@ -504,7 +505,8 @@ nsHTMLImageElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
       return NS_OK;
     }
 
-    nsCOMPtr<imgIRequest> oldCurrentRequest = mCurrentRequest;
+    // A hack to get animations to reset. See bug 594771.
+    mNewRequestsWillNeedAnimationReset = PR_TRUE;
 
     // Force image loading here, so that we'll try to load the image from
     // network if it's set to be not cacheable...  If we change things so that
@@ -513,17 +515,7 @@ nsHTMLImageElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
     // here.
     LoadImage(aValue, PR_TRUE, aNotify);
 
-    if (mCurrentRequest && !mPendingRequest &&
-        oldCurrentRequest != mCurrentRequest) {
-      // We have a current request, and it's not the same one as we used
-      // to have, and we have no pending request.  So imglib already had
-      // that image.  Reset the animation on it -- see bug 210001
-      nsCOMPtr<imgIContainer> container;
-      mCurrentRequest->GetImage(getter_AddRefs(container));
-      if (container) {
-        container->ResetAnimation();
-      }
-    }
+    mNewRequestsWillNeedAnimationReset = PR_FALSE;
   }
     
   return nsGenericHTMLElement::SetAttr(aNameSpaceID, aName, aPrefix, aValue,
@@ -558,8 +550,7 @@ nsHTMLImageElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     // loading.
     if (LoadingEnabled()) {
       nsContentUtils::AddScriptRunner(
-        new nsRunnableMethod<nsHTMLImageElement>(this,
-                                                 &nsHTMLImageElement::MaybeLoadImage));
+        NS_NewRunnableMethod(this, &nsHTMLImageElement::MaybeLoadImage));
     }
   }
 
@@ -580,7 +571,7 @@ nsHTMLImageElement::MaybeLoadImage()
   }
 }
 
-PRInt32
+nsEventStates
 nsHTMLImageElement::IntrinsicState() const
 {
   return nsGenericHTMLElement::IntrinsicState() |
@@ -598,16 +589,16 @@ nsHTMLImageElement::Initialize(nsISupports* aOwner, JSContext* aContext,
   }
 
   // The first (optional) argument is the width of the image
-  int32 width;
-  JSBool ret = JS_ValueToInt32(aContext, argv[0], &width);
+  uint32 width;
+  JSBool ret = JS_ValueToECMAUint32(aContext, argv[0], &width);
   NS_ENSURE_TRUE(ret, NS_ERROR_INVALID_ARG);
 
   nsresult rv = SetIntAttr(nsGkAtoms::width, static_cast<PRInt32>(width));
 
   if (NS_SUCCEEDED(rv) && (argc > 1)) {
     // The second (optional) argument is the height of the image
-    int32 height;
-    ret = JS_ValueToInt32(aContext, argv[1], &height);
+    uint32 height;
+    ret = JS_ValueToECMAUint32(aContext, argv[1], &height);
     NS_ENSURE_TRUE(ret, NS_ERROR_INVALID_ARG);
 
     rv = SetIntAttr(nsGkAtoms::height, static_cast<PRInt32>(height));
@@ -658,4 +649,11 @@ nsHTMLImageElement::GetNaturalWidth(PRInt32* aNaturalWidth)
   return NS_OK;
 }
 
-
+nsresult
+nsHTMLImageElement::CopyInnerTo(nsGenericElement* aDest) const
+{
+  if (aDest->GetOwnerDoc()->IsStaticDocument()) {
+    CreateStaticImageClone(static_cast<nsHTMLImageElement*>(aDest));
+  }
+  return nsGenericHTMLElement::CopyInnerTo(aDest);
+}

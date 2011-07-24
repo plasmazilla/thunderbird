@@ -40,6 +40,12 @@
 
 #include "nscore.h"
 #include "nsSMILTypes.h"
+#include "nsTPriorityQueue.h"
+#include "nsAutoPtr.h"
+#include "nsISMILAnimationElement.h"
+#include "nsSMILMilestone.h"
+
+class nsSMILTimeValue;
 
 //----------------------------------------------------------------------
 // nsSMILTimeContainer
@@ -56,14 +62,15 @@ public:
    * Pause request types.
    */
   enum {
-    PAUSE_BEGIN    = 1,
-    PAUSE_SCRIPT   = 2,
-    PAUSE_PAGEHIDE = 4,
-    PAUSE_USERPREF = 8
+    PAUSE_BEGIN    =  1, // Paused because timeline has yet to begin.
+    PAUSE_SCRIPT   =  2, // Paused by script.
+    PAUSE_PAGEHIDE =  4, // Paused because our doc is hidden.
+    PAUSE_USERPREF =  8, // Paused because animations are disabled in prefs.
+    PAUSE_IMAGE    = 16  // Paused becuase we're in an image that's suspended.
   };
 
   /*
-   * Cause the time container to records its begin time.
+   * Cause the time container to record its begin time.
    */
   void Begin();
 
@@ -96,6 +103,15 @@ public:
    */
   PRBool IsPausedByType(PRUint32 aType) const { return mPauseState & aType; }
 
+  /**
+   * Returns true if this time container is paused.
+   * Generally you should test for a specific type of pausing using
+   * IsPausedByType.
+   *
+   * @return PR_TRUE if this container is paused, PR_FALSE otherwise.
+   */
+  PRBool IsPaused() const { return mPauseState != 0; }
+
   /*
    * Return the time elapsed since this time container's begin time (expressed
    * in parent time) minus any accumulated offset from pausing.
@@ -116,6 +132,32 @@ public:
   virtual nsSMILTime GetParentTime() const;
 
   /*
+   * Convert container time to parent time.
+   *
+   * @param   aContainerTime The container time to convert.
+   * @return  The equivalent parent time or indefinite if the container is
+   *          paused and the time is in the future.
+   */
+  nsSMILTimeValue ContainerToParentTime(nsSMILTime aContainerTime) const;
+
+  /*
+   * Convert from parent time to container time.
+   *
+   * @param   aParentTime The parent time to convert.
+   * @return  The equivalent container time or indefinite if the container is
+   *          paused and aParentTime is after the time when the pause began.
+   */
+  nsSMILTimeValue ParentToContainerTime(nsSMILTime aParentTime) const;
+
+  /*
+   * If the container is paused, causes the pause time to be updated to the
+   * current parent time. This should be called before updating
+   * cross-container dependencies that will call ContainerToParentTime in order
+   * to provide more intuitive results.
+   */
+  void SyncPauseTime();
+
+  /*
    * Updates the current time of this time container and calls DoSample to
    * perform any sample-operations.
    */
@@ -130,11 +172,72 @@ public:
   PRBool NeedsSample() const { return !mPauseState || mNeedsPauseSample; }
 
   /*
+   * Indicates if the elements of this time container need to be rewound.
+   * This occurs during a backwards seek.
+   */
+  PRBool NeedsRewind() const { return mNeedsRewind; }
+  void ClearNeedsRewind() { mNeedsRewind = PR_FALSE; }
+
+  /*
+   * Indicates the time container is currently processing a SetCurrentTime
+   * request and appropriate seek behaviour should be applied by child elements
+   * (e.g. not firing time events).
+   */
+  PRBool IsSeeking() const { return mIsSeeking; }
+  void MarkSeekFinished() { mIsSeeking = PR_FALSE; }
+
+  /*
    * Sets the parent time container.
    *
    * The callee still retains ownership of the time container.
    */
   nsresult SetParent(nsSMILTimeContainer* aParent);
+
+  /*
+   * Registers an element for a sample at the given time.
+   *
+   * @param   aMilestone  The milestone to register in container time.
+   * @param   aElement    The timebase element that needs a sample at
+   *                      aMilestone.
+   * @return  PR_TRUE if the element was successfully added, PR_FALSE otherwise.
+   */
+  PRBool AddMilestone(const nsSMILMilestone& aMilestone,
+                      nsISMILAnimationElement& aElement);
+
+  /*
+   * Resets the list of milestones.
+   */
+  void ClearMilestones();
+
+  /*
+   * Returns the next significant transition from amongst the registered
+   * milestones.
+   *
+   * @param[out] aNextMilestone The next milestone with time in parent time.
+   *
+   * @return PR_TRUE if there exists another milestone, PR_FALSE otherwise in
+   * which case aNextMilestone will be unmodified.
+   */
+  PRBool GetNextMilestoneInParentTime(nsSMILMilestone& aNextMilestone) const;
+
+  typedef nsTArray<nsRefPtr<nsISMILAnimationElement> > AnimElemArray;
+
+  /*
+   * Removes and returns the timebase elements from the start of the list of
+   * timebase elements that match the given time.
+   *
+   * @param      aMilestone  The milestone time to match in parent time. This
+   *                         must be <= GetNextMilestoneInParentTime.
+   * @param[out] aMatchedElements The array to which matching elements will be
+   *                              appended.
+   * @return PR_TRUE if one or more elements match, PR_FALSE otherwise.
+   */
+  PRBool PopMilestoneElementsAtMilestone(const nsSMILMilestone& aMilestone,
+                                         AnimElemArray& aMatchedElements);
+
+  // Cycle-collection support
+  void Traverse(nsCycleCollectionTraversalCallback* aCallback);
+  void Unlink();
 
 protected:
   /*
@@ -166,6 +269,12 @@ protected:
    */
   void UpdateCurrentTime();
 
+  /*
+   * Implementation helper to notify timed elements with dependencies that the
+   * container time has changed with respect to the document time.
+   */
+  void NotifyTimeChange();
+
   // The parent time container, if any
   nsSMILTimeContainer* mParent;
 
@@ -180,15 +289,40 @@ protected:
   //
   nsSMILTime mParentOffset;
 
-  // The timestamp in milliseconds since the epoch (i.e. wallclock time) when
-  // the document was paused
+  // The timestamp in parent time when the container was paused
   nsSMILTime mPauseStart;
 
   // Whether or not a pause sample is required
   PRPackedBool mNeedsPauseSample;
 
+  PRPackedBool mNeedsRewind; // Backwards seek performed
+  PRPackedBool mIsSeeking; // Currently in the middle of a seek operation
+
   // A bitfield of the pause state for all pause requests
   PRUint32 mPauseState;
+
+  struct MilestoneEntry
+  {
+    MilestoneEntry(nsSMILMilestone aMilestone,
+                   nsISMILAnimationElement& aElement)
+      : mMilestone(aMilestone), mTimebase(&aElement)
+    { }
+
+    PRBool operator<(const MilestoneEntry& aOther) const
+    {
+      return mMilestone < aOther.mMilestone;
+    }
+
+    nsSMILMilestone mMilestone; // In container time.
+    nsRefPtr<nsISMILAnimationElement> mTimebase;
+  };
+
+  // Queue of elements with registered milestones. Used to update the model with
+  // significant transitions that occur between two samples. Since timed element
+  // re-register their milestones when they're sampled this is reset once we've
+  // taken care of the milestones before the current sample time but before we
+  // actually do the full sample.
+  nsTPriorityQueue<MilestoneEntry> mMilestoneEntries;
 };
 
 #endif // NS_SMILTIMECONTAINER_H_

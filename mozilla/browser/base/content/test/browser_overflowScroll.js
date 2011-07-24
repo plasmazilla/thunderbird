@@ -1,7 +1,7 @@
-var tabContainer = gBrowser.tabContainer;
-var tabstrip = tabContainer.mTabstrip;
+var tabstrip = gBrowser.tabContainer.mTabstrip;
 var scrollbox = tabstrip._scrollbox;
 var originalSmoothScroll = tabstrip.smoothScroll;
+var tabs = gBrowser.tabs;
 
 function rect(ele)           ele.getBoundingClientRect();
 function width(ele)          rect(ele).width;
@@ -12,16 +12,26 @@ function isRight(ele, msg)   is(right(ele), right(scrollbox), msg);
 function elementFromPoint(x) tabstrip._elementFromPoint(x);
 function nextLeftElement()   elementFromPoint(left(scrollbox) - 1);
 function nextRightElement()  elementFromPoint(right(scrollbox) + 1);
+function firstScrollable()   tabs[gBrowser._numPinnedTabs];
 
 function test() {
+  requestLongerTimeout(2);
   waitForExplicitFinish();
 
+  // If the previous (or more) test finished with cleaning up the tabs,
+  // there may be some pending animations. That can cause a failure of
+  // this tests, so, we should test this in another stack.
+  setTimeout(doTest, 0);
+}
+
+function doTest() {
   tabstrip.smoothScroll = false;
 
-  var tabMinWidth = gPrefService.getIntPref("browser.tabs.tabMinWidth");
+  var tabMinWidth = parseInt(getComputedStyle(gBrowser.selectedTab, null).minWidth);
   var tabCountForOverflow = Math.ceil(width(tabstrip) / tabMinWidth * 3);
-  while (tabContainer.childNodes.length < tabCountForOverflow)
-    gBrowser.addTab();
+  while (tabs.length < tabCountForOverflow)
+    gBrowser.addTab("about:blank", {skipAnimation: true});
+  gBrowser.pinTab(tabs[0]);
 
   tabstrip.addEventListener("overflow", runOverflowTests, false);
 }
@@ -36,33 +46,41 @@ function runOverflowTests(aEvent) {
   var downButton = tabstrip._scrollButtonDown;
   var element;
 
-  gBrowser.selectedTab = tabContainer.firstChild;
-  isLeft(tabContainer.firstChild, "Selecting the first tab scrolls it into view");
+  gBrowser.selectedTab = firstScrollable();
+  ok(left(scrollbox) <= left(firstScrollable()), "Selecting the first tab scrolls it into view " +
+     "(" + left(scrollbox) + " <= " + left(firstScrollable()) + ")");
 
   element = nextRightElement();
-  EventUtils.synthesizeMouse(downButton, 0, 0, {});
+  EventUtils.synthesizeMouseAtCenter(downButton, {});
   isRight(element, "Scrolled one tab to the right with a single click");
 
-  gBrowser.selectedTab = tabContainer.lastChild;
-  isRight(tabContainer.lastChild, "Selecting the last tab scrolls it into view");
+  gBrowser.selectedTab = tabs[tabs.length - 1];
+  ok(right(gBrowser.selectedTab) <= right(scrollbox), "Selecting the last tab scrolls it into view " +
+     "(" + right(gBrowser.selectedTab) + " <= " + right(scrollbox) + ")");
 
   element = nextLeftElement();
-  EventUtils.synthesizeMouse(upButton, 0, 0, {});
+  EventUtils.synthesizeMouse(upButton, 1, 1, {});
   isLeft(element, "Scrolled one tab to the left with a single click");
 
   element = elementFromPoint(left(scrollbox) - width(scrollbox));
-  EventUtils.synthesizeMouse(upButton, 0, 0, {clickCount: 2});
+  EventUtils.synthesizeMouse(upButton, 1, 1, {clickCount: 2});
   isLeft(element, "Scrolled one page of tabs with a double click");
 
-  EventUtils.synthesizeMouse(upButton, 0, 0, {clickCount: 3});
-  isLeft(tabContainer.firstChild, "Scrolled to the start with a triple click");
+  EventUtils.synthesizeMouse(upButton, 1, 1, {clickCount: 3});
+  var firstScrollableLeft = left(firstScrollable());
+  ok(left(scrollbox) <= firstScrollableLeft, "Scrolled to the start with a triple click " +
+     "(" + left(scrollbox) + " <= " + firstScrollableLeft + ")");
+
+  for (var i = 2; i; i--)
+    EventUtils.synthesizeMouseScroll(scrollbox, 1, 1, {axis: "horizontal", delta: -1});
+  is(left(firstScrollable()), firstScrollableLeft, "Remained at the start with the mouse wheel");
 
   element = nextRightElement();
-  EventUtils.synthesizeMouseScroll(scrollbox, 0, 0, {delta: 1});
+  EventUtils.synthesizeMouseScroll(scrollbox, 1, 1, {axis: "horizontal", delta: 1});
   isRight(element, "Scrolled one tab to the right with the mouse wheel");
 
-  while (tabContainer.childNodes.length > 1)
-    gBrowser.removeTab(tabContainer.lastChild);
+  while (tabs.length > 1)
+    gBrowser.removeTab(tabs[0]);
 
   tabstrip.smoothScroll = originalSmoothScroll;
   finish();

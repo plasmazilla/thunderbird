@@ -47,9 +47,38 @@ include $(topsrcdir)/config/rules.mk
 _TEST_FILES = \
 		test_bug471722.html \
 		test_bug527935.html \
+		test_bug569988.html \
+		test_bug590554.html \
+		test_bug596001.html \
+		test_bug596333.html \
+		test_bug596506.html \
+		test_bug597331.html \
+		test_bug600570.html \
+		test_bug602130.html \
+		test_bug603556.html \
+		test_bug604532.html \
 		test_bug625452.html \
+		test_bug629172.html \
+		test_bug638596.html \
+		test_bug641466.html \
+		test_bug645914.html \
+		$(NULL)
+
+# disables the key handling test on gtk2 because gtk2 overrides some key events
+# on our editor, and the combinations depend on the system.
+ifneq ($(MOZ_WIDGET_TOOLKIT),gtk2)
+_TEST_FILES += \
+		test_texteditor_keyevent_handling.html \
+		$(NULL)
+endif
+
+_CHROME_TEST_FILES = \
+		test_bug636465.xul \
 		$(NULL)
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+
+libs:: $(_CHROME_TEST_FILES)
+	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/chrome/$(relativesrcdir)
 

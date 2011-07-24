@@ -47,7 +47,6 @@
 #include "nsIDOM3Node.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentView.h"
-#include "nsIDOMDocumentXBL.h"
 #include "nsIDOMHTMLDocument.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsIDOMNodeList.h"
@@ -56,7 +55,6 @@
 #include "nsIDOMWindowInternal.h"
 #include "nsIDOMXULElement.h"
 #include "nsIDocShell.h"
-#include "nsIDocumentViewer.h"
 #include "nsIContentViewer.h"
 #include "nsIEventListenerManager.h"
 #include "nsIPresShell.h"
@@ -67,6 +65,7 @@
 #include "nsISelectionController.h"
 #include "nsPIDOMWindow.h"
 #include "nsGUIEvent.h"
+#include "nsIView.h"
 
 #include "nsContentCID.h"
 #include "nsComponentManagerUtils.h"
@@ -74,14 +73,21 @@
 
 static NS_DEFINE_IID(kRangeCID, NS_RANGE_CID);
 
+////////////////////////////////////////////////////////////////////////////////
+// nsCoreUtils
+////////////////////////////////////////////////////////////////////////////////
+
 PRBool
-nsCoreUtils::HasListener(nsIContent *aContent, const nsAString& aEventType)
+nsCoreUtils::HasClickListener(nsIContent *aContent)
 {
   NS_ENSURE_TRUE(aContent, PR_FALSE);
   nsIEventListenerManager* listenerManager =
     aContent->GetListenerManager(PR_FALSE);
 
-  return listenerManager && listenerManager->HasListenersFor(aEventType);  
+  return listenerManager &&
+    (listenerManager->HasListenersFor(NS_LITERAL_STRING("click")) ||
+     listenerManager->HasListenersFor(NS_LITERAL_STRING("mousedown")) ||
+     listenerManager->HasListenersFor(NS_LITERAL_STRING("mouseup")));
 }
 
 void
@@ -100,7 +106,7 @@ nsCoreUtils::DispatchClickEvent(nsITreeBoxObject *aTreeBoxObj,
     return;
 
   nsIPresShell *presShell = nsnull;
-  presShell = document->GetPrimaryShell();
+  presShell = document->GetShell();
   if (!presShell)
     return;
 
@@ -126,7 +132,7 @@ nsCoreUtils::DispatchClickEvent(nsITreeBoxObject *aTreeBoxObj,
   tcBoxObj->GetY(&tcY);
 
   // Dispatch mouse events.
-  nsIFrame* tcFrame = presShell->GetPrimaryFrameFor(tcContent);  
+  nsIFrame* tcFrame = tcContent->GetPrimaryFrame();
   nsIFrame* rootFrame = presShell->GetRootFrame();
 
   nsPoint offset;
@@ -152,20 +158,16 @@ nsCoreUtils::DispatchMouseEvent(PRUint32 aEventType,
                                 nsIPresShell *aPresShell,
                                 nsIContent *aContent)
 {
-  nsIFrame *frame = aPresShell->GetPrimaryFrameFor(aContent);
+  nsIFrame *frame = aContent->GetPrimaryFrame();
   if (!frame)
     return PR_FALSE;
 
-  nsIFrame* rootFrame = aPresShell->GetRootFrame();
-  if (!rootFrame)
-    return PR_FALSE;
-
-  nsCOMPtr<nsIWidget> rootWidget = rootFrame->GetWindow();
-  if (!rootWidget)
-    return PR_FALSE;
-
   // Compute x and y coordinates.
-  nsPoint point = frame->GetOffsetToExternal(rootFrame);
+  nsPoint point;
+  nsCOMPtr<nsIWidget> widget = frame->GetNearestWidget(point);
+  if (!widget)
+    return PR_FALSE;
+
   nsSize size = frame->GetSize();
 
   nsPresContext* presContext = aPresShell->GetPresContext();
@@ -174,7 +176,7 @@ nsCoreUtils::DispatchMouseEvent(PRUint32 aEventType,
   PRInt32 y = presContext->AppUnitsToDevPixels(point.y + size.height / 2);
 
   // Fire mouse event.
-  DispatchMouseEvent(aEventType, x, y, aContent, frame, aPresShell, rootWidget);
+  DispatchMouseEvent(aEventType, x, y, aContent, frame, aPresShell, widget);
   return PR_TRUE;
 }
 
@@ -212,7 +214,7 @@ nsCoreUtils::GetAccessKeyFor(nsIContent *aContent)
   if (!doc)
     return 0;
 
-  nsCOMPtr<nsIPresShell> presShell = doc->GetPrimaryShell();
+  nsCOMPtr<nsIPresShell> presShell = doc->GetShell();
   if (!presShell)
     return 0;
 
@@ -229,73 +231,44 @@ nsCoreUtils::GetAccessKeyFor(nsIContent *aContent)
   return key;
 }
 
-already_AddRefed<nsIDOMElement>
-nsCoreUtils::GetDOMElementFor(nsIDOMNode *aNode)
+nsIContent *
+nsCoreUtils::GetDOMElementFor(nsIContent *aContent)
 {
-  nsCOMPtr<nsINode> node(do_QueryInterface(aNode));
-  nsIDOMElement *element = nsnull;
+  if (aContent->IsElement())
+    return aContent;
 
-  if (node->IsNodeOfType(nsINode::eELEMENT))
-    CallQueryInterface(node, &element);
+  if (aContent->IsNodeOfType(nsINode::eTEXT))
+    return aContent->GetParent();
 
-  else if (node->IsNodeOfType(nsINode::eTEXT)) {
-    nsCOMPtr<nsINode> nodeParent = node->GetNodeParent();
-    NS_ASSERTION(nodeParent, "Text node has no parent!");
-    if (nodeParent)
-      CallQueryInterface(nodeParent, &element);
-  }
-
-  else if (node->IsNodeOfType(nsINode::eDOCUMENT)) {
-    nsCOMPtr<nsIDOMHTMLDocument> htmlDoc(do_QueryInterface(node));
-    if (htmlDoc) {
-      nsCOMPtr<nsIDOMHTMLElement> bodyElement;
-      htmlDoc->GetBody(getter_AddRefs(bodyElement));
-      if (bodyElement) {
-        CallQueryInterface(bodyElement, &element);
-        return element;
-      }
-    }
-
-    nsCOMPtr<nsIDOMDocument> domDoc(do_QueryInterface(node));
-    domDoc->GetDocumentElement(&element);
-  }
-
-  return element;
+  return nsnull;
 }
 
-already_AddRefed<nsIDOMNode>
-nsCoreUtils::GetDOMNodeFromDOMPoint(nsIDOMNode *aNode, PRUint32 aOffset)
+nsINode *
+nsCoreUtils::GetDOMNodeFromDOMPoint(nsINode *aNode, PRUint32 aOffset)
 {
-  nsIDOMNode *resultNode = nsnull;
-
-  nsCOMPtr<nsIContent> content(do_QueryInterface(aNode));
-  if (content && content->IsNodeOfType(nsINode::eELEMENT)) {
-
-    PRUint32 childCount = content->GetChildCount();
+  if (aNode && aNode->IsElement()) {
+    PRUint32 childCount = aNode->GetChildCount();
     NS_ASSERTION(aOffset >= 0 && aOffset <= childCount,
                  "Wrong offset of the DOM point!");
 
     // The offset can be after last child of container node that means DOM point
     // is placed immediately after the last child. In this case use the DOM node
     // from the given DOM point is used as result node.
-    if (aOffset != childCount) {
-      CallQueryInterface(content->GetChildAt(aOffset), &resultNode);
-      return resultNode;
-    }
+    if (aOffset != childCount)
+      return aNode->GetChildAt(aOffset);
   }
 
-  NS_IF_ADDREF(resultNode = aNode);
-  return resultNode;
+  return aNode;
 }
 
 nsIContent*
-nsCoreUtils::GetRoleContent(nsIDOMNode *aDOMNode)
+nsCoreUtils::GetRoleContent(nsINode *aNode)
 {
-  nsCOMPtr<nsIContent> content(do_QueryInterface(aDOMNode));
+  nsCOMPtr<nsIContent> content(do_QueryInterface(aNode));
   if (!content) {
-    nsCOMPtr<nsIDOMDocument> domDoc(do_QueryInterface(aDOMNode));
+    nsCOMPtr<nsIDOMDocument> domDoc(do_QueryInterface(aNode));
     if (domDoc) {
-      nsCOMPtr<nsIDOMHTMLDocument> htmlDoc(do_QueryInterface(aDOMNode));
+      nsCOMPtr<nsIDOMHTMLDocument> htmlDoc(do_QueryInterface(aNode));
       if (htmlDoc) {
         nsCOMPtr<nsIDOMHTMLElement> bodyElement;
         htmlDoc->GetBody(getter_AddRefs(bodyElement));
@@ -313,35 +286,19 @@ nsCoreUtils::GetRoleContent(nsIDOMNode *aDOMNode)
 }
 
 PRBool
-nsCoreUtils::IsAncestorOf(nsIDOMNode *aPossibleAncestorNode,
-                          nsIDOMNode *aPossibleDescendantNode)
+nsCoreUtils::IsAncestorOf(nsINode *aPossibleAncestorNode,
+                          nsINode *aPossibleDescendantNode,
+                          nsINode *aRootNode)
 {
   NS_ENSURE_TRUE(aPossibleAncestorNode && aPossibleDescendantNode, PR_FALSE);
 
-  nsCOMPtr<nsIDOMNode> loopNode = aPossibleDescendantNode;
-  nsCOMPtr<nsIDOMNode> parentNode;
-  while (NS_SUCCEEDED(loopNode->GetParentNode(getter_AddRefs(parentNode))) &&
-         parentNode) {
-    if (parentNode == aPossibleAncestorNode) {
+  nsINode *parentNode = aPossibleDescendantNode;
+  while ((parentNode = parentNode->GetNodeParent()) &&
+         parentNode != aRootNode) {
+    if (parentNode == aPossibleAncestorNode)
       return PR_TRUE;
-    }
-    loopNode.swap(parentNode);
   }
-  return PR_FALSE;
-}
 
-PRBool
-nsCoreUtils::AreSiblings(nsIDOMNode *aDOMNode1,
-                        nsIDOMNode *aDOMNode2)
-{
-  NS_ENSURE_TRUE(aDOMNode1 && aDOMNode2, PR_FALSE);
-
-  nsCOMPtr<nsIDOMNode> parentNode1, parentNode2;
-  if (NS_SUCCEEDED(aDOMNode1->GetParentNode(getter_AddRefs(parentNode1))) &&
-      NS_SUCCEEDED(aDOMNode2->GetParentNode(getter_AddRefs(parentNode2))) &&
-      parentNode1 == parentNode2) {
-    return PR_TRUE;
-  }
   return PR_FALSE;
 }
 
@@ -419,7 +376,7 @@ nsCoreUtils::ScrollFrameToPoint(nsIFrame *aScrollableFrame,
   nsPoint scrollPoint = scrollableFrame->GetScrollPosition();
   scrollPoint -= deltaPoint;
 
-  scrollableFrame->ScrollTo(scrollPoint);
+  scrollableFrame->ScrollTo(scrollPoint, nsIScrollableFrame::INSTANT);
 }
 
 void
@@ -460,7 +417,7 @@ nsCoreUtils::ConvertScrollTypeToPercents(PRUint32 aScrollType,
 }
 
 nsIntPoint
-nsCoreUtils::GetScreenCoordsForWindow(nsIDOMNode *aNode)
+nsCoreUtils::GetScreenCoordsForWindow(nsINode *aNode)
 {
   nsIntPoint coords(0, 0);
   nsCOMPtr<nsIDocShellTreeItem> treeItem(GetDocShellTreeItemFor(aNode));
@@ -486,17 +443,12 @@ nsCoreUtils::GetScreenCoordsForWindow(nsIDOMNode *aNode)
 }
 
 already_AddRefed<nsIDocShellTreeItem>
-nsCoreUtils::GetDocShellTreeItemFor(nsIDOMNode *aNode)
+nsCoreUtils::GetDocShellTreeItemFor(nsINode *aNode)
 {
   if (!aNode)
     return nsnull;
 
-  nsCOMPtr<nsIDOMDocument> domDoc;
-  aNode->GetOwnerDocument(getter_AddRefs(domDoc));
-  nsCOMPtr<nsIDocument> doc(do_QueryInterface(domDoc));
-  if (!doc)
-    doc = do_QueryInterface(aNode);
-
+  nsIDocument *doc = aNode->GetOwnerDoc();
   NS_ASSERTION(doc, "No document for node passed in");
   NS_ENSURE_TRUE(doc, nsnull);
 
@@ -508,18 +460,51 @@ nsCoreUtils::GetDocShellTreeItemFor(nsIDOMNode *aNode)
   return docShellTreeItem;
 }
 
-nsIFrame*
-nsCoreUtils::GetFrameFor(nsIDOMElement *aElm)
+PRBool
+nsCoreUtils::IsRootDocument(nsIDocument *aDocument)
 {
-  nsCOMPtr<nsIPresShell> shell = GetPresShellFor(aElm);
-  if (!shell)
-    return nsnull;
-  
-  nsCOMPtr<nsIContent> content(do_QueryInterface(aElm));
-  if (!content)
-    return nsnull;
-  
-  return shell->GetPrimaryFrameFor(content);
+  nsCOMPtr<nsISupports> container = aDocument->GetContainer();
+  nsCOMPtr<nsIDocShellTreeItem> docShellTreeItem =
+    do_QueryInterface(container);
+  NS_ASSERTION(docShellTreeItem, "No document shell for document!");
+
+  nsCOMPtr<nsIDocShellTreeItem> parentTreeItem;
+  docShellTreeItem->GetParent(getter_AddRefs(parentTreeItem));
+
+  return !parentTreeItem;
+}
+
+PRBool
+nsCoreUtils::IsContentDocument(nsIDocument *aDocument)
+{
+  nsCOMPtr<nsISupports> container = aDocument->GetContainer();
+  nsCOMPtr<nsIDocShellTreeItem> docShellTreeItem =
+    do_QueryInterface(container);
+  NS_ASSERTION(docShellTreeItem, "No document shell tree item for document!");
+
+  PRInt32 contentType;
+  docShellTreeItem->GetItemType(&contentType);
+  return (contentType == nsIDocShellTreeItem::typeContent);
+}
+
+PRBool
+nsCoreUtils::IsErrorPage(nsIDocument *aDocument)
+{
+  nsIURI *uri = aDocument->GetDocumentURI();
+  PRBool isAboutScheme = PR_FALSE;
+  uri->SchemeIs("about", &isAboutScheme);
+  if (!isAboutScheme)
+    return PR_FALSE;
+
+  nsCAutoString path;
+  uri->GetPath(path);
+
+  nsCAutoString::const_iterator start, end;
+  path.BeginReading(start);
+  path.EndReading(end);
+
+  NS_NAMED_LITERAL_CSTRING(neterror, "neterror");
+  return FindInReadable(neterror, start, end);
 }
 
 PRBool
@@ -533,25 +518,6 @@ nsCoreUtils::IsCorrectFrameType(nsIFrame *aFrame, nsIAtom *aAtom)
   return aFrame->GetType() == aAtom;
 }
 
-already_AddRefed<nsIPresShell>
-nsCoreUtils::GetPresShellFor(nsIDOMNode *aNode)
-{
-  nsCOMPtr<nsIDOMDocument> domDocument;
-  aNode->GetOwnerDocument(getter_AddRefs(domDocument));
-
-  nsCOMPtr<nsIDocument> doc(do_QueryInterface(domDocument));
-  if (!doc) // This is necessary when the node is the document node
-    doc = do_QueryInterface(aNode);
-
-  nsIPresShell *presShell = nsnull;
-  if (doc) {
-    presShell = doc->GetPrimaryShell();
-    NS_IF_ADDREF(presShell);
-  }
-
-  return presShell;
-}
-
 already_AddRefed<nsIDOMNode>
 nsCoreUtils::GetDOMNodeForContainer(nsIDocShellTreeItem *aContainer)
 {
@@ -563,17 +529,12 @@ nsCoreUtils::GetDOMNodeForContainer(nsIDocShellTreeItem *aContainer)
   if (!cv)
     return nsnull;
 
-  nsCOMPtr<nsIDocumentViewer> docv(do_QueryInterface(cv));
-  if (!docv)
-    return nsnull;
-
-  nsCOMPtr<nsIDocument> doc;
-  docv->GetDocument(getter_AddRefs(doc));
+  nsIDocument* doc = cv->GetDocument();
   if (!doc)
     return nsnull;
 
   nsIDOMNode* node = nsnull;
-  CallQueryInterface(doc.get(), &node);
+  CallQueryInterface(doc, &node);
   return node;
 }
 
@@ -585,6 +546,23 @@ nsCoreUtils::GetID(nsIContent *aContent, nsAString& aID)
 }
 
 PRBool
+nsCoreUtils::GetUIntAttr(nsIContent *aContent, nsIAtom *aAttr, PRInt32 *aUInt)
+{
+  nsAutoString value;
+  aContent->GetAttr(kNameSpaceID_None, aAttr, value);
+  if (!value.IsEmpty()) {
+    PRInt32 error = NS_OK;
+    PRInt32 integer = value.ToInteger(&error);
+    if (NS_SUCCEEDED(error) && integer > 0) {
+      *aUInt = integer;
+      return PR_TRUE;
+    }
+  }
+
+  return PR_FALSE;
+}
+
+PRBool
 nsCoreUtils::IsXLink(nsIContent *aContent)
 {
   if (!aContent)
@@ -593,211 +571,6 @@ nsCoreUtils::IsXLink(nsIContent *aContent)
   return aContent->AttrValueIs(kNameSpaceID_XLink, nsAccessibilityAtoms::type,
                                nsAccessibilityAtoms::simple, eCaseMatters) &&
          aContent->HasAttr(kNameSpaceID_XLink, nsAccessibilityAtoms::href);
-}
-
-nsIContent*
-nsCoreUtils::FindNeighbourPointingToNode(nsIContent *aForNode, 
-                                         nsIAtom *aRelationAttr,
-                                         nsIAtom *aTagName,
-                                         PRUint32 aAncestorLevelsToSearch)
-{
-  return FindNeighbourPointingToNode(aForNode, &aRelationAttr, 1, aTagName, aAncestorLevelsToSearch);
-}
-
-nsIContent*
-nsCoreUtils::FindNeighbourPointingToNode(nsIContent *aForNode, 
-                                         nsIAtom **aRelationAttrs,
-                                         PRUint32 aAttrNum,
-                                         nsIAtom *aTagName,
-                                         PRUint32 aAncestorLevelsToSearch)
-{
-  nsAutoString controlID;
-  if (!nsCoreUtils::GetID(aForNode, controlID)) {
-    if (!aForNode->IsInAnonymousSubtree())
-      return nsnull;
-
-    aForNode->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::anonid, controlID);
-    if (controlID.IsEmpty())
-      return nsnull;
-  }
-
-  // Look for label in subtrees of nearby ancestors
-  nsCOMPtr<nsIContent> binding(aForNode->GetBindingParent());
-  PRUint32 count = 0;
-  nsIContent *labelContent = nsnull;
-  nsIContent *prevSearched = nsnull;
-
-  while (!labelContent && ++count <= aAncestorLevelsToSearch &&
-         (aForNode = aForNode->GetParent()) != nsnull) {
-
-    if (aForNode == binding) {
-      // When we reach the binding parent, make sure to check
-      // all of its anonymous child subtrees
-      nsCOMPtr<nsIDocument> doc = aForNode->GetCurrentDoc();
-      nsCOMPtr<nsIDOMDocumentXBL> xblDoc(do_QueryInterface(doc));
-      if (!xblDoc)
-        return nsnull;
-
-      nsCOMPtr<nsIDOMNodeList> nodes;
-      nsCOMPtr<nsIDOMElement> forElm(do_QueryInterface(aForNode));
-      xblDoc->GetAnonymousNodes(forElm, getter_AddRefs(nodes));
-      if (!nodes)
-        return nsnull;
-
-      PRUint32 length;
-      nsresult rv = nodes->GetLength(&length);
-      if (NS_FAILED(rv))
-        return nsnull;
-
-      for (PRUint32 index = 0; index < length && !labelContent; index++) {
-        nsCOMPtr<nsIDOMNode> node;
-        rv = nodes->Item(index, getter_AddRefs(node));
-        if (NS_FAILED(rv))
-          return nsnull;
-
-        nsCOMPtr<nsIContent> content = do_QueryInterface(node);
-        if (!content)
-          return nsnull;
-
-        if (content != prevSearched) {
-          labelContent = FindDescendantPointingToID(&controlID, content,
-                                                    aRelationAttrs, aAttrNum,
-                                                    nsnull, aTagName);
-        }
-      }
-      break;
-    }
-
-    labelContent = FindDescendantPointingToID(&controlID, aForNode,
-                                              aRelationAttrs, aAttrNum,
-                                              prevSearched, aTagName);
-    prevSearched = aForNode;
-  }
-
-  return labelContent;
-}
-
-// Pass in aAriaProperty = null and aRelationAttr == nsnull if any <label> will do
-nsIContent*
-nsCoreUtils::FindDescendantPointingToID(const nsString *aId,
-                                        nsIContent *aLookContent,
-                                        nsIAtom **aRelationAttrs,
-                                        PRUint32 aAttrNum,
-                                        nsIContent *aExcludeContent,
-                                        nsIAtom *aTagType)
-{
-  // Surround id with spaces for search
-  nsCAutoString idWithSpaces(' ');
-  LossyAppendUTF16toASCII(*aId, idWithSpaces);
-  idWithSpaces += ' ';
-  return FindDescendantPointingToIDImpl(idWithSpaces, aLookContent,
-                                        aRelationAttrs, aAttrNum,
-                                        aExcludeContent, aTagType);
-}
-
-nsIContent*
-nsCoreUtils::FindDescendantPointingToID(const nsString *aId,
-                                        nsIContent *aLookContent,
-                                        nsIAtom *aRelationAttr,
-                                        nsIContent *aExcludeContent,
-                                        nsIAtom *aTagType)
-{
-  return FindDescendantPointingToID(aId, aLookContent, &aRelationAttr, 1, aExcludeContent, aTagType);
-}
-
-nsIContent*
-nsCoreUtils::FindDescendantPointingToIDImpl(nsCString& aIdWithSpaces,
-                                            nsIContent *aLookContent,
-                                            nsIAtom **aRelationAttrs,
-                                            PRUint32 aAttrNum,
-                                            nsIContent *aExcludeContent,
-                                            nsIAtom *aTagType)
-{
-  NS_ENSURE_TRUE(aLookContent, nsnull);
-  NS_ENSURE_TRUE(aRelationAttrs && *aRelationAttrs, nsnull);
-
-  if (!aTagType || aLookContent->Tag() == aTagType) {
-    // Tag matches
-    // Check for ID in the attributes aRelationAttrs, which can be a list
-    for (PRUint32 i = 0; i < aAttrNum; i++) {
-      nsAutoString idList;
-      if (aLookContent->GetAttr(kNameSpaceID_None, aRelationAttrs[i], idList)) {
-        idList.Insert(' ', 0);  // Surround idlist with spaces for search
-        idList.Append(' ');
-        // idList is now a set of id's with spaces around each,
-        // and id also has spaces around it.
-        // If id is a substring of idList then we have a match
-        if (idList.Find(aIdWithSpaces) != -1) {
-          return aLookContent;
-        }
-      }
-    }
-    if (aTagType) {
-      // Don't bother to search descendants of an element with matching tag.
-      // That would be like looking for a nested <label> or <description>
-      return nsnull;
-    }
-  }
-
-  // Recursively search descendants for match
-  PRUint32 count  = 0;
-  nsIContent *child;
-  nsIContent *labelContent = nsnull;
-
-  while ((child = aLookContent->GetChildAt(count++)) != nsnull) {
-    if (child != aExcludeContent) {
-      labelContent = FindDescendantPointingToIDImpl(aIdWithSpaces, child,
-                                                    aRelationAttrs, aAttrNum,
-                                                    aExcludeContent, aTagType);
-      if (labelContent) {
-        return labelContent;
-      }
-    }
-  }
-  return nsnull;
-}
-
-nsIContent*
-nsCoreUtils::GetLabelContent(nsIContent *aForNode)
-{
-  if (aForNode->IsNodeOfType(nsINode::eXUL))
-    return FindNeighbourPointingToNode(aForNode, nsAccessibilityAtoms::control,
-                                       nsAccessibilityAtoms::label);
-
-  return GetHTMLLabelContent(aForNode);
-}
-
-nsIContent*
-nsCoreUtils::GetHTMLLabelContent(nsIContent *aForNode)
-{
-  // Get either <label for="[id]"> element which explictly points to aForNode,
-  // or <label> ancestor which implicitly point to it.
-  nsIContent *walkUpContent = aForNode;
-  
-  // Go up tree get name of ancestor label if there is one. Don't go up farther
-  // than form element.
-  while ((walkUpContent = walkUpContent->GetParent()) != nsnull) {
-    nsIAtom *tag = walkUpContent->Tag();
-    if (tag == nsAccessibilityAtoms::label)
-      return walkUpContent;  // An ancestor <label> implicitly points to us
-
-    if (tag == nsAccessibilityAtoms::form ||
-        tag == nsAccessibilityAtoms::body) {
-      // Reached top ancestor in form
-      // There can be a label targeted at this control using the 
-      // for="control_id" attribute. To save computing time, only 
-      // look for those inside of a form element
-      nsAutoString forId;
-      if (!GetID(aForNode, forId))
-        break;
-
-      // Actually we'll be walking down the content this time, with a depth first search
-      return FindDescendantPointingToID(&forId, walkUpContent,
-                                        nsAccessibilityAtoms::_for);
-    }
-  }
-
-  return nsnull;
 }
 
 void
@@ -813,139 +586,27 @@ nsCoreUtils::GetLanguageFor(nsIContent *aContent, nsIContent *aRootContent,
     walkUp = walkUp->GetParent();
 }
 
-void
-nsCoreUtils::GetElementsByIDRefsAttr(nsIContent *aContent, nsIAtom *aAttr,
-                                     nsIArray **aRefElements)
-{
-  *aRefElements = nsnull;
-
-  nsAutoString ids;
-  if (!aContent->GetAttr(kNameSpaceID_None, aAttr, ids))
-    return;
-
-  ids.CompressWhitespace(PR_TRUE, PR_TRUE);
-
-  nsCOMPtr<nsIDOMDocument> document = do_QueryInterface(aContent->GetOwnerDoc());
-  NS_ASSERTION(document, "The given node is not in document!");
-  if (!document)
-    return;
-
-  nsCOMPtr<nsIDOMDocumentXBL> xblDocument;
-  if (aContent->IsInAnonymousSubtree())
-    xblDocument = do_QueryInterface(document);
-
-  nsCOMPtr<nsIMutableArray> refElms = do_CreateInstance(NS_ARRAY_CONTRACTID);
-
-  while (!ids.IsEmpty()) {
-    nsAutoString id;
-    PRInt32 idLength = ids.FindChar(' ');
-    NS_ASSERTION(idLength != 0,
-                 "Should not be 0 because of CompressWhitespace() call above");
-
-    if (idLength == kNotFound) {
-      id = ids;
-      ids.Truncate();
-    } else {
-      id = Substring(ids, 0, idLength);
-      ids.Cut(0, idLength + 1);
-    }
-
-    // If content is anonymous subtree then use "anonid" attribute to get
-    // elements, otherwise search elements in DOM by ID attribute.
-    nsCOMPtr<nsIDOMElement> refElement;
-    if (xblDocument) {
-      nsCOMPtr<nsIDOMElement> elm =
-        do_QueryInterface(aContent->GetBindingParent());
-      xblDocument->GetAnonymousElementByAttribute(elm,
-                                                  NS_LITERAL_STRING("anonid"),
-                                                  id,
-                                                  getter_AddRefs(refElement));
-    } else {
-      document->GetElementById(id, getter_AddRefs(refElement));
-    }
-
-    if (!refElement)
-      continue;
-
-    refElms->AppendElement(refElement, PR_FALSE);
-  }
-
-  NS_ADDREF(*aRefElements = refElms);
-  return;
-}
-
-void
-nsCoreUtils::GetElementsHavingIDRefsAttr(nsIContent *aRootContent,
-                                         nsIContent *aContent,
-                                         nsIAtom *aIDRefsAttr,
-                                         nsIArray **aElements)
-{
-  *aElements = nsnull;
-
-  nsAutoString id;
-  if (!GetID(aContent, id))
-    return;
-
-  nsCAutoString idWithSpaces(' ');
-  LossyAppendUTF16toASCII(id, idWithSpaces);
-  idWithSpaces += ' ';
-
-  nsCOMPtr<nsIMutableArray> elms = do_CreateInstance(NS_ARRAY_CONTRACTID);
-  if (!elms)
-    return;
-
-  GetElementsHavingIDRefsAttrImpl(aRootContent, idWithSpaces, aIDRefsAttr,
-                                  elms);
-  NS_ADDREF(*aElements = elms);
-}
-
-void
-nsCoreUtils::GetElementsHavingIDRefsAttrImpl(nsIContent *aRootContent,
-                                             nsCString& aIdWithSpaces,
-                                             nsIAtom *aIDRefsAttr,
-                                             nsIMutableArray *aElements)
-{
-  PRUint32 childCount = aRootContent->GetChildCount();
-  for (PRUint32 index = 0; index < childCount; index++) {
-    nsIContent* child = aRootContent->GetChildAt(index);
-    nsAutoString idList;
-    if (child->GetAttr(kNameSpaceID_None, aIDRefsAttr, idList)) {
-      idList.Insert(' ', 0);  // Surround idlist with spaces for search
-      idList.Append(' ');
-      // idList is now a set of id's with spaces around each, and id also has
-      // spaces around it. If id is a substring of idList then we have a match.
-      if (idList.Find(aIdWithSpaces) != -1) {
-        aElements->AppendElement(child, PR_FALSE);
-        continue; // Do not search inside children.
-      }
-    }
-    GetElementsHavingIDRefsAttrImpl(child, aIdWithSpaces,
-                                    aIDRefsAttr, aElements);
-  }
-}
-
-void
+already_AddRefed<nsIDOMCSSStyleDeclaration>
 nsCoreUtils::GetComputedStyleDeclaration(const nsAString& aPseudoElt,
-                                         nsIDOMNode *aNode,
-                                         nsIDOMCSSStyleDeclaration **aCssDecl)
+                                         nsIContent *aContent)
 {
-  *aCssDecl = nsnull;
-
-  nsCOMPtr<nsIDOMElement> domElement = GetDOMElementFor(aNode);
-  if (!domElement)
-    return;
+  nsIContent* content = GetDOMElementFor(aContent);
+  if (!content)
+    return nsnull;
 
   // Returns number of items in style declaration
-  nsCOMPtr<nsIContent> content = do_QueryInterface(domElement);
-  nsCOMPtr<nsIDocument> doc = content->GetDocument();
-  if (!doc)
-    return;
+  nsIDocument* document = content->GetOwnerDoc();
+  if (!document)
+    return nsnull;
 
-  nsCOMPtr<nsIDOMViewCSS> viewCSS(do_QueryInterface(doc->GetWindow()));
+  nsCOMPtr<nsIDOMViewCSS> viewCSS(do_QueryInterface(document->GetWindow()));
   if (!viewCSS)
-    return;
+    return nsnull;
 
-  viewCSS->GetComputedStyle(domElement, aPseudoElt, aCssDecl);
+  nsIDOMCSSStyleDeclaration* cssDecl = nsnull;
+  nsCOMPtr<nsIDOMElement> domElement(do_QueryInterface(content));
+  viewCSS->GetComputedStyle(domElement, aPseudoElt, &cssDecl);
+  return cssDecl;
 }
 
 already_AddRefed<nsIBoxObject>
@@ -962,36 +623,28 @@ nsCoreUtils::GetTreeBodyBoxObject(nsITreeBoxObject *aTreeBoxObj)
   return boxObj;
 }
 
-void
-nsCoreUtils::GetTreeBoxObject(nsIDOMNode *aDOMNode,
-                              nsITreeBoxObject **aBoxObject)
+already_AddRefed<nsITreeBoxObject>
+nsCoreUtils::GetTreeBoxObject(nsIContent *aContent)
 {
-  nsAutoString name;
-  nsCOMPtr<nsIDOMNode> parentNode, currentNode;
-  
   // Find DOMNode's parents recursively until reach the <tree> tag
-  currentNode = aDOMNode;
-  while (currentNode) {
-    currentNode->GetLocalName(name);
-    if (name.EqualsLiteral("tree")) {
+  nsIContent* currentContent = aContent;
+  while (currentContent) {
+    if (currentContent->NodeInfo()->Equals(nsAccessibilityAtoms::tree,
+                                           kNameSpaceID_XUL)) {
       // We will get the nsITreeBoxObject from the tree node
-      nsCOMPtr<nsIDOMXULElement> xulElement(do_QueryInterface(currentNode));
+      nsCOMPtr<nsIDOMXULElement> xulElement(do_QueryInterface(currentContent));
       if (xulElement) {
         nsCOMPtr<nsIBoxObject> box;
         xulElement->GetBoxObject(getter_AddRefs(box));
         nsCOMPtr<nsITreeBoxObject> treeBox(do_QueryInterface(box));
-        if (treeBox) {
-          *aBoxObject = treeBox;
-          NS_ADDREF(*aBoxObject);
-          return;
-        }
+        if (treeBox)
+          return treeBox.forget();
       }
     }
-    currentNode->GetParentNode(getter_AddRefs(parentNode));
-    currentNode = parentNode;
+    currentContent = currentContent->GetParent();
   }
-  
-  *aBoxObject = nsnull;
+
+  return nsnull;
 }
 
 already_AddRefed<nsITreeColumn>
@@ -1027,7 +680,7 @@ nsCoreUtils::GetLastSensibleColumn(nsITreeBoxObject *aTree)
 }
 
 PRUint32
-nsCoreUtils::GetSensiblecolumnCount(nsITreeBoxObject *aTree)
+nsCoreUtils::GetSensibleColumnCount(nsITreeBoxObject *aTree)
 {
   PRUint32 count = 0;
 
@@ -1106,4 +759,154 @@ nsCoreUtils::IsColumnHidden(nsITreeColumn *aColumn)
   nsCOMPtr<nsIContent> content = do_QueryInterface(element);
   return content->AttrValueIs(kNameSpaceID_None, nsAccessibilityAtoms::hidden,
                               nsAccessibilityAtoms::_true, eCaseMatters);
+}
+
+void
+nsCoreUtils::GeneratePopupTree(nsIContent *aContent, PRBool aIsAnon)
+{
+  // Set menugenerated="true" on the menupopup node to generate the sub-menu
+  // items if they have not been generated.
+
+  nsCOMPtr<nsIDOMNodeList> list;
+  if (aIsAnon) {    
+    nsIDocument* document = aContent->GetCurrentDoc();
+    if (document)
+      document->GetXBLChildNodesFor(aContent, getter_AddRefs(list));
+
+  } else {
+    list = aContent->GetChildNodesList();
+  }
+
+  PRUint32 length = 0;
+  if (!list || NS_FAILED(list->GetLength(&length)))
+    return;
+
+  for (PRUint32 idx = 0; idx < length; idx++) {
+    nsCOMPtr<nsIDOMNode> childNode;
+    list->Item(idx, getter_AddRefs(childNode));
+    nsCOMPtr<nsIContent> child(do_QueryInterface(childNode));
+
+    PRBool isPopup = child->NodeInfo()->Equals(nsAccessibilityAtoms::menupopup,
+                                               kNameSpaceID_XUL) ||
+                     child->NodeInfo()->Equals(nsAccessibilityAtoms::panel,
+                                               kNameSpaceID_XUL);
+    if (isPopup && !child->AttrValueIs(kNameSpaceID_None,
+                                       nsAccessibilityAtoms::menugenerated,
+                                       nsAccessibilityAtoms::_true,
+                                       eCaseMatters)) {
+
+      child->SetAttr(kNameSpaceID_None, nsAccessibilityAtoms::menugenerated,
+                     NS_LITERAL_STRING("true"), PR_TRUE);
+      return;
+    }
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// nsAccessibleDOMStringList
+////////////////////////////////////////////////////////////////////////////////
+
+NS_IMPL_ISUPPORTS1(nsAccessibleDOMStringList, nsIDOMDOMStringList)
+
+NS_IMETHODIMP
+nsAccessibleDOMStringList::Item(PRUint32 aIndex, nsAString& aResult)
+{
+  if (aIndex >= mNames.Length())
+    SetDOMStringToNull(aResult);
+  else
+    aResult = mNames.ElementAt(aIndex);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccessibleDOMStringList::GetLength(PRUint32 *aLength)
+{
+  *aLength = mNames.Length();
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccessibleDOMStringList::Contains(const nsAString& aString, PRBool *aResult)
+{
+  *aResult = mNames.Contains(aString);
+
+  return NS_OK;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// IDRefsIterator
+////////////////////////////////////////////////////////////////////////////////
+
+IDRefsIterator::IDRefsIterator(nsIContent* aContent, nsIAtom* aIDRefsAttr) :
+  mCurrIdx(0)
+{
+  if (!aContent->IsInDoc() ||
+      !aContent->GetAttr(kNameSpaceID_None, aIDRefsAttr, mIDs))
+    return;
+
+  if (aContent->IsInAnonymousSubtree()) {
+    mXBLDocument = do_QueryInterface(aContent->GetOwnerDoc());
+    mBindingParent = do_QueryInterface(aContent->GetBindingParent());
+  } else {
+    mDocument = aContent->GetOwnerDoc();
+  }
+}
+
+const nsDependentSubstring
+IDRefsIterator::NextID()
+{
+  for (; mCurrIdx < mIDs.Length(); mCurrIdx++) {
+    if (!NS_IsAsciiWhitespace(mIDs[mCurrIdx]))
+      break;
+  }
+
+  if (mCurrIdx >= mIDs.Length())
+    return nsDependentSubstring();
+
+  nsAString::index_type idStartIdx = mCurrIdx;
+  while (++mCurrIdx < mIDs.Length()) {
+    if (NS_IsAsciiWhitespace(mIDs[mCurrIdx]))
+      break;
+  }
+
+  return Substring(mIDs, idStartIdx, mCurrIdx++ - idStartIdx);
+}
+
+nsIContent*
+IDRefsIterator::NextElem()
+{
+  while (true) {
+    const nsDependentSubstring id = NextID();
+    if (id.IsEmpty())
+      break;
+
+    nsIContent* refContent = GetElem(id);
+    if (refContent)
+      return refContent;
+  }
+
+  return nsnull;
+}
+
+nsIContent*
+IDRefsIterator::GetElem(const nsDependentSubstring& aID)
+{
+  if (mXBLDocument) {
+    // If content is anonymous subtree then use "anonid" attribute to get
+    // elements, otherwise search elements in DOM by ID attribute.
+
+    nsCOMPtr<nsIDOMElement> refElm;
+    mXBLDocument->GetAnonymousElementByAttribute(mBindingParent,
+                                                 NS_LITERAL_STRING("anonid"),
+                                                 aID,
+                                                 getter_AddRefs(refElm));
+    nsCOMPtr<nsIContent> refContent = do_QueryInterface(refElm);
+    return refContent;
+  }
+
+  return mDocument->GetElementById(aID);
 }

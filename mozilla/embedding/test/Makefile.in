@@ -46,8 +46,12 @@ include $(topsrcdir)/config/rules.mk
 _TEST_FILES = \
 	test_bug293834.html \
 	bug293834_form.html \
+	320x240.ogv \
+	test_bug449141.html \
+	bug449141_page.html \
 	test_bug499115.html \
 	test_nsFind.html \
+	test_window_open_units.html \
 	$(NULL)
 
 libs:: $(_TEST_FILES)

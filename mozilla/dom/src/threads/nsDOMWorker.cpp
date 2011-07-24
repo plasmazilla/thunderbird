@@ -1,4 +1,4 @@
-/* -*- Mode: c++; c-basic-offset: 4; indent-tabs-mode: nil; tab-width: 40 -*- */
+/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -43,18 +43,22 @@
 #include "nsIJSRuntimeService.h"
 #include "nsIXPConnect.h"
 
+#include "jscntxt.h"
 #ifdef MOZ_SHARK
 #include "jsdbgapi.h"
 #endif
-#include "nsAutoLock.h"
+#include "nsAtomicRefcnt.h"
 #include "nsAXPCNativeCallContext.h"
 #include "nsContentUtils.h"
+#include "nsDOMClassInfo.h"
 #include "nsDOMClassInfoID.h"
 #include "nsGlobalWindow.h"
 #include "nsJSON.h"
 #include "nsJSUtils.h"
 #include "nsProxyRelease.h"
 #include "nsThreadUtils.h"
+#include "nsNativeCharsetUtils.h"
+#include "xpcprivate.h"
 
 #include "nsDOMThreadService.h"
 #include "nsDOMWorkerEvents.h"
@@ -65,70 +69,167 @@
 #include "nsDOMWorkerTimeout.h"
 #include "nsDOMWorkerXHR.h"
 
+using namespace mozilla;
+
+class TestComponentThreadsafetyRunnable : public nsIRunnable
+{
+public:
+  NS_DECL_ISUPPORTS
+
+  TestComponentThreadsafetyRunnable(const nsACString& aContractId,
+                                    PRBool aService)
+  : mContractId(aContractId),
+    mService(aService),
+    mIsThreadsafe(PR_FALSE)
+  { }
+
+  NS_IMETHOD Run()
+  {
+    NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+
+    nsresult rv;
+    nsCOMPtr<nsISupports> instance;
+    if (mService) {
+      instance = do_GetService(mContractId.get(), &rv);
+    }
+    else {
+      instance = do_CreateInstance(mContractId.get(), &rv);
+    }
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIClassInfo> classInfo = do_QueryInterface(instance, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    PRUint32 flags;
+    rv = classInfo->GetFlags(&flags);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    mIsThreadsafe = !!(flags & nsIClassInfo::THREADSAFE);
+    return NS_OK;
+  }
+
+  PRBool IsThreadsafe()
+  {
+    NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+    return mIsThreadsafe;
+  }
+
+private:
+  nsCString mContractId;
+  PRBool mService;
+  PRBool mIsThreadsafe;
+};
+
+NS_IMPL_THREADSAFE_ISUPPORTS1(TestComponentThreadsafetyRunnable, nsIRunnable)
+
 class nsDOMWorkerFunctions
 {
 public:
+  typedef nsDOMWorker::WorkerPrivilegeModel WorkerPrivilegeModel;
+
   // Same as window.dump().
-  static JSBool Dump(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                     jsval* aArgv, jsval* aRval);
+  static JSBool
+  Dump(JSContext* aCx, uintN aArgc, jsval* aVp);
 
   // Same as window.setTimeout().
-  static JSBool SetTimeout(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                           jsval* aArgv, jsval* aRval) {
-    return MakeTimeout(aCx, aObj, aArgc, aArgv, aRval, PR_FALSE);
+  static JSBool
+  SetTimeout(JSContext* aCx, uintN aArgc, jsval* aVp) {
+    return MakeTimeout(aCx, aArgc, aVp, PR_FALSE);
   }
 
   // Same as window.setInterval().
-  static JSBool SetInterval(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                            jsval* aArgv, jsval* aRval) {
-    return MakeTimeout(aCx, aObj, aArgc, aArgv, aRval, PR_TRUE);
+  static JSBool
+  SetInterval(JSContext* aCx, uintN aArgc, jsval* aVp) {
+    return MakeTimeout(aCx, aArgc, aVp, PR_TRUE);
   }
 
   // Used for both clearTimeout() and clearInterval().
-  static JSBool KillTimeout(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                            jsval* aArgv, jsval* aRval);
+  static JSBool
+  KillTimeout(JSContext* aCx, uintN aArgc, jsval* aVp);
 
-  static JSBool LoadScripts(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                            jsval* aArgv, jsval* aRval);
+  static JSBool
+  LoadScripts(JSContext* aCx, uintN aArgc, jsval* aVp);
 
-  static JSBool NewXMLHttpRequest(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                                  jsval* aArgv, jsval* aRval);
+  static JSBool
+  NewXMLHttpRequest(JSContext* aCx, uintN aArgc, jsval* aVp);
 
-  static JSBool NewWorker(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                          jsval* aArgv, jsval* aRval);
+  static JSBool
+  NewWorker(JSContext* aCx, uintN aArgc, jsval* aVp) {
+    return MakeNewWorker(aCx, aArgc, aVp, nsDOMWorker::CONTENT);
+  }
+
+  static JSBool
+  AtoB(JSContext* aCx, uintN aArgc, jsval* aVp);
+
+  static JSBool
+  BtoA(JSContext* aCx, uintN aArgc, jsval* aVp);
+
+  // Chrome-only functions
+  static JSBool
+  NewChromeWorker(JSContext* aCx, uintN aArgc, jsval* aVp);
+
+  static JSBool
+  XPCOMLazyGetter(JSContext* aCx, JSObject* aObj, jsid aId, jsval* aVp);
+
+  static JSBool
+  CreateInstance(JSContext* aCx, uintN aArgc, jsval* aVp) {
+    return GetInstanceCommon(aCx, aArgc, aVp, PR_FALSE);
+  }
+
+  static JSBool
+  GetService(JSContext* aCx, uintN aArgc, jsval* aVp) {
+    return GetInstanceCommon(aCx, aArgc, aVp, PR_TRUE);
+  }
+
+#ifdef BUILD_CTYPES
+  static JSBool
+  CTypesLazyGetter(JSContext* aCx, JSObject* aObj, jsid aId, jsval* aVp);
+#endif
 
 private:
   // Internal helper for SetTimeout and SetInterval.
-  static JSBool MakeTimeout(JSContext* aCx, JSObject* aObj, uintN aArgc,
-                            jsval* aArgv, jsval* aRval, PRBool aIsInterval);
+  static JSBool
+  MakeTimeout(JSContext* aCx, uintN aArgc, jsval* aVp, PRBool aIsInterval);
+
+  static JSBool
+  MakeNewWorker(JSContext* aCx, uintN aArgc, jsval* aVp,
+                WorkerPrivilegeModel aPrivilegeModel);
+
+  static JSBool
+  GetInstanceCommon(JSContext* aCx, uintN aArgc, jsval* aVp, PRBool aService);
+};
+
+JSFunctionSpec gDOMWorkerXPCOMFunctions[] = {
+  {"createInstance", nsDOMWorkerFunctions::CreateInstance, 1, JSPROP_ENUMERATE},
+  {"getService",     nsDOMWorkerFunctions::GetService,     1, JSPROP_ENUMERATE},
+  { nsnull,          nsnull,                               0, 0 }
 };
 
 JSBool
 nsDOMWorkerFunctions::Dump(JSContext* aCx,
-                           JSObject* /* aObj */,
                            uintN aArgc,
-                           jsval* aArgv,
-                           jsval* /* aRval */)
+                           jsval* aVp)
 {
+  JS_SET_RVAL(cx, aVp, JSVAL_VOID);
   if (!nsGlobalWindow::DOMWindowDumpEnabled()) {
     return JS_TRUE;
   }
 
   JSString* str;
-  if (aArgc && (str = JS_ValueToString(aCx, aArgv[0])) && str) {
-    nsDependentJSString string(str);
-    fputs(NS_ConvertUTF16toUTF8(nsDependentJSString(str)).get(), stderr);
-    fflush(stderr);
+  if (aArgc && (str = JS_ValueToString(aCx, JS_ARGV(aCx, aVp)[0])) && str) {
+    nsDependentJSString depStr;
+    if (depStr.init(aCx, str)) {
+      fputs(NS_ConvertUTF16toUTF8(depStr).get(), stderr);
+      fflush(stderr);
+    }
   }
   return JS_TRUE;
 }
 
 JSBool
 nsDOMWorkerFunctions::MakeTimeout(JSContext* aCx,
-                                  JSObject* /* aObj */,
                                   uintN aArgc,
-                                  jsval* aArgv,
-                                  jsval* aRval,
+                                  jsval* aVp,
                                   PRBool aIsInterval)
 {
   nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
@@ -142,7 +243,7 @@ nsDOMWorkerFunctions::MakeTimeout(JSContext* aCx,
 
   if (worker->IsClosing()) {
     // Timeouts won't run in the close handler, fake success and bail.
-    *aRval = INT_TO_JSVAL(id);
+    JS_SET_RVAL(aCx, aVp, INT_TO_JSVAL(id));
     return JS_TRUE;
   }
 
@@ -152,7 +253,7 @@ nsDOMWorkerFunctions::MakeTimeout(JSContext* aCx,
     return JS_FALSE;
   }
 
-  nsresult rv = timeout->Init(aCx, aArgc, aArgv, aIsInterval);
+  nsresult rv = timeout->Init(aCx, aArgc, JS_ARGV(aCx, aVp), aIsInterval);
   if (NS_FAILED(rv)) {
     JS_ReportError(aCx, "Failed to initialize timeout!");
     return JS_FALSE;
@@ -170,16 +271,14 @@ nsDOMWorkerFunctions::MakeTimeout(JSContext* aCx,
     return JS_FALSE;
   }
 
-  *aRval = INT_TO_JSVAL(id);
+  JS_SET_RVAL(aCx, aVp, INT_TO_JSVAL(id));
   return JS_TRUE;
 }
 
 JSBool
 nsDOMWorkerFunctions::KillTimeout(JSContext* aCx,
-                                  JSObject* /* aObj */,
                                   uintN aArgc,
-                                  jsval* aArgv,
-                                  jsval* /* aRval */)
+                                  jsval* aVp)
 {
   nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
   NS_ASSERTION(worker, "This should be set by the DOM thread service!");
@@ -194,21 +293,20 @@ nsDOMWorkerFunctions::KillTimeout(JSContext* aCx,
   }
 
   uint32 id;
-  if (!JS_ValueToECMAUint32(aCx, aArgv[0], &id)) {
+  if (!JS_ValueToECMAUint32(aCx, JS_ARGV(aCx, aVp)[0], &id)) {
     JS_ReportError(aCx, "First argument must be a timeout id");
     return JS_FALSE;
   }
 
   worker->CancelTimeoutWithId(PRUint32(id));
+  JS_SET_RVAL(aCx, aVp, JSVAL_VOID);
   return JS_TRUE;
 }
 
 JSBool
 nsDOMWorkerFunctions::LoadScripts(JSContext* aCx,
-                                  JSObject* /* aObj */,
                                   uintN aArgc,
-                                  jsval* aArgv,
-                                  jsval* /* aRval */)
+                                  jsval* aVp)
 {
   nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
   NS_ASSERTION(worker, "This should be set by the DOM thread service!");
@@ -229,8 +327,9 @@ nsDOMWorkerFunctions::LoadScripts(JSContext* aCx,
     return JS_FALSE;
   }
 
+  jsval* argv = JS_ARGV(aCx, aVp);
   for (uintN index = 0; index < aArgc; index++) {
-    jsval val = aArgv[index];
+    jsval val = argv[index];
 
     if (!JSVAL_IS_STRING(val)) {
       JS_ReportError(aCx, "Argument %d must be a string", index);
@@ -246,7 +345,12 @@ nsDOMWorkerFunctions::LoadScripts(JSContext* aCx,
     nsString* newURL = urls.AppendElement();
     NS_ASSERTION(newURL, "Shouldn't fail if SetCapacity succeeded above!");
 
-    newURL->Assign(nsDependentJSString(str));
+    nsDependentJSString depStr;
+    if (!depStr.init(aCx, str)) {
+      return JS_FALSE;
+    }
+
+    newURL->Assign(depStr);
   }
 
   nsRefPtr<nsDOMWorkerScriptLoader> loader =
@@ -262,7 +366,7 @@ nsDOMWorkerFunctions::LoadScripts(JSContext* aCx,
     return JS_FALSE;
   }
 
-  rv = loader->LoadScripts(aCx, urls, PR_FALSE);
+  rv = loader->LoadScripts(aCx, urls, PR_TRUE);
   if (NS_FAILED(rv)) {
     if (!JS_IsExceptionPending(aCx)) {
       JS_ReportError(aCx, "Failed to load scripts");
@@ -270,16 +374,20 @@ nsDOMWorkerFunctions::LoadScripts(JSContext* aCx,
     return JS_FALSE;
   }
 
+  JS_SET_RVAL(aCx, aVp, JSVAL_VOID);
   return JS_TRUE;
 }
 
 JSBool
 nsDOMWorkerFunctions::NewXMLHttpRequest(JSContext* aCx,
-                                        JSObject* aObj,
                                         uintN aArgc,
-                                        jsval* /* aArgv */,
-                                        jsval* aRval)
+                                        jsval* aVp)
 {
+  JSObject *obj = JS_THIS_OBJECT(aCx, aVp);
+  if (!obj) {
+    return JS_FALSE;
+  }
+
   nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
   NS_ASSERTION(worker, "This should be set by the DOM thread service!");
 
@@ -310,34 +418,252 @@ nsDOMWorkerFunctions::NewXMLHttpRequest(JSContext* aCx,
     return JS_FALSE;
   }
 
-  nsIXPConnect* xpc = nsContentUtils::XPConnect();
-
   nsCOMPtr<nsIXPConnectJSObjectHolder> xhrWrapped;
-  rv = xpc->WrapNative(aCx, aObj, static_cast<nsIXMLHttpRequest*>(xhr),
-                       NS_GET_IID(nsISupports), getter_AddRefs(xhrWrapped));
+  jsval v;
+  rv = nsContentUtils::WrapNative(aCx, obj,
+                                  static_cast<nsIXMLHttpRequest*>(xhr), &v,
+                                  getter_AddRefs(xhrWrapped));
   if (NS_FAILED(rv)) {
     JS_ReportError(aCx, "Failed to wrap XMLHttpRequest!");
     return JS_FALSE;
   }
 
-  JSObject* xhrJSObj;
-  rv = xhrWrapped->GetJSObject(&xhrJSObj);
-  if (NS_FAILED(rv)) {
-    JS_ReportError(aCx, "Failed to get JSObject from wrapper!");
-    return JS_FALSE;
-  }
-
-  *aRval = OBJECT_TO_JSVAL(xhrJSObj);
+  JS_SET_RVAL(aCs, aVp, v);
   return JS_TRUE;
 }
 
 JSBool
-nsDOMWorkerFunctions::NewWorker(JSContext* aCx,
-                                JSObject* aObj,
-                                uintN aArgc,
-                                jsval* aArgv,
-                                jsval* aRval)
+nsDOMWorkerFunctions::AtoB(JSContext* aCx,
+                           uintN aArgc,
+                           jsval* aVp)
 {
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+
+  if (worker->IsCanceled()) {
+    return JS_FALSE;
+  }
+
+  if (!aArgc) {
+    JS_ReportError(aCx, "Function requires at least 1 parameter");
+    return JS_FALSE;
+  }
+
+  return nsXPConnect::Base64Decode(aCx, JS_ARGV(aCx, aVp)[0],
+                                   &JS_RVAL(aCx, aVp));
+}
+
+JSBool
+nsDOMWorkerFunctions::BtoA(JSContext* aCx,
+                           uintN aArgc,
+                           jsval* aVp)
+{
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+
+  if (worker->IsCanceled()) {
+    return JS_FALSE;
+  }
+
+  if (!aArgc) {
+    JS_ReportError(aCx, "Function requires at least 1 parameter");
+    return JS_FALSE;
+  }
+
+  return nsXPConnect::Base64Encode(aCx, JS_ARGV(aCx, aVp)[0],
+                                   &JS_RVAL(aCx, aVp));
+}
+
+JSBool
+nsDOMWorkerFunctions::NewChromeWorker(JSContext* aCx,
+                                      uintN aArgc,
+                                      jsval* aVp)
+{
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+
+  if (!worker->IsPrivileged()) {
+    JS_ReportError(aCx, "Cannot create a priviliged worker!");
+    return JS_FALSE;
+  }
+
+  return MakeNewWorker(aCx, aArgc, aVp, nsDOMWorker::CHROME);
+}
+
+JSBool
+nsDOMWorkerFunctions::XPCOMLazyGetter(JSContext* aCx,
+                                      JSObject* aObj,
+                                      jsid aId,
+                                      jsval* aVp)
+{
+#ifdef DEBUG
+  {
+    NS_ASSERTION(JS_GetGlobalForObject(aCx, aObj) == aObj, "Bad object!");
+    NS_ASSERTION(JSID_IS_STRING(aId), "Not a string!");
+    NS_ASSERTION(nsDependentJSString(aId).EqualsLiteral("XPCOM"), "Bad id!");
+  }
+#endif
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+
+  if (worker->IsCanceled()) {
+    return JS_FALSE;
+  }
+
+  PRUint16 dummy;
+  nsCOMPtr<nsIXPCSecurityManager> secMan;
+  nsContentUtils::XPConnect()->
+    GetSecurityManagerForJSContext(aCx, getter_AddRefs(secMan), &dummy);
+  if (!secMan) {
+    JS_ReportError(aCx, "Could not get security manager!");
+    return JS_FALSE;
+  }
+
+  nsCID dummyCID;
+  if (NS_FAILED(secMan->CanGetService(aCx, dummyCID))) {
+    JS_ReportError(aCx, "Access to the XPCOM object is denied!");
+    return JS_FALSE;
+  }
+
+  JSObject* xpcom = JS_NewObject(aCx, nsnull, nsnull, nsnull);
+  NS_ENSURE_TRUE(xpcom, JS_FALSE);
+
+  JSBool ok = JS_DefineFunctions(aCx, xpcom, gDOMWorkerXPCOMFunctions);
+  NS_ENSURE_TRUE(ok, JS_FALSE);
+
+  ok = JS_DeletePropertyById(aCx, aObj, aId);
+  NS_ENSURE_TRUE(ok, JS_FALSE);
+
+  jsval xpcomVal = OBJECT_TO_JSVAL(xpcom);
+  ok = JS_SetPropertyById(aCx, aObj, aId, &xpcomVal);
+  NS_ENSURE_TRUE(ok, JS_FALSE);
+
+  JS_SET_RVAL(aCx, aVp, xpcomVal);
+  return JS_TRUE;
+}
+
+JSBool
+nsDOMWorkerFunctions::GetInstanceCommon(JSContext* aCx,
+                                        uintN aArgc,
+                                        jsval* aVp,
+                                        PRBool aService)
+{
+  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+
+  if (worker->IsCanceled()) {
+    return JS_FALSE;
+  }
+
+  if (!aArgc) {
+    JS_ReportError(aCx, "Function requires at least 1 parameter");
+    return JS_FALSE;
+  }
+
+  JSString* str = JS_ValueToString(aCx, JS_ARGV(aCx, aVp)[0]);
+  if (!str) {
+    NS_ASSERTION(JS_IsExceptionPending(aCx), "Need to set an exception!");
+    return JS_FALSE;
+  }
+
+  JSAutoByteString strBytes(aCx, str);
+  if (!strBytes) {
+    NS_ASSERTION(JS_IsExceptionPending(aCx), "Need to set an exception!");
+    return JS_FALSE;
+  }
+
+  nsDependentCString contractId(strBytes.ptr(), JS_GetStringLength(str));
+
+  nsDOMThreadService* threadService = nsDOMThreadService::get();
+
+  ThreadsafeStatus status =
+    threadService->GetContractIdThreadsafeStatus(contractId);
+
+  if (status == Unknown) {
+    nsCOMPtr<nsIThread> mainThread;
+    nsresult rv = NS_GetMainThread(getter_AddRefs(mainThread));
+    if (NS_FAILED(rv)) {
+      JS_ReportError(aCx, "Failed to get main thread!");
+      return JS_FALSE;
+    }
+
+    nsRefPtr<TestComponentThreadsafetyRunnable> runnable =
+      new TestComponentThreadsafetyRunnable(contractId, aService);
+
+    rv = mainThread->Dispatch(runnable, NS_DISPATCH_SYNC);
+    if (NS_FAILED(rv)) {
+      JS_ReportError(aCx, "Failed to check threadsafety!");
+      return JS_FALSE;
+    }
+
+    // The worker may have been canceled while waiting above. Check again.
+    if (worker->IsCanceled()) {
+      return JS_FALSE;
+    }
+
+    if (runnable->IsThreadsafe()) {
+      threadService->NoteThreadsafeContractId(contractId, PR_TRUE);
+      status = Threadsafe;
+    }
+    else {
+      threadService->NoteThreadsafeContractId(contractId, PR_FALSE);
+      status = NotThreadsafe;
+    }
+  }
+
+  if (status == NotThreadsafe) {
+    JS_ReportError(aCx, "ChromeWorker may not create an XPCOM object that is "
+                   "not threadsafe!");
+    return JS_FALSE;
+  }
+
+  nsCOMPtr<nsISupports> instance;
+  if (aService) {
+    instance = do_GetService(contractId.get());
+    if (!instance) {
+      JS_ReportError(aCx, "Could not get the service!");
+      return JS_FALSE;
+    }
+  }
+  else {
+    instance = do_CreateInstance(contractId.get());
+    if (!instance) {
+      JS_ReportError(aCx, "Could not create the instance!");
+      return JS_FALSE;
+    }
+  }
+
+  JSObject* global = JS_GetGlobalForObject(aCx, JS_GetScopeChain(aCx));
+  if (!global) {
+    NS_ASSERTION(JS_IsExceptionPending(aCx), "Need to set an exception!");
+    return JS_FALSE;
+  }
+
+  jsval val;
+  nsCOMPtr<nsIXPConnectJSObjectHolder> wrapper;
+  if (NS_FAILED(nsContentUtils::WrapNative(aCx, global, instance, &val,
+                                           getter_AddRefs(wrapper)))) {
+    JS_ReportError(aCx, "Failed to wrap object!");
+    return JS_FALSE;
+  }
+
+  JS_SET_RVAL(aCx, aVp, val);
+  return JS_TRUE;
+}
+
+JSBool
+nsDOMWorkerFunctions::MakeNewWorker(JSContext* aCx,
+                                    uintN aArgc,
+                                    jsval* aVp,
+                                    WorkerPrivilegeModel aPrivilegeModel)
+{
+  JSObject *obj = JS_THIS_OBJECT(aCx, aVp);
+  if (!obj) {
+    return JS_FALSE;
+  }
+
   nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
   NS_ASSERTION(worker, "This should be set by the DOM thread service!");
 
@@ -353,10 +679,6 @@ nsDOMWorkerFunctions::NewWorker(JSContext* aCx,
   // This pointer is protected by our pool, but it is *not* threadsafe and must
   // not be used in any way other than to pass it along to the Initialize call.
   nsIScriptGlobalObject* owner = worker->Pool()->ScriptGlobalObject();
-  if (!owner) {
-    JS_ReportError(aCx, "Couldn't get owner from pool!");
-    return JS_FALSE;
-  }
 
   nsCOMPtr<nsIXPConnectWrappedNative> wrappedWorker =
     worker->GetWrappedNative();
@@ -365,154 +687,169 @@ nsDOMWorkerFunctions::NewWorker(JSContext* aCx,
     return JS_FALSE;
   }
 
-  nsRefPtr<nsDOMWorker> newWorker = new nsDOMWorker(worker, wrappedWorker);
+  nsRefPtr<nsDOMWorker> newWorker =
+    new nsDOMWorker(worker, wrappedWorker, aPrivilegeModel);
   if (!newWorker) {
     JS_ReportOutOfMemory(aCx);
     return JS_FALSE;
   }
 
-  nsresult rv = newWorker->InitializeInternal(owner, aCx, aObj, aArgc, aArgv);
+  nsresult rv = newWorker->InitializeInternal(owner, aCx, obj, aArgc,
+                                              JS_ARGV(aCx, aVp));
   if (NS_FAILED(rv)) {
     JS_ReportError(aCx, "Couldn't initialize new worker!");
     return JS_FALSE;
   }
 
-  nsIXPConnect* xpc = nsContentUtils::XPConnect();
-
   nsCOMPtr<nsIXPConnectJSObjectHolder> workerWrapped;
-  rv = xpc->WrapNative(aCx, aObj, static_cast<nsIWorker*>(newWorker),
-                       NS_GET_IID(nsISupports), getter_AddRefs(workerWrapped));
+  jsval v;
+  rv = nsContentUtils::WrapNative(aCx, obj, static_cast<nsIWorker*>(newWorker),
+                                  &v, getter_AddRefs(workerWrapped));
   if (NS_FAILED(rv)) {
     JS_ReportError(aCx, "Failed to wrap new worker!");
     return JS_FALSE;
   }
 
-  JSObject* workerJSObj;
-  rv = workerWrapped->GetJSObject(&workerJSObj);
-  if (NS_FAILED(rv)) {
-    JS_ReportError(aCx, "Failed to get JSObject from wrapper!");
-    return JS_FALSE;
-  }
-
-  *aRval = OBJECT_TO_JSVAL(workerJSObj);
+  JS_SET_RVAL(aCx, aVp, v);
   return JS_TRUE;
 }
 
-JSFunctionSpec gDOMWorkerFunctions[] = {
-  { "dump",                  nsDOMWorkerFunctions::Dump,              1, 0, 0 },
-  { "setTimeout",            nsDOMWorkerFunctions::SetTimeout,        1, 0, 0 },
-  { "clearTimeout",          nsDOMWorkerFunctions::KillTimeout,       1, 0, 0 },
-  { "setInterval",           nsDOMWorkerFunctions::SetInterval,       1, 0, 0 },
-  { "clearInterval",         nsDOMWorkerFunctions::KillTimeout,       1, 0, 0 },
-  { "importScripts",         nsDOMWorkerFunctions::LoadScripts,       1, 0, 0 },
-  { "XMLHttpRequest",        nsDOMWorkerFunctions::NewXMLHttpRequest, 0, 0, 0 },
-  { "Worker",                nsDOMWorkerFunctions::NewWorker,         1, 0, 0 },
-#ifdef MOZ_SHARK
-  { "startShark",            js_StartShark,                           0, 0, 0 },
-  { "stopShark",             js_StopShark,                            0, 0, 0 },
-  { "connectShark",          js_ConnectShark,                         0, 0, 0 },
-  { "disconnectShark",       js_DisconnectShark,                      0, 0, 0 },
-#endif
-  { nsnull,                  nsnull,                                  0, 0, 0 }
-};
-
-static JSBool
-WriteCallback(const jschar* aBuffer,
-              uint32 aLength,
-              void* aData)
+#ifdef BUILD_CTYPES
+static char*
+UnicodeToNative(JSContext *cx, const jschar *source, size_t slen)
 {
-  nsJSONWriter* writer = static_cast<nsJSONWriter*>(aData);
+  nsCAutoString native;
+  nsDependentString unicode(reinterpret_cast<const PRUnichar*>(source), slen);
+  nsresult rv = NS_CopyUnicodeToNative(unicode, native);
+  if (NS_FAILED(rv)) {
+    JS_ReportError(cx, "could not convert string to native charset");
+    return NULL;
+  }
 
-  nsresult rv = writer->Write((const PRUnichar*)aBuffer, (PRUint32)aLength);
-  return NS_SUCCEEDED(rv) ? JS_TRUE : JS_FALSE;
+  char* result = static_cast<char*>(JS_malloc(cx, native.Length() + 1));
+  if (!result)
+    return NULL;
+
+  memcpy(result, native.get(), native.Length() + 1);
+  return result;
 }
 
-static nsresult
-GetStringForArgument(JSContext* aCx,
-                     jsval aVal,
-                     PRBool* aIsJSON,
-                     PRBool* aIsPrimitive,
-                     nsAutoJSValHolder& _retval)
+static JSCTypesCallbacks sCallbacks = {
+  UnicodeToNative
+};
+
+JSBool
+nsDOMWorkerFunctions::CTypesLazyGetter(JSContext* aCx,
+                                       JSObject* aObj,
+                                       jsid aId,
+                                       jsval* aVp)
 {
-  NS_ASSERTION(aIsJSON && aIsPrimitive, "Null pointer!");
+#ifdef DEBUG
+  {
+    NS_ASSERTION(JS_GetGlobalForObject(aCx, aObj) == aObj, "Bad object!");
+    NS_ASSERTION(JSID_IS_STRING(aId), "Not a string!");
+    NS_ASSERTION(nsDependentJSString(aId).EqualsLiteral("ctypes"), "Bad id!");
+  }
+#endif
+  nsDOMWorker* worker = static_cast<nsDOMWorker*>(JS_GetContextPrivate(aCx));
+  NS_ASSERTION(worker, "This should be set by the DOM thread service!");
+  NS_ASSERTION(worker->IsPrivileged(), "This shouldn't be possible!");
 
-  if (JSVAL_IS_STRING(aVal)) {
-    if (!JS_MakeStringImmutable(aCx, JSVAL_TO_STRING(aVal))) {
-      return NS_ERROR_FAILURE;
+  if (worker->IsCanceled()) {
+    return JS_FALSE;
+  }
+
+  jsval ctypes;
+  return JS_DeletePropertyById(aCx, aObj, aId) &&
+         JS_InitCTypesClass(aCx, aObj) &&
+         JS_GetProperty(aCx, aObj, "ctypes", &ctypes) &&
+         JS_SetCTypesCallbacks(aCx, JSVAL_TO_OBJECT(ctypes), &sCallbacks) &&
+         JS_GetPropertyById(aCx, aObj, aId, aVp);
+}
+#endif
+
+JSFunctionSpec gDOMWorkerFunctions[] = {
+  { "dump",                nsDOMWorkerFunctions::Dump,                1, 0 },
+  { "setTimeout",          nsDOMWorkerFunctions::SetTimeout,          1, 0 },
+  { "clearTimeout",        nsDOMWorkerFunctions::KillTimeout,         1, 0 },
+  { "setInterval",         nsDOMWorkerFunctions::SetInterval,         1, 0 },
+  { "clearInterval",       nsDOMWorkerFunctions::KillTimeout,         1, 0 },
+  { "importScripts",       nsDOMWorkerFunctions::LoadScripts,         1, 0 },
+  { "XMLHttpRequest",      nsDOMWorkerFunctions::NewXMLHttpRequest,   0, 0 },
+  { "Worker",              nsDOMWorkerFunctions::NewWorker,           1, 0 },
+  { "atob",                nsDOMWorkerFunctions::AtoB,                1, 0 },
+  { "btoa",                nsDOMWorkerFunctions::BtoA,                1, 0 },
+  { nsnull,                nsnull,                                    0, 0 }
+};
+
+JSFunctionSpec gDOMWorkerChromeFunctions[] = {
+  { "ChromeWorker",        nsDOMWorkerFunctions::NewChromeWorker,     1, 0 },
+  { nsnull,                nsnull,                                    0, 0 }
+};
+
+
+enum DOMWorkerStructuredDataType
+{
+  // We have a special tag for XPCWrappedNatives that are being passed between
+  // threads. This will not work across processes and cannot be persisted. Only
+  // for ChromeWorker use at present.
+  DOMWORKER_SCTAG_WRAPPEDNATIVE = JS_SCTAG_USER_MIN + 0x1000,
+
+  DOMWORKER_SCTAG_END
+};
+
+PR_STATIC_ASSERT(DOMWORKER_SCTAG_END <= JS_SCTAG_USER_MAX);
+
+// static
+JSBool
+WriteStructuredClone(JSContext* aCx,
+                     JSStructuredCloneWriter* aWriter,
+                     JSObject* aObj,
+                     void* aClosure)
+{
+  NS_ASSERTION(aClosure, "Null pointer!");
+
+  // We'll stash any nsISupports pointers that need to be AddRef'd here.
+  nsTArray<nsCOMPtr<nsISupports> >* wrappedNatives =
+    static_cast<nsTArray<nsCOMPtr<nsISupports> >*>(aClosure);
+
+  // See if this is a wrapped native.
+  nsCOMPtr<nsIXPConnectWrappedNative> wrappedNative;
+  nsContentUtils::XPConnect()->
+    GetWrappedNativeOfJSObject(aCx, aObj, getter_AddRefs(wrappedNative));
+  if (wrappedNative) {
+    // Get the raw nsISupports out of it.
+    nsISupports* wrappedObject = wrappedNative->Native();
+    NS_ASSERTION(wrappedObject, "Null pointer?!");
+
+    // See if this nsISupports is threadsafe.
+    nsCOMPtr<nsIClassInfo> classInfo = do_QueryInterface(wrappedObject);
+    if (classInfo) {
+      PRUint32 flags;
+      if (NS_SUCCEEDED(classInfo->GetFlags(&flags)) &&
+          (flags & nsIClassInfo::THREADSAFE)) {
+        // Write the raw pointer into the stream, and add it to the list we're
+        // building.
+        return JS_WriteUint32Pair(aWriter, DOMWORKER_SCTAG_WRAPPEDNATIVE, 0) &&
+               JS_WriteBytes(aWriter, &wrappedObject, sizeof(wrappedObject)) &&
+               wrappedNatives->AppendElement(wrappedObject);
+      }
     }
-
-    *aIsJSON = *aIsPrimitive = PR_FALSE;
-    _retval = aVal;
-    return NS_OK;
   }
 
-  nsAutoJSValHolder jsonVal;
-
-  JSBool ok = jsonVal.Hold(aCx);
-  NS_ENSURE_TRUE(ok, NS_ERROR_FAILURE);
-
-  if (JSVAL_IS_PRIMITIVE(aVal)) {
-    // Only objects can be serialized through JSON, currently, so if we've been
-    // given a primitive we set it as a property on a dummy object before
-    // sending it to the serializer.
-    JSObject* obj = JS_NewObject(aCx, NULL, NULL, NULL);
-    NS_ENSURE_TRUE(obj, NS_ERROR_OUT_OF_MEMORY);
-
-    jsonVal = obj;
-
-    ok = JS_DefineProperty(aCx, obj, JSON_PRIMITIVE_PROPNAME, aVal, NULL,
-                           NULL, JSPROP_ENUMERATE);
-    NS_ENSURE_TRUE(ok, NS_ERROR_UNEXPECTED);
-
-    *aIsPrimitive = PR_TRUE;
-  }
-  else {
-    jsonVal = aVal;
-
-    *aIsPrimitive = PR_FALSE;
+  // Something failed above, try using the runtime callbacks instead.
+  const JSStructuredCloneCallbacks* runtimeCallbacks =
+    aCx->runtime->structuredCloneCallbacks;
+  if (runtimeCallbacks) {
+    return runtimeCallbacks->write(aCx, aWriter, aObj, nsnull);
   }
 
-  JSType type;
-  jsval* vp = jsonVal.ToJSValPtr();
-
-  // This may change vp if there is a 'toJSON' function on the object.
-  ok = JS_TryJSON(aCx, vp);
-  if (!(ok && !JSVAL_IS_PRIMITIVE(*vp) &&
-        (type = JS_TypeOfValue(aCx, *vp)) != JSTYPE_FUNCTION &&
-        type != JSTYPE_XML)) {
-    return NS_ERROR_INVALID_ARG;
+  // We can't handle this object, throw an exception if one hasn't been thrown
+  // already.
+  if (!JS_IsExceptionPending(aCx)) {
+    nsDOMClassInfo::ThrowJSException(aCx, NS_ERROR_DOM_DATA_CLONE_ERR);
   }
-
-  // Make sure to hold the new vp in case it changed.
-  jsonVal = *vp;
-
-  nsJSONWriter writer;
-
-  ok = JS_Stringify(aCx, jsonVal.ToJSValPtr(), NULL, JSVAL_NULL, WriteCallback,
-                    &writer);
-  if (!ok) {
-    return NS_ERROR_XPC_BAD_CONVERT_JS;
-  }
-
-  NS_ENSURE_TRUE(writer.DidWrite(), NS_ERROR_UNEXPECTED);
-
-  writer.FlushBuffer();
-
-  _retval = nsDOMThreadService::ShareStringAsJSVal(aCx, writer.mOutputString);
-  if (!JSVAL_IS_STRING(_retval)) {
-    // Yuck, we can't share.
-    const jschar* buf =
-      reinterpret_cast<const jschar*>(writer.mOutputString.get());
-    JSString* str = JS_NewUCStringCopyN(aCx, buf, writer.mOutputString.Length());
-    if (!str) {
-      JS_ReportOutOfMemory(aCx);
-      return NS_ERROR_OUT_OF_MEMORY;
-    }
-    _retval = STRING_TO_JSVAL(str);
-  }
-
-  *aIsJSON = PR_TRUE;
-  return NS_OK;
+  return JS_FALSE;
 }
 
 nsDOMWorkerScope::nsDOMWorkerScope(nsDOMWorker* aWorker)
@@ -528,8 +865,9 @@ NS_IMPL_ISUPPORTS_INHERITED3(nsDOMWorkerScope, nsDOMWorkerMessageHandler,
                                                nsIWorkerGlobalScope,
                                                nsIXPCScriptable)
 
-NS_IMPL_CI_INTERFACE_GETTER4(nsDOMWorkerScope, nsIWorkerScope,
+NS_IMPL_CI_INTERFACE_GETTER5(nsDOMWorkerScope, nsIWorkerScope,
                                                nsIWorkerGlobalScope,
+                                               nsIDOMNSEventTarget,
                                                nsIDOMEventTarget,
                                                nsIXPCScriptable)
 
@@ -616,7 +954,7 @@ NS_IMETHODIMP
 nsDOMWorkerScope::AddProperty(nsIXPConnectWrappedNative* aWrapper,
                               JSContext* aCx,
                               JSObject* aObj,
-                              jsval aId,
+                              jsid aId,
                               jsval* aVp,
                               PRBool* _retval)
 {
@@ -628,21 +966,21 @@ nsDOMWorkerScope::AddProperty(nsIXPConnectWrappedNative* aWrapper,
   // someone making an 'onmessage' or 'onerror' function so aId must be a
   // string and aVp must be a function.
   JSObject* funObj;
-  if (!(JSVAL_IS_STRING(aId) &&
+  if (!(JSID_IS_STRING(aId) &&
         JSVAL_IS_OBJECT(*aVp) &&
         (funObj = JSVAL_TO_OBJECT(*aVp)) &&
         JS_ObjectIsFunction(aCx, funObj))) {
     return NS_OK;
   }
 
-  const char* name = JS_GetStringBytes(JSVAL_TO_STRING(aId));
+  JSFlatString *str = JSID_TO_FLAT_STRING(aId);
 
   // Figure out which listener we're setting.
   SetListenerFunc func;
-  if (!strcmp(name, "onmessage")) {
+  if (JS_FlatStringEqualsAscii(str, "onmessage")) {
     func = &nsDOMWorkerScope::SetOnmessage;
   }
-  else if (!strcmp(name, "onerror")) {
+  else if (JS_FlatStringEqualsAscii(str, "onerror")) {
     func = &nsDOMWorkerScope::SetOnerror;
   }
   else {
@@ -838,14 +1176,7 @@ nsDOMWorkerScope::AddEventListener(const nsAString& aType,
                                    nsIDOMEventListener* aListener,
                                    PRBool aUseCapture)
 {
-  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
-
-  if (mWorker->IsCanceled()) {
-    return NS_ERROR_ABORT;
-  }
-
-  return nsDOMWorkerMessageHandler::AddEventListener(aType, aListener,
-                                                     aUseCapture);
+  return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 0);
 }
 
 NS_IMETHODIMP
@@ -874,6 +1205,25 @@ nsDOMWorkerScope::DispatchEvent(nsIDOMEvent* aEvent,
   }
 
   return nsDOMWorkerMessageHandler::DispatchEvent(aEvent, _retval);
+}
+
+NS_IMETHODIMP
+nsDOMWorkerScope::AddEventListener(const nsAString& aType,
+                                   nsIDOMEventListener* aListener,
+                                   PRBool aUseCapture,
+                                   PRBool aWantsUntrusted,
+                                   PRUint8 optional_argc)
+{
+  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+
+  if (mWorker->IsCanceled()) {
+    return NS_ERROR_ABORT;
+  }
+
+  return nsDOMWorkerMessageHandler::AddEventListener(aType, aListener,
+                                                     aUseCapture,
+                                                     aWantsUntrusted,
+                                                     optional_argc);
 }
 
 class nsWorkerHoldingRunnable : public nsIRunnable
@@ -970,7 +1320,7 @@ NS_IMETHODIMP_(nsrefcnt)
 nsDOMWorkerFeature::AddRef()
 {
   NS_ASSERTION(mRefCnt >= 0, "Illegal refcnt!");
-  return PR_AtomicIncrement((PRInt32*)&mRefCnt);
+  return NS_AtomicIncrementRefcnt(mRefCnt);
 }
 
 // Custom NS_IMPL_THREADSAFE_RELEASE. Checks the mFreeToDie flag before calling
@@ -981,7 +1331,7 @@ NS_IMETHODIMP_(nsrefcnt)
 nsDOMWorkerFeature::Release()
 {
   NS_ASSERTION(mRefCnt, "Double release!");
-  nsrefcnt count = PR_AtomicDecrement((PRInt32*)&mRefCnt);
+  nsrefcnt count = NS_AtomicDecrementRefcnt(mRefCnt);
   if (count == 0) {
     if (mFreeToDie) {
       mRefCnt = 1;
@@ -996,38 +1346,13 @@ nsDOMWorkerFeature::Release()
 
 NS_IMPL_QUERY_INTERFACE0(nsDOMWorkerFeature)
 
-class nsDOMWorkerClassInfo : public nsIClassInfo
-{
-public:
-  NS_DECL_NSICLASSINFO
-
-  NS_IMETHOD_(nsrefcnt) AddRef() {
-    return 2;
-  }
-
-  NS_IMETHOD_(nsrefcnt) Release() {
-    return 1;
-  }
-
-  NS_IMETHOD QueryInterface(REFNSIID aIID, void** aInstancePtr);
-};
-
-NS_IMPL_QUERY_INTERFACE1(nsDOMWorkerClassInfo, nsIClassInfo)
-
-// Keep this list in sync with the list in nsDOMClassInfo.cpp!
-NS_IMPL_CI_INTERFACE_GETTER3(nsDOMWorkerClassInfo, nsIWorker,
-                                                   nsIAbstractWorker,
-                                                   nsIDOMEventTarget)
-
-NS_IMPL_THREADSAFE_DOM_CI(nsDOMWorkerClassInfo)
-
-static nsDOMWorkerClassInfo sDOMWorkerClassInfo;
-
 nsDOMWorker::nsDOMWorker(nsDOMWorker* aParent,
-                         nsIXPConnectWrappedNative* aParentWN)
+                         nsIXPConnectWrappedNative* aParentWN,
+                         WorkerPrivilegeModel aPrivilegeModel)
 : mParent(aParent),
   mParentWN(aParentWN),
-  mLock(nsnull),
+  mPrivilegeModel(aPrivilegeModel),
+  mLock("nsDOMWorker.mLock"),
   mInnerScope(nsnull),
   mGlobal(NULL),
   mNextTimeoutId(0),
@@ -1051,10 +1376,6 @@ nsDOMWorker::~nsDOMWorker()
     mPool->NoteDyingWorker(this);
   }
 
-  if (mLock) {
-    nsAutoLock::DestroyLock(mLock);
-  }
-
   NS_ASSERTION(!mFeatures.Length(), "Live features!");
   NS_ASSERTION(!mQueuedRunnables.Length(), "Events that never ran!");
 
@@ -1068,22 +1389,57 @@ nsDOMWorker::~nsDOMWorker()
   }
 
   nsIURI* uri;
-  mURI.forget(&uri);
+  mBaseURI.forget(&uri);
   if (uri) {
     NS_ProxyRelease(mainThread, uri, PR_FALSE);
   }
 }
 
-/* static */ nsresult
+// static
+nsresult
 nsDOMWorker::NewWorker(nsISupports** aNewObject)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
   nsCOMPtr<nsISupports> newWorker =
-    NS_ISUPPORTS_CAST(nsIWorker*, new nsDOMWorker(nsnull, nsnull));
+    NS_ISUPPORTS_CAST(nsIWorker*, new nsDOMWorker(nsnull, nsnull, CONTENT));
   NS_ENSURE_TRUE(newWorker, NS_ERROR_OUT_OF_MEMORY);
 
   newWorker.forget(aNewObject);
+  return NS_OK;
+}
+
+// static
+nsresult
+nsDOMWorker::NewChromeDOMWorker(nsDOMWorker** aNewObject)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+
+  // Subsumes nsContentUtils::IsCallerChrome
+  nsIScriptSecurityManager* ssm = nsContentUtils::GetSecurityManager();
+  NS_ASSERTION(ssm, "Should never be null!");
+
+  PRBool enabled;
+  nsresult rv = ssm->IsCapabilityEnabled("UniversalXPConnect", &enabled);
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(enabled, NS_ERROR_DOM_SECURITY_ERR);
+
+  nsRefPtr<nsDOMWorker> newWorker = new nsDOMWorker(nsnull, nsnull, CHROME);
+  NS_ENSURE_TRUE(newWorker, NS_ERROR_OUT_OF_MEMORY);
+
+  newWorker.forget(aNewObject);
+  return NS_OK;
+}
+
+// static
+nsresult
+nsDOMWorker::NewChromeWorker(nsISupports** aNewObject)
+{
+  nsDOMWorker* newWorker;
+  nsresult rv = NewChromeDOMWorker(&newWorker);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  *aNewObject = NS_ISUPPORTS_CAST(nsIWorker*, newWorker);
   return NS_OK;
 }
 
@@ -1092,15 +1448,15 @@ NS_IMPL_RELEASE_INHERITED(nsDOMWorker, nsDOMWorkerMessageHandler)
 
 NS_INTERFACE_MAP_BEGIN(nsDOMWorker)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIWorker)
+  NS_INTERFACE_MAP_ENTRY(nsIClassInfo)
+  NS_INTERFACE_MAP_ENTRY(nsIXPCScriptable)
   NS_INTERFACE_MAP_ENTRY(nsIWorker)
   NS_INTERFACE_MAP_ENTRY(nsIAbstractWorker)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsIDOMNSEventTarget,
+                                   nsDOMWorkerMessageHandler)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsIDOMEventTarget, nsDOMWorkerMessageHandler)
-  NS_INTERFACE_MAP_ENTRY(nsIXPCScriptable)
   NS_INTERFACE_MAP_ENTRY(nsIJSNativeInitializer)
   NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
-  if (aIID.Equals(NS_GET_IID(nsIClassInfo))) {
-    foundInterface = static_cast<nsIClassInfo*>(&sDOMWorkerClassInfo);
-  } else
 NS_INTERFACE_MAP_END
 
 // Use the xpc_map_end.h macros to generate the nsIXPCScriptable methods we want
@@ -1108,6 +1464,7 @@ NS_INTERFACE_MAP_END
 
 #define XPC_MAP_CLASSNAME nsDOMWorker
 #define XPC_MAP_QUOTED_CLASSNAME "Worker"
+#define XPC_MAP_WANT_PRECREATE
 #define XPC_MAP_WANT_POSTCREATE
 #define XPC_MAP_WANT_TRACE
 #define XPC_MAP_WANT_FINALIZE
@@ -1123,11 +1480,38 @@ NS_INTERFACE_MAP_END
 #include "xpc_map_end.h"
 
 NS_IMETHODIMP
+nsDOMWorker::PreCreate(nsISupports* aObject,
+                       JSContext* aCx,
+                       JSObject* /* aPlannedParent */,
+                       JSObject** aParent)
+{
+  nsCOMPtr<nsIWorker> iworker(do_QueryInterface(aObject));
+  NS_ENSURE_TRUE(iworker, NS_ERROR_UNEXPECTED);
+
+  nsCOMPtr<nsIXPConnectWrappedNative> wrappedNative;
+  {
+    MutexAutoLock lock(mLock);
+    wrappedNative = mWrappedNative;
+  }
+
+  // Don't allow XPConnect to create multiple WrappedNatives for this object.
+  if (wrappedNative) {
+    JSObject* object;
+    nsresult rv = wrappedNative->GetJSObject(&object);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    *aParent = JS_GetParent(aCx, object);
+  }
+
+  return IsPrivileged() ? NS_SUCCESS_CHROME_ACCESS_ONLY : NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMWorker::PostCreate(nsIXPConnectWrappedNative* aWrapper,
                         JSContext* /* aCx */,
                         JSObject* /* aObj */)
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   mWrappedNative = aWrapper;
   return NS_OK;
 }
@@ -1141,7 +1525,7 @@ nsDOMWorker::Trace(nsIXPConnectWrappedNative* /* aWrapper */,
 
   PRBool canceled = PR_FALSE;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     canceled = mStatus == eKilled;
   }
 
@@ -1164,7 +1548,7 @@ nsDOMWorker::Finalize(nsIXPConnectWrappedNative* /* aWrapper */,
 
   // Clear our wrapped native now that it has died.
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     mWrappedNative = nsnull;
   }
 
@@ -1175,6 +1559,26 @@ nsDOMWorker::Finalize(nsIXPConnectWrappedNative* /* aWrapper */,
     Kill();
   }
 
+  return NS_OK;
+}
+
+NS_IMPL_CI_INTERFACE_GETTER4(nsDOMWorker, nsIWorker,
+                                          nsIAbstractWorker,
+                                          nsIDOMNSEventTarget,
+                                          nsIDOMEventTarget)
+NS_IMPL_THREADSAFE_DOM_CI_GETINTERFACES(nsDOMWorker)
+NS_IMPL_THREADSAFE_DOM_CI_ALL_THE_REST(nsDOMWorker)
+
+NS_IMETHODIMP
+nsDOMWorker::GetHelperForLanguage(PRUint32 aLanguage,
+                                  nsISupports** _retval)
+{
+  if (aLanguage == nsIProgrammingLanguage::JAVASCRIPT) {
+    NS_ADDREF(*_retval = NS_ISUPPORTS_CAST(nsIWorker*, this));
+  }
+  else {
+    *_retval = nsnull;
+  }
   return NS_OK;
 }
 
@@ -1201,26 +1605,90 @@ nsDOMWorker::InitializeInternal(nsIScriptGlobalObject* aOwner,
                                 PRUint32 aArgc,
                                 jsval* aArgv)
 {
+  NS_ASSERTION(aCx, "Null context!");
+  NS_ASSERTION(aObj, "Null global object!");
+
   NS_ENSURE_TRUE(aArgc, NS_ERROR_XPC_NOT_ENOUGH_ARGS);
   NS_ENSURE_ARG_POINTER(aArgv);
 
   JSString* str = JS_ValueToString(aCx, aArgv[0]);
   NS_ENSURE_TRUE(str, NS_ERROR_XPC_BAD_CONVERT_JS);
 
-  mScriptURL.Assign(nsDependentJSString(str));
+  nsDependentJSString depStr;
+  NS_ENSURE_TRUE(depStr.init(aCx, str), NS_ERROR_OUT_OF_MEMORY);
+
+  mScriptURL.Assign(depStr);
   NS_ENSURE_FALSE(mScriptURL.IsEmpty(), NS_ERROR_INVALID_ARG);
 
-  mLock = nsAutoLock::NewLock("nsDOMWorker::mLock");
-  NS_ENSURE_TRUE(mLock, NS_ERROR_OUT_OF_MEMORY);
+  nsresult rv;
+
+  // Figure out the principal and base URI to use if we're on the main thread.
+  // Otherwise this is a sub-worker and it will have its principal set by the
+  // script loader.
+  if (NS_IsMainThread()) {
+    nsIScriptSecurityManager* ssm = nsContentUtils::GetSecurityManager();
+    NS_ASSERTION(ssm, "Should never be null!");
+
+    PRBool isChrome;
+    rv = ssm->IsCapabilityEnabled("UniversalXPConnect", &isChrome);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    NS_ASSERTION(isChrome || aOwner, "How can we have a non-chrome, non-window "
+                 "worker?!");
+
+    // Chrome callers (whether ChromeWorker of Worker) always get the system
+    // principal here as they're allowed to load anything. The script loader may
+    // change the principal later depending on the script uri.
+    if (isChrome) {
+      rv = ssm->GetSystemPrincipal(getter_AddRefs(mPrincipal));
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+
+    if (aOwner) {
+      // We're being created inside a window. Get the document's base URI and
+      // use it as our base URI.
+      nsCOMPtr<nsPIDOMWindow> domWindow = do_QueryInterface(aOwner, &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      nsIDOMDocument* domDocument = domWindow->GetExtantDocument();
+      NS_ENSURE_STATE(domDocument);
+
+      nsCOMPtr<nsIDocument> document = do_QueryInterface(domDocument, &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      mBaseURI = document->GetDocBaseURI();
+
+      if (!mPrincipal) {
+        // Use the document's NodePrincipal as our principal if we're not being
+        // called from chrome.
+        mPrincipal = document->NodePrincipal();
+        NS_ENSURE_STATE(mPrincipal);
+      }
+    }
+    else {
+      // We're being created outside of a window. Need to figure out the script
+      // that is creating us in order for us to use relative URIs later on.
+      JSStackFrame* frame = JS_GetScriptedCaller(aCx, nsnull);
+      if (frame) {
+        JSScript* script = JS_GetFrameScript(aCx, frame);
+        NS_ENSURE_STATE(script);
+
+        const char* filename = JS_GetScriptFilename(aCx, script);
+
+        rv = NS_NewURI(getter_AddRefs(mBaseURI), filename);
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+    }
+
+    NS_ASSERTION(mPrincipal, "Should have set the principal!");
+  }
 
   NS_ASSERTION(!mGlobal, "Already got a global?!");
 
-  nsIXPConnect* xpc = nsContentUtils::XPConnect();
-
   nsCOMPtr<nsIXPConnectJSObjectHolder> thisWrapped;
-  nsresult rv = xpc->WrapNative(aCx, aObj, static_cast<nsIWorker*>(this),
-                                NS_GET_IID(nsISupports),
-                                getter_AddRefs(thisWrapped));
+  jsval v;
+  rv = nsContentUtils::WrapNative(aCx, aObj, static_cast<nsIWorker*>(this), &v,
+                                  getter_AddRefs(thisWrapped));
   NS_ENSURE_SUCCESS(rv, rv);
 
   NS_ASSERTION(mWrappedNative, "Post-create hook should have set this!");
@@ -1273,7 +1741,7 @@ nsDOMWorker::Cancel()
 
   PRBool enforceTimeout = PR_FALSE;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     NS_ASSERTION(mStatus != eCanceled, "Canceled more than once?!");
 
@@ -1335,7 +1803,7 @@ nsDOMWorker::Kill()
   PRUint32 count, index;
   nsAutoTArray<nsRefPtr<nsDOMWorkerFeature>, 20> features;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     if (mStatus == eKilled) {
       NS_ASSERTION(mFeatures.Length() == 0, "Features added after killed!");
@@ -1384,7 +1852,7 @@ nsDOMWorker::Suspend()
 
   PRBool shouldSuspendFeatures;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     NS_ASSERTION(!mSuspended, "Suspended more than once!");
     shouldSuspendFeatures = !mSuspended;
     mSuspended = PR_TRUE;
@@ -1402,7 +1870,7 @@ nsDOMWorker::Resume()
 
   PRBool shouldResumeFeatures;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 #ifdef DEBUG
     // Should only have a mismatch if GC or Cancel happened while suspended.
     if (!mSuspended) {
@@ -1430,7 +1898,7 @@ nsDOMWorker::Resume()
 PRBool
 nsDOMWorker::IsCanceled()
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   return IsCanceledNoLock();
 }
 
@@ -1464,14 +1932,14 @@ nsDOMWorker::IsCanceledNoLock()
 PRBool
 nsDOMWorker::IsClosing()
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   return mStatus != eRunning;
 }
 
 PRBool
 nsDOMWorker::IsSuspended()
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   return mSuspended;
 }
 
@@ -1502,18 +1970,21 @@ nsDOMWorker::PostMessageInternal(PRBool aToInner)
   rv = cc->GetJSContext(&cx);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // If we're a ChromeWorker then we allow wrapped natives to be passed via
+  // structured cloning by supplying a custom write callback. To do that we need
+  // to make sure they stay alive while the message is being sent, so we collect
+  // the wrapped natives in an array to be packaged with the message.
+  JSStructuredCloneCallbacks callbacks = {
+    nsnull, IsPrivileged() ? WriteStructuredClone : nsnull, nsnull
+  };
+
   JSAutoRequest ar(cx);
 
-  nsAutoJSValHolder val;
-  if (!val.Hold(cx)) {
-    return NS_ERROR_FAILURE;
+  JSAutoStructuredCloneBuffer buffer;
+  nsTArray<nsCOMPtr<nsISupports> > wrappedNatives;
+  if (!buffer.write(cx, argv[0], &callbacks, &wrappedNatives)) {
+    return NS_ERROR_DOM_DATA_CLONE_ERR;
   }
-
-  PRBool isJSON, isPrimitive;
-  rv = GetStringForArgument(cx, argv[0], &isJSON, &isPrimitive, val);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  NS_ASSERTION(JSVAL_IS_STRING(val), "Bad jsval!");
 
   nsRefPtr<nsDOMWorkerMessageEvent> message = new nsDOMWorkerMessageEvent();
   NS_ENSURE_TRUE(message, NS_ERROR_OUT_OF_MEMORY);
@@ -1523,7 +1994,7 @@ nsDOMWorker::PostMessageInternal(PRBool aToInner)
                                  nsnull);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = message->SetJSONData(cx, val, isJSON, isPrimitive);
+  rv = message->SetJSData(cx, buffer, wrappedNatives);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsRefPtr<nsDOMFireEventRunnable> runnable =
@@ -1553,26 +2024,41 @@ nsDOMWorker::PostMessageInternal(PRBool aToInner)
 }
 
 PRBool
-nsDOMWorker::SetGlobalForContext(JSContext* aCx)
+nsDOMWorker::SetGlobalForContext(JSContext* aCx, nsLazyAutoRequest *aRequest,
+                                 JSAutoEnterCompartment *aComp)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
 
-  if (!CompileGlobalObject(aCx)) {
+  if (!CompileGlobalObject(aCx, aRequest, aComp)) {
     return PR_FALSE;
   }
-
-  JSAutoRequest ar(aCx);
 
   JS_SetGlobalObject(aCx, mGlobal);
   return PR_TRUE;
 }
 
 PRBool
-nsDOMWorker::CompileGlobalObject(JSContext* aCx)
+nsDOMWorker::CompileGlobalObject(JSContext* aCx, nsLazyAutoRequest *aRequest,
+                                 JSAutoEnterCompartment *aComp)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
 
+  // On success, we enter a request and a cross-compartment call that both
+  // belong to the caller. But on failure, we must not remain in a request or
+  // cross-compartment call. So we enter both only locally at first. On
+  // failure, the local request and call will automatically get cleaned
+  // up. Once success is certain, we swap them into *aRequest and *aCall.
+  nsLazyAutoRequest localRequest;
+  JSAutoEnterCompartment localAutoCompartment;
+  localRequest.enter(aCx);
+
+  PRBool success;
   if (mGlobal) {
+    success = localAutoCompartment.enter(aCx, mGlobal);
+    NS_ENSURE_TRUE(success, PR_FALSE);
+
+    aRequest->swap(localRequest);
+    aComp->swap(localAutoCompartment);
     return PR_TRUE;
   }
 
@@ -1583,8 +2069,6 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
   mCompileAttempted = PR_TRUE;
 
   NS_ASSERTION(!mScriptURL.IsEmpty(), "Must have a url here!");
-
-  JSAutoRequest ar(aCx);
 
   NS_ASSERTION(!JS_GetGlobalObject(aCx), "Global object should be unset!");
 
@@ -1601,8 +2085,9 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
   nsCOMPtr<nsIXPConnectJSObjectHolder> globalWrapper;
   nsresult rv =
     xpc->InitClassesWithNewWrappedGlobal(aCx, scopeSupports,
-                                         NS_GET_IID(nsISupports), flags,
-                                         getter_AddRefs(globalWrapper));
+                                         NS_GET_IID(nsISupports), nsnull,
+                                         NS_ISUPPORTS_CAST(nsIWorker*, this),
+                                         flags, getter_AddRefs(globalWrapper));
   NS_ENSURE_SUCCESS(rv, PR_FALSE);
 
   JSObject* global;
@@ -1610,6 +2095,9 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
   NS_ENSURE_SUCCESS(rv, PR_FALSE);
 
   NS_ASSERTION(JS_GetGlobalObject(aCx) == global, "Global object mismatch!");
+
+  success = localAutoCompartment.enter(aCx, global);
+  NS_ENSURE_TRUE(success, PR_FALSE);
 
 #ifdef DEBUG
   {
@@ -1621,9 +2109,31 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
   }
 #endif
 
-  // Set up worker thread functions
-  PRBool success = JS_DefineFunctions(aCx, global, gDOMWorkerFunctions);
+  // Set up worker thread functions.
+  success = JS_DefineFunctions(aCx, global, gDOMWorkerFunctions);
   NS_ENSURE_TRUE(success, PR_FALSE);
+
+  success = JS_DefineProfilingFunctions(aCx, global);
+  NS_ENSURE_TRUE(success, PR_FALSE);
+
+  if (IsPrivileged()) {
+    // Add chrome functions.
+    success = JS_DefineFunctions(aCx, global, gDOMWorkerChromeFunctions);
+    NS_ENSURE_TRUE(success, PR_FALSE);
+
+    success = JS_DefineProperty(aCx, global, "XPCOM", JSVAL_VOID,
+                                nsDOMWorkerFunctions::XPCOMLazyGetter, nsnull,
+                                0);
+    NS_ENSURE_TRUE(success, PR_FALSE);
+
+#ifdef BUILD_CTYPES
+    // Add the lazy getter for ctypes.
+    success = JS_DefineProperty(aCx, global, "ctypes", JSVAL_VOID,
+                                nsDOMWorkerFunctions::CTypesLazyGetter, nsnull,
+                                0);
+    NS_ENSURE_TRUE(success, PR_FALSE);
+#endif
+  }
 
   // From here on out we have to remember to null mGlobal, mInnerScope, and
   // mScopeWN if something fails! We really don't need to hang on to mGlobal
@@ -1636,13 +2146,6 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
 
   nsRefPtr<nsDOMWorkerScriptLoader> loader =
     new nsDOMWorkerScriptLoader(this);
-  NS_ASSERTION(loader, "Out of memory!");
-  if (!loader) {
-    mGlobal = NULL;
-    mInnerScope = nsnull;
-    mScopeWN = nsnull;
-    return PR_FALSE;
-  }
 
   rv = AddFeature(loader, aCx);
   if (NS_FAILED(rv)) {
@@ -1652,7 +2155,7 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
     return PR_FALSE;
   }
 
-  rv = loader->LoadScript(aCx, mScriptURL, PR_TRUE);
+  rv = loader->LoadWorkerScript(aCx, mScriptURL);
 
   JS_ReportPendingException(aCx);
 
@@ -1663,8 +2166,36 @@ nsDOMWorker::CompileGlobalObject(JSContext* aCx)
     return PR_FALSE;
   }
 
-  NS_ASSERTION(mPrincipal && mURI, "Script loader didn't set our principal!");
+  NS_ASSERTION(mPrincipal, "Script loader didn't set our principal!");
+  NS_ASSERTION(mBaseURI, "Script loader didn't set our base uri!");
 
+  // Make sure we kept the system principal.
+  if (IsPrivileged() && !nsContentUtils::IsSystemPrincipal(mPrincipal)) {
+    static const char warning[] = "ChromeWorker attempted to load a "
+                                  "non-chrome worker script!";
+    NS_WARNING(warning);
+
+    JS_ReportError(aCx, warning);
+
+    mGlobal = NULL;
+    mInnerScope = nsnull;
+    mScopeWN = nsnull;
+    return PR_FALSE;
+  }
+
+  rv = loader->ExecuteScripts(aCx);
+
+  JS_ReportPendingException(aCx);
+
+  if (NS_FAILED(rv)) {
+    mGlobal = NULL;
+    mInnerScope = nsnull;
+    mScopeWN = nsnull;
+    return PR_FALSE;
+  }
+
+  aRequest->swap(localRequest);
+  aComp->swap(localAutoCompartment);
   return PR_TRUE;
 }
 
@@ -1680,7 +2211,7 @@ nsDOMWorker::GetWrappedNative()
 {
   nsCOMPtr<nsIXPConnectWrappedNative> wrappedNative;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     wrappedNative = mWrappedNative;
   }
   return wrappedNative.forget();
@@ -1697,7 +2228,7 @@ nsDOMWorker::AddFeature(nsDOMWorkerFeature* aFeature,
     // aCx may be null.
     JSAutoSuspendRequest asr(aCx);
 
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     if (mStatus == eKilled) {
       // No features may be added after we've been canceled. Sorry.
@@ -1730,7 +2261,7 @@ nsDOMWorker::RemoveFeature(nsDOMWorkerFeature* aFeature,
     // aCx may be null.
     JSAutoSuspendRequest asr(aCx);
 
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
 #ifdef DEBUG
     PRBool removed =
@@ -1747,7 +2278,7 @@ nsDOMWorker::CancelTimeoutWithId(PRUint32 aId)
 {
   nsRefPtr<nsDOMWorkerFeature> foundFeature;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     PRUint32 count = mFeatures.Length();
     for (PRUint32 index = 0; index < count; index++) {
       nsDOMWorkerFeature*& feature = mFeatures[index];
@@ -1770,7 +2301,7 @@ nsDOMWorker::SuspendFeatures()
 {
   nsAutoTArray<nsRefPtr<nsDOMWorkerFeature>, 20> features;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     // We don't really have to worry about overflow here because the only way
     // to do this is through recursive script loading, which uses the stack. We
@@ -1799,7 +2330,7 @@ nsDOMWorker::ResumeFeatures()
 {
   nsAutoTArray<nsRefPtr<nsDOMWorkerFeature>, 20> features;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     NS_ASSERTION(mFeatureSuspendDepth > 0, "Shouldn't happen!");
     if (--mFeatureSuspendDepth != 0) {
@@ -1815,14 +2346,22 @@ nsDOMWorker::ResumeFeatures()
   }
 }
 
-nsresult
-nsDOMWorker::SetURI(nsIURI* aURI)
+void
+nsDOMWorker::SetPrincipal(nsIPrincipal* aPrincipal)
 {
-  NS_ASSERTION(aURI, "Don't hand me a null pointer!");
-  NS_ASSERTION(!mURI && !mLocation, "Called more than once?!");
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+  NS_ASSERTION(aPrincipal, "Null pointer!");
 
-  mURI = aURI;
+  mPrincipal = aPrincipal;
+}
+
+nsresult
+nsDOMWorker::SetBaseURI(nsIURI* aURI)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+  NS_ASSERTION(aURI, "Don't hand me a null pointer!");
+
+  mBaseURI = aURI;
 
   nsCOMPtr<nsIURL> url(do_QueryInterface(aURI));
   NS_ENSURE_TRUE(url, NS_ERROR_NO_INTERFACE);
@@ -1831,6 +2370,14 @@ nsDOMWorker::SetURI(nsIURI* aURI)
   NS_ENSURE_TRUE(mLocation, NS_ERROR_FAILURE);
 
   return NS_OK;
+}
+
+void
+nsDOMWorker::ClearBaseURI()
+{
+  NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+  mBaseURI = nsnull;
+  mLocation = nsnull;
 }
 
 nsresult
@@ -1844,7 +2391,7 @@ nsDOMWorker::FireCloseRunnable(PRIntervalTime aTimeoutInterval,
   // to do is unblock the waiting thread.
   PRBool wakeUp;
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     NS_ASSERTION(mExpirationTime == 0,
                  "Close runnable should not be scheduled already!");
 
@@ -1857,7 +2404,7 @@ nsDOMWorker::FireCloseRunnable(PRIntervalTime aTimeoutInterval,
   }
 
   if (wakeUp) {
-    nsAutoMonitor mon(mPool->Monitor());
+    MonitorAutoEnter mon(mPool->GetMonitor());
     mon.NotifyAll();
   }
 
@@ -1875,7 +2422,11 @@ nsDOMWorker::FireCloseRunnable(PRIntervalTime aTimeoutInterval,
   // Our worker has been collected and we want to keep the inner scope alive,
   // so pass that along in the runnable.
   if (aFromFinalize) {
-    NS_ASSERTION(mScopeWN, "This shouldn't be null!");
+    // Make sure that our scope wrapped native exists here, but if the worker
+    // script failed to compile then it will be null already.
+    if (mGlobal) {
+      NS_ASSERTION(mScopeWN, "This shouldn't be null!");
+    }
     runnable->ReplaceWrappedNative(mScopeWN);
   }
 
@@ -1887,7 +2438,7 @@ nsresult
 nsDOMWorker::Close()
 {
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     NS_ASSERTION(mStatus != eKilled, "This should be impossible!");
     if (mStatus != eRunning) {
       return NS_OK;
@@ -1905,7 +2456,7 @@ nsresult
 nsDOMWorker::TerminateInternal(PRBool aFromFinalize)
 {
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 #ifdef DEBUG
     if (!aFromFinalize) {
       NS_ASSERTION(mStatus != eCanceled, "Shouldn't be able to get here!");
@@ -1952,7 +2503,7 @@ void
 nsDOMWorker::SetExpirationTime(PRIntervalTime aExpirationTime)
 {
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     NS_ASSERTION(mStatus != eRunning && mStatus != eKilled, "Bad status!");
     NS_ASSERTION(!mExpirationTime || mExpirationTime == PR_INTERVAL_NO_TIMEOUT,
@@ -1966,10 +2517,57 @@ nsDOMWorker::SetExpirationTime(PRIntervalTime aExpirationTime)
 PRIntervalTime
 nsDOMWorker::GetExpirationTime()
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   return mExpirationTime;
 }
 #endif
+
+// static
+JSObject*
+nsDOMWorker::ReadStructuredClone(JSContext* aCx,
+                                 JSStructuredCloneReader* aReader,
+                                 uint32 aTag,
+                                 uint32 aData,
+                                 void* aClosure)
+{
+  NS_ASSERTION(aCx, "Null context!");
+  NS_ASSERTION(aReader, "Null reader!");
+  NS_ASSERTION(!aClosure, "Shouldn't have a closure here!");
+
+  if (aTag == DOMWORKER_SCTAG_WRAPPEDNATIVE) {
+    NS_ASSERTION(!aData, "Huh?");
+
+    nsISupports* wrappedNative;
+    if (JS_ReadBytes(aReader, &wrappedNative, sizeof(wrappedNative))) {
+      NS_ASSERTION(wrappedNative, "Null pointer?!");
+
+      JSObject* global = JS_GetGlobalForObject(aCx, JS_GetScopeChain(aCx));
+      if (global) {
+        jsval val;
+        nsCOMPtr<nsIXPConnectJSObjectHolder> wrapper;
+        if (NS_SUCCEEDED(nsContentUtils::WrapNative(aCx, global, wrappedNative,
+                                                    &val,
+                                                    getter_AddRefs(wrapper)))) {
+          return JSVAL_TO_OBJECT(val);
+        }
+      }
+    }
+  }
+
+  // Something failed above, try using the runtime callbacks instead.
+  const JSStructuredCloneCallbacks* runtimeCallbacks =
+    aCx->runtime->structuredCloneCallbacks;
+  if (runtimeCallbacks) {
+    return runtimeCallbacks->read(aCx, aReader, aTag, aData, nsnull);
+  }
+
+  // We can't handle this object, throw an exception if one hasn't been thrown
+  // already.
+  if (!JS_IsExceptionPending(aCx)) {
+    nsDOMClassInfo::ThrowJSException(aCx, NS_ERROR_DOM_DATA_CLONE_ERR);
+  }
+  return nsnull;
+}
 
 PRBool
 nsDOMWorker::QueueSuspendedRunnable(nsIRunnable* aRunnable)
@@ -1983,13 +2581,7 @@ nsDOMWorker::AddEventListener(const nsAString& aType,
                               nsIDOMEventListener* aListener,
                               PRBool aUseCapture)
 {
-  NS_ASSERTION(mWrappedNative, "Called after Finalize!");
-  if (IsCanceled()) {
-    return NS_OK;
-  }
-
-  return nsDOMWorkerMessageHandler::AddEventListener(aType, aListener,
-                                                     aUseCapture);
+  return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 0);
 }
 
 NS_IMETHODIMP
@@ -2010,7 +2602,7 @@ nsDOMWorker::DispatchEvent(nsIDOMEvent* aEvent,
                            PRBool* _retval)
 {
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     if (IsCanceledNoLock()) {
       return NS_OK;
     }
@@ -2026,6 +2618,24 @@ nsDOMWorker::DispatchEvent(nsIDOMEvent* aEvent,
   return nsDOMWorkerMessageHandler::DispatchEvent(aEvent, _retval);
 }
 
+NS_IMETHODIMP
+nsDOMWorker::AddEventListener(const nsAString& aType,
+                              nsIDOMEventListener* aListener,
+                              PRBool aUseCapture,
+                              PRBool aWantsUntrusted,
+                              PRUint8 optional_argc)
+{
+  NS_ASSERTION(mWrappedNative, "Called after Finalize!");
+  if (IsCanceled()) {
+    return NS_OK;
+  }
+
+  return nsDOMWorkerMessageHandler::AddEventListener(aType, aListener,
+                                                     aUseCapture,
+                                                     aWantsUntrusted,
+                                                     optional_argc);
+}
+
 /**
  * See nsIWorker
  */
@@ -2033,7 +2643,7 @@ NS_IMETHODIMP
 nsDOMWorker::PostMessage(/* JSObject aMessage */)
 {
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     // There's no reason to dispatch this message after the close handler has
     // been triggered since it will never be allowed to run.
     if (mStatus != eRunning) {
@@ -2125,3 +2735,52 @@ nsDOMWorker::Notify(nsITimer* aTimer)
   Kill();
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsWorkerFactory::NewChromeWorker(nsIWorker** _retval)
+{
+  nsresult rv;
+
+  // Get the arguments from XPConnect.
+  nsCOMPtr<nsIXPConnect> xpc;
+  xpc = do_GetService(nsIXPConnect::GetCID());
+  NS_ASSERTION(xpc, "Could not get XPConnect");
+
+  nsAXPCNativeCallContext* cc;
+  rv = xpc->GetCurrentNativeCallContext(&cc);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  JSContext* cx;
+  rv = cc->GetJSContext(&cx);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRUint32 argc;
+  rv = cc->GetArgc(&argc);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  jsval* argv;
+  rv = cc->GetArgvPtr(&argv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Determine the current script global. We need it to register the worker.
+  // NewChromeDOMWorker will check that we are chrome, so no access check.
+  JSObject* global = JS_GetGlobalForScopeChain(cx);
+  NS_ENSURE_TRUE(global, NS_ERROR_UNEXPECTED);
+
+  // May be null if we're being called from a JSM or something.
+  nsCOMPtr<nsIScriptGlobalObject> scriptGlobal =
+    nsJSUtils::GetStaticScriptGlobal(cx, global);
+
+  // Create, initialize, and return the worker.
+  nsRefPtr<nsDOMWorker> chromeWorker;
+  rv = nsDOMWorker::NewChromeDOMWorker(getter_AddRefs(chromeWorker));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = chromeWorker->InitializeInternal(scriptGlobal, cx, global, argc, argv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  chromeWorker.forget(_retval);
+  return NS_OK;
+}
+
+NS_IMPL_ISUPPORTS1(nsWorkerFactory, nsIWorkerFactory)

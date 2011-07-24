@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  *   Joe Hewitt (hewitt@netscape.com)
+ *   Jens Hatlak (jh@junetz.de)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -47,10 +48,6 @@
 #editorWindow {
   -moz-appearance: none;
   background-color: #EEEEEE;
-}
-
-#editorWindow[chromehidden~="toolbar"][chromehidden~="location"][chromehidden~="directories"] {
-  border-top: 1px solid rgba(0,0,0,0.65);
 }
 
 #content-frame { 
@@ -110,5 +107,13 @@
   padding: 0px !important;
   margin: 0px !important;
   border: none !important;
+}
+
+/* ::::: lightweight themes ::::: */
+
+#EditModeToolbar:-moz-lwtheme {
+  text-shadow: none;
+  color: -moz-dialogtext;
+  background-color: -moz-dialog;
 }
 

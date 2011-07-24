@@ -38,6 +38,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef imgLoader_h__
+#define imgLoader_h__
+
 #include "imgILoader.h"
 #include "imgICache.h"
 #include "nsWeakReference.h"
@@ -48,6 +51,7 @@
 #include "prtypes.h"
 #include "imgRequest.h"
 #include "nsIObserverService.h"
+#include "nsIChannelPolicy.h"
 
 #ifdef LOADER_THREADSAFE
 #include "prlock.h"
@@ -97,7 +101,7 @@ public:
   {
     PRInt32 oldsize = mDataSize;
     mDataSize = aDataSize;
-    TouchWithSize(mDataSize - oldsize);
+    UpdateCache(mDataSize - oldsize);
   }
 
   PRInt32 GetTouchedTime() const
@@ -156,7 +160,7 @@ private: // methods
   friend class imgLoader;
   friend class imgCacheQueue;
   void Touch(PRBool updateTime = PR_TRUE);
-  void TouchWithSize(PRInt32 diff);
+  void UpdateCache(PRInt32 diff = 0);
   void SetEvicted(PRBool evict)
   {
     mEvicted = evict;
@@ -217,6 +221,8 @@ private:
   PRBool mDirty;
   PRUint32 mSize;
 };
+
+class imgMemoryReporter;
 
 class imgLoader : public imgILoader,
                   public nsIContentSniffer,
@@ -300,7 +306,8 @@ private: // methods
                        imgIDecoderObserver *aObserver, nsISupports *aCX,
                        nsLoadFlags aLoadFlags, PRBool aCanMakeNewChannel,
                        imgIRequest *aExistingRequest,
-                       imgIRequest **aProxyRequest);
+                       imgIRequest **aProxyRequest,
+                       nsIChannelPolicy *aPolicy);
   PRBool ValidateRequestWithNewChannel(imgRequest *request, nsIURI *aURI,
                                        nsIURI *aInitialDocumentURI,
                                        nsIURI *aReferrerURI,
@@ -308,7 +315,8 @@ private: // methods
                                        imgIDecoderObserver *aObserver,
                                        nsISupports *aCX, nsLoadFlags aLoadFlags,
                                        imgIRequest *aExistingRequest,
-                                       imgIRequest **aProxyRequest);
+                                       imgIRequest **aProxyRequest,
+                                       nsIChannelPolicy *aPolicy);
 
   nsresult CreateNewProxyForRequest(imgRequest *aRequest, nsILoadGroup *aLoadGroup,
                                     imgIDecoderObserver *aObserver,
@@ -330,6 +338,7 @@ private: // methods
 
 private: // data
   friend class imgCacheEntry;
+  friend class imgMemoryReporter;
 
   static imgCacheTable sCache;
   static imgCacheQueue sCacheQueue;
@@ -396,3 +405,5 @@ private:
 
   static imgLoader sImgLoader;
 };
+
+#endif  // imgLoader_h__

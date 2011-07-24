@@ -43,22 +43,30 @@
 
 #include "nsIAtom.h"
 
-// Empty class derived from nsIAtom so that function signatures can
-// require an atom from this atom list.
-class nsICSSPseudoClass : public nsIAtom {};
-
 class nsCSSPseudoClasses {
 public:
 
   static void AddRefAtoms();
 
-  static PRBool IsPseudoClass(nsIAtom *aAtom);
-  static PRBool HasStringArg(nsIAtom* aAtom);
-  static PRBool HasNthPairArg(nsIAtom* aAtom);
-
-#define CSS_PSEUDO_CLASS(_name, _value) static nsICSSPseudoClass* _name;
+  enum Type {
+#define CSS_PSEUDO_CLASS(_name, _value) \
+    ePseudoClass_##_name,
 #include "nsCSSPseudoClassList.h"
 #undef CSS_PSEUDO_CLASS
+    ePseudoClass_Count,
+    ePseudoClass_NotPseudoClass /* This value MUST be last!  SelectorMatches
+                                   depends on it. */
+  };
+
+  static Type GetPseudoType(nsIAtom* aAtom);
+  static PRBool HasStringArg(Type aType);
+  static PRBool HasNthPairArg(Type aType);
+  static PRBool HasSelectorListArg(Type aType) {
+    return aType == ePseudoClass_any;
+  }
+
+  // Should only be used on types other than Count and NotPseudoClass
+  static void PseudoTypeToString(Type aType, nsAString& aString);
 };
 
 #endif /* nsCSSPseudoClasses_h___ */

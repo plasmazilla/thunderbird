@@ -56,14 +56,28 @@ interface nsIFilePicker : nsISupports
   const short returnCancel    = 1;              // User hit cancel, ignore selection
   const short returnReplace   = 2;              // User acknowledged file already exists so ok to replace, process selection
 
-  const long filterAll        = 0x01;           // *.*
-  const long filterHTML       = 0x02;           // *.html; *.htm
-  const long filterText       = 0x04;           // *.txt
-  const long filterImages     = 0x08;           // *.png; *.gif; *.jpg; *.jpeg
-  const long filterXML        = 0x10;           // *.xml
-  const long filterXUL        = 0x20;           // *.xul
-  const long filterApps       = 0x40;           // Applications (per-platform implementation)
-  const long filterAllowURLs  = 0x80;           // Allow URLs
+  const long filterAll        = 0x001;          // *.*
+  const long filterHTML       = 0x002;          // *.html; *.htm
+  const long filterText       = 0x004;          // *.txt
+  const long filterImages     = 0x008;          // *.jpe; *.jpg; *.jpeg; *.gif;
+                                                // *.png; *.bmp; *.ico; *.svg;
+                                                // *.svgz; *.tif; *.tiff; *.ai;
+                                                // *.drw; *.pct; *.psp; *.xcf;
+                                                // *.psd; *.raw
+  const long filterXML        = 0x010;          // *.xml
+  const long filterXUL        = 0x020;          // *.xul
+  const long filterApps       = 0x040;          // Applications (per-platform implementation)
+  const long filterAllowURLs  = 0x080;          // Allow URLs
+  const long filterAudio      = 0x100;          // *.aac; *.aif; *.flac; *.iff;
+                                                // *.m4a; *.m4b; *.mid; *.midi;
+                                                // *.mp3; *.mpa; *.mpc; *.oga;
+                                                // *.ogg; *.ra; *.ram; *.snd;
+                                                // *.wav; *.wma
+  const long filterVideo      = 0x200;          // *.avi; *.divx; *.flv; *.m4v;
+                                                // *.mkv; *.mov; *.mp4; *.mpeg;
+                                                // *.mpg; *.ogm; *.ogv; *.ogx;
+                                                // *.rm; *.rmvb; *.smil; *.webm;
+                                                // *.wmv; *.xvid
 
  /**
   * Initialize the file picker widget.  The file picker is not valid until this
@@ -96,7 +110,8 @@ interface nsIFilePicker : nsISupports
                     in AString filter);
 
  /**
-  * The filename that should be suggested to the user as a default.
+  * The filename that should be suggested to the user as a default. This should
+  * include the extension.
   *
   * @throws NS_ERROR_FAILURE on attempts to get
   */

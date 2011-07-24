@@ -46,8 +46,8 @@ class nsSVGAnimateElement : public nsSVGAnimateElementBase,
 {
 protected:
   friend nsresult NS_NewSVGAnimateElement(nsIContent **aResult,
-                                          nsINodeInfo *aNodeInfo);
-  nsSVGAnimateElement(nsINodeInfo* aNodeInfo);
+                                          already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGAnimateElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
   nsSMILAnimationFunction mAnimationFunction;
 
@@ -66,6 +66,8 @@ public:
 
   // nsISMILAnimationElement
   virtual nsSMILAnimationFunction& AnimationFunction();
+
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 NS_IMPL_NS_NEW_SVG_ELEMENT(Animate)
@@ -76,17 +78,19 @@ NS_IMPL_NS_NEW_SVG_ELEMENT(Animate)
 NS_IMPL_ADDREF_INHERITED(nsSVGAnimateElement,nsSVGAnimateElementBase)
 NS_IMPL_RELEASE_INHERITED(nsSVGAnimateElement,nsSVGAnimateElementBase)
 
+DOMCI_NODE_DATA(SVGAnimateElement, nsSVGAnimateElement)
+
 NS_INTERFACE_TABLE_HEAD(nsSVGAnimateElement)
   NS_NODE_INTERFACE_TABLE5(nsSVGAnimateElement, nsIDOMNode, nsIDOMElement,
                            nsIDOMSVGElement, nsIDOMSVGAnimationElement,
                            nsIDOMSVGAnimateElement)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimateElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimateElement)
 NS_INTERFACE_MAP_END_INHERITING(nsSVGAnimateElementBase)
 
 //----------------------------------------------------------------------
 // Implementation
 
-nsSVGAnimateElement::nsSVGAnimateElement(nsINodeInfo *aNodeInfo)
+nsSVGAnimateElement::nsSVGAnimateElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGAnimateElementBase(aNodeInfo)
 {
 }

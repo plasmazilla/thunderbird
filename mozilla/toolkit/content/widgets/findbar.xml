@@ -185,11 +185,17 @@
           findbar._setFindCloseTimeout();
       ]]></handler>
 
-      <handler event="drop" phase="capturing"><![CDATA[
+      <handler event="dragover"><![CDATA[
+        if (event.dataTransfer.types.contains("text/plain"))
+          event.preventDefault();
+      ]]></handler>
+
+      <handler event="drop"><![CDATA[
         var value = event.dataTransfer.getData("text/plain");
         this.value = value;
         this.findbar._find(value);
         event.stopPropagation();
+        event.preventDefault();
       ]]></handler>
     </handlers>
   </binding>
@@ -398,7 +404,8 @@
 
         // Make sure the FAYT keypress listener is attached by initializing the
         // browser property
-        setTimeout(function(aSelf) { aSelf.browser = aSelf.browser; }, 0, this);
+        if (this.getAttribute("browserid"))
+          setTimeout(function(aSelf) { aSelf.browser = aSelf.browser; }, 0, this);
       ]]></constructor>
 
       <destructor><![CDATA[
@@ -457,7 +464,7 @@
       </method>
 
       <!--
-        - Gets the selection controller for the current browser 
+        - Gets the selection controller for the current browser
         -->
       <method name="_getSelectionController">
         <parameter name="aWindow"/>
@@ -496,7 +503,7 @@
             }
             aNode = aNode.parentNode;
           }
-          return null;           
+          return null;
         ]]></body>
       </method>
 
@@ -525,7 +532,7 @@
       <!--
         - Remove ourselves as an nsIEditActionListener and
         - nsIDocumentStateListener from a given cached editor
-        - 
+        -
         - @param aEditor the editor we no longer wish to listen to
         -->
       <method name="_removeEditorListeners">
@@ -544,7 +551,7 @@
 
       <!--
         - nsIEditActionListener logic follows
-        - 
+        -
         - We implement this interface to allow us to catch the case where
         - the findbar found a match in a HTML <input> or <textarea>. If the
         - user adjusts the text in some way, it will no longer match, so we
@@ -617,7 +624,7 @@
 
           if (foundContainingRange)
             return range;
-          
+
           return null;
         ]]></body>
       </method>
@@ -944,7 +951,7 @@
           if (!controller) {
             // Without the selection controller,
             // we are unable to (un)highlight any matches
-            return false;
+            return textFound;
           }
 
           var doc = win.document;
@@ -952,20 +959,14 @@
             return textFound;
 
           if (aHighlight) {
-            var body = doc.body;
-
-            var count = body.childNodes.length;
             this._searchRange = doc.createRange();
-            this._startPt = doc.createRange();
-            this._endPt = doc.createRange();
+            this._searchRange.selectNodeContents(doc.body);
 
-            this._searchRange.setStart(body, 0);
-            this._searchRange.setEnd(body, count);
+            this._startPt = this._searchRange.cloneRange();
+            this._startPt.collapse(true);
 
-            this._startPt.setStart(body, 0);
-            this._startPt.setEnd(body, 0);
-            this._endPt.setStart(body, count);
-            this._endPt.setEnd(body, count);
+            this._endPt = this._searchRange.cloneRange();
+            this._endPt.collapse(false);
 
             var retRange = null;
             var finder = Components.classes["@mozilla.org/embedcomp/rangefind;1"]
@@ -977,9 +978,8 @@
             while ((retRange = finder.Find(aWord, this._searchRange,
                                           this._startPt, this._endPt))) {
               this._highlight(retRange, controller);
-              this._startPt = retRange.endContainer.ownerDocument.createRange();
-              this._startPt.setStart(retRange.endContainer, retRange.endOffset);
-              this._startPt.setEnd(retRange.endContainer, retRange.endOffset);
+              this._startPt = retRange.cloneRange();
+              this._startPt.collapse(false);
 
               textFound = true;
             }
@@ -1003,7 +1003,7 @@
             }
             return true;
           }
-  
+
           return textFound;
         ]]></body>
       </method>
@@ -1037,11 +1037,14 @@
               this._stateListeners = [];
             }
 
-            var x = this._editors.length;
-            this._editors[x] = editableNode.editor;
-            this._stateListeners[x] = this._createStateListener();
-            this._editors[x].addEditActionListener(this);
-            this._editors[x].addDocumentStateListener(this._stateListeners[x]);
+            var existingIndex = this._editors.indexOf(editableNode.editor);
+            if (existingIndex == -1) {
+              var x = this._editors.length;
+              this._editors[x] = editableNode.editor;
+              this._stateListeners[x] = this._createStateListener();
+              this._editors[x].addEditActionListener(this);
+              this._editors[x].addDocumentStateListener(this._stateListeners[x]);
+            }
           }
         ]]></body>
       </method>
@@ -1139,6 +1142,11 @@
             this.hidden = false;
 
             this._updateStatusUI(this.nsITypeAheadFind.FIND_FOUND);
+
+            let event = document.createEvent("Events");
+            event.initEvent("findbaropen", true, false);
+            this.dispatchEvent(event);
+
             return true;
           }
           return false;
@@ -1150,6 +1158,9 @@
         -->
       <method name="close">
         <body><![CDATA[
+          if (this.hidden)
+            return;
+
           var fm =
             Components.classes["@mozilla.org/focus-manager;1"]
                       .getService(Components.interfaces.nsIFocusManager);
@@ -1341,35 +1352,32 @@
               aEvent.getPreventDefault())
             return false;
 
-          var win = document.commandDispatcher.focusedWindow;
-          if (win)
-            if (!this._mimeTypeIsTextBased(win.document.contentType))
-              return false;
-
           var elt = document.commandDispatcher.focusedElement;
           if (elt) {
-            if (elt instanceof HTMLInputElement) {
-              // block FAYT when an <input> textfield element is focused
-              var inputType = elt.type;
-              switch (inputType) {
-                case "text":
-                case "password":
-                case "file":
-                  return false;
-              }
-            }
-            else if (elt instanceof HTMLTextAreaElement ||
-                     elt instanceof HTMLSelectElement ||
-                     elt instanceof HTMLIsIndexElement ||
-                     elt instanceof HTMLObjectElement ||
-                     elt instanceof HTMLEmbedElement)
+            if (elt instanceof HTMLInputElement && elt.mozIsTextField(false))
+              return false;
+
+            if (elt instanceof HTMLTextAreaElement ||
+                elt instanceof HTMLSelectElement ||
+                elt instanceof HTMLIsIndexElement ||
+                elt instanceof HTMLObjectElement ||
+                elt instanceof HTMLEmbedElement)
               return false;
           }
 
-          // disable FAYT in about:config and about:blank to prevent FAYT
-          // opening unexpectedly - to fix bugs 264562, 267150, 269712
-          var url = this.browser.currentURI.spec;
-          if (url == "about:blank" || url == "about:config")
+          var win = document.commandDispatcher.focusedWindow;
+          if (win && !this._mimeTypeIsTextBased(win.document.contentType))
+              return false;
+
+          // disable FAYT in about:blank to prevent FAYT opening unexpectedly.
+          var url = this.browser.currentURI;
+          if (url.spec == "about:blank")
+            return false;
+
+          // disable FAYT in documents that ask for it to be disabled.
+          if ((url.schemeIs("about") || url.schemeIs("chrome")) &&
+              (win.document.documentElement &&
+               win.document.documentElement.getAttribute("disablefastfind") == "true"))
             return false;
 
           if (win) {
@@ -1384,7 +1392,7 @@
             catch (e) {
               // If someone built with composer disabled, we can't get an editing session.
             }
-          }  
+         }
 
           return true;
         ]]></body>
@@ -1700,7 +1708,7 @@
           }
 
           if (this.prefillWithSelection)
-            userWantsPrefill = 
+            userWantsPrefill =
               prefsvc.getBoolPref("accessibility.typeaheadfind.prefillwithselection");
 
           var initialString = (this.prefillWithSelection && userWantsPrefill) ?

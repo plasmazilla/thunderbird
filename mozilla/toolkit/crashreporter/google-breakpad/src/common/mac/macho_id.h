@@ -36,8 +36,9 @@
 
 #include <limits.h>
 #include <mach-o/loader.h>
-#include <openssl/md5.h>
 #include <openssl/sha.h>
+
+#include "common/md5.h"
 
 namespace MacFileUtilities {
 
@@ -86,7 +87,7 @@ class MachoID {
   void UpdateSHA1(unsigned char *bytes, size_t size);
 
   // Bottleneck for update routines
-  void Update(MachoWalker *walker, unsigned long offset, size_t size);
+  void Update(MachoWalker *walker, off_t offset, size_t size);
 
   // The callback from the MachoWalker for CRC, MD5, and SHA1
   static bool WalkerCB(MachoWalker *walker, load_command *cmd, off_t offset,
@@ -110,7 +111,7 @@ class MachoID {
   uint32_t crc_;
 
   // The MD5 context
-  MD5_CTX md5_context_;
+  MD5Context md5_context_;
 
   // The SHA1 context
   SHA_CTX sha1_context_;

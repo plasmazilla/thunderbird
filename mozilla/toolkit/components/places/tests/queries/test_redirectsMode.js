@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Test Code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -70,6 +70,8 @@ function check_results_callback(aSequence) {
       case Ci.nsINavHistoryService.TRANSITION_DOWNLOAD:
         return redirectsMode != Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET;
       case Ci.nsINavHistoryService.TRANSITION_EMBED:
+        return false;
+      case Ci.nsINavHistoryService.TRANSITION_FRAMED_LINK:
         return includeHidden && redirectsMode != Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET;
       case Ci.nsINavHistoryService.TRANSITION_REDIRECT_TEMPORARY:
       case Ci.nsINavHistoryService.TRANSITION_REDIRECT_PERMANENT:
@@ -108,8 +110,8 @@ function check_results_callback(aSequence) {
   }
 
   // Create a new query with required options.
-  let query = histsvc.getNewQuery();
-  let options = histsvc.getNewQueryOptions();
+  let query = PlacesUtils.history.getNewQuery();
+  let options = PlacesUtils.history.getNewQueryOptions();
   options.includeHidden = includeHidden;
   options.redirectsMode = redirectsMode;
   options.sortingMode = sortingMode;
@@ -117,7 +119,7 @@ function check_results_callback(aSequence) {
     options.maxResults = maxResults;
 
   // Compare resultset with expectedData.
-  let result = histsvc.executeQuery(query, options);
+  let result = PlacesUtils.history.executeQuery(query, options);
   let root = result.root;
   root.containerOpen = true;
   compareArrayToResult(expectedData, root);
@@ -210,8 +212,6 @@ function cartProd(aSequences, aCallback)
  *   visit -> redirect_temp -> redirect_perm
  */
 function add_visits_to_database() {
-  // Clean up the database.
-  bhistsvc.removeAllPages();
   remove_all_bookmarks();
 
   // We don't really bother on this, but we need a time to add visits.
@@ -223,7 +223,10 @@ function add_visits_to_database() {
     Ci.nsINavHistoryService.TRANSITION_LINK,
     Ci.nsINavHistoryService.TRANSITION_TYPED,
     Ci.nsINavHistoryService.TRANSITION_BOOKMARK,
-    Ci.nsINavHistoryService.TRANSITION_EMBED,
+    // Embed visits are not added to the database and we don't want redirects
+    // to them, thus just avoid addition.
+    //Ci.nsINavHistoryService.TRANSITION_EMBED,
+    Ci.nsINavHistoryService.TRANSITION_FRAMED_LINK,
     // Would make hard sorting by visit date because last_visit_date is actually
     // calculated excluding download transitions, but the query includes
     // downloads.
@@ -238,7 +241,8 @@ function add_visits_to_database() {
       uri: "http://" + transition + ".example.com/",
       title: transition + "-example",
       lastVisit: timeInMicroseconds--,
-      visitCount: transition == Ci.nsINavHistoryService.TRANSITION_EMBED ? 0 : visitCount++,
+      visitCount: (transition == Ci.nsINavHistoryService.TRANSITION_EMBED ||
+                   transition == Ci.nsINavHistoryService.TRANSITION_FRAMED_LINK) ? 0 : visitCount++,
       isInQuery: true }));
 
   // Add a REDIRECT_TEMPORARY layer of visits for each of the above visits.
@@ -268,8 +272,8 @@ function add_visits_to_database() {
   // Add an unvisited bookmark in the database, it should never appear.
   visits.push({ isBookmark: true,
     uri: "http://unvisited.bookmark.com/",
-    parentFolder: bmsvc.bookmarksMenuFolder,
-    index: bmsvc.DEFAULT_INDEX,
+    parentFolder: PlacesUtils.bookmarksMenuFolderId,
+    index: PlacesUtils.bookmarks.DEFAULT_INDEX,
     title: "Unvisited Bookmark",
     isInQuery: false });
 
@@ -279,26 +283,32 @@ function add_visits_to_database() {
 
 // Main
 function run_test() {
+  do_test_pending();
+
   // Populate the database.
   add_visits_to_database();
 
+  // Frecency and hidden are updated asynchronously, wait for them.
+  waitForAsyncUpdates(continue_test);
+ }
+
+ function continue_test() {
   // This array will be used by cartProd to generate a matrix of all possible
   // combinations.
-  includeHidden_options = [true, false];
-  redirectsMode_options =  [Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_ALL,
-                            Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_SOURCE,
-                            Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET];
-  maxResults_options = [5, 10, 20, null];
+  let includeHidden_options = [true, false];
+  let redirectsMode_options =  [Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_ALL,
+                                Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_SOURCE,
+                                Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET];
+  let maxResults_options = [5, 10, 20, null];
   // These sortingMode are choosen to toggle using special queries for history
   // menu and most visited smart bookmark.
-  sorting_options = [Ci.nsINavHistoryQueryOptions.SORT_BY_NONE,
-                     Ci.nsINavHistoryQueryOptions.SORT_BY_VISITCOUNT_DESCENDING,
-                     Ci.nsINavHistoryQueryOptions.SORT_BY_DATE_DESCENDING];
+  let sorting_options = [Ci.nsINavHistoryQueryOptions.SORT_BY_NONE,
+                         Ci.nsINavHistoryQueryOptions.SORT_BY_VISITCOUNT_DESCENDING,
+                         Ci.nsINavHistoryQueryOptions.SORT_BY_DATE_DESCENDING];
   // Will execute check_results_callback() for each generated combination.
   cartProd([includeHidden_options, redirectsMode_options, maxResults_options, sorting_options],
            check_results_callback);
 
-  // Clean up so we can't pollute next tests.
-  bhistsvc.removeAllPages();
   remove_all_bookmarks();
+  waitForClearHistory(do_test_finished);
 }

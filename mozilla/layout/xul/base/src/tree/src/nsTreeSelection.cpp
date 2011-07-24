@@ -46,8 +46,6 @@
 #include "nsString.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMClassInfo.h"
-#include "nsIPresShell.h"
-#include "nsPresContext.h"
 #include "nsIContent.h"
 #include "nsIDocument.h"
 #include "nsGUIEvent.h"
@@ -295,16 +293,20 @@ nsTreeSelection::~nsTreeSelection()
     mSelectTimer->Cancel();
 }
 
+NS_IMPL_CYCLE_COLLECTION_2(nsTreeSelection, mTree, mCurrentColumn)
+
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsTreeSelection)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsTreeSelection)
+
+DOMCI_DATA(TreeSelection, nsTreeSelection)
+
 // QueryInterface implementation for nsBoxObject
-NS_INTERFACE_MAP_BEGIN(nsTreeSelection)
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsTreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsITreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsINativeTreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(TreeSelection)
 NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(nsTreeSelection)
-NS_IMPL_RELEASE(nsTreeSelection)
 
 NS_IMETHODIMP nsTreeSelection::GetTree(nsITreeBoxObject * *aTree)
 {
@@ -319,9 +321,10 @@ NS_IMETHODIMP nsTreeSelection::SetTree(nsITreeBoxObject * aTree)
     mSelectTimer = nsnull;
   }
 
-  // Make sure aTree really implements nsITreeBoxObject!
-  mTree = do_QueryInterface(aTree);
-  NS_ENSURE_STATE(mTree || !aTree);
+  // Make sure aTree really implements nsITreeBoxObject and nsIBoxObject!
+  nsCOMPtr<nsIBoxObject> bo = do_QueryInterface(aTree);
+  mTree = do_QueryInterface(bo);
+  NS_ENSURE_STATE(mTree == aTree);
   return NS_OK;
 }
 
@@ -331,7 +334,6 @@ NS_IMETHODIMP nsTreeSelection::GetSingle(PRBool* aSingle)
     return NS_ERROR_NULL_POINTER;
 
   nsCOMPtr<nsIBoxObject> boxObject = do_QueryInterface(mTree);
-  NS_ENSURE_STATE(boxObject);
 
   nsCOMPtr<nsIDOMElement> element;
   boxObject->GetElement(getter_AddRefs(element));
@@ -683,7 +685,7 @@ NS_IMETHODIMP nsTreeSelection::SetCurrentIndex(PRInt32 aIndex)
 
   nsRefPtr<nsPLDOMEvent> event =
     new nsPLDOMEvent(treeDOMNode, NS_LITERAL_STRING("DOMMenuItemActive"),
-                     PR_FALSE);
+                     PR_TRUE, PR_FALSE);
   if (!event)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -872,7 +874,7 @@ nsTreeSelection::FireOnSelectHandler()
   NS_ENSURE_STATE(node);
 
   nsRefPtr<nsPLDOMEvent> event =
-    new nsPLDOMEvent(node, NS_LITERAL_STRING("select"), PR_FALSE);
+    new nsPLDOMEvent(node, NS_LITERAL_STRING("select"), PR_TRUE, PR_FALSE);
   event->RunDOMEventWhenSafe();
   return NS_OK;
 }

@@ -10,17 +10,20 @@ try {
   gWindowUtils = null;
 }
 
-function snapshotWindow(win) {
+function snapshotWindow(win, withCaret) {
+  // drawWindow requires privileges, as might innerWidth/innerHeight if it's
+  // a cross domain window
+  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
+
   var el = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
   el.width = win.innerWidth;
   el.height = win.innerHeight;
 
-  // drawWindow requires privileges
-  netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
-
-  el.getContext("2d").drawWindow(win, win.scrollX, win.scrollY,
-				 win.innerWidth, win.innerHeight,
-				 "rgb(255,255,255)");
+  var ctx = el.getContext("2d");
+  ctx.drawWindow(win, win.scrollX, win.scrollY,
+                 win.innerWidth, win.innerHeight,
+                 "rgb(255,255,255)",
+                 withCaret ? ctx.DRAWWINDOW_DRAW_CARET : 0);
   return el;
 }
 

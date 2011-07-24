@@ -45,19 +45,11 @@ include $(srcdir)/objs.mk
 
 EXTRA_DEPS += $(srcdir)/objs.mk
 
-DIRS            = standalone
+DIRS            = standalone nomozalloc
 
 MODULE		= xpcom
 LIBRARY_NAME	= xpcomglue_s
 DIST_INSTALL	= 1
-
-REQUIRES = \
-		string \
-		$(NULL)
-
-ifdef NS_TRACE_MALLOC
-REQUIRES += tracemalloc
-endif
 
 LOCAL_INCLUDES	= \
 		-I$(srcdir)/../build \
@@ -71,13 +63,12 @@ CPPSRCS		= \
 		$(XPCOM_GLUE_SRC_LCPPSRCS) \
 		$(XPCOM_GLUENS_SRC_LCPPSRCS) \
 		nsStringAPI.cpp \
+		GenericModule.cpp \
 		$(NULL)
 
-# TODO nsAutoLock.h should die soon
 SDK_HEADERS = \
 		nsArrayEnumerator.h \
 		nsArrayUtils.h \
-		nsAutoLock.h \
 		nsBaseHashtable.h \
 		nsCOMArray.h \
 		nsCOMPtr.h \
@@ -86,16 +77,14 @@ SDK_HEADERS = \
 		nsClassHashtable.h \
 		nsComponentManagerUtils.h \
 		nsCycleCollectionParticipant.h \
+		nsCycleCollectorUtils.h \
 		nsDataHashtable.h \
 		nsDebug.h \
 		nsDeque.h \
 		nsEnumeratorUtils.h \
-		nsGenericFactory.h \
 		nsHashKeys.h \
 		nsIClassInfoImpl.h \
 		nsID.h \
-		nsIGenericFactory.h \
-		nsIGenericFactory.h \
 		nsIInterfaceRequestorUtils.h \
 		nsINIParser.h \
 		nsISupportsImpl.h \
@@ -109,6 +98,7 @@ SDK_HEADERS = \
 		nsStringAPI.h \
 		nsStringGlue.h \
 		nsTArray.h \
+		nsTArray-inl.h \
 		nsTHashtable.h \
 		nsTObserverArray.h \
 		nsTPtrArray.h \
@@ -121,20 +111,33 @@ SDK_HEADERS = \
 		pldhash.h \
 		$(NULL)
 
-EXPORTS_NAMESPACES = mozilla
+EXPORTS_NAMESPACES = mozilla mozilla/threads
 
 EXPORTS = \
 		nsThreadUtils.h \
+		nsTPriorityQueue.h \
 		nsProxyRelease.h \
 		nsXPTCUtils.h \
+		nsCycleCollectorUtils.h \
 		$(NULL)
 
 EXPORTS_mozilla = \
+  AutoRestore.h \
   BlockingResourceBase.h \
   CondVar.h \
   DeadlockDetector.h \
+  FileUtils.h \
+  GenericFactory.h \
+  IntentionalCrash.h \
   Monitor.h \
   Mutex.h \
+  SSE.h \
+  arm.h \
+  unused.h \
+  $(NULL)
+
+EXPORTS_mozilla/threads = \
+  nsThreadIDs.h \
   $(NULL)
 
 SDK_LIBRARY     =                        \

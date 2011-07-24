@@ -22,6 +22,7 @@
  *   Daniel Boelzle <daniel.boelzle@sun.com>
  *   Philipp Kewisch <mozilla@kewis.ch>
  *   Gekacheka <gekacheka@yahoo.com>
+ *   Martin Schroeder <mschroeder@mozilla.x-home.org>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -37,6 +38,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://gre/modules/AddonManager.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 
@@ -125,85 +128,12 @@ calTimezoneService.prototype = {
     UTC: null,
     mDb: null,
 
-    createStatement: function calTimezoneService_createStatement(sql) {
-        let statement = this.mDb.createStatement(sql);
-        let ret = Components.classes["@mozilla.org/storage/statement-wrapper;1"]
-                            .createInstance(Components.interfaces.mozIStorageStatementWrapper);
-        ret.initialize(statement);
-        return ret;
-    },
-
-    ensureInitialized: function calTimezoneService_ensureInitialized() {
-        if (!this.mDb) {
-            // Calendar-timezones.xpi is preinstalled into the application, but
-            // lightning.xpi yet doesn't contain the calendar-timezones.xpi, thus we package up
-            // the timezones.sqlite as well as the timezones.properties into lightning for now.
-
-            const kCalendarTimezonesXpiId = "calendar-timezones@mozilla.org";
-            let extMgr;
-            let sqlTzFile;
-            let bundleURL;
-
-            try {
-                extMgr = Components.classes["@mozilla.org/extensions/manager;1"]
-                                   .getService(Components.interfaces.nsIExtensionManager);
-
-                sqlTzFile = extMgr.getInstallLocation(kCalendarTimezonesXpiId)
-                                  .getItemLocation(kCalendarTimezonesXpiId);
-
-                bundleURL = "chrome://calendar-timezones/locale/timezones.properties";
-            } catch (exc) {
-                try {
-                    if (!isSunbird()) { // probe for lightning; xxx todo, this will vanish when we repackage lightning
-                        const kLightningXpiId = "{e2fda1a4-762b-4020-b5ad-a41df1933103}";
-                        sqlTzFile = extMgr.getInstallLocation(kLightningXpiId).getItemLocation(kLightningXpiId);
-                        bundleURL = "chrome://lightning/locale/timezones.properties";
-                    }
-                } catch (exc) { // we land here in case of the unit tests:
-                    let dirSvc = Components.classes["@mozilla.org/file/directory_service;1"]
-                                           .getService(Components.interfaces.nsIProperties);
-                    sqlTzFile = dirSvc.get("CurProcD", Components.interfaces.nsILocalFile);
-                    sqlTzFile.append("extensions");
-                    sqlTzFile.append(kCalendarTimezonesXpiId);
-                    cal.WARN("\### USING " + sqlTzFile.path);
-                    let bundleFile = sqlTzFile.clone();
-                    bundleFile.append("chrome");
-                    bundleFile.append("calendar-timezones-en-US.jar");
-                    bundleURL = "jar:" + getIOService().newFileURI(bundleFile).spec + "!/locale/en-US/timezones.properties";
-                }
-            }
-
-            try {
-                sqlTzFile.append("timezones.sqlite");
-                cal.LOG("[calTimezoneService] using " + sqlTzFile.path);
-                let dbService = Components.classes["@mozilla.org/storage/service;1"]
-                                          .getService(Components.interfaces.mozIStorageService);
-                this.mDb = dbService.openDatabase(sqlTzFile);
-                this.mSelectByTzid = this.createStatement("SELECT * FROM tz_data WHERE tzid = :tzid LIMIT 1");
-
-                let selectVersion = this.createStatement("SELECT version FROM tz_version LIMIT 1");
-                try {
-                    if (selectVersion.step()) {
-                        this.mVersion = selectVersion.row.version;
-                    }
-                } finally {
-                    selectVersion.reset();
-                }
-                cal.LOG("[calTimezoneService] timezones version: " + this.mVersion);
-
-                g_stringBundle = calGetStringBundle(bundleURL);
-            } catch (exc) {
-                let msg = calGetString("calendar", "missingCalendarTimezonesError");
-                cal.ERROR(msg);
-                showError(msg);
-            }
-        }
-    },
 
     // nsIClassInfo:
     getInterfaces: function calTimezoneService_getInterfaces(count) {
         const ifaces = [Components.interfaces.calITimezoneService,
                         Components.interfaces.calITimezoneProvider,
+                        Components.interfaces.calIStartupService,
                         Components.interfaces.nsIClassInfo,
                         Components.interfaces.nsISupports];
         count.value = ifaces.length;
@@ -222,8 +152,132 @@ calTimezoneService.prototype = {
         return doQueryInterface(this, calTimezoneService.prototype, aIID, null, this);
     },
 
+    createStatement: function calTimezoneService_createStatement(sql) {
+        let statement = this.mDb.createStatement(sql);
+        let ret = Components.classes["@mozilla.org/storage/statement-wrapper;1"]
+                            .createInstance(Components.interfaces.mozIStorageStatementWrapper);
+        ret.initialize(statement);
+        return ret;
+    },
+
+    // nsIStartupService
+    startup: function startup(aCompleteListener) {
+        this.ensureInitialized(aCompleteListener);
+    },
+
+    shutdown: function shutdown(aCompleteListener) {
+        Services.prefs.removeObserver("calendar.timezone.local", this);
+
+        try {
+            this.mDb.close();
+            this.mDb = null;
+        } catch (e) {
+            cal.ERROR("Error closing timezone database: " + e);
+        }
+
+        aCompleteListener.onResult(null, Components.results.NS_OK);
+    },
+
+    ensureInitialized: function(aCompleteListener) {
+        if (!this.mSelectByTzid) {
+            this.initialize(aCompleteListener);
+        }
+    },
+
+    _initDB: function _initDB(sqlTzFile) {
+        try {
+            cal.LOG("[calTimezoneService] using " + sqlTzFile.path);
+            let dbService = Components.classes["@mozilla.org/storage/service;1"]
+                                      .getService(Components.interfaces.mozIStorageService);
+            this.mDb = dbService.openDatabase(sqlTzFile);
+            if (this.mDb) {
+                this.mSelectByTzid = this.createStatement("SELECT * FROM tz_data WHERE tzid = :tzid LIMIT 1");
+
+                let selectVersion = this.createStatement("SELECT version FROM tz_version LIMIT 1");
+                try {
+                    if (selectVersion.step()) {
+                        this.mVersion = selectVersion.row.version;
+                    }
+                } finally {
+                    selectVersion.reset();
+                }
+                cal.LOG("[calTimezoneService] timezones version: " + this.mVersion);
+                return true;
+            }
+        } catch (exc) {
+            cal.ERROR("Error setting up timezone database: "  + exc);
+        }
+        return false;
+    },
+
+    initialize: function calTimezoneService_initialize(aCompleteListener) {
+        // Helper function to convert an nsIURI to a nsIFile
+        function toFile(uriSpec) {
+            let uri = cal.makeURL(uriSpec);
+
+            if (uri.schemeIs("file")) {
+                let handler = cal.getIOService().getProtocolHandler("file")
+                                 .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+                return handler.getFileFromURLSpec(uri.spec);
+            } else if (uri.schemeIs("resource")) {
+                let handler = cal.getIOService().getProtocolHandler("resource")
+                                 .QueryInterface(Components.interfaces.nsIResProtocolHandler);
+                let newUriSpec;
+                try { 
+                    newUriSpec = handler.resolveURI(uri);
+                } catch (e) {
+                    // Possibly the resource location is not registered, return
+                    // null to indicate error
+                    return null;
+                }
+
+                // Otherwise let this function convert the new uri spec to a file
+                return toFile(newUriSpec);
+            } else {
+                cal.ERROR("Unknown timezones.sqlite location: " + uriSpec);
+            }
+            return null;
+        }
+
+        let self = this;
+        function tryTzUri(uriSpec) {
+            let canInit = false;
+            let sqlTzFile = toFile(uriSpec);
+            if (sqlTzFile) {
+                canInit = self._initDB(sqlTzFile);
+            }
+
+            return canInit;
+        }
+            
+        // First, lets try getting the file from our timezone extension
+        let canInit = tryTzUri("resource://calendar-timezones/timezones.sqlite");
+        let bundleURL = "chrome://calendar-timezones/locale/timezones.properties";
+                               
+        if (!canInit) {
+            // If that fails, we might have the file bundled
+            canInit = tryTzUri("resource://calendar/timezones.sqlite");
+            bundleURL = "chrome://calendar/locale/timezones.properties"
+        }
+
+        if (canInit) {
+            // Seems like a success, make the bundle url global
+            g_stringBundle = cal.calGetStringBundle(bundleURL);
+        } else {
+            // Otherwise, we have to give up. Show an error and fail hard!
+            let msg = cal.calGetString("calendar", "missingCalendarTimezonesError");
+            cal.ERROR(msg);
+            showError(msg);
+        }
+
+        if (aCompleteListener) {
+            aCompleteListener.onResult(null, Components.results.NS_OK);
+        }
+    },
+
     // calITimezoneProvider:
     getTimezone: function calTimezoneService_getTimezone(tzid) {
+        this.ensureInitialized();
         if (tzid.indexOf("/mozilla.org/") == 0) {
             // We know that our former tzids look like "/mozilla.org/<dtstamp>/continent/..."
             // The ending of the mozilla prefix is the index of that slash before the
@@ -234,7 +288,6 @@ calTimezoneService.prototype = {
 
         var tz = this.mTimezoneCache[tzid];
         if (!tz && !this.mBlacklist[tzid]) {
-            this.ensureInitialized();
             this.mSelectByTzid.params.tzid = tzid;
             if (this.mSelectByTzid.step()) {
                 var row = this.mSelectByTzid.row;
@@ -261,7 +314,6 @@ calTimezoneService.prototype = {
     get timezoneIds() {
         if (!this.mTzids) {
             var tzids = [];
-            this.ensureInitialized();
             var selectAllButAlias = this.createStatement("SELECT * FROM tz_data WHERE alias IS NULL");
             try {
                 while (selectAllButAlias.step()) {
@@ -276,7 +328,6 @@ calTimezoneService.prototype = {
     },
 
     get version() {
-        this.ensureInitialized();
         return this.mVersion;
     },
 
@@ -302,31 +353,15 @@ calTimezoneService.prototype = {
     },
 
     setupObservers: function calTimezoneService_setupObservers() {
-        if (this.mHasSetupObservers) {
-            return;
+        if (!this.mHasSetupObservers) {
+            // Now set up the observer
+            Services.prefs.addObserver("calendar.timezone.local", this, false);
+            this.mHasSetupObservers = true;
         }
-        var observerSvc = Components.classes["@mozilla.org/observer-service;1"]
-                          .getService(Components.interfaces.nsIObserverService);
-        var prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefService);
-        var branch = prefService.getBranch("").QueryInterface(Components.interfaces.nsIPrefBranch2);
-        branch.addObserver("calendar.timezone.local", this, false);
-        observerSvc.addObserver(this, "xpcom-shutdown", false);
-        this.mHasSetupObservers = true;
     },
 
     observe: function calTimezoneService_observe(aSubject, aTopic, aData) {
-        if (aTopic == "xpcom-shutdown") {
-            var observerSvc = Components.classes["@mozilla.org/observer-service;1"]
-                              .getService(Components.interfaces.nsIObserverService);
-            var prefService = Components.classes["@mozilla.org/preferences-service;1"]
-                              .getService(Components.interfaces.nsIPrefService);
-            var branch = prefService.getBranch("")
-                                    .QueryInterface(Components.interfaces.nsIPrefBranch2);
-
-            branch.removeObserver("calendar.timezone.local", this);
-            observerSvc.removeObserver(this, "xpcom-shutdown");
-        } else if (aTopic == "nsPref:changed" && aData == "calendar.timezone.local") {
+        if (aTopic == "nsPref:changed" && aData == "calendar.timezone.local") {
             // Unsetting the default timezone will make the next call to the
             // default timezone getter set up the correct timezone again.
             this.mDefaultTimezone = null;
@@ -556,7 +591,7 @@ function guessSystemTimezone() {
     var probableTZScore = 0;
     var probableTZSource = null;
 
-    const calProperties = calGetStringBundle("chrome://calendar/locale/calendar.properties");
+    const calProperties = cal.calGetStringBundle("chrome://calendar/locale/calendar.properties");
 
     // First, try to detect operating system timezone.
     try {
@@ -615,8 +650,8 @@ function guessSystemTimezone() {
             if (osUserTimeZone != null) {
                 // Lookup timezone registry key in table of known tz keys
                 // to convert to ZoneInfo timezone id.
-                const regKeyToZoneInfoBundle = calGetStringBundle("chrome://calendar/content/"+
-                                                                  fileOSName + "ToZoneInfoTZId.properties");
+                const regKeyToZoneInfoBundle = cal.calGetStringBundle("chrome://calendar/content/"+
+                                                                      fileOSName + "ToZoneInfoTZId.properties");
                 zoneInfoIdFromOSUserTimeZone =
                     regKeyToZoneInfoBundle.GetStringFromName(osUserTimeZone);
             }

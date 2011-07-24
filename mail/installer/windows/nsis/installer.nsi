@@ -54,12 +54,16 @@ RequestExecutionLevel user
 !addplugindir ./
 
 Var TmpVal
-Var StartMenuDir
 Var InstallType
 Var AddStartMenuSC
 Var AddQuickLaunchSC
 Var AddDesktopSC
 Var PageName
+
+; By defining NO_STARTMENU_DIR an installer that doesn't provide an option for
+; an application's Start Menu PROGRAMS directory and doesn't define the
+; StartMenuDir variable can use the common InstallOnInitCommon macro.
+!define NO_STARTMENU_DIR
 
 ; On Vista and above attempt to elevate Standard Users in addition to users that
 ; are a member of the Administrators group.
@@ -95,22 +99,22 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 ; Must be inserted before other macros that use logging
 !insertmacro _LoggingCommon
 
-; Most commonly used macros for managing shortcuts
-!insertmacro _LoggingShortcutsCommon
-
 !insertmacro AddHandlerValues
 !insertmacro ChangeMUIHeaderImage
 !insertmacro CheckForFilesInUse
 !insertmacro CleanUpdatesDir
 !insertmacro CopyFilesFromDir
-!insertmacro FindSMProgramsDir
 !insertmacro GetPathFromString
 !insertmacro GetParent
 !insertmacro IsHandlerForInstallDir
+!insertmacro LogDesktopShortcut
+!insertmacro LogQuickLaunchShortcut
+!insertmacro LogStartMenuShortcut
 !insertmacro ManualCloseAppPrompt
 !insertmacro RegCleanMain
 !insertmacro RegCleanUninstall
 !insertmacro SetBrandNameVars
+!insertmacro UpdateShortcutAppModelIDs
 !insertmacro UnloadUAC
 !insertmacro WriteRegStr2
 !insertmacro WriteRegDWORD2
@@ -170,12 +174,6 @@ Page custom preOptions leaveOptions
 
 ; Custom Shortcuts Page
 Page custom preShortcuts leaveShortcuts
-
-; Start Menu Folder Page Configuration
-!define MUI_PAGE_CUSTOMFUNCTION_PRE preStartMenu
-!define MUI_PAGE_CUSTOMFUNCTION_LEAVE leaveStartMenu
-!define MUI_STARTMENUPAGE_NODISABLE
-!insertmacro MUI_PAGE_STARTMENU Application $StartMenuDir
 
 ; Custom Summary Page
 Page custom preSummary leaveSummary
@@ -241,7 +239,7 @@ Section "-Application" APP_IDX
   SetDetailsPrint none
 
   ${LogHeader} "Installing Main Files"
-  ${CopyFilesFromDir} "$EXEDIR\nonlocalized" "$INSTDIR" \
+  ${CopyFilesFromDir} "$EXEDIR\core" "$INSTDIR" \
                       "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
                       "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
 
@@ -255,7 +253,7 @@ Section "-Application" APP_IDX
     Rename "$INSTDIR\MapiProxy_InUse.dll" "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
     Delete /REBOOTOK "$INSTDIR\MapiProxy_InUse.dll.moz-delete"
   ${EndIf}
-  CopyFiles /SILENT "$EXEDIR\nonlocalized\MapiProxy.dll" "$INSTDIR\MapiProxy_InUse.dll"
+  CopyFiles /SILENT "$EXEDIR\core\MapiProxy.dll" "$INSTDIR\MapiProxy_InUse.dll"
   ${LogMsg} "Installed File: $INSTDIR\MapiProxy_InUse.dll"
   ${LogUninstall} "File: \MapiProxy_InUse.dll"
 
@@ -266,7 +264,7 @@ Section "-Application" APP_IDX
     Rename "$INSTDIR\mozMapi32_InUse.dll" "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
     Delete /REBOOTOK "$INSTDIR\mozMapi32_InUse.dll.moz-delete"
   ${EndIf}
-  CopyFiles /SILENT "$EXEDIR\nonlocalized\mozMapi32.dll" "$INSTDIR\mozMapi32_InUse.dll"
+  CopyFiles /SILENT "$EXEDIR\core\mozMapi32.dll" "$INSTDIR\mozMapi32_InUse.dll"
   ${LogMsg} "Installed File: $INSTDIR\mozMapi32_InUse.dll"
   ${LogUninstall} "File: \mozMapi32_InUse.dll"
 
@@ -291,23 +289,13 @@ Section "-Application" APP_IDX
   ; parent directories will be removed.
   ${LogUninstall} "File: \components\compreg.dat"
   ${LogUninstall} "File: \components\xpti.dat"
-  ${LogUninstall} "File: \.autoreg"
   ${LogUninstall} "File: \active-update.xml"
   ${LogUninstall} "File: \install.log"
   ${LogUninstall} "File: \install_status.log"
   ${LogUninstall} "File: \install_wizard.log"
   ${LogUninstall} "File: \updates.xml"
 
-  SetDetailsPrint both
-  DetailPrint $(STATUS_INSTALL_LANG)
-  SetDetailsPrint none
-
-  ${LogHeader} "Installing Localized Files"
-  ${CopyFilesFromDir} "$EXEDIR\localized" "$INSTDIR" \
-                      "$(ERROR_CREATE_DIRECTORY_PREFIX)" \
-                      "$(ERROR_CREATE_DIRECTORY_SUFFIX)"
-
-  ; Default for creating Start Menu folder and shortcuts
+  ; Default for creating Start Menu shortcut
   ; (1 = create, 0 = don't create)
   ${If} $AddStartMenuSC == ""
     StrCpy $AddStartMenuSC "1"
@@ -401,37 +389,61 @@ Section "-Application" APP_IDX
   ; Create shortcuts
   ${LogHeader} "Adding Shortcuts"
 
-  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+  ; Remove the start menu shortcuts and directory if the SMPROGRAMS section
+  ; exists in the shortcuts_log.ini and the SMPROGRAMS. The installer's shortcut
+  ; creation code will create the shortcut in the root of the Start Menu
+  ; Programs directory.
+  ${RemoveStartMenuDir}
 
-  ; Always add the relative path to the application's Start Menu directory and
-  ; the application's shortcuts to the shortcuts log ini file. The
-  ; DeleteShortcuts macro will do the right thing on uninstall if they don't
-  ; exist.
-  ${LogSMProgramsDirRelPath} "$StartMenuDir"
-  ${LogSMProgramsShortcut} "${BrandFullName}.lnk"
-  ${LogSMProgramsShortcut} "${BrandFullName} ($(SAFE_MODE)).lnk"
+  ; Always add the application's shortcuts to the shortcuts log ini file. The
+  ; DeleteShortcuts macro will do the right thing on uninstall if the
+  ; shortcuts don't exist.
+  ${LogStartMenuShortcut} "${BrandFullName}.lnk"
   ${LogQuickLaunchShortcut} "${BrandFullName}.lnk"
   ${LogDesktopShortcut} "${BrandFullName}.lnk"
+
+  ; Best effort to update the Win7 taskbar and start menu shortcut app model
+  ; id's. The possible contexts are current user / system and the user that
+  ; elevated the installer.
+  Call FixShortcutAppModelIDs
+  ; If the current context is all also perform Win7 taskbar and start menu link
+  ; maintenance for the current user context.
+  ${If} $TmpVal == "HKLM"
+    SetShellVarContext current  ; Set SHCTX to HKCU
+    Call FixShortcutAppModelIDs
+    SetShellVarContext all  ; Set SHCTX to HKLM
+  ${EndIf}
+
+  ; If running elevated also perform Win7 taskbar and start menu link
+  ; maintenance for the unelevated user context in case that is different than
+  ; the current user.
+  ClearErrors
+  ${GetParameters} $0
+  ${GetOptions} "$0" "/UAC:" $0
+  ${Unless} ${Errors}
+    GetFunctionAddress $0 FixShortcutAppModelIDs
+    UAC::ExecCodeSegment $0
+  ${EndIf}
 
   ; UAC only allows elevating to an Admin account so there is no need to add
   ; the Start Menu or Desktop shortcuts from the original unelevated process
   ; since this will either add it for the user if unelevated or All Users if
   ; elevated.
   ${If} $AddStartMenuSC == 1
-    ${Unless} ${FileExists} "$SMPROGRAMS\$StartMenuDir"
-      CreateDirectory "$SMPROGRAMS\$StartMenuDir"
-      ${LogMsg} "Added Start Menu Directory: $SMPROGRAMS\$StartMenuDir"
-    ${EndUnless}
-    CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    CreateShortCut "$SMPROGRAMS\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" \
+                   "" "$INSTDIR\${FileMainEXE}" 0
+    ShellLink::SetShortCutWorkingDirectory "$SMPROGRAMS\${BrandFullName}.lnk" \
+                                           "$INSTDIR"
+    ApplicationID::Set "$SMPROGRAMS\${BrandFullName}.lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName}.lnk"
-    CreateShortCut "$SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk" "$INSTDIR\${FileMainEXE}" "-safe-mode" "$INSTDIR\${FileMainEXE}" 0
-    ${LogMsg} "Added Shortcut: $SMPROGRAMS\$StartMenuDir\${BrandFullName} ($(SAFE_MODE)).lnk"
   ${EndIf}
 
-  !insertmacro MUI_STARTMENU_WRITE_END
-
   ${If} $AddDesktopSC == 1
-    CreateShortCut "$DESKTOP\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+    CreateShortCut "$DESKTOP\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" \
+                   "" "$INSTDIR\${FileMainEXE}" 0
+    ShellLink::SetShortCutWorkingDirectory "$DESKTOP\${BrandFullName}.lnk" \
+                                           "$INSTDIR"
+    ApplicationID::Set "$DESKTOP\${BrandFullName}.lnk" "${AppUserModelID}"
     ${LogMsg} "Added Shortcut: $DESKTOP\${BrandFullName}.lnk"
   ${EndIf}
 
@@ -477,6 +489,9 @@ Section "-InstallEndCleanup"
     ${EndIf}
   ${EndUnless}
 
+  ; Win7 taskbar and start menu link maintenance
+  Call FixShortcutAppModelIDs
+
   ; Refresh desktop icons
   System::Call "shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)"
 
@@ -519,8 +534,8 @@ Function CustomAbort
 !ifdef AbortSurveyURL
   ${If} "${AB_CD}" == "en-US"
   ${AndIf} "$PageName" != ""
-  ${AndIf} ${FileExists} "$EXEDIR\nonlocalized\distribution\distribution.ini"
-    ReadINIStr $0 "$EXEDIR\nonlocalized\distribution\distribution.ini" "Global" "about"
+  ${AndIf} ${FileExists} "$EXEDIR\core\distribution\distribution.ini"
+    ReadINIStr $0 "$EXEDIR\core\distribution\distribution.ini" "Global" "about"
     ClearErrors
     ${WordFind} "$0" "Funnelcake" "E#" $1
    ${Unless} ${Errors}
@@ -537,8 +552,6 @@ Function CustomAbort
           GetFunctionAddress $0 AbortSurveyDirectory
       ${ElseIf} "$PageName" == "Shortcuts"
           GetFunctionAddress $0 AbortSurveyShortcuts
-      ${ElseIf} "$PageName" == "StartMenu"
-          GetFunctionAddress $0 AbortSurveyStartMenu
       ${ElseIf} "$PageName" == "Summary"
           GetFunctionAddress $0 AbortSurveySummary
       ${EndIf}
@@ -580,12 +593,8 @@ Function AbortSurveyShortcuts
   ExecShell "open" "${AbortSurveyURL}step4"
 FunctionEnd
 
-Function AbortSurveyStartMenu
-  ExecShell "open" "${AbortSurveyURL}step5"
-FunctionEnd
-
 Function AbortSurveySummary
-  ExecShell "open" "${AbortSurveyURL}step6"
+  ExecShell "open" "${AbortSurveyURL}step5"
 FunctionEnd
 !endif
 
@@ -593,7 +602,11 @@ FunctionEnd
 # Helper Functions
 
 Function AddQuickLaunchShortcut
-  CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" "" "$INSTDIR\${FileMainEXE}" 0
+  CreateShortCut "$QUICKLAUNCH\${BrandFullName}.lnk" "$INSTDIR\${FileMainEXE}" \
+                 "" "$INSTDIR\${FileMainEXE}" 0
+  ShellLink::SetShortCutWorkingDirectory "$QUICKLAUNCH\${BrandFullName}.lnk" \
+                                         "$INSTDIR"
+  ApplicationID::Set "$QUICKLAUNCH\${BrandFullName}.lnk" "${AppUserModelID}"
 FunctionEnd
 
 Function CheckExistingInstall
@@ -680,18 +693,18 @@ BrandingText " "
 
 Function preWelcome
   StrCpy $PageName "Welcome"
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-wizard.bmp"
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-wizard.bmp"
     Delete "$PLUGINSDIR\modern-wizard.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-wizard.bmp" "$PLUGINSDIR\modern-wizard.bmp"
   ${EndIf}
 FunctionEnd
 
 Function preOptions
   StrCpy $PageName "Options"
-  ${If} ${FileExists} "$EXEDIR\localized\distribution\modern-header.bmp"
+  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-header.bmp"
   ${AndIf} $hHeaderBitmap == ""
     Delete "$PLUGINSDIR\modern-header.bmp"
-    CopyFiles /SILENT "$EXEDIR\localized\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
+    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-header.bmp" "$PLUGINSDIR\modern-header.bmp"
     ${ChangeMUIHeaderImage} "$PLUGINSDIR\modern-header.bmp"
   ${EndIf}
 
@@ -746,49 +759,6 @@ Function leaveShortcuts
   ${MUI_INSTALLOPTIONS_READ} $AddStartMenuSC "shortcuts.ini" "Field 3" "State"
   ${MUI_INSTALLOPTIONS_READ} $AddQuickLaunchSC "shortcuts.ini" "Field 4" "State"
 
-  ; If Start Menu shortcuts won't be created call CheckExistingInstall here
-  ; since leaveStartMenu will not be called.
-  ${If} $AddStartMenuSC != 1
-  ${AndIf} $InstallType == ${INSTALLTYPE_CUSTOM}
-    Call CheckExistingInstall
-  ${EndIf}
-FunctionEnd
-
-Function preStartMenu
-  StrCpy $PageName "StartMenu"
-  ; With the Unicode installer the path to the application's Start Menu
-  ; directory relative to the Start Menu's Programs directory is written to the
-  ; shortcuts log ini file and is used to set the default Start Menu directory.
-  ${GetSMProgramsDirRelPath} $0
-  ${If} "$0" != ""
-    StrCpy $StartMenuDir "$0"
-  ${Else}
-    ; Prior to the Unicode installer the path to the application's Start Menu
-    ; directory relative to the Start Menu's Programs directory was written to
-    ; the registry and use this value to set the default Start Menu directory.
-    ClearErrors
-    ReadRegStr $0 HKLM "Software\Mozilla\${BrandFullNameInternal}\${AppVersion} (${AB_CD})\Main" "Start Menu Folder"
-    ${If} ${Errors}
-      ; Use the FindSMProgramsDir macro to find a previously used path to the
-      ; application's Start Menu directory relative to the Start Menu's Programs
-      ; directory in the uninstall log and use this value to set the default
-      ; Start Menu directory.
-      ${FindSMProgramsDir} $0
-      ${If} "$0" != ""
-        StrCpy $StartMenuDir "$0"
-      ${EndIf}
-    ${Else}
-      StrCpy $StartMenuDir "$0"
-    ${EndUnless}
-  ${EndIf}
-
-  ${CheckCustomCommon}
-  ${If} $AddStartMenuSC != 1
-    Abort
-  ${EndIf}
-FunctionEnd
-
-Function leaveStartMenu
   ${If} $InstallType == ${INSTALLTYPE_CUSTOM}
     Call CheckExistingInstall
   ${EndIf}
@@ -895,7 +865,7 @@ FunctionEnd
 Function .onInit
   StrCpy $PageName ""
   StrCpy $LANGUAGE 0
-  ${SetBrandNameVars} "$EXEDIR\localized\distribution\setup.ini"
+  ${SetBrandNameVars} "$EXEDIR\core\distribution\setup.ini"
 
   ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OS_MSG)"
 
@@ -1000,9 +970,8 @@ Function .onInit
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" Bottom "70"
   WriteINIStr "$PLUGINSDIR\shortcuts.ini" "Field 4" State  "1"
 
-  ; There must always be nonlocalized and localized directories.
-  ${GetSize} "$EXEDIR\nonlocalized\" "/S=0K" $R5 $R7 $R8
-  ${GetSize} "$EXEDIR\localized\" "/S=0K" $R6 $R7 $R8
+  ; There must always be a core directory.
+  ${GetSize} "$EXEDIR\core\" "/S=0K" $R5 $R7 $R8
   IntOp $R8 $R5 + $R6
   ; Add 1024 Kb to the diskspace requirement since the installer makes a copy
   ; of the MAPI dll's (around 20 Kb)... also, see Bug 434338.

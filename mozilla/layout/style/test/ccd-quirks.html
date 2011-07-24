@@ -18,23 +18,17 @@ p {
 }
 p + p { left: 22px }
 
-#IA1i, #IA1l, #IA2i, #IA2l,
-#IB1i, #IB1l, #IB2i, #IB2l,
-#IC1i, #IC1l, #IC2i, #IC2l,
-#ID1i, #ID1l, #ID2i, #ID2l,
-
-#JA1i, #JA1l, #JA2i, #JA2l,
-#JD1i, #JD1l, #JD2i, #JD2l,
-#JB1i, #JB1l, #JC1i, #JC1l
+#IA1i, #IA1l, #IA2i, #IA2l, #IB1i, #IB1l, #IB2i, #IB2l,
+#IC1i, #IC1l, #IC2i, #IC2l, #ID1i, #ID1l, #ID2i, #ID2l,
+#JA1i, #JA1l, #JA2i, #JA2l, #JD1i, #JD1l, #JD2i, #JD2l
  { background-color: red }
 
-#IA3i, #IA3l, #IB3i, #IB3l,
-#IC3i, #IC3l, #ID3i, #ID3l,
-
-#JA3i, #JA3l, #JB3i, #JB3l,
-#JC3i, #JC3l, #JD3i, #JD3l,
-
+#JB1i, #JB1l, #JC1i, #JC1l,
 #JB2i, #JB2l, #JC2i, #JC2l
+ { background-color: lime }
+
+#IA3i, #IA3l, #IB3i, #IB3l, #IC3i, #IC3l, #ID3i, #ID3l,
+#JA3i, #JA3l, #JB3i, #JB3l, #JC3i, #JC3l, #JD3i, #JD3l
  { background-color: lime }
 </style>
 
@@ -61,9 +55,9 @@ p + p { left: 22px }
 @import url("redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC1iq");
 @import url("redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC2iq");
 @import url("redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC3iq");
-@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD1iq");
-@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD2iq");
-@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD3iq");
+@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD1iq");
+@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD2iq");
+@import url("http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD3iq");
 </style>
 
 <!-- link directives -->
@@ -88,9 +82,9 @@ p + p { left: 22px }
 <link rel="stylesheet" href="redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC1lq">
 <link rel="stylesheet" href="redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC2lq">
 <link rel="stylesheet" href="redirect.sjs?http://example.org/tests/layout/style/test/ccd.sjs?JC3lq">
-<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD1lq">
-<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD2lq">
-<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://localhost:8888/tests/layout/style/test/ccd.sjs?JD3lq">
+<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD1lq">
+<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD2lq">
+<link rel="stylesheet" href="http://example.org/tests/layout/style/test/redirect.sjs?http://mochi.test:8888/tests/layout/style/test/ccd.sjs?JD3lq">
 
 </head><body>
 <div></div>

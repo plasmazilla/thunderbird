@@ -125,7 +125,7 @@ span.moz-txt-formfeed {
 /* ::::: vcard ::::: */
 
 .moz-vcard-table {
-  -moz-border-radius: 8px;
+  border-radius: 8px;
   border: thin solid gray;
   margin-top: 10px;
 }
@@ -169,13 +169,43 @@ body[selected="false"] {
   border: none;
 }
 
+/* Attachment display styling (for inline attachments and printing) */
 .mimeAttachmentHeader {
   border-style: none;
   border-top: 1px solid GrayText;
 }
 
-.mimeAttachmentName {
+.mimeAttachmentHeaderName {
   color: GrayText;
   font-size: 80%;
   font-family: Arial, sans-serif;
+}
+
+.mimeAttachmentWrap {
+  padding: 0 1em;
+}
+
+.mimeAttachmentTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.mimeAttachmentTable tr + tr > td {
+  border-top: 1px solid GrayText;
+}
+
+.mimeAttachmentFile {
+  word-wrap: break-word;
+}
+
+.mimeAttachmentSize {
+  vertical-align: top;
+  width: 10ch;
+  text-align: right;
+}
+
+.mimeAttachmentFile,
+.mimeAttachmentSize {
+  padding: 0.25em 0;
 }

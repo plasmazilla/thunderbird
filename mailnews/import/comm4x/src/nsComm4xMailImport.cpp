@@ -112,11 +112,11 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(nsComm4xMailImport, nsIImportModule)
 
 NS_IMETHODIMP nsComm4xMailImport::GetName(PRUnichar **name)
 {
-    NS_ENSURE_ARG_POINTER (name);
-    nsresult rv = NS_ERROR_FAILURE;
-    if (m_pBundle)
-        rv = m_pBundle->GetStringFromID(COMM4XMAILIMPORT_NAME, name);
-        return rv;
+  NS_ENSURE_ARG_POINTER(name);
+  if (m_pBundle)
+    return m_pBundle->GetStringFromName(NS_LITERAL_STRING(COMM4XMAILIMPORT_NAME).get(),
+                                        name);
+  return NS_ERROR_FAILURE;
 }
 
 NS_IMETHODIMP nsComm4xMailImport::GetDescription(PRUnichar **name)
@@ -161,7 +161,8 @@ NS_IMETHODIMP nsComm4xMailImport::GetImportInterface(const char *pImportType, ns
                 if (NS_SUCCEEDED(rv)) {
                     pGeneric->SetData("mailInterface", pMail);
                     nsString name;
-                    rv = m_pBundle->GetStringFromID( COMM4XMAILIMPORT_NAME, getter_Copies(name));
+                    rv = GetName(getter_Copies(name));
+                    NS_ENSURE_SUCCESS(rv, rv);
 
                     nsCOMPtr<nsISupportsString> nameString (do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv));
                     NS_ENSURE_SUCCESS(rv,rv);
@@ -337,7 +338,7 @@ NS_IMETHODIMP ImportComm4xMailImpl::ImportMailbox(nsIImportMailboxDescriptor *pS
     pDestination->Exists(&exists);
     if (exists)
         rv = pDestination->Remove(PR_FALSE);
-    rv = inFile->CopyTo(parent, NS_LITERAL_STRING(""));
+    rv = inFile->CopyTo(parent, EmptyString());
 
     if (NS_SUCCEEDED(rv)) {
         m_bytesDone = mailSize;

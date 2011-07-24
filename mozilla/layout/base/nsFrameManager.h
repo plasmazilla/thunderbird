@@ -57,6 +57,12 @@
 #include "nsChangeHint.h"
 #include "nsFrameManagerBase.h"
 
+namespace mozilla {
+namespace css {
+class RestyleTracker;
+} // namespace css
+} // namespace mozilla
+
 /**
  * Frame manager interface. The frame manager serves two purposes:
  * <li>provides a service for mapping from content to frame and from
@@ -70,6 +76,8 @@
 
 class nsFrameManager : public nsFrameManagerBase
 {
+  typedef mozilla::css::RestyleTracker RestyleTracker;
+
 public:
   nsFrameManager() NS_HIDDEN;
   ~nsFrameManager() NS_HIDDEN;
@@ -91,41 +99,6 @@ public:
    */
   NS_HIDDEN_(void) Destroy();
 
-  /*
-   * Gets and sets the root frame (typically the viewport). The lifetime of the
-   * root frame is controlled by the frame manager. When the frame manager is
-   * destroyed, it destroys the entire frame hierarchy.
-   */
-  NS_HIDDEN_(nsIFrame*) GetRootFrame() { return mRootFrame; }
-  NS_HIDDEN_(void)      SetRootFrame(nsIFrame* aRootFrame)
-  {
-    NS_ASSERTION(!mRootFrame, "already have a root frame");
-    mRootFrame = aRootFrame;
-  }
-
-  /*
-   * Get the canvas frame, searching from the root frame down.
-   * The canvas frame may or may not exist, so this may return null.
-   */
-  NS_HIDDEN_(nsIFrame*) GetCanvasFrame();
-
-  // Primary frame functions
-  // If aIndexHint it not -1, it will be used as when determining a frame hint
-  // instead of calling IndexOf(aContent).
-  NS_HIDDEN_(nsIFrame*) GetPrimaryFrameFor(nsIContent* aContent,
-                                           PRInt32 aIndexHint);
-  // aPrimaryFrame must not be null.  If you're trying to remove a primary frame
-  // mapping, use RemoveAsPrimaryFrame.
-  NS_HIDDEN_(nsresult)  SetPrimaryFrameFor(nsIContent* aContent,
-                                           nsIFrame* aPrimaryFrame);
-  // If aPrimaryFrame is the current primary frame for aContent, remove the
-  // relevant hashtable entry.  If the current primary frame for aContent is
-  // null, this does nothing.  aPrimaryFrame must not be null, and this method
-  // handles calling RemovedAsPrimaryFrame on aPrimaryFrame.
-  NS_HIDDEN_(void)      RemoveAsPrimaryFrame(nsIContent* aContent,
-                                             nsIFrame* aPrimaryFrame);
-  NS_HIDDEN_(void)      ClearPrimaryFrameMap();
-
   // Placeholder frame functions
   NS_HIDDEN_(nsPlaceholderFrame*) GetPlaceholderFrameFor(nsIFrame* aFrame);
   NS_HIDDEN_(nsresult)
@@ -145,7 +118,6 @@ public:
   NS_HIDDEN_(void) ClearUndisplayedContentIn(nsIContent* aContent,
                                              nsIContent* aParentContent);
   NS_HIDDEN_(void) ClearAllUndisplayedContentIn(nsIContent* aParentContent);
-  NS_HIDDEN_(void) ClearUndisplayedContentMap();
 
   // Functions for manipulating the frame model
   NS_HIDDEN_(nsresult) AppendFrames(nsIFrame*       aParentFrame,
@@ -160,8 +132,7 @@ public:
                                     nsIFrame*       aPrevFrame,
                                     nsFrameList&    aFrameList);
 
-  NS_HIDDEN_(nsresult) RemoveFrame(nsIFrame*       aParentFrame,
-                                   nsIAtom*        aListName,
+  NS_HIDDEN_(nsresult) RemoveFrame(nsIAtom*        aListName,
                                    nsIFrame*       aOldFrame);
 
   /*
@@ -178,7 +149,7 @@ public:
    *
    * @param aFrame the root of the subtree to reparent.  Must not be null.
    */
-  NS_HIDDEN_(nsresult) ReParentStyleContext(nsIFrame* aFrame);
+  NS_HIDDEN_(nsresult) ReparentStyleContext(nsIFrame* aFrame);
 
   /*
    * Re-resolve the style contexts for a frame tree, building
@@ -188,13 +159,9 @@ public:
   NS_HIDDEN_(void)
     ComputeStyleChangeFor(nsIFrame* aFrame,
                           nsStyleChangeList* aChangeList,
-                          nsChangeHint aMinChange);
-
-  // Determine whether an attribute affects style
-  NS_HIDDEN_(nsReStyleHint) HasAttributeDependentStyle(nsIContent *aContent,
-                                                       nsIAtom *aAttribute,
-                                                       PRInt32 aModType,
-                                                       PRUint32 aStateMask);
+                          nsChangeHint aMinChange,
+                          RestyleTracker& aRestyleTracker,
+                          PRBool aRestyleDescendants);
 
   /*
    * Capture/restore frame state for the frame subtree rooted at aFrame.
@@ -235,13 +202,33 @@ public:
   }
 
 private:
+  enum DesiredA11yNotifications {
+    eSkipNotifications,
+    eSendAllNotifications,
+    eNotifyIfShown
+  };
+
+  enum A11yNotificationType {
+    eDontNotify,
+    eNotifyShown,
+    eNotifyHidden
+  };
+
+  // Use eRestyle_Self for the aRestyleHint argument to mean
+  // "reresolve our style context but not kids", use eRestyle_Subtree
+  // to mean "reresolve our style context and kids", and use
+  // nsRestyleHint(0) to mean recompute a new style context for our
+  // current parent and existing rulenode, and the same for kids.
   NS_HIDDEN_(nsChangeHint)
     ReResolveStyleContext(nsPresContext    *aPresContext,
                           nsIFrame          *aFrame,
                           nsIContent        *aParentContent,
                           nsStyleChangeList *aChangeList, 
                           nsChangeHint       aMinChange,
-                          PRBool             aFireAccessibilityEvents);
+                          nsRestyleHint      aRestyleHint,
+                          RestyleTracker&    aRestyleTracker,
+                          DesiredA11yNotifications aDesiredA11yNotifications,
+                          nsTArray<nsIContent*>& aVisibleKidsOfHiddenElement);
 };
 
 #endif

@@ -60,4 +60,12 @@ ifdef MOZ_ENABLE_LIBCONIC
     DIRS += maemo
 endif
 
+ifdef MOZ_ENABLE_QTNETWORK
+    DIRS += qt
+endif
+
+ifeq (android,$(MOZ_WIDGET_TOOLKIT))
+    DIRS += android
+endif
+
 include $(topsrcdir)/config/rules.mk

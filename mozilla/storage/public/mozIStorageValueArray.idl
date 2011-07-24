@@ -41,8 +41,8 @@
 [ptr] native octetPtr(PRUint8);
 
 /**
- * mozIStorageValueArray wraps an array of SQL values,
- * such as a single database row.
+ * mozIStorageValueArray wraps an array of SQL values, such as a single database
+ * row.
  */
 [scriptable, uuid(07b5b93e-113c-4150-863c-d247b003a55d)]
 interface mozIStorageValueArray : nsISupports {
@@ -110,44 +110,82 @@ interface mozIStorageValueArray : nsISupports {
    */
 
   inline PRInt32 AsInt32(PRUint32 idx) {
-    PRInt32 v;
-    GetInt32(idx, &v);
+    PRInt32 v = 0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetInt32(idx, &v);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return v;
   }
 
   inline PRInt64 AsInt64(PRUint32 idx) {
-    PRInt64 v;
-    GetInt64(idx, &v);
+    PRInt64 v = 0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetInt64(idx, &v);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return v;
   }
 
   inline double AsDouble(PRUint32 idx) {
-    double v;
-    GetDouble(idx, &v);
+    double v = 0.0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetDouble(idx, &v);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return v;
   }
 
   inline const char* AsSharedUTF8String(PRUint32 idx, PRUint32 *len) {
     const char *str = nsnull;
-    GetSharedUTF8String(idx, len, &str);
+    *len = 0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetSharedUTF8String(idx, len, &str);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return str;
   }
 
   inline const PRUnichar* AsSharedWString(PRUint32 idx, PRUint32 *len) {
     const PRUnichar *str = nsnull;
-    GetSharedString(idx, len, &str);
+    *len = 0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetSharedString(idx, len, &str);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return str;
   }
 
   inline const PRUint8* AsSharedBlob(PRUint32 idx, PRUint32 *len) {
     const PRUint8 *blob = nsnull;
-    GetSharedBlob(idx, len, &blob);
+    *len = 0;
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetSharedBlob(idx, len, &blob);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv) || IsNull(idx),
+                      "Getting value failed, wrong column index?");
     return blob;
   }
 
   inline PRBool IsNull(PRUint32 idx) {
     PRBool b = PR_FALSE;
-    GetIsNull(idx, &b);
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      GetIsNull(idx, &b);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv),
+                      "Getting value failed, wrong column index?");
     return b;
   }
 

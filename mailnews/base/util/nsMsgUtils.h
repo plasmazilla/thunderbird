@@ -92,6 +92,9 @@ NS_MSG_BASE nsresult NS_MsgGetUntranslatedPriorityName(
 NS_MSG_BASE nsresult NS_MsgHashIfNecessary(nsAutoString &name);
 NS_MSG_BASE nsresult NS_MsgHashIfNecessary(nsCAutoString &name);
 
+NS_MSG_BASE nsresult FormatFileSize(PRUint64 size, PRBool useKB, nsAString &formattedSize);
+
+
 /**
  * given a folder uri, return the path to folder in the user profile directory.
  *
@@ -308,11 +311,6 @@ NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
  */
 #define CaseInsensitiveCompare PR_TRUE
 /**
- * The internal API expects a PRInt32 error pointer, although the error is
- * always NS_ERROR_ILLEGAL_VALUE. Make it accept an nsresult.
- */
-#define ToInteger(prv, radix) ToInteger(reinterpret_cast<PRInt32*>(prv), radix)
-/**
  * The following methods are not exposed to the external API, but when we're
  * using the internal API we can simply redirect the calls appropriately.
  */
@@ -342,6 +340,8 @@ NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
         NS_NewAtom(aString)
 #define MsgReplaceChar(aString, aNeedle, aReplacement) \
         (aString).ReplaceChar(aNeedle, aReplacement)
+#define MsgFind(str, what, ignore_case, offset) \
+        (str).Find(what, ignore_case, offset)
 
 #else
 
@@ -370,6 +370,8 @@ NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
         (dest).Append(NS_ConvertASCIItoUTF16(source))
 #define Compare(str1, str2, comp) \
         (str1).Compare(str2, comp)
+#define CaseInsensitiveFindInReadable(what, str) \
+        ((str).Find(what, CaseInsensitiveCompare) != kNotFound)
 #define LossyAppendUTF16toASCII(source, dest) \
         (dest).Append(NS_LossyConvertUTF16toASCII(source))
 #define Last() \
@@ -378,6 +380,28 @@ NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
         Replace(index, 1, ch)
 #define NS_NewISupportsArray(result) \
         CallCreateInstance(NS_SUPPORTSARRAY_CONTRACTID, static_cast<nsISupportsArray**>(result))
+/**
+ * The internal and external methods expect the parameters in a different order.
+ * The internal API also always expects a flag rather than a comparator.
+ */
+inline PRInt32 MsgFind(nsAString &str, const char *what, PRBool ignore_case, PRUint32 offset)
+{
+  return str.Find(what, offset, ignore_case);
+}
+
+inline PRInt32 MsgFind(nsACString &str, const char *what, PRBool ignore_case, PRUint32 offset)
+{
+  if (ignore_case)
+    return str.Find(what, offset, CaseInsensitiveCompare);
+  return str.Find(what, offset);
+}
+
+inline PRInt32 MsgFind(nsACString &str, const nsACString &what, PRBool ignore_case, PRUint32 offset)
+{
+  if (ignore_case)
+    return str.Find(what, offset, CaseInsensitiveCompare);
+  return str.Find(what, offset);
+}
 
 /**
  * The following methods are not exposed to the external API so we define

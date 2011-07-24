@@ -49,16 +49,23 @@
 #include "nsStringBuffer.h"
 #include "nsColor.h"
 #include "nsCaseTreatment.h"
+#include "nsMargin.h"
+#include "nsCOMPtr.h"
 
 typedef PRUptrdiff PtrBits;
 class nsAString;
 class nsIAtom;
-class nsICSSStyleRule;
-class nsIURI;
 class nsISVGValue;
 class nsIDocument;
-template<class E> class nsCOMArray;
-template<class E> class nsTPtrArray;
+template<class E, class A> class nsTArray;
+template<class E, class A> class nsTPtrArray;
+struct nsTArrayDefaultAllocator;
+
+namespace mozilla {
+namespace css {
+class StyleRule;
+}
+}
 
 #define NS_ATTRVALUE_MAX_STRINGLENGTH_ATOM 12
 
@@ -92,13 +99,16 @@ public:
 
 class nsAttrValue {
 public:
+  typedef nsTArray< nsCOMPtr<nsIAtom> > AtomArray;
+
   nsAttrValue();
   nsAttrValue(const nsAttrValue& aOther);
   explicit nsAttrValue(const nsAString& aValue);
-  explicit nsAttrValue(nsICSSStyleRule* aValue);
+  nsAttrValue(mozilla::css::StyleRule* aValue, const nsAString* aSerialized);
 #ifdef MOZ_SVG
   explicit nsAttrValue(nsISVGValue* aValue);
 #endif
+  explicit nsAttrValue(const nsIntMargin& aValue);
   ~nsAttrValue();
 
   static nsresult Init();
@@ -120,8 +130,8 @@ public:
 #ifdef MOZ_SVG
     ,eSVGValue =    0x12
 #endif
-    ,eFloatValue  = 0x13
-    ,eLazyURIValue = 0x14
+    ,eDoubleValue  = 0x13
+    ,eIntMarginValue = 0x14
   };
 
   ValueType Type() const;
@@ -131,10 +141,11 @@ public:
   void SetTo(const nsAttrValue& aOther);
   void SetTo(const nsAString& aValue);
   void SetTo(PRInt16 aInt);
-  void SetTo(nsICSSStyleRule* aValue);
+  void SetTo(mozilla::css::StyleRule* aValue, const nsAString* aSerialized);
 #ifdef MOZ_SVG
   void SetTo(nsISVGValue* aValue);
 #endif
+  void SetTo(const nsIntMargin& aValue);
 
   void SwapValueWith(nsAttrValue& aOther);
 
@@ -149,21 +160,26 @@ public:
   PRBool GetColorValue(nscolor& aColor) const;
   inline PRInt16 GetEnumValue() const;
   inline float GetPercentValue() const;
-  inline nsCOMArray<nsIAtom>* GetAtomArrayValue() const;
-  inline nsICSSStyleRule* GetCSSStyleRuleValue() const;
+  inline AtomArray* GetAtomArrayValue() const;
+  inline mozilla::css::StyleRule* GetCSSStyleRuleValue() const;
 #ifdef MOZ_SVG
   inline nsISVGValue* GetSVGValue() const;
 #endif
-  inline float GetFloatValue() const;
-  inline nsIURI* GetURIValue() const;
-  const nsCheapString GetURIStringValue() const;
-  void CacheURIValue(nsIURI* aURI);
-  void DropCachedURI();
+  inline double GetDoubleValue() const;
+  PRBool GetIntMarginValue(nsIntMargin& aMargin) const;
+
+  /**
+   * Returns the string corresponding to the stored enum value.
+   *
+   * @param aResult   the string representing the enum tag
+   * @param aRealTag  wheter we want to have the real tag or the saved one
+   */
+  void GetEnumString(nsAString& aResult, PRBool aRealTag) const;
 
   // Methods to get access to atoms we may have
   // Returns the number of atoms we have; 0 if we have none.  It's OK
   // to call this without checking the type first; it handles that.
-  PRInt32 GetAtomCount() const;
+  PRUint32 GetAtomCount() const;
   // Returns the atom at aIndex (0-based).  Do not call this with
   // aIndex >= GetAtomCount().
   nsIAtom* AtomAt(PRInt32 aIndex) const;
@@ -205,12 +221,12 @@ public:
    *
    * @param aValue the string to find the value for
    * @param aTable the enumeration to map with
-   * @param aResult the enum mapping [OUT]
+   * @param aCaseSensitive specify if the parsing has to be case sensitive
    * @return whether the enum value was found or not
    */
   PRBool ParseEnumValue(const nsAString& aValue,
                         const EnumTable* aTable,
-                        PRBool aCaseSensitive = PR_FALSE);
+                        PRBool aCaseSensitive);
 
   /**
    * Parse a string into an integer. Can optionally parse percent (n%).
@@ -218,11 +234,11 @@ public:
    * whether it be percent or raw integer.
    *
    * @param aString the string to parse
-   * @param aCanBePercent PR_TRUE if it can be a percent value (%)
    * @return whether the value could be parsed
+   *
+   * @see http://www.whatwg.org/html/#rules-for-parsing-dimension-values
    */
-  PRBool ParseSpecialIntValue(const nsAString& aString,
-                              PRBool aCanBePercent);
+  PRBool ParseSpecialIntValue(const nsAString& aString);
 
 
   /**
@@ -247,27 +263,61 @@ public:
                             PRInt32 aMax = PR_INT32_MAX);
 
   /**
-   * Parse a string into a color.
+   * Parse a string value into a non-negative integer.
+   * This method follows the rules for parsing non-negative integer from:
+   * http://dev.w3.org/html5/spec/infrastructure.html#rules-for-parsing-non-negative-integers
    *
-   * @param aString the string to parse
-   * @param aDocument the document (to find out whether we're in quirks mode)
-   * @return whether the value could be parsed
+   * @param  aString the string to parse
+   * @return whether the value is valid
    */
-  PRBool ParseColor(const nsAString& aString, nsIDocument* aDocument);
+  PRBool ParseNonNegativeIntValue(const nsAString& aString);
 
   /**
-   * Parse a string value into a float.
+   * Parse a string value into a positive integer.
+   * This method follows the rules for parsing non-negative integer from:
+   * http://dev.w3.org/html5/spec/infrastructure.html#rules-for-parsing-non-negative-integers
+   * In addition of these rules, the value has to be greater than zero.
+   *
+   * This is generally used for parsing content attributes which reflecting IDL
+   * attributes are limited to only non-negative numbers greater than zero, see:
+   * http://dev.w3.org/html5/spec/common-dom-interfaces.html#limited-to-only-non-negative-numbers-greater-than-zero
+   *
+   * @param aString       the string to parse
+   * @return              whether the value was valid
+   */
+  PRBool ParsePositiveIntValue(const nsAString& aString);
+
+  /**
+   * Parse a string into a color.  This implements what HTML5 calls the
+   * "rules for parsing a legacy color value".
    *
    * @param aString the string to parse
    * @return whether the value could be parsed
    */
-  PRBool ParseFloatValue(const nsAString& aString);
+  PRBool ParseColor(const nsAString& aString);
+
+  /**
+   * Parse a string value into a double-precision floating point value.
+   *
+   * @param aString the string to parse
+   * @return whether the value could be parsed
+   */
+  PRBool ParseDoubleValue(const nsAString& aString);
 
   /**
    * Parse a lazy URI.  This just sets up the storage for the URI; it
    * doesn't actually allocate it.
    */
   PRBool ParseLazyURIValue(const nsAString& aString);
+
+  /**
+   * Parse a margin string of format 'top, right, bottom, left' into
+   * an nsIntMargin.
+   *
+   * @param aString the string to parse
+   * @return whether the value could be parsed
+   */
+  PRBool ParseIntMarginValue(const nsAString& aString);
 
 private:
   // These have to be the same as in ValueType
@@ -291,21 +341,33 @@ private:
       nscolor mColor;
       PRUint32 mEnumValue;
       PRInt32 mPercent;
-      nsICSSStyleRule* mCSSStyleRule;
-      nsCOMArray<nsIAtom>* mAtomArray;
+      mozilla::css::StyleRule* mCSSStyleRule;
+      AtomArray* mAtomArray;
 #ifdef MOZ_SVG
       nsISVGValue* mSVGValue;
 #endif
-      float mFloatValue;
-      nsIURI* mURI;
+      double mDoubleValue;
+      nsIntMargin* mIntMargin;
     };
   };
 
   inline ValueBaseType BaseType() const;
 
+  /**
+   * Get the index of an EnumTable in the sEnumTableArray.
+   * If the EnumTable is not in the sEnumTableArray, it is added.
+   * If there is no more space in sEnumTableArray, it returns PR_FALSE.
+   *
+   * @param aTable   the EnumTable to get the index of.
+   * @param aResult  the index of the EnumTable.
+   * @return         whether the index has been found or inserted.
+   */
+  PRBool GetEnumTableIndex(const EnumTable* aTable, PRInt16& aResult);
+
   inline void SetPtrValueAndType(void* aValue, ValueBaseType aType);
   void SetIntValueAndType(PRInt32 aValue, ValueType aType,
                           const nsAString* aStringValue);
+  void SetColorValue(nscolor aColor, const nsAString& aString);
   void SetMiscAtomOrString(const nsAString* aValue);
   void ResetMiscAtomOrString();
   inline void ResetIfSet();
@@ -325,7 +387,7 @@ private:
                           PRBool aCanBePercent = PR_FALSE,
                           PRBool* aIsPercent = nsnull) const;
 
-  static nsTPtrArray<const EnumTable>* sEnumTableArray;
+  static nsTPtrArray<const EnumTable, nsTArrayDefaultAllocator>* sEnumTableArray;
 
   PtrBits mBits;
 };
@@ -373,14 +435,14 @@ nsAttrValue::GetPercentValue() const
             / 100.0f;
 }
 
-inline nsCOMArray<nsIAtom>*
+inline nsAttrValue::AtomArray*
 nsAttrValue::GetAtomArrayValue() const
 {
   NS_PRECONDITION(Type() == eAtomArray, "wrong type");
   return GetMiscContainer()->mAtomArray;
 }
 
-inline nsICSSStyleRule*
+inline mozilla::css::StyleRule*
 nsAttrValue::GetCSSStyleRuleValue() const
 {
   NS_PRECONDITION(Type() == eCSSStyleRule, "wrong type");
@@ -396,18 +458,22 @@ nsAttrValue::GetSVGValue() const
 }
 #endif
 
-inline float
-nsAttrValue::GetFloatValue() const
+inline double
+nsAttrValue::GetDoubleValue() const
 {
-  NS_PRECONDITION(Type() == eFloatValue, "wrong type");
-  return GetMiscContainer()->mFloatValue;
+  NS_PRECONDITION(Type() == eDoubleValue, "wrong type");
+  return GetMiscContainer()->mDoubleValue;
 }
 
-inline nsIURI*
-nsAttrValue::GetURIValue() const
+inline PRBool
+nsAttrValue::GetIntMarginValue(nsIntMargin& aMargin) const
 {
-  NS_PRECONDITION(Type() == eLazyURIValue, "wrong type");
-  return GetMiscContainer()->mURI;
+  NS_PRECONDITION(Type() == eIntMarginValue, "wrong type");
+  nsIntMargin* m = GetMiscContainer()->mIntMargin;
+  if (!m)
+    return PR_FALSE;
+  aMargin = *m;
+  return PR_TRUE;
 }
 
 inline nsAttrValue::ValueBaseType

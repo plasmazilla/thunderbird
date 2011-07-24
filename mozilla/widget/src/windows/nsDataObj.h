@@ -52,11 +52,13 @@
 #include "nsIInputStream.h"
 #include "nsIChannel.h"
 #include "nsTPtrArray.h"
+#include "nsCOMArray.h"
+#include "nsITimer.h"
 
 // XXX for older version of PSDK where IAsyncOperation and related stuff is not available
 // but thisdefine  should be removed when parocles config is updated
 #ifndef __IAsyncOperation_INTERFACE_DEFINED__
-// IAsyncOperation inerface definition
+// IAsyncOperation interface definition
 EXTERN_C const IID IID_IAsyncOperation;
 
 MIDL_INTERFACE("3D8B0590-F691-11d2-8EA9-006097DF5BD4")
@@ -217,16 +219,20 @@ class nsDataObj : public IDataObject,
                                 nsAString &aFilename);
 
 	protected:
-	  // help determine the kind of drag
+    // help determine the kind of drag
     PRBool IsFlavourPresent(const char *inFlavour);
 
-		virtual HRESULT AddSetFormat(FORMATETC&  FE);
-		virtual HRESULT AddGetFormat(FORMATETC&  FE);
+    virtual HRESULT AddSetFormat(FORMATETC&  FE);
+    virtual HRESULT AddGetFormat(FORMATETC&  FE);
 
-		virtual HRESULT GetFile ( FORMATETC& aFE, STGMEDIUM& aSTG );
-		virtual HRESULT GetText ( const nsACString& aDF, FORMATETC& aFE, STGMEDIUM & aSTG );
-		virtual HRESULT GetDib ( const nsACString& inFlavor, FORMATETC &, STGMEDIUM & aSTG );
-		virtual HRESULT GetMetafilePict(FORMATETC&  FE, STGMEDIUM&  STM);
+    virtual HRESULT GetFile ( FORMATETC& aFE, STGMEDIUM& aSTG );
+    virtual HRESULT GetText ( const nsACString& aDF, FORMATETC& aFE, STGMEDIUM & aSTG );
+    virtual HRESULT GetDib ( const nsACString& inFlavor, FORMATETC &, STGMEDIUM & aSTG );
+    virtual HRESULT GetMetafilePict(FORMATETC&  FE, STGMEDIUM&  STM);
+        
+    virtual HRESULT DropImage( FORMATETC& aFE, STGMEDIUM& aSTG );
+    virtual HRESULT DropFile( FORMATETC& aFE, STGMEDIUM& aSTG );
+    virtual HRESULT DropTempFile( FORMATETC& aFE, STGMEDIUM& aSTG );
 
     virtual HRESULT GetUniformResourceLocator ( FORMATETC& aFE, STGMEDIUM& aSTG, PRBool aIsUnicode ) ;
     virtual HRESULT ExtractUniformResourceLocatorA ( FORMATETC& aFE, STGMEDIUM& aSTG ) ;
@@ -316,16 +322,18 @@ class nsDataObj : public IDataObject,
 
   private:
 
-    // Drag and drop helper data for implementing drag and drop image support.
+    // Drag and drop helper data for implementing drag and drop image support
     typedef struct {
       FORMATETC   fe;
       STGMEDIUM   stgm;
     } DATAENTRY, *LPDATAENTRY;
 
     nsTArray <LPDATAENTRY> mDataEntryList;
+    nsCOMPtr<nsITimer> mTimer;
 
     PRBool LookupArbitraryFormat(FORMATETC *aFormat, LPDATAENTRY *aDataEntry, BOOL aAddorUpdate);
     PRBool CopyMediumData(STGMEDIUM *aMediumDst, STGMEDIUM *aMediumSrc, LPFORMATETC aFormat, BOOL aSetData);
+    static void RemoveTempFile(nsITimer* aTimer, void* aClosure);
 };
 
 

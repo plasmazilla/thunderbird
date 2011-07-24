@@ -40,7 +40,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsRuleData.h"
 
 // use the same protection as ancient code did 
@@ -51,7 +50,7 @@ class nsHTMLTableColElement : public nsGenericHTMLElement,
                               public nsIDOMHTMLTableColElement
 {
 public:
-  nsHTMLTableColElement(nsINodeInfo *aNodeInfo);
+  nsHTMLTableColElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLTableColElement();
 
   // nsISupports
@@ -77,13 +76,15 @@ public:
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(TableCol)
 
 
-nsHTMLTableColElement::nsHTMLTableColElement(nsINodeInfo *aNodeInfo)
+nsHTMLTableColElement::nsHTMLTableColElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -96,6 +97,8 @@ nsHTMLTableColElement::~nsHTMLTableColElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLTableColElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLTableColElement, nsGenericElement) 
 
+
+DOMCI_NODE_DATA(HTMLTableColElement, nsHTMLTableColElement)
 
 // QueryInterface implementation for nsHTMLTableColElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLTableColElement)
@@ -125,14 +128,14 @@ nsHTMLTableColElement::ParseAttribute(PRInt32 aNamespaceID,
   if (aNamespaceID == kNameSpaceID_None) {
     /* ignore these attributes, stored simply as strings ch */
     if (aAttribute == nsGkAtoms::charoff) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::span) {
       /* protection from unrealistic large colspan values */
       return aResult.ParseIntWithBounds(aValue, 1, MAX_COLSPAN);
     }
     if (aAttribute == nsGkAtoms::width) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::align) {
       return ParseTableCellHAlignValue(aValue, aResult);
@@ -149,54 +152,59 @@ nsHTMLTableColElement::ParseAttribute(PRInt32 aNamespaceID,
 static 
 void MapAttributesIntoRule(const nsMappedAttributes* aAttributes, nsRuleData* aData)
 {
-  if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Table) && 
-      aData->mTableData->mSpan.GetUnit() == eCSSUnit_Null) {
-    // span: int
-    const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::span);
-    if (value && value->Type() == nsAttrValue::eInteger) {
-      PRInt32 val = value->GetIntegerValue();
-      // Note: Do NOT use this code for table cells!  The value "0"
-      // means something special for colspan and rowspan, but for <col
-      // span> and <colgroup span> it's just disallowed.
-      if (val > 0) {
-        aData->mTableData->mSpan.SetIntValue(value->GetIntegerValue(),
-                                             eCSSUnit_Integer);
+  if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Table)) {
+    nsCSSValue *span = aData->ValueForSpan();
+    if (span->GetUnit() == eCSSUnit_Null) {
+      // span: int
+      const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::span);
+      if (value && value->Type() == nsAttrValue::eInteger) {
+        PRInt32 val = value->GetIntegerValue();
+        // Note: Do NOT use this code for table cells!  The value "0"
+        // means something special for colspan and rowspan, but for <col
+        // span> and <colgroup span> it's just disallowed.
+        if (val > 0) {
+          span->SetIntValue(value->GetIntegerValue(), eCSSUnit_Integer);
+        }
       }
     }
   }
-  if ((aData->mSIDs & NS_STYLE_INHERIT_BIT(Position)) &&
-      aData->mPositionData->mWidth.GetUnit() == eCSSUnit_Null) {
-    // width
-    const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::width);
-    if (value) {
-      switch (value->Type()) {
-      case nsAttrValue::ePercent: {
-        aData->mPositionData->mWidth.SetPercentValue(value->GetPercentValue());
-        break;
-      }
-      case nsAttrValue::eInteger: {
-        aData->mPositionData->mWidth.SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel);
-        break;
-      }
-      default:
-        break;
+  if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Position)) {
+    nsCSSValue* width = aData->ValueForWidth();
+    if (width->GetUnit() == eCSSUnit_Null) {
+      // width
+      const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::width);
+      if (value) {
+        switch (value->Type()) {
+        case nsAttrValue::ePercent: {
+          width->SetPercentValue(value->GetPercentValue());
+          break;
+        }
+        case nsAttrValue::eInteger: {
+          width->SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel);
+          break;
+        }
+        default:
+          break;
+        }
       }
     }
   }
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Text)) {
-    if (aData->mTextData->mTextAlign.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* textAlign = aData->ValueForTextAlign();
+    if (textAlign->GetUnit() == eCSSUnit_Null) {
       // align: enum
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::align);
       if (value && value->Type() == nsAttrValue::eEnum)
-        aData->mTextData->mTextAlign.SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
+        textAlign->SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
     }
   }
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(TextReset)) {
-    if (aData->mTextData->mVerticalAlign.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* verticalAlign = aData->ValueForVerticalAlign();
+    if (verticalAlign->GetUnit() == eCSSUnit_Null) {
       // valign: enum
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::valign);
       if (value && value->Type() == nsAttrValue::eEnum)
-        aData->mTextData->mVerticalAlign.SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
+        verticalAlign->SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
     }
   }
 
