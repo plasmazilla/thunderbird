@@ -41,10 +41,9 @@ DEPTH		= ../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = calendar/test
 
 include $(DEPTH)/config/autoconf.mk
-
-MODULE		= test_calendar
 
 XPCSHELL_TESTS = unit
 

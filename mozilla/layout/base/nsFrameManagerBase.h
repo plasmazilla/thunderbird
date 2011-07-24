@@ -70,6 +70,18 @@ class nsFrameManagerBase
 public:
   PRBool IsDestroyingFrames() { return mIsDestroyingFrames; }
 
+  /*
+   * Gets and sets the root frame (typically the viewport). The lifetime of the
+   * root frame is controlled by the frame manager. When the frame manager is
+   * destroyed, it destroys the entire frame hierarchy.
+   */
+  NS_HIDDEN_(nsIFrame*) GetRootFrame() const { return mRootFrame; }
+  NS_HIDDEN_(void)      SetRootFrame(nsIFrame* aRootFrame)
+  {
+    NS_ASSERTION(!mRootFrame, "already have a root frame");
+    mRootFrame = aRootFrame;
+  }
+
 protected:
   class UndisplayedMap;
 
@@ -78,10 +90,8 @@ protected:
   // the pres shell owns the style set
   nsStyleSet*                     mStyleSet;
   nsIFrame*                       mRootFrame;
-  PLDHashTable                    mPrimaryFrameMap;
   PLDHashTable                    mPlaceholderMap;
   UndisplayedMap*                 mUndisplayedMap;
-  PRPackedBool                    mIsDestroying;        // The frame manager is being destroyed.
   PRPackedBool                    mIsDestroyingFrames;  // The frame manager is destroying some frame(s).
 };
 

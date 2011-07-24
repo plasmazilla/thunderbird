@@ -62,7 +62,6 @@
 #include "nsIContentSink.h"
 #include "prlog.h"
 #include "nsIRequest.h"
-#include "nsTimer.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsThreadUtils.h"
 
@@ -70,7 +69,6 @@ class nsIDocument;
 class nsIURI;
 class nsIChannel;
 class nsIDocShell;
-class nsICSSLoader;
 class nsIParser;
 class nsIAtom;
 class nsIChannel;
@@ -79,6 +77,12 @@ class nsIViewManager;
 class nsNodeInfoManager;
 class nsScriptLoader;
 class nsIApplicationCache;
+
+namespace mozilla {
+namespace css {
+class Loader;
+}
+}
 
 #ifdef NS_DEBUG
 
@@ -123,7 +127,7 @@ class nsContentSink : public nsICSSLoaderObserver,
   NS_DECL_NSITIMERCALLBACK
 
   // nsICSSLoaderObserver
-  NS_IMETHOD StyleSheetLoaded(nsICSSStyleSheet* aSheet, PRBool aWasAlternate,
+  NS_IMETHOD StyleSheetLoaded(nsCSSStyleSheet* aSheet, PRBool aWasAlternate,
                               nsresult aStatus);
 
   virtual nsresult ProcessMETATag(nsIContent* aContent);
@@ -141,12 +145,14 @@ class nsContentSink : public nsICSSLoaderObserver,
   void NotifyAppend(nsIContent* aContent, PRUint32 aStartIndex);
 
   // nsIDocumentObserver
-  virtual void BeginUpdate(nsIDocument *aDocument, nsUpdateType aUpdateType);
-  virtual void EndUpdate(nsIDocument *aDocument, nsUpdateType aUpdateType);
+  NS_DECL_NSIDOCUMENTOBSERVER_BEGINUPDATE
+  NS_DECL_NSIDOCUMENTOBSERVER_ENDUPDATE
 
   virtual void UpdateChildCounts() = 0;
 
   PRBool IsTimeToNotify();
+
+  static void InitializeStatics();
 
 protected:
   nsContentSink();
@@ -248,19 +254,27 @@ public:
   // of the above defined methods to select the document's application
   // cache, let it be associated with the document and eventually
   // schedule the cache update process.
+  // This method MUST be called with the empty string as the argument
+  // when there is no manifest attribute!
+  void ProcessOfflineManifest(const nsAString& aManifestSpec);
+
+  // Extracts the manifest attribute from the element if it is the root 
+  // element and calls the above method.
   void ProcessOfflineManifest(nsIContent *aElement);
 
 protected:
   // Tries to scroll to the URI's named anchor. Once we've successfully
   // done that, further calls to this method will be ignored.
   void ScrollToRef();
-  nsresult RefreshIfEnabled(nsIViewManager* vm);
 
   // Start layout.  If aIgnorePendingSheets is true, this will happen even if
   // we still have stylesheet loads pending.  Otherwise, we'll wait until the
   // stylesheets are all done loading.
 public:
   void StartLayout(PRBool aIgnorePendingSheets);
+
+  static void NotifyDocElementCreated(nsIDocument* aDoc);
+
 protected:
   void
   FavorPerformanceHint(PRBool perfOverStarvation, PRUint32 starvationDelay);
@@ -271,7 +285,7 @@ protected:
       return 1000;
     }
 
-    return mNotificationInterval;
+    return sNotificationInterval;
   }
 
   // Overridable hooks into script evaluation
@@ -293,27 +307,21 @@ private:
 
 protected:
 
-  void ContinueInterruptedParsingAsync();
+  virtual void ContinueInterruptedParsingAsync();
   void ContinueInterruptedParsingIfEnabled();
 
   nsCOMPtr<nsIDocument>         mDocument;
   nsCOMPtr<nsIParser>           mParser;
   nsCOMPtr<nsIURI>              mDocumentURI;
-  nsCOMPtr<nsIURI>              mDocumentBaseURI;
   nsCOMPtr<nsIDocShell>         mDocShell;
-  nsCOMPtr<nsICSSLoader>        mCSSLoader;
+  nsRefPtr<mozilla::css::Loader> mCSSLoader;
   nsRefPtr<nsNodeInfoManager>   mNodeInfoManager;
   nsRefPtr<nsScriptLoader>      mScriptLoader;
 
   nsCOMArray<nsIScriptElement> mScriptElements;
 
-  nsCString mRef; // ScrollTo #ref
-
   // back off timer notification after count
   PRInt32 mBackoffCount;
-
-  // Notification interval in microseconds
-  PRInt32 mNotificationInterval;
 
   // Time of last notification
   // Note: mLastNotificationTime is only valid once mLayoutStarted is true.
@@ -322,18 +330,13 @@ protected:
   // Timer used for notification
   nsCOMPtr<nsITimer> mNotificationTimer;
 
-  // Do we notify based on time?
-  PRPackedBool mNotifyOnTimer;
-
   // Have we already called BeginUpdate for this set of content changes?
   PRUint8 mBeganUpdate : 1;
   PRUint8 mLayoutStarted : 1;
-  PRUint8 mScrolledToRefAlready : 1;
   PRUint8 mCanInterruptParser : 1;
   PRUint8 mDynamicLowerValue : 1;
   PRUint8 mParsing : 1;
   PRUint8 mDroppedTimer : 1;
-  PRUint8 mChangeScrollPosWhenScrollingToRef : 1;
   // If true, we deferred starting layout until sheets load
   PRUint8 mDeferredLayoutStart : 1;
   // If true, we deferred notifications until sheets load
@@ -342,6 +345,8 @@ protected:
   // shouldn't be performing any more content model notifications,
   // since we're not longer updating our child counts.
   PRUint8 mIsDocumentObserver : 1;
+  // True if this is a fragment parser
+  PRUint8 mFragmentMode : 1;
   
   //
   // -- Can interrupt parsing members --
@@ -351,35 +356,11 @@ protected:
   // if it's time to return to the main event loop.
   PRUint32 mDeflectedCount;
 
-  // How many times to deflect in interactive/perf modes
-  PRInt32 mInteractiveDeflectCount;
-  PRInt32 mPerfDeflectCount;
-
-  // 0 = don't check for pending events
-  // 1 = don't deflect if there are pending events
-  // 2 = bail if there are pending events
-  PRInt32 mPendingEventMode;
-
-  // How often to probe for pending events. 1=every token
-  PRInt32 mEventProbeRate;
-
   // Is there currently a pending event?
   PRBool mHasPendingEvent;
 
   // When to return to the main event loop
-  PRInt32 mCurrentParseEndTime;
-
-  // How long to stay off the event loop in interactive/perf modes
-  PRInt32 mInteractiveParseTime;
-  PRInt32 mPerfParseTime;
-
-  // How long to be in interactive mode after an event
-  PRInt32 mInteractiveTime;
-  // How long to stay in perf mode after initial loading
-  PRInt32 mInitialPerfTime;
-
-  // Should we switch between perf-mode and interactive-mode
-  PRBool mEnablePerfMode;
+  PRUint32 mCurrentParseEndTime;
 
   PRInt32 mBeginLoadTime;
 
@@ -394,11 +375,34 @@ protected:
 
   PRUint32 mPendingSheetCount;
 
-  nsRevocableEventPtr<nsNonOwningRunnableMethod<nsContentSink> >
+  nsRevocableEventPtr<nsRunnableMethod<nsContentSink, void, false> >
     mProcessLinkHeaderEvent;
 
-  // Measures content model creation time for current document
-  MOZ_TIMER_DECLARE(mWatch)
+  // Do we notify based on time?
+  static PRBool sNotifyOnTimer;
+  // Back off timer notification after count.
+  static PRInt32 sBackoffCount;
+  // Notification interval in microseconds
+  static PRInt32 sNotificationInterval;
+  // How many times to deflect in interactive/perf modes
+  static PRInt32 sInteractiveDeflectCount;
+  static PRInt32 sPerfDeflectCount;
+  // 0 = don't check for pending events
+  // 1 = don't deflect if there are pending events
+  // 2 = bail if there are pending events
+  static PRInt32 sPendingEventMode;
+  // How often to probe for pending events. 1=every token
+  static PRInt32 sEventProbeRate;
+  // How long to stay off the event loop in interactive/perf modes
+  static PRInt32 sInteractiveParseTime;
+  static PRInt32 sPerfParseTime;
+  // How long to be in interactive mode after an event
+  static PRInt32 sInteractiveTime;
+  // How long to stay in perf mode after initial loading
+  static PRInt32 sInitialPerfTime;
+  // Should we switch between perf-mode and interactive-mode
+  static PRInt32 sEnablePerfMode;
+  static PRBool sCanInterruptParser;
 };
 
 // sanitizing content sink whitelists

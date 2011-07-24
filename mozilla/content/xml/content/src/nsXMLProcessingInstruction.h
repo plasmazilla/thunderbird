@@ -49,7 +49,7 @@ class nsXMLProcessingInstruction : public nsGenericDOMDataNode,
                                    public nsIDOMProcessingInstruction
 {
 public:
-  nsXMLProcessingInstruction(nsINodeInfo *aNodeInfo,
+  nsXMLProcessingInstruction(already_AddRefed<nsINodeInfo> aNodeInfo,
                              const nsAString& aTarget,
                              const nsAString& aData);
   virtual ~nsXMLProcessingInstruction();
@@ -65,13 +65,13 @@ public:
 
   // nsIContent
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
-  virtual PRBool MayHaveFrame() const;
 
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const;
   virtual void DumpContent(FILE* out, PRInt32 aIndent, PRBool aDumpAll) const;
 #endif
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
   /**
    * This will parse the content of the PI, to extract the value of the pseudo

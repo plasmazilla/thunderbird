@@ -230,6 +230,9 @@ nsDragService::InvokeDragSession(nsIDOMNode *aDOMNode,
         rv = nsClipboard::CreateNativeDataObject(trans,
                                                  getter_AddRefs(dataObj), uri);
         NS_ENSURE_SUCCESS(rv, rv);
+        // Add the flavors to the collection object too
+        rv = nsClipboard::SetupNativeDataObject(trans, dataObjCollection);
+        NS_ENSURE_SUCCESS(rv, rv);
 
         dataObjCollection->AddDataObject(dataObj);
       }
@@ -300,33 +303,17 @@ nsDragService::StartInvokingDragSession(IDataObject * aDataObj,
   // Start dragging
   StartDragSession();
 
-  // check shell32.dll version and do async drag if it is >= 5.0
-  PRUint64 lShellVersion = GetShellVersion();
-  IAsyncOperation *pAsyncOp = NULL;
-  PRBool isAsyncAvailable = LL_UCMP(lShellVersion, >=, LL_INIT(5, 0));
-  if (isAsyncAvailable)
-  {
-    // do async drag
-    if (SUCCEEDED(aDataObj->QueryInterface(IID_IAsyncOperation,
-                                          (void**)&pAsyncOp)))
-      pAsyncOp->SetAsyncMode(VARIANT_TRUE);
+  nsRefPtr<IAsyncOperation> pAsyncOp;
+  // Offer to do an async drag
+  if (SUCCEEDED(aDataObj->QueryInterface(IID_IAsyncOperation,
+                                         getter_AddRefs(pAsyncOp)))) {
+    pAsyncOp->SetAsyncMode(VARIANT_TRUE);
+  } else {
+    NS_NOTREACHED("When did our data object stop being async");
   }
 
   // Call the native D&D method
   HRESULT res = ::DoDragDrop(aDataObj, mNativeDragSrc, effects, &winDropRes);
-
-  if (isAsyncAvailable)
-  {
-    // if dragging async
-    // check for async operation
-    BOOL isAsync = FALSE;
-    if (pAsyncOp)
-    {
-      pAsyncOp->InOperation(&isAsync);
-      if (!isAsync)
-        aDataObj->Release();
-    }
-  }
 
   // In  cases where the drop operation completed outside the application, update
   // the source node's nsIDOMNSDataTransfer dropEffect value so it is up to date.  
@@ -364,30 +351,6 @@ nsDragService::StartInvokingDragSession(IDataObject * aDataObj,
   cpos.y = GET_Y_LPARAM(pos);
   SetDragEndPoint(nsIntPoint(cpos.x, cpos.y));
   EndDragSession(PR_TRUE);
-
-  // For some drag/drop interactions, IDataObject::SetData doesn't get
-  // called with a CFSTR_PERFORMEDDROPEFFECT format and the
-  // intermediate file (if it was created) isn't deleted.  See
-  // http://bugzilla.mozilla.org/show_bug.cgi?id=203847#c4 for a
-  // detailed description of the different cases.  Now that we know
-  // that the drag/drop operation has ended, call SetData() so that
-  // the intermediate file is deleted.
-  static CLIPFORMAT PerformedDropEffect =
-    ::RegisterClipboardFormat(CFSTR_PERFORMEDDROPEFFECT);
-
-  FORMATETC fmte =
-    {
-      (CLIPFORMAT)PerformedDropEffect,
-      NULL,
-      DVASPECT_CONTENT,
-      -1,
-      TYMED_NULL
-    };
-
-  STGMEDIUM medium;
-  medium.tymed = TYMED_NULL;
-  medium.pUnkForRelease = NULL;
-  aDataObj->SetData(&fmte, &medium, FALSE);
 
   mDoingDrag = PR_FALSE;
 
@@ -511,7 +474,7 @@ void
 nsDragService::SetDroppedLocal()
 {
   // Sent from the native drag handler, letting us know
-  // a drop occured within the application vs. outside of it.
+  // a drop occurred within the application vs. outside of it.
   mSentLocalDropEvent = PR_TRUE;
   return;
 }

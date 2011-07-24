@@ -46,6 +46,8 @@
 #include "nsILocalFile.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsUnicharUtils.h"
+#include "nsIWinTaskbar.h"
+#include "nsISupportsPrimitives.h"
 
 #ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
@@ -63,7 +65,9 @@
 #define REG_FAILED(val) \
   (val != ERROR_SUCCESS)
 
-NS_IMPL_ISUPPORTS1(nsWindowsShellService, nsIShellService)
+#define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
+
+NS_IMPL_ISUPPORTS2(nsWindowsShellService, nsIWindowsShellService, nsIShellService)
 
 static nsresult
 OpenKeyForReading(HKEY aKeyRoot, const nsAString& aKeyName, HKEY* aKey)
@@ -139,6 +143,126 @@ static SETTING gFeedSettings[] = {
   { MAKE_KEY_NAME1("feed", SOP), "", VAL_MAIL_OPEN, APP_PATH_SUBSTITUTION },
 };
 
+nsresult
+GetHelperPath(nsAutoString& aPath)
+{
+  nsresult rv;
+  nsCOMPtr<nsIProperties> directoryService = 
+    do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsILocalFile> appHelper;
+  rv = directoryService->Get(NS_XPCOM_CURRENT_PROCESS_DIR,
+                             NS_GET_IID(nsILocalFile),
+                             getter_AddRefs(appHelper));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = appHelper->Append(NS_LITERAL_STRING("uninstall"));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = appHelper->Append(NS_LITERAL_STRING("helper.exe"));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return appHelper->GetPath(aPath);
+}
+
+nsresult
+LaunchHelper(nsAutoString& aPath, nsAutoString& aParams)
+{
+  SHELLEXECUTEINFOW executeInfo = {0};
+
+  executeInfo.cbSize = sizeof(SHELLEXECUTEINFOW);
+  executeInfo.hwnd = NULL;
+  executeInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+  executeInfo.lpDirectory = NULL;
+  executeInfo.lpFile = aPath.get();
+  executeInfo.lpParameters = aParams.get();
+  executeInfo.nShow = SW_SHOWNORMAL;
+
+  if (ShellExecuteExW(&executeInfo))
+    // Block until the program exits
+    WaitForSingleObject(executeInfo.hProcess, INFINITE);
+  else
+    return NS_ERROR_ABORT;
+
+  // We're going to ignore errors here since there's nothing we can do about
+  // them, and helper.exe seems to return non-zero ret on success.
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsWindowsShellService::ShortcutMaintenance()
+{
+  nsresult rv;
+
+  // Launch helper.exe so it can update the application user model ids on
+  // shortcuts in the user's taskbar and start menu. This keeps older pinned
+  // shortcuts grouped correctly after major updates. Note, we also do this
+  // through the upgrade installer script, however, this is the only place we
+  // have a chance to trap links created by users who do control the install/
+  // update process of the browser.
+
+  nsCOMPtr<nsIWinTaskbar> taskbarInfo = do_GetService(NS_TASKBAR_CONTRACTID);
+  if (!taskbarInfo) // If we haven't built with win7 sdk features, this fails.
+    return NS_OK;
+
+  // Avoid if this isn't Win7+
+  PRBool isSupported = PR_FALSE;
+  taskbarInfo->GetAvailable(&isSupported);
+  if (!isSupported)
+    return NS_OK;
+
+  nsAutoString appId;
+  if (NS_FAILED(taskbarInfo->GetDefaultGroupId(appId)))
+    return NS_ERROR_UNEXPECTED;
+
+  NS_NAMED_LITERAL_CSTRING(prefName, "mail.taskbar.lastgroupid");
+  nsCOMPtr<nsIPrefService> prefs =
+    do_GetService(NS_PREFSERVICE_CONTRACTID);
+  if (!prefs)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMPtr<nsIPrefBranch> prefBranch;
+  prefs->GetBranch(nsnull, getter_AddRefs(prefBranch));
+  if (!prefBranch)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMPtr<nsISupportsString> prefString;
+  rv = prefBranch->GetComplexValue(prefName.get(),
+                                   NS_GET_IID(nsISupportsString),
+                                   getter_AddRefs(prefString));
+  if (NS_SUCCEEDED(rv)) {
+    nsAutoString version;
+    prefString->GetData(version);
+    if (!version.IsEmpty() && version.Equals(appId)) {
+      // We're all good, get out of here.
+      return NS_OK;
+    }
+  }
+  // Update the version in prefs
+  prefString =
+    do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
+  if (NS_FAILED(rv))
+    return rv;
+
+  prefString->SetData(appId);
+  rv = prefBranch->SetComplexValue(prefName.get(),
+                                   NS_GET_IID(nsISupportsString),
+                                   prefString);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Couldn't set last user model id!");
+    return NS_ERROR_UNEXPECTED;
+  }
+
+  nsAutoString appHelperPath;
+  if (NS_FAILED(GetHelperPath(appHelperPath)))
+    return NS_ERROR_UNEXPECTED;
+
+  nsAutoString params;
+  params.AssignLiteral(" /UpdateShortcutAppUserModelIds");
+  return LaunchHelper(appHelperPath, params);
+}
+
 nsresult nsWindowsShellService::Init()
 {
   nsresult rv;
@@ -202,52 +326,26 @@ nsWindowsShellService::IsDefaultClient(PRBool aStartupCheck, PRUint16 aApps, PRB
 NS_IMETHODIMP
 nsWindowsShellService::SetDefaultClient(PRBool aForAllUsers, PRUint16 aApps)
 {
-  nsresult rv;
-  nsCOMPtr<nsIProperties> directoryService = 
-    do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsILocalFile> appHelper;
-  rv = directoryService->Get(NS_XPCOM_CURRENT_PROCESS_DIR, NS_GET_IID(nsILocalFile), getter_AddRefs(appHelper));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = appHelper->AppendNative(NS_LITERAL_CSTRING("uninstall"));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = appHelper->AppendNative(NS_LITERAL_CSTRING("helper.exe"));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsAutoString appHelperPath;
-  rv = appHelper->GetPath(appHelperPath);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_FAILED(GetHelperPath(appHelperPath)))
+    return NS_ERROR_FAILURE;
 
+  nsAutoString params;
   if (aForAllUsers)
   {
-    appHelperPath.AppendLiteral(" /SetAsDefaultAppGlobal");
+    params.AppendLiteral(" /SetAsDefaultAppGlobal");
   }
   else
   {
-    appHelperPath.AppendLiteral(" /SetAsDefaultAppUser");
+    params.AppendLiteral(" /SetAsDefaultAppUser");
     if (aApps & nsIShellService::MAIL)
-      appHelperPath.AppendLiteral(" Mail");
+      params.AppendLiteral(" Mail");
 
     if (aApps & nsIShellService::NEWS)
-      appHelperPath.AppendLiteral(" News");
+      params.AppendLiteral(" News");
   }
 
-  STARTUPINFOW si = {sizeof(si), 0};
-  PROCESS_INFORMATION pi = {0};
-
-  BOOL ok = CreateProcessW(NULL, (LPWSTR)appHelperPath.get(), NULL, NULL,
-                           FALSE, 0, NULL, NULL, &si, &pi);
-
-  if (!ok)
-    return NS_ERROR_FAILURE;
-
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
-
-  return NS_OK;
+  return LaunchHelper(appHelperPath, params);
 }
 
 NS_IMETHODIMP
@@ -318,7 +416,7 @@ nsWindowsShellService::TestForDefault(SETTING aSettings[], PRInt32 aSize)
 PRBool
 nsWindowsShellService::IsDefaultClientVista(PRUint16 aApps, PRBool* aIsDefaultClient)
 {
-#if !defined(MOZ_DISABLE_VISTA_SDK_REQUIREMENTS)
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   IApplicationAssociationRegistration* pAAR;
 
   HRESULT hr = CoCreateInstance (CLSID_ApplicationAssociationRegistration,

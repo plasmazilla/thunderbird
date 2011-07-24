@@ -37,8 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _mozStorageAsyncStatementExecution_h_
-#define _mozStorageAsyncStatementExecution_h_
+#ifndef mozStorageAsyncStatementExecution_h
+#define mozStorageAsyncStatementExecution_h
 
 #include "nscore.h"
 #include "nsTArray.h"
@@ -47,6 +47,7 @@
 #include "mozilla/Mutex.h"
 #include "mozilla/TimeStamp.h"
 
+#include "SQLiteMutex.h"
 #include "mozIStoragePendingStatement.h"
 #include "mozIStorageStatementCallback.h"
 
@@ -181,6 +182,7 @@ private:
    * Notifies callback about an error.
    *
    * @pre mMutex is not held
+   * @pre mDBMutex is not held
    *
    * @param aErrorCode
    *        The error code defined in mozIStorageError for the error.
@@ -235,9 +237,17 @@ private:
    *     but not on the calling thread (see shouldNotify for why).
    */
   Mutex &mMutex;
+
+  /**
+   * The wrapped SQLite recursive connection mutex.  We use it whenever we call
+   * sqlite3_step and care about having reliable error messages.  By taking it
+   * prior to the call and holding it until the point where we no longer care
+   * about the error message, the user gets reliable error messages.
+   */
+  SQLiteMutex &mDBMutex;
 };
 
 } // namespace storage
 } // namespace mozilla
 
-#endif // _mozStorageAsyncStatementExecution_h_
+#endif // mozStorageAsyncStatementExecution_h

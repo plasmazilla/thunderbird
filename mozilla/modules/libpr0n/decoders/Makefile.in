@@ -42,9 +42,33 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifneq (,$(filter icon,$(MOZ_IMG_DECODERS)))
+MODULE = imgdecoders
+LIBRARY_NAME = imgdecoders_s
+FORCE_STATIC_LIB = 1
+MODULE_NAME = nsDecodersModule
+LIBXUL_LIBRARY  = 1
+
+
+CPPSRCS = nsPNGDecoder.cpp nsJPEGDecoder.cpp nsGIFDecoder2.cpp \
+          nsBMPDecoder.cpp nsICODecoder.cpp nsIconDecoder.cpp \
+          $(NULL)
+
+CSRCS   = iccjpeg.c \
+          $(NULL)
+
+# Decoders need RasterImage.h
+LOCAL_INCLUDES += -I$(topsrcdir)/modules/libpr0n/src/
+
+# PNG read/write stuff
+DEFINES		+= -DMOZ_PNG_WRITE \
+	-DMOZ_PNG_READ \
+	$(NULL)
+
+
+# The Icon Channel stuff really shouldn't live in decoders/icon, but we'll
+# fix that another time.
 ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-TOOL_DIRS = icon/gtk icon
+DIRS = icon/gtk icon
 endif
 ifneq (,$(filter qt,$(MOZ_WIDGET_TOOLKIT)))
 DIRS = icon/qt icon
@@ -55,15 +79,9 @@ endif
 ifeq ($(OS_ARCH),OS2)
 DIRS = icon/os2 icon
 endif
-ifeq ($(OS_ARCH),BeOS)
-DIRS = icon/beos icon
-endif
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 DIRS = icon/mac icon
 endif
-endif # icon
-
-DIRS += $(filter-out icon,$(MOZ_IMG_DECODERS))
 
 include $(topsrcdir)/config/rules.mk
 

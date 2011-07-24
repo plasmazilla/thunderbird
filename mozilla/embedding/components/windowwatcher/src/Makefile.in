@@ -46,28 +46,8 @@ MODULE		= embedcomponents
 LIBRARY_NAME	= windowwatcher_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES    = xpcom                             \
-              string                            \
-              dom                               \
-              gfx                               \
-              windowwatcher                     \
-              widget                            \
-              js                                \
-              xpconnect                         \
-              caps                              \
-              content                           \
-              pref                              \
-              necko                             \
-              docshell                          \
-              webbrwsr                          \
-              embed_base                        \
-              intl                              \
-              layout                            \
-              uriloader                         \
-              thebes                            \
-              $(NULL)
 
-CPPSRCS		= nsPrompt.cpp \
+CPPSRCS		= \
                   nsWWJSUtils.cpp \
                   nsWindowWatcher.cpp  \
                   nsAutoWindowStateHelper.cpp \
@@ -75,7 +55,6 @@ CPPSRCS		= nsPrompt.cpp \
 
 ifdef MOZ_XUL
 CPPSRCS		+= nsDialogParamBlock.cpp \
-		   nsPromptService.cpp \
 		   $(NULL)
 endif
 

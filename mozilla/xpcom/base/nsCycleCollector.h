@@ -43,6 +43,7 @@
 //#define DEBUG_CC
 
 class nsISupports;
+class nsICycleCollectorListener;
 class nsCycleCollectionParticipant;
 class nsCycleCollectionTraversalCallback;
 
@@ -51,10 +52,11 @@ class nsCycleCollectionTraversalCallback;
 
 struct nsCycleCollectionLanguageRuntime
 {
-    virtual nsresult BeginCycleCollection(nsCycleCollectionTraversalCallback &cb) = 0;
+    virtual nsresult BeginCycleCollection(nsCycleCollectionTraversalCallback &cb,
+                                          bool explainLiveExpectedGarbage) = 0;
+    virtual nsresult FinishTraverse() = 0;
     virtual nsresult FinishCycleCollection() = 0;
     virtual nsCycleCollectionParticipant *ToParticipant(void *p) = 0;
-    virtual void CommenceShutdown() = 0;
 #ifdef DEBUG_CC
     virtual void PrintAllReferencesTo(void *p) = 0;
 #endif
@@ -62,8 +64,9 @@ struct nsCycleCollectionLanguageRuntime
 
 nsresult nsCycleCollector_startup();
 // Returns the number of collected nodes.
-NS_COM PRUint32 nsCycleCollector_collect();
+NS_COM PRUint32 nsCycleCollector_collect(nsICycleCollectorListener *aListener);
 NS_COM PRUint32 nsCycleCollector_suspectedCount();
+void nsCycleCollector_shutdownThreads();
 void nsCycleCollector_shutdown();
 
 // The JS runtime is special, it needs to call cycle collection during its GC.
@@ -74,16 +77,10 @@ void nsCycleCollector_shutdown();
 struct nsCycleCollectionJSRuntime : public nsCycleCollectionLanguageRuntime
 {
     /**
-     * Runs cycle collection and returns whether cycle collection collected
-     * anything.
+     * Runs the JavaScript GC.
      */
-    virtual PRBool Collect() = 0;
+    virtual void Collect() = 0;
 };
-// Returns PR_TRUE if cycle collection was started.
-NS_COM PRBool nsCycleCollector_beginCollection();
-// Returns PR_TRUE if some nodes were collected. Should only be called after
-// nsCycleCollector_beginCollection() returned PR_TRUE.
-NS_COM PRBool nsCycleCollector_finishCollection();
 
 #ifdef DEBUG
 NS_COM void nsCycleCollector_DEBUG_shouldBeFreed(nsISupports *n);
@@ -95,5 +92,14 @@ NS_COM void nsCycleCollector_DEBUG_wasFreed(nsISupports *n);
 NS_COM void nsCycleCollector_registerRuntime(PRUint32 langID, nsCycleCollectionLanguageRuntime *rt);
 NS_COM nsCycleCollectionLanguageRuntime * nsCycleCollector_getRuntime(PRUint32 langID);
 NS_COM void nsCycleCollector_forgetRuntime(PRUint32 langID);
+
+#define NS_CYCLE_COLLECTOR_LOGGER_CID \
+{ 0x58be81b4, 0x39d2, 0x437c, \
+{ 0x94, 0xea, 0xae, 0xde, 0x2c, 0x62, 0x08, 0xd3 } }
+
+extern nsresult
+nsCycleCollectorLoggerConstructor(nsISupports* outer,
+                                  const nsIID& aIID,
+                                  void* *aInstancePtr);
 
 #endif // nsCycleCollector_h__

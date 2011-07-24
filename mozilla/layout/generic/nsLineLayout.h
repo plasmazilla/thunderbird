@@ -139,7 +139,7 @@ public:
    * combined area (== overflow area) for the line, and handle view
    * sizing/positioning and the setting of the overflow rect.
    */
-  void RelativePositionFrames(nsRect& aCombinedArea);
+  void RelativePositionFrames(nsOverflowAreas& aOverflowAreas);
 
   //----------------------------------------
 
@@ -156,7 +156,9 @@ protected:
 #define LL_GOTLINEBOX                  0x00001000
 #define LL_INFIRSTLETTER               0x00002000
 #define LL_HASBULLET                   0x00004000
-#define LL_LASTFLAG                    LL_HASBULLET
+#define LL_DIRTYNEXTLINE               0x00008000
+#define LL_LINEATSTART                 0x00010000
+#define LL_LASTFLAG                    LL_LINEATSTART
 
   void SetFlag(PRUint32 aFlag, PRBool aValue)
   {
@@ -187,11 +189,21 @@ public:
 
   /**
    * @return true if so far during reflow no non-empty content has been
-   * placed in the line
+   * placed in the line (according to nsIFrame::IsEmpty())
    */
   PRBool LineIsEmpty() const
   {
     return GetFlag(LL_LINEISEMPTY);
+  }
+
+  /**
+   * @return true if so far during reflow no non-empty leaf content
+   * (non-collapsed whitespace, replaced element, inline-block, etc) has been
+   * placed in the line
+   */
+  PRBool LineAtStart() const
+  {
+    return GetFlag(LL_LINEATSTART);
   }
 
   PRBool LineIsBreakable() const;
@@ -209,10 +221,9 @@ public:
   //----------------------------------------
   // Inform the line-layout about the presence of a floating frame
   // XXX get rid of this: use get-frame-type?
-  PRBool AddFloat(nsPlaceholderFrame* aFrame,
-                  nscoord aAvailableWidth,
-                  nsReflowStatus& aReflowStatus) {
-    return mBlockRS->AddFloat(*this, aFrame, aAvailableWidth, aReflowStatus);
+  PRBool AddFloat(nsIFrame* aFloat, nscoord aAvailableWidth)
+  {
+    return mBlockRS->AddFloat(this, aFloat, aAvailableWidth);
   }
 
   void SetTrimmableWidth(nscoord aTrimmableWidth) {
@@ -243,6 +254,15 @@ public:
 
   void SetInFirstLine(PRBool aSetting) {
     SetFlag(LL_INFIRSTLINE, aSetting);
+  }
+
+  // Calling this during block reflow ensures that the next line of inlines
+  // will be marked dirty, if there is one.
+  void SetDirtyNextLine() {
+    SetFlag(LL_DIRTYNEXTLINE, PR_TRUE);
+  }
+  PRBool GetDirtyNextLine() {
+    return GetFlag(LL_DIRTYNEXTLINE);
   }
 
   //----------------------------------------
@@ -350,6 +370,9 @@ public:
   const nsLineList::iterator* GetLine() const {
     return GetFlag(LL_GOTLINEBOX) ? &mLineBox : nsnull;
   }
+  nsLineList::iterator* GetLine() {
+    return GetFlag(LL_GOTLINEBOX) ? &mLineBox : nsnull;
+  }
   
   /**
    * Returns the accumulated advance width of frames before the current frame
@@ -402,7 +425,7 @@ protected:
     // From metrics
     nscoord mAscent;
     nsRect mBounds;
-    nsRect mCombinedArea;
+    nsOverflowAreas mOverflowAreas;
 
     // From reflow-state
     nsMargin mMargin;
@@ -535,7 +558,7 @@ protected:
 #endif
   PLArenaPool mArena; // Per span and per frame data, 4 byte aligned
 
-  PRUint16 mFlags;
+  PRUint32 mFlags;
 
   PRUint8 mTextAlign;
 
@@ -555,7 +578,7 @@ protected:
                         nsHTMLReflowState& aReflowState);
 
   PRBool CanPlaceFrame(PerFrameData* pfd,
-                       const nsHTMLReflowState& aReflowState,
+                       PRUint8 aFrameDirection,
                        PRBool aNotSafeToBreak,
                        PRBool aFrameCanContinueTextRun,
                        PRBool aCanRollBackBeforeFrame,
@@ -572,7 +595,7 @@ protected:
                             nscoord aDistanceFromTop,
                             nscoord aLineHeight);
 
-  void RelativePositionFrames(PerSpanData* psd, nsRect& aCombinedArea);
+  void RelativePositionFrames(PerSpanData* psd, nsOverflowAreas& aOverflowAreas);
 
   PRBool TrimTrailingWhiteSpaceIn(PerSpanData* psd, nscoord* aDeltaWidth);
 

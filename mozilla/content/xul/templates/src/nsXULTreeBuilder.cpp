@@ -59,12 +59,13 @@
 #include "nsGkAtoms.h"
 #include "nsXULContentUtils.h"
 #include "nsXULTemplateBuilder.h"
+#include "nsIXULSortService.h"
 #include "nsTArray.h"
 #include "nsUnicharUtils.h"
 #include "nsINameSpaceManager.h"
 #include "nsIDOMClassInfo.h"
+#include "nsWhitespaceTokenizer.h"
 #include "nsTreeContentView.h"
-#include "nsDOMError.h"
 
 // For security check
 #include "nsIDocument.h"
@@ -92,7 +93,7 @@ public:
     virtual void NodeWillBeDestroyed(const nsINode* aNode);
 
 protected:
-    friend NS_IMETHODIMP
+    friend nsresult
     NS_NewXULTreeBuilder(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
     nsXULTreeBuilder();
@@ -264,6 +265,11 @@ protected:
      */
     Direction mSortDirection;
 
+    /*
+     * Sort hints (compare case, etc)
+     */
+    PRUint32 mSortHints;
+
     /** 
      * The builder observers.
      */
@@ -272,7 +278,7 @@ protected:
 
 //----------------------------------------------------------------------
 
-NS_IMETHODIMP
+nsresult
 NS_NewXULTreeBuilder(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 {
     *aResult = nsnull;
@@ -300,6 +306,8 @@ NS_NewXULTreeBuilder(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 NS_IMPL_ADDREF_INHERITED(nsXULTreeBuilder, nsXULTemplateBuilder)
 NS_IMPL_RELEASE_INHERITED(nsXULTreeBuilder, nsXULTemplateBuilder)
 
+DOMCI_DATA(XULTreeBuilder, nsXULTreeBuilder)
+
 NS_INTERFACE_MAP_BEGIN(nsXULTreeBuilder)
   NS_INTERFACE_MAP_ENTRY(nsIXULTreeBuilder)
   NS_INTERFACE_MAP_ENTRY(nsITreeView)
@@ -308,7 +316,7 @@ NS_INTERFACE_MAP_END_INHERITING(nsXULTemplateBuilder)
 
 
 nsXULTreeBuilder::nsXULTreeBuilder()
-    : mSortDirection(eDirection_Natural)
+    : mSortDirection(eDirection_Natural), mSortHints(0)
 {
 }
 
@@ -395,6 +403,21 @@ nsXULTreeBuilder::Sort(nsIDOMElement* aElement)
     // Grab the new sort variable
     mSortVariable = do_GetAtom(sort);
 
+    nsAutoString hints;
+    header->GetAttr(kNameSpaceID_None, nsGkAtoms::sorthints, hints);
+
+    PRBool hasNaturalState = PR_TRUE;
+    nsWhitespaceTokenizer tokenizer(hints);
+    while (tokenizer.hasMoreTokens()) {
+      const nsDependentSubstring& token(tokenizer.nextToken());
+      if (token.EqualsLiteral("comparecase"))
+        mSortHints |= nsIXULSortService::SORT_COMPARECASE;
+      else if (token.EqualsLiteral("integer"))
+        mSortHints |= nsIXULSortService::SORT_INTEGER;
+      else if (token.EqualsLiteral("twostate"))
+        hasNaturalState = PR_FALSE;
+    }
+
     // Cycle the sort direction
     nsAutoString dir;
     header->GetAttr(kNameSpaceID_None, nsGkAtoms::sortDirection, dir);
@@ -403,7 +426,7 @@ nsXULTreeBuilder::Sort(nsIDOMElement* aElement)
         dir.AssignLiteral("descending");
         mSortDirection = eDirection_Descending;
     }
-    else if (dir.EqualsLiteral("descending")) {
+    else if (hasNaturalState && dir.EqualsLiteral("descending")) {
         dir.AssignLiteral("natural");
         mSortDirection = eDirection_Natural;
     }
@@ -1065,6 +1088,7 @@ nsXULTreeBuilder::PerformActionOnCell(const PRUnichar* aAction, PRInt32 aRow, ns
 void
 nsXULTreeBuilder::NodeWillBeDestroyed(const nsINode* aNode)
 {
+    nsCOMPtr<nsIMutationObserver> kungFuDeathGrip(this);
     if (mObservers)
         mObservers->Clear();
 
@@ -1253,7 +1277,7 @@ nsXULTreeBuilder::ReplaceMatch(nsIXULTemplateResult* aOldResult,
             if (mFlags & eDontRecurse)
                 return NS_OK;
 
-            if (result && (result != mRootResult)) {
+            if (result != mRootResult) {
                 // don't open containers if child processing isn't allowed
                 PRBool mayProcessChildren;
                 nsresult rv = result->GetMayProcessChildren(&mayProcessChildren);
@@ -1681,6 +1705,10 @@ nsXULTreeBuilder::OpenSubtreeForQuerySet(nsTreeRows::Subtree* aSubtree,
 
                 ++count;
             }
+
+            if (mFlags & eLoggingEnabled)
+                OutputMatchToLog(resultid, newmatch, PR_TRUE);
+
         }
 
         if (prevmatch) {
@@ -1705,12 +1733,9 @@ nsXULTreeBuilder::CloseContainer(PRInt32 aIndex)
 
     nsTreeRows::iterator iter = mRows[aIndex];
 
-    nsTreeRows::Subtree& subtree = *(iter->mSubtree);
+    if (iter->mSubtree)
+        RemoveMatchesFor(*iter->mSubtree);
 
-    RemoveMatchesFor(subtree);
-
-    // Update the view
-    iter = mRows[aIndex];
 
     PRInt32 count = mRows.GetSubtreeSizeFor(iter);
     mRows.RemoveSubtreeFor(iter);
@@ -1865,7 +1890,7 @@ nsXULTreeBuilder::CompareResults(nsIXULTemplateResult* aLeft, nsIXULTemplateResu
     }
 
     PRInt32 sortorder;
-    mQueryProcessor->CompareResults(aLeft, aRight, mSortVariable, &sortorder);
+    mQueryProcessor->CompareResults(aLeft, aRight, mSortVariable, mSortHints, &sortorder);
 
     if (sortorder)
         sortorder = sortorder * mSortDirection;

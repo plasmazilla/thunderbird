@@ -43,6 +43,8 @@
 #include "mozilla/plugins/PluginScriptableObjectParent.h"
 #if defined(OS_WIN)
 #include "mozilla/gfx/SharedDIBWin.h"
+#elif defined(OS_MACOSX)
+#include "nsCoreAnimationSupport.h"
 #endif
 
 #include "npfunctions.h"
@@ -50,6 +52,11 @@
 #include "nsDataHashtable.h"
 #include "nsHashKeys.h"
 #include "nsRect.h"
+#include "gfxASurface.h"
+#include "ImageLayers.h"
+#ifdef MOZ_X11
+class gfxXlibSurface;
+#endif
 
 namespace mozilla {
 namespace plugins {
@@ -62,10 +69,12 @@ class PluginInstanceParent : public PPluginInstanceParent
     friend class PluginModuleParent;
     friend class BrowserStreamParent;
     friend class PluginStreamParent;
+    friend class StreamNotifyParent;
 
 public:
     PluginInstanceParent(PluginModuleParent* parent,
                          NPP npp,
+                         const nsCString& mimeType,
                          const NPNetscapeFuncs* npniface);
 
     virtual ~PluginInstanceParent();
@@ -126,6 +135,15 @@ public:
     virtual bool
     AnswerNPN_SetValue_NPPVpluginTransparent(const bool& transparent,
                                              NPError* result);
+    virtual bool
+    AnswerNPN_SetValue_NPPVpluginUsesDOMForCursor(const bool& useDOMForCursor,
+                                                  NPError* result);
+    virtual bool
+    AnswerNPN_SetValue_NPPVpluginDrawingModel(const int& drawingModel,
+                                             NPError* result);
+    virtual bool
+    AnswerNPN_SetValue_NPPVpluginEventModel(const int& eventModel,
+                                             NPError* result);
 
     virtual bool
     AnswerNPN_GetURL(const nsCString& url, const nsCString& target,
@@ -156,12 +174,25 @@ public:
     virtual bool
     RecvNPN_InvalidateRect(const NPRect& rect);
 
+    // Async rendering
     virtual bool
-    AnswerNPN_PushPopupsEnabledState(const bool& aState,
-                                     bool* aSuccess);
+    RecvShow(const NPRect& updatedRect,
+             const SurfaceDescriptor& newSurface,
+             SurfaceDescriptor* prevSurface);
+
+    virtual PPluginSurfaceParent*
+    AllocPPluginSurface(const WindowsSharedMemoryHandle& handle,
+                        const gfxIntSize& size,
+                        const bool& transparent);
 
     virtual bool
-    AnswerNPN_PopPopupsEnabledState(bool* aSuccess);
+    DeallocPPluginSurface(PPluginSurfaceParent* s);
+
+    virtual bool
+    AnswerNPN_PushPopupsEnabledState(const bool& aState);
+
+    virtual bool
+    AnswerNPN_PopPopupsEnabledState();
 
     NS_OVERRIDE virtual bool
     AnswerNPN_GetValueForURL(const NPNURLVariable& variable,
@@ -183,10 +214,27 @@ public:
                                     nsCString* password,
                                     NPError* result);
 
+    NS_OVERRIDE virtual bool
+    AnswerNPN_ConvertPoint(const double& sourceX,
+                           const bool&   ignoreDestX,
+                           const double& sourceY,
+                           const bool&   ignoreDestY,
+                           const NPCoordinateSpace& sourceSpace,
+                           const NPCoordinateSpace& destSpace,
+                           double *destX,
+                           double *destY,
+                           bool *result);
+
+    NS_OVERRIDE virtual bool
+    RecvNegotiatedCarbon();
+
     NPError NPP_SetWindow(const NPWindow* aWindow);
 
     NPError NPP_GetValue(NPPVariable variable, void* retval);
     NPError NPP_SetValue(NPNVariable variable, void* value);
+
+    void NPP_URLRedirectNotify(const char* url, int32_t status,
+                               void* notifyData);
 
     NPError NPP_NewStream(NPMIMEType type, NPStream* stream,
                           NPBool seekable, uint16_t* stype);
@@ -227,7 +275,47 @@ public:
     virtual bool
     AnswerPluginFocusChange(const bool& gotFocus);
 
+#if defined(OS_MACOSX)
+    void Invalidate();
+#endif // definied(OS_MACOSX)
+
+    nsresult AsyncSetWindow(NPWindow* window);
+    nsresult GetImage(mozilla::layers::ImageContainer* aContainer, mozilla::layers::Image** aImage);
+    nsresult GetImageSize(nsIntSize* aSize);
+#ifdef XP_MACOSX
+    nsresult IsRemoteDrawingCoreAnimation(PRBool *aDrawing);
+#endif
+    nsresult SetBackgroundUnknown();
+    nsresult BeginUpdateBackground(const nsIntRect& aRect,
+                                   gfxContext** aCtx);
+    nsresult EndUpdateBackground(gfxContext* aCtx,
+                                 const nsIntRect& aRect);
+
 private:
+    // Create an appropriate platform surface for a background of size
+    // |aSize|.  Return true if successful.
+    bool CreateBackground(const nsIntSize& aSize);
+    void DestroyBackground();
+    SurfaceDescriptor BackgroundDescriptor() /*const*/;
+
+    NS_OVERRIDE
+    virtual PPluginBackgroundDestroyerParent*
+    AllocPPluginBackgroundDestroyer();
+
+    NS_OVERRIDE
+    virtual bool
+    DeallocPPluginBackgroundDestroyer(PPluginBackgroundDestroyerParent* aActor);
+
+    // Quirks mode support for various plugin mime types
+    enum PluginQuirks {
+        // OSX: Don't use the refresh timer for plug-ins
+        // using this quirk. These plug-in most have another
+        // way to refresh the window.
+        COREANIMATION_REFRESH_TIMER = 1,
+    };
+
+    void InitQuirksModes(const nsCString& aMimeType);
+
     bool InternalGetValueForNPObject(NPNVariable aVariable,
                                      PPluginScriptableObjectParent** aValue,
                                      NPError* aResult);
@@ -237,6 +325,7 @@ private:
     NPP mNPP;
     const NPNetscapeFuncs* mNPNIface;
     NPWindowType mWindowType;
+    int mQuirks;
 
     nsDataHashtable<nsVoidPtrHashKey, PluginScriptableObjectParent*> mScriptableObjects;
 
@@ -261,6 +350,28 @@ private:
     WNDPROC            mPluginWndProc;
     bool               mNestedEventState;
 #endif // defined(XP_WIN)
+#if defined(OS_MACOSX)
+private:
+    Shmem              mShSurface; 
+    size_t             mShWidth;
+    size_t             mShHeight;
+    CGColorSpaceRef    mShColorSpace;
+    int16_t            mDrawingModel;
+    nsIOSurface       *mIOSurface;
+#endif // definied(OS_MACOSX)
+
+    // ObjectFrame layer wrapper
+    nsRefPtr<gfxASurface>    mFrontSurface;
+    // For windowless+transparent instances, this surface contains a
+    // "pretty recent" copy of the pixels under its <object> frame.
+    // On the plugin side, we use this surface to avoid doing alpha
+    // recovery when possible.  This surface is created and owned by
+    // the browser, but a "read-only" reference is sent to the plugin.
+    //
+    // We have explicitly chosen not to provide any guarantees about
+    // the consistency of the pixels in |mBackground|.  A plugin may
+    // be able to observe partial updates to the background.
+    nsRefPtr<gfxASurface>    mBackground;
 };
 
 

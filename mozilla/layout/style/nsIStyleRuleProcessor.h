@@ -51,14 +51,21 @@
 
 struct RuleProcessorData;
 struct ElementRuleProcessorData;
-struct PseudoRuleProcessorData;
+struct PseudoElementRuleProcessorData;
+struct AnonBoxRuleProcessorData;
+#ifdef MOZ_XUL
+struct XULTreeRuleProcessorData;
+#endif
 struct StateRuleProcessorData;
 struct AttributeRuleProcessorData;
 class nsPresContext;
 
-// IID for the nsIStyleRuleProcessor interface {015575fe-7b6c-11d3-ba05-001083023c2b}
+// IID for the nsIStyleRuleProcessor interface
+// {b8e44bbe-aaac-4125-8ab2-0f42802e14ad}
 #define NS_ISTYLE_RULE_PROCESSOR_IID     \
-{0x015575fe, 0x7b6c, 0x11d3, {0xba, 0x05, 0x00, 0x10, 0x83, 0x02, 0x3c, 0x2b}}
+{ 0xb8e44bbe, 0xaaac, 0x4125, \
+ { 0x8a, 0xb2, 0x0f, 0x42, 0x80, 0x2e, 0x14, 0xad } }
+
 
 /* The style rule processor interface is a mechanism to separate the matching
  * of style rules from style sheet instances.
@@ -82,41 +89,71 @@ public:
    * tree representing that ordered list of rules (with higher
    * precedence being farther from the root of the lexicographic tree).
    */
-  NS_IMETHOD RulesMatching(ElementRuleProcessorData* aData) = 0;
+  virtual void RulesMatching(ElementRuleProcessorData* aData) = 0;
 
   /**
    * Just like the previous |RulesMatching|, except for a given content
    * node <em>and pseudo-element</em>.
    */
-  NS_IMETHOD RulesMatching(PseudoRuleProcessorData* aData) = 0;
+  virtual void RulesMatching(PseudoElementRuleProcessorData* aData) = 0;
 
   /**
-   * Return how (as described by nsReStyleHint) style can depend on a
+   * Just like the previous |RulesMatching|, except for a given anonymous box.
+   */
+  virtual void RulesMatching(AnonBoxRuleProcessorData* aData) = 0;
+
+#ifdef MOZ_XUL
+  /**
+   * Just like the previous |RulesMatching|, except for a given content
+   * node <em>and tree pseudo</em>.
+   */
+  virtual void RulesMatching(XULTreeRuleProcessorData* aData) = 0;
+#endif
+
+  /**
+   * Return whether style can depend on a change of the given document state.
+   *
+   * Document states are defined in nsIDocument.h.
+   */
+  virtual PRBool
+    HasDocumentStateDependentStyle(StateRuleProcessorData* aData) = 0;
+
+  /**
+   * Return how (as described by nsRestyleHint) style can depend on a
    * change of the given content state on the given content node.  This
    * test is used for optimization only, and may err on the side of
    * reporting more dependencies than really exist.
    *
    * Event states are defined in nsIEventStateManager.h.
    */
-  NS_IMETHOD HasStateDependentStyle(StateRuleProcessorData* aData,
-                                    nsReStyleHint* aResult) = 0;
+  virtual nsRestyleHint
+    HasStateDependentStyle(StateRuleProcessorData* aData) = 0;
 
   /**
-   * Return how (as described by nsReStyleHint) style can depend on the
-   * presence or value of the given attribute for the given content
-   * node.  This test is used for optimization only, and may err on the
-   * side of reporting more dependencies than really exist.
+   * This method will be called twice for every attribute change.
+   * During the first call, aData->mAttrHasChanged will be false and
+   * the attribute change will not have happened yet.  During the
+   * second call, aData->mAttrHasChanged will be true and the
+   * change will have already happened.  The bitwise OR of the two
+   * return values must describe the style changes that are needed due
+   * to the attribute change.  It's up to the rule processor
+   * implementation to decide how to split the bits up amongst the two
+   * return values.  For example, it could return the bits needed by
+   * rules that might stop matching the node from the first call and
+   * the bits needed by rules that might have started matching the
+   * node from the second call.  This test is used for optimization
+   * only, and may err on the side of reporting more dependencies than
+   * really exist.
    */
-  NS_IMETHOD HasAttributeDependentStyle(AttributeRuleProcessorData* aData,
-                                        nsReStyleHint* aResult) = 0;
+  virtual nsRestyleHint
+    HasAttributeDependentStyle(AttributeRuleProcessorData* aData) = 0;
 
   /**
    * Do any processing that needs to happen as a result of a change in
    * the characteristics of the medium, and return whether this rule
    * processor's rules have changed (e.g., because of media queries).
    */
-  NS_IMETHOD MediumFeaturesChanged(nsPresContext* aPresContext,
-                                   PRBool* aRulesChanged) = 0;
+  virtual PRBool MediumFeaturesChanged(nsPresContext* aPresContext) = 0;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIStyleRuleProcessor,

@@ -52,12 +52,12 @@ function test() {
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
     this.removeEventListener("load", arguments.callee, true);
     
-    let browser = tabbrowser.getBrowserForTab(tab);
-    let history = browser.webNavigation.sessionHistory;
+    let history = tab.linkedBrowser.webNavigation.sessionHistory;
     ok(history.count >= 1, "the new tab does have at least one history entry");
     
-    ss.setTabState(tab, "{ entries: [] }");
+    ss.setTabState(tab, JSON.stringify({ entries: [] }));
     tab.linkedBrowser.addEventListener("load", function(aEvent) {
+      this.removeEventListener("load", arguments.callee, true);
       ok(history.count == 0, "the tab was restored without any history whatsoever");
       
       tabbrowser.removeTab(tab);

@@ -47,11 +47,12 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const CATEGORY_UPDATE_TIMER = "update-timer";
 
-const PREF_APP_UPDATE_TIMER = "app.update.timer";
+const PREF_APP_UPDATE_TIMERMINIMUMDELAY = "app.update.timerMinimumDelay";
+const PREF_APP_UPDATE_TIMERFIRSTINTERVAL = "app.update.timerFirstInterval";
 const PREF_APP_UPDATE_LOG_ALL = "app.update.log.all";
 const PREF_BRANCH_LAST_UPDATE_TIME = "app.update.lastUpdateTime.";
 
-const MAIN_TIMER_INTERVAL = 500;    // milliseconds
+const MAIN_TIMER_INTERVAL = 1000;  // milliseconds
 const CONSUMER_TIMER_INTERVAL = 1; // seconds
 
 const TESTS = [ {
@@ -116,33 +117,37 @@ const TESTS = [ {
   classID         : Components.ID("af878d4b-1d12-41f6-9a90-4e687367ecc1"),
   notified        : false,
   lastUpdateTime  : 0
+}, {
+  desc            : "Test Timer Callback 8",
+  timerID         : "test8-update-timer",
+  defaultInterval : CONSUMER_TIMER_INTERVAL,
+  contractID      : "@mozilla.org/test8/timercallback;1",
+  classID         : Components.ID("5136b201-d64c-4328-8cf1-1a63491cc117"),
+  notified        : false,
+  lastUpdateTime  : 0
 } ];
 
 var gUTM;
 var gNextFunc;
 
-__defineGetter__("gPref", function () {
-  delete this.gPref;
-  return this.gPref = Cc["@mozilla.org/preferences-service;1"].
-                      getService(Ci.nsIPrefBranch2);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "gPref",
+                                   "@mozilla.org/preferences-service;1",
+                                   "nsIPrefBranch2");
 
-__defineGetter__("gCatMan", function () {
-  delete this.gCatMan;
-  return this.gCatMan = Cc["@mozilla.org/categorymanager;1"].
-                        getService(Ci.nsICategoryManager);
-});
+XPCOMUtils.defineLazyServiceGetter(this, "gCatMan",
+                                   "@mozilla.org/categorymanager;1",
+                                   "nsICategoryManager");
 
-__defineGetter__("gCompReg", function () {
-  delete this.gCompReg;
-  return this.gCompReg = Cm.QueryInterface(Ci.nsIComponentRegistrar);
+XPCOMUtils.defineLazyGetter(this, "gCompReg", function() {
+  return Cm.QueryInterface(Ci.nsIComponentRegistrar);
 });
 
 function run_test() {
   do_test_pending();
 
   // Set the timer to fire every second
-  gPref.setIntPref(PREF_APP_UPDATE_TIMER, MAIN_TIMER_INTERVAL);
+  gPref.setIntPref(PREF_APP_UPDATE_TIMERMINIMUMDELAY, MAIN_TIMER_INTERVAL/1000);
+  gPref.setIntPref(PREF_APP_UPDATE_TIMERFIRSTINTERVAL, MAIN_TIMER_INTERVAL);
   gPref.setBoolPref(PREF_APP_UPDATE_LOG_ALL, true);
 
   // Remove existing update timers to prevent them from being notified
@@ -155,7 +160,7 @@ function run_test() {
   gUTM = Cc["@mozilla.org/updates/timer-manager;1"].
          getService(Ci.nsIUpdateTimerManager).
          QueryInterface(Ci.nsIObserver);
-  gUTM.observe(null, "profile-after-change", "");
+  gUTM.observe(null, "utm-test-init", "");
 
   do_execute_soon(run_test1thru6);
 }
@@ -166,7 +171,7 @@ function end_test() {
 }
 
 function run_test1thru6() {
-  gNextFunc = "check_test1thru6()";
+  gNextFunc = check_test1thru6;
   // bogus default interval
   gCompReg.registerFactory(TESTS[0].classID, TESTS[0].desc,
                            TESTS[0].contractID, gTest1Factory);
@@ -276,24 +281,40 @@ function check_test1thru6() {
        "registered\n");
   do_check_eq(count, 0);
 
-  do_timeout(0, "run_test7()");
+  do_timeout(0, run_test7);
 }
 
 function run_test7() {
-  gNextFunc = "check_test7()";
-  gPref.setIntPref(PREF_BRANCH_LAST_UPDATE_TIME + TESTS[6].timerID, 1);
-  gCompReg.registerFactory(TESTS[6].classID, TESTS[6].desc,
-                           TESTS[6].contractID, gTest7Factory);
-  gUTM.registerTimer(TESTS[6].timerID, gTest7TimerCallback,
-                     TESTS[6].defaultInterval);
+  gNextFunc = check_test7;
+  for (var i = 0; i < 2; i++) {
+    gPref.setIntPref(PREF_BRANCH_LAST_UPDATE_TIME + TESTS[6 + i].timerID, 1);
+    gCompReg.registerFactory(TESTS[6 + i].classID, TESTS[6 + i].desc,
+                             TESTS[6 + i].contractID, eval("gTest" + (7 + i) + "Factory"));
+    gUTM.registerTimer(TESTS[6 + i].timerID, eval("gTest" + (7 + i) + "TimerCallback"),
+                       TESTS[6 + i].defaultInterval);
+  }
 }
 
 function check_test7() {
-  dump("Testing: one registerTimer registered timer has fired\n");
-  do_check_true(TESTS[6].notified);
-  dump("Testing: one registerTimer registered timer last update time has " +
+  var self = arguments.callee;
+  self.timesCalled = (self.timesCalled || 0) + 1;
+  if (self.timesCalled < 2)
+    return;
+
+  dump("Testing: two registerTimer registered timers have fired\n");
+  for (var i = 0; i < 2; i++)
+    do_check_true(TESTS[6 + i].notified);
+
+  // Check that 'staggering' has happened: even though the two events wanted to fire at
+  // the same time, we waited a full MAIN_TIMER_INTERVAL between them.
+  // (to avoid sensitivity to random timing issues, we fudge by a factor of 0.5 here)
+  do_check_true(Math.abs(TESTS[6].notifyTime - TESTS[7].notifyTime) >=
+                MAIN_TIMER_INTERVAL * 0.5);
+
+  dump("Testing: two registerTimer registered timers last update time have " +
        "been updated\n");
-  do_check_neq(gPref.getIntPref(PREF_BRANCH_LAST_UPDATE_TIME + TESTS[6].timerID), 1);
+  for (var i = 0; i < 2; i++)
+    do_check_neq(gPref.getIntPref(PREF_BRANCH_LAST_UPDATE_TIME + TESTS[6 + i].timerID), 1);
   end_test();
 }
 
@@ -391,7 +412,8 @@ var gTest6Factory = {
 var gTest7TimerCallback = {
   notify: function T7CB_notify(aTimer) {
     TESTS[6].notified = true;
-    do_timeout(0, "check_test7()");
+    TESTS[6].notifyTime = Date.now();
+    do_timeout(0, check_test7);
   },
   QueryInterface: XPCOMUtils.generateQI([Ci.nsITimerCallback])
 };
@@ -400,6 +422,23 @@ var gTest7Factory = {
   createInstance: function (outer, iid) {
     if (outer == null)
       return gTest7TimerCallback.QueryInterface(iid);
+    throw Cr.NS_ERROR_NO_AGGREGATION;
+  }
+};
+
+var gTest8TimerCallback = {
+  notify: function T8CB_notify(aTimer) {
+    TESTS[7].notified = true;
+    TESTS[7].notifyTime = Date.now();
+    do_timeout(0, check_test7);
+  },
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsITimerCallback])
+};
+
+var gTest8Factory = {
+  createInstance: function (outer, iid) {
+    if (outer == null)
+      return gTest8TimerCallback.QueryInterface(iid);
     throw Cr.NS_ERROR_NO_AGGREGATION;
   }
 };

@@ -69,7 +69,7 @@ if (!profileDir) {
       throw Cr.NS_ERROR_FAILURE;
     },
     QueryInterface: function(iid) {
-      if (iid.equals(Ci.nsIDirectoryProvider) ||
+      if (iid.equals(Ci.nsIDirectoryServiceProvider) ||
           iid.equals(Ci.nsISupports)) {
         return this;
       }
@@ -108,7 +108,7 @@ function run_test()
   function newFileInDirectory(dir) {
     let file = dir.clone();
     file.append("testfile" + Math.floor(Math.random() * 10000));
-    file.createUnique(Ci.nsIFile.DIRECTORY_FILE, 0600);
+    file.createUnique(Ci.nsIFile.DIRECTORY_TYPE, 0600);
     return file;
   }
   let dir1 = newDirectory();
@@ -129,12 +129,11 @@ function run_test()
   };
   makeFilePicker = function() fp;
 
-  // Overwrite getStringBundle to return an object masquerading as an string bungle
-  getStringBundle = function() {
-    return {
-      GetStringFromName: function() ""
-    };
-  }
+  // Overwrite stringBundle to return an object masquerading as a string bundle
+  delete ContentAreaUtils.stringBundle;
+  ContentAreaUtils.stringBundle = {
+    GetStringFromName: function() ""
+  };
 
   // Overwrite validateFileName to validate everything
   validateFileName = function(foo) foo;
@@ -155,8 +154,8 @@ function run_test()
   do_check_eq(fp.displayDirectory.path, tmpDir.path);
   // browser.download.lastDir should be modified before entering the private browsing mode
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir1.path);
-  // gDownloadLastDir should not be used outside of the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  // gDownloadLastDir should be usable outside of the private browsing mode
+  do_check_eq(gDownloadLastDir.file.path, dir1.path);
 
   pb.privateBrowsingEnabled = true;
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir1.path);
@@ -172,7 +171,7 @@ function run_test()
 
   pb.privateBrowsingEnabled = false;
   // gDownloadLastDir should be cleared after leaving the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  do_check_eq(gDownloadLastDir.file.path, dir1.path);
   fp.file = file3;
   fp.displayDirectory = null;
   do_check_true(getTargetFile(params));
@@ -180,8 +179,8 @@ function run_test()
   do_check_eq(fp.displayDirectory.path, dir1.path);
   // browser.download.lastDir should be modified after leaving the private browsing mode
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir3.path);
-  // gDownloadLastDir should not be used after leaving the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  // gDownloadLastDir should be usable after leaving the private browsing mode
+  do_check_eq(gDownloadLastDir.file.path, dir3.path);
 
   // cleanup
   prefsService.clearUserPref("browser.privatebrowsing.keep_current_session");

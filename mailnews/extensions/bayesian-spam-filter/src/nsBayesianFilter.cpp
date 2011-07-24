@@ -95,8 +95,8 @@ static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
 
 #define kDefaultJunkThreshold .99 // we override this value via a pref
 static const char* kBayesianFilterTokenDelimiters = " \t\n\r\f.";
-static int kMinLengthForToken = 3; // lower bound on the number of characters in a word before we treat it as a token
-static int kMaxLengthForToken = 12; // upper bound on the number of characters in a word to be declared as a token
+static unsigned int kMinLengthForToken = 3; // lower bound on the number of characters in a word before we treat it as a token
+static unsigned int kMaxLengthForToken = 12; // upper bound on the number of characters in a word to be declared as a token
 
 #define FORGED_RECEIVED_HEADER_HINT NS_LITERAL_CSTRING("may be forged")
 
@@ -322,9 +322,9 @@ inline TokenEnumeration TokenHash::getTokens()
 
 Tokenizer::Tokenizer() :
   TokenHash(sizeof(Token)),
-  mCustomHeaderTokenization(PR_FALSE),
   mBodyDelimiters(kBayesianFilterTokenDelimiters),
   mHeaderDelimiters(kBayesianFilterTokenDelimiters),
+  mCustomHeaderTokenization(PR_FALSE),
   mMaxLengthForToken(kMaxLengthForToken)
 {
   nsresult rv;
@@ -402,9 +402,9 @@ Tokenizer::Tokenizer() :
   PRUint32 count;
 
   // get customized maximum token length
-  rv = prefBranch->GetIntPref("maxlengthfortoken", &mMaxLengthForToken);
-  if (NS_FAILED(rv))
-    mMaxLengthForToken = kMaxLengthForToken;
+  PRInt32 maxLengthForToken;
+  rv = prefBranch->GetIntPref("maxlengthfortoken", &maxLengthForToken);
+  mMaxLengthForToken = NS_SUCCEEDED(rv) ? PRUint32(maxLengthForToken) : kMaxLengthForToken;
 
   rv = prefs->GetBranch("mailnews.bayesian_spam_filter.tokenizeheader.", getter_AddRefs(prefBranch));
   if (NS_SUCCEEDED(rv))
@@ -661,7 +661,7 @@ void Tokenizer::tokenize_ascii_word(char * aWord)
 {
   // always deal with normalized lower case strings
   toLowerCase(aWord);
-  PRInt32 wordLength = strlen(aWord);
+  PRUint32 wordLength = strlen(aWord);
 
   // if the wordLength is within our accepted token limit, then add it
   if (wordLength >= kMinLengthForToken && wordLength <= mMaxLengthForToken)
@@ -673,9 +673,10 @@ void Tokenizer::tokenize_ascii_word(char * aWord)
     nsDependentCString word (aWord, wordLength); // CHEAP, no allocation occurs here...
 
     // XXX: i think the 40 byte check is just for perf reasons...if the email address is longer than that then forget about it.
-    if (wordLength < 40 && strchr(aWord, '.') && word.CountChar('@') == 1)
+    const char *atSign = strchr(aWord, '@');
+    if (wordLength < 40 && strchr(aWord, '.') && atSign && !strchr(atSign + 1, '@'))
     {
-      PRInt32 numBytesToSep = word.FindChar('@');
+      PRUint32 numBytesToSep = atSign - aWord;
       if (numBytesToSep < wordLength - 1) // if the @ sign is the last character, it must not be an email address
       {
         // split the john@foo.com into john and foo.com, treat them as separate tokens
@@ -847,10 +848,10 @@ void Tokenizer::tokenize(const char* aText)
 
   if (mIframeToDiv)
   {
-    text.ReplaceSubstring(NS_LITERAL_STRING("<iframe"),
-                          NS_LITERAL_STRING("<div"));
-    text.ReplaceSubstring(NS_LITERAL_STRING("/iframe>"),
-                          NS_LITERAL_STRING("/div>"));
+    MsgReplaceSubstring(text, NS_LITERAL_STRING("<iframe"),
+                        NS_LITERAL_STRING("<div"));
+    MsgReplaceSubstring(text, NS_LITERAL_STRING("/iframe>"),
+                        NS_LITERAL_STRING("/div>"));
   }
 
   stripHTML(text, strippedUCS2);
@@ -1046,6 +1047,11 @@ NS_IMETHODIMP TokenStreamListener::ProcessHeaders(nsIUTF8StringEnumerator *aHead
 NS_IMETHODIMP TokenStreamListener::HandleAttachment(const char *contentType, const char *url, const PRUnichar *displayName, const char *uri, PRBool aIsExternalAttachment)
 {
     mTokenizer.tokenizeAttachment(contentType, NS_ConvertUTF16toUTF8(displayName).get());
+    return NS_OK;
+}
+
+NS_IMETHODIMP TokenStreamListener::AddAttachmentField(const char *field, const char *value)
+{
     return NS_OK;
 }
 
@@ -1744,7 +1750,7 @@ void nsBayesianFilter::classifyMessage(
               100. + .5));
           tokenPercents.AppendElement(static_cast<PRUint32>(ta.mProbability *
               100. + .5));
-          tokenStrings.AppendElement(UTF8ToNewUnicode(nsDependentCString(
+          tokenStrings.AppendElement(ToNewUnicode(NS_ConvertUTF8toUTF16(
               tokens[ta.mTokenIndex].mWord)));
         }
 
@@ -2458,7 +2464,7 @@ static const char kMagicCookie[] = { '\xFE', '\xED', '\xFA', '\xCE' };
 // random string used to identify trait file and version (last byte is version)
 static const char kTraitCookie[] = { '\xFC', '\xA9', '\x36', '\x01' };
 
-void CorpusStore::writeTrainingData(PRInt32 aMaximumTokenCount)
+void CorpusStore::writeTrainingData(PRUint32 aMaximumTokenCount)
 {
   PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("writeTrainingData() entered"));
   if (!mTrainingFile)
@@ -2523,7 +2529,7 @@ void CorpusStore::writeTrainingData(PRInt32 aMaximumTokenCount)
   PRBool error;
   while (1) // break on error or done
   {
-    if (error = (fwrite(kTraitCookie, sizeof(kTraitCookie), 1, stream) != 1))
+    if ((error = (fwrite(kTraitCookie, sizeof(kTraitCookie), 1, stream) != 1)))
       break;
 
     for (PRUint32 index = 0; index < numberOfTraits; index++)
@@ -2531,11 +2537,11 @@ void CorpusStore::writeTrainingData(PRInt32 aMaximumTokenCount)
       PRUint32 trait = mMessageCountsId[index];
       if (trait == 1 || trait == 2)
         continue; // junk traits are stored in training.dat
-      if (error = (writeUInt32(stream, trait) != 1))
+      if ((error = (writeUInt32(stream, trait) != 1)))
         break;
-      if (error = (writeUInt32(stream, mMessageCounts[index] / shrinkFactor) != 1))
+      if ((error = (writeUInt32(stream, mMessageCounts[index] / shrinkFactor) != 1)))
         break;
-      if (error = !writeTokens(stream, shrink, trait))
+      if ((error = !writeTokens(stream, shrink, trait)))
         break;
     }
     break;
@@ -2796,17 +2802,17 @@ CorpusStore::UpdateData(nsILocalFile *aFile,
   while(NS_SUCCEEDED(rv)) // break on error or done
   {
     char cookie[4];
-    if (error = (fread(cookie, sizeof(cookie), 1, stream) != 1))
+    if ((error = (fread(cookie, sizeof(cookie), 1, stream) != 1)))
       break;
 
-    if (error = memcmp(cookie, kTraitCookie, sizeof(cookie)))
+    if ((error = memcmp(cookie, kTraitCookie, sizeof(cookie))))
       break;
 
     PRUint32 fileTrait;
     while ( !(error = (readUInt32(stream, &fileTrait) != 1)) && fileTrait)
     {
       PRUint32 count;
-      if (error = (readUInt32(stream, &count) != 1))
+      if ((error = (readUInt32(stream, &count) != 1)))
         break;
 
       PRUint32 localTrait = fileTrait;
@@ -2826,7 +2832,7 @@ CorpusStore::UpdateData(nsILocalFile *aFile,
         messageCount -= count;
       setMessageCount(localTrait, messageCount);
 
-      if (error = !readTokens(stream, fileSize, localTrait, aIsAdd))
+      if ((error = !readTokens(stream, fileSize, localTrait, aIsAdd)))
         break;
     }
     break;

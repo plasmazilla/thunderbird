@@ -56,7 +56,7 @@
 #include "nsContainerFrame.h"
 #include "nsLayoutUtils.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 
 void
@@ -76,7 +76,7 @@ public:
   nsImageControlFrame(nsStyleContext* aContext);
   ~nsImageControlFrame();
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
@@ -96,7 +96,7 @@ public:
   virtual nsIAtom* GetType() const;
 
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
 #ifdef DEBUG
@@ -124,12 +124,12 @@ nsImageControlFrame::~nsImageControlFrame()
 }
 
 void
-nsImageControlFrame::Destroy()
+nsImageControlFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   if (!GetPrevInFlow()) {
     nsFormControlFrame::RegUnRegAccessKey(this, PR_FALSE);
   }
-  nsImageControlFrameSuper::Destroy();
+  nsImageControlFrameSuper::DestroyFrom(aDestructRoot);
 }
 
 nsIFrame*
@@ -164,20 +164,20 @@ NS_QUERYFRAME_HEAD(nsImageControlFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsImageControlFrameSuper)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsImageControlFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsImageControlFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
     if (mContent->Tag() == nsGkAtoms::button) {
-      return accService->CreateHTML4ButtonAccessible(static_cast<nsIFrame*>(this), aAccessible);
+      return accService->CreateHTML4ButtonAccessible(mContent, PresContext()->PresShell());
     }
     else if (mContent->Tag() == nsGkAtoms::input) {
-      return accService->CreateHTMLButtonAccessible(static_cast<nsIFrame*>(this), aAccessible);
+      return accService->CreateHTMLButtonAccessible(mContent, PresContext()->PresShell());
     }
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
 

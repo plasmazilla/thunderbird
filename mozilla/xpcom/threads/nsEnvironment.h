@@ -40,8 +40,8 @@
 #ifndef nsEnvironment_h__
 #define nsEnvironment_h__
 
+#include "mozilla/Mutex.h"
 #include "nsIEnvironment.h"
-#include "prlock.h"
 
 #define NS_ENVIRONMENT_CID \
   { 0X3D68F92UL, 0X9513, 0X4E25, \
@@ -54,14 +54,14 @@ public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIENVIRONMENT
 
-    static NS_METHOD Create(nsISupports *aOuter, REFNSIID aIID,
+    static nsresult Create(nsISupports *aOuter, REFNSIID aIID,
                            void **aResult);
 
 private:
-    nsEnvironment() { }
+    nsEnvironment() : mLock("nsEnvironment.mLock") { }
     ~nsEnvironment();
 
-    PRLock *mLock;
+    mozilla::Mutex mLock;
 };
 
 #endif /* !nsEnvironment_h__ */

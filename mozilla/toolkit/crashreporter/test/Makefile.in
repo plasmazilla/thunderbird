@@ -47,15 +47,26 @@ MODULE = crashreporter_test
 XPCSHELL_TESTS = unit
 
 LIBRARY_NAME = testcrasher
-IS_COMPONENT    = 1
+NO_DIST_INSTALL = 1
 
-XPIDLSRCS = nsITestCrasher.idl
+VPATH += \
+  $(srcdir)/../google-breakpad/src/processor/ \
+  $(srcdir)/../google-breakpad/src/common/ \
+  $(NULL)
 
 CPPSRCS = \
   nsTestCrasher.cpp \
+  dumputils.cpp \
+  basic_code_modules.cc \
+  logging.cc \
+  minidump.cc \
+  pathname_stripper.cc \
   $(NULL)
 
-LOCAL_INCLUDES += -I$(XPIDL_GEN_DIR)
+LOCAL_INCLUDES += \
+  -I$(XPIDL_GEN_DIR) \
+  -I$(srcdir)/../google-breakpad/src/ \
+  $(NULL)
 EXTRA_DSO_LIBS += xpcom
 EXTRA_DSO_LDOPTS += $(LIBS_DIR) $(MOZ_COMPONENT_LIBS)
 
@@ -75,8 +86,13 @@ EXTRA_DSO_LDOPTS += $(EXTRA_DSO_LIBS) $(XPCOM_LIBS)
 
 endif
 
+EXTRA_JS_MODULES = CrashTestUtils.jsm
+
 include $(topsrcdir)/config/rules.mk
 
+DEFINES += -DSHARED_LIBRARY=$(SHARED_LIBRARY) -DNOMINMAX
+
+ifneq (mobile,$(MOZ_BUILD_APP))
 _BROWSER_FILES = \
   browser/aboutcrashes_utils.js \
   browser/crashreport.sjs \
@@ -85,10 +101,10 @@ _BROWSER_FILES = \
   browser/browser_aboutCrashesResubmit.js \
   $(NULL)
 
-ifndef BUILD_STATIC_LIBS
 libs::  $(_BROWSER_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)/browser
-	$(NSINSTALL) -D $(DEPTH)/_tests/xpcshell/$(MODULE)/unit/components
-	$(INSTALL) $(SHARED_LIBRARY) \
-          $(DEPTH)/_tests/xpcshell/$(MODULE)/unit/components
 endif
+
+libs:: $(SHARED_LIBRARY) $(EXTRA_JS_MODULES)
+	$(INSTALL) $^ $(DEPTH)/_tests/xpcshell/$(relativesrcdir)/unit/
+

@@ -14,7 +14,7 @@
  * The Original Code is SMTP Protocol Handler.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -42,8 +42,6 @@ const nsIProtocolHandler = Components.interfaces.nsIProtocolHandler;
 
 function makeProtocolHandler(aProtocol, aDefaultPort, aClassID) {
   return {
-    classDescription: aProtocol.toUpperCase() + " Protocol Handler",
-    contractID: kNetworkProtocolCIDPrefix + aProtocol,
     classID: Components.ID(aClassID),
     QueryInterface: XPCOMUtils.generateQI([nsIProtocolHandler]),
 
@@ -87,5 +85,5 @@ nsSMTPSProtocolHandler.prototype =
                       Components.interfaces.nsISmtpUrl.DEFAULT_SMTPS_PORT,
                       "057d0997-9e3a-411e-b4ee-2602f53fe05f");
 
-var NSGetModule = XPCOMUtils.generateNSGetModule([nsSMTPProtocolHandler,
-						  nsSMTPSProtocolHandler]);
+var components = [nsSMTPProtocolHandler, nsSMTPSProtocolHandler];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

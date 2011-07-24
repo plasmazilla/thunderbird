@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  *   Stefan Hermes <stefanh@inbox.com>
+ *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -51,10 +52,6 @@
   background-color: #EEEEEE;
 }
 
-#messengerWindow[chromehidden~="toolbar"][chromehidden~="location"][chromehidden~="directories"] {
-  border-top: 1px solid rgba(0,0,0,0.65);
-}
-
 /* :::::
    :: Make sure the min height is small so we can
    :: resize the pane vertically -EDV
@@ -65,22 +62,29 @@
   height: 0px;
 }
 
+#messagepanebox:-moz-lwtheme {
+  background-color: -moz-dialog;
+}
+
 #folderPaneBox {
   background-color: #D6DDE5;
 }
 
-/* Inactive window */
-
-#messengerWindow:not([active="true"]) > #mailContent > #messengerBox > #folderPaneBox {
+#folderPaneBox:-moz-window-inactive {
   background-color: #E8E8E8;
 }
 
-#msgLocationToolbar {
+#searchToolbar {
   -moz-appearance: none;
   background-color: #CDCDCD;
   background-image: url("chrome://communicator/skin/toolbar/toolbar-gradient34.png");
   background-repeat: repeat-x;
   border-bottom: 1px solid #9F9F9F;
+}
+
+#searchToolbar:-moz-lwtheme {
+  background-image: none;
+  background-color: transparent;
 }
 
 /* Leopard-styled "zero-width" vertical splitter */
@@ -97,7 +101,6 @@
 #folderpane-splitter[state="collapsed"] {
   min-width: 5px;
   background-color: #D6DDE5;
-  cursor: e-resize;
 }
 
 /* Thick horisontal splitter */
@@ -138,25 +141,8 @@
   min-width: 1px;
 }
 
-#searchBoxHolder > #searchBox {
-  border-bottom: 1px solid #9F9F9F;
-  height: 34px;
-  background-color: #CDCDCD;
-  background-image: url("chrome://communicator/skin/toolbar/toolbar-gradient34.png");
-  background-repeat: repeat-x;
-}
-
-/* XXX bug 313731 buttons are taller than menulists */
-#msgLocationToolbar > #searchBox[collapsed="true"] {
-  visibility: hidden;
-}
-
 #locationIcon {
   list-style-image: none;
-}
-
-#locationFolders {
-  width: 20em;
 }
 
 /* ..... message pane adjustments ..... */
@@ -170,18 +156,8 @@
   border-right: none;
 }
 
-#messagepanebox[focusring="true"] > #messagepane {
+#messagepanebox[focusring="true"] > #messagepanewrapper > #messagepane {
   border-color: -moz-mac-focusring;
-}
-
-.tab-close-button {
-  margin: 0;
-}
-
-.tabmail-strip {
-  border-bottom: 1px solid #A1A1A1;
-  padding-bottom: 3px;
-  background-color: #E8E8E8;
 }
 
 /* ..... folder pane adjustments ..... */
@@ -215,7 +191,70 @@
 
 /* ..... tabmail ..... */
 
+.tabmail-strip {
+  border-bottom: 1px solid #A1A1A1;
+  padding-bottom: 3px;
+  background-color: #E8E8E8;
+}
+
+.tabmail-strip:-moz-lwtheme {
+  background-color: transparent;
+}
+
 .tab-close-button {
   margin: 0;
 }
 
+.tab-scrollbutton-up,
+.tab-scrollbutton-down {
+  border: 0;
+  padding: 0 4px;
+  margin: 0;
+}
+
+.tab-scrollbutton-up:-moz-locale-dir(ltr),
+.tab-scrollbutton-down:-moz-locale-dir(rtl) {
+  border-right: 2px solid;
+  -moz-border-right-colors: rgba(0, 0, 0, 0.19) transparent;
+  list-style-image: url("chrome://messenger/skin/icons/tab-arrow-left.png");
+  -moz-image-region: rect(0, 7px, 11px, 0);
+}
+
+.tab-scrollbutton-up[disabled="true"]:-moz-locale-dir(ltr),
+.tab-scrollbutton-down[disabled="true"]:-moz-locale-dir(rtl) {
+  -moz-image-region: rect(0, 14px, 11px, 7px);
+  -moz-border-right-colors: transparent transparent;
+}
+
+.tab-scrollbutton-down:-moz-locale-dir(ltr),
+.tab-scrollbutton-up:-moz-locale-dir(rtl) {
+  border-left: 2px solid;
+  -moz-border-left-colors: rgba(0, 0, 0, 0.19) transparent;
+  list-style-image: url("chrome://messenger/skin/icons/tab-arrow-right.png");
+  -moz-image-region: rect(0, 7px, 11px, 0);
+}
+
+.tab-scrollbutton-down[disabled="true"]:-moz-locale-dir(ltr),
+.tab-scrollbutton-up[disabled="true"]:-moz-locale-dir(rtl) {
+  -moz-image-region: rect(0, 14px, 11px, 7px);
+  -moz-border-left-colors: transparent transparent;
+}
+
+.tab-scrollbutton-up:hover:not([disabled="true"]),
+.tab-scrollbutton-down:hover:not([disabled="true"]) {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.tab-scrollbutton-up:hover:active:not([disabled="true"]),
+.tab-scrollbutton-down:hover:active:not([disabled="true"]) {
+  background-color: rgba(0, 0, 0 , 0.2);
+}
+
+.tabmail-tab[type="message"] .tab-icon {
+  margin-top: -2px;
+}
+
+.tabmail-tab[type="folder"][NewMessages="true"],
+.tabmail-tab[type="folder"][IsServer="true"] {
+  font-weight: bold;
+}

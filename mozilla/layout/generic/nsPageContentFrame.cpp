@@ -88,6 +88,11 @@ nsPageContentFrame::Reflow(nsPresContext*           aPresContext,
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
+  // Set our size up front, since some parts of reflow depend on it
+  // being already set.  Note that the computed height may be
+  // unconstrained; that's ok.  Consumers should watch out for that.
+  SetSize(nsSize(aReflowState.availableWidth, aReflowState.availableHeight));
+ 
   // A PageContentFrame must always have one child: the canvas frame.
   // Resize our frame allowing it only to be as big as we are
   // XXX Pay attention to the page's border and padding...
@@ -112,13 +117,17 @@ nsPageContentFrame::Reflow(nsPresContext*           aPresContext,
     // in the percentage padding case)
     kidReflowState.mStylePadding->GetPadding(padding);
 
-    // First check the combined area
-    if (frame->HasOverflowRect()) {
+    // This is for shrink-to-fit, and therefore we want to use the
+    // scrollable overflow, since the purpose of shrink to fit is to
+    // make the content that ought to be reachable (represented by the
+    // scrollable overflow) fit in the page.
+    if (frame->HasOverflowAreas()) {
       // The background covers the content area and padding area, so check
       // for children sticking outside the child frame's padding edge
-      if (aDesiredSize.mOverflowArea.XMost() > aDesiredSize.width) {
+      nscoord xmost = aDesiredSize.ScrollableOverflow().XMost();
+      if (xmost > aDesiredSize.width) {
         mPD->mPageContentXMost =
-          aDesiredSize.mOverflowArea.XMost() +
+          xmost +
           kidReflowState.mStyleBorder->GetActualBorderWidth(NS_SIDE_RIGHT) +
           padding.right;
       }
@@ -135,7 +144,8 @@ nsPageContentFrame::Reflow(nsPresContext*           aPresContext,
   mFixedContainer.Reflow(this, aPresContext, aReflowState, fixedStatus,
                          aReflowState.availableWidth,
                          aReflowState.availableHeight,
-                         PR_FALSE, PR_TRUE, PR_TRUE); // XXX could be optimized
+                         PR_FALSE, PR_TRUE, PR_TRUE, // XXX could be optimized
+                         nsnull /* ignore overflow */);
   NS_ASSERTION(NS_FRAME_IS_COMPLETE(fixedStatus), "fixed frames can be truncated, but not incomplete");
 
   // Return our desired size
@@ -143,6 +153,8 @@ nsPageContentFrame::Reflow(nsPresContext*           aPresContext,
   if (aReflowState.availableHeight != NS_UNCONSTRAINEDSIZE) {
     aDesiredSize.height = aReflowState.availableHeight;
   }
+
+  FinishAndStoreOverflow(&aDesiredSize);
 
   NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aDesiredSize);
   return NS_OK;

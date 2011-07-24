@@ -37,11 +37,10 @@
 
 #include "nsStreamListenerTee.h"
 
-NS_IMPL_ISUPPORTS4(nsStreamListenerTee,
+NS_IMPL_ISUPPORTS3(nsStreamListenerTee,
                    nsIStreamListener,
                    nsIRequestObserver,
-                   nsIStreamListenerTee,
-                   nsIStreamListenerTee_1_9_2)
+                   nsIStreamListenerTee)
 
 NS_IMETHODIMP
 nsStreamListenerTee::OnStartRequest(nsIRequest *request,
@@ -90,7 +89,11 @@ nsStreamListenerTee::OnDataAvailable(nsIRequest *request,
     nsresult rv;
 
     if (!mInputTee) {
-        rv = NS_NewInputStreamTee(getter_AddRefs(tee), input, mSink);
+        if (mEventTarget)
+            rv = NS_NewInputStreamTeeAsync(getter_AddRefs(tee), input,
+                                           mSink, mEventTarget);
+        else
+            rv = NS_NewInputStreamTee(getter_AddRefs(tee), input, mSink);
         if (NS_FAILED(rv)) return rv;
 
         mInputTee = do_QueryInterface(tee, &rv);
@@ -109,10 +112,12 @@ nsStreamListenerTee::OnDataAvailable(nsIRequest *request,
 }
 
 NS_IMETHODIMP
-nsStreamListenerTee::InitWithObserver(nsIStreamListener *listener,
-                                      nsIOutputStream *sink,
-                                      nsIRequestObserver *requestObserver)
+nsStreamListenerTee::Init(nsIStreamListener *listener,
+                          nsIOutputStream *sink,
+                          nsIRequestObserver *requestObserver)
 {
+    NS_ENSURE_ARG_POINTER(listener);
+    NS_ENSURE_ARG_POINTER(sink);
     mListener = listener;
     mSink = sink;
     mObserver = requestObserver;
@@ -120,10 +125,12 @@ nsStreamListenerTee::InitWithObserver(nsIStreamListener *listener,
 }
 
 NS_IMETHODIMP
-nsStreamListenerTee::Init(nsIStreamListener *listener,
-                          nsIOutputStream *sink)
+nsStreamListenerTee::InitAsync(nsIStreamListener *listener,
+                               nsIEventTarget *eventTarget,
+                               nsIOutputStream *sink,
+                               nsIRequestObserver *requestObserver)
 {
-    mListener = listener;
-    mSink = sink;
-    return NS_OK;
+    NS_ENSURE_ARG_POINTER(eventTarget);
+    mEventTarget = eventTarget;
+    return Init(listener, sink, requestObserver);
 }

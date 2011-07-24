@@ -71,16 +71,15 @@ else
 PROGRAM = $(MOZ_APP_NAME)-bin$(BIN_SUFFIX)
 endif
 
-REQUIRES = \
-	xpcom \
-	string \
-	$(NULL)
 
 CPPSRCS = nsSuiteApp.cpp
 
 DIST_FILES = application.ini
 
-LOCAL_INCLUDES += -I$(MOZILLA_SRCDIR)/toolkit/xre
+LOCAL_INCLUDES += \
+  -I$(MOZILLA_SRCDIR)/toolkit/xre \
+  -I$(MOZILLA_SRCDIR)/xpcom/base \
+  $(NULL)
 
 ifdef BUILD_STATIC_LIBS
 ifdef _MSC_VER
@@ -113,16 +112,21 @@ endif
 
 LIBS += \
 	$(STATIC_COMPONENTS_LINKER_PATH) \
-	$(MOZ_JS_LIBS) \
 	$(EXTRA_DSO_LIBS) \
 	$(APP_XPCOM_LIBS) \
 	$(NSPR_LIBS) \
+	$(NULL)
+
+ifdef BUILD_STATIC_LIBS
+LIBS += \
+	$(MOZ_JS_LIBS) \
 	$(TK_LIBS) \
 	$(NULL)
 
 # Add explicit X11 dependency when building against X11 toolkits
 ifneq (,$(filter gtk gtk2 xlib,$(MOZ_WIDGET_TOOLKIT)))
 LIBS += $(XLDFLAGS) $(XLIBS)
+endif
 endif
 
 ifdef MOZ_JPROF
@@ -157,7 +161,7 @@ endif
 
 ifdef BUILD_STATIC_LIBS
 
-ifeq ($(OS_ARCH),WINNT)
+ifneq (,$(filter windows cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
 LIBS += ../shell/src/$(LIB_PREFIX)shellservice_s.$(LIB_SUFFIX)
 endif
 
@@ -169,8 +173,10 @@ EXTRA_DEPS	+= \
 DEFINES		+= $(STATIC_DEFINES)
 CPPSRCS		+= $(STATIC_CPPSRCS)
 EXTRA_DSO_LIBS	+= $(STATIC_EXTRA_DSO_LIBS)
-REQUIRES	+= $(STATIC_REQUIRES)
-EXTRA_LIBS	+= $(STATIC_EXTRA_LIBS)
+EXTRA_LIBS	+= \
+	$(STATIC_EXTRA_LIBS) \
+	$(MOZ_HARFBUZZ_LIBS) \
+	$(NULL)
 endif
 
 # OpenGL is required by (mozilla/)content/canvas: see (mozilla/)layout/build/Makefile.in.
@@ -243,8 +249,6 @@ LDFLAGS += /HEAP:0x40000
 endif
 endif
 
-$(PROGRAM): $(MOZDEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX)
-
 ifneq (,$(filter-out OS2 WINNT Darwin,$(OS_ARCH)))
 $(MOZ_APP_NAME).1: seamonkey.man.in $(GLOBAL_DEPS) $(DEPTH)/config/autoconf.mk
 	@sed -e "s|\@bindir\@|$(bindir)|g" -e "s|\@mozappdir\@|$(mozappdir)|g" \
@@ -295,6 +299,66 @@ endif
 
 libs:: blocklist.xml
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin
+
+ifdef MOZ_OMNIJAR
+# Make extensions end up as XPIs instead of flat chrome when doing omni.jar.
+# APP_EXTENSIONS exist only bundled with the application,
+# PROFILE_EXTENSIONS will be copied to the profile in installed builds.
+# NOTE: This is a hack to run this at the end of compilation, would be nicer
+# if this was done right away for built-in extensions in omnijar mode.
+# Listed extension GUIDs:
+# 972ce4c6-... Classic Theme, 59c81df5-... ChatZilla, f13b157f-... Venkman
+APP_EXTENSIONS = \
+  {972ce4c6-7e08-4474-a285-3208198ce6fd} \
+  modern@themes.mozilla.org \
+  $(NULL)
+
+PROFILE_EXTENSIONS = \
+  debugQA@mozilla.org \
+  {59c81df5-4b7a-477b-912d-4e0fdf64e5f2} \
+  {f13b157f-b174-47e7-a34d-4815ddfdfeb8} \
+  inspector@mozilla.org \
+  $(NULL)
+
+ifneq (en-US, $(AB_CD))
+PROFILE_EXTENSIONS += \
+  langpack-$(AB_CD)@chatzilla.mozilla.org \
+  langpack-$(AB_CD)@venkman.mozilla.org \
+  $(NULL)
+endif
+
+ABS_DIST = $(call core_abspath,$(STAGEDIST))
+
+define _PACKAGE_APP_EXTENSIONS
+@echo "Packaging $(dir).xpi..."
+if test -d "$(ABS_DIST)/extensions/$(dir)"; then \
+cd $(ABS_DIST)/extensions/$(dir)/; \
+$(ZIP) -r9mX ../$(dir).xpi *; \
+cd ..; rm -rf $(ABS_DIST)/extensions/$(dir); \
+fi
+
+endef # do not remove the blank line!
+
+define _PACKAGE_PROFILE_EXTENSIONS
+@echo "Packaging $(dir).xpi..."
+if test -d "$(ABS_DIST)/extensions/$(dir)"; then \
+cd $(ABS_DIST)/extensions/$(dir)/; \
+$(ZIP) -r9mX ../../distribution/extensions/$(dir).xpi *; \
+cd ..; rm -rf $(ABS_DIST)/extensions/$(dir); \
+fi
+
+endef # do not remove the blank line!
+
+pack-ext: $(STAGEDIST)
+	@echo "Packaging extensions..."
+	$(NSINSTALL) -D $(STAGEDIST)/distribution/extensions;
+	$(foreach dir,$(APP_EXTENSIONS),$(_PACKAGE_APP_EXTENSIONS))
+	$(foreach dir,$(PROFILE_EXTENSIONS),$(_PACKAGE_PROFILE_EXTENSIONS))
+
+libs::
+	@$(MAKE) pack-ext STAGEDIST="$(DIST)/bin"
+
+endif
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 

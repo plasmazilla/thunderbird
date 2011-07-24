@@ -15,7 +15,7 @@
  * The Original Code is Thunderbird Inline Edit Contact Panel.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -66,6 +66,8 @@ var editContactInlineUI = {
         elt.removeAttribute("disabled");
       elt.removeAttribute("wasDisabled");
     }
+    document.getElementById("editContactAddressBookList").disabled = false;
+    document.getElementById("contactMoveDisabledText").collapsed = true;
   },
 
   onPopupHidden: function (aEvent) {
@@ -121,7 +123,6 @@ var editContactInlineUI = {
 
   _doShowEditContactPanel: function (aAnchorElement, aPosition) {
     this._blockCommands(); // un-done in the popuphiding handler.
-
     var bundle = document.getElementById("bundle_editContact");
 
     // Is this address book writeable?
@@ -160,6 +161,37 @@ var editContactInlineUI = {
     nameElement.value = this._cardDetails.card.displayName;
     document.getElementById("editContactEmail").value =
       aAnchorElement.getAttribute("emailAddress");
+
+    document.getElementById("editContactAddressBookList").value =
+      this._cardDetails.book.URI;
+
+    // Is this card contained within mailing lists?
+    let inMailList = false;
+    if (this._cardDetails.book.supportsMailingLists) {
+      // We only have to look in one book here, because cards currently have
+      // to be in the address book they belong to.
+      let mailingLists = this._cardDetails.book.childNodes;
+      while (mailingLists.hasMoreElements() && !inMailList) {
+        let list = mailingLists.getNext();
+        if (!(list instanceof Components.interfaces.nsIAbDirectory) ||
+            !list.isMailList)
+          continue;
+
+        for (let card in fixIterator(list.addressLists.enumerate())) {
+          if (card instanceof Components.interfaces.nsIAbCard &&
+              card.primaryEmail == this._cardDetails.card.primaryEmail) {
+            inMailList = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!this._writeable || inMailList)
+      document.getElementById("editContactAddressBookList").disabled = true;
+
+    if (inMailList)
+      document.getElementById("contactMoveDisabledText").collapsed = false;
 
     this.panel.popupBoxObject
         .setConsumeRollupEvent(Components.interfaces
@@ -210,12 +242,40 @@ var editContactInlineUI = {
       return;
     }
 
+    let originalBook = this._cardDetails.book;
+
+    let abURI = document.getElementById("editContactAddressBookList").value;
+    if (abURI != originalBook.URI) {
+      let abManager = Components.classes["@mozilla.org/abmanager;1"]
+                                .getService(Components.interfaces.nsIAbManager);
+      this._cardDetails.book = abManager.getDirectory(abURI);
+    }
+
     // We can assume the email address stays the same, so just update the name
-    this._cardDetails.card.displayName =
-      document.getElementById("editContactName").value;
+    var newName = document.getElementById("editContactName").value;
+    if (newName != this._cardDetails.card.displayName) {
+      this._cardDetails.card.displayName = newName;
+      this._cardDetails.card.setProperty("PreferDisplayName", true);
+    }
 
     // Save the card
-    this._cardDetails.book.modifyCard(this._cardDetails.card);
+    if (this._cardDetails.book.hasCard(this._cardDetails.card)) {
+      // Address book wasn't changed.
+      this._cardDetails.book.modifyCard(this._cardDetails.card);
+    }
+    else {
+      // We changed address books for the card.
+
+      // Delete  it from the old place...
+      let cardArray = Components.classes["@mozilla.org/array;1"]
+                              .createInstance(Components.interfaces.nsIMutableArray);
+      cardArray.appendElement(this._cardDetails.card, false);
+      originalBook.deleteCards(cardArray);
+
+      // ... and add it to the chosen address book.
+      this._cardDetails.book.addCard(this._cardDetails.card);
+    }
+
     this.panel.hidePopup();
   }
 }

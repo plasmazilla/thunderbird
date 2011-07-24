@@ -83,8 +83,8 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=major&showLicense=1&showDetails=1" +
-            getVersionParams();
+  let url = URL_UPDATE + "?showBillboard=1&showLicense=1&showDetails=1" +
+            "&showPrompt=1" + getVersionParams();
   setUpdateURLOverride(url);
 
   gAUS.notify(null);

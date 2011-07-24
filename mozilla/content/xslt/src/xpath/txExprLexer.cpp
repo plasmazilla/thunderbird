@@ -179,17 +179,17 @@ txExprLexer::parse(const nsASingleFragmentString& aPattern)
         }
       }
       if (nextIsOperatorToken(prevToken)) {
-        NS_ConvertUTF16toUTF8 opUTF8(Substring(start, mPosition));
-        if (txXPathAtoms::_and->EqualsUTF8(opUTF8)) {
+        nsDependentSubstring op(Substring(start, mPosition));
+        if (txXPathAtoms::_and->Equals(op)) {
           defType = Token::AND_OP;
         }
-        else if (txXPathAtoms::_or->EqualsUTF8(opUTF8)) {
+        else if (txXPathAtoms::_or->Equals(op)) {
           defType = Token::OR_OP;
         }
-        else if (txXPathAtoms::mod->EqualsUTF8(opUTF8)) {
+        else if (txXPathAtoms::mod->Equals(op)) {
           defType = Token::MODULUS_OP;
         }
-        else if (txXPathAtoms::div->EqualsUTF8(opUTF8)) {
+        else if (txXPathAtoms::div->Equals(op)) {
           defType = Token::DIVIDE_OP;
         }
         else {
@@ -326,17 +326,17 @@ txExprLexer::parse(const nsASingleFragmentString& aPattern)
         break;
       case L_PAREN:
         if (prevToken->mType == Token::CNAME) {
-          NS_ConvertUTF16toUTF8 utf8Value(prevToken->Value());
-          if (txXPathAtoms::comment->EqualsUTF8(utf8Value)) {
+          const nsDependentSubstring& val = prevToken->Value();
+          if (val.EqualsLiteral("comment")) {
             prevToken->mType = Token::COMMENT_AND_PAREN;
           }
-          else if (txXPathAtoms::node->EqualsUTF8(utf8Value)) {
+          else if (val.EqualsLiteral("node")) {
             prevToken->mType = Token::NODE_AND_PAREN;
           }
-          else if (txXPathAtoms::processingInstruction->EqualsUTF8(utf8Value)) {
+          else if (val.EqualsLiteral("processing-instruction")) {
             prevToken->mType = Token::PROC_INST_AND_PAREN;
           }
-          else if (txXPathAtoms::text->EqualsUTF8(utf8Value)) {
+          else if (val.EqualsLiteral("text")) {
             prevToken->mType = Token::TEXT_AND_PAREN;
           }
           else {

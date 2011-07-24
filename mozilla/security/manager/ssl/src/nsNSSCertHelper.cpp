@@ -109,7 +109,7 @@ GetIntValue(SECItem *versionItem,
 
   srv = SEC_ASN1DecodeInteger(versionItem,version);
   if (srv != SECSuccess) {
-    NS_ASSERTION(0,"Could not decode version of cert");
+    NS_ERROR("Could not decode version of cert");
     return NS_ERROR_FAILURE;
   }
   return NS_OK;
@@ -155,7 +155,7 @@ ProcessVersion(SECItem         *versionItem,
     rv = nssComponent->GetPIPNSSBundleString("CertDumpVersion3", text);
     break;
   default:
-    NS_ASSERTION(0,"Bad value for cert version");
+    NS_ERROR("Bad value for cert version");
     rv = NS_ERROR_FAILURE;
   }
     
@@ -247,7 +247,7 @@ GetDefaultOIDFormat(SECItem *oid,
 
     if (!invalid) {
       if (first) {
-        unsigned long one = PR_MIN(val/40, 2); // never > 2
+        unsigned long one = NS_MIN(val/40, 2UL); // never > 2
         unsigned long two = val - (one * 40);
 
         written = PR_snprintf(&buf[len], sizeof(buf)-len, "%lu%c%lu", 
@@ -310,9 +310,6 @@ GetOIDText(SECItem *oid, nsINSSComponent *nssComponent, nsAString &text)
   case SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION:
     bundlekey = "CertDumpSHA1WithRSA";
     break;
-  case SEC_OID_PKCS1_RSA_ENCRYPTION:
-    bundlekey = "CertDumpRSAEncr";
-    break;
   case SEC_OID_PKCS1_SHA256_WITH_RSA_ENCRYPTION:
     bundlekey = "CertDumpSHA256WithRSA";
     break;
@@ -321,6 +318,12 @@ GetOIDText(SECItem *oid, nsINSSComponent *nssComponent, nsAString &text)
     break;
   case SEC_OID_PKCS1_SHA512_WITH_RSA_ENCRYPTION:
     bundlekey = "CertDumpSHA512WithRSA";
+    break;
+  case SEC_OID_PKCS1_RSA_ENCRYPTION:
+    bundlekey = "CertDumpRSAEncr";
+    break;
+  case SEC_OID_PKCS1_RSA_PSS_SIGNATURE:
+    bundlekey = "CertDumpRSAPSSSignature";
     break;
   case SEC_OID_NS_CERT_EXT_CERT_TYPE:
     bundlekey = "CertDumpCertType";
@@ -937,16 +940,20 @@ ProcessRDN(CERTRDN* rdn, nsAString &finalString, nsINSSComponent *nssComponent)
     PRIntn escapedValueCapacity = decodeItem->len * 3 + 3;
     nsAutoArrayPtr<char> escapedValue;
     escapedValue = new char[escapedValueCapacity];
-    if (!escapedValue)
+    if (!escapedValue) {
+      SECITEM_FreeItem(decodeItem, PR_TRUE);
       return NS_ERROR_OUT_OF_MEMORY;
+    }
 
     SECStatus status = CERT_RFC1485_EscapeAndQuote(
           escapedValue.get(),
           escapedValueCapacity, 
           (char*)decodeItem->data, 
           decodeItem->len);
-    if (SECSuccess != status)
+    if (SECSuccess != status) {
+      SECITEM_FreeItem(decodeItem, PR_TRUE);
       return NS_ERROR_FAILURE;
+    }
 
     avavalue = NS_ConvertUTF8toUTF16(escapedValue);
     
@@ -1416,8 +1423,7 @@ ProcessCertificatePolicies(SECItem  *extData,
       // because we want to display the EV information string
       // next to the correct OID.
 
-      SECOidTag oid_tag = SECOID_FindOIDTag(&policyInfo->policyID);
-      if (oid_tag == ev_oid_tag) {
+      if (policyInfo->oid == ev_oid_tag) {
         text.Append(NS_LITERAL_STRING(":"));
         text.Append(NS_LITERAL_STRING(SEPARATOR));
         needColon = PR_FALSE;

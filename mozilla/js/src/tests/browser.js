@@ -126,7 +126,7 @@ window.onerror = function (msg, page, line)
     EXPECTED = 'Unknown';
   }
 
-  var testcase = new TestCase(gTestfile, DESCRIPTION, EXPECTED, "error");
+  var testcase = new TestCase("unknown-test-name", DESCRIPTION, EXPECTED, "error");
 
   if (document.location.href.indexOf('-n.js') != -1)
   {
@@ -523,7 +523,7 @@ function options(aOptionName)
 
   if (aOptionName)
   {
-    if (options.currvalues[aOptionName])
+    if (options.currvalues.hasOwnProperty(aOptionName))
     {
       // option is set, toggle it to unset
       delete options.currvalues[aOptionName];
@@ -543,17 +543,18 @@ function options(aOptionName)
 function optionsInit() {
 
   // hash containing the set options
-  options.currvalues = {strict:     '',
-                        werror:     '',
-                        atline:     '',
-                        xml:        '',
-                        relimit:    '',
-                        anonfunfux: ''
-  }
+  options.currvalues = {
+    strict:     true,
+    werror:     true,
+    atline:     true,
+    xml:        true,
+    relimit:    true,
+    anonfunfix: true,
+  };
 
   // record initial values to support resetting
   // options to their initial values
-  options.initvalues  = {};
+  options.initvalues = {};
 
   // record values in a stack to support pushing
   // and popping options
@@ -569,7 +570,7 @@ function optionsInit() {
     }
     else
     {
-      options.initvalues[optionName] = '';
+      options.initvalues[optionName] = true;
     }
   }
 }
@@ -595,7 +596,7 @@ function jit(on)
   if (on)
   {
     jitoptions.setBoolPref('content', true);
-    jitoptions.setBoolPref('chrome', false);
+    jitoptions.setBoolPref('chrome', true);
   }
   else
   {
@@ -603,8 +604,6 @@ function jit(on)
     jitoptions.setBoolPref('chrome', false);
   }
 }
-
-var gVersion = 150;
 
 function jsTestDriverBrowserInit()
 {
@@ -657,26 +656,20 @@ function jsTestDriverBrowserInit()
   if (!properties.version && navigator.userAgent.indexOf('Gecko/') != -1)
   {
     // If the version is not specified, and the browser is Gecko,
-    // adjust the version to match the suite version.
-    if (properties.test.match(/^js1_6/))
-    {
-      properties.version = '1.6';
-    }
-    else if (properties.test.match(/^js1_7/))
+    // use the default version corresponding to the shell's version(0).
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=522760#c11
+    // Otherwise adjust the version to match the suite version for 1.7,
+    // and later due to the use of let, yield, etc.
+    //
+    // Note that js1_8, js1_8_1, and js1_8_5 are treated identically in
+    // the browser.
+    if (properties.test.match(/^js1_7/))
     {
       properties.version = '1.7';
     }
     else if (properties.test.match(/^js1_8/))
     {
       properties.version = '1.8';
-    }
-    else if (properties.test.match(/^js1_8_1/))
-    {
-      properties.version = '1.8';
-    }
-    else
-    {
-      properties.version = '1.5';
     }
   }
 
@@ -689,8 +682,6 @@ function jsTestDriverBrowserInit()
   }
 
   gTestPath = properties.test;
-
-  gVersion = 10*parseInt(properties.version.replace(/\./g, ''));
 
   if (properties.gczeal)
   {
@@ -775,6 +766,17 @@ function outputscripttag(src, properties, e4x)
 
   document.write(s);
 }
+
+var JSTest = {
+  waitForExplicitFinish: function () {
+    gDelayTestDriverEnd = true;
+  },
+
+  testFinished: function () {
+    gDelayTestDriverEnd = false;
+    jsTestDriverEnd();
+  }
+};
 
 function jsTestDriverEnd()
 {
@@ -874,6 +876,8 @@ function registerDialogCloser()
 function unregisterDialogCloser()
 {
   dlog('unregisterDialogCloser: start');
+
+  gczeal(0);
 
   if (!gDialogCloserObserver || !gDialogCloser)
   {

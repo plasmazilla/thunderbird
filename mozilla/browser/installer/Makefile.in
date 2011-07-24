@@ -43,18 +43,6 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-NO_PKG_FILES = \
-	$(MOZ_APP_NAME)-config \
-	$(MOZ_APP_NAME)-bin.elf \
-	nspr-config \
-	regchrome* \
-	regxpcom* \
-	xpcshell* \
-	xpidl* \
-	xpt_dump* \
-	xpt_link* \
-	$(NULL)
-
 include $(topsrcdir)/config/rules.mk
 
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
@@ -77,10 +65,6 @@ MOZ_NONLOCALIZED_PKG_LIST = \
 
 MOZ_LOCALIZED_PKG_LIST = $(AB_CD)
 
-MOZ_OPTIONAL_PKG_LIST = \
-	adt \
-	$(NULL)
-
 DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
 ifdef MOZ_ENABLE_GNOME_COMPONENT
 DEFINES += -DMOZ_ENABLE_GNOME_COMPONENT=1
@@ -94,25 +78,35 @@ ifdef NSS_DISABLE_DBM
 DEFINES += -DNSS_DISABLE_DBM=1
 endif
 
-ifdef MOZ_UPDATER
-DEFINES += -DMOZ_UPDATER=1
+ifdef _MSC_VER
+DEFINES += -D_MSC_VER=$(_MSC_VER)
 endif
 
-ifdef MOZ_IPC
+ifeq ($(MOZ_CHROME_FILE_FORMAT),jar)
+DEFINES += -DJAREXT=.jar
+else
+DEFINES += -DJAREXT=
+endif
+
+ifdef MOZ_ANGLE
+DEFINES += -DMOZ_ANGLE=$(MOZ_ANGLE)
+DEFINES += -DMOZ_D3DX9_DLL=$(MOZ_D3DX9_DLL)
+DEFINES += -DMOZ_D3DCOMPILER_DLL=$(MOZ_D3DCOMPILER_DLL)
+endif
+
 include $(topsrcdir)/ipc/app/defs.mk
 DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
-endif
 
 ifdef MOZ_PKG_MANIFEST_P
 MOZ_PKG_MANIFEST = package-manifest
 
 $(MOZ_PKG_MANIFEST): $(MOZ_PKG_MANIFEST_P)
-	$(PERL) $(topsrcdir)/config/preprocessor.pl $(DEFINES) $(ACDEFINES) $< > $@
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) $< > $@
 
 GARBAGE += $(MOZ_PKG_MANIFEST)
 endif
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 MOZ_PKG_MAC_DSSTORE=branding/dsstore
 MOZ_PKG_MAC_BACKGROUND=branding/background.png
 MOZ_PKG_MAC_ICON=branding/disk.icns
@@ -123,21 +117,52 @@ ifndef LIBXUL_SDK
 INSTALL_SDK = 1
 endif
 
+ifneq (1_,$(if $(CROSS_COMPILE),1,0)_$(UNIVERSAL_BINARY))
+ifdef RUN_TEST_PROGRAM
+_ABS_RUN_TEST_PROGRAM = $(call core_abspath,$(RUN_TEST_PROGRAM))
+endif
+
+GENERATE_CACHE = \
+  $(_ABS_RUN_TEST_PROGRAM) $(_ABS_DIST)/bin/xpcshell$(BIN_SUFFIX) -g "$$PWD" -f $(topsrcdir)/browser/installer/precompile_cache.js -e 'populate_startupcache("omni.jar", "startupCache.zip");' && \
+  rm -rf jsloader && \
+  $(UNZIP) startupCache.zip && \
+  rm startupCache.zip && \
+  find jsloader | xargs touch -t 201001010000 && \
+  $(ZIP) -r9mX omni.jar jsloader
+endif
+
 include $(topsrcdir)/toolkit/mozapps/installer/packager.mk
 
-ifeq (Darwin, $(OS_ARCH))
-DEFINES += \
-  -DBINPATH=$(_BINPATH) \
-  -DAPPNAME=$(_APPNAME) \
-  $(NULL)
+ifeq (bundle, $(MOZ_FS_LAYOUT))
+BINPATH = $(_BINPATH)
+DEFINES += -DAPPNAME=$(_APPNAME)
 else
 # Every other platform just winds up in dist/bin
-DEFINES += -DBINPATH=bin
+BINPATH = bin
 endif
+DEFINES += -DBINPATH=$(BINPATH)
 
 libs::
 	$(MAKE) -C $(DEPTH)/browser/locales langpack
 
+ifeq (WINNT,$(OS_ARCH))
+PKGCOMP_FIND_OPTS =
+else
+PKGCOMP_FIND_OPTS = -L
+endif
+ifeq (Darwin, $(OS_ARCH))
+FINDPATH = $(_APPNAME)/Contents/MacOS
+else
+FINDPATH=bin
+endif
+
+package-compare:: $(MOZ_PKG_MANIFEST)
+ifdef MOZ_PKG_MANIFEST_P
+	cd $(DIST); find $(PKGCOMP_FIND_OPTS) $(FINDPATH) -type f | sort > bin-list.txt
+	grep "^$(BINPATH)" $(MOZ_PKG_MANIFEST) | sed -e 's/^\///' | sort > $(DIST)/pack-list.txt
+	-diff -u $(DIST)/pack-list.txt $(DIST)/bin-list.txt
+	rm -f $(DIST)/pack-list.txt $(DIST)/bin-list.txt
+endif
 
 installer:: removed-files
 ifdef INSTALLER_DIR

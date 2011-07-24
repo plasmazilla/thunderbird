@@ -44,9 +44,9 @@ class nsITheme;
 
 #define DEFAULT_ORDINAL_GROUP 1
 
-#define NS_STATE_IS_ROOT        0x01000000
-#define NS_STATE_SET_TO_DEBUG   0x04000000
-#define NS_STATE_DEBUG_WAS_SET  0x08000000
+#define NS_STATE_IS_ROOT        NS_FRAME_STATE_BIT(24)
+#define NS_STATE_SET_TO_DEBUG   NS_FRAME_STATE_BIT(26)
+#define NS_STATE_DEBUG_WAS_SET  NS_FRAME_STATE_BIT(27)
 
 class nsBox : public nsIFrame {
 
@@ -67,7 +67,7 @@ public:
   virtual PRBool IsCollapsed(nsBoxLayoutState& aBoxLayoutState);
 
   virtual void SetBounds(nsBoxLayoutState& aBoxLayoutState, const nsRect& aRect,
-                         PRBool aRemoveOverflowArea = PR_FALSE);
+                         PRBool aRemoveOverflowAreas = PR_FALSE);
 
   NS_IMETHOD GetBorder(nsMargin& aBorderAndPadding);
   NS_IMETHOD GetPadding(nsMargin& aBorderAndPadding);
@@ -81,8 +81,6 @@ public:
 
 
   NS_IMETHOD RelayoutChildAtOrdinal(nsBoxLayoutState& aState, nsIBox* aChild);
-
-  virtual PRBool GetMouseThrough() const;
 
 #ifdef DEBUG_LAYOUT
   NS_IMETHOD GetDebugBoxAt(const nsPoint& aPoint, nsIBox** aBox);
@@ -111,7 +109,6 @@ rollbox.
   void CoordNeedsRecalc(nscoord& aCoord);
 
   void AddBorderAndPadding(nsSize& aSize);
-  void AddMargin(nsSize& aSize);
 
   static void AddBorderAndPadding(nsIBox* aBox, nsSize& aSize);
   static void AddMargin(nsIBox* aChild, nsSize& aSize);
@@ -129,7 +126,6 @@ protected:
   virtual void ListBox(nsAutoString& aResult);
 #endif
   
-  virtual PRBool GetDefaultFlex(PRInt32& aFlex);
   virtual void GetLayoutFlags(PRUint32& aFlags);
 
   NS_HIDDEN_(nsresult) BeginLayout(nsBoxLayoutState& aState);

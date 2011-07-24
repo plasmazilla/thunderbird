@@ -5,30 +5,25 @@
      xmlns:em="http://www.mozilla.org/2004/em-rdf#">
 
   <Description about="urn:mozilla:install-manifest">
-    <!-- Target Application this extension can install into, 
-        with minimum and maximum supported versions. --> 
+    <!-- Target Application this extension can install into,
+        with minimum and maximum supported versions. -->
     <em:targetApplication>
       <Description>
         <!-- thunderbird -->
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>3.1pre</em:minVersion>
-        <em:maxVersion>3.1.*</em:maxVersion>
+        <em:minVersion>5.0b1</em:minVersion>
+        <em:maxVersion>5.*</em:maxVersion>
       </Description>
     </em:targetApplication>
 
-#if LIGHTNING_FIREFOX
-    <!-- We only allow installation of Lightning into Firefox for ease of
-       - development. You can edit the JS and then click reload in Firefox as
-       - opposed to having to restart Thunderbird after each edit. -->
     <em:targetApplication>
       <Description>
-        <!-- firefox -->
-        <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
-        <em:minVersion>@FIREFOX_VERSION@</em:minVersion>
-        <em:maxVersion>@FIREFOX_VERSION@</em:maxVersion>
+        <!-- seamonkey -->
+        <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
+        <em:minVersion>2.1</em:minVersion>
+        <em:maxVersion>@SEAMONKEY_VERSION@</em:maxVersion>
       </Description>
     </em:targetApplication>
-#endif
 
     <em:id>@XPI_EM_ID@</em:id>
     <em:name>Lightning</em:name>
@@ -48,5 +43,6 @@
     <em:iconURL>chrome://calendar/skin/cal-icon32.png</em:iconURL>
     <em:optionsURL>chrome://messenger/content/preferences/preferences.xul</em:optionsURL>
     <em:targetPlatform>@TARGET_PLATFORM@</em:targetPlatform>
+    <em:unpack>true</em:unpack>
   </Description>
 </RDF>

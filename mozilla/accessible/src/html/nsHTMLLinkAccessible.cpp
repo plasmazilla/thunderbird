@@ -39,15 +39,18 @@
 
 #include "nsHTMLLinkAccessible.h"
 
-#include "nsILink.h"
+#include "nsCoreUtils.h"
+
+#include "nsIEventStateManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLLinkAccessible
+////////////////////////////////////////////////////////////////////////////////
 
-nsHTMLLinkAccessible::nsHTMLLinkAccessible(nsIDOMNode* aDomNode,
-                                           nsIWeakReference* aShell):
-  nsHyperTextAccessibleWrap(aDomNode, aShell)
-{ 
+nsHTMLLinkAccessible::
+  nsHTMLLinkAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsHyperTextAccessibleWrap(aContent, aShell)
+{
 }
 
 // Expose nsIAccessibleHyperLink unconditionally
@@ -57,11 +60,10 @@ NS_IMPL_ISUPPORTS_INHERITED1(nsHTMLLinkAccessible, nsHyperTextAccessibleWrap,
 ////////////////////////////////////////////////////////////////////////////////
 // nsIAccessible
 
-nsresult
-nsHTMLLinkAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsHTMLLinkAccessible::NativeRole()
 {
-  *aRole = nsIAccessibleRole::ROLE_LINK;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_LINK;
 }
 
 nsresult
@@ -73,30 +75,29 @@ nsHTMLLinkAccessible::GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState)
 
   *aState  &= ~nsIAccessibleStates::STATE_READONLY;
 
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-  if (content && content->HasAttr(kNameSpaceID_None,
-                                  nsAccessibilityAtoms::name)) {
+  if (mContent->HasAttr(kNameSpaceID_None, nsAccessibilityAtoms::name)) {
     // This is how we indicate it is a named anchor
     // In other words, this anchor can be selected as a location :)
     // There is no other better state to use to indicate this.
     *aState |= nsIAccessibleStates::STATE_SELECTABLE;
   }
 
-  nsLinkState linkState = content->GetLinkState();
-  if (linkState == eLinkState_NotLink || linkState == eLinkState_Unknown) {
-    // This is a either named anchor (a link with also a name attribute) or
-    // it doesn't have any attributes. Check if 'click' event handler is
-    // registered, otherwise bail out.
-    PRBool isOnclick = nsCoreUtils::HasListener(content,
-                                                NS_LITERAL_STRING("click"));
-    if (!isOnclick)
-      return NS_OK;
+  nsEventStates state = mContent->IntrinsicState();
+  if (state.HasAtLeastOneOfStates(NS_EVENT_STATE_VISITED |
+                                  NS_EVENT_STATE_UNVISITED)) {
+    *aState |= nsIAccessibleStates::STATE_LINKED;
+
+    if (state.HasState(NS_EVENT_STATE_VISITED))
+      *aState |= nsIAccessibleStates::STATE_TRAVERSED;
+
+    return NS_OK;
   }
 
-  *aState |= nsIAccessibleStates::STATE_LINKED;
-
-  if (linkState == eLinkState_Visited)
-    *aState |= nsIAccessibleStates::STATE_TRAVERSED;
+  // This is a either named anchor (a link with also a name attribute) or
+  // it doesn't have any attributes. Check if 'click' event handler is
+  // registered, otherwise bail out.
+  if (nsCoreUtils::HasClickListener(mContent))
+    *aState |= nsIAccessibleStates::STATE_LINKED;
 
   return NS_OK;
 }
@@ -113,10 +114,8 @@ nsHTMLLinkAccessible::GetValue(nsAString& aValue)
     return NS_OK;
   
   nsCOMPtr<nsIPresShell> presShell(do_QueryReferent(mWeakShell));
-  if (mDOMNode && presShell)
-    return presShell->GetLinkLocation(mDOMNode, aValue);
-
-  return NS_OK;
+  nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
+  return presShell->GetLinkLocation(DOMNode, aValue);
 }
 
 NS_IMETHODIMP
@@ -160,27 +159,24 @@ nsHTMLLinkAccessible::DoAction(PRUint8 aIndex)
   if (IsDefunct())
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-  return DoCommand(content);
+  DoCommand();
+  return NS_OK;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// nsIAccessibleHyperLink
+// HyperLinkAccessible
 
-NS_IMETHODIMP
-nsHTMLLinkAccessible::GetURI(PRInt32 aIndex, nsIURI **aURI)
+bool
+nsHTMLLinkAccessible::IsHyperLink()
 {
-  NS_ENSURE_ARG_POINTER(aURI);
-  *aURI = nsnull;
+  // Expose HyperLinkAccessible unconditionally.
+  return true;
+}
 
-  if (aIndex != 0)
-    return NS_ERROR_INVALID_ARG;
-
-  nsCOMPtr<nsIContent> link(do_QueryInterface(mDOMNode));
-  NS_ENSURE_STATE(link);
-
-  *aURI = link->GetHrefURI().get();
-  return NS_OK;
+already_AddRefed<nsIURI>
+nsHTMLLinkAccessible::GetAnchorURI(PRUint32 aAnchorIndex)
+{
+  return aAnchorIndex == 0 ? mContent->GetHrefURI() : nsnull;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,11 +185,10 @@ nsHTMLLinkAccessible::GetURI(PRInt32 aIndex, nsIURI **aURI)
 PRBool
 nsHTMLLinkAccessible::IsLinked()
 {
-  nsCOMPtr<nsIContent> link(do_QueryInterface(mDOMNode));
-  if (!link)
+  if (IsDefunct())
     return PR_FALSE;
 
-  nsLinkState linkState = link->GetLinkState();
-
-  return linkState != eLinkState_NotLink && linkState != eLinkState_Unknown;
+  nsEventStates state = mContent->IntrinsicState();
+  return state.HasAtLeastOneOfStates(NS_EVENT_STATE_VISITED |
+                                     NS_EVENT_STATE_UNVISITED);
 }

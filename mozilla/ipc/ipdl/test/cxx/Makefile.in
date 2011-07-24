@@ -48,7 +48,7 @@ MODULE = ipdlunittest
 EXPORTS_NAMESPACES = mozilla/_ipdltest
 EXPORTS_mozilla/_ipdltest =  \
   IPDLUnitTests.h  \
-  IPDLUnitTestThreadChild.h  \
+  IPDLUnitTestProcessChild.h  \
   IPDLUnitTestTypes.h \
   $(NULL)
 
@@ -58,25 +58,35 @@ FORCE_STATIC_LIB = 1
 EXPORT_LIBRARY = 1
 
 IPDLTESTS = \
-  TestArrays \
   TestBlockChild \
   TestCrashCleanup \
+  TestDataStructures \
   TestDesc \
+  TestFailedCtor \
   TestHangs \
+  TestJSON \
+  TestLatency \
   TestManyChildAllocs  \
   TestMultiMgrs  \
   TestNestedLoops \
   TestRPCErrorCleanup \
   TestRPCRaces \
   TestRPCShutdownRace \
+  TestRaceDeferral \
   TestRacyReentry  \
   TestRacyRPCReplies  \
   TestSanity  \
+  TestSelfManageRoot \
   TestShmem \
   TestShutdown \
   TestStackHooks \
   TestSyncWakeup \
+  TestSyncHang \
   $(NULL)
+
+ifeq ($(OS_ARCH),Linux)
+IPDLTESTS += TestSysVShmem
+endif
 
 IPDLTESTSRCS = $(addsuffix .cpp,$(IPDLTESTS))
 IPDLTESTHDRS = $(addprefix $(srcdir)/,$(addsuffix .h,$(IPDLTESTS)))
@@ -87,7 +97,7 @@ GENTESTER := $(srcdir)/genIPDLUnitTests.py
 CPPSRCS =  \
   IPDLUnitTests.cpp  \
   IPDLUnitTestSubprocess.cpp  \
-  IPDLUnitTestThreadChild.cpp  \
+  IPDLUnitTestProcessChild.cpp  \
   $(IPDLTESTSRCS)  \
   $(NULL)
 

@@ -39,7 +39,6 @@
 #include "nsCOMPtr.h"
 #include "nsServiceManagerUtils.h"
 #include "nsMemoryReporterManager.h"
-
 #include "nsArrayEnumerator.h"
 
 /**
@@ -48,19 +47,26 @@
  ** at least -- on OSX, there are sometimes other zones in use).
  **/
 
-/* Because of the way that jemalloc is linked on linux, we can't
- * get to jemalloc_stats().  So just do this on Windows until
- * that's fixed.
- */
-#if defined(MOZ_MEMORY) && defined(XP_WIN)
-#define HAVE_JEMALLOC_STATS 1
-#else
-#undef HAVE_JEMALLOC_STATS
-#endif
+#if defined(MOZ_MEMORY)
+#  if defined(XP_WIN) || defined(SOLARIS) || defined(ANDROID)
+#    define HAVE_JEMALLOC_STATS 1
+#    include "jemalloc.h"
+#  elif defined(XP_LINUX)
+#    define HAVE_JEMALLOC_STATS 1
+#    include "jemalloc_types.h"
+// jemalloc is directly linked into firefox-bin; libxul doesn't link
+// with it.  So if we tried to use jemalloc_stats directly here, it
+// wouldn't be defined.  Instead, we don't include the jemalloc header
+// and weakly link against jemalloc_stats.
+extern "C" {
+extern void jemalloc_stats(jemalloc_stats_t* stats)
+  NS_VISIBILITY_DEFAULT __attribute__((weak));
+}
+#  endif  // XP_LINUX
+#endif  // MOZ_MEMORY
 
-#if defined(HAVE_JEMALLOC_STATS)
-#define HAVE_MALLOC_REPORTERS 1
-#include "jemalloc.h"
+#if HAVE_JEMALLOC_STATS
+#  define HAVE_MALLOC_REPORTERS 1
 
 PRInt64 getMallocMapped(void *) {
     jemalloc_stats_t stats;
@@ -156,54 +162,115 @@ NS_MEMORY_REPORTER_IMPLEMENT(MallocDefaultAllocated,
 
 #endif
 
+#if defined(XP_WIN) && !defined(WINCE)
+#include <windows.h>
+#include <psapi.h>
+
+static PRInt64 GetWin32PrivateBytes(void *) {
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+  PROCESS_MEMORY_COUNTERS_EX pmcex;
+  pmcex.cb = sizeof(PROCESS_MEMORY_COUNTERS_EX);
+
+  if (!GetProcessMemoryInfo(GetCurrentProcess(),
+                            (PPROCESS_MEMORY_COUNTERS) &pmcex,
+                            sizeof(PROCESS_MEMORY_COUNTERS_EX)))
+    return 0;
+
+  return pmcex.PrivateUsage;
+#else
+  return 0;
+#endif
+}
+
+static PRInt64 GetWin32WorkingSetSize(void *) {
+  PROCESS_MEMORY_COUNTERS pmc;
+  pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+
+  if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+      return 0;
+
+  return pmc.WorkingSetSize;
+}
+
+NS_MEMORY_REPORTER_IMPLEMENT(Win32WorkingSetSize,
+                             "win32/workingset",
+                             "Win32 working set size",
+                             GetWin32WorkingSetSize,
+                             nsnull);
+
+NS_MEMORY_REPORTER_IMPLEMENT(Win32PrivateBytes,
+                             "win32/privatebytes",
+                             "Win32 private bytes (cannot be shared with other processes).  (Available only on Windows XP SP2 or later.)",
+                             GetWin32PrivateBytes,
+                             nsnull);
+#endif
+
 /**
  ** nsMemoryReporterManager implementation
  **/
 
-NS_IMPL_ISUPPORTS1(nsMemoryReporterManager, nsIMemoryReporterManager)
+NS_IMPL_THREADSAFE_ISUPPORTS1(nsMemoryReporterManager, nsIMemoryReporterManager)
 
 NS_IMETHODIMP
 nsMemoryReporterManager::Init()
 {
-    nsCOMPtr<nsIMemoryReporter> mr;
+#if HAVE_JEMALLOC_STATS && defined(XP_LINUX)
+    if (!jemalloc_stats)
+        return NS_ERROR_FAILURE;
+#endif
+    /*
+     * Register our core reporters
+     */
+#define REGISTER(_x)  RegisterReporter(new NS_MEMORY_REPORTER_NAME(_x))
 
     /*
      * Register our core jemalloc/malloc reporters
      */
 #ifdef HAVE_MALLOC_REPORTERS
-    mr = new NS_MEMORY_REPORTER_NAME(MallocAllocated);
-    RegisterReporter(mr);
-
-    mr = new NS_MEMORY_REPORTER_NAME(MallocMapped);
-    RegisterReporter(mr);
+    REGISTER(MallocAllocated);
+    REGISTER(MallocMapped);
 
 #if defined(HAVE_JEMALLOC_STATS)
-    mr = new NS_MEMORY_REPORTER_NAME(MallocCommitted);
-    RegisterReporter(mr);
-
-    mr = new NS_MEMORY_REPORTER_NAME(MallocDirty);
-    RegisterReporter(mr);
+    REGISTER(MallocCommitted);
+    REGISTER(MallocDirty);
 #elif defined(XP_MACOSX) && !defined(MOZ_MEMORY)
-    mr = new NS_MEMORY_REPORTER_NAME(MallocDefaultCommitted);
-    RegisterReporter(mr);
-
-    mr = new NS_MEMORY_REPORTER_NAME(MallocDefaultAllocated);
-    RegisterReporter(mr);
+    REGISTER(MallocDefaultCommitted);
+    REGISTER(MallocDefaultAllocated);
 #endif
+#endif
+
+#if defined(XP_WIN) && !defined(WINCE)
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+    REGISTER(Win32PrivateBytes);
+#endif
+    REGISTER(Win32WorkingSetSize);
 #endif
 
     return NS_OK;
 }
 
+nsMemoryReporterManager::nsMemoryReporterManager()
+  : mMutex("nsMemoryReporterManager::mMutex")
+{
+}
+
+nsMemoryReporterManager::~nsMemoryReporterManager()
+{
+}
+
 NS_IMETHODIMP
 nsMemoryReporterManager::EnumerateReporters(nsISimpleEnumerator **result)
 {
-    return NS_NewArrayEnumerator(result, mReporters);
+    nsresult rv;
+    mozilla::MutexAutoLock autoLock(mMutex); 
+    rv = NS_NewArrayEnumerator(result, mReporters);
+    return rv;
 }
 
 NS_IMETHODIMP
 nsMemoryReporterManager::RegisterReporter(nsIMemoryReporter *reporter)
 {
+    mozilla::MutexAutoLock autoLock(mMutex); 
     if (mReporters.IndexOf(reporter) != -1)
         return NS_ERROR_FAILURE;
 
@@ -214,11 +281,51 @@ nsMemoryReporterManager::RegisterReporter(nsIMemoryReporter *reporter)
 NS_IMETHODIMP
 nsMemoryReporterManager::UnregisterReporter(nsIMemoryReporter *reporter)
 {
+    mozilla::MutexAutoLock autoLock(mMutex); 
     if (!mReporters.RemoveObject(reporter))
         return NS_ERROR_FAILURE;
 
     return NS_OK;
 }
+
+NS_IMPL_ISUPPORTS1(nsMemoryReporter, nsIMemoryReporter)
+
+nsMemoryReporter::nsMemoryReporter(nsCString& prefix,
+                                   nsCString& path,
+                                   nsCString& desc,
+                                   PRInt64 memoryUsed)
+: mDesc(desc)
+, mMemoryUsed(memoryUsed) 
+{
+  if (!prefix.IsEmpty()) {
+    mPath.Append(prefix);
+    mPath.Append(NS_LITERAL_CSTRING(" - "));
+  }
+  mPath.Append(path);
+}
+
+nsMemoryReporter::~nsMemoryReporter()
+{
+}
+
+NS_IMETHODIMP nsMemoryReporter::GetPath(char **aPath)
+{
+  *aPath = strdup(mPath.get());
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMemoryReporter::GetDescription(char **aDescription)
+{
+  *aDescription = strdup(mDesc.get());
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMemoryReporter::GetMemoryUsed(PRInt64 *aMemoryUsed)
+{
+  *aMemoryUsed = mMemoryUsed;
+  return NS_OK;
+}
+
 
 NS_COM nsresult
 NS_RegisterMemoryReporter (nsIMemoryReporter *reporter)

@@ -69,7 +69,7 @@ public:
     NS_DECL_NSISCRIPTLOADEROBSERVER
     
     // nsICSSLoaderObserver
-    NS_IMETHOD StyleSheetLoaded(nsICSSStyleSheet* aSheet,
+    NS_IMETHOD StyleSheetLoaded(nsCSSStyleSheet* aSheet,
                                 PRBool aWasAlternate,
                                 nsresult aStatus);
 
@@ -93,28 +93,27 @@ private:
 class txMozillaXMLOutput : public txAOutputXMLEventHandler
 {
 public:
-    txMozillaXMLOutput(const nsSubstring& aRootName,
-                       PRInt32 aRootNsID,
-                       txOutputFormat* aFormat,
-                       nsIDOMDocument* aSourceDocument,
-                       nsIDOMDocument* aResultDocument,
+    txMozillaXMLOutput(txOutputFormat* aFormat,
                        nsITransformObserver* aObserver);
     txMozillaXMLOutput(txOutputFormat* aFormat,
                        nsIDOMDocumentFragment* aFragment,
                        PRBool aNoFixup);
+    ~txMozillaXMLOutput();
 
     TX_DECL_TXAXMLEVENTHANDLER
     TX_DECL_TXAOUTPUTXMLEVENTHANDLER
 
-private:
     nsresult closePrevious(PRBool aFlushText);
+
+    nsresult createResultDocument(const nsSubstring& aName, PRInt32 aNsID,
+                                  nsIDOMDocument* aSourceDocument,
+                                  nsIDOMDocument* aResultDocument);
+
+private:
     nsresult createTxWrapper();
     nsresult startHTMLElement(nsIContent* aElement, PRBool aXHTML);
     nsresult endHTMLElement(nsIContent* aElement);
     void processHTTPEquiv(nsIAtom* aHeader, const nsString& aValue);
-    nsresult createResultDocument(const nsSubstring& aName, PRInt32 aNsID,
-                                  nsIDOMDocument* aSourceDocument,
-                                  nsIDOMDocument* aResultDocument);
     nsresult createHTMLElement(nsIAtom* aName,
                                nsIContent** aResult);
 
@@ -152,8 +151,6 @@ private:
     nsAutoString mText;
 
     txOutputFormat mOutputFormat;
-
-    PRPackedBool mHaveBaseElement;
 
     PRPackedBool mCreatingNewDocument;
 

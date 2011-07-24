@@ -44,25 +44,10 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= bayesflt
 LIBRARY_NAME	= bayesflt_s
-META_COMPONENT = mail
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-REQUIRES	= xpcom \
-		  string \
-		  unicharutil \
-		  msgbase \
-		  necko \
-		  msgbaseutil \
-		  lwbrk \
-      mimetype \
-      mime \
-      pref \
-		  content \
-		  htmlparser \
-		  layout \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsBayesianFilter.cpp \

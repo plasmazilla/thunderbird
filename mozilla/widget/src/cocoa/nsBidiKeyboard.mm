@@ -40,8 +40,8 @@
 
 #include "nsBidiKeyboard.h"
 #include "nsObjCExceptions.h"
-
-#import <Carbon/Carbon.h>
+#include "nsCocoaUtils.h"
+#include "nsCocoaTextInputHandler.h"
 
 NS_IMPL_ISUPPORTS1(nsBidiKeyboard, nsIBidiKeyboard)
 
@@ -55,40 +55,8 @@ nsBidiKeyboard::~nsBidiKeyboard()
 
 NS_IMETHODIMP nsBidiKeyboard::IsLangRTL(PRBool *aIsRTL)
 {
-  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
-
-#ifdef __LP64__
-  // There isn't a way to determine this in 64-bit Mac OS X because any keyboard
-  // layout could generate any unicode characters. Apple simply doesn't consider
-  // this to be a valid question.
-  return NS_ERROR_FAILURE;
-#else  
-  *aIsRTL = PR_FALSE;
-  nsresult rv = NS_ERROR_FAILURE;
-
-  OSStatus err;
-  KeyboardLayoutRef currentKeyboard;
-
-  err = ::KLGetCurrentKeyboardLayout(&currentKeyboard);
-  if (err == noErr) {
-    const void* currentKeyboardResID;
-    err = ::KLGetKeyboardLayoutProperty(currentKeyboard, kKLIdentifier,
-                                        &currentKeyboardResID);
-    if (err == noErr) {
-      // Check if the resource id is BiDi associated (Arabic, Persian, Hebrew)
-      // (Persian is included in the Arabic range)
-      // http://developer.apple.com/documentation/mac/Text/Text-534.html#HEADING534-0
-      // Note: these ^^ values are negative on Mac OS X
-      *aIsRTL = ((SInt32)currentKeyboardResID >= -18943 &&
-                 (SInt32)currentKeyboardResID <= -17920);
-      rv = NS_OK;
-    }
-  }
-
-  return rv;
-#endif
-
-  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
+  *aIsRTL = nsTISInputSource::CurrentKeyboardLayout().IsForRTLLanguage();
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsBidiKeyboard::SetLangFromBidiLevel(PRUint8 aLevel)

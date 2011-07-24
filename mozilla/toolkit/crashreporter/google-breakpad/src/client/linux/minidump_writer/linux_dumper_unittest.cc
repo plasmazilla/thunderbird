@@ -35,7 +35,7 @@
 #include "breakpad_googletest_includes.h"
 #include "client/linux/minidump_writer/linux_dumper.h"
 #include "common/linux/file_id.h"
-#include "common/linux/memory.h"
+#include "common/memory.h"
 
 using namespace google_breakpad;
 
@@ -108,16 +108,16 @@ TEST(LinuxDumperTest, VerifyStackReadWithMultipleThreads) {
   ThreadInfo one_thread;
   for(size_t i = 0; i < dumper.threads().size(); ++i) {
     EXPECT_TRUE(dumper.ThreadInfoGet(dumper.threads()[i], &one_thread));
-    // We know the threads are in a function which has allocated exactly
-    // one word off the stack to store its thread id.
+    // In the helper program, we stored a pointer to the thread id in a
+    // specific register. Check that we can recover its value.
 #if defined(__ARM_EABI__)
-    void* process_tid_location = (void *)(one_thread.regs.uregs[11] - 8);
+    pid_t *process_tid_location = (pid_t *)(one_thread.regs.uregs[3]);
 #elif defined(__i386)
-    void* process_tid_location = (void *)(one_thread.regs.ebp - 4);
+    pid_t *process_tid_location = (pid_t *)(one_thread.regs.ecx);
 #elif defined(__x86_64)
-    void* process_tid_location = (void *)(one_thread.regs.rbp - 4);
+    pid_t *process_tid_location = (pid_t *)(one_thread.regs.rcx);
 #else
-#error Platform not supported!
+#error This test has not been ported to this platform.
 #endif
     pid_t one_thread_id;
     dumper.CopyFromProcess(&one_thread_id,
@@ -222,7 +222,7 @@ TEST(LinuxDumperTest, FileIDsMatch) {
 
   uint8_t identifier1[sizeof(MDGUID)];
   uint8_t identifier2[sizeof(MDGUID)];
-  EXPECT_TRUE(dumper.ElfFileIdentifierForMapping(i, identifier1));
+  EXPECT_TRUE(dumper.ElfFileIdentifierForMapping(*mappings[i], identifier1));
   FileID fileid(exe_name);
   EXPECT_TRUE(fileid.ElfFileIdentifier(identifier2));
   char identifier_string1[37];

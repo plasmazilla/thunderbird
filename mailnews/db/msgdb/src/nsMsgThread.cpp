@@ -44,7 +44,6 @@
 
 NS_IMPL_ISUPPORTS1(nsMsgThread, nsIMsgThread)
 
-
 nsMsgThread::nsMsgThread()
 {
   MOZ_COUNT_CTOR(nsMsgThread);
@@ -57,8 +56,16 @@ nsMsgThread::nsMsgThread(nsMsgDatabase *db, nsIMdbTable *table)
   m_mdbTable = table;
   m_mdbDB = db;
   if (db)
+  {
     db->AddRef();
-
+    db->m_threads.AppendElement(this);
+  }
+  else
+    NS_ERROR("no db for thread");
+#ifdef DEBUG_David_Bienvenu
+  if (m_mdbDB->m_threads.Length() > 5)
+    printf("more than five outstanding threads\n");
+#endif
   if (table && db)
   {
     table->GetMetaRow(db->GetEnv(), nsnull, nsnull, &m_metaRow);
@@ -84,12 +91,21 @@ void nsMsgThread::Init()
 nsMsgThread::~nsMsgThread()
 {
   MOZ_COUNT_DTOR(nsMsgThread);
-  if (m_mdbTable)
-    m_mdbTable->Release();
-  if (m_metaRow)
-    m_metaRow->Release();
   if (m_mdbDB)
-    m_mdbDB->Release();
+  {
+    PRBool found = m_mdbDB->m_threads.RemoveElement(this);
+    NS_ASSERTION(found, "removing thread not in threads array");
+  }
+  else
+    NS_ERROR("null db in thread");
+  Clear();
+}
+
+void nsMsgThread::Clear()
+{
+  NS_IF_RELEASE(m_mdbTable);
+  NS_IF_RELEASE(m_metaRow);
+  NS_IF_RELEASE(m_mdbDB);
 }
 
 nsresult nsMsgThread::InitCachedValues()
@@ -188,14 +204,13 @@ NS_IMETHODIMP nsMsgThread::GetNumUnreadChildren (PRUint32 *result)
 
 nsresult nsMsgThread::RerootThread(nsIMsgDBHdr *newParentOfOldRoot, nsIMsgDBHdr *oldRoot, nsIDBChangeAnnouncer *announcer)
 {
+  nsresult rv = NS_OK;
+  mdb_pos outPos;
+  nsMsgKey newHdrAncestor;
   nsCOMPtr <nsIMsgDBHdr> ancestorHdr = newParentOfOldRoot;
   nsMsgKey newRoot;
-  newParentOfOldRoot->GetMessageKey(&newRoot);
-  mdb_pos outPos;
 
-  nsMsgKey newHdrAncestor;
   ancestorHdr->GetMessageKey(&newRoot);
-  nsresult rv = NS_OK;
   // loop trying to find the oldest ancestor of this msg
   // that is a parent of the root. The oldest ancestor will
   // become the root of the thread.
@@ -950,10 +965,11 @@ NS_IMETHODIMP nsMsgThread::GetRootHdr(PRInt32 *resultIndex, nsIMsgDBHdr **result
   NS_ENSURE_ARG_POINTER(result);
 
   *result = nsnull;
+  nsresult rv = NS_OK;
 
   if (m_threadRootKey != nsMsgKey_None)
   {
-    nsresult rv = GetChildHdrForKey(m_threadRootKey, result, resultIndex);
+    rv = GetChildHdrForKey(m_threadRootKey, result, resultIndex);
     if (NS_SUCCEEDED(rv) && *result)
     {
       // check that we're really the root key.
@@ -996,15 +1012,22 @@ NS_IMETHODIMP nsMsgThread::GetRootHdr(PRInt32 *resultIndex, nsIMsgDBHdr **result
         }
       }
     }
-    if (*result)
-      return NS_OK;
+  }
+  if (!*result)
+  {
     // if we can't get the thread root key, we'll just get the first hdr.
     // there's a bug where sometimes we weren't resetting the thread root key
     // when removing the thread root key.
+    if (resultIndex)
+      *resultIndex = 0;
+    rv = GetChildHdrAt(0, result);
   }
-  if (resultIndex)
-    *resultIndex = 0;
-  return GetChildHdrAt(0, result);
+  // Check that the thread id of the message is this thread.
+  nsMsgKey threadId = nsMsgKey_None;
+  (void)(*result)->GetThreadId(&threadId);
+  if (threadId != m_threadKey)
+    (*result)->SetThreadId(m_threadKey);
+  return rv;
 }
 
 nsresult nsMsgThread::ChangeChildCount(PRInt32 delta)

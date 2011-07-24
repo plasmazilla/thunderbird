@@ -23,6 +23,7 @@
  *   Daniel Boelzle <daniel.boelzle@sun.com>
  *   Philipp Kewisch <mozilla@kewis.ch>
  *   Martin Schroeder <mschroeder@mozilla.x-home.org>
+ *   Matthew Mecca <matthew.mecca@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -79,17 +80,19 @@ function calAlarmService() {
             }
         },
 
-        onAddItem: function(aItem) {
-            let occs = [];
-            if (aItem.recurrenceInfo) {
+        getOccurrencesInRange: function(aItem) {
+            if (aItem && aItem.recurrenceInfo) {
                 let start = this.alarmService.mRangeEnd.clone();
                 // We search 1 month in each direction for alarms.  Therefore,
                 // we need to go back 2 months from the end to get this right.
                 start.month -= 2;
-                occs = aItem.recurrenceInfo.getOccurrences(start, this.alarmService.mRangeEnd, 0, {});
+                return aItem.recurrenceInfo.getOccurrences(start, this.alarmService.mRangeEnd, 0, {});
             } else {
-                occs = [aItem];
+                return [aItem];
             }
+        },
+        onAddItem: function(aItem) {
+            let occs = this.getOccurrencesInRange(aItem);
 
             // Add an alarm for each occurrence
             occs.forEach(this.alarmService.addAlarmsForItem,
@@ -105,7 +108,11 @@ function calAlarmService() {
             this.onAddItem(aNewItem);
         },
         onDeleteItem: function(aDeletedItem) {
-            this.alarmService.removeAlarmsForItem(aDeletedItem);
+            let occs = this.getOccurrencesInRange(aDeletedItem);
+
+            // Remove alarm for each occurrence
+            occs.forEach(this.alarmService.removeAlarmsForItem,
+                         this.alarmService);
         },
         onError: function(aCalendar, aErrNo, aMessage) {},
         onPropertyChanged: function(aCalendar, aName, aValue, aOldValue) {
@@ -263,8 +270,6 @@ calAlarmService.prototype = {
             return;
         }
 
-        cal.LOG("[calAlarmService] starting...");
-
         let observerSvc = Components.classes["@mozilla.org/observer-service;1"]
                           .getService
                           (Components.interfaces.nsIObserverService);
@@ -322,6 +327,10 @@ calAlarmService.prototype = {
     },
 
     shutdown: function cAS_shutdown() {
+        if (!this.mStarted) {
+            return;
+        }
+
         /* tell people that we're no longer running */
         let notifier = Components.classes["@mozilla.org/embedcomp/appstartup-notifier;1"]
                                  .getService(Components.interfaces.nsIObserver);
@@ -335,16 +344,7 @@ calAlarmService.prototype = {
         let calmgr = cal.getCalendarManager();
         calmgr.removeObserver(this.calendarManagerObserver);
 
-        for each (let calendarItemMap in this.mTimerMap) {
-            for each (let alarmMap in calendarItemMap) {
-                for each (let timer in alarmMap) {
-                    timer.cancel();
-                }
-            }
-        }
-
-        this.mTimerMap = {};
-
+        // Stop observing all calendars. This will also clear the timers.
         for each (let calendar in calmgr.getCalendars({})) {
             this.unobserveCalendar(calendar);
         }
@@ -409,8 +409,6 @@ calAlarmService.prototype = {
             if (snoozeDate && !(snoozeDate instanceof Components.interfaces.calIDateTime)) {
                 snoozeDate = cal.createDateTime(snoozeDate);
             }
-            cal.LOG("[calAlarmService] considering alarm for item: " + aItem.title +
-                " alarm time: " + alarmDate + " snooze time: " + snoozeDate);
 
             // If the alarm was snoozed, the snooze time is more important.
             alarmDate = snoozeDate || alarmDate;
@@ -421,11 +419,8 @@ calAlarmService.prototype = {
                 now.timezone = floating();
             }
 
-            cal.LOG("[calAlarmService] now is " + now);
             if (alarmDate.compare(now) >= 0) {
                 // We assume that future alarms haven't been acknowledged
-                cal.LOG("[calAlarmService] alarm is in the future.");
-
                 // Delay is in msec, so don't forget to multiply
                 let timeout = alarmDate.subtractDate(now).inSeconds * 1000;
 
@@ -433,7 +428,6 @@ calAlarmService.prototype = {
                 // our range.
                 let timeUntilRefresh = this.mRangeEnd.subtractDate(now).inSeconds * 1000;
                 if (timeUntilRefresh < timeout) {
-                    cal.LOG("[calAlarmService] alarm is too late.");
                     continue;
                 }
 
@@ -441,16 +435,12 @@ calAlarmService.prototype = {
             } else if (showMissed) {
                 // This alarm is in the past.  See if it has been previously ack'd.
                 let lastAck = aItem.alarmLastAck || aItem.parentItem.alarmLastAck;
-                cal.LOG("[calAlarmService] last ack was: " + lastAck);
-
                 if (lastAck && lastAck.compare(alarmDate) >= 0) {
                     // The alarm was previously dismissed or snoozed, no further
                     // action required.
-                    cal.LOG("[calAlarmService] " + aItem.title + " - alarm previously ackd.");
                     continue;
                 } else {
                     // The alarm was not snoozed or dismissed, fire it now.
-                    cal.LOG("[calAlarmService] alarm is in the past and unack'd, firing now!");
                     this.alarmFired(aItem, alarm);
                 }
             }
@@ -459,7 +449,7 @@ calAlarmService.prototype = {
 
     removeAlarmsForItem: function cAS_removeAlarmsForItem(aItem) {
         // make sure already fired alarms are purged out of the alarm window:
-        this.mObservers.notify("onRemoveAlarmsByItem", [aItem]);
+        this.mObservers.notify("onRemoveAlarmsByItem", [aItem.parentItem]);
         // Purge alarms specifically for this item (i.e exception)
         for each (let alarm in aItem.getAlarms({})) {
             this.removeTimer(aItem, alarm);

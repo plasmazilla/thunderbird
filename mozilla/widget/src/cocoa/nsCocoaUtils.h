@@ -45,29 +45,9 @@
 
 #include "nsRect.h"
 #include "nsObjCExceptions.h"
+#include "imgIContainer.h"
 
 class nsIWidget;
-
-// "Borrowed" in part from the QTKit framework's QTKitDefines.h.  This is
-// needed when building on OS X Tiger (10.4.X) or with a 10.4 SDK.  It won't
-// be used when building on Leopard (10.5.X) or higher (or with a 10.5 or
-// higher SDK).
-//
-// These definitions for NSInteger and NSUInteger are the 32-bit ones -- since
-// we assume we'll always be building 32-bit binaries when building on Tiger
-// (or with a 10.4 SDK).
-#ifndef NSINTEGER_DEFINED
-
-typedef int NSInteger;
-typedef unsigned int NSUInteger;
-
-#define NSIntegerMax    LONG_MAX
-#define NSIntegerMin    LONG_MIN
-#define NSUIntegerMax   ULONG_MAX
-
-#define NSINTEGER_DEFINED 1
-
-#endif  /* NSINTEGER_DEFINED */
 
 // Used to retain a Cocoa object for the remainder of a method's execution.
 class nsAutoRetainCocoaObject {
@@ -146,23 +126,18 @@ class nsCocoaUtils
   
   // Gives the location for the event in screen coordinates. Do not call this
   // unless the window the event was originally targeted at is still alive!
+  // anEvent may be nil -- in that case the current mouse location is returned.
   static NSPoint ScreenLocationForEvent(NSEvent* anEvent);
   
   // Determines if an event happened over a window, whether or not the event
   // is for the window. Does not take window z-order into account.
   static BOOL IsEventOverWindow(NSEvent* anEvent, NSWindow* aWindow);
 
-  // Determines if the window should accept mouse events.
-  static BOOL WindowAcceptsEvent(NSWindow* aWindow, NSEvent* anEvent);
-
   // Events are set up so that their coordinates refer to the window to which they
   // were originally sent. If we reroute the event somewhere else, we'll have
   // to get the window coordinates this way. Do not call this unless the window
   // the event was originally targeted at is still alive!
   static NSPoint EventLocationForWindow(NSEvent* anEvent, NSWindow* aWindow);
-  
-  // Finds the foremost window that is under the mouse for the current application.
-  static NSWindow* FindWindowForEvent(NSEvent* anEvent, BOOL* isUnderMouse);
 
   // Hides the Menu bar and the Dock. Multiple hide/show requests can be nested.
   static void HideOSChromeOnScreen(PRBool aShouldHide, NSScreen* aScreen);
@@ -172,11 +147,35 @@ class nsCocoaUtils
   static void PrepareForNativeAppModalDialog();
   static void CleanUpAfterNativeAppModalDialog();
 
-  // Wrap calls to [theEvent keyCode] and [theEvent modifierFlags].  Needed to
-  // work around an Apple bug (on OS X 10.4.X) that causes ctrl-ESC key events
-  // sent via performKeyEquivalent: to return 0 on these calls.
-  static unsigned short GetCocoaEventKeyCode(NSEvent *theEvent);
-  static NSUInteger GetCocoaEventModifierFlags(NSEvent *theEvent);
+  // 3 utility functions to go from a frame of imgIContainer to CGImage and then to NSImage
+  // Convert imgIContainer -> CGImageRef, caller owns result
+  
+  /** Creates a <code>CGImageRef</code> from a frame contained in an <code>imgIContainer</code>.
+      Copies the pixel data from the indicated frame of the <code>imgIContainer</code> into a new <code>CGImageRef</code>.
+      The caller owns the <code>CGImageRef</code>. 
+      @param aFrame the frame to convert
+      @param aResult the resulting CGImageRef
+      @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
+   */
+  static nsresult CreateCGImageFromSurface(gfxImageSurface *aFrame, CGImageRef *aResult);
+  
+  /** Creates a Cocoa <code>NSImage</code> from a <code>CGImageRef</code>.
+      Copies the pixel data from the <code>CGImageRef</code> into a new <code>NSImage</code>.
+      The caller owns the <code>NSImage</code>. 
+      @param aInputImage the image to convert
+      @param aResult the resulting NSImage
+      @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
+   */
+  static nsresult CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage **aResult);
+
+  /** Creates a Cocoa <code>NSImage</code> from a frame of an <code>imgIContainer</code>.
+      Combines the two methods above. The caller owns the <code>NSImage</code>.
+      @param aImage the image to extract a frame from
+      @param aWhichFrame the frame to extract (see imgIContainer FRAME_*)
+      @param aResult the resulting NSImage
+      @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
+   */  
+  static nsresult CreateNSImageFromImageContainer(imgIContainer *aImage, PRUint32 aWhichFrame, NSImage **aResult);
 };
 
 #endif // nsCocoaUtils_h_

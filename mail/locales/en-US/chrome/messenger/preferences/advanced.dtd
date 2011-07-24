@@ -45,8 +45,8 @@
 <!ENTITY reuseExpRadio0.accesskey      "n">
 <!ENTITY reuseExpRadio1.label          "An existing message window">
 <!ENTITY reuseExpRadio1.accesskey      "e">
-<!ENTITY closeMsgWindowOnDelete.label  "Close message window on delete">
-<!ENTITY closeMsgWindowOnDelete.accesskey "C">
+<!ENTITY closeMsgOnMoveOrDelete.label  "Close message window/tab on move or delete">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
 
 <!-- Update -->
 <!ENTITY autoCheck.label                "Automatically check for updates to:">
@@ -77,7 +77,7 @@
 <!ENTITY Diskspace "Disk Space">
 <!ENTITY offlineCompact.label "Compact folders when it will save over">
 <!ENTITY offlineCompact.accesskey "a">
-<!ENTITY kb.label "KB">
+<!ENTITY mb.label "MB">
 
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single

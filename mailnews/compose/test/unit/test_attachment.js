@@ -104,7 +104,7 @@ function createMessage(folding, input) {
   var params = Cc["@mozilla.org/messengercompose/composeparams;1"]
                  .createInstance(Ci.nsIMsgComposeParams);
   params.composeFields = fields;
-  msgCompose.Initialize(null, params);
+  msgCompose.initialize(params);
   var identity = getSmtpIdentity(null, gSmtpServer);
 
   var rootFolder = gLocalIncomingServer.rootMsgFolder;
@@ -210,8 +210,7 @@ function doTest(test)
     // Set a limit in case the notifications haven't arrived (i.e. a problem)
     do_timeout(10000, function() {
         if(gCurTestNum == test)
-	  do_throw("Notifications not received in 10000 ms for operation " + testFn.name +
-            ", current status is " + gCurrStatus);
+	  do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {

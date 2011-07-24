@@ -4,7 +4,7 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg">
 
-  <title>Testcase ensuring 'style' is not a property of SVGScriptElement</title>
+  <title>Testcase ensuring fill works if applied before onload</title>
 
   <!-- For https://bugzilla.mozilla.org/show_bug.cgi?id=515080 -->
 

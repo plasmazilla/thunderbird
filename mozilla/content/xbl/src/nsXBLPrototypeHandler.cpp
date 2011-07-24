@@ -55,9 +55,8 @@
 #include "nsIDOMNSUIEvent.h"
 #include "nsIURI.h"
 #include "nsIDOMNSHTMLTextAreaElement.h"
-#include "nsIDOMNSHTMLInputElement.h"
+#include "nsIDOMHTMLInputElement.h"
 #include "nsIDOMText.h"
-#include "nsIFocusController.h"
 #include "nsFocusManager.h"
 #include "nsIEventListenerManager.h"
 #include "nsIDOMEventTarget.h"
@@ -81,7 +80,6 @@
 #include "nsCRT.h"
 #include "nsXBLEventHandler.h"
 #include "nsEventDispatcher.h"
-#include "nsPresContext.h"
 
 static NS_DEFINE_CID(kDOMScriptObjectFactoryCID,
                      NS_DOM_SCRIPT_OBJECT_FACTORY_CID);
@@ -261,11 +259,8 @@ nsXBLPrototypeHandler::ExecuteHandler(nsPIDOMEventTarget* aTarget,
 
   // Look for a compiled handler on the element. 
   // Should be compiled and bound with "on" in front of the name.
-  nsAutoString onEvent(NS_LITERAL_STRING("onxbl"));
-  nsAutoString str;
-  mEventName->ToString(str);
-  onEvent += str;
-  nsCOMPtr<nsIAtom> onEventAtom = do_GetAtom(onEvent);
+  nsCOMPtr<nsIAtom> onEventAtom = do_GetAtom(NS_LITERAL_STRING("onxbl") +
+                                             nsDependentAtomString(mEventName));
 
   // Compile the event handler.
   PRUint32 stID = nsIProgrammingLanguage::JAVASCRIPT;
@@ -273,21 +268,17 @@ nsXBLPrototypeHandler::ExecuteHandler(nsPIDOMEventTarget* aTarget,
   // Compile the handler and bind it to the element.
   nsCOMPtr<nsIScriptGlobalObject> boundGlobal;
   nsCOMPtr<nsPIWindowRoot> winRoot(do_QueryInterface(aTarget));
-  nsCOMPtr<nsIDOMWindow> window;
+  nsCOMPtr<nsPIDOMWindow> window;
 
   if (winRoot) {
     window = winRoot->GetWindow();
   }
 
   if (window) {
-    nsCOMPtr<nsPIDOMWindow> piWin(do_QueryInterface(window));
+    window = window->GetCurrentInnerWindow();
+    NS_ENSURE_TRUE(window, NS_ERROR_UNEXPECTED);
 
-    if (piWin) {
-      piWin = piWin->GetCurrentInnerWindow();
-      NS_ENSURE_TRUE(piWin, NS_ERROR_UNEXPECTED);
-    }
-
-    boundGlobal = do_QueryInterface(piWin->GetPrivateRoot());
+    boundGlobal = do_QueryInterface(window->GetPrivateRoot());
   }
   else boundGlobal = do_QueryInterface(aTarget);
 
@@ -334,11 +325,9 @@ nsXBLPrototypeHandler::ExecuteHandler(nsPIDOMEventTarget* aTarget,
   // Execute it.
   nsCOMPtr<nsIDOMEventListener> eventListener;
   NS_NewJSEventListener(boundContext, scope,
-                        scriptTarget, getter_AddRefs(eventListener));
+                        scriptTarget, onEventAtom,
+                        getter_AddRefs(eventListener));
 
-  nsCOMPtr<nsIJSEventListener> jsListener(do_QueryInterface(eventListener));
-  jsListener->SetEventName(onEventAtom);
-  
   // Handle the event.
   eventListener->HandleEvent(aEvent);
   return NS_OK;
@@ -411,14 +400,11 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
   // Instead of executing JS, let's get the controller for the bound
   // element and call doCommand on it.
   nsCOMPtr<nsIController> controller;
-  nsCOMPtr<nsIFocusController> focusController;
 
   nsCOMPtr<nsPIDOMWindow> privateWindow;
   nsCOMPtr<nsPIWindowRoot> windowRoot(do_QueryInterface(aTarget));
   if (windowRoot) {
-    windowRoot->GetFocusController(getter_AddRefs(focusController));
-    if (windowRoot)
-      privateWindow = do_QueryInterface(windowRoot->GetWindow());
+    privateWindow = windowRoot->GetWindow();
   }
   else {
     privateWindow = do_QueryInterface(aTarget);
@@ -443,19 +429,16 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
         return NS_ERROR_FAILURE;
     }
 
-    focusController = privateWindow->GetRootFocusController();
+    windowRoot = privateWindow->GetTopWindowRoot();
   }
 
   NS_LossyConvertUTF16toASCII command(mHandlerText);
-  if (focusController)
-    focusController->GetControllerForCommand(privateWindow, command.get(), getter_AddRefs(controller));
+  if (windowRoot)
+    windowRoot->GetControllerForCommand(command.get(), getter_AddRefs(controller));
   else
     controller = GetController(aTarget); // We're attached to the receiver possibly.
 
-  nsAutoString type;
-  mEventName->ToString(type);
-
-  if (type.EqualsLiteral("keypress") &&
+  if (mEventName == nsGkAtoms::keypress &&
       mDetail == nsIDOMKeyEvent::DOM_VK_SPACE &&
       mMisc == 1) {
     // get the focused element so that we can pageDown only at
@@ -463,7 +446,7 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
 
     nsCOMPtr<nsPIDOMWindow> windowToCheck;
     if (windowRoot)
-      windowToCheck = do_QueryInterface(windowRoot->GetWindow());
+      windowToCheck = windowRoot->GetWindow();
     else
       windowToCheck = privateWindow->GetPrivateRoot();
 
@@ -483,8 +466,7 @@ nsXBLPrototypeHandler::DispatchXBLCommand(nsPIDOMEventTarget* aTarget, nsIDOMEve
     // element is focused and has a parent.
     if (focusedContent && focusedContent->GetParent()) {
       while (content) {
-        if (content->Tag() == nsGkAtoms::a &&
-            content->IsNodeOfType(nsINode::eHTML)) {
+        if (content->Tag() == nsGkAtoms::a && content->IsHTML()) {
           isLink = PR_TRUE;
           break;
         }
@@ -579,7 +561,7 @@ nsXBLPrototypeHandler::GetController(nsPIDOMEventTarget* aTarget)
   }
 
   if (!controllers) {
-    nsCOMPtr<nsIDOMNSHTMLInputElement> htmlInputElement(do_QueryInterface(aTarget));
+    nsCOMPtr<nsIDOMHTMLInputElement> htmlInputElement(do_QueryInterface(aTarget));
     if (htmlInputElement)
       htmlInputElement->GetControllers(getter_AddRefs(controllers));
   }
@@ -991,16 +973,23 @@ nsXBLPrototypeHandler::ConstructPrototype(nsIContent* aKeyElement,
 void
 nsXBLPrototypeHandler::ReportKeyConflict(const PRUnichar* aKey, const PRUnichar* aModifiers, nsIContent* aKeyElement, const char *aMessageName)
 {
-  nsIURI* uri = mPrototypeBinding ? mPrototypeBinding->DocURI() :
-                aKeyElement ? aKeyElement->GetOwnerDoc()->GetDocumentURI() :
-                nsnull;
+  nsCOMPtr<nsIDocument> doc;
+  if (mPrototypeBinding) {
+    nsXBLDocumentInfo* docInfo = mPrototypeBinding->XBLDocumentInfo();
+    if (docInfo) {
+      doc = docInfo->GetDocument();
+    }
+  } else if (aKeyElement) {
+    doc = aKeyElement->GetOwnerDoc();
+  }
+
   const PRUnichar* params[] = { aKey, aModifiers };
   nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
                                   aMessageName,
                                   params, NS_ARRAY_LENGTH(params),
-                                  uri, EmptyString(), mLineNumber, 0,
+                                  nsnull, EmptyString(), mLineNumber, 0,
                                   nsIScriptError::warningFlag,
-                                  "XBL Prototype Handler");
+                                  "XBL Prototype Handler", doc);
 }
 
 PRBool

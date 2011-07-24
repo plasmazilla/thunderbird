@@ -56,21 +56,17 @@ function getRemoteUpdatesXMLString(aUpdates) {
  *         String representing the application update patches.
  * @return The string representing an update element for an update xml file.
  */
-function getRemoteUpdateString(aPatches, aType, aName, aVersion,
-                               aExtensionVersion, aPlatformVersion, aBuildID,
+function getRemoteUpdateString(aPatches, aType, aName, aDisplayVersion,
+                               aAppVersion, aPlatformVersion, aBuildID,
                                aDetailsURL, aBillboardURL, aLicenseURL,
                                aShowPrompt, aShowNeverForVersion, aShowSurvey,
-                               aDisplayVersion, aAppVersion, aCustom1,
+                               aVersion, aExtensionVersion, aCustom1,
                                aCustom2) {
-  // Application update on mozilla-1.9.2 uses version instead of displayVersion
-  // and extensionVersion instead of appVersion.
-  let version = aVersion ? aVersion : "version 99.0";
-  let extensionVersion = aExtensionVersion ? aExtensionVersion : "99.0";
   return getUpdateString(aType, aName, aDisplayVersion, aAppVersion,
                          aPlatformVersion, aBuildID, aDetailsURL,
                          aBillboardURL, aLicenseURL, aShowPrompt,
-                         aShowNeverForVersion, aShowSurvey, version,
-                         extensionVersion, aCustom1, aCustom2) + ">\n" +
+                         aShowNeverForVersion, aShowSurvey, aVersion,
+                         aExtensionVersion, aCustom1, aCustom2) + ">\n" +
               aPatches +
          "  </update>\n";
 }
@@ -126,19 +122,14 @@ function getLocalUpdatesXMLString(aUpdates) {
  *         If not specified it will not be present.
  * @return The string representing an update element for an update xml file.
  */
-function getLocalUpdateString(aPatches, aType, aName, aVersion,
-                              aExtensionVersion, aPlatformVersion, aBuildID,
+function getLocalUpdateString(aPatches, aType, aName, aDisplayVersion,
+                              aAppVersion, aPlatformVersion, aBuildID,
                               aDetailsURL, aBillboardURL, aLicenseURL,
                               aServiceURL, aInstallDate, aStatusText,
                               aIsCompleteUpdate, aChannel, aForegroundDownload,
                               aShowPrompt, aShowNeverForVersion, aShowSurvey,
-                              aDisplayVersion, aAppVersion, aPreviousAppVersion,
+                              aVersion, aExtensionVersion, aPreviousAppVersion,
                               aCustom1, aCustom2) {
-  // Application update on mozilla-1.9.2 uses version instead of displayVersion
-  // and extensionVersion instead of appVersion.
-  let version = aVersion ? aVersion : "version 99.0";
-  let extensionVersion = aExtensionVersion ? aExtensionVersion : "99.0";
-
   let serviceURL = aServiceURL ? aServiceURL : "http://test_service/";
   let installDate = aInstallDate ? aInstallDate : "1238441400314";
   let statusText = aStatusText ? aStatusText : "Install Pending";
@@ -153,7 +144,7 @@ function getLocalUpdateString(aPatches, aType, aName, aVersion,
   return getUpdateString(aType, aName, aDisplayVersion, aAppVersion,
                          aPlatformVersion, aBuildID, aDetailsURL, aBillboardURL,
                          aLicenseURL, aShowPrompt, aShowNeverForVersion,
-                         aShowSurvey, version, extensionVersion, aCustom1,
+                         aShowSurvey, aVersion, aExtensionVersion, aCustom1,
                          aCustom2) +
                    " " +
                    previousAppVersion +

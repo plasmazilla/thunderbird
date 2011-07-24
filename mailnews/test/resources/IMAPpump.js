@@ -47,14 +47,22 @@
 if (typeof gIMAPpump_js__ == "undefined") {
 var gIMAPpump_js__ = true;
 
+// We can be executed from multiple depths
+// Provide understandable error message
+if (typeof gDEPTH == "undefined")
+  do_throw("gDEPTH must be defined when using IMAPpump.js");
+
 // add imap fake server methods if missing
 
 if (typeof gMaild_js__ == "undefined")
-  load("../../mailnews/fakeserver/maild.js");
+  load(gDEPTH + "mailnews/fakeserver/maild.js");
 if (typeof AuthPLAIN == "undefined")
-  load("../../mailnews/fakeserver/auth.js");
+  load(gDEPTH + "mailnews/fakeserver/auth.js");
 if (typeof imapDaemon == "undefined")
-  load("../../mailnews/fakeserver/imapd.js");
+  load(gDEPTH + "mailnews/fakeserver/imapd.js");
+
+// Add mailTestUtils for create_incoming_server
+load(gDEPTH + "mailnews/resources/mailTestUtils.js");
 
 // define globals
 var gIMAPDaemon;         // the imap fake server daemon
@@ -63,7 +71,7 @@ var gIMAPIncomingServer; // nsIMsgIncomingServer for the imap server
 var gIMAPInbox;          // nsIMsgFolder/nsIMsgImapMailFolder for imap inbox
 var gIMAPMailbox;        // imap fake server mailbox
 
-function setupIMAPPump()
+function setupIMAPPump(extensions)
 {
 
   // These are copied from imap's head_server.js to here so we can run
@@ -90,19 +98,7 @@ function setupIMAPPump()
   }
 
   function createLocalIMAPServer() {
-    var acctmgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                    .getService(Ci.nsIMsgAccountManager);
-
-    var server = acctmgr.createIncomingServer("user", "localhost", "imap");
-    server.port = IMAP_PORT;
-    server.username = "user";
-    server.password = "password";
-    server.valid = false;
-
-    var account = acctmgr.createAccount();
-    account.incomingServer = server;
-    server.valid = true;
-
+    let server = create_incoming_server("imap", IMAP_PORT, "user", "password");
     server.QueryInterface(Ci.nsIImapIncomingServer);
     return server;
   }
@@ -110,7 +106,7 @@ function setupIMAPPump()
   // end copy from head_server.js
 
   gIMAPDaemon = new imapDaemon();
-  gIMAPServer = makeServer(gIMAPDaemon, "");
+  gIMAPServer = makeServer(gIMAPDaemon, extensions);
 
   gIMAPIncomingServer = createLocalIMAPServer();
 

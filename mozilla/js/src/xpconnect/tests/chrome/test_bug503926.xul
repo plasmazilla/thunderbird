@@ -15,9 +15,9 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=503926
   <body xmlns="http://www.w3.org/1999/xhtml">
   <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=503926"
      target="_blank">Mozilla Bug 503926</a>
-  </body>
 
-  <iframe id="ifr" type="content" />
+  <iframe id="ifr" type="content" onload="iframe_loaded()" src="bug503926.xul#iframe"/>
+  </body>
 
   <!-- test code goes here -->
   <script type="application/javascript">
@@ -25,18 +25,17 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=503926
 
   /** Test for Bug 503926 **/
   function iframe_loaded() {
+    var gWindowUtils  = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor).
+                               getInterface(Components.interfaces.nsIDOMWindowUtils);
     var passed = false;
     var obj = { QueryInterface: function() { passed = true; } };
-    try { document.documentElement.appendChild(obj); } catch (e) {}
+    try { gWindowUtils.dispatchDOMEventViaPresShell(obj, obj, false); } catch (e) {}
     ok(passed, "trusted QIs should be called");
 
-    openDialog("chrome://mochikit/content/chrome/js/src/xpconnect/tests/chrome/bug503926.xul",
-               "chromeDialog", "modal")
+    openDialog("bug503926.xul", "chromeDialog", "modal");
     SimpleTest.finish();
   }
 
-  $(ifr).onload = iframe_loaded;
-  $(ifr).location = "chrome://mochikit/content/chrome/js/src/xpconnect/tests/chrome/bug503926.xul#iframe"
   SimpleTest.waitForExplicitFinish();
   ]]>
   </script>

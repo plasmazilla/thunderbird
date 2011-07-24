@@ -184,6 +184,19 @@ class nsAutoPtr
           return get();
         }
 
+      // This operator is needed for gcc <= 4.0.* and for Sun Studio; it
+      // causes internal compiler errors for some MSVC versions.  (It's not
+      // clear to me whether it should be needed.)
+#ifndef _MSC_VER
+      template <class U, class V>
+      U&
+      operator->*(U V::* aMember)
+        {
+          NS_PRECONDITION(mRawPtr != 0, "You can't dereference a NULL nsAutoPtr with operator->*().");
+          return get()->*aMember;
+        }
+#endif
+
 #ifdef CANT_RESOLVE_CPP_CONST_AMBIGUITY
   // broken version for IRIX
 
@@ -980,10 +993,19 @@ class nsRefPtr
             mRawPtr->AddRef();
         }
 
-      nsRefPtr( const already_AddRefed<T>& aSmartPtr )
+      template <typename I>
+      nsRefPtr( const already_AddRefed<I>& aSmartPtr )
             : mRawPtr(aSmartPtr.mRawPtr)
           // construct from |dont_AddRef(expr)|
         {
+        }
+
+      nsRefPtr( const nsCOMPtr_helper& helper )
+        {
+          void* newRawPtr;
+          if (NS_FAILED(helper(NS_GET_TEMPLATE_IID(T), &newRawPtr)))
+            newRawPtr = 0;
+          mRawPtr = static_cast<T*>(newRawPtr);
         }
 
         // Assignment operators
@@ -1004,11 +1026,22 @@ class nsRefPtr
           return *this;
         }
 
+      template <typename I>
       nsRefPtr<T>&
-      operator=( const already_AddRefed<T>& rhs )
+      operator=( const already_AddRefed<I>& rhs )
           // assign from |dont_AddRef(expr)|
         {
           assign_assuming_AddRef(rhs.mRawPtr);
+          return *this;
+        }
+
+      nsRefPtr<T>&
+      operator=( const nsCOMPtr_helper& helper )
+        {
+          void* newRawPtr;
+          if (NS_FAILED(helper(NS_GET_TEMPLATE_IID(T), &newRawPtr)))
+            newRawPtr = 0;
+          assign_assuming_AddRef(static_cast<T*>(newRawPtr));
           return *this;
         }
 
@@ -1084,6 +1117,19 @@ class nsRefPtr
           NS_PRECONDITION(mRawPtr != 0, "You can't dereference a NULL nsRefPtr with operator->().");
           return get();
         }
+
+      // This operator is needed for gcc <= 4.0.* and for Sun Studio; it
+      // causes internal compiler errors for some MSVC versions.  (It's not
+      // clear to me whether it should be needed.)
+#ifndef _MSC_VER
+      template <class U, class V>
+      U&
+      operator->*(U V::* aMember)
+        {
+          NS_PRECONDITION(mRawPtr != 0, "You can't dereference a NULL nsRefPtr with operator->*().");
+          return get()->*aMember;
+        }
+#endif
 
 #ifdef CANT_RESOLVE_CPP_CONST_AMBIGUITY
   // broken version for IRIX
@@ -1390,6 +1436,99 @@ operator==( int lhs, const nsRefPtr<T>& rhs )
   }
 
 #endif // !defined(HAVE_CPP_TROUBLE_COMPARING_TO_ZERO)
+
+template <class SourceType, class DestinationType>
+inline
+nsresult
+CallQueryInterface( nsRefPtr<SourceType>& aSourcePtr, DestinationType** aDestPtr )
+  {
+    return CallQueryInterface(aSourcePtr.get(), aDestPtr);
+  }
+
+/*****************************************************************************/
+
+template<class T>
+class nsQueryObject : public nsCOMPtr_helper
+{
+public:
+  nsQueryObject(T* aRawPtr)
+    : mRawPtr(aRawPtr) {}
+
+  virtual nsresult NS_FASTCALL operator()( const nsIID& aIID, void** aResult ) const {
+    nsresult status = mRawPtr ? mRawPtr->QueryInterface(aIID, aResult)
+                              : NS_ERROR_NULL_POINTER;
+    return status;
+  }
+private:
+  T* mRawPtr;
+};
+
+template<class T>
+class nsQueryObjectWithError : public nsCOMPtr_helper
+{
+public:
+  nsQueryObjectWithError(T* aRawPtr, nsresult* aErrorPtr)
+    : mRawPtr(aRawPtr), mErrorPtr(aErrorPtr) {}
+
+  virtual nsresult NS_FASTCALL operator()( const nsIID& aIID, void** aResult ) const {
+    nsresult status = mRawPtr ? mRawPtr->QueryInterface(aIID, aResult)
+                              : NS_ERROR_NULL_POINTER;
+    if (mErrorPtr)
+      *mErrorPtr = status;
+    return status;
+  }
+private:
+  T* mRawPtr;
+  nsresult* mErrorPtr;
+};
+
+template<class T>
+inline
+nsQueryObject<T>
+do_QueryObject(T* aRawPtr)
+{
+  return nsQueryObject<T>(aRawPtr);
+}
+
+template<class T>
+inline
+nsQueryObject<T>
+do_QueryObject(nsCOMPtr<T>& aRawPtr)
+{
+  return nsQueryObject<T>(aRawPtr);
+}
+
+template<class T>
+inline
+nsQueryObject<T>
+do_QueryObject(nsRefPtr<T>& aRawPtr)
+{
+  return nsQueryObject<T>(aRawPtr);
+}
+
+template<class T>
+inline
+nsQueryObjectWithError<T>
+do_QueryObject(T* aRawPtr, nsresult* aErrorPtr)
+{
+  return nsQueryObjectWithError<T>(aRawPtr, aErrorPtr);
+}
+
+template<class T>
+inline
+nsQueryObjectWithError<T>
+do_QueryObject(nsCOMPtr<T>& aRawPtr, nsresult* aErrorPtr)
+{
+  return nsQueryObjectWithError<T>(aRawPtr, aErrorPtr);
+}
+
+template<class T>
+inline
+nsQueryObjectWithError<T>
+do_QueryObject(nsRefPtr<T>& aRawPtr, nsresult* aErrorPtr)
+{
+  return nsQueryObjectWithError<T>(aRawPtr, aErrorPtr);
+}
 
 /*****************************************************************************/
 

@@ -79,31 +79,32 @@ NS_IMETHODIMP
 StatementParams::SetProperty(nsIXPConnectWrappedNative *aWrapper,
                              JSContext *aCtx,
                              JSObject *aScopeObj,
-                             jsval aId,
+                             jsid aId,
                              jsval *_vp,
                              PRBool *_retval)
 {
   NS_ENSURE_TRUE(mStatement, NS_ERROR_NOT_INITIALIZED);
 
-  if (JSVAL_IS_INT(aId)) {
-    int idx = JSVAL_TO_INT(aId);
+  if (JSID_IS_INT(aId)) {
+    int idx = JSID_TO_INT(aId);
 
-    PRBool res = bindJSValue(aCtx, mStatement, idx, *_vp);
-    NS_ENSURE_TRUE(res, NS_ERROR_UNEXPECTED);
+    nsCOMPtr<nsIVariant> variant(convertJSValToVariant(aCtx, *_vp));
+    NS_ENSURE_TRUE(variant, NS_ERROR_UNEXPECTED);
+    nsresult rv = mStatement->BindByIndex(idx, variant);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
-  else if (JSVAL_IS_STRING(aId)) {
-    JSString *str = JSVAL_TO_STRING(aId);
-    NS_ConvertUTF16toUTF8 name(reinterpret_cast<const PRUnichar *>
-                                   (::JS_GetStringChars(str)),
-                               ::JS_GetStringLength(str));
+  else if (JSID_IS_STRING(aId)) {
+    JSString *str = JSID_TO_STRING(aId);
+    size_t length;
+    const jschar *chars = JS_GetStringCharsAndLength(aCtx, str, &length);
+    NS_ENSURE_TRUE(chars, NS_ERROR_UNEXPECTED);
+    NS_ConvertUTF16toUTF8 name(chars, length);
 
     // check to see if there's a parameter with this name
-    PRUint32 index;
-    nsresult rv = mStatement->GetParameterIndex(name, &index);
+    nsCOMPtr<nsIVariant> variant(convertJSValToVariant(aCtx, *_vp));
+    NS_ENSURE_TRUE(variant, NS_ERROR_UNEXPECTED);
+    nsresult rv = mStatement->BindByName(name, variant);
     NS_ENSURE_SUCCESS(rv, rv);
-
-    PRBool res = bindJSValue(aCtx, mStatement, index, *_vp);
-    NS_ENSURE_TRUE(res, NS_ERROR_UNEXPECTED);
   }
   else {
     return NS_ERROR_INVALID_ARG;
@@ -126,13 +127,14 @@ StatementParams::NewEnumerate(nsIXPConnectWrappedNative *aWrapper,
 
   switch (aEnumOp) {
     case JSENUMERATE_INIT:
+    case JSENUMERATE_INIT_ALL:
     {
       // Start our internal index at zero.
       *_statep = JSVAL_ZERO;
 
       // And set our length, if needed.
       if (_idp)
-        *_idp = INT_TO_JSVAL(mParamCount);
+        *_idp = INT_TO_JSID(mParamCount);
 
       break;
     }
@@ -184,7 +186,7 @@ NS_IMETHODIMP
 StatementParams::NewResolve(nsIXPConnectWrappedNative *aWrapper,
                             JSContext *aCtx,
                             JSObject *aScopeObj,
-                            jsval aId,
+                            jsid aId,
                             PRUint32 aFlags,
                             JSObject **_objp,
                             PRBool *_retval)
@@ -194,44 +196,40 @@ StatementParams::NewResolve(nsIXPConnectWrappedNative *aWrapper,
   // because we want to allow the prototype chain to be checked for the
   // property.
 
-  PRUint32 idx;
-
-  if (JSVAL_IS_INT(aId)) {
-    idx = JSVAL_TO_INT(aId);
+  bool resolved = false;
+  PRBool ok = PR_TRUE;
+  if (JSID_IS_INT(aId)) {
+    PRUint32 idx = JSID_TO_INT(aId);
 
     // Ensure that our index is within range.  We do not care about the
     // prototype chain being checked here.
     if (idx >= mParamCount)
       return NS_ERROR_INVALID_ARG;
+
+    ok = ::JS_DefineElement(aCtx, aScopeObj, idx, JSVAL_VOID, nsnull,
+                            nsnull, JSPROP_ENUMERATE);
+    resolved = true;
   }
-  else if (JSVAL_IS_STRING(aId)) {
-    JSString *str = JSVAL_TO_STRING(aId);
-    jschar *nameChars = ::JS_GetStringChars(str);
-    size_t nameLength = ::JS_GetStringLength(str);
+  else if (JSID_IS_STRING(aId)) {
+    JSString *str = JSID_TO_STRING(aId);
+    size_t nameLength;
+    const jschar *nameChars = JS_GetStringCharsAndLength(aCtx, str, &nameLength);
+    NS_ENSURE_TRUE(nameChars, NS_ERROR_UNEXPECTED);
 
     // Check to see if there's a parameter with this name, and if not, let
     // the rest of the prototype chain be checked.
-    NS_ConvertUTF16toUTF8 name(reinterpret_cast<const PRUnichar *>(nameChars),
-                               nameLength);
+    NS_ConvertUTF16toUTF8 name(nameChars, nameLength);
+    PRUint32 idx;
     nsresult rv = mStatement->GetParameterIndex(name, &idx);
-    if (NS_FAILED(rv)) {
-      *_objp = NULL;
-      return NS_OK;
+    if (NS_SUCCEEDED(rv)) {
+      ok = ::JS_DefinePropertyById(aCtx, aScopeObj, aId, JSVAL_VOID, nsnull,
+                                   nsnull, JSPROP_ENUMERATE);
+      resolved = true;
     }
-
-    *_retval = ::JS_DefineUCProperty(aCtx, aScopeObj, nameChars, nameLength,
-                                     JSVAL_VOID, nsnull, nsnull, 0);
-    NS_ENSURE_TRUE(*_retval, NS_OK);
-  }
-  else {
-    // We do not handle other types.
-    return NS_OK;
   }
 
-  *_retval = ::JS_DefineElement(aCtx, aScopeObj, idx, JSVAL_VOID, nsnull,
-                                nsnull, 0);
-  if (*_retval)
-    *_objp = aScopeObj;
+  *_retval = ok;
+  *_objp = resolved && ok ? aScopeObj : nsnull;
   return NS_OK;
 }
 

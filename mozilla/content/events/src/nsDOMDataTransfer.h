@@ -93,12 +93,13 @@ protected:
   // that was started without using a data transfer, either an external drag,
   // that is, a drag where the source is another application, or a drag
   // started by calling the drag service directly.
-  nsDOMDataTransfer(PRUint32 aEventType, PRUint32 aAction);
+  nsDOMDataTransfer(PRUint32 aEventType);
 
   // this constructor is used only by the Clone method to copy the fields as
   // needed to a new data transfer.
   nsDOMDataTransfer(PRUint32 aEventType,
                     const PRUint32 aEffectAllowed,
+                    PRBool aCursorState,
                     PRBool aIsExternal,
                     PRBool aUserCancelled,
                     nsTArray<nsTArray<TransferItem> >& aItems,

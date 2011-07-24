@@ -64,7 +64,9 @@
 #define VISTA_VERSION                     0x600
 #define WIN7_VERSION                      0x601
 
-#define WM_XP_THEMECHANGED                0x031A
+#ifndef WM_THEMECHANGED
+#define WM_THEMECHANGED                   0x031A
+#endif
 
 #ifndef WM_GETOBJECT
 #define WM_GETOBJECT                      0x03d
@@ -95,6 +97,10 @@
 // ConstrainPosition window positioning slop value
 #define kWindowPositionSlop               20
 
+// Origin of the system context menu when displayed in full screen mode
+#define MOZ_SYSCONTEXT_X_POS              20
+#define MOZ_SYSCONTEXT_Y_POS              20
+
 // Drop shadow window style
 #define CS_XP_DROPSHADOW                  0x00020000
 
@@ -109,6 +115,14 @@
 #endif
 
 #define FAPPCOMMAND_MASK                  0xF000
+
+#ifndef WM_GETTITLEBARINFOEX
+#define WM_GETTITLEBARINFOEX              0x033F
+#endif
+
+#ifndef CCHILDREN_TITLEBAR
+#define CCHILDREN_TITLEBAR                5
+#endif
 
 #ifndef APPCOMMAND_BROWSER_BACKWARD
   #define APPCOMMAND_BROWSER_BACKWARD       1
@@ -162,6 +176,16 @@
 #endif
 #endif // defined(WINCE)
 
+//Tablet PC Mouse Input Source
+#if !defined(WINCE)
+#define TABLET_INK_SIGNATURE 0xFFFFFF00
+#define TABLET_INK_CHECK     0xFF515700
+#define TABLET_INK_TOUCH     0x00000080
+#define MOUSE_INPUT_SOURCE() GetMouseInputSource()
+#else
+#define MOUSE_INPUT_SOURCE() nsIDOMNSMouseEvent::MOZ_SOURCE_MOUSE
+#endif
+
 /**************************************************************
  *
  * SECTION: enums
@@ -192,13 +216,11 @@ typedef enum
  * touchpad scrolling or screen readers.
  */
 const PRUint32 kMaxClassNameLength   = 40;
-const LPCWSTR kClassNameHidden       = L"MozillaHiddenWindowClass";
-const LPCWSTR kClassNameUI           = L"MozillaUIWindowClass";
-const LPCWSTR kClassNameContent      = L"MozillaContentWindowClass";
-const LPCWSTR kClassNameContentFrame = L"MozillaContentFrameWindowClass";
-const LPCWSTR kClassNameGeneral      = L"MozillaWindowClass";
-const LPCWSTR kClassNameDialog       = L"MozillaDialogClass";
-const LPCWSTR kClassNameDropShadow   = L"MozillaDropShadowWindowClass";
+const char kClassNameHidden[]        = "MozillaHiddenWindowClass";
+const char kClassNameGeneral[]       = "MozillaWindowClass";
+const char kClassNameDialog[]        = "MozillaDialogClass";
+const char kClassNameDropShadow[]    = "MozillaDropShadowWindowClass";
+const char kClassNameTemp[]          = "MozillaTempWindowClass";
 
 static const PRUint32 sModifierKeyMap[][3] = {
   { nsIWidget::CAPS_LOCK, VK_CAPITAL, 0 },
@@ -246,6 +268,16 @@ struct KeyPair {
   KeyPair(PRUint32 aGeneral, PRUint32 aSpecific)
     : mGeneral(PRUint8(aGeneral)), mSpecific(PRUint8(aSpecific)) {}
 };
+
+#ifndef TITLEBARINFOEX
+struct TITLEBARINFOEX
+{
+    DWORD cbSize;
+    RECT rcTitleBar;
+    DWORD rgstate[CCHILDREN_TITLEBAR + 1];
+    RECT rgrect[CCHILDREN_TITLEBAR + 1];
+};
+#endif
 
 /**************************************************************
  *

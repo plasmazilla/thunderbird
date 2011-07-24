@@ -140,6 +140,7 @@ _TEST_FILES = \
 		test_tmpl_simplesyntaxfilter.xul \
 		test_tmpl_sortascendingquerysyntax.xul \
 		test_tmpl_sortdescendingquerysyntax.xul \
+		test_tmpl_sortascendinginteger.xul \
 		test_tmpl_sortunknownascendingquerysyntax.xul \
 		test_tmpl_sortresourceascendingquerysyntax.xul \
 		test_tmpl_sortresourcedescendingquerysyntax.xul \
@@ -159,6 +160,9 @@ _TEST_FILES = \
 		test_tmpl_sortquerymemberandtwotriples.xul \
 		test_tmpl_storage_baddatasource.xul \
 		test_tmpl_storage_badquery.xul \
+		test_tmpl_storage_bad_parameters.xul \
+		test_tmpl_storage_bad_parameters_2.xul \
+		test_tmpl_storage_bad_parameters_3.xul \
 		test_tmpl_storage_dynamicparameters.xul \
 		test_tmpl_storage_listbox.xul \
 		test_tmpl_storage_multiqueries.xul \
@@ -252,6 +256,8 @@ _TEST_FILES = \
 		test_tmpl_xmlquerywithothertypes.xul \
 		test_tmpl_xmlquerywithinlinedata.xul \
 		test_tmpl_xmlquerywithinlinedatawithmultiplequeries.xul \
+		test_tmpl_invalidqp.xul \
+		test_tmpl_errors.xul \
 		test_tmpl_regenerate.xul \
 		$(NULL)
 

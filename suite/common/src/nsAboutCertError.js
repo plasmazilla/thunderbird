@@ -39,14 +39,13 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function AboutCertError() {}
 AboutCertError.prototype = {
-  classDescription: "About Cert Error",
-  contractID: "@mozilla.org/network/protocol/about;1?what=certerror",
   classID: Components.ID("{b24861fb-e91a-40dd-886d-68d26a9586c7}"),
   QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIAboutModule]),
 
   getURIFlags: function(aURI) {
     return (Components.interfaces.nsIAboutModule.ALLOW_SCRIPT |
-            Components.interfaces.nsIAboutModule.URI_SAFE_FOR_UNTRUSTED_CONTENT);
+            Components.interfaces.nsIAboutModule.URI_SAFE_FOR_UNTRUSTED_CONTENT |
+            Components.interfaces.nsIAboutModule.HIDE_FROM_ABOUTABOUT);
   },
 
   newChannel: function(aURI) {
@@ -67,6 +66,4 @@ AboutCertError.prototype = {
   }
 };
 
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([AboutCertError]);
-}
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([AboutCertError]);

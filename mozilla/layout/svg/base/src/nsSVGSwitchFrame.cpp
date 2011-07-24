@@ -167,7 +167,14 @@ nsSVGSwitchFrame::UpdateCoveredRegion()
 {
   static_cast<nsSVGSwitchElement*>(mContent)->UpdateActiveChild();
 
-  return nsSVGSwitchFrameBase::UpdateCoveredRegion();
+  nsIFrame *kid = GetActiveChildFrame();
+  if (kid) {
+    nsISVGChildFrame* child = do_QueryFrame(kid);
+    if (child) {
+      child->UpdateCoveredRegion();
+    }
+  }
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -195,7 +202,7 @@ nsSVGSwitchFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspace)
   if (svgKid) {
     nsIContent *content = kid->GetContent();
     gfxMatrix transform = aToBBoxUserspace;
-    if (content->IsNodeOfType(nsINode::eSVG)) {
+    if (content->IsSVG()) {
       transform = static_cast<nsSVGElement*>(content)->
                     PrependLocalTransformTo(aToBBoxUserspace);
     }

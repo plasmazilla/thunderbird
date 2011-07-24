@@ -60,6 +60,13 @@
         ]]></setter>
       </property>
 
+      <property name="openedWithKey" readonly="true">
+        <getter><![CDATA[
+          return this.boxObject.QueryInterface(Components.interfaces.nsIMenuBoxObject)
+              .openedWithKey;
+        ]]></getter>
+      </property>
+
       <!-- nsIDOMXULContainerElement interface -->
       <method name="appendItem">
         <parameter name="aLabel"/>
@@ -248,8 +255,7 @@
       <xul:hbox class="menu-accel-container" anonid="accel">
         <xul:label class="menu-iconic-accel" xbl:inherits="value=acceltext"/>
       </xul:hbox>
-      <xul:hbox class="menu-right" xbl:inherits="_moz-menuactive,disabled"
-                align="center" pack="center">
+      <xul:hbox align="center" class="menu-right" xbl:inherits="_moz-menuactive,disabled">
         <xul:image/>
       </xul:hbox>
       <children includes="menupopup|template"/>

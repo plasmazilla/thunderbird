@@ -14,7 +14,7 @@
  *
  * The Original Code is Mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2006
  * the Initial Developer. All Rights Reserved.
  *
@@ -40,6 +40,16 @@
 #define nsTObserverArray_h___
 
 #include "nsTArray.h"
+
+/**
+ * An array of observers. Like a normal array, but supports iterators that are
+ * stable even if the array is modified during iteration.
+ * The template parameter T is the observer type the array will hold;
+ * N is the number of built-in storage slots that come with the array.
+ * NOTE: You probably want to use nsTObserverArray, unless you specifically
+ * want built-in storage. See below.
+ * @see nsTObserverArray, nsTArray
+ */
 
 class NS_COM_GLUE nsTObserverArray_base {
   public:
@@ -89,16 +99,6 @@ class NS_COM_GLUE nsTObserverArray_base {
 
     mutable Iterator_base* mIterators;
 };
-
-/**
- * An array of observers. Like a normal array, but supports iterators that are
- * stable even if the array is modified during iteration.
- * The template parameter T is the observer type the array will hold;
- * N is the number of built-in storage slots that come with the array.
- * NOTE: You probably want to use nsTObserverArray, unless you specifically
- * want built-in storage. See below.
- * @see nsTObserverArray, nsTArray
- */
 
 template<class T, PRUint32 N>
 class nsAutoTObserverArray : protected nsTObserverArray_base {
@@ -369,7 +369,7 @@ class nsTObserverArray : public nsAutoTObserverArray<T, 0> {
 // XXXbz I wish I didn't have to pass in the observer type, but I
 // don't see a way to get it out of array_.
 // Note that this macro only works if the array holds pointers to XPCOM objects.
-#define NS_OBSERVER_ARRAY_NOTIFY_OBSERVERS(array_, obstype_, func_, params_) \
+#define NS_OBSERVER_ARRAY_NOTIFY_XPCOM_OBSERVERS(array_, obstype_, func_, params_) \
   PR_BEGIN_MACRO                                                             \
     nsTObserverArray<obstype_ *>::ForwardIterator iter_(array_);             \
     nsCOMPtr<obstype_> obs_;                                                 \
@@ -379,4 +379,14 @@ class nsTObserverArray : public nsAutoTObserverArray<T, 0> {
     }                                                                        \
   PR_END_MACRO
 
+// Note that this macro only works if the array holds pointers to XPCOM objects.
+#define NS_OBSERVER_ARRAY_NOTIFY_OBSERVERS(array_, obstype_, func_, params_) \
+  PR_BEGIN_MACRO                                                             \
+    nsTObserverArray<obstype_ *>::ForwardIterator iter_(array_);             \
+    obstype_* obs_;                                                          \
+    while (iter_.HasMore()) {                                                \
+      obs_ = iter_.GetNext();                                                \
+      obs_ -> func_ params_ ;                                                \
+    }                                                                        \
+  PR_END_MACRO
 #endif // nsTObserverArray_h___

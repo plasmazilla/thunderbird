@@ -16,7 +16,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation. 
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -76,6 +76,7 @@ namespace storage {
 namespace {
 
 typedef AsyncExecuteStatements::ExecutionState ExecutionState;
+typedef AsyncExecuteStatements::StatementDataArray StatementDataArray;
 
 /**
  * Notifies a callback with a result set.
@@ -152,31 +153,43 @@ private:
 };
 
 /**
- * Notifies the calling thread that the statement has finished executing.
+ * Notifies the calling thread that the statement has finished executing.  Takes
+ * ownership of the StatementData so it is released on the proper thread.
  */
 class CompletionNotifier : public nsRunnable
 {
 public:
   /**
-   * This takes ownership of the callback.  It is released on the thread this is
-   * dispatched to (which should always be the calling thread).
+   * This takes ownership of the callback and the StatementData.  They are
+   * released on the thread this is dispatched to (which should always be the
+   * calling thread).
    */
   CompletionNotifier(mozIStorageStatementCallback *aCallback,
-                     ExecutionState aReason) :
-      mCallback(aCallback)
+                     ExecutionState aReason,
+                     StatementDataArray &aStatementData)
+    : mCallback(aCallback)
     , mReason(aReason)
   {
+    mStatementData.SwapElements(aStatementData);
   }
 
   NS_IMETHOD Run()
   {
-    (void)mCallback->HandleCompletion(mReason);
-    NS_RELEASE(mCallback);
+    if (mCallback) {
+      (void)mCallback->HandleCompletion(mReason);
+      NS_RELEASE(mCallback);
+    }
+
+    // The async thread could still hold onto a reference to us, so we need to
+    // make sure we release our reference to the StatementData now in case our
+    // destructor happens in a different thread.
+    mStatementData.Clear();
 
     return NS_OK;
   }
 
 private:
+  StatementDataArray mStatementData;
   mozIStorageStatementCallback *mCallback;
   ExecutionState mReason;
 };
@@ -199,12 +212,12 @@ AsyncExecuteStatements::execute(StatementDataArray &aStatements,
   NS_ENSURE_TRUE(event, NS_ERROR_OUT_OF_MEMORY);
 
   // Dispatch it to the background
-  nsCOMPtr<nsIEventTarget> target(aConnection->getAsyncExecutionTarget());
+  nsIEventTarget *target = aConnection->getAsyncExecutionTarget();
   NS_ENSURE_TRUE(target, NS_ERROR_NOT_AVAILABLE);
   nsresult rv = target->Dispatch(event, NS_DISPATCH_NORMAL);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Return it as the pending statement object
+  // Return it as the pending statement object and track it.
   NS_ADDREF(*_stmt = event);
   return NS_OK;
 }
@@ -221,6 +234,7 @@ AsyncExecuteStatements::AsyncExecuteStatements(StatementDataArray &aStatements,
 , mState(PENDING)
 , mCancelRequested(false)
 , mMutex(aConnection->sharedAsyncExecutionMutex)
+, mDBMutex(aConnection->sharedDBMutex)
 {
   (void)mStatements.SwapElements(aStatements);
   NS_ASSERTION(mStatements.Length(), "We weren't given any statements!");
@@ -250,7 +264,10 @@ AsyncExecuteStatements::bindExecuteAndProcessStatement(StatementData &aData,
 {
   mMutex.AssertNotCurrentThreadOwns();
 
-  sqlite3_stmt *stmt(aData);
+  sqlite3_stmt *aStatement = nsnull;
+  // This cannot fail; we are only called if it's available.
+  (void)aData.getSqliteStatement(&aStatement);
+  NS_ASSERTION(aStatement, "You broke the code; do not call here like that!");
   BindingParamsArray *paramsArray(aData);
 
   // Iterate through all of our parameters, bind them, and execute.
@@ -259,8 +276,9 @@ AsyncExecuteStatements::bindExecuteAndProcessStatement(StatementData &aData,
   BindingParamsArray::iterator end = paramsArray->end();
   while (itr != end && continueProcessing) {
     // Bind the data to our statement.
-    nsCOMPtr<mozIStorageError> error;
-    error = (*itr)->bind(stmt);
+    nsCOMPtr<IStorageBindingParamsInternal> bindingInternal = 
+      do_QueryInterface(*itr);
+    nsCOMPtr<mozIStorageError> error = bindingInternal->bind(aStatement);
     if (error) {
       // Set our error state.
       mState = ERROR;
@@ -273,10 +291,10 @@ AsyncExecuteStatements::bindExecuteAndProcessStatement(StatementData &aData,
     // Advance our iterator, execute, and then process the statement.
     itr++;
     bool lastStatement = aLastStatement && itr == end;
-    continueProcessing = executeAndProcessStatement(stmt, lastStatement);
+    continueProcessing = executeAndProcessStatement(aStatement, lastStatement);
 
     // Always reset our statement.
-    (void)::sqlite3_reset(stmt);
+    (void)::sqlite3_reset(aStatement);
   }
 
   return continueProcessing;
@@ -341,7 +359,10 @@ AsyncExecuteStatements::executeStatement(sqlite3_stmt *aStatement)
   mMutex.AssertNotCurrentThreadOwns();
 
   while (true) {
-    int rc = ::sqlite3_step(aStatement);
+    // lock the sqlite mutex so sqlite3_errmsg cannot change
+    SQLiteMutexAutoLock lockedScope(mDBMutex);
+
+    int rc = stepStmt(aStatement);
     // Stop if we have no more results.
     if (rc == SQLITE_DONE)
       return false;
@@ -352,6 +373,9 @@ AsyncExecuteStatements::executeStatement(sqlite3_stmt *aStatement)
 
     // Some errors are not fatal, and we can handle them and continue.
     if (rc == SQLITE_BUSY) {
+      // Don't hold the lock while we call outside our module.
+      SQLiteMutexAutoUnlock unlockedScope(mDBMutex);
+
       // Yield, and try again
       (void)::PR_Sleep(PR_INTERVAL_NO_WAIT);
       continue;
@@ -360,9 +384,13 @@ AsyncExecuteStatements::executeStatement(sqlite3_stmt *aStatement)
     // Set an error state.
     mState = ERROR;
 
-    // And notify.
-    sqlite3 *db = ::sqlite3_db_handle(aStatement);
-    (void)notifyError(rc, ::sqlite3_errmsg(db));
+    // Construct the error message before giving up the mutex (which we cannot
+    // hold during the call to notifyError).
+    sqlite3 *db = mConnection->GetNativeConnection();
+    nsCOMPtr<mozIStorageError> errorObj(new Error(rc, ::sqlite3_errmsg(db)));
+    // We cannot hold the DB mutex while calling notifyError.
+    SQLiteMutexAutoUnlock unlockedScope(mDBMutex);
+    (void)notifyError(errorObj);
 
     // Finally, indicate that we should stop processing.
     return false;
@@ -437,17 +465,17 @@ AsyncExecuteStatements::notifyComplete()
     mTransactionManager = nsnull;
   }
 
-  // Notify about completion iff we have a callback.
-  if (mCallback) {
-    nsRefPtr<CompletionNotifier> completionEvent =
-      new CompletionNotifier(mCallback, mState);
-    NS_ENSURE_TRUE(completionEvent, NS_ERROR_OUT_OF_MEMORY);
+  // Always generate a completion notification; it is what guarantees that our
+  // destruction does not happen here on the async thread.
+  nsRefPtr<CompletionNotifier> completionEvent =
+    new CompletionNotifier(mCallback, mState, mStatements);
+  NS_ASSERTION(mStatements.IsEmpty(),
+               "Should have given up ownership of mStatements!");
 
-    // We no longer own mCallback (the CompletionNotifier takes ownership).
-    mCallback = nsnull;
+  // We no longer own mCallback (the CompletionNotifier takes ownership).
+  mCallback = nsnull;
 
-    (void)mCallingThread->Dispatch(completionEvent, NS_DISPATCH_NORMAL);
-  }
+  (void)mCallingThread->Dispatch(completionEvent, NS_DISPATCH_NORMAL);
 
   return NS_OK;
 }
@@ -457,6 +485,7 @@ AsyncExecuteStatements::notifyError(PRInt32 aErrorCode,
                                     const char *aMessage)
 {
   mMutex.AssertNotCurrentThreadOwns();
+  mDBMutex.assertNotCurrentThreadOwns();
 
   if (!mCallback)
     return NS_OK;
@@ -471,6 +500,7 @@ nsresult
 AsyncExecuteStatements::notifyError(mozIStorageError *aError)
 {
   mMutex.AssertNotCurrentThreadOwns();
+  mDBMutex.assertNotCurrentThreadOwns();
 
   if (!mCallback)
     return NS_OK;
@@ -560,13 +590,36 @@ AsyncExecuteStatements::Run()
   for (PRUint32 i = 0; i < mStatements.Length(); i++) {
     bool finished = (i == (mStatements.Length() - 1));
 
+    sqlite3_stmt *stmt;
+    { // lock the sqlite mutex so sqlite3_errmsg cannot change
+      SQLiteMutexAutoLock lockedScope(mDBMutex);
+
+      int rc = mStatements[i].getSqliteStatement(&stmt);
+      if (rc != SQLITE_OK) {
+        // Set our error state.
+        mState = ERROR;
+
+        // Build the error object; can't call notifyError with the lock held
+        sqlite3 *db = mConnection->GetNativeConnection();
+        nsCOMPtr<mozIStorageError> errorObj(
+          new Error(rc, ::sqlite3_errmsg(db))
+        );
+        {
+          // We cannot hold the DB mutex and call notifyError.
+          SQLiteMutexAutoUnlock unlockedScope(mDBMutex);
+          (void)notifyError(errorObj);
+        }
+        break;
+      }
+    }
+
     // If we have parameters to bind, bind them, execute, and process.
     if (mStatements[i].hasParametersToBeBound()) {
       if (!bindExecuteAndProcessStatement(mStatements[i], finished))
         break;
     }
     // Otherwise, just execute and process the statement.
-    else if (!executeAndProcessStatement(mStatements[i], finished)) {
+    else if (!executeAndProcessStatement(stmt, finished)) {
       break;
     }
   }

@@ -48,8 +48,13 @@
 #include "nsScriptNameSpaceManager.h"
 
 class nsIXPConnectJSObjectHolder;
+class nsAutoPoolRelease;
+namespace js {
+class AutoArrayRooter;
+template <class> class LazilyConstructed;
+}
 
-class nsJSContext : public nsIScriptContext_1_9_2,
+class nsJSContext : public nsIScriptContext,
                     public nsIXPCScriptNotify
 {
 public:
@@ -59,6 +64,8 @@ public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(nsJSContext,
                                                          nsIScriptContext)
+
+  virtual nsIScriptObjectPrincipal* GetObjectPrincipal();
 
   virtual PRUint32 GetScriptTypeID()
     { return nsIProgrammingLanguage::JAVASCRIPT; }
@@ -128,15 +135,18 @@ public:
   virtual nsresult CreateNativeGlobalForInner(
                                       nsIScriptGlobalObject *aGlobal,
                                       PRBool aIsChrome,
+                                      nsIPrincipal *aPrincipal,
                                       void **aNativeGlobal,
                                       nsISupports **aHolder);
   virtual nsresult ConnectToInner(nsIScriptGlobalObject *aNewInner,
                                   void *aOuterGlobal);
-  virtual nsresult InitContext(nsIScriptGlobalObject *aGlobalObject);
+  virtual nsresult InitContext();
+  virtual nsresult CreateOuterObject(nsIScriptGlobalObject *aGlobalObject,
+                                     nsIScriptGlobalObject *aCurrentInner);
+  virtual nsresult SetOuterObject(void *aOuterObject);
+  virtual nsresult InitOuterWindow();
   virtual PRBool IsContextInitialized();
   virtual void FinalizeContext();
-
-  virtual void GC();
 
   virtual void ScriptEvaluated(PRBool aTerminated);
   virtual nsresult SetTerminationFunction(nsScriptTerminationFunc aFunc,
@@ -175,45 +185,28 @@ public:
   static void LoadStart();
   static void LoadEnd();
 
-  // CC does always call cycle collector and it also updates the counters
-  // that MaybeCC uses.
-  static void CC();
+  static void GarbageCollectNow();
+  static void CycleCollectNow(nsICycleCollectorListener *aListener = nsnull);
 
-  // MaybeCC calls cycle collector if certain conditions are fulfilled.
-  // The conditions are:
-  // - The timer related to page load (sGCTimer) must not be active.
-  // - At least NS_MIN_CC_INTERVAL milliseconds must have elapsed since the
-  //   previous cycle collector call.
-  // - Certain number of MaybeCC calls have occurred.
-  //   The number of needed MaybeCC calls depends on the aHigherProbability
-  //   parameter. If the parameter is true, probability for calling cycle
-  //   collector rises increasingly. If the parameter is all the time false,
-  //   at least NS_MAX_DELAYED_CCOLLECT MaybeCC calls are needed.
-  //   If the previous call to cycle collector did collect something,
-  //   MaybeCC works effectively as if aHigherProbability was true.
-  // @return PR_TRUE if cycle collector was called.
-  static PRBool MaybeCC(PRBool aHigherProbability);
+  static void PokeGC();
+  static void KillGCTimer();
 
-  // IntervalCC() calls CC() if at least NS_MIN_CC_INTERVAL milliseconds have
-  // elapsed since the previous cycle collector call.
-  static PRBool IntervalCC();
+  static void PokeCC();
+  static void MaybePokeCC();
+  static void KillCCTimer();
 
-  // Calls IntervalCC() if user is currently inactive, otherwise MaybeCC(PR_TRUE)
-  static void CCIfUserInactive();
-
-  static void FireGCTimer(PRBool aLoadInProgress);
+  virtual void GC();
 
 protected:
   nsresult InitializeExternalClasses();
-  // aHolder should be holding our global object
-  nsresult FindXPCNativeWrapperClass(nsIXPConnectJSObjectHolder *aHolder);
 
   // Helper to convert xpcom datatypes to jsvals.
-  JS_FORCES_STACK nsresult ConvertSupportsTojsvals(nsISupports *aArgs,
-                                                   void *aScope,
-                                                   PRUint32 *aArgc,
-                                                   void **aArgv,
-                                                   void **aMarkp);
+  nsresult ConvertSupportsTojsvals(nsISupports *aArgs,
+                                   void *aScope,
+                                   PRUint32 *aArgc,
+                                   jsval **aArgv,
+                                   js::LazilyConstructed<nsAutoPoolRelease> &aPoolRelease,
+                                   js::LazilyConstructed<js::AutoArrayRooter> &aRooter);
 
   nsresult AddSupportsPrimitiveTojsvals(nsISupports *aArg, jsval *aArgv);
 
@@ -301,12 +294,9 @@ private:
   PRTime mModalStateTime;
   PRUint32 mModalStateDepth;
 
-  // mGlobalWrapperRef is used only to hold a strong reference to the
-  // global object wrapper while the nsJSContext is alive. This cuts
-  // down on the number of rooting and unrooting calls XPConnect has
-  // to make when the global object is touched in JS.
-
-  nsCOMPtr<nsISupports> mGlobalWrapperRef;
+  // mGlobalObjectRef ensures that the outer window stays alive as long as the
+  // context does. It is eventually collected by the cycle collector.
+  nsCOMPtr<nsISupports> mGlobalObjectRef;
 
   static int JSOptionChangedCallback(const char *pref, void *data);
 

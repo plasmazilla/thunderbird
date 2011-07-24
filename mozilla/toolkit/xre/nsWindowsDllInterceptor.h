@@ -14,8 +14,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is
- *   Mozilla Corp
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -176,6 +175,9 @@ protected:
       } else if ((origBytes[nBytes] & 0xf0) == 0x50) {
         // 1-byte PUSH/POP
         nBytes++;
+      } else if (origBytes[nBytes] == 0x6A) {
+        // PUSH imm8
+        nBytes += 2;
       } else {
         //printf ("Unknown x86 instruction byte 0x%02x, aborting trampoline\n", origBytes[nBytes]);
         return 0;

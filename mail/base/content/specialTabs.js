@@ -36,6 +36,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/AddonManager.jsm");
 
 function tabProgressListener(aTab, aStartsBlank) {
   this.mTab = aTab;
@@ -71,17 +73,28 @@ tabProgressListener.prototype =
   },
   onLocationChange: function tPL_onLocationChange(aWebProgress, aRequest,
                                                   aLocationURI) {
-    var location = aLocationURI ? aLocationURI.spec : "";
-
-    // Set the reload command only if this is a report that is coming in about
-    // the top-level content location change.
+    // onLocationChange is called for both the top-level content
+    // and the subframes.
     if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
-      // Although we're unlikely to be loading about:blank, we'll check it
-      // anyway just in case. The second condition is for new tabs, otherwise
-      // the reload function is enabled until tab is refreshed.
-      this.mTab.reloadEnabled =
-        !((location == "about:blank" && !this.mBrowser.contentWindow.opener) ||
-          location == "");
+      // Don't clear the favicon if this onLocationChange was triggered
+      // by a pushState or a replaceState. See bug 550565.
+      if (aWebProgress.isLoadingDocument &&
+          !(this.mBrowser.docShell.loadType &
+            Components.interfaces.nsIDocShell.LOAD_CMD_PUSHSTATE))
+        this.mBrowser.mIconURL = null;
+
+      var location = aLocationURI ? aLocationURI.spec : "";
+
+      // Set the reload command only if this is a report that is coming in about
+      // the top-level content location change.
+      if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
+        // Although we're unlikely to be loading about:blank, we'll check it
+        // anyway just in case. The second condition is for new tabs, otherwise
+        // the reload function is enabled until tab is refreshed.
+        this.mTab.reloadEnabled =
+          !((location == "about:blank" && !this.mBrowser.contentWindow.opener) ||
+            location == "");
+      }
     }
   },
   onStateChange: function tPL_onStateChange(aWebProgress, aRequest, aStateFlags,
@@ -111,13 +124,26 @@ tabProgressListener.prototype =
         tabmail.setTabBusy(this.mTab, true);
         tabmail.setTabTitle(this.mTab);
       }
+
+      // Set our unit testing variables accordingly
+      this.mTab.pageLoading = true;
+      this.mTab.pageLoaded = false;
     }
     else if (aStateFlags & nsIWebProgressListener.STATE_STOP &&
              aStateFlags & nsIWebProgressListener.STATE_IS_NETWORK) {
       this.mBlank = false;
-
       tabmail.setTabBusy(this.mTab, false);
       tabmail.setTabTitle(this.mTab);
+
+      // Set our unit testing variables accordingly
+      this.mTab.pageLoading = false;
+      this.mTab.pageLoaded = true;
+
+      // If we've finished loading, and we've not had an icon loaded from a
+      // link element, then we try using the default icon for the site.
+      if (aWebProgress.DOMWindow == this.mBrowser.contentWindow &&
+        !this.mBrowser.mIconURL)
+        specialTabs.useDefaultIcon(this.mTab);
     }
   },
   onStatusChange: function tPL_onStatusChange(aWebProgress, aRequest, aStatus,
@@ -134,6 +160,91 @@ tabProgressListener.prototype =
                                          Components.interfaces.nsISupportsWeakReference])
 };
 
+const DOMLinkHandler = {
+  handleEvent: function (event) {
+    switch (event.type) {
+    case "DOMLinkAdded":
+      this.onLinkAdded(event);
+      break;
+    }
+  },
+  onLinkAdded: function (event) {
+    let link = event.originalTarget;
+    let rel = link.rel && link.rel.toLowerCase();
+    if (!link || !link.ownerDocument || !rel || !link.href)
+      return;
+
+    if (rel.split(/\s+/).indexOf("icon") != -1) {
+      if (!Services.prefs.getBoolPref("browser.chrome.site_icons"))
+        return;
+
+      let targetDoc = link.ownerDocument;
+      let uri = makeURI(link.href, targetDoc.characterSet);
+
+      // Is this a failed icon?
+      if (specialTabs.mFaviconService.isFailedFavicon(uri))
+        return;
+
+      // Verify that the load of this icon is legal.
+      // Some error or special pages can load their favicon.
+      // To be on the safe side, only allow chrome:// favicons.
+      let isAllowedPage = [
+        /^about:neterror\?/,
+        /^about:blocked\?/,
+        /^about:certerror\?/,
+        /^about:home$/
+      ].some(function (re) { re.test(targetDoc.documentURI); });
+
+      if (!isAllowedPage || !uri.schemeIs("chrome")) {
+        // Be extra paraniod and just make sure we're not going to load
+        // something we shouldn't. Firefox does this, so we're doing the same.
+        let ssm = Components.classes["@mozilla.org/scriptsecuritymanager;1"]
+          .getService(Components.interfaces.nsIScriptSecurityManager);
+
+          try {
+            ssm.checkLoadURIWithPrincipal(targetDoc.nodePrincipal, uri,
+                                          Components.interfaces.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+          }
+          catch (ex) {
+            return;
+          }
+      }
+
+      const nsIContentPolicy = Components.interfaces.nsIContentPolicy;
+
+      try {
+        var contentPolicy = Components.classes["@mozilla.org/layout/content-policy;1"]
+          .getService(nsIContentPolicy);
+      }
+      catch (e) {
+        // Refuse to load if we can't do a security check.
+        return;
+      }
+
+      // Security says okay, now ask content policy. This is probably trying to
+      // ensure that the image loaded always obeys the content policy. There
+      // may have been a chance that it was cached and we're trying to load it
+      // direct from the cache and not the normal route.
+      if (contentPolicy.shouldLoad(nsIContentPolicy.TYPE_IMAGE,
+                                   uri, targetDoc.documentURIObject,
+                                   link, link.type, null) !=
+                                   nsIContentPolicy.ACCEPT)
+        return;
+
+      let tab = document.getElementById("tabmail")
+                        .getBrowserForDocument(targetDoc.defaultView);
+
+      // If we don't have a browser/tab, then don't load the icon.
+      if (!tab)
+        return;
+
+      // Just set the url on the browser and we'll display the actual icon
+      // when we finish loading the page.
+      specialTabs.setTabIcon(tab, link.href);
+    }
+  }
+};
+
 var specialTabs = {
   _kAboutRightsVersion: 1,
   get _protocolSvc() {
@@ -143,13 +254,42 @@ var specialTabs = {
                 .getService(Components.interfaces.nsIExternalProtocolService);
   },
 
+  get mFaviconService() {
+    delete this.mFaviconService;
+    return this.mFaviconService =
+      Components.classes["@mozilla.org/browser/favicon-service;1"]
+                .getService(Components.interfaces.nsIFaviconService);
+  },
+
   // This will open any special tabs if necessary on startup.
   openSpecialTabsOnStartup: function() {
     window.addEventListener("unload", specialTabs.onunload, false);
 
-    Components.classes["@mozilla.org/observer-service;1"]
-              .getService(Components.interfaces.nsIObserverService)
-              .addObserver(specialTabs, "mail-startup-done", false);
+    let browser = document.getElementById("dummycontentbrowser");
+
+    // Manually hook up session and global history for the first browser
+    // so that we don't have to load global history before bringing up a
+    // window.
+    // Wire up session and global history before any possible
+    // progress notifications for back/forward button updating
+    browser.webNavigation.sessionHistory =
+      Components.classes["@mozilla.org/browser/shistory;1"]
+                .createInstance(Components.interfaces.nsISHistory);
+    Services.obs.addObserver(browser, "browser:purge-session-history", false);
+
+    // remove the disablehistory attribute so the browser cleans up, as
+    // though it had done this work itself
+    browser.removeAttribute("disablehistory");
+
+    // enable global history
+    try {
+      browser.docShell.QueryInterface(Components.interfaces.nsIDocShellHistory)
+             .useGlobalHistory = true;
+    } catch(ex) {
+      Components.utils.reportError("Places database may be locked: " + ex);
+    }
+
+    Services.obs.addObserver(specialTabs, "mail-startup-done", false);
 
     let tabmail = document.getElementById('tabmail');
 
@@ -214,7 +354,21 @@ var specialTabs = {
       }
       return -1;
     },
-    openTab: function onTabOpened(aTab, aArgs) {
+    /**
+     * This is the internal function used by content tabs to open a new tab. To
+     * open a contentTab, use specialTabs.openTab("contentTab", aArgs)
+     *
+     * @param aArgs The options that content tabs accept.
+     * @param aArgs.contentPage A string that holds the URL that is to be opened
+     * @param aArgs.clickHandler The click handler for that content tab. See the
+     *  "Content Tabs" article on MDC.
+     * @param aArgs.onLoad A function that takes an Event and a DOMNode. It is
+     *  called when the content page is done loading. The first argument is the
+     *  load event, and the second argument is the xul:browser that holds the
+     *  contentPage. You can access the inner tab's window object by accessing
+     *  the second parameter's contentWindow property.
+     */
+    openTab: function contentTab_onTabOpened(aTab, aArgs) {
       if (!"contentPage" in aArgs)
         throw("contentPage must be specified");
 
@@ -237,10 +391,16 @@ var specialTabs = {
 
       aTab.browser.setAttribute("id", "contentTabBrowser" + this.lastBrowserId);
 
-      aTab.browser.setAttribute("onclick",
-                                "clickHandler" in aArgs && aArgs.clickHandler ?
-                                aArgs.clickHandler :
-                                "specialTabs.defaultClickHandler(event);");
+      aTab.clickHandler = "clickHandler" in aArgs && aArgs.clickHandler ?
+                          aArgs.clickHandler :
+                          "specialTabs.defaultClickHandler(event);";
+      aTab.browser.setAttribute("onclick", aTab.clickHandler);
+
+      // Set this attribute so that when favicons fail to load, we remove the
+      // image attribute and just show the default tab icon.
+      aTab.tabNode.setAttribute("onerror", "this.removeAttribute('image');");
+
+      aTab.browser.addEventListener("DOMLinkAdded", DOMLinkHandler, false);
 
       // Now initialise the find bar.
       aTab.findbar = aTab.panel.getElementsByTagName("findbar")[0];
@@ -253,6 +413,11 @@ var specialTabs = {
       // Now set up the listeners.
       this._setUpTitleListener(aTab);
       this._setUpCloseWindowListener(aTab);
+      if ("onLoad" in aArgs) {
+        aTab.browser.addEventListener("load", function _contentTab_onLoad (event) {
+          aArgs.onLoad(event, aTab.browser);
+        }, true);
+      }
 
       // Create a filter and hook it up to our browser
       let filter = Components.classes["@mozilla.org/appshell/component/browser-status-filter;1"]
@@ -265,6 +430,10 @@ var specialTabs = {
 
       filter.addProgressListener(aTab.progressListener, Components.interfaces.nsIWebProgress.NOTIFY_ALL);
 
+      // Initialize our unit testing variables.
+      aTab.pageLoading = false;
+      aTab.pageLoaded = false;
+
       // Now start loading the content.
       aTab.title = this.loadingTabString;
 
@@ -272,11 +441,20 @@ var specialTabs = {
 
       this.lastBrowserId++;
     },
+    tryCloseTab: function onTryCloseTab(aTab) {
+      let docShell = aTab.browser.docShell;
+      // If we have a docshell, a contentViewer, and it forbids us from closing
+      // the tab, then we return false, which means, we can't close the tab. All
+      // other cases return true.
+      return !(docShell && docShell.contentViewer
+        && !docShell.contentViewer.permitUnload());
+    },
     closeTab: function onTabClosed(aTab) {
       aTab.browser.removeEventListener("DOMTitleChanged",
                                        aTab.titleListener, true);
       aTab.browser.removeEventListener("DOMWindowClose",
                                        aTab.closeListener, true);
+      aTab.browser.removeEventListener("DOMLinkAdded", DOMLinkHandler, false);
       aTab.browser.webProgress.removeProgressListener(aTab.filter);
       aTab.filter.removeProgressListener(aTab.progressListener);
       aTab.browser.destroy();
@@ -291,7 +469,7 @@ var specialTabs = {
       if (aTab.browser.currentURI.spec == "about:blank")
         return null;
 
-      let onClick = aTab.browser.getAttribute("onclick");
+      let onClick = aTab.clickHandler;
 
       return {
         tabURI: aTab.browser.currentURI.spec,
@@ -646,7 +824,21 @@ var specialTabs = {
       }
       return -1;
     },
-    openTab: function onTabOpened(aTab, aArgs) {
+    /**
+     * This is the internal function used by chrome tabs to open a new tab. To
+     * open a chromeTab, use specialTabs.openTab("chromeTab", aArgs)
+     *
+     * @param aArgs The options that chrome tabs accept.
+     * @param aArgs.chromePage A string that holds the URL that is to be opened
+     * @param aArgs.clickHandler The click handler for that chrome tab. See the
+     *  "Content Tabs" article on MDC.
+     * @param aArgs.onLoad A function that takes an Event and a DOMNode. It is
+     *  called when the chrome page is done loading. The first argument is the
+     *  load event, and the second argument is the xul:browser that holds the
+     *  chromePage. You can access the inner tab's window object by accessing
+     *  the second parameter's chromeWindow property.
+     */
+    openTab: function chromeTab_onTabOpened(aTab, aArgs) {
       if (!"chromePage" in aArgs)
         throw("chromePage must be specified");
 
@@ -673,11 +865,23 @@ var specialTabs = {
                                 aArgs.clickHandler :
                                 "specialTabs.defaultClickHandler(event);");
 
+      // Set this attribute so that when favicons fail to load, we remove the
+      // image attribute and just show the default tab icon.
+      aTab.tabNode.setAttribute("onerror", "this.removeAttribute('image');");
+
+      aTab.browser.addEventListener("DOMLinkAdded", DOMLinkHandler, false);
+
+
       aTab.browser.setAttribute("id", "chromeTabBrowser" + this.lastBrowserId);
 
       // Now set up the listeners.
       this._setUpTitleListener(aTab);
       this._setUpCloseWindowListener(aTab);
+      if ("onLoad" in aArgs) {
+        aTab.browser.addEventListener("load", function _chromeTab_onLoad (event) {
+          aArgs.onLoad(event, aTab.browser);
+        }, true);
+      }
 
       // Now start loading the content.
       aTab.title = this.loadingTabString;
@@ -685,11 +889,20 @@ var specialTabs = {
 
       this.lastBrowserId++;
     },
+    tryCloseTab: function onTryCloseTab(aTab) {
+      let docShell = aTab.browser.docShell;
+      // If we have a docshell, a contentViewer, and it forbids us from closing
+      // the tab, then we return false, which means, we can't close the tab. All
+      // other cases return true.
+      return !(docShell && docShell.contentViewer
+        && !docShell.contentViewer.permitUnload());
+    },
     closeTab: function onTabClosed(aTab) {
       aTab.browser.removeEventListener("DOMTitleChanged",
                                        aTab.titleListener, true);
       aTab.browser.removeEventListener("DOMWindowClose",
                                        aTab.closeListener, true);
+      aTab.browser.removeEventListener("DOMLinkAdded", DOMLinkHandler, false);
       aTab.browser.destroy();
     },
     saveTabState: function onSaveTabState(aTab) {
@@ -817,91 +1030,248 @@ var specialTabs = {
     if (aTopic != "mail-startup-done")
       return;
 
-    let obsService =
-      Components.classes["@mozilla.org/observer-service;1"]
-                .getService(Components.interfaces.nsIObserverService);
-
-    obsService.removeObserver(specialTabs, "mail-startup-done");
-    obsService.addObserver(this.xpInstallObserver, "xpinstall-install-blocked", false);
+    Services.obs.removeObserver(specialTabs, "mail-startup-done");
+    Services.obs.addObserver(this.xpInstallObserver, "addon-install-disabled",
+                             false);
+    Services.obs.addObserver(this.xpInstallObserver, "addon-install-blocked",
+                             false);
+    Services.obs.addObserver(this.xpInstallObserver, "addon-install-failed",
+                             false);
+    Services.obs.addObserver(this.xpInstallObserver, "addon-install-complete",
+                             false);
   },
 
   onunload: function () {
     window.removeEventListener("unload", specialTabs.onunload, false);
 
-    Components.classes["@mozilla.org/observer-service;1"]
-      .getService(Components.interfaces.nsIObserverService)
-      .removeObserver(specialTabs.xpInstallObserver, "xpinstall-install-blocked");
+    Services.obs.removeObserver(specialTabs.xpInstallObserver,
+                                "addon-install-disabled");
+    Services.obs.removeObserver(specialTabs.xpInstallObserver,
+                                "addon-install-blocked");
+    Services.obs.removeObserver(specialTabs.xpInstallObserver,
+                                "addon-install-failed");
+    Services.obs.removeObserver(specialTabs.xpInstallObserver,
+                                "addon-install-complete");
   },
 
   xpInstallObserver: {
-    get _prefService() {
-      delete this._prefService;
-      return this._prefService =
-        Components.classes["@mozilla.org/preferences-service;1"]
-                  .getService(Components.interfaces.nsIPrefBranch2);
-    },
-
     observe: function (aSubject, aTopic, aData) {
+      const Ci = Components.interfaces;
       let brandBundle = document.getElementById("bundle_brand");
       let messengerBundle = document.getElementById("bundle_messenger");
+
+      let installInfo = aSubject.QueryInterface(Ci.amIWebInstallInfo);
+      let win = installInfo.originatingWindow;
+      let notificationBox = getNotificationBox(win.top);
+      let notificationID = aTopic;
+      let brandShortName = brandBundle.getString("brandShortName");
+      let notificationName, messageString, buttons;
+      const iconURL = "chrome://messenger/skin/icons/update.png";
+
       switch (aTopic) {
-      case "xpinstall-install-blocked":
-        let installInfo =
-          aSubject.QueryInterface(Components.interfaces.nsIXPIInstallInfo);
-        let win = installInfo.originatingWindow;
-        let notificationBox = getNotificationBox(win.top);
-        if (notificationBox) {
-          let host = installInfo.originatingURI.host;
-          let brandShortName = brandBundle.getString("brandShortName");
-          let notificationName, messageString, buttons;
-          if (!this._prefService.getBoolPref("xpinstall.enabled")) {
-            notificationName = "xpinstall-disabled";
-            if (this._prefService.prefIsLocked("xpinstall.enabled")) {
-              messageString = messengerBundle.getString("xpinstallDisabledMessageLocked");
-              buttons = [];
+      case "addon-install-disabled":
+        notificationID = "xpinstall-disabled";
+
+        if (Services.prefs.prefIsLocked("xpinstall.enabled")) {
+          messageString = messengerBundle.getString("xpinstallDisabledMessageLocked");
+          buttons = [];
+        }
+        else {
+          messageString = messengerBundle.getString("xpinstallDisabledMessage");
+
+          buttons = [{
+            label: messengerBundle.getString("xpinstallDisabledButton"),
+            accessKey: messengerBundle.getString("xpinstallDisabledButton.accesskey"),
+            popup: null,
+            callback: function editPrefs() {
+              Services.prefs.setBoolPref("xpinstall.enabled", true);
+              return false;
             }
-            else {
-              messageString = messengerBundle.getString("xpinstallDisabledMessage");
+          }];
+        }
+        if (notificationBox && !notificationBox.getNotificationWithValue(notificationID)) {
+          notificationBox.appendNotification(messageString, notificationID,
+                                             iconURL,
+                                             notificationBox.PRIORITY_CRITICAL_HIGH,
+                                             buttons);
+        }
+        break;
+      case "addon-install-blocked":
+        messageString =
+          messengerBundle.getFormattedString("xpinstallPromptWarning",
+                                             [brandShortName, installInfo.originatingURI.host]);
 
-              buttons = [{
-                label: messengerBundle.getString("xpinstallDisabledButton"),
-                accessKey: messengerBundle.getString("xpinstallDisabledButton.accesskey"),
-                popup: null,
-                callback: function editPrefs() {
-                  specialTabs.xpInstallObserver
-                             ._prefService.setBoolPref("xpinstall.enabled", true);
-                  return false;
-                }
-              }];
-            }
+        buttons = [{
+          label: messengerBundle.getString("xpinstallPromptAllowButton"),
+          accessKey: messengerBundle.getString("xpinstallPromptAllowButton.accesskey"),
+          popup: null,
+          callback: function() {
+            installInfo.install();
           }
-          else {
-            notificationName = "xpinstall";
-            messageString = messengerBundle.getFormattedString("xpinstallPromptWarning",
-                                                               [brandShortName, host]);
+        }];
 
-            buttons = [{
-              label: messengerBundle.getString("xpinstallPromptAllowButton"),
-              accessKey: messengerBundle.getString("xpinstallPromptAllowButton.accesskey"),
-              popup: null,
-              callback: function() {
-                var mgr = Components.classes["@mozilla.org/xpinstall/install-manager;1"]
-                  .createInstance(Components.interfaces.nsIXPInstallManager);
-                mgr.initManagerWithInstallInfo(installInfo);
-                return false;
-              }
-            }];
-          }
-
-          if (!notificationBox.getNotificationWithValue(notificationName)) {
-            const priority = notificationBox.PRIORITY_WARNING_MEDIUM;
-            const iconURL = "chrome://mozapps/skin/update/update.png";
+        if (notificationBox && !notificationBox.getNotificationWithValue(notificationName)) {
             notificationBox.appendNotification(messageString, notificationName,
-                                               iconURL, priority, buttons);
+                                               iconURL,
+                                               notificationBox.PRIORITY_MEDIUM_HIGH,
+                                               buttons);
+          }
+        break;
+      case "addon-install-failed":
+        // XXX TODO This isn't terribly ideal for the multiple failure case
+        for (let [, install] in Iterator(installInfo.installs)) {
+          let host = (installInfo.originatingURI instanceof Ci.nsIStandardURL) &&
+                      installInfo.originatingURI.host;
+          if (!host)
+            host = (install.sourceURI instanceof Ci.nsIStandardURL) &&
+                    install.sourceURI.host;
+
+          let error = (host || install.error == 0) ?
+                       "addonError" : "addonLocalError";
+          if (install.error != 0)
+            error += install.error;
+          else if (install.addon.blocklistState == Ci.nsIBlocklistService.STATE_BLOCKED)
+            error += "Blocklisted";
+          else
+            error += "Incompatible";
+
+          messageString = messengerBundle.getString(error);
+          messageString = messageString.replace("#1", install.name);
+          if (host)
+            messageString = messageString.replace("#2", host);
+          messageString = messageString.replace("#3", brandShortName);
+          messageString = messageString.replace("#4", Services.appinfo.version);
+
+          if (notificationBox && !notificationBox.getNotificationWithValue(notificationID)) {
+            notificationBox.appendNotification(messageString,
+                                               notificationID,
+                                               iconURL,
+                                               notificationBox.PRIORITY_CRITICAL_HIGH,
+                                               []);
           }
         }
         break;
+      case "addon-install-complete":
+        let needsRestart = installInfo.installs.some(function(i) {
+            return i.addon.pendingOperations != AddonManager.PENDING_NONE;
+        });
+
+        if (needsRestart) {
+          messageString = messengerBundle.getString("addonsInstalledNeedsRestart");
+          buttons = [{
+            label: messengerBundle.getString("addonInstallRestartButton"),
+            accessKey: messengerBundle.getString("addonInstallRestartButton.accesskey"),
+            popup: null,
+            callback: function() {
+              Application.restart();
+            }
+          }];
+        }
+        else {
+          messageString = messengerBundle.getString("addonsInstalled");
+          buttons = [{
+            label: messengerBundle.getString("addonInstallManage"),
+            accessKey: messengerBundle.getString("addonInstallManage.accesskey"),
+            popup: null,
+            callback: function() {
+              // Calculate the add-on type that is most popular in the list of
+              // installs.
+              let types = {};
+              let bestType = null;
+              for (let [, install] in Iterator(installInfo.installs)) {
+                if (install.type in types)
+                  types[install.type]++;
+                else
+                  types[install.type] = 1;
+
+                if (!bestType || types[install.type] > types[bestType])
+                  bestType = install.type;
+
+                openAddonsMgr("addons://list/" + bestType);
+              }
+            }
+          }];
+        }
+
+        messageString = PluralForm.get(installInfo.installs.length, messageString);
+        messageString = messageString.replace("#1", installInfo.installs[0].name);
+        messageString = messageString.replace("#2", installInfo.installs.length);
+        messageString = messageString.replace("#3", brandShortName);
+
+        if (notificationBox)
+          notificationBox.appendNotification(messageString,
+                                             notificationID,
+                                             iconURL,
+                                             notificationBox.PRIORITY_INFO_MEDIUM,
+                                             buttons);
+        break;
       }
     }
+  },
+
+  /**
+   * Determine if we should load fav icons or not.
+   *
+   * @param aURI  An nsIURI containing the current url.
+   */
+  _shouldLoadFavIcon: function shouldLoadFavIcon(aURI) {
+    return (aURI &&
+            Application.prefs.getValue("browser.chrome.site_icons", false) &&
+            Application.prefs.getValue("browser.chrome.favicons", false) &&
+            ("schemeIs" in aURI) &&
+            (aURI.schemeIs("http") || aURI.schemeIs("https")));
+  },
+
+  /**
+   * Tries to use the default favicon for a webpage for the specified tab.
+   * If the web page is just an image, then we'll use the image itself it it
+   * isn't too big.
+   * Otherwise we'll use the site's favicon.ico if prefs allow us to.
+   */
+  useDefaultIcon: function useDefaultIcon(aTab) {
+    let tabmail = document.getElementById('tabmail');
+    var docURIObject = aTab.browser.contentDocument.documentURIObject;
+    var icon = null;
+    if (aTab.browser.contentDocument instanceof ImageDocument) {
+      if (Services.prefs.getBoolPref("browser.chrome.site_icons")) {
+        let sz = Services.prefs.getIntPref("browser.chrome.image_icons.max_size");
+        try {
+          let req = aTab.browser.contentDocument.imageRequest;
+          if (req && req.image && req.image.width <= sz &&
+              req.image.height <= sz)
+            icon = aTab.browser.currentURI.spec;
+        }
+        catch (e) { }
+      }
+    }
+    // Use documentURIObject in the check for shouldLoadFavIcon so that we do
+    // the right thing with about:-style error pages.
+    else if (this._shouldLoadFavIcon(docURIObject)) {
+      let url = docURIObject.prePath + "/favicon.ico";
+
+      if (!specialTabs.mFaviconService.isFailedFavicon(makeURI(url)))
+        icon = url;
+    }
+
+    specialTabs.setTabIcon(aTab, icon);
+  },
+
+  /**
+   * This sets the specified tab to load and display the given icon for the
+   * page shown in the browser. It is assumed that the preferences have already
+   * been checked before calling this function apprioriately.
+   *
+   * @param aTab  The tab to set the icon for.
+   * @param aIcon A string based URL of the icon to try and load.
+   */
+  setTabIcon: function(aTab, aIcon) {
+    if (aIcon && this.mFaviconService)
+      this.mFaviconService.setAndLoadFaviconForPage(aTab.browser.currentURI,
+                                                    makeURI(aIcon), false);
+
+    // Save this off so we know about it later,
+    aTab.browser.mIconURL = aIcon;
+    // and display the new icon.
+    document.getElementById("tabmail").setTabIcon(aTab, aIcon);
   }
 };

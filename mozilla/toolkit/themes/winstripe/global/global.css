@@ -164,12 +164,6 @@ statusbarpanel:not(.statusbar-resizerpanel):-moz-lwtheme {
   padding: 0 1px;
 }
 
-%ifdef XP_WIN
-window:not([active="true"]) menubar > menu {
-  color: ThreeDShadow;
-}
-%endif
-
 /* XXXBlake yeah, shoot me -- these don't belong here.  I'll move them later. */
 
 sidebarheader {
@@ -201,11 +195,11 @@ toolbar[mode="text"] .toolbarbutton-text {
 }
 
 :root:-moz-lwtheme-darktext {
-  text-shadow: 1px 1px 2px white;
+  text-shadow: 1px 1px 1.5px white;
 }
 
 :root:-moz-lwtheme-brighttext {
-  text-shadow: 1px 1px 2px black;
+  text-shadow: 1px 1px 1.5px black;
 }
 
 statusbar:-moz-lwtheme,
@@ -221,7 +215,7 @@ sidebarheader:-moz-lwtheme {
   border-bottom-color: ThreeDHighlight;
   margin: 0 5px 5px;
 }
-  
+
 .outset {
   border: 1px solid ThreeDShadow;
   border-left-color: ThreeDHighlight;
@@ -238,7 +232,7 @@ separator[orient="vertical"] {
 
 separator.thin:not([orient="vertical"]) {
   height: 0.5em;
-}  
+}
 separator.thin[orient="vertical"] {
   width: 0.5em;
 }
@@ -261,7 +255,7 @@ separator.groove[orient="vertical"] {
 .small-margin {
   margin: 1px 2px;
 }
-    
+
 .plain {
   -moz-appearance: none;
   margin: 0 !important;
@@ -325,8 +319,8 @@ label[disabled="true"]:-moz-system-metric(windows-classic) {
   border: 1px solid transparent;
   cursor: pointer;
 }
-  
-.text-link:focus {
+
+.text-link:-moz-focusring {
   border: 1px dotted -moz-DialogText;
 }
 

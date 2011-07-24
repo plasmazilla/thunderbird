@@ -114,6 +114,9 @@ public:
     PRBool m_eatLF;
     PRBool m_newMsgFlags; // only used if there's no m_message
     nsCString m_newMsgKeywords; // ditto 
+    // If the server supports UIDPLUS, this is the UID for the append,
+    // if we're doing an append.
+    nsMsgKey m_appendUID;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsImapMailCopyState, NS_IMAPMAILCOPYSTATE_IID)
@@ -353,6 +356,9 @@ public:
   nsresult SetSupportedUserFlags(PRUint32 userFlags);
   nsresult GetSupportedUserFlags(PRUint32 *userFlags);
 
+  // Find the start of a range of msgKeys that can hold srcCount headers.
+  nsresult FindOpenRange(nsMsgKey &fakeBase, PRUint32 srcCount);
+
 protected:
   // Helper methods
 
@@ -376,9 +382,13 @@ protected:
   nsresult  NormalEndHeaderParseStream(nsIImapProtocol *aProtocol, nsIImapUrl *imapUrl);
 
   void EndOfflineDownload();
+  nsresult CopyFileToOfflineStore(nsILocalFile *srcFile, nsMsgKey msgKey);
 
   nsresult MarkMessagesImapDeleted(nsTArray<nsMsgKey> *keyArray, PRBool deleted, nsIMsgDatabase *db);
 
+  // Notifies imap autosync that it should update this folder when it
+  // gets a chance.
+  void NotifyHasPendingMsgs();
   void UpdatePendingCounts();
   void SetIMAPDeletedFlag(nsIMsgDatabase *mailDB, const nsTArray<nsMsgKey> &msgids, PRBool markDeleted);
   virtual PRBool ShowDeletedMessages();
@@ -386,6 +396,7 @@ protected:
   nsresult GetFolder(const nsACString& name, nsIMsgFolder **pFolder);
   nsresult GetTrashFolder(nsIMsgFolder **pTrashFolder);
   PRBool TrashOrDescendentOfTrash(nsIMsgFolder* folder);
+  static PRBool ShouldCheckAllFolders(nsIImapIncomingServer *imapServer);
   nsresult GetServerKey(nsACString& serverKey);
   nsresult DisplayStatusMsg(nsIImapUrl *aImapUrl, const nsAString& msg);
 
@@ -452,7 +463,6 @@ protected:
 
   PRBool m_initialized;
   PRBool m_haveDiscoveredAllFolders;
-  PRBool m_haveReadNameFromDB;
   nsCOMPtr<nsIMsgParseMailMsgState> m_msgParser;
   nsCOMPtr<nsIMsgFilterList> m_filterList;
   nsCOMPtr<nsIMsgFilterPlugin> m_filterPlugin;  // XXX should be a list
@@ -466,8 +476,6 @@ protected:
   nsCOMPtr<nsIMsgFolder> mSpamFolder;
   nsMsgKey m_curMsgUid;
   PRUint32 m_uidValidity;
-  // used for condstore support;
-  PRUint64 m_highestModSeq;
 
   // These three vars are used to store counts from STATUS or SELECT command
   // They include deleted messages, so they can differ from the generic
@@ -485,8 +493,7 @@ protected:
 
   // *** jt - undo move/copy trasaction support
   nsRefPtr<nsMsgTxn> m_pendingUndoTxn;
-  nsCOMPtr<nsImapMailCopyState> m_copyState;
-  PRMonitor *m_appendMsgMonitor;
+  nsRefPtr<nsImapMailCopyState> m_copyState;
   char m_hierarchyDelimiter;
   PRInt32 m_boxFlags;
   nsCString m_onlineFolderName;
@@ -514,24 +521,24 @@ protected:
   PRUint32     m_aclFlags;
   PRUint32     m_supportedUserFlags;
 
-  static nsIAtom* mImapHdrDownloadedAtom;
-
   // offline imap support
   PRBool m_downloadingFolderForOfflineUse;
   PRBool m_filterListRequiresBody;
-  
+
   // auto-sync (preemptive download) support
   nsRefPtr<nsAutoSyncState> m_autoSyncStateObj;
-  
+
   // Quota support
   nsCString m_folderQuotaRoot;
   PRUint32 m_folderQuotaUsedKB;
   PRUint32 m_folderQuotaMaxKB;
-  
+
   // Pseudo-Offline Playback support
   nsPlaybackRequest *m_pendingPlaybackReq;
   nsCOMPtr<nsITimer> m_playbackTimer;
   nsTArray<nsRefPtr<nsImapMoveCopyMsgTxn> > m_pendingOfflineMoves;
-
+  // hash table of mapping between messageids and message keys
+  // for pseudo hdrs.
+  nsDataHashtable<nsCStringHashKey, nsMsgKey> m_pseudoHdrs;
 };
 #endif

@@ -13,7 +13,7 @@
   -moz-border-left-colors: threedshadow #f2f2f2;
   -moz-border-right-colors: threedshadow #f2f2f2;
   border-bottom: none;
-  -moz-border-radius: 4px 4px 0pt 0pt;
+  border-radius: 4px 4px 0pt 0pt;
   margin: 2px 2px 3px 0;
   padding: 0 !important;
   -moz-padding-start: 4px !important;
@@ -95,14 +95,14 @@
   
 }
 #threadTree[filterActive="matches"] {
-  background-color: #f2f9fc;
+
 }
 
 #quick-filter-bar[filterActive="nomatches"] {
   
 }
 #threadTree[filterActive="nomatches"] {
-  background: -moz-repeating-linear-gradient(top left -45deg, #fff0f4, #fff0f4 5px, white 5px, white 10px);
+
 }
 
 /* :::: Filter Buttons :::: */

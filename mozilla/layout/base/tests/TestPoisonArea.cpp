@@ -162,6 +162,8 @@ typedef unsigned int uint32_t;
 
 /* This program assumes that a whole number of return instructions fit into
  * 32 bits, and that 32-bit alignment is sufficient for a branch destination.
+ * For architectures where this is not true, fiddling with RETURN_INSTR_TYPE
+ * can be enough.
  */
 
 #if defined __i386__ || defined __x86_64__ ||   \
@@ -180,8 +182,38 @@ typedef unsigned int uint32_t;
 #elif defined __sparc || defined __sparcv9
 #define RETURN_INSTR 0x81c3e008 /* retl */
 
+#elif defined __alpha
+#define RETURN_INSTR 0x6bfa8001 /* ret */
+
+#elif defined __hppa
+#define RETURN_INSTR 0xe840c002 /* bv,n r0(rp) */
+
+#elif defined __mips
+#define RETURN_INSTR 0x03e00008 /* jr ra */
+
+#ifdef __MIPSEL
+/* On mipsel, jr ra needs to be followed by a nop.
+   0x03e00008 as a 64 bits integer just does that */
+#define RETURN_INSTR_TYPE uint64_t
+#endif
+
+#elif defined __s390__
+#define RETURN_INSTR 0x07fe0000 /* br %r14 */
+
+#elif defined __ia64
+struct ia64_instr { uint32_t i[4]; };
+static const ia64_instr _return_instr =
+  {{ 0x00000011, 0x00000001, 0x80000200, 0x00840008 }}; /* br.ret.sptk.many b0 */
+
+#define RETURN_INSTR _return_instr
+#define RETURN_INSTR_TYPE ia64_instr
+
 #else
 #error "Need return instruction for this architecture"
+#endif
+
+#ifndef RETURN_INSTR_TYPE
+#define RETURN_INSTR_TYPE uint32_t
 #endif
 
 // Miscellaneous Windows/Unix portability gumph
@@ -451,8 +483,8 @@ ReserveNegativeControl()
   }
 
   // Fill the page with return instructions.
-  uint32_t *p = (uint32_t *)result;
-  uint32_t *limit = (uint32_t *)(((char *)result) + PAGESIZE);
+  RETURN_INSTR_TYPE *p = (RETURN_INSTR_TYPE *)result;
+  RETURN_INSTR_TYPE *limit = (RETURN_INSTR_TYPE *)(((char *)result) + PAGESIZE);
   while (p < limit)
     *p++ = RETURN_INSTR;
 
@@ -468,6 +500,41 @@ ReserveNegativeControl()
          SIZxPTR, (uintptr_t)result);
   return (uintptr_t)result;
 }
+
+static void
+JumpTo(uintptr_t opaddr)
+{
+#ifdef __ia64
+  struct func_call {
+    uintptr_t func;
+    uintptr_t gp;
+  } call = { opaddr, };
+  ((void (*)())&call)();
+#else
+  ((void (*)())opaddr)();
+#endif
+}
+
+#ifdef _WIN32
+static BOOL
+IsBadExecPtr(uintptr_t ptr)
+{
+  BOOL ret = false;
+
+#ifdef _MSC_VER
+  __try {
+    JumpTo(ptr);
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    ret = true;
+  }
+#else
+  printf("INFO | exec test not supported on MinGW build\n");
+  // We do our best
+  ret = IsBadReadPtr((const void*)ptr, 1);
+#endif
+  return ret;
+}
+#endif
 
 /* Test each page.  */
 static bool
@@ -488,32 +555,29 @@ TestPage(const char *pagelabel, uintptr_t pageaddr, int should_succeed)
     }
 
 #ifdef _WIN32
-    __try {
-      unsigned char scratch;
-      switch (test) {
-      case 0: scratch = *(volatile unsigned char *)opaddr; break;
-      case 1: ((void (*)())opaddr)(); break;
-      case 2: *(volatile unsigned char *)opaddr = 0; break;
-      default: abort();
-      }
+    BOOL badptr;
 
+    switch (test) {
+    case 0: badptr = IsBadReadPtr((const void*)opaddr, 1); break;
+    case 1: badptr = IsBadExecPtr(opaddr); break;
+    case 2: badptr = IsBadWritePtr((void*)opaddr, 1); break;
+    default: abort();
+    }
+
+    if (badptr) {
+      if (should_succeed) {
+        printf("TEST-UNEXPECTED-FAIL | %s %s\n", oplabel, pagelabel);
+        failed = true;
+      } else {
+        printf("TEST-PASS | %s %s\n", oplabel, pagelabel);
+      }
+    } else {
       // if control reaches this point the probe succeeded
       if (should_succeed) {
         printf("TEST-PASS | %s %s\n", oplabel, pagelabel);
       } else {
         printf("TEST-UNEXPECTED-FAIL | %s %s\n", oplabel, pagelabel);
         failed = true;
-      }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-      // Unfortunately, there is no equivalent of strsignal().
-      DWORD code = GetExceptionCode();
-      if (should_succeed) {
-        printf("TEST-UNEXPECTED-FAIL | %s %s | exception code %x\n",
-               oplabel, pagelabel, code);
-        failed = true;
-      } else {
-        printf("TEST-PASS | %s %s | exception code %x\n",
-               oplabel, pagelabel, code);
       }
     }
 #elif defined(__OS2__)
@@ -561,7 +625,7 @@ TestPage(const char *pagelabel, uintptr_t pageaddr, int should_succeed)
       volatile unsigned char scratch;
       switch (test) {
       case 0: scratch = *(volatile unsigned char *)opaddr; break;
-      case 1: ((void (*)())opaddr)(); break;
+      case 1: JumpTo(opaddr); break;
       case 2: *(volatile unsigned char *)opaddr = 0; break;
       default: abort();
       }
@@ -578,7 +642,8 @@ TestPage(const char *pagelabel, uintptr_t pageaddr, int should_succeed)
         if (should_succeed) {
           printf("TEST-PASS | %s %s\n", oplabel, pagelabel);
         } else {
-          printf("TEST-UNEXPECTED-FAIL | %s %s\n", oplabel, pagelabel);
+          printf("TEST-UNEXPECTED-FAIL | %s %s | unexpected successful exit\n",
+                 oplabel, pagelabel);
           failed = true;
         }
       } else if (WIFEXITED(status)) {
@@ -587,12 +652,12 @@ TestPage(const char *pagelabel, uintptr_t pageaddr, int should_succeed)
         exit(2);
       } else if (WIFSIGNALED(status)) {
         if (should_succeed) {
-          printf("TEST-UNEXPECTED-FAIL | %s %s | %s\n",
-                 oplabel, pagelabel, strsignal(WTERMSIG(status)));
+          printf("TEST-UNEXPECTED-FAIL | %s %s | unexpected signal %d\n",
+                 oplabel, pagelabel, WTERMSIG(status));
           failed = true;
         } else {
-          printf("TEST-PASS | %s %s | %s\n",
-                 oplabel, pagelabel, strsignal(WTERMSIG(status)));
+          printf("TEST-PASS | %s %s | signal %d (as expected)\n",
+                 oplabel, pagelabel, WTERMSIG(status));
         }
       } else {
         printf("ERROR | %s %s | unexpected exit status %d\n",

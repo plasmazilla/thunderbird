@@ -39,7 +39,7 @@
 #include "nsIDOMSVGTextElement.h"
 #include "nsSVGTextFrame.h"
 #include "nsWeakReference.h"
-#include "nsIDOMSVGLengthList.h"
+#include "SVGLengthList.h"
 #include "nsIDOMSVGLength.h"
 #include "nsIDOMSVGAnimatedNumber.h"
 #include "nsISVGGlyphFragmentNode.h"
@@ -53,6 +53,8 @@
 #include "nsSVGPathElement.h"
 #include "nsSVGUtils.h"
 #include "nsSVGGraphicElement.h"
+
+using namespace mozilla;
 
 //----------------------------------------------------------------------
 // Implementation
@@ -99,7 +101,8 @@ nsSVGTextFrame::AttributeChanged(PRInt32         aNameSpaceID,
   } else if (aAttribute == nsGkAtoms::x ||
              aAttribute == nsGkAtoms::y ||
              aAttribute == nsGkAtoms::dx ||
-             aAttribute == nsGkAtoms::dy) {
+             aAttribute == nsGkAtoms::dy ||
+             aAttribute == nsGkAtoms::rotate) {
     NotifyGlyphMetricsChange();
   }
 
@@ -189,6 +192,8 @@ nsSVGTextFrame::NotifySVGChanged(PRUint32 aFlags)
     mCanvasTM = nsnull;
   }
 
+  nsSVGTextFrameBase::NotifySVGChanged(aFlags);
+
   if (aFlags & COORD_CONTEXT_CHANGED) {
     // If we are positioned using percentage values we need to update our
     // position whenever our viewport's dimensions change.
@@ -198,8 +203,6 @@ nsSVGTextFrame::NotifySVGChanged(PRUint32 aFlags)
     // may not be worth it as we might need to check each glyph
     NotifyGlyphMetricsChange();
   }
-
-  nsSVGTextFrameBase::NotifySVGChanged(aFlags);
 }
 
 NS_IMETHODIMP
@@ -291,25 +294,6 @@ nsSVGTextFrame::NotifyGlyphMetricsChange()
   UpdateGlyphPositioning(PR_FALSE);
 }
 
-static void
-GetSingleValue(nsIDOMSVGLengthList *list, float *val)
-{
-  if (!list)
-    return;
-
-  PRUint32 count = 0;
-  list->GetNumberOfItems(&count);
-#ifdef DEBUG
-  if (count > 1)
-    NS_WARNING("multiple lengths for x/y attributes on <text> elements not implemented yet!");
-#endif
-  if (count) {
-    nsCOMPtr<nsIDOMSVGLength> length;
-    list->GetItem(0, getter_AddRefs(length));
-    length->GetValue(val);
-  }
-}
-
 void
 nsSVGTextFrame::UpdateGlyphPositioning(PRBool aForceGlobalTransform)
 {
@@ -330,41 +314,65 @@ nsSVGTextFrame::UpdateGlyphPositioning(PRBool aForceGlobalTransform)
     return;
   }
 
-  float x = 0, y = 0;
+  BuildPositionList(0, 0);
 
-  {
-    nsCOMPtr<nsIDOMSVGLengthList> list = GetX();
-    GetSingleValue(list, &x);
-  }
-  {
-    nsCOMPtr<nsIDOMSVGLengthList> list = GetY();
-    GetSingleValue(list, &y);
-  }
+  gfxPoint ctp(0.0, 0.0);
 
   // loop over chunks
   while (firstFragment) {
-    {
-      nsCOMPtr<nsIDOMSVGLengthList> list = firstFragment->GetX();
-      GetSingleValue(list, &x);
-    }
-    {
-      nsCOMPtr<nsIDOMSVGLengthList> list = firstFragment->GetY();
-      GetSingleValue(list, &y);
-    }
+    nsSVGTextPathFrame *textPath = firstFragment->FindTextPathParent();
+
+    nsTArray<float> effectiveXList, effectiveYList;
+    firstFragment->GetEffectiveXY(firstFragment->GetNumberOfChars(),
+                                  effectiveXList, effectiveYList);
+    if (!effectiveXList.IsEmpty()) ctp.x = effectiveXList[0];
+    if (!textPath && !effectiveYList.IsEmpty()) ctp.y = effectiveYList[0];
 
     // check for startOffset on textPath
-    nsSVGTextPathFrame *textPath = firstFragment->FindTextPathParent();
     if (textPath) {
       if (!textPath->GetPathFrame()) {
         // invalid text path, give up
         return;
       }
-      x = textPath->GetStartOffset();
+      ctp.x = textPath->GetStartOffset();
     }
 
     // determine x offset based on text_anchor:
   
     PRUint8 anchor = firstFragment->GetTextAnchor();
+
+    /**
+     * XXXsmontagu: The SVG spec is very vague as to how 'text-anchor'
+     *  interacts with bidirectional text. It says:
+     *
+     *   "For scripts that are inherently right to left such as Hebrew and
+     *   Arabic [text-anchor: start] is equivalent to right alignment."
+     * and
+     *   "For scripts that are inherently right to left such as Hebrew and
+     *   Arabic, [text-anchor: end] is equivalent to left alignment.
+     *
+     * It's not clear how this should be implemented in terms of defined
+     * properties, i.e. how one should determine that a particular element
+     * contains a script that is inherently right to left.
+     *
+     * The code below follows http://www.w3.org/TR/SVGTiny12/text.html#TextAnchorProperty
+     * and swaps the values of text-anchor: end and  text-anchor: start
+     * whenever the 'direction' property is rtl.
+     *
+     * This is probably the "right" thing to do, but other browsers don't do it,
+     * so I am leaving it inside #if 0 for now for interoperability.
+     *
+     * See also XXXsmontagu comments in nsSVGGlyphFrame::EnsureTextRun
+     */
+#if 0
+    if (GetStyleVisibility()->mDirection == NS_STYLE_DIRECTION_RTL) {
+      if (anchor == NS_STYLE_TEXT_ANCHOR_END) {
+        anchor = NS_STYLE_TEXT_ANCHOR_START;
+      } else if (anchor == NS_STYLE_TEXT_ANCHOR_START) {
+        anchor = NS_STYLE_TEXT_ANCHOR_END;
+      }
+    }
+#endif
 
     float chunkLength = 0.0f;
     if (anchor != NS_STYLE_TEXT_ANCHOR_START) {
@@ -372,10 +380,7 @@ nsSVGTextFrame::UpdateGlyphPositioning(PRBool aForceGlobalTransform)
     
       fragment = firstFragment;
       while (fragment) {
-        float dx = 0.0f;
-        nsCOMPtr<nsIDOMSVGLengthList> list = fragment->GetDx();
-        GetSingleValue(list, &dx);
-        chunkLength += dx + fragment->GetAdvance(aForceGlobalTransform);
+        chunkLength += fragment->GetAdvance(aForceGlobalTransform);
         fragment = fragment->GetNextGlyphFragment();
         if (fragment && fragment->IsAbsolutelyPositioned())
           break;
@@ -383,33 +388,21 @@ nsSVGTextFrame::UpdateGlyphPositioning(PRBool aForceGlobalTransform)
     }
 
     if (anchor == NS_STYLE_TEXT_ANCHOR_MIDDLE)
-      x -= chunkLength/2.0f;
+      ctp.x -= chunkLength/2.0f;
     else if (anchor == NS_STYLE_TEXT_ANCHOR_END)
-      x -= chunkLength;
+      ctp.x -= chunkLength;
   
     // set position of each fragment in this chunk:
   
     fragment = firstFragment;
     while (fragment) {
 
-      float dx = 0.0f, dy = 0.0f;
-      {
-        nsCOMPtr<nsIDOMSVGLengthList> list = fragment->GetDx();
-        GetSingleValue(list, &dx);
-      }
-      {
-        nsCOMPtr<nsIDOMSVGLengthList> list = fragment->GetDy();
-        GetSingleValue(list, &dy);
-      }
-
-      fragment->SetGlyphPosition(x + dx, y + dy, aForceGlobalTransform);
-
-      x += dx + fragment->GetAdvance(aForceGlobalTransform);
-      y += dy;
+      fragment->SetGlyphPosition(&ctp, aForceGlobalTransform);
       fragment = fragment->GetNextGlyphFragment();
       if (fragment && fragment->IsAbsolutelyPositioned())
         break;
     }
     firstFragment = fragment;
   }
+  nsSVGUtils::UpdateGraphic(this);
 }

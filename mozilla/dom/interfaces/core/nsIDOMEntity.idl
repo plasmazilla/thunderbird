@@ -45,11 +45,9 @@
  *
  * For more information on this interface please see 
  * http://www.w3.org/TR/DOM-Level-2-Core/
- *
- * @status FROZEN
  */
 
-[scriptable, uuid(a6cf9079-15b3-11d2-932e-00805f8add32)]
+[scriptable, uuid(944d8c6a-631d-408d-846f-d4ff5fa93ae6)]
 interface nsIDOMEntity : nsIDOMNode
 {
    readonly attribute  DOMString            publicId;

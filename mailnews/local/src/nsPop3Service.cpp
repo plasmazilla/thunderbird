@@ -61,7 +61,6 @@
 #include "nsIMsgAccount.h"
 #include "nsLocalMailFolder.h"
 #include "nsIMailboxUrl.h"
-#include "nsInt64.h"
 #include "nsIPrompt.h"
 #include "nsLocalStrings.h"
 #include "nsINetUtil.h"
@@ -282,12 +281,6 @@ nsresult nsPop3Service::RunPopUrl(nsIMsgIncomingServer * aServer, nsIURI * aUrlT
       if (protocol)
       {
         NS_ADDREF(protocol);
-        rv = protocol->Initialize(aUrlToRun);
-        if(NS_FAILED(rv))
-        {
-          NS_RELEASE(protocol);
-          return rv;
-        }
         // the protocol stores the unescaped username, so there is no need to escape it.
         protocol->SetUsername(userName.get());
         rv = protocol->LoadUrl(aUrlToRun);
@@ -352,7 +345,7 @@ NS_IMETHODIMP nsPop3Service::NewURI(const nsACString &aSpec,
     if (!_retval) return rv;
     nsCAutoString folderUri(aSpec);
     nsCOMPtr<nsIRDFResource> resource;
-    PRInt32 offset = folderUri.Find("?");
+    PRInt32 offset = folderUri.FindChar('?');
     if (offset != -1)
         folderUri.SetLength(offset);
 
@@ -450,7 +443,7 @@ NS_IMETHODIMP nsPop3Service::NewURI(const nsACString &aSpec,
           offset = messageUri.Find("?number=");
           if (offset != -1)
             messageUri.Replace(offset, 8, "#");
-          offset = messageUri.Find("&");
+          offset = messageUri.FindChar('&');
           if (offset != -1)
             messageUri.SetLength(offset);
           popurl->SetMessageUri(messageUri.get());

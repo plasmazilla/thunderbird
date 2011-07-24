@@ -76,9 +76,11 @@
     <script type="application/javascript"
             src="chrome://global/content/globalOverlay.js"/>
     <script type="application/javascript"
-            src="chrome://browser/content/places/utils.js"/>
-    <script type="application/javascript"
             src="chrome://browser/content/places/treeView.js"/>
+    <script type="application/javascript"><![CDATA[
+      Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
+      Components.utils.import("resource:///modules/PlacesUIUtils.jsm");
+    ]]></script>
 #endif
 
     <script type="application/javascript"
@@ -173,8 +175,7 @@
              accesskey="&detailsProgressiveDisclosure.accesskey;"
              control="detailsExpander"/>
     </hbox>
-    <listbox id="itemList" rows="6" collapsed="true" persist="collapsed"
-             flex="1">
+    <listbox id="itemList" rows="6" collapsed="true" persist="collapsed">
       <listitem label="&itemHistoryAndDownloads.label;"
                 type="checkbox"
                 accesskey="&itemHistoryAndDownloads.accesskey;"

@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-379566.js';
 
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 379566;
@@ -55,8 +54,8 @@ function test()
   printStatus (summary);
  
   expect = '({ ' +
-    'in getter : (function () { return this.for; }), ' + 
-    'in setter : (function (value) { this.for = value; }) ' + 
+    'get in () { return this.for; }, ' + 
+    'set in (value) { this.for = value; } ' + 
     '})';
   try
   {

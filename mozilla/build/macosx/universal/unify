@@ -199,8 +199,8 @@ sub compareZipArchives($$);
 sub complain($$@);
 sub copyIfIdentical($$$);
 sub slurp($);
+sub get_sorted($);
 sub compare_sorted($$);
-sub copy_sorted($$);
 sub copyIfIdenticalWhenSorted($$$);
 sub createUniqueFile($$);
 sub makeUniversal($$$);
@@ -507,6 +507,18 @@ sub slurp($) {
   return @lines;
 }
 
+# get_sorted($file)
+# Get the sorted lines of a file as a list, normalizing a newline on the last line if necessary.
+sub get_sorted($) {
+  my ($file) = @_;
+  my @lines = slurp($file);
+  my $lastline = $lines[-1];
+  if (!($lastline =~ /\n/)) {
+    $lines[-1] = $lastline . "\n";
+  }
+  return sort(@lines);
+}
+
 # compare_sorted($file1, $file2)
 #
 # Read the contents of both files into arrays, sort the arrays,
@@ -516,8 +528,8 @@ sub slurp($) {
 # Returns undef on error.
 sub compare_sorted($$) {
   my ($file1, $file2) = @_;
-  my @lines1 = sort(slurp($file1));
-  my @lines2 = sort(slurp($file2));
+  my @lines1 = get_sorted($file1);
+  my @lines2 = get_sorted($file2);
 
   return undef if !@lines1 || !@lines2;
   return 1 unless scalar @lines1 == scalar @lines2;
@@ -526,21 +538,6 @@ sub compare_sorted($$) {
     return 1 if $lines1[$i] ne $lines2[$i];
   }
   return 0;
-}
-
-# copy_sorted($source, $destination)
-#
-# $source and $destination are filenames. Read the contents of $source
-# into an array, sort it, and then write the sorted contents to $destination.
-# Returns 1 on success, and undef on failure.
-sub copy_sorted($$) {
-  my ($src, $dest) = @_;
-  my @lines = sort(slurp($src));
-  return undef unless @lines;
-  open FILE, "> $dest" or return undef;
-  print FILE @lines;
-  close FILE;
-  return 1;
 }
 
 # copyIfIdenticalWhenSorted($source1, $source2, $target)
@@ -592,8 +589,8 @@ sub copyIfIdenticalWhenSorted($$$) {
       return 0;
     }
 
-    if (!copy_sorted($source1->path(), $target)) {
-      complain(1, 'copyIfIdenticalWhenSorted: copy_sorted: '.$!
+    if (!copy($source1->path(), $target)) {
+      complain(1, 'copyIfIdenticalWhenSorted: copy: '.$!
                .' while copying',
                $source1->path(),
                $target);
@@ -1165,6 +1162,12 @@ sub readZipCRCs($) {
 
   package FileAttrCache;
 
+  # from /usr/include/mach-o/loader.h
+  use constant MH_MAGIC    => 0xfeedface;
+  use constant MH_CIGAM    => 0xcefaedfe;
+  use constant MH_MAGIC_64 => 0xfeedfacf;
+  use constant MH_CIGAM_64 => 0xcffaedfe;
+
   use Fcntl(':DEFAULT', ':mode');
 
   # FileAttrCache->new($path)
@@ -1243,8 +1246,10 @@ sub readZipCRCs($) {
     }
 
     # Accept Mach-O fat files or Mach-O thin files of either endianness.
-    if ($magic == 0xfeedface ||
-        $magic == 0xcefaedfe ||
+    if ($magic == MH_MAGIC ||
+        $magic == MH_CIGAM ||
+        $magic == MH_MAGIC_64 ||
+        $magic == MH_CIGAM_64 ||
         $this->isFat()) {
       return 1;
     }

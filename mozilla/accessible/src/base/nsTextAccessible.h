@@ -41,29 +41,41 @@
 
 #include "nsBaseWidgetAccessible.h"
 
- /**
-  * Text nodes have no children, but since double inheritance
-  *  no-worky we have to re-impl the LeafAccessiblity blocks 
-  *  this way.
-  */
+/**
+ * Generic class used for text nodes.
+ */
 class nsTextAccessible : public nsLinkableAccessible
 {
 public:
-  NS_DECL_ISUPPORTS_INHERITED
-
-  nsTextAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell);
-
-  // nsIAccessible
-  NS_IMETHOD GetFirstChild(nsIAccessible **_retval);
-  NS_IMETHOD GetLastChild(nsIAccessible **_retval);
-  NS_IMETHOD GetChildCount(PRInt32 *_retval);
+  nsTextAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
-  virtual nsresult AppendTextTo(nsAString& aText, PRUint32 aStartOffset,
-                                PRUint32 aLength);
+  virtual PRUint32 NativeRole();
+  virtual void AppendTextTo(nsAString& aText, PRUint32 aStartOffset = 0,
+                            PRUint32 aLength = PR_UINT32_MAX);
+
+  // nsTextAccessible
+  void SetText(const nsAString& aText) { mText = aText; }
+  const nsString& Text() const { return mText; }
+
+protected:
+  // nsAccessible
+  virtual void CacheChildren();
+
+protected:
+  nsString mText;
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
+// nsAccessible downcast method
+
+inline nsTextAccessible*
+nsAccessible::AsTextLeaf()
+{
+  return mFlags & eTextLeafAccessible ?
+    static_cast<nsTextAccessible*>(this) : nsnull;
+}
 
 #endif
 

@@ -36,16 +36,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== textbox.css ==================================================
-  == Styles used by the XUL textbox element.
-  ======================================================================= */
-
 @import url("chrome://global/content/autocomplete.css");
   
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 @namespace html url("http://www.w3.org/1999/xhtml");
-
-/* ::::: textbox ::::: */
 
 textbox {
   -moz-appearance: textfield;
@@ -56,16 +50,12 @@ textbox {
   -moz-border-right-colors: transparent #FFFFFF #000000;
   -moz-border-bottom-colors: transparent #FFFFFF #000000;
   -moz-border-left-colors: transparent #888888 #000000;
-  -moz-border-radius-topright: 2px;
-  -moz-border-radius-bottomleft: 2px;
+  border-top-right-radius: 2px;
+  border-bottom-left-radius: 2px;
   /*padding: 1px 0px 1px 2px ;*/
   padding: 0px;
   background-color: -moz-Field;
   color: -moz-FieldText;
-}
-
-textbox[isempty="true"] {
-  color: GrayText;
 }
 
 html|*.textbox-input, 
@@ -78,7 +68,14 @@ html|*.textbox-textarea {
   font: inherit;
 }
 
-/* ..... focused state ..... */
+html|*.textbox-input:-moz-placeholder,
+html|*.textbox-textarea:-moz-placeholder {
+  color: GrayText;
+}
+
+.textbox-contextmenu {
+  cursor: default;
+}
 
 textbox[focused="true"] {
   -moz-border-top-colors: -moz-mac-focusring -moz-mac-focusring #000000;
@@ -87,14 +84,10 @@ textbox[focused="true"] {
   -moz-border-left-colors: -moz-mac-focusring -moz-mac-focusring #000000;
 }
 
-/* ..... readonly state ..... */
-
 textbox[readonly="true"] {
   background-color: -moz-Dialog;
   color: -moz-DialogText;
 }
-
-/* ..... disabled state ..... */
 
 textbox[disabled="true"] {
   cursor: default;
@@ -106,8 +99,6 @@ textbox[disabled="true"] {
   color: GrayText;
 } 
 
-/* ::::: plain textbox ::::: */
-
 textbox.plain {
   -moz-appearance: none !important;
   background-color: transparent;
@@ -116,8 +107,7 @@ textbox.plain {
   border: none !important;
 }
 
-
-/* ::::: rounded search box ::::: */
+/* ::::: search box ::::: */
 
 textbox[type="search"] {
   -moz-appearance: searchfield;

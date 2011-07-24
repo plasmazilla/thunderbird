@@ -37,6 +37,7 @@
 
 #include "nsISupports.idl"
 
+interface nsIFrame;
 interface nsIObjectFrame;
 interface nsIPluginInstance;
 interface nsIPluginTag;
@@ -46,7 +47,7 @@ interface nsIDOMClientRect;
 /**
  * This interface represents a content node that loads objects.
  */
-[scriptable, uuid(90ab443e-3e99-405e-88c9-9c42adaa3217)]
+[scriptable, uuid(9558649a-7255-4b00-afb4-1171e9cdcead)]
 interface nsIObjectLoadingContent : nsISupports
 {
   const unsigned long TYPE_LOADING  = 0;
@@ -107,14 +108,7 @@ interface nsIObjectLoadingContent : nsISupports
    * because nsIObjectFrame is unscriptable.
    */
   [noscript] void hasNewFrame(in nsIObjectFrame aFrame);
-};
 
-/**
- * This interface extends the nsIObjectLoadingContent for the 1.9.2 branch
- */
-[scriptable, uuid(2725a137-db4b-4e43-a096-a084aeaa8b0b)]
-interface nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH : nsISupports
-{
   /**
    * Tells the object to paint directly in this location ignoring any
    * positioning information that may have been provided otherwise
@@ -122,6 +116,14 @@ interface nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH : nsISupports
   void setAbsoluteScreenPosition(in nsIDOMElement element,
                                  in nsIDOMClientRect position,
                                  in nsIDOMClientRect clip);
+
+  /**
+   * If this object is in going to be printed, this method
+   * returns the nsIObjectFrame object which should be used when
+   * printing the plugin. The returned nsIFrame is in the original document,
+   * not in the static clone.
+   */
+  [noscript] nsIFrame getPrintFrame();
 
   [noscript] void pluginCrashed(in nsIPluginTag pluginTag,
                                 in AString pluginDumpID,

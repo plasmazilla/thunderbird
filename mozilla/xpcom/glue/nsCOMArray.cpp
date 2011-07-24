@@ -158,3 +158,23 @@ nsCOMArray_base::Clear()
     objects.EnumerateForwards(ReleaseObjects, nsnull);
 }
 
+PRBool
+nsCOMArray_base::SetCount(PRInt32 aNewCount)
+{
+    NS_ASSERTION(aNewCount >= 0,"SetCount(negative index)");
+    if (aNewCount < 0)
+      return PR_FALSE;
+
+    PRInt32 count = Count(), i;
+    nsAutoVoidArray objects;
+    if (count > aNewCount) {
+        objects.SetCount(count - aNewCount);
+        for (i = aNewCount; i < count; ++i) {
+            objects.ReplaceElementAt(ObjectAt(i), i - aNewCount);
+        }
+    }
+    PRBool result = mArray.SetCount(aNewCount);
+    objects.EnumerateForwards(ReleaseObjects, nsnull);
+    return result;
+}
+

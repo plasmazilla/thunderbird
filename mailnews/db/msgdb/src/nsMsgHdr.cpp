@@ -78,7 +78,6 @@ void nsMsgHdr::Init()
   m_date = LL_ZERO;
   m_flags = 0;
   m_mdbRow = NULL;
-  m_numReferences = 0;
   m_threadId = nsMsgKey_None;
   m_threadParent = nsMsgKey_None;
 }
@@ -335,13 +334,11 @@ NS_IMETHODIMP nsMsgHdr::GetNumReferences(PRUint16 *result)
     if (NS_SUCCEEDED(m_mdb->RowCellColumnToConstCharPtr(GetMDBRow(),
                        m_mdb->m_referencesColumnToken, &references)))
       ParseReferences(references);
-    else
-      m_numReferences = 0;
     m_initedValues |= REFERENCES_INITED;
   }
 
   if (result)
-    *result = m_numReferences;
+    *result = m_references.Length();
   // there is no real failure here; if there are no references, there are no
   //  references.
   return NS_OK;
@@ -360,9 +357,8 @@ nsresult nsMsgHdr::ParseReferences(const char *references)
                                     startNextRef == references);
     // Don't add self-references.
     if (!resultReference.IsEmpty() && !resultReference.Equals(messageId))
-      m_references.AppendCString(resultReference);
+      m_references.AppendElement(resultReference);
   }
-  m_numReferences = m_references.Count();
   return NS_OK;
 }
 
@@ -373,8 +369,8 @@ NS_IMETHODIMP nsMsgHdr::GetStringReference(PRInt32 refNum, nsACString& resultRef
   if(!(m_initedValues & REFERENCES_INITED))
     GetNumReferences(nsnull); // it can handle the null
 
-  if (refNum < m_numReferences)
-    m_references.CStringAt(refNum, resultReference);
+  if ((PRUint32)refNum < m_references.Length())
+    resultReference = m_references.ElementAt(refNum);
   else
     err = NS_ERROR_ILLEGAL_VALUE;
   return err;
@@ -419,13 +415,8 @@ NS_IMETHODIMP nsMsgHdr::SetAuthor(const char *author)
 NS_IMETHODIMP nsMsgHdr::SetReferences(const char *references)
 {
   NS_ENSURE_ARG_POINTER(references);
-  if (*references == '\0') {
-    m_numReferences = 0;
-  }
-  else {
-    m_references.Clear();
-    ParseReferences(references);
-  }
+  m_references.Clear();
+  ParseReferences(references);
 
   m_initedValues |= REFERENCES_INITED;
 
@@ -968,7 +959,7 @@ NS_IMETHODIMP nsMsgHdr::GetIsRead(PRBool *isRead)
   NS_ENSURE_ARG_POINTER(isRead);
   if (!(m_initedValues & FLAGS_INITED))
     InitFlags();
-  *isRead = m_flags & nsMsgMessageFlags::Read;
+  *isRead = !!(m_flags & nsMsgMessageFlags::Read);
   return NS_OK;
 }
 
@@ -977,7 +968,7 @@ NS_IMETHODIMP nsMsgHdr::GetIsFlagged(PRBool *isFlagged)
   NS_ENSURE_ARG_POINTER(isFlagged);
   if (!(m_initedValues & FLAGS_INITED))
     InitFlags();
-  *isFlagged = m_flags & nsMsgMessageFlags::Marked;
+  *isFlagged = !!(m_flags & nsMsgMessageFlags::Marked);
   return NS_OK;
 }
 
@@ -1042,6 +1033,8 @@ PRBool nsMsgHdr::IsAncestorKilled(PRUint32 ancestorsToCheck)
       NS_ERROR("Thread is parent of itself, please fix!");
       nsCOMPtr<nsIMsgThread> thread;
       (void) m_mdb->GetThreadContainingMsgHdr(this, getter_AddRefs(thread));
+      if (!thread)
+        return PR_FALSE;
       ReparentInThread(thread);
       // Something's wrong, but the problem happened some time ago, so erroring
       // out now is probably not a good idea. Ergo, we'll pretend to be OK, show

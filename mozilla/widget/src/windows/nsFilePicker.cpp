@@ -71,12 +71,6 @@ char nsFilePicker::mLastUsedDirectory[MAX_PATH+1] = { 0 };
 
 #define MAX_EXTENSION_LENGTH 10
 
-#ifndef BIF_USENEWUI
-// BIF_USENEWUI isn't defined in the platform SDK that comes with
-// MSVC6.0. 
-#define BIF_USENEWUI 0x50
-#endif
-
 //-------------------------------------------------------------------------
 //
 // nsFilePicker constructor
@@ -158,7 +152,7 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
 
     BROWSEINFOW browserInfo;
     browserInfo.hwndOwner      = (HWND)
-      (mParentWidget.get() ? mParentWidget->GetNativeData(NS_NATIVE_WINDOW) : 0); 
+      (mParentWidget.get() ? mParentWidget->GetNativeData(NS_NATIVE_TMP_WINDOW) : 0); 
     browserInfo.pidlRoot       = nsnull;
     browserInfo.pszDisplayName = (LPWSTR)dirBuffer;
     browserInfo.lpszTitle      = mTitle.get();
@@ -208,7 +202,7 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
     // If we're running fullscreen the dialog inherits that, which is bad
     ofn.hwndOwner    = (HWND) 0;
 #else
-    ofn.hwndOwner    = (HWND) (mParentWidget.get() ? mParentWidget->GetNativeData(NS_NATIVE_WINDOW) : 0); 
+    ofn.hwndOwner    = (HWND) (mParentWidget.get() ? mParentWidget->GetNativeData(NS_NATIVE_TMP_WINDOW) : 0); 
 #endif
     ofn.lpstrFile    = fileBuffer;
     ofn.nMaxFile     = FILE_BUFFER_SIZE;
@@ -242,7 +236,7 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
     }
 
 #ifndef WINCE
-    try {
+    MOZ_SEH_TRY {
 #endif
       if (mMode == modeOpen) {
         // FILE MUST EXIST!
@@ -288,11 +282,11 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
       }
 #endif
       else {
-        NS_ASSERTION(0, "unsupported mode"); 
+        NS_ERROR("unsupported mode"); 
       }
 #ifndef WINCE
     }
-    catch(...) {
+    MOZ_SEH_EXCEPT(PR_TRUE) {
       MessageBoxW(ofn.hwndOwner,
                   0,
                   L"The filepicker was unexpectedly closed by Windows.",
@@ -300,8 +294,8 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
       result = PR_FALSE;
     }
 #endif
-  
-    if (result == PR_TRUE) {
+
+    if (result) {
       // Remember what filter type the user selected
       mSelectedType = (PRInt16)ofn.nFilterIndex;
 
@@ -358,7 +352,9 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
         mUnicodeFile.Assign(fileBuffer);
       }
     }
-
+    if (ofn.hwndOwner) {
+      ::DestroyWindow(ofn.hwndOwner);
+    }
   }
 
   if (result) {

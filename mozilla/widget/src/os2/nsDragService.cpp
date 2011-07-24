@@ -50,7 +50,6 @@
 #include "nsIURL.h"
 #include "nsNetUtil.h"
 #include "nsOS2Uni.h"
-#include "nsdefs.h"
 #include "wdgtos2rc.h"
 #include "nsILocalFileOS2.h"
 #include "nsIDocument.h"
@@ -75,6 +74,13 @@
 #define OS2FILE_NAME    "MOZ_TGT.TMP"
 #define OS2FILE_TXTRMF  "<DRM_OS2FILE, DRF_TEXT>"
 #define OS2FILE_UNKRMF  "<DRM_OS2FILE, DRF_UNKNOWN>"
+
+// not defined in the OS/2 toolkit headers
+extern "C" {
+APIRET APIENTRY DosQueryModFromEIP(HMODULE *phMod, ULONG *pObjNum,
+                                   ULONG BuffLen,  PCHAR pBuff,
+                                   ULONG *pOffset, ULONG Address);
+}
 
 // --------------------------------------------------------------------------
 // Helper functions
@@ -368,13 +374,13 @@ MRESULT EXPENTRY nsDragWindowProc(HWND hWnd, ULONG msg, MPARAM mp1, MPARAM mp2)
 
 NS_IMETHODIMP nsDragService::StartDragSession()
 {
-  NS_ASSERTION(0, "OS/2 version of StartDragSession() should never be called!");
+  NS_ERROR("OS/2 version of StartDragSession() should never be called!");
   return NS_OK;
 }
 
 NS_IMETHODIMP nsDragService::EndDragSession(PRBool aDragDone)
 {
-  NS_ASSERTION(0, "OS/2 version of EndDragSession() should never be called!");
+  NS_ERROR("OS/2 version of EndDragSession() should never be called!");
   return NS_OK;
 }
 

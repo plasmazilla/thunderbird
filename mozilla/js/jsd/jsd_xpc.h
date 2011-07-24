@@ -277,7 +277,7 @@ class jsdService : public jsdIDebuggerService
     NS_DECL_ISUPPORTS
     NS_DECL_JSDIDEBUGGERSERVICE
 
-    jsdService() : mInitAtStartup(triUnknown), mOn(PR_FALSE), mPauseLevel(0),
+    jsdService() : mOn(PR_FALSE), mPauseLevel(0),
                    mNestedLoopLevel(0), mCx(0), mRuntime(0), mErrorHook(0),
                    mBreakpointHook(0), mDebugHook(0), mDebuggerHook(0),
                    mInterruptHook(0), mScriptHook(0), mThrowHook(0),
@@ -288,15 +288,10 @@ class jsdService : public jsdIDebuggerService
     virtual ~jsdService();
     
     static jsdService *GetService ();
+
+    PRBool CheckInterruptHook() { return !!mInterruptHook; }
     
   private:
-    enum Tristate {
-        triUnknown = 0U,
-        triYes = 1U,
-        triNo = 2U
-    };
-        
-    Tristate    mInitAtStartup;
     PRBool      mOn;
     PRUint32    mPauseLevel;
     PRUint32    mNestedLoopLevel;
@@ -312,7 +307,7 @@ class jsdService : public jsdIDebuggerService
     nsCOMPtr<jsdIExecutionHook> mThrowHook;
     nsCOMPtr<jsdICallHook>      mTopLevelHook;
     nsCOMPtr<jsdICallHook>      mFunctionHook;
-
+    nsCOMPtr<jsdIActivationCallback> mActivationCallback;
 };
 
 #endif /* JSDSERVICE_H___ */

@@ -41,8 +41,107 @@
 
 interface nsIDocShell;
 interface nsIURI;
+interface nsIFrame;
+interface nsIChromeFrameMessageManager;
+interface nsIVariant;
 
-[scriptable, uuid(d675c531-6bdc-417c-b176-635060105f07)]
+typedef unsigned long long nsContentViewId;
+
+/**
+ * These interfaces do *not* scroll or scale the content document;
+ * instead they set a "goal" scroll/scale wrt the current content
+ * view.  When the content document is painted, the scroll*
+ * attributes are used to set a compensating transform.  If the
+ * metrics of the content document's current pixels don't match the
+ * view config, the transform matrix may need to translate
+ * content pixels and/or perform a "fuzzy-scale" that doesn't
+ * re-rasterize fonts or intelligently resample images.
+ *
+ * The attrs are allowed to transform content pixels in
+ * such a way that the <browser>'s visible rect encloses pixels that
+ * the content document does not (yet) define.
+ *
+ * The view scroll values are in units of chrome-document CSS
+ * pixels.
+ *
+ * These APIs are designed to be used with nsIDOMWindowUtils
+ * setDisplayPort() and setResolution().
+ */
+[scriptable, uuid(fbd25468-d2cf-487b-bc58-a0e105398b47)]
+interface nsIContentView : nsISupports
+{
+  /**
+   * Scroll view to or by the given chrome-document CSS pixels.
+   * Fails if the view is no longer valid.
+   */
+  void scrollTo(in float xPx, in float yPx);
+  void scrollBy(in float dxPx, in float dyPx);
+
+  void setScale(in float xScale, in float yScale);
+
+  /**
+   * Scroll offset in chrome-document CSS pixels.
+   *
+   * When this view is active (i.e. it is being painted because it's in the
+   * visible region of the screen), this value is at first lined up with the
+   * content's scroll offset.
+   *
+   * Note that when this view becomes inactive, the new content view will have
+   * scroll values that are reset to the default!
+   */
+  readonly attribute float scrollX;
+  readonly attribute float scrollY;
+
+  /**
+   * Dimensions of the viewport in chrome-document CSS pixels.
+   */
+  readonly attribute float viewportWidth;
+  readonly attribute float viewportHeight;
+
+  /**
+   * Dimensions of scrolled content in chrome-document CSS pixels.
+   */
+  readonly attribute float contentWidth;
+  readonly attribute float contentHeight;
+
+  /**
+   * ID that can be used in conjunction with nsIDOMWindowUtils to change
+   * the actual document, instead of just how it is transformed.
+   */
+  readonly attribute nsContentViewId id;
+};
+
+[scriptable, uuid(ba5af90d-ece5-40b2-9a1d-a0154128db1c)]
+interface nsIContentViewManager : nsISupports
+{
+  /**
+   * Retrieve view scrolling/scaling interfaces in a given area,
+   * used to support asynchronous re-paints of content pixels.
+   * These interfaces are only meaningful for <browser>.
+   *
+   * Pixels are in chrome device pixels and are relative to the browser
+   * element.
+   *
+   * @param aX x coordinate that will be in target rectangle
+   * @param aY y coordinate that will be in target rectangle
+   * @param aTopSize How much to expand up the rectangle
+   * @param aRightSize How much to expand right the rectangle
+   * @param aBottomSize How much to expand down the rectangle
+   * @param aLeftSize How much to expand left the rectangle
+   */
+  void getContentViewsIn(in float aXPx, in float aYPx,
+                         in float aTopSize, in float aRightSize,
+                         in float aBottomSize, in float aLeftSize,
+                         [optional] out unsigned long aLength,
+                         [retval, array, size_is(aLength)] out nsIContentView aResult);
+
+  /**
+   * The root content view.
+   */
+  readonly attribute nsIContentView rootContentView;
+};
+
+[scriptable, uuid(13c512d6-fba0-402a-9244-fe7941c43965)]
 interface nsIFrameLoader : nsISupports
 {
   /**
@@ -74,15 +173,79 @@ interface nsIFrameLoader : nsISupports
    * or may not be allowed on the loader's docshell.
    */
   readonly attribute boolean depthTooGreat;
+
+  /**
+   * Updates the position and size of the subdocument loaded by this frameloader.
+   *
+   *  @param aIFrame The nsIFrame for the content node that owns this frameloader
+   */
+  [noscript] void updatePositionAndSize(in nsIFrame aIFrame);
+
+  /**
+   * Activate remote frame.
+   * Throws an exception with non-remote frames.
+   */
+  void activateRemoteFrame();
+
+  /**
+   * @see nsIDOMWindowUtils sendMouseEvent.
+   */
+  void sendCrossProcessMouseEvent(in AString aType,
+                                  in float aX,
+                                  in float aY,
+                                  in long aButton,
+                                  in long aClickCount,
+                                  in long aModifiers,
+                                  [optional] in boolean aIgnoreRootScrollFrame);
+
+  /**
+   * Activate event forwarding from client (remote frame) to parent.
+   */
+  void activateFrameEvent(in AString aType, in boolean capture);
+
+  // Note, when frameloaders are swapped, also messageManagers are swapped.
+  readonly attribute nsIChromeFrameMessageManager messageManager;
+
+  /**
+   * @see nsIDOMWindowUtils sendKeyEvent.
+   */
+  void sendCrossProcessKeyEvent(in AString aType,
+                                in long aKeyCode,
+                                in long aCharCode,
+                                in long aModifiers,
+                                [optional] in boolean aPreventDefault);
+
+  attribute boolean delayRemoteDialogs;
+
+  /** 
+   * The default rendering mode is synchronous scrolling.  In this
+   * mode, it's an error to try to set a target viewport.
+   */
+  const unsigned long RENDER_MODE_DEFAULT        = 0x00000000;
+
+  /**
+   * When asynchronous scrolling is enabled, a target viewport can be
+   * set to transform content pixels wrt its CSS viewport.
+   *
+   * NB: when async scrolling is enabled, it's the *user's*
+   * responsibility to update the target scroll offset.  In effect,
+   * the platform hands over control of scroll offset to the user.
+   */
+  const unsigned long RENDER_MODE_ASYNC_SCROLL   = 0x00000001;
+
+  attribute unsigned long renderMode;
 };
 
-[scriptable, uuid(641c2d90-4ada-4367-bdb1-80831614161d)]
+native alreadyAddRefed_nsFrameLoader(already_AddRefed<nsFrameLoader>);
+
+[scriptable, uuid(5879040e-83e9-40e3-b2bb-5ddf43b76e47)]
 interface nsIFrameLoaderOwner : nsISupports
 {
   /**
    * The frame loader owned by this nsIFrameLoaderOwner
    */
   readonly attribute nsIFrameLoader frameLoader;
+  [noscript, notxpcom] alreadyAddRefed_nsFrameLoader GetFrameLoader();
 
   /**
    * Swap frame loaders with the given nsIFrameLoaderOwner.  This may

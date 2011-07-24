@@ -45,30 +45,9 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= widgetutils
 XPI_NAME	= widgetutils
 LIBRARY_NAME    = widgetutils
-ifneq ($(OS_ARCH),WINNT)
 SHORT_LIBNAME = widgetutils
-endif
 FORCE_SHARED_LIB = 1
 IS_COMPONENT = 1
-
-REQUIRES = \
-	dom \
-	layout \
-	content \
-	widget \
-	necko \
-	windowwatcher \
-	xpcom \
-	string \
-	pref \
-	gfx \
-	locale \
-	docshell \
-	uriloader \
-	webbrwsr \
-	imglib2 \
-	view \
-	$(NULL)
 
 CPPSRCS		= nsWidgetUtils.cpp
 

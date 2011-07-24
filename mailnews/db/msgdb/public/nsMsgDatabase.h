@@ -40,7 +40,6 @@
 
 #include "nsIMsgDatabase.h"
 #include "nsMsgHdr.h"
-#include "nsVoidArray.h"
 #include "nsStringGlue.h"
 #include "nsIDBChangeListener.h"
 #include "nsIDBChangeAnnouncer.h"
@@ -76,6 +75,7 @@ public:
   ~nsMsgDBService();
 protected:
   void HookupPendingListeners(nsIMsgDatabase *db, nsIMsgFolder *folder);
+  void FinishDBOpen(nsIMsgFolder *aFolder, nsMsgDatabase *aMsgDB);
 
   nsCOMArray <nsIMsgFolder> m_foldersPendingListeners;
   nsCOMArray <nsIDBChangeListener> m_pendingListeners;
@@ -143,7 +143,10 @@ public:
   virtual nsresult IsHeaderRead(nsIMsgDBHdr *hdr, PRBool *pRead);
   virtual nsresult MarkHdrReadInDB(nsIMsgDBHdr *msgHdr, PRBool bRead,
                                nsIDBChangeListener *instigator);
-  virtual nsresult OpenMDB(const char *dbName, PRBool create);
+  nsresult OpenInternal(nsILocalFile *aFolderName, PRBool aCreate,
+                        PRBool aLeaveInvalidDB, PRBool sync);
+  nsresult CheckForErrors(nsresult err, nsILocalFile *summaryFile);
+  virtual nsresult OpenMDB(const char *dbName, PRBool create, PRBool sync);
   virtual nsresult CloseMDB(PRBool commit);
   virtual nsresult CreateMsgHdr(nsIMdbRow* hdrRow, nsMsgKey key, nsIMsgDBHdr **result);
   virtual nsresult GetThreadForMsgKey(nsMsgKey msgKey, nsIMsgThread **result);
@@ -299,6 +302,13 @@ protected:
   nsIMdbStore   *m_mdbStore;
   nsIMdbTable   *m_mdbAllMsgHeadersTable;
   nsIMdbTable   *m_mdbAllThreadsTable;
+  // Used for asynchronous db opens. If non-null, we're still opening
+  // the underlying mork database. If null, the db has been completely opened.
+  nsCOMPtr<nsIMdbThumb> m_thumb;
+  // used to remember the args to Open for async open.
+  PRPackedBool m_create;
+  PRPackedBool m_leaveInvalidDB;
+
   nsCString     m_dbName;
   nsTArray<nsMsgKey> m_newSet;  // new messages since last open.
   PRBool        m_mdbTokensInitialized;
@@ -337,7 +347,6 @@ protected:
   nsIMsgHeaderParser  *m_HeaderParser;
   
   // header caching stuff - MRU headers, keeps them around in memory
-  nsresult      GetHdrFromCache(nsMsgKey key, nsIMsgDBHdr* *result);
   nsresult      AddHdrToCache(nsIMsgDBHdr *hdr, nsMsgKey key);
   nsresult      ClearHdrCache(PRBool reInit);
   nsresult      RemoveHdrFromCache(nsIMsgDBHdr *hdr, nsMsgKey key);
@@ -347,7 +356,16 @@ protected:
   nsresult      AddHdrToUseCache(nsIMsgDBHdr *hdr, nsMsgKey key); 
   nsresult      ClearUseHdrCache();
   nsresult      RemoveHdrFromUseCache(nsIMsgDBHdr *hdr, nsMsgKey key);
-  
+
+  // not-reference holding array of threads we've handed out.
+  // If a db goes away, it will clean up the outstanding threads.
+  // We use an nsTArray because we don't expect to ever have very many
+  // of these, rarely more than 5.
+  nsTArray<nsMsgThread *> m_threads;
+  // Clear outstanding thread objects
+  void ClearThreads();
+  nsMsgThread *FindExistingThread(nsMsgKey threadId);
+
   mdb_pos       FindInsertIndexInSortedTable(nsIMdbTable *table, mdb_id idToInsert);
 
   void          ClearCachedObjects(PRBool dbGoingAway);

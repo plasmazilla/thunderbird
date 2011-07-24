@@ -47,26 +47,12 @@
 #include "nsPresContext.h"
 #include "nsCOMPtr.h"
 #include "nsIContent.h"
-#include "nsIPresShell.h"
 #include "nsHTMLContainerFrame.h"
 #include "nsIFrame.h"
 #include "nsBoxLayout.h"
 
 nsBoxLayout::nsBoxLayout()
 {
-}
-
-void
-nsBoxLayout::GetParentLayout(nsIBox* aBox, nsIBoxLayout** aParent)
-{
-  nsIBox* parent = aBox->GetParentBox();
-  if (parent)
-  {
-    parent->GetLayoutManager(aParent);
-    return;
-  }
-
-  *aParent = nsnull;
 }
 
 void

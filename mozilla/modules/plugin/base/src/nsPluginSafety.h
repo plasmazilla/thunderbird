@@ -62,18 +62,18 @@ PR_BEGIN_MACRO                                                  \
     res = pref->GetBoolPref("plugin.dont_try_safe_calls", &gSkipPluginSafeCalls);\
 PR_END_MACRO
 
-#define NS_TRY_SAFE_CALL_RETURN(ret, fun, library, pluginInst) \
+#define NS_TRY_SAFE_CALL_RETURN(ret, fun, pluginInst) \
 PR_BEGIN_MACRO                                     \
   PRIntervalTime startTime = PR_IntervalNow();     \
   if(gSkipPluginSafeCalls)                         \
     ret = fun;                                     \
   else                                             \
   {                                                \
-    try                                            \
+    MOZ_SEH_TRY                                    \
     {                                              \
       ret = fun;                                   \
     }                                              \
-    catch(...)                                     \
+    MOZ_SEH_EXCEPT(PR_TRUE)                        \
     {                                              \
       nsresult res;                                \
       nsCOMPtr<nsIPluginHost> host(do_GetService(MOZ_PLUGIN_HOST_CONTRACTID, &res));\
@@ -85,18 +85,18 @@ PR_BEGIN_MACRO                                     \
   NS_NotifyPluginCall(startTime);		   \
 PR_END_MACRO
 
-#define NS_TRY_SAFE_CALL_VOID(fun, library, pluginInst) \
+#define NS_TRY_SAFE_CALL_VOID(fun, pluginInst) \
 PR_BEGIN_MACRO                              \
   PRIntervalTime startTime = PR_IntervalNow();     \
   if(gSkipPluginSafeCalls)                  \
     fun;                                    \
   else                                      \
   {                                         \
-    try                                     \
+    MOZ_SEH_TRY                             \
     {                                       \
       fun;                                  \
     }                                       \
-    catch(...)                              \
+    MOZ_SEH_EXCEPT(PR_TRUE)                 \
     {                                       \
       nsresult res;                         \
       nsCOMPtr<nsIPluginHost> host(do_GetService(MOZ_PLUGIN_HOST_CONTRACTID, &res));\
@@ -109,14 +109,14 @@ PR_END_MACRO
 
 #else // vanilla calls
 
-#define NS_TRY_SAFE_CALL_RETURN(ret, fun, library, pluginInst) \
+#define NS_TRY_SAFE_CALL_RETURN(ret, fun, pluginInst) \
 PR_BEGIN_MACRO                                     \
   PRIntervalTime startTime = PR_IntervalNow();     \
   ret = fun;                                       \
   NS_NotifyPluginCall(startTime);		   \
 PR_END_MACRO
 
-#define NS_TRY_SAFE_CALL_VOID(fun, library, pluginInst) \
+#define NS_TRY_SAFE_CALL_VOID(fun, pluginInst) \
 PR_BEGIN_MACRO                              \
   PRIntervalTime startTime = PR_IntervalNow();     \
   fun;                                      \

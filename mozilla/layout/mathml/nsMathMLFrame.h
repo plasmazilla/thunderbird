@@ -59,6 +59,11 @@ public:
 
   // nsIMathMLFrame ---
 
+  virtual PRBool
+  IsSpaceLike() {
+    return NS_MATHML_IS_SPACE_LIKE(mPresentationData.flags);
+  }
+
   NS_IMETHOD
   GetBoundingMetrics(nsBoundingMetrics& aBoundingMetrics) {
     aBoundingMetrics = mBoundingMetrics;
@@ -68,12 +73,6 @@ public:
   NS_IMETHOD
   SetBoundingMetrics(const nsBoundingMetrics& aBoundingMetrics) {
     mBoundingMetrics = aBoundingMetrics;
-    return NS_OK;
-  }
-
-  NS_IMETHOD
-  GetReference(nsPoint& aReference) {
-    aReference = mReference;
     return NS_OK;
   }
 
@@ -99,22 +98,10 @@ public:
     aEmbellishData = mEmbellishData;
     return NS_OK;
   }
- 
-  NS_IMETHOD
-  SetEmbellishData(const nsEmbellishData& aEmbellishData) {
-    mEmbellishData = aEmbellishData;
-    return NS_OK;
-  }
 
   NS_IMETHOD
   GetPresentationData(nsPresentationData& aPresentationData) {
     aPresentationData = mPresentationData;
-    return NS_OK;
-  }
-
-  NS_IMETHOD
-  SetPresentationData(const nsPresentationData& aPresentationData) {
-    mPresentationData = aPresentationData;
     return NS_OK;
   }
 

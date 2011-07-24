@@ -50,6 +50,7 @@
 #include "prio.h"
 #include "nsASocketHandler.h"
 #include "nsIObserver.h"
+#include "mozilla/Mutex.h"
 
 //-----------------------------------------------------------------------------
 
@@ -59,8 +60,8 @@
 //
 extern PRLogModuleInfo *gSocketTransportLog;
 #endif
-#define LOG(args)     PR_LOG(gSocketTransportLog, PR_LOG_DEBUG, args)
-#define LOG_ENABLED() PR_LOG_TEST(gSocketTransportLog, PR_LOG_DEBUG)
+#define SOCKET_LOG(args)     PR_LOG(gSocketTransportLog, PR_LOG_DEBUG, args)
+#define SOCKET_LOG_ENABLED() PR_LOG_TEST(gSocketTransportLog, PR_LOG_DEBUG)
 
 //-----------------------------------------------------------------------------
 
@@ -75,6 +76,8 @@ class nsSocketTransportService : public nsPISocketTransportService
                                , public nsIRunnable
                                , public nsIObserver
 {
+    typedef mozilla::Mutex Mutex;
+
 public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSPISOCKETTRANSPORTSERVICE
@@ -126,7 +129,7 @@ private:
     // initialization and shutdown (any thread)
     //-------------------------------------------------------------------------
 
-    PRLock       *mLock;
+    Mutex         mLock;
     PRPackedBool  mInitialized;
     PRPackedBool  mShuttingDown;
                             // indicates whether we are currently in the

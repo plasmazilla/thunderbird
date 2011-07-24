@@ -38,6 +38,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsSVGGraphicElement.h"
+#include "nsSVGSVGElement.h"
 #include "nsSVGTransformList.h"
 #include "nsSVGAnimatedTransformList.h"
 #include "nsGkAtoms.h"
@@ -64,7 +65,7 @@ NS_INTERFACE_MAP_END_INHERITING(nsSVGGraphicElementBase)
 //----------------------------------------------------------------------
 // Implementation
 
-nsSVGGraphicElement::nsSVGGraphicElement(nsINodeInfo *aNodeInfo)
+nsSVGGraphicElement::nsSVGGraphicElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGGraphicElementBase(aNodeInfo)
 {
 }
@@ -82,7 +83,7 @@ NS_IMETHODIMP nsSVGGraphicElement::GetNearestViewportElement(nsIDOMSVGElement * 
 /* readonly attribute nsIDOMSVGElement farthestViewportElement; */
 NS_IMETHODIMP nsSVGGraphicElement::GetFarthestViewportElement(nsIDOMSVGElement * *aFarthestViewportElement)
 {
-  *aFarthestViewportElement = nsSVGUtils::GetFarthestViewportElement(this).get();
+  NS_IF_ADDREF(*aFarthestViewportElement = nsSVGUtils::GetOuterSVGElement(this));
   return NS_OK;
 }
 
@@ -185,21 +186,37 @@ nsSVGGraphicElement::IsEventName(nsIAtom* aName)
 gfxMatrix
 nsSVGGraphicElement::PrependLocalTransformTo(const gfxMatrix &aMatrix)
 {
-  if (!mTransforms)
-    return aMatrix;
+  gfxMatrix result(aMatrix);
 
-  nsresult rv;
-  nsCOMPtr<nsIDOMSVGTransformList> transforms;
-  rv = mTransforms->GetAnimVal(getter_AddRefs(transforms));
-  NS_ENSURE_SUCCESS(rv, aMatrix);
-  PRUint32 count;
-  transforms->GetNumberOfItems(&count);
-  if (count == 0)
-    return aMatrix;
+  // animateMotion's resulting transform is supposed to apply *on top of*
+  // any transformations from the |transform| attribute. So since we're
+  // PRE-multiplying, we need to apply the animateMotion transform *first*.
+  if (mAnimateMotionTransform) {
+    result.PreMultiply(*mAnimateMotionTransform);
+  }
 
-  nsCOMPtr<nsIDOMSVGMatrix> matrix =
-    nsSVGTransformList::GetConsolidationMatrix(transforms);
-  return gfxMatrix(aMatrix).PreMultiply(nsSVGUtils::ConvertSVGMatrixToThebes(matrix));
+  if (mTransforms) {
+    nsresult rv;
+    nsCOMPtr<nsIDOMSVGTransformList> transforms;
+    rv = mTransforms->GetAnimVal(getter_AddRefs(transforms));
+    NS_ENSURE_SUCCESS(rv, aMatrix);
+    PRUint32 count;
+    transforms->GetNumberOfItems(&count);
+    if (count > 0) {
+      nsCOMPtr<nsIDOMSVGMatrix> matrix =
+        nsSVGTransformList::GetConsolidationMatrix(transforms);
+      result.PreMultiply(nsSVGUtils::ConvertSVGMatrixToThebes(matrix));
+    }
+  }
+
+  return result;
+}
+
+void
+nsSVGGraphicElement::SetAnimateMotionTransform(const gfxMatrix* aMatrix)
+{
+  mAnimateMotionTransform = aMatrix ? new gfxMatrix(*aMatrix) : nsnull;
+  DidAnimateTransform();
 }
 
 nsresult

@@ -48,7 +48,7 @@
 #include "prmem.h"
 #include "plstr.h"
 #include "nsIComponentManager.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsIIOService.h"
 #include "nsIChannel.h"
 #include "nsNetUtil.h"
@@ -60,6 +60,7 @@
 #include "nsISeekableStream.h"
 #include "nsIStreamConverterService.h"
 #include "nsIMsgProgress.h"
+#include "nsMsgUtils.h"
 
 NS_IMPL_ISUPPORTS7(nsURLFetcher,
                    nsIURLFetcher,
@@ -76,10 +77,6 @@ NS_IMPL_ISUPPORTS7(nsURLFetcher,
  */
 nsURLFetcher::nsURLFetcher()
 {
-#if defined(DEBUG_ducarroz)
-  printf("CREATE nsURLFetcher: %x\n", this);
-#endif
-
   // Init member variables...
   mTotalWritten = 0;
   mBuffer = nsnull;
@@ -94,9 +91,6 @@ nsURLFetcher::nsURLFetcher()
 
 nsURLFetcher::~nsURLFetcher()
 {
-#if defined(DEBUG_ducarroz)
-  printf("DISPOSE nsURLFetcher: %x\n", this);
-#endif
   mStillRunning = PR_FALSE;
   
   PR_FREEIF(mBuffer);
@@ -280,9 +274,6 @@ nsURLFetcher::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 NS_IMETHODIMP
 nsURLFetcher::OnStopRequest(nsIRequest *request, nsISupports * ctxt, nsresult aStatus)
 {
-#if defined(DEBUG_ducarroz)
-  printf("nsURLFetcher::OnStopRequest()\n");
-#endif
 
   nsresult rv = NS_OK;
 
@@ -314,8 +305,8 @@ nsURLFetcher::OnStopRequest(nsIRequest *request, nsISupports * ctxt, nsresult aS
     mOutStream = nsnull;
   
     /* In case of multipart/x-mixed-replace, we need to truncate the file to the current part size */
-    if (mConverterContentType.LowerCaseEqualsLiteral(MULTIPART_MIXED_REPLACE))
-  {
+    if (MsgLowerCaseEqualsLiteral(mConverterContentType, MULTIPART_MIXED_REPLACE))
+    {
       PRInt64 fileSize;
       LL_I2L(fileSize, mTotalWritten);
       mLocalFile->SetFileSize(fileSize);
@@ -455,16 +446,10 @@ NS_IMPL_ISUPPORTS2(nsURLFetcherStreamConsumer, nsIStreamListener, nsIRequestObse
 nsURLFetcherStreamConsumer::nsURLFetcherStreamConsumer(nsURLFetcher* urlFetcher) :
   mURLFetcher(urlFetcher)
 {
-#if defined(DEBUG_ducarroz)
-  printf("CREATE nsURLFetcherStreamConsumer: %x\n", this);
-#endif
 }
 
 nsURLFetcherStreamConsumer::~nsURLFetcherStreamConsumer()
 {
-#if defined(DEBUG_ducarroz)
-  printf("DISPOSE nsURLFetcherStreamConsumer: %x\n", this);
-#endif
 }
 
 /** nsIRequestObserver methods **/
@@ -476,7 +461,7 @@ NS_IMETHODIMP nsURLFetcherStreamConsumer::OnStartRequest(nsIRequest *aRequest, n
     return NS_ERROR_FAILURE;
 
   /* In case of multipart/x-mixed-replace, we need to erase the output file content */
-  if (mURLFetcher->mConverterContentType.LowerCaseEqualsLiteral(MULTIPART_MIXED_REPLACE))
+  if (MsgLowerCaseEqualsLiteral(mURLFetcher->mConverterContentType, MULTIPART_MIXED_REPLACE))
   {
     nsCOMPtr<nsISeekableStream> seekStream = do_QueryInterface(mURLFetcher->mOutStream);
     if (seekStream)

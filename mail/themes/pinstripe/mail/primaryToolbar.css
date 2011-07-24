@@ -47,10 +47,10 @@
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
 /* Inactive window state */
-#messengerWindow:not([active="true"]) > #mail-toolbox > toolbar {
+#mail-toolbox > toolbar:-moz-window-inactive > toolbar {
   border-top-color: rgba(255,255,255,0.45);
   border-bottom-color: rgba(0,0,0,0.35);
-  background-color: #cfcfcf;
+  background-color: -moz-mac-chrome-inactive;
 }
 
 #mail-bar3 {
@@ -689,10 +689,10 @@ toolbar[iconsize="small"] #button-archive[disabled] {
   border: 1px solid #DDDDE1;
   color: black;
   padding: 0.3em 0.2em;
-  -moz-border-radius-bottomleft: 0.2em;
-  -moz-border-radius-bottomright: 0.2em;
-  -moz-border-radius-topleft: 0.2em;
-  -moz-border-radius-topright: 0.2em;
+  border-bottom-left-radius: 0.2em;
+  border-bottom-right-radius: 0.2em;
+  border-top-left-radius: 0.2em;
+  border-top-right-radius: 0.2em;
 }
 
 #remoteContentDescription {
@@ -725,10 +725,10 @@ toolbar[iconsize="small"] #button-archive[disabled] {
   border: 1px solid #DDDDE1;
   color: black;
   padding: 0.3em 0.2em;
-  -moz-border-radius-bottomleft: 0.2em;
-  -moz-border-radius-bottomright: 0.2em;
-  -moz-border-radius-topleft: 0.2em;
-  -moz-border-radius-topright: 0.2em;
+  border-bottom-left-radius: 0.2em;
+  border-bottom-right-radius: 0.2em;
+  border-top-left-radius: 0.2em;
+  border-top-right-radius: 0.2em;
 }
 
 

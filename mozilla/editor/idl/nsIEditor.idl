@@ -53,15 +53,9 @@ interface nsITransaction;
 interface nsIEditorObserver;
 interface nsIEditActionListener;
 interface nsIInlineSpellChecker;
+interface nsITransferable;
 
-%{C++
-class nsIPresShell;
-typedef short EDirection;
-%}
-
-[ptr] native nsIPresShellPtr(nsIPresShell);
-
-[scriptable, uuid(96b60ba0-634a-41e4-928e-78ab0b3c4b46)]
+[scriptable, uuid(bd5d93f0-6451-11e0-ae3e-0800200c9a66)]
 
 interface nsIEditor  : nsISupports
 {
@@ -81,19 +75,15 @@ interface nsIEditor  : nsISupports
   /**
    * Init is to tell the implementation of nsIEditor to begin its services
    * @param aDoc          The dom document interface being observed
-   * @param aPresShell    TEMP: The presentation shell displaying the document.
-   *                      Once events can tell us from what pres shell
-   *                      they originated, this will no longer be
-   *                      necessary, and the editor will no longer be
-   *                      linked to a single pres shell.
    * @param aRoot         This is the root of the editable section of this
    *                      document. If it is null then we get root
    *                      from document body.
    * @param aSelCon       this should be used to get the selection location
+   *                      (will be null for HTML editors)
    * @param aFlags        A bitmask of flags for specifying the behavior
    *                      of the editor.
    */
-  [noscript] void init(in nsIDOMDocument doc, in nsIPresShellPtr shell,
+  [noscript] void init(in nsIDOMDocument doc,
                        in nsIContent aRoot,
                        in nsISelectionController aSelCon,
                        in unsigned long aFlags);
@@ -339,10 +329,22 @@ interface nsIEditor  : nsISupports
     */
   void paste(in long aSelectionType);
 
+  /** Paste the text in |aTransferable| at the cursor position, replacing the
+    * selected text (if any).
+    */
+  void pasteTransferable(in nsITransferable aTransferable);
+
   /** Can we paste? True if the doc is modifiable, and we have
     * pasteable data in the clipboard.
     */
   boolean canPaste(in long aSelectionType);
+
+  /** Can we paste |aTransferable| or, if |aTransferable| is null, will a call
+    * to pasteTransferable later possibly succeed if given an instance of
+    * nsITransferable then? True if the doc is modifiable, and, if
+    * |aTransfeable| is non-null, we have pasteable data in |aTransfeable|.
+    */
+  boolean canPasteTransferable([optional] in nsITransferable aTransferable);
 
   /* ------------ Selection methods -------------- */
 
@@ -570,11 +572,7 @@ interface nsIEditor  : nsISupports
 
   /* checks if a node is read-only or not */
   [notxpcom] boolean isModifiableNode(in nsIDOMNode aNode);
-};
 
-[uuid(a9ddee78-f5d2-43f1-9d91-d2124ba40d81)]
-interface nsIEditor_MOZILLA_1_9_2_BRANCH : nsISupports
-{
   /**
    * Will be set to true if the last keypress event that the editor has handled
    * has been trusted.  The value will only be valid when the edit action listeners

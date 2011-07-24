@@ -43,8 +43,8 @@
 #ifndef nsLineBox_h___
 #define nsLineBox_h___
 
-#include "nsPlaceholderFrame.h"
 #include "nsILineIterator.h"
+#include "nsIFrame.h"
 
 class nsLineBox;
 class nsFloatCache;
@@ -64,7 +64,7 @@ public:
 
   nsFloatCache* Next() const { return mNext; }
 
-  nsPlaceholderFrame* mPlaceholder;     // nsPlaceholderFrame
+  nsIFrame* mFloat;                     // floating frame
 
 protected:
   nsFloatCache* mNext;
@@ -162,8 +162,8 @@ public:
   void Remove(nsFloatCache* aElement);
 
   // Remove an nsFloatCache object from this list and return it, or create
-  // a new one if this one is empty;
-  nsFloatCache* Alloc();
+  // a new one if this one is empty; Set its mFloat to aFloat.
+  nsFloatCache* Alloc(nsIFrame* aFloat);
   
 protected:
   nsFloatCache* mTail;
@@ -174,7 +174,7 @@ protected:
 //----------------------------------------------------------------------
 
 #define LINE_MAX_BREAK_TYPE  ((1 << 4) - 1)
-#define LINE_MAX_CHILD_COUNT ((1 << 20) - 1)
+#define LINE_MAX_CHILD_COUNT PR_INT32_MAX
 
 #if NS_STYLE_CLEAR_LAST_VALUE > 15
 need to rearrange the mBits bitfield;
@@ -330,8 +330,19 @@ public:
   PRBool HasBullet() const {
     return mFlags.mHasBullet;
   }
-  
-  
+
+  // mHadFloatPushed bit
+  void SetHadFloatPushed() {
+    mFlags.mHadFloatPushed = PR_TRUE;
+  }
+  void ClearHadFloatPushed() {
+    mFlags.mHadFloatPushed = PR_FALSE;
+  }
+  PRBool HadFloatPushed() const {
+    return mFlags.mHadFloatPushed;
+  }
+
+
   // mChildCount value
   PRInt32 GetChildCount() const {
     return (PRInt32) mFlags.mChildCount;
@@ -399,20 +410,27 @@ public:
   // overflow area of its parent block.  The combined area should be
   // used for painting-related things, but should never be used for
   // layout (except for handling of 'overflow').
-  void SetCombinedArea(const nsRect& aCombinedArea);
-  nsRect GetCombinedArea() {
-    return mData ? mData->mCombinedArea : mBounds;
+  void SetOverflowAreas(const nsOverflowAreas& aOverflowAreas);
+  nsRect GetOverflowArea(nsOverflowType aType) {
+    return mData ? mData->mOverflowAreas.Overflow(aType) : mBounds;
   }
-  PRBool CombinedAreaIntersects(const nsRect& aDamageRect) {
-    nsRect* ca = (mData ? &mData->mCombinedArea : &mBounds);
-    return !((ca->YMost() <= aDamageRect.y) ||
-             (ca->y >= aDamageRect.YMost()));
+  nsOverflowAreas GetOverflowAreas() {
+    if (mData) {
+      return mData->mOverflowAreas;
+    }
+    return nsOverflowAreas(mBounds, mBounds);
   }
+  nsRect GetVisualOverflowArea()
+    { return GetOverflowArea(eVisualOverflow); }
+  nsRect GetScrollableOverflowArea()
+    { return GetOverflowArea(eScrollableOverflow); }
 
   void SlideBy(nscoord aDY) {
     mBounds.y += aDY;
     if (mData) {
-      mData->mCombinedArea.y += aDY;
+      NS_FOR_FRAME_OVERFLOW_TYPES(otype) {
+        mData->mOverflowAreas.Overflow(otype).y += aDY;
+      }
     }
   }
 
@@ -431,19 +449,19 @@ public:
     return mBounds.height;
   }
 
-  static void DeleteLineList(nsPresContext* aPresContext, nsLineList& aLines);
-
-  // search from beginning to end
-  // XXX Should switch to API below
-  static nsLineBox* FindLineContaining(nsLineList& aLines, nsIFrame* aFrame,
-                                       PRInt32* aFrameIndexInLine);
+  static void DeleteLineList(nsPresContext* aPresContext, nsLineList& aLines,
+                             nsIFrame* aDestructRoot);
 
   // search from end to beginning of [aBegin, aEnd)
   // Returns PR_TRUE if it found the line and PR_FALSE if not.
   // Moves aEnd as it searches so that aEnd points to the resulting line.
+  // aLastFrameBeforeEnd is the last frame before aEnd (so if aEnd is
+  // the end of the line list, it's just the last frame in the frame
+  // list).
   static PRBool RFindLineContaining(nsIFrame* aFrame,
                                     const nsLineList_iterator& aBegin,
                                     nsLineList_iterator& aEnd,
+                                    nsIFrame* aLastFrameBeforeEnd,
                                     PRInt32* aFrameIndexInLine);
 
 #ifdef DEBUG
@@ -501,15 +519,19 @@ public:
     // mHasBullet indicates that this is an inline line whose block's
     // bullet is adjacent to this line and non-empty.
     PRUint32 mHasBullet : 1;
+    // Indicates that this line *may* have a placeholder for a float
+    // that was pushed to a later column or page.
+    PRUint32 mHadFloatPushed : 1;
     PRUint32 mBreakType : 4;
 
-    PRUint32 mChildCount : 17;
+    // FIXME: Move this out of FlagBits
+    PRUint32 mChildCount;
   };
 
   struct ExtraData {
-    ExtraData(const nsRect& aBounds) : mCombinedArea(aBounds) {
+    ExtraData(const nsRect& aBounds) : mOverflowAreas(aBounds, aBounds) {
     }
-    nsRect mCombinedArea;
+    nsOverflowAreas mOverflowAreas;
   };
 
   struct ExtraBlockData : public ExtraData {
@@ -1132,7 +1154,13 @@ class nsLineList {
 
     nsLineList()
     {
+      MOZ_COUNT_CTOR(nsLineList);
       clear();
+    }
+
+    ~nsLineList()
+    {
+      MOZ_COUNT_DTOR(nsLineList);
     }
 
     const_iterator begin() const
@@ -1199,6 +1227,16 @@ class nsLineList {
     {
       reverse_iterator rv;
       rv.mCurrent = mLink._mPrev;
+#ifdef DEBUG
+      rv.mListLink = &mLink;
+#endif
+      return rv;
+    }
+
+    reverse_iterator rbegin(nsLineBox* aLine)
+    {
+      reverse_iterator rv;
+      rv.mCurrent = aLine;
 #ifdef DEBUG
       rv.mListLink = &mLink;
 #endif
@@ -1534,7 +1572,6 @@ public:
                      nsRect& aLineBounds,
                      PRUint32* aLineFlags);
   virtual PRInt32 FindLineContaining(nsIFrame* aFrame);
-  virtual PRInt32 FindLineAt(nscoord aY);
   NS_IMETHOD FindFrameAt(PRInt32 aLineNumber,
                          nscoord aX,
                          nsIFrame** aFrameFound,

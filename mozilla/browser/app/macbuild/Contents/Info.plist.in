@@ -74,11 +74,11 @@
 	<key>CFBundleExecutable</key>
 	<string>firefox-bin</string>
 	<key>CFBundleGetInfoString</key>
-	<string>%APP_NAME% %APP_VERSION%, © 1998-2011 Contributors</string>
+	<string>%APP_NAME% %APP_VERSION%</string>
 	<key>CFBundleIconFile</key>
 	<string>firefox</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.mozilla.firefox</string>
+	<string>org.mozilla.%LOWER_APP_NAME%</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -134,5 +134,14 @@
 	<true/>
 	<key>CGDisableCoalescedUpdates</key>
 	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.5</string>
+	<key>LSMinimumSystemVersionByArchitecture</key>
+	<dict>
+		<key>i386</key>
+		<string>10.5.0</string>
+		<key>x86_64</key>
+		<string>10.6.0</string>
+	</dict>
 </dict>
 </plist>

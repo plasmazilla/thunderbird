@@ -71,10 +71,12 @@ public:
   /**
    * Called to indicate that the dimensions of the view have been changed.
    * The x and y coordinates may be < 0, indicating that the view extends above
-   * or to the left of its origin position.
+   * or to the left of its origin position. The term 'dimensions' indicates it
+   * is relative to this view.
    */
   virtual void SetDimensions(const nsRect &aRect, PRBool aPaint = PR_TRUE,
                              PRBool aResizeWidget = PR_TRUE);
+  void SetInvalidationDimensions(const nsRect* aRect);
   void GetDimensions(nsRect &aRect) const { aRect = mDimBounds; aRect.x -= mPosX; aRect.y -= mPosY; }
   void GetDimensions(nsSize &aSize) const { aSize.width = mDimBounds.width; aSize.height = mDimBounds.height; }
 
@@ -116,6 +118,26 @@ public:
   void DropMouseGrabbing();
 
 public:
+  // See nsIView::CreateWidget.
+  nsresult CreateWidget(nsWidgetInitData *aWidgetInitData,
+                        PRBool aEnableDragDrop,
+                        PRBool aResetVisibility);
+
+  // See nsIView::CreateWidgetForParent.
+  nsresult CreateWidgetForParent(nsIWidget* aParentWidget,
+                                 nsWidgetInitData *aWidgetInitData,
+                                 PRBool aEnableDragDrop,
+                                 PRBool aResetVisibility);
+
+  // See nsIView::CreateWidgetForPopup.
+  nsresult CreateWidgetForPopup(nsWidgetInitData *aWidgetInitData,
+                                nsIWidget* aParentWidget,
+                                PRBool aEnableDragDrop,
+                                PRBool aResetVisibility);
+
+  // See nsIView::DestroyWidget
+  void DestroyWidget();
+
   // NOT in nsIView, so only available in view module
   // These are also present in nsIView, but these versions return nsView and nsViewManager
   // instead of nsIView and nsIViewManager.
@@ -123,11 +145,18 @@ public:
   nsView* GetNextSibling() const { return mNextSibling; }
   nsView* GetParent() const { return mParent; }
   nsViewManager* GetViewManager() const { return mViewManager; }
-  // These are superceded by a better interface in nsIView
+  // These are superseded by a better interface in nsIView
   PRInt32 GetZIndex() const { return mZIndex; }
   PRBool GetZIndexIsAuto() const { return (mVFlags & NS_VIEW_FLAG_AUTO_ZINDEX) != 0; }
   // This is a better interface than GetDimensions(nsRect&) above
   nsRect GetDimensions() const { nsRect r = mDimBounds; r.MoveBy(-mPosX, -mPosY); return r; }
+  // Same as GetBounds but converts to parent appunits if they are different.
+  nsRect GetBoundsInParentUnits() const;
+
+  nsRect GetInvalidationDimensions() const {
+    return mHaveInvalidationDimensions ? mInvalidationDimensions : GetDimensions();
+  }
+
   // These are defined exactly the same in nsIView, but for now they have to be redeclared
   // here because of stupid C++ method hiding rules
 
@@ -136,6 +165,8 @@ public:
   }
   nsRegion* GetDirtyRegion() {
     if (!mDirtyRegion) {
+      NS_ASSERTION(!mParent || GetFloating(),
+                   "Only display roots should have dirty regions");
       mDirtyRegion = new nsRegion();
       NS_ASSERTION(mDirtyRegion, "Out of memory!");
     }
@@ -154,17 +185,10 @@ public:
   void SetTopMost(PRBool aTopMost) { aTopMost ? mVFlags |= NS_VIEW_FLAG_TOPMOST : mVFlags &= ~NS_VIEW_FLAG_TOPMOST; }
   PRBool IsTopMost() { return((mVFlags & NS_VIEW_FLAG_TOPMOST) != 0); }
 
-  // Don't use this method when you want to adjust an nsPoint.
-  // Just write "pt += view->GetPosition();"
-  // When everything's converted to nsPoint, this can go away.
-  void ConvertToParentCoords(nscoord* aX, nscoord* aY) const { *aX += mPosX; *aY += mPosY; }
-  // Don't use this method when you want to adjust an nsPoint.
-  // Just write "pt -= view->GetPosition();"
-  // When everything's converted to nsPoint, this can go away.
-  void ConvertFromParentCoords(nscoord* aX, nscoord* aY) const { *aX -= mPosX; *aY -= mPosY; }
+  nsPoint ConvertFromParentCoords(nsPoint aPt) const;
   void ResetWidgetBounds(PRBool aRecurse, PRBool aMoveOnly, PRBool aInvalidateChangedSize);
   void SetPositionIgnoringChildWidgets(nscoord aX, nscoord aY);
-  nsresult LoadWidget(const nsCID &aClassIID);
+  void AssertNoWindow();
 
   void NotifyEffectiveVisibilityChanged(PRBool aEffectivelyVisible);
 
@@ -176,26 +200,10 @@ public:
 
   virtual ~nsView();
 
-  // This is an app unit offset to add when converting view coordinates to
-  // widget coordinates.  It is the offset in view coordinates from widget
-  // top-left to view top-left.
-  nsPoint ViewToWidgetOffset() const {
-    if (mParent && mParent->GetViewManager() != GetViewManager()) {
-      // The document root view's mViewToWidgetOffset is always (0,0).
-      // If it has a parent view, the parent view must be the inner view
-      // for an nsSubdocumentFrame; its top-left position in appunits
-      // is always positioned at that inner view's top-left, and its
-      // widget top-left is always positioned at that inner view's widget's
-      // top-left, so its ViewToWidgetOffset is actually the same as
-      // its parent's.
-      return mParent->ViewToWidgetOffset();
-    }
-    return mViewToWidgetOffset;
-  }
-
-  nsIntRect CalcWidgetBounds(nsWindowType aType);
-
-  PRBool IsEffectivelyVisible();
+  nsPoint GetOffsetTo(const nsView* aOther) const;
+  nsIWidget* GetNearestWidget(nsPoint* aOffset) const;
+  nsPoint GetOffsetTo(const nsView* aOther, const PRInt32 aAPD) const;
+  nsIWidget* GetNearestWidget(nsPoint* aOffset, const PRInt32 aAPD) const;
 
 protected:
   // Do the actual work of ResetWidgetBounds, unconditionally.  Don't
@@ -203,7 +211,16 @@ protected:
   void DoResetWidgetBounds(PRBool aMoveOnly, PRBool aInvalidateChangedSize);
 
   nsRegion*    mDirtyRegion;
-  nsPoint      mViewToWidgetOffset;
+  // invalidations are clipped to mInvalidationDimensions, not
+  // GetDimensions(), when mHaveInvalidationDimensions is true.  This
+  // is used to support persistent "displayport" rendering; see
+  // nsPresShell.cpp.  The coordinates of mInvalidationDimensions are
+  // relative to |this|.
+  nsRect       mInvalidationDimensions;
+  PRPackedBool mHaveInvalidationDimensions;
+
+private:
+  void InitializeWindow(PRBool aEnableDragDrop, PRBool aResetVisibility);
 };
 
 #endif

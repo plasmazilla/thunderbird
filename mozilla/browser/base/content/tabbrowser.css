@@ -1,48 +1,57 @@
-.tabbrowser-tabs {
-  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-tabs");
-}
-
-.tabbrowser-tab {
-  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-tab");
+.tabbrowser-tabbox {
+  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-tabbox");
 }
 
 .tabbrowser-arrowscrollbox {
   -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-arrowscrollbox");
 }
 
-.tabs-alltabs-popup {
-  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-alltabs-popup");
-}
-
-.tab-close-button,
-.tabs-closebutton {
-  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-close-tab-button");
-}
-
 .tab-close-button {
+  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-close-tab-button");
   display: none;
 }
 
-.tabbrowser-tabs:not([closebuttons="noclose"]):not([closebuttons="closeatend"]) > .tabbrowser-tab[selected="true"]:not(:only-child) > .tab-close-button {
+.tabbrowser-tabs[closebuttons="activetab"] > * > * > * > .tab-close-button:not([pinned])[selected="true"],
+.tabbrowser-tabs[closebuttons="alltabs"] > * > * > * > .tab-close-button:not([pinned]) {
   display: -moz-box;
 }
 
-.tabbrowser-tabs[closebuttons="alltabs"] > .tabbrowser-tab:not(:only-child) > .tab-close-button {
-  display: -moz-box;
+.tab-close-button[selected="true"] {
+  /* Make this button focusable so clicking on it will not focus the tab while
+     it's getting closed */
+  -moz-user-focus: normal;
 }
 
-.tabs-container:not([overflow="true"]) > .tabs-newtab-button,
-.tabs-container[overflow="true"] > .tabbrowser-arrowscrollbox > .tabs-newtab-button {
-  visibility: collapse;
+.tab-label[pinned] {
+  width: 0;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
-.tabs-newtab-button > .toolbarbutton-text {
+.tab-stack {
+  vertical-align: top; /* for pinned tabs */
+}
+
+tabpanels {
+  background-color: white;
+}
+
+.tab-drop-indicator {
+  position: relative;
+  z-index: 2;
+}
+
+.tab-throbber:not([busy]),
+.tab-throbber[busy] + .tab-icon-image {
   display: none;
 }
 
-%ifdef MOZ_WIDGET_GTK2
-/* Favicons override the "images-in-menus" metric in xul.css */
-.alltabs-item > .menu-iconic-left {
-  visibility: inherit;
+.closing-tabs-spacer {
+  pointer-events: none;
 }
-%endif
+
+.tabbrowser-tabs:not(:hover) > .tabbrowser-arrowscrollbox > .closing-tabs-spacer {
+  -moz-transition: width .15s ease-out;
+}

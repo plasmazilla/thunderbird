@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -103,6 +103,16 @@ var gFolderDisplay =
       return null;
     var messageArray = gDBView.getURIsForSelection({});
     return messageArray.length ? messageArray : null;
+  },
+
+  get canArchiveSelectedMessages()
+  {
+    if (!gDBView)
+      return false;
+    var selectedMessages = this.selectedMessages;
+    if (selectedMessages.length == 0)
+      return false;
+    return selectedMessages.every(function(aMsg) GetIdentityForHeader(aMsg).archiveEnabled);
   },
 
   get displayedFolder()

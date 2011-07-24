@@ -174,6 +174,7 @@ var DefaultController =
       case "cmd_goForward":
       case "cmd_goBack":
       case "cmd_goStartPage":
+      case "cmd_undoCloseTab":
       case "cmd_viewClassicMailLayout":
       case "cmd_viewWideMailLayout":
       case "cmd_viewVerticalMailLayout":
@@ -211,7 +212,9 @@ var DefaultController =
       case "cmd_search":
       case "button_mark":
       case "cmd_tag":
+      case "cmd_toggleRead":
       case "cmd_markAsRead":
+      case "cmd_markAsUnread":
       case "cmd_markAllRead":
       case "cmd_markThreadAsRead":
       case "cmd_markReadByDate":
@@ -225,7 +228,6 @@ var DefaultController =
       case "cmd_runJunkControls":
       case "cmd_deleteJunk":
       case "button_file":
-      case "cmd_file":
       case "cmd_emptyTrash":
       case "cmd_compactFolder":
       case "button_compact":
@@ -250,6 +252,7 @@ var DefaultController =
       case "cmd_watchThread":
       case "cmd_killThread":
       case "cmd_killSubthread":
+      case "cmd_cancel":
         return(gFolderDisplay.selectedMessageIsNews);
 
       default:
@@ -273,6 +276,11 @@ var DefaultController =
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteMsg);
       case "cmd_shiftDelete":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteNoTrash);
+      case "cmd_cancel": {
+        let selectedMessages = gFolderDisplay.selectedMessages;
+        return selectedMessages.length == 1 && selectedMessages[0].folder &&
+               selectedMessages[0].folder.server.type == "nntp";
+      }
       case "cmd_deleteFolder":
         var folders = gFolderTreeView.getSelectedFolders();
         if (folders.length == 1) {
@@ -368,18 +376,10 @@ var DefaultController =
         return true;
       case "cmd_markAsFlagged":
       case "button_file":
-      case "cmd_file":
+	return GetNumSelectedMessages() > 0;
       case "cmd_archive":
-        let selectedMessages = gFolderDisplay.selectedMessages;
-        let archiveKfs =  selectedMessages.length > 0 && selectedMessages[0].folder &&
-           selectedMessages[0].folder.server.archiveKeepFolderStructure;
-        if (!archiveKfs)
-          return gFolderDisplay.selectedCount > 0;
-        // Otherwise, we fall through to checking if we're an archive folder.
       case "button_archive":
-        return gFolderDisplay.selectedCount > 0 && gFolderDisplay.displayedFolder &&
-          !gFolderDisplay.displayedFolder.isSpecialFolder(
-             Components.interfaces.nsMsgFolderFlags.Archive, true);
+        return gFolderDisplay.canArchiveSelectedMessages;
       case "cmd_markAsJunk":
       case "cmd_markAsNotJunk":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.junk);
@@ -402,9 +402,13 @@ var DefaultController =
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteJunk);
       case "button_mark":
       case "cmd_tag":
-      case "cmd_markAsRead":
+      case "cmd_toggleRead":
       case "cmd_markThreadAsRead":
         return GetNumSelectedMessages() > 0;
+      case "cmd_markAsRead":
+        return CanMarkMsgAsRead(true);
+      case "cmd_markAsUnread":
+        return CanMarkMsgAsRead(false);
       case "button_previous":
       case "button_next":
         return IsViewNavigationItemEnabled();
@@ -424,7 +428,11 @@ var DefaultController =
       case "cmd_goStartPage":
         return document.getElementById("tabmail").selectedTab.mode.name == "folder" &&
                !IsMessagePaneCollapsed();
+      case "cmd_undoCloseTab":
+        return (document.getElementById("tabmail").recentlyClosedTabs.length > 0);               
       case "cmd_markAllRead":
+        return IsFolderSelected() && gDBView &&
+               gDBView.msgFolder.getNumUnread(false) > 0;
       case "cmd_markReadByDate":
         return IsFolderSelected();
       case "cmd_find":
@@ -622,6 +630,11 @@ var DefaultController =
           gFolderDisplay.hintAboutToDeleteMessages();
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
         break;
+      case "cmd_cancel":
+        let message = gFolderDisplay.selectedMessages[0];
+        message.folder.QueryInterface(Components.interfaces.nsIMsgNewsFolder)
+                      .cancelMessage(message, msgWindow);
+        break;
       case "cmd_shiftDelete":
         MarkSelectedMessagesRead(true);
         gFolderDisplay.hintAboutToDeleteMessages();
@@ -674,6 +687,9 @@ var DefaultController =
       case "cmd_goStartPage":
         HideMessageHeaderPane();
         loadStartPage(true);
+        break;
+      case "cmd_undoCloseTab":
+        document.getElementById("tabmail").undoCloseTab();
         break;
       case "cmd_viewClassicMailLayout":
       case "cmd_viewWideMailLayout":
@@ -773,8 +789,14 @@ var DefaultController =
         MsgSearchMessages();
         return;
       case "button_mark":
-      case "cmd_markAsRead":
+      case "cmd_toggleRead":
         MsgMarkMsgAsRead();
+        return;
+      case "cmd_markAsRead":
+        MsgMarkMsgAsRead(true);
+        return;
+      case "cmd_markAsUnread":
+        MsgMarkMsgAsRead(false);
         return;
       case "cmd_markThreadAsRead":
         ClearPendingReadTimer();

@@ -38,23 +38,95 @@
 #ifndef NS_SMILINTERVAL_H_
 #define NS_SMILINTERVAL_H_
 
-#include "nsSMILTimeValue.h"
+#include "nsSMILInstanceTime.h"
+#include "nsTArray.h"
 
 //----------------------------------------------------------------------
 // nsSMILInterval class
 //
-// This class is essentially a structure consisting of a begin and end time. It
-// is used for representing the current interval and also for storing past
-// intervals for the purpose of hyperlinking back in time.
+// A structure consisting of a begin and end time. The begin time must be
+// resolved (i.e. not indefinite or unresolved).
 //
 // For an overview of how this class is related to other SMIL time classes see
-// the documentstation in nsSMILTimeValue.h
+// the documentation in nsSMILTimeValue.h
 
 class nsSMILInterval
 {
 public:
-  nsSMILTimeValue mBegin;
-  nsSMILTimeValue mEnd;
+  nsSMILInterval();
+  nsSMILInterval(const nsSMILInterval& aOther);
+  ~nsSMILInterval();
+  void NotifyChanged(const nsSMILTimeContainer* aContainer);
+  void Unlink(PRBool aFiltered = PR_FALSE);
+
+  const nsSMILInstanceTime* Begin() const
+  {
+    NS_ABORT_IF_FALSE(mBegin && mEnd,
+        "Requesting Begin() on un-initialized instance time");
+    return mBegin;
+  }
+  nsSMILInstanceTime* Begin();
+
+  const nsSMILInstanceTime* End() const
+  {
+    NS_ABORT_IF_FALSE(mBegin && mEnd,
+        "Requesting End() on un-initialized instance time");
+    return mEnd;
+  }
+  nsSMILInstanceTime* End();
+
+  void SetBegin(nsSMILInstanceTime& aBegin);
+  void SetEnd(nsSMILInstanceTime& aEnd);
+  void Set(nsSMILInstanceTime& aBegin, nsSMILInstanceTime& aEnd)
+  {
+    SetBegin(aBegin);
+    SetEnd(aEnd);
+  }
+
+  void FixBegin();
+  void FixEnd();
+
+  void AddDependentTime(nsSMILInstanceTime& aTime);
+  void RemoveDependentTime(const nsSMILInstanceTime& aTime);
+
+  // Cue for assessing if this interval can be filtered
+  PRBool IsDependencyChainLink() const;
+
+private:
+  nsRefPtr<nsSMILInstanceTime> mBegin;
+  nsRefPtr<nsSMILInstanceTime> mEnd;
+
+  typedef nsTArray<nsRefPtr<nsSMILInstanceTime> > InstanceTimeList;
+
+  // nsSMILInstanceTimes to notify when this interval is changed or deleted.
+  InstanceTimeList mDependentTimes;
+
+  // Indicates if the end points of the interval are fixed or not.
+  //
+  // Note that this is not the same as having an end point whose TIME is fixed
+  // (i.e. nsSMILInstanceTime::IsFixed() returns PR_TRUE). This is because it is
+  // possible to have an end point with a fixed TIME and yet still update the
+  // end point to refer to a different nsSMILInstanceTime object.
+  //
+  // However, if mBegin/EndFixed is PR_TRUE, then BOTH the nsSMILInstanceTime
+  // OBJECT returned for that end point and its TIME value will not change.
+  PRPackedBool mBeginFixed;
+  PRPackedBool mEndFixed;
+
+  // When change notifications are passed around the timing model we try to
+  // filter out all changes where there is no observable difference to an
+  // instance time. Changes that may produce an observable difference are:
+  //
+  // * Changes to the time of an interval endpoint
+  // * Changes in the relative times of different time containers
+  // * Changes to the dependency chain (which may affect the animation sandwich)
+  //
+  // The nsSMILTimeValueSpec can detect the first two changes by recalculating
+  // the time but in order to help detect the third change we simply set a flag
+  // whenever the mBegin or mEnd pointers are changed. These flags are reset
+  // when the next change notification is sent.
+  PRPackedBool mBeginObjectChanged;
+  PRPackedBool mEndObjectChanged;
 };
 
 #endif // NS_SMILINTERVAL_H_

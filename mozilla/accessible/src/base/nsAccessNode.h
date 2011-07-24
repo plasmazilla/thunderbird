@@ -43,76 +43,45 @@
 #ifndef _nsAccessNode_H_
 #define _nsAccessNode_H_
 
-#include "nsCOMPtr.h"
-#include "nsAccessibilityAtoms.h"
-#include "nsCoreUtils.h"
-#include "nsAccUtils.h"
-
-#include "nsIAccessibleTypes.h"
 #include "nsIAccessNode.h"
+#include "nsIAccessibleTypes.h"
+
+#include "a11yGeneric.h"
+
 #include "nsIContent.h"
 #include "nsIDOMNode.h"
 #include "nsINameSpaceManager.h"
 #include "nsIStringBundle.h"
 #include "nsWeakReference.h"
-#include "nsInterfaceHashtable.h"
-#include "nsIAccessibilityService.h"
+
+class nsAccessNode;
+class nsApplicationAccessible;
+class nsDocAccessible;
+class nsIAccessibleDocument;
+class nsRootAccessible;
 
 class nsIPresShell;
 class nsPresContext;
-class nsIAccessibleDocument;
 class nsIFrame;
-class nsIDOMNodeList;
-class nsITimer;
-class nsRootAccessible;
-class nsApplicationAccessibleWrap;
 class nsIDocShellTreeItem;
 
 #define ACCESSIBLE_BUNDLE_URL "chrome://global-platform/locale/accessible.properties"
 #define PLATFORM_KEYS_BUNDLE_URL "chrome://global-platform/locale/platformKeys.properties"
 
-typedef nsInterfaceHashtable<nsVoidPtrHashKey, nsIAccessNode>
-        nsAccessNodeHashtable;
-
-// What we want is: NS_INTERFACE_MAP_ENTRY(self) for static IID accessors,
-// but some of our classes have an ambiguous base class of nsISupports which
-// prevents this from working (the default macro converts it to nsISupports,
-// then addrefs it, then returns it). Therefore, we expand the macro here and
-// change it so that it works. Yuck.
-#define NS_INTERFACE_MAP_STATIC_AMBIGUOUS(_class) \
-  if (aIID.Equals(NS_GET_IID(_class))) { \
-  NS_ADDREF(this); \
-  *aInstancePtr = this; \
-  return NS_OK; \
-  } else
-
-#define NS_OK_DEFUNCT_OBJECT \
-NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_GENERAL, 0x22)
-
-#define NS_ENSURE_A11Y_SUCCESS(res, ret)                                  \
-  PR_BEGIN_MACRO                                                          \
-    nsresult __rv = res; /* Don't evaluate |res| more than once */        \
-    if (NS_FAILED(__rv)) {                                                \
-      NS_ENSURE_SUCCESS_BODY(res, ret)                                    \
-      return ret;                                                         \
-    }                                                                     \
-    if (__rv == NS_OK_DEFUNCT_OBJECT)                                     \
-      return ret;                                                         \
-  PR_END_MACRO
-
 #define NS_ACCESSNODE_IMPL_CID                          \
-{  /* 13555f6e-0c0f-4002-84f6-558d47b8208e */           \
-  0x13555f6e,                                           \
-  0xc0f,                                                \
-  0x4002,                                               \
-  { 0x84, 0xf6, 0x55, 0x8d, 0x47, 0xb8, 0x20, 0x8e }    \
+{  /* 2b07e3d7-00b3-4379-aa0b-ea22e2c8ffda */           \
+  0x2b07e3d7,                                           \
+  0x00b3,                                               \
+  0x4379,                                               \
+  { 0xaa, 0x0b, 0xea, 0x22, 0xe2, 0xc8, 0xff, 0xda }    \
 }
 
 class nsAccessNode: public nsIAccessNode
 {
-  public: // construction, destruction
-    nsAccessNode(nsIDOMNode *, nsIWeakReference* aShell);
-    virtual ~nsAccessNode();
+public:
+
+  nsAccessNode(nsIContent *aContent, nsIWeakReference *aShell);
+  virtual ~nsAccessNode();
 
     NS_DECL_CYCLE_COLLECTING_ISUPPORTS
     NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsAccessNode, nsIAccessNode)
@@ -123,65 +92,121 @@ class nsAccessNode: public nsIAccessNode
     static void InitXPAccessibility();
     static void ShutdownXPAccessibility();
 
-    /**
-     * Return an application accessible.
-     */
-    static already_AddRefed<nsApplicationAccessibleWrap> GetApplicationAccessible();
+  /**
+   * Return an application accessible.
+   */
+  static nsApplicationAccessible* GetApplicationAccessible();
 
-    // Static methods for handling per-document cache
-    static void PutCacheEntry(nsAccessNodeHashtable& aCache,
-                              void* aUniqueID, nsIAccessNode *aAccessNode);
-    static void GetCacheEntry(nsAccessNodeHashtable& aCache,
-                              void* aUniqueID, nsIAccessNode **aAccessNode);
-    static void ClearCache(nsAccessNodeHashtable& aCache);
+  /**
+   * Return the document accessible for this access node.
+   */
+  nsDocAccessible *GetDocAccessible() const;
 
-    static PLDHashOperator ClearCacheEntry(const void* aKey, nsCOMPtr<nsIAccessNode>& aAccessNode, void* aUserArg);
+  /**
+   * Return the root document accessible for this accessnode.
+   */
+  nsRootAccessible* RootAccessible() const;
 
-    // Static cache methods for global document cache
-    static already_AddRefed<nsIAccessibleDocument> GetDocAccessibleFor(nsIDocument *aDocument);
-    static already_AddRefed<nsIAccessibleDocument> GetDocAccessibleFor(nsIWeakReference *aWeakShell);
-    static already_AddRefed<nsIAccessibleDocument> GetDocAccessibleFor(nsIDocShellTreeItem *aContainer, PRBool aCanCreate = PR_FALSE);
-    static already_AddRefed<nsIAccessibleDocument> GetDocAccessibleFor(nsIDOMNode *aNode);
+  /**
+   * Reference to a node of focused accessible.
+   */
+  static nsINode *gLastFocusedNode;
 
-    already_AddRefed<nsRootAccessible> GetRootAccessible();
+  /**
+   * Return focused node within accessible window.
+   *
+   * XXX: it shouldn't break us if we return focused node not depending on
+   * window so that we can turn this method into util method.
+   */
+  already_AddRefed<nsINode> GetCurrentFocus();
 
-    static nsIDOMNode *gLastFocusedNode;
-    static nsIAccessibilityService* GetAccService();
-    already_AddRefed<nsIDOMNode> GetCurrentFocus();
+  /**
+   * Returns true when the accessible is defunct.
+   */
+  virtual PRBool IsDefunct() { return !mContent; }
 
-    /**
-     * Returns true when the accessible is defunct.
-     */
-    virtual PRBool IsDefunct();
+  /**
+   * Initialize the access node object, add it to the cache.
+   */
+  virtual PRBool Init();
 
-    /**
-     * Initialize the access node object, add it to the cache.
-     */
-    virtual nsresult Init();
+  /**
+   * Shutdown the access node object.
+   */
+  virtual void Shutdown();
 
-    /**
-     * Shutdown the access node object.
-     */
-    virtual nsresult Shutdown();
+  /**
+   * Return frame for the given access node object.
+   */
+  virtual nsIFrame* GetFrame() const;
 
-    /**
-     * Return frame for the given access node object.
-     */
-    virtual nsIFrame* GetFrame();
+  /**
+   * Return DOM node associated with this accessible.
+   */
+  already_AddRefed<nsIDOMNode> GetDOMNode() const
+  {
+    nsIDOMNode *DOMNode = nsnull;
+    if (GetNode())
+      CallQueryInterface(GetNode(), &DOMNode);
+    return DOMNode;
+  }
+
+  /**
+   * Return DOM node associated with the accessible.
+   */
+  virtual nsINode* GetNode() const { return mContent; }
+  nsIContent* GetContent() const { return mContent; }
+  virtual nsIDocument* GetDocumentNode() const
+    { return mContent ? mContent->GetOwnerDoc() : nsnull; }
+
+  /**
+   * Return node type information of DOM node associated with the accessible.
+   */
+  PRBool IsContent() const
+  {
+    return GetNode() && GetNode()->IsNodeOfType(nsINode::eCONTENT);
+  }
+  bool IsElement() const
+  {
+    nsINode* node = GetNode();
+    return node && node->IsElement();
+  }
+  PRBool IsDocument() const
+  {
+    return GetNode() && GetNode()->IsNodeOfType(nsINode::eDOCUMENT);
+  }
+
+  /**
+   * Return the corresponding press shell for this accessible.
+   */
+  already_AddRefed<nsIPresShell> GetPresShell();
+
+  /**
+   * Return presentation shell for the accessible.
+   */
+  nsIWeakReference* GetWeakShell() const { return mWeakShell; }
+
+  /**
+   * Return the unique identifier of the accessible.
+   */
+  void* UniqueID() { return static_cast<void*>(this); }
+
+  /**
+   * Return true if the accessible is primary accessible for the given DOM node.
+   *
+   * Accessible hierarchy may be complex for single DOM node, in this case
+   * these accessibles share the same DOM node. The primary accessible "owns"
+   * that DOM node in terms it gets stored in the accessible to node map.
+   */
+  virtual bool IsPrimaryForNode() const;
 
 protected:
-    nsresult MakeAccessNode(nsIDOMNode *aNode, nsIAccessNode **aAccessNode);
-    already_AddRefed<nsIPresShell> GetPresShell();
     nsPresContext* GetPresContext();
-    already_AddRefed<nsIAccessibleDocument> GetDocAccessible();
+
     void LastRelease();
 
-    nsCOMPtr<nsIDOMNode> mDOMNode;
-    nsCOMPtr<nsIWeakReference> mWeakShell;
-
-#ifdef DEBUG_A11Y
-    PRBool mIsInitialized;
-#endif
+  nsCOMPtr<nsIContent> mContent;
+  nsCOMPtr<nsIWeakReference> mWeakShell;
 
     /**
      * Notify global nsIObserver's that a11y is getting init'd or shutdown
@@ -191,17 +216,11 @@ protected:
     // Static data, we do our own refcounting for our static data
     static nsIStringBundle *gStringBundle;
     static nsIStringBundle *gKeyStringBundle;
-    static nsITimer *gDoCommandTimer;
-#ifdef DEBUG
-    static PRBool gIsAccessibilityActive;
-#endif
-    static PRBool gIsCacheDisabled;
+
     static PRBool gIsFormFillEnabled;
 
-    static nsAccessNodeHashtable gGlobalDocAccessibleCache;
-
 private:
-  static nsApplicationAccessibleWrap *gApplicationAccessible;
+  static nsApplicationAccessible *gApplicationAccessible;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsAccessNode,

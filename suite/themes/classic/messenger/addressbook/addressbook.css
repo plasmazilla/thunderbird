@@ -22,6 +22,7 @@
  * Contributor(s):
  *   Joe Hewitt (hewitt@netscape.com)
  *   Manuel Reimer (Manuel.Reimer@gmx.de)
+ *   Jens Hatlak (jh@junetz.de)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -48,11 +49,8 @@
 
 /* ::::: primary toolbar buttons ::::: */
 
-.toolbarbutton-1 {
-  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
-}
-
 #button-newcard {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(60px 29px 89px 0);
 }
 
@@ -69,6 +67,7 @@
 } 
 
 #button-newlist {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(90px 29px 119px 0);
 }
 
@@ -85,6 +84,7 @@
 } 
 
 #button-editcard {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(30px 29px 59px 0);
 }
 
@@ -118,6 +118,7 @@
 }
 
 #button-newim {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(120px 29px 149px 0);
 }
 
@@ -133,19 +134,20 @@
   -moz-image-region: rect(120px 119px 149px 90px) !important;
 } 
 
-#button-delete {
+#button-abdelete {
+  list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbookicons.png");
   -moz-image-region: rect(0 29px 29px 0);
 }
 
-#button-delete:hover {
+#button-abdelete:hover {
   -moz-image-region: rect(0 59px 29px 30px);
 } 
 
-#button-delete:hover:active {
+#button-abdelete:hover:active {
   -moz-image-region: rect(0 89px 29px 60px);
 }
 
-#button-delete[disabled] {
+#button-abdelete[disabled] {
   -moz-image-region: rect(0 119px 29px 90px) !important;
 }
 
@@ -165,7 +167,8 @@
   border-top: 1px solid ThreeDDarkShadow;
   border-bottom: 1px solid ThreeDLightShadow;
   border-right: 1px solid ThreeDLightShadow;
-  background-color: #FFFFFF;
+  background-color: -moz-Field;
+  color: -moz-FieldText;
 }
 
 #CardViewInnerBox {
@@ -177,7 +180,7 @@
 #CardTitle {
   font-size: 150%;
   font-weight: bold;
-  border-bottom: 2px solid black;
+  border-bottom: 2px solid -moz-FieldText;
   min-width: 120px;
   margin: 0px;
 }
@@ -212,8 +215,8 @@
 }
 
 .CardViewLink {
-  color: blue;
   text-decoration: underline;
+  color: -moz-nativehyperlinktext;
   cursor: pointer;
 }
 
@@ -234,12 +237,15 @@ html|p {
 
 /* ::::: border adjustments ::::: */
 
-#dirTree,
-#resultsTree { 
-  border: none;
-  margin: 0px !important;
+#abResultsTree {
+  border-left: 1px solid ThreeDShadow;
 }
 
-#resultsTree {
-  border-left: 1px solid ThreeDShadow;
+/* ::::: lightweight themes ::::: */
+
+#CardViewOuterBox:-moz-lwtheme,
+treecols:-moz-lwtheme {
+  text-shadow: none;
+  color: -moz-dialogtext;
+  background-color: -moz-dialog;
 }

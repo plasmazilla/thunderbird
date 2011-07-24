@@ -116,7 +116,7 @@ function InThreadPane()
 function FillMailContextMenu(aTarget)
 {
   var inThreadPane = InThreadPane();
-  gContextMenu = new nsContextMenu(aTarget);
+  gContextMenu = new nsContextMenu(aTarget, getBrowser());
   var numSelected = GetNumSelectedMessages();
   var oneOrMore = (numSelected > 0);
   var single = (numSelected == 1);
@@ -155,7 +155,8 @@ function FillMailContextMenu(aTarget)
                showMailItems && single && isNewsgroup);
   ShowMenuItem("mailContext-replySenderAndNewsgroup",
                showMailItems && single && isNewsgroup);
-  ShowMenuItem("mailContext-archive", showMailItems && oneOrMore);
+  ShowMenuItem("mailContext-archive", showMailItems && oneOrMore &&
+               gFolderDisplay.canArchiveSelectedMessages);
   ShowMenuItem("mailContext-replyAll", showMailItems && single);
   ShowMenuItem("mailContext-forward", showMailItems && single);
   ShowMenuItem("mailContext-forwardAsAttachment",
@@ -175,7 +176,7 @@ function FillMailContextMenu(aTarget)
   ShowMenuItem("mailContext-copyMenu", showMailItems && oneOrMore);
   ShowMenuItem("mailContext-tags", showMailItems && oneOrMore);
   ShowMenuItem("mailContext-mark", showMailItems && oneOrMore);
-  ShowMenuItem("mailContext-saveAs", showMailItems && single);
+  ShowMenuItem("mailContext-saveAs", showMailItems && oneOrMore);
   ShowMenuItem("mailContext-printpreview", showMailItems && single);
 
   ShowMenuItem("mailContext-print", showMailItems);
@@ -278,7 +279,7 @@ function FillFolderPaneContextMenu()
   ShowMenuItem("folderPaneContext-emptyJunk", (numSelected <= 1) && (specialFolder == 'Junk'));
   EnableMenuItem("folderPaneContext-emptyJunk", true);
 
-  var showSendUnsentMessages = (numSelected <= 1) && (specialFolder == 'Unsent Messages');
+  var showSendUnsentMessages = (numSelected <= 1) && (specialFolder == 'Outbox');
   ShowMenuItem("folderPaneContext-sendUnsentMessages", showSendUnsentMessages);
   if (showSendUnsentMessages)
     EnableMenuItem("folderPaneContext-sendUnsentMessages", IsSendUnsentMsgsEnabled(folder));

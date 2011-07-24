@@ -35,14 +35,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef WIN32
-#define snprintf _snprintf
-#endif
 
 #include "icalerror.h"
 #include "icalmemory.h"
 #include "icalvalue.h"
 
+#ifdef WIN32
+#define snprintf _snprintf
+#endif
 
 
 

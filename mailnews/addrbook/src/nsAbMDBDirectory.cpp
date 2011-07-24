@@ -79,8 +79,9 @@ nsAbMDBDirectory::~nsAbMDBDirectory(void)
   }
 }
 
-NS_IMPL_ISUPPORTS_INHERITED5(nsAbMDBDirectory, nsAbDirectoryRDFResource,
-                             nsIAbDirectory, nsIAbDirSearchListener,
+NS_IMPL_ISUPPORTS_INHERITED6(nsAbMDBDirectory, nsAbDirectoryRDFResource,
+                             nsIAbDirectory, nsISupportsWeakReference,
+                             nsIAbDirSearchListener,
                              nsIAbMDBDirectory,
                              nsIAbDirectorySearch,
                              nsIAddrDBListener)
@@ -105,7 +106,7 @@ NS_IMETHODIMP nsAbMDBDirectory::Init(const char *aUri)
 
     // extract the filename from the uri.
     if (searchCharLocation == -1)
-      filename = StringTail(uri, uri.Length() - kMDBDirectoryRootLen);
+      filename = Substring(uri, kMDBDirectoryRootLen);
     else
       filename = Substring(uri, kMDBDirectoryRootLen, searchCharLocation - kMDBDirectoryRootLen);
 

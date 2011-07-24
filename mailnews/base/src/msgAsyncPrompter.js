@@ -14,7 +14,7 @@
  * The Original Code is Mailnews Async Prompter.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -98,8 +98,6 @@ function msgAsyncPrompter() {
 }
 
 msgAsyncPrompter.prototype = {
-  classDescription: "msgAsyncPrompter",
-  contractID: "@mozilla.org/messenger/msgAsyncPrompter;1",
   classID: Components.ID("{49b04761-23dd-45d7-903d-619418a4d319}"),
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMsgAsyncPrompter]),
 
@@ -158,6 +156,5 @@ msgAsyncPrompter.prototype = {
   }
 };
 
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([msgAsyncPrompter]);
-}
+var components = [msgAsyncPrompter];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

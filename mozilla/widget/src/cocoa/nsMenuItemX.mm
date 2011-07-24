@@ -41,8 +41,6 @@
 #include "nsMenuX.h"
 #include "nsMenuItemIconX.h"
 #include "nsMenuUtilsX.h"
-#include "nsToolkit.h"
-#include "nsCocoaUtils.h"
 
 #include "nsObjCExceptions.h"
 
@@ -50,7 +48,7 @@
 #include "nsWidgetAtoms.h"
 #include "nsGUIEvent.h"
 
-#include "nsIContent.h"
+#include "mozilla/dom/Element.h"
 #include "nsIWidget.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
@@ -64,7 +62,7 @@ nsMenuItemX::nsMenuItemX()
   mType           = eRegularMenuItemType;
   mNativeMenuItem = nil;
   mMenuParent     = nsnull;
-  mMenuBar        = nsnull;
+  mMenuGroupOwner = nsnull;
   mIsChecked      = PR_FALSE;
 
   MOZ_COUNT_CTOR(nsMenuItemX);
@@ -83,9 +81,9 @@ nsMenuItemX::~nsMenuItemX()
   [mNativeMenuItem autorelease];
 
   if (mContent)
-    mMenuBar->UnregisterForContentChanges(mContent);
+    mMenuGroupOwner->UnregisterForContentChanges(mContent);
   if (mCommandContent)
-    mMenuBar->UnregisterForContentChanges(mCommandContent);
+    mMenuGroupOwner->UnregisterForContentChanges(mCommandContent);
 
   MOZ_COUNT_DTOR(nsMenuItemX);
 
@@ -93,7 +91,7 @@ nsMenuItemX::~nsMenuItemX()
 }
 
 nsresult nsMenuItemX::Create(nsMenuX* aParent, const nsString& aLabel, EMenuItemType aItemType,
-                             nsMenuBarX* aMenuBar, nsIContent* aNode)
+                             nsMenuGroupOwnerX* aMenuGroupOwner, nsIContent* aNode)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -101,27 +99,26 @@ nsresult nsMenuItemX::Create(nsMenuX* aParent, const nsString& aLabel, EMenuItem
   mMenuParent = aParent;
   mContent = aNode;
 
-  mMenuBar = aMenuBar;
-  NS_ASSERTION(mMenuBar, "No menu bar given, must have one!");
+  mMenuGroupOwner = aMenuGroupOwner;
+  NS_ASSERTION(mMenuGroupOwner, "No menu owner given, must have one!");
 
-  mMenuBar->RegisterForContentChanges(mContent, this);
+  mMenuGroupOwner->RegisterForContentChanges(mContent, this);
 
-  nsCOMPtr<nsIDOMDocument> domDoc(do_QueryInterface(mContent->GetCurrentDoc()));
+  nsIDocument *doc = mContent->GetCurrentDoc();
 
   // if we have a command associated with this menu item, register for changes
   // to the command DOM node
-  if (domDoc) {
+  if (doc) {
     nsAutoString ourCommand;
     mContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::command, ourCommand);
 
     if (!ourCommand.IsEmpty()) {
-      nsCOMPtr<nsIDOMElement> commandElement;
-      domDoc->GetElementById(ourCommand, getter_AddRefs(commandElement));
+      nsIContent *commandElement = doc->GetElementById(ourCommand);
 
       if (commandElement) {
-        mCommandContent = do_QueryInterface(commandElement);
+        mCommandContent = commandElement;
         // register to observe the command DOM element
-        mMenuBar->RegisterForContentChanges(mCommandContent, this);
+        mMenuGroupOwner->RegisterForContentChanges(mCommandContent, this);
       }
     }
   }
@@ -146,27 +143,7 @@ nsresult nsMenuItemX::Create(nsMenuX* aParent, const nsString& aLabel, EMenuItem
 
     SetChecked(mContent->AttrValueIs(kNameSpaceID_None, nsWidgetAtoms::checked,
                                      nsWidgetAtoms::_true, eCaseMatters));
-
-    // Set key shortcut and modifiers
-    if (domDoc) {
-      nsAutoString keyValue;
-      mContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::key, keyValue);
-      if (!keyValue.IsEmpty()) {
-        nsCOMPtr<nsIDOMElement> keyElement;
-        domDoc->GetElementById(keyValue, getter_AddRefs(keyElement));
-        if (keyElement) {
-          nsCOMPtr<nsIContent> keyContent(do_QueryInterface(keyElement));
-          nsAutoString keyChar(NS_LITERAL_STRING(" "));
-          keyContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::key, keyChar);
-
-          nsAutoString modifiersStr;
-          keyContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::modifiers, modifiersStr);
-          PRUint8 modifiers = nsMenuUtilsX::GeckoModifiersForNodeAttribute(modifiersStr);
-
-          SetKeyEquiv(modifiers, keyChar);
-        }
-      }
-    }
+    SetKeyEquiv();
   }
 
   mIcon = new nsMenuItemIconX(this, mContent, mNativeMenuItem);
@@ -292,19 +269,39 @@ void nsMenuItemX::UncheckRadioSiblings(nsIContent* inCheckedContent)
   }
 }
 
-void nsMenuItemX::SetKeyEquiv(PRUint8 aModifiers, const nsString &aText)
+void nsMenuItemX::SetKeyEquiv()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  unsigned int macModifiers = nsMenuUtilsX::MacModifiersForGeckoModifiers(aModifiers);
-  [mNativeMenuItem setKeyEquivalentModifierMask:macModifiers];
+  // Set key shortcut and modifiers
+  nsAutoString keyValue;
+  mContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::key, keyValue);
+  if (!keyValue.IsEmpty() && mContent->GetCurrentDoc()) {
+    nsIContent *keyContent = mContent->GetCurrentDoc()->GetElementById(keyValue);
+    if (keyContent) {
+      nsAutoString keyChar(NS_LITERAL_STRING(" "));
+      keyContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::key, keyChar);
 
-  NSString *keyEquivalent = [[NSString stringWithCharacters:(unichar*)aText.get()
-                                                     length:aText.Length()] lowercaseString];
-  if ([keyEquivalent isEqualToString:@" "])
-    [mNativeMenuItem setKeyEquivalent:@""];
-  else
-    [mNativeMenuItem setKeyEquivalent:keyEquivalent];
+      nsAutoString modifiersStr;
+      keyContent->GetAttr(kNameSpaceID_None, nsWidgetAtoms::modifiers, modifiersStr);
+      PRUint8 modifiers = nsMenuUtilsX::GeckoModifiersForNodeAttribute(modifiersStr);
+
+      unsigned int macModifiers = nsMenuUtilsX::MacModifiersForGeckoModifiers(modifiers);
+      [mNativeMenuItem setKeyEquivalentModifierMask:macModifiers];
+
+      NSString *keyEquivalent = [[NSString stringWithCharacters:(unichar*)keyChar.get()
+                                                         length:keyChar.Length()] lowercaseString];
+      if ([keyEquivalent isEqualToString:@" "])
+        [mNativeMenuItem setKeyEquivalent:@""];
+      else
+        [mNativeMenuItem setKeyEquivalent:keyEquivalent];
+
+      return;
+    }
+  }
+
+  // if the key was removed, clear the key
+  [mNativeMenuItem setKeyEquivalent:@""];
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -337,43 +334,17 @@ nsMenuItemX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aConten
              aAttribute == nsWidgetAtoms::label) {
       mMenuParent->SetRebuild(PR_TRUE);
     }
+    else if (aAttribute == nsWidgetAtoms::key) {
+      SetKeyEquiv();
+    }
     else if (aAttribute == nsWidgetAtoms::image) {
       SetupIcon();
     }
     else if (aAttribute == nsWidgetAtoms::disabled) {
-      BOOL cocoaEnabled = NO;
-      if (aContent->AttrValueIs(kNameSpaceID_None, nsWidgetAtoms::disabled, nsWidgetAtoms::_true, eCaseMatters)) {
+      if (aContent->AttrValueIs(kNameSpaceID_None, nsWidgetAtoms::disabled, nsWidgetAtoms::_true, eCaseMatters))
         [mNativeMenuItem setEnabled:NO];
-        cocoaEnabled = NO;
-      } else {
+      else
         [mNativeMenuItem setEnabled:YES];
-        cocoaEnabled = YES;
-      }
-
-      // On SnowLeopard, our Help menu items often get disabled when the user
-      // enters a password after waking from sleep or the screen saver.
-      // Whether or not the user is prompted for a password is governed by the
-      // "Require password" setting in the Security pref panel.  For more
-      // information see bugs 513048 and 530633, and the comments above
-      // similar code in nsMenuX.mm's MyMenuEventHandler() and AddMenuItem().
-      if (nsToolkit::OnSnowLeopardOrLater() && mMenuParent &&
-          nsMenuX::IsXULHelpMenu(mMenuParent->Content())) {
-        NSMenu *nativeParent = static_cast<NSMenu*>(mMenuParent->NativeData());
-        if (nativeParent) {
-          MenuRef helpMenuRef = _NSGetCarbonMenu(nativeParent);
-          if (helpMenuRef) {
-            NSInteger index = [nativeParent indexOfItem:mNativeMenuItem];
-            Boolean carbonEnabled = ::IsMenuItemEnabled(helpMenuRef, index + 1);
-            if (carbonEnabled != cocoaEnabled) {
-              if (!carbonEnabled) {
-                ::EnableMenuItem(helpMenuRef, index + 1);
-              } else {
-                ::DisableMenuItem(helpMenuRef, index + 1);
-              }
-            }
-          }
-        }
-      }
     }
   }
   else if (aContent == mCommandContent) {
@@ -406,7 +377,7 @@ nsMenuItemX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aConten
 void nsMenuItemX::ObserveContentRemoved(nsIDocument *aDocument, nsIContent *aChild, PRInt32 aIndexInContainer)
 {
   if (aChild == mCommandContent) {
-    mMenuBar->UnregisterForContentChanges(mCommandContent);
+    mMenuGroupOwner->UnregisterForContentChanges(mCommandContent);
     mCommandContent = nsnull;
   }
 

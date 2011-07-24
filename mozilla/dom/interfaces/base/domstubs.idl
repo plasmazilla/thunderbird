@@ -104,6 +104,7 @@ interface nsIDOMEventGroup;
 interface nsIDOMHTMLElement;
 interface nsIDOMHTMLFormElement;
 interface nsIDOMHTMLCollection;
+interface nsIDOMHTMLHeadElement;
 
 // CSS
 interface nsIDOMCSSValue;
@@ -111,6 +112,7 @@ interface nsIDOMCSSValueList;
 interface nsIDOMCSSPrimitiveValue;
 interface nsIDOMCSSRule;
 interface nsIDOMCSSRuleList;
+interface nsIDOMMozCSSKeyframeRule;
 interface nsIDOMCSSStyleSheet;
 interface nsIDOMCSSStyleDeclaration;
 interface nsIDOMCounter;

@@ -84,7 +84,8 @@ nsSVGContainerFrame::RemoveFrame(nsIAtom* aListName,
 {
   NS_ASSERTION(!aListName, "unexpected child list");
 
-  return mFrames.DestroyFrame(aOldFrame) ? NS_OK : NS_ERROR_FAILURE;
+  mFrames.DestroyFrame(aOldFrame);
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -104,7 +105,8 @@ nsSVGDisplayContainerFrame::Init(nsIContent* aContent,
 {
   AddStateBits(NS_STATE_SVG_PROPAGATE_TRANSFORM);
   if (!(GetStateBits() & NS_STATE_IS_OUTER_SVG)) {
-    AddStateBits(aParent->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD);
+    AddStateBits(aParent->GetStateBits() &
+      (NS_STATE_SVG_NONDISPLAY_CHILD | NS_STATE_SVG_CLIPPATH_CHILD));
   }
   nsresult rv = nsSVGContainerFrameBase::Init(aContent, aParent, aPrevInFlow);
   return rv;
@@ -269,13 +271,10 @@ nsSVGDisplayContainerFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspac
     nsISVGChildFrame* svgKid = do_QueryFrame(kid);
     if (svgKid) {
       gfxMatrix transform = aToBBoxUserspace;
-      // nsSVGGlyphFrame's mContent is a nsTextNode!
-      if (kid->GetType() != nsGkAtoms::svgGlyphFrame) {
-        nsIContent *content = kid->GetContent();
-        if (content->IsNodeOfType(nsINode::eSVG)) {
-          transform = static_cast<nsSVGElement*>(content)->
-                        PrependLocalTransformTo(aToBBoxUserspace);
-        }
+      nsIContent *content = kid->GetContent();
+      if (content->IsSVG() && !content->IsNodeOfType(nsINode::eTEXT)) {
+        transform = static_cast<nsSVGElement*>(content)->
+                      PrependLocalTransformTo(aToBBoxUserspace);
       }
       bboxUnion = bboxUnion.Union(svgKid->GetBBoxContribution(transform));
     }

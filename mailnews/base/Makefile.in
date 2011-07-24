@@ -49,7 +49,7 @@ PARALLEL_DIRS	= public src util ispdata
 DIRS		= search/public
 
 ifdef ENABLE_TESTS
-DIRS += test
+TOOL_DIRS += test
 endif
 
 include $(topsrcdir)/config/rules.mk

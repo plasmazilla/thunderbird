@@ -24,6 +24,7 @@
  *
  * Contributor(s):
  *   Robert Ginda <rginda@netscape.com>
+ *   Kris Maglione <maglione.k@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -56,9 +57,13 @@
 #include "nsNetUtil.h"
 #include "nsIProtocolHandler.h"
 #include "nsIFileURL.h"
+#include "nsScriptLoader.h"
 
 #include "jsapi.h"
 #include "jsdbgapi.h"
+#include "jsfriendapi.h"
+
+#include "mozilla/FunctionTimer.h"
 
 /* load() error msgs, XXX localize? */
 #define LOAD_ERROR_NOSERVICE "Error creating IO Service."
@@ -67,6 +72,7 @@
 #define LOAD_ERROR_URI_NOT_LOCAL "Trying to load a non-local URI."
 #define LOAD_ERROR_NOSTREAM  "Error opening input stream (invalid filename?)"
 #define LOAD_ERROR_NOCONTENT "ContentLength not available (not a local URL?)"
+#define LOAD_ERROR_BADCHARSET "Error converting to specified charset"
 #define LOAD_ERROR_BADREAD   "File Read Error."
 #define LOAD_ERROR_READUNDERFLOW "File Read Error (underflow.)"
 #define LOAD_ERROR_NOPRINCIPALS "Failed to get principals."
@@ -88,7 +94,7 @@ mozJSSubScriptLoader::~mozJSSubScriptLoader()
 NS_IMPL_THREADSAFE_ISUPPORTS1(mozJSSubScriptLoader, mozIJSSubScriptLoader)
 
 NS_IMETHODIMP /* args and return value are delt with using XPConnect and JSAPI */
-mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
+mozJSSubScriptLoader::LoadSubScript (const PRUnichar * aURL
                                      /* [, JSObject *target_obj] */)
 {
     /*
@@ -106,6 +112,13 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
      * defined the rest up here to be consistent */
     nsresult  rv;
     JSBool    ok;
+
+#ifdef NS_FUNCTION_TIMER
+    NS_TIME_FUNCTION_FMT("%s (line %d) (url: %s)", MOZ_FUNCTION_NAME,
+                         __LINE__, NS_LossyConvertUTF16toASCII(aURL).get());
+#else
+    (void)aURL; // prevent compiler warning
+#endif
 
     /* get JS things from the CallContext */
     nsCOMPtr<nsIXPConnect> xpc = do_GetService(nsIXPConnect::GetCID());
@@ -146,12 +159,19 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
 
     JSAutoRequest ar(cx);
 
-    char     *url;
+    JSString *url;
     JSObject *target_obj = nsnull;
-    ok = JS_ConvertArguments (cx, argc, argv, "s / o", &url, &target_obj);
+    jschar   *charset = nsnull;
+    ok = JS_ConvertArguments (cx, argc, argv, "S / o W", &url, &target_obj, &charset);
     if (!ok)
     {
         /* let the exception raised by JS_ConvertArguments show through */
+        return NS_OK;
+    }
+
+    JSAutoByteString urlbytes(cx, url);
+    if (!urlbytes)
+    {
         return NS_OK;
     }
 
@@ -193,21 +213,19 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
 #endif  
     }
 
-    // Innerize the target_obj so that we compile the loaded script in the
-    // correct (inner) scope.
-    JSClass *target_class = JS_GET_CLASS(cx, target_obj);
-    if (target_class->flags & JSCLASS_IS_EXTENDED)
-    {
-        JSExtendedClass *extended = (JSExtendedClass*)target_class;
-        if (extended->innerObject)
-        {
-            target_obj = extended->innerObject(cx, target_obj);
-            if (!target_obj) return NS_ERROR_FAILURE;
+    // Remember an object out of the calling compartment so that we
+    // can properly wrap the result later.
+    JSObject *result_obj = target_obj;
+    target_obj = JS_FindCompilationScope(cx, target_obj);
+    if (!target_obj) return NS_ERROR_FAILURE;
 #ifdef DEBUG_rginda
-            fprintf (stderr, "Final global: %p\n", target_obj);
+    if (target_obj != result_obj)
+        fprintf (stderr, "Final global: %p\n", target_obj);
 #endif
-        }
-    }
+
+    JSAutoEnterCompartment ac;
+    if (!ac.enter(cx, target_obj))
+        return NS_ERROR_UNEXPECTED;
 
     /* load up the url.  From here on, failures are reflected as ``custom''
      * js exceptions */
@@ -254,7 +272,7 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
 
     // Make sure to explicitly create the URI, since we'll need the
     // canonicalized spec.
-    rv = NS_NewURI(getter_AddRefs(uri), url, nsnull, serv);
+    rv = NS_NewURI(getter_AddRefs(uri), urlbytes.ptr(), nsnull, serv);
     if (NS_FAILED(rv)) {
         errmsg = JS_NewStringCopyZ (cx, LOAD_ERROR_NOURI);
         goto return_exception;
@@ -276,7 +294,8 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
     if (!scheme.EqualsLiteral("chrome"))
     {
         // This might be a URI to a local file, though!
-        nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(uri);
+        nsCOMPtr<nsIURI> innerURI = NS_GetInnermostURI(uri);
+        nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(innerURI);
         if (!fileURL)
         {
             errmsg = JS_NewStringCopyZ (cx, LOAD_ERROR_URI_NOT_LOCAL);
@@ -290,11 +309,18 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
         tmp.Append(uriStr);
 
         uriStr = tmp;
-    }        
-        
-    rv = NS_OpenURI(getter_AddRefs(instream), uri, serv,
-                    nsnull, nsnull, nsIRequest::LOAD_NORMAL,
-                    getter_AddRefs(chan));
+    }
+
+    // Instead of calling NS_OpenURI, we create the channel ourselves and call
+    // SetContentType, to avoid expensive MIME type lookups (bug 632490).
+    rv = NS_NewChannel(getter_AddRefs(chan), uri, serv,
+                       nsnull, nsnull, nsIRequest::LOAD_NORMAL);
+    if (NS_SUCCEEDED(rv))
+    {
+        chan->SetContentType(NS_LITERAL_CSTRING("application/javascript"));
+        rv = chan->Open(getter_AddRefs(instream));
+    }
+
     if (NS_FAILED(rv))
     {
         errmsg = JS_NewStringCopyZ (cx, LOAD_ERROR_NOSTREAM);
@@ -333,7 +359,8 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
      * JSPRINCIPALS_DROP macro takes a JSContext, which we won't have in the
      * destructor */
     rv = mSystemPrincipal->GetJSPrincipals(cx, &jsPrincipals);
-    if (NS_FAILED(rv) || !jsPrincipals) {
+    if (NS_FAILED(rv) || !jsPrincipals)
+    {
         errmsg = JS_NewStringCopyZ (cx, LOAD_ERROR_NOPRINCIPALS);
         goto return_exception;
     }
@@ -342,14 +369,43 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
      * exceptions, including the source/line number */
     er = JS_SetErrorReporter (cx, mozJSLoaderErrorReporter);
 
-    ok = JS_EvaluateScriptForPrincipals (cx, target_obj, jsPrincipals,
-                                         buf, len, uriStr.get(), 1, rval);        
+    if (charset)
+    {
+        nsString script;
+        rv = nsScriptLoader::ConvertToUTF16(
+                nsnull, reinterpret_cast<PRUint8*>(buf.get()), len,
+                nsDependentString(reinterpret_cast<PRUnichar*>(charset)), nsnull, script);
+
+        if (NS_FAILED(rv))
+        {
+            JSPRINCIPALS_DROP(cx, jsPrincipals);
+            errmsg = JS_NewStringCopyZ(cx, LOAD_ERROR_BADCHARSET);
+            goto return_exception;
+        }
+        ok = JS_EvaluateUCScriptForPrincipals(cx, target_obj, jsPrincipals,
+                                              reinterpret_cast<const jschar*>(script.get()),
+                                              script.Length(), uriStr.get(), 1, rval);
+    }
+    else
+    {
+        ok = JS_EvaluateScriptForPrincipals(cx, target_obj, jsPrincipals,
+                                            buf, len, uriStr.get(), 1, rval);
+    }
+
+    JSPRINCIPALS_DROP(cx, jsPrincipals);
+
+    if (ok)
+    {
+        JSAutoEnterCompartment rac;
+
+        if (!rac.enter(cx, result_obj) || !JS_WrapValue(cx, rval))
+            return NS_ERROR_UNEXPECTED; 
+    }
+
     /* repent for our evil deeds */
     JS_SetErrorReporter (cx, er);
 
     cc->SetReturnValueWasSet (ok);
-
-    JSPRINCIPALS_DROP(cx, jsPrincipals);
     return NS_OK;
 
  return_exception:

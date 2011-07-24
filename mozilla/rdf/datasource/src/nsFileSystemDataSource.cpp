@@ -69,18 +69,10 @@
 #include "nsCRTGlue.h"
 #include "nsAutoPtr.h"
 
-#ifdef  XP_WIN
+#ifdef XP_WIN
 #include "windef.h"
 #include "winbase.h"
 #include "nsILineInputStream.h"
-#endif
-
-#ifdef  XP_BEOS
-#include <File.h>
-#include <NodeInfo.h>
-#endif
-
-#if defined(XP_WIN) || defined(XP_BEOS)
 #include "nsDirectoryServiceDefs.h"
 #endif
 
@@ -139,7 +131,7 @@ FileSystemDataSource::isDirURI(nsIRDFResource* source)
     {
         PRBool isPackageFlag = PR_FALSE;
         rv = aMacFile->IsPackage(&isPackageFlag);
-        if (NS_SUCCEEDED(rv) && (isPackageFlag == PR_TRUE))
+        if (NS_SUCCEEDED(rv) && isPackageFlag)
         {
             isDirFlag = PR_FALSE;
         }
@@ -212,22 +204,6 @@ FileSystemDataSource::Init()
         NS_ENSURE_TRUE(furi, NS_ERROR_FAILURE);
 
         file->GetNativePath(ieFavoritesDir);
-    }
-#endif
-
-#ifdef XP_BEOS
-    nsCOMPtr<nsIFile> file;
-    NS_GetSpecialDirectory(NS_BEOS_SETTINGS_DIR, getter_AddRefs(file));
-    if (file)
-    {
-        file->AppendNative(NS_LITERAL_CSTRING("NetPositive"));
-        file->AppendNative(NS_LITERAL_CSTRING("Bookmarks"));
-
-        nsCOMPtr<nsIURI> furi;
-        NS_NewFileURI(getter_AddRefs(furi), file);
-        NS_ENSURE_TRUE(furi, NS_ERROR_FAILURE);
-
-        file->GetNativePath(netPositiveDir);
     }
 #endif
 
@@ -798,7 +774,7 @@ FileSystemDataSource::ArcLabelsOut(nsIRDFResource *source,
         if (isDirURI(source))
         {
 #ifdef  XP_WIN
-            if (isValidFolder(source) == PR_TRUE)
+            if (isValidFolder(source))
             {
                 array->AppendElement(mNC_Child);
             }
@@ -925,7 +901,7 @@ FileSystemDataSource::GetVolumeList(nsISimpleEnumerator** aResult)
     }
 #endif
 
-#if defined(XP_UNIX) || defined(XP_BEOS) || defined(WINCE)
+#if defined(XP_UNIX) || defined(WINCE)
     mRDFService->GetResource(NS_LITERAL_CSTRING("file:///"), getter_AddRefs(vol));
     volumes->AppendElement(vol);
 #endif
@@ -983,7 +959,7 @@ FileSystemDataSource::isValidFolder(nsIRDFResource *source)
         {
             PRBool      hasAny = PR_FALSE, hasMore;
             while (NS_SUCCEEDED(folderEnum->HasMoreElements(&hasMore)) &&
-                    (hasMore == PR_TRUE))
+                   hasMore)
             {
                 hasAny = PR_TRUE;
 
@@ -1010,7 +986,7 @@ FileSystemDataSource::isValidFolder(nsIRDFResource *source)
                     break;
                 }
             }
-            if (hasAny == PR_FALSE) isValid = PR_TRUE;
+            if (!hasAny) isValid = PR_TRUE;
         }
     }
     return(isValid);
@@ -1065,7 +1041,7 @@ FileSystemDataSource::GetFolderList(nsIRDFResource *source, PRBool allowHidden,
 
     PRBool          hasMore;
     while(NS_SUCCEEDED(rv = dirContents->HasMoreElements(&hasMore)) &&
-        (hasMore == PR_TRUE))
+          hasMore)
     {
         nsCOMPtr<nsISupports>   isupports;
         if (NS_FAILED(rv = dirContents->GetNext(getter_AddRefs(isupports))))
@@ -1075,12 +1051,12 @@ FileSystemDataSource::GetFolderList(nsIRDFResource *source, PRBool allowHidden,
         if (!aFile)
             break;
 
-        if (allowHidden == PR_FALSE)
+        if (!allowHidden)
         {
             PRBool          hiddenFlag = PR_FALSE;
             if (NS_FAILED(rv = aFile->IsHidden(&hiddenFlag)))
                 break;
-            if (hiddenFlag == PR_TRUE)
+            if (hiddenFlag)
                 continue;
         }
 
@@ -1120,7 +1096,7 @@ FileSystemDataSource::GetFolderList(nsIRDFResource *source, PRBool allowHidden,
 
         PRBool          dirFlag = PR_FALSE;
         rv = aFile->IsDirectory(&dirFlag);
-        if (NS_SUCCEEDED(rv) && (dirFlag == PR_TRUE))
+        if (NS_SUCCEEDED(rv) && dirFlag)
         {
             fullURI.Append('/');
         }
@@ -1130,7 +1106,7 @@ FileSystemDataSource::GetFolderList(nsIRDFResource *source, PRBool allowHidden,
 
         nameArray->AppendElement(fileRes);
 
-        if (onlyFirst == PR_TRUE)
+        if (onlyFirst)
             break;
     }
 
@@ -1222,7 +1198,7 @@ FileSystemDataSource::GetFileSize(nsIRDFResource *source, nsIRDFInt **aResult)
     PRBool  isDir = PR_FALSE;
     if (NS_FAILED(rv = aFile->IsDirectory(&isDir)))
         return(rv);
-    if (isDir == PR_TRUE)
+    if (isDir)
         return(NS_RDF_NO_VALUE);
 
     PRInt64     aFileSize64;
@@ -1292,7 +1268,7 @@ FileSystemDataSource::GetName(nsIRDFResource *source, nsIRDFLiteral **aResult)
     {
         PRBool isPackageFlag = PR_FALSE;
         rv = aMacFile->IsPackage(&isPackageFlag);
-        if (NS_SUCCEEDED(rv) && (isPackageFlag == PR_TRUE))
+        if (NS_SUCCEEDED(rv) && isPackageFlag)
         {
             // mungle package names under Mac OS 9/X
             PRUint32 len = name.Length();
@@ -1316,48 +1292,6 @@ FileSystemDataSource::GetName(nsIRDFResource *source, nsIRDFLiteral **aResult)
             extension.LowerCaseEqualsLiteral(".lnk"))
         {
             name.Truncate(nameLen - 4);
-        }
-    }
-#endif
-
-#ifdef  XP_BEOS
-    // under BEOS, try and get the "META:title" attribute (if its a file)
-    if (strstr(uri, netPositiveDir.get()) != 0)
-    {
-        PRBool value;
-        if ((NS_SUCCEEDED(aFileLocal->IsFile(&value) && value)) ||
-            (NS_SUCCEEDED(aFileLocal->IsDirectory(&value) && value)))
-        {
-            nsXPIDLCString nativePath;
-            aFileLocal->GetNativePath(nativePath);
-
-            rv = NS_ERROR_FAILURE;
-            if (nativePath) 
-            {
-                BFile   bf(nativePath.get(), B_READ_ONLY);
-                if (bf.InitCheck() == B_OK)
-                {
-                    char        beNameAttr[4096];
-                    ssize_t     len;
-
-                    if ((len = bf.ReadAttr("META:title", B_STRING_TYPE,
-                        0, beNameAttr, sizeof(beNameAttr)-1)) > 0)
-                    {
-                        beNameAttr[len] = '\0';
-                        CopyUTF8toUTF16(beNameAttr, name);
-                        rv = NS_OK;
-                    }
-                }
-            }
-            if (NS_OK != rv)
-            {
-                nsCAutoString leafName;
-                rv = aFileLocal->GetNativeLeafName(leafName);
-                if (NS_SUCCEEDED(rv)) {
-                    CopyUTF8toUTF16(leafName, name);
-                    rv = NS_OK;
-                }
-            }
         }
     }
 #endif
@@ -1493,19 +1427,6 @@ FileSystemDataSource::GetURL(nsIRDFResource *source, PRBool *isFavorite, nsIRDFL
     }
 #endif
 
-#ifdef  XP_BEOS
-    // under BEOS, try and get the "META:url" attribute
-    if (!netPositiveDir.IsEmpty())
-    {
-        if (strstr(uri.get(), netPositiveDir.get()) != 0)
-        {
-            if (isFavorite) *isFavorite = PR_TRUE;
-            rv = getNetPositiveURL(source, url, aResult);
-            return(rv);
-        }
-    }
-#endif
-
     // if we fall through to here, its not any type of bookmark
     // stored in the platform native file system, so just set the URL
 
@@ -1513,51 +1434,3 @@ FileSystemDataSource::GetURL(nsIRDFResource *source, PRBool *isFavorite, nsIRDFL
 
     return(NS_OK);
 }
-
-
-
-#ifdef  XP_BEOS
-
-nsresult
-FileSystemDataSource::getNetPositiveURL(nsIRDFResource *source, nsString aFileURL, nsIRDFLiteral **urlLiteral)
-{
-    nsresult        rv = NS_RDF_NO_VALUE;
-
-    *urlLiteral = nsnull;
-
-
-    nsCOMPtr<nsIFile> f;
-    NS_GetFileFromURLSpec(NS_ConvertUTF16toUTF8(aFileURL), getter_AddRefs(f)); 
-
-
-
-    nsXPIDLCString nativePath;
-    f->GetNativePath(nativePath);
-
-    PRBool value;
-    if (NS_SUCCEEDED(f->IsFile(&value) && value))
-    {
-        if (nativePath)
-        {
-            BFile   bf(nativePath.get(), B_READ_ONLY);
-            if (bf.InitCheck() == B_OK)
-            {
-                char        beURLattr[4096];
-                ssize_t     len;
-
-                if ((len = bf.ReadAttr("META:url", B_STRING_TYPE,
-                    0, beURLattr, sizeof(beURLattr)-1)) > 0)
-                {
-                    beURLattr[len] = '\0';
-                    nsAutoString    bookmarkURL;
-                    CopyUTF8toUTF16(beURLattr, bookmarkURL);
-                    rv = mRDFService->GetLiteral(bookmarkURL.get(),
-                                                 urlLiteral);
-                }
-            }
-        }
-    }
-    return(rv);
-}
-
-#endif

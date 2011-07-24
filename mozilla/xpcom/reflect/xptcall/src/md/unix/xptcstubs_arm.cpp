@@ -41,7 +41,7 @@
 #include "xptcprivate.h"
 #include "xptiprivate.h"
 
-#if !defined(LINUX) || !defined(__arm__)
+#if !defined(__arm__) && !(defined(LINUX) || defined(ANDROID))
 #error "This code is for Linux ARM only. Please check if it works for you, too.\nDepends strongly on gcc behaviour."
 #endif
 
@@ -124,7 +124,7 @@ PrepareAndDispatch(nsXPTCStubBase* self, uint32 methodIndex, PRUint32* args)
         case nsXPTType::T_CHAR   : dp->val.c   = *((char*)    ap);       break;
         case nsXPTType::T_WCHAR  : dp->val.wc  = *((wchar_t*) ap);       break;
         default:
-            NS_ASSERTION(0, "bad type");
+            NS_ERROR("bad type");
             break;
         }
     }
@@ -255,7 +255,7 @@ nsresult nsXPTCStubBase::Stub##n ()  \
 #define SENTINEL_ENTRY(n) \
 nsresult nsXPTCStubBase::Sentinel##n() \
 { \
-    NS_ASSERTION(0,"nsXPTCStubBase::Sentinel called"); \
+    NS_ERROR("nsXPTCStubBase::Sentinel called"); \
     return NS_ERROR_NOT_IMPLEMENTED; \
 }
 

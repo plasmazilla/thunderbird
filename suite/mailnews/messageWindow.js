@@ -21,6 +21,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -618,7 +619,6 @@ var MessageWindowController =
       case "button_shiftDelete":
       case "button_junk":
       case "cmd_shiftDelete":
-      case "cmd_saveAsFile":
       case "cmd_saveAsTemplate":
       case "cmd_viewPageSource":
       case "cmd_getMsgsForAuthAccounts":
@@ -629,7 +629,6 @@ var MessageWindowController =
       case "cmd_markReadByDate":
       case "cmd_markAsFlagged":
       case "button_file":
-      case "cmd_file":
       case "cmd_markAsJunk":
       case "cmd_markAsNotJunk":
       case "cmd_recalculateJunkScore":
@@ -669,8 +668,10 @@ var MessageWindowController =
       case "cmd_find":
       case "cmd_findAgain":
       case "cmd_findPrev":
+      case "button_search":
       case "cmd_search":
       case "cmd_reload":
+      case "cmd_saveAsFile":
       case "cmd_getNewMessages":
       case "button_getNewMessages":
       case "button_print":
@@ -714,7 +715,7 @@ var MessageWindowController =
       case "cmd_shiftDelete":
       case "button_shiftDelete":
         loadedFolder = GetLoadedMsgFolder();
-        return gCurrentMessageUri && loadedFolder && (loadedFolder.canDeleteMessages || isNewsURI(gCurrentFolderUri));
+        return gCurrentMessageUri && loadedFolder && loadedFolder.canDeleteMessages;
       case "button_junk":
         UpdateJunkToolbarButton();
         // fall through
@@ -756,7 +757,6 @@ var MessageWindowController =
         return true;
 			case "cmd_markAsFlagged":
       case "button_file":
-			case "cmd_file":
         return (gCurrentMessageUri != null);
       case "cmd_markAsShowRemote":
         return (GetNumSelectedMessages() > 0 && checkMsgHdrPropertyIsNot("remoteContentPolicy", kAllowRemoteContent));
@@ -796,6 +796,7 @@ var MessageWindowController =
       case "cmd_goForward":
       case "button_goForward":
         return gDBView && gDBView.navigateStatus(nsMsgNavigationType.forward);
+      case "button_search":
       case "cmd_search":
         loadedFolder = GetLoadedMsgFolder();
         return (loadedFolder && loadedFolder.server.canSearchMessages);
@@ -922,6 +923,7 @@ var MessageWindowController =
 			case "cmd_findPrev":
 				MsgFindAgain(true);
 				break;
+      case "button_search":
       case "cmd_search":
         MsgSearchMessages();
         break;

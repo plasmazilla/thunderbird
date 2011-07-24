@@ -37,13 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== toolbarbutton.css =====================================================
-  == Styles used by the XUL button element.
-  ======================================================================= */
-
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
-
-/* ::::: toolbarbutton ::::: */
 
 toolbarbutton {
   -moz-box-align: center;
@@ -56,12 +50,9 @@ toolbarbutton {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
+toolbarbutton[open="true"],
 toolbarbutton:not([disabled="true"]):active:hover {
   text-shadow: none;
-}
-
-.toolbarbutton-icon {
-	padding: 1px 0px 1px 0px;
 }
 
 .toolbarbutton-text {
@@ -71,16 +62,9 @@ toolbarbutton:not([disabled="true"]):active:hover {
   vertical-align: middle;
 }
 
-toolbarbutton:hover:active[buttonstyle="text"],
-toolbarbutton[open="true"][buttonstyle="text"] {
-  color: #2c498c;
-}
-
-
-
 toolbarbutton[disabled="true"],
 toolbarbutton[disabled="true"]:hover,
-toolbarbutton[disabled="true"]:hover:active
+toolbarbutton[disabled="true"]:hover:active,
 toolbarbutton[disabled="true"][open="true"] {
   color: -moz-mac-disabledtoolbartext !important;
 }
@@ -94,7 +78,7 @@ toolbarbutton[checked="true"] {
     border-left: 1px solid #b9b9b9;
     color: ButtonText !important;
 }
-    
+
 /* ::::: toolbarbutton menu ::::: */
 
 .toolbarbutton-menu-dropmarker {
@@ -132,14 +116,14 @@ toolbarbutton[type="menu-button"][disabled="true"]:hover:active {
   -moz-box-align: center;
   -moz-box-pack: center;
   -moz-box-orient: vertical;
+  text-shadow: inherit;
 }
-
 
 /* .......... dropmarker .......... */
 
 .toolbarbutton-menubutton-dropmarker {
   -moz-appearance: none !important;
-  border: none !important;
+  border: none;
   background-color: transparent !important;
   list-style-image: url("chrome://global/skin/arrow/arrow-dn.png");
   width: auto;
@@ -154,4 +138,3 @@ toolbarbutton[type="menu-button"][disabled="true"]:hover:active {
 toolbarbutton.tabbable {
   -moz-user-focus: normal !important;
 }
-

@@ -8,7 +8,7 @@
  *   - A correct state at the end of attempting to send.
  */
 
-load("../../mailnews/resources/alertTestUtils.js");
+load("../../../resources/alertTestUtils.js");
 
 var type = null;
 var test = null;
@@ -97,7 +97,7 @@ function OnStopCopy(aStatus) {
   // Check the data is matching.
   do_check_eq(originalData, fileData);
 
-  do_timeout(sendMessageLater(), 0);
+  do_timeout(0, sendMessageLater);
 }
 
 // This function does the actual send later

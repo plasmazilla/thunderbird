@@ -63,8 +63,9 @@
 #include "nsIURI.h"
 #include "nsNetUtil.h"
 #include "nsEscape.h"
+#include "mozilla/dom/Element.h"
 
-//#define DEBUG_BenB
+using namespace mozilla::dom;
 
 static inline PRUnichar* escape(const nsString& source)
 {
@@ -165,7 +166,7 @@ mozSanitizingHTMLSerializer::Flush(nsAString& aStr)
 }
 
 NS_IMETHODIMP
-mozSanitizingHTMLSerializer::AppendDocumentStart(nsIDOMDocument *aDocument,
+mozSanitizingHTMLSerializer::AppendDocumentStart(nsIDocument *aDocument,
                                                  nsAString& aStr)
 {
   return NS_OK;
@@ -214,7 +215,7 @@ mozSanitizingHTMLSerializer::IsContainer(PRInt32 aId)
 PRInt32
 mozSanitizingHTMLSerializer::GetIdForContent(nsIContent* aContent)
 {
-  if (!aContent->IsNodeOfType(nsINode::eHTML)) {
+  if (!aContent->IsHTML()) {
     return eHTMLTag_unknown;
   }
 
@@ -225,7 +226,7 @@ mozSanitizingHTMLSerializer::GetIdForContent(nsIContent* aContent)
 }
 
 NS_IMETHODIMP 
-mozSanitizingHTMLSerializer::AppendText(nsIDOMText* aText, 
+mozSanitizingHTMLSerializer::AppendText(nsIContent* aText,
                                         PRInt32 aStartOffset,
                                         PRInt32 aEndOffset, 
                                         nsAString& aStr)
@@ -241,14 +242,13 @@ mozSanitizingHTMLSerializer::AppendText(nsIDOMText* aText,
 }
 
 NS_IMETHODIMP 
-mozSanitizingHTMLSerializer::AppendElementStart(nsIDOMElement *aElement,
-                                                nsIDOMElement *aOriginalElement,
+mozSanitizingHTMLSerializer::AppendElementStart(Element* aElement,
+                                                Element* aOriginalElement,
                                                 nsAString& aStr)
 {
   NS_ENSURE_ARG(aElement);
 
-  mContent = do_QueryInterface(aElement);
-  NS_ENSURE_TRUE(mContent, NS_ERROR_FAILURE);
+  mContent = aElement;
 
   mOutputString = &aStr;
 
@@ -271,13 +271,12 @@ mozSanitizingHTMLSerializer::AppendElementStart(nsIDOMElement *aElement,
 } 
  
 NS_IMETHODIMP 
-mozSanitizingHTMLSerializer::AppendElementEnd(nsIDOMElement *aElement,
+mozSanitizingHTMLSerializer::AppendElementEnd(Element* aElement,
                                               nsAString& aStr)
 {
   NS_ENSURE_ARG(aElement);
 
-  mContent = do_QueryInterface(aElement);
-  NS_ENSURE_TRUE(mContent, NS_ERROR_FAILURE);
+  mContent = aElement;
 
   mOutputString = &aStr;
 
@@ -331,7 +330,7 @@ NS_IMETHODIMP
 mozSanitizingHTMLSerializer::SetDocumentCharset(nsACString& aCharset)
 {
   // No idea, if this works - it isn't invoked by |TestOutput|.
-  Write(NS_LITERAL_STRING("\n<meta http-equiv=\"Context-Type\" content=\"text/html; charset=")
+  Write(NS_LITERAL_STRING("\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=")
         /* Danger: breaking the line within the string literal, like
            "foo"\n"bar", breaks win32! */
         + nsAdoptingString(escape(NS_ConvertASCIItoUTF16(aCharset)))

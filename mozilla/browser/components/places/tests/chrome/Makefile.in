@@ -13,7 +13,7 @@
 #
 # The Original Code is Places test code.
 #
-# The Initial Developer of the Original Code is Mozilla Corp.
+# The Initial Developer of the Original Code is the Mozilla Foundation.
 # Portions created by the Initial Developer are Copyright (C) 2009
 # the Initial Developer. All Rights Reserved.
 #
@@ -47,8 +47,11 @@ _CHROME_TEST_FILES = \
 	test_treeview_date.xul \
 	test_bug485100-change-case-loses-tag.xul \
 	test_bug427633_no_newfolder_if_noip.xul \
-	test_multiple_left_pane.xul \
-	test_bug510634.xul \
+	test_0_multiple_left_pane.xul \
+	test_0_bug510634.xul \
+	test_bug549192.xul \
+	test_bug549491.xul \
+	test_editBookmarkOverlay_tags_liveUpdate.xul \
 	$(NULL)
 
 libs:: $(_CHROME_TEST_FILES)

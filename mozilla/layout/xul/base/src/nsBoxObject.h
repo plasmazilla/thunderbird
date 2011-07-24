@@ -45,14 +45,17 @@
 #include "nsAutoPtr.h"
 #include "nsHashKeys.h"
 #include "nsInterfaceHashtable.h"
+#include "nsCycleCollectionParticipant.h"
 
 class nsIFrame;
 class nsIDocShell;
 struct nsIntRect;
+class nsIPresShell;
 
 class nsBoxObject : public nsPIBoxObject
 {
-  NS_DECL_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_CLASS(nsBoxObject)
   NS_DECL_NSIBOXOBJECT
 
 public:

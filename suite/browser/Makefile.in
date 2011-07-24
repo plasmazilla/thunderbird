@@ -42,14 +42,12 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-PARALLEL_DIRS = public src
-
 ifdef ENABLE_TESTS
 PARALLEL_DIRS += test
 endif
 
 EXTRA_COMPONENTS = \
-	nsAboutAbout.js \
+	SuiteBrowser.manifest \
 	nsAboutRights.js \
 	nsBrowserContentHandler.js \
 	nsTypeAheadFind.js \

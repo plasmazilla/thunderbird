@@ -35,7 +35,9 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+#include "prdtoa.h"
 
+#ifdef XPCOM_STRING_CONSTRUCTOR_OUT_OF_LINE
 nsTSubstring_CharT::nsTSubstring_CharT( char_type *data, size_type length,
                                         PRUint32 flags)
   : mData(data),
@@ -49,27 +51,7 @@ nsTSubstring_CharT::nsTSubstring_CharT( char_type *data, size_type length,
 #endif
     }
   }
-
-nsTSubstring_CharT::nsTSubstring_CharT(const substring_tuple_type& tuple)
-    : mData(nsnull),
-      mLength(0),
-      mFlags(F_NONE)
-{
-  Assign(tuple);
-}
-
-nsTSubstring_CharT::nsTSubstring_CharT()
-: mData(char_traits::sEmptyBuffer),
-  mLength(0),
-  mFlags(F_TERMINATED) {}
-
-nsTSubstring_CharT::nsTSubstring_CharT( PRUint32 flags )
-        : mFlags(flags) {}
-
-nsTSubstring_CharT::nsTSubstring_CharT( const self_type& str )
-  : mData(str.mData),
-    mLength(str.mLength),
-    mFlags(str.mFlags & (F_TERMINATED | F_VOIDED)) {}
+#endif /* XPCOM_STRING_CONSTRUCTOR_OUT_OF_LINE */
 
   /**
    * helper function for down-casting a nsTSubstring to a nsTFixedString.
@@ -207,19 +189,10 @@ nsTSubstring_CharT::Finalize()
     // mData, mLength, and mFlags are purposefully left dangling
   }
 
-nsTSubstring_CharT::~nsTSubstring_CharT()
-  {
-    Finalize();
-  }
-
 PRBool
-nsTSubstring_CharT::ReplacePrep( index_type cutStart, size_type cutLen, size_type fragLen )
+nsTSubstring_CharT::ReplacePrepInternal(index_type cutStart, size_type cutLen,
+                                        size_type fragLen, size_type newLen)
   {
-    // bound cut length
-    cutLen = NS_MIN(cutLen, mLength - cutStart);
-
-    PRUint32 newLen = mLength - cutLen + fragLen;
-
     char_type* oldData;
     PRUint32 oldFlags;
     if (!MutatePrep(newLen, &oldData, &oldFlags))
@@ -630,7 +603,7 @@ nsTSubstring_CharT::Equals( const self_type& str ) const
 PRBool
 nsTSubstring_CharT::Equals( const self_type& str, const comparator_type& comp ) const
   {
-    return mLength == str.mLength && comp(mData, str.mData, mLength) == 0;
+    return mLength == str.mLength && comp(mData, str.mData, mLength, str.mLength) == 0;
   }
 
 PRBool
@@ -660,7 +633,7 @@ nsTSubstring_CharT::Equals( const char_type* data, const comparator_type& comp )
 
     // XXX avoid length calculation?
     size_type length = char_traits::length(data);
-    return mLength == length && comp(mData, data, mLength) == 0;
+    return mLength == length && comp(mData, data, mLength, length) == 0;
   }
 
 PRBool
@@ -731,3 +704,151 @@ nsTSubstring_CharT::StripChar( char_type aChar, PRInt32 aOffset )
     *to = char_type(0); // add the null
     mLength = to - mData;
   }
+
+void
+nsTSubstring_CharT::StripChars( const char_type* aChars, PRUint32 aOffset )
+  {
+    if (aOffset >= PRUint32(mLength))
+      return;
+
+    EnsureMutable(); // XXX do this lazily?
+
+    // XXX(darin): this code should defer writing until necessary.
+
+    char_type* to   = mData + aOffset;
+    char_type* from = mData + aOffset;
+    char_type* end  = mData + mLength;
+
+    while (from < end)
+      {
+        char_type theChar = *from++;
+        const char_type* test = aChars;
+
+        for (; *test && *test != theChar; ++test);
+
+        if (!*test) {
+          // Not stripped, copy this char.
+          *to++ = theChar;
+        }
+      }
+    *to = char_type(0); // add the null
+    mLength = to - mData;
+  }
+
+void nsTSubstring_CharT::AppendPrintf( const char* format, ...)
+  {
+    char buf[32];
+    va_list ap;
+    va_start(ap, format);
+    PRUint32 len = PR_vsnprintf(buf, sizeof(buf), format, ap);
+    AppendASCII(buf, len);
+    va_end(ap);
+  }
+
+
+/* hack to make sure we define Modified_cnvtf only once */
+#ifdef CharT_is_PRUnichar
+/**
+ * This is a copy of |PR_cnvtf| with a bug fixed.  (The second argument
+ * of PR_dtoa is 2 rather than 1.)
+ *
+ * XXX(darin): if this is the right thing, then why wasn't it fixed in NSPR?!?
+ */
+static void 
+Modified_cnvtf(char *buf, int bufsz, int prcsn, double fval)
+{
+  PRIntn decpt, sign, numdigits;
+  char *num, *nump;
+  char *bufp = buf;
+  char *endnum;
+
+  /* If anything fails, we store an empty string in 'buf' */
+  num = (char*)malloc(bufsz);
+  if (num == NULL) {
+    buf[0] = '\0';
+    return;
+  }
+  if (PR_dtoa(fval, 2, prcsn, &decpt, &sign, &endnum, num, bufsz)
+      == PR_FAILURE) {
+    buf[0] = '\0';
+    goto done;
+  }
+  numdigits = endnum - num;
+  nump = num;
+
+  /*
+   * The NSPR code had a fancy way of checking that we weren't dealing
+   * with -0.0 or -NaN, but I'll just use < instead.
+   * XXX Should we check !isnan(fval) as well?  Is it portable?  We
+   * probably don't need to bother since NAN isn't portable.
+   */
+  if (sign && fval < 0.0f) {
+    *bufp++ = '-';
+  }
+
+  if (decpt == 9999) {
+    while ((*bufp++ = *nump++) != 0) {} /* nothing to execute */
+    goto done;
+  }
+
+  if (decpt > (prcsn+1) || decpt < -(prcsn-1) || decpt < -5) {
+    *bufp++ = *nump++;
+    if (numdigits != 1) {
+      *bufp++ = '.';
+    }
+
+    while (*nump != '\0') {
+      *bufp++ = *nump++;
+    }
+    *bufp++ = 'e';
+    PR_snprintf(bufp, bufsz - (bufp - buf), "%+d", decpt-1);
+  }
+  else if (decpt >= 0) {
+    if (decpt == 0) {
+      *bufp++ = '0';
+    }
+    else {
+      while (decpt--) {
+        if (*nump != '\0') {
+          *bufp++ = *nump++;
+        }
+        else {
+          *bufp++ = '0';
+        }
+      }
+    }
+    if (*nump != '\0') {
+      *bufp++ = '.';
+      while (*nump != '\0') {
+        *bufp++ = *nump++;
+      }
+    }
+    *bufp++ = '\0';
+  }
+  else if (decpt < 0) {
+    *bufp++ = '0';
+    *bufp++ = '.';
+    while (decpt++) {
+      *bufp++ = '0';
+    }
+
+    while (*nump != '\0') {
+      *bufp++ = *nump++;
+    }
+    *bufp++ = '\0';
+  }
+done:
+  free(num);
+}
+#endif /* CharT_is_PRUnichar */
+
+void
+nsTSubstring_CharT::DoAppendFloat( double aFloat, int digits )
+{
+  char buf[40];
+  // Use Modified_cnvtf, which is locale-insensitive, instead of the
+  // locale-sensitive PR_snprintf or sprintf(3)
+  Modified_cnvtf(buf, sizeof(buf), digits, aFloat);
+  AppendASCII(buf);
+}
+

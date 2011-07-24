@@ -45,12 +45,6 @@ function runTest() {
   writeStatusFile(STATE_DOWNLOADING);
   reloadUpdateManagerData();
 
-  // 1.9.2 doesn't retain custom attributes on the update xml across sessions
-  // so manually set it.
-  let activeUpdate = gUpdateManager.activeUpdate.
-                     QueryInterface(AUS_Ci.nsIWritablePropertyBag);
-  activeUpdate.setProperty("foregroundDownload", "true");
-
   initUpdateServiceStub();
 }
 

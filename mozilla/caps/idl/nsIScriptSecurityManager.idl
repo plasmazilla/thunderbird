@@ -41,7 +41,7 @@
 interface nsIURI;
 interface nsIChannel;
 
-[scriptable, uuid(f8e350b9-9f31-451a-8c8f-d10fea26b780)]
+[scriptable, uuid(50eda256-4dd2-4c7c-baed-96983910af9f)]
 interface nsIScriptSecurityManager : nsIXPCSecurityManager
 {
     ///////////////// Security Checks //////////////////
@@ -51,21 +51,13 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     [noscript] void checkPropertyAccess(in JSContextPtr aJSContext,
                                         in JSObjectPtr aJSObject,
                                         in string aClassName,
-                                        in JSVal aProperty,
+                                        in jsid aProperty,
                                         in PRUint32 aAction);
-
-    /**
-     * Checks whether the running script is allowed to connect to aTargetURI
-     */
-    [noscript] void checkConnect(in JSContextPtr aJSContext,
-                                 in nsIURI aTargetURI,
-                                 in string aClassName,
-                                 in string aProperty);
 
     /**
      * Check that the script currently running in context "cx" can load "uri".
      *
-     * Will return error code NS_ERROR_DOM_BAD_URI if the load request 
+     * Will return error code NS_ERROR_DOM_BAD_URI if the load request
      * should be denied.
      *
      * @param cx the JSContext of the script causing the load
@@ -113,7 +105,7 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     /**
      * Check that content with principal aPrincipal can load "uri".
      *
-     * Will return error code NS_ERROR_DOM_BAD_URI if the load request 
+     * Will return error code NS_ERROR_DOM_BAD_URI if the load request
      * should be denied.
      *
      * @param aPrincipal the principal identifying the actor causing the load
@@ -121,13 +113,13 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
      * @param flags the permission set, see above
      */
     void checkLoadURIWithPrincipal(in nsIPrincipal aPrincipal,
-                                   in nsIURI uri, 
+                                   in nsIURI uri,
                                    in unsigned long flags);
 
     /**
      * Check that content from "from" can load "uri".
      *
-     * Will return error code NS_ERROR_DOM_BAD_URI if the load request 
+     * Will return error code NS_ERROR_DOM_BAD_URI if the load request
      * should be denied.
      *
      * @param from the URI causing the load
@@ -136,8 +128,8 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
      *
      * @deprecated Use checkLoadURIWithPrincipal instead of this function.
      */
-    void checkLoadURI(in nsIURI from, in nsIURI uri, 
-                      in unsigned long flags);
+    [deprecated] void checkLoadURI(in nsIURI from, in nsIURI uri,
+                                   in unsigned long flags);
 
     /**
      * Similar to checkLoadURIWithPrincipal but there are two differences:
@@ -149,17 +141,17 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
      * function will return error code NS_ERROR_DOM_BAD_URI.
      */
     void checkLoadURIStrWithPrincipal(in nsIPrincipal aPrincipal,
-                                      in AUTF8String uri, 
-                                      in unsigned long flags);     
-    
+                                      in AUTF8String uri,
+                                      in unsigned long flags);
+
     /**
      * Same as CheckLoadURI but takes string arguments for ease of use
      * by scripts
      *
      * @deprecated Use checkLoadURIStrWithPrincipal instead of this function.
      */
-    void checkLoadURIStr(in AUTF8String from, in AUTF8String uri, 
-                         in unsigned long flags);
+    [deprecated] void checkLoadURIStr(in AUTF8String from, in AUTF8String uri,
+                                      in unsigned long flags);
 
     /**
      * Check that the function 'funObj' is allowed to run on 'targetObj'
@@ -181,10 +173,10 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     [noscript] boolean canExecuteScripts(in JSContextPtr cx,
                                          in nsIPrincipal principal);
 
-    ///////////////// Principals /////////////////////// 
+    ///////////////// Principals ///////////////////////
     /**
-     * Return the principal of the innermost frame of the currently 
-     * executing script. Will return null if there is no script 
+     * Return the principal of the innermost frame of the currently
+     * executing script. Will return null if there is no script
      * currently executing.
      */
     [noscript] nsIPrincipal getSubjectPrincipal();
@@ -192,7 +184,7 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     /**
      * Return the all-powerful system principal.
      */
-    [noscript] nsIPrincipal getSystemPrincipal();
+    nsIPrincipal getSystemPrincipal();
 
     /**
      * Return a principal with the specified certificate fingerprint, subject
@@ -223,12 +215,12 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
      */
     [noscript] short requestCapability(in nsIPrincipal principal,
                                        in string capability);
-    
+
     /**
      * Return true if the currently executing script has 'capability' enabled.
      */
     boolean isCapabilityEnabled(in string capability);
-    
+
     /**
      * Enable 'capability' in the innermost frame of the currently executing
      * script.
@@ -257,7 +249,7 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     // XXXbz ideally we'd pass a subjectName here too, and the nsISupports
     // cert we're enabling for...
     void setCanEnableCapability(in AUTF8String certificateFingerprint,
-                                in string capability, 
+                                in string capability,
                                 in short canEnable);
 
     ///////////////////////
@@ -319,16 +311,12 @@ interface nsIScriptSecurityManager : nsIXPCSecurityManager
     [noscript,notxpcom] nsIPrincipal getCxSubjectPrincipal(in JSContextPtr cx);
     [noscript,notxpcom] nsIPrincipal getCxSubjectPrincipalAndFrame(in JSContextPtr cx,
                                                                    out JSStackFramePtr fp);
-};
 
-[scriptable, uuid(8229DD23-47C5-4601-A80B-0166D595A21E)]
-interface nsIScriptSecurityManager_1_9_2 : nsIScriptSecurityManager
-{
     /**
      * If no scripted code is running "above" (or called from) fp, then
      * instead of looking at cx->globalObject, we will return |principal|.
      * This function only affects |cx|. If someone pushes another context onto
-     * the context stack, then it supercedes this call.
+     * the context stack, then it supersedes this call.
      * NOTE: If |fp| is non-null popContextPrincipal must be called before fp
      * has finished executing.
      *

@@ -26,6 +26,7 @@
  *   Markus G. Kuhn <mkuhn@acm.org>
  *   Richard Verhoeven <river@win.tue.nl>
  *   Frank Tang <ftang@netscape.com> adopt into mozilla
+ *   Ginn Chen <ginn.chen@sun.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -59,12 +60,12 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include "nsCRT.h"
+#include "mozilla/Services.h"
 
 #include "gfxASurface.h"
 #include "gfxXlibSurface.h"
 #include "gfxContext.h"
 #include "nsImageToPixbuf.h"
-#include "nsIPresShell.h"
 #include "nsPresContext.h"
 #include "nsIDocument.h"
 #include "nsISelection.h"
@@ -81,11 +82,24 @@ enum {
   MOZ_GTK_DRAG_RESULT_NO_TARGET
 };
 
+// Some gobject functions expect functions for gpointer arguments.
+// gpointer is void* but C++ doesn't like casting functions to void*.
+template<class T> static inline gpointer
+FuncToGpointer(T aFunction)
+{
+    return reinterpret_cast<gpointer>
+        (reinterpret_cast<uintptr_t>
+         // This cast just provides a warning if T is not a function.
+         (reinterpret_cast<void (*)()>(aFunction)));
+}
+
 static PRLogModuleInfo *sDragLm = NULL;
+static guint sMotionEventTimerID;
 
 static const char gMimeListType[] = "application/x-moz-internal-item-list";
 static const char gMozUrlType[] = "_NETSCAPE_URL";
 static const char gTextUriListType[] = "text/uri-list";
+static const char gTextPlainUTF8Type[] = "text/plain;charset=utf-8";
 
 static void
 invisibleSourceDragEnd(GtkWidget        *aWidget,
@@ -111,7 +125,7 @@ nsDragService::nsDragService()
     // We have to destroy the hidden widget before the event loop stops
     // running.
     nsCOMPtr<nsIObserverService> obsServ =
-        do_GetService("@mozilla.org/observer-service;1");
+        mozilla::services::GetObserverService();
     obsServ->AddObserver(this, "quit-application", PR_FALSE);
 
     // our hidden source widget
@@ -139,6 +153,7 @@ nsDragService::nsDragService()
     if (!sDragLm)
         sDragLm = PR_NewLogModule("nsDragService");
     PR_LOG(sDragLm, PR_LOG_DEBUG, ("nsDragService::nsDragService"));
+    mGrabWidget = 0;
     mTargetWidget = 0;
     mTargetDragContext = 0;
     mTargetTime = 0;
@@ -176,6 +191,88 @@ nsDragService::Observe(nsISupports *aSubject, const char *aTopic,
   }
 
   return NS_OK;
+}
+
+// Support for periodic drag events
+
+// http://www.whatwg.org/specs/web-apps/current-work/multipage/dnd.html#drag-and-drop-processing-model
+// and the Xdnd protocol both recommend that drag events are sent periodically,
+// but GTK does not normally provide this.
+//
+// Here GTK is periodically stimulated by copies of the most recent mouse
+// motion events so as to send drag position messages to the destination when
+// appropriate (after it has received a status event from the previous
+// message).
+//
+// (If events were sent only on the destination side then the destination
+// would have no message to which it could reply with a drag status.  Without
+// sending a drag status to the source, the destination would not be able to
+// change its feedback re whether it could accept the drop, and so the
+// source's behavior on drop will not be consistent.)
+
+struct MotionEventData {
+    MotionEventData(GtkWidget *aWidget, GdkEvent *aEvent)
+        : mWidget(aWidget), mEvent(gdk_event_copy(aEvent))
+    {
+        MOZ_COUNT_CTOR(MotionEventData);
+        g_object_ref(mWidget);
+    }
+    ~MotionEventData()
+    {
+        MOZ_COUNT_DTOR(MotionEventData);
+        g_object_unref(mWidget);
+        gdk_event_free(mEvent);
+    }
+    GtkWidget *mWidget;
+    GdkEvent *mEvent;
+};
+
+static void
+DestroyMotionEventData(gpointer data)
+{
+    delete static_cast<MotionEventData*>(data);
+}
+
+static gboolean
+DispatchMotionEventCopy(gpointer aData)
+{
+    MotionEventData *data = static_cast<MotionEventData*>(aData);
+
+    // Clear the timer id before OnSourceGrabEventAfter is called during event dispatch.
+    sMotionEventTimerID = 0;
+
+    // If there is no longer a grab on the widget, then the drag is over and
+    // there is no need to continue drag motion.
+    if (gtk_grab_get_current() == data->mWidget) {
+        gtk_propagate_event(data->mWidget, data->mEvent);
+    }
+
+    // Cancel this timer;
+    // We've already started another if the motion event was dispatched.
+    return FALSE;
+}
+
+static void
+OnSourceGrabEventAfter(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    if (event->type != GDK_MOTION_NOTIFY)
+        return;
+
+    if (sMotionEventTimerID) {
+        g_source_remove(sMotionEventTimerID);
+    }
+
+    MotionEventData *data = new MotionEventData(widget, event);
+
+    // G_PRIORITY_DEFAULT_IDLE is lower priority than GDK's redraw idle source
+    // and lower than GTK's idle source that sends drag position messages after
+    // motion-notify signals.
+    //
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/dnd.html#drag-and-drop-processing-model
+    // recommends an interval of 350ms +/- 200ms.
+    sMotionEventTimerID = 
+        g_timeout_add_full(G_PRIORITY_DEFAULT_IDLE, 350,
+                           DispatchMotionEventCopy, data, DestroyMotionEventData);
 }
 
 // nsIDragService
@@ -255,10 +352,12 @@ nsDragService::InvokeDragSession(nsIDOMNode *aDOMNode,
           if (!SetAlphaPixmap(surface, context, offsetX, offsetY, dragRect)) {
             GdkPixbuf* dragPixbuf =
               nsImageToPixbuf::SurfaceToPixbuf(surface, dragRect.width, dragRect.height);
-            if (dragPixbuf)
+            if (dragPixbuf) {
               gtk_drag_set_icon_pixbuf(context, dragPixbuf, offsetX, offsetY);
-            else
+              g_object_unref(dragPixbuf);
+            } else {
               needsFallbackIcon = PR_TRUE;
+            }
           }
         } else {
           needsFallbackIcon = PR_TRUE;
@@ -266,6 +365,16 @@ nsDragService::InvokeDragSession(nsIDOMNode *aDOMNode,
 
         if (needsFallbackIcon)
           gtk_drag_set_icon_default(context);
+
+        // GTK uses another hidden window for receiving mouse events.
+        mGrabWidget = gtk_grab_get_current();
+        if (mGrabWidget) {
+            g_object_ref(mGrabWidget);
+            // Only motion events are required but connect to
+            // "event-after" as this is never blocked by other handlers.
+            g_signal_connect(mGrabWidget, "event-after",
+                             G_CALLBACK(OnSourceGrabEventAfter), NULL);
+        }
     }
 
     gtk_target_list_unref(sourceList);
@@ -337,6 +446,19 @@ nsDragService::EndDragSession(PRBool aDoneDrag)
 {
     PR_LOG(sDragLm, PR_LOG_DEBUG, ("nsDragService::EndDragSession %d",
                                    aDoneDrag));
+
+    if (mGrabWidget) {
+        g_signal_handlers_disconnect_by_func(mGrabWidget,
+             FuncToGpointer(OnSourceGrabEventAfter), NULL);
+        g_object_unref(mGrabWidget);
+        mGrabWidget = NULL;
+
+        if (sMotionEventTimerID) {
+            g_source_remove(sMotionEventTimerID);
+            sMotionEventTimerID = 0;
+        }
+    }
+
     // unset our drag action
     SetDragAction(DRAGDROP_ACTION_NONE);
     return nsBaseDragService::EndDragSession(aDoneDrag);
@@ -602,18 +724,17 @@ nsDragService::GetData(nsITransferable * aTransferable,
                 if ( strcmp(flavorStr, kUnicodeMime) == 0 ) {
                     PR_LOG(sDragLm, PR_LOG_DEBUG,
                            ("we were looking for text/unicode... \
-                           trying again with text/plain\n"));
-                    gdkFlavor = gdk_atom_intern(kTextMime, FALSE);
+                           trying with text/plain;charset=utf-8\n"));
+                    gdkFlavor = gdk_atom_intern(gTextPlainUTF8Type, FALSE);
                     GetTargetDragData(gdkFlavor);
                     if (mTargetDragData) {
                         PR_LOG(sDragLm, PR_LOG_DEBUG, ("Got textplain data\n"));
                         const char* castedText =
                                     reinterpret_cast<char*>(mTargetDragData);
                         PRUnichar* convertedText = nsnull;
-                        PRInt32 convertedTextLen = 0;
-                        nsPrimitiveHelpers::ConvertPlatformPlainTextToUnicode(
-                                            castedText, mTargetDragDataLen,
-                                            &convertedText, &convertedTextLen);
+                        NS_ConvertUTF8toUTF16 ucs2string(castedText,
+                                                         mTargetDragDataLen);
+                        convertedText = ToNewUnicode(ucs2string);
                         if ( convertedText ) {
                             PR_LOG(sDragLm, PR_LOG_DEBUG,
                                    ("successfully converted plain text \
@@ -621,10 +742,36 @@ nsDragService::GetData(nsITransferable * aTransferable,
                             // out with the old, in with the new
                             g_free(mTargetDragData);
                             mTargetDragData = convertedText;
-                            mTargetDragDataLen = convertedTextLen * 2;
+                            mTargetDragDataLen = ucs2string.Length() * 2;
                             dataFound = PR_TRUE;
                         } // if plain text data on clipboard
-                    } // if plain text flavor present
+                    } else {
+                        PR_LOG(sDragLm, PR_LOG_DEBUG,
+                               ("we were looking for text/unicode... \
+                               trying again with text/plain\n"));
+                        gdkFlavor = gdk_atom_intern(kTextMime, FALSE);
+                        GetTargetDragData(gdkFlavor);
+                        if (mTargetDragData) {
+                            PR_LOG(sDragLm, PR_LOG_DEBUG, ("Got textplain data\n"));
+                            const char* castedText =
+                                        reinterpret_cast<char*>(mTargetDragData);
+                            PRUnichar* convertedText = nsnull;
+                            PRInt32 convertedTextLen = 0;
+                            nsPrimitiveHelpers::ConvertPlatformPlainTextToUnicode(
+                                                castedText, mTargetDragDataLen,
+                                                &convertedText, &convertedTextLen);
+                            if ( convertedText ) {
+                                PR_LOG(sDragLm, PR_LOG_DEBUG,
+                                       ("successfully converted plain text \
+                                       to unicode.\n"));
+                                // out with the old, in with the new
+                                g_free(mTargetDragData);
+                                mTargetDragData = convertedText;
+                                mTargetDragDataLen = convertedTextLen * 2;
+                                dataFound = PR_TRUE;
+                            } // if plain text data on clipboard
+                        } // if plain text flavor present
+                    } // if plain text charset=utf-8 flavor present
                 } // if looking for text/unicode
 
                 // if we are looking for text/x-moz-url and we failed to find
@@ -809,7 +956,7 @@ nsDragService::IsDataFlavorSupported(const char *aDataFlavor,
             *_retval = PR_TRUE;
         }
         // check for automatic text/uri-list -> text/x-moz-url mapping
-        if (*_retval == PR_FALSE && 
+        if (!*_retval && 
             name &&
             (strcmp(name, gTextUriListType) == 0) &&
             (strcmp(aDataFlavor, kURLMime) == 0)) {
@@ -819,7 +966,7 @@ nsDragService::IsDataFlavorSupported(const char *aDataFlavor,
             *_retval = PR_TRUE;
         }
         // check for automatic _NETSCAPE_URL -> text/x-moz-url mapping
-        if (*_retval == PR_FALSE && 
+        if (!*_retval && 
             name &&
             (strcmp(name, gMozUrlType) == 0) &&
             (strcmp(aDataFlavor, kURLMime) == 0)) {
@@ -829,7 +976,7 @@ nsDragService::IsDataFlavorSupported(const char *aDataFlavor,
             *_retval = PR_TRUE;
         }
         // check for auto text/plain -> text/unicode mapping
-        if (*_retval == PR_FALSE && 
+        if (!*_retval && 
             name &&
             (strcmp(name, kTextMime) == 0) &&
             ((strcmp(aDataFlavor, kUnicodeMime) == 0) ||
@@ -1115,6 +1262,20 @@ nsDragService::GetSourceList(void)
                         // if we support text/unicode.
                         if (strcmp(flavorStr, kUnicodeMime) == 0) {
                             // get the atom for the unicode string
+                            GdkAtom plainUTF8Atom =
+                              gdk_atom_intern(gTextPlainUTF8Type, FALSE);
+                            GtkTargetEntry *plainUTF8Target =
+                             (GtkTargetEntry *)g_malloc(sizeof(GtkTargetEntry));
+                            plainUTF8Target->target = g_strdup(gTextPlainUTF8Type);
+                            plainUTF8Target->flags = 0;
+                            /* Bug 331198 */
+                            plainUTF8Target->info = NS_PTR_TO_UINT32(plainUTF8Atom);
+                            PR_LOG(sDragLm, PR_LOG_DEBUG,
+                                   ("automatically adding target %s with \
+                                   id %ld\n", plainUTF8Target->target, plainUTF8Atom));
+                            targetArray.AppendElement(plainUTF8Target);
+
+                            // get the atom for the ASCII string
                             GdkAtom plainAtom =
                               gdk_atom_intern(kTextMime, FALSE);
                             GtkTargetEntry *plainTarget =
@@ -1344,7 +1505,8 @@ nsDragService::SourceDataGet(GtkWidget        *aWidget,
         // we can convert it.
         PRBool needToDoConversionToPlainText = PR_FALSE;
         const char* actualFlavor = mimeFlavor;
-        if (strcmp(mimeFlavor,kTextMime) == 0) {
+        if (strcmp(mimeFlavor, kTextMime) == 0 ||
+            strcmp(mimeFlavor, gTextPlainUTF8Type) == 0) {
             actualFlavor = kUnicodeMime;
             needToDoConversionToPlainText = PR_TRUE;
         }
@@ -1380,11 +1542,18 @@ nsDragService::SourceDataGet(GtkWidget        *aWidget,
                 PRUnichar* castedUnicode = reinterpret_cast<PRUnichar*>
                                                            (tmpData);
                 PRInt32 plainTextLen = 0;
-                nsPrimitiveHelpers::ConvertUnicodeToPlatformPlainText(
-                                    castedUnicode,
-                                    tmpDataLen / 2,
-                                    &plainTextData,
-                                    &plainTextLen);
+                if (strcmp(mimeFlavor, gTextPlainUTF8Type) == 0) {
+                    plainTextData =
+                        ToNewUTF8String(
+                            nsDependentString(castedUnicode, tmpDataLen / 2),
+                            (PRUint32*)&plainTextLen);
+                } else {
+                    nsPrimitiveHelpers::ConvertUnicodeToPlatformPlainText(
+                                        castedUnicode,
+                                        tmpDataLen / 2,
+                                        &plainTextData,
+                                        &plainTextLen);
+                }
                 if (tmpData) {
                     // this was not allocated using glib
                     free(tmpData);

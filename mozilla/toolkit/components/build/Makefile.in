@@ -50,43 +50,9 @@ IS_COMPONENT = 1
 MODULE_NAME = nsToolkitCompsModule
 LIBXUL_LIBRARY = 1
 
-ifneq (,$(filter $(MOZ_WIDGET_TOOLKIT),windows gtk2))
+ifneq (,$(filter $(MOZ_WIDGET_TOOLKIT),windows gtk2 qt android))
 ALERTS_SERVICE=1
 DEFINES += -DALERTS_SERVICE
-endif
-
-REQUIRES = 	\
-		xpcom \
-		string \
-		widget \
-		layout \
-		dom \
-		intl \
-		docshell \
-		appcomps \
-		downloads \
-		fastfind \
-		mimetype \
-		webbrowserpersist \
-		necko \
-		uriloader \
-		xulapp \
-		embed_base \
-		content \
-		find \
-		gfx \
-		thebes \
-		locale \
-		unicharutil \
-		xuldoc \
-		feeds \
-		storage \
-		pipnss \
-		places \
-		$(NULL)
-
-ifdef ALERTS_SERVICE
-REQUIRES	+= alerts
 endif
 
 EXPORTS = nsToolkitCompsCID.h
@@ -96,72 +62,88 @@ CPPSRCS = nsToolkitCompsModule.cpp
 include $(topsrcdir)/config/config.mk
 
 LOCAL_INCLUDES = \
-	-I$(srcdir)/../downloads/src \
-	-I$(srcdir)/../startup/src \
-	-I$(srcdir)/../typeaheadfind/src \
-	-I$(srcdir)/../url-classifier/src \
-	-I$(srcdir)/../feeds/src \
-	$(NULL)
+  -I$(srcdir)/../downloads \
+  -I$(srcdir)/../feeds \
+  -I$(srcdir)/../find \
+  -I$(srcdir)/../intl \
+  -I$(srcdir)/../startup \
+  -I$(srcdir)/../statusfilter \
+  -I$(srcdir)/../typeaheadfind \
+  -I$(srcdir)/../url-classifier \
+  $(NULL)
 
 ifdef ALERTS_SERVICE
 LOCAL_INCLUDES += \
-	-I$(srcdir)/../alerts/src \
-	$(NULL)
+  -I$(srcdir)/../alerts \
+  $(NULL)
+endif
+
+ifeq (Android,$(OS_TARGET))
+LOCAL_INCLUDES += \
+  -I$(srcdir)/../webapps \
+  $(NULL)
 endif
 
 SHARED_LIBRARY_LIBS = \
-	../startup/src/$(LIB_PREFIX)appstartup_s.$(LIB_SUFFIX) \
-	$(NULL)
+  ../find/$(LIB_PREFIX)mozfind_s.$(LIB_SUFFIX) \
+  ../typeaheadfind/$(LIB_PREFIX)fastfind_s.$(LIB_SUFFIX) \
+  ../startup/$(LIB_PREFIX)appstartup_s.$(LIB_SUFFIX) \
+  ../statusfilter/$(LIB_PREFIX)mozbrwsr_s.$(LIB_SUFFIX) \
+  $(NULL)
 
 ifndef MOZ_DISABLE_PARENTAL_CONTROLS
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
-SHARED_LIBRARY_LIBS += ../parentalcontrols/src/$(LIB_PREFIX)parentalcontrols_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../parentalcontrols/$(LIB_PREFIX)parentalcontrols_s.$(LIB_SUFFIX)
 LOCAL_INCLUDES += \
-	-I$(srcdir)/../parentalcontrols/src \
-	$(NULL)
-REQUIRES += parentalcontrols
+  -I$(srcdir)/../parentalcontrols \
+  $(NULL)
 endif
 endif
 
 ifdef MOZ_RDF
-SHARED_LIBRARY_LIBS += ../downloads/src/$(LIB_PREFIX)download_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += \
+  ../downloads/$(LIB_PREFIX)download_s.$(LIB_SUFFIX) \
+  ../intl/$(LIB_PREFIX)intl_s.$(LIB_SUFFIX) \
+  $(NULL)
 endif
 
 ifdef ALERTS_SERVICE
-SHARED_LIBRARY_LIBS += ../alerts/src/$(LIB_PREFIX)alerts_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../alerts/$(LIB_PREFIX)alerts_s.$(LIB_SUFFIX)
 endif
 ifdef ALERTS_SERVICE_MAC
-SHARED_LIBRARY_LIBS += ../alerts/src/mac/$(LIB_PREFIX)alerts_s.$(LIB_SUFFIX)
-SHARED_LIBRARY_LIBS += ../alerts/src/mac/growl/$(LIB_PREFIX)growl_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../alerts/mac/$(LIB_PREFIX)alerts_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../alerts/mac/growl/$(LIB_PREFIX)growl_s.$(LIB_SUFFIX)
 endif
 
 ifdef MOZ_URL_CLASSIFIER
-SHARED_LIBRARY_LIBS += ../url-classifier/src/$(LIB_PREFIX)urlclassifier_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../url-classifier/$(LIB_PREFIX)urlclassifier_s.$(LIB_SUFFIX)
 EXTRA_DSO_LDOPTS += $(ZLIB_LIBS)
-REQUIRES += url-classifier
 endif
 
 ifdef MOZ_FEEDS
-SHARED_LIBRARY_LIBS += ../feeds/src/$(LIB_PREFIX)feed_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += ../feeds/$(LIB_PREFIX)feed_s.$(LIB_SUFFIX)
 endif
 
-SHARED_LIBRARY_LIBS += ../typeaheadfind/src/$(LIB_PREFIX)fastfind_s.$(LIB_SUFFIX)
+ifeq (Android,$(OS_TARGET))
+SHARED_LIBRARY_LIBS += ../webapps/$(LIB_PREFIX)webapps_s.$(LIB_SUFFIX)
+endif
+
 EXTRA_DSO_LIBS = gkgfx
 
 EXTRA_DSO_LDOPTS += \
-	$(LIBS_DIR) \
-	$(EXTRA_DSO_LIBS) \
-	$(MOZ_UNICHARUTIL_LIBS) \
-	$(MOZ_COMPONENT_LIBS) \
-	$(MOZ_JS_LIBS) \
-	$(NULL)
+  $(LIBS_DIR) \
+  $(EXTRA_DSO_LIBS) \
+  $(MOZ_UNICHARUTIL_LIBS) \
+  $(MOZ_COMPONENT_LIBS) \
+  $(MOZ_JS_LIBS) \
+  $(NULL)
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 EXTRA_DSO_LDOPTS += $(TK_LIBS)
 endif
 
 ifeq ($(OS_ARCH),WINNT)
-OS_LIBS	+= $(call EXPAND_LIBNAME,shell32 ole32)
+OS_LIBS += $(call EXPAND_LIBNAME,shell32 ole32)
 endif
 
 include $(topsrcdir)/config/rules.mk

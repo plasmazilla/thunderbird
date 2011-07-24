@@ -44,13 +44,14 @@
  * interface. It represents a single [X]HTML element in the document
  * tree.
  *
- * For more information on this interface please see
+ * This interface is trying to follow the DOM Level 2 HTML specification:
  * http://www.w3.org/TR/DOM-Level-2-HTML/
  *
- * @status FROZEN
+ * with changes from the work-in-progress WHATWG HTML specification:
+ * http://www.whatwg.org/specs/web-apps/current-work/
  */
 
-[scriptable, uuid(a6cf9085-15b3-11d2-932e-00805f8add32)]
+[scriptable, uuid(164c7ebd-2245-42d2-a96f-2bf2d01c1697)]
 interface nsIDOMHTMLElement : nsIDOMElement
 {
            attribute DOMString        id;
@@ -58,4 +59,10 @@ interface nsIDOMHTMLElement : nsIDOMElement
            attribute DOMString        lang;
            attribute DOMString        dir;
            attribute DOMString        className;
+
+           attribute DOMString        accessKey;
+
+           void                       blur();
+           void                       focus();
+           void                       click();
 };

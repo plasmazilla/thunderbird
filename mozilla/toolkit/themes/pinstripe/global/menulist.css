@@ -37,14 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== menulist.css ===================================================
-  == Styles used by the XUL menulist element.
-  ======================================================================= */
-
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 @namespace html url("http://www.w3.org/1999/xhtml");
-
-/* :::::::::: menulist :::::::::: */
 
 menulist {
   -moz-appearance: menulist;
@@ -52,10 +46,6 @@ menulist {
   min-height: 20px !important;
   color: -moz-DialogText;
   text-shadow: none;
-}
-
-listbox menulist:not([disabled]) {
-  color: -moz-DialogText;
 }
 
 .menulist-label-box {
@@ -122,8 +112,7 @@ html|*.menulist-editable-input {
 
 .menulist-compact > .menulist-label {
   margin: 0 3px !important;
-  text-align: right;
-
+  text-align: end;
 }  
 
 .menulist-compact > .menulist-dropmarker {

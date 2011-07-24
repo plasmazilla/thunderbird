@@ -48,7 +48,6 @@
 #include "nsPresContext.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsPIDOMWindow.h"
-#include "nsIViewManager.h"
 #include "nsGUIEvent.h"
 #include "nsEventDispatcher.h"
 #include "nsDisplayList.h"
@@ -71,20 +70,7 @@ nsTitleBarFrame::nsTitleBarFrame(nsIPresShell* aPresShell, nsStyleContext* aCont
 :nsBoxFrame(aPresShell, aContext, PR_FALSE)
 {
   mTrackingMouseMove = PR_FALSE;
-}
-
-
-
-NS_IMETHODIMP
-nsTitleBarFrame::Init(nsIContent*      aContent,
-                      nsIFrame*        aParent,
-                      nsIFrame*        asPrevInFlow)
-{
-  nsresult rv = nsBoxFrame::Init(aContent, aParent, asPrevInFlow);
-
-  CreateViewForFrame(PresContext(), this, GetStyleContext(), PR_TRUE);
-
-  return rv;
+  UpdateMouseThrough();
 }
 
 NS_IMETHODIMP
@@ -131,7 +117,7 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
              mTrackingMouseMove = PR_TRUE;
 
              // start capture.
-             CaptureMouseEvents(aPresContext,PR_TRUE);
+             nsIPresShell::SetCapturingContent(GetContent(), CAPTURE_IGNOREALLOWED);
 
              // remember current mouse coordinates.
              mLastPoint = aEvent->refPoint;
@@ -154,7 +140,7 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
          mTrackingMouseMove = PR_FALSE;
 
          // end capture
-         CaptureMouseEvents(aPresContext,PR_FALSE);
+         nsIPresShell::SetCapturingContent(nsnull, 0);
 
          *aEventStatus = nsEventStatus_eConsumeNoDefault;
          doDefault = PR_FALSE;
@@ -171,15 +157,15 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
          while (parent && parent->GetType() != nsGkAtoms::menuPopupFrame)
            parent = parent->GetParent();
 
-         // if the titlebar is in a popup, move the popup's widget, otherwise
+         // if the titlebar is in a popup, move the popup frame, otherwise
          // move the widget associated with the window
          if (parent) {
+           nsMenuPopupFrame* menuPopupFrame = static_cast<nsMenuPopupFrame*>(parent);
            nsCOMPtr<nsIWidget> widget;
-           (static_cast<nsMenuPopupFrame*>(parent))->
-             GetWidget(getter_AddRefs(widget));
+           menuPopupFrame->GetWidget(getter_AddRefs(widget));
            nsIntRect bounds;
            widget->GetScreenBounds(bounds);
-           widget->Move(bounds.x + nsMoveBy.x, bounds.y + nsMoveBy.y);
+           menuPopupFrame->MoveTo(bounds.x + nsMoveBy.x, bounds.y + nsMoveBy.y, PR_FALSE);
          }
          else {
            nsIPresShell* presShell = aPresContext->PresShell();
@@ -211,35 +197,6 @@ nsTitleBarFrame::HandleEvent(nsPresContext* aPresContext,
   else
     return NS_OK;
 }
-
-NS_IMETHODIMP
-nsTitleBarFrame::CaptureMouseEvents(nsPresContext* aPresContext,PRBool aGrabMouseEvents)
-{
-  // get its view
-  nsIView* view = GetView();
-  PRBool result;
-
-  if (view) {
-    nsIViewManager* viewMan = view->GetViewManager();
-    if (viewMan) {
-      // nsIWidget* widget = view->GetWidget();
-      if (aGrabMouseEvents) {
-        viewMan->GrabMouseEvents(view,result);
-        //mIsCapturingMouseEvents = PR_TRUE;
-        //widget->CaptureMouse(PR_TRUE);
-      } else {
-        viewMan->GrabMouseEvents(nsnull,result);
-        //mIsCapturingMouseEvents = PR_FALSE;
-        //widget->CaptureMouse(PR_FALSE);
-      }
-    }
-  }
-
-  return NS_OK;
-
-}
-
-
 
 void
 nsTitleBarFrame::MouseClicked(nsPresContext* aPresContext, nsGUIEvent* aEvent)

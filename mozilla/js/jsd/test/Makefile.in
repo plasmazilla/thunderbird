@@ -47,7 +47,9 @@ MODULE = jsdebug
 
 include $(topsrcdir)/config/rules.mk
 
-_TEST_FILES = 	test_bug507448.html \
+_TEST_FILES = 	test_bug507448.html bug507448.js \
+		test_bug617870-callhooks.html test-bug617870-callhooks.js jsd-test.js \
 		$(NULL)
+
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

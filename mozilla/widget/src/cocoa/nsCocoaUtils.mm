@@ -38,6 +38,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "gfxImageSurface.h"
 #include "nsCocoaUtils.h"
 #include "nsMenuBarX.h"
 #include "nsCocoaWindow.h"
@@ -100,7 +101,7 @@ NSPoint nsCocoaUtils::ScreenLocationForEvent(NSEvent* anEvent)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
   // Don't trust mouse locations of mouse move events, see bug 443178.
-  if ([anEvent type] == NSMouseMoved)
+  if (!anEvent || [anEvent type] == NSMouseMoved)
     return [NSEvent mouseLocation];
 
   return [[anEvent window] convertBaseToScreen:[anEvent locationInWindow]];
@@ -126,90 +127,6 @@ NSPoint nsCocoaUtils::EventLocationForWindow(NSEvent* anEvent, NSWindow* aWindow
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(NSMakePoint(0.0, 0.0));
 }
 
-BOOL nsCocoaUtils::WindowAcceptsEvent(NSWindow* aWindow, NSEvent* anEvent)
-{
-  // Right mouse down events may get through to all windows, even to a top level
-  // window with an open sheet.
-  if (!aWindow || [anEvent type] == NSRightMouseDown)
-    return YES;
-
-  id delegate = [aWindow delegate];
-  if (!delegate || ![delegate isKindOfClass:[WindowDelegate class]])
-    return YES;
-
-  nsIWidget *windowWidget = [(WindowDelegate *)delegate geckoWidget];
-  if (!windowWidget)
-    return YES;
-
-  nsWindowType windowType;
-  windowWidget->GetWindowType(windowType);
-
-  switch (windowType) {
-    case eWindowType_popup:
-      // If this is a context menu, it won't have a parent. So we'll always
-      // accept mouse move events on context menus even when none of our windows
-      // is active, which is the right thing to do.
-      // For panels, the parent window is the XUL window that owns the panel.
-      return WindowAcceptsEvent([aWindow parentWindow], anEvent);
-
-    case eWindowType_toplevel:
-    case eWindowType_dialog:
-      // Block all mouse events other than RightMouseDown on background windows
-      // and on windows behind sheets.
-      return [aWindow isMainWindow] && ![aWindow attachedSheet];
-
-    case eWindowType_sheet: {
-      nsIWidget* parentWidget = windowWidget->GetSheetWindowParent();
-      if (!parentWidget)
-        return YES;
-
-      // Only accept mouse events on a sheet whose containing window is active.
-      NSWindow* parentWindow = (NSWindow*)parentWidget->GetNativeData(NS_NATIVE_WINDOW);
-      return [parentWindow isMainWindow];
-    }
-
-    default:
-      return YES;
-  }
-}
-
-// Find the active window under the mouse. If the mouse isn't over any active
-// window, just return the topmost active window and set *isUnderMouse to NO.
-NSWindow* nsCocoaUtils::FindWindowForEvent(NSEvent* anEvent, BOOL* isUnderMouse)
-{
-  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
-
-  *isUnderMouse = NO;
-  int windowCount;
-  NSCountWindows(&windowCount);
-  int* windowList = (int*)malloc(sizeof(int) * windowCount);
-  if (!windowList)
-    return nil;
-  // The list we get back here is in order from front to back.
-  NSWindowList(windowCount, windowList);
-
-  NSWindow* activeWindow = nil;
-  NSPoint screenPoint = ScreenLocationForEvent(anEvent);
-
-  for (int i = 0; i < windowCount; i++) {
-    NSWindow* currentWindow = [NSApp windowWithWindowNumber:windowList[i]];
-    if (currentWindow && WindowAcceptsEvent(currentWindow, anEvent)) {
-      if (NSPointInRect(screenPoint, [currentWindow frame])) {
-        free(windowList);
-        *isUnderMouse = YES;
-        return currentWindow;
-      }
-      if (!activeWindow)
-        activeWindow = currentWindow;
-    }
-  }
-
-  free(windowList);
-  return activeWindow;
-
-  NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
-}
-
 void nsCocoaUtils::HideOSChromeOnScreen(PRBool aShouldHide, NSScreen* aScreen)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -229,6 +146,8 @@ void nsCocoaUtils::HideOSChromeOnScreen(PRBool aShouldHide, NSScreen* aScreen)
     NS_ASSERTION(sDockHiddenCount >= 0, "Unbalanced HideMenuAndDockForWindow calls");
   }
 
+  // TODO This should be upgraded to use [NSApplication setPresentationOptions:]
+  // when support for 10.5 is dropped.
   if (sMenuBarHiddenCount > 0) {
     ::SetSystemUIMode(kUIModeAllHidden, 0);
   } else if (sDockHiddenCount > 0) {
@@ -328,54 +247,83 @@ void nsCocoaUtils::CleanUpAfterNativeAppModalDialog()
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-unsigned short nsCocoaUtils::GetCocoaEventKeyCode(NSEvent *theEvent)
+nsresult nsCocoaUtils::CreateCGImageFromSurface(gfxImageSurface *aFrame, CGImageRef *aResult)
 {
-  unsigned short keyCode = [theEvent keyCode];
-  if (nsToolkit::OnLeopardOrLater())
-    return keyCode;
-  NSEventType type = [theEvent type];
-  // GetCocoaEventKeyCode() can get called with theEvent set to a FlagsChanged
-  // event, which triggers an NSInternalInconsistencyException when
-  // charactersIgnoringModifiers is called on it.  For some reason there's no
-  // problem calling keyCode on it (as we do above).
-  if ((type != NSKeyDown) && (type != NSKeyUp))
-    return keyCode;
-  NSString *unmodchars = [theEvent charactersIgnoringModifiers];
-  if (!keyCode && ([unmodchars length] == 1)) {
-    // An OS-X-10.4.X-specific Apple bug causes the 'theEvent' parameter of
-    // all calls to performKeyEquivalent: (whether on NSMenu, NSWindow or
-    // NSView objects) to have most of its fields zeroed on a ctrl-ESC event.
-    // These include its keyCode and modifierFlags fields, but fortunately
-    // not its characters and charactersIgnoringModifiers fields.  So if
-    // charactersIgnoringModifiers has length == 1 and corresponds to the ESC
-    // character (0x1b), we correct keyCode to 0x35 (kEscapeKeyCode).
-    if ([unmodchars characterAtIndex:0] == 0x1b)
-      keyCode = 0x35;
+
+  PRInt32 width = aFrame->Width();
+  PRInt32 stride = aFrame->Stride();
+  PRInt32 height = aFrame->Height();
+  if ((stride % 4 != 0) || (height < 1) || (width < 1)) {
+    return NS_ERROR_FAILURE;
   }
-  return keyCode;
+
+  // Create a CGImageRef with the bits from the image, taking into account
+  // the alpha ordering and endianness of the machine so we don't have to
+  // touch the bits ourselves.
+  CGDataProviderRef dataProvider = ::CGDataProviderCreateWithData(NULL,
+                                                                  aFrame->Data(),
+                                                                  stride * height,
+                                                                  NULL);
+  CGColorSpaceRef colorSpace = ::CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+  *aResult = ::CGImageCreate(width,
+                             height,
+                             8,
+                             32,
+                             stride,
+                             colorSpace,
+                             kCGBitmapByteOrder32Host | kCGImageAlphaFirst,
+                             dataProvider,
+                             NULL,
+                             0,
+                             kCGRenderingIntentDefault);
+  ::CGColorSpaceRelease(colorSpace);
+  ::CGDataProviderRelease(dataProvider);
+  return *aResult ? NS_OK : NS_ERROR_FAILURE;
 }
 
-NSUInteger nsCocoaUtils::GetCocoaEventModifierFlags(NSEvent *theEvent)
+nsresult nsCocoaUtils::CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage **aResult)
 {
-  NSUInteger modifierFlags = [theEvent modifierFlags];
-  if (nsToolkit::OnLeopardOrLater())
-    return modifierFlags;
-  NSEventType type = [theEvent type];
-  if ((type != NSKeyDown) && (type != NSKeyUp))
-    return modifierFlags;
-  NSString *unmodchars = [theEvent charactersIgnoringModifiers];
-  if (!modifierFlags && ([unmodchars length] == 1)) {
-    // An OS-X-10.4.X-specific Apple bug causes the 'theEvent' parameter of
-    // all calls to performKeyEquivalent: (whether on NSMenu, NSWindow or
-    // NSView objects) to have most of its fields zeroed on a ctrl-ESC event.
-    // These include its keyCode and modifierFlags fields, but fortunately
-    // not its characters and charactersIgnoringModifiers fields.  So if
-    // charactersIgnoringModifiers has length == 1 and corresponds to the ESC
-    // character (0x1b), we correct modifierFlags to NSControlKeyMask.  (ESC
-    // key events don't get messed up (anywhere they're sent) on opt-ESC,
-    // shift-ESC or cmd-ESC.)
-    if ([unmodchars characterAtIndex:0] == 0x1b)
-      modifierFlags = NSControlKeyMask;
-  }
-  return modifierFlags;
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
+
+  PRInt32 width = ::CGImageGetWidth(aInputImage);
+  PRInt32 height = ::CGImageGetHeight(aInputImage);
+  NSRect imageRect = ::NSMakeRect(0.0, 0.0, width, height);
+
+  // Create a new image to receive the Quartz image data.
+  *aResult = [[NSImage alloc] initWithSize:imageRect.size];
+
+  [*aResult lockFocus];
+
+  // Get the Quartz context and draw.
+  CGContextRef imageContext = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
+  ::CGContextDrawImage(imageContext, *(CGRect*)&imageRect, aInputImage);
+
+  [*aResult unlockFocus];
+  return NS_OK;
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
+
+nsresult nsCocoaUtils::CreateNSImageFromImageContainer(imgIContainer *aImage, PRUint32 aWhichFrame, NSImage **aResult)
+{
+  nsRefPtr<gfxImageSurface> frame;
+  nsresult rv = aImage->CopyFrame(aWhichFrame,
+                                  imgIContainer::FLAG_SYNC_DECODE,
+                                  getter_AddRefs(frame));
+  if (NS_FAILED(rv) || !frame) {
+    return NS_ERROR_FAILURE;
+  }
+  CGImageRef imageRef = NULL;
+  rv = nsCocoaUtils::CreateCGImageFromSurface(frame, &imageRef);
+  if (NS_FAILED(rv) || !imageRef) {
+    return NS_ERROR_FAILURE;
+  }
+
+  rv = nsCocoaUtils::CreateNSImageFromCGImage(imageRef, aResult);
+  if (NS_FAILED(rv) || !aResult) {
+    return NS_ERROR_FAILURE;
+  }
+  ::CGImageRelease(imageRef);
+  return NS_OK;
+}
+

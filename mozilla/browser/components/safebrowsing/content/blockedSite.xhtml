@@ -78,29 +78,38 @@
       function getURL()
       {
         var url = document.documentURI;
-        var index = url.search(/u\=/);
+        var match = url.match(/&u=([^&]+)&/);
 
-        // index == -1 if not found; if so, return an empty string
+        // match == null if not found; if so, return an empty string
         // instead of what would turn out to be portions of the URI
-        if (index == -1)
+        if (!match)
           return "";
 
-        return decodeURIComponent(url.slice(index + 2));
+        url = decodeURIComponent(match[1]);
+
+        // If this is a view-source page, then get then real URI of the page
+        if (/^view-source\:/.test(url))
+          url = url.slice(12);
+        return url;
       }
       
       /**
-       * Attempt to parse the result of getURL and extract a hostname.  Fail back
+       * Attempt to get the hostname via document.location.  Fail back
        * to getURL so that we always return something meaningful.
        */
       function getHostString()
       {
-        return document.location.hostname;
+        try {
+          return document.location.hostname;
+        } catch (e) {
+          return getURL();
+        }
       }
       
       function initPage()
       {
         // Handoff to the appropriate initializer, based on error code
-        switch(getErrorCode()) {
+        switch (getErrorCode()) {
           case "malwareBlocked" :
             initPage_malware();
             break;
@@ -203,15 +212,12 @@
         <!-- Action buttons -->
         <div id="buttons">
           <!-- Commands handled in browser.js -->
-          <xul:button xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-                      id="getMeOutButton" label="&safeb.palm.accept.label;"/>
-          <xul:button xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-                      id="reportButton" label="&safeb.palm.reportPage.label;"/>
+          <button id="getMeOutButton">&safeb.palm.accept.label;</button>
+          <button id="reportButton">&safeb.palm.reportPage.label;</button>
         </div>
       </div>
       <div id="ignoreWarning">
-        <xul:button xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-                    id="ignoreWarningButton" label="&safeb.palm.decline.label;"/>
+        <button id="ignoreWarningButton">&safeb.palm.decline.label;</button>
       </div>
     </div>
     <!--

@@ -40,7 +40,9 @@
 
 #include "prtypes.h"
 
-class nsICanvasElement;
+#include "CheckedInt.h"
+
+class nsHTMLCanvasElement;
 class nsIPrincipal;
 
 namespace mozilla {
@@ -50,24 +52,26 @@ public:
     // Check that the rectangle [x,y,w,h] is a subrectangle of [0,0,realWidth,realHeight]
 
     static PRBool CheckSaneSubrectSize(PRInt32 x, PRInt32 y, PRInt32 w, PRInt32 h,
-                                       PRInt32 realWidth, PRInt32 realHeight)
-    {
-        if (w <= 0 || h <= 0 || x < 0 || y < 0)
-            return PR_FALSE;
+                                       PRInt32 realWidth, PRInt32 realHeight) {
+        CheckedInt32 checked_x_plus_w  = CheckedInt32(x) + w;
+        CheckedInt32 checked_y_plus_h  = CheckedInt32(y) + h;
 
-        if (x >= realWidth  || w > (realWidth - x) ||
-            y >= realHeight || h > (realHeight - y))
-            return PR_FALSE;
-
-        return PR_TRUE;
+        return w >= 0 && h >= 0 && x >= 0 && y >= 0 &&
+            checked_x_plus_w.valid() &&
+            checked_x_plus_w.value() <= realWidth &&
+            checked_y_plus_h.valid() &&
+            checked_y_plus_h.value() <= realHeight;
     }
 
     // Flag aCanvasElement as write-only if drawing an image with aPrincipal
     // onto it would make it such.
 
-    static void DoDrawImageSecurityCheck(nsICanvasElement *aCanvasElement,
+    static void DoDrawImageSecurityCheck(nsHTMLCanvasElement *aCanvasElement,
                                          nsIPrincipal *aPrincipal,
                                          PRBool forceWriteOnly);
+
+    static void LogMessage (const nsCString& errorString);
+    static void LogMessagef (const char *fmt, ...);
 
 private:
     // this can't be instantiated

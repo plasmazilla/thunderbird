@@ -61,9 +61,10 @@
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsDirectoryServiceUtils.h"
-#include "nsCOMPtr.h"
+#include "nsIWinTaskbar.h"
+#include "nsISupportsPrimitives.h"
 #include <mbstring.h>
-#include "nsIGenericFactory.h"
+#include "mozilla/ModuleUtils.h"
 
 #ifdef MOZILLA_INTERNAL_API
 #define CaseInsensitiveCompare nsCaseInsensitiveStringComparator()
@@ -80,16 +81,15 @@
 #define MAX_BUF 4096
 #endif
 
-#define SHELLSERVICE_PROPERTIES "chrome://communicator/locale/shellservice.properties"
-#define BRAND_PROPERTIES "chrome://branding/locale/brand.properties"
-
 #define REG_SUCCEEDED(val) \
   (val == ERROR_SUCCESS)
 
 #define REG_FAILED(val) \
   (val != ERROR_SUCCESS)
 
-NS_IMPL_ISUPPORTS1(nsWindowsShellService, nsIShellService)
+#define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
+
+NS_IMPL_ISUPPORTS2(nsWindowsShellService, nsIWindowsShellService, nsIShellService)
 
 static nsresult
 OpenKeyForReading(HKEY aKeyRoot, const PRUnichar* aKeyName, HKEY* aKey)
@@ -338,6 +338,119 @@ static SETTING gBrowserSettings[] = {
    { MAKE_KEY_NAME1("feed", SOP), "", "\"%APPPATH%\" -osint -mail \"%1\"", APP_PATH_SUBSTITUTION },
 };
 
+nsresult
+GetHelperPath(nsString& aPath)
+{
+  nsresult rv;
+  nsCOMPtr<nsIProperties> directoryService = 
+    do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsILocalFile> appHelper;
+  rv = directoryService->Get(NS_XPCOM_CURRENT_PROCESS_DIR,
+                             NS_GET_IID(nsILocalFile),
+                             getter_AddRefs(appHelper));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = appHelper->AppendNative(NS_LITERAL_CSTRING("uninstall"));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = appHelper->AppendNative(NS_LITERAL_CSTRING("helper.exe"));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return appHelper->GetPath(aPath);
+}
+
+nsresult
+LaunchHelper(const nsString& aPath)
+{
+  STARTUPINFOW si = {sizeof(si), 0};
+  PROCESS_INFORMATION pi = {0};
+
+  BOOL ok = CreateProcessW(NULL, (LPWSTR)aPath.get(), NULL, NULL,
+                           FALSE, 0, NULL, NULL, &si, &pi);
+
+  if (!ok)
+    return NS_ERROR_FAILURE;
+
+  CloseHandle(pi.hProcess);
+  CloseHandle(pi.hThread);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsWindowsShellService::ShortcutMaintenance()
+{
+  nsresult rv;
+
+  // Launch helper.exe so it can update the application user model ids on
+  // shortcuts in the user's taskbar and start menu. This keeps older pinned
+  // shortcuts grouped correctly after major updates. Note, we also do this
+  // through the upgrade installer script, however, this is the only place we
+  // have a chance to trap links created by users who do control the install/
+  // update process of the browser.
+
+  nsCOMPtr<nsIWinTaskbar> taskbarInfo =
+    do_GetService(NS_TASKBAR_CONTRACTID);
+  if (!taskbarInfo) // If we haven't built with win7 sdk features, this fails.
+    return NS_OK;
+
+  // Avoid if this isn't Win7+
+  PRBool isSupported = PR_FALSE;
+  taskbarInfo->GetAvailable(&isSupported);
+  if (!isSupported)
+    return NS_OK;
+
+  nsAutoString appId;
+  if (NS_FAILED(taskbarInfo->GetDefaultGroupId(appId)))
+    return NS_ERROR_UNEXPECTED;
+
+  NS_NAMED_LITERAL_CSTRING(prefName, "browser.taskbar.lastgroupid");
+  nsCOMPtr<nsIPrefService> prefs =
+    do_GetService(NS_PREFSERVICE_CONTRACTID);
+  if (!prefs)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMPtr<nsIPrefBranch> prefBranch;
+  prefs->GetBranch(nsnull, getter_AddRefs(prefBranch));
+  if (!prefBranch)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMPtr<nsISupportsString> prefString;
+  rv = prefBranch->GetComplexValue(prefName.get(),
+                                   NS_GET_IID(nsISupportsString),
+                                   getter_AddRefs(prefString));
+  if (NS_SUCCEEDED(rv)) {
+    nsAutoString version;
+    prefString->GetData(version);
+    if (version.Equals(appId)) {
+      // We're all good, get out of here.
+      return NS_OK;
+    }
+  }
+  // Update the version in prefs
+  prefString = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
+  if (NS_FAILED(rv))
+    return rv;
+
+  prefString->SetData(appId);
+  rv = prefBranch->SetComplexValue(prefName.get(),
+                                   NS_GET_IID(nsISupportsString),
+                                   prefString);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Couldn't set last user model id!");
+    return NS_ERROR_UNEXPECTED;
+  }
+
+  nsAutoString appHelperPath;
+  if (NS_FAILED(GetHelperPath(appHelperPath)))
+    return NS_ERROR_UNEXPECTED;
+
+  appHelperPath.AppendLiteral(" /UpdateShortcutAppUserModelIds");
+
+  return LaunchHelper(appHelperPath);
+}
+
 /* helper routine. Iterate over the passed in settings object,
    testing each key to see if we are handling it.
 */
@@ -541,7 +654,7 @@ nsWindowsShellService::GetShouldCheckDefaultClient(PRBool* aResult)
   nsresult rv;
   nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
-  return prefs->GetBoolPref("shell.checkDefaultClient", aResult);
+  return prefs->GetBoolPref(PREF_CHECKDEFAULTCLIENT, aResult);
 }
 
 
@@ -551,7 +664,7 @@ nsWindowsShellService::SetShouldCheckDefaultClient(PRBool aShouldCheck)
 {
   nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
   NS_ENSURE_TRUE(prefs, NS_ERROR_FAILURE);
-  return prefs->SetBoolPref("shell.checkDefaultClient", aShouldCheck);
+  return prefs->SetBoolPref(PREF_CHECKDEFAULTCLIENT, aShouldCheck);
 }
 
 NS_IMETHODIMP
@@ -793,21 +906,105 @@ nsWindowsShellService::SetDesktopBackgroundColor(PRUint32 aColor)
                      0, REG_SZ, (const BYTE *)backColor.get(),
                      (backColor.Length() + 1) * sizeof(PRUnichar));
   }
-  
+
   // Close the key we opened.
   ::RegCloseKey(key);
   return NS_OK;
 }
 
+NS_IMETHODIMP
+nsWindowsShellService::OpenApplicationWithURI(nsILocalFile* aApplication,
+                                              const nsACString& aURI)
+{
+  nsresult rv;
+  nsCOMPtr<nsIProcess> process = 
+    do_CreateInstance("@mozilla.org/process/util;1", &rv);
+  if (NS_FAILED(rv))
+    return rv;
+  
+  rv = process->Init(aApplication);
+  if (NS_FAILED(rv))
+    return rv;
+  
+  const nsCString& spec = PromiseFlatCString(aURI);
+  const char* specStr = spec.get();
+  return process->Run(PR_FALSE, &specStr, 1);
+}
+
+NS_IMETHODIMP
+nsWindowsShellService::GetDefaultFeedReader(nsILocalFile** _retval)
+{
+  *_retval = nsnull;
+
+  HKEY theKey;
+  nsresult rv = OpenKeyForReading(HKEY_CLASSES_ROOT, 
+                                  L"feed\\shell\\open\\command",
+                                  &theKey);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  DWORD buf;
+  LONG res = ::RegQueryValueExW(theKey, NULL, NULL, NULL, NULL, &buf);
+
+  if (REG_FAILED(res))
+    return NS_ERROR_FAILURE;
+
+  // Buffer size must be a multiple of 2
+  NS_ENSURE_STATE(buf % 2 == 0);
+  nsAutoString path;
+  path.SetLength(buf / 2 - 1);
+  res = ::RegQueryValueExW(theKey, NULL, NULL, NULL, (LPBYTE)path.BeginWriting(), &buf);
+  ::RegCloseKey(theKey);
+  if (REG_FAILED(res))
+    return NS_ERROR_FAILURE;
+
+  if (path.IsEmpty())
+    return NS_ERROR_FAILURE;
+
+  if (path.First() == '"') {
+    // Everything inside the quotes
+    path = Substring(path, 1, path.FindChar('"', 1) - 1);
+  } else {
+    // Everything up to the first space
+    path = Substring(path, 0, path.FindChar(' '));
+  }
+
+  nsCOMPtr<nsILocalFile> defaultReader =
+    do_CreateInstance("@mozilla.org/file/local;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = defaultReader->InitWithPath(path);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRBool exists;
+  rv = defaultReader->Exists(&exists);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (!exists)
+    return NS_ERROR_FAILURE;
+
+  NS_ADDREF(*_retval = defaultReader);
+  return NS_OK;
+}
+
 #ifdef BUILD_STATIC_SHELL
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsWindowsShellService, Init)
+NS_DEFINE_NAMED_CID(NS_SUITEWININTEGRATION_CID);
 
-static const nsModuleComponentInfo components[] = {
-  { "SeaMonkey Windows Integration",
-    NS_SUITEWININTEGRATION_CID,
-    NS_SUITEWININTEGRATION_CONTRACTID,
-    nsWindowsShellServiceConstructor },
+static const mozilla::Module::CIDEntry kSuiteShellCIDs[] = {
+  { &kNS_SUITEWININTEGRATION_CID, false, NULL, nsWindowsShellServiceConstructor },
+  { NULL }
 };
 
-NS_IMPL_NSGETMODULE(nsSuiteShellModule, components)
+static const mozilla::Module::ContractIDEntry kSuiteShellContracts[] = {
+  { NS_SUITESHELLSERVICE_CONTRACTID, &kNS_SUITEWININTEGRATION_CID },
+  { NS_SUITEFEEDSERVICE_CONTRACTID, &kNS_SUITEWININTEGRATION_CID },
+  { NULL }
+};
+
+static const mozilla::Module kSuiteShellModule = {
+  mozilla::Module::kVersion,
+  kSuiteShellCIDs,
+  kSuiteShellContracts
+};
+
+NSMODULE_DEFN(nsSuiteShellModule) = &kSuiteShellModule;
 #endif

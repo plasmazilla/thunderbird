@@ -34,9 +34,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "prlock.h"
 #include "nsRegion.h"
 #include "nsISupportsImpl.h"
+#include "nsTArray.h"
 
 /*
  * The SENTINEL values below guaranties that a < or >
@@ -108,14 +108,7 @@ class RgnRectMemoryAllocator
   nsRegion::RgnRect*  mFreeListHead;
   PRUint32  mFreeEntries;
   void*     mChunkListHead;
-#if 0
-  PRLock*   mLock;
-
-  void InitLock ()    { mLock = PR_NewLock (); }
-  void DestroyLock () { PR_DestroyLock (mLock); }
-  void Lock ()        { PR_Lock   (mLock); }
-  void Unlock ()      { PR_Unlock (mLock); }
-#elif defined (DEBUG)
+#if defined (DEBUG)
   NS_DECL_OWNINGTHREAD
 
   void InitLock ()    { NS_ASSERT_OWNINGTHREAD (RgnRectMemoryAllocator); }
@@ -222,17 +215,27 @@ void RgnRectMemoryAllocator::Free (nsRegion::RgnRect* aRect)
 
 
 // Global pool for nsRegion::RgnRect allocation
-static RgnRectMemoryAllocator gRectPool (INIT_MEM_CHUNK_ENTRIES);
+static RgnRectMemoryAllocator* gRectPool;
 
+nsresult nsRegion::InitStatic()
+{
+  gRectPool = new RgnRectMemoryAllocator(INIT_MEM_CHUNK_ENTRIES);
+  return !gRectPool ? NS_ERROR_OUT_OF_MEMORY : NS_OK;
+}
+
+void nsRegion::ShutdownStatic()
+{
+    delete gRectPool;
+}
 
 void* nsRegion::RgnRect::operator new (size_t) CPP_THROW_NEW
 {
-  return gRectPool.Alloc ();
+  return gRectPool->Alloc ();
 }
 
 void nsRegion::RgnRect::operator delete (void* aRect, size_t)
 {
-  gRectPool.Free (static_cast<RgnRect*>(aRect));
+  gRectPool->Free (static_cast<RgnRect*>(aRect));
 }
 
 
@@ -1002,6 +1005,18 @@ PRBool nsRegion::Contains (const nsRect& aRect) const
   return tmpRgn.IsEmpty();
 }
 
+PRBool nsRegion::Contains (const nsRegion& aRgn) const
+{
+  // XXX this could be made faster
+  nsRegionRectIterator iter(aRgn);
+  while (const nsRect* r = iter.Next()) {
+    if (!Contains (*r)) {
+      return PR_FALSE;
+    }
+  }
+  return PR_TRUE;
+}
+
 PRBool nsRegion::Intersects (const nsRect& aRect) const
 {
   if (aRect.IsEmpty() || IsEmpty())
@@ -1278,10 +1293,421 @@ void nsRegion::MoveBy (nsPoint aPt)
   }
 }
 
+nsRegion& nsRegion::ExtendForScaling (float aXMult, float aYMult)
+{
+  nsRegion region;
+  nsRegionRectIterator iter(*this);
+  for (;;) {
+    const nsRect* r = iter.Next();
+    if (!r)
+      break;
+    nsRect rect = *r;
+    rect.ExtendForScaling(aXMult, aYMult);
+    region.Or(region, rect);
+  }
+  *this = region;
+  return *this;
+}
+
+nsRegion& nsRegion::ScaleRoundOut (float aXScale, float aYScale)
+{
+  nsRegion region;
+  nsRegionRectIterator iter(*this);
+  for (;;) {
+    const nsRect* r = iter.Next();
+    if (!r)
+      break;
+    nsRect rect = *r;
+    rect.ScaleRoundOut(aXScale, aYScale);
+    region.Or(region, rect);
+  }
+  *this = region;
+  return *this;
+}
+
+nsRegion nsRegion::ConvertAppUnitsRoundOut (PRInt32 aFromAPP, PRInt32 aToAPP) const
+{
+  if (aFromAPP == aToAPP) {
+    return *this;
+  }
+  // Do it in a simplistic and slow way to avoid any weird behaviour with
+  // rounding causing rects to overlap. Should be fast enough for what we need.
+  nsRegion region;
+  nsRegionRectIterator iter(*this);
+  for (;;) {
+    const nsRect* r = iter.Next();
+    if (!r)
+      break;
+    nsRect rect = r->ConvertAppUnitsRoundOut(aFromAPP, aToAPP);
+    region.Or(region, rect);
+  }
+  return region;
+}
+
+nsRegion nsRegion::ConvertAppUnitsRoundIn (PRInt32 aFromAPP, PRInt32 aToAPP) const
+{
+  if (aFromAPP == aToAPP) {
+    return *this;
+  }
+  // Do it in a simplistic and slow way to avoid any weird behaviour with
+  // rounding causing rects to overlap. Should be fast enough for what we need.
+  nsRegion region;
+  nsRegionRectIterator iter(*this);
+  for (;;) {
+    const nsRect* r = iter.Next();
+    if (!r)
+      break;
+    nsRect rect = r->ConvertAppUnitsRoundIn(aFromAPP, aToAPP);
+    region.Or(region, rect);
+  }
+  return region;
+}
+
+nsIntRegion nsRegion::ToOutsidePixels (nscoord aAppUnitsPerPixel) const
+{
+  nsIntRegion result;
+  nsRegionRectIterator rgnIter(*this);
+  const nsRect* currentRect;
+  while ((currentRect = rgnIter.Next())) {
+    nsIntRect deviceRect = currentRect->ToOutsidePixels(aAppUnitsPerPixel);
+    result.Or(result, deviceRect);
+  }
+  return result;
+}
+
+// A cell's "value" is a pair consisting of
+// a) the area of the subrectangle it corresponds to, if it's in
+// aContainingRect and in the region, 0 otherwise
+// b) the area of the subrectangle it corresponds to, if it's in the region,
+// 0 otherwise
+// Addition, subtraction and identity are defined on these values in the
+// obvious way. Partial order is lexicographic.
+// A "large negative value" is defined with large negative numbers for both
+// fields of the pair. This negative value has the property that adding any
+// number of non-negative values to it always results in a negative value.
+//
+// The GetLargestRectangle algorithm works in three phases:
+//  1) Convert the region into a grid by adding vertical/horizontal lines for
+//     each edge of each rectangle in the region.
+//  2) For each rectangle in the region, for each cell it contains, set that
+//     cells's value as described above.
+//  3) Calculate the submatrix with the largest sum such that none of its cells
+//     contain any 0s (empty regions). The rectangle represented by the
+//     submatrix is the largest rectangle in the region.
+//
+// Let k be the number of rectangles in the region.
+// Let m be the height of the grid generated in step 1.
+// Let n be the width of the grid generated in step 1.
+//
+// Step 1 is O(k) in time and O(m+n) in space for the sparse grid.
+// Step 2 is O(mn) in time and O(mn) in additional space for the full grid.
+// Step 3 is O(m^2 n) in time and O(mn) in additional space
+//
+// The implementation of steps 1 and 2 are rather straightforward. However our
+// implementation of step 3 uses dynamic programming to achieve its efficiency.
+//
+// Psuedo code for step 3 is as follows where G is the grid from step 1 and A
+// is the array from step 2:
+// Phase3 = function (G, A, m, n) {
+//   let (t,b,l,r,_) = MaxSum2D(A,m,n)
+//   return rect(G[t],G[l],G[r],G[b]);
+// }
+// MaxSum2D = function (A, m, n) {
+//   S = array(m+1,n+1)
+//   S[0][i] = 0 for i in [0,n]
+//   S[j][0] = 0 for j in [0,m]
+//   S[j][i] = (if A[j-1][i-1] = 0 then some large negative value else A[j-1][i-1])
+//           + S[j-1][n] + S[j][i-1] - S[j-1][i-1]
+//
+//   // top, bottom, left, right, area
+//   var maxRect = (-1, -1, -1, -1, 0);
+//
+//   for all (m',m'') in [0, m]^2 {
+//     let B = { S[m'][i] - S[m''][i] | 0 <= i <= n }
+//     let ((l,r),area) = MaxSum1D(B,n+1)
+//     if (area > maxRect.area) {
+//       maxRect := (m', m'', l, r, area)
+//     }
+//   }
+//
+//   return maxRect;
+// }
+//
+// Originally taken from Improved algorithms for the k-maximum subarray problem
+// for small k - SE Bae, T Takaoka but modified to show the explicit tracking
+// of indices and we already have the prefix sums from our one call site so
+// there's no need to construct them.
+// MaxSum1D = function (A,n) {
+//   var minIdx = 0;
+//   var min = 0;
+//   var maxIndices = (0,0);
+//   var max = 0;
+//   for i in range(n) {
+//     let cand = A[i] - min;
+//     if (cand > max) {
+//       max := cand;
+//       maxIndices := (minIdx, i)
+//     }
+//     if (min > A[i]) {
+//       min := A[i];
+//       minIdx := i;
+//     }
+//   }
+//   return (minIdx, maxIdx, max);
+// }
+
+namespace {
+  // This class represents a partitioning of an axis delineated by coordinates.
+  // It internally maintains a sorted array of coordinates.
+  class AxisPartition {
+  public:
+    // Adds a new partition at the given coordinate to this partitioning. If
+    // the coordinate is already present in the partitioning, this does nothing.
+    void InsertCoord(nscoord c) {
+      PRUint32 i;
+      if (!mStops.GreatestIndexLtEq(c, i)) {
+        mStops.InsertElementAt(i, c);
+      }
+    }
+
+    // Returns the array index of the given partition point. The partition
+    // point must already be present in the partitioning.
+    PRInt32 IndexOf(nscoord p) const {
+      return mStops.BinaryIndexOf(p);
+    }
+
+    // Returns the partition at the given index which must be non-zero and
+    // less than the number of partitions in this partitioning.
+    nscoord StopAt(PRInt32 index) const {
+      return mStops[index];
+    }
+
+    // Returns the size of the gap between the partition at the given index and
+    // the next partition in this partitioning. If the index is the last index
+    // in the partitioning, the result is undefined.
+    nscoord StopSize(PRInt32 index) const {
+      return mStops[index+1] - mStops[index];
+    }
+
+    // Returns the number of partitions in this partitioning.
+    PRInt32 GetNumStops() const { return mStops.Length(); }
+
+  private:
+    nsTArray<nscoord> mStops;
+  };
+
+  const PRInt64 kVeryLargeNegativeNumber = 0xffff000000000000ll;
+
+  struct SizePair {
+    PRInt64 mSizeContainingRect;
+    PRInt64 mSize;
+
+    SizePair() : mSizeContainingRect(0), mSize(0) {}
+
+    static SizePair VeryLargeNegative() {
+      SizePair result;
+      result.mSize = result.mSizeContainingRect = kVeryLargeNegativeNumber;
+      return result;
+    }
+    SizePair& operator=(const SizePair& aOther) {
+      mSizeContainingRect = aOther.mSizeContainingRect;
+      mSize = aOther.mSize;
+      return *this;
+    }
+    PRBool operator<(const SizePair& aOther) const {
+      if (mSizeContainingRect < aOther.mSizeContainingRect)
+        return PR_TRUE;
+      if (mSizeContainingRect > aOther.mSizeContainingRect)
+        return PR_FALSE;
+      return mSize < aOther.mSize;
+    }
+    PRBool operator>(const SizePair& aOther) const {
+      return aOther.operator<(*this);
+    }
+    SizePair operator+(const SizePair& aOther) const {
+      SizePair result = *this;
+      result.mSizeContainingRect += aOther.mSizeContainingRect;
+      result.mSize += aOther.mSize;
+      return result;
+    }
+    SizePair operator-(const SizePair& aOther) const {
+      SizePair result = *this;
+      result.mSizeContainingRect -= aOther.mSizeContainingRect;
+      result.mSize -= aOther.mSize;
+      return result;
+    }
+  };
+
+  // Returns the sum and indices of the subarray with the maximum sum of the
+  // given array (A,n), assuming the array is already in prefix sum form.
+  SizePair MaxSum1D(const nsTArray<SizePair> &A, PRInt32 n,
+                    PRInt32 *minIdx, PRInt32 *maxIdx) {
+    // The min/max indicies of the largest subarray found so far
+    SizePair min, max;
+    PRInt32 currentMinIdx = 0;
+
+    *minIdx = 0;
+    *maxIdx = 0;
+
+    // Because we're given the array in prefix sum form, we know the first
+    // element is 0
+    for(PRInt32 i = 1; i < n; i++) {
+      SizePair cand = A[i] - min;
+      if (cand > max) {
+        max = cand;
+        *minIdx = currentMinIdx;
+        *maxIdx = i;
+      }
+      if (min > A[i]) {
+        min = A[i];
+        currentMinIdx = i;
+      }
+    }
+
+    return max;
+  }
+}
+
+nsRect nsRegion::GetLargestRectangle (const nsRect& aContainingRect) const {
+  nsRect bestRect;
+
+  if (mRectCount <= 1) {
+    bestRect = mBoundRect;
+    return bestRect;
+  }
+
+  AxisPartition xaxis, yaxis;
+
+  // Step 1: Calculate the grid lines
+  nsRegionRectIterator iter(*this);
+  const nsRect *currentRect;
+  while ((currentRect = iter.Next())) {
+    xaxis.InsertCoord(currentRect->x);
+    xaxis.InsertCoord(currentRect->XMost());
+    yaxis.InsertCoord(currentRect->y);
+    yaxis.InsertCoord(currentRect->YMost());
+  }
+  if (!aContainingRect.IsEmpty()) {
+    xaxis.InsertCoord(aContainingRect.x);
+    xaxis.InsertCoord(aContainingRect.XMost());
+    yaxis.InsertCoord(aContainingRect.y);
+    yaxis.InsertCoord(aContainingRect.YMost());
+  }
+
+  // Step 2: Fill out the grid with the areas
+  // Note: due to the ordering of rectangles in the region, it is not always
+  // possible to combine steps 2 and 3 so we don't try to be clever.
+  PRInt32 matrixHeight = yaxis.GetNumStops() - 1;
+  PRInt32 matrixWidth = xaxis.GetNumStops() - 1;
+  PRInt32 matrixSize = matrixHeight * matrixWidth;
+  nsTArray<SizePair> areas(matrixSize);
+  areas.SetLength(matrixSize);
+
+  iter.Reset();
+  while ((currentRect = iter.Next())) {
+    PRInt32 xstart = xaxis.IndexOf(currentRect->x);
+    PRInt32 xend = xaxis.IndexOf(currentRect->XMost());
+    PRInt32 y = yaxis.IndexOf(currentRect->y);
+    PRInt32 yend = yaxis.IndexOf(currentRect->YMost());
+
+    for (; y < yend; y++) {
+      nscoord height = yaxis.StopSize(y);
+      for (PRInt32 x = xstart; x < xend; x++) {
+        nscoord width = xaxis.StopSize(x);
+        PRInt64 size = width*PRInt64(height);
+        if (currentRect->Intersects(aContainingRect)) {
+          areas[y*matrixWidth+x].mSizeContainingRect = size;
+        }
+        areas[y*matrixWidth+x].mSize = size;
+      }
+    }
+  }
+
+  // Step 3: Find the maximum submatrix sum that does not contain a rectangle
+  {
+    // First get the prefix sum array
+    PRInt32 m = matrixHeight + 1;
+    PRInt32 n = matrixWidth + 1;
+    nsTArray<SizePair> pareas(m*n);
+    pareas.SetLength(m*n);
+    for (PRInt32 y = 1; y < m; y++) {
+      for (PRInt32 x = 1; x < n; x++) {
+        SizePair area = areas[(y-1)*matrixWidth+x-1];
+        if (!area.mSize) {
+          area = SizePair::VeryLargeNegative();
+        }
+        area = area + pareas[    y*n+x-1]
+                    + pareas[(y-1)*n+x  ]
+                    - pareas[(y-1)*n+x-1];
+        pareas[y*n+x] = area;
+      }
+    }
+
+    // No longer need the grid
+    areas.SetLength(0);
+
+    SizePair bestArea;
+    struct {
+      PRInt32 left, top, right, bottom;
+    } bestRectIndices = { 0, 0, 0, 0 };
+    for (PRInt32 m1 = 0; m1 < m; m1++) {
+      for (PRInt32 m2 = m1+1; m2 < m; m2++) {
+        nsTArray<SizePair> B;
+        B.SetLength(n);
+        for (PRInt32 i = 0; i < n; i++) {
+          B[i] = pareas[m2*n+i] - pareas[m1*n+i];
+        }
+        PRInt32 minIdx, maxIdx;
+        SizePair area = MaxSum1D(B, n, &minIdx, &maxIdx);
+        if (area > bestArea) {
+          bestRectIndices.left = minIdx;
+          bestRectIndices.top = m1;
+          bestRectIndices.right = maxIdx;
+          bestRectIndices.bottom = m2;
+          bestArea = area;
+        }
+      }
+    }
+
+    bestRect.MoveTo(xaxis.StopAt(bestRectIndices.left),
+                    yaxis.StopAt(bestRectIndices.top));
+    bestRect.SizeTo(xaxis.StopAt(bestRectIndices.right) - bestRect.x,
+                    yaxis.StopAt(bestRectIndices.bottom) - bestRect.y);
+  }
+
+  return bestRect;
+}
+
 void nsRegion::SimplifyOutward (PRUint32 aMaxRects)
 {
   NS_ASSERTION(aMaxRects >= 1, "Invalid max rect count");
   
+  if (mRectCount <= aMaxRects)
+    return;
+
+  // Try combining rects in horizontal bands into a single rect
+  RgnRect* pRect = mRectListHead.next;
+  while (pRect != &mRectListHead)
+  {
+    // Combine with the following rectangle if they have the same YMost
+    // or if they overlap vertically. This ensures that all overlapping
+    // rectangles are merged, preserving the invariant that rectangles
+    // don't overlap.
+    // The goal here is to try to keep groups of rectangles that are vertically
+    // discontiguous as separate rectangles in the final region. This is
+    // simple and fast to implement and page contents tend to vary more
+    // vertically than horizontally (which is why our rectangles are stored
+    // sorted by y-coordinate, too).
+    while (pRect->next != &mRectListHead &&
+           pRect->YMost () >= pRect->next->y)
+    {
+      pRect->UnionRect(*pRect, *pRect->next);
+      delete Remove (pRect->next);
+    }
+
+    pRect = pRect->next;
+  }
+
   if (mRectCount <= aMaxRects)
     return;
 
@@ -1336,4 +1762,16 @@ void nsRegion::SimpleSubtract (const nsRegion& aRegion)
   }
 
   Optimize();
+}
+
+nsRegion nsIntRegion::ToAppUnits (nscoord aAppUnitsPerPixel) const
+{
+  nsRegion result;
+  nsIntRegionRectIterator rgnIter(*this);
+  const nsIntRect* currentRect;
+  while ((currentRect = rgnIter.Next())) {
+    nsRect appRect = currentRect->ToAppUnits(aAppUnitsPerPixel);
+    result.Or(result, appRect);
+  }
+  return result;
 }

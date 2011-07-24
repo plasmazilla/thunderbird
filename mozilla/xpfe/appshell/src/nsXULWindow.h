@@ -68,11 +68,11 @@
 // nsXULWindow
 
 #define NS_XULWINDOW_IMPL_CID                         \
-{ /* 2a38ef7e-3174-44ad-a785-b5a863cf5588 */          \
-     0x2a38ef7e,                                      \
-     0x3174,                                          \
-     0x44ad,                                          \
-   { 0xa7, 0x85, 0xb5, 0xa8, 0x63, 0xcf, 0x55, 0x88 } \
+{ /* 8eaec2f3-ed02-4be2-8e0f-342798477298 */          \
+     0x8eaec2f3,                                      \
+     0xed02,                                          \
+     0x4be2,                                          \
+   { 0x8e, 0x0f, 0x34, 0x27, 0x98, 0x47, 0x72, 0x98 } \
 }
 
 class nsContentShellInfo;
@@ -96,6 +96,7 @@ public:
 
    void LockUntilChromeLoad() { mLockedUntilChromeLoad = PR_TRUE; }
    PRBool IsLocked() const { return mLockedUntilChromeLoad; }
+   void IgnoreXULSizeMode(PRBool aEnable) { mIgnoreXULSizeMode = aEnable; }
 
 protected:
    enum persistentAttributes {
@@ -104,7 +105,7 @@ protected:
      PAD_SIZE =         0x4
    };
 
-   nsXULWindow();
+   nsXULWindow(PRUint32 aChromeFlags);
    virtual ~nsXULWindow();
 
    NS_IMETHOD EnsureChromeTreeOwner();
@@ -171,6 +172,8 @@ protected:
    PRPackedBool            mLockedUntilChromeLoad;
    PRPackedBool            mIgnoreXULSize;
    PRPackedBool            mIgnoreXULPosition;
+   PRPackedBool            mChromeFlagsFrozen;
+   PRPackedBool            mIgnoreXULSizeMode;
    PRUint32                mContextFlags;
    PRUint32                mBlurSuppressionLevel;
    PRUint32                mPersistentAttributesDirty; // persistentAttributes
@@ -179,6 +182,7 @@ protected:
    PRUint32                mAppPerDev; // sometimes needed when we can't get
                                        // it from the widget
    nsString                mTitle;
+   nsIntRect               mOpenerScreenRect; // the screen rect of the opener
 
    nsCOMArray<nsIWeakReference> mTargetableShells; // targetable shells only
 };

@@ -38,11 +38,9 @@
 #define NS_SVGTEXTCONTAINERFRAME_H
 
 #include "nsSVGContainerFrame.h"
-#include "nsIDOMSVGLengthList.h"
 
 class nsISVGGlyphFragmentNode;
 class nsISVGGlyphFragmentLeaf;
-
 class nsSVGTextFrame;
 
 class nsSVGTextContainerFrame : public nsSVGDisplayContainerFrame
@@ -52,10 +50,9 @@ public:
     nsSVGDisplayContainerFrame(aContext) {}
 
   void NotifyGlyphMetricsChange();
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetX();
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetY();
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetDx();
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetDy();
+  virtual void GetXY(SVGUserUnitList *aX, SVGUserUnitList *aY);
+  virtual void GetDxDy(SVGUserUnitList *aDx, SVGUserUnitList *aDy);
+  virtual const SVGNumberList *GetRotate();
   
 public:
   NS_DECL_QUERYFRAME_TARGET(nsSVGTextContainerFrame)
@@ -92,6 +89,9 @@ public:
    * Get the character at the specified position
    */
   virtual PRInt32 GetCharNumAtPosition(nsIDOMSVGPoint *point);
+  void GetEffectiveXY(nsTArray<float> &aX, nsTArray<float> &aY);
+  void GetEffectiveDxDy(nsTArray<float> &aDx, nsTArray<float> &aDy);
+  void GetEffectiveRotate(nsTArray<float> &aRotate);
 
 protected:
   /*
@@ -110,6 +110,16 @@ protected:
    * Set Whitespace handling
    */
   void SetWhitespaceHandling();
+  PRBool IsAllWhitespace();
+  void CopyPositionList(nsTArray<float> *parentList,
+                        SVGUserUnitList *selfList,
+                        nsTArray<float> &dstList,
+                        PRUint32 aOffset);
+  void CopyRotateList(nsTArray<float> *parentList,
+                      const SVGNumberList *selfList,
+                      nsTArray<float> &dstList,
+                      PRUint32 aOffset);
+  PRUint32 BuildPositionList(PRUint32 aOffset, PRUint32 aDepth);
 
 private:
   /*
@@ -125,6 +135,11 @@ private:
    * if this is a text frame)
    */
   nsSVGTextFrame * GetTextFrame();
+  nsTArray<float> mX;
+  nsTArray<float> mY;
+  nsTArray<float> mDx;
+  nsTArray<float> mDy;
+  nsTArray<float> mRotate;
 };
 
 #endif

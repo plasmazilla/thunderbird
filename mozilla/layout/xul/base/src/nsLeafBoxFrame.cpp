@@ -59,8 +59,6 @@
 #include "nsHTMLContainerFrame.h"
 #include "nsDisplayList.h"
 
-static NS_DEFINE_IID(kWidgetCID, NS_CHILD_CID);
-
 //
 // NS_NewLeafBoxFrame
 //
@@ -75,7 +73,7 @@ NS_NewLeafBoxFrame (nsIPresShell* aPresShell, nsStyleContext* aContext)
 NS_IMPL_FRAMEARENA_HELPERS(nsLeafBoxFrame)
 
 nsLeafBoxFrame::nsLeafBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext)
-    : nsLeafFrame(aContext), mMouseThrough(unset)
+    : nsLeafFrame(aContext)
 {
 }
 
@@ -99,8 +97,6 @@ nsLeafBoxFrame::Init(
 {
   nsresult  rv = nsLeafFrame::Init(aContent, aParent, aPrevInFlow);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  mMouseThrough = unset;
 
   UpdateMouseThrough();
 
@@ -129,27 +125,15 @@ void nsLeafBoxFrame::UpdateMouseThrough()
     switch (mContent->FindAttrValueIn(kNameSpaceID_None,
                                       nsGkAtoms::mousethrough,
                                       strings, eCaseMatters)) {
-      case 0: mMouseThrough = never; break;
-      case 1: mMouseThrough = always; break;
+      case 0: AddStateBits(NS_FRAME_MOUSE_THROUGH_NEVER); break;
+      case 1: AddStateBits(NS_FRAME_MOUSE_THROUGH_ALWAYS); break;
+      case 2: {
+          RemoveStateBits(NS_FRAME_MOUSE_THROUGH_ALWAYS);
+          RemoveStateBits(NS_FRAME_MOUSE_THROUGH_NEVER);
+          break;
+      }
     }
   }
-}
-
-PRBool
-nsLeafBoxFrame::GetMouseThrough() const
-{
-  switch (mMouseThrough)
-  {
-    case always:
-      return PR_TRUE;
-    case never:
-      return PR_FALSE;
-    case unset:
-      if (mParent && mParent->IsBoxFrame())
-        return mParent->GetMouseThrough();
-  }
-
-  return PR_FALSE;
 }
 
 NS_IMETHODIMP
@@ -169,7 +153,7 @@ nsLeafBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     return NS_OK;
 
   return aLists.Content()->AppendNewToTop(new (aBuilder)
-      nsDisplayEventReceiver(this));
+      nsDisplayEventReceiver(aBuilder, this));
 }
 
 /* virtual */ nscoord
@@ -342,7 +326,7 @@ nsLeafBoxFrame::Reflow(nsPresContext*   aPresContext,
   aDesiredSize.ascent = GetBoxAscent(state);
 
   // the overflow rect is set in SetBounds() above
-  aDesiredSize.mOverflowArea = GetOverflowRect();
+  aDesiredSize.mOverflowAreas = GetOverflowAreas();
 
 #ifdef DO_NOISY_REFLOW
   {

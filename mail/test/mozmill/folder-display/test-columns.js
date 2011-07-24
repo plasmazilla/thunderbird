@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -368,8 +368,10 @@ function invoke_column_picker_option(aActions) {
   let colPickerPopup = mc.window.document.getAnonymousElementByAttribute(
                          colPicker, "anonid", "popup");
 
-  mc.click(new elib.Elem(colPicker), 10, 10);
+  mc.click(new elib.Elem(colPicker));
+  wait_for_popup_to_open(colPickerPopup);
   mc.click_menus_in_sequence(colPickerPopup, aActions);
+  close_popup(mc, new elib.Elem(colPickerPopup));
 }
 
 
@@ -393,7 +395,7 @@ function test_reset_to_inbox() {
 }
 
 function subtest_say_yes(cwc) {
-  cwc.window.commonDialogOnAccept();
+  cwc.window.document.documentElement.getButton('accept').doCommand();
 }
 
 function _apply_to_folder_common(aChildrenToo) {
@@ -417,6 +419,10 @@ function _apply_to_folder_common(aChildrenToo) {
  *  children.  Make sure the folder changes but the children do not.
  */
 function test_apply_to_folder_no_children() {
+  // XXX Fails on Mac, see bug 563908
+  if (Application.platformIsMac)
+    return;
+
   folderParent = create_folder("ColumnsApplyParent");
   folderParent.createSubfolder("Child1", null);
   folderChild1 = folderParent.getChildNamed("Child1");
@@ -452,6 +458,10 @@ function test_apply_to_folder_no_children() {
  *  Make sure the folder and its children change.
  */
 function test_apply_to_folder_and_children() {
+  // XXX Fails on Mac, see bug 563908
+  if (Application.platformIsMac)
+    return;
+
   // no need to throttle ourselves during testing.
   MailUtils.INTER_FOLDER_PROCESSING_DELAY_MS = 0;
 

@@ -38,41 +38,25 @@
 
 #include "nsX11ErrorHandler.h"
 
-#ifdef MOZ_IPC
-#include "mozilla/plugins/PluginThreadChild.h"
-using mozilla::plugins::PluginThreadChild;
-#endif
+#include "mozilla/plugins/PluginProcessChild.h"
+using mozilla::plugins::PluginProcessChild;
 
 #include "prenv.h"
 #include "nsXULAppAPI.h"
 #include "nsExceptionHandler.h"
 #include "nsDebug.h"
 
+#include "mozilla/X11Util.h"
 #include <X11/Xlib.h>
-#ifdef MOZ_WIDGET_GTK2
-#include <gdk/gdkx.h>
-#endif
 
 #define BUFSIZE 2048 // What Xlib uses with XGetErrorDatabaseText
 
 extern "C" {
 static int
-IgnoreError(Display *display, XErrorEvent *event) {
-  return 0; // This return value is ignored.
-}
-
-static int
 X11Error(Display *display, XErrorEvent *event) {
-  nsCAutoString notes;
-  char buffer[BUFSIZE];
-
   // Get an indication of how long ago the request that caused the error was
-  // made.  Do this before querying extensions etc below.
+  // made.
   unsigned long age = NextRequest(display) - event->serial;
-
-  // Ignore subsequent errors, which may get processed during the extension
-  // queries below for example.
-  XSetErrorHandler(IgnoreError);
 
   // Get a string to represent the request that caused the error.
   nsCAutoString message;
@@ -81,25 +65,49 @@ X11Error(Display *display, XErrorEvent *event) {
     message.AppendInt(event->request_code);
   } else {
     // Extension request
-    int nExts;
-    char** extNames = XListExtensions(display, &nExts);
-    if (extNames) {
-      for (int i = 0; i < nExts; ++i) {
-        int major_opcode, first_event, first_error;
-        if (XQueryExtension(display, extNames[i],
-                            &major_opcode, &first_event, &first_error)
-            && major_opcode == event->request_code) {
-          message.Append(extNames[i]);
-          message.Append('.');
-          message.AppendInt(event->minor_code);
-          break;
-        }
-      }
 
-      XFreeExtensionList(extNames);
+    // man XSetErrorHandler says "the error handler should not call any
+    // functions (directly or indirectly) on the display that will generate
+    // protocol requests or that will look for input events" so we use another
+    // temporary Display to request extension information.  This assumes on
+    // the DISPLAY environment variable has been set and matches what was used
+    // to open |display|.
+    Display *tmpDisplay = XOpenDisplay(NULL);
+    if (tmpDisplay) {
+      int nExts;
+      char** extNames = XListExtensions(tmpDisplay, &nExts);
+      int first_error;
+      if (extNames) {
+        for (int i = 0; i < nExts; ++i) {
+          int major_opcode, first_event;
+          if (XQueryExtension(tmpDisplay, extNames[i],
+                              &major_opcode, &first_event, &first_error)
+              && major_opcode == event->request_code) {
+            message.Append(extNames[i]);
+            message.Append('.');
+            message.AppendInt(event->minor_code);
+            break;
+          }
+        }
+
+        XFreeExtensionList(extNames);
+      }
+      XCloseDisplay(tmpDisplay);
+
+#ifdef MOZ_WIDGET_GTK2
+      // GDK2 calls XCloseDevice the devices that it opened on startup, but
+      // the XI protocol no longer ensures that the devices will still exist.
+      // If they have been removed, then a BadDevice error results.  Ignore
+      // this error.
+      if (message.EqualsLiteral("XInputExtension.4") &&
+          event->error_code == first_error + 0) {
+        return 0;
+      }
+#endif
     }
   }
 
+  char buffer[BUFSIZE];
   if (message.IsEmpty()) {
     buffer[0] = '\0';
   } else {
@@ -107,6 +115,7 @@ X11Error(Display *display, XErrorEvent *event) {
                           buffer, sizeof(buffer));
   }
 
+  nsCAutoString notes;
   if (buffer[0]) {
     notes.Append(buffer);
   } else {
@@ -149,16 +158,14 @@ X11Error(Display *display, XErrorEvent *event) {
   case GeckoProcessType_Default:
     CrashReporter::AppendAppNotesToCrashReport(notes);
     break;
-#ifdef MOZ_IPC
   case GeckoProcessType_Plugin:
     if (CrashReporter::GetEnabled()) {
       // This is assuming that X operations are performed on the plugin
       // thread.  If plugins are using X on another thread, then we'll need to
       // handle that differently.
-      PluginThreadChild::AppendNotesToCrashReport(notes);
+      PluginProcessChild::AppendNotesToCrashReport(notes);
     }
     break;
-#endif
   default: 
     ; // crash report notes not supported.
   }
@@ -169,7 +176,7 @@ X11Error(Display *display, XErrorEvent *event) {
   // context of other ids, but add it to the debug console output.
   notes.Append("; id=0x");
   notes.AppendInt(PRUint32(event->resourceid), 16);
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_X11
   // Actually, for requests where Xlib gets the reply synchronously,
   // MOZ_X_SYNC=1 will not be necessary, but we don't have a table to tell us
   // which requests get a synchronous reply.
@@ -177,6 +184,16 @@ X11Error(Display *display, XErrorEvent *event) {
     notes.Append("\nRe-running with MOZ_X_SYNC=1 in the environment may give a more helpful backtrace.");
   }
 #endif
+#endif
+
+#ifdef MOZ_WIDGET_QT
+  // We should not abort here if MOZ_X_SYNC is not set
+  // until http://bugreports.qt.nokia.com/browse/QTBUG-4042
+  // not fixed, just print error value
+  if (!PR_GetEnv("MOZ_X_SYNC")) {
+    fprintf(stderr, "XError: %s\n", notes.get());
+    return 0; // temporary workaround for bug 161472
+  }
 #endif
 
   NS_RUNTIMEABORT(notes.get());
@@ -189,10 +206,9 @@ InstallX11ErrorHandler()
 {
   XSetErrorHandler(X11Error);
 
-#ifdef MOZ_WIDGET_GTK2
-  NS_ASSERTION(GDK_DISPLAY(), "No GDK display");
+  Display *display = mozilla::DefaultXDisplay();
+  NS_ASSERTION(display, "No X display");
   if (PR_GetEnv("MOZ_X_SYNC")) {
-    XSynchronize(GDK_DISPLAY(), True);
+    XSynchronize(display, True);
   }
-#endif
 }

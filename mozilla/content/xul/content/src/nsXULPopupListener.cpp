@@ -55,7 +55,7 @@
 #include "nsContentCID.h"
 #include "nsContentUtils.h"
 #include "nsXULPopupManager.h"
-
+#include "nsEventStateManager.h"
 #include "nsIScriptContext.h"
 #include "nsIDOMWindowInternal.h"
 #include "nsIDOMXULDocument.h"
@@ -164,7 +164,7 @@ nsXULPopupListener::PreLaunchPopup(nsIDOMEvent* aMouseEvent)
 
     nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
     if (doc)
-      targetNode = do_QueryInterface(doc->GetRootContent());
+      targetNode = do_QueryInterface(doc->GetRootElement());
     if (!targetNode) {
       return NS_ERROR_FAILURE;
     }
@@ -221,18 +221,6 @@ nsXULPopupListener::PreLaunchPopup(nsIDOMEvent* aMouseEvent)
       return NS_OK;
   }
 
-  // Get the document with the popup.
-  nsCOMPtr<nsIContent> content = do_QueryInterface(mElement);
-
-  // Turn the document into a XUL document so we can use SetPopupNode.
-  nsCOMPtr<nsIDOMXULDocument> xulDocument = do_QueryInterface(content->GetDocument());
-  if (!xulDocument) {
-    return NS_ERROR_FAILURE;
-  }
-
-  // Store clicked-on node in xul document for context menus and menu popups.
-  xulDocument->SetPopupNode(targetNode);
-
   nsCOMPtr<nsIDOMNSEvent> nsevent(do_QueryInterface(aMouseEvent));
 
   if (mIsContext) {
@@ -269,15 +257,16 @@ nsXULPopupListener::FireFocusOnTargetContent(nsIDOMNode* aTargetNode)
     nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
 
     // Get nsIDOMElement for targetNode
-    nsIPresShell *shell = doc->GetPrimaryShell();
+    nsIPresShell *shell = doc->GetShell();
     if (!shell)
       return NS_ERROR_FAILURE;
 
     // strong reference to keep this from going away between events
-    nsCOMPtr<nsPresContext> context = shell->GetPresContext();
+    // XXXbz between what events?  We don't use this local at all!
+    nsRefPtr<nsPresContext> context = shell->GetPresContext();
  
     nsCOMPtr<nsIContent> content = do_QueryInterface(aTargetNode);
-    nsIFrame* targetFrame = shell->GetPrimaryFrameFor(content);
+    nsIFrame* targetFrame = content->GetPrimaryFrame();
     if (!targetFrame) return NS_ERROR_FAILURE;
 
     const nsStyleUserInterface* ui = targetFrame->GetStyleUserInterface();
@@ -451,9 +440,7 @@ nsXULPopupListener::LaunchPopup(nsIDOMEvent* aEvent, nsIContent* aTargetContent)
   nsCOMPtr<nsIContent> popup = do_QueryInterface(popupElement);
   nsIContent* parent = popup->GetParent();
   if (parent) {
-    nsIDocument* doc = parent->GetCurrentDoc();
-    nsIPresShell* presShell = doc ? doc->GetPrimaryShell() : nsnull;
-    nsIFrame* frame = presShell ? presShell->GetPrimaryFrameFor(parent) : nsnull;
+    nsIFrame* frame = parent->GetPrimaryFrame();
     if (frame && frame->GetType() == nsGkAtoms::menuFrame)
       return NS_OK;
   }

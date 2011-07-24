@@ -44,6 +44,8 @@ include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
 _CHROME_FILES = \
+	test_bug396367-1.html \
+	test_bug396367-2.html \
 	test_bug504311.xul \
 	test_bug514660.xul \
 	test_bug533845.xul \
@@ -51,13 +53,18 @@ _CHROME_FILES = \
 	bug551434_childframe.html \
 	test_chrome_content_integration.xul \
 	     chrome_content_integration_window.xul \
+	test_chrome_over_plugin.xul \
+	     chrome_over_plugin_window.xul \
+	test_default_background.xul \
+	     default_background_window.xul \
+    test_leaf_layers_partition_browser_window.xul \
 	test_printpreview.xul \
 	     printpreview_helper.xul \
 	test_printpreview_bug396024.xul \
 	     printpreview_bug396024_helper.xul \
 	test_printpreview_bug482976.xul \
 	     printpreview_bug482976_helper.xul \
-	$(NULL)
+    $(NULL)
 
 libs:: $(_CHROME_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/chrome/$(relativesrcdir)

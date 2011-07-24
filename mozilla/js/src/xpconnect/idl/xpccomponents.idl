@@ -123,7 +123,7 @@ interface nsIXPCComponents_utils_Sandbox : nsISupports
 /**
 * interface of Components.utils
 */
-[scriptable, uuid(da2267f2-d4cc-448f-9d70-1c7fe134d2fe)]
+[scriptable, uuid(c1d616fa-1875-49ba-b7b8-5861dab31a42)]
 interface nsIXPCComponents_Utils : nsISupports
 {
 
@@ -217,6 +217,16 @@ interface nsIXPCComponents_Utils : nsISupports
      * Force an immediate garbage collection cycle.
      */
     void forceGC();
+
+    /*
+     * To be called from JS only.
+     *
+     * Returns the global object with which the given object is associated.
+     *
+     * @param obj The JavaScript object whose global is to be gotten.
+     * @return the corresponding global.
+     */
+    void /* JSObject */ getGlobalForObject(/* in JSObject obj */);
 };
 
 /**
@@ -240,14 +250,14 @@ interface nsIXPCComponents : nsISupports
 
     boolean isSuccessCode(in nsresult result);
 
-    /* DEPRECATED: use Components.utils.lookupMethod instead.
+    /* @deprecated Use Components.utils.lookupMethod instead.
      * (But are you sure you really want this method any more?
      *  See http://developer-test.mozilla.org/en/docs/XPCNativeWrapper )
      */
-    void lookupMethod();
+    [deprecated] void lookupMethod();
 
-    /* DEPRECATED: use Components.utils.reportError instead. */
-    void reportError();
+    /* @deprecated Use Components.utils.reportError instead. */
+    [deprecated] void reportError();
 
     /* 'lastResult' is accessible via JavaScript only */
     /* 'returnCode' is accessible via JavaScript only */

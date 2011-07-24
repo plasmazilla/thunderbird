@@ -493,33 +493,30 @@ var nsOpenCommand =
 
   doCommand: function(aCommand)
   {
+    var fileType = IsHTMLEditor() ? "html" : "text";
+    var title = GetString(IsHTMLEditor() ? "OpenHTMLFile" : "OpenTextFile");
+
     var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(nsIFilePicker);
-    fp.init(window, GetString("OpenHTMLFile"), nsIFilePicker.modeOpen);
+    fp.init(window, title, nsIFilePicker.modeOpen);
 
-    SetFilePickerDirectory(fp, "html");
+    SetFilePickerDirectory(fp, fileType);
 
-    // When loading into Composer, direct user to prefer HTML files and text files,
-    //   so we call separately to control the order of the filter list
-    fp.appendFilters(nsIFilePicker.filterHTML);
+    // Direct user to prefer HTML files and/or text files depending on whether
+    // loading into Composer or Text editor, so we call separately to control
+    // the order of the filter list.
+    if (fileType == "html")
+      fp.appendFilters(nsIFilePicker.filterHTML);
     fp.appendFilters(nsIFilePicker.filterText);
     fp.appendFilters(nsIFilePicker.filterAll);
 
     /* doesn't handle *.shtml files */
-    try {
-      fp.show();
-      /* need to handle cancel (uncaught exception at present) */
-    }
-    catch (ex) {
-      dump("filePicker.chooseInputFile threw an exception\n");
-    }
+    if (fp.show() == nsIFilePicker.returnCancel)
+      return;
   
-    /* This checks for already open window and activates it... 
-     * note that we have to test the native path length
-     *  since file.URL will be "file:///" if no filename picked (Cancel button used)
-     */
-    if (fp.file && fp.file.path.length > 0) {
-      SaveFilePickerDirectory(fp, "html");
-      editPage(fp.fileURL.spec, window, false);
+    // editPage checks for already open window and activates it. 
+    if (fp.fileURL.spec) {
+      SaveFilePickerDirectory(fp, fileType);
+      editPage(fp.fileURL.spec, fileType);
     }
   }
 };
@@ -565,7 +562,8 @@ var nsSaveCommand =
     var editor = GetCurrentEditor();
     if (editor)
     {
-      FinishHTMLSource();
+      if (IsHTMLEditor())
+        FinishHTMLSource();
       result = SaveDocument(IsUrlAboutBlank(GetDocumentUrl()), false, editor.contentsMIMEType);
       window.content.focus();
     }
@@ -585,15 +583,16 @@ var nsSaveAsCommand =
 
   doCommand: function(aCommand)
   {
+    var result = false;
     var editor = GetCurrentEditor();
     if (editor)
     {
-      FinishHTMLSource();
-      var result = SaveDocument(true, false, editor.contentsMIMEType);
+      if (IsHTMLEditor())
+        FinishHTMLSource();
+      result = SaveDocument(true, false, editor.contentsMIMEType);
       window.content.focus();
-      return result;
     }
-    return false;
+    return result;
   }
 }
 
@@ -809,10 +808,10 @@ function GetSuggestedFileName(aDocumentURLString, aMIMEType)
     } catch(e) {}
   } 
 
-  // check if there is a title we can use
-  var title = GetDocumentTitle();
-  // generate a valid filename, if we can't just go with "untitled"
-  return GenerateValidFilename(title, extension) || GetString("untitled") + extension;
+  // check if there is a title we can use to generate a valid filename,
+  // if we can't, just go with "untitled"
+  var title = validateFileName(GetDocumentTitle()) || GetString("untitled");
+  return title + extension;
 }
 
 // returns file picker result
@@ -832,9 +831,9 @@ function PromptForSaveLocation(aDoSaveAsText, aEditorType, aMIMEType, aDocumentU
   // determine prompt string based on type of saving we'll do
   var promptString;
   if (aDoSaveAsText || aEditorType == "text")
-    promptString = GetString("ExportToText");
+    promptString = GetString("SaveTextAs");
   else
-    promptString = GetString("SaveDocumentAs")
+    promptString = GetString("SaveDocumentAs");
 
   fp.init(window, promptString, nsIFilePicker.modeSave);
 
@@ -2192,8 +2191,7 @@ var nsOpenRemoteCommand =
       case "3": // new tab
         win.focus();
         var browser = win.getBrowser();
-        browser.selectedTab = browser.addTab(params.url, null, null, false,
-                nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP);
+        browser.selectedTab = browser.addTab(params.url, {allowThirdPartyFixup: true});
         break;
       default:
         window.content.focus();
@@ -3249,7 +3247,7 @@ var nsEditLinkCommand =
     try {
       var element = GetCurrentEditor().getSelectedElement("href");
       if (element)
-        editPage(element.href, window, false);
+        editPage(element.href);
     } catch (e) {}
     window.content.focus();
   }

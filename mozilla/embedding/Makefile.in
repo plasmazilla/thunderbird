@@ -40,6 +40,7 @@ DEPTH		= ..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = embedding
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -50,6 +51,10 @@ DIRS = base components browser
 ifdef ENABLE_TESTS
 XPCSHELL_TESTS = tests/unit
 DIRS += test
+endif
+
+ifeq ($(OS_TARGET),Android)
+DIRS += android
 endif
 
 include $(topsrcdir)/config/rules.mk

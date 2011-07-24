@@ -44,6 +44,9 @@
 
 #include "nsString.h"
 #include "nsCOMPtr.h"
+#include "mozilla/css/Loader.h"
+#include "nsCSSStyleSheet.h"
+
 class nsIUnicharInputStream;
 
 // XXX turn this off for minimo builds
@@ -87,8 +90,8 @@ enum nsCSSTokenType {
 
   eCSSToken_Function,       // mIdent
 
-  eCSSToken_URL,            // mIdent
-  eCSSToken_InvalidURL,     // doesn't matter
+  eCSSToken_URL,            // mIdent + mSymbol
+  eCSSToken_Bad_URL,        // mIdent + mSymbol
 
   eCSSToken_HTMLComment,    // "<!--" or "-->"
 
@@ -98,18 +101,23 @@ enum nsCSSTokenType {
   eCSSToken_Endsmatch,      // "$="
   eCSSToken_Containsmatch,  // "*="
 
-  // A special token indicating that there was an error in tokenization.
-  // It's always an unterminated string.
-  eCSSToken_Error           // mSymbol + mIdent
+  eCSSToken_URange,         // Low in mInteger, high in mInteger2;
+                            // mIntegerValid is true if the token is a
+                            // valid range; mIdent preserves the textual
+                            // form of the token for error reporting
+
+  // An unterminated string, which is always an error.
+  eCSSToken_Bad_String      // mSymbol + mIdent
 };
 
 struct nsCSSToken {
   nsAutoString    mIdent NS_OKONHEAP;
   float           mNumber;
   PRInt32         mInteger;
+  PRInt32         mInteger2;
   nsCSSTokenType  mType;
   PRUnichar       mSymbol;
-  PRPackedBool    mIntegerValid; // for number and dimension
+  PRPackedBool    mIntegerValid; // for number, dimension, urange
   PRPackedBool    mHasSign; // for number, percentage, and dimension
 
   nsCSSToken();
@@ -136,13 +144,13 @@ class nsCSSScanner {
   // Either aInput or (aBuffer and aCount) must be set.
   void Init(nsIUnicharInputStream* aInput, 
             const PRUnichar *aBuffer, PRUint32 aCount,
-            nsIURI* aURI, PRUint32 aLineNumber);
+            nsIURI* aURI, PRUint32 aLineNumber,
+            nsCSSStyleSheet* aSheet, mozilla::css::Loader* aLoader);
   void Close();
 
   static PRBool InitGlobals();
   static void ReleaseGlobals();
 
-#ifdef  MOZ_SVG
   // Set whether or not we are processing SVG
   void SetSVGMode(PRBool aSVGMode) {
     NS_ASSERTION(aSVGMode == PR_TRUE || aSVGMode == PR_FALSE,
@@ -153,30 +161,28 @@ class nsCSSScanner {
     return mSVGMode;
   }
 
-#endif
 #ifdef CSS_REPORT_PARSE_ERRORS
-  NS_HIDDEN_(void) AddToError(const nsSubstring& aErrorText);
-  NS_HIDDEN_(void) OutputError();
-  NS_HIDDEN_(void) ClearError();
+  void AddToError(const nsSubstring& aErrorText);
+  void OutputError();
+  void ClearError();
 
   // aMessage must take no parameters
-  NS_HIDDEN_(void) ReportUnexpected(const char* aMessage);
-  NS_HIDDEN_(void) ReportUnexpectedParams(const char* aMessage,
-                                          const PRUnichar **aParams,
-                                          PRUint32 aParamsLength);
+  void ReportUnexpected(const char* aMessage);
+  void ReportUnexpectedParams(const char* aMessage,
+                              const PRUnichar **aParams,
+                              PRUint32 aParamsLength);
   // aLookingFor is a plain string, not a format string
-  NS_HIDDEN_(void) ReportUnexpectedEOF(const char* aLookingFor);
+  void ReportUnexpectedEOF(const char* aLookingFor);
   // aLookingFor is a single character
-  NS_HIDDEN_(void) ReportUnexpectedEOF(PRUnichar aLookingFor);
+  void ReportUnexpectedEOF(PRUnichar aLookingFor);
   // aMessage must take 1 parameter (for the string representation of the
   // unexpected token)
-  NS_HIDDEN_(void) ReportUnexpectedToken(nsCSSToken& tok,
-                                         const char *aMessage);
+  void ReportUnexpectedToken(nsCSSToken& tok, const char *aMessage);
   // aParams's first entry must be null, and we'll fill in the token
-  NS_HIDDEN_(void) ReportUnexpectedTokenParams(nsCSSToken& tok,
-                                               const char* aMessage,
-                                               const PRUnichar **aParams,
-                                               PRUint32 aParamsLength);
+  void ReportUnexpectedTokenParams(nsCSSToken& tok,
+                                   const char* aMessage,
+                                   const PRUnichar **aParams,
+                                   PRUint32 aParamsLength);
 #endif
 
   PRUint32 GetLineNumber() { return mLineNumber; }
@@ -185,7 +191,7 @@ class nsCSSScanner {
   // is filled in with the data for the token.
   PRBool Next(nsCSSToken& aTokenResult);
 
-  // Get the next token that may be a string or unquoted URL or whitespace
+  // Get the next token that may be a string or unquoted URL
   PRBool NextURL(nsCSSToken& aTokenResult);
 
   // It's really ugly that we have to expose this, but it's the easiest
@@ -206,6 +212,7 @@ protected:
   PRInt32 Read();
   PRInt32 Peek();
   PRBool LookAhead(PRUnichar aChar);
+  PRBool LookAheadOrEOF(PRUnichar aChar); // expect either aChar or EOF
   void EatWhiteSpace();
   
   void ParseAndAppendEscape(nsString& aOutput);
@@ -214,6 +221,7 @@ protected:
   PRBool ParseNumber(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseRef(PRInt32 aChar, nsCSSToken& aResult);
   PRBool ParseString(PRInt32 aChar, nsCSSToken& aResult);
+  PRBool ParseURange(PRInt32 aChar, nsCSSToken& aResult);
   PRBool SkipCComment();
 
   PRBool GatherIdent(PRInt32 aChar, nsString& aIdent);
@@ -232,16 +240,18 @@ protected:
   nsresult mLowLevelError;
 
   PRUint32 mLineNumber;
-#ifdef MOZ_SVG
   // True if we are in SVG mode; false in "normal" CSS
   PRPackedBool mSVGMode;
-#endif
 #ifdef CSS_REPORT_PARSE_ERRORS
   nsXPIDLCString mFileName;
   nsCOMPtr<nsIURI> mURI;  // Cached so we know to not refetch mFileName
   PRUint32 mErrorLineNumber, mColNumber, mErrorColNumber;
   nsFixedString mError;
   PRUnichar mErrorBuf[200];
+  PRUint64 mWindowID;
+  PRBool mWindowIDCached;
+  nsCSSStyleSheet* mSheet;
+  mozilla::css::Loader* mLoader;
 #endif
 };
 

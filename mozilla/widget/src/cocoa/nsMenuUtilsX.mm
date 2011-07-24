@@ -40,6 +40,7 @@
 #include "nsMenuBarX.h"
 #include "nsMenuX.h"
 #include "nsMenuItemX.h"
+#include "nsStandaloneNativeMenu.h"
 #include "nsObjCExceptions.h"
 #include "nsCocoaUtils.h"
 #include "nsCocoaWindow.h"
@@ -85,20 +86,11 @@ NSString* nsMenuUtilsX::GetTruncatedCocoaLabel(const nsString& itemLabel)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
-#ifdef __LP64__
-  // Don't do anything on 64-bit Mac OS X for now, there is no API that does
-  // what we want. We'll probably need to roll our own solution.
+  // We want to truncate long strings to some reasonable pixel length but there is no
+  // good API for doing that which works for all OS versions and architectures. For now
+  // we'll do nothing for consistency and depend on good user interface design to limit
+  // string lengths.
   return [NSString stringWithCharacters:itemLabel.get() length:itemLabel.Length()];
-#else
-  // ::TruncateThemeText() doesn't take the number of characters to truncate to, it takes a pixel with
-  // to fit the string in. Ugh. I talked it over with sfraser and we couldn't come up with an 
-  // easy way to compute what this should be given the system font, etc, so we're just going
-  // to hard code it to something reasonable and bigger fonts will just have to deal.
-  const short kMaxItemPixelWidth = 300;
-  NSMutableString *label = [NSMutableString stringWithCharacters:itemLabel.get() length:itemLabel.Length()];
-  ::TruncateThemeText((CFMutableStringRef)label, kThemeMenuItemFont, kThemeStateActive, kMaxItemPixelWidth, truncMiddle, NULL);
-  return label;
-#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
@@ -237,8 +229,14 @@ int nsMenuUtilsX::CalculateNativeInsertionPoint(nsMenuObjectX* aParent,
         insertionPoint++;
     }
   }
-  else if (parentType == eSubmenuObjectType) {
-    nsMenuX* menuParent = static_cast<nsMenuX*>(aParent);
+  else if (parentType == eSubmenuObjectType ||
+           parentType == eStandaloneNativeMenuObjectType) {
+    nsMenuX* menuParent;
+    if (parentType == eSubmenuObjectType)
+      menuParent = static_cast<nsMenuX*>(aParent);
+    else
+      menuParent = static_cast<nsStandaloneNativeMenu*>(aParent)->GetMenuXObject();
+
     PRUint32 numItems = menuParent->GetItemCount();
     for (PRUint32 i = 0; i < numItems; i++) {
       // Using GetItemAt instead of GetVisibleItemAt to avoid O(N^2)

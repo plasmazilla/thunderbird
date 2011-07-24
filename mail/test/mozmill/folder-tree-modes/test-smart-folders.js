@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -228,8 +228,6 @@ function test_folder_flag_changes() {
   for each (let f in fixIterator(allDescendents, Ci.nsIMsgFolder))
     desiredScope += f.URI + "|";
 
-  dump("archive Scope = " + archiveScope + "\n");
-  dump("desired Scope = " + desiredScope + "\n");
   if (archiveScope != desiredScope)
     throw "archive scope wrong after removing folder";
   assert_folder_and_children_not_in_scope(archiveFolder, archiveScope);

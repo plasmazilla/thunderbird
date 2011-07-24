@@ -36,6 +36,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
+Components.utils.import("resource:///modules/DownloadTaskbarIntegration.jsm");
 
 const nsIDownloadManager = Components.interfaces.nsIDownloadManager;
 
@@ -51,6 +52,8 @@ var gDownloadListener;
 var gSearchBox;
 var gPrefService = Components.classes["@mozilla.org/preferences-service;1"]
                              .getService(Components.interfaces.nsIPrefBranch);
+var gDMUI = Components.classes["@mozilla.org/download-manager-ui;1"]
+                      .getService(Components.interfaces.nsIDownloadManagerUI);
 
 function dmStartup()
 {
@@ -87,6 +90,8 @@ function dmStartup()
 
   if (gDownloadTree.view.rowCount > 0)
     gDownloadTree.view.selection.select(0);
+
+  DownloadTaskbarIntegration.onDownloadWindowLoad(window);
 }
 
 function dmShutdown()
@@ -207,12 +212,13 @@ function openDownload(aDownload)
     } catch (e) { }
 
     // On Vista and above, we rely on native security prompting for
-    // downloaded content.
+    // downloaded content unless it's disabled.
     try {
       var sysInfo = Components.classes["@mozilla.org/system-info;1"]
                               .getService(Components.interfaces.nsIPropertyBag2);
       if (/^Windows/.test(sysInfo.getProperty("name")) &&
-          (parseFloat(sysInfo.getProperty("version")) >= 6))
+          (parseFloat(sysInfo.getProperty("version")) >= 6 &&
+          gPrefService.getBoolPref("browser.download.manager.scanWhenDone")))
         alertOnEXEOpen = false;
     } catch (ex) { }
 
@@ -233,6 +239,15 @@ function openDownload(aDownload)
       gPrefService.setBoolPref("browser.download.manager.alertOnEXEOpen", !checkbox.value);
     }
   }
+
+  try {
+    var mimeInfo = aDownload.MIMEInfo;
+    if (mimeInfo && mimeInfo.preferredAction == mimeInfo.useHelperApp) {
+      mimeInfo.launchWithFile(file);
+      return;
+    }
+  } catch (ex) { }
+
   try {
     file.launch();
   } catch (ex) {
@@ -634,9 +649,7 @@ var dlTreeController = {
         }
         break;
       case "cmd_open":
-        // fake an nsIDownload with the properties needed by that function
-        openDownload({displayName: selItemData[0].target,
-                      targetFile: getLocalFileFromNativePathOrUrl(selItemData[0].file)});
+        openDownload(gDownloadManager.getDownload(selItemData[0].dlid));
         break;
       case "cmd_show":
         // fake an nsIDownload with the properties needed by that function
@@ -699,3 +712,49 @@ var dlTreeController = {
       goUpdateCommand(cmds[command]);
   }
 };
+
+var gDownloadDNDObserver = {
+  onDragStart: function (aEvent)
+  {
+    if (!gDownloadTreeView ||
+        !gDownloadTreeView.selection ||
+        !gDownloadTreeView.selection.count)
+      return;
+
+    var selItemData = gDownloadTreeView.getRowData(gDownloadTree.currentIndex);
+    var file = getLocalFileFromNativePathOrUrl(selItemData.file);
+
+    if (!file.exists())
+      return;
+
+    var url = Services.io.newFileURI(file).spec;
+    var dt = aEvent.dataTransfer;
+    dt.mozSetDataAt("application/x-moz-file", file, 0);
+    dt.setData("text/uri-list", url + "\r\n");
+    dt.setData("text/plain", url + "\n");
+    dt.effectAllowed = "copyMove";
+  },
+
+  onDragOver: function (aEvent)
+  {
+    var types = aEvent.dataTransfer.types;
+    if (types.contains("text/uri-list") ||
+        types.contains("text/x-moz-url") ||
+        types.contains("text/plain"))
+      aEvent.preventDefault();
+    aEvent.stopPropagation();
+  },
+
+  onDrop: function(aEvent)
+  {
+    var dt = aEvent.dataTransfer;
+    var url = dt.getData("URL");
+    var name;
+    if (!url) {
+      url = dt.getData("text/x-moz-url") || dt.getData("text/plain");
+      [url, name] = url.split("\n");
+    }
+    if (url)
+      saveURL(url, name, null, true, true);
+  }
+}

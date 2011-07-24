@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-352604.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 352604;
 var summary = 'Do not assert: !OBJ_GET_PROTO(cx, ctor)';
@@ -53,7 +52,8 @@ function test()
   printBugNumber(BUGNUMBER);
   printStatus (summary);
  
-  delete Function; new Function("");
+  delete Function;
+  var x = function () {};
 
   reportCompare(expect, actual, summary);
 

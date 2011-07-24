@@ -43,19 +43,22 @@
 
 #include "nsIMessengerOSIntegration.h"
 #include "nsIFolderListener.h"
+#include "nsIUrlListener.h"
 #include "nsISupportsArray.h"
 #include "nsIStringBundle.h"
 #include "nsIObserver.h"
 #include "nsIAtom.h"
+#include "nsDataHashtable.h"
 
 #define NS_MESSENGERUNIXINTEGRATION_CID \
   {0xf62f3d3a, 0x1dd1, 0x11b2, \
     {0xa5, 0x16, 0xef, 0xad, 0xb1, 0x31, 0x61, 0x5c}}
 
-class nsIStringBundle; 
+class nsIStringBundle;
 
 class nsMessengerUnixIntegration : public nsIFolderListener,
                                    public nsIObserver,
+                                   public nsIUrlListener,
                                    public nsIMessengerOSIntegration
 {
 public:
@@ -66,24 +69,30 @@ public:
   NS_DECL_NSIMESSENGEROSINTEGRATION
   NS_DECL_NSIFOLDERLISTENER
   NS_DECL_NSIOBSERVER
-
-#ifdef MOZ_THUNDERBIRD
-  nsresult ShowNewAlertNotification(PRBool aUserInitiated);
-#endif
+  NS_DECL_NSIURLLISTENER
 
 private:
-#ifndef MOZ_THUNDERBIRD
   nsresult ShowAlertMessage(const nsAString& aAlertTitle, const nsAString& aAlertText, const nsACString& aFolderURI);
-#endif
   nsresult GetFirstFolderWithNewMail(nsACString& aFolderURI);
   nsresult GetStringBundle(nsIStringBundle **aBundle);
   nsresult AlertFinished();
   nsresult AlertClicked();
   void FillToolTipInfo();
+  nsresult GetMRUTimestampForFolder(nsIMsgFolder *aFolder, PRUint32 *aLastMRUTime);
+
+#ifdef MOZ_THUNDERBIRD
+  PRBool BuildNotificationBody(nsIMsgDBHdr *aHdr, nsIStringBundle *Bundle, nsString &aBody);
+  PRBool BuildNotificationTitle(nsIMsgFolder *aFolder, nsIStringBundle *aBundle, nsString &aTitle);
+  nsresult ShowNewAlertNotification(PRBool aUserInitiated);
+  nsresult PutMRUTimestampForFolder(nsIMsgFolder *aFolder, PRUint32 aLastMRUTime);
+#endif
 
   nsCOMPtr<nsISupportsArray> mFoldersWithNewMail;  // keep track of all the root folders with pending new mail
   nsCOMPtr<nsIAtom> mBiffStateAtom;
+  nsCOMPtr<nsIAtom> mNewMailReceivedAtom;
   PRBool mAlertInProgress;
+  nsDataHashtable<nsCStringHashKey, PRUint32> mLastMRUTimes; // We keep track of the last time we did a new mail notification for each account
+  nsTArray<nsCString> mFetchingURIs;
 };
 
 #endif // __nsMessengerUnixIntegration_h

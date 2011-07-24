@@ -94,13 +94,14 @@ ifdef MOZ_ENABLE_STARTUP_NOTIFICATION
 STATIC_EXTRA_LIBS	+= $(MOZ_STARTUP_NOTIFICATION_LIBS)
 endif
 
+ifdef MOZ_SYDNEYAUDIO
+ifeq ($(OS_ARCH),Linux)
+STATIC_EXTRA_LIBS += $(MOZ_ALSA_LIBS)
+endif
+endif
+
 # Component Makefile always brings in this.
 # STATIC_EXTRA_LIBS	+= $(TK_LIBS)
-
-# Some random modules require this
-ifndef MOZ_NO_XPCOM_OBSOLETE
-STATIC_EXTRA_LIBS	+= $(MOZ_XPCOM_OBSOLETE_LIBS)
-endif
 
 ifeq ($(OS_ARCH),WINNT)
 STATIC_EXTRA_LIBS += $(call EXPAND_LIBNAME,comctl32 comdlg32 uuid shell32 ole32 oleaut32 version winspool imm32)

@@ -15,7 +15,7 @@
  * The Original Code is about:memory
  *
  * The Initial Developer of the Original Code is
- *   Mozilla Corporation
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -36,16 +36,20 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const Cc = Components.classes;
+const Ci = Components.interfaces;
+
 var gMemReporters = { };
 
 function $(n) {
     return document.getElementById(n);
 }
 
-function makeTableCell(s, c) {
+function makeTableCell(content, c) {
     var td = document.createElement("td");
-    var text = document.createTextNode(s);
-    td.appendChild(text);
+    if (typeof content == "string")
+      content = document.createTextNode(content);
+    td.appendChild(content);
     if (c)
         td.setAttribute("class", c);
 
@@ -69,7 +73,7 @@ function makeTableRow() {
         if (typeof(arg) == "string") {
             row.appendChild(makeTableCell(arg));
         } else if (arg.__proto__ == Array.prototype) {
-            row.appendChild(makeAbbrNode(arg[0], arg[1]));
+            row.appendChild(makeTableCell(makeAbbrNode(arg[0], arg[1])));
         } else {
             row.appendChild(arg);
         }
@@ -114,6 +118,9 @@ function formatNumber(n) {
     return s;
 }
 
+/**
+ * Updates the content of the document with the most current memory information.
+ */
 function updateMemoryStatus()
 {
     // if we have the standard reporters for mapped/allocated, put
@@ -124,11 +131,11 @@ function updateMemoryStatus()
         // committed is the total amount of memory that we've touched, that is that we have
         // some kind of backing store for
         setTextContent($("memMappedValue"),
-                       formatNumber(gMemReporters["malloc/mapped"].memoryUsed));
+                       formatNumber(gMemReporters["malloc/mapped"][0].memoryUsed));
 
         // allocated is the amount of committed memory that we're actively using (i.e., that isn't free)
         setTextContent($("memInUseValue"),
-                       formatNumber(gMemReporters["malloc/allocated"].memoryUsed));
+                       formatNumber(gMemReporters["malloc/allocated"][0].memoryUsed));
     } else {
         $("memOverview").style.display = "none";
     }
@@ -138,9 +145,17 @@ function updateMemoryStatus()
         mo.removeChild(mo.lastChild);
 
     var otherCount = 0;
-    for each (var rep in gMemReporters) {
-        var row = makeTableRow([rep.path, rep.description],
-                               makeTableCell(formatNumber(rep.memoryUsed), "memValue"));
+
+    for each (var reporters in gMemReporters) {
+        // There may be more than one reporter for each path.  We take the sum
+        // of them all for each description.
+        var total = 0;
+        reporters.forEach(function(reporter) {
+          total += reporter.memoryUsed;
+        });
+
+        var row = makeTableRow([reporters[0].path, reporters[0].description],
+                               makeTableCell(formatNumber(total), "memValue"));
 
         mo.appendChild(row);
 
@@ -153,18 +168,48 @@ function updateMemoryStatus()
     }
 }
 
-function doLoad()
+/**
+ * Updates gMemReporters to contain all the known memory reporters.
+ */
+function updateMemoryReporters()
 {
-    var mgr = Components
-        .classes["@mozilla.org/memory-reporter-manager;1"]
-        .getService(Components.interfaces.nsIMemoryReporterManager);
+    gMemReporters = [];
+
+    var mgr = Cc["@mozilla.org/memory-reporter-manager;1"].
+              getService(Ci.nsIMemoryReporterManager);
 
     var e = mgr.enumerateReporters();
     while (e.hasMoreElements()) {
-        var mr = e.getNext().QueryInterface(Components.interfaces.nsIMemoryReporter);
-        gMemReporters[mr.path] = mr;
+        var reporter = e.getNext().QueryInterface(Ci.nsIMemoryReporter);
+        if (!gMemReporters[reporter.path]) {
+          gMemReporters[reporter.path] = [];
+        }
+        gMemReporters[reporter.path].push(reporter);
     }
+}
 
+function ChildMemoryListener(subject, topic, data) {
+  updateMemoryReporters();
+  updateMemoryStatus();
+}
+
+
+function doLoad()
+{
+    var os = Components.classes["@mozilla.org/observer-service;1"].
+        getService(Components.interfaces.nsIObserverService);
+    os.notifyObservers(null, "child-memory-reporter-request", null);
+
+    os.addObserver(ChildMemoryListener, "child-memory-reporter-update", false);
+
+    updateMemoryReporters();
     updateMemoryStatus();
 }
 
+function doUnload()
+{
+    var os = Components.classes["@mozilla.org/observer-service;1"].
+        getService(Components.interfaces.nsIObserverService);
+    os.removeObserver(ChildMemoryListener, "child-memory-reporter-update");
+    
+}

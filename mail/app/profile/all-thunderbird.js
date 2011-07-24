@@ -58,7 +58,7 @@ pref("mail.rights.version", 0);
 
 // Don't show the about:rights notification in debug or non-official builds.
 #ifdef DEBUG
-pref("mail.rights.override", false);
+pref("mail.rights.override", true);
 #endif
 #ifndef OFFICIAL_BUILD
 pref("mail.rights.override", true);
@@ -98,8 +98,8 @@ pref("app.update.silent", false);
 pref("app.update.url", "https://aus2.mozillamessaging.com/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
 
 // URL user can browse to manually if for some reason all update installation
-// attempts fail.  TODO: Change this URL
-pref("app.update.url.manual", "http://www.mozillamessaging.com/%LOCALE%/%APP%/");
+// attempts fail.
+pref("app.update.url.manual", "http://www.getthunderbird.com");
 // A default value for the "More information about this update" link
 // supplied in the "An update is available" page of the update wizard. 
 pref("app.update.url.details", "http://www.mozillamessaging.com/%LOCALE%/%APP%/releases/");
@@ -130,16 +130,25 @@ pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
 
+// Controls enabling of the extension system logging (can reduce performance)
+pref("extensions.logging.enabled", false);
+
+pref("extensions.update.autoUpdateDefault", true);
+
+// Preferences for AMO integration
+pref("extensions.getAddons.cache.enabled", true);
+pref("extensions.getAddons.maxResults", 15);
+pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
+pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
+pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%?src=thunderbird");
+pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
+
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/");
+pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
 
-// Developers can set this to |true| if they are constantly changing files in their
-// extensions directory so that the extension system does not constantly think that
-// their extensions are being updated and thus reregistered every time the app is started
-pref("extensions.ignoreMTimeChanges", false);
 // Enables some extra Extension System Logging (can reduce performance) 
 pref("extensions.logging.enabled", false); 
 
@@ -155,35 +164,26 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
 
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                             // Themes every day
-// Non-symmetric (not shared by extensions) extension-specific [update] preferences
-pref("extensions.getMoreExtensionsURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/%VERSION%/extensions/");
-pref("extensions.getMoreThemesURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/%VERSION%/themes/");
-pref("extensions.getMorePluginsURL", "https://%LOCALE%.add-ons.mozilla.com/%LOCALE%/%APP%/%VERSION%/plugins/");
+
+pref("extensions.getMoreThemesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/themes/");
 pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
 
 pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.name", "chrome://messenger/locale/messenger.properties");
 pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.description", "chrome://messenger/locale/messenger.properties");
 
-// Preferences for the Get Add-ons pane
-pref("extensions.getAddons.showPane", true);
-pref("extensions.getAddons.browseAddons", "https://addons.mozilla.org/%LOCALE%/%APP%");
-pref("extensions.getAddons.maxResults", 5);
-pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/recommended");
-pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/list/featured/all/10/%OS%/%VERSION%");
-pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
-pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/10/%OS%/%VERSION%");
+pref("lightweightThemes.update.enabled", true);
 
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
 pref("xpinstall.whitelist.add.36", "getpersonas.com");
 
 pref("mail.shell.checkDefaultClient", true);
 pref("mail.spellcheck.inline", true);
-pref("mail.showPreviewText", true); // enables preview text in mail alerts and folder tooltips
 
 pref("mail.biff.alert.show_preview", true);
 pref("mail.biff.alert.show_subject", true);
 pref("mail.biff.alert.show_sender",  true);
+pref("mail.biff.alert.preview_length", 40);
 
 pref("mail.folder.views.version", 0);
 
@@ -319,12 +319,6 @@ pref("security.warn_viewing_mixed", false);
 
 pref("general.config.obscure_value", 0); // for MCD .cfg files
 
-pref("xpinstall.dialog.confirm", "chrome://mozapps/content/xpinstall/xpinstallConfirm.xul");
-pref("xpinstall.dialog.progress.skin", "chrome://mozapps/content/extensions/extensions.xul");
-pref("xpinstall.dialog.progress.chrome", "chrome://mozapps/content/extensions/extensions.xul");
-pref("xpinstall.dialog.progress.type.skin", "Extension:Manager"); 
-pref("xpinstall.dialog.progress.type.chrome", "Extension:Manager");
-
 pref("browser.display.auto_quality_min_font_size", 0);
 
 pref("view_source.syntax_highlight", false);
@@ -335,7 +329,6 @@ pref("view_source.syntax_highlight", false);
 /////////////////////////////////////////////////////////////////
 // Generic browser related prefs. 
 /////////////////////////////////////////////////////////////////
-pref("browser.cache.memory.capacity",       4096);
 pref("browser.send_pings", false);
 pref("browser.chrome.toolbar_tips",         true);
 pref("browser.xul.error_pages.enabled", true);
@@ -357,17 +350,13 @@ pref("browser.download.manager.addToRecentDocs", true);
 
 pref("javascript.options.showInConsole",    true);
 
-// -- folders (Mac: these are binary aliases.)
-pref("mail.signature_file",             "");
-pref("mail.directory",                  "");
-pref("news.directory",                  "");
 pref("spellchecker.dictionary", "");
 // Dictionary download preference
 pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/%APP%/dictionaries/");
 
 // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
 // mail application without any user intervention. Possible values are: 
-// dogbert (4.x), seamonkey (mozilla suite), eudora, oexpress, outlook. 
+// seamonkey (mozilla suite), eudora, oexpress, outlook.
 pref("profile.force.migration", "");
 
 // prefs to control the mail alert notification
@@ -477,14 +466,15 @@ pref("mail.compose.attachment_reminder_keywords", "chrome://messenger/locale/mes
 // show an alert on send?
 pref("mail.compose.attachment_reminder_aggressive", true);
 
+// Set this to false to prevent instrumentation from happening, e.g., user
+// has opted out, or an enterprise wants to disable it from the git go.
+pref("mail.instrumentation.askUser", true);
+pref("mail.instrumentation.userOptedIn", false);
+pref("mail.instrumentation.postUrl", "https://www.mozillamessaging.com/instrumentation");
+// not sure how this will be formatted - would be nice to make it extensible.
+pref("mail.instrumentation.lastNotificationSent", "");
+
 pref("browser.formfill.enable", true);
-#ifdef MOZILLA_1_9_2_BRANCH
-// Override the all.js values so that unit tests pass and we get sane values.
-pref("browser.formfill.expire_days", 180);
-pref("browser.history_expire_days", 180);
-pref("browser.history_expire_days_min", 90);
-pref("browser.history_expire_sites", 40000);
-#endif
 
 // Disable autoplay as we don't handle audio elements in emails very well.
 // See bug 515082.
@@ -508,6 +498,11 @@ pref("mailnews.migration.header_addons_url","http://live.mozillamessaging.com/%A
 pref("font.default", "sans-serif");
 pref("font.default.x-unicode", "sans-serif");
 pref("font.default.x-western", "sans-serif");
+pref("font.default.x-central-euro", "sans-serif");
+pref("font.default.x-cyrillic", "sans-serif");
+pref("font.default.x-baltic", "sans-serif");
+pref("font.default.el", "sans-serif");
+pref("font.default.tr", "sans-serif");
 
 #ifdef XP_MACOSX
 pref("font.name.sans-serif.x-unicode", "Lucida Grande");
@@ -523,6 +518,41 @@ pref("font.name-list.sans-serif.x-western", "Lucida Grande");
 pref("font.name-list.monospace.x-western", "Menlo, Monaco");
 pref("font.size.variable.x-western", 15);
 pref("font.size.fixed.x-western", 12);
+
+pref("font.name.sans-serif.x-central-euro", "Lucida Grande");
+pref("font.name.monospace.x-central-euro", "Menlo");
+pref("font.name-list.sans-serif.x-central-euro", "Lucida Grande");
+pref("font.name-list.monospace.x-central-euro", "Menlo, Monaco");
+pref("font.size.variable.x-central-euro", 15);
+pref("font.size.fixed.x-central-euro", 12);
+
+pref("font.name.sans-serif.x-cyrillic", "Lucida Grande");
+pref("font.name.monospace.x-cyrillic", "Menlo");
+pref("font.name-list.sans-serif.x-cyrillic", "Lucida Grande");
+pref("font.name-list.monospace.x-cyrillic", "Menlo, Monaco");
+pref("font.size.variable.x-cyrillic", 15);
+pref("font.size.fixed.x-cyrillic", 12);
+
+pref("font.name.sans-serif.x-baltic", "Lucida Grande");
+pref("font.name.monospace.x-baltic", "Menlo");
+pref("font.name-list.sans-serif.x-baltic", "Lucida Grande");
+pref("font.name-list.monospace.x-baltic", "Menlo, Monaco");
+pref("font.size.variable.x-baltic", 15);
+pref("font.size.fixed.x-baltic", 12);
+
+pref("font.name.sans-serif.el", "Lucida Grande");
+pref("font.name.monospace.el", "Menlo");
+pref("font.name-list.sans-serif.el", "Lucida Grande");
+pref("font.name-list.monospace.el", "Menlo, Monaco");
+pref("font.size.variable.el", 15);
+pref("font.size.fixed.el", 12);
+
+pref("font.name.sans-serif.tr", "Lucida Grande");
+pref("font.name.monospace.tr", "Menlo");
+pref("font.name-list.sans-serif.tr", "Lucida Grande");
+pref("font.name-list.monospace.tr", "Menlo, Monaco");
+pref("font.size.variable.tr", 15);
+pref("font.size.fixed.tr", 12);
 #endif
 
 // Since different versions of Windows need different settings, we'll handle
@@ -540,6 +570,26 @@ pref("font.name-list.monospace.x-unicode", "monospace");
 pref("font.name-list.serif.x-western", "serif");
 pref("font.name-list.sans-serif.x-western", "sans-serif");
 pref("font.name-list.monospace.x-western", "monospace");
+
+pref("font.name-list.serif.x-central-euro", "serif");
+pref("font.name-list.sans-serif.x-central-euro", "sans-serif");
+pref("font.name-list.monospace.x-central-euro", "monospace");
+
+pref("font.name-list.serif.x-cyrillic", "serif");
+pref("font.name-list.sans-serif.x-cyrillic", "sans-serif");
+pref("font.name-list.monospace.x-cyrillic", "monospace");
+
+pref("font.name-list.serif.x-baltic", "serif");
+pref("font.name-list.sans-serif.x-baltic", "sans-serif");
+pref("font.name-list.monospace.x-baltic", "monospace");
+
+pref("font.name-list.serif.el", "serif");
+pref("font.name-list.sans-serif.el", "sans-serif");
+pref("font.name-list.monospace.el", "monospace");
+
+pref("font.name-list.serif.tr", "serif");
+pref("font.name-list.sans-serif.tr", "sans-serif");
+pref("font.name-list.monospace.tr", "monospace");
 #endif
 
 pref("mail.font.windows.version", 0);
@@ -569,6 +619,67 @@ pref("browser.link.open_newwindow.restriction", 0);
 
 pref("browser.tabs.loadDivertedInBackground", false);
 
-// Plugins are disabled due to a performance regression when they're on. See bug
-// 599119.
-pref("plugin.disable", true);
+// Browser icon prefs
+pref("browser.chrome.site_icons", true);
+pref("browser.chrome.favicons", true);
+
+// Disable places by default as we don't want to store global history
+// Below we define reasonable defaults as copied from Firefox so that we have
+// something sensible should an extension wish to enable this.
+pref("places.history.enabled", false);
+
+// The percentage of system memory that the Places database can use.  Out of the
+// allowed cache size it will at most use the size of the database file.
+// Changes to this value are effective after an application restart.
+// Acceptable values are between 0 and 50.
+pref("places.database.cache_to_memory_percentage", 6);
+
+// the (maximum) number of the recent visits to sample
+// when calculating frecency
+pref("places.frecency.numVisits", 10);
+
+// buckets (in days) for frecency calculation
+pref("places.frecency.firstBucketCutoff", 4);
+pref("places.frecency.secondBucketCutoff", 14);
+pref("places.frecency.thirdBucketCutoff", 31);
+pref("places.frecency.fourthBucketCutoff", 90);
+
+// weights for buckets for frecency calculations
+pref("places.frecency.firstBucketWeight", 100);
+pref("places.frecency.secondBucketWeight", 70);
+pref("places.frecency.thirdBucketWeight", 50);
+pref("places.frecency.fourthBucketWeight", 30);
+pref("places.frecency.defaultBucketWeight", 10);
+
+// bonus (in percent) for visit transition types for frecency calculations
+pref("places.frecency.embedVisitBonus", 0);
+pref("places.frecency.framedLinkVisitBonus", 0);
+pref("places.frecency.linkVisitBonus", 100);
+pref("places.frecency.typedVisitBonus", 2000);
+pref("places.frecency.bookmarkVisitBonus", 75);
+pref("places.frecency.downloadVisitBonus", 0);
+pref("places.frecency.permRedirectVisitBonus", 0);
+pref("places.frecency.tempRedirectVisitBonus", 0);
+pref("places.frecency.defaultVisitBonus", 0);
+
+// bonus (in percent) for place types for frecency calculations
+pref("places.frecency.unvisitedBookmarkBonus", 140);
+pref("places.frecency.unvisitedTypedBonus", 200);
+
+pref("browser.urlbar.restrict.openpage", "%");
+
+// The default for this pref reflects whether the build is capable of IPC.
+// (Turning it on in a no-IPC build will have no effect.)
+#ifdef XP_MACOSX
+// i386 ipc preferences
+pref("dom.ipc.plugins.enabled.i386", false);
+pref("dom.ipc.plugins.enabled.i386.flash player.plugin", true);
+pref("dom.ipc.plugins.enabled.i386.javaplugin2_npapi.plugin", true);
+pref("dom.ipc.plugins.enabled.i386.javaappletplugin.plugin", true);
+// x86_64 ipc preferences
+pref("dom.ipc.plugins.enabled.x86_64", true);
+#elifdef MOZ_IPC
+pref("dom.ipc.plugins.enabled", true);
+#else
+pref("dom.ipc.plugins.enabled", false);
+#endif

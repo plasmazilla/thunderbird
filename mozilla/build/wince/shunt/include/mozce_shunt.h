@@ -38,8 +38,6 @@
 #ifndef MOZCE_SHUNT_H
 #define MOZCE_SHUNT_H
 
-#include "environment.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -52,6 +50,8 @@ typedef unsigned short wchar_t;
 #ifdef __cplusplus
 }   //extern "C" 
 #endif
+
+#include "environment.h"
 
 #ifdef MOZ_MEMORY
 
@@ -67,32 +67,27 @@ typedef unsigned short wchar_t;
 namespace std {
   struct nothrow_t {};
   extern const nothrow_t nothrow;
+  struct bad_alloc {};
 };
 #endif
 
 // grab malloc and free prototypes
 #include "jemalloc.h"
 
-// Normal and nothrow versions of operator new, none of which
-// actually throw for us.  These are both inline and exported
-// from the shunt.
-inline void *operator new(size_t size) throw() {
-  return (void*) malloc(size);
-}
+// mozalloc.h defines "normal" infallible operator new, but not
+// std::nothrow operator new, so we define that below.  This is inline
+// and exported from the shunt.
 inline void *operator new(size_t size, const std::nothrow_t&) throw() {
-  return (void*) malloc(size);
-}
-inline void operator delete(void *ptr) throw() {
-  free(ptr);
-}
-inline void *operator new[](size_t size) throw() {
-  return (void*) malloc(size);
+  return malloc(size);
 }
 inline void *operator new[](size_t size, const std::nothrow_t&) throw() {
-  return (void*) malloc(size);
+  return malloc(size);
 }
-inline void operator delete[](void *ptr) throw() {
-  return free(ptr);
+inline void operator delete(void* ptr, const std::nothrow_t&) throw() {
+  free(ptr);
+}
+inline void operator delete[](void* ptr, const std::nothrow_t&) throw() {
+  free(ptr);
 }
 
 // Placement new.  Just inline, not exported (which doesn't work for
@@ -103,6 +98,30 @@ inline void *operator new(size_t, void *p) {
 inline void *operator new[](size_t, void *p) {
   return p;
 }
+
+#ifndef IN_SHUNT
+// for Gecko, include infallible mozalloc allocators.  elsewhere, define
+// operator new() normally.
+// NB: this include guard needs to be kept in sync with the one in nscore.h
+#if defined(_MOZILLA_CONFIG_H_) && !defined(XPCOM_GLUE) && !defined(NS_NO_XPCOM) && !defined(MOZ_NO_MOZALLOC)
+#  include "mozilla/mozalloc.h"
+#else
+
+inline void* operator new(size_t size) throw() {
+  return malloc(size);
+}
+inline void* operator new[](size_t size) throw() {
+  return malloc(size);
+}
+inline void operator delete(void* ptr) throw() {
+  free(ptr);
+}
+inline void operator delete[](void* ptr) throw() {
+  free(ptr);
+}
+
+#endif  // if defined(_MOZILLA_CONFIG_H_)
+#endif
 
 extern "C" {
 #endif
@@ -132,7 +151,7 @@ _wcsndup(const wchar_t *, unsigned int);
 }   //extern "C" 
 #endif
 
-#endif
+#endif  // ifdef MOZ_MEMORY
 
 #define strdup  _strdup
 #define strndup _strndup
@@ -163,18 +182,18 @@ void abort(void);
 /* Environment stuff */
 char* getenv(const char* inName);
 int putenv(const char *a);
-char SetEnvironmentVariableW(const unsigned short * name, const unsigned short * value );
-char GetEnvironmentVariableW(const unsigned short * lpName, unsigned short* lpBuffer, unsigned long nSize);
+char SetEnvironmentVariableW(const wchar_t * name, const wchar_t * value );
+char GetEnvironmentVariableW(const wchar_t * lpName, wchar_t* lpBuffer, unsigned long nSize);
   
-unsigned int ExpandEnvironmentStringsW(const unsigned short* lpSrc,
-				       unsigned short* lpDst,
+unsigned int ExpandEnvironmentStringsW(const wchar_t* lpSrc,
+				       wchar_t* lpDst,
 				       unsigned int nSize);
 
 /* File system stuff */
-unsigned short * _wgetcwd(unsigned short* dir, unsigned long size);
-unsigned short *_wfullpath( unsigned short *absPath, const unsigned short *relPath, unsigned long maxLength );
+wchar_t * _wgetcwd(wchar_t* dir, unsigned long size);
+wchar_t *_wfullpath(wchar_t *absPath, const wchar_t *relPath, unsigned long maxLength );
 int _unlink(const char *filename );
-int _wchdir(const unsigned short* path);
+int _wchdir(const wchar_t* path);
   
 /* The time stuff should be defined here, but it can't be because it
    is already defined in time.h.
@@ -209,7 +228,7 @@ struct tm* localtime_r(const time_t* inTimeT, struct tm* outRetval);
 */
 
 
-unsigned short* mozce_GetEnvironmentCL();
+wchar_t* mozce_GetEnvironmentCL();
 
   /* square root of 1/2, missing from math.h */ 
 #define M_SQRT1_2  0.707106781186547524401

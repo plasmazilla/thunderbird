@@ -47,6 +47,7 @@
 #include "nsIRunnable.h"
 
 #include "jsapi.h"
+#include "jsutil.h"
 #include "nsAutoJSValHolder.h"
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
@@ -210,26 +211,21 @@ public:
   NS_DECL_NSIWORKERMESSAGEEVENT
   NS_DECL_NSICLASSINFO_GETINTERFACES
 
-  nsDOMWorkerMessageEvent()
-  : mIsJSON(PR_FALSE), mIsPrimitive(PR_FALSE), mHaveCachedJSVal(PR_FALSE),
-    mHaveAttemptedConversion(PR_FALSE) { }
+  nsDOMWorkerMessageEvent() : mData(nsnull) { }
+  ~nsDOMWorkerMessageEvent();
 
-  nsresult SetJSONData(JSContext* aCx,
-                       jsval aData,
-                       PRBool aIsJSON,
-                       PRBool aIsPrimitive);
+  nsresult SetJSData(JSContext* aCx,
+                     JSAutoStructuredCloneBuffer& aBuffer,
+                     nsTArray<nsCOMPtr<nsISupports> >& aWrappedNatives);
 
 protected:
   nsString mOrigin;
   nsCOMPtr<nsISupports> mSource;
 
   nsAutoJSValHolder mDataVal;
-  nsAutoJSValHolder mCachedJSVal;
-
-  PRPackedBool mIsJSON;
-  PRPackedBool mIsPrimitive;
-  PRPackedBool mHaveCachedJSVal;
-  PRPackedBool mHaveAttemptedConversion;
+  uint64* mData;
+  size_t mDataLen;
+  nsTArray<nsCOMPtr<nsISupports> > mWrappedNatives;
 };
 
 class nsDOMWorkerProgressEvent : public nsDOMWorkerEvent,
@@ -276,11 +272,6 @@ protected:
   virtual ~nsDOMWorkerXHRState() { }
 
   nsAutoRefCnt mRefCnt;
-};
-
-enum SnapshotChoice {
-  WANT_SNAPSHOT,
-  NO_SNAPSHOT
 };
 
 class nsDOMWorkerXHREvent : public nsDOMWorkerProgressEvent,

@@ -54,6 +54,7 @@ DIRS		= \
 		cache \
 		protocol \
 		system \
+		ipc  \
         $(NULL)
 
 ifdef NECKO_WIFI

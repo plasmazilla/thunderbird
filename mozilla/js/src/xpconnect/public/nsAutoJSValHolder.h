@@ -81,7 +81,7 @@ public:
    */
   JSBool Hold(JSRuntime* aRt) {
     if (!mHeld) {
-      if (JS_AddNamedRootRT(aRt, &mVal, "nsAutoJSValHolder")) {
+      if (js_AddRootRT(aRt, &mVal, "nsAutoJSValHolder")) {
         mRt = aRt;
         mHeld = JS_TRUE;
       } else {
@@ -92,7 +92,7 @@ public:
   }
 
   /**
-   * Manually release, nullifying mVal and mRt, but returning
+   * Manually release, nullifying mVal, and mRt, but returning
    * the original jsval.
    */
   jsval Release() {
@@ -101,7 +101,7 @@ public:
     jsval oldval = mVal;
 
     if (mHeld) {
-      JS_RemoveRootRT(mRt, &mVal); // infallible
+      js_RemoveRoot(mRt, &mVal); // infallible
       mHeld = JS_FALSE;
     }
 
@@ -147,7 +147,7 @@ public:
 
   nsAutoJSValHolder &operator=(jsval aOther) {
 #ifdef DEBUG
-    if (aOther) {
+    if (JSVAL_IS_OBJECT(aOther) && JSVAL_TO_OBJECT(aOther)) {
       NS_ASSERTION(mHeld, "Not rooted!");
     }
 #endif

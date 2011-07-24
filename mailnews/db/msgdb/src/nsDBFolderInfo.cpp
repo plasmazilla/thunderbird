@@ -49,6 +49,7 @@
 #include "nsIMsgDBView.h"
 #include "nsISupportsObsolete.h"
 #include "nsServiceManagerUtils.h"
+#include "nsImapCore.h"
 
 static const char *kDBFolderInfoScope = "ns:msg:db:row:scope:dbfolderinfo:all";
 static const char *kDBFolderInfoTableKind = "ns:msg:db:table:kind:dbfolderinfo";
@@ -186,7 +187,7 @@ nsDBFolderInfo::nsDBFolderInfo(nsMsgDatabase *mdb)
   m_numUnreadMessages = 0;
   m_numMessages = 0;
   // IMAP only
-  m_ImapUidValidity = 0;
+  m_ImapUidValidity = kUidUnknown;
   m_totalPendingMessages =0;
   m_unreadPendingMessages = 0;
 
@@ -402,9 +403,9 @@ nsresult nsDBFolderInfo::LoadMemberVariables()
   GetInt32PropertyWithToken(m_numMessagesColumnToken, m_numMessages);
   GetInt32PropertyWithToken(m_numUnreadMessagesColumnToken, m_numUnreadMessages);
   GetInt32PropertyWithToken(m_flagsColumnToken, m_flags);
-  GetUint32PropertyWithToken(m_folderSizeColumnToken, m_folderSize);
+  GetUint64PropertyWithToken(m_folderSizeColumnToken, &m_folderSize);
   GetInt32PropertyWithToken(m_folderDateColumnToken, (PRInt32 &) m_folderDate);
-  GetInt32PropertyWithToken(m_imapUidValidityColumnToken, m_ImapUidValidity);
+  GetInt32PropertyWithToken(m_imapUidValidityColumnToken, m_ImapUidValidity, kUidUnknown);
   GetInt32PropertyWithToken(m_expiredMarkColumnToken, (PRInt32 &) m_expiredMark);
   GetInt32PropertyWithToken(m_expungedBytesColumnToken, (PRInt32 &) m_expungedBytes);
   GetInt32PropertyWithToken(m_highWaterMessageKeyColumnToken, (PRInt32 &) m_highWaterMessageKey);
@@ -457,28 +458,17 @@ NS_IMETHODIMP nsDBFolderInfo::OnKeyAdded(nsMsgKey aNewKey)
 }
 
 NS_IMETHODIMP
-nsDBFolderInfo::GetFolderSize(PRUint32 *size)
+nsDBFolderInfo::GetFolderSize(PRUint64 *size)
 {
   NS_ENSURE_ARG_POINTER(size);
   *size = m_folderSize;
   return NS_OK;
 }
 
-nsresult  nsDBFolderInfo::GetFolderSize64(PRUint64 *folderSize)
-{
-  return GetUint64PropertyWithToken(m_folderSizeColumnToken, folderSize);
-}
-
-NS_IMETHODIMP nsDBFolderInfo::SetFolderSize(PRUint32 size)
+NS_IMETHODIMP nsDBFolderInfo::SetFolderSize(PRUint64 size)
 {
   m_folderSize = size;
-  return SetUint32Property(kFolderSizeColumnName, m_folderSize);
-}
-
-nsresult nsDBFolderInfo::SetFolderSize64(PRUint64 size)
-{
-  m_folderSize = (PRUint32) size;
-  return SetUint64Property(kFolderSizeColumnName, size);
+  return SetUint64Property(kFolderSizeColumnName, m_folderSize);
 }
 
 NS_IMETHODIMP
@@ -497,6 +487,36 @@ NS_IMETHODIMP nsDBFolderInfo::SetFolderDate(PRUint32 folderDate)
 
 NS_IMETHODIMP nsDBFolderInfo::GetHighWater(nsMsgKey *result)
 {
+  // Sanity check highwater - if it gets too big, other code
+  // can fail. Look through last 100 messages to recalculate
+  // the highwater mark.
+  *result = m_highWaterMessageKey;
+  if (m_highWaterMessageKey > 0xFFFFFF00 && m_mdb)
+  {
+    nsCOMPtr <nsISimpleEnumerator> hdrs;
+    nsresult rv = m_mdb->ReverseEnumerateMessages(getter_AddRefs(hdrs));
+    if (NS_FAILED(rv))
+      return rv;
+    PRBool hasMore = PR_FALSE;
+    nsCOMPtr<nsIMsgDBHdr> pHeader;
+    nsMsgKey recalculatedHighWater = 1;
+    PRInt32 i = 0;
+    while(i++ < 100 && NS_SUCCEEDED(rv = hdrs->HasMoreElements(&hasMore))
+              && hasMore)
+    {
+      (void) hdrs->GetNext(getter_AddRefs(pHeader));
+      if (pHeader)
+      {
+        nsMsgKey msgKey;
+        pHeader->GetMessageKey(&msgKey);
+        if (msgKey > recalculatedHighWater)
+          recalculatedHighWater = msgKey;
+      }
+    }
+    NS_ASSERTION(m_highWaterMessageKey >= recalculatedHighWater,
+                 "highwater incorrect");
+    m_highWaterMessageKey = recalculatedHighWater;
+  }
   *result = m_highWaterMessageKey;
   return NS_OK;
 }
@@ -677,6 +697,7 @@ NS_IMETHODIMP nsDBFolderInfo::SetCharacterSet(const nsACString &charSet)
 
 NS_IMETHODIMP nsDBFolderInfo::GetCharacterSetOverride(PRBool *characterSetOverride)
 {
+  NS_ENSURE_ARG_POINTER(characterSetOverride);
   *characterSetOverride = m_charSetOverride;
   return NS_OK;
 }

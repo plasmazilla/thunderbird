@@ -74,12 +74,10 @@ var ioSvc = Components.classes["@mozilla.org/network/io-service;1"]
                       .getService(Components.interfaces.nsIIOService);
 var converterSvc = Components.classes["@mozilla.org/embeddor.implemented/web-content-handler-registrar;1"]
                              .getService(Components.interfaces.nsIWebContentConverterService);
-#ifdef HAVE_SHELL_SERVICE
-var shellSvc = Components.classes["@mozilla.org/suite/shell-service;1"]
-                         .getService(Components.interfaces.nsIShellService);
-#else
 var shellSvc = null;
-#endif
+if ("@mozilla.org/suite/shell-feed-service;1" in Components.classes)
+  shellSvc = Components.classes["@mozilla.org/suite/shell-feed-service;1"]
+                       .getService(Components.interfaces.nsIShellService);
 
 const TYPE_MAYBE_FEED = "application/vnd.mozilla.maybe.feed";
 const TYPE_MAYBE_VIDEO_FEED = "application/vnd.mozilla.maybe.video.feed";
@@ -141,41 +139,28 @@ const kActionManageApp = -1;
 //****************************************************************************//
 // Utilities
 
-function getDisplayNameForFile(aFile) {
-/*
+function getFileDisplayName(aFile) {
 #ifdef XP_WIN
-*/
   if (aFile instanceof Components.interfaces.nsILocalFileWin) {
     try {
       return aFile.getVersionInfoField("FileDescription");
-    }
-    catch(ex) {
-      // fall through to the file name
-    }
+    } catch (e) {}
   }
-/*
 #endif
 #ifdef XP_MACOSX
-*/
   if (aFile instanceof Components.interfaces.nsILocalFileMac) {
     try {
       return aFile.bundleDisplayName;
-    }
-    catch(ex) {
-      // fall through to the file name
-    }
+    } catch (e) {}
   }
-/*
 #endif
-*/
-
   return aFile.leafName;
 }
 
 function getLocalHandlerApp(aFile) {
   var localHandlerApp = Components.classes["@mozilla.org/uriloader/local-handler-app;1"]
                                   .createInstance(nsILocalHandlerApp);
-  localHandlerApp.name = getDisplayNameForFile(aFile);
+  localHandlerApp.name = getFileDisplayName(aFile);
   localHandlerApp.executable = aFile;
 
   return localHandlerApp;
@@ -646,19 +631,17 @@ FeedHandlerInfo.prototype = {
       return this.__defaultApplicationHandler;
 
     var defaultFeedReader = null;
-#ifdef HAVE_SHELL_SERVICE
     try {
       defaultFeedReader = shellSvc.defaultFeedReader;
     }
     catch(ex) {
       // no default reader
     }
-#endif
 
     if (defaultFeedReader) {
       let handlerApp = Components.classes["@mozilla.org/uriloader/local-handler-app;1"]
                                  .createInstance(nsIHandlerApp);
-      handlerApp.name = getDisplayNameForFile(defaultFeedReader);
+      handlerApp.name = getFileDisplayName(defaultFeedReader);
       handlerApp.QueryInterface(nsILocalHandlerApp);
       handlerApp.executable = defaultFeedReader;
 
@@ -672,7 +655,6 @@ FeedHandlerInfo.prototype = {
   },
 
   get hasDefaultHandler() {
-#ifdef HAVE_SHELL_SERVICE
     try {
       if (shellSvc.defaultFeedReader)
         return true;
@@ -680,7 +662,6 @@ FeedHandlerInfo.prototype = {
     catch(ex) {
       // no default reader
     }
-#endif
 
     return false;
   },
@@ -1251,7 +1232,7 @@ var gApplicationsPane = {
       case nsIHandlerInfo.useHelperApp:
         var preferredApp = aHandlerInfo.preferredApplicationHandler;
         var name = (preferredApp instanceof nsILocalHandlerApp) ?
-                   getDisplayNameForFile(preferredApp.executable) :
+                   getFileDisplayName(preferredApp.executable) :
                    preferredApp.name;
         return this._prefsBundle.getFormattedString("useApp", [name]);
 
@@ -1428,7 +1409,7 @@ var gApplicationsPane = {
       menuItem.setAttribute("value", nsIHandlerInfo.useHelperApp);
       let label;
       if (possibleApp instanceof nsILocalHandlerApp)
-        label = getDisplayNameForFile(possibleApp.executable);
+        label = getFileDisplayName(possibleApp.executable);
       else
         label = possibleApp.name;
       label = this._prefsBundle.getFormattedString("useApp", [label]);
@@ -1688,7 +1669,7 @@ var gApplicationsPane = {
         this._isValidHandlerExecutable(fp.file)) {
       handlerApp = Components.classes["@mozilla.org/uriloader/local-handler-app;1"]
                              .createInstance(nsILocalHandlerApp);
-      handlerApp.name = getDisplayNameForFile(fp.file);
+      handlerApp.name = getFileDisplayName(fp.file);
       handlerApp.executable = fp.file;
 
       // Add the app to the type's list of possible handlers.

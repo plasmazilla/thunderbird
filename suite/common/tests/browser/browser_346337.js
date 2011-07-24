@@ -43,6 +43,17 @@ function test() {
   }
   catch (ex) { }
 
+  var file = Components.classes["@mozilla.org/file/directory_service;1"]
+               .getService(Components.interfaces.nsIProperties)
+               .get("TmpD", Components.interfaces.nsILocalFile);
+  file.append("346337_test1.file");
+  filePath1 = file.path;
+  file = Components.classes["@mozilla.org/file/directory_service;1"]
+             .getService(Components.interfaces.nsIProperties)
+             .get("TmpD", Components.interfaces.nsILocalFile);
+  file.append("346337_test2.file");
+  filePath2 = file.path;
+
   let fieldList = {
     "//input[@name='input']":     Date.now().toString(),
     "//input[@name='spaced 1']":  Math.random().toString(),
@@ -57,8 +68,8 @@ function test() {
     "//textarea[1]":              "",
     "//textarea[2]":              "Some text... " + Math.random(),
     "//textarea[3]":              "Some more text\n" + new Date(),
-    "//input[@type='file'][1]":   ["/dev/null"],
-    "//input[@type='file'][2]":   ["/dev/null", "/dev/stdin"]
+    "//input[@type='file'][1]":   [filePath1],
+    "//input[@type='file'][2]":   [filePath1, filePath2]
   };
   
   function getElementByXPath(aTab, aQuery) {
@@ -113,8 +124,8 @@ function test() {
 
   gPrefService.setIntPref("browser.sessionstore.privacy_level", 2);
   
-  let testURL = "chrome://mochikit/content/browser/" +
-    "suite/common/tests/browser/browser_346337_sample.html";
+  let rootDir = getRootDirectory(gTestPath);
+  let testURL = rootDir + "browser_346337_sample.html";
   let tab = tabbrowser.addTab(testURL);
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
     this.removeEventListener("load", arguments.callee, true);

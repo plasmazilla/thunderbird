@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Unit Test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -41,7 +41,35 @@
  * database has been created and one backup is available.
  */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+XPCOMUtils.defineLazyServiceGetter(this, "bs",
+                                   "@mozilla.org/browser/nav-bookmarks-service;1",
+                                   "nsINavBookmarksService");
+XPCOMUtils.defineLazyServiceGetter(this, "anno",
+                                   "@mozilla.org/browser/annotation-service;1",
+                                   "nsIAnnotationService");
+
+let bookmarksObserver = {
+  onBeginUpdateBatch: function() {},
+  onEndUpdateBatch: function() {
+    let itemId = bs.getIdForItemAt(bs.toolbarFolder, 0);
+    do_check_neq(itemId, -1);
+    if (anno.itemHasAnnotation(itemId, "Places/SmartBookmark"))
+      continue_test();
+  },
+  onItemAdded: function() {},
+  onBeforeItemRemoved: function(id) {},
+  onItemRemoved: function(id, folder, index, itemType) {},
+  onItemChanged: function() {},
+  onItemVisited: function(id, visitID, time) {},
+  onItemMoved: function() {},
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsINavBookmarkObserver])
+};
+
 function run_test() {
+  do_test_pending();
+
   // Create our bookmarks.html copying bookmarks.glue.html to the profile
   // folder.  It will be ignored.
   create_bookmarks_html("bookmarks.glue.html");
@@ -68,25 +96,19 @@ function run_test() {
   // nsBrowserGlue uses databaseStatus to manage initialization.
   do_check_eq(hs.databaseStatus, hs.DATABASE_STATUS_CREATE);
 
-  // Restore could take some time, usually less than 1s.
-  // We will poll later in continue_test() to be sure restore has finished.
-  do_test_pending();
-  do_timeout(1000, "continue_test();");
+  // The test will continue once restore has finished and smart bookmarks
+  // have been created.
+  bs.addObserver(bookmarksObserver, false);
 }
 
 function continue_test() {
-  let bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-           getService(Ci.nsINavBookmarksService);
-
-  if (bs.getIdForItemAt(bs.toolbarFolder, 0) == -1) {
-    // Not enough time to complete restore, poll again later.
-    do_timeout(1000, "continue_test();");
-    return;
-  }
-
   // Check that JSON backup has been restored.
+  // Notice restore from JSON notification is fired before smart bookmarks creation.
   let itemId = bs.getIdForItemAt(bs.toolbarFolder, SMART_BOOKMARKS_ON_TOOLBAR);
   do_check_eq(bs.getItemTitle(itemId), "examplejson");
+
+  remove_bookmarks_html();
+  remove_all_JSON_backups();
 
   do_test_finished();
 }

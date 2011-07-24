@@ -54,13 +54,13 @@ interface nsISimpleEnumerator;
  * implementation may still be useful for object serialization, but it can't be
  * used to read or write a Mozilla FastLoad file.
  */
-[scriptable, uuid(8a1e2c63-af50-4147-af7e-26289dc180dd)]
+[scriptable, uuid(e7c8c14f-c273-4e70-826f-b85864303dc6)]
 interface nsIFastLoadFileControl : nsISupports
 {
     /**
-     * Get and set the recorded checksum value from the FastLoad file header.
+     * Get the recorded checksum value from the FastLoad file header.
      */
-    attribute PRUint32 checksum;
+    readonly attribute PRUint32 checksum;
 
     /**
      * Multiplexed document control methods.  A FastLoad file may contain
@@ -93,7 +93,7 @@ interface nsIFastLoadFileControl : nsISupports
     boolean     hasMuxedDocument(in string aURISpec);
 };
 
-[scriptable, uuid(652ecec6-d40b-45b6-afef-641d6c63a35b)]
+[scriptable, uuid(7604429c-6090-40fe-a87b-928221a1ca67)]
 interface nsIFastLoadReadControl : nsIFastLoadFileControl
 {
     /**
@@ -111,7 +111,7 @@ interface nsIFastLoadReadControl : nsIFastLoadFileControl
     readonly attribute nsISimpleEnumerator dependencies;
 };
 
-[scriptable, uuid(2ad6e9e6-1379-4e45-a899-a54b27ff915c)]
+[scriptable, uuid(3dbdca8f-0631-4826-a29c-8aba1deea09d)]
 interface nsIFastLoadWriteControl : nsIFastLoadFileControl
 {
     /**

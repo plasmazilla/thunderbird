@@ -13,7 +13,7 @@
 #
 # The Original Code is mozilla.org build system.
 #
-# The Initial Developer of the Original Code is Mozilla Corporation
+# The Initial Developer of the Original Code is Mozilla Foundation
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
 #
@@ -45,27 +45,26 @@ include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
 _TEST_FILES	= \
-        test_manyCurrentSerial.html \
-        test_manyCurrentConcurrent.html \
-		test_garbageWatch.html \
-		test_manyWatchConcurrent.html \
-		test_manyWatchSerial.html \
-		test_manyWindows.html \
 		test_allowCurrent.html \
 		test_allowWatch.html \
 		test_cancelCurrent.html \
 		test_cancelWatch.html \
 		test_clearWatch.html \
 		test_clearWatch_invalid.html \
-		test_timeoutWatch.html \
-		test_windowClose.html \
-		windowTest.html \
-		geolocation_common.js  \
-		geolocation.html \
+		test_manyCurrentConcurrent.html \
+		test_manyCurrentSerial.html \
+		test_manyWatchConcurrent.html \
+		test_manyWatchSerial.html \
+		test_manyWindows.html \
 		test_optional_api_params.html \
-        network_geolocation.sjs \
+		test_windowClose.html \
+		test_timerRestartWatch.html \
+		test_worseAccuracyDoesNotBlockCallback.html \
+		geolocation.html \
+		geolocation_common.js  \
+		network_geolocation.sjs \
+		windowTest.html \
 		$(NULL)
-
 
 libs:: 	$(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

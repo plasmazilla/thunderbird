@@ -7,13 +7,15 @@ interface nsIPrintSettings;
 
 %{ C++
 class nsIWidget;
+class nsIDocument;
 struct nsIntRect;
 %}
 
 [ptr] native nsIWidgetPtr(nsIWidget);
+[ptr] native nsIDocumentPtr(nsIDocument);
 [ref] native nsIntRectRef(nsIntRect);
 
-[scriptable, uuid(08665a60-b398-11de-8a39-0800200c9a66)]
+[scriptable, uuid(75306a89-e3ad-4a2b-9daf-ac4de06661a4)]
 interface nsIContentViewer : nsISupports
 {
 
@@ -75,6 +77,11 @@ interface nsIContentViewer : nsISupports
 
   attribute nsIDOMDocument DOMDocument;
 
+  /**
+   * Returns DOMDocument as nsIDocument and without addrefing.
+   */
+  [noscript,notxpcom] nsIDocumentPtr getDocument();
+
   [noscript] void getBounds(in nsIntRectRef aBounds);
   [noscript] void setBounds([const] in nsIntRectRef aBounds);
 
@@ -88,8 +95,6 @@ interface nsIContentViewer : nsISupports
 
   void show();
   void hide();
-
-  attribute boolean enableRendering;
 
   attribute boolean sticky;
 
@@ -128,4 +133,13 @@ interface nsIContentViewer : nsISupports
    * destroyed.  Can return null
    */
   readonly attribute nsISHEntry historyEntry;
+
+  /*
+   * Indicates when we're in a state where content shouldn't be allowed to
+   * trigger a tab-modal prompt (as opposed to a window-modal prompt) because
+   * we're part way through some operation (eg beforeunload) that shouldn't be
+   * rentrant if the user closes the tab while the prompt is showing.
+   * See bug 613800.
+   */
+  readonly attribute boolean isTabModalPromptAllowed;
 };

@@ -44,6 +44,13 @@
 // Services = object with smart getters for common XPCOM services
 Components.utils.import("resource://gre/modules/Services.jsm");
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+XPCOMUtils.defineLazyGetter(this, "Weave", function() {
+  let tmp = {};
+  Components.utils.import("resource://services-sync/main.js", tmp);
+  return tmp.Weave;
+});
+
 /*
   Note: All Editor/Composer-related methods have been moved to editorApplicationOverlay.js,
   so app windows that require those must include editorNavigatorOverlay.xul
@@ -54,7 +61,6 @@ Components.utils.import("resource://gre/modules/Services.jsm");
  **/
 
 const kProxyManual = ["network.proxy.ftp",
-                      "network.proxy.gopher",
                       "network.proxy.http",
                       "network.proxy.socks",
                       "network.proxy.ssl"];
@@ -62,6 +68,7 @@ const kExistingWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_CURRENTWI
 const kNewWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWWINDOW;
 const kNewTab = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWTAB;
 const nsIPrefLocalizedString = Components.interfaces.nsIPrefLocalizedString;
+var TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 var gShowBiDi = false;
 var gUtilityBundle = null;
 
@@ -280,8 +287,10 @@ function goCustomizeToolbar(toolbox)
 
   if (gCustomizeSheet) {
     var sheetFrame = document.getElementById("customizeToolbarSheetIFrame");
+    var panel = document.getElementById("customizeToolbarSheetPopup");
     sheetFrame.hidden = false;
     sheetFrame.toolbox = toolbox;
+    sheetFrame.panel = panel;
 
     // The document might not have been loaded yet, if this is the first time.
     // If it is already loaded, reload it so that the onload initialization
@@ -291,9 +300,14 @@ function goCustomizeToolbar(toolbox)
     else
       sheetFrame.setAttribute("src", customizeURL);
 
-    document.getElementById("customizeToolbarSheetPopup")
-            .openPopup(toolbox, "after_start", 0, 0);
-
+    // Open the panel, but make it invisible until the iframe has loaded so
+    // that the user doesn't see a white flash.
+    panel.style.visibility = "hidden";
+    toolbox.addEventListener("beforecustomization", function () {
+      toolbox.removeEventListener("beforecustomization", arguments.callee, false);
+      panel.style.removeProperty("visibility");
+    }, false);
+    panel.openPopup(toolbox, "after_start", 0, 0);
     return sheetFrame.contentWindow;
   }
   else {
@@ -304,36 +318,50 @@ function goCustomizeToolbar(toolbox)
   }
 }
 
-function onViewToolbarsPopupShowing(aEvent)
+function onViewToolbarsPopupShowing(aEvent, aInsertPoint)
 {
   var popup = aEvent.target;
+  if (popup != aEvent.currentTarget)
+    return;
 
   // Empty the menu
   var deadItems = popup.getElementsByAttribute("toolbarid", "*");
   for (let i = deadItems.length - 1; i >= 0; --i)
     popup.removeChild(deadItems[i]);
 
-  var firstMenuItem = popup.firstChild;
+  var firstMenuItem = aInsertPoint || popup.firstChild;
 
-  var toolbar = document.popupNode;
+  var toolbar = document.popupNode || popup;
   while (toolbar.localName != "toolbar")
     toolbar = toolbar.parentNode;
-  var toolbox = toolbar.parentNode;
+  var toolbox = toolbar.toolbox;
 
-  var toolbars = toolbox.getElementsByAttribute("toolbarname", "*");
-  for (let i = 0; i < toolbars.length; ++i) {
-    let bar = toolbars[i];
+  var toolbars = Array.slice(toolbox.getElementsByAttribute("toolbarname", "*"));
+  toolbars = toolbars.concat(toolbox.externalToolbars);
+
+  toolbars.forEach(function(bar) {
     let menuItem = document.createElement("menuitem");
+    menuItem.setAttribute("id", "toggle_" + bar.id);
     menuItem.setAttribute("toolbarid", bar.id);
     menuItem.setAttribute("type", "checkbox");
     menuItem.setAttribute("label", bar.getAttribute("toolbarname"));
     menuItem.setAttribute("accesskey", bar.getAttribute("accesskey"));
     menuItem.setAttribute("checked", !bar.hidden);
     popup.insertBefore(menuItem, firstMenuItem);
-  }
+  });
+}
+
+function onToolbarModePopupShowing(aEvent)
+{
+  var popup = aEvent.target;
+
+  var toolbar = document.popupNode;
+  while (toolbar.localName != "toolbar")
+    toolbar = toolbar.parentNode;
+  var toolbox = toolbar.toolbox;
 
   var mode = toolbar.getAttribute("mode") || "full";
-  var modePopup = document.getElementById("toolbarmodePopup");
+  var modePopup = document.getElementById("toolbarModePopup");
   var radio = modePopup.getElementsByAttribute("value", mode);
   radio[0].setAttribute("checked", "true");
 
@@ -375,8 +403,8 @@ function onViewToolbarsPopupShowing(aEvent)
 function onViewToolbarCommand(aEvent)
 {
   var toolbar = aEvent.originalTarget.getAttribute("toolbarid");
-  var menuitem = document.getElementById(toolbar).getAttribute("togglemenuitem");
-  goToggleToolbar(toolbar, menuitem);
+  if (toolbar)
+    goToggleToolbar(toolbar);
 }
 
 function goSetToolbarState(aEvent)
@@ -509,19 +537,20 @@ function toolboxCustomizeChange(toolbox, event)
   }
 }
 
-function goClickThrobber( urlPref )
+function goClickThrobber(urlPref, aEvent)
 {
   var url;
   try {
     url = Services.prefs.getComplexValue(urlPref, nsIPrefLocalizedString).data;
   }
-
   catch(e) {
     url = null;
   }
 
-  if ( url )
-    openUILink(url);
+  if (url) {
+    var where = whereToOpenLink(aEvent, false, true, true);
+    return openUILinkIn(url, where);
+  }
 }
 
 function getTopWin()
@@ -592,9 +621,14 @@ function goAbout(aProtocol)
     target = "current";
     break;
   default:
-    target = "tab";
+    target = "tabfocused";
   }
   openUILinkIn(url, target);
+}
+
+function goTroubleshootingPage()
+{
+  goAbout("support");
 }
 
 function goReleaseNotes()
@@ -606,6 +640,33 @@ function goReleaseNotes()
     openUILink(formatter.formatURLPref("app.releaseNotesURL"));
   }
   catch (ex) { dump(ex); }
+}
+
+// Prompt user to restart the browser in safe mode 
+function safeModeRestart()
+{
+  // prompt the user to confirm 
+  var promptTitle = gUtilityBundle.getString("safeModeRestartPromptTitle");
+  var promptMessage = gUtilityBundle.getString("safeModeRestartPromptMessage");
+  var restartText = gUtilityBundle.getString("safeModeRestartButton");
+  var checkboxText = gUtilityBundle.getString("safeModeRestartCheckbox");
+  var checkbox = { value: true };
+  var buttonFlags = (Services.prompt.BUTTON_POS_0 *
+                     Services.prompt.BUTTON_TITLE_IS_STRING) +
+                    (Services.prompt.BUTTON_POS_1 *
+                     Services.prompt.BUTTON_TITLE_CANCEL) +
+                    Services.prompt.BUTTON_POS_0_DEFAULT;
+
+  var rv = Services.prompt.confirmEx(window, promptTitle, promptMessage,
+                                     buttonFlags, restartText, null, null,
+                                     checkboxText, checkbox);
+  if (rv == 0) {
+    if (checkbox.value)
+      Components.classes["@mozilla.org/process/environment;1"]
+                .getService(Components.interfaces.nsIEnvironment)
+                .set("MOZ_SAFE_MODE_RESTART", "1");
+    Application.restart();
+  }
 }
 
 function checkForUpdates()
@@ -626,6 +687,18 @@ function checkForUpdates()
 
 function updateCheckUpdatesItem()
 {
+  var hasUpdater = "nsIApplicationUpdateService" in Components.interfaces;
+  var checkForUpdates = document.getElementById("checkForUpdates");
+
+  if (!hasUpdater)
+  {
+    var updateSeparator = document.getElementById("updateSeparator");
+
+    checkForUpdates.hidden = true;
+    updateSeparator.hidden = true;
+    return;
+  }
+
   var updates = Components.classes["@mozilla.org/updates/update-service;1"]
                           .getService(Components.interfaces.nsIApplicationUpdateService);
   var um = Components.classes["@mozilla.org/updates/update-manager;1"]
@@ -633,9 +706,9 @@ function updateCheckUpdatesItem()
 
   // Disable the UI if the update enabled pref has been locked by the
   // administrator or if we cannot update for some other reason.
-  var checkForUpdates = document.getElementById("checkForUpdates");
   var canCheckForUpdates = updates.canCheckForUpdates;
   checkForUpdates.setAttribute("disabled", !canCheckForUpdates);
+
   if (!canCheckForUpdates)
     return;
 
@@ -810,22 +883,6 @@ function utilityOnUnload(aEvent)
 addEventListener("load", utilityOnLoad, false);
 
 /**
- * @deprecated   Please use validateFileName from contentAreaUtils.js directly.
- */
-function GenerateValidFilename(filename, extension)
-{
-  if (filename) // we have a title; let's see if it's usable
-  {
-    // clean up the filename to make it usable and
-    // then trim whitespace from beginning and end
-    filename = validateFileName(filename).trim();
-    if (filename.length > 0)
-      return filename + extension;
-  }
-  return null;
-}
-
-/**
  * example use:
  *   suggestUniqueFileName("testname", ".txt", ["testname.txt", "testname(2).txt"])
  *   returns "testname(3).txt"
@@ -860,6 +917,9 @@ function focusElement(aElement)
  
 function isElementVisible(aElement)
 {
+  if (!aElement)
+    return false;
+
   // If aElement or a direct or indirect parent is hidden or collapsed,
   // height, width or both will be 0.
   var bo = aElement.boxObject;
@@ -873,23 +933,65 @@ function openAsExternal(aURL)
   openNewTabWindowOrExistingWith(loadType, aURL, null, loadInBackground);
 }
 
-function openNewWindowWith(aURL, aDoc)
+/**
+ * openNewTabWith: opens a new tab with the given URL.
+ * openNewWindowWith: opens a new window with the given URL.
+ *
+ * @param aURL
+ *        The URL to open (as a string).
+ * @param aDocument
+ *        The document from which the URL came, or null. This is used to set
+ *        the referrer header and to do a security check of whether the
+ *        document is allowed to reference the URL. If null, there will be no
+ *        referrer header and no security check.
+ * @param aPostData
+ *        Form POST data, or null.
+ * @param aEvent
+ *        The triggering event (for the purpose of determining whether to open
+ *        in the background), or null.
+ *        Legacy callers may use a boolean (aReverseBackgroundPref) here to
+ *        reverse the background behaviour.
+ * @param aAllowThirdPartyFixup
+ *        If true, then we allow the URL text to be sent to third party
+ *        services (e.g., Google's I Feel Lucky) for interpretation. This
+ *        parameter may be undefined in which case it is treated as false.
+ * @param [optional] aReferrer
+ *        If aDocument is null, then this will be used as the referrer.
+ *        There will be no security check.
+ */
+function openNewWindowWith(aURL, aDoc, aPostData, aAllowThirdPartyFixup,
+                           aReferrer)
 {
-  openNewTabWindowOrExistingWith(kNewWindow, aURL, aDoc, false);
+  return openNewTabWindowOrExistingWith(kNewWindow, aURL, aDoc, false,
+                                        aPostData, aAllowThirdPartyFixup,
+                                        aReferrer);
 }
 
-function openNewTabWith(aURL, aDoc, aReverseBackgroundPref)
+function openNewTabWith(aURL, aDoc, aPostData, aEvent,
+                        aAllowThirdPartyFixup, aReferrer)
 {
-  var loadInBackground = false;
-  if (pref) {
-    loadInBackground = Services.prefs.getBoolPref("browser.tabs.loadInBackground");
-    if (aReverseBackgroundPref)
+  var loadInBackground = Services.prefs.getBoolPref("browser.tabs.loadInBackground");
+  if (arguments.length == 3 && typeof aPostData == "boolean")
+  {
+    // Handle legacy boolean parameter.
+    if (aPostData)
+    {
       loadInBackground = !loadInBackground;
+    }
+    aPostData = null;
   }
-  openNewTabWindowOrExistingWith(kNewTab, aURL, aDoc, loadInBackground);
+  else if (aEvent && aEvent.shiftKey)
+  {
+    loadInBackground = !loadInBackground;
+  }
+  return openNewTabWindowOrExistingWith(kNewTab, aURL, aDoc, loadInBackground,
+                                        aPostData, aAllowThirdPartyFixup,
+                                        aReferrer);
 }
 
-function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground)
+function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground,
+                                        aPostData, aAllowThirdPartyFixup,
+                                        aReferrer)
 {
   // Make sure we are allowed to open this url
   if (aDoc)
@@ -897,7 +999,7 @@ function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground)
                      Components.interfaces.nsIScriptSecurityManager.STANDARD);
 
   // get referrer, if as external should be null
-  var referrer = aDoc ? aDoc.documentURIObject : null;
+  var referrerURI = aDoc ? aDoc.documentURIObject : aReferrer;
 
   var browserWin;
   // if we're not opening a new window, try and find existing window
@@ -918,9 +1020,9 @@ function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground)
     var charsetArg = null;
     if (originCharset)
       charsetArg = "charset=" + originCharset;
-    window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no",
-                      aURL, charsetArg, referrer);
-    return;
+    return window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no",
+                             aURL, charsetArg, referrerURI, aPostData,
+                             aAllowThirdPartyFixup);
   }
 
   // Get the existing browser object
@@ -928,15 +1030,22 @@ function openNewTabWindowOrExistingWith(aType, aURL, aDoc, aLoadInBackground)
 
   // Open link in an existing window.
   if (aType == kExistingWindow) {
-    browser.loadURI(aURL);
+    browserWin.loadURI(aURL, referrerURI, aPostData, aAllowThirdPartyFixup);
     browserWin.content.focus();
-    return;
+    return browserWin;
   }
 
   // open link in new tab
-  browser.addTab(aURL, referrer, originCharset, !aLoadInBackground);
+  var tab = browser.loadOneTab(aURL, {
+              referrerURI: referrerURI,
+              charset: originCharset,
+              postData: aPostData,
+              inBackground: aLoadInBackground,
+              allowThirdPartyFixup: aAllowThirdPartyFixup
+            });
   if (!aLoadInBackground)
     browserWin.content.focus();
+  return tab;
 }
 
 /**
@@ -956,7 +1065,7 @@ function BrowserOnCommand(event)
   // Exception" or "Get Me Out Of Here" button
   if (/^about:neterror\?e=nssBadCert/.test(ownerDoc.documentURI) ||
       /^about:certerror\?/.test(ownerDoc.documentURI)) {
-    if (ot.id == 'exceptionDialogButton') {
+    if (ot.getAttribute('anonid') == 'exceptionDialogButton') {
       var params = { exceptionAdded : false };
 
       try {
@@ -978,7 +1087,7 @@ function BrowserOnCommand(event)
       if (params.exceptionAdded)
         ownerDoc.location.reload();
     }
-    else if (ot.id == 'getMeOutOfHereButton') {
+    else if (ot.getAttribute('anonid') == 'getMeOutOfHereButton') {
       // Redirect them to a known-functioning page, default start page
       var url = "about:blank";
       try {
@@ -1134,10 +1243,10 @@ function getBoolPref(prefname, def)
 }
 
 // openUILink handles clicks on UI elements that cause URLs to load.
-function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup)
+function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup, postData, referrerUrl)
 {
   var where = whereToOpenLink(e, ignoreButton, ignoreSave);
-  return openUILinkIn(url, where, allowKeywordFixup);
+  return openUILinkIn(url, where, allowKeywordFixup, postData, referrerUrl);
 }
 
 /* whereToOpenLink() looks at an event to decide where to open a link.
@@ -1146,7 +1255,8 @@ function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup)
  *
  * The logic for modifiers is as following:
  * If browser.tabs.opentabfor.middleclick is true, then Ctrl (or Meta) and middle-click
- * open a new tab, depending on Shift and browser.tabs.loadInBackground.
+ * open a new tab, depending on Shift, browser.tabs.loadInBackground, and
+ * ignoreBackground.
  * Otherwise if middlemouse.openNewWindow is true, then Ctrl (or Meta) and middle-click
  * open a new window.
  * Otherwise if middle-click is pressed then nothing happens.
@@ -1154,7 +1264,7 @@ function openUILink(url, e, ignoreButton, ignoreSave, allowKeywordFixup)
  * Otherwise if Alt, or Shift, or Ctrl (or Meta) is pressed then nothing happens.
  * Otherwise the most recent browser is used for left clicks.
  */
-function whereToOpenLink(e, ignoreButton, ignoreSave)
+function whereToOpenLink(e, ignoreButton, ignoreSave, ignoreBackground)
 {
   if (!e)
     return "current";
@@ -1169,7 +1279,7 @@ function whereToOpenLink(e, ignoreButton, ignoreSave)
 
   if (meta || ctrl || middle) {
     if (getBoolPref("browser.tabs.opentabfor.middleclick", true))
-      return shift ? "tabshifted" : "tab";
+      return ignoreBackground ? "tabfocused" : shift ? "tabshifted" : "tab";
     if (getBoolPref("middlemouse.openNewWindow", true))
       return "window";
     if (middle)
@@ -1191,47 +1301,75 @@ function whereToOpenLink(e, ignoreButton, ignoreSave)
  *  "current"     current tab            (if there aren't any browser windows, then in a new window instead)
  *  "tab"         new tab                (if there aren't any browser windows, then in a new window instead)
  *  "tabshifted"  same as "tab" but in background if default is to select new tabs, and vice versa
+ *  "tabfocused"  same as "tab" but explicitly focus new tab
  *  "window"      new window
  *  "save"        save to disk (with no filename hint!)
  *
- * allowThirdPartyFixup controls whether third party services such as Google's
+ * aAllowThirdPartyFixup controls whether third party services such as Google's
  * I'm Feeling Lucky are allowed to interpret this URL. This parameter may be
  * undefined, which is treated as false.
+ *
+ * Instead of aAllowThirdPartyFixup, you may also pass an object with any of
+ * these properties:
+ *   allowThirdPartyFixup (boolean)
+ *   postData             (nsIInputStream)
+ *   referrerURI          (nsIURI)
+ *   relatedToCurrent     (boolean)
  */
-function openUILinkIn(url, where, allowThirdPartyFixup)
+function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI)
 {
   if (!where || !url)
     return null;
 
+  var aRelatedToCurrent;
+  if (arguments.length == 3 &&
+      arguments[2] != null &&
+      typeof arguments[2] == "object") {
+    let params = arguments[2];
+    aAllowThirdPartyFixup = params.allowThirdPartyFixup;
+    aPostData             = params.postData;
+    aReferrerURI          = params.referrerURI;
+    aRelatedToCurrent     = params.relatedToCurrent;
+  }
+
   if (where == "save") {
-    saveURL(url, null, null, true, true);
+    saveURL(url, null, null, true, true, aReferrerURI);
     return null;
   }
 
   var w = getTopWin();
 
-  const nsIWebNavigation = Components.interfaces.nsIWebNavigation;
-  var flags = allowThirdPartyFixup ? nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP :
-                                     nsIWebNavigation.LOAD_FLAGS_NONE;
-
   if (!w || where == "window") {
     return window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no", url,
-                             null, null, flags);
+                             null, null, aPostData, aAllowThirdPartyFixup);
   }
 
   var loadInBackground = getBoolPref("browser.tabs.loadInBackground", false);
 
+  // reuse the browser if its current tab is empty
+  if (isBrowserEmpty(w.getBrowser()))
+    where = "current";
+
   switch (where) {
   case "current":
-    w.loadURI(url, null, flags);
+    w.loadURI(url, aReferrerURI, aPostData, aAllowThirdPartyFixup);
     w.content.focus();
     break;
+  case "tabfocused":
+    // forces tab to be focused
+    loadInBackground = true;
+    // fall through
   case "tabshifted":
     loadInBackground = !loadInBackground;
     // fall through
   case "tab":
     var browser = w.getBrowser();
-    var tab = browser.addTab(url, null, null, false, flags);
+    var tab = browser.addTab(url, {
+                referrerURI: aReferrerURI,
+                postData: aPostData,
+                allowThirdPartyFixup: aAllowThirdPartyFixup,
+                relatedToCurrent: aRelatedToCurrent
+              });
     if (!loadInBackground) {
       browser.selectedTab = tab;
       w.content.focus();
@@ -1257,14 +1395,10 @@ function openUILinkArrayIn(urlArray, where, allowThirdPartyFixup)
 
   var w = getTopWin();
 
-  const nsIWebNavigation = Components.interfaces.nsIWebNavigation;
-  var flags = allowThirdPartyFixup ? nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP :
-                                     nsIWebNavigation.LOAD_FLAGS_NONE;
-
   if (!w || where == "window") {
     return window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no",
                              urlArray.join("\n"), // Pretend that we're a home page group
-                             null, null, flags);
+                             null, null, null, allowThirdPartyFixup);
   }
 
   var loadInBackground = getBoolPref("browser.tabs.loadInBackground", false);
@@ -1272,23 +1406,99 @@ function openUILinkArrayIn(urlArray, where, allowThirdPartyFixup)
   var browser = w.getBrowser();
   switch (where) {
   case "current":
-    w.loadURI(urlArray[0], null, flags);
+    w.loadURI(urlArray[0], null, null, allowThirdPartyFixup);
     w.content.focus();
     break;
   case "tabshifted":
     loadInBackground = !loadInBackground;
     // fall through
   case "tab":
-    var tab = browser.addTab(urlArray[0], null, null, false, flags);
+    var tab = browser.addTab(urlArray[0], {allowThirdPartyFixup: allowThirdPartyFixup});
     if (!loadInBackground) {
       browser.selectedTab = tab;
       w.content.focus();
     }
   }
+  var relatedToCurrent = where == "current";
   for (var i = 1; i < urlArray.length; i++)
-    browser.addTab(urlArray[i], null, null, false, flags);
+    browser.addTab(urlArray[i], {allowThirdPartyFixup: allowThirdPartyFixup, relatedToCurrent: relatedToCurrent});
 
   return w;
+}
+
+/**
+ * Switch to a tab that has a given URI, and focusses its browser window.
+ * If a matching tab is in this window, it will be switched to. Otherwise, other
+ * windows will be searched.
+ *
+ * @param aURI
+ *        URI to search for
+ * @param aOpenNew
+ *        True to open a new tab and switch to it, if no existing tab is found
+ * @param A callback to call when the tab is open, the tab's browser will be
+ *        passed as an argument
+ * @return True if a tab was switched to (or opened), false otherwise
+ */
+function switchToTabHavingURI(aURI, aOpenNew, aCallback) {
+  function switchIfURIInWindow(aWindow) {
+    if (!aWindow.gBrowser)
+      return false;
+    let browsers = aWindow.gBrowser.browsers;
+    for (let i = 0; i < browsers.length; i++) {
+      let browser = browsers[i];
+      if (browser.currentURI.equals(aURI)) {
+        // Focus the matching window & tab
+        aWindow.focus();
+        aWindow.gBrowser.tabContainer.selectedIndex = i;
+        if (aCallback)
+          aCallback(browser);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // This can be passed either nsIURI or a string.
+  if (!(aURI instanceof Components.interfaces.nsIURI))
+    aURI = Services.io.newURI(aURI, null, null);
+
+  // Prioritise this window.
+  if (switchIfURIInWindow(window))
+    return true;
+
+  let winEnum = Services.wm.getEnumerator("navigator:browser");
+  while (winEnum.hasMoreElements()) {
+    let browserWin = winEnum.getNext();
+    // Skip closed (but not yet destroyed) windows,
+    // and the current window (which was checked earlier).
+    if (browserWin.closed || browserWin == window)
+      continue;
+    if (switchIfURIInWindow(browserWin))
+      return true;
+  }
+
+  // No opened tab has that url.
+  if (aOpenNew) {
+    let browserWin = openUILinkIn(aURI.spec, "tabfocused");
+    if (aCallback) {
+      browserWin.addEventListener("pageshow", function(event) {
+        if (event.target.location.href != aURI.spec)
+          return;
+        browserWin.removeEventListener("pageshow", arguments.callee, true);
+        aCallback(browserWin.getBrowser().selectedBrowser);
+      }, true);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// Determines if a browser is "empty"
+function isBrowserEmpty(aBrowser) {
+  return aBrowser.sessionHistory.count < 2 &&
+         aBrowser.currentURI.spec == "about:blank" &&
+         !aBrowser.contentDocument.body.hasChildNodes();
 }
 
 function subscribeToFeed(href, event) {

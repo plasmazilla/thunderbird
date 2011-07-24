@@ -40,10 +40,9 @@
 #include "nsThreadUtils.h"
 #include "nsIObserverService.h"
 #include "nsServiceManagerUtils.h"
+#include "mozilla/Services.h"
 
-#ifdef MOZ_IPC
 #include "base/message_loop.h"
-#endif
 
 // When processing the next thread event, the appshell may process native
 // events (if not in performance mode), which can result in suppressing the
@@ -55,10 +54,10 @@ NS_IMPL_THREADSAFE_ISUPPORTS3(nsBaseAppShell, nsIAppShell, nsIThreadObserver,
 
 nsBaseAppShell::nsBaseAppShell()
   : mSuspendNativeCount(0)
+  , mEventloopNestingLevel(0)
   , mBlockedWait(nsnull)
   , mFavorPerf(0)
   , mNativeEventPending(0)
-  , mEventloopNestingLevel(0)
   , mStarvationDelay(0)
   , mSwitchTime(0)
   , mLastNativeEventTime(0)
@@ -67,6 +66,11 @@ nsBaseAppShell::nsBaseAppShell()
   , mExiting(PR_FALSE)
   , mBlockNativeEvent(PR_FALSE)
 {
+}
+
+nsBaseAppShell::~nsBaseAppShell()
+{
+  NS_ASSERTION(mSyncSections.Count() == 0, "Must have run all sync sections");
 }
 
 nsresult
@@ -81,16 +85,17 @@ nsBaseAppShell::Init()
   threadInt->SetObserver(this);
 
   nsCOMPtr<nsIObserverService> obsSvc =
-      do_GetService("@mozilla.org/observer-service;1");
+    mozilla::services::GetObserverService();
   if (obsSvc)
     obsSvc->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, PR_FALSE);
   return NS_OK;
 }
 
+// Called by nsAppShell's native event callback
 void
 nsBaseAppShell::NativeEventCallback()
 {
-  PRInt32 hasPending = PR_AtomicSet(&mNativeEventPending, 0);
+  PRInt32 hasPending = PR_ATOMIC_SET(&mNativeEventPending, 0);
   if (hasPending == 0)
     return;
 
@@ -123,17 +128,28 @@ nsBaseAppShell::NativeEventCallback()
   ++mEventloopNestingLevel;
   EventloopNestingState prevVal = mEventloopNestingState;
   NS_ProcessPendingEvents(thread, THREAD_EVENT_STARVATION_LIMIT);
+  mProcessedGeckoEvents = PR_TRUE;
   mEventloopNestingState = prevVal;
   mBlockNativeEvent = prevBlockNativeEvent;
 
   // Continue processing pending events later (we don't want to starve the
   // embedders event loop).
   if (NS_HasPendingEvents(thread))
-    OnDispatchedEvent(nsnull);
+    DoProcessMoreGeckoEvents();
 
   --mEventloopNestingLevel;
 }
 
+// Note, this is currently overidden on windows, see comments in nsAppShell for
+// details. 
+void
+nsBaseAppShell::DoProcessMoreGeckoEvents()
+{
+  OnDispatchedEvent(nsnull);
+}
+
+
+// Main thread via OnProcessNextEvent below
 PRBool
 nsBaseAppShell::DoProcessNextNativeEvent(PRBool mayWait)
 {
@@ -170,12 +186,7 @@ nsBaseAppShell::Run(void)
 
   nsIThread *thread = NS_GetCurrentThread();
 
-#ifdef MOZ_IPC
   MessageLoop::current()->Run();
-#else
-  while (!mExiting)
-    NS_ProcessNextEvent(thread);
-#endif
 
   NS_ProcessPendingEvents(thread);
 
@@ -186,11 +197,9 @@ nsBaseAppShell::Run(void)
 NS_IMETHODIMP
 nsBaseAppShell::Exit(void)
 {
-#ifdef MOZ_IPC
   if (mRunning && !mExiting) {
     MessageLoop::current()->Quit();
   }
-#endif
   mExiting = PR_TRUE;
   return NS_OK;
 }
@@ -244,10 +253,11 @@ nsBaseAppShell::OnDispatchedEvent(nsIThreadInternal *thr)
   if (mBlockNativeEvent)
     return NS_OK;
 
-  PRInt32 lastVal = PR_AtomicSet(&mNativeEventPending, 1);
+  PRInt32 lastVal = PR_ATOMIC_SET(&mNativeEventPending, 1);
   if (lastVal == 1)
     return NS_OK;
 
+  // Returns on the main thread in NativeEventCallback above
   ScheduleNativeEventCallback();
   return NS_OK;
 }
@@ -283,6 +293,9 @@ nsBaseAppShell::OnProcessNextEvent(nsIThreadInternal *thr, PRBool mayWait,
   // thread's event queue before we return.  Otherwise, the thread will block
   // on its event queue waiting for an event.
   PRBool needEvent = mayWait;
+  // Reset prior to invoking DoProcessNextNativeEvent which might cause
+  // NativeEventCallback to process gecko events.
+  mProcessedGeckoEvents = PR_FALSE;
 
   if (mFavorPerf <= 0 && start > mSwitchTime + mStarvationDelay) {
     // Favor pending native events
@@ -300,7 +313,7 @@ nsBaseAppShell::OnProcessNextEvent(nsIThreadInternal *thr, PRBool mayWait,
     }
   }
 
-  while (!NS_HasPendingEvents(thr)) {
+  while (!NS_HasPendingEvents(thr) && !mProcessedGeckoEvents) {
     // If we have been asked to exit from Run, then we should not wait for
     // events to process.  Note that an inner nested event loop causes
     // 'mayWait' to become false too, through 'mBlockedWait'.
@@ -317,13 +330,33 @@ nsBaseAppShell::OnProcessNextEvent(nsIThreadInternal *thr, PRBool mayWait,
   // Make sure that the thread event queue does not block on its monitor, as
   // it normally would do if it did not have any pending events.  To avoid
   // that, we simply insert a dummy event into its queue during shutdown.
-  if (needEvent && !NS_HasPendingEvents(thr)) {  
+  if (needEvent && !mExiting && !NS_HasPendingEvents(thr)) {  
     if (!mDummyEvent)
       mDummyEvent = new nsRunnable();
     thr->Dispatch(mDummyEvent, NS_DISPATCH_NORMAL);
   }
 
+  // We're about to run an event, so we're in a stable state. 
+  RunSyncSections();
+
   return NS_OK;
+}
+
+void
+nsBaseAppShell::RunSyncSections()
+{
+  if (mSyncSections.Count() == 0) {
+    return;
+  }
+  // We've got synchronous sections awaiting a stable state. Run
+  // all the synchronous sections. Note that a synchronous section could
+  // add another synchronous section, so we don't remove elements from
+  // mSyncSections until all sections have been run, else we'll screw up
+  // our iteration.
+  for (PRInt32 i = 0; i < mSyncSections.Count(); i++) {
+    mSyncSections[i]->Run();
+  }
+  mSyncSections.Clear();
 }
 
 // Called from the main thread
@@ -331,6 +364,8 @@ NS_IMETHODIMP
 nsBaseAppShell::AfterProcessNextEvent(nsIThreadInternal *thr,
                                       PRUint32 recursionDepth)
 {
+  // We've just finished running an event, so we're in a stable state. 
+  RunSyncSections();
   return NS_OK;
 }
 
@@ -342,3 +377,24 @@ nsBaseAppShell::Observe(nsISupports *subject, const char *topic,
   Exit();
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsBaseAppShell::RunInStableState(nsIRunnable* aRunnable)
+{
+  NS_ASSERTION(NS_IsMainThread(), "Should be on main thread.");
+  // Record the synchronous section, and run it with any others once
+  // we reach a stable state.
+  mSyncSections.AppendObject(aRunnable);
+
+  // Ensure we've got a pending event, else the callbacks will never run.
+  nsIThread* thread = NS_GetCurrentThread(); 
+  if (!NS_HasPendingEvents(thread) &&
+       NS_FAILED(thread->Dispatch(new nsRunnable(), NS_DISPATCH_NORMAL)))
+  {
+    // Failed to dispatch dummy event to cause sync sections to run, thread
+    // is probably done processing events, just run the sync sections now.
+    RunSyncSections();
+  }
+  return NS_OK;
+}
+

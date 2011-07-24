@@ -54,7 +54,7 @@
 #include "nsAuth.h"
 #include "nsHttpNegotiateAuth.h"
 
-#include "nsIHttpChannel.h"
+#include "nsIHttpAuthenticableChannel.h"
 #include "nsIProxiedChannel.h"
 #include "nsIAuthModule.h"
 #include "nsIServiceManager.h"
@@ -107,7 +107,7 @@ nsHttpNegotiateAuth::GetAuthFlags(PRUint32 *flags)
 // there is no correct way to get the users credentials.
 // 
 NS_IMETHODIMP
-nsHttpNegotiateAuth::ChallengeReceived(nsIHttpChannel *httpChannel,
+nsHttpNegotiateAuth::ChallengeReceived(nsIHttpAuthenticableChannel *authChannel,
                                        const char *challenge,
                                        PRBool isProxyAuth,
                                        nsISupports **sessionState,
@@ -123,7 +123,7 @@ nsHttpNegotiateAuth::ChallengeReceived(nsIHttpChannel *httpChannel,
     nsresult rv;
 
     nsCOMPtr<nsIURI> uri;
-    rv = httpChannel->GetURI(getter_AddRefs(uri));
+    rv = authChannel->GetURI(getter_AddRefs(uri));
     if (NS_FAILED(rv))
         return rv;
 
@@ -136,12 +136,8 @@ nsHttpNegotiateAuth::ChallengeReceived(nsIHttpChannel *httpChannel,
             return NS_ERROR_ABORT;
         }
 
-        nsCOMPtr<nsIProxiedChannel> proxied =
-                do_QueryInterface(httpChannel);
-        NS_ENSURE_STATE(proxied);
-
         nsCOMPtr<nsIProxyInfo> proxyInfo;
-        proxied->GetProxyInfo(getter_AddRefs(proxyInfo));
+        authChannel->GetProxyInfo(getter_AddRefs(proxyInfo));
         NS_ENSURE_STATE(proxyInfo);
 
         proxyInfo->GetHost(service);
@@ -204,35 +200,8 @@ nsHttpNegotiateAuth::ChallengeReceived(nsIHttpChannel *httpChannel,
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS2(nsHttpNegotiateAuth, nsIHttpAuthenticator,
-                                        nsIHttpAuthenticator_1_9_2)
-
-NS_IMETHODIMP
-nsHttpNegotiateAuth::GenerateCredentials(nsIHttpChannel *httpChannel,
-                                         const char *challenge,
-                                         PRBool isProxyAuth,
-                                         const PRUnichar *domain,
-                                         const PRUnichar *username,
-                                         const PRUnichar *password,
-                                         nsISupports **sessionState,
-                                         nsISupports **continuationState,
-                                         char **creds)
-{
-    LOG(("nsHttpNegotiateAuth::GenerateCredentials() [challenge=%s]\n", challenge));
-
-    PRUint32 unused;
-    return GenerateCredentials_1_9_2(httpChannel,
-                                     challenge,
-                                     isProxyAuth,
-                                     domain,
-                                     username,
-                                     password,
-                                     sessionState,
-                                     continuationState,
-                                     &unused,
-                                     creds);
-}
-
+NS_IMPL_ISUPPORTS1(nsHttpNegotiateAuth, nsIHttpAuthenticator)
+   
 //
 // GenerateCredentials
 //
@@ -240,16 +209,16 @@ nsHttpNegotiateAuth::GenerateCredentials(nsIHttpChannel *httpChannel,
 // blob to pass to the server that requested "Negotiate" authentication.
 //
 NS_IMETHODIMP
-nsHttpNegotiateAuth::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
-                                               const char *challenge,
-                                               PRBool isProxyAuth,
-                                               const PRUnichar *domain,
-                                               const PRUnichar *username,
-                                               const PRUnichar *password,
-                                               nsISupports **sessionState,
-                                               nsISupports **continuationState,
-                                               PRUint32 *flags,
-                                               char **creds)
+nsHttpNegotiateAuth::GenerateCredentials(nsIHttpAuthenticableChannel *authChannel,
+                                         const char *challenge,
+                                         PRBool isProxyAuth,
+                                         const PRUnichar *domain,
+                                         const PRUnichar *username,
+                                         const PRUnichar *password,
+                                         nsISupports **sessionState,
+                                         nsISupports **continuationState,
+                                         PRUint32 *flags,
+                                         char **creds)
 {
     // ChallengeReceived must have been called previously.
     nsIAuthModule *module = (nsIAuthModule *) *continuationState;
@@ -257,7 +226,7 @@ nsHttpNegotiateAuth::GenerateCredentials_1_9_2(nsIHttpChannel *httpChannel,
 
     *flags = USING_INTERNAL_IDENTITY;
 
-    LOG(("nsHttpNegotiateAuth::GenerateCredentials_1_9_2() [challenge=%s]\n", challenge));
+    LOG(("nsHttpNegotiateAuth::GenerateCredentials() [challenge=%s]\n", challenge));
 
     NS_ASSERTION(creds, "null param");
 

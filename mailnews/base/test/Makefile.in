@@ -41,27 +41,20 @@ DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = mailnews/base/test
 
 include $(DEPTH)/config/autoconf.mk
 
-# Module name for xpcshell tests.
-MODULE         = test_mailnewsbase
-
+ifndef MOZ_ENABLE_LIBXUL
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-REQUIRES = \
-	pref \
-	necko \
-	string \
-	msgbase \
-	msgbaseutil \
-	$(NULL)
-
+# XXX This needs functions exporting in the libxul case.
 CPP_UNIT_TESTS = \
     TestMsgStripRE.cpp \
     $(NULL)
+endif
 
 include $(topsrcdir)/config/config.mk
 
@@ -77,16 +70,13 @@ ifndef MOZILLA_INTERNAL_API
 LIBS += $(XPCOM_GLUE_LDOPTS)
 endif
 
-LIBS +=   \
-    $(NULL)
-
+ifdef MOZ_ENABLE_LIBXUL
+LIBS += $(XPCOM_LIBS)
+else
 ifdef MOZ_STATIC_MAIL_BUILD
 LIBS +=   \
     ../../base/util/$(LIB_PREFIX)msgbsutl_s.$(LIB_SUFFIX) \
     $(NULL)
-else
-ifeq ($(USE_SHORT_LIBNAME), 1)
-LIBS +=   $(call EXPAND_LIBNAME_PATH,msgbsutl,../../base/util)
 else
 LIBS +=   $(call EXPAND_LIBNAME_PATH,msgbaseutil,../../base/util)
 endif

@@ -36,23 +36,20 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsICSSStyleSheet.h"
 #include "nsIStyleRuleProcessor.h"
 #include "nsIDocument.h"
 #include "nsIContent.h"
-#include "nsIPresShell.h"
 #include "nsIXBLService.h"
 #include "nsIServiceManager.h"
 #include "nsXBLResourceLoader.h"
 #include "nsXBLPrototypeResources.h"
+#include "nsXBLPrototypeBinding.h"
 #include "nsIDocumentObserver.h"
-#include "nsICSSLoader.h"
+#include "mozilla/css/Loader.h"
 #include "nsIURI.h"
 #include "nsLayoutCID.h"
 #include "nsCSSRuleProcessor.h"
 #include "nsStyleSet.h"
-
-static NS_DEFINE_CID(kCSSLoaderCID, NS_CSS_LOADER_CID);
 
 nsXBLPrototypeResources::nsXBLPrototypeResources(nsXBLPrototypeBinding* aBinding)
 {
@@ -105,43 +102,40 @@ static PRBool IsChromeURI(nsIURI* aURI)
 nsresult
 nsXBLPrototypeResources::FlushSkinSheets()
 {
-  if (mStyleSheetList.Count() == 0)
+  if (mStyleSheetList.Length() == 0)
     return NS_OK;
 
-  nsresult rv;
-  // XXXbz should be getting loader off the document or something
-  nsCOMPtr<nsICSSLoader> loader = do_CreateInstance(kCSSLoaderCID, &rv);
-  if (NS_FAILED(rv)) return rv;
-  
+  nsCOMPtr<nsIDocument> doc =
+    mLoader->mBinding->XBLDocumentInfo()->GetDocument();
+  mozilla::css::Loader* cssLoader = doc->CSSLoader();
+
   // We have scoped stylesheets.  Reload any chrome stylesheets we
   // encounter.  (If they aren't skin sheets, it doesn't matter, since
   // they'll still be in the chrome cache.
   mRuleProcessor = nsnull;
 
-  nsCOMArray<nsICSSStyleSheet> oldSheets(mStyleSheetList);
+  sheet_array_type oldSheets(mStyleSheetList);
   mStyleSheetList.Clear();
-  
-  PRInt32 i;
-  PRInt32 count = oldSheets.Count();
-  for (i = 0; i < count; i++) {
-    nsICSSStyleSheet* oldSheet = oldSheets[i];
-    
-    nsCOMPtr<nsIURI> uri;
-    oldSheet->GetSheetURI(getter_AddRefs(uri));
 
-    nsCOMPtr<nsICSSStyleSheet> newSheet;
+  for (sheet_array_type::size_type i = 0, count = oldSheets.Length();
+       i < count; ++i) {
+    nsCSSStyleSheet* oldSheet = oldSheets[i];
+
+    nsIURI* uri = oldSheet->GetSheetURI();
+
+    nsRefPtr<nsCSSStyleSheet> newSheet;
     if (IsChromeURI(uri)) {
-      if (NS_FAILED(loader->LoadSheetSync(uri, getter_AddRefs(newSheet))))
+      if (NS_FAILED(cssLoader->LoadSheetSync(uri, getter_AddRefs(newSheet))))
         continue;
     }
     else {
       newSheet = oldSheet;
     }
-    
-    mStyleSheetList.AppendObject(newSheet);
+
+    mStyleSheetList.AppendElement(newSheet);
   }
   mRuleProcessor = new nsCSSRuleProcessor(mStyleSheetList, 
                                           nsStyleSet::eDocSheet);
-  
+
   return NS_OK;
 }

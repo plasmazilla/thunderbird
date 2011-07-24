@@ -57,6 +57,11 @@
             helpTopic="prefs-privacy">
 
     <preferences id="privacyPreferences">
+  
+      <!-- Tracking -->
+      <preference id="privacy.donottrackheader.enabled"
+                  name="privacy.donottrackheader.enabled"
+                  type="bool"/>
 
       <!-- XXX button prefs -->
       <preference id="pref.privacy.disable_button.cookie_exceptions"
@@ -76,15 +81,9 @@
                   onchange="document.getElementById('browser.urlbar.autocomplete.enabled').updateElements();"/>
 
       <!-- History -->
-      <preference id="browser.history_expire_days"
-                  name="browser.history_expire_days"
-                  type="int"/>
-      <preference id="browser.history_expire_days.mirror"
-                  name="browser.history_expire_days.mirror"
-                  type="int"/>
-      <preference id="browser.history_expire_days_min"
-                  name="browser.history_expire_days_min"
-                  type="int"/>
+      <preference id="places.history.enabled"
+                  name="places.history.enabled"
+                  type="bool"/>
       <preference id="browser.formfill.enable"
                   name="browser.formfill.enable"
                   type="bool"/>
@@ -120,7 +119,17 @@
     
     <stringbundle id="bundlePreferences" src="chrome://browser/locale/preferences/preferences.properties"/>
     
-    <script type="application/x-javascript" src="chrome://browser/content/preferences/privacy.js"/>
+    <script type="application/javascript" src="chrome://browser/content/preferences/privacy.js"/>
+
+    <!-- Tracking -->
+    <groupbox id="trackingGroup">
+      <caption label="&tracking.label;"/>
+
+      <checkbox id="privacyDoNotTrackPrefs"
+                label="&doNotTrack.label;"
+                accesskey="&doNotTrack.accesskey;"
+                preference="privacy.donottrackheader.enabled"/>
+    </groupbox>
 
     <!-- History -->
     <groupbox id="historyGroup">
@@ -178,24 +187,16 @@
         <vbox id="historyCustomPane">
           <separator class="thin"/>
           <checkbox id="privateBrowsingAutoStart" class="indent"
-                    label="&privateBrowsingAutoStart.label;"
-                    accesskey="&privateBrowsingAutoStart.accesskey;"
+                    label="&privateBrowsingPermanent.label;"
+                    accesskey="&privateBrowsingPermanent.accesskey;"
                     preference="browser.privatebrowsing.autostart"/>
 
           <vbox class="indent">
             <vbox class="indent">
-              <hbox align="center">
-                <checkbox id="rememberHistoryDays"
-                          label="&rememberHistory.pre.label;"
-                          accesskey="&rememberHistory.pre.accesskey;"
-                          oncommand="gPrivacyPane.onchangeHistoryDaysCheck();"
-                          aria-labelledby="rememberHistoryDays historyDays rememberAfter"/>
-                <textbox id="historyDays" type="number" size="3"
-                         aria-labelledby="rememberHistoryDays historyDays rememberAfter"
-                         onkeyup="gPrivacyPane.onkeyupHistoryDaysText();"
-                         preference="browser.history_expire_days_min"/>
-                <label id="rememberAfter"> &rememberHistory.post.label;</label>
-              </hbox>
+              <checkbox id="rememberHistory"
+                        label="&rememberHistory.label;"
+                        accesskey="&rememberHistory.accesskey;"
+                        preference="places.history.enabled"/>
               <checkbox id="rememberDownloads"
                         label="&rememberDownload.label;"
                         accesskey="&rememberDownload.accesskey;"

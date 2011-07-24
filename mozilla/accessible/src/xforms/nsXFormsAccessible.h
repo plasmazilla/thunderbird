@@ -70,7 +70,7 @@ class nsXFormsAccessible : public nsHyperTextAccessibleWrap,
                            public nsXFormsAccessibleBase
 {
 public:
-  nsXFormsAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXFormsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
 
@@ -125,10 +125,10 @@ protected:
 class nsXFormsContainerAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsContainerAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXFormsContainerAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 
   // Allows accessible nodes in anonymous content of xforms element by
   // always returning PR_TRUE value.
@@ -143,7 +143,7 @@ public:
 class nsXFormsEditableAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsEditableAccessible(nsIDOMNode *aNode, nsIWeakReference *aShell);
+  nsXFormsEditableAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessibleEditableText
   NS_IMETHOD GetAssociatedEditor(nsIEditor **aEditor);
@@ -160,14 +160,23 @@ public:
 class nsXFormsSelectableAccessible : public nsXFormsEditableAccessible
 {
 public:
-  nsXFormsSelectableAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXFormsSelectableAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
-  NS_DECL_ISUPPORTS_INHERITED
-  NS_DECL_NSIACCESSIBLESELECTABLE
+  // SelectAccessible
+  virtual bool IsSelect();
+  virtual already_AddRefed<nsIArray> SelectedItems();
+  virtual PRUint32 SelectedItemCount();
+  virtual nsAccessible* GetSelectedItem(PRUint32 aIndex);
+  virtual bool IsItemSelected(PRUint32 aIndex);
+  virtual bool AddItemToSelection(PRUint32 aIndex);
+  virtual bool RemoveItemFromSelection(PRUint32 aIndex);
+  virtual bool SelectAll();
+  virtual bool UnselectAll();
 
 protected:
-  already_AddRefed<nsIDOMNode> GetItemByIndex(PRInt32 *aIndex,
-                                              nsIAccessible *aAccessible = nsnull);
+  nsIContent* GetItemByIndex(PRUint32* aIndex,
+                             nsAccessible* aAccessible = nsnull);
+
   PRBool mIsSelect1Element;
 };
 
@@ -178,7 +187,8 @@ protected:
 class nsXFormsSelectableItemAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsSelectableItemAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXFormsSelectableItemAccessible(nsIContent *aContent,
+                                   nsIWeakReference *aShell);
 
   NS_IMETHOD GetValue(nsAString& aValue);
   NS_IMETHOD GetNumActions(PRUint8 *aCount);

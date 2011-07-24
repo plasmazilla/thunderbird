@@ -41,9 +41,17 @@
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <script src="quickFilterBar.js" type="application/javascript" />
 
+  <keyset id="mailKeys">
+    <key id="key_qfb_escape" keycode="VK_ESCAPE"
+         command="cmd_popQuickFilterBarStack"/>
+  </keyset>
+
   <commandset id="mailViewMenuItems">
     <command id="cmd_toggleQuickFilterBar"
              oncommand="goDoCommand('cmd_toggleQuickFilterBar');"
+             />
+    <command id="cmd_popQuickFilterBarStack"
+             oncommand="goDoCommand('cmd_popQuickFilterBarStack');"
              />
   </commandset>
 
@@ -148,7 +156,7 @@
                />
         <textbox id="qfb-qs-textbox" flex="1"
                  type="search"
-                 emptytext=""
+                 placeholder=""
                  emptytextbase="&quickFilterBar.textbox.emptyText.base;"
                  keyLabelNonMac="&quickFilterBar.textbox.emptyText.keyLabel.nonmac;"
                  keyLabelMac="&quickFilterBar.textbox.emptyText.keyLabel1.mac;"

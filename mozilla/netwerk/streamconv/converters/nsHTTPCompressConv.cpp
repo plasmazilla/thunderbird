@@ -85,7 +85,7 @@ nsHTTPCompressConv::~nsHTTPCompressConv()
 
     // For some reason we are not getting Z_STREAM_END.  But this was also seen
     //    for mozilla bug 198133.  Need to handle this case.
-    if ((mStreamInitialized == PR_TRUE) && (mStreamEnded == PR_FALSE))
+    if (mStreamInitialized && !mStreamEnded)
         inflateEnd (&d_stream);
 }
 
@@ -162,6 +162,8 @@ nsHTTPCompressConv::OnDataAvailable(nsIRequest* request,
 
             if (streamLen == 0)
                 return NS_OK;
+
+            // FALLTHROUGH
 
         case HTTP_COMPRESS_DEFLATE:
 
@@ -264,7 +266,8 @@ nsHTTPCompressConv::OnDataAvailable(nsIRequest* request,
 
                         // stop an endless loop caused by non-deflate data being labelled as deflate
                         if (mDummyStreamInitialised) {
-                            NS_ERROR("endless loop detected");
+                            NS_WARNING("endless loop detected"
+                                       " - invalid deflate");
                             return NS_ERROR_INVALID_CONTENT_ENCODING;
                         }
                         mDummyStreamInitialised = PR_TRUE;

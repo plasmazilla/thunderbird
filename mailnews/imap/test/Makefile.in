@@ -15,7 +15,7 @@
 # The Original Code is mozilla.org code.
 #
 # The Initial Developer of the Original Code is
-# Mozilla Messaging
+# the Mozilla Foundation.
 #
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
@@ -41,30 +41,21 @@ DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = mailnews/imap/test
 
 include $(DEPTH)/config/autoconf.mk
 
-# Module name for xpcshell tests.
-MODULE         = test_imap
-
+ifndef MOZ_ENABLE_LIBXUL
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-REQUIRES = 	\
-		xpcom \
-		xpcom_ds \
-		necko \
-		nkcache \
-		string \
-		msgbase \
-		msgimap \
-		$(NULL)
-
+# XXX This needs functions exporting in the libxul case.
 CPP_UNIT_TESTS = \
 		TestImapHdrXferInfo.cpp \
 		TestImapFlagAndUidState.cpp \
 		$(NULL)
+endif
 
 include $(topsrcdir)/config/config.mk
 
@@ -91,11 +82,7 @@ LIBS +=		\
 		../../base/util/$(LIB_PREFIX)msgbsutl_s.$(LIB_SUFFIX) \
 		$(NULL)
 else
-ifeq ($(USE_SHORT_LIBNAME), 1)
-LIBS +=		$(call EXPAND_LIBNAME_PATH,msgbsutl,../../base/util)
-else
 LIBS +=		$(call EXPAND_LIBNAME_PATH,msgbaseutil,../../base/util)
-endif
 endif
 
 LIBS +=		\

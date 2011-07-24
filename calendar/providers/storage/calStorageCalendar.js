@@ -43,10 +43,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
+Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 Components.utils.import("resource://calendar/modules/calStorageUpgrade.jsm");
 Components.utils.import("resource://calendar/modules/calStorageHelpers.jsm");
 
@@ -66,6 +68,28 @@ function calStorageCalendar() {
 
 calStorageCalendar.prototype = {
     __proto__: cal.ProviderBase.prototype,
+
+    classID: Components.ID("{b3eaa1c4-5dfe-4c0a-b62a-b3a514218461}"),
+    contractID: "@mozilla.org/calendar/calendar;1?type=storage",
+    classDescription: "Calendar Storage Provider",
+    getInterfaces: function (count) {
+        let ifaces = [
+            Components.interfaces.nsISupports,
+            Components.interfaces.calICalendarManager,
+            Components.interfaces.calIStartupService,
+            Components.interfaces.nsIObserver,
+            Components.interfaces.nsIClassInfo
+        ];
+        count.value = ifaces.length;
+        return ifaces;
+    },
+
+    getHelperForLanguage: function (language) {
+        return null;
+    },
+
+    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
+    flags: 0,
     //
     // private members
     //
@@ -215,15 +239,13 @@ calStorageCalendar.prototype = {
      * setter and requires those two attributes to be set.
      */
     prepareInitDB: function cSC_prepareInitDB() {
-        let dbService = Components.classes["@mozilla.org/storage/service;1"]
-                                  .getService(Components.interfaces.mozIStorageService);
         if (this.uri.schemeIs("file")) {
             let fileURL = this.uri.QueryInterface(Components.interfaces.nsIFileURL);
             if (!fileURL)
                 throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
 
             // open the database
-            this.mDB = dbService.openDatabase(fileURL.file);
+            this.mDB = Services.storage.openDatabase(fileURL.file);
             upgradeDB(this.mDB);
         } else if (this.uri.schemeIs("moz-profile-calendar")) {
             // This is an old-style moz-profile-calendar. It requires some
@@ -231,11 +253,13 @@ calStorageCalendar.prototype = {
 
             let localDB = cal.getCalendarDirectory();
             localDB.append("local.sqlite");
-            localDB = dbService.openDatabase(localDB);
+            localDB = Services.storage.openDatabase(localDB);
 
             // First, we need to check if this is from 0.9, i.e we need to
             // migrate from storage.sdb to local.sqlite.
-            this.mDB = dbService.openSpecialDatabase("profile");
+            let storageSdb = Services.dirsvc.get("ProfD", Components.interfaces.nsILocalFile);
+            storageSdb.append("storage.sdb");
+            this.mDB = Services.storage.openDatabase(storageSdb);
             if (this.mDB.tableExists("cal_events")) {
                 cal.LOG("Storage: Migrating storage.sdb -> local.sqlite");
                 upgradeDB(this.mDB); // upgrade schema before migating data
@@ -369,7 +393,7 @@ calStorageCalendar.prototype = {
             // New style uri, no need for migration here
             let localDB = cal.getCalendarDirectory();
             localDB.append("local.sqlite");
-            localDB = dbService.openDatabase(localDB);
+            localDB = Services.storage.openDatabase(localDB);
 
             this.mDB = localDB;
             upgradeDB(this.mDB);
@@ -733,7 +757,6 @@ calStorageCalendar.prototype = {
             }
 
             queueItems (expandedItems, theIID);
-            cal.processPendingEvent();
             return expandedItems.length;
         }
 
@@ -1780,6 +1803,8 @@ calStorageCalendar.prototype = {
             var ownTz = cal.getTimezoneService().getTimezone(tz.tzid);
             if (ownTz) { // if we know that TZID, we use it
                 params[entryname + "_tz"] = ownTz.tzid;
+            } else if (!tz.icalComponent) { // timezone component missing
+                params[entryname + "_tz"] = "floating";
             } else { // foreign one
                 params[entryname + "_tz"] = tz.icalComponent.serializeToICS();
             }
@@ -2339,3 +2364,21 @@ calStorageCalendar.prototype = {
         cal.ERROR(logMessage + "\n" + STACK(10));
     }
 };
+
+/** Module Registration */
+const scriptLoadOrder = [
+    "calUtils.js",
+];
+
+function NSGetFactory(cid) {
+    if (!this.scriptsLoaded) {
+        Services.io.getProtocolHandler("resource")
+                .QueryInterface(Components.interfaces.nsIResProtocolHandler)
+                .setSubstitution("calendar", Services.io.newFileURI(__LOCATION__.parent.parent));
+        Components.utils.import("resource://calendar/modules/calUtils.jsm");
+        cal.loadScripts(scriptLoadOrder, Components.utils.getGlobalForObject(this));
+        this.scriptsLoaded = true;
+    }
+
+    return (XPCOMUtils.generateNSGetFactory([calStorageCalendar]))(cid);
+}

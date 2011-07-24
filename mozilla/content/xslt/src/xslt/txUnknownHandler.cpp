@@ -45,6 +45,12 @@
 txUnknownHandler::txUnknownHandler(txExecutionState* aEs)
     : mEs(aEs)
 {
+    MOZ_COUNT_CTOR_INHERITED(txUnknownHandler, txBufferingHandler);
+}
+
+txUnknownHandler::~txUnknownHandler()
+{
+    MOZ_COUNT_DTOR_INHERITED(txUnknownHandler, txBufferingHandler);
 }
 
 nsresult
@@ -99,9 +105,9 @@ txUnknownHandler::startElement(nsIAtom* aPrefix, nsIAtom* aLocalName,
     // Use aLocalName and not aLowercaseLocalName in case the output
     // handler cares about case. For eHTMLOutput the handler will hardcode
     // to 'html' anyway.
-    nsAutoString name;
-    aLocalName->ToString(name);
-    nsresult rv = createHandlerAndFlush(htmlRoot, name, aNsID);
+    nsresult rv = createHandlerAndFlush(htmlRoot,
+                                        nsDependentAtomString(aLocalName),
+                                        aNsID);
     NS_ENSURE_SUCCESS(rv, rv);
 
     rv = mEs->mResultHandler->startElement(aPrefix, aLocalName,
@@ -147,14 +153,17 @@ nsresult txUnknownHandler::createHandlerAndFlush(PRBool aHTMLRoot,
         format.mMethod = aHTMLRoot ? eHTMLOutput : eXMLOutput;
     }
 
-    txAXMLEventHandler *handler = nsnull;
+    nsAutoPtr<txAXMLEventHandler> handler;
     nsresult rv = mEs->mOutputHandlerFactory->createHandlerWith(&format, aName,
                                                                 aNsID,
-                                                                &handler);
+                                                                getter_Transfers(handler));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = mBuffer->flushToHandler(handler);
     NS_ENSURE_SUCCESS(rv, rv);
 
     mEs->mOutputHandler = handler;
-    mEs->mResultHandler = handler;
+    mEs->mResultHandler = handler.forget();
 
-    return mBuffer->flushToHandler(&handler);
+    return NS_OK;
 }

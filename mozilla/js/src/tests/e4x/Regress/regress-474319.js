@@ -36,7 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestfile = 'regress-474319.js';
 
 var summary = 'Do not crash with e4x, map and concat';
 var BUGNUMBER = 474319;
@@ -53,7 +52,14 @@ if (typeof gczeal != 'function' || !('map' in Array.prototype))
 else
 {
     gczeal(2);
-    (function(){[<y><z/></y>].map(''.concat)})();
+    try
+    {
+      (function(){[<y><z/></y>].map(''.concat)})();
+    }
+    catch(ex)
+    {
+    }
+    gczeal(0);
 }
 TEST(1, expect, actual);
 

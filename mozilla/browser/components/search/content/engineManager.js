@@ -226,7 +226,7 @@ var gEngineManagerDialog = {
 
 function onDragEngineStart(event) {
   var selectedIndex = gEngineView.selectedIndex;
-  if (selectedIndex > 0) {
+  if (selectedIndex >= 0) {
     event.dataTransfer.setData(ENGINE_FLAVOR, selectedIndex.toString());
     event.dataTransfer.effectAllowed = "move";
   }
@@ -300,13 +300,13 @@ EngineChangeOp.prototype = {
 function EngineStore() {
   var searchService = Cc["@mozilla.org/browser/search-service;1"].
                       getService(Ci.nsIBrowserSearchService);
-  this._engines = searchService.getVisibleEngines({}).map(this._cloneEngine);
-  this._defaultEngines = searchService.getDefaultEngines({}).map(this._cloneEngine);
+  this._engines = searchService.getVisibleEngines().map(this._cloneEngine);
+  this._defaultEngines = searchService.getDefaultEngines().map(this._cloneEngine);
 
   this._ops = [];
 
   // check if we need to disable the restore defaults button
-  var someHidden = this._defaultEngines.some(function (e) {return e.hidden;});
+  var someHidden = this._defaultEngines.some(function (e) e.hidden);
   gEngineManagerDialog.showRestoreDefaults(someHidden);
 }
 EngineStore.prototype = {
@@ -465,29 +465,8 @@ EngineView.prototype = {
     this.tree.ensureRowIsVisible(index);
   },
 
-  getSourceIndexFromDrag: function () {
-    var dragService = Cc["@mozilla.org/widget/dragservice;1"].
-                      getService().QueryInterface(Ci.nsIDragService);
-    var dragSession = dragService.getCurrentSession();
-    var transfer = Cc["@mozilla.org/widget/transferable;1"].
-                   createInstance(Ci.nsITransferable);
-
-    transfer.addDataFlavor(ENGINE_FLAVOR);
-    dragSession.getData(transfer, 0);
-
-    var dataObj = {};
-    var len = {};
-    var sourceIndex = -1;
-    try {
-      transfer.getAnyTransferData({}, dataObj, len);
-    } catch (ex) {}
-
-    if (dataObj.value) {
-      sourceIndex = dataObj.value.QueryInterface(Ci.nsISupportsString).data;
-      sourceIndex = parseInt(sourceIndex.substring(0, len.value));
-    }
-
-    return sourceIndex;
+  getSourceIndexFromDrag: function (dataTransfer) {
+    return parseInt(dataTransfer.getData(ENGINE_FLAVOR));
   },
 
   // nsITreeView
@@ -513,15 +492,15 @@ EngineView.prototype = {
     this.tree = tree;
   },
 
-  canDrop: function(targetIndex, orientation) {
-    var sourceIndex = this.getSourceIndexFromDrag();
+  canDrop: function(targetIndex, orientation, dataTransfer) {
+    var sourceIndex = this.getSourceIndexFromDrag(dataTransfer);
     return (sourceIndex != -1 &&
             sourceIndex != targetIndex &&
             sourceIndex != (targetIndex + orientation));
   },
 
-  drop: function(dropIndex, orientation) {
-    var sourceIndex = this.getSourceIndexFromDrag();
+  drop: function(dropIndex, orientation, dataTransfer) {
+    var sourceIndex = this.getSourceIndexFromDrag(dataTransfer);
     var sourceEngine = this._engineStore.engines[sourceIndex];
 
     if (dropIndex > sourceIndex) {

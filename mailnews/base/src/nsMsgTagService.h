@@ -42,7 +42,8 @@
 
 #include "nsIMsgTagService.h"
 #include "nsIPrefBranch.h"
-
+#include "nsCOMPtr.h"
+#include "nsVoidArray.h"
 
 class nsMsgTag : public nsIMsgTag
 {

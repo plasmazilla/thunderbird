@@ -78,14 +78,16 @@ NS_IMETHODIMP
 StatementRow::GetProperty(nsIXPConnectWrappedNative *aWrapper,
                           JSContext *aCtx,
                           JSObject *aScopeObj,
-                          jsval aId,
+                          jsid aId,
                           jsval *_vp,
                           PRBool *_retval)
 {
   NS_ENSURE_TRUE(mStatement, NS_ERROR_NOT_INITIALIZED);
 
-  if (JSVAL_IS_STRING(aId)) {
-    nsDependentCString jsid(::JS_GetStringBytes(JSVAL_TO_STRING(aId)));
+  if (JSID_IS_STRING(aId)) {
+    ::JSAutoByteString idBytes(aCtx, JSID_TO_STRING(aId));
+    NS_ENSURE_TRUE(!!idBytes, NS_ERROR_OUT_OF_MEMORY);
+    nsDependentCString jsid(idBytes.ptr());
 
     PRUint32 idx;
     nsresult rv = mStatement->GetColumnIndex(jsid, &idx);
@@ -107,7 +109,8 @@ StatementRow::GetProperty(nsIXPConnectWrappedNative *aWrapper,
     else if (type == mozIStorageValueArray::VALUE_TYPE_TEXT) {
       PRUint32 bytes;
       const jschar *sval = reinterpret_cast<const jschar *>(
-        mStatement->AsSharedWString(idx, &bytes)
+        static_cast<mozIStorageStatement *>(mStatement)->
+          AsSharedWString(idx, &bytes)
       );
       JSString *str = ::JS_NewUCStringCopyN(aCtx, sval, bytes / 2);
       if (!str) {
@@ -118,7 +121,8 @@ StatementRow::GetProperty(nsIXPConnectWrappedNative *aWrapper,
     }
     else if (type == mozIStorageValueArray::VALUE_TYPE_BLOB) {
       PRUint32 length;
-      const PRUint8 *blob = mStatement->AsSharedBlob(idx, &length);
+      const PRUint8 *blob = static_cast<mozIStorageStatement *>(mStatement)->
+        AsSharedBlob(idx, &length);
       JSObject *obj = ::JS_NewArrayObject(aCtx, length, nsnull);
       if (!obj) {
         *_retval = PR_FALSE;
@@ -150,7 +154,7 @@ NS_IMETHODIMP
 StatementRow::NewResolve(nsIXPConnectWrappedNative *aWrapper,
                          JSContext *aCtx,
                          JSObject *aScopeObj,
-                         jsval aId,
+                         jsid aId,
                          PRUint32 aFlags,
                          JSObject **_objp,
                          PRBool *_retval)
@@ -159,9 +163,10 @@ StatementRow::NewResolve(nsIXPConnectWrappedNative *aWrapper,
   // We do not throw at any point after this because we want to allow the
   // prototype chain to be checked for the property.
 
-  if (JSVAL_IS_STRING(aId)) {
-    JSString *str = JSVAL_TO_STRING(aId);
-    nsDependentCString name(::JS_GetStringBytes(str));
+  if (JSID_IS_STRING(aId)) {
+    ::JSAutoByteString idBytes(aCtx, JSID_TO_STRING(aId));
+    NS_ENSURE_TRUE(!!idBytes, NS_ERROR_OUT_OF_MEMORY);
+    nsDependentCString name(idBytes.ptr());
 
     PRUint32 idx;
     nsresult rv = mStatement->GetColumnIndex(name, &idx);
@@ -173,9 +178,7 @@ StatementRow::NewResolve(nsIXPConnectWrappedNative *aWrapper,
       return NS_OK;
     }
 
-    *_retval = ::JS_DefineUCProperty(aCtx, aScopeObj, ::JS_GetStringChars(str),
-                                     ::JS_GetStringLength(str),
-                                     JSVAL_VOID,
+    *_retval = ::JS_DefinePropertyById(aCtx, aScopeObj, aId, JSVAL_VOID,
                                      nsnull, nsnull, 0);
     *_objp = aScopeObj;
     return NS_OK;

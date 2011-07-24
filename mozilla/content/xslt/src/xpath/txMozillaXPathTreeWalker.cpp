@@ -107,13 +107,7 @@ txXPathTreeWalker::moveToElementById(const nsAString& aID)
 
     nsCOMPtr<nsIContent> content;
     if (doc) {
-        nsCOMPtr<nsIDOMDocument> document = do_QueryInterface(doc);
-        NS_ASSERTION(document, "QI failed");
-
-        nsCOMPtr<nsIDOMElement> element;
-        document->GetElementById(aID, getter_AddRefs(element));
-
-        content = do_QueryInterface(element);
+        content = doc->GetElementById(aID);
     }
     else {
         // We're in a disconnected subtree, search only that subtree.
@@ -382,7 +376,7 @@ txXPathNodeUtils::getLocalName(const txXPathNode& aNode)
     }
 
     if (aNode.isContent()) {
-        if (aNode.mNode->IsNodeOfType(nsINode::eELEMENT)) {
+        if (aNode.mNode->IsElement()) {
             nsIAtom* localName = aNode.Content()->Tag();
             NS_ADDREF(localName);
 
@@ -434,16 +428,9 @@ txXPathNodeUtils::getLocalName(const txXPathNode& aNode, nsAString& aLocalName)
     }
 
     if (aNode.isContent()) {
-        if (aNode.mNode->IsNodeOfType(nsINode::eELEMENT)) {
+        if (aNode.mNode->IsElement()) {
             nsINodeInfo* nodeInfo = aNode.Content()->NodeInfo();
             nodeInfo->GetLocalName(aLocalName);
-
-            // Check for html
-            if (nodeInfo->NamespaceEquals(kNameSpaceID_None) &&
-                aNode.mNode->IsNodeOfType(nsINode::eHTML)) {
-                ToUpperCase(aLocalName);
-            }
-
             return;
         }
 
@@ -465,7 +452,7 @@ txXPathNodeUtils::getLocalName(const txXPathNode& aNode, nsAString& aLocalName)
 
     // Check for html
     if (aNode.Content()->NodeInfo()->NamespaceEquals(kNameSpaceID_None) &&
-        aNode.Content()->IsNodeOfType(nsINode::eHTML)) {
+        aNode.Content()->IsHTML()) {
         ToUpperCase(aLocalName);
     }
 }
@@ -481,16 +468,15 @@ txXPathNodeUtils::getNodeName(const txXPathNode& aNode, nsAString& aName)
     }
 
     if (aNode.isContent()) {
-        if (aNode.mNode->IsNodeOfType(nsINode::eELEMENT)) {
+        if (aNode.mNode->IsElement()) {
             nsINodeInfo* nodeInfo = aNode.Content()->NodeInfo();
             nodeInfo->GetQualifiedName(aName);
 
             // Check for html
-            if (nodeInfo->NamespaceEquals(kNameSpaceID_None) &&
-                aNode.Content()->IsNodeOfType(nsINode::eHTML)) {
+            if (aNode.Content()->IsHTML() &&
+                aNode.Content()->IsInHTMLDocument()) {
                 ToUpperCase(aName);
             }
-
             return;
         }
 
@@ -510,8 +496,7 @@ txXPathNodeUtils::getNodeName(const txXPathNode& aNode, nsAString& aName)
     aNode.Content()->GetAttrNameAt(aNode.mIndex)->GetQualifiedName(aName);
 
     // Check for html
-    if (aNode.Content()->NodeInfo()->NamespaceEquals(kNameSpaceID_None) &&
-        aNode.Content()->IsNodeOfType(nsINode::eHTML)) {
+    if (aNode.Content()->IsHTML()) {
         ToUpperCase(aName);
     }
 }
@@ -579,7 +564,7 @@ txXPathNodeUtils::appendNodeValue(const txXPathNode& aNode, nsAString& aResult)
     }
 
     if (aNode.isDocument() ||
-        aNode.mNode->IsNodeOfType(nsINode::eELEMENT) ||
+        aNode.mNode->IsElement() ||
         aNode.mNode->IsNodeOfType(nsINode::eDOCUMENT_FRAGMENT)) {
         nsContentUtils::AppendNodeTextContent(aNode.mNode, PR_TRUE, aResult);
 
@@ -839,13 +824,13 @@ txXPathNativeNode::getNode(const txXPathNode& aNode, nsIDOMNode** aResult)
 
     const nsAttrName* name = aNode.Content()->GetAttrNameAt(aNode.mIndex);
 
-    nsAutoString namespaceURI, localname;
+    nsAutoString namespaceURI;
     nsContentUtils::NameSpaceManager()->GetNameSpaceURI(name->NamespaceID(), namespaceURI);
-    name->LocalName()->ToString(localname);
 
     nsCOMPtr<nsIDOMElement> element = do_QueryInterface(aNode.mNode);
     nsCOMPtr<nsIDOMAttr> attr;
-    element->GetAttributeNodeNS(namespaceURI, localname,
+    element->GetAttributeNodeNS(namespaceURI,
+                                nsDependentAtomString(name->LocalName()),
                                 getter_AddRefs(attr));
 
     return CallQueryInterface(attr, aResult);

@@ -39,19 +39,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gLeakDetector = null;
-var gLeakDetectorVerbose = false;
-
 // "about:bloat" is available only when
 // (the application is) compiled with |--enable-logrefcnt|.
 if ("@mozilla.org/network/protocol/about;1?what=bloat" in Components.classes)
   window.addEventListener("load", onLoadBloat, false);
 
-// The Leak Detector (class) can be undefined in a given (application) build.
-if ("@mozilla.org/xpcom/leakdetector;1" in Components.classes)
-  window.addEventListener("load", onLoadLeakDetector, false);
-
-// Unhide (and enable) the Bloat menu and its associated (shared) separator.
+// Unhide (and enable) the Bloat menu and its associated separator.
 function onLoadBloat()
 {
   window.removeEventListener("load", onLoadBloat, false);
@@ -69,53 +62,6 @@ function onLoadBloat()
       envSvc.exists("XPCOM_MEM_LEAK_LOG"))
     document.getElementById("bloatMenu").disabled = false;
 
-  document.getElementById("bloatAndLeakSeparator").hidden = false;
+  document.getElementById("bloatSeparator").hidden = false;
   document.getElementById("bloatMenu").hidden = false;
-}
-
-// Initialize the Leak Detector,
-// and unhide its menu and its associated (shared) separator.
-function onLoadLeakDetector()
-{
-  window.removeEventListener("load", onLoadLeakDetector, false);
-
-  // Ignore windows which don't get the Debug menu, like 'View Source'.
-  if (!document.getElementById("debugMenu"))
-    return;
-
-  gLeakDetector = Components.classes["@mozilla.org/xpcom/leakdetector;1"]
-                            .createInstance(Components.interfaces.nsILeakDetector);
-
-  document.getElementById("bloatAndLeakSeparator").hidden = false;
-  document.getElementById("leakMenu").hidden = false;
-}
-
-// Dumps current set of memory leaks.
-function dumpMemoryLeaks()
-{
-  gLeakDetector.dumpLeaks();
-}
-
-// Traces all objects reachable from the chrome document.
-function traceChrome()
-{
-  gLeakDetector.traceObject(document, gLeakDetectorVerbose);
-}
-
-// Traces all objects reachable from the content document.
-function traceDocument()
-{
-  // keep the chrome document out of the dump.
-  gLeakDetector.markObject(document, true);
-  gLeakDetector.traceObject(content, gLeakDetectorVerbose);
-  gLeakDetector.markObject(document, false);
-}
-
-/**
- * Controls whether or not we do verbose tracing.
- * @param verbose Either |"true"| or |""|.
- */
-function traceVerbose(verbose)
-{
-  gLeakDetectorVerbose = (verbose == "true");
 }

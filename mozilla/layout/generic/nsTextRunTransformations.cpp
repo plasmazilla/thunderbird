@@ -40,11 +40,11 @@
 #include "nsTextFrameUtils.h"
 #include "gfxSkipChars.h"
 
-#include "nsICaseConversion.h"
 #include "nsStyleConsts.h"
 #include "nsStyleContext.h"
 #include "gfxContext.h"
 #include "nsContentUtils.h"
+#include "nsUnicharUtils.h"
 
 #define SZLIG 0x00DF
 
@@ -56,9 +56,20 @@ nsTransformedTextRun::Create(const gfxTextRunFactory::Parameters* aParams,
                              const PRUint32 aFlags, nsStyleContext** aStyles,
                              PRBool aOwnsFactory)
 {
-  return new (aLength, aFlags)
-    nsTransformedTextRun(aParams, aFactory, aFontGroup, aString, aLength,
-                         aFlags, aStyles, aOwnsFactory);
+  NS_ASSERTION(!(aFlags & gfxTextRunFactory::TEXT_IS_8BIT),
+               "didn't expect text to be marked as 8-bit here");
+
+  // Note that AllocateStorage MAY modify the textPtr parameter,
+  // if the text is not persistent and therefore a private copy is created
+  const void *textPtr = aString;
+  CompressedGlyph *glyphStorage = AllocateStorage(textPtr, aLength, aFlags);
+  if (!glyphStorage) {
+    return nsnull;
+  }
+
+  return new nsTransformedTextRun(aParams, aFactory, aFontGroup,
+                                  static_cast<const PRUnichar*>(textPtr), aLength,
+                                  aFlags, aStyles, aOwnsFactory, glyphStorage);
 }
 
 void
@@ -165,7 +176,9 @@ MergeCharactersInTextRun(gfxTextRun* aDest, gfxTextRun* aSrc,
           anyMissing = PR_TRUE;
           glyphs.Clear();
         }
-        glyphs.AppendElements(aSrc->GetDetailedGlyphs(k), g.GetGlyphCount());
+        if (g.GetGlyphCount() > 0) {
+          glyphs.AppendElements(aSrc->GetDetailedGlyphs(k), g.GetGlyphCount());
+        }
       }
 
       // We could teach this method to handle merging of characters that aren't
@@ -223,10 +236,6 @@ void
 nsFontVariantTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
     gfxContext* aRefContext)
 {
-  nsICaseConversion* converter = nsContentUtils::GetCaseConv();
-  if (!converter)
-    return;
-
   gfxFontGroup* fontGroup = aTextRun->GetFontGroup();
   gfxFontStyle fontStyle = *fontGroup->GetStyle();
   fontStyle.size *= 0.8;
@@ -268,7 +277,7 @@ nsFontVariantTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
         if (styles[i]->GetStyleFont()->mFont.variant == NS_STYLE_FONT_VARIANT_SMALL_CAPS) {
           PRUnichar ch = str[i];
           PRUnichar ch2;
-          converter->ToUpper(ch, &ch2);
+          ch2 = ToUpperCase(ch);
           isLowercase = ch != ch2 || ch == SZLIG;
         } else {
           // Don't transform the character! I.e., pretend that it's not lowercase
@@ -302,7 +311,7 @@ nsFontVariantTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
       if (transformedChild) {
         transformedChild->FinishSettingProperties(aRefContext);
       }
-      aTextRun->CopyGlyphDataFrom(child, 0, child->GetLength(), runStart, PR_FALSE);
+      aTextRun->CopyGlyphDataFrom(child, 0, child->GetLength(), runStart);
 
       runStart = i;
       styleArray.Clear();
@@ -321,10 +330,6 @@ void
 nsCaseTransformTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
     gfxContext* aRefContext)
 {
-  nsICaseConversion* converter = nsContentUtils::GetCaseConv();
-  if (!converter)
-    return;
-
   PRUint32 length = aTextRun->GetLength();
   const PRUnichar* str = aTextRun->GetTextUnicode();
   nsRefPtr<nsStyleContext>* styles = aTextRun->mStyles.Elements();
@@ -349,7 +354,7 @@ nsCaseTransformTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
 
     switch (style) {
     case NS_STYLE_TEXT_TRANSFORM_LOWERCASE:
-      converter->ToLower(ch, &ch);
+      ch = ToLowerCase(ch);
       break;
     case NS_STYLE_TEXT_TRANSFORM_UPPERCASE:
       if (ch == SZLIG) {
@@ -357,7 +362,7 @@ nsCaseTransformTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
         extraChar = PR_TRUE;
         ch = 'S';
       } else {
-        converter->ToUpper(ch, &ch);
+        ch = ToUpperCase(ch);
       }
       break;
     case NS_STYLE_TEXT_TRANSFORM_CAPITALIZE:
@@ -367,7 +372,7 @@ nsCaseTransformTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
           extraChar = PR_TRUE;
           ch = 'S';
         } else {
-          converter->ToTitle(ch, &ch);
+          ch = ToTitleCase(ch);
         }
       }
       break;
@@ -424,6 +429,6 @@ nsCaseTransformTextRunFactory::RebuildTextRun(nsTransformedTextRun* aTextRun,
     // We can't steal the data because the child may be cached and stealing
     // the data would break the cache.
     aTextRun->ResetGlyphRuns();
-    aTextRun->CopyGlyphDataFrom(child, 0, child->GetLength(), 0, PR_FALSE);
+    aTextRun->CopyGlyphDataFrom(child, 0, child->GetLength(), 0);
   }
 }

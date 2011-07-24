@@ -54,7 +54,7 @@ nsScriptObjectTracer::TraverseScriptObjects(void *p,
 }
 
 nsresult
-nsXPCOMCycleCollectionParticipant::RootAndUnlinkJSObjects(void *p)
+nsXPCOMCycleCollectionParticipant::Root(void *p)
 {
     nsISupports *s = static_cast<nsISupports*>(p);
     NS_ADDREF(s);
@@ -96,8 +96,8 @@ nsXPCOMCycleCollectionParticipant::Trace(void *p, TraceCallback cb,
 PRBool
 nsXPCOMCycleCollectionParticipant::CheckForRightISupports(nsISupports *s)
 {
-    nsCOMPtr<nsISupports> foo;
+    nsISupports* foo;
     s->QueryInterface(NS_GET_IID(nsCycleCollectionISupports),
-                      getter_AddRefs(foo));
+                      reinterpret_cast<void**>(&foo));
     return s == foo;
 }

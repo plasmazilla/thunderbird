@@ -58,12 +58,13 @@ nsDOMSerializer::~nsDOMSerializer()
 {
 }
 
+DOMCI_DATA(XMLSerializer, nsDOMSerializer)
 
 // QueryInterface implementation for nsDOMSerializer
 NS_INTERFACE_MAP_BEGIN(nsDOMSerializer)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSerializer)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(XMLSerializer)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XMLSerializer)
 NS_INTERFACE_MAP_END
 
 

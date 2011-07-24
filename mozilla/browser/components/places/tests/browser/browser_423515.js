@@ -14,7 +14,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -152,7 +152,7 @@ function test() {
           }
         }
         node.containerOpen = false;
-        throw("Unable to find child node");
+        ok(false, "Unable to find child node");
         return null;
       }
 
@@ -172,11 +172,11 @@ function test() {
 
         is(shortcutNode.itemId, shortcutId, "shortcut id and shortcut node item id match");
 
-        LOG("can move shortcut id?");
+        dump("can move shortcut id?\n");
         is(PlacesControllerDragHelper.canMoveContainer(shortcutId),
            true, "should be able to move special folder shortcut id");
 
-        LOG("can move shortcut node?");
+        dump("can move shortcut node?\n");
         is(PlacesControllerDragHelper.canMoveNode(shortcutNode),
            true, "should be able to move special folder shortcut node");
       }

@@ -45,31 +45,11 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= msgbase
 XPIDL_MODULE	= msgsearch
 LIBRARY_NAME	= msgsearch_s
-META_COMPONENT = mail
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 EXPORT_DIR	= $(DIST)/bin/isp
 
-REQUIRES	= xpcom \
-		  string \
-		  msgdb \
-		  msgbaseutil \
-		  necko \
-		  mime \
-		  msgimap \
-		  rdf \
-		  msglocal \
-		  intl \
-		  unicharutil \
-		  locale \
-                  msgcompose \
-		  pref \
-		  msgnews \
-		  txmgr \
-		  addrbook \
-		  docshell \
-		  $(NULL)
 
 CPPSRCS		= \
 		nsMsgFilterService.cpp \
@@ -87,6 +67,7 @@ CPPSRCS		= \
 
 EXTRA_COMPONENTS += \
 		nsMsgTraitService.js \
+		nsMsgTraitService.manifest \
 		$(NULL)
  
 EXPORT_RESOURCE_FILES	= \

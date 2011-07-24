@@ -43,13 +43,18 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
+toolbar[type="menubar"]:not([autohide="true"]):not([xpfe="false"]):not(:-moz-lwtheme):-moz-system-metric(menubar-drag) {
+  -moz-binding: url("chrome://communicator/content/bindings/toolbar.xml#grippytoolbar-drag");
+}
+
 /* ::::: toolbar & menubar ::::: */
 
 .toolbar-holder {
   border-left: 1px solid ThreeDHighlight;
 }
 
-toolbaritem > menubar {
+toolbaritem > menubar,
+toolbar > menubar {
   border-bottom: 0px none;
 }
 
@@ -97,4 +102,16 @@ toolbargrippy[tbgrippy-collapsed="true"] > .toolbargrippy-texture {
 
 .collapsed-tray-spacer {
   border-bottom: 1px solid ThreeDShadow;
+}
+
+/* ::::: solid background status bar panel ::::: */
+
+.statusbarpanel-backgroundbox {
+  -moz-box-align: stretch;
+  padding: 0px;
+}
+
+.statusbarpanel-backgroundbox > .statusbarpanel-contentbox {
+  padding: 0px 1px;
+  -moz-box-align: center;
 }

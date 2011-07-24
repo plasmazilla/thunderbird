@@ -54,7 +54,6 @@
 #include "nsIInputStream.h"
 #include "nsISeekableStream.h"
 #include "prlog.h"
-#include "nsInt64.h"
 
 #if defined(PR_LOGGING)
 //
@@ -227,14 +226,12 @@ nsStorageStream::Write(const char *aBuffer, PRUint32 aCount, PRUint32 *aNumWritt
 NS_IMETHODIMP 
 nsStorageStream::WriteFrom(nsIInputStream *inStr, PRUint32 count, PRUint32 *_retval)
 {
-    NS_NOTREACHED("WriteFrom");
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP 
 nsStorageStream::WriteSegments(nsReadSegmentFun reader, void * closure, PRUint32 count, PRUint32 *_retval)
 {
-    NS_NOTREACHED("WriteSegments");
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 

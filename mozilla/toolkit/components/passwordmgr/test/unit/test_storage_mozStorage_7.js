@@ -94,12 +94,13 @@ do_check_eq(0, logins.length, "bogus value should return 0 results");
 
 matchData = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
 matchData.setPropertyAsAString("error", "value");
+let error;
 try {
     logins = storage.searchLogins({}, matchData);
 } catch (e) {
     error = e;
 }
-LoginTest.checkExpectedError(/Unexpected field/, error, "nonexistant field should throw");
+LoginTest.checkExpectedError(/Unexpected field/, error, "nonexistent field should throw");
 
 LoginTest.deleteFile(OUTDIR, "output-searchLogins-1.sqlite");
 
@@ -120,7 +121,7 @@ LoginTest.checkStorageData(storage, [], [dummyuser1, dummyuser2, dummyuser3, dum
 
 matchData = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);
 logins = storage.searchLogins({}, matchData);
-loginsF = storage.findLogins({}, "", "", "");
+let loginsF = storage.findLogins({}, "", "", "");
 LoginTest.checkLogins(loginsF, logins);
 
 matchData = Cc["@mozilla.org/hash-property-bag;1"].createInstance(Ci.nsIWritablePropertyBag2);

@@ -52,7 +52,7 @@ interface nsIPrincipal;
  * @version 0.1
  * @see imagelib2
  */
-[scriptable, uuid(a297d3fa-5e0c-4e59-9f30-a01c9d4f3f8b)]
+[scriptable, uuid(62f58f12-3076-44fc-a742-5b648dac21bc)]
 interface imgIRequest : nsIRequest
 {
   /**
@@ -86,10 +86,12 @@ interface imgIRequest : nsIRequest
    * STATUS_LOAD_COMPLETE: The data has been fully loaded
    * to memory, but not necessarily fully decoded.
    *
-   * STATUS_ERROR: An error occured loading the image.
+   * STATUS_ERROR: An error occurred loading the image.
    *
    * STATUS_FRAME_COMPLETE: The first frame has been
    * completely decoded.
+   *
+   * STATUS_DECODE_COMPLETE: The whole image has been decoded.
    */
   //@{
   const long STATUS_NONE             = 0x0;
@@ -98,11 +100,11 @@ interface imgIRequest : nsIRequest
   const long STATUS_LOAD_COMPLETE    = 0x4;
   const long STATUS_ERROR            = 0x8;
   const long STATUS_FRAME_COMPLETE   = 0x10;
+  const long STATUS_DECODE_COMPLETE  = 0x20;
   //@}
 
   /**
-   * something
-   * @attention NEED DOCS
+   * Status flags of the STATUS_* variety.
    */
   readonly attribute unsigned long imageStatus;
 
@@ -140,5 +142,56 @@ interface imgIRequest : nsIRequest
    * you're the observer, you can't call cancel() from your destructor.
    */
   void cancelAndForgetObserver(in nsresult aStatus);
+
+  /**
+   * Requests a decode for the image.
+   *
+   * imgIContainer has a requestDecode() method, but callers may want to request
+   * a decode before the container has necessarily been instantiated. Calling
+   * requestDecode() on the imgIRequest simply forwards along the request if the
+   * container already exists, or calls it once it gets OnStartContainer if the
+   * container does not yet exist.
+   */
+  void requestDecode();
+
+  /**
+   * Locks an image. If the image does not exist yet, locks it once it becomes
+   * available. The lock persists for the lifetime of the imgIRequest (until
+   * unlockImage is called) even if the underlying image changes.
+   *
+   * If you don't call unlockImage() by the time this imgIRequest goes away, it
+   * will be called for you automatically.
+   *
+   * @see imgIContainer::lockImage for documentation of the underlying call.
+   */
+  void lockImage();
+
+  /**
+   * Unlocks an image.
+   *
+   * @see imgIContainer::unlockImage for documentation of the underlying call.
+   */
+  void unlockImage();
+
+  /**
+   * If this request is for an animated image, the method creates a new
+   * request which contains the current frame of the image.
+   * Otherwise returns the same request.
+   */
+  imgIRequest getStaticRequest();
+
+  /**
+   * Requests that the image animate (if it has an animation).
+   *
+   * @see Image::IncrementAnimationConsumers for documentation of the underlying call.
+   */
+  void incrementAnimationConsumers();
+
+  /**
+   * Tell the image it can forget about a request that the image animate.
+   *
+   * @see Image::DecrementAnimationConsumers for documentation of the underlying call.
+   */
+  void decrementAnimationConsumers();
 };
 

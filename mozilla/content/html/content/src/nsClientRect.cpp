@@ -42,10 +42,12 @@
 
 #include "nsPresContext.h"
 
+DOMCI_DATA(ClientRect, nsClientRect)
+
 NS_INTERFACE_TABLE_HEAD(nsClientRect)
   NS_INTERFACE_TABLE1(nsClientRect, nsIDOMClientRect)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(ClientRect)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(ClientRect)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsClientRect)
@@ -98,10 +100,12 @@ nsClientRect::GetHeight(float* aResult)
   return NS_OK;
 }
 
+DOMCI_DATA(ClientRectList, nsClientRectList)
+
 NS_INTERFACE_TABLE_HEAD(nsClientRectList)
   NS_INTERFACE_TABLE1(nsClientRectList, nsIDOMClientRectList)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(ClientRectList)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(ClientRectList)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsClientRectList)

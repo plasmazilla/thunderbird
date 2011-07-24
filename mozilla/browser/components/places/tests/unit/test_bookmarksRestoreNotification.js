@@ -15,7 +15,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -80,7 +80,7 @@ var tests = [
     run:        function () {
       this.file = createFile("bookmarks-test_restoreNotification.json");
       addBookmarks();
-      PlacesUtils.backupBookmarksToFile(this.file);
+      PlacesUtils.backups.saveBookmarksToJSONFile(this.file);
       remove_all_bookmarks();
       try {
         PlacesUtils.restoreBookmarksFromJSONFile(this.file);
@@ -109,13 +109,13 @@ var tests = [
   },
 
   {
-    desc:       "JSON restore: nonexisting file should fail",
+    desc:       "JSON restore: nonexistent file should fail",
     currTopic:  NSIOBSERVER_TOPIC_BEGIN,
     finalTopic: NSIOBSERVER_TOPIC_FAILED,
     data:       NSIOBSERVER_DATA_JSON,
     folderId:   null,
     run:        function () {
-      this.file = dirSvc.get("ProfD", Ci.nsILocalFile);
+      this.file = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
       this.file.append("this file doesn't exist because nobody created it");
       try {
         PlacesUtils.restoreBookmarksFromJSONFile(this.file);
@@ -163,13 +163,13 @@ var tests = [
   },
 
   {
-    desc:       "HTML restore: nonexisting file should fail",
+    desc:       "HTML restore: nonexistent file should fail",
     currTopic:  NSIOBSERVER_TOPIC_BEGIN,
     finalTopic: NSIOBSERVER_TOPIC_FAILED,
     data:       NSIOBSERVER_DATA_HTML,
     folderId:   null,
     run:        function () {
-      this.file = dirSvc.get("ProfD", Ci.nsILocalFile);
+      this.file = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
       this.file.append("this file doesn't exist because nobody created it");
       try {
         importer.importHTMLFromFile(this.file, false);
@@ -217,13 +217,13 @@ var tests = [
   },
 
   {
-    desc:       "HTML initial restore: nonexisting file should fail",
+    desc:       "HTML initial restore: nonexistent file should fail",
     currTopic:  NSIOBSERVER_TOPIC_BEGIN,
     finalTopic: NSIOBSERVER_TOPIC_FAILED,
     data:       NSIOBSERVER_DATA_HTML_INIT,
     folderId:   null,
     run:        function () {
-      this.file = dirSvc.get("ProfD", Ci.nsILocalFile);
+      this.file = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
       this.file.append("this file doesn't exist because nobody created it");
       try {
         importer.importHTMLFromFile(this.file, true);
@@ -279,12 +279,12 @@ var tests = [
   },
 
   {
-    desc:       "HTML restore into folder: nonexisting file should fail",
+    desc:       "HTML restore into folder: nonexistent file should fail",
     currTopic:  NSIOBSERVER_TOPIC_BEGIN,
     finalTopic: NSIOBSERVER_TOPIC_FAILED,
     data:       NSIOBSERVER_DATA_HTML,
     run:        function () {
-      this.file = dirSvc.get("ProfD", Ci.nsILocalFile);
+      this.file = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
       this.file.append("this file doesn't exist because nobody created it");
       this.folderId = bmsvc.createFolder(bmsvc.unfiledBookmarksFolder,
                                          "test folder",
@@ -353,9 +353,6 @@ var successAndFailedObserver = {
 // Index of the currently running test.  See doNextTest().
 var currTestIndex = -1;
 
-// Need JSON import/export in toolkit/components/places/src/utils.js
-Components.utils.import("resource://gre/modules/utils.js");
-
 var bmsvc = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
             getService(Ci.nsINavBookmarksService);
 
@@ -407,7 +404,7 @@ function checkBookmarksExist() {
  * @return The nsILocalFile
  */
 function createFile(aBasename) {
-  var file = dirSvc.get("ProfD", Ci.nsILocalFile);
+  var file = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
   file.append(aBasename);
   if (file.exists())
     file.remove(false);

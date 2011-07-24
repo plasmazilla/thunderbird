@@ -24,6 +24,7 @@
  *   David J. Fiddes <D.J.Fiddes@hw.ac.uk>
  *   Shyjan Mahamud <mahamud@cs.cmu.edu>
  *   Pierre Phaneuf <pp@ludusdesign.com>
+ *   Frederic Wang <fred.wang@free.fr>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -352,11 +353,10 @@ nsMathMLmoFrame::ProcessOperatorData()
       mFlags &= ~NS_MATHML_OPERATOR_EMBELLISH_ANCESTOR;
 
     // find the position of our outermost embellished container w.r.t
-    // its siblings (frames are singly-linked together).
-    nsFrameList frameList(parentAncestor->GetFirstChild(nsnull));
+    // its siblings.
 
     nsIFrame* nextSibling = embellishAncestor->GetNextSibling();
-    nsIFrame* prevSibling = frameList.GetPrevSiblingFor(embellishAncestor);
+    nsIFrame* prevSibling = embellishAncestor->GetPrevSibling();
 
     // flag to distinguish from a real infix
     if (!prevSibling && !nextSibling)
@@ -478,11 +478,12 @@ nsMathMLmoFrame::ProcessOperatorData()
   // special: accent and movablelimits are handled above,
   // don't process them here
 
-  if (NS_MATHML_OPERATOR_IS_STRETCHY(mFlags)) {
-    GetAttribute(mContent, mPresentationData.mstyle,
-                 nsGkAtoms::stretchy_, value);
-    if (value.EqualsLiteral("false"))
-      mFlags &= ~NS_MATHML_OPERATOR_STRETCHY;
+  GetAttribute(mContent, mPresentationData.mstyle,
+               nsGkAtoms::stretchy_, value);
+  if (value.EqualsLiteral("false")) {
+    mFlags &= ~NS_MATHML_OPERATOR_STRETCHY;
+  } else if (value.EqualsLiteral("true")) {
+    mFlags |= NS_MATHML_OPERATOR_STRETCHY;
   }
   if (NS_MATHML_OPERATOR_IS_FENCE(mFlags)) {
     GetAttribute(mContent, mPresentationData.mstyle,
@@ -490,11 +491,12 @@ nsMathMLmoFrame::ProcessOperatorData()
     if (value.EqualsLiteral("false"))
       mFlags &= ~NS_MATHML_OPERATOR_FENCE;
   }
-  if (NS_MATHML_OPERATOR_IS_LARGEOP(mFlags)) {
-    GetAttribute(mContent, mPresentationData.mstyle,
-                 nsGkAtoms::largeop_, value);
-    if (value.EqualsLiteral("false"))
-      mFlags &= ~NS_MATHML_OPERATOR_LARGEOP;
+  GetAttribute(mContent, mPresentationData.mstyle,
+               nsGkAtoms::largeop_, value);
+  if (value.EqualsLiteral("false")) {
+    mFlags &= ~NS_MATHML_OPERATOR_LARGEOP;
+  } else if (value.EqualsLiteral("true")) {
+    mFlags |= NS_MATHML_OPERATOR_LARGEOP;
   }
   if (NS_MATHML_OPERATOR_IS_SEPARATOR(mFlags)) {
     GetAttribute(mContent, mPresentationData.mstyle,
@@ -596,6 +598,9 @@ GetStretchHint(nsOperatorFlags aFlags, nsPresentationData aPresentationData,
     if (NS_MATHML_IS_DISPLAYSTYLE(aPresentationData.flags) &&
         NS_MATHML_OPERATOR_IS_LARGEOP(aFlags)) {
       stretchHint = NS_STRETCH_LARGEOP; // (largeopOnly, not mask!)
+      if (NS_MATHML_OPERATOR_IS_INTEGRAL(aFlags)) {
+        stretchHint |= NS_STRETCH_INTEGRAL;
+      }
       if (NS_MATHML_OPERATOR_IS_STRETCHY(aFlags)) {
         stretchHint |= NS_STRETCH_NEARER | NS_STRETCH_LARGER;
       }
@@ -634,7 +639,7 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
 
   // get the axis height;
   nsCOMPtr<nsIFontMetrics> fm;
-  aRenderingContext.SetFont(GetStyleFont()->mFont, nsnull,
+  aRenderingContext.SetFont(GetStyleFont()->mFont,
                             PresContext()->GetUserFontSet());
   aRenderingContext.GetFontMetrics(*getter_AddRefs(fm));
   nscoord axisHeight, height;
@@ -654,17 +659,18 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
   nsBoundingMetrics charSize;
   nsBoundingMetrics container = aDesiredStretchSize.mBoundingMetrics;
   PRBool isVertical = PR_FALSE;
+
+  if (((aStretchDirection == NS_STRETCH_DIRECTION_VERTICAL) ||
+       (aStretchDirection == NS_STRETCH_DIRECTION_DEFAULT))  &&
+      (mEmbellishData.direction == NS_STRETCH_DIRECTION_VERTICAL)) {
+    isVertical = PR_TRUE;
+  }
+
+  PRUint32 stretchHint =
+    GetStretchHint(mFlags, mPresentationData, isVertical);
+
   if (useMathMLChar) {
     nsBoundingMetrics initialSize = aDesiredStretchSize.mBoundingMetrics;
-
-    if (((aStretchDirection == NS_STRETCH_DIRECTION_VERTICAL) ||
-         (aStretchDirection == NS_STRETCH_DIRECTION_DEFAULT))  &&
-        (mEmbellishData.direction == NS_STRETCH_DIRECTION_VERTICAL)) {
-      isVertical = PR_TRUE;
-    }
-
-    PRUint32 stretchHint =
-      GetStretchHint(mFlags, mPresentationData, isVertical);
 
     if (stretchHint != NS_STRETCH_NONE) {
 
@@ -674,13 +680,13 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
 
       if (isVertical && NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
         // we need to center about the axis
-        nscoord delta = PR_MAX(container.ascent - axisHeight,
+        nscoord delta = NS_MAX(container.ascent - axisHeight,
                                container.descent + axisHeight);
         container.ascent = delta + axisHeight;
         container.descent = delta - axisHeight;
 
         // get ready in case we encounter user-desired min-max size
-        delta = PR_MAX(initialSize.ascent - axisHeight,
+        delta = NS_MAX(initialSize.ascent - axisHeight,
                        initialSize.descent + axisHeight);
         initialSize.ascent = delta + axisHeight;
         initialSize.descent = delta - axisHeight;
@@ -696,21 +702,21 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
           // try to maintain the aspect ratio of the char
           float aspect = mMaxSize / float(initialSize.ascent + initialSize.descent);
           container.ascent =
-            PR_MIN(container.ascent, nscoord(initialSize.ascent * aspect));
+            NS_MIN(container.ascent, nscoord(initialSize.ascent * aspect));
           container.descent =
-            PR_MIN(container.descent, nscoord(initialSize.descent * aspect));
+            NS_MIN(container.descent, nscoord(initialSize.descent * aspect));
           // below we use a type cast instead of a conversion to avoid a VC++ bug
           // see http://support.microsoft.com/support/kb/articles/Q115/7/05.ASP
           container.width =
-            PR_MIN(container.width, (nscoord)mMaxSize);
+            NS_MIN(container.width, (nscoord)mMaxSize);
         }
         else { // multiplicative value
           container.ascent =
-            PR_MIN(container.ascent, nscoord(initialSize.ascent * mMaxSize));
+            NS_MIN(container.ascent, nscoord(initialSize.ascent * mMaxSize));
           container.descent =
-            PR_MIN(container.descent, nscoord(initialSize.descent * mMaxSize));
+            NS_MIN(container.descent, nscoord(initialSize.descent * mMaxSize));
           container.width =
-            PR_MIN(container.width, nscoord(initialSize.width * mMaxSize));
+            NS_MIN(container.width, nscoord(initialSize.width * mMaxSize));
         }
 
         if (isVertical && !NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
@@ -737,19 +743,19 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
           // try to maintain the aspect ratio of the char
           float aspect = mMinSize / float(initialSize.ascent + initialSize.descent);
           container.ascent =
-            PR_MAX(container.ascent, nscoord(initialSize.ascent * aspect));
+            NS_MAX(container.ascent, nscoord(initialSize.ascent * aspect));
           container.descent =
-            PR_MAX(container.descent, nscoord(initialSize.descent * aspect));
+            NS_MAX(container.descent, nscoord(initialSize.descent * aspect));
           container.width =
-            PR_MAX(container.width, (nscoord)mMinSize);
+            NS_MAX(container.width, (nscoord)mMinSize);
         }
         else { // multiplicative value
           container.ascent =
-            PR_MAX(container.ascent, nscoord(initialSize.ascent * mMinSize));
+            NS_MAX(container.ascent, nscoord(initialSize.ascent * mMinSize));
           container.descent =
-            PR_MAX(container.descent, nscoord(initialSize.descent * mMinSize));
+            NS_MAX(container.descent, nscoord(initialSize.descent * mMinSize));
           container.width =
-            PR_MAX(container.width, nscoord(initialSize.width * mMinSize));
+            NS_MAX(container.width, nscoord(initialSize.width * mMinSize));
         }
 
         if (isVertical && !NS_MATHML_OPERATOR_IS_SYMMETRIC(mFlags)) {
@@ -792,6 +798,10 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
     if (mMathMLChar.GetStretchDirection() != NS_STRETCH_DIRECTION_UNSUPPORTED ||
         NS_MATHML_OPERATOR_IS_CENTERED(mFlags)) {
 
+      PRBool largeopOnly =
+        (NS_STRETCH_LARGEOP & stretchHint) != 0 &&
+        (NS_STRETCH_VARIABLE_MASK & stretchHint) == 0;
+
       if (isVertical || NS_MATHML_OPERATOR_IS_CENTERED(mFlags)) {
         // the desired size returned by mMathMLChar maybe different
         // from the size of the container.
@@ -803,11 +813,11 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
           // For symmetric and vertical operators, or for operators that are always
           // centered ('+', '*', etc) we want to center about the axis of the container
           mBoundingMetrics.descent = height/2 - axisHeight;
-        }
-        else {
-          // Otherwise, align the char with the bottom of the container
-          mBoundingMetrics.descent = container.descent;
-        }
+        } else if (!largeopOnly) {
+          // Align the center of the char with the center of the container
+          mBoundingMetrics.descent = height/2 +
+            (container.ascent + container.descent)/2 - container.ascent;
+        } // else align the baselines
         mBoundingMetrics.ascent = height - mBoundingMetrics.descent;
       }
     }
@@ -849,9 +859,9 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
     nscoord ascent, descent;
     fm->GetMaxAscent(ascent);
     fm->GetMaxDescent(descent);
-    aDesiredStretchSize.ascent = PR_MAX(mBoundingMetrics.ascent + leading, ascent);
+    aDesiredStretchSize.ascent = NS_MAX(mBoundingMetrics.ascent + leading, ascent);
     aDesiredStretchSize.height = aDesiredStretchSize.ascent +
-                                 PR_MAX(mBoundingMetrics.descent + leading, descent);
+                                 NS_MAX(mBoundingMetrics.descent + leading, descent);
   }
   aDesiredStretchSize.width = mBoundingMetrics.width;
   aDesiredStretchSize.mBoundingMetrics = mBoundingMetrics;
@@ -1047,7 +1057,7 @@ nsMathMLmoFrame::AttributeChanged(PRInt32         aNameSpaceID,
 }
 
 // ----------------------
-// No need to tract the style context given to our MathML char. 
+// No need to track the style context given to our MathML char. 
 // the Style System will use these to pass the proper style context to our MathMLChar
 nsStyleContext*
 nsMathMLmoFrame::GetAdditionalStyleContext(PRInt32 aIndex) const

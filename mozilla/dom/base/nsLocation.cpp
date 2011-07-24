@@ -71,6 +71,7 @@
 #include "nsReadableUtils.h"
 #include "nsITextToSubURI.h"
 #include "nsContentUtils.h"
+#include "nsJSUtils.h"
 
 static nsresult
 GetContextFromStack(nsIJSContextStack *aStack, JSContext **aContext)
@@ -145,6 +146,7 @@ nsLocation::~nsLocation()
 {
 }
 
+DOMCI_DATA(Location, nsLocation)
 
 // QueryInterface implementation for nsLocation
 NS_INTERFACE_MAP_BEGIN(nsLocation)
@@ -170,28 +172,50 @@ nsLocation::GetDocShell()
   return docshell;
 }
 
+// Try to get the the document corresponding to the given JSStackFrame.
+static already_AddRefed<nsIDocument>
+GetFrameDocument(JSContext *cx, JSStackFrame *fp)
+{
+  if (!cx || !fp)
+    return nsnull;
+
+  JSObject* scope = JS_GetFrameScopeChain(cx, fp);
+  if (!scope)
+    return nsnull;
+
+  JSAutoEnterCompartment ac;
+  if (!ac.enter(cx, scope))
+     return nsnull;
+
+  nsCOMPtr<nsIDOMWindow> window =
+    do_QueryInterface(nsJSUtils::GetStaticScriptGlobal(cx, scope));
+  if (!window)
+    return nsnull;
+
+  // If it's a window, get its document.
+  nsCOMPtr<nsIDOMDocument> domDoc;
+  window->GetDocument(getter_AddRefs(domDoc));
+  nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
+  return doc.forget();
+}
+
 nsresult
 nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
 {
   *aLoadInfo = nsnull;
 
   nsCOMPtr<nsIDocShell> docShell(do_QueryReferent(mDocShell));
-  if (!docShell) {
-    return NS_ERROR_NOT_AVAILABLE;
-  }
+  NS_ENSURE_TRUE(docShell, NS_ERROR_NOT_AVAILABLE);
 
-  nsresult result;
+  nsresult rv;
   // Get JSContext from stack.
   nsCOMPtr<nsIJSContextStack>
-    stack(do_GetService("@mozilla.org/js/xpc/ContextStack;1", &result));
-
-  if (NS_FAILED(result))
-    return NS_ERROR_FAILURE;
+    stack(do_GetService("@mozilla.org/js/xpc/ContextStack;1", &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
 
   JSContext *cx;
 
-  if (NS_FAILED(GetContextFromStack(stack, &cx)))
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_SUCCESS(GetContextFromStack(stack, &cx), NS_ERROR_FAILURE);
 
   nsCOMPtr<nsISupports> owner;
   nsCOMPtr<nsIURI> sourceURI;
@@ -205,24 +229,49 @@ nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
 
     // Get security manager.
     nsCOMPtr<nsIScriptSecurityManager>
-      secMan(do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &result));
-
-    if (NS_FAILED(result))
-      return NS_ERROR_FAILURE;
+      secMan(do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
 
     // Check to see if URI is allowed.
-    result = secMan->CheckLoadURIFromScript(cx, aURI);
-
-    if (NS_FAILED(result))
-      return result;
+    rv = secMan->CheckLoadURIFromScript(cx, aURI);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     // Now get the principal to use when loading the URI
-    nsCOMPtr<nsIPrincipal> principal;
-    if (NS_FAILED(secMan->GetSubjectPrincipal(getter_AddRefs(principal))) ||
-        !principal)
-      return NS_ERROR_FAILURE;
+    // First, get the principal and frame.
+    JSStackFrame *fp;
+    nsIPrincipal* principal = secMan->GetCxSubjectPrincipalAndFrame(cx, &fp);
+    NS_ENSURE_TRUE(principal, NS_ERROR_FAILURE);
+
+    nsCOMPtr<nsIURI> principalURI;
+    principal->GetURI(getter_AddRefs(principalURI));
+
+    // Make the load's referrer reflect changes to the document's URI caused by
+    // push/replaceState, if possible.  First, get the document corresponding to
+    // fp.  If the document's original URI (i.e. its URI before
+    // push/replaceState) matches the principal's URI, use the document's
+    // current URI as the referrer.  If they don't match, use the principal's
+    // URI.
+
+    nsCOMPtr<nsIDocument> frameDoc = GetFrameDocument(cx, fp);
+    nsCOMPtr<nsIURI> docOriginalURI, docCurrentURI;
+    if (frameDoc) {
+      docOriginalURI = frameDoc->GetOriginalURI();
+      docCurrentURI = frameDoc->GetDocumentURI();
+    }
+
+    PRBool urisEqual = PR_FALSE;
+    if (docOriginalURI && docCurrentURI && principalURI) {
+      principalURI->Equals(docOriginalURI, &urisEqual);
+    }
+
+    if (urisEqual) {
+      sourceURI = docCurrentURI;
+    }
+    else {
+      sourceURI = principalURI;
+    }
+
     owner = do_QueryInterface(principal);
-    principal->GetURI(getter_AddRefs(sourceURI));
   }
 
   // Create load info
@@ -232,7 +281,6 @@ nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
 
   loadInfo->SetOwner(owner);
 
-  // now set the referrer on the loadinfo
   if (sourceURI) {
     loadInfo->SetReferrer(sourceURI);
   }
@@ -403,7 +451,7 @@ nsLocation::GetHost(nsAString& aHost)
     }
   }
 
-  return result;
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -442,7 +490,7 @@ nsLocation::GetHostname(nsAString& aHostname)
     }
   }
 
-  return result;
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -793,8 +841,7 @@ nsLocation::Reload(PRBool aForceget)
 
     nsIPresShell *shell;
     nsPresContext *pcx;
-    if (doc && (shell = doc->GetPrimaryShell()) &&
-        (pcx = shell->GetPresContext())) {
+    if (doc && (shell = doc->GetShell()) && (pcx = shell->GetPresContext())) {
       pcx->RebuildAllStyleData(NS_STYLE_HINT_REFLOW);
     }
 
@@ -920,7 +967,7 @@ nsLocation::GetSourceBaseURL(JSContext* cx, nsIURI** sourceURL)
   nsCOMPtr<nsIDocument> doc;
   nsresult rv = GetSourceDocument(cx, getter_AddRefs(doc));
   if (doc) {
-    NS_IF_ADDREF(*sourceURL = doc->GetBaseURI());
+    *sourceURL = doc->GetBaseURI().get();
   } else {
     *sourceURL = nsnull;
   }

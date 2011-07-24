@@ -37,40 +37,17 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// Get history service
-try {
-  var histsvc = Cc["@mozilla.org/browser/nav-history-service;1"].
-                getService(Ci.nsINavHistoryService);
-} catch(ex) {
-  do_throw("Could not get history service\n");
-}
+// Notice we use createInstance because later we will have to terminate the
+// service and restart it.
+var tagssvc = Cc["@mozilla.org/browser/tagging-service;1"].
+              createInstance().QueryInterface(Ci.nsITaggingService);
 
-// Get bookmark service
-try {
-  var bmsvc = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-              getService(Ci.nsINavBookmarksService);
-}
-catch(ex) {
-  do_throw("Could not get the nav-bookmarks-service\n");
-}
-
-// Get tagging service
-try {
-  // Notice we use createInstance because later we will have to terminate the
-  // service and restart it.
-  var tagssvc = Cc["@mozilla.org/browser/tagging-service;1"].
-                createInstance().QueryInterface(Ci.nsITaggingService);
-} catch(ex) {
-  do_throw("Could not get tagging service\n");
-}
-
-// main
 function run_test() {
-  var options = histsvc.getNewQueryOptions();
-  var query = histsvc.getNewQuery();
+  var options = PlacesUtils.history.getNewQueryOptions();
+  var query = PlacesUtils.history.getNewQuery();
 
-  query.setFolders([bmsvc.tagsFolder], 1);
-  var result = histsvc.executeQuery(query, options);
+  query.setFolders([PlacesUtils.tagsFolderId], 1);
+  var result = PlacesUtils.history.executeQuery(query, options);
   var tagRoot = result.root;
   tagRoot.containerOpen = true;
 
@@ -106,11 +83,11 @@ function run_test() {
   do_check_eq(tag1node.childCount, 2);
 
   // test getTagsForURI
-  var uri1tags = tagssvc.getTagsForURI(uri1, {});
+  var uri1tags = tagssvc.getTagsForURI(uri1);
   do_check_eq(uri1tags.length, 2);
   do_check_eq(uri1tags[0], "Tag 1");
   do_check_eq(uri1tags[1], "Tag 2");
-  var uri2tags = tagssvc.getTagsForURI(uri2, {});
+  var uri2tags = tagssvc.getTagsForURI(uri2);
   do_check_eq(uri2tags.length, 1);
   do_check_eq(uri2tags[0], "Tag 1");
 
@@ -148,14 +125,14 @@ function run_test() {
   // as well as non-id numeric tags
   var uri3 = uri("http://testuri/3");
   tagssvc.tagURI(uri3, [tagId, "tag 3", "456"]);
-  var tags = tagssvc.getTagsForURI(uri3, {});
+  var tags = tagssvc.getTagsForURI(uri3);
   do_check_true(tags.indexOf(tagTitle) != -1);
   do_check_true(tags.indexOf("tag 3") != -1);
   do_check_true(tags.indexOf("456") != -1);
 
   // test mixed id/name tagging
   tagssvc.untagURI(uri3, [tagId, "tag 3", "456"]);
-  tags = tagssvc.getTagsForURI(uri3, {});
+  tags = tagssvc.getTagsForURI(uri3);
   do_check_eq(tags.length, 0);
 
   // Terminate tagging service, fire up a new instance and check that existing
@@ -166,11 +143,53 @@ function run_test() {
   tagssvc = null;
   tagssvc = Cc["@mozilla.org/browser/tagging-service;1"].
             getService(Ci.nsITaggingService);
-  var uri4Tags = tagssvc.getTagsForURI(uri4, {});
+  var uri4Tags = tagssvc.getTagsForURI(uri4);
   do_check_eq(uri4Tags.length, 3);
   do_check_true(uri4Tags.indexOf(tagTitle) != -1);
   do_check_true(uri4Tags.indexOf("tag 3") != -1);
   do_check_true(uri4Tags.indexOf("456") != -1);
+
+  // Test sparse arrays.
+  let (curChildCount = tagRoot.childCount) {
+    try {
+      tagssvc.tagURI(uri1, [, "tagSparse"]);
+      do_check_eq(tagRoot.childCount, curChildCount + 1);
+    } catch (ex) {
+      do_throw("Passing a sparse array should not throw");
+    }
+    try {
+      tagssvc.untagURI(uri1, [, "tagSparse"]);
+      do_check_eq(tagRoot.childCount, curChildCount);
+    } catch (ex) {
+      do_throw("Passing a sparse array should not throw");
+    }
+
+    // Test that the API throws for bad arguments.
+    try {
+      tagssvc.tagURI(uri1, ["", "test"]);
+      do_throw("Passing a bad tags array should throw");
+    } catch (ex) {
+      do_check_eq(ex.name, "NS_ERROR_ILLEGAL_VALUE");
+    }
+    try {
+      tagssvc.untagURI(uri1, ["", "test"]);
+      do_throw("Passing a bad tags array should throw");
+    } catch (ex) {
+      do_check_eq(ex.name, "NS_ERROR_ILLEGAL_VALUE");
+    }
+    try {
+      tagssvc.tagURI(uri1, [0, "test"]);
+      do_throw("Passing a bad tags array should throw");
+    } catch (ex) {
+      do_check_eq(ex.name, "NS_ERROR_ILLEGAL_VALUE");
+    }
+    try {
+      tagssvc.tagURI(uri1, [0, "test"]);
+      do_throw("Passing a bad tags array should throw");
+    } catch (ex) {
+      do_check_eq(ex.name, "NS_ERROR_ILLEGAL_VALUE");
+    }
+  }
 
   // cleanup
   tagRoot.containerOpen = false;

@@ -42,8 +42,6 @@ VPATH       = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifdef MOZ_IPC
-
 MODULE             = gfxipc
 LIBRARY_NAME       = gfxipc_s
 FORCE_STATIC_LIB   = 1
@@ -58,16 +56,21 @@ EXPORTS_mozilla/gfx = \
 
 CPPSRCS = SharedDIB.cpp
 
-ENABLE_CXX_EXCEPTIONS	= 1
-
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
-CPPSRCS += SharedDIBWin.cpp
-EXPORTS_mozilla/gfx += SharedDIBWin.h
+EXPORTS_mozilla/gfx += \
+  SharedDIBWin.h \
+  SharedDIBSurface.h \
+  $(NULL)
+
+CPPSRCS += \
+  SharedDIBWin.cpp \
+  SharedDIBSurface.cpp \
+  $(NULL)
 endif
 
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
 
-endif
-
 include $(topsrcdir)/config/rules.mk
+
+CXXFLAGS += $(MOZ_CAIRO_CFLAGS) $(TK_CFLAGS)

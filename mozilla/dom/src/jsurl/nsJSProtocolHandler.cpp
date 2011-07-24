@@ -48,7 +48,6 @@
 #include "nsNetUtil.h"
 
 #include "nsIComponentManager.h"
-#include "nsIGenericFactory.h"
 #include "nsIServiceManager.h"
 #include "nsIURI.h"
 #include "nsIScriptContext.h"
@@ -78,6 +77,7 @@
 #include "nsIObjectInputStream.h"
 #include "nsIObjectOutputStream.h"
 #include "nsIWritablePropertyBag2.h"
+#include "nsIContentSecurityPolicy.h"
 
 static NS_DEFINE_CID(kJSURICID, NS_JSURI_CID);
 
@@ -190,6 +190,31 @@ nsresult nsJSThunk::EvaluateScript(nsIChannel *aChannel,
         return NS_ERROR_DOM_RETVAL_UNDEFINED;
     }
 
+    nsresult rv;
+
+    // CSP check: javascript: URIs disabled unless "inline" scripts are
+    // allowed.
+    nsCOMPtr<nsIContentSecurityPolicy> csp;
+    rv = principal->GetCsp(getter_AddRefs(csp));
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (csp) {
+		PRBool allowsInline;
+		rv = csp->GetAllowsInlineScript(&allowsInline);
+		NS_ENSURE_SUCCESS(rv, rv);
+
+      if (!allowsInline) {
+          // gather information to log with violation report
+          nsCOMPtr<nsIURI> uri;
+          principal->GetURI(getter_AddRefs(uri));
+          nsCAutoString asciiSpec;
+          uri->GetAsciiSpec(asciiSpec);
+		  csp->LogViolationDetails(nsIContentSecurityPolicy::VIOLATION_TYPE_INLINE_SCRIPT,
+								   NS_ConvertUTF8toUTF16(asciiSpec),
+								   NS_ConvertUTF8toUTF16(mURL),
+                                   nsnull);
+          return NS_ERROR_DOM_RETVAL_UNDEFINED;
+      }
+    }
 
     // Get the global object we should be running on.
     nsIScriptGlobalObject* global = GetGlobalObject(aChannel);
@@ -213,7 +238,6 @@ nsresult nsJSThunk::EvaluateScript(nsIChannel *aChannel,
 
     JSObject *globalJSObject = innerGlobal->GetGlobalJSObject();
 
-    nsresult rv;
     nsCOMPtr<nsIDOMWindow> domWindow(do_QueryInterface(global, &rv));
     if (NS_FAILED(rv)) {
         return NS_ERROR_FAILURE;
@@ -291,10 +315,6 @@ nsresult nsJSThunk::EvaluateScript(nsIChannel *aChannel,
         NS_ENSURE_SUCCESS(rv, rv);
 
         jsval rval = JSVAL_VOID;
-        nsAutoGCRoot root(&rval, &rv);
-        if (NS_FAILED(rv)) {
-            return rv;
-        }
 
         // Push our JSContext on the context stack so the JS_ValueToString call (and
         // JS_ReportPendingException, if relevant) will use the principal of cx.
@@ -322,7 +342,14 @@ nsresult nsJSThunk::EvaluateScript(nsIChannel *aChannel,
 
         if (!isUndefined && NS_SUCCEEDED(rv)) {
             NS_ASSERTION(JSVAL_IS_STRING(rval), "evalInSandbox is broken");
-            result = nsDependentJSString(JSVAL_TO_STRING(rval));
+
+            nsDependentJSString depStr;
+            if (!depStr.init(cx, JSVAL_TO_STRING(rval))) {
+                JS_ReportPendingException(cx);
+                isUndefined = PR_TRUE;
+            } else {
+                result = depStr;
+            }
         }
 
         stack->Pop(nsnull);
@@ -675,7 +702,7 @@ nsJSChannel::AsyncOpen(nsIStreamListener *aListener, nsISupports *aContext)
 
     mPopupState = win->GetPopupControlState();
 
-    nsRunnableMethod<nsJSChannel>::Method method;
+    void (nsJSChannel::*method)();
     if (mIsAsync) {
         // post an event to do the rest
         method = &nsJSChannel::EvaluateScript;
@@ -706,7 +733,7 @@ nsJSChannel::AsyncOpen(nsIStreamListener *aListener, nsISupports *aContext)
         method = &nsJSChannel::NotifyListener;            
     }
 
-    nsCOMPtr<nsIRunnable> ev = new nsRunnableMethod<nsJSChannel>(this, method);
+    nsCOMPtr<nsIRunnable> ev = NS_NewRunnableMethod(this, method);
     nsresult rv = NS_DispatchToCurrentThread(ev);
 
     if (NS_FAILED(rv)) {
@@ -881,7 +908,12 @@ nsJSChannel::SetLoadFlags(nsLoadFlags aLoadFlags)
         }
         bogusLoadBackground = !loadGroupIsBackground;
     }
-    
+
+    // Classifying a javascript: URI doesn't help us, and requires
+    // NSS to boot, which we don't have in content processes.  See
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=617838.
+    aLoadFlags &= ~LOAD_CLASSIFY_URI;
+
     // Since the javascript channel is never the actual channel that
     // any data is loaded through, don't ever set the
     // LOAD_DOCUMENT_URI flag on it, since that could lead to two
@@ -1110,7 +1142,7 @@ nsJSProtocolHandler::~nsJSProtocolHandler()
 
 NS_IMPL_ISUPPORTS1(nsJSProtocolHandler, nsIProtocolHandler)
 
-NS_METHOD
+nsresult
 nsJSProtocolHandler::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 {
     if (aOuter)

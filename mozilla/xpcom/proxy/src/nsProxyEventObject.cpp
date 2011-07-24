@@ -51,7 +51,7 @@
 #include "nsIInterfaceInfoManager.h"
 #include "xptcall.h"
 
-#include "nsAutoLock.h"
+using namespace mozilla;
 
 nsProxyEventObject::nsProxyEventObject(nsProxyObject *aParent,
                             nsProxyEventClass* aClass,
@@ -83,7 +83,7 @@ nsProxyEventObject::~nsProxyEventObject()
 NS_IMETHODIMP_(nsrefcnt)
 nsProxyEventObject::AddRef()
 {
-    nsAutoLock lock(nsProxyObjectManager::GetInstance()->GetLock());
+    MutexAutoLock lock(nsProxyObjectManager::GetInstance()->GetLock());
     return LockedAddRef();
 }
 
@@ -99,7 +99,7 @@ NS_IMETHODIMP_(nsrefcnt)
 nsProxyEventObject::Release(void)
 {
     {
-        nsAutoLock lock(nsProxyObjectManager::GetInstance()->GetLock());
+        MutexAutoLock lock(nsProxyObjectManager::GetInstance()->GetLock());
         NS_PRECONDITION(0 != mRefCnt, "dup release");
 
         --mRefCnt;
@@ -113,7 +113,7 @@ nsProxyEventObject::Release(void)
 
     // call the destructor outside of the lock so that we aren't holding the
     // lock when we release the object
-    NS_DELETEXPCOM(this);
+    delete this;
     return 0;
 }
 

@@ -67,24 +67,12 @@
 #endif
 #elif defined(XP_OS2)
 #define MAX_PATH _MAX_PATH
-#elif defined(XP_BEOS)
-#include <FindDirectory.h>
-#include <Path.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/param.h>
-#include <OS.h>
-#include <image.h>
-#include "prenv.h"
 #endif
 
 #include "SpecialSystemDirectory.h"
 #include "nsAppFileLocationProvider.h"
 
-#define COMPONENT_REGISTRY_NAME NS_LITERAL_CSTRING("compreg.dat")
 #define COMPONENT_DIRECTORY     NS_LITERAL_CSTRING("components")
-
-#define XPTI_REGISTRY_NAME      NS_LITERAL_CSTRING("xpti.dat")
 
 // define home directory
 // For Windows platform, We are choosing Appdata folder as HOME
@@ -96,8 +84,6 @@
 #define HOME_DIR NS_UNIX_HOME_DIR
 #elif defined (XP_OS2)
 #define HOME_DIR NS_OS2_HOME_DIR
-#elif defined (XP_BEOS)
-#define HOME_DIR NS_BEOS_HOME_DIR
 #endif
 
 //----------------------------------------------------------------------------------------
@@ -174,10 +160,8 @@ nsDirectoryService::GetCurrentProcessDirectory(nsILocalFile** aFile)
                     printf("nsDirectoryService - CurrentProcessDir is: %s\n", buffer);
 #endif
                     rv = localFile->InitWithNativePath(nsDependentCString(buffer));
-                    if (NS_SUCCEEDED(rv)) {
-                        localFile->Normalize();
+                    if (NS_SUCCEEDED(rv))
                         *aFile = localFile;
-                    }
                 }
                 CFRelease(parentURL);
             }
@@ -252,25 +236,6 @@ nsDirectoryService::GetCurrentProcessDirectory(nsILocalFile** aFile)
     *aFile = localFile;
     return NS_OK;
 
-#elif defined(XP_BEOS)
-    char buf[MAXPATHLEN];
-    int32 cookie = 0;
-    image_info info;
-    char *p;
-    *buf = 0;
-    if(get_next_image_info(0, &cookie, &info) == B_OK)
-    {
-        strcpy(buf, info.name);
-        if((p = strrchr(buf, '/')) != 0)
-        {
-            if( (p-2 >= buf) && *(p-2)=='/' && *(p-1)=='.')
-                p -=2; 
-            *p = 0;
-            localFile->InitWithNativePath(nsDependentCString(buf));
-            *aFile = localFile;
-            return NS_OK;
-        }
-    }
 #endif
     
     NS_RELEASE(localFile);
@@ -279,100 +244,6 @@ nsDirectoryService::GetCurrentProcessDirectory(nsILocalFile** aFile)
     return NS_ERROR_FAILURE;
 } // GetCurrentProcessDirectory()
 
-
-nsIAtom*  nsDirectoryService::sCurrentProcess = nsnull;
-nsIAtom*  nsDirectoryService::sComponentRegistry = nsnull;
-nsIAtom*  nsDirectoryService::sXPTIRegistry = nsnull;
-nsIAtom*  nsDirectoryService::sComponentDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sGRE_Directory = nsnull;
-nsIAtom*  nsDirectoryService::sGRE_ComponentDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_DriveDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_TemporaryDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_CurrentProcessDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_CurrentWorkingDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_DesktopDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS_HomeDirectory = nsnull;
-#if defined (XP_MACOSX)
-nsIAtom*  nsDirectoryService::sDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sTrashDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sStartupDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sShutdownDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sAppleMenuDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sControlPanelDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sExtensionDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sFontsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sPreferencesDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sInternetSearchDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserLibDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sDefaultDownloadDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserDesktopDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalDesktopDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserApplicationsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalApplicationsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserInternetPlugInDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalInternetPlugInDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserFrameworksDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalFrameworksDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sUserPreferencesDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLocalPreferencesDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sPictureDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sMovieDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sMusicDocumentsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sInternetSitesDirectory = nsnull;
-#elif defined (XP_WIN) 
-nsIAtom*  nsDirectoryService::sSystemDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sWindowsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sWindowsProgramFiles = nsnull;
-nsIAtom*  nsDirectoryService::sDesktop = nsnull;
-nsIAtom*  nsDirectoryService::sPrograms = nsnull;
-nsIAtom*  nsDirectoryService::sControls = nsnull;
-nsIAtom*  nsDirectoryService::sPrinters = nsnull;
-nsIAtom*  nsDirectoryService::sPersonal = nsnull;
-nsIAtom*  nsDirectoryService::sFavorites = nsnull;
-nsIAtom*  nsDirectoryService::sStartup = nsnull;
-nsIAtom*  nsDirectoryService::sRecent = nsnull;
-nsIAtom*  nsDirectoryService::sSendto = nsnull;
-nsIAtom*  nsDirectoryService::sBitbucket = nsnull;
-nsIAtom*  nsDirectoryService::sStartmenu = nsnull;
-nsIAtom*  nsDirectoryService::sDesktopdirectory = nsnull;
-nsIAtom*  nsDirectoryService::sDrives = nsnull;
-nsIAtom*  nsDirectoryService::sNetwork = nsnull;
-nsIAtom*  nsDirectoryService::sNethood = nsnull;
-nsIAtom*  nsDirectoryService::sFonts = nsnull;
-nsIAtom*  nsDirectoryService::sTemplates = nsnull;
-nsIAtom*  nsDirectoryService::sCommon_Startmenu = nsnull;
-nsIAtom*  nsDirectoryService::sCommon_Programs = nsnull;
-nsIAtom*  nsDirectoryService::sCommon_Startup = nsnull;
-nsIAtom*  nsDirectoryService::sCommon_Desktopdirectory = nsnull;
-nsIAtom*  nsDirectoryService::sAppdata = nsnull;
-nsIAtom*  nsDirectoryService::sLocalAppdata = nsnull;
-nsIAtom*  nsDirectoryService::sPrinthood = nsnull;
-nsIAtom*  nsDirectoryService::sWinCookiesDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sDefaultDownloadDirectory = nsnull;
-#elif defined (XP_UNIX)
-nsIAtom*  nsDirectoryService::sLocalDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sLibDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sDefaultDownloadDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sXDGDesktop = nsnull;
-nsIAtom*  nsDirectoryService::sXDGDocuments = nsnull;
-nsIAtom*  nsDirectoryService::sXDGDownload = nsnull;
-nsIAtom*  nsDirectoryService::sXDGMusic = nsnull;
-nsIAtom*  nsDirectoryService::sXDGPictures = nsnull;
-nsIAtom*  nsDirectoryService::sXDGPublicShare = nsnull;
-nsIAtom*  nsDirectoryService::sXDGTemplates = nsnull;
-nsIAtom*  nsDirectoryService::sXDGVideos = nsnull;
-#elif defined (XP_OS2)
-nsIAtom*  nsDirectoryService::sSystemDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sOS2Directory = nsnull;
-#elif defined (XP_BEOS)
-nsIAtom*  nsDirectoryService::sSettingsDirectory = nsnull;
-nsIAtom*  nsDirectoryService::sSystemDirectory = nsnull;
-#endif
-
-
 nsDirectoryService* nsDirectoryService::gService = nsnull;
 
 nsDirectoryService::nsDirectoryService() :
@@ -380,7 +251,7 @@ nsDirectoryService::nsDirectoryService() :
 {
 }
 
-NS_METHOD
+nsresult
 nsDirectoryService::Create(nsISupports *outer, REFNSIID aIID, void **aResult)
 {
     NS_ENSURE_ARG_POINTER(aResult);
@@ -394,99 +265,18 @@ nsDirectoryService::Create(nsISupports *outer, REFNSIID aIID, void **aResult)
     return gService->QueryInterface(aIID, aResult);
 }
 
+#define DIR_ATOM(name_, value_) nsIAtom* nsDirectoryService::name_ = nsnull;
+#include "nsDirectoryServiceAtomList.h"
+#undef DIR_ATOM
+
+#define DIR_ATOM(name_, value_) NS_STATIC_ATOM_BUFFER(name_##_buffer, value_)
+#include "nsDirectoryServiceAtomList.h"
+#undef DIR_ATOM
+
 static const nsStaticAtom directory_atoms[] = {
-    { NS_XPCOM_CURRENT_PROCESS_DIR,     &nsDirectoryService::sCurrentProcess },
-    { NS_XPCOM_COMPONENT_REGISTRY_FILE, &nsDirectoryService::sComponentRegistry },
-    { NS_XPCOM_COMPONENT_DIR,         &nsDirectoryService::sComponentDirectory },
-    { NS_XPCOM_XPTI_REGISTRY_FILE, &nsDirectoryService::sXPTIRegistry },
-    { NS_GRE_DIR,                  &nsDirectoryService::sGRE_Directory },
-    { NS_GRE_COMPONENT_DIR,        &nsDirectoryService::sGRE_ComponentDirectory },
-    { NS_OS_DRIVE_DIR,             &nsDirectoryService::sOS_DriveDirectory },
-    { NS_OS_TEMP_DIR,              &nsDirectoryService::sOS_TemporaryDirectory },
-    { NS_OS_CURRENT_PROCESS_DIR,   &nsDirectoryService::sOS_CurrentProcessDirectory },
-    { NS_OS_CURRENT_WORKING_DIR,   &nsDirectoryService::sOS_CurrentWorkingDirectory },
-    { NS_OS_HOME_DIR,              &nsDirectoryService::sOS_HomeDirectory },
-    { NS_OS_DESKTOP_DIR,           &nsDirectoryService::sOS_DesktopDirectory },
-    { NS_XPCOM_INIT_CURRENT_PROCESS_DIR, nsnull },
-#if defined (XP_MACOSX)
-    { NS_OS_SYSTEM_DIR,                   &nsDirectoryService::sDirectory },
-    { NS_MAC_TRASH_DIR,                   &nsDirectoryService::sTrashDirectory },
-    { NS_MAC_STARTUP_DIR,                 &nsDirectoryService::sStartupDirectory },
-    { NS_MAC_SHUTDOWN_DIR,                &nsDirectoryService::sShutdownDirectory },
-    { NS_MAC_APPLE_MENU_DIR,              &nsDirectoryService::sAppleMenuDirectory },
-    { NS_MAC_CONTROL_PANELS_DIR,          &nsDirectoryService::sControlPanelDirectory },
-    { NS_MAC_EXTENSIONS_DIR,              &nsDirectoryService::sExtensionDirectory },
-    { NS_MAC_FONTS_DIR,                   &nsDirectoryService::sFontsDirectory },
-    { NS_MAC_PREFS_DIR,                   &nsDirectoryService::sPreferencesDirectory },
-    { NS_MAC_DOCUMENTS_DIR,               &nsDirectoryService::sDocumentsDirectory },
-    { NS_MAC_INTERNET_SEARCH_DIR,         &nsDirectoryService::sInternetSearchDirectory },
-    { NS_MAC_USER_LIB_DIR,                &nsDirectoryService::sUserLibDirectory },
-    { NS_OSX_DEFAULT_DOWNLOAD_DIR,        &nsDirectoryService::sDefaultDownloadDirectory },
-    { NS_OSX_USER_DESKTOP_DIR,            &nsDirectoryService::sUserDesktopDirectory },
-    { NS_OSX_LOCAL_DESKTOP_DIR,           &nsDirectoryService::sLocalDesktopDirectory },
-    { NS_OSX_USER_APPLICATIONS_DIR,       &nsDirectoryService::sUserApplicationsDirectory },
-    { NS_OSX_LOCAL_APPLICATIONS_DIR,      &nsDirectoryService::sLocalApplicationsDirectory },
-    { NS_OSX_USER_DOCUMENTS_DIR,          &nsDirectoryService::sUserDocumentsDirectory },
-    { NS_OSX_LOCAL_DOCUMENTS_DIR,         &nsDirectoryService::sLocalDocumentsDirectory },
-    { NS_OSX_USER_INTERNET_PLUGIN_DIR,    &nsDirectoryService::sUserInternetPlugInDirectory },
-    { NS_OSX_LOCAL_INTERNET_PLUGIN_DIR,   &nsDirectoryService::sLocalInternetPlugInDirectory },
-    { NS_OSX_USER_FRAMEWORKS_DIR,         &nsDirectoryService::sUserFrameworksDirectory },
-    { NS_OSX_LOCAL_FRAMEWORKS_DIR,        &nsDirectoryService::sLocalFrameworksDirectory },
-    { NS_OSX_USER_PREFERENCES_DIR,        &nsDirectoryService::sUserPreferencesDirectory },
-    { NS_OSX_LOCAL_PREFERENCES_DIR,       &nsDirectoryService::sLocalPreferencesDirectory },
-    { NS_OSX_PICTURE_DOCUMENTS_DIR,       &nsDirectoryService::sPictureDocumentsDirectory },
-    { NS_OSX_MOVIE_DOCUMENTS_DIR,         &nsDirectoryService::sMovieDocumentsDirectory },
-    { NS_OSX_MUSIC_DOCUMENTS_DIR,         &nsDirectoryService::sMusicDocumentsDirectory },
-    { NS_OSX_INTERNET_SITES_DIR,          &nsDirectoryService::sInternetSitesDirectory },
-#elif defined (XP_WIN) 
-    { NS_OS_SYSTEM_DIR,            &nsDirectoryService::sSystemDirectory },
-    { NS_WIN_WINDOWS_DIR,          &nsDirectoryService::sWindowsDirectory },
-    { NS_WIN_PROGRAM_FILES_DIR,    &nsDirectoryService::sWindowsProgramFiles },
-    { NS_WIN_DESKTOP_DIR,          &nsDirectoryService::sDesktop },
-    { NS_WIN_PROGRAMS_DIR,         &nsDirectoryService::sPrograms },
-    { NS_WIN_CONTROLS_DIR,         &nsDirectoryService::sControls },
-    { NS_WIN_PRINTERS_DIR,         &nsDirectoryService::sPrinters },
-    { NS_WIN_PERSONAL_DIR,         &nsDirectoryService::sPersonal },
-    { NS_WIN_FAVORITES_DIR,        &nsDirectoryService::sFavorites },
-    { NS_WIN_STARTUP_DIR,          &nsDirectoryService::sStartup },
-    { NS_WIN_RECENT_DIR,           &nsDirectoryService::sRecent },
-    { NS_WIN_SEND_TO_DIR,          &nsDirectoryService::sSendto },
-    { NS_WIN_BITBUCKET_DIR,        &nsDirectoryService::sBitbucket },
-    { NS_WIN_STARTMENU_DIR,        &nsDirectoryService::sStartmenu },
-    { NS_WIN_DESKTOP_DIRECTORY,    &nsDirectoryService::sDesktopdirectory },
-    { NS_WIN_DRIVES_DIR,           &nsDirectoryService::sDrives },
-    { NS_WIN_NETWORK_DIR,          &nsDirectoryService::sNetwork },
-    { NS_WIN_NETHOOD_DIR,          &nsDirectoryService::sNethood },
-    { NS_WIN_FONTS_DIR,            &nsDirectoryService::sFonts },
-    { NS_WIN_TEMPLATES_DIR,        &nsDirectoryService::sTemplates },
-    { NS_WIN_COMMON_STARTMENU_DIR, &nsDirectoryService::sCommon_Startmenu },
-    { NS_WIN_COMMON_PROGRAMS_DIR,  &nsDirectoryService::sCommon_Programs },
-    { NS_WIN_COMMON_STARTUP_DIR,   &nsDirectoryService::sCommon_Startup },
-    { NS_WIN_COMMON_DESKTOP_DIRECTORY, &nsDirectoryService::sCommon_Desktopdirectory },
-    { NS_WIN_APPDATA_DIR,          &nsDirectoryService::sAppdata },
-    { NS_WIN_LOCAL_APPDATA_DIR,    &nsDirectoryService::sLocalAppdata },
-    { NS_WIN_PRINTHOOD,            &nsDirectoryService::sPrinthood },
-    { NS_WIN_COOKIES_DIR,          &nsDirectoryService::sWinCookiesDirectory },
-    { NS_WIN_DEFAULT_DOWNLOAD_DIR, &nsDirectoryService::sDefaultDownloadDirectory },
-#elif defined (XP_UNIX)
-    { NS_UNIX_LOCAL_DIR,           &nsDirectoryService::sLocalDirectory },
-    { NS_UNIX_LIB_DIR,             &nsDirectoryService::sLibDirectory },
-    { NS_UNIX_DEFAULT_DOWNLOAD_DIR, &nsDirectoryService::sDefaultDownloadDirectory },
-    { NS_UNIX_XDG_DESKTOP_DIR,     &nsDirectoryService::sXDGDesktop },
-    { NS_UNIX_XDG_DOCUMENTS_DIR,   &nsDirectoryService::sXDGDocuments },
-    { NS_UNIX_XDG_DOWNLOAD_DIR,    &nsDirectoryService::sXDGDownload },
-    { NS_UNIX_XDG_MUSIC_DIR,       &nsDirectoryService::sXDGMusic },
-    { NS_UNIX_XDG_PICTURES_DIR,    &nsDirectoryService::sXDGPictures },
-    { NS_UNIX_XDG_PUBLIC_SHARE_DIR, &nsDirectoryService::sXDGPublicShare },
-    { NS_UNIX_XDG_TEMPLATES_DIR,   &nsDirectoryService::sXDGTemplates },
-    { NS_UNIX_XDG_VIDEOS_DIR,      &nsDirectoryService::sXDGVideos },
-#elif defined (XP_OS2)
-    { NS_OS_SYSTEM_DIR,            &nsDirectoryService::sSystemDirectory },
-    { NS_OS2_DIR,                  &nsDirectoryService::sOS2Directory },
-#elif defined (XP_BEOS)
-    { NS_OS_SYSTEM_DIR,            &nsDirectoryService::sSystemDirectory },
-    { NS_BEOS_SETTINGS_DIR,        &nsDirectoryService::sSettingsDirectory },
-#endif
+#define DIR_ATOM(name_, value_) NS_STATIC_ATOM(name_##_buffer, &nsDirectoryService::name_),
+#include "nsDirectoryServiceAtomList.h"
+#undef DIR_ATOM
 };    
 
 NS_IMETHODIMP
@@ -801,53 +591,12 @@ nsDirectoryService::GetFile(const char *prop, PRBool *persistent, nsIFile **_ret
     {
         rv = GetCurrentProcessDirectory(getter_AddRefs(localFile));
     }
-    else if (inAtom == nsDirectoryService::sComponentRegistry)
-    {
-        rv = GetCurrentProcessDirectory(getter_AddRefs(localFile));
-        if (!localFile)
-            return NS_ERROR_FAILURE;
-
-        localFile->AppendNative(COMPONENT_DIRECTORY);           
-        localFile->AppendNative(COMPONENT_REGISTRY_NAME);           
-    }
-    else if (inAtom == nsDirectoryService::sXPTIRegistry)
-    {
-        rv = GetCurrentProcessDirectory(getter_AddRefs(localFile));
-        if (!localFile)
-            return NS_ERROR_FAILURE;
-
-        localFile->AppendNative(COMPONENT_DIRECTORY);           
-        localFile->AppendNative(XPTI_REGISTRY_NAME);           
-    }
     
     // Unless otherwise set, the core pieces of the GRE exist
     // in the current process directory.
     else if (inAtom == nsDirectoryService::sGRE_Directory)
     {
         rv = GetCurrentProcessDirectory(getter_AddRefs(localFile));
-    }
-    // the GRE components directory is relative to the GRE directory
-    // by default; applications may override this behavior in special
-    // cases
-    else if (inAtom == nsDirectoryService::sGRE_ComponentDirectory)
-    {
-        rv = Get(NS_GRE_DIR, NS_GET_IID(nsILocalFile), getter_AddRefs(localFile));
-        if (localFile) {
-            nsCOMPtr<nsIFile> cdir;
-            localFile->Clone(getter_AddRefs(cdir));
-            cdir->AppendNative(COMPONENT_DIRECTORY);
-            localFile = do_QueryInterface(cdir);
-        }
-    }
-    else if (inAtom == nsDirectoryService::sComponentDirectory)
-    {
-        rv = GetCurrentProcessDirectory(getter_AddRefs(localFile));
-        if (localFile) {
-            nsCOMPtr<nsIFile> cdir;
-            localFile->Clone(getter_AddRefs(cdir));
-            cdir->AppendNative(COMPONENT_DIRECTORY);
-            localFile = do_QueryInterface(cdir);
-        }
     }
     else if (inAtom == nsDirectoryService::sOS_DriveDirectory)
     {
@@ -1195,23 +944,6 @@ nsDirectoryService::GetFile(const char *prop, PRBool *persistent, nsIFile **_ret
     else if (inAtom == nsDirectoryService::sOS_DesktopDirectory)
     {
         rv = GetSpecialSystemDirectory(OS2_DesktopDirectory, getter_AddRefs(localFile)); 
-    }
-#elif defined (XP_BEOS)
-    else if (inAtom == nsDirectoryService::sSettingsDirectory)
-    {
-        rv = GetSpecialSystemDirectory(BeOS_SettingsDirectory, getter_AddRefs(localFile)); 
-    }
-    else if (inAtom == nsDirectoryService::sOS_HomeDirectory)
-    {
-        rv = GetSpecialSystemDirectory(BeOS_HomeDirectory, getter_AddRefs(localFile));
-    }
-    else if (inAtom == nsDirectoryService::sOS_DesktopDirectory)
-    {
-        rv = GetSpecialSystemDirectory(BeOS_DesktopDirectory, getter_AddRefs(localFile)); 
-    }
-    else if (inAtom == nsDirectoryService::sSystemDirectory)
-    {
-        rv = GetSpecialSystemDirectory(BeOS_SystemDirectory, getter_AddRefs(localFile)); 
     }
 #endif
 

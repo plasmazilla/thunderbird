@@ -61,21 +61,6 @@
     "@mozilla.org/webnavigation-info;1"
 
 /**
- * Contract ID for a service implementing nsIURIClassifier that identifies
- * phishing and malware sites.
- */
-#define NS_URICLASSIFIERSERVICE_CONTRACTID "@mozilla.org/uriclassifierservice"
-
-/**
- * Class and contract ID for an nsIChannelClassifier implementation for
- * checking a channel load against the URI classifier service.
- */
-#define NS_CHANNELCLASSIFIER_CID \
- { 0xce02d538, 0x0217, 0x47a3,{0xa5, 0x89, 0xb5, 0x17, 0x90, 0xfd, 0xd8, 0xce}}
-
-#define NS_CHANNELCLASSIFIER_CONTRACTID "@mozilla.org/channelclassifier"
-
-/**
  * Class and contract ID for the docshell.  This is the container for a web
  * navigation context.  It implements too many interfaces to count, and the
  * exact ones keep changing; if they stabilize somewhat that will get
@@ -86,7 +71,19 @@
       { 0xaf, 0x80, 0x00, 0xa0, 0x24, 0xff, 0xc0, 0x8c } }
 #define NS_DOCSHELL_CONTRACTID "@mozilla.org/docshell/html;1"
 
+/**
+ * Contract ID to obtain the IHistory interface.  This is a non-scriptable
+ * interface used to interact with history in an asynchronous manner.
+ */
+#define NS_IHISTORY_CONTRACTID "@mozilla.org/browser/history;1"
 
+/**
+ * A contract for a service that is used for finding
+ * platform-specific applications for handling particular URLs.
+ *
+ * @implements nsIExternalURLHandlerService
+ */
+#define NS_EXTERNALURLHANDLERSERVICE_CONTRACTID "@mozilla.org/uriloader/external-url-handler-service;1"
 
 /**
  * An observer service topic that can be listened to to catch creation

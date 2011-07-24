@@ -55,8 +55,6 @@
 
 #include "nsIDOMWindow.h"
 
-#include "nsIPresShell.h"
-#include "nsPresContext.h"
 #include "nsIStringBundle.h"
 #include "nsIScriptSecurityManager.h"
 
@@ -65,6 +63,8 @@
 
 #include "nsIDOMDocument.h"
 #include "nsIDocument.h"
+#include "nsPresContext.h"
+#include "nsIAsyncVerifyRedirectCallback.h"
 
 static NS_DEFINE_CID(kThisImplCID, NS_THIS_DOCLOADER_IMPL_CID);
 
@@ -107,8 +107,8 @@ struct nsRequestInfo : public PLDHashEntryHdr
   }
 
   const void* mKey; // Must be first for the pldhash stubs to work
-  nsInt64 mCurrentProgress;
-  nsInt64 mMaxProgress;
+  PRInt64 mCurrentProgress;
+  PRInt64 mMaxProgress;
   PRBool mUploading;
 
   PRBool mIsDone;
@@ -151,8 +151,14 @@ struct nsListenerInfo {
 nsDocLoader::nsDocLoader()
   : mParent(nsnull),
     mListenerInfoList(8),
+    mCurrentSelfProgress(0),
+    mMaxSelfProgress(0),
+    mCurrentTotalProgress(0),
+    mMaxTotalProgress(0),
+    mCompletedTotalProgress(0),
     mIsLoadingDocument(PR_FALSE),
     mIsRestoringDocument(PR_FALSE),
+    mDontFlushLayout(PR_FALSE),
     mIsFlushingLayout(PR_FALSE)
 {
 #if defined(PR_LOGGING)
@@ -326,6 +332,10 @@ nsDocLoader::Stop(void)
 
   if (mLoadGroup)
     rv = mLoadGroup->Cancel(NS_BINDING_ABORTED);
+
+  // Don't report that we're flushing layout so IsBusy returns false after a
+  // Stop call.
+  mIsFlushingLayout = PR_FALSE;
 
   // Clear out mChildrenInOnload.  We want to make sure to fire our
   // onload at this point, and there's no issue with mChildrenInOnload
@@ -593,7 +603,7 @@ nsDocLoader::OnStopRequest(nsIRequest *aRequest,
   if (info) {
     info->mIsDone = PR_TRUE;
 
-    nsInt64 oldMax = info->mMaxProgress;
+    PRInt64 oldMax = info->mMaxProgress;
 
     info->mMaxProgress = info->mCurrentProgress;
     
@@ -602,7 +612,7 @@ nsDocLoader::OnStopRequest(nsIRequest *aRequest,
     // finished loading, then use this new data to try to calculate a
     // mMaxSelfProgress...
     //
-    if ((oldMax < nsInt64(0)) && (mMaxSelfProgress < nsInt64(0))) {
+    if ((oldMax < PRInt64(0)) && (mMaxSelfProgress < PRInt64(0))) {
       mMaxSelfProgress = CalculateMaxProgress();
     }
 
@@ -746,15 +756,26 @@ void nsDocLoader::DocLoaderIsEmpty(PRBool aFlushLayout)
 
     NS_ASSERTION(!mIsFlushingLayout, "Someone screwed up");
 
-    // The load group for this DocumentLoader is idle.  Flush layout if we need
-    // to.
-    if (aFlushLayout) {
+    // The load group for this DocumentLoader is idle.  Flush if we need to.
+    if (aFlushLayout && !mDontFlushLayout) {
       nsCOMPtr<nsIDOMDocument> domDoc = do_GetInterface(GetAsSupports(this));
       nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
       if (doc) {
-        mIsFlushingLayout = PR_TRUE;
-        doc->FlushPendingNotifications(Flush_Layout);
-        mIsFlushingLayout = PR_FALSE;
+        // We start loads from style resolution, so we need to flush out style
+        // no matter what.  If we have user fonts, we also need to flush layout,
+        // since the reflow is what starts font loads.
+        mozFlushType flushType = Flush_Style;
+        nsIPresShell* shell = doc->GetShell();
+        if (shell) {
+          // Be safe in case this presshell is in teardown now
+          nsPresContext* presContext = shell->GetPresContext();
+          if (presContext && presContext->GetUserFontSet()) {
+            flushType = Flush_Layout;
+          }
+        }
+        mDontFlushLayout = mIsFlushingLayout = PR_TRUE;
+        doc->FlushPendingNotifications(flushType);
+        mDontFlushLayout = mIsFlushingLayout = PR_FALSE;
       }
     }
 
@@ -999,31 +1020,31 @@ nsDocLoader::GetIsLoadingDocument(PRBool *aIsLoadingDocument)
 
 PRInt64 nsDocLoader::GetMaxTotalProgress()
 {
-  nsInt64 newMaxTotal = 0;
+  PRInt64 newMaxTotal = 0;
 
   PRInt32 count = mChildList.Count();
   nsCOMPtr<nsIWebProgress> webProgress;
   for (PRInt32 i=0; i < count; i++) 
   {
-    nsInt64 individualProgress = 0;
+    PRInt64 individualProgress = 0;
     nsIDocumentLoader* docloader = ChildAt(i);
     if (docloader)
     {
       // Cast is safe since all children are nsDocLoader too
       individualProgress = ((nsDocLoader *) docloader)->GetMaxTotalProgress();
     }
-    if (individualProgress < nsInt64(0)) // if one of the elements doesn't know it's size
+    if (individualProgress < PRInt64(0)) // if one of the elements doesn't know it's size
                                          // then none of them do
     {
-       newMaxTotal = nsInt64(-1);
+       newMaxTotal = PRInt64(-1);
        break;
     }
     else
      newMaxTotal += individualProgress;
   }
 
-  nsInt64 progress = -1;
-  if (mMaxSelfProgress >= nsInt64(0) && newMaxTotal >= nsInt64(0))
+  PRInt64 progress = -1;
+  if (mMaxSelfProgress >= PRInt64(0) && newMaxTotal >= PRInt64(0))
     progress = newMaxTotal + mMaxSelfProgress;
   
   return progress;
@@ -1039,7 +1060,7 @@ NS_IMETHODIMP nsDocLoader::OnProgress(nsIRequest *aRequest, nsISupports* ctxt,
                                       PRUint64 aProgress, PRUint64 aProgressMax)
 {
   nsRequestInfo *info;
-  nsInt64 progressDelta = 0;
+  PRInt64 progressDelta = 0;
 
   //
   // Update the RequestInfo entry with the new progress data
@@ -1047,7 +1068,7 @@ NS_IMETHODIMP nsDocLoader::OnProgress(nsIRequest *aRequest, nsISupports* ctxt,
   info = GetRequestInfo(aRequest);
   if (info) {
     // suppress sending STATE_TRANSFERRING if this is upload progress (see bug 240053)
-    if (!info->mUploading && (nsInt64(0) == info->mCurrentProgress) && (nsInt64(0) == info->mMaxProgress)) {
+    if (!info->mUploading && (PRInt64(0) == info->mCurrentProgress) && (PRInt64(0) == info->mMaxProgress)) {
       //
       // If we receive an OnProgress event from a toplevel channel that the URI Loader
       // has not yet targeted, then we must suppress the event.  This is necessary to
@@ -1072,8 +1093,8 @@ NS_IMETHODIMP nsDocLoader::OnProgress(nsIRequest *aRequest, nsISupports* ctxt,
         mMaxSelfProgress  += PRInt64(aProgressMax);
         info->mMaxProgress = PRInt64(aProgressMax);
       } else {
-        mMaxSelfProgress   =  nsInt64(-1);
-        info->mMaxProgress =  nsInt64(-1);
+        mMaxSelfProgress   =  PRInt64(-1);
+        info->mMaxProgress =  PRInt64(-1);
       }
 
       // Send a STATE_TRANSFERRING notification for the request.
@@ -1095,7 +1116,7 @@ NS_IMETHODIMP nsDocLoader::OnProgress(nsIRequest *aRequest, nsISupports* ctxt,
     }
 
     // Update the current progress count...
-    progressDelta = nsInt64(PRInt64(aProgress)) - info->mCurrentProgress;
+    progressDelta = PRInt64(aProgress) - info->mCurrentProgress;
     mCurrentSelfProgress += progressDelta;
 
     info->mCurrentProgress = PRInt64(aProgress);
@@ -1152,13 +1173,16 @@ NS_IMETHODIMP nsDocLoader::OnStatus(nsIRequest* aRequest, nsISupports* ctxt,
         info->mMaxProgress = LL_ZERO;
       }
     }
-    
-    nsresult rv;
-    nsCOMPtr<nsIStringBundleService> sbs = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-    if (NS_FAILED(rv)) return rv;
+
+    nsCOMPtr<nsIStringBundleService> sbs =
+      mozilla::services::GetStringBundleService();
+    if (!sbs)
+      return NS_ERROR_FAILURE;
     nsXPIDLString msg;
-    rv = sbs->FormatStatusMessage(aStatus, aStatusArg, getter_Copies(msg));
-    if (NS_FAILED(rv)) return rv;
+    nsresult rv = sbs->FormatStatusMessage(aStatus, aStatusArg,
+                                           getter_Copies(msg));
+    if (NS_FAILED(rv))
+      return rv;
 
     // Keep around the message. In case a request finishes, we need to make sure
     // to send the status message of another request to our user to that we
@@ -1294,12 +1318,13 @@ void nsDocLoader::FireOnStateChange(nsIWebProgress *aProgress,
    */
   nsCOMPtr<nsIWebProgressListener> listener;
   PRInt32 count = mListenerInfoList.Count();
+  PRInt32 notifyMask = (aStateFlags >> 16) & nsIWebProgress::NOTIFY_STATE_ALL;
 
   while (--count >= 0) {
     nsListenerInfo *info;
 
     info = static_cast<nsListenerInfo*>(mListenerInfoList.SafeElementAt(count));
-    if (!info || !(info->mNotifyMask & (aStateFlags >>16))) {
+    if (!info || !(info->mNotifyMask & notifyMask)) {
       continue;
     }
 
@@ -1545,10 +1570,10 @@ CalcMaxProgressCallback(PLDHashTable *table, PLDHashEntryHdr *hdr,
                         PRUint32 number, void *arg)
 {
   const nsRequestInfo *info = static_cast<const nsRequestInfo *>(hdr);
-  nsInt64 *max = static_cast<nsInt64 *>(arg);
+  PRInt64 *max = static_cast<PRInt64 *>(arg);
 
   if (info->mMaxProgress < info->mCurrentProgress) {
-    *max = nsInt64(-1);
+    *max = PRInt64(-1);
 
     return PL_DHASH_STOP;
   }
@@ -1560,14 +1585,15 @@ CalcMaxProgressCallback(PLDHashTable *table, PLDHashEntryHdr *hdr,
 
 PRInt64 nsDocLoader::CalculateMaxProgress()
 {
-  nsInt64 max = mCompletedTotalProgress;
+  PRInt64 max = mCompletedTotalProgress;
   PL_DHashTableEnumerate(&mRequestInfoHash, CalcMaxProgressCallback, &max);
   return max;
 }
 
-NS_IMETHODIMP nsDocLoader::OnChannelRedirect(nsIChannel *aOldChannel,
-                                             nsIChannel *aNewChannel,
-                                             PRUint32    aFlags)
+NS_IMETHODIMP nsDocLoader::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
+                                                  nsIChannel *aNewChannel,
+                                                  PRUint32 aFlags,
+                                                  nsIAsyncVerifyRedirectCallback *cb)
 {
   if (aOldChannel)
   {
@@ -1592,6 +1618,7 @@ NS_IMETHODIMP nsDocLoader::OnChannelRedirect(nsIChannel *aOldChannel,
     FireOnStateChange(this, aOldChannel, stateFlags, NS_OK);
   }
 
+  cb->OnRedirectVerifyCallback(NS_OK);
   return NS_OK;
 }
 

@@ -23,6 +23,7 @@
 # Contributor(s):
 #   Karsten Düsterloh <mnyromyr@tprac.de>
 #   Simon Paquet <bugzilla@babylonsounds.com>
+#   Thomas Düllmann <bugzilla2010@duellmann24.net>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -36,6 +37,12 @@
 # the terms of any one of the MPL, the GPL or the LGPL.
 #
 # ***** END LICENSE BLOCK *****
+
+#ifdef XP_UNIX
+#ifndef XP_MACOSX
+#define XP_GNOME 1
+#endif
+#endif
 
 <?xml-stylesheet href="chrome://messenger/skin/folderMenus.css" type="text/css"?>
 <?xml-stylesheet href="chrome://communicator/skin/tasksOverlay.css" type="text/css"?>
@@ -60,6 +67,8 @@
   %msgViewPickerDTD;
   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
   %brandDTD;
+  <!ENTITY % textcontextDTD SYSTEM "chrome://global/locale/textcontext.dtd">
+  %textcontextDTD;
 ]>
 
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
@@ -106,8 +115,6 @@
 
     <command id="cmd_getNewMessages" oncommand="goDoCommand('cmd_getNewMessages')" disabled="true"/>
     <command id="cmd_open" oncommand="goDoCommand('cmd_open')"/>
-
-    <command id="cmd_file" disabled="true"/>
 
     <command id="cmd_emptyTrash" oncommand="goDoCommand('cmd_emptyTrash')" disabled="true"/>
     <command id="cmd_compactFolder" oncommand="goDoCommand('cmd_compactFolder')" disabled="true"/>
@@ -198,14 +205,11 @@
          valueMessageAccessKey="&deleteMsgCmd.accesskey;"
          valueIMAPDeletedMessage="&undeleteMsgCmd.label;"
          valueIMAPDeletedMessageAccessKey="&undeleteMsgCmd.accesskey;"
-         valueNewsMessage="&cancelNewsMsgCmd.label;"
-         valueNewsMessageAccessKey="&cancelNewsMsgCmd.accesskey;"
          valueMessages="&deleteMsgsCmd.label;"
          valueMessagesAccessKey="&deleteMsgsCmd.accesskey;"
          valueIMAPDeletedMessages="&undeleteMsgsCmd.label;"
-         valueIMAPDeletedMessagesAccessKey="&undeleteMsgsCmd.accesskey;"
-         valueNewsMessages="&cancelNewsMsgsCmd.label;"
-         valueNewsMessagesAccessKey="&cancelNewsMsgsCmd.accesskey;"/>
+         valueIMAPDeletedMessagesAccessKey="&undeleteMsgsCmd.accesskey;"/>
+  <command id="cmd_cancel" oncommand="goDoCommand('cmd_cancel')"/>
   <command id="cmd_selectAll"/>
   <command id="cmd_selectThread" oncommand="goDoCommand('cmd_selectThread')"/>
   <command id="cmd_selectFlagged" oncommand="goDoCommand('cmd_selectFlagged')"/>
@@ -216,6 +220,7 @@
   <command id="cmd_find" oncommand="goDoCommand('cmd_find')" disabled="true"/>
   <command id="cmd_findAgain" oncommand="goDoCommand('cmd_findAgain')" disabled="true"/>
   <command id="cmd_findPrevious"  oncommand="goDoCommand('cmd_findPrevious')"  disabled="true"/>
+  <!-- Stop/abort current network activities. -->
   <command id="cmd_stop" oncommand="goDoCommand('cmd_stop')"/>
   <command id="cmd_reload" oncommand="goDoCommand('cmd_reload')"/>
 </commandset>
@@ -238,6 +243,7 @@
   <command id="cmd_previousUnreadMsg" oncommand="goDoCommand('cmd_previousUnreadMsg')" disabled="true"/>
   <command id="cmd_previousFlaggedMsg" oncommand="goDoCommand('cmd_previousFlaggedMsg')" disabled="true"/>
   <command id="cmd_goStartPage" oncommand="goDoCommand('cmd_goStartPage');"/>
+  <command id="cmd_undoCloseTab" oncommand="goDoCommand('cmd_undoCloseTab');"/> 
   <command id="cmd_goForward" oncommand="goDoCommand('cmd_goForward')" disabled="true"/>
   <command id="cmd_goBack" oncommand="goDoCommand('cmd_goBack')" disabled="true"/>
 </commandset>
@@ -305,7 +311,9 @@
               events="create-menu-mark"
               oncommandupdate="goUpdateMailMenuItems(this)">
 
+    <command id="cmd_toggleRead" oncommand="goDoCommand('cmd_toggleRead'); event.stopPropagation()" disabled="true"/>
     <command id="cmd_markAsRead" oncommand="goDoCommand('cmd_markAsRead'); event.stopPropagation()" disabled="true"/>
+    <command id="cmd_markAsUnread" oncommand="goDoCommand('cmd_markAsUnread'); event.stopPropagation()" disabled="true"/>
     <command id="cmd_markAllRead" oncommand="goDoCommand('cmd_markAllRead'); event.stopPropagation()" disabled="true"/>
     <command id="cmd_markThreadAsRead" oncommand="goDoCommand('cmd_markThreadAsRead'); event.stopPropagation()" disabled="true"/>
     <command id="cmd_markReadByDate" oncommand="goDoCommand('cmd_markReadByDate');" disabled="true"/>
@@ -352,6 +360,7 @@
   <!-- File Menu -->
   <key id="key_close"/>
 #ifndef XP_MACOSX
+  <key id="key_close2" keycode="VK_F4" modifiers="accel" command="cmd_close"/>
   <key id="key_renameFolder" keycode="&renameFolder.key;" oncommand="goDoCommand('cmd_renameFolder')"/>
 #endif
 #ifdef XP_UNIX
@@ -381,7 +390,7 @@
   <key id="key_selectAll"/>
   <key id="key_selectThread" key="&selectThreadCmd.key;"             oncommand="goDoCommand('cmd_selectThread');" modifiers="accel, shift"/>
 
-  <key id="key_toggleRead" key="&markAsReadCmd.key;"                 oncommand="goDoCommand('cmd_markAsRead');"/>
+  <key id="key_toggleRead" key="&toggleReadCmd.key;"                 oncommand="goDoCommand('cmd_toggleRead');"/>
   <key id="key_toggleFlagged" key="&markStarredCmd.key;"             oncommand="goDoCommand('cmd_markAsFlagged');"/>
   <key id="key_markJunk" key="&markAsJunkCmd.key;"                   oncommand="goDoCommand('cmd_markAsJunk');"/>
   <key id="key_markNotJunk" key="&markAsNotJunkCmd.key;"             oncommand="goDoCommand('cmd_markAsNotJunk');"
@@ -405,6 +414,7 @@
   <key id="key_goForward" key="&goForwardCmd.commandKey;"            oncommand="goDoCommand('cmd_goForward')"/>
   <key id="key_goBack" key="&goBackCmd.commandKey;"                  oncommand="goDoCommand('cmd_goBack')"/>
   <key id="key_goStartPage" keycode="VK_HOME"                        oncommand="goDoCommand('cmd_goStartPage')" modifiers="alt"/>
+  <key id="key_undoCloseTab" key="&undoCloseTabCmd.commandkey;"      oncommand="goDoCommand('cmd_undoCloseTab')" modifiers="accel, shift"/> 
   <key id="key_reply" key="&replyMsgCmd.key;"                        oncommand="goDoCommand('cmd_reply')" modifiers="accel"/>
   <key id="key_replyall" key="&replyToAllMsgCmd.key;"                oncommand="goDoCommand('cmd_replyall')" modifiers="accel, shift"/>
   <key id="key_replylist" key="&replyToListMsgCmd.key;"              oncommand="goDoCommand('cmd_replylist')" modifiers="accel, shift"/>
@@ -423,23 +433,22 @@
   <key id="key_print" key="&printCmd.key;"                           oncommand="goDoCommand('cmd_print')" modifiers="accel"/>
   <key id="key_saveAsFile" key="&saveAsFileCmd.key;"                 oncommand="goDoCommand('cmd_saveAsFile')" modifiers="accel"/>
   <key id="key_viewPageSource" key="&pageSourceCmd.key;"             oncommand="goDoCommand('cmd_viewPageSource')" modifiers="accel"/>
-  <key id="key_getNewMessages" key="&getNewMsgCmd.key;"              oncommand="goDoCommand('cmd_getNewMessages')" modifiers="accel"/>
-#ifdef XP_WIN
-  <key id="key_getNewMessages2" keycode="VK_F5" oncommand="goDoCommand('cmd_getNewMessages')"/>
-#elifdef XP_UNIX
-  <key id="key_getNewMessages2" keycode="VK_F9" oncommand="goDoCommand('cmd_getNewMessages')"/>
+  <key id="key_getNewMessages" keycode="VK_F5"
+       oncommand="goDoCommand('cmd_getNewMessages');"/>
+  <key id="key_getAllNewMessages" keycode="VK_F5" modifiers="shift"
+       oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"/>
+#ifdef XP_GNOME
+  <key id="key_getNewMessages2" keycode="VK_F9"
+       oncommand="goDoCommand('cmd_getNewMessages');"/>
+  <key id="key_getAllNewMessages2" keycode="VK_F9" modifiers="shift"
+       oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"/>
 #endif
-  <key id="key_getAllNewMessages"
-       key="&getAllNewMsgCmd.key;"
-       oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"
-       modifiers="accel, shift"/>
   <key id="key_find" key="&findCmd.key;"  oncommand="goDoCommand('cmd_find')" modifiers="accel"/>
   <key id="key_findAgain" key="&findAgainCmd.key;"   oncommand="goDoCommand('cmd_findAgain')" modifiers="accel"/>
   <key id="key_findPrev"  key="&findPrevCmd.key;"    oncommand="goDoCommand('cmd_findPrevious')"  modifiers="accel, shift"/>
   <key keycode="&findAgainCmd.key2;"   oncommand="goDoCommand('cmd_findAgain')"/>
   <key keycode="&findPrevCmd.key2;"    oncommand="goDoCommand('cmd_findPrevious')"  modifiers="shift"/>
   <key id="key_quickSearchFocus" key="&quickSearchCmd.key;"  oncommand="QuickSearchFocus()" modifiers="accel"/>
-  <key id="key_stop" keycode="VK_ESCAPE" command="cmd_stop"/>
 
   <keyset id="viewZoomKeys">
     <key id="key_fullZoomReduce"  key="&fullZoomReduceCmd.commandkey;"
@@ -504,12 +513,6 @@
        modifiers="accel"
        oncommand="openSavedFilesWnd();"/>
 
-#ifdef XP_UNIX
-#ifndef XP_MACOSX
-#define XP_GNOME 1
-#endif
-#endif
-
 #ifdef XP_GNOME
 #define NUM_SELECT_TAB_MODIFIER alt
 #else
@@ -539,9 +542,21 @@
   <keyset id="baseMenuKeyset"/>
 </keyset>
 
-  <popup id="mailContext"
-         onpopupshowing="return fillMailContextMenu(event);"
-         onpopuphiding="mailContextOnPopupHiding(event);">
+  <!-- "Please keep all items and separators up to date in nsContextMenu.js when making changes here" -->
+  <menupopup id="mailContext"
+             onpopupshowing="return fillMailContextMenu(event);"
+             onpopuphiding="mailContextOnPopupHiding(event);">
+
+    <!-- Spellchecking suggestions -->
+    <menuitem id="mailContext-spell-no-suggestions"
+              disabled="true"
+              label="&spellNoSuggestions.label;"/>
+    <menuitem id="mailContext-spell-add-to-dictionary"
+              label="&spellAddToDictionary.label;"
+              accesskey="&spellAddToDictionary.accesskey;"
+              oncommand="gSpellChecker.addToDictionary();"/>
+    <menuseparator id="mailContext-spell-suggestions-separator"/>
+
     <menuitem id="mailContext-openInBrowser"
               label="&openInBrowser.label;"
               accesskey="&openInBrowser.accesskey;"
@@ -564,10 +579,7 @@
               label="&undoDefaultCmd.label;"
               accesskey="&undoDefaultCmd.accesskey;"
               command="cmd_undo"/>
-    <menuitem id="mailContext-selectall"
-              label="&selectAllCmd.label;"
-              accesskey="&selectAllCmd.accesskey;"
-              command="cmd_selectAll"/>
+    <menuseparator id="mailContext-sep-undo"/>
     <menuitem id="mailContext-cut"
               label="&cutCmd.label;"
               accesskey="&cutCmd.accesskey;"
@@ -580,6 +592,35 @@
               label="&pasteCmd.label;"
               accesskey="&pasteCmd.accesskey;"
               command="cmd_paste"/>
+    <menuseparator id="mailContext-sep-clipboard"/>
+    <menuitem id="mailContext-selectall"
+              label="&selectAllCmd.label;"
+              accesskey="&selectAllCmd.accesskey;"
+              command="cmd_selectAll"/>
+
+    <!-- Spellchecking general menu items (enable, add dictionaries...) -->
+    <menuseparator id="mailContext-spell-separator"/>
+    <menuitem id="mailContext-spell-check-enabled"
+              label="&spellCheckEnable.label;"
+              type="checkbox"
+              accesskey="&spellCheckEnable.accesskey;"
+              oncommand="gSpellChecker.toggleEnabled();"/>
+    <menuitem id="mailContext-spell-add-dictionaries-main"
+              label="&spellAddDictionaries.label;"
+              accesskey="&spellAddDictionaries.accesskey;"
+              oncommand="gContextMenu.addDictionaries();"/>
+    <menu id="mailContext-spell-dictionaries"
+          label="&spellDictionaries.label;"
+          accesskey="&spellDictionaries.accesskey;">
+        <menupopup id="mailContext-spell-dictionaries-menu">
+            <menuseparator id="mailContext-spell-language-separator"/>
+            <menuitem id="mailContext-spell-add-dictionaries"
+                      label="&spellAddDictionaries.label;"
+                      accesskey="&spellAddDictionaries.accesskey;"
+                      oncommand="gContextMenu.addDictionaries();"/>
+        </menupopup>
+    </menu>
+
     <menuseparator id="mailContext-sep-open"/>
     <menuitem id="mailContext-media-play"
               label="&contextPlay.label;"
@@ -610,18 +651,14 @@
               accesskey="&contextOpenConversation.accesskey;"
               oncommand="gConversationOpener.openConversationForMessages(gFolderDisplay.selectedMessages);"/>
     <menuseparator id="mailContext-sep-open2"/>
-    <menuitem id="mailContext-archive"
-              label="&contextArchive.label;"
-              accesskey="&contextArchive.accesskey;"
-              oncommand="MsgArchiveSelectedMessages(event);"/>
-    <menuitem id="mailContext-replySender"
-              label="&contextReplySender.label;"
-              accesskey="&contextReplySender.accesskey;"
-              oncommand="MsgReplySender(event);"/>
     <menuitem id="mailContext-replyNewsgroup"
               label="&contextReplyNewsgroup.label;"
               accesskey="&contextReplyNewsgroup.accesskey;"
               oncommand="MsgReplyGroup(event);"/>
+    <menuitem id="mailContext-replySender"
+              label="&contextReplySender.label;"
+              accesskey="&contextReplySender.accesskey;"
+              oncommand="MsgReplySender(event);"/>
     <menuitem id="mailContext-replyAll"
               label="&contextReplyAll.label;"
               accesskey="&contextReplyAll.accesskey;"
@@ -643,54 +680,17 @@
               accesskey="&contextEditAsNew.accesskey;"
               oncommand="MsgEditMessageAsNew();"/>
     <menuseparator id="mailContext-sep-reply"/>
-    <menuitem id="mailContext-copyMessageUrl"
-              label="&copyMessageLocation.label;"
-              accesskey="&copyMessageLocation.accesskey;"
-              oncommand="CopyMessageUrl()"/>
-    <menu id="mailContext-moveMenu"
-          label="&contextMoveMsgMenu.label;"
-          accesskey="&contextMoveMsgMenu.accesskey;"
-          oncommand="MsgMoveMessage(event.target._folder)">
-      <menupopup id="mailContext-fileHereMenu"
-                 type="folder"
-                 mode="filing"
-                 showFileHereLabel="true"
-                 showRecent="true"
-                 fileHereLabel="&fileHereMenu.label;"
-                 fileHereAccessKey="&fileHereMenu.accesskey;"
-                 recentLabel="&contextMoveCopyMsgRecentMenu.label;"
-                 recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
-    </menu>
-    <menu id="mailContext-copyMenu"
-          label="&contextCopyMsgMenu.label;"
-          accesskey="&contextCopyMsgMenu.accesskey;"
-          oncommand="MsgCopyMessage(event.target._folder)">
-      <menupopup id="mailContext-copyHereMenu"
-                 type="folder"
-                 mode="filing"
-                 showFileHereLabel="true"
-                 showRecent="true"
-                 fileHereLabel="&copyHereMenu.label;"
-                 fileHereAccessKey="&copyHereMenu.accesskey;"
-                 recentLabel="&contextMoveCopyMsgRecentMenu.label;"
-                 recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
-    </menu>
-    <menuitem id="mailContext-moveToFolderAgain"
-              command="cmd_moveToFolderAgain"
-              label="&moveToFolderAgain.label;"
-              accesskey="&moveToFolderAgain.accesskey;"/>
-    <menuseparator id="paneContext-afterMove"/>
     <menu id="mailContext-tags" label="&tagMenu.label;" accesskey="&tagMenu.accesskey;">
       <menupopup id="mailContext-tagpopup"
                  onpopupshowing="InitMessageTags(this)">
-        <menuitem id="mailContext-tagRemoveAll"
-                  oncommand="RemoveAllMessageTags();"/>
-        <menuseparator id="mailContext-sep-afterTagRemoveAll"/>
-        <menuseparator id="mailContext-sep-beforeAddNewTag"/>
         <menuitem id="addNewTag"
                   label="&addNewTag.label;"
                   accesskey="&addNewTag.accesskey;"
                   oncommand="AddTag();"/>
+        <menuseparator id="mailContext-sep-afterTagAddNew"/>
+        <menuitem id="mailContext-tagRemoveAll"
+                  oncommand="RemoveAllMessageTags();"/>
+        <menuseparator id="mailContext-sep-afterTagRemoveAll"/>
       </menupopup>
     </menu>
     <menu id="mailContext-mark"
@@ -699,10 +699,13 @@
       <menupopup id="mailContext-markPopup"
                  onpopupshowing="InitMessageMark()">
         <menuitem id="mailContext-markRead"
-                  type="checkbox"
                   label="&markAsReadCmd.label;"
                   accesskey="&markAsReadCmd.accesskey;"
                   command="cmd_markAsRead"/>
+        <menuitem id="mailContext-markUnread"
+                  label="&markAsUnreadCmd.label;"
+                  accesskey="&markAsUnreadCmd.accesskey;"
+                  command="cmd_markAsUnread"/>
         <menuitem id="mailContext-markThreadAsRead"
                   label="&markThreadAsReadCmd.label;"
                   accesskey="&markThreadAsReadCmd.accesskey;"
@@ -737,6 +740,47 @@
       </menupopup>
     </menu>
     <menuseparator id="mailContext-sep-afterMarkMenu"/>
+    <menuitem id="mailContext-copyMessageUrl"
+              label="&copyMessageLocation.label;"
+              accesskey="&copyMessageLocation.accesskey;"
+              oncommand="CopyMessageUrl()"/>
+    <menuitem id="mailContext-archive"
+              label="&contextArchive.label;"
+              accesskey="&contextArchive.accesskey;"
+              oncommand="MsgArchiveSelectedMessages(event);"/>
+    <menu id="mailContext-moveMenu"
+          label="&contextMoveMsgMenu.label;"
+          accesskey="&contextMoveMsgMenu.accesskey;"
+          oncommand="MsgMoveMessage(event.target._folder)">
+      <menupopup id="mailContext-fileHereMenu"
+                 type="folder"
+                 mode="filing"
+                 showFileHereLabel="true"
+                 showRecent="true"
+                 fileHereLabel="&fileHereMenu.label;"
+                 fileHereAccessKey="&fileHereMenu.accesskey;"
+                 recentLabel="&contextMoveCopyMsgRecentMenu.label;"
+                 recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
+    </menu>
+    <menu id="mailContext-copyMenu"
+          label="&contextCopyMsgMenu.label;"
+          accesskey="&contextCopyMsgMenu.accesskey;"
+          oncommand="MsgCopyMessage(event.target._folder)">
+      <menupopup id="mailContext-copyHereMenu"
+                 type="folder"
+                 mode="filing"
+                 showFileHereLabel="true"
+                 showRecent="true"
+                 fileHereLabel="&copyHereMenu.label;"
+                 fileHereAccessKey="&copyHereMenu.accesskey;"
+                 recentLabel="&contextMoveCopyMsgRecentMenu.label;"
+                 recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
+    </menu>
+    <menuitem id="mailContext-moveToFolderAgain"
+              command="cmd_moveToFolderAgain"
+              label="&moveToFolderAgain.label;"
+              accesskey="&moveToFolderAgain.accesskey;"/>
+    <menuseparator id="paneContext-afterMove"/>
     <menuitem id="mailContext-saveAs"
               label="&contextSaveAs.label;"
               accesskey="&contextSaveAs.accesskey;"
@@ -744,11 +788,13 @@
     <menuitem id="mailContext-printpreview"
               label="&contextPrintPreview.label;"
               accesskey="&contextPrintPreview.accesskey;"
-              oncommand="PrintEnginePrintPreview();"/>
+              observes="cmd_printpreview"
+              command="cmd_printpreview"/>
     <menuitem id="mailContext-print"
               label="&contextPrint.label;"
               accesskey="&contextPrint.accesskey;"
-              oncommand="PrintEnginePrint();"/>
+              observes="cmd_print"
+              command="cmd_print"/>
     <menuitem id="mailContext-delete"
               command="cmd_delete"/>
     <menuitem id="downloadSelected"
@@ -790,11 +836,12 @@
               label="&reportPhishingURL.label;"
               accesskey="&reportPhishingURL.accesskey;"
               oncommand="gPhishingDetector.reportPhishingURL(gContextMenu.linkURL);"/>
-  </popup>
 
-  <popup id="folderPaneContext"
-         onpopupshowing="return fillFolderPaneContextMenu();"
-         onpopuphiding="if (event.target == this) folderPaneOnPopupHiding();">
+  </menupopup>
+
+  <menupopup id="folderPaneContext"
+             onpopupshowing="return fillFolderPaneContextMenu();"
+             onpopuphiding="if (event.target == this) folderPaneOnPopupHiding();">
     <menuitem id="folderPaneContext-getMessages"
               label="&folderContextGetMessages.label;"
               accesskey="&folderContextGetMessages.accesskey;"
@@ -872,16 +919,16 @@
               label="&folderContextSettings.label;"
               accesskey="&folderContextSettings.accesskey;"
               oncommand="gFolderTreeController.editFolder();"/>
-  </popup>
+  </menupopup>
 
-  <popup id="toolbar-context-menu"
-         onpopupshowing="onViewToolbarsPopupShowing(event, 'mail-toolbox');">
+  <menupopup id="toolbar-context-menu"
+             onpopupshowing="onViewToolbarsPopupShowing(event, 'mail-toolbox');">
     <menuseparator id="customizeMailToolbarMenuSeparator"/>
     <menuitem id="CustomizeMailToolbar"
               command="cmd_CustomizeMailToolbar"
               label="&customizeToolbar.label;"
               accesskey="&customizeToolbar.accesskey;"/>
-  </popup>
+  </menupopup>
 
 <toolbox id="mail-toolbox"
          class="toolbox-top"
@@ -1335,6 +1382,28 @@
                     accesskey="&goBackCmd.accesskey;" command="cmd_goBack"
                     key="key_goBack"/>
           <menuseparator id="goNextSeparator"/>
+          <menu id="goFolderMenu"
+                label="&folderMenu.label;"
+                accesskey="&folderMenu.accesskey;"
+                oncommand="gFolderTreeView.selectFolder(event.target._folder, true)">
+            <menupopup id="menu_GoFolderPopup"
+                       type="folder"
+                       showFileHereLabel="true"
+                       fileHereLabel="&thisFolder.label;"
+                       fileHereAccessKey="&thisFolder.accesskey;"
+                       showRecent="true"
+                       recentLabel="&contextMoveCopyMsgRecentMenu.label;"
+                       recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
+          </menu>
+          <menuseparator id="goFolderSeparator"/>
+          
+          <menu id="goRecentlyClosedTabs"
+                label="&goRecentlyClosedTabs.label;">
+            <menupopup id="menu_GoRecentlyClosedTabsPopup"
+                       onpopupshowing="return InitRecentlyClosedTabsPopup(this)" />
+          </menu>
+          <menuseparator id="goRecentlyClosedTabsSeparator"/>
+               
           <menuitem id="goStartPage"
                     label="&startPageCmd.label;"
                     accesskey="&startPageCmd.accesskey;"
@@ -1350,21 +1419,17 @@
                       accesskey="&newMsgCmd.accesskey;"
                       key="key_newMessage2"
                       oncommand="MsgNewMessage(null);"/>
-            <menuitem id="archiveMainMenu" label="&archiveMsgCmd.label;"
-                      accesskey="&archiveMsgCmd.accesskey;"
-                      key="key_archive"
-                      command="cmd_archive"/>
             <menuitem id="replyMainMenu" label="&replyMsgCmd.label;"
                       accesskey="&replyMsgCmd.accesskey;"
                       key="key_reply"
                       command="cmd_reply"/>
-            <menuitem id="replySenderMainMenu" label="&replySenderCmd.label;"
-                      accesskey="&replySenderCmd.accesskey;"
-                      command="cmd_replySender"/>
             <menuitem id="replyNewsgroupMainMenu" label="&replyNewsgroupCmd.label;"
                       accesskey="&replyNewsgroupCmd.accesskey;"
                       key="key_reply"
                       command="cmd_replyGroup"/>
+            <menuitem id="replySenderMainMenu" label="&replySenderCmd.label;"
+                      accesskey="&replySenderCmd.accesskey;"
+                      command="cmd_replySender"/>
             <menuitem id="menu_replyToAll" label="&replyToAllMsgCmd.label;"
                       accesskey="&replyToAllMsgCmd.accesskey;"
                       key="key_replyall"
@@ -1393,6 +1458,7 @@
                       accesskey="&editMsgAsNewCmd.accesskey;"
                       key="key_editAsNew"
                       command="cmd_editAsNew"/>
+            <menuseparator id="messageMenuAfterCompositionCommandsSeparator"/>
             <menuitem id="openMessageWindowMenuitem" label="&openMessageWindowCmd.label;"
                       command="cmd_openMessage"
                       accesskey="&openMessageWindowCmd.accesskey;"
@@ -1426,41 +1492,23 @@
               </menupopup>
             </menu>
             <menuseparator id="messageAfterOpenMsgSeparator"/>
-            <menu id="moveMenu"
-                  label="&moveMsgToMenu.label;"
-                  accesskey="&moveMsgToMenu.accesskey;"
-                  oncommand="MsgMoveMessage(event.target._folder)">
-              <menupopup type="folder" mode="filing" showFileHereLabel="true"
-                         showRecent="true" fileHereLabel="&fileHereMenu.label;"
-                         fileHereAccessKey="&fileHereMenu.accesskey;"
-                         recentLabel="&moveCopyMsgRecentMenu.label;"
-                         recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
-            </menu>
-            <menu id="copyMenu"
-                  label="&copyMsgToMenu.label;"
-                  accesskey="&copyMsgToMenu.accesskey;"
-                  oncommand="MsgCopyMessage(event.target._folder)">
-              <menupopup type="folder" mode="filing" showFileHereLabel="true"
-                         showRecent="true" fileHereLabel="&copyHereMenu.label;"
-                         fileHereAccessKey="&copyHereMenu.accesskey;"
-                         recentLabel="&moveCopyMsgRecentMenu.label;"
-                         recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
-            </menu>
-            <menuitem id="moveToFolderAgain" key="key_moveToFolderAgain" command="cmd_moveToFolderAgain"
-                      label="&moveToFolderAgain.label;" accesskey="&moveToFolderAgain.accesskey;"/>
             <menu id="tagMenu" label="&tagMenu.label;" accesskey="&tagMenu.accesskey;" command="cmd_tag">
               <menupopup id="tagMenu-tagpopup" onpopupshowing="InitMessageTags(this)">
-              <menuitem id="tagMenu-tagRemoveAll" oncommand="RemoveAllMessageTags();"/>
-                <menuseparator id="tagMenuAfterRemoveSeparator"/>
-                <menuseparator id="tagMenuBeforeAddSeparator"/>
                 <menuitem id="addNewTag" label="&addNewTag.label;" accesskey="&addNewTag.accesskey;"
                           oncommand="AddTag();"/>
+                <menuseparator id="tagMenu-sep-afterTagAddNew"/>
+                <menuitem id="tagMenu-tagRemoveAll" oncommand="RemoveAllMessageTags();"/>
+                <menuseparator id="tagMenuAfterRemoveSeparator"/>
               </menupopup>
             </menu>
             <menu id="markMenu" label="&markMenu.label;" accesskey="&markMenu.accesskey;">
               <menupopup id="menu_MarkPopup" onpopupshowing="InitMessageMark()">
-                <menuitem type="checkbox" id="markReadMenuItem" label="&markAsReadCmd.label;" accesskey="&markAsReadCmd.accesskey;" command="cmd_markAsRead"
-                          key="key_toggleRead"/>
+                <menuitem id="markReadMenuItem" label="&markAsReadCmd.label;"
+                          accesskey="&markAsReadCmd.accesskey;"
+                          command="cmd_markAsRead"/>
+                <menuitem id="markUnreadMenuItem" label="&markAsUnreadCmd.label;"
+                          accesskey="&markAsUnreadCmd.accesskey;"
+                          command="cmd_markAsUnread"/>
                 <menuitem id="menu_markThreadAsRead" label="&markThreadAsReadCmd.label;" accesskey="&markThreadAsReadCmd.accesskey;" command="cmd_markThreadAsRead"
                           key="key_markThreadAsRead"/>
                 <menuitem id="menu_markReadByDate" label="&markReadByDateCmd.label;" accesskey="&markReadByDateCmd.accesskey;" command="cmd_markReadByDate"
@@ -1489,6 +1537,36 @@
               </menupopup>
             </menu>
             <menuseparator id="messageMenuAfterMarkSeparator"/>
+            <menuitem id="archiveMainMenu" label="&archiveMsgCmd.label;"
+                      accesskey="&archiveMsgCmd.accesskey;"
+                      key="key_archive"
+                      command="cmd_archive"/>
+            <menuitem id="menu_cancel" command="cmd_cancel"
+                      label="&cancelNewsMsgCmd.label;"
+                      accesskey="&cancelNewsMsgCmd.accesskey;"/>
+            <menu id="moveMenu"
+                  label="&moveMsgToMenu.label;"
+                  accesskey="&moveMsgToMenu.accesskey;"
+                  oncommand="MsgMoveMessage(event.target._folder)">
+              <menupopup type="folder" mode="filing" showFileHereLabel="true"
+                         showRecent="true" fileHereLabel="&fileHereMenu.label;"
+                         fileHereAccessKey="&fileHereMenu.accesskey;"
+                         recentLabel="&moveCopyMsgRecentMenu.label;"
+                         recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
+            </menu>
+            <menu id="copyMenu"
+                  label="&copyMsgToMenu.label;"
+                  accesskey="&copyMsgToMenu.accesskey;"
+                  oncommand="MsgCopyMessage(event.target._folder)">
+              <menupopup type="folder" mode="filing" showFileHereLabel="true"
+                         showRecent="true" fileHereLabel="&copyHereMenu.label;"
+                         fileHereAccessKey="&copyHereMenu.accesskey;"
+                         recentLabel="&moveCopyMsgRecentMenu.label;"
+                         recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
+            </menu>
+            <menuitem id="moveToFolderAgain" key="key_moveToFolderAgain" command="cmd_moveToFolderAgain"
+                      label="&moveToFolderAgain.label;" accesskey="&moveToFolderAgain.accesskey;"/>
+            <menuseparator id="messageMenuAfterMoveCommandsSeparator"/>
             <menuitem id="createFilter" label="&createFilter.label;"
                       accesskey="&createFilter.accesskey;"
                       command="cmd_createFilterFromMenu"/>
@@ -1768,11 +1846,13 @@
                    tooltiptext="&markButton.tooltip;">
       <menupopup id="button-markPopup" onpopupshowing="InitMessageMark()">
         <menuitem id="markReadToolbarItem"
-                  type="checkbox"
-                  key="key_toggleRead"
                   label="&markAsReadCmd.label;"
                   accesskey="&markAsReadCmd.accesskey;"
                   command="cmd_markAsRead" />
+        <menuitem id="markUnreadToolbarItem"
+                  label="&markAsUnreadCmd.label;"
+                  accesskey="&markAsUnreadCmd.accesskey;"
+                  command="cmd_markAsUnread" />
         <menuitem id="button-markThreadAsRead"
                   label="&markThreadAsReadCmd.label;"
                   key="key_markThreadAsRead"
@@ -1804,13 +1884,13 @@
                    tooltiptext="&tagButton.tooltip;"
                    command="cmd_tag">
       <menupopup id="button-tagpopup" onpopupshowing="InitMessageTags(this)">
-        <menuitem id="button-tagRemoveAll" oncommand="RemoveAllMessageTags();"/>
-        <menuseparator id="button-afterTagRemoveAllSeparator"/>
-        <menuseparator id="beforeAddNewTagSeparator"/>
         <menuitem id="addNewTag"
                   label="&addNewTag.label;"
                   accesskey="&addNewTag.accesskey;"
                   oncommand="AddTag();"/>
+        <menuseparator id="button-tagpopup-sep-afterTagAddNew"/>
+        <menuitem id="button-tagRemoveAll" oncommand="RemoveAllMessageTags();"/>
+        <menuseparator id="button-afterTagRemoveAllSeparator"/>
       </menupopup>
     </toolbarbutton>
     <toolbarbutton id="button-address"
@@ -1860,6 +1940,8 @@
     <image id="phishingBarImage"/>
     <vbox flex="1">
       <description flex="1" class="msgNotificationBarText">&phishingBarMessage2.label;</description>
+      <label id="disablePhishingWarning" class="msgNotificaton-smallText text-link"
+             value="&disablePhishingWarning1.label;" onclick="DisablePhishingWarning();"/>
       <label id="reportPhishingError" value="&reportPhishingError1.label;" class="msgNotificaton-smallText text-link" collapsed="true"/>
     </vbox>
     <button label="&removePhishingBarButton1.label;" oncommand="IgnorePhishingWarning();"/>
@@ -1884,9 +1966,13 @@
 
   <hbox id="mdnBar" class="msgNotificationBar" align="center">
     <image id="mdnBarImage"/>
-    <description flex="1" class="msgNotificationBarText">&mdnBarMessage.label;</description>
-    <button label="&mdnBarIgnoreButton.label;" oncommand="IgnoreMDNResponse();"/>
-    <button label="&mdnBarSendButton.label;" oncommand="SendMDNResponse();"/>
+    <description id="mdnBarMessage" class="msgNotificationBarText" flex="1"/>
+    <button label="&mdnBarIgnoreButton2.label;"
+            accesskey="&mdnBarIgnoreButton2.accesskey;"
+            oncommand="IgnoreMDNResponse();"/>
+    <button label="&mdnBarSendButton2.label;"
+            accesskey="&mdnBarSendButton2.accesskey;"
+            oncommand="SendMDNResponse();"/>
   </hbox>
 
 </deck>

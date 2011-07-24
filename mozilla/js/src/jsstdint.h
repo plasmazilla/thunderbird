@@ -71,6 +71,9 @@ typedef JSUint16 uint16_t;
 typedef JSUint32 uint32_t;
 typedef JSUint64 uint64_t;
 
+/* Suppress other, conflicting attempts to define stdint-bits. */
+#define _STDINT_H
+
 /* If JS_STDDEF_H_HAS_INTPTR_T or JS_CRTDEFS_H_HAS_INTPTR_T are
    defined, then jsinttypes.h included the given header, which
    introduced definitions for intptr_t and uintptr_t.  Otherwise,
@@ -101,6 +104,10 @@ typedef JSUintPtr uintptr_t;
  * we would require compiler assistance, and at the moment we don't need
  * preprocessor-correctness.
  */
+#ifdef _MSC_VER
+#undef SIZE_MAX
+#endif
+
 #define INTPTR_MAX  ((intptr_t) (UINTPTR_MAX >> 1))
 #define INTPTR_MIN  (intptr_t(uintptr_t(INTPTR_MAX) + uintptr_t(1)))
 #define UINTPTR_MAX ((uintptr_t) -1)

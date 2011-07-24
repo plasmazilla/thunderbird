@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Global Database.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -129,8 +129,18 @@ CallbackStreamListener.prototype = {
 
     delete MsgHdrToMimeMessage.RESULT_RENDEVOUZ[aContext.spec];
 
-    for (let i = 0; i < this._callbacksThis.length; i++)
-      this._callbacks[i].call(this._callbacksThis[i], this._msgHdr, message);
+    for (let i = 0; i < this._callbacksThis.length; i++) {
+      try {
+        this._callbacks[i].call(this._callbacksThis[i], this._msgHdr, message);
+      } catch (e) {
+        // Most of the time, exceptions will silently disappear into the endless
+        // deeps of XPConnect, and never reach the surface ever again. At least
+        // warn the user if he has dump enabled.
+        dump("The MsgHdrToMimeMessage callback threw an exception: "+e+"\n");
+        // That one will probably never make it to the original caller.
+        throw(e);
+      }
+    }
 
     this._msgHdr = null;
     this._request = null;
@@ -180,6 +190,10 @@ let gMessenger = Cc["@mozilla.org/messenger;1"].
  *     situtations where we have erroneously multi-megabyte messages.  This
  *     also likely reduces the impact of legitimately ridiculously large
  *     messages.
+ * @param [aOptions.partsOnDemand] If this is a message stored on an IMAP
+ *     server, and for whatever reason, it isn't available locally, then setting
+ *     this option to true will make sure that attachments aren't downloaded.
+ *     This makes sure the message is available quickly.
  */
 function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
                              aAllowDownload, aOptions) {
@@ -191,6 +205,9 @@ function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
   let msgService = gMessenger.messageServiceFromURI(msgURI);
 
   MsgHdrToMimeMessage.OPTION_TUNNEL = aOptions;
+  let partsOnDemandStr = (aOptions && aOptions.partsOnDemand)
+    ? "&fetchCompleteMessage=false"
+    : "";
 
   // if we're already streaming this msg, just add the callback
   // to the listener.
@@ -211,7 +228,7 @@ function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
       dumbUrlListener, // nsIUrlListener
       true, // have them create the converter
       // additional uri payload, note that "header=" is prepended automatically
-      "filter&emitter=js",
+      "filter&emitter=js"+partsOnDemandStr,
       requireOffline);
   } catch (ex) {
     // If streamMessage throws an exception, we should make sure to clear the
@@ -347,6 +364,41 @@ MimeMessage.prototype = {
   },
 
   /**
+   * @return a list of all attachments contained in this message, with
+   *    included/forwarded messages treated as real attachments. Attachments
+   *    contained in inner messages won't be shown.
+   */
+  get allUserAttachments() {
+    if (this.url)
+      // The jsmimeemitter camouflaged us as a MimeAttachment
+      return [this];
+    else
+      // Why is there no flatten method for arrays?
+      return [child.allUserAttachments for each ([, child] in Iterator(this.parts))]
+        .reduce(function (a, b) a.concat(b), []);
+  },
+
+  /**
+   * @return the total size of this message, that is, the size of all subparts
+   */
+  get size () {
+    return [child.size for each ([, child] in Iterator(this.parts))]
+      .reduce(function (a, b) a + Math.max(b, 0), 0);
+  },
+
+  /**
+   * In the case of attached messages, libmime considers them as attachments,
+   * and if the body is, say, quoted-printable encoded, then libmime will start
+   * counting bytes and notify the js mime emitter about it. The JS mime emitter
+   * being a nice guy, it will try to set a size on us. While this is the
+   * expected behavior for MimeMsgAttachments, we must make sure we can handle
+   * that (failing to write a setter results in exceptions being thrown).
+   */
+  set size (whatever) {
+    // nop
+  },
+
+  /**
    * @param aMsgFolder A message folder, any message folder.  Because this is
    *    a hack.
    * @return The concatenation of all of the body parts where parts
@@ -381,19 +433,20 @@ MimeMessage.prototype = {
    *  content-type (ex: image/jpeg) displayed.  "Filler" classes simply have
    *  their class displayed.
    */
-  prettyString: function MimeMessage_prettyString(aVerbose, aIndent) {
+  prettyString: function MimeMessage_prettyString(aVerbose, aIndent,
+                                                  aDumpBody) {
     if (aIndent === undefined)
       aIndent = "";
     let nextIndent = aIndent + "  ";
 
-    let s = "Message: " + this.headers.subject;
+    let s = "Message (" + this.size + " bytes): " + this.headers.subject;
     if (aVerbose)
       s += this._prettyHeaderString(nextIndent);
 
     for (let iPart = 0; iPart < this.parts.length; iPart++) {
       let part = this.parts[iPart];
-      s += "\n" + nextIndent + (iPart+1) + " " + part.prettyString(aVerbose,
-                                                                   nextIndent);
+      s += "\n" + nextIndent + (iPart+1) + " " +
+        part.prettyString(aVerbose, nextIndent, aDumpBody);
     }
 
     return s;
@@ -423,6 +476,17 @@ MimeContainer.prototype = {
     }
     return results;
   },
+  get allUserAttachments () {
+    return [child.allUserAttachments for each ([, child] in Iterator(this.parts))]
+      .reduce(function (a, b) a.concat(b), []);
+  },
+  get size () {
+    return [child.size for each ([, child] in Iterator(this.parts))]
+      .reduce(function (a, b) a + Math.max(b, 0), 0);
+  },
+  set size (whatever) {
+    // nop
+  },
   coerceBodyToPlaintext:
       function MimeContainer_coerceBodyToPlaintext(aMsgFolder) {
     if (this.contentType == "multipart/alternative") {
@@ -433,6 +497,10 @@ MimeContainer.prototype = {
           return part.body;
         if (part.contentType == "text/html")
           htmlPart = part;
+        // text/enriched gets transformed into HTML, use it if we don't already
+        //  have an HTML part.
+        else if (!htmlPart && part.contentType == "text/enriched")
+	  htmlPart = part;
       }
       // convert the HTML part if we have one
       if (htmlPart)
@@ -441,17 +509,18 @@ MimeContainer.prototype = {
     // if it's not alternative, recurse/aggregate using MimeMessage logic
     return MimeMessage.prototype.coerceBodyToPlaintext.call(this, aMsgFolder);
   },
-  prettyString: function MimeContainer_prettyString(aVerbose, aIndent) {
+  prettyString: function MimeContainer_prettyString(aVerbose, aIndent,
+                                                    aDumpBody) {
     let nextIndent = aIndent + "  ";
 
-    let s = "Container: " + this.contentType;
+    let s = "Container (" + this.size + " bytes): " + this.contentType;
     if (aVerbose)
       s += this._prettyHeaderString(nextIndent);
 
     for (let iPart = 0; iPart < this.parts.length; iPart++) {
       let part = this.parts[iPart];
-      s += "\n" + nextIndent + (iPart+1) + " " + part.prettyString(aVerbose,
-                                                                   nextIndent);
+      s += "\n" + nextIndent + (iPart+1) + " " +
+        part.prettyString(aVerbose, nextIndent, aDumpBody);
     }
 
     return s;
@@ -482,16 +551,28 @@ MimeBody.prototype = {
   get allAttachments() {
     return []; // we are a leaf
   },
+  get allUserAttachments() {
+    return []; // we are a leaf
+  },
+  get size() {
+    return this.body.length;
+  },
+  set size (whatever) {
+    // nop
+  },
   coerceBodyToPlaintext:
       function MimeBody_coerceBodyToPlaintext(aMsgFolder) {
     if (this.contentType == "text/plain")
       return this.body;
-    if (this.contentType == "text/html")
+    // text/enriched gets transformed into HTML by libmime
+    if (this.contentType == "text/html" ||
+        this.contentType == "text/enriched")
       return aMsgFolder.convertMsgSnippetToPlainText(this.body);
     return "";
   },
-  prettyString: function MimeBody_prettyString(aVerbose, aIndent) {
-    let s = "Body: " + this.contentType + " (" + this.body.length + " bytes)";
+  prettyString: function MimeBody_prettyString(aVerbose, aIndent, aDumpBody) {
+    let s = "Body: " + this.contentType + " (" + this.body.length + " bytes" +
+      (aDumpBody ? (": '" + this.body + "'") : "") + ")";
     if (aVerbose)
       s += this._prettyHeaderString(aIndent + "  ");
     return s;
@@ -515,6 +596,10 @@ function MimeUnknown(aContentType) {
   this.partName = null;
   this.contentType = aContentType;
   this.headers = {};
+  // Looks like libmime does not always intepret us as an attachment, which
+  //  means we'll have to have a default size. Returning undefined would cause
+  //  the recursive size computations to fail.
+  this.size = 0;
 }
 
 MimeUnknown.prototype = {
@@ -522,8 +607,12 @@ MimeUnknown.prototype = {
   get allAttachments() {
     return []; // we are a leaf
   },
-  prettyString: function MimeUnknown_prettyString(aVerbose, aIndent) {
-    let s = "Unknown: " + this.contentType;
+  get allUserAttachments() {
+    return []; // we are a leaf
+  },
+  prettyString: function MimeUnknown_prettyString(aVerbose, aIndent,
+                                                  aDumpBody) {
+    let s = "Unknown: " + this.contentType + " (" + this.size + " bytes)";
     if (aVerbose)
       s += this._prettyHeaderString(aIndent + "  ");
     return s;
@@ -559,6 +648,8 @@ function getLocalizedPartStr() {
  * @ivar contentType The MIME content type of this part.
  * @ivar url The URL to stream if you want the contents of this part.
  * @ivar isExternal Is the attachment stored someplace else than in the message?
+ * @ivar size The size of the attachment if available, -1 otherwise (size is set
+ *  after initialization by jsmimeemitter.js)
  */
 function MimeMessageAttachment(aPartName, aName, aContentType, aUrl,
                                aIsExternal) {
@@ -590,10 +681,18 @@ MimeMessageAttachment.prototype = {
   get allAttachments() {
     return [this]; // we are a leaf, so just us.
   },
-  prettyString: function MimeMessageAttachment_prettyString(aVerbose, aIndent) {
-    let s = "Attachment: " + this.name + ", " + this.contentType;
+  get allUserAttachments() {
+    return [this];
+  },
+  prettyString: function MimeMessageAttachment_prettyString(aVerbose, aIndent,
+                                                            aDumpBody) {
+    let s = "Attachment (" + this.size+" bytes): "
+      + this.name + ", " + this.contentType;
     if (aVerbose)
       s += this._prettyHeaderString(aIndent + "  ");
     return s;
+  },
+  toString: function MimeMessageAttachment_toString() {
+    return this.prettyString(false, "");
   },
 };

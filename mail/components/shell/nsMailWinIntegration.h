@@ -38,9 +38,8 @@
 #ifndef nsMailWinIntegration_h_
 #define nsMailWinIntegration_h_
 
-#include "nsIShellService.h"
+#include "nsIWindowsShellService.h"
 #include "nsIObserver.h"
-#include "nsIGenericFactory.h"
 #include "nsString.h"
 
 #include <ole2.h>
@@ -57,7 +56,7 @@ typedef struct {
   PRInt32 flags;
 } SETTING;
 
-class nsWindowsShellService : public nsIShellService
+class nsWindowsShellService : public nsIWindowsShellService
 {
 public:
   nsWindowsShellService();
@@ -66,6 +65,7 @@ public:
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSISHELLSERVICE
+  NS_DECL_NSIWINDOWSSHELLSERVICE
 
 protected:
   PRBool TestForDefault(SETTING aSettings[], PRInt32 aSize);

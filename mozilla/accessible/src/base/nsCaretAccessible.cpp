@@ -35,10 +35,13 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// NOTE: alphabetically ordered
-#include "nsAccessibilityService.h"
 #include "nsCaretAccessible.h"
+
+#include "nsAccessibilityService.h"
+#include "nsAccUtils.h"
+#include "nsCoreUtils.h"
 #include "nsIAccessibleEvent.h"
+
 #include "nsCaret.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMHTMLAnchorElement.h"
@@ -48,9 +51,7 @@
 #include "nsIPresShell.h"
 #include "nsRootAccessible.h"
 #include "nsISelectionPrivate.h"
-#include "nsISelection2.h"
 #include "nsServiceManagerUtils.h"
-#include "nsIViewManager.h"
 
 class nsIWidget;
 
@@ -108,7 +109,8 @@ nsresult nsCaretAccessible::ClearControlSelectionListener()
   return selPrivate->RemoveSelectionListener(this);
 }
 
-nsresult nsCaretAccessible::SetControlSelectionListener(nsIDOMNode *aCurrentNode)
+nsresult
+nsCaretAccessible::SetControlSelectionListener(nsIContent *aCurrentNode)
 {
   NS_ENSURE_TRUE(mRootAccessible, NS_ERROR_FAILURE);
 
@@ -124,10 +126,7 @@ nsresult nsCaretAccessible::SetControlSelectionListener(nsIDOMNode *aCurrentNode
   nsCOMPtr<nsISelectionController> controller =
     GetSelectionControllerForNode(mCurrentControl);
 #ifdef DEBUG
-  PRUint16 nodeType;
-  nsresult result = aCurrentNode->GetNodeType(&nodeType);
-  NS_ASSERTION(NS_SUCCEEDED(result) &&
-               (controller || nodeType == nsIDOMNode::DOCUMENT_NODE),
+  NS_ASSERTION(controller || aCurrentNode->IsNodeOfType(nsINode::eDOCUMENT),
                "No selection controller for non document node!");
 #endif
   if (!controller)
@@ -201,84 +200,103 @@ nsCaretAccessible::RemoveDocSelectionListener(nsIPresShell *aShell)
 }
 
 NS_IMETHODIMP
-nsCaretAccessible::NotifySelectionChanged(nsIDOMDocument *aDoc,
-                                          nsISelection *aSel,
+nsCaretAccessible::NotifySelectionChanged(nsIDOMDocument* aDOMDocument,
+                                          nsISelection* aSelection,
                                           PRInt16 aReason)
 {
-  NS_ENSURE_ARG(aDoc);
+  NS_ENSURE_ARG(aDOMDocument);
+  NS_ENSURE_STATE(mRootAccessible);
 
-  nsCOMPtr<nsIDOMNode> docNode(do_QueryInterface(aDoc));
-  nsCOMPtr<nsIAccessibleDocument> accDoc =
-    nsAccessNode::GetDocAccessibleFor(docNode);
+  nsCOMPtr<nsIDocument> documentNode(do_QueryInterface(aDOMDocument));
+  nsDocAccessible* document = GetAccService()->GetDocAccessible(documentNode);
+
+#ifdef DEBUG_NOTIFICATIONS
+  nsCOMPtr<nsISelection2> sel2(do_QueryInterface(aSelection));
+
+  PRInt16 type = 0;
+  sel2->GetType(&type);
+
+  if (type == nsISelectionController::SELECTION_NORMAL ||
+      type == nsISelectionController::SELECTION_SPELLCHECK) {
+
+    bool isNormalSelection =
+      (type == nsISelectionController::SELECTION_NORMAL);
+
+    bool isIgnored = !document || !document->IsContentLoaded();
+    printf("\nSelection changed, selection type: %s, notification %s\n",
+           (isNormalSelection ? "normal" : "spellcheck"),
+           (isIgnored ? "ignored" : "pending"));
+  }
+#endif
 
   // Don't fire events until document is loaded.
-  if (!accDoc)
-    return NS_OK;
+  if (document && document->IsContentLoaded()) {
+    // The caret accessible has the same lifetime as the root accessible, and
+    // this outlives all its descendant document accessibles, so that we are
+    // guaranteed that the notification is processed before the caret accessible
+    // is destroyed.
+    document->HandleNotification<nsCaretAccessible, nsISelection>
+      (this, &nsCaretAccessible::ProcessSelectionChanged, aSelection);
+  }
 
-  nsCOMPtr<nsIAccessible> accForDoc(do_QueryInterface(accDoc));
-  if (nsAccUtils::State(accForDoc) & nsIAccessibleStates::STATE_BUSY)
-    return NS_OK;
+  return NS_OK;
+}
 
-  nsCOMPtr<nsISelection2> sel2(do_QueryInterface(aSel));
+void
+nsCaretAccessible::ProcessSelectionChanged(nsISelection* aSelection)
+{
+  nsCOMPtr<nsISelection2> sel2(do_QueryInterface(aSelection));
 
   PRInt16 type = 0;
   sel2->GetType(&type);
 
   if (type == nsISelectionController::SELECTION_NORMAL)
-    return NormalSelectionChanged(aDoc, aSel);
+    NormalSelectionChanged(aSelection);
 
-  if (type == nsISelectionController::SELECTION_SPELLCHECK)
-    return SpellcheckSelectionChanged(aDoc, aSel);
-
-  return NS_OK;
+  else if (type == nsISelectionController::SELECTION_SPELLCHECK)
+    SpellcheckSelectionChanged(aSelection);
 }
 
-nsresult
-nsCaretAccessible::NormalSelectionChanged(nsIDOMDocument *aDoc,
-                                          nsISelection *aSel)
+void
+nsCaretAccessible::NormalSelectionChanged(nsISelection* aSelection)
 {
-  NS_ENSURE_TRUE(mRootAccessible, NS_ERROR_FAILURE);
-
-  mLastUsedSelection = do_GetWeakReference(aSel);
+  mLastUsedSelection = do_GetWeakReference(aSelection);
 
   PRInt32 rangeCount = 0;
-  nsresult rv = aSel->GetRangeCount(&rangeCount);
-  NS_ENSURE_SUCCESS(rv, rv);
-
+  aSelection->GetRangeCount(&rangeCount);
   if (rangeCount == 0) {
     mLastTextAccessible = nsnull;
-    return NS_OK; // No selection
+    return; // No selection
   }
 
-  nsCOMPtr<nsIDOMNode> textNode;
-  nsCOMPtr<nsIAccessibleText> textAcc =
-    nsAccUtils::GetTextAccessibleFromSelection(aSel, getter_AddRefs(textNode));
-  NS_ENSURE_STATE(textAcc);
+  nsHyperTextAccessible* textAcc =
+    nsAccUtils::GetTextAccessibleFromSelection(aSelection);
+  if (!textAcc)
+    return;
 
-  PRInt32 caretOffset;
-  rv = textAcc->GetCaretOffset(&caretOffset);
-  NS_ENSURE_SUCCESS(rv, rv);
+  PRInt32 caretOffset = -1;
+  nsresult rv = textAcc->GetCaretOffset(&caretOffset);
+  if (NS_FAILED(rv))
+    return;
 
   if (textAcc == mLastTextAccessible && caretOffset == mLastCaretOffset) {
-    PRInt32 selectionCount;
+    PRInt32 selectionCount = 0;
     textAcc->GetSelectionCount(&selectionCount);   // Don't swallow similar events when selecting text
-    if (!selectionCount) {
-      return NS_OK;  // Swallow duplicate caret event
-    }
+    if (!selectionCount)
+      return;  // Swallow duplicate caret event
   }
+
   mLastCaretOffset = caretOffset;
   mLastTextAccessible = textAcc;
 
-  nsCOMPtr<nsIAccessibleCaretMoveEvent> event =
-    new nsAccCaretMoveEvent(textNode);
-  NS_ENSURE_TRUE(event, NS_ERROR_OUT_OF_MEMORY);
-
-  return mRootAccessible->FireDelayedAccessibleEvent(event);
+  nsRefPtr<AccEvent> event =
+    new AccCaretMoveEvent(mLastTextAccessible->GetNode());
+  if (event)
+    mLastTextAccessible->GetDocAccessible()->FireDelayedAccessibleEvent(event);
 }
 
-nsresult
-nsCaretAccessible::SpellcheckSelectionChanged(nsIDOMDocument *aDoc,
-                                              nsISelection *aSel)
+void
+nsCaretAccessible::SpellcheckSelectionChanged(nsISelection* aSelection)
 {
   // XXX: fire an event for accessible of focus node of the selection. If
   // spellchecking is enabled then we will fire the number of events for
@@ -286,18 +304,15 @@ nsCaretAccessible::SpellcheckSelectionChanged(nsIDOMDocument *aDoc,
   // misspelled word). If spellchecking is disabled (for example,
   // @spellcheck="false" on html:body) then we won't fire any event.
 
-  nsCOMPtr<nsIAccessibleText> textAcc =
-    nsAccUtils::GetTextAccessibleFromSelection(aSel);
-  NS_ENSURE_STATE(textAcc);
+  nsHyperTextAccessible* textAcc =
+    nsAccUtils::GetTextAccessibleFromSelection(aSelection);
+  if (!textAcc)
+    return;
 
-  nsCOMPtr<nsIAccessible> acc(do_QueryInterface(textAcc));
-
-  nsCOMPtr<nsIAccessibleEvent> event =
-    new nsAccEvent(nsIAccessibleEvent::EVENT_TEXT_ATTRIBUTE_CHANGED,
-                   acc, nsnull);
-  NS_ENSURE_TRUE(event, NS_ERROR_OUT_OF_MEMORY);
-
-  return mRootAccessible->FireAccessibleEvent(event);
+  nsRefPtr<AccEvent> event =
+    new AccEvent(nsIAccessibleEvent::EVENT_TEXT_ATTRIBUTE_CHANGED, textAcc);
+  if (event)
+    textAcc->GetDocAccessible()->FireDelayedAccessibleEvent(event);
 }
 
 nsIntRect
@@ -312,48 +327,36 @@ nsCaretAccessible::GetCaretRect(nsIWidget **aOutWidget)
     return caretRect;    // Return empty rect
   }
 
-  nsCOMPtr<nsIAccessNode> lastAccessNode(do_QueryInterface(mLastTextAccessible));
-  NS_ENSURE_TRUE(lastAccessNode, caretRect);
-
-  nsCOMPtr<nsIDOMNode> lastNodeWithCaret;
-  lastAccessNode->GetDOMNode(getter_AddRefs(lastNodeWithCaret));
+  nsINode *lastNodeWithCaret = mLastTextAccessible->GetNode();
   NS_ENSURE_TRUE(lastNodeWithCaret, caretRect);
 
-  nsCOMPtr<nsIPresShell> presShell =
-    nsCoreUtils::GetPresShellFor(lastNodeWithCaret);
+  nsIPresShell *presShell = nsCoreUtils::GetPresShellFor(lastNodeWithCaret);
   NS_ENSURE_TRUE(presShell, caretRect);
 
-  nsRefPtr<nsCaret> caret;
-  presShell->GetCaret(getter_AddRefs(caret));
+  nsRefPtr<nsCaret> caret = presShell->GetCaret();
   NS_ENSURE_TRUE(caret, caretRect);
 
-  PRBool isCollapsed;
-  nsIView *view;
   nsCOMPtr<nsISelection> caretSelection(do_QueryReferent(mLastUsedSelection));
   NS_ENSURE_TRUE(caretSelection, caretRect);
   
-  nsRect rect;
-  caret->GetCaretCoordinates(nsCaret::eRenderingViewCoordinates, caretSelection,
-                             &rect, &isCollapsed, &view);
-  if (!view || rect.IsEmpty()) {
-    return nsIntRect(); // Return empty rect
-  }
-
   PRBool isVisible;
   caret->GetCaretVisible(&isVisible);
   if (!isVisible) {
     return nsIntRect();  // Return empty rect
   }
-  nsPoint offsetFromWidget;
-  *aOutWidget = view->GetNearestWidget(&offsetFromWidget);
+
+  nsRect rect;
+  nsIFrame* frame = caret->GetGeometry(caretSelection, &rect);
+  if (!frame || rect.IsEmpty()) {
+    return nsIntRect(); // Return empty rect
+  }
+
+  nsPoint offset;
+  *aOutWidget = frame->GetNearestWidget(offset);
   NS_ENSURE_TRUE(*aOutWidget, nsIntRect());
+  rect.MoveBy(offset);
 
-  nsPresContext *presContext = presShell->GetPresContext();
-  NS_ENSURE_TRUE(presContext, nsIntRect());
-
-  rect += offsetFromWidget;
-  caretRect = rect.ToOutsidePixels(presContext->AppUnitsPerDevPixel());
-
+  caretRect = rect.ToOutsidePixels(frame->PresContext()->AppUnitsPerDevPixel());
   caretRect.MoveBy((*aOutWidget)->WidgetToScreenOffset());
 
   // Correct for character size, so that caret always matches the size of the character
@@ -371,25 +374,20 @@ nsCaretAccessible::GetCaretRect(nsIWidget **aOutWidget)
 }
 
 already_AddRefed<nsISelectionController>
-nsCaretAccessible::GetSelectionControllerForNode(nsIDOMNode *aNode)
+nsCaretAccessible::GetSelectionControllerForNode(nsIContent *aContent)
 {
-  if (!aNode)
+  if (!aContent)
     return nsnull;
 
-  nsCOMPtr<nsIPresShell> presShell = nsCoreUtils::GetPresShellFor(aNode);
+  nsIDocument *document = aContent->GetOwnerDoc();
+  if (!document)
+    return nsnull;
+
+  nsIPresShell *presShell = document->GetShell();
   if (!presShell)
     return nsnull;
 
-  nsCOMPtr<nsIDocument> doc = presShell->GetDocument();
-  if (!doc)
-    return nsnull;
-
-  // Get selection controller only for form controls, not for the document.
-  nsCOMPtr<nsIContent> content(do_QueryInterface(aNode));
-  if (!content)
-    return nsnull;
-
-  nsIFrame *frame = presShell->GetPrimaryFrameFor(content);
+  nsIFrame *frame = aContent->GetPrimaryFrame();
   if (!frame)
     return nsnull;
 

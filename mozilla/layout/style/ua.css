@@ -34,7 +34,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-@import url(resource://gre/res/html.css);
+@import url(resource://gre-resources/html.css);
 @import url(chrome://global/content/xul.css);
 
 @namespace parsererror url(http://www.mozilla.org/newlayout/xml/parsererror.xml);
@@ -111,7 +111,7 @@
   cursor: pointer;
 }
 
-*|*:-moz-any-link:focus {
+*|*:-moz-any-link:-moz-focusring {
   /* Don't specify the outline-color, we should always use initial value. */
   outline: 1px dotted;
 }
@@ -154,6 +154,7 @@
   -moz-column-count: inherit;
   -moz-column-width: inherit;
   -moz-column-gap: inherit;
+  -moz-column-rule: inherit;
   /* Do not change these. nsCSSFrameConstructor depends on them to create a good
      frame tree. */
   position: static !important;
@@ -167,6 +168,9 @@
 
 *|*::-moz-viewport-scroll {
   overflow: auto;
+%ifdef XP_WIN
+  resize: both;
+%endif
 }
 
 *|*::-moz-column-content { 

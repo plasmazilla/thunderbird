@@ -114,6 +114,7 @@
     <key keycode="VK_BACK" command="cmd_handleShiftBackspace" modifiers="shift"/>
 
     <!-- Bookmarks Menu -->
+    <key id="addBookmarkKb" key="&addCurPageAsCmd.commandkey;" command="Browser:AddBookmark" modifiers="accel,shift"/>
     <key id="addBookmarkAsKb" key="&addCurPageAsCmd.commandkey;" command="Browser:AddBookmarkAs" modifiers="accel"/>
     <key id="manBookmarkKb" key="&manBookmarksCmd.commandkey;" command="Browser:ManageBookmark" modifiers="accel"/>
 
@@ -184,17 +185,23 @@
     <command id="cmd_findTypeLinks" observes="isImage"/>
 
     <!-- Bookmarks Menu -->
-    <command id="Browser:AddBookmark" label="&addCurPageCmd.label;" accesskey="&addCurPageCmd.accesskey;" 
-             oncommand="BookmarksUtils.addBookmarkForBrowser(document.getElementById('content').webNavigation, false);"/>
-    <command id="Browser:AddBookmarkAs" label="&addCurPageAsCmd.label;"
-             accesskey="&addCurPageAsCmd.accesskey;"
-             oncommand="addBookmarkAs();"/>
-    <command id="Browser:AddGroupmarkAs" label="&addCurTabsAsCmd.label;"
-             accesskey="&addCurTabsAsCmd.accesskey;"
-             oncommand="addGroupmarkAs(); event.stopPropagation();"/>
-    <command id="Browser:ManageBookmark" label="&manBookmarksCmd.label;" accesskey="&manBookmarksCmd.accesskey;" 
-             oncommand="toBookmarksManager();"/>
-  
+    <command id="Browser:AddBookmark"
+             label="&addCurPageCmd.label;" accesskey="&addCurPageCmd.accesskey;"
+             oncommand="PlacesCommandHook.bookmarkCurrentPage(false, PlacesUtils.bookmarksMenuFolderId);"/>
+    <command id="Browser:AddBookmarkAs"
+             label="&addCurPageAsCmd.label;" accesskey="&addCurPageAsCmd.accesskey;"
+             oncommand="PlacesCommandHook.bookmarkPageAs(gBrowser.selectedBrowser, PlacesUtils.bookmarksMenuFolderId);"/>
+    <!-- The command is disabled for the hidden window. Otherwise its enabled
+         state is handled by gBookmarkAllTabsHandler. -->
+    <command id="Browser:BookmarkAllTabs"
+             label="&addCurTabsAsCmd.label;" accesskey="&addCurTabsAsCmd.accesskey;"
+             oncommand="gBookmarkAllTabsHandler.doCommand();"
+             disabled="true"/>
+    <command id="Browser:ManageBookmark"
+             label="&manBookmarksCmd.label;" accesskey="&manBookmarksCmd.accesskey;"
+             oncommand="PlacesCommandHook.showBookmarksManager('AllBookmarks');"/>
+    <command id="feedsMenu" disabled="true"/>
+
     <!-- Go Menu -->  
     <command id="Browser:Home"    oncommand="BrowserHome(event);"/>
     <command id="Browser:Back"    oncommand="BrowserBack();"    observes="canGoBack"/>
@@ -204,7 +211,7 @@
     <commandset id="tasksCommands"/>
 
     <!-- Tools Menu -->
-    <command id="Browser:SearchInternet" oncommand="BrowserSearchInternet();"/>
+    <command id="Browser:SearchInternet" oncommand="BrowserSearch.webSearch();"/>
     <command id="Tools:Sanitize"
              oncommand="Components.classes['@mozilla.org/suite/suiteglue;1'].getService(Components.interfaces.nsISuiteGlue).sanitize(window);"/>
 
@@ -215,99 +222,17 @@
     <broadcaster id="canGoForward" disabled="true"/>
     <broadcaster id="canGoUp"      disabled="true"/>
     <broadcaster id="Communicator:WorkMode"/>
-    <broadcaster id="cmd_viewnavbar" oncommand="goToggleToolbar( 'nav-bar','cmd_viewnavbar');" checked="true"/>
-    <broadcaster id="cmd_viewpersonaltoolbar" oncommand="goToggleToolbar('PersonalToolbar','cmd_viewpersonaltoolbar');" checked="true"/>
-    <broadcaster id="cmd_viewtaskbar" oncommand="goToggleToolbar('status-bar','cmd_viewtaskbar');" checked="true"/>
+    <broadcaster id="cmd_viewtaskbar" oncommand="goToggleToolbar('status-bar','cmd_viewtaskbar'); updateWindowResizer();" checked="true"/>
     <broadcaster id="cmd_viewcomponentbar" oncommand="goToggleToolbar('component-bar', 'cmd_viewcomponentbar');" checked="true"/>
     <broadcaster id="isImage"/>
   </broadcasterset>
          
   <!-- bookmarks context menu -->
   <popupset id="bookmarksPopupset">
-    <popup id="bookmarks-context-menu" 
+    <menupopup id="bookmarks-context-menu" 
            onpopupshowing="return BookmarksMenu.createContextMenu(event);"
            onpopuphidden ="BookmarksMenu.destroyContextMenu(event);"/>
   </popupset>
-
-  <!-- bookmarks toolbar tooltip -->
-  <tooltip id="btTooltip" noautohide="true" 
-           onpopupshowing="return BookmarksToolbar.fillInBTTooltip(document.tooltipNode)">
-    <vbox id="btTooltipTextBox" flex="1">  
-      <label id="btTitleText"/>
-      <label id="btUrlText"/>
-    </vbox>
-  </tooltip>
-
-  <!-- bookmarks template -->
-  <template id="bookmarksMenuTemplate" xmlns:nc="http://home.netscape.com/NC-rdf#">
-    <!-- don't generate children of bookmark group menuitems -->
-    <rule parent="menuitem"/>
-    <rule parent="hbox" rdf:type="http://home.netscape.com/NC-rdf#BookmarkSeparator">
-      <toolbarseparator uri="rdf:*"/>
-    </rule>
-    <rule parent="hbox" iscontainer="true" nc:FolderGroup="true">
-      <toolbarbutton class="bookmark-item bookmark-group" uri="rdf:*"
-                     group="true"
-                     label="rdf:http://home.netscape.com/NC-rdf#Name"/>
-    </rule>
-    <rule parent="hbox" iscontainer="true">
-      <toolbarbutton type="menu" editable="true" class="bookmark-item"
-                     image="rdf:http://home.netscape.com/NC-rdf#Icon"
-                     validate="never"
-                     uri="rdf:*" label="rdf:http://home.netscape.com/NC-rdf#Name">
-        <menupopup context="bookmarks-context-menu">
-          <menuitem label="&emptyItem.label;" disabled="true" class="isempty"/>
-        </menupopup>
-      </toolbarbutton>
-    </rule>
-    <rule parent="hbox">
-      <toolbarbutton class="bookmark-item" uri="rdf:*" editable="true" 
-                     image="rdf:http://home.netscape.com/NC-rdf#Icon"
-                     validate="never"
-                     status="rdf:http://home.netscape.com/WEB-rdf#status"
-                     statustext="rdf:http://home.netscape.com/NC-rdf#URL"
-                     label="rdf:http://home.netscape.com/NC-rdf#Name"/>
-    </rule>
-    <rule nc:FolderGroup="true" iscontainer="true">
-      <menupopup>
-        <menuitem class="menuitem-iconic bookmark-group" 
-                  label="rdf:http://home.netscape.com/NC-rdf#Name"
-                  group="true"
-                  uri="rdf:*"/>
-      </menupopup>
-    </rule>
-    <rule iscontainer="true">
-      <menupopup>
-        <menu class="menu-iconic bookmark-item" uri="rdf:*" 
-              image="rdf:http://home.netscape.com/NC-rdf#Icon"
-              validate="never"
-              type="rdf:http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-              label="rdf:http://home.netscape.com/NC-rdf#Name">
-          <!-- Since this may be in a mac native menu, we can't hide the "empty"
-               menuitem with css. -->
-          <menupopup context="bookmarks-context-menu"
-                     onpopupshowing="this.firstChild.hidden = this.childNodes.length > 1; event.stopPropagation();">
-            <menuitem label="&emptyItem.label;" disabled="true" class="isempty"/>
-          </menupopup>
-        </menu>
-      </menupopup>
-    </rule>
-    <rule rdf:type="http://home.netscape.com/NC-rdf#BookmarkSeparator">
-      <menupopup> 
-        <menuseparator uri="rdf:*" />
-      </menupopup>
-    </rule>
-    <rule>
-      <menupopup>
-        <menuitem class="menuitem-iconic bookmark-item" uri="rdf:*"
-                  src="rdf:http://home.netscape.com/NC-rdf#Icon"
-                  validate="never"
-                  label="rdf:http://home.netscape.com/NC-rdf#Name" 
-                  status="rdf:http://home.netscape.com/WEB-rdf#status"
-                  statustext="rdf:http://home.netscape.com/NC-rdf#URL"/>
-      </menupopup>
-    </rule>
-  </template>
 
   <!-- Menu -->
   <menubar id="main-menubar" class="chromeclass-menubar">
@@ -387,23 +312,30 @@
       </menupopup>
     </menu>
 
-    <menu id="menu_View" accesskey="&viewMenu.accesskey;" label="&viewMenu.label;">
+    <menu id="menu_View">
       <menupopup id="menu_View_Popup">
         <menu label="&toolbarsCmd.label;" accesskey="&toolbarsCmd.accesskey;" id="menu_Toolbars">
-          <menupopup id="view_toolbars_popup" onpopupshowing="updateToolbarStates(this);"> 
-            <menuitem label="&navbarCmd.label;" accesskey="&navbarCmd.accesskey;" class="menuitem-iconic" type="checkbox" observes="cmd_viewnavbar"  />
-            <menuitem label="&personalbarCmd.label;" accesskey="&personalbarCmd.accesskey;" class="menuitem-iconic" type="checkbox" observes="cmd_viewpersonaltoolbar" />
+          <menupopup id="view_toolbars_popup"
+                     onpopupshowing="updateToolbarStates(event);"
+                     oncommand="onViewToolbarCommand(event);">
             <menuitem id="menuitem_showhide_tabbar" label="&tabbarCmd.label;" accesskey="&tabbarCmd.accesskey;" class="menuitem-iconic" type="checkbox" oncommand="showHideTabbar();" checked="true"/>
             <menuitem label="&taskbarCmd.label;" accesskey="&taskbarCmd.accesskey;" class="menuitem-iconic" type="checkbox" observes="cmd_viewtaskbar" />
             <menuitem label="&componentbarCmd.label;" accesskey="&componentbarCmd.accesskey;" class="menuitem-iconic" type="checkbox" observes="cmd_viewcomponentbar"/>
           </menupopup>
         </menu>   
-        <menuitem id="menuitem_fullScreen" accesskey="&fullScreenCmd.accesskey;"
-                  label="&fullScreenCmd.label;" key="key_fullScreen"
-                  command="View:FullScreen" hidden="true"/>
+        <menuitem id="menuitem_fullScreen"
+                  label="&fullScreenCmd.label;"
+                  accesskey="&fullScreenCmd.accesskey;"
+                  key="key_fullScreen"
+                  command="View:FullScreen"/>
         <menuseparator />
         <menuitem label="&stopCmd.label;" accesskey="&stopCmd.accesskey;" id="menuitem-stop" disabled="true" oncommand="BrowserStop();" key="key_stop"/>
-        <menuitem id="menuitem_reload" accesskey="&reloadCmd.accesskey;" key="key_reload" label="&reloadCmd.label;" oncommand="BrowserReload();"/>
+        <menuitem id="menuitem_reload"
+                  label="&reloadCmd.label;"
+                  accesskey="&reloadCmd.accesskey;"
+                  key="key_reload"
+                  oncommand="BrowserReload(event);"
+                  onclick="checkForMiddleClick(this, event);"/>
         <menuseparator />
   
         <!-- overlayed from viewZoomOverlay.xul -->
@@ -434,23 +366,10 @@
         <menuseparator />
         <menu label="&applyTheme.label;" accesskey="&applyTheme.accesskey;">
           <menupopup id="menu_ViewApplyTheme_Popup"
-                     datasources="rdf:extensions" ref="urn:mozilla:item:root"
-                     oncommand="applyTheme(event.target);" onpopupshowing="checkTheme(this);"
-                     sortResource="http://www.mozilla.org/2004/em-rdf#name"
-                     sortDirection="ascending">
+                     onpopupshowing="checkTheme(this);"
+                     oncommand="applyTheme(event.target);">
             <menuitem label="&getNewThemesCmd.label;" accesskey="&getNewThemesCmd.accesskey;" oncommand="getNewThemes();"/>
             <menuseparator/>
-            <template>
-              <rule em-rdf:type="4" parsetype="Integer" xmlns:em-rdf="http://www.mozilla.org/2004/em-rdf">
-                <menuitem uri="..."
-                          label="rdf:http://www.mozilla.org/2004/em-rdf#name"
-                          hidden="rdf:http://www.mozilla.org/2004/em-rdf#hidden"
-                          disabled="rdf:http://www.mozilla.org/2004/em-rdf#isDisabled"
-                          internalName="rdf:http://www.mozilla.org/2004/em-rdf#internalName"
-                          type="radio"
-                          name="themeGroup"/>
-              </rule>
-            </template>
           </menupopup>
         </menu>
       </menupopup>
@@ -459,19 +378,24 @@
     <menu id="history-menu"
           label="&goMenu.label;"
           accesskey="&goMenu.accesskey;"
-          oncommand="gotoHistoryIndex(event);">
+          oncommand="gotoHistoryIndex(event);"
+          onclick="checkForMiddleClick(this, event);">
       <menupopup id="goPopup"
                  onpopupshowing="updateGoMenu(event);">
         <menuitem id="historyMenuBack"
                   label="&goBackCmd.label;"
                   accesskey="&goBackCmd.accesskey;"
                   key="goBackKb"
-                  command="Browser:Back"/>
+                  oncommand="BrowserBack(event);"
+                  onclick="checkForMiddleClick(this, event);"
+                  observes="canGoBack"/>
         <menuitem id="historyMenuForward"
                   label="&goForwardCmd.label;"
                   accesskey="&goForwardCmd.accesskey;"
                   key="goForwardKb"
-                  command="Browser:Forward"/>
+                  oncommand="BrowserForward(event);"
+                  onclick="checkForMiddleClick(this, event);"
+                  observes="canGoForward"/>
         <menuitem id="historyMenuUp"
                   label="&goUpCmd.label;"
                   accesskey="&goUpCmd.accesskey;"
@@ -481,6 +405,7 @@
                   label="&goHomeCmd.label;"
                   accesskey="&goHomeCmd.accesskey;"
                   command="Browser:Home"
+                  onclick="checkForMiddleClick(this, event);"
                   key="goHome"/>
         <menuseparator/>
         <menuitem id="menu_showAllHistory"
@@ -490,53 +415,88 @@
                   key="key_gotoHistory"/>
         <menuseparator id="startHistorySeparator" hidden="true"/>
         <menuseparator id="endHistorySeparator" hidden="true"/>
+        <menuitem id="historyRestoreLastSession"
+                  label="&historyRestoreLastSession.label;"
+                  accesskey="&historyRestoreLastSession.accesskey;"
+                  oncommand="restoreLastSession();"
+                  disabled="true"/>
+        <menuitem id="sync-tabs-menuitem"
+                  label="&syncTabsMenu.label;"
+                  oncommand="BrowserOpenSyncTabs();"
+                  disabled="true"/>
       </menupopup>
     </menu>
-    
-    <menu id="BookmarksMenu" label="&bookmarksMenu.label;" accesskey="&bookmarksMenu.accesskey;" 
-          datasources="rdf:bookmarks rdf:files rdf:localsearch rdf:internetsearch" 
-          ref="NC:BookmarksRoot" flags="dont-test-empty" template="bookmarksMenuTemplate"
-          tooltip="btTooltip"
-          oncommand="BookmarksMenu.loadBookmark(event, this.database)"
-          onclick="BookmarksMenu.loadBookmarkMiddleClick(event, this.database)"
-          ondraggesture="nsDragAndDrop.startDrag(event, BookmarksMenuDNDObserver)"
-          ondragdrop="nsDragAndDrop.drop(event, BookmarksMenuDNDObserver); event.stopPropagation()"
-          ondragenter="nsDragAndDrop.dragEnter(event, BookmarksMenuDNDObserver); event.stopPropagation()"
-          ondragexit="nsDragAndDrop.dragExit(event, BookmarksMenuDNDObserver); event.stopPropagation()"
-          ondragover="nsDragAndDrop.dragOver(event, BookmarksMenuDNDObserver); event.stopPropagation()">
-      <menupopup id="menu_BookmarksPopup"
-                 context="bookmarks-context-menu"
-                 onpopupshowing="updateGroupmarkCommand();">
-        <menuitem key="addBookmarkKb"   command="Browser:AddBookmark"/>
-        <menuitem key="addBookmarkAsKb" command="Browser:AddBookmarkAs"/>
-        <menuitem                       command="Browser:AddGroupmarkAs"/>
-        <menuitem key="manBookmarkKb"   command="Browser:ManageBookmark"/>
-        <menuseparator/>
-        <menu id="feedsMenu" class="menu-iconic" disabled="true"
+
+    <menu id="bookmarksMenu"
+          label="&bookmarksMenu.label;"
+          accesskey="&bookmarksMenu.accesskey;"
+          ondragenter="PlacesMenuDNDHandler.onDragEnter(event);"
+          ondragover="PlacesMenuDNDHandler.onDragOver(event);"
+          ondrop="PlacesMenuDNDHandler.onDrop(event);">
+      <menupopup id="bookmarksMenuPopup"
+                 placespopup="true"
+                 context="placesContext"
+                 openInTabs="children"
+                 oncommand="BookmarksEventHandler.onCommand(event);"
+                 onclick="BookmarksEventHandler.onClick(event);"
+                 onpopupshowing="if (!document.getElementById('bookmarksMenu')._placesView)
+                                   new PlacesMenu(event, 'place:folder=BOOKMARKS_MENU');"
+                 tooltip="bhTooltip" popupsinherittooltip="true">
+        <menuitem id="menu_bookmarkThisPage"
+                  command="Browser:AddBookmark"
+                  key="addBookmarkKb"/>
+        <menuitem id="menu_bookmarkThisPageAs"
+                  command="Browser:AddBookmarkAs"
+                  key="addBookmarkAsKb"/>
+        <menuitem id="menu_bookmarkAllTabs"
+                  command="Browser:BookmarkAllTabs"/>
+        <menuitem id="menu_bookmarkManager"
+                  command="Browser:ManageBookmark"
+                  key="manBookmarkKb"/>
+        <menuseparator id="organizeBookmarksSeparator"/>
+        <menu class="menu-iconic feedsMenu" command="feedsMenu"
               label="&feedsMenu.label;" accesskey="&feedsMenu.accesskey;">
           <menupopup onpopupshowing="window.XULBrowserWindow.populateFeeds(this);"
                      oncommand="subscribeToFeed(event.target.statusText, event);"
                      onclick="checkForMiddleClick(this, event);"/>
         </menu>
         <menuseparator/>
+        <menu id="bookmarksToolbarFolderMenu"
+              class="menu-iconic bookmark-item"
+              label="&personalbarCmd.label;"
+              container="true">
+          <menupopup id="bookmarksToolbarFolderPopup"
+                     placespopup="true"
+                     context="placesContext"
+                     onpopupshowing="if (!this.parentNode._placesView)
+                                       new PlacesMenu(event, 'place:folder=TOOLBAR');"/>
+        </menu>
+        <menuseparator/>
       </menupopup>
     </menu>
-      
-  <menu id="tasksMenu">
-    <menupopup id="taskPopup">
-      <menuitem id="menu_searchWeb" label="&searchInternetCmd.label;" key="searchInternetKb" accesskey="&searchInternetCmd.accesskey;" command="Browser:SearchInternet"/>
-      <menuitem id="menu_translate" label="&translateMenu.label;" accesskey="&translateMenu.accesskey;" oncommand="Translate();"/>  
-      <menuseparator id="navBeginGlobalItems"/>
-      <menuitem id="sanitizeItem"
-                accesskey="&clearPrivateDataCmd.accesskey;"
-                label="&clearPrivateDataCmd.label;"
-                key="key_sanitize" command="Tools:Sanitize"/>
-    </menupopup>
-  </menu>
 
-  <menu id="windowMenu"/>
-  
-  <menu id="menu_Help"/>
-</menubar>
+    <menu id="tasksMenu">
+      <menupopup id="taskPopup">
+        <menuitem id="menu_searchWeb"
+                  label="&searchInternetCmd.label;"
+                  accesskey="&searchInternetCmd.accesskey;"
+                  key="searchInternetKb"
+                  command="Browser:SearchInternet"/>
+        <menuitem id="menu_translate"
+                  label="&translateMenu.label;"
+                  accesskey="&translateMenu.accesskey;"
+                  oncommand="Translate();"/>
+        <menuseparator id="navBeginGlobalItems"/>
+        <menuitem id="sanitizeItem"
+                  accesskey="&clearPrivateDataCmd.accesskey;"
+                  label="&clearPrivateDataCmd.label;"
+                  key="key_sanitize" command="Tools:Sanitize"/>
+      </menupopup>
+    </menu>
+
+    <menu id="windowMenu"/>
+
+    <menu id="menu_Help"/>
+  </menubar>
 
 </overlay>

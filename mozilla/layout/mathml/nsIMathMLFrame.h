@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  *   Roger B. Sidje <rbs@maths.uq.edu.au>
+ *   Frederic Wang <fred.wang@free.fr>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -66,6 +67,9 @@ class nsIMathMLFrame
 public:
   NS_DECL_QUERYFRAME_TARGET(nsIMathMLFrame)
 
+  // helper to check whether the frame is "space-like", as defined by the spec.
+  virtual PRBool IsSpaceLike() = 0;
+
  /* SUPPORT FOR PRECISE POSITIONING */
  /*====================================================================*/
  
@@ -82,9 +86,6 @@ public:
 
   NS_IMETHOD
   SetBoundingMetrics(const nsBoundingMetrics& aBoundingMetrics) = 0;
-
-  NS_IMETHOD
-  GetReference(nsPoint& aReference) = 0;
 
   NS_IMETHOD
   SetReference(const nsPoint& aReference) = 0;
@@ -117,29 +118,19 @@ public:
           nsBoundingMetrics&   aContainerSize,
           nsHTMLReflowMetrics& aDesiredStretchSize) = 0;
 
- /* GetEmbellishData/SetEmbellishData :
-  * Get/Set the mEmbellishData member variable.
-  */
-
+ /* Get the mEmbellishData member variable. */
+ 
   NS_IMETHOD
   GetEmbellishData(nsEmbellishData& aEmbellishData) = 0;
-
-  NS_IMETHOD
-  SetEmbellishData(const nsEmbellishData& aEmbellishData) = 0;
 
 
  /* SUPPORT FOR SCRIPTING ELEMENTS */
  /*====================================================================*/
 
- /* GetPresentationData/SetPresentationData :
-  * Get/Set the mPresentationData member variable.
-  */
+ /* Get the mPresentationData member variable. */
 
   NS_IMETHOD
   GetPresentationData(nsPresentationData& aPresentationData) = 0;
-
-  NS_IMETHOD
-  SetPresentationData(const nsPresentationData& aPresentationData) = 0;
 
   /* InheritAutomaticData() / TransmitAutomaticData() :
    * There are precise rules governing each MathML frame and its children.
@@ -336,6 +327,9 @@ struct nsPresentationData {
 // because they are the only tags where the attribute is allowed by the spec.
 #define NS_MATHML_EXPLICIT_DISPLAYSTYLE               0x00000020U
 
+// This bit is set if the frame is "space-like", as defined by the spec.
+#define NS_MATHML_SPACE_LIKE                          0x00000040U
+
 // This bit is set when the frame cannot be formatted due to an
 // error (e.g., invalid markup such as a <msup> without an overscript).
 // When set, a visual feedback will be provided to the user.
@@ -366,6 +360,9 @@ struct nsPresentationData {
 
 #define NS_MATHML_HAS_EXPLICIT_DISPLAYSTYLE(_flags) \
   (NS_MATHML_EXPLICIT_DISPLAYSTYLE == ((_flags) & NS_MATHML_EXPLICIT_DISPLAYSTYLE))
+
+#define NS_MATHML_IS_SPACE_LIKE(_flags) \
+  (NS_MATHML_SPACE_LIKE == ((_flags) & NS_MATHML_SPACE_LIKE))
 
 #define NS_MATHML_HAS_ERROR(_flags) \
   (NS_MATHML_ERROR == ((_flags) & NS_MATHML_ERROR))

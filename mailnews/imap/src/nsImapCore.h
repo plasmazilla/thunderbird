@@ -132,10 +132,10 @@ typedef enum {
     kNoHierarchyRename = 0x00000080,                        /* no hierarchy rename */
     kACLCapability = 0x00000100,          /* ACL extension */
     kNamespaceCapability = 0x00000200,    /* IMAP4 Namespace Extension */
-    kMailboxDataCapability = 0x00000400,  /* MAILBOXDATA SMTP posting extension */
+    kHasIDCapability = 0x00000400,  /* client user agent id extension */
     kXServerInfoCapability = 0x00000800,  /* XSERVERINFO extension for admin urls */
     kHasAuthPlainCapability = 0x00001000, /* new form of auth plain base64 login */
-    kUidplusCapability = 0x00002000,	   /* RFC 2359 UIDPLUS extension */
+    kUidplusCapability = 0x00002000,   /* RFC 2359 UIDPLUS extension */
     kLiteralPlusCapability = 0x00004000, /* RFC 2088 LITERAL+ extension */
     kAOLImapCapability = 0x00008000,     /* aol imap extensions */
     kHasLanguageCapability = 0x00010000, /* language extensions */
@@ -150,7 +150,10 @@ typedef enum {
     kHasCondStoreCapability =  0x02000000, /* RFC 3551 CondStore extension */
     kHasEnableCapability    =  0x04000000, /* RFC 5161 ENABLE extension */
     kHasXListCapability    =  0x08000000,  /* XLIST extension */
-    kHasCompressDeflateCapability  =  0x10000000  /* RFC 4978 COMPRESS extension */
+    kHasCompressDeflateCapability  = 0x10000000,  /* RFC 4978 COMPRESS extension */
+    kHasAuthExternalCapability  = 0x20000000,  /* RFC 2222 SASL AUTH EXTERNAL */
+    kHasMoveCapability  = 0x40000000,  /* Proposed MOVE RFC */
+    kHasHighestModSeqCapability  = 0x80000000  /* Subset of RFC 3551 */
 } eIMAPCapabilityFlag;
 
 // this used to be part of the connection object class - maybe we should move it into 

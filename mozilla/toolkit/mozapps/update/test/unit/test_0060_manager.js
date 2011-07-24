@@ -56,20 +56,27 @@ function run_test() {
                                 "86", "true", STATE_PENDING);
   updates = getLocalUpdateString(patches, "major", "New", "version 4", "4.0",
                                  "4.0", "20070811053724", "http://details1/",
-                                 null, "http://license1/", "http://service1/",
-                                 "1238441300314", "test status text", "false",
-                                 "test_channel", "true");
+                                 "http://billboard1/", "http://license1/",
+                                 "http://service1/", "1238441300314",
+                                 "test status text", "false", "test_channel",
+                                 "true", "true", "true", "true",
+                                 "test version", "3.0", "3.0",
+                                 "custom1_attr=\"custom1 value\"",
+                                 "custom2_attr=\"custom2 value\"");
 
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), true);
   writeStatusFile(STATE_SUCCEEDED);
 
   patches = getLocalPatchString("complete", "http://complete/", "SHA1", "6232",
                                 "75", "true", STATE_FAILED);
-  updates = getLocalUpdateString(patches, "major", "Existing", "version 3",
-                                 "3.0", "3.0", null, "http://details2/", null,
-                                 null, "http://service2/", null,
+  updates = getLocalUpdateString(patches, "major", "Existing", null, null,
+                                 "3.0", null, "http://details2/", null, null,
+                                 "http://service2/", null,
                                  getString("patchApplyFailure"), "true",
-                                 "test_channel", "false");
+                                 "test_channel", "false", null, null, null,
+                                 "version 3", "3.0", null,
+                                 "custom3_attr=\"custom3 value\"",
+                                 "custom4_attr=\"custom4 value\"");
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), false);
 
   standardInit();
@@ -81,11 +88,12 @@ function run_test() {
   do_check_eq(update.state, STATE_SUCCEEDED);
   do_check_eq(update.type, "major");
   do_check_eq(update.name, "New");
-  do_check_eq(update.version, "version 4");
-  do_check_eq(update.extensionVersion, "4.0");
+  do_check_eq(update.displayVersion, "version 4");
+  do_check_eq(update.appVersion, "4.0");
   do_check_eq(update.platformVersion, "4.0");
   do_check_eq(update.buildID, "20070811053724");
   do_check_eq(update.detailsURL, "http://details1/");
+  do_check_eq(update.billboardURL, "http://billboard1/");
   do_check_eq(update.licenseURL, "http://license1/");
   do_check_eq(update.serviceURL, "http://service1/");
   do_check_eq(update.installDate, "1238441300314");
@@ -93,6 +101,13 @@ function run_test() {
   do_check_eq(update.statusText, getString("installSuccess"));
   do_check_false(update.isCompleteUpdate);
   do_check_eq(update.channel, "test_channel");
+  do_check_true(update.showPrompt);
+  do_check_true(update.showNeverForVersion);
+  do_check_true(update.showSurvey);
+  do_check_eq(update.previousAppVersion, "3.0");
+  // Custom attributes
+  do_check_eq(update.getProperty("custom1_attr"), "custom1 value");
+  do_check_eq(update.getProperty("custom2_attr"), "custom2 value");
 
   patch = update.selectedPatch;
   do_check_eq(patch.type, "partial");
@@ -107,10 +122,11 @@ function run_test() {
   do_check_eq(update.state, STATE_FAILED);
   do_check_eq(update.name, "Existing");
   do_check_eq(update.type, "major");
-  do_check_eq(update.version, "version 3");
-  do_check_eq(update.extensionVersion, "3.0");
+  do_check_eq(update.displayVersion, "version 3");
+  do_check_eq(update.appVersion, "3.0");
   do_check_eq(update.platformVersion, "3.0");
   do_check_eq(update.detailsURL, "http://details2/");
+  do_check_eq(update.billboardURL, "http://details2/");
   do_check_eq(update.licenseURL, null);
   do_check_eq(update.serviceURL, "http://service2/");
   do_check_eq(update.installDate, "1238441400314");
@@ -118,6 +134,13 @@ function run_test() {
   do_check_eq(update.buildID, "20080811053724");
   do_check_true(update.isCompleteUpdate);
   do_check_eq(update.channel, "test_channel");
+  do_check_true(update.showPrompt);
+  do_check_true(update.showNeverForVersion);
+  do_check_false(update.showSurvey);
+  do_check_eq(update.previousAppVersion, null);
+  // Custom attributes
+  do_check_eq(update.getProperty("custom3_attr"), "custom3 value");
+  do_check_eq(update.getProperty("custom4_attr"), "custom4 value");
 
   patch = update.selectedPatch;
   do_check_eq(patch.type, "complete");
@@ -135,11 +158,12 @@ function run_test() {
   // isn't specified in the update xml.
   patches = getLocalPatchString(null, null, null, null, null, null,
                                 STATE_PENDING);
-  updates = getLocalUpdateString(patches, "major", "New", "version 4.0", "4.0",
-                                 "4.0", "20080811053724", "http://details/",
-                                 null, "http://license/", "http://service/",
+  updates = getLocalUpdateString(patches, "major", "New", null, null, "4.0",
+                                 null, "http://details/", "http://billboard/",
+                                 "http://license/", "http://service/",
                                  "1238441400314", "test status text", null,
-                                 "test_channel", "true");
+                                 "test_channel", "true", "true", "true", "true",
+                                 "version 4.0", "4.0", "3.0");
 
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), true);
   writeStatusFile(STATE_SUCCEEDED);
@@ -150,7 +174,8 @@ function run_test() {
                                  "3.0", "3.0", null, "http://details/", null,
                                  null, "http://service/", null,
                                  getString("patchApplyFailure"), null,
-                                 "test_channel", "false");
+                                 "test_channel", "false", null, null, null,
+                                 "version 3", null, null);
   writeUpdatesToXMLFile(getLocalUpdatesXMLString(updates), false);
 
   reloadUpdateManagerData();
@@ -163,10 +188,11 @@ function run_test() {
   do_check_eq(update.state, STATE_SUCCEEDED);
   do_check_eq(update.type, "major");
   do_check_eq(update.name, "New");
-  do_check_eq(update.version, "version 4.0");
-  do_check_eq(update.extensionVersion, "4.0");
+  do_check_eq(update.displayVersion, "version 4.0");
+  do_check_eq(update.appVersion, "4.0");
   do_check_eq(update.platformVersion, "4.0");
   do_check_eq(update.detailsURL, "http://details/");
+  do_check_eq(update.billboardURL, "http://billboard/");
   do_check_eq(update.licenseURL, "http://license/");
   do_check_eq(update.serviceURL, "http://service/");
   do_check_eq(update.installDate, "1238441400314");
@@ -174,6 +200,10 @@ function run_test() {
   do_check_eq(update.buildID, "20080811053724");
   do_check_true(update.isCompleteUpdate);
   do_check_eq(update.channel, "test_channel");
+  do_check_true(update.showPrompt);
+  do_check_true(update.showNeverForVersion);
+  do_check_true(update.showSurvey);
+  do_check_eq(update.previousAppVersion, "3.0");
 
   patch = update.selectedPatch;
   do_check_eq(patch.type, "complete");
@@ -188,10 +218,11 @@ function run_test() {
   do_check_eq(update.state, STATE_FAILED);
   do_check_eq(update.name, "Existing");
   do_check_eq(update.type, "major");
-  do_check_eq(update.version, "version 3.0");
-  do_check_eq(update.extensionVersion, "3.0");
+  do_check_eq(update.displayVersion, "version 3.0");
+  do_check_eq(update.appVersion, "3.0");
   do_check_eq(update.platformVersion, "3.0");
   do_check_eq(update.detailsURL, "http://details/");
+  do_check_eq(update.billboardURL, null);
   do_check_eq(update.licenseURL, null);
   do_check_eq(update.serviceURL, "http://service/");
   do_check_eq(update.installDate, "1238441400314");
@@ -199,6 +230,10 @@ function run_test() {
   do_check_eq(update.buildID, "20080811053724");
   do_check_true(update.isCompleteUpdate);
   do_check_eq(update.channel, "test_channel");
+  do_check_false(update.showPrompt);
+  do_check_false(update.showNeverForVersion);
+  do_check_false(update.showSurvey);
+  do_check_eq(update.previousAppVersion, null);
 
   patch = update.selectedPatch;
   do_check_eq(patch.type, "complete");

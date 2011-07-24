@@ -322,11 +322,6 @@ nsSeamonkeyProfileMigrator::FillProfileDataFromSeamonkeyRegistry()
   
   seamonkeyRegistry->Append(NS_LITERAL_STRING(".mozilla"));
   seamonkeyRegistry->Append(NS_LITERAL_STRING("appreg"));
-#elif defined(XP_BEOS)
-   fileLocator->Get(NS_BEOS_SETTINGS_DIR, NS_GET_IID(nsILocalFile), getter_AddRefs(seamonkeyRegistry));
-
-   seamonkeyRegistry->Append(NS_LITERAL_STRING("Mozilla"));
-   seamonkeyRegistry->Append(NS_LITERAL_STRING("appreg"));
 #elif defined(XP_OS2)
   fileLocator->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsILocalFile), getter_AddRefs(seamonkeyRegistry));
   
@@ -349,7 +344,6 @@ nsSeamonkeyProfileMigrator::FillProfileDataFromSeamonkeyRegistry()
 static 
 nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("signon.SignonFileName",                    String),
-  MAKESAMETYPEPREFTRANSFORM("browser.history_expire_days",              Int),
   MAKESAMETYPEPREFTRANSFORM("browser.tabs.autoHide",                    Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.tabs.loadInBackground",            Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.enable_automatic_image_resizing",  Bool),
@@ -387,8 +381,6 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("network.proxy.ssl_port",                   Int),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.socks",                      String),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.socks_port",                 Int),
-  MAKESAMETYPEPREFTRANSFORM("network.proxy.gopher",                     String),
-  MAKESAMETYPEPREFTRANSFORM("network.proxy.gopher_port",                Int),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.no_proxies_on",              String),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.autoconfig_url",             String),
   MAKESAMETYPEPREFTRANSFORM("browser.display.foreground_color",         String),

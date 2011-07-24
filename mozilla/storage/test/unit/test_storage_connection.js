@@ -49,6 +49,7 @@ function test_connectionReady_open()
 
   var msc = getOpenedDatabase();
   do_check_true(msc.connectionReady);
+  run_next_test();
 }
 
 function test_connectionReady_closed()
@@ -59,24 +60,28 @@ function test_connectionReady_closed()
   msc.close();
   do_check_false(msc.connectionReady);
   gDBConn = null; // this is so later tests don't start to fail.
+  run_next_test();
 }
 
 function test_databaseFile()
 {
   var msc = getOpenedDatabase();
   do_check_true(getTestDB().equals(msc.databaseFile));
+  run_next_test();
 }
 
 function test_tableExists_not_created()
 {
   var msc = getOpenedDatabase();
   do_check_false(msc.tableExists("foo"));
+  run_next_test();
 }
 
 function test_indexExists_not_created()
 {
   var msc = getOpenedDatabase();
   do_check_false(msc.indexExists("foo"));
+  run_next_test();
 }
 
 function test_createTable_not_created()
@@ -84,6 +89,7 @@ function test_createTable_not_created()
   var msc = getOpenedDatabase();
   msc.createTable("test", "id INTEGER PRIMARY KEY, name TEXT");
   do_check_true(msc.tableExists("test"));
+  run_next_test();
 }
 
 function test_indexExists_created()
@@ -91,6 +97,7 @@ function test_indexExists_created()
   var msc = getOpenedDatabase();
   msc.executeSimpleSQL("CREATE INDEX name_ind ON test (name)");
   do_check_true(msc.indexExists("name_ind"));
+  run_next_test();
 }
 
 function test_createTable_already_created()
@@ -103,6 +110,7 @@ function test_createTable_already_created()
   } catch (e) {
     do_check_eq(Cr.NS_ERROR_FAILURE, e.result);
   }
+  run_next_test();
 }
 
 function test_lastInsertRowID()
@@ -110,12 +118,14 @@ function test_lastInsertRowID()
   var msc = getOpenedDatabase();
   msc.executeSimpleSQL("INSERT INTO test (name) VALUES ('foo')");
   do_check_eq(1, msc.lastInsertRowID);
+  run_next_test();
 }
 
 function test_transactionInProgress_no()
 {
   var msc = getOpenedDatabase();
   do_check_false(msc.transactionInProgress);
+  run_next_test();
 }
 
 function test_transactionInProgress_yes()
@@ -130,6 +140,7 @@ function test_transactionInProgress_yes()
   do_check_true(msc.transactionInProgress);
   msc.rollbackTransaction();
   do_check_false(msc.transactionInProgress);
+  run_next_test();
 }
 
 function test_commitTransaction_no_transaction()
@@ -140,8 +151,9 @@ function test_commitTransaction_no_transaction()
     msc.commitTransaction();
     do_throw("We should not get here!");
   } catch (e) {
-    do_check_eq(Cr.NS_ERROR_FAILURE, e.result);
+    do_check_eq(Cr.NS_ERROR_UNEXPECTED, e.result);
   }
+  run_next_test();
 }
 
 function test_rollbackTransaction_no_transaction()
@@ -152,13 +164,15 @@ function test_rollbackTransaction_no_transaction()
     msc.rollbackTransaction();
     do_throw("We should not get here!");
   } catch (e) {
-    do_check_eq(Cr.NS_ERROR_FAILURE, e.result);
+    do_check_eq(Cr.NS_ERROR_UNEXPECTED, e.result);
   }
+  run_next_test();
 }
 
 function test_get_schemaVersion_not_set()
 {
   do_check_eq(0, getOpenedDatabase().schemaVersion);
+  run_next_test();
 }
 
 function test_set_schemaVersion()
@@ -167,6 +181,7 @@ function test_set_schemaVersion()
   const version = 1;
   msc.schemaVersion = version;
   do_check_eq(version, msc.schemaVersion);
+  run_next_test();
 }
 
 function test_set_schemaVersion_same()
@@ -175,6 +190,7 @@ function test_set_schemaVersion_same()
   const version = 1;
   msc.schemaVersion = version; // should still work ok
   do_check_eq(version, msc.schemaVersion);
+  run_next_test();
 }
 
 function test_set_schemaVersion_negative()
@@ -183,6 +199,7 @@ function test_set_schemaVersion_negative()
   const version = -1;
   msc.schemaVersion = version;
   do_check_eq(version, msc.schemaVersion);
+  run_next_test();
 }
 
 function test_createTable(){
@@ -198,6 +215,7 @@ function test_createTable(){
     do_check_true(e.result==Cr.NS_ERROR_NOT_INITIALIZED ||
                   e.result==Cr.NS_ERROR_FAILURE);
   }
+  run_next_test();
 }
 
 function test_defaultSynchronousAtNormal()
@@ -212,10 +230,44 @@ function test_defaultSynchronousAtNormal()
     stmt.reset();
     stmt.finalize();
   }
+  run_next_test();
 }
 
-function test_close_succeeds_with_finalized_async_statement()
+function test_close_does_not_spin_event_loop()
 {
+  // We want to make sure that the event loop on the calling thread does not
+  // spin when close is called.
+  let event = {
+    ran: false,
+    run: function()
+    {
+      this.ran = true;
+    },
+  };
+
+  // Post the event before we call close, so it would run if the event loop was
+  // spun during close.
+  let thread = Cc["@mozilla.org/thread-manager;1"].
+               getService(Ci.nsIThreadManager).
+               currentThread;
+  thread.dispatch(event, Ci.nsIThread.DISPATCH_NORMAL);
+
+  // Sanity check, then close the database.  Afterwards, we should not have ran!
+  do_check_false(event.ran);
+  getOpenedDatabase().close();
+  do_check_false(event.ran);
+
+  // Reset gDBConn so that later tests will get a new connection object.
+  gDBConn = null;
+  run_next_test();
+}
+
+function test_asyncClose_succeeds_with_finalized_async_statement()
+{
+  // XXX this test isn't perfect since we can't totally control when events will
+  //     run.  If this paticular function fails randomly, it means we have a
+  //     real bug.
+
   // We want to make sure we create a cached async statement to make sure that
   // when we finalize our statement, we end up finalizing the async one too so
   // close will succeed.
@@ -223,8 +275,223 @@ function test_close_succeeds_with_finalized_async_statement()
   stmt.executeAsync();
   stmt.finalize();
 
-  // Cleanup calls close, as well as removes the database file.
-  cleanup();
+  getOpenedDatabase().asyncClose(function() {
+    // Reset gDBConn so that later tests will get a new connection object.
+    gDBConn = null;
+    run_next_test();
+  });
+}
+
+function test_close_fails_with_async_statement_ran()
+{
+  let stmt = createStatement("SELECT * FROM test");
+  stmt.executeAsync();
+  stmt.finalize();
+
+  let db = getOpenedDatabase();
+  try {
+    db.close();
+    do_throw("should have thrown");
+  }
+  catch (e) {
+    do_check_eq(e.result, Cr.NS_ERROR_UNEXPECTED);
+  }
+  finally {
+    // Clean up after ourselves.
+    db.asyncClose(function() {
+      // Reset gDBConn so that later tests will get a new connection object.
+      gDBConn = null;
+      run_next_test();
+    });
+  }
+}
+
+function test_clone_optional_param()
+{
+  let db1 = getService().openUnsharedDatabase(getTestDB());
+  let db2 = db1.clone();
+  do_check_true(db2.connectionReady);
+
+  // A write statement should not fail here.
+  let stmt = db2.createStatement("INSERT INTO test (name) VALUES (:name)");
+  stmt.params.name = "dwitte";
+  stmt.execute();
+  stmt.finalize();
+
+  // And a read statement should succeed.
+  stmt = db2.createStatement("SELECT * FROM test");
+  do_check_true(stmt.executeStep());
+  stmt.finalize();
+
+  // Additionally check that it is a connection on the same database.
+  do_check_true(db1.databaseFile.equals(db2.databaseFile));
+
+  run_next_test();
+}
+
+function test_clone_readonly()
+{
+  let db1 = getService().openUnsharedDatabase(getTestDB());
+  let db2 = db1.clone(true);
+  do_check_true(db2.connectionReady);
+
+  // A write statement should fail here.
+  let stmt = db2.createStatement("INSERT INTO test (name) VALUES (:name)");
+  stmt.params.name = "reed";
+  expectError(Cr.NS_ERROR_FILE_READ_ONLY, function() stmt.execute());
+  stmt.finalize();
+
+  // And a read statement should succeed.
+  stmt = db2.createStatement("SELECT * FROM test");
+  do_check_true(stmt.executeStep());
+  stmt.finalize();
+
+  run_next_test();
+}
+
+function test_clone_shared_readonly()
+{
+  let db1 = getService().openDatabase(getTestDB());
+  let db2 = db1.clone(true);
+  do_check_true(db2.connectionReady);
+
+  // A write statement should fail here.
+  let stmt = db2.createStatement("INSERT INTO test (name) VALUES (:name)");
+  stmt.params.name = "reed";
+  // TODO currently SQLite does not actually work correctly here.  The behavior
+  //      we want is commented out, and the current behavior is being tested
+  //      for.  Our IDL comments will have to be updated when this starts to
+  //      work again.
+  stmt.execute(); // This should not throw!
+  //expectError(Cr.NS_ERROR_FILE_READ_ONLY, function() stmt.execute());
+  stmt.finalize();
+
+  // And a read statement should succeed.
+  stmt = db2.createStatement("SELECT * FROM test");
+  do_check_true(stmt.executeStep());
+  stmt.finalize();
+
+  run_next_test();
+}
+
+function test_close_clone_fails()
+{
+  let calls = [
+    "openDatabase",
+    "openUnsharedDatabase",
+  ];
+  calls.forEach(function(methodName) {
+    let db = getService()[methodName](getTestDB());
+    db.close();
+    expectError(Cr.NS_ERROR_NOT_INITIALIZED, function() db.clone());
+  });
+
+  run_next_test();
+}
+
+function test_memory_clone_fails()
+{
+  let db = getService().openSpecialDatabase("memory");
+  db.close();
+  expectError(Cr.NS_ERROR_NOT_INIALIZED, function() db.clone());
+
+  run_next_test();
+}
+
+function test_clone_copies_functions()
+{
+  const FUNC_NAME = "test_func";
+  let calls = [
+    "openDatabase",
+    "openUnsharedDatabase",
+  ];
+  let functionMethods = [
+    "createFunction",
+    "createAggregateFunction",
+  ];
+  calls.forEach(function(methodName) {
+    [true, false].forEach(function(readOnly) {
+      functionMethods.forEach(function(functionMethod) {
+        let db1 = getService()[methodName](getTestDB());
+        // Create a function for db1.
+        db1[functionMethod](FUNC_NAME, 1, {
+          onFunctionCall: function() 0,
+          onStep: function() 0,
+          onFinal: function() 0,
+        });
+
+        // Clone it, and make sure the function exists still.
+        let db2 = db1.clone(readOnly);
+        // Note: this would fail if the function did not exist.
+        let stmt = db2.createStatement("SELECT " + FUNC_NAME + "(id) FROM test");
+        stmt.finalize();
+        db1.close();
+        db2.close();
+      });
+    });
+  });
+
+  run_next_test();
+}
+
+function test_clone_copies_overridden_functions()
+{
+  const FUNC_NAME = "lower";
+  function test_func() {
+    this.called = false;
+  }
+  test_func.prototype = {
+    onFunctionCall: function() {
+      this.called = true;
+    },
+    onStep: function() {
+      this.called = true;
+    },
+    onFinal: function() 0,
+  };
+
+  let calls = [
+    "openDatabase",
+    "openUnsharedDatabase",
+  ];
+  let functionMethods = [
+    "createFunction",
+    "createAggregateFunction",
+  ];
+  calls.forEach(function(methodName) {
+    [true, false].forEach(function(readOnly) {
+      functionMethods.forEach(function(functionMethod) {
+        let db1 = getService()[methodName](getTestDB());
+        // Create a function for db1.
+        let func = new test_func();
+        db1[functionMethod](FUNC_NAME, 1, func);
+        do_check_false(func.called);
+
+        // Clone it, and make sure the function gets called.
+        let db2 = db1.clone(readOnly);
+        let stmt = db2.createStatement("SELECT " + FUNC_NAME + "(id) FROM test");
+        stmt.executeStep();
+        do_check_true(func.called);
+        stmt.finalize();
+        db1.close();
+        db2.close();
+      });
+    });
+  });
+
+  run_next_test();
+}
+
+function test_getInterface()
+{
+  let db = getOpenedDatabase();
+  let target = db.QueryInterface(Ci.nsIInterfaceRequestor)
+                 .getInterface(Ci.nsIEventTarget);
+  // Just check that target is non-null.  Other tests will ensure that it has
+  // the correct value.
+  do_check_true(target != null);
+
+  run_next_test();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -250,13 +517,45 @@ var tests = [
   test_set_schemaVersion_negative,
   test_createTable,
   test_defaultSynchronousAtNormal,
-  test_close_succeeds_with_finalized_async_statement,
+  test_close_does_not_spin_event_loop, // must be ran before executeAsync tests
+  test_asyncClose_succeeds_with_finalized_async_statement,
+  test_close_fails_with_async_statement_ran,
+  test_clone_optional_param,
+  test_clone_readonly,
+  test_close_clone_fails,
+  test_clone_copies_functions,
+  test_clone_copies_overridden_functions,
+  test_getInterface,
 ];
+let index = 0;
+
+function run_next_test()
+{
+  function _run_next_test() {
+    if (index < tests.length) {
+      do_test_pending();
+      print("Running the next test: " + tests[index].name);
+
+      // Asynchronous tests means that exceptions don't kill the test.
+      try {
+        tests[index++]();
+      }
+      catch (e) {
+        do_throw(e);
+      }
+    }
+
+    do_test_finished();
+  }
+
+  // For saner stacks, we execute this code RSN.
+  do_execute_soon(_run_next_test);
+}
 
 function run_test()
 {
-  for (var i = 0; i < tests.length; i++)
-    tests[i]();
-    
   cleanup();
+
+  do_test_pending();
+  run_next_test();
 }

@@ -35,8 +35,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+function browserWindowsCount() {
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  return count;
+}
+
 function test() {
   /** Test for Bug 461634 **/
+  is(browserWindowsCount(), 1, "Only one browser window should be open initially");
   
   // test setup
   let ss = Cc["@mozilla.org/browser/sessionstore;1"].getService(Ci.nsISessionStore);
@@ -65,13 +76,13 @@ function test() {
   }
   
   // open a window and add the above closed tab list
-  let newWin = openDialog(location, "_blank", "chrome,all,dialog=no");
+  let newWin = openDialog(location, "", "chrome,all,dialog=no");
   newWin.addEventListener("load", function(aEvent) {
     gPrefService.setIntPref("browser.sessionstore.max_tabs_undo",
                             test_state.windows[0]._closedTabs.length);
     ss.setWindowState(newWin, JSON.stringify(test_state), true);
     
-    let closedTabs = eval("(" + ss.getClosedTabData(newWin) + ")");
+    let closedTabs = JSON.parse(ss.getClosedTabData(newWin));
     is(closedTabs.length, test_state.windows[0]._closedTabs.length,
        "Closed tab list has the expected length");
     is(countByTitle(closedTabs, FORGET),
@@ -92,7 +103,7 @@ function test() {
     ss.forgetClosedTab(newWin, 2);
     ss.forgetClosedTab(newWin, null);
     
-    closedTabs = eval("(" + ss.getClosedTabData(newWin) + ")");
+    closedTabs = JSON.parse(ss.getClosedTabData(newWin));
     is(closedTabs.length, remember_count,
        "The correct amout of tabs was removed");
     is(countByTitle(closedTabs, FORGET), 0,
@@ -102,6 +113,7 @@ function test() {
 
     // clean up
     newWin.close();
+    is(browserWindowsCount(), 1, "Only one browser window should be open eventually");
     gPrefService.clearUserPref("browser.sessionstore.max_tabs_undo");
     finish();
   }, false);

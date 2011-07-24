@@ -1,9 +1,10 @@
 // Import the servers
-load("../../mailnews/fakeserver/maild.js");
-load("../../mailnews/fakeserver/nntpd.js");
+load("../../../fakeserver/maild.js");
+load("../../../fakeserver/nntpd.js");
 
 // Generic mailnews resource scripts
-load("../../mailnews/resources/mailDirService.js");
+load("../../../resources/mailDirService.js");
+load("../../../resources/mailTestUtils.js");
 
 const kSimpleNewsArticle =
   "From: John Doe <john.doe@example.com>\n"+
@@ -18,6 +19,7 @@ const kSimpleNewsArticle =
 // It is an array of tuples, where the first element is the group name and the
 // second element is whether or not we should subscribe to it.
 var groups = [
+  ["misc.test", false],
   ["test.empty", false],
   ["test.subscribe.empty", true],
   ["test.subscribe.simple", true],
@@ -93,17 +95,7 @@ function subscribeServer(incomingServer) {
 function setupLocalServer(port) {
   if (_server != null)
     return _server;
-  var acctmgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-
-  var server = acctmgr.createIncomingServer(null, "localhost", "nntp");
-  server.port = port;
-  server.valid = false;
-
-  var account = acctmgr.createAccount();
-  account.incomingServer = server;
-  server.valid = true;
-
+  let server = create_incoming_server("nntp", port, null, null);
   subscribeServer(server);
 
   _server = server;

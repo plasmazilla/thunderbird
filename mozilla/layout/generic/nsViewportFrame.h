@@ -45,9 +45,9 @@
 
 #include "nsContainerFrame.h"
 #include "nsGkAtoms.h"
-#include "nsPresContext.h"
-#include "nsIPresShell.h"
 #include "nsAbsoluteContainingBlock.h"
+
+class nsPresContext;
 
 /**
   * ViewportFrame is the parent of a single child - the doc root frame or a scroll frame 
@@ -67,7 +67,7 @@ public:
   {}
   virtual ~ViewportFrame() { } // useful for debugging
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,

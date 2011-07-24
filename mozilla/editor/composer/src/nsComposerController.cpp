@@ -44,18 +44,16 @@
 
 #define NS_REGISTER_ONE_COMMAND(_cmdClass, _cmdName)                    \
   {                                                                     \
-    _cmdClass* theCmd;                                                  \
-    NS_NEWXPCOM(theCmd, _cmdClass);                                     \
-    if (!theCmd) return NS_ERROR_OUT_OF_MEMORY;                         \
+    _cmdClass* theCmd = new _cmdClass();                                \
+    NS_ENSURE_TRUE(theCmd, NS_ERROR_OUT_OF_MEMORY);                         \
     rv = inCommandTable->RegisterCommand(_cmdName,                      \
                        static_cast<nsIControllerCommand *>(theCmd));    \
   }
 
 #define NS_REGISTER_FIRST_COMMAND(_cmdClass, _cmdName)                  \
   {                                                                     \
-    _cmdClass* theCmd;                                                  \
-    NS_NEWXPCOM(theCmd, _cmdClass);                                     \
-    if (!theCmd) return NS_ERROR_OUT_OF_MEMORY;                         \
+    _cmdClass* theCmd = new _cmdClass();                                \
+    NS_ENSURE_TRUE(theCmd, NS_ERROR_OUT_OF_MEMORY);                         \
     rv = inCommandTable->RegisterCommand(_cmdName,                      \
                        static_cast<nsIControllerCommand *>(theCmd));
 
@@ -71,7 +69,7 @@
 #define NS_REGISTER_STYLE_COMMAND(_cmdClass, _cmdName, _styleTag)       \
   {                                                                     \
     _cmdClass* theCmd = new _cmdClass(_styleTag);                       \
-    if (!theCmd) return NS_ERROR_OUT_OF_MEMORY;                         \
+    NS_ENSURE_TRUE(theCmd, NS_ERROR_OUT_OF_MEMORY);                         \
     rv = inCommandTable->RegisterCommand(_cmdName,                      \
                        static_cast<nsIControllerCommand *>(theCmd));    \
   }
@@ -79,7 +77,7 @@
 #define NS_REGISTER_TAG_COMMAND(_cmdClass, _cmdName, _tagName)          \
   {                                                                     \
     _cmdClass* theCmd = new _cmdClass(_tagName);                        \
-    if (!theCmd) return NS_ERROR_OUT_OF_MEMORY;                         \
+    NS_ENSURE_TRUE(theCmd, NS_ERROR_OUT_OF_MEMORY);                         \
     rv = inCommandTable->RegisterCommand(_cmdName,                      \
                        static_cast<nsIControllerCommand *>(theCmd));    \
   }

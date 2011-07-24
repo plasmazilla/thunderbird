@@ -92,9 +92,9 @@ struct _cairo_scaled_font {
     cairo_matrix_t ctm;	          /* user space => device space */
     cairo_font_options_t options;
 
-    cairo_bool_t placeholder; /*  protected by fontmap mutex */
-
-    cairo_bool_t finished;
+    unsigned int placeholder : 1; /*  protected by fontmap mutex */
+    unsigned int holdover : 1;
+    unsigned int finished : 1;
 
     /* "live" scaled_font members */
     cairo_matrix_t scale;	     /* font space => device space */
@@ -122,5 +122,8 @@ struct _cairo_scaled_font {
     /* font backend managing this scaled font */
     const cairo_scaled_font_backend_t *backend;
 };
+
+cairo_private void
+_cairo_scaled_font_revoke_ownership (cairo_scaled_font_t *scaled_font);
 
 #endif /* CAIRO_SCALED_FONT_PRIVATE_H */

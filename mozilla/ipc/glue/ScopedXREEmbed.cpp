@@ -86,7 +86,34 @@ ScopedXREEmbed::Start()
   localFile = do_QueryInterface(parent);
   NS_ENSURE_TRUE(localFile,);
 
-  rv = XRE_InitEmbedding(localFile, localFile, nsnull, nsnull, 0);
+#ifdef OS_MACOSX
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    // We're an XPCOM-using subprocess.  Walk out of
+    // [subprocess].app/Contents/MacOS to the real GRE dir.
+    rv = localFile->GetParent(getter_AddRefs(parent));
+    if (NS_FAILED(rv))
+      return;
+
+    localFile = do_QueryInterface(parent);
+    NS_ENSURE_TRUE(localFile,);
+
+    rv = localFile->GetParent(getter_AddRefs(parent));
+    if (NS_FAILED(rv))
+      return;
+
+    localFile = do_QueryInterface(parent);
+    NS_ENSURE_TRUE(localFile,);
+
+    rv = localFile->GetParent(getter_AddRefs(parent));
+    if (NS_FAILED(rv))
+      return;
+
+    localFile = do_QueryInterface(parent);
+    NS_ENSURE_TRUE(localFile,);
+  }
+#endif
+
+  rv = XRE_InitEmbedding2(localFile, localFile, nsnull);
   if (NS_FAILED(rv))
     return;
 

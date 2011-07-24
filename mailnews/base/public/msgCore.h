@@ -44,7 +44,6 @@
 #include "nscore.h"
 #include "plstr.h"
 #include "nsCRTGlue.h"
-#include "nsVoidArray.h"
 
 class nsIMsgDBHdr;
 class nsIMsgFolder;
@@ -67,7 +66,10 @@ class nsIMsgFolder;
  * These are folder property strings, which are used in several places.
 
  */
+// Most recently used (opened, moved to, got new messages)
 #define MRU_TIME_PROPERTY "MRUTime"
+// Most recently moved to, for recent folders list in move menu
+#define MRM_TIME_PROPERTY "MRMTime"
 
 /* NS_ERROR_MODULE_MAILNEWS is defined in mozilla/xpcom/public/nsError.h */
 
@@ -204,7 +206,7 @@ NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_MAILNEWS, value)
 #define MSG_LINEBREAK_LEN 1
 #endif
 
-#ifdef MOZ_STATIC_MAIL_BUILD
+#if defined(MOZ_STATIC_MAIL_BUILD) || defined(MOZ_ENABLE_LIBXUL)
 #define NS_MSG_BASE
 #define NS_MSG_BASE_STATIC_MEMBER_(type) type
 #else

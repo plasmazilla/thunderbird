@@ -55,10 +55,6 @@ textbox {
   color: black;
 }
 
-textbox[isempty="true"] {
-  color: #999999;
-}
-
 html|*.textbox-input, 
 html|*.textbox-textarea {
   margin: 0px !important;
@@ -67,6 +63,11 @@ html|*.textbox-textarea {
   background-color: inherit;
   color: inherit;
   font: inherit;
+}
+
+html|*.textbox-input:-moz-placeholder,
+html|*.textbox-textarea:-moz-placeholder {
+  color: GrayText;
 }
 
 .textbox-contextmenu {

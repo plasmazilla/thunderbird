@@ -51,7 +51,7 @@ class nsHTMLTableCellElement : public nsGenericHTMLElement,
                                public nsIDOMHTMLTableCellElement
 {
 public:
-  nsHTMLTableCellElement(nsINodeInfo *aNodeInfo);
+  nsHTMLTableCellElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLTableCellElement();
 
   // nsISupports
@@ -79,6 +79,7 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
   // This does not return a nsresult since all we care about is if we
   // found the row element that this cell is in or not.
@@ -90,7 +91,7 @@ protected:
 NS_IMPL_NS_NEW_HTML_ELEMENT(TableCell)
 
 
-nsHTMLTableCellElement::nsHTMLTableCellElement(nsINodeInfo *aNodeInfo)
+nsHTMLTableCellElement::nsHTMLTableCellElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -103,6 +104,8 @@ nsHTMLTableCellElement::~nsHTMLTableCellElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLTableCellElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLTableCellElement, nsGenericElement) 
 
+
+DOMCI_NODE_DATA(HTMLTableCellElement, nsHTMLTableCellElement)
 
 // QueryInterface implementation for nsHTMLTableCellElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLTableCellElement)
@@ -140,7 +143,7 @@ nsHTMLTableCellElement::GetTable()
   if (parent) {  // GetParent() should be a row
     nsIContent* section = parent->GetParent();
     if (section) {
-      if (section->IsNodeOfType(eHTML) &&
+      if (section->IsHTML() &&
           section->NodeInfo()->Equals(nsGkAtoms::table)) {
         // XHTML, without a row group
         result = section;
@@ -302,19 +305,19 @@ nsHTMLTableCellElement::ParseAttribute(PRInt32 aNamespaceID,
       return res;
     }
     if (aAttribute == nsGkAtoms::height) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::width) {
-      return aResult.ParseSpecialIntValue(aValue, PR_TRUE);
+      return aResult.ParseSpecialIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::align) {
       return ParseTableCellHAlignValue(aValue, aResult);
     }
     if (aAttribute == nsGkAtoms::bgcolor) {
-      return aResult.ParseColor(aValue, GetOwnerDoc());
+      return aResult.ParseColor(aValue);
     }
     if (aAttribute == nsGkAtoms::scope) {
-      return aResult.ParseEnumValue(aValue, kCellScopeTable);
+      return aResult.ParseEnumValue(aValue, kCellScopeTable, PR_FALSE);
     }
     if (aAttribute == nsGkAtoms::valign) {
       return ParseTableVAlignValue(aValue, aResult);
@@ -331,44 +334,48 @@ void MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
 {
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Position)) {
     // width: value
-    if (aData->mPositionData->mWidth.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* width = aData->ValueForWidth();
+    if (width->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::width);
       if (value && value->Type() == nsAttrValue::eInteger) {
         if (value->GetIntegerValue() > 0)
-          aData->mPositionData->mWidth.SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel); 
+          width->SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel); 
         // else 0 implies auto for compatibility.
       }
       else if (value && value->Type() == nsAttrValue::ePercent) {
         if (value->GetPercentValue() > 0.0f)
-          aData->mPositionData->mWidth.SetPercentValue(value->GetPercentValue());
+          width->SetPercentValue(value->GetPercentValue());
         // else 0 implies auto for compatibility
       }
     }
 
     // height: value
-    if (aData->mPositionData->mHeight.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* height = aData->ValueForHeight();
+    if (height->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::height);
       if (value && value->Type() == nsAttrValue::eInteger) {
         if (value->GetIntegerValue() > 0)
-          aData->mPositionData->mHeight.SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel);
+          height->SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Pixel);
         // else 0 implies auto for compatibility.
       }
       else if (value && value->Type() == nsAttrValue::ePercent) {
         if (value->GetPercentValue() > 0.0f)
-          aData->mPositionData->mHeight.SetPercentValue(value->GetPercentValue());
+          height->SetPercentValue(value->GetPercentValue());
         // else 0 implies auto for compatibility
       }
     }
   }
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Text)) {
-    if (aData->mTextData->mTextAlign.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* textAlign = aData->ValueForTextAlign();
+    if (textAlign->GetUnit() == eCSSUnit_Null) {
       // align: enum
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::align);
       if (value && value->Type() == nsAttrValue::eEnum)
-        aData->mTextData->mTextAlign.SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
+        textAlign->SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
     }
 
-    if (aData->mTextData->mWhiteSpace.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* whiteSpace = aData->ValueForWhiteSpace();
+    if (whiteSpace->GetUnit() == eCSSUnit_Null) {
       // nowrap: enum
       if (aAttributes->GetAttr(nsGkAtoms::nowrap)) {
         // See if our width is not a nonzero integer width.
@@ -377,18 +384,18 @@ void MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
         if (!value || value->Type() != nsAttrValue::eInteger ||
             value->GetIntegerValue() == 0 ||
             eCompatibility_NavQuirks != mode) {
-          aData->mTextData->mWhiteSpace.SetIntValue(NS_STYLE_WHITESPACE_NOWRAP, eCSSUnit_Enumerated);
+          whiteSpace->SetIntValue(NS_STYLE_WHITESPACE_NOWRAP, eCSSUnit_Enumerated);
         }
-        
       }
     }
   }
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(TextReset)) {
-    if (aData->mTextData->mVerticalAlign.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* verticalAlign = aData->ValueForVerticalAlign();
+    if (verticalAlign->GetUnit() == eCSSUnit_Null) {
       // valign: enum
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::valign);
       if (value && value->Type() == nsAttrValue::eEnum)
-        aData->mTextData->mVerticalAlign.SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
+        verticalAlign->SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
     }
   }
   

@@ -40,22 +40,6 @@
 
 #include "nsXPCOM.h"
 
-/* By default refcnt logging is not part of the build. */
-#undef NS_BUILD_REFCNT_LOGGING
-
-#if (defined(DEBUG) || defined(FORCE_BUILD_REFCNT_LOGGING))
-/* Make refcnt logging part of the build. This doesn't mean that
- * actual logging will occur (that requires a separate enable; see
- * nsTraceRefcnt.h for more information).  */
-#define NS_BUILD_REFCNT_LOGGING 1
-#endif
-
-/* If NO_BUILD_REFCNT_LOGGING is defined then disable refcnt logging
- * in the build. This overrides FORCE_BUILD_REFCNT_LOGGING. */
-#if defined(NO_BUILD_REFCNT_LOGGING)
-#undef NS_BUILD_REFCNT_LOGGING
-#endif
-
 #ifdef NS_BUILD_REFCNT_LOGGING
 
 #define NS_LOG_ADDREF(_p, _rc, _type, _size) \
@@ -69,9 +53,19 @@ PR_BEGIN_MACRO                                                \
   NS_LogCtor((void*)this, #_type, sizeof(*this));             \
 PR_END_MACRO
 
+#define MOZ_COUNT_CTOR_INHERITED(_type, _base)                    \
+PR_BEGIN_MACRO                                                    \
+  NS_LogCtor((void*)this, #_type, sizeof(*this) - sizeof(_base)); \
+PR_END_MACRO
+
 #define MOZ_COUNT_DTOR(_type)                                 \
 PR_BEGIN_MACRO                                                \
   NS_LogDtor((void*)this, #_type, sizeof(*this));             \
+PR_END_MACRO
+
+#define MOZ_COUNT_DTOR_INHERITED(_type, _base)                    \
+PR_BEGIN_MACRO                                                    \
+  NS_LogDtor((void*)this, #_type, sizeof(*this) - sizeof(_base)); \
 PR_END_MACRO
 
 /* nsCOMPtr.h allows these macros to be defined by clients
@@ -90,7 +84,9 @@ PR_END_MACRO
 #define NS_LOG_ADDREF(_p, _rc, _type, _size)
 #define NS_LOG_RELEASE(_p, _rc, _type)
 #define MOZ_COUNT_CTOR(_type)
+#define MOZ_COUNT_CTOR_INHERITED(_type, _base)
 #define MOZ_COUNT_DTOR(_type)
+#define MOZ_COUNT_DTOR_INHERITED(_type, _base)
 
 #endif /* NS_BUILD_REFCNT_LOGGING */
 

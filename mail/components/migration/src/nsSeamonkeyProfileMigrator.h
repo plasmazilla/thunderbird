@@ -39,27 +39,26 @@
 #define seamonkeyprofilemigrator___h___
 
 #include "nsIMailProfileMigrator.h"
-#include "nsILocalFile.h"
-#include "nsIObserverService.h"
 #include "nsIMutableArray.h"
 #include "nsNetscapeProfileMigratorBase.h"
-#include "nsITimer.h"
 
-class nsIFile;
 class nsIPrefBranch;
 class nsIPrefService;
 
-class nsSeamonkeyProfileMigrator : public nsNetscapeProfileMigratorBase, 
-                                   public nsIMailProfileMigrator,
-                                   public nsITimerCallback
+class nsSeamonkeyProfileMigrator : public nsNetscapeProfileMigratorBase
 {
 public:
-  NS_DECL_NSIMAILPROFILEMIGRATOR
   NS_DECL_ISUPPORTS
-  NS_DECL_NSITIMERCALLBACK
 
   nsSeamonkeyProfileMigrator();
   virtual ~nsSeamonkeyProfileMigrator();
+
+  // nsIMailProfileMigrator methods
+  NS_IMETHOD Migrate(PRUint16 aItems, nsIProfileStartup* aStartup,
+                        const PRUnichar* aProfile);
+  NS_IMETHOD GetMigrateData(const PRUnichar* aProfile, PRBool aReplace,
+                            PRUint16* aResult);
+  NS_IMETHOD GetSourceProfiles(nsIArray** aResult);
 
 protected:
   nsresult FillProfileDataFromSeamonkeyRegistry();
@@ -72,24 +71,21 @@ protected:
   nsresult DummyCopyRoutine(PRBool aReplace);
   nsresult CopyJunkTraining(PRBool aReplace);  
   nsresult CopyPasswords(PRBool aReplace);
-  nsresult CopyMailFolders(nsVoidArray* aMailServers, nsIPrefService* aPrefBranch);
-  nsresult CopyAddressBookDirectories(nsVoidArray* aLdapServers, nsIPrefService* aPrefService);
-  nsresult CopySignatureFiles(nsVoidArray* aIdentities, nsIPrefService* aPrefBranch);
+  nsresult CopyMailFolders(PBStructArray &aMailServers,
+                           nsIPrefService* aPrefBranch);
+  nsresult CopyAddressBookDirectories(PBStructArray &aLdapServers,
+                                      nsIPrefService* aPrefService);
+  nsresult CopySignatureFiles(PBStructArray &aIdentities,
+                              nsIPrefService* aPrefBranch);
 
-  void ReadBranch(const char * branchName,  nsIPrefService* aPrefService, nsVoidArray* aPrefs);
-  void WriteBranch(const char * branchName, nsIPrefService* aPrefService, nsVoidArray* aPrefs);
-
-  void CopyNextFolder();
-  void EndCopyFolders();
+  void ReadBranch(const char *branchName,  nsIPrefService *aPrefService,
+                  PBStructArray &aPrefs);
+  void WriteBranch(const char *branchName, nsIPrefService *aPrefService,
+                   PBStructArray &aPrefs);
 
 private:
   nsCOMPtr<nsIMutableArray> mProfileNames;
   nsCOMPtr<nsIMutableArray> mProfileLocations;
-  nsCOMPtr<nsIObserverService> mObserverService;
-  nsCOMPtr<nsITimer> mFileIOTimer;
-
-  PRInt64 mMaxProgress;
-  PRInt64 mCurrentProgress;
 };
  
 #endif

@@ -64,13 +64,13 @@
   width="&pageInfoWindow.width;" height="&pageInfoWindow.height;"
   persist="screenX screenY width height sizemode">
 
-  <script type="application/x-javascript" src="chrome://global/content/globalOverlay.js"/>
-  <script type="application/x-javascript" src="chrome://global/content/contentAreaUtils.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/pageinfo/pageInfo.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/pageinfo/feeds.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/pageinfo/permissions.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/pageinfo/security.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/utilityOverlay.js"/>
+  <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
+  <script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
+  <script type="application/javascript" src="chrome://browser/content/pageinfo/pageInfo.js"/>
+  <script type="application/javascript" src="chrome://browser/content/pageinfo/feeds.js"/>
+  <script type="application/javascript" src="chrome://browser/content/pageinfo/permissions.js"/>
+  <script type="application/javascript" src="chrome://browser/content/pageinfo/security.js"/>
+  <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
 
   <stringbundleset id="pageinfobundleset">
     <stringbundle id="pageinfobundle" src="chrome://browser/locale/pageInfo.properties"/>
@@ -89,11 +89,13 @@
     <command id="cmd_cookieDef"     oncommand="onCheckboxClick('cookie');"/>
     <command id="cmd_installDef"    oncommand="onCheckboxClick('install');"/>
     <command id="cmd_geoDef"        oncommand="onCheckboxClick('geo');"/>
+    <command id="cmd_indexedDBDef"  oncommand="onCheckboxClick('indexedDB');"/>
     <command id="cmd_imageToggle"   oncommand="onRadioClick('image');"/>
     <command id="cmd_popupToggle"   oncommand="onRadioClick('popup');"/>
     <command id="cmd_cookieToggle"  oncommand="onRadioClick('cookie');"/>
     <command id="cmd_installToggle" oncommand="onRadioClick('install');"/>
     <command id="cmd_geoToggle"     oncommand="onRadioClick('geo');"/>
+    <command id="cmd_indexedDBToggle" oncommand="onRadioClick('indexedDB');"/>
   </commandset>
 
   <keyset>
@@ -215,7 +217,7 @@
       <tree id="imagetree" onselect="onImageSelect();" contextmenu="picontext"
             ondragstart="onBeginLinkDrag(event,'image-address','image-alt')">
         <treecols>
-          <treecol sortSeparators="true" persist="hidden width" flex="10"
+          <treecol sortSeparators="true" primary="true" persist="width" flex="10"
                         width="10" id="image-address" label="&mediaAddress;"/>
           <splitter class="tree-splitter"/>
           <treecol sortSeparators="true" persist="hidden width" flex="2"
@@ -289,7 +291,7 @@
             <image id="thepreviewimage"/>
           </hbox>
           <hbox id="brokenimagecontainer" pack="center" collapsed="true">
-            <image id="brokenimage" src="resource:///res/broken-image.png"/>
+            <image id="brokenimage" src="resource://gre-resources/broken-image.png"/>
           </hbox>
         </vbox>
       </vbox>
@@ -372,6 +374,23 @@
             <radiogroup id="geoRadioGroup" orient="horizontal">
               <radio id="geo#1" command="cmd_geoToggle" label="&permAllow;"/>
               <radio id="geo#2" command="cmd_geoToggle" label="&permBlock;"/>
+            </radiogroup>
+          </hbox>
+        </vbox>
+        <vbox class="permission">
+          <label class="permissionLabel" id="permIndexedDBLabel"
+                 value="&permIndexedDB;" control="indexedDBRadioGroup"/>
+          <hbox role="group" aria-labelledby="permIndexedDBLabel">
+            <checkbox id="indexedDBDef" command="cmd_indexedDBDef" label="&permAskAlways;"/>
+            <spacer flex="1"/>
+            <vbox pack="center">
+              <label id="indexedDBStatus" control="indexedDBClear"/>
+            </vbox>
+            <button id="indexedDBClear" label="&permClearStorage;"
+                    accesskey="&permClearStorage.accesskey;" onclick="onIndexedDBClear();"/>
+            <radiogroup id="indexedDBRadioGroup" orient="horizontal">
+              <radio id="indexedDB#1" command="cmd_indexedDBToggle" label="&permAllow;"/>
+              <radio id="indexedDB#2" command="cmd_indexedDBToggle" label="&permBlock;"/>
             </radiogroup>
           </hbox>
         </vbox>

@@ -70,12 +70,16 @@
 <script type="application/javascript" src="chrome://messenger/content/mailCommands.js"/>
 <script type="application/javascript" src="chrome://messenger/content/junkCommands.js"/>
 <script type="application/javascript" src="chrome://messenger/content/mailWindowOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/msgViewPickerOverlay.js"/>
 <script type="application/javascript" src="chrome://messenger-newsblog/content/newsblogOverlay.js"/>
 <script type="application/javascript" src="chrome://messenger/content/mail-offline.js"/>
 <script type="application/javascript" src="chrome://communicator/content/findUtils.js"/>
-<script type="application/javascript" src="chrome://communicator/content/bookmarks/bookmarks.js"/>
 <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/folderDisplay.js"/>
+<script type="application/javascript"><![CDATA[
+  Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
+  Components.utils.import("resource:///modules/PlacesUIUtils.jsm");
+]]></script>
 
 <stringbundleset id="stringbundleset">
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
@@ -120,8 +124,6 @@
     <command id="cmd_getNewMessages" oncommand="goDoCommand('cmd_getNewMessages')" disabled="true"/>
     <command id="cmd_close" oncommand="goDoCommand('cmd_close')"/>
     <command id="cmd_open" oncommand="goDoCommand('cmd_open')"/>
-
-    <command id="cmd_file" disabled="true"/>
 
     <command id="cmd_emptyTrash" oncommand="goDoCommand('cmd_emptyTrash')" disabled="true"/>
     <command id="cmd_compactFolder" oncommand="goDoCommand('cmd_compactFolder')" disabled="true"/>
@@ -195,14 +197,10 @@
          valueMessageAccessKey="&deleteMsgCmd.accesskey;"
          valueIMAPDeletedMessage="&undeleteMsgCmd.label;"
          valueIMAPDeletedMessageAccessKey="&undeleteMsgCmd.accesskey;"
-         valueNewsMessage="&cancelNewsMsgCmd.label;"
-         valueNewsMessageAccessKey="&cancelNewsMsgCmd.accesskey;"
          valueMessages="&deleteMsgsCmd.label;"
          valueMessagesAccessKey="&deleteMsgsCmd.accesskey;"
          valueIMAPDeletedMessages="&undeleteMsgsCmd.label;"
-         valueIMAPDeletedMessagesAccessKey="&undeleteMsgsCmd.accesskey;"
-         valueNewsMessages="&cancelNewsMsgsCmd.label;"
-         valueNewsMessagesAccessKey="&cancelNewsMsgsCmd.accesskey;"/>
+         valueIMAPDeletedMessagesAccessKey="&undeleteMsgsCmd.accesskey;"/>
   <command id="cmd_selectAll"/>
   <command id="cmd_selectThread" oncommand="goDoCommand('cmd_selectThread')"/>
   <command id="cmd_selectFlagged" oncommand="goDoCommand('cmd_selectFlagged')"/>
@@ -257,6 +255,7 @@
   <command id="cmd_editAsNew" oncommand="goDoCommand('cmd_editAsNew')"/>
   <command id="cmd_openMessage" oncommand="goDoCommand('cmd_openMessage')"/>
   <command id="cmd_createFilterFromMenu" oncommand="goDoCommand('cmd_createFilterFromMenu')"/>
+  <command id="cmd_cancel" oncommand="goDoCommand('cmd_cancel')"/>
   <command id="cmd_killThread" oncommand="goDoCommand('cmd_killThread')"/>
   <command id="cmd_killSubthread" oncommand="goDoCommand('cmd_killSubthread')"/>
   <command id="cmd_watchThread" oncommand="goDoCommand('cmd_watchThread')"/>
@@ -281,6 +280,7 @@
   <command id="button_file"/>
   <command id="cmd_shiftDelete" oncommand="goDoCommand('cmd_shiftDelete');"/>
   <command id="button_junk"/>
+  <command id="button_search"/>
 </commandset>
 
 
@@ -354,7 +354,7 @@
   <key id="key_delete2"/> <!-- secondary delete key -->
   <key id="key_shiftDelete2"/>
   <key id="key_selectAll"/>
-  <key id="key_selectThread" key="&selectThreadCmd.key;"             oncommand="goDoCommand('cmd_selectThread');" modifiers="accel, shift"/>
+  <key id="key_selectThread" key="&selectThreadCmd.key;"             oncommand="goDoCommand('cmd_selectThread');" modifiers="alt, shift"/>
 
   <key id="key_toggleRead" key="&markAsReadCmd.key;"                 oncommand="goDoCommand('cmd_markAsRead');"/>
   <key id="key_toggleFlagged" key="&markFlaggedCmd.key;"             oncommand="goDoCommand('cmd_markAsFlagged');"/>
@@ -405,6 +405,7 @@
   <key id="key_findTypeLinks"/>
   <key id="key_stop" keycode="VK_ESCAPE" command="cmd_stop"/>
   <keyset id="viewZoomKeys"/>
+  <key id="key_reload"/>
 
   <!-- Tab/F6 Keys -->
   <key keycode="VK_TAB" oncommand="SwitchPaneFocus(event);" modifiers="control,shift"/>
@@ -461,21 +462,21 @@
 
 </keyset>
 
-  <popup id="folderPaneContext"
+  <menupopup id="folderPaneContext"
          onpopupshowing="return FillFolderPaneContextMenu();"
          onpopuphiding="if (event.target == this) FolderPaneOnPopupHiding();">
     <menuitem id="folderPaneContext-getMessages"
               label="&folderContextGetMessages.label;"
               accesskey="&folderContextGetMessages.accesskey;"
               oncommand="MsgGetMessage();"/>
-    <menuitem id="folderPaneContext-openNewWindow"
-              label="&folderContextOpenNewWindow.label;"
-              accesskey="&folderContextOpenNewWindow.accesskey;"
-              oncommand="MsgOpenNewWindowForFolder(null,-1);"/>
     <menuitem id="folderPaneContext-openNewTab"
               label="&folderContextOpenNewTab.label;"
               accesskey="&folderContextOpenNewTab.accesskey;"
               oncommand="MsgOpenNewTabForFolder();"/>
+    <menuitem id="folderPaneContext-openNewWindow"
+              label="&folderContextOpenNewWindow.label;"
+              accesskey="&folderContextOpenNewWindow.accesskey;"
+              oncommand="MsgOpenNewWindowForFolder(null,-1);"/>
     <menuitem id="folderPaneContext-searchMessages"
               label="&folderContextSearchMessages.label;"
               accesskey="&folderContextSearchMessages.accesskey;"
@@ -539,20 +540,20 @@
               label="&folderContextSettings.label;"
               accesskey="&folderContextSettings.accesskey;"
               oncommand="MsgFolderProperties();"/>
-  </popup>
+  </menupopup>
 
-  <popup id="mailContext"
+  <menupopup id="mailContext"
          onpopupshowing="return event.target != this ||
                                 FillMailContextMenu(this);"
          onpopuphiding="if (event.target == this) MailContextOnPopupHiding();">
+    <menuitem id="context-openlinkintab"
+              label="&openLinkCmdInTab.label;"
+              accesskey="&openLinkCmdInTab.accesskey;"
+              oncommand="gContextMenu.openLinkInTab(event);"/>
     <menuitem id="context-openlink"
               label="&openLinkCmd.label;"
               accesskey="&openLinkCmd.accesskey;"
               oncommand="gContextMenu.openLink();"/>
-    <menuitem id="context-openlinkintab"
-              label="&openLinkCmdInTab.label;"
-              accesskey="&openLinkCmdInTab.accesskey;"
-              oncommand="gContextMenu.openLinkInTab(event.shiftKey);"/>
     <menuseparator id="mailContext-sep-link"/>
     <menuitem id="context-selectall"
               label="&selectAllCmd.label;"
@@ -563,15 +564,15 @@
               accesskey="&copyCmd.accesskey;"
               command="cmd_copy"/>
     <menuitem id="context-searchselect"
-              oncommand="MsgOpenSearch(gContextMenu.searchSelected(), event.shiftKey);"/>
-    <menuitem id="mailContext-openNewWindow"
-              label="&contextOpenNewWindow.label;"
-              accesskey="&contextOpenNewWindow.accesskey;"
-              oncommand="MsgOpenNewWindowForMessage();"/>
+              oncommand="MsgOpenSearch(gContextMenu.searchSelected(), event);"/>
     <menuitem id="mailContext-openNewTab"
               label="&contextOpenNewTab.label;"
               accesskey="&contextOpenNewTab.accesskey;"
               oncommand="MsgOpenNewTabForMessage();"/>
+    <menuitem id="mailContext-openNewWindow"
+              label="&contextOpenNewWindow.label;"
+              accesskey="&contextOpenNewWindow.accesskey;"
+              oncommand="MsgOpenNewWindowForMessage();"/>
     <menuseparator id="mailContext-sep-open"/>
     <menuitem id="mailContext-replySender"
               label="&contextReplySender.label;"
@@ -928,10 +929,9 @@
     <menuitem id="context-bookmarklink"
               label="&bookmarkLinkCmd.label;"
               accesskey="&bookmarkLinkCmd.accesskey;"
-              oncommand="initBMService();
-                         BookmarksUtils.addBookmark(gContextMenu.linkURL(),
-                                                    gContextMenu.linkText());"/>
-  </popup>
+              oncommand="PlacesUIUtils.showMinimalAddBookmarkUI(makeURI(gContextMenu.linkURL),
+                                                                gContextMenu.linkText());"/>
+  </menupopup>
 
   <toolbar type="menubar"
            id="mail-toolbar-menubar2"
@@ -1150,27 +1150,9 @@
   <menu id="menu_View">
     <menupopup id="menu_View_Popup" onpopupshowing="view_init()">
       <menu id="menu_Toolbars">
-        <menupopup id="view_toolbars_popup">
-          <menuitem id="menu_showMessengerToolbar"
-                    type="checkbox"
-                    checked="true"
-                    label="&showMessengerToolbarCmd.label;"
-                    accesskey="&showMessengerToolbarCmd.accesskey;"
-                    oncommand="goToggleToolbar('msgToolbar', 'menu_showMessengerToolbar')"/>
-          <menuitem id="menu_showLocationToolbar"
-                    type="checkbox"
-                    label="&showLocationToolbarCmd.label;"
-                    accesskey="&showLocationToolbarCmd.accesskey;"
-                    oncommand="goToggleToolbar('msgLocationToolbar', 'menu_showLocationToolbar');"
-                    observes="mailHideMenus"
-                    checked="false" persist="checked"/>
-          <menuitem id="menu_showSearchToolbar"
-                    type="checkbox"
-                    checked="true"
-                    label="&showSearchToolbarCmd.label;"
-                    accesskey="&showSearchToolbarCmd.accesskey;"
-                    oncommand="goToggleToolbar('searchBox', 'menu_showSearchToolbar'); SearchBarToggled();"
-                    observes="mailHideMenus"/>
+        <menupopup id="view_toolbars_popup"
+                   onpopupshowing="onViewToolbarsPopupShowing(event)"
+                   oncommand="onViewToolbarCommand(event);">
           <menuitem id="menu_showTaskbar"/>
         </menupopup>
       </menu>
@@ -1236,16 +1218,34 @@
       </menu>
       <menu id="viewMessageViewMenu" label="&msgsMenu.label;" accesskey="&msgsMenu.accesskey;"
             observes="mailHideMenus" oncommand="ViewChangeByMenuitem(event.target);">
-        <menupopup id="viewMessagePopup" onpopupshowing="RefreshViewPopup(this, false);">
-          <menuitem id="viewMessageAll"    value="0" type="radio" label="&viewAll.label;" accesskey="&viewAll.accesskey;"/>
-          <menuitem id="viewMessageUnread" value="1" type="radio" label="&viewUnread.label;" accesskey="&viewUnread.accesskey;"/>
-          <menuitem id="viewMessageNotDeleted" value="3" type="radio" label="&viewNotDeleted.label;" accesskey="&viewNotDeleted.accesskey;"/>
+        <menupopup id="viewMessagePopup"
+                   onpopupshowing="RefreshViewPopup(this);">
+          <menuitem id="viewMessageAll"
+                    label="&viewAll.label;"
+                    accesskey="&viewAll.accesskey;"
+                    type="radio"
+                    name="viewmessages"
+                    value="0"/>
+          <menuitem id="viewMessageUnread"
+                    label="&viewUnread.label;"
+                    accesskey="&viewUnread.accesskey;"
+                    type="radio"
+                    name="viewmessages"
+                    value="1"/>
+          <menuitem id="viewMessageNotDeleted"
+                    label="&viewNotDeleted.label;"
+                    accesskey="&viewNotDeleted.accesskey;"
+                    type="radio"
+                    name="viewmessages"
+                    value="3"/>
           <menuseparator id="messageViewAfterUnreadSeparator"/>
           <menu id="viewMessageTags" label="&viewTags.label;" accesskey="&viewTags.accesskey;">
-            <menupopup id="viewMessageTagsPopup" onpopupshowing="RefreshTagsPopup(this, false);"/>
+            <menupopup id="viewMessageTagsPopup"
+                       onpopupshowing="RefreshTagsPopup(this);"/>
           </menu>
           <menu id="viewMessageCustomViews" label="&viewCustomViews.label;" accesskey="&viewCustomViews.accesskey;">
-            <menupopup id="viewMessageCustomViewsPopup" onpopupshowing="RefreshCustomViewsPopup(this, false);"/>
+            <menupopup id="viewMessageCustomViewsPopup"
+                       onpopupshowing="RefreshCustomViewsPopup(this);"/>
           </menu>
           <menuseparator id="messageViewAfterCustomSeparator"/>
           <menuitem id="viewMessageVirtualFolder" value="7" label="&viewVirtualFolder.label;" accesskey="&viewVirtualFolder.accesskey;"/>
@@ -1364,6 +1364,7 @@
                 command="cmd_stop"/>
       <menuitem id="menu_Stop"
                 label="&reloadCmd.label;"
+                key="key_reload"
                 accesskey="&reloadCmd.accesskey;"
                 command="cmd_reload"/>
       <menuseparator id="viewAfterStopSeparator"/>
@@ -1847,6 +1848,10 @@
               accesskey="&createFilter.accesskey;"
               command="cmd_createFilterFromMenu"/>
     <menuseparator id="threadItemsSeparator"/>
+    <menuitem id="menu_cancel"
+              label="&cancelNewsMsgCmd.label;"
+              accesskey="&cancelNewsMsgCmd.accesskey;"
+              command="cmd_cancel"/>
     <menuitem id="killThread"
               label="&killThreadMenu.label;"
               accesskey="&killThreadMenu.accesskey;"
@@ -1919,9 +1924,9 @@
            accesskey="&showMessengerToolbarCmd.accesskey;"
            customizable="true"
            defaultset="button-getmsg,button-newmsg,separator,button-reply,button-replyall,button-forward,separator,button-goback,button-goforward,button-next,button-junk,button-delete,button-mark,spring,throbber-box"
-           togglemenuitem="menu_showMessengerToolbar"
            context="toolbar-context-menu">
   </toolbar>
+  <toolbarset id="customToolbars" context="toolbar-context-menu"/>
 
   <toolbarpalette id="MailToolbarPalette">
     <toolbarbutton id="button-getmsg"
@@ -2193,12 +2198,12 @@
                        class="toolbarbutton-1"
                        label="&junkButton.label;"
                        tooltiptext="&junkButton.tooltip;"
-                       observes="button_junk"/>
+                       observes="button-junk"/>
         <toolbarbutton id="button-notJunk"
                        class="toolbarbutton-1"
                        label="&notJunkButton.label;"
                        tooltiptext="&notJunkButton.tooltip;"
-                       observes="button_junk"/>
+                       observes="button-junk"/>
       </deck>
     </toolbaritem>
 
@@ -2209,13 +2214,13 @@
                        class="toolbarbutton-1"
                        label="&deleteButton.label;"
                        tooltiptext="&deleteButton.tooltip;"
-                       observes="button_delete"
+                       observes="button-delete"
                        oncommand="goDoCommand(event.shiftKey ? 'button_shiftDelete' : 'button_delete')"/>
         <toolbarbutton id="button-mark-undelete"
                        class="toolbarbutton-1"
                        label="&undeleteButton.label;"
                        tooltiptext="&undeleteButton.tooltip;"
-                       observes="button_delete"
+                       observes="button-delete"
                        oncommand="goDoCommand('button_delete')"/>
       </deck>
     </toolbaritem>
@@ -2278,46 +2283,35 @@
                    label="&stopButton.label;"
                    tooltiptext="&stopButton.tooltip;"
                    command="cmd_stop"/>
+    <toolbaritem id="button-search-container"
+                 title="&searchButton.title;"
+                 align="center"
+                 class="chromeclass-toolbar-additional">
+      <button id="button-search"
+              label="&searchButton.label;"
+              accesskey="&searchButton.accesskey;"
+              tooltiptext="&advancedButton.tooltip;"
+              observes="button_search"
+              oncommand="goDoCommand('button_search')"/>
+      <button id="button-advanced"
+              label="&advancedButton.label;"
+              accesskey="&advancedButton.accesskey;"
+              tooltiptext="&advancedButton.tooltip;"
+              observes="button_search"
+              oncommand="goDoCommand('button_search')"/>
+    </toolbaritem>
     <toolbaritem id="throbber-box"
                  align="center">
         <button id="navigator-throbber"
-                oncommand="goClickThrobber('messenger.throbber.url')"
+                oncommand="goClickThrobber('messenger.throbber.url', event)"
+                onclick="checkForMiddleClick(this, event);"
                 tooltiptext="&throbber.tooltip;"/>
     </toolbaritem>
+    <!-- see utilityOverlay.xul -->
+    <toolbarbutton id="sync-button"/>
   </toolbarpalette>
 
 </toolbox>
-
-<toolbar id="msgLocationToolbar"
-         persist="hidden"
-         hidden="true"
-         grippytooltiptext="&locationToolbar.tooltip;"
-         nowindowdrag="true">
-  <hbox align="center" context="folderPaneContext">
-    <image id="locationIcon" class="folderMenuItem"/>
-    <menulist id="locationFolders" class="folderMenuItem"
-              label=" " crop="center">
-      <menupopup id="locationPopup" height="400"
-                 oncommand="OnLocationTreeSelect(this);"/>
-    </menulist>
-  </hbox>
-
-  <hbox id="searchBox" align="center" flex="1">
-    <spacer id="searchSpacer" flex="2"/>
-    <textbox id="searchInput"
-             flex="1"
-             type="search"
-             placeholder="&searchSubjectOrAddress.placeholder;"
-             clickSelectsAll="true"
-             onkeypress="if (event.keyCode == KeyEvent.DOM_VK_RETURN) this.select();"
-             oncommand="onEnterInSearchBar();"/>
-    <button id="advancedButton"
-            label="&advancedButton.label;"
-            tooltiptext="&advancedButton.tooltip;"
-            accesskey="&advancedButton.accesskey;"
-            oncommand="onAdvancedSearch();"/>
-  </hbox>
-</toolbar>
 
 <!-- The msgNotificationBar appears on top of the message and displays
      information like: junk, contains remote images, or is a suspected phishing
@@ -2349,6 +2343,18 @@
     <button id="remoteContentBarButton"
             label="&loadRemoteContentButton.label;"
             oncommand="LoadMsgWithRemoteContent();"/>
+  </hbox>
+
+  <hbox id="mdnBar"
+        class="msgNotificationBar"
+        align="center">
+    <image id="mdnBarImage"/>
+    <description flex="1"
+                 class="msgNotificationBarText">&mdnBarMessage.label;</description>
+    <button label="&mdnBarIgnoreButton.label;"
+            oncommand="IgnoreMDNResponse();"/>
+    <button label="&mdnBarSendButton.label;"
+            oncommand="SendMDNResponse();"/>
   </hbox>
 </deck>
 

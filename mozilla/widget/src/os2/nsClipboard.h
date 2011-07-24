@@ -38,14 +38,8 @@
 #ifndef _nsClipboard_h
 #define _nsClipboard_h
 
-#include "nsWidgetDefs.h"
 #include "nsBaseClipboard.h"
-#include "nsIObserver.h"
-
 class nsITransferable;
-class nsIClipboardOwner;
-class nsIWidget;
-struct IDataObject;
 
 /**
  * Native OS/2 Clipboard wrapper
@@ -53,19 +47,12 @@ struct IDataObject;
 
 struct FormatRecord;
 
-class nsClipboard : public nsBaseClipboard,
-		    public nsIObserver
+class nsClipboard : public nsBaseClipboard
 {
 
 public:
   nsClipboard();
   virtual ~nsClipboard();
-
-  // nsISupports
-  NS_DECL_ISUPPORTS_INHERITED
-
-  // nsIObserver
-  NS_DECL_NSIOBSERVER
 
   // nsIClipboard
   NS_IMETHOD HasDataMatchingFlavors(const char** aFlavorList, PRUint32 aLength,
@@ -81,9 +68,9 @@ protected:
     Write
   };
 
-  ULONG    GetFormatID(const char *aMimeStr);
+  PRUint32 GetFormatID(const char *aMimeStr);
   PRBool   GetClipboardData(const char *aFlavour);
-  PRBool   GetClipboardDataByID(ULONG ulFormatID, const char *aFlavor);
+  PRBool   GetClipboardDataByID(PRUint32 aFormatID, const char *aFlavor);
   void     SetClipboardData(const char *aFlavour);
   nsresult DoClipboardAction(ClipboardAction aAction);
 };

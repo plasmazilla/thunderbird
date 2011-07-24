@@ -55,20 +55,31 @@ ifeq ($(OS_ARCH),SunOS)
 MODULE_OPTIMIZE_FLAGS = -xO5
 endif
 ifeq ($(OS_ARCH),WINNT)
+ifneq ($(OS_TEST),x86_64)
 # FIXME: bug 413019
 OS_COMPILE_CFLAGS += -GL-
+endif
 MODULE_OPTIMIZE_FLAGS = -O2
 endif
 endif
 
+DEFINES += -DPIXMAN_NO_TLS
+
 # Build MMX code either with VC or with gcc-on-x86
 ifdef _MSC_VER
 ifeq (86,$(findstring 86,$(OS_TEST)))
-ifeq (64,$(findstring 64,$(OS_TEST)))
-else
+ifneq (64,$(findstring 64,$(OS_TEST)))
 USE_MMX=1
+endif
 USE_SSE2=1
 MMX_CFLAGS=
+ifneq (,$(filter 1400 1500, $(_MSC_VER)))
+# MSVC 2005 and 2008 generate code that breaks alignment
+# restrictions in debug mode so always optimize.
+# See bug 640250 for more info.
+SSE2_CFLAGS=-O2
+else
+SSE2_CFLAGS=
 endif
 endif
 ifeq (arm,$(findstring arm,$(OS_TEST)))
@@ -77,13 +88,18 @@ endif
 endif
 
 ifdef GNU_CC
-
 ifeq (86,$(findstring 86,$(OS_TEST)))
 USE_MMX=1
 MMX_CFLAGS=-mmmx -Winline
-# See bug 410509 why we can't use SSE2 yet on linux
-#USE_SSE2=1
-#MMX_CFLAGS+=-msse -msse2
+ifeq (64,$(findstring 64,$(OS_TEST)))
+USE_SSE2=1
+endif
+ifdef HAVE_GCC_ALIGN_ARG_POINTER
+USE_SSE2=1
+endif
+ifdef USE_SSE2
+SSE2_CFLAGS=-msse -msse2 -Winline
+endif
 ifneq ($(MOZ_WIDGET_TOOLKIT),os2)
 MMX_CFLAGS+=--param inline-unit-growth=10000 --param large-function-growth=10000
 endif
@@ -93,8 +109,7 @@ ifdef HAVE_ARM_SIMD
 USE_ARM_SIMD_GCC=1
 endif
 ifdef HAVE_ARM_NEON
-# temporarily disabled to see if it fixes odd mobile build breakage
-#USE_ARM_NEON_GCC=1
+USE_ARM_NEON_GCC=1
 endif
 endif
 
@@ -104,21 +119,25 @@ endif
 CSRCS	= \
 	pixman-access.c \
 	pixman-access-accessors.c \
+	pixman-bits-image.c \
+	pixman.c \
 	pixman-combine32.c \
 	pixman-combine64.c \
-	pixman-compose.c \
-	pixman-compose-accessors.c \
-	pixman-compute-region.c \
+	pixman-conical-gradient.c \
+	pixman-cpu.c \
 	pixman-edge.c \
 	pixman-edge-accessors.c \
+	pixman-fast-path.c \
+	pixman-general.c \
+	pixman-gradient-walker.c \
 	pixman-image.c \
+	pixman-implementation.c \
+	pixman-linear-gradient.c \
 	pixman-matrix.c \
-	pixman-pict.c \
+	pixman-radial-gradient.c \
 	pixman-region16.c \
 	pixman-region32.c \
-	pixman-source.c \
-	pixman-transformed.c \
-	pixman-transformed-accessors.c \
+	pixman-solid-fill.c \
 	pixman-trap.c \
 	pixman-utils.c \
 	$(NULL)
@@ -140,19 +159,15 @@ endif
 
 ifdef USE_ARM_SIMD_GCC
 CSRCS += pixman-arm-simd.c
+SSRCS += pixman-arm-simd-asm.S
 DEFINES += -DUSE_ARM_SIMD
 endif
 
 ifdef USE_ARM_NEON_GCC
 CSRCS += pixman-arm-neon.c
+SSRCS += pixman-arm-neon-asm.S
 DEFINES += -DUSE_ARM_NEON
-ARM_NEON_CFLAGS = -mfloat-abi=softfp -mfpu=neon
-endif
-
-ifdef USE_ARM_SIMD_MSVC
-ASFILES += pixman-arm-detect-win32.asm pixman-wce-arm-simd.asm
-DEFINES += -DUSE_ARM_SIMD
-AS_DASH_C_FLAG = 
+ARM_NEON_CFLAGS = -mfpu=neon
 endif
 
 EXPORTS		= pixman.h pixman-version.h
@@ -171,7 +186,7 @@ ifdef GNU_CC
 # files, so pixman.h needs to be included before
 # "#pragma GCC visibility -push(hidden)".
 ifdef WRAP_SYSTEM_INCLUDES
-MY_VISIBILITY_FLAGS := -include pixman.h $(VISIBILITY_FLAGS)
+MY_VISIBILITY_FLAGS := -DPIXMAN_USE_INTERNAL_API -include pixman.h $(VISIBILITY_FLAGS)
 COMPILE_CFLAGS += $(MY_VISIBILITY_FLAGS)
 endif # WRAP_SYSTEM_INCLUDES
 endif # GNU_CC
@@ -181,19 +196,23 @@ include $(topsrcdir)/config/rules.mk
 
 CFLAGS += -DPACKAGE="mozpixman" -D_USE_MATH_DEFINES
 
+# Disable spammy "missing initializer" GCC warning
+ifdef GNU_CC
+CFLAGS += -Wno-missing-field-initializers
+endif # GNU_CC
 
 # special rule for pixman-mmx to get the right cflags
-pixman-mmx.$(OBJ_SUFFIX): pixman-mmx.c Makefile Makefile.in
+pixman-mmx.$(OBJ_SUFFIX): pixman-mmx.c $(GLOBAL_DEPS)
 	$(REPORT_BUILD)
 	@$(MAKE_DEPS_AUTO_CC)
 	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(MMX_CFLAGS) $(_VPATH_SRCS)
 
-pixman-sse2.$(OBJ_SUFFIX): pixman-sse2.c Makefile Makefile.in
+pixman-sse2.$(OBJ_SUFFIX): pixman-sse2.c $(GLOBAL_DEPS)
 	$(REPORT_BUILD)
 	@$(MAKE_DEPS_AUTO_CC)
-	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(MMX_CFLAGS) $(_VPATH_SRCS)
+	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(SSE2_CFLAGS) $(_VPATH_SRCS)
 
-pixman-arm-neon.$(OBJ_SUFFIX): pixman-arm-neon.c Makefile Makefile.in
+pixman-arm-neon.$(OBJ_SUFFIX): pixman-arm-neon.c $(GLOBAL_DEPS)
 	$(REPORT_BUILD)
 	@$(MAKE_DEPS_AUTO_CC)
 	$(ELOG) $(CC) $(OUTOPTION)$@ -c $(COMPILE_CFLAGS) $(ARM_NEON_CFLAGS) $(_VPATH_SRCS)

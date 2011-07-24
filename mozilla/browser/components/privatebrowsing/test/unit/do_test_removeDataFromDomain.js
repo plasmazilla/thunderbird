@@ -197,7 +197,7 @@ function check_downloaded(aURIString, aIsDownloaded)
 
   let checker = aIsDownloaded ? do_check_true : do_check_false;
   try {
-    checker(stmt.step());
+    checker(stmt.executeStep());
   }
   finally {
     stmt.finalize();
@@ -564,13 +564,48 @@ function test_cache_cleared()
     observe: function(aSubject, aTopic, aData)
     {
       os.removeObserver(observer, "cacheservice:empty-cache");
-      shutdownPlaces();
       do_test_finished();
     }
   };
   os.addObserver(observer, "cacheservice:empty-cache", false);
   pb.removeDataFromDomain("mozilla.org");
   do_test_pending();
+}
+
+function test_storage_cleared()
+{
+  function getStorageForURI(aURI)
+  {
+    let principal = Cc["@mozilla.org/scriptsecuritymanager;1"].
+                    getService(Ci.nsIScriptSecurityManager).
+                    getCodebasePrincipal(aURI);
+    let dsm = Cc["@mozilla.org/dom/storagemanager;1"].
+              getService(Ci.nsIDOMStorageManager);
+    return dsm.getLocalStorageForPrincipal(principal, "");
+  }
+
+  let s = [
+    getStorageForURI(uri("http://mozilla.org")),
+    getStorageForURI(uri("http://my.mozilla.org")),
+    getStorageForURI(uri("http://ilovemozilla.org")),
+  ];
+
+  for (let i = 0; i < s.length; ++i) {
+    let storage = s[i];
+    storage.setItem("test", "value" + i);
+    do_check_eq(storage.length, 1);
+    do_check_eq(storage.key(0), "test");
+    do_check_eq(storage.getItem("test"), "value" + i);
+  }
+
+  pb.removeDataFromDomain("mozilla.org");
+
+  do_check_eq(s[0].getItem("test"), null);
+  do_check_eq(s[0].length, 0);
+  do_check_eq(s[1].getItem("test"), null);
+  do_check_eq(s[1].length, 0);
+  do_check_eq(s[2].getItem("test"), "value2");
+  do_check_eq(s[2].length, 1);
 }
 
 let tests = [
@@ -607,6 +642,9 @@ let tests = [
   test_content_preferences_cleared_with_direct_match,
   test_content_preferences_cleared_with_subdomain,
   test_content_preferecnes_not_cleared_with_uri_contains_domain,
+
+  // Storage
+  test_storage_cleared,
 
   // Cache
   test_cache_cleared,

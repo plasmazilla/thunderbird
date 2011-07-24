@@ -55,10 +55,10 @@ class nsIWeakReference;
 class nsXULColumnsAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULColumnsAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULColumnsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 
@@ -69,7 +69,7 @@ public:
 class nsXULColumnItemAccessible : public nsLeafAccessible
 {
 public:
-  nsXULColumnItemAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULColumnItemAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsIAccessible
   NS_IMETHOD GetNumActions(PRUint8 *aNumActions);
@@ -77,7 +77,7 @@ public:
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 
   enum { eAction_Click = 0 };
@@ -90,7 +90,7 @@ class nsXULListboxAccessible : public nsXULSelectableAccessible,
                                public nsIAccessibleTable
 {
 public:
-  nsXULListboxAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULListboxAccessible(nsIContent *aContent, nsIWeakReference *aShell);
   virtual ~nsXULListboxAccessible() {}
 
   NS_DECL_ISUPPORTS_INHERITED
@@ -100,7 +100,7 @@ public:
   NS_IMETHOD GetValue(nsAString& aValue);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 
 protected:
@@ -117,7 +117,7 @@ public:
 
   NS_DECL_ISUPPORTS_INHERITED
   
-  nsXULListitemAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULListitemAccessible(nsIContent *aContent, nsIWeakReference *aShell);
   virtual ~nsXULListitemAccessible() {}
 
   // nsIAccessible
@@ -127,13 +127,17 @@ public:
 
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
-  virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
+  virtual void GetPositionAndSizeInternal(PRInt32 *aPosInSet,
+                                          PRInt32 *aSetSize);
   virtual PRBool GetAllowsAnonChildAccessibles();
 
 protected:
-  already_AddRefed<nsIAccessible> GetListAccessible();
+  /**
+   * Return listbox accessible for the listitem.
+   */
+  nsAccessible *GetListAccessible();
 
 private:
   PRBool mIsCheckbox;
@@ -146,7 +150,7 @@ class nsXULListCellAccessible : public nsHyperTextAccessibleWrap,
                                 public nsIAccessibleTableCell
 {
 public:
-  nsXULListCellAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULListCellAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
@@ -156,7 +160,7 @@ public:
 
   // nsAccessible
   virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 };
 
 #endif

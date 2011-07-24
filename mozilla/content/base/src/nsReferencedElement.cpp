@@ -75,7 +75,8 @@ static PRBool EqualExceptRef(nsIURL* aURL1, nsIURL* aURL2)
 }
 
 void
-nsReferencedElement::Reset(nsIContent* aFromContent, nsIURI* aURI, PRBool aWatch)
+nsReferencedElement::Reset(nsIContent* aFromContent, nsIURI* aURI,
+                           PRBool aWatch, PRBool aReferenceImage)
 {
   Unlink();
 
@@ -104,34 +105,45 @@ nsReferencedElement::Reset(nsIContent* aFromContent, nsIURI* aURI, PRBool aWatch
   if (!doc)
     return;
 
-  // This will be the URI of the document the content belongs to
-  // (the URI of the XBL document if the content is anonymous
-  // XBL content)
-  nsCOMPtr<nsIURL> documentURL = do_QueryInterface(doc->GetDocumentURI());
   nsIContent* bindingParent = aFromContent->GetBindingParent();
-  PRBool isXBL = PR_FALSE;
   if (bindingParent) {
     nsXBLBinding* binding = doc->BindingManager()->GetBinding(bindingParent);
     if (binding) {
-      // XXX sXBL/XBL2 issue
-      // If this is an anonymous XBL element then the URI is
-      // relative to the binding document. A full fix requires a
-      // proper XBL2 implementation but for now URIs that are
-      // relative to the binding document should be resolve to the
-      // copy of the target element that has been inserted into the
-      // bound document.
-      documentURL = do_QueryInterface(binding->PrototypeBinding()->DocURI());
-      isXBL = PR_TRUE;
+      nsCOMPtr<nsIURL> bindingDocumentURL =
+        do_QueryInterface(binding->PrototypeBinding()->DocURI());
+      if (EqualExceptRef(url, bindingDocumentURL)) {
+        // XXX sXBL/XBL2 issue
+        // Our content is an anonymous XBL element from a binding inside the
+        // same document that the referenced URI points to. In order to avoid
+        // the risk of ID collisions we restrict ourselves to anonymous
+        // elements from this binding; specifically, URIs that are relative to
+        // the binding document should resolve to the copy of the target
+        // element that has been inserted into the bound document.
+        // If the URI points to a different document we don't need this
+        // restriction.
+        nsINodeList* anonymousChildren =
+          doc->BindingManager()->GetAnonymousNodesFor(bindingParent);
+
+        if (anonymousChildren) {
+          PRUint32 length;
+          anonymousChildren->GetLength(&length);
+          for (PRUint32 i = 0; i < length && !mElement; ++i) {
+            mElement =
+              nsContentUtils::MatchElementId(anonymousChildren->GetNodeAt(i), ref);
+          }
+        }
+
+        // We don't have watching working yet for XBL, so bail out here.
+        return;
+      }
     }
   }
-  if (!documentURL)
-    return;
 
-  if (!EqualExceptRef(url, documentURL)) {
-    // Don't take the XBL codepath here, since we'll want to just
-    // normally set up our external resource document and then watch
-    // it as needed.
-    isXBL = PR_FALSE;
+  nsCOMPtr<nsIURL> documentURL = do_QueryInterface(doc->GetDocumentURI());
+  // We've already checked that |url| is an nsIURL.  So if the document URI is
+  // not an nsIURL then |url| is certainly not going to be pointing to the same
+  // document as the document URI.
+  if (!documentURL || !EqualExceptRef(url, documentURL)) {
     nsRefPtr<nsIDocument::ExternalResourceLoad> load;
     doc = doc->RequestExternalResource(url, aFromContent, getter_AddRefs(load));
     if (!doc) {
@@ -150,29 +162,6 @@ nsReferencedElement::Reset(nsIContent* aFromContent, nsIURI* aURI, PRBool aWatch
     }
   }
 
-  // Get the element
-  if (isXBL) {
-    nsCOMPtr<nsIDOMNodeList> anonymousChildren;
-    doc->BindingManager()->
-      GetAnonymousNodesFor(bindingParent, getter_AddRefs(anonymousChildren));
-
-    if (anonymousChildren) {
-      PRUint32 length;
-      anonymousChildren->GetLength(&length);
-      for (PRUint32 i = 0; i < length && !mContent; ++i) {
-        nsCOMPtr<nsIDOMNode> node;
-        anonymousChildren->Item(i, getter_AddRefs(node));
-        nsCOMPtr<nsIContent> c = do_QueryInterface(node);
-        if (c) {
-          mContent = nsContentUtils::MatchElementId(c, ref);
-        }
-      }
-    }
-
-    // We don't have watching working yet for XBL, so bail out here.
-    return;
-  }
-
   if (aWatch) {
     nsCOMPtr<nsIAtom> atom = do_GetAtom(ref);
     if (!atom)
@@ -180,7 +169,31 @@ nsReferencedElement::Reset(nsIContent* aFromContent, nsIURI* aURI, PRBool aWatch
     atom.swap(mWatchID);
   }
 
+  mReferencingImage = aReferenceImage;
+
   HaveNewDocument(doc, aWatch, ref);
+}
+
+void
+nsReferencedElement::ResetWithID(nsIContent* aFromContent, const nsString& aID,
+                                 PRBool aWatch)
+{
+  nsIDocument *doc = aFromContent->GetCurrentDoc();
+  if (!doc)
+    return;
+
+  // XXX Need to take care of XBL/XBL2
+
+  if (aWatch) {
+    nsCOMPtr<nsIAtom> atom = do_GetAtom(aID);
+    if (!atom)
+      return;
+    atom.swap(mWatchID);
+  }
+
+  mReferencingImage = PR_FALSE;
+
+  HaveNewDocument(doc, aWatch, aID);
 }
 
 void
@@ -190,7 +203,8 @@ nsReferencedElement::HaveNewDocument(nsIDocument* aDocument, PRBool aWatch,
   if (aWatch) {
     mWatchDocument = aDocument;
     if (mWatchDocument) {
-      mContent = mWatchDocument->AddIDTargetObserver(mWatchID, Observe, this);
+      mElement = mWatchDocument->AddIDTargetObserver(mWatchID, Observe, this,
+                                                     mReferencingImage);
     }
     return;
   }
@@ -198,13 +212,11 @@ nsReferencedElement::HaveNewDocument(nsIDocument* aDocument, PRBool aWatch,
   if (!aDocument) {
     return;
   }
-  nsCOMPtr<nsIDOMDocument> domDoc = do_QueryInterface(aDocument);
-  NS_ASSERTION(domDoc, "Content doesn't reference a dom Document");
 
-  nsCOMPtr<nsIDOMElement> element;
-  domDoc->GetElementById(aRef, getter_AddRefs(element));
-  if (element) {
-    mContent = do_QueryInterface(element);
+  Element *e = mReferencingImage ? aDocument->LookupImageElement(aRef) :
+                                   aDocument->GetElementById(aRef);
+  if (e) {
+    mElement = e;
   }
 }
 
@@ -214,14 +226,15 @@ nsReferencedElement::Traverse(nsCycleCollectionTraversalCallback* aCB)
   NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(*aCB, "mWatchDocument");
   aCB->NoteXPCOMChild(mWatchDocument);
   NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(*aCB, "mContent");
-  aCB->NoteXPCOMChild(mContent);
+  aCB->NoteXPCOMChild(mElement);
 }
 
 void
 nsReferencedElement::Unlink()
 {
   if (mWatchDocument && mWatchID) {
-    mWatchDocument->RemoveIDTargetObserver(mWatchID, Observe, this);
+    mWatchDocument->RemoveIDTargetObserver(mWatchID, Observe, this,
+                                           mReferencingImage);
   }
   if (mPendingNotification) {
     mPendingNotification->Clear();
@@ -229,20 +242,21 @@ nsReferencedElement::Unlink()
   }
   mWatchDocument = nsnull;
   mWatchID = nsnull;
-  mContent = nsnull;
+  mElement = nsnull;
+  mReferencingImage = PR_FALSE;
 }
 
 PRBool
-nsReferencedElement::Observe(nsIContent* aOldContent,
-                             nsIContent* aNewContent, void* aData)
+nsReferencedElement::Observe(Element* aOldElement,
+                             Element* aNewElement, void* aData)
 {
   nsReferencedElement* p = static_cast<nsReferencedElement*>(aData);
   if (p->mPendingNotification) {
-    p->mPendingNotification->SetTo(aNewContent);
+    p->mPendingNotification->SetTo(aNewElement);
   } else {
-    NS_ASSERTION(aOldContent == p->mContent, "Failed to track content!");
+    NS_ASSERTION(aOldElement == p->mElement, "Failed to track content!");
     ChangeNotification* watcher =
-      new ChangeNotification(p, aOldContent, aNewContent);
+      new ChangeNotification(p, aOldElement, aNewElement);
     p->mPendingNotification = watcher;
     nsContentUtils::AddScriptRunner(watcher);
   }
@@ -270,11 +284,11 @@ nsReferencedElement::DocumentLoadNotification::Observe(nsISupports* aSubject,
   if (mTarget) {
     nsCOMPtr<nsIDocument> doc = do_QueryInterface(aSubject);
     mTarget->mPendingNotification = nsnull;
-    NS_ASSERTION(!mTarget->mContent, "Why do we have content here?");
+    NS_ASSERTION(!mTarget->mElement, "Why do we have content here?");
     // If we got here, that means we had Reset() called with aWatch ==
     // PR_TRUE.  So keep watching if IsPersistent().
     mTarget->HaveNewDocument(doc, mTarget->IsPersistent(), mRef);
-    mTarget->ContentChanged(nsnull, mTarget->mContent);
+    mTarget->ElementChanged(nsnull, mTarget->mElement);
   }
   return NS_OK;
 }

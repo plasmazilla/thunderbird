@@ -47,8 +47,7 @@ function Startup()
   if (/Mac/.test(navigator.platform))
     document.getElementById("tabNavigationPrefs").setAttribute("hidden", true);
 
-  var prefAutostart = document.getElementById("accessibility.typeaheadfind.autostart");
-  SetLinksOnlyEnabled(prefAutostart.value);
+  UpdateBrowseWithCaretItems();
 }
 
 function ReadTabNav(aField)
@@ -77,7 +76,9 @@ function WriteTabNav(aField)
   return curval & ~bit;
 }
 
-function SetLinksOnlyEnabled(aEnable)
+function UpdateBrowseWithCaretItems()
 {
-  EnableElementById("findAsYouTypeAutoWhat", aEnable, false);
+  document.getElementById("browseWithCaretWarn").disabled =
+    !document.getElementById("accessibility.browsewithcaret_shortcut.enabled").value ||
+    document.getElementById("accessibility.browsewithcaret").locked;
 }

@@ -46,39 +46,11 @@ MODULE		= content
 LIBRARY_NAME	= gkconhtmlcon_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  gfx \
-		  thebes \
-		  layout \
-		  widget \
-		  dom \
-		  js \
-		  locale \
-		  unicharutil \
-		  webshell \
-		  uriloader \
-		  htmlparser \
-		  necko \
-		  view \
-		  pref \
-		  docshell \
-		  xpconnect \
-		  xuldoc \
-		  caps \
-		  editor \
-		  imglib2 \
-		  mimetype \
-		  exthandler \
-		  chardet \
-		  uconv \
-		  intl \
-		  plugin \
-		  $(NULL)
 
 EXPORTS		= \
 		nsImageMapUtils.h \
 		nsClientRect.h \
+		nsHTMLDNSPrefetch.h \
 		$(NULL)
 
 CPPSRCS		= \
@@ -87,12 +59,15 @@ CPPSRCS		= \
 		nsGenericHTMLElement.cpp \
 		nsFormSubmission.cpp \
 		nsImageMapUtils.cpp \
+		nsTextEditorState.cpp \
+		nsHTMLElement.cpp \
 		nsHTMLAnchorElement.cpp \
 		nsHTMLAreaElement.cpp \
 		nsHTMLBRElement.cpp \
 		nsHTMLBodyElement.cpp \
 		nsHTMLButtonElement.cpp \
 		nsHTMLCanvasElement.cpp \
+		nsHTMLDataListElement.cpp \
 		nsHTMLDelElement.cpp \
 		nsHTMLDivElement.cpp \
 		nsHTMLFieldSetElement.cpp \
@@ -101,9 +76,7 @@ CPPSRCS		= \
 		nsHTMLFrameElement.cpp \
 		nsHTMLFrameSetElement.cpp \
 		nsHTMLHRElement.cpp \
-		nsHTMLHeadElement.cpp \
 		nsHTMLHeadingElement.cpp \
-		nsHTMLHtmlElement.cpp \
 		nsHTMLIFrameElement.cpp \
 		nsHTMLImageElement.cpp \
 		nsHTMLInputElement.cpp \
@@ -118,6 +91,7 @@ CPPSRCS		= \
 		nsHTMLSharedObjectElement.cpp \
 		nsHTMLOptionElement.cpp \
 		nsHTMLOptGroupElement.cpp \
+		nsHTMLOutputElement.cpp \
 		nsHTMLParagraphElement.cpp \
 		nsHTMLPreElement.cpp \
 		nsHTMLScriptElement.cpp \
@@ -133,14 +107,19 @@ CPPSRCS		= \
 		nsHTMLTableSectionElement.cpp \
 		nsHTMLTextAreaElement.cpp \
 		nsHTMLTitleElement.cpp \
+		nsHTMLUnknownElement.cpp \
+		nsDOMValidityState.cpp \
+		nsIConstraintValidation.cpp \
+		nsRadioVisitor.cpp \
 		$(NULL)
 
 ifdef MOZ_MEDIA
 CPPSRCS		+= \
 		nsHTMLAudioElement.cpp \
 		nsHTMLMediaElement.cpp \
-		nsHTMLMediaError.cpp \
+		nsMediaError.cpp \
 		nsHTMLSourceElement.cpp \
+		nsTimeRanges.cpp \
 		nsHTMLVideoElement.cpp \
 		$(NULL)
 endif
@@ -149,14 +128,20 @@ endif
 FORCE_STATIC_LIB = 1
 
 include $(topsrcdir)/config/rules.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 
 INCLUDES	+= \
 		-I$(srcdir)/../../../base/src \
 		-I$(srcdir)/../../../events/src \
 		-I$(srcdir)/../../../xbl/src \
+		-I$(srcdir)/../../../../layout/forms \
 		-I$(srcdir)/../../../../layout/style \
 		-I$(srcdir)/../../../../layout/tables \
+		-I$(srcdir)/../../../../layout/xul/base/src \
+		-I$(srcdir)/../../../../layout/generic \
 		-I$(srcdir)/../../../../dom/base \
+		-I$(srcdir)/../../../../editor/libeditor/base \
+		-I$(srcdir)/../../../../editor/libeditor/text \
 		-I$(srcdir) \
 		$(NULL)
 

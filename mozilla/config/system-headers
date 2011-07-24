@@ -62,6 +62,7 @@ be/kernel/image.h
 be/kernel/OS.h
 bfd.h
 Bitmap.h
+bitset
 blapi.h
 bsd/libc.h
 bsd/syscall.h
@@ -85,6 +86,7 @@ cairo-glitz.h
 cairo-os2.h
 cairo-pdf.h
 cairo-ps.h
+cairo-tee.h
 cairo-quartz.h
 cairo-win32.h
 cairo-xlib.h
@@ -93,6 +95,7 @@ cairo-directfb.h
 cairo-qpainter.h
 #endif
 dfiff.h
+exception
 ffi.h
 fusion/reactor.h
 fusion/property.h
@@ -196,6 +199,7 @@ CPString.h
 crtdbg.h
 crt_externs.h
 crypt.h
+cstddef
 cstdio
 cstdlib
 cstring
@@ -212,6 +216,7 @@ dbus/dbus-glib.h
 dbus/dbus-glib-lowlevel.h
 ddeml.h
 Debug.h
+deque
 dem.h
 descrip.h
 Devices.h
@@ -274,6 +279,7 @@ freetype/tttables.h
 freetype/t1tables.h
 fribidi/fribidi.h
 FSp_fopen.h
+fstream
 fstream.h
 ft2build.h
 fts.h
@@ -329,6 +335,7 @@ IOKit/pwr_mgt/IOPMLib.h
 iomanip
 iostream
 iostream.h
+iterator
 jar.h
 JavaControl.h
 JavaEmbedding/JavaControl.h
@@ -395,13 +402,11 @@ libgnome/libgnome.h
 libgnomeui/gnome-icon-lookup.h
 libgnomeui/gnome-icon-theme.h
 libgnomeui/gnome-ui-init.h
-libgnomevfs/gnome-vfs-application-registry.h
 libgnomevfs/gnome-vfs-file-info.h
 libgnomevfs/gnome-vfs.h
 libgnomevfs/gnome-vfs-init.h
 libgnomevfs/gnome-vfs-mime.h
 libgnomevfs/gnome-vfs-mime-handlers.h
-libgnomevfs/gnome-vfs-mime-info.h
 libgnomevfs/gnome-vfs-mime-utils.h
 libgnomevfs/gnome-vfs-ops.h
 libgnomevfs/gnome-vfs-standard-callbacks.h
@@ -418,9 +423,6 @@ linux/version.h
 list
 List.h
 Lists.h
-#if MOZ_OJI==1
-LiveConnectManagerTests.h
-#endif
 LListBox.h
 LListener.h
 LMenuBar.h
@@ -541,6 +543,7 @@ Objsafe.h
 ojiapitests.h
 ole2.h
 oleidl.h
+OpenGL/OpenGL.h
 OpenTptInternet.h
 OpenTransport.h
 os2.h
@@ -550,9 +553,7 @@ OSUtils.h
 Packages.h
 Palettes.h
 PALM_CMN.H
-pango-engine.h
-pango-glyph.h
-pango-modules.h
+pango/pango-modules.h
 pango/pangocairo.h
 pango/pangofc-decoder.h
 pango/pangofc-font.h
@@ -562,7 +563,6 @@ pango/pango-fontmap.h
 pango/pango.h
 pango/pangoxft.h
 pango/pango-utils.h
-pango-types.h
 pascal.h
 Patches.h
 Path.h
@@ -612,6 +612,7 @@ pthread.h
 pwd.h
 Python.h
 QDOffscreen.h
+queue
 Quickdraw.h
 QuickDraw.h
 QuickTimeComponents.h
@@ -646,6 +647,7 @@ security.h
 secutil.h
 semaphore.h
 servprov.h
+set
 setjmp.h
 SFNTLayoutTypes.h
 SFNTTypes.h
@@ -739,6 +741,7 @@ sys/procfs.h
 sys/pstat.h
 sys/ptrace.h
 sys/queue.h
+sys/quota.h
 sys/reg.h
 sys/regset.h
 sys/resource.h
@@ -838,6 +841,7 @@ UReanimator.h
 URegions.h
 URegistrar.h
 UResourceMgr.h
+utility
 urlhist.h
 urlmon.h
 UScrap.h
@@ -859,6 +863,7 @@ Volume.h
 wab.h
 wait.h
 wchar.h
+wctype.h
 winbase.h
 win/compobj.h
 windef.h
@@ -889,6 +894,7 @@ wx/xrc/xmlres.h
 X11/cursorfont.h
 X11/extensions/Print.h
 X11/extensions/shape.h
+X11/extensions/scrnsaver.h
 X11/extensions/XIElib.h
 X11/extensions/XShm.h
 X11/extensions/Xrender.h
@@ -1016,8 +1022,34 @@ bzlib.h
 #if MOZ_PLATFORM_MAEMO==5
 hildon-uri.h
 hildon-mime.h
+hildon-file-chooser-dialog.h
 libosso.h
+osso-mem.h
+#endif
+#ifdef MOZ_ENABLE_GIO
+gio/gio.h
+#endif
+#ifdef MOZ_ENABLE_LIBCONIC
+conic/conicconnection.h
+conic/conicconnectionevent.h
+conic/conicstatisticsevent.h
 #endif
 #if MOZ_NATIVE_LIBEVENT==1
 event.h
+#endif
+#ifdef MOZ_ENABLE_LIBPROXY
+proxy.h
+#endif
+#if MOZ_PLATFORM_MAEMO==6
+contentaction/contentaction.h
+#endif
+#if MOZ_TREE_PIXMAN!=1
+pixman.h
+#endif
+#if MOZ_ENABLE_MEEGOTOUCHSHARE
+shareuiinterface.h
+#endif
+#if MOZ_NATIVE_LIBVPX==1
+vpx/vpx_decoder.h
+vpx/vp8dx.h
 #endif

@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 466303 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -36,21 +36,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://gre/modules/utils.js");
-
 const NUMBER_OF_BACKUPS = 1;
-
-var dirSvc = Cc["@mozilla.org/file/directory_service;1"].
-             getService(Ci.nsIProperties);
 
 function run_test() {
   // Get bookmarkBackups directory
-  var bookmarksBackupDir = dirSvc.get("ProfD", Ci.nsILocalFile);
-  bookmarksBackupDir.append("bookmarkbackups");
-  if (!bookmarksBackupDir.exists()) {
-    bookmarksBackupDir.create(Ci.nsIFile.DIRECTORY_TYPE, 0700);
-    do_check_true(bookmarksBackupDir.exists());
-  }
+  var bookmarksBackupDir = PlacesUtils.backups.folder;
 
   // Create an html dummy backup in the past
   var htmlBackupFile = bookmarksBackupDir.clone();
@@ -70,15 +60,14 @@ function run_test() {
   jsonBackupFile.create(Ci.nsILocalFile.NORMAL_FILE_TYPE, 0600);
   do_check_true(jsonBackupFile.exists());
 
-  // Export bookmarks
-  var date = new Date().toLocaleFormat("%Y-%m-%d");
-  var backupFilename = "bookmarks-" + date + ".json";
+  // Export bookmarks to JSON.
+  var backupFilename = PlacesUtils.backups.getFilenameForDate();
   var lastBackupFile = bookmarksBackupDir.clone();
   lastBackupFile.append(backupFilename);
   if (lastBackupFile.exists())
     lastBackupFile.remove(false);
   do_check_false(lastBackupFile.exists());
-  PlacesUtils.archiveBookmarksFile(NUMBER_OF_BACKUPS);
+  PlacesUtils.backups.create(NUMBER_OF_BACKUPS);
   do_check_true(lastBackupFile.exists());
 
   // Check that last backup has been retained

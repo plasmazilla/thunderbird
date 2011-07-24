@@ -10,4 +10,3 @@ function test() {
   ok(headMethod(), "Head methods are imported");
   testVar = "I'm a var in test file";
 }
-

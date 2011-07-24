@@ -45,8 +45,10 @@
 #include "jstypes.h"
 #include "jsstdint.h"
 #include "jsbit.h"
-#include "jsutil.h" /* Added by JSIFY */
-#include "jshash.h" /* Added by JSIFY */
+#include "jsutil.h"
+#include "jshash.h"
+
+using namespace js;
 
 /* Compute the number of buckets in ht */
 #define NBUCKETS(ht)    JS_BIT(JS_HASH_BITS - (ht)->shift)
@@ -67,26 +69,26 @@
 static void *
 DefaultAllocTable(void *pool, size_t size)
 {
-    return malloc(size);
+    return OffTheBooks::malloc_(size);
 }
 
 static void
 DefaultFreeTable(void *pool, void *item, size_t size)
 {
-    js_free(item);
+    UnwantedForeground::free_(item);
 }
 
 static JSHashEntry *
 DefaultAllocEntry(void *pool, const void *key)
 {
-    return (JSHashEntry*) malloc(sizeof(JSHashEntry));
+    return (JSHashEntry*) OffTheBooks::malloc_(sizeof(JSHashEntry));
 }
 
 static void
 DefaultFreeEntry(void *pool, JSHashEntry *he, uintN flag)
 {
     if (flag == HT_FREE_ENTRY)
-        js_free(he);
+        UnwantedForeground::free_(he);
 }
 
 static JSHashAllocOps defaultHashAllocOps = {

@@ -60,6 +60,7 @@
 #include "nsCRTGlue.h"
 #include "nsArrayUtils.h"
 #include "nsArrayEnumerator.h"
+#include "nsMsgUtils.h"
 
 #ifdef PR_LOGGING
 static PRLogModuleInfo* gAbOutlookDirectoryLog
@@ -84,8 +85,9 @@ nsAbOutlookDirectory::~nsAbOutlookDirectory(void)
 }
 
 NS_IMPL_ISUPPORTS_INHERITED4(nsAbOutlookDirectory, nsAbDirectoryRDFResource, 
-                             nsIAbDirectory, nsIAbDirectoryQuery,
-                             nsIAbDirectorySearch, nsIAbDirSearchListener)
+                             nsIAbDirectory, nsISupportsWeakReference,
+                             nsIAbDirectoryQuery, nsIAbDirectorySearch,
+                             nsIAbDirSearchListener)
 
 // nsIRDFResource method
 NS_IMETHODIMP nsAbOutlookDirectory::Init(const char *aUri)
@@ -341,6 +343,7 @@ NS_IMETHODIMP nsAbOutlookDirectory::DeleteCards(nsIArray *aCardList)
 
         retCode = ExtractCardEntry(card, entryString) ;
         if (NS_SUCCEEDED(retCode) && !entryString.IsEmpty()) {
+            card->SetDirectoryId(EmptyCString());
 
             cardEntry.Assign(entryString) ;
             if (!mapiAddBook->DeleteEntry(*mMapiData, cardEntry)) {
@@ -971,11 +974,11 @@ NS_IMETHODIMP nsAbOutlookDirectory::StartSearch(void)
     NS_ENSURE_SUCCESS(retCode, retCode) ;
     nsCOMPtr<nsIAbDirSearchListener> proxyListener;
 
-    retCode = NS_GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                     NS_GET_IID(nsIAbDirSearchListener),
-                     static_cast<nsIAbDirSearchListener *>(this),
-                     NS_PROXY_SYNC | NS_PROXY_ALWAYS,
-                     getter_AddRefs(proxyListener));
+    retCode = MsgGetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
+                                   NS_GET_IID(nsIAbDirSearchListener),
+                                   static_cast<nsIAbDirSearchListener *>(this),
+                                   NS_PROXY_SYNC | NS_PROXY_ALWAYS,
+                                   getter_AddRefs(proxyListener));
     NS_ENSURE_SUCCESS(retCode, retCode);
 
     return DoQuery(this, arguments, proxyListener, -1, 0, &mSearchContext);
@@ -1066,6 +1069,9 @@ nsresult nsAbOutlookDirectory::GetChildCards(nsIMutableArray *aCards,
     return NS_ERROR_FAILURE;
   }
 
+  nsCAutoString ourUuid;
+  GetUuid(ourUuid);
+
   nsCAutoString entryId;
   nsCAutoString uriName;
   nsCOMPtr<nsIAbCard> childCard;
@@ -1078,6 +1084,7 @@ nsresult nsAbOutlookDirectory::GetChildCards(nsIMutableArray *aCards,
 
     rv = OutlookCardForURI(uriName, getter_AddRefs(childCard));
     NS_ENSURE_SUCCESS(rv, rv);
+    childCard->SetDirectoryId(ourUuid);
 
     aCards->AppendElement(childCard, PR_FALSE);
   }
@@ -1273,6 +1280,10 @@ nsresult nsAbOutlookDirectory::CreateCard(nsIAbCard *aData, nsIAbCard **aNewCard
     retCode = OutlookCardForURI(uri, getter_AddRefs(newCard));
     NS_ENSURE_SUCCESS(retCode, retCode);
 
+    nsCAutoString ourUuid;
+    GetUuid(ourUuid);
+    newCard->SetDirectoryId(ourUuid);
+
     if (!didCopy) {
         retCode = newCard->Copy(aData) ;
         NS_ENSURE_SUCCESS(retCode, retCode) ;
@@ -1291,7 +1302,7 @@ static void UnicodeToWord(const PRUnichar *aUnicode, WORD& aWord)
     PRInt32 errorCode = 0 ;
     nsAutoString unichar (aUnicode) ;
 
-    aWord = static_cast<WORD>(unichar.ToInteger(&errorCode, 10));
+    aWord = static_cast<WORD>(unichar.ToInteger(&errorCode));
     if (errorCode != 0) {
         PRINTF(("Error conversion string %S: %08x.\n", unichar.get(), errorCode)) ;
     }
@@ -1489,38 +1500,40 @@ nsresult OutlookCardForURI(const nsACString &aUri, nsIAbCard **newCard)
   NS_ENSURE_SUCCESS(rv, rv);
 
   card->SetPropertyAsAUTF8String("OutlookEntryURI", aUri);
+  card->SetLocalId(aUri);
 
   nsMapiEntry mapiData;
   mapiData.Assign(entry);
 
-  nsStringArray unichars;
+  nsString unichars[index_LastProp];
+
   if (mapiAddBook->GetPropertiesUString(mapiData, OutlookCardMAPIProps,
                                         index_LastProp, unichars))
   {
-    card->SetFirstName(*unichars[index_FirstName]);
-    card->SetLastName(*unichars[index_LastName]);
-    card->SetDisplayName(*unichars[index_DisplayName]);
-    card->SetPrimaryEmail(*unichars[index_EmailAddress]);
-    card->SetPropertyAsAString(kNicknameProperty, *unichars[index_NickName]);
-    card->SetPropertyAsAString(kWorkPhoneProperty, *unichars[index_WorkPhoneNumber]);
-    card->SetPropertyAsAString(kHomePhoneProperty, *unichars[index_HomePhoneNumber]);
-    card->SetPropertyAsAString(kFaxProperty, *unichars[index_WorkFaxNumber]);
-    card->SetPropertyAsAString(kPagerProperty, *unichars[index_PagerNumber]);
-    card->SetPropertyAsAString(kCellularProperty, *unichars[index_MobileNumber]);
-    card->SetPropertyAsAString(kHomeCityProperty, *unichars[index_HomeCity]);
-    card->SetPropertyAsAString(kHomeStateProperty, *unichars[index_HomeState]);
-    card->SetPropertyAsAString(kHomeZipCodeProperty, *unichars[index_HomeZip]);
-    card->SetPropertyAsAString(kHomeCountryProperty, *unichars[index_HomeCountry]);
-    card->SetPropertyAsAString(kWorkCityProperty, *unichars[index_WorkCity]);
-    card->SetPropertyAsAString(kWorkStateProperty, *unichars[index_WorkState]);
-    card->SetPropertyAsAString(kWorkZipCodeProperty, *unichars[index_WorkZip]);
-    card->SetPropertyAsAString(kWorkCountryProperty, *unichars[index_WorkCountry]);
-    card->SetPropertyAsAString(kJobTitleProperty, *unichars[index_JobTitle]);
-    card->SetPropertyAsAString(kDepartmentProperty, *unichars[index_Department]);
-    card->SetPropertyAsAString(kCompanyProperty, *unichars[index_Company]);
-    card->SetPropertyAsAString(kWorkWebPageProperty, *unichars[index_WorkWebPage]);
-    card->SetPropertyAsAString(kHomeWebPageProperty, *unichars[index_HomeWebPage]);
-    card->SetPropertyAsAString(kNotesProperty, *unichars[index_Comments]);
+    card->SetFirstName(unichars[index_FirstName]);
+    card->SetLastName(unichars[index_LastName]);
+    card->SetDisplayName(unichars[index_DisplayName]);
+    card->SetPrimaryEmail(unichars[index_EmailAddress]);
+    card->SetPropertyAsAString(kNicknameProperty, unichars[index_NickName]);
+    card->SetPropertyAsAString(kWorkPhoneProperty, unichars[index_WorkPhoneNumber]);
+    card->SetPropertyAsAString(kHomePhoneProperty, unichars[index_HomePhoneNumber]);
+    card->SetPropertyAsAString(kFaxProperty, unichars[index_WorkFaxNumber]);
+    card->SetPropertyAsAString(kPagerProperty, unichars[index_PagerNumber]);
+    card->SetPropertyAsAString(kCellularProperty, unichars[index_MobileNumber]);
+    card->SetPropertyAsAString(kHomeCityProperty, unichars[index_HomeCity]);
+    card->SetPropertyAsAString(kHomeStateProperty, unichars[index_HomeState]);
+    card->SetPropertyAsAString(kHomeZipCodeProperty, unichars[index_HomeZip]);
+    card->SetPropertyAsAString(kHomeCountryProperty, unichars[index_HomeCountry]);
+    card->SetPropertyAsAString(kWorkCityProperty, unichars[index_WorkCity]);
+    card->SetPropertyAsAString(kWorkStateProperty, unichars[index_WorkState]);
+    card->SetPropertyAsAString(kWorkZipCodeProperty, unichars[index_WorkZip]);
+    card->SetPropertyAsAString(kWorkCountryProperty, unichars[index_WorkCountry]);
+    card->SetPropertyAsAString(kJobTitleProperty, unichars[index_JobTitle]);
+    card->SetPropertyAsAString(kDepartmentProperty, unichars[index_Department]);
+    card->SetPropertyAsAString(kCompanyProperty, unichars[index_Company]);
+    card->SetPropertyAsAString(kWorkWebPageProperty, unichars[index_WorkWebPage]);
+    card->SetPropertyAsAString(kHomeWebPageProperty, unichars[index_HomeWebPage]);
+    card->SetPropertyAsAString(kNotesProperty, unichars[index_Comments]);
   }
 
   ULONG cardType = 0;

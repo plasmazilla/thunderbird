@@ -12,7 +12,7 @@
   <style type="text/css">
   <![CDATA[
 
-:root                   { font-size: 2em; }
+:root                   { font-size: 1em; }
 text > a:link           { fill: lime; }
 a:visited > text        { fill: lime; }
 tspan > a:link          { fill: lime; }
@@ -22,18 +22,18 @@ a:visited > tspan       { fill: lime; }
   </style>
 
   <!-- link in text -->
-  <text x="10" y="50">
+  <text x="10" y="25">
     <a xlink:href="do-not-visit-me.xxx" fill="red">This should be green</a>
   </text>
 
   <!-- text in link -->
   <a xlink:href="">
-    <text x="10" y="100" fill="red">This should be green</text>
+    <text x="10" y="50" fill="red">This should be green</text>
   </a>
 
   <!-- link in tspan -->
   <text>
-    <tspan x="10" y="150">
+    <tspan x="10" y="75">
       <a xlink:href="do-not-visit-me.xxx" fill="red">This should be green</a>
     </tspan>
   </text>
@@ -41,7 +41,7 @@ a:visited > tspan       { fill: lime; }
   <!-- tspan in link -->
   <text>
     <a xlink:href="">
-      <tspan x="10" y="200" fill="red">This should be green</tspan>
+      <tspan x="10" y="100" fill="red">This should be green</tspan>
     </a>
   </text>
 

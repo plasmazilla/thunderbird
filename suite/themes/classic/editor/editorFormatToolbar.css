@@ -40,16 +40,13 @@
 
 /* ::::: formatting buttons ::::: */
 
-#FormatToolbar > toolbarbutton {
-  min-width: 32px;
-}
- 
 #FormatToolbar > toolbarbutton > .toolbarbutton-text {
   display: none;
 }
 
-#FormatToolbar > toolbarbutton {
+toolbarbutton.formatting-button {
   list-style-image: url("chrome://editor/skin/icons/btn2.gif");
+  min-width: 32px;
 }
 
 #DecreaseFontSizeButton {
@@ -387,47 +384,47 @@
 /* ..... insert menu ..... */
 
 #InsertPopup > menuitem {
-  list-style-image: url("chrome://editor/skin/icons/btn1.gif");
+  list-style-image: url("chrome://editor/skin/icons/editoricons-small.png");
 }
 
 #InsertLinkItem {
-  -moz-image-region: rect(16px 16px 32px 0);
+  -moz-image-region: rect(60px 19px 79px 0);
 }
 
 #InsertLinkItem:hover {
-  -moz-image-region: rect(16px 32px 32px 16px);
+  -moz-image-region: rect(60px 39px 79px 20px);
 }
 
 #InsertAnchorItem {
-  -moz-image-region: rect(128px 16px 144px 0);
+  -moz-image-region: rect(0 19px 19px 0);
 }
 
 #InsertAnchorItem:hover {
-  -moz-image-region: rect(128px 32px 144px 16px);
+  -moz-image-region: rect(0 39px 19px 20px);
 }
 
 #InsertImageItem {
-  -moz-image-region: rect(144px 16px 160px 0);
+  -moz-image-region: rect(40px 19px 59px 0);
 }
 
 #InsertImageItem:hover {
-  -moz-image-region: rect(144px 32px 160px 16px);
+  -moz-image-region: rect(40px 39px 59px 20px);
 }
 
 #InsertHRuleItem {
-  -moz-image-region: rect(32px 16px 48px 0);
+  -moz-image-region: rect(20px 19px 39px 0);
 }
 
 #InsertHRuleItem:hover {
-  -moz-image-region: rect(32px 32px 48px 16px);
+  -moz-image-region: rect(20px 39px 39px 20px);
 }
 
 #InsertTableItem {
-  -moz-image-region: rect(112px 16px 128px 0);
+  -moz-image-region: rect(180px 19px 199px 0);
 }
 
 #InsertTableItem:hover {
-  -moz-image-region: rect(112px 32px 128px 16px);
+  -moz-image-region: rect(180px 39px 199px 20px);
 }
 
 /* ..... smiley menu ..... */
@@ -550,7 +547,7 @@
 }
 
 
-#absolutePositionButton{
+#absolutePositionButton {
   -moz-image-region: rect(273px 16px 289px 0px);
 }
 
@@ -566,7 +563,6 @@
   -moz-image-region: rect(273px 64px 289px 48px) ! important;
 }
 
-
 #absolutePositionButton[checked="true"]{
   -moz-image-region: rect(289px 16px 305px 0px);
 }
@@ -579,16 +575,18 @@
   -moz-image-region: rect(289px 48px 305px 32px);
 }
 
-
-#FormatToolbar > #increaseZIndexButton {
+#increaseZIndexButton {
   list-style-image: url("chrome://editor/content/images/bringtofront.gif");
 }
-#FormatToolbar > #increaseZIndexButton[disabled="true"] {
+
+#increaseZIndexButton[disabled="true"] {
   list-style-image: url("chrome://editor/content/images/bringtofront-disabled.gif");
 }
-#FormatToolbar > #decreaseZIndexButton {
+
+#decreaseZIndexButton {
   list-style-image: url("chrome://editor/content/images/sendtoback.gif");
 }
-#FormatToolbar > #decreaseZIndexButton[disabled="true"] {
+
+#decreaseZIndexButton[disabled="true"] {
   list-style-image: url("chrome://editor/content/images/sendtoback-disabled.gif");
 }

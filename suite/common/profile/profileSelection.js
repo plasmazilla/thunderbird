@@ -70,15 +70,15 @@ function StartUp()
 
   gProfileService = Components.classes["@mozilla.org/toolkit/profile-service;1"]
                               .getService(Components.interfaces.nsIToolkitProfileService);
-  var enum = gProfileService.profiles;
+  var profileEnum = gProfileService.profiles;
   var selectedProfile = null;
   try {
     selectedProfile = gProfileService.selectedProfile;
   }
   catch (ex) {
   }
-  while (enum.hasMoreElements()) {
-    AddItem(enum.getNext().QueryInterface(Components.interfaces.nsIToolkitProfile),
+  while (profileEnum.hasMoreElements()) {
+    AddItem(profileEnum.getNext().QueryInterface(Components.interfaces.nsIToolkitProfile),
             selectedProfile);
   }
 
@@ -257,7 +257,7 @@ function ConfirmDelete()
     if (buttonPressed != 1)
       DeleteProfile(buttonPressed == 2);
   } catch (e) {
-    var dialogTitle = gProfileBundle.getString("deleteTitle");
+    var dialogTitle = gMozAppsBundle.getString("deleteTitle");
     var brandName = gBrandBundle.getString("brandShortName");
     var dialogText = gProfileBundle.getFormattedString("deleteLocked",
                                                        [brandName, selected.profile.name]);

@@ -37,21 +37,21 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsScreenManagerQt.h"
-#include "nsScreenQt.h"
-
 #include "qdesktopwidget.h"
 #include "qapplication.h"
+
+#include "nsScreenManagerQt.h"
+#include "nsScreenQt.h"
 
 nsScreenManagerQt::nsScreenManagerQt()
 {
     desktop = 0;
+    screens = 0;
 }
-
 
 nsScreenManagerQt::~nsScreenManagerQt()
 {
-    // nothing to see here.
+    delete [] screens;
 }
 
 // addref, release, QI

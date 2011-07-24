@@ -57,6 +57,10 @@
 #include "nsIScriptGlobalObject.h"
 #include "nsIWebNavigation.h"
 
+#include "nsXULAppAPI.h"
+#define IS_CHILD_PROCESS() \
+    (GeckoProcessType_Default != XRE_GetProcessType())
+
 // Event names
 
 #define CHECKING_STR    "checking"
@@ -115,6 +119,8 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsDOMOfflineResourceList,
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
+DOMCI_DATA(OfflineResourceList, nsDOMOfflineResourceList)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMOfflineResourceList)
   NS_INTERFACE_MAP_ENTRY(nsIDOMOfflineResourceList)
   NS_INTERFACE_MAP_ENTRY(nsIOfflineCacheUpdateObserver)
@@ -133,6 +139,8 @@ nsDOMOfflineResourceList::nsDOMOfflineResourceList(nsIURI *aManifestURI,
   : mInitialized(PR_FALSE)
   , mManifestURI(aManifestURI)
   , mDocumentURI(aDocumentURI)
+  , mExposeCacheUpdateStatus(true)
+  , mStatus(nsIDOMOfflineResourceList::IDLE)
   , mCachedKeys(nsnull)
   , mCachedKeysCount(0)
 {
@@ -168,36 +176,40 @@ nsDOMOfflineResourceList::Init()
   if (!innerURI)
     return NS_ERROR_FAILURE;
 
-  mApplicationCacheService =
-    do_GetService(NS_APPLICATIONCACHESERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Check for in-progress cache updates
-  nsCOMPtr<nsIOfflineCacheUpdateService> cacheUpdateService =
-    do_GetService(NS_OFFLINECACHEUPDATESERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  PRUint32 numUpdates;
-  rv = cacheUpdateService->GetNumUpdates(&numUpdates);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  for (PRUint32 i = 0; i < numUpdates; i++) {
-    nsCOMPtr<nsIOfflineCacheUpdate> cacheUpdate;
-    rv = cacheUpdateService->GetUpdate(i, getter_AddRefs(cacheUpdate));
+  if (!IS_CHILD_PROCESS())
+  {
+    mApplicationCacheService =
+      do_GetService(NS_APPLICATIONCACHESERVICE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    UpdateAdded(cacheUpdate);
+    // Check for in-progress cache updates
+    nsCOMPtr<nsIOfflineCacheUpdateService> cacheUpdateService =
+      do_GetService(NS_OFFLINECACHEUPDATESERVICE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
+
+    PRUint32 numUpdates;
+    rv = cacheUpdateService->GetNumUpdates(&numUpdates);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    for (PRUint32 i = 0; i < numUpdates; i++) {
+      nsCOMPtr<nsIOfflineCacheUpdate> cacheUpdate;
+      rv = cacheUpdateService->GetUpdate(i, getter_AddRefs(cacheUpdate));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      UpdateAdded(cacheUpdate);
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
   }
 
   // watch for new offline cache updates
-  nsCOMPtr<nsIObserverService> observerServ =
-    do_GetService("@mozilla.org/observer-service;1", &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIObserverService> observerService =
+    mozilla::services::GetObserverService();
+  if (!observerService)
+    return NS_ERROR_FAILURE;
 
-  rv = observerServ->AddObserver(this, "offline-cache-update-added", PR_TRUE);
+  rv = observerService->AddObserver(this, "offline-cache-update-added", PR_TRUE);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = observerServ->AddObserver(this, "offline-cache-update-completed", PR_TRUE);
+  rv = observerService->AddObserver(this, "offline-cache-update-completed", PR_TRUE);
   NS_ENSURE_SUCCESS(rv, rv);
 
   mInitialized = PR_TRUE;
@@ -232,6 +244,9 @@ nsDOMOfflineResourceList::Disconnect()
 NS_IMETHODIMP
 nsDOMOfflineResourceList::GetMozItems(nsIDOMDOMStringList **aItems)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   *aItems = nsnull;
 
   nsRefPtr<nsDOMStringList> items = new nsDOMStringList();
@@ -267,6 +282,9 @@ nsDOMOfflineResourceList::GetMozItems(nsIDOMDOMStringList **aItems)
 NS_IMETHODIMP
 nsDOMOfflineResourceList::MozHasItem(const nsAString& aURI, PRBool* aExists)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   nsresult rv = Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -294,6 +312,9 @@ nsDOMOfflineResourceList::MozHasItem(const nsAString& aURI, PRBool* aExists)
 NS_IMETHODIMP
 nsDOMOfflineResourceList::GetMozLength(PRUint32 *aLength)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   if (!mManifestURI) {
     *aLength = 0;
     return NS_OK;
@@ -312,6 +333,9 @@ nsDOMOfflineResourceList::GetMozLength(PRUint32 *aLength)
 NS_IMETHODIMP
 nsDOMOfflineResourceList::MozItem(PRUint32 aIndex, nsAString& aURI)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   nsresult rv = Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -331,6 +355,9 @@ nsDOMOfflineResourceList::MozItem(PRUint32 aIndex, nsAString& aURI)
 NS_IMETHODIMP
 nsDOMOfflineResourceList::MozAdd(const nsAString& aURI)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   nsresult rv = Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -395,6 +422,9 @@ nsDOMOfflineResourceList::MozAdd(const nsAString& aURI)
 NS_IMETHODIMP
 nsDOMOfflineResourceList::MozRemove(const nsAString& aURI)
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   nsresult rv = Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -450,26 +480,14 @@ nsDOMOfflineResourceList::GetStatus(PRUint16 *aStatus)
 
 
   // If there is an update in process, use its status.
-  if (mCacheUpdate) {
+  if (mCacheUpdate && mExposeCacheUpdateStatus) {
     rv = mCacheUpdate->GetStatus(aStatus);
     if (NS_SUCCEEDED(rv) && *aStatus != nsIDOMOfflineResourceList::IDLE) {
       return NS_OK;
     }
   }
 
-  nsCOMPtr<nsIApplicationCache> activeCache;
-  rv = mApplicationCacheService->GetActiveCache(mManifestSpec,
-                                                getter_AddRefs(activeCache));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (activeCache == nsnull) {
-    *aStatus = nsIDOMOfflineResourceList::OBSOLETE;
-  } else if (appCache == activeCache) {
-    *aStatus = nsIDOMOfflineResourceList::IDLE;
-  } else {
-    *aStatus = nsIDOMOfflineResourceList::UPDATEREADY;
-  }
-
+  *aStatus = mStatus;
   return NS_OK;
 }
 
@@ -487,9 +505,12 @@ nsDOMOfflineResourceList::Update()
     do_GetService(NS_OFFLINECACHEUPDATESERVICE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  nsCOMPtr<nsIDOMWindow> window = 
+    do_QueryInterface(mOwner);
+
   nsCOMPtr<nsIOfflineCacheUpdate> update;
   rv = updateService->ScheduleUpdate(mManifestURI, mDocumentURI,
-                                     getter_AddRefs(update));
+                                     window, getter_AddRefs(update));
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
@@ -505,21 +526,22 @@ nsDOMOfflineResourceList::SwapCache()
     return NS_ERROR_DOM_SECURITY_ERR;
   }
 
-  nsCOMPtr<nsIApplicationCacheService> serv =
-    do_GetService(NS_APPLICATIONCACHESERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMPtr<nsIApplicationCache> currentAppCache = GetDocumentAppCache();
-
-  nsCOMPtr<nsIApplicationCache> newAppCache;
-  rv = serv->GetActiveCache(mManifestSpec, getter_AddRefs(newAppCache));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // In the case of an obsolete cache group, newAppCache might be null.
-  // We will disassociate from the cache in that case.
-
-  if (newAppCache == currentAppCache) {
+  if (!currentAppCache) {
     return NS_ERROR_DOM_INVALID_STATE_ERR;
+  }
+
+  // Check the current and potentially newly available cache are not identical.
+  if (mAvailableApplicationCache == currentAppCache) {
+    return NS_ERROR_DOM_INVALID_STATE_ERR;
+  }
+
+  if (mAvailableApplicationCache) {
+    nsCString currClientId, availClientId;
+    currentAppCache->GetClientID(currClientId);
+    mAvailableApplicationCache->GetClientID(availClientId);
+    if (availClientId == currClientId)
+      return NS_ERROR_DOM_INVALID_STATE_ERR;
   }
 
   ClearCachedKeys();
@@ -527,10 +549,15 @@ nsDOMOfflineResourceList::SwapCache()
   nsCOMPtr<nsIApplicationCacheContainer> appCacheContainer =
     GetDocumentAppCacheContainer();
 
+  // In the case of an obsolete cache group, newAppCache might be null.
+  // We will disassociate from the cache in that case.
   if (appCacheContainer) {
-    rv = appCacheContainer->SetApplicationCache(newAppCache);
+    rv = appCacheContainer->SetApplicationCache(mAvailableApplicationCache);
     NS_ENSURE_SUCCESS(rv, rv);
   }
+
+  mAvailableApplicationCache = nsnull;
+  mStatus = nsIDOMOfflineResourceList::IDLE;
 
   return NS_OK;
 }
@@ -724,53 +751,50 @@ nsDOMOfflineResourceList::Observe(nsISupports *aSubject,
 // nsDOMOfflineResourceList::nsIOfflineCacheUpdateObserver
 //
 NS_IMETHODIMP
-nsDOMOfflineResourceList::Error(nsIOfflineCacheUpdate *aUpdate)
+nsDOMOfflineResourceList::UpdateStateChanged(nsIOfflineCacheUpdate *aUpdate,
+                                     PRUint32 event)
 {
-  SendEvent(NS_LITERAL_STRING(ERROR_STR));
+  mExposeCacheUpdateStatus = 
+      (event == STATE_CHECKING) ||
+      (event == STATE_DOWNLOADING) ||
+      (event == STATE_ITEMSTARTED) ||
+      (event == STATE_ITEMCOMPLETED) ||
+      // During notification of "obsolete" we must expose state of the update
+      (event == STATE_OBSOLETE);
+
+  switch (event) {
+    case STATE_ERROR:
+      SendEvent(NS_LITERAL_STRING(ERROR_STR));
+      break;
+    case STATE_CHECKING:
+      SendEvent(NS_LITERAL_STRING(CHECKING_STR));
+      break;
+    case STATE_NOUPDATE:
+      SendEvent(NS_LITERAL_STRING(NOUPDATE_STR));
+      break;
+    case STATE_OBSOLETE:
+      mStatus = nsIDOMOfflineResourceList::OBSOLETE;
+      mAvailableApplicationCache = nsnull;
+      SendEvent(NS_LITERAL_STRING(OBSOLETE_STR));
+      break;
+    case STATE_DOWNLOADING:
+      SendEvent(NS_LITERAL_STRING(DOWNLOADING_STR));
+      break;
+    case STATE_ITEMSTARTED:
+      SendEvent(NS_LITERAL_STRING(PROGRESS_STR));
+      break;
+    case STATE_ITEMCOMPLETED:
+      // Nothing to do here...
+      break;
+  }
 
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDOMOfflineResourceList::Checking(nsIOfflineCacheUpdate *aUpdate)
+nsDOMOfflineResourceList::ApplicationCacheAvailable(nsIApplicationCache *aApplicationCache)
 {
-  SendEvent(NS_LITERAL_STRING(CHECKING_STR));
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMOfflineResourceList::NoUpdate(nsIOfflineCacheUpdate *aUpdate)
-{
-  SendEvent(NS_LITERAL_STRING(NOUPDATE_STR));
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMOfflineResourceList::Downloading(nsIOfflineCacheUpdate *aUpdate)
-{
-  SendEvent(NS_LITERAL_STRING(DOWNLOADING_STR));
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMOfflineResourceList::ItemStarted(nsIOfflineCacheUpdate *aUpdate,
-                                      nsIDOMLoadStatus *aItem)
-{
-  SendEvent(NS_LITERAL_STRING(PROGRESS_STR));
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMOfflineResourceList::ItemCompleted(nsIOfflineCacheUpdate *aUpdate,
-                                        nsIDOMLoadStatus *aItem)
-{
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMOfflineResourceList::Obsolete(nsIOfflineCacheUpdate *aUpdate)
-{
-  SendEvent(NS_LITERAL_STRING(OBSOLETE_STR));
+  mAvailableApplicationCache = aApplicationCache;
   return NS_OK;
 }
 
@@ -872,8 +896,10 @@ nsDOMOfflineResourceList::UpdateCompleted(nsIOfflineCacheUpdate *aUpdate)
 
   if (NS_SUCCEEDED(rv) && succeeded && !partial) {
     if (isUpgrade) {
+      mStatus = nsIDOMOfflineResourceList::UPDATEREADY;
       SendEvent(NS_LITERAL_STRING(UPDATEREADY_STR));
     } else {
+      mStatus = nsIDOMOfflineResourceList::IDLE;
       SendEvent(NS_LITERAL_STRING(CACHED_STR));
     }
   }
@@ -902,6 +928,9 @@ nsDOMOfflineResourceList::GetCacheKey(nsIURI *aURI, nsCString &aKey)
 nsresult
 nsDOMOfflineResourceList::CacheKeys()
 {
+  if (IS_CHILD_PROCESS()) 
+    return NS_ERROR_NOT_IMPLEMENTED;
+
   if (mCachedKeys)
     return NS_OK;
 
@@ -926,6 +955,3 @@ nsDOMOfflineResourceList::ClearCachedKeys()
     mCachedKeysCount = 0;
   }
 }
-
-
-

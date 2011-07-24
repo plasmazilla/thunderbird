@@ -60,7 +60,6 @@ public:
     // To be used by deserialization only.  Leaves this object in an
     // uninitialized state that will throw on most accesses.
     nsSimpleNestedURI()
-        : nsSimpleURI(nsnull)
     {
     }
 
@@ -70,6 +69,7 @@ public:
 
     NS_DECL_ISUPPORTS_INHERITED
     NS_DECL_NSINESTEDURI
+    NS_DECL_NSIIPCSERIALIZABLE
 
     // Overrides for various methods nsSimpleURI implements follow.
   

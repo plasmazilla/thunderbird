@@ -43,7 +43,6 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE = suitefeeds
 LIBRARY_NAME = suitefeeds_s
-META_COMPONENT  = suite
 FORCE_STATIC_LIB = 1
 FORCE_USE_PIC = 1
 
@@ -52,14 +51,16 @@ DEFINES += \
 	-DMOZ_APP_DISPLAYNAME=$(MOZ_APP_DISPLAYNAME) \
 	$(NULL)
 
-EXTRA_PP_COMPONENTS = \
+EXTRA_COMPONENTS = \
+	SuiteFeeds.manifest \
 	FeedConverter.js \
-	FeedWriter.js \
 	WebContentConverter.js \
 	nsAboutFeeds.js \
 	$(NULL)
 
-REQUIRES = xpcom string necko caps js xpconnect mimetype
+EXTRA_PP_COMPONENTS = \
+	FeedWriter.js \
+	$(NULL)
 
 CPPSRCS = \
 	nsFeedSniffer.cpp \

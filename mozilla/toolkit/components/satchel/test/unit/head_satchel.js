@@ -38,7 +38,7 @@
 const Ci = Components.interfaces;
 const Cc = Components.classes;
 
-const CURRENT_SCHEMA = 2;
+const CURRENT_SCHEMA = 3;
 const PR_HOURS = 60 * 60 * 1000000;
 
 do_get_profile();
@@ -56,10 +56,12 @@ function getDBVersion(dbfile) {
     return version;
 }
 
-function cleanUpFormHist() {
-  var formhistFile = dirSvc.get("ProfD", Ci.nsIFile);
-  formhistFile.append("formhistory.dat");
-  if (formhistFile.exists())
-    formhistFile.remove(false);
+const isGUID = /[A-Za-z0-9\+\/]{16}/;
+
+function getGUIDforID(conn, id) {
+    var stmt = conn.createStatement("SELECT guid from moz_formhistory WHERE id = " + id);
+    stmt.executeStep();
+    var guid = stmt.getString(0);
+    stmt.finalize();
+    return guid;
 }
-cleanUpFormHist();

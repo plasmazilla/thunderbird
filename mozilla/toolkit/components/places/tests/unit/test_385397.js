@@ -39,70 +39,63 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// Get history service
-try {
-  var histsvc = Cc["@mozilla.org/browser/nav-history-service;1"].getService(Ci.nsINavHistoryService);
-} catch(ex) {
-  do_throw("Could not get history service\n");
-} 
-
 // adds a test URI visit to the database, and checks for a valid place ID
 function add_visit(aURI, aWhen, aType) {
-  var placeID = histsvc.addVisit(aURI,
-                                 aWhen,
-                                 null, // no referrer
-                                 aType,
-                                 false, // not redirect
-                                 0);
-  do_check_true(placeID > 0);
-  return placeID;
+  PlacesUtils.history.addVisit(aURI, aWhen, null, aType, false, 0);
 }
 
 const TOTAL_SITES = 20;
 
-// main
 function run_test() {
-  var now = Date.now() * 1000;
-  // add visits
-  for (var i=0; i < TOTAL_SITES; i++) {
-    var site = "http://www.test-" + i + ".com/";
-    var testURI = uri(site);
-    var testImageURI = uri(site + "blank.gif");
-    var when = now + (i * TOTAL_SITES);
-    add_visit(testURI, when, histsvc.TRANSITION_TYPED);
-    add_visit(testImageURI, when + 1, histsvc.TRANSITION_EMBED);
-    add_visit(testURI, when + 2, histsvc.TRANSITION_LINK);
-  }
+  let now = Date.now() * 1000;
+
+  PlacesUtils.history.runInBatchMode({
+    runBatched: function (aUserData) {
+      for (let i=0; i < TOTAL_SITES; i++) {
+        let site = "http://www.test-" + i + ".com/";
+        let testURI = uri(site);
+        let testImageURI = uri(site + "blank.gif");
+        let when = now + (i * TOTAL_SITES);
+        add_visit(testURI, when, PlacesUtils.history.TRANSITION_TYPED);
+        add_visit(testImageURI, ++when, PlacesUtils.history.TRANSITION_EMBED);
+        add_visit(testImageURI, ++when, PlacesUtils.history.TRANSITION_FRAMED_LINK);
+        add_visit(testURI, ++when, PlacesUtils.history.TRANSITION_LINK);
+      }
+    }
+  }, null);
 
   // verify our visits AS_VISIT, ordered by date descending
   // including hidden
-  // we should get 60 visits:
+  // we should get 80 visits:
   // http://www.test-19.com/
   // http://www.test-19.com/blank.gif
+  // http://www.test-19.com/
   // http://www.test-19.com/
   // ...
   // http://www.test-0.com/
   // http://www.test-0.com/blank.gif
   // http://www.test-0.com/
-  var options = histsvc.getNewQueryOptions();
+  // http://www.test-0.com/
+  let options = PlacesUtils.history.getNewQueryOptions();
   options.sortingMode = options.SORT_BY_DATE_DESCENDING;
   options.resultType = options.RESULTS_AS_VISIT;
   options.includeHidden = true;
-  var query = histsvc.getNewQuery();
-  var result = histsvc.executeQuery(query, options);
-  var root = result.root;
+  let root = PlacesUtils.history.executeQuery(PlacesUtils.history.getNewQuery(),
+                                              options).root;
   root.containerOpen = true;
-  var cc = root.childCount;
-  do_check_eq(cc, 3 * TOTAL_SITES); 
-  for (var i=0; i < TOTAL_SITES; i++) {
-    var node = root.getChild(i*3);
-    var site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
+  let cc = root.childCount;
+  // Embed visits are not added to the database, thus they won't appear.
+  do_check_eq(cc, 3 * TOTAL_SITES);
+  for (let i = 0; i < TOTAL_SITES; i++) {
+    let index = i * 3;
+    let node = root.getChild(index);
+    let site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_VISIT);
-    node = root.getChild(i*3+1);
+    node = root.getChild(++index);
     do_check_eq(node.uri, site + "blank.gif");
     do_check_eq(node.type, options.RESULTS_AS_VISIT);
-    node = root.getChild(i*3+2);
+    node = root.getChild(++index);
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_VISIT);
   }
@@ -115,22 +108,22 @@ function run_test() {
   // ...
   // http://www.test-0.com/
   // http://www.test-0.com/
-  var options = histsvc.getNewQueryOptions();
+  let options = PlacesUtils.history.getNewQueryOptions();
   options.sortingMode = options.SORT_BY_DATE_DESCENDING;
   options.resultType = options.RESULTS_AS_VISIT;
-  var query = histsvc.getNewQuery();
-  var result = histsvc.executeQuery(query, options);
-  var root = result.root;
+  let root = PlacesUtils.history.executeQuery(PlacesUtils.history.getNewQuery(),
+                                              options).root;
   root.containerOpen = true;
-  var cc = root.childCount;
-  // 2 * TOTAL_SITES because we count the TYPED and LINK, but not EMBED
+  let cc = root.childCount;
+  // 2 * TOTAL_SITES because we count the TYPED and LINK, but not EMBED or FRAMED
   do_check_eq(cc, 2 * TOTAL_SITES); 
-  for (var i=0; i < TOTAL_SITES; i++) {
-    var node = root.getChild(i*2);
-    var site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
+  for (let i=0; i < TOTAL_SITES; i++) {
+    let index = i * 2;
+    let node = root.getChild(index);
+    let site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_VISIT);
-    node = root.getChild(i*2+1);
+    node = root.getChild(++index);
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_VISIT);
   }
@@ -143,19 +136,18 @@ function run_test() {
   // http://www.test-19.com/
   // ...
   // http://www.test-10.com/
-  var options = histsvc.getNewQueryOptions();
+  let options = PlacesUtils.history.getNewQueryOptions();
   options.sortingMode = options.SORT_BY_DATE_DESCENDING;
   options.maxResults = 10;
   options.resultType = options.RESULTS_AS_URI;
-  var query = histsvc.getNewQuery();
-  var result = histsvc.executeQuery(query, options);
-  var root = result.root;
+  let root = PlacesUtils.history.executeQuery(PlacesUtils.history.getNewQuery(),
+                                              options).root;
   root.containerOpen = true;
-  var cc = root.childCount;
+  let cc = root.childCount;
   do_check_eq(cc, options.maxResults);
-  for (var i=0; i < cc; i++) {
-    var node = root.getChild(i);
-    var site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
+  for (let i=0; i < cc; i++) {
+    let node = root.getChild(i);
+    let site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_URI);
   }
@@ -168,18 +160,17 @@ function run_test() {
   // http://www.test-19.com/
   // ...
   // http://www.test-10.com/
-  var options = histsvc.getNewQueryOptions();
+  let options = PlacesUtils.history.getNewQueryOptions();
   options.sortingMode = options.SORT_BY_DATE_DESCENDING;
   options.resultType = options.RESULTS_AS_URI;
-  var query = histsvc.getNewQuery();
-  var result = histsvc.executeQuery(query, options);
-  var root = result.root;
+  let root = PlacesUtils.history.executeQuery(PlacesUtils.history.getNewQuery(),
+                                              options).root;
   root.containerOpen = true;
-  var cc = root.childCount;
+  let cc = root.childCount;
   do_check_eq(cc, TOTAL_SITES);
-  for (var i=0; i < 10; i++) {
-    var node = root.getChild(i);
-    var site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
+  for (let i=0; i < 10; i++) {
+    let node = root.getChild(i);
+    let site = "http://www.test-" + (TOTAL_SITES - 1 - i) + ".com/";
     do_check_eq(node.uri, site);
     do_check_eq(node.type, options.RESULTS_AS_URI);
   }

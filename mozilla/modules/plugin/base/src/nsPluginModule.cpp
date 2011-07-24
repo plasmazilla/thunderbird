@@ -36,38 +36,27 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIGenericFactory.h"
+#include "mozilla/ModuleUtils.h"
 #include "nsPluginHost.h"
 #include "nsPluginsCID.h"
-#ifdef OJI
-#include "nsJVMAuthTools.h"
-#endif
 
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsPluginHost, nsPluginHost::GetInst)
-#ifdef OJI
-NS_GENERIC_AGGREGATED_CONSTRUCTOR(nsJVMAuthTools)
-#endif
+NS_DEFINE_NAMED_CID(NS_PLUGIN_HOST_CID);
 
-static const nsModuleComponentInfo gComponentInfo[] = {
-  { "Plugin Host",
-    NS_PLUGIN_HOST_CID,
-    MOZ_PLUGIN_HOST_CONTRACTID,
-    nsPluginHostConstructor
-#ifdef OJI
-  },
-  { "Plugin Manager",
-    NS_PLUGINMANAGER_CID,
-    "@mozilla.org/plugin/manager;1",
-    nsPluginHostConstructor
-  },
-  { "JVM Authentication Service", 
-    NS_JVMAUTHTOOLS_CID,  
-    "@mozilla.org/oji/jvm-auth-tools;1", 
-    nsJVMAuthToolsConstructor
-  }
-#else
-  }
-#endif
+static const mozilla::Module::CIDEntry kPluginCIDs[] = {
+  { &kNS_PLUGIN_HOST_CID, false, NULL, nsPluginHostConstructor },
+  { NULL }
 };
 
-NS_IMPL_NSGETMODULE(nsPluginModule, gComponentInfo)
+static const mozilla::Module::ContractIDEntry kPluginContracts[] = {
+  { MOZ_PLUGIN_HOST_CONTRACTID, &kNS_PLUGIN_HOST_CID },
+  { NULL }
+};
+
+static const mozilla::Module kPluginModule = {
+  mozilla::Module::kVersion,
+  kPluginCIDs,
+  kPluginContracts
+};
+
+NSMODULE_DEFN(nsPluginModule) = &kPluginModule;

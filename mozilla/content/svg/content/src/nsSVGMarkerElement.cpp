@@ -37,12 +37,14 @@
 #include "nsGkAtoms.h"
 #include "nsCOMPtr.h"
 #include "nsISVGValueUtils.h"
-#include "nsSVGPreserveAspectRatio.h"
+#include "SVGAnimatedPreserveAspectRatio.h"
 #include "nsSVGMatrix.h"
 #include "nsDOMError.h"
 #include "nsSVGUtils.h"
 #include "nsSVGMarkerElement.h"
 #include "gfxMatrix.h"
+
+using namespace mozilla;
 
 nsSVGElement::LengthInfo nsSVGMarkerElement::sLengthInfo[4] =
 {
@@ -84,17 +86,19 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsSVGOrientType::DOMAnimatedEnum)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGOrientType::DOMAnimatedEnum)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGAnimatedEnumeration)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimatedEnumeration)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimatedEnumeration)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF_INHERITED(nsSVGMarkerElement,nsSVGMarkerElementBase)
 NS_IMPL_RELEASE_INHERITED(nsSVGMarkerElement,nsSVGMarkerElementBase)
 
+DOMCI_NODE_DATA(SVGMarkerElement, nsSVGMarkerElement)
+
 NS_INTERFACE_TABLE_HEAD(nsSVGMarkerElement)
   NS_NODE_INTERFACE_TABLE5(nsSVGMarkerElement, nsIDOMNode, nsIDOMElement,
                            nsIDOMSVGElement, nsIDOMSVGFitToViewBox,
                            nsIDOMSVGMarkerElement)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGMarkerElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGMarkerElement)
 NS_INTERFACE_MAP_END_INHERITING(nsSVGMarkerElementBase)
 
 //----------------------------------------------------------------------
@@ -114,7 +118,7 @@ nsSVGOrientType::SetBaseValue(PRUint16 aValue,
       PR_TRUE);
     return NS_OK;
   }
-  return NS_ERROR_FAILURE;
+  return NS_ERROR_DOM_SYNTAX_ERR;
 }
 
 nsresult
@@ -129,7 +133,7 @@ nsSVGOrientType::ToDOMAnimatedEnum(nsIDOMSVGAnimatedEnumeration **aResult,
   return NS_OK;
 }
 
-nsSVGMarkerElement::nsSVGMarkerElement(nsINodeInfo *aNodeInfo)
+nsSVGMarkerElement::nsSVGMarkerElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGMarkerElementBase(aNodeInfo), mCoordCtx(nsnull)
 {
 }
@@ -216,7 +220,9 @@ NS_IMETHODIMP nsSVGMarkerElement::SetOrientToAngle(nsIDOMSVGAngle *angle)
     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
 
   float f;
-  angle->GetValue(&f);
+  nsresult rv = angle->GetValue(&f);
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_FINITE(f, NS_ERROR_DOM_SVG_WRONG_TYPE_ERR);
   mAngleAttributes[ORIENT].SetBaseValue(f, this);
 
   return NS_OK;
@@ -368,7 +374,7 @@ nsSVGMarkerElement::GetViewBox()
   return &mViewBox;
 }
 
-nsSVGPreserveAspectRatio *
+SVGAnimatedPreserveAspectRatio *
 nsSVGMarkerElement::GetPreserveAspectRatio()
 {
   return &mPreserveAspectRatio;
@@ -379,19 +385,19 @@ nsSVGMarkerElement::GetPreserveAspectRatio()
 
 gfxMatrix
 nsSVGMarkerElement::GetMarkerTransform(float aStrokeWidth,
-                                       float aX, float aY, float aAngle)
+                                       float aX, float aY, float aAutoAngle)
 {
   float scale = 1.0;
   if (mEnumAttributes[MARKERUNITS].GetAnimValue() ==
       SVG_MARKERUNITS_STROKEWIDTH)
     scale = aStrokeWidth;
 
-  if (mOrientType.GetAnimValue() != SVG_MARKER_ORIENT_AUTO) {
-    aAngle = mAngleAttributes[ORIENT].GetAnimValue();
-  }
+  float angle = mOrientType.GetAnimValue() == SVG_MARKER_ORIENT_AUTO ?
+                aAutoAngle :
+                mAngleAttributes[ORIENT].GetAnimValue() * M_PI / 180.0;
 
-  return gfxMatrix(cos(aAngle) * scale,   sin(aAngle) * scale,
-                   -sin(aAngle) * scale,  cos(aAngle) * scale,
+  return gfxMatrix(cos(angle) * scale,   sin(angle) * scale,
+                   -sin(angle) * scale,  cos(angle) * scale,
                    aX,                    aY);
 }
 
@@ -414,11 +420,11 @@ nsSVGMarkerElement::GetViewBoxTransform()
     float refY = mLengthAttributes[REFY].GetAnimValue(mCoordCtx);
 
     gfxMatrix viewBoxTM =
-      nsSVGUtils::GetViewBoxTransform(viewportWidth, viewportHeight,
+      nsSVGUtils::GetViewBoxTransform(this,
+                                      viewportWidth, viewportHeight,
                                       viewbox.x, viewbox.y,
                                       viewbox.width, viewbox.height,
-                                      mPreserveAspectRatio,
-                                      PR_TRUE);
+                                      mPreserveAspectRatio);
 
     gfxPoint ref = viewBoxTM.Transform(gfxPoint(refX, refY));
 

@@ -71,7 +71,7 @@ struct sa_stream {
   pthread_mutex_t   mutex;
   bool              playing;
   int64_t           bytes_played;
-  int64_t           total_bytes_played;
+  int64_t           bytes_played_last;
 
   /* audio format info */
   unsigned int      rate;
@@ -155,7 +155,7 @@ sa_stream_create_pcm(
   s->output_unit  = NULL;
   s->playing      = FALSE;
   s->bytes_played = 0;
-  s->total_bytes_played = 0;
+  s->bytes_played_last = 0;
   s->rate         = rate;
   s->n_channels   = n_channels;
   s->bytes_per_ch = 2;
@@ -401,15 +401,14 @@ sa_stream_write(sa_stream_t *s, const void *data, size_t nbytes) {
    * better not to be inside the lock when we enable the audio callback.
    */
   if (!s->playing) {
-    s->playing = TRUE;
     if (AudioOutputUnitStart(s->output_unit) != 0) {
-      result = SA_ERROR_SYSTEM;
+      return SA_ERROR_SYSTEM;
     }
+    s->playing = TRUE;
   }
 
   return result;
 }
-
 
 static OSStatus
 audio_callback(
@@ -439,13 +438,8 @@ audio_callback(
   unsigned int      bytes_per_frame = s->n_channels * s->bytes_per_ch;
   unsigned int      bytes_to_copy   = n_frames * bytes_per_frame;
 
-  /*
-   * Keep track of the number of bytes we've consumed so far. mSampleTime
-   * is actually the number of *frames* that have been consumed by the
-   * audio output unit so far. I don't know why it's a float.
-   */
-  assert(time_stamp->mFlags & kAudioTimeStampSampleTimeValid);
-  s->bytes_played = (int64_t)time_stamp->mSampleTime * bytes_per_frame;
+  s->bytes_played += s->bytes_played_last;
+  s->bytes_played_last = 0;
 
   /*
    * Consume data from the start of the buffer list.
@@ -461,6 +455,7 @@ audio_callback(
        */
       memcpy(dst, s->bl_head->data + s->bl_head->start, bytes_to_copy);
       s->bl_head->start += bytes_to_copy;
+      s->bytes_played_last += bytes_to_copy;
       break;
 
     } else {
@@ -472,6 +467,7 @@ audio_callback(
       s->bl_head->start += avail;
       dst += avail;
       bytes_to_copy -= avail;
+      s->bytes_played_last += avail;
 
       /*
        * We want to free the now-empty buffer, but not if it's also the
@@ -539,7 +535,9 @@ sa_stream_get_position(sa_stream_t *s, sa_position_t position, int64_t *pos) {
   }
 
   pthread_mutex_lock(&s->mutex);
-  *pos = s->total_bytes_played + s->bytes_played;
+
+  *pos = s->bytes_played;
+
   pthread_mutex_unlock(&s->mutex);
   return SA_SUCCESS;
 }
@@ -558,7 +556,10 @@ sa_stream_pause(sa_stream_t *s) {
    * internal Core Audio lock, and with the callback thread holding the Core
    * Audio lock and waiting on the mutex.
   */
-  AudioOutputUnitStop(s->output_unit);
+  if (AudioOutputUnitStop(s->output_unit) != 0) {
+    return SA_ERROR_SYSTEM;
+  }
+  s->playing = FALSE;
 
   return SA_SUCCESS;
 }
@@ -571,22 +572,16 @@ sa_stream_resume(sa_stream_t *s) {
     return SA_ERROR_NO_INIT;
   }
 
-  pthread_mutex_lock(&s->mutex);
-  /*
-   * The audio device resets its mSampleTime counter after pausing,
-   * so we need to clear our tracking value to keep that in sync.
-   */
-  s->total_bytes_played += s->bytes_played;
-  s->bytes_played = 0;
-  pthread_mutex_unlock(&s->mutex);
-
   /*
    * Don't hold the mutex when starting the audio device, because it is
    * possible to deadlock with this thread holding mutex then waiting on an
    * internal Core Audio lock, and with the callback thread holding the Core
    * Audio lock and waiting on the mutex.
   */
-  AudioOutputUnitStart(s->output_unit);
+  if (AudioOutputUnitStart(s->output_unit) != 0) {
+    return SA_ERROR_SYSTEM;
+  }
+  s->playing = TRUE;
 
   return SA_SUCCESS;
 }
@@ -610,6 +605,10 @@ sa_stream_drain(sa_stream_t *s)
 {
   if (s == NULL || s->output_unit == NULL) {
     return SA_ERROR_NO_INIT;
+  }
+
+  if (!s->playing) {
+    return SA_ERROR_INVALID;
   }
 
   while (1) {
@@ -733,6 +732,7 @@ UNSUPPORTED(int sa_stream_write_ni(sa_stream_t *s, unsigned int channel, const v
 UNSUPPORTED(int sa_stream_pwrite(sa_stream_t *s, const void *data, size_t nbytes, int64_t offset, sa_seek_t whence))
 UNSUPPORTED(int sa_stream_pwrite_ni(sa_stream_t *s, unsigned int channel, const void *data, size_t nbytes, int64_t offset, sa_seek_t whence))
 UNSUPPORTED(int sa_stream_get_read_size(sa_stream_t *s, size_t *size))
+UNSUPPORTED(int sa_stream_get_min_write(sa_stream_t *s, size_t *samples))
 
 const char *sa_strerror(int code) { return NULL; }
 

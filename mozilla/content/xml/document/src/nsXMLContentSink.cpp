@@ -52,15 +52,13 @@
 #include "nsIDocShell.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsIStyleSheetLinkingElement.h"
-#include "nsPresContext.h"
-#include "nsIPresShell.h"
 #include "nsIDOMComment.h"
 #include "nsIDOMCDATASection.h"
 #include "nsDOMDocumentType.h"
 #include "nsHTMLParts.h"
 #include "nsCRT.h"
-#include "nsICSSLoader.h"
-#include "nsICSSStyleSheet.h"
+#include "nsCSSStyleSheet.h"
+#include "mozilla/css/Loader.h"
 #include "nsGkAtoms.h"
 #include "nsContentUtils.h"
 #include "nsIScriptContext.h"
@@ -90,20 +88,21 @@
 #include "nsNodeInfoManager.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsIContentPolicy.h"
+#include "nsIDocumentViewer.h"
 #include "nsContentPolicyUtils.h"
 #include "nsContentErrors.h"
 #include "nsIDOMProcessingInstruction.h"
 #include "nsNodeUtils.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIHTMLDocument.h"
-#include "nsEventDispatcher.h"
 #include "mozAutoDocUpdate.h"
+#include "nsMimeTypes.h"
 
 #ifdef MOZ_SVG
-#include "nsGUIEvent.h"
+#include "nsHtml5SVGLoadDispatcher.h"
 #endif
 
-#define kXSLType "text/xsl"
+using namespace mozilla::dom;
 
 // XXX Open Issues:
 // 1) what's not allowed - We need to figure out which HTML tags
@@ -125,8 +124,7 @@ NS_NewXMLContentSink(nsIXMLContentSink** aResult,
   if (nsnull == aResult) {
     return NS_ERROR_NULL_POINTER;
   }
-  nsXMLContentSink* it;
-  NS_NEWXPCOM(it, nsXMLContentSink);
+  nsXMLContentSink* it = new nsXMLContentSink();
   if (nsnull == it) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -140,8 +138,7 @@ NS_NewXMLContentSink(nsIXMLContentSink** aResult,
 
 nsXMLContentSink::nsXMLContentSink()
   : mConstrainSize(PR_TRUE),
-    mPrettyPrintXML(PR_TRUE),
-    mAllowAutoXLinks(PR_TRUE)
+    mPrettyPrintXML(PR_TRUE)
 {
 }
 
@@ -159,11 +156,6 @@ nsXMLContentSink::Init(nsIDocument* aDoc,
                        nsISupports* aContainer,
                        nsIChannel* aChannel)
 {
-  MOZ_TIMER_DEBUGLOG(("Reset and start: nsXMLContentSink::Init(), this=%p\n",
-                      this));
-  MOZ_TIMER_RESET(mWatch);
-  MOZ_TIMER_START(mWatch);
-	
   nsresult rv = nsContentSink::Init(aDoc, aURI, aContainer, aChannel);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -177,8 +169,6 @@ nsXMLContentSink::Init(nsIDocument* aDoc,
   mState = eXMLContentSinkState_InProlog;
   mDocElement = nsnull;
 
-  MOZ_TIMER_DEBUGLOG(("Stop: nsXMLContentSink::Init()\n"));
-  MOZ_TIMER_STOP(mWatch);
   return NS_OK;
 }
 
@@ -328,7 +318,7 @@ nsXMLContentSink::DidBuildModel(PRBool aTerminated)
         nsCOMPtr<nsIDOMProcessingInstruction> pi = do_QueryInterface(child);
         CheckXSLTParamPI(pi, mXSLTProcessor, mDocument);
       }
-      else if (child->IsNodeOfType(nsINode::eELEMENT)) {
+      else if (child->IsElement()) {
         // Only honor PIs in the prolog
         break;
       }
@@ -343,15 +333,6 @@ nsXMLContentSink::DidBuildModel(PRBool aTerminated)
   else {
     // Kick off layout for non-XSLT transformed documents.
     mDocument->ScriptLoader()->RemoveObserver(this);
-
-    if (mDocElement) {
-      // Notify document observers that all the content has been stuck
-      // into the document.
-      // XXX do we need to notify for things like PIs?  Or just the
-      // documentElement?
-      NS_ASSERTION(mDocument->IndexOf(mDocElement) != -1,
-                   "mDocElement not in doc?");
-    }
 
     // Check if we want to prettyprint
     MaybePrettyPrint();
@@ -399,9 +380,9 @@ nsXMLContentSink::OnDocumentCreated(nsIDocument* aResultDocument)
 
   nsCOMPtr<nsIContentViewer> contentViewer;
   mDocShell->GetContentViewer(getter_AddRefs(contentViewer));
-  if (contentViewer) {
-    nsCOMPtr<nsIDOMDocument> doc = do_QueryInterface(aResultDocument);
-    return contentViewer->SetDOMDocument(doc);
+  nsCOMPtr<nsIDocumentViewer> docViewer = do_QueryInterface(contentViewer);
+  if (docViewer) {
+    return docViewer->SetDocumentInternal(aResultDocument, PR_TRUE);
   }
   return NS_OK;
 }
@@ -450,16 +431,16 @@ nsXMLContentSink::OnTransformDone(nsresult aResult,
   // into the document.  
   // XXX do we need to notify for things like PIs?  Or just the
   // documentElement?
-  nsIContent *rootContent = mDocument->GetRootContent();
-  if (rootContent) {
-    NS_ASSERTION(mDocument->IndexOf(rootContent) != -1,
-                 "rootContent not in doc?");
+  nsIContent *rootElement = mDocument->GetRootElement();
+  if (rootElement) {
+    NS_ASSERTION(mDocument->IndexOf(rootElement) != -1,
+                 "rootElement not in doc?");
     mDocument->BeginUpdate(UPDATE_CONTENT_MODEL);
-    nsNodeUtils::ContentInserted(mDocument, rootContent,
-                                 mDocument->IndexOf(rootContent));
+    nsNodeUtils::ContentInserted(mDocument, rootElement,
+                                 mDocument->IndexOf(rootElement));
     mDocument->EndUpdate(UPDATE_CONTENT_MODEL);
   }
-  
+
   // Start the layout process
   StartLayout(PR_FALSE);
 
@@ -471,7 +452,7 @@ nsXMLContentSink::OnTransformDone(nsresult aResult,
 }
 
 NS_IMETHODIMP
-nsXMLContentSink::StyleSheetLoaded(nsICSSStyleSheet* aSheet,
+nsXMLContentSink::StyleSheetLoaded(nsCSSStyleSheet* aSheet,
                                    PRBool aWasAlternate,
                                    nsresult aStatus)
 {
@@ -512,7 +493,7 @@ nsresult
 nsXMLContentSink::CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
                                 nsINodeInfo* aNodeInfo, PRUint32 aLineNumber,
                                 nsIContent** aResult, PRBool* aAppendContent,
-                                PRBool aFromParser)
+                                FromParser aFromParser)
 {
   NS_ASSERTION(aNodeInfo, "can't create element without nodeinfo");
 
@@ -520,9 +501,10 @@ nsXMLContentSink::CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
   *aAppendContent = PR_TRUE;
   nsresult rv = NS_OK;
 
+  nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
   nsCOMPtr<nsIContent> content;
   rv = NS_NewElement(getter_AddRefs(content), aNodeInfo->NamespaceID(),
-                     aNodeInfo, aFromParser);
+                     ni.forget(), aFromParser);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (aNodeInfo->Equals(nsGkAtoms::script, kNameSpaceID_XHTML)
@@ -532,9 +514,7 @@ nsXMLContentSink::CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
     ) {
     nsCOMPtr<nsIScriptElement> sele = do_QueryInterface(content);
     sele->SetScriptLineNumber(aLineNumber);
-    if (aNodeInfo->Equals(nsGkAtoms::script, kNameSpaceID_SVG)) {
-      sele->WillCallDoneAddingChildren();
-    }
+    sele->SetCreatorParser(mParser);
     mConstrainSize = PR_FALSE;
   }
 
@@ -564,9 +544,11 @@ nsXMLContentSink::CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
     nsCOMPtr<nsIStyleSheetLinkingElement> ssle(do_QueryInterface(content));
     if (ssle) {
       ssle->InitStyleLinkElement(PR_FALSE);
-      ssle->SetEnableUpdates(PR_FALSE);
+      if (aFromParser) {
+        ssle->SetEnableUpdates(PR_FALSE);
+      }
       if (!aNodeInfo->Equals(nsGkAtoms::link, kNameSpaceID_XHTML)) {
-        ssle->SetLineNumber(aLineNumber);
+        ssle->SetLineNumber(aFromParser ? aLineNumber : 0);
       }
     }
   } 
@@ -644,13 +626,7 @@ nsXMLContentSink::CloseElement(nsIContent* aContent)
     return rv;
   }
   
-  if (nodeInfo->Equals(nsGkAtoms::base, kNameSpaceID_XHTML) &&
-      !mHasProcessedBase) {
-    // The first base wins
-    ProcessBASETag(aContent);
-    mHasProcessedBase = PR_TRUE;
-  }
-  else if (nodeInfo->Equals(nsGkAtoms::meta, kNameSpaceID_XHTML) &&
+  if (nodeInfo->Equals(nsGkAtoms::meta, kNameSpaceID_XHTML) &&
            // Need to check here to make sure this meta tag does not set
            // mPrettyPrintXML to false when we have a special root!
            (!mPrettyPrintXML || !mPrettyPrintHasSpecialRoot)) {
@@ -756,9 +732,9 @@ nsXMLContentSink::ProcessStyleLink(nsIContent* aElement,
     return NS_OK; // Do not load stylesheets when loading as data
 
   NS_ConvertUTF16toUTF8 type(aType);
-  if (type.EqualsIgnoreCase(kXSLType) ||
-      type.EqualsIgnoreCase(kXMLTextContentType) ||
-      type.EqualsIgnoreCase(kXMLApplicationContentType)) {
+  if (type.EqualsIgnoreCase(TEXT_XSL) ||
+      type.EqualsIgnoreCase(TEXT_XML) ||
+      type.EqualsIgnoreCase(APPLICATION_XML)) {
     if (aAlternate) {
       // don't load alternate XSLT
       return NS_OK;
@@ -768,7 +744,8 @@ nsXMLContentSink::ProcessStyleLink(nsIContent* aElement,
       return NS_OK;
 
     nsCOMPtr<nsIURI> url;
-    rv = NS_NewURI(getter_AddRefs(url), aHref, nsnull, mDocumentBaseURI);
+    rv = NS_NewURI(getter_AddRefs(url), aHref, nsnull,
+                   mDocument->GetDocBaseURI());
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Do security check
@@ -808,32 +785,6 @@ nsXMLContentSink::ProcessStyleLink(nsIContent* aElement,
   
   return rv;
 }
-
-void
-nsXMLContentSink::ProcessBASETag(nsIContent* aContent)
-{
-  NS_ASSERTION(aContent, "missing base-element");
-
-  if (mDocument) {
-    nsAutoString value;
-  
-    if (aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::target, value)) {
-      mDocument->SetBaseTarget(value);
-    }
-
-    if (aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::href, value)) {
-      nsCOMPtr<nsIURI> baseURI;
-      nsresult rv = NS_NewURI(getter_AddRefs(baseURI), value);
-      if (NS_SUCCEEDED(rv)) {
-        rv = mDocument->SetBaseURI(baseURI); // The document checks if it is legal to set this base
-        if (NS_SUCCEEDED(rv)) {
-          mDocumentBaseURI = mDocument->GetBaseURI();
-        }
-      }
-    }
-  }
-}
-
 
 NS_IMETHODIMP 
 nsXMLContentSink::SetDocumentCharset(nsACString& aCharset)
@@ -916,15 +867,14 @@ nsXMLContentSink::GetCurrentContent()
   if (mContentStack.Length() == 0) {
     return nsnull;
   }
-  return GetCurrentStackNode().mContent;
+  return GetCurrentStackNode()->mContent;
 }
 
-StackNode &
+StackNode*
 nsXMLContentSink::GetCurrentStackNode()
 {
   PRInt32 count = mContentStack.Length();
-  NS_ASSERTION(count > 0, "Bogus Length()");
-  return mContentStack[count-1];
+  return count != 0 ? &mContentStack[count-1] : nsnull;
 }
 
 
@@ -997,7 +947,6 @@ nsXMLContentSink::SetDocElement(PRInt32 aNameSpaceID,
     if (mPrettyPrintXML) {
       // In this case, disable script execution, stylesheet
       // loading, and auto XLinks since we plan to prettyprint.
-      mAllowAutoXLinks = PR_FALSE;
       mDocument->ScriptLoader()->SetEnabled(PR_FALSE);
       if (mCSSLoader) {
         mCSSLoader->SetEnabled(PR_FALSE);
@@ -1007,7 +956,7 @@ nsXMLContentSink::SetDocElement(PRInt32 aNameSpaceID,
 
   mDocElement = aContent;
   NS_ADDREF(mDocElement);
-  nsresult rv = mDocument->AppendChildTo(mDocElement, PR_TRUE);
+  nsresult rv = mDocument->AppendChildTo(mDocElement, NotifyForDocElement());
   if (NS_FAILED(rv)) {
     // If we return PR_FALSE here, the caller will bail out because it won't
     // find a parent content node to append to, which is fine.
@@ -1074,7 +1023,8 @@ nsXMLContentSink::HandleStartElement(const PRUnichar *aName,
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   result = CreateElement(aAtts, aAttsCount, nodeInfo, aLineNumber,
-                         getter_AddRefs(content), &appendContent, PR_TRUE);
+                         getter_AddRefs(content), &appendContent,
+                         FROM_PARSER_NETWORK);
   NS_ENSURE_SUCCESS(result, result);
 
   // Have to do this before we push the new content on the stack... and have to
@@ -1135,6 +1085,10 @@ nsXMLContentSink::HandleStartElement(const PRUnichar *aName,
     MaybeStartLayout(PR_FALSE);
   }
 
+  if (content == mDocElement) {
+    NotifyDocElementCreated(mDocument);
+  }
+
   return aInterruptable && NS_SUCCEEDED(result) ? DidProcessATokenImpl() :
                                                   result;
 }
@@ -1158,11 +1112,14 @@ nsXMLContentSink::HandleEndElement(const PRUnichar *aName,
 
   FlushText();
 
-  StackNode & sn = GetCurrentStackNode();
+  StackNode* sn = GetCurrentStackNode();
+  if (!sn) {
+    return NS_ERROR_UNEXPECTED;
+  }
 
   nsCOMPtr<nsIContent> content;
-  sn.mContent.swap(content);
-  PRUint32 numFlushed = sn.mNumFlushed;
+  sn->mContent.swap(content);
+  PRUint32 numFlushed = sn->mNumFlushed;
 
   PopContent();
   NS_ASSERTION(content, "failed to pop content");
@@ -1202,29 +1159,13 @@ nsXMLContentSink::HandleEndElement(const PRUnichar *aName,
   DidAddContent();
 
 #ifdef MOZ_SVG
-  if (mDocument &&
-      content->GetNameSpaceID() == kNameSpaceID_SVG &&
-      (
-#ifdef MOZ_SMIL
-       content->Tag() == nsGkAtoms::svg ||
-#endif
-       content->HasAttr(kNameSpaceID_None, nsGkAtoms::onload))) {
+  if (content->GetNameSpaceID() == kNameSpaceID_SVG &&
+      content->Tag() == nsGkAtoms::svg) {
     FlushTags();
-
-    nsEvent event(PR_TRUE, NS_SVG_LOAD);
-    event.eventStructType = NS_SVG_EVENT;
-    event.flags |= NS_EVENT_FLAG_CANT_BUBBLE;
-
-    // Do we care about forcing presshell creation if it hasn't happened yet?
-    // That is, should this code flush or something?  Does it really matter?
-    // For that matter, do we really want to try getting the prescontext?  Does
-    // this event ever want one?
-    nsRefPtr<nsPresContext> ctx;
-    nsCOMPtr<nsIPresShell> shell = mDocument->GetPrimaryShell();
-    if (shell) {
-      ctx = shell->GetPresContext();
+    nsCOMPtr<nsIRunnable> event = new nsHtml5SVGLoadDispatcher(content);
+    if (NS_FAILED(NS_DispatchToMainThread(event))) {
+      NS_WARNING("failed to dispatch svg load dispatcher");
     }
-    nsEventDispatcher::Dispatch(content, ctx, &event);
   }
 #endif
 
@@ -1301,9 +1242,9 @@ nsXMLContentSink::HandleDoctypeDecl(const nsAString & aSubset,
     // exit codes, error are not fatal here, just that the stylesheet won't apply
     nsCOMPtr<nsIURI> uri(do_QueryInterface(aCatalogData));
     if (uri) {
-      nsCOMPtr<nsICSSStyleSheet> sheet;
+      nsRefPtr<nsCSSStyleSheet> sheet;
       mCSSLoader->LoadSheetSync(uri, PR_TRUE, PR_TRUE, getter_AddRefs(sheet));
-      
+
 #ifdef NS_DEBUG
       nsCAutoString uriStr;
       uri->GetSpec(uriStr);
@@ -1554,17 +1495,6 @@ nsXMLContentSink::AddAttributes(const PRUnichar** aAtts,
     aContent->SetAttr(nameSpaceID, localName, prefix,
                       nsDependentString(aAtts[1]), PR_FALSE);
     aAtts += 2;
-  }
-
-  // Give autoloading links a chance to fire
-  if (mDocShell && mAllowAutoXLinks) {
-    nsresult rv = aContent->MaybeTriggerAutoLink(mDocShell);
-    if (rv == NS_XML_AUTOLINK_REPLACE ||
-        rv == NS_XML_AUTOLINK_UNDEFINED) {
-      // If we do not terminate the parse, we just keep generating link trigger
-      // events. We want to parse only up to the first replace link, and stop.
-      mParser->Terminate();
-    }
   }
 
   return NS_OK;

@@ -43,7 +43,7 @@ const Cr = Components.results;
 const Cm = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
 
 const FILE_PICKER_CID = "@mozilla.org/filepicker;1";
-const FILE_PICKER_ID = Components.ID(Cc[FILE_PICKER_CID].number);
+const FILE_PICKER_ID = Components.ID("fa71ce55-6524-4744-ba75-71a4c126cfa3");
 const FILE_PICKER_DESCRIPTION = "File Picker Test Service";
 
 // Code borrowed from toolkit/components/downloadmgr/test/unit/head_download_manager.js
@@ -70,7 +70,7 @@ if (!profileDir) {
       throw Cr.NS_ERROR_FAILURE;
     },
     QueryInterface: function(iid) {
-      if (iid.equals(Ci.nsIDirectoryProvider) ||
+      if (iid.equals(Ci.nsIDirectoryServiceProvider) ||
           iid.equals(Ci.nsISupports)) {
         return this;
       }
@@ -185,7 +185,7 @@ function run_test()
   function newFileInDirectory(dir) {
     let file = dir.clone();
     file.append("testfile" + Math.floor(Math.random() * 10000));
-    file.createUnique(Ci.nsIFile.DIRECTORY_FILE, 0600);
+    file.createUnique(Ci.nsIFile.DIRECTORY_TYPE, 0600);
     return file;
   }
   let dir1 = newDirectory();
@@ -223,8 +223,8 @@ function run_test()
   do_check_eq(observer.displayDirectory.path, tmpDir.path);
   // browser.download.lastDir should be modified before entering the private browsing mode
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir1.path);
-  // gDownloadLastDir should not be used outside of the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  // gDownloadLastDir should be usable outside of the private browsing mode
+  do_check_eq(gDownloadLastDir.file.path, dir1.path);
 
   pb.privateBrowsingEnabled = true;
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir1.path);
@@ -241,7 +241,7 @@ function run_test()
 
   pb.privateBrowsingEnabled = false;
   // gDownloadLastDir should be cleared after leaving the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  do_check_eq(gDownloadLastDir.file.path, dir1.path);
   observer.file = file3;
   observer.displayDirectory = null;
   file = launcher.promptForSaveToFile(null, context, null, null, null);
@@ -250,8 +250,8 @@ function run_test()
   do_check_eq(observer.displayDirectory.path, dir1.path);
   // browser.download.lastDir should be modified after leaving the private browsing mode
   do_check_eq(prefs.getComplexValue("lastDir", Ci.nsILocalFile).path, dir3.path);
-  // gDownloadLastDir should not be used after leaving the private browsing mode
-  do_check_eq(gDownloadLastDir.file, null);
+  // gDownloadLastDir should be usable after leaving the private browsing mode
+  do_check_eq(gDownloadLastDir.file.path, dir3.path);
 
   // cleanup
   prefsService.clearUserPref("browser.privatebrowsing.keep_current_session");
@@ -259,5 +259,4 @@ function run_test()
   dirSvc.QueryInterface(Ci.nsIDirectoryService).unregisterProvider(provider);
   obs.removeObserver(observer, "TEST_FILEPICKER_GETFILE", false);
   obs.removeObserver(observer, "TEST_FILEPICKER_SETDISPLAYDIRECTORY", false);
-  Cm.unregisterFactory(FILE_PICKER_ID, factory);
 }

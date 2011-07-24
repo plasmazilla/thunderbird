@@ -44,9 +44,9 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE  = widget
 
-DIRS		= xpwidgets
+DIRS		= shared xpwidgets
 
-ifneq (,$(filter beos os2 cocoa qt,$(MOZ_WIDGET_TOOLKIT)))
+ifneq (,$(filter os2 cocoa qt android,$(MOZ_WIDGET_TOOLKIT)))
 DIRS		+= $(MOZ_WIDGET_TOOLKIT)
 endif
 
@@ -66,10 +66,6 @@ DIRS		+= gtk2
 ifdef MOZ_X11
 DIRS		+= gtkxtbin
 endif
-endif
-
-ifdef MOZ_ENABLE_PHOTON
-DIRS		+= photon
 endif
 
 include $(topsrcdir)/config/rules.mk

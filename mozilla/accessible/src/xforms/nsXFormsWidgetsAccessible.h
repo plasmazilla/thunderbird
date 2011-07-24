@@ -51,7 +51,7 @@ class nsXFormsDropmarkerWidgetAccessible : public nsLeafAccessible,
                                            public nsXFormsAccessibleBase
 {
 public:
-  nsXFormsDropmarkerWidgetAccessible(nsIDOMNode *aNode,
+  nsXFormsDropmarkerWidgetAccessible(nsIContent *aContent,
                                      nsIWeakReference *aShell);
 
   // nsIAccessible
@@ -60,7 +60,7 @@ public:
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 };
 
@@ -71,10 +71,11 @@ public:
 class nsXFormsCalendarWidgetAccessible : public nsAccessibleWrap
 {
 public:
-  nsXFormsCalendarWidgetAccessible(nsIDOMNode *aNode, nsIWeakReference *aShell);
+  nsXFormsCalendarWidgetAccessible(nsIContent *aContent,
+                                   nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 };
 
 
@@ -85,7 +86,7 @@ public:
 class nsXFormsComboboxPopupWidgetAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsComboboxPopupWidgetAccessible(nsIDOMNode *aNode,
+  nsXFormsComboboxPopupWidgetAccessible(nsIContent *aContent,
                                         nsIWeakReference *aShell);
 
   // nsIAccessible
@@ -94,11 +95,12 @@ public:
 
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
 
 protected:
-  void CacheChildren();
+  // nsAccessible
+  virtual void CacheChildren();
 };
 
 #endif

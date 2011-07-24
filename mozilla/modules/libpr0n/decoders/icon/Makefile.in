@@ -46,14 +46,12 @@ MODULE		= imgicon
 LIBRARY_NAME	= imgicon
 IS_COMPONENT	= 1
 MODULE_NAME	= nsIconDecoderModule
+LIBXUL_LIBRARY = 1
+EXPORT_LIBRARY = 1
 
 ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
 EXTRA_DSO_LDOPTS = $(MOZ_GTK2_LIBS)
 PLATFORM = gtk
-FORCE_SHARED_LIB = 1
-else
-LIBXUL_LIBRARY = 1
-EXPORT_LIBRARY = 1
 endif
 
 ifneq (,$(filter qt,$(MOZ_WIDGET_TOOLKIT)))
@@ -74,55 +72,24 @@ ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 PLATFORM = mac
 endif
 
-ifeq ($(OS_ARCH),BeOS)
-PLATFORM = beos
-endif
-
-REQUIRES	= xpcom \
-		  string \
-		  gfx \
-		  thebes \
-		  imglib2 \
-		  necko \
-		  $(NULL)
-
 CPPSRCS		= \
 		nsIconURI.cpp \
 		nsIconModule.cpp \
 		nsIconProtocolHandler.cpp \
 		$(NULL)
 
-ifneq (,$(filter qt gtk2,$(MOZ_WIDGET_TOOLKIT)))
-USE_ICON_DECODER = 1
-endif
-ifeq (,$(filter-out Darwin OS2 BeOS,$(OS_ARCH)))
-USE_ICON_DECODER = 1
-endif
-
-ifdef USE_ICON_DECODER
-CPPSRCS		+= nsIconDecoder.cpp
-DEFINES		+= -DUSE_ICON_DECODER
-endif
-
 XPIDLSRCS	= nsIIconURI.idl
 
 SHARED_LIBRARY_LIBS = $(PLATFORM)/$(LIB_PREFIX)imgicon$(PLATFORM)_s.$(LIB_SUFFIX)
 
-ifdef LIBXUL_LIBRARY
 EXTRA_DSO_LDOPTS += \
 		$(EXTRA_DSO_LIBS) \
 		$(MOZ_COMPONENT_LIBS) \
 		$(NULL)
-else
-EXTRA_DSO_LDOPTS += \
-		$(XPCOM_GLUE_LDOPTS) \
-		$(NSPR_LIBS) \
-		$(NULL)
-endif
 
 LOCAL_INCLUDES	= -I$(srcdir)/$(PLATFORM)
 
-ifeq (,$(filter-out WINNT WINCE, $(OS_ARCH)))
+ifeq ($(OS_ARCH),WINNT)
 OS_LIBS		+= $(call EXPAND_LIBNAME,shell32 gdi32 comctl32)
 endif
 

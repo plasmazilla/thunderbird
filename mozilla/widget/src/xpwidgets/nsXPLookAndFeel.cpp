@@ -57,34 +57,6 @@ NS_IMPL_ISUPPORTS2(nsXPLookAndFeel, nsILookAndFeel, nsIObserver)
 
 nsLookAndFeelIntPref nsXPLookAndFeel::sIntPrefs[] =
 {
-  { "ui.windowTitleHeight", eMetric_WindowTitleHeight, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.windowBorderWidth", eMetric_WindowBorderWidth, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.windowBorderHeight", eMetric_WindowBorderHeight, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.widget3DBorder", eMetric_Widget3DBorder, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textFieldBorder", eMetric_TextFieldBorder, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textFieldHeight", eMetric_TextFieldHeight, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.buttonHorizontalInsidePaddingNavQuirks",
-    eMetric_ButtonHorizontalInsidePaddingNavQuirks, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.buttonHorizontalInsidePaddingOffsetNavQuirks",
-    eMetric_ButtonHorizontalInsidePaddingOffsetNavQuirks, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.checkboxSize", eMetric_CheckboxSize, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.radioboxSize", eMetric_RadioboxSize, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textHorizontalInsideMinimumPadding",
-    eMetric_TextHorizontalInsideMinimumPadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textVerticalInsidePadding", eMetric_TextVerticalInsidePadding,
-    PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textShouldUseVerticalInsidePadding",
-    eMetric_TextShouldUseVerticalInsidePadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.textShouldUseHorizontalInsideMinimumPadding",
-    eMetric_TextShouldUseHorizontalInsideMinimumPadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.listShouldUseHorizontalInsideMinimumPadding",
-    eMetric_ListShouldUseHorizontalInsideMinimumPadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.listHorizontalInsideMinimumPadding",
-    eMetric_ListHorizontalInsideMinimumPadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.listShouldUseVerticalInsidePadding",
-    eMetric_ListShouldUseVerticalInsidePadding, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.listVerticalInsidePadding", eMetric_ListVerticalInsidePadding,
-    PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.caretBlinkTime", eMetric_CaretBlinkTime, PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.caretWidth", eMetric_CaretWidth, PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.caretVisibleWithSelection", eMetric_ShowCaretDuringSelection, PR_FALSE, nsLookAndFeelTypeInt, 0 },
@@ -92,7 +64,8 @@ nsLookAndFeelIntPref nsXPLookAndFeel::sIntPrefs[] =
   { "ui.dragThresholdX", eMetric_DragThresholdX, PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.dragThresholdY", eMetric_DragThresholdY, PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.useAccessibilityTheme", eMetric_UseAccessibilityTheme, PR_FALSE, nsLookAndFeelTypeInt, 0 },
-  { "ui.isScreenReaderActive", eMetric_IsScreenReaderActive, PR_FALSE, nsLookAndFeelTypeInt, 0 },
+  { "ui.scrollbarsCanOverlapContent", eMetric_ScrollbarsCanOverlapContent,
+    PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.menusCanOverlapOSBar", eMetric_MenusCanOverlapOSBar,
     PR_FALSE, nsLookAndFeelTypeInt, 0 },
   { "ui.skipNavigatingDisabledMenuItem", eMetric_SkipNavigatingDisabledMenuItem, PR_FALSE, nsLookAndFeelTypeInt, 0 },
@@ -126,22 +99,6 @@ nsLookAndFeelIntPref nsXPLookAndFeel::sIntPrefs[] =
 
 nsLookAndFeelFloatPref nsXPLookAndFeel::sFloatPrefs[] =
 {
-  { "ui.textFieldVerticalInsidePadding",
-    eMetricFloat_TextFieldVerticalInsidePadding, PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.textFieldHorizontalInsidePadding",
-    eMetricFloat_TextFieldHorizontalInsidePadding, PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.textAreaVerticalInsidePadding", eMetricFloat_TextAreaVerticalInsidePadding,
-    PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.textAreaHorizontalInsidePadding",
-    eMetricFloat_TextAreaHorizontalInsidePadding, PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.listVerticalInsidePadding",
-    eMetricFloat_ListVerticalInsidePadding, PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.listHorizontalInsidePadding",
-    eMetricFloat_ListHorizontalInsidePadding, PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.buttonVerticalInsidePadding", eMetricFloat_ButtonVerticalInsidePadding,
-    PR_FALSE, nsLookAndFeelTypeFloat, 0 },
-  { "ui.buttonHorizontalInsidePadding", eMetricFloat_ButtonHorizontalInsidePadding,
-    PR_FALSE, nsLookAndFeelTypeFloat, 0 },
   { "ui.IMEUnderlineRelativeSize", eMetricFloat_IMEUnderlineRelativeSize,
     PR_FALSE, nsLookAndFeelTypeFloat, 0 },
   { "ui.SpellCheckerUnderlineRelativeSize",
@@ -243,13 +200,6 @@ const char nsXPLookAndFeel::sColorPrefs[][38] =
   "ui.-moz-mac-menutextdisable",
   "ui.-moz-mac-menutextselect",
   "ui.-moz_mac_disabledtoolbartext",
-  "ui.-moz-mac-accentlightesthighlight",
-  "ui.-moz-mac-accentregularhighlight",
-  "ui.-moz-mac-accentface",
-  "ui.-moz-mac-accentlightshadow",
-  "ui.-moz-mac-accentregularshadow",
-  "ui.-moz-mac-accentdarkshadow",
-  "ui.-moz-mac-accentdarkestshadow",
   "ui.-moz-mac-alternateprimaryhighlight",
   "ui.-moz-mac-secondaryhighlight",
   "ui.-moz-win-mediatext",
@@ -323,14 +273,13 @@ nsXPLookAndFeel::ColorPrefChanged (unsigned int index, const char *prefName)
     if (NS_SUCCEEDED(rv) && !colorStr.IsEmpty()) {
       nscolor thecolor;
       if (colorStr[0] == '#') {
-        if (NS_SUCCEEDED(NS_HexToRGB(NS_ConvertASCIItoUTF16(Substring(colorStr, 1, colorStr.Length() - 1)),
-                                     &thecolor))) {
+        if (NS_HexToRGB(NS_ConvertASCIItoUTF16(Substring(colorStr, 1, colorStr.Length() - 1)),
+                        &thecolor)) {
           PRInt32 id = NS_PTR_TO_INT32(index);
           CACHE_COLOR(id, thecolor);
         }
       }
-      else if (NS_SUCCEEDED(NS_ColorNameToRGB(NS_ConvertASCIItoUTF16(colorStr),
-                                         &thecolor))) {
+      else if (NS_ColorNameToRGB(NS_ConvertASCIItoUTF16(colorStr), &thecolor)) {
         PRInt32 id = NS_PTR_TO_INT32(index);
         CACHE_COLOR(id, thecolor);
 #ifdef DEBUG_akkana
@@ -383,11 +332,11 @@ nsXPLookAndFeel::InitColorFromPref(PRInt32 i, nsIPrefBranch* aPrefBranch)
     if (colorNSStr[0] == '#') {
       nsAutoString hexString;
       colorNSStr.Right(hexString, colorNSStr.Length() - 1);
-      if (NS_SUCCEEDED(NS_HexToRGB(hexString, &thecolor))) {
+      if (NS_HexToRGB(hexString, &thecolor)) {
         CACHE_COLOR(i, thecolor);
       }
     }
-    else if (NS_SUCCEEDED(NS_ColorNameToRGB(colorNSStr, &thecolor)))
+    else if (NS_ColorNameToRGB(colorNSStr, &thecolor))
     {
       CACHE_COLOR(i, thecolor);
     }

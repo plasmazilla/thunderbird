@@ -55,11 +55,6 @@
 #include "icalmemory.h"
 #include "icalparser.h"
 
-#ifdef WIN32
-#define HAVE_CTYPE_H
-#define HAVE_ISWSPACE
-#endif
-
 #ifdef HAVE_WCTYPE_H
 # include <wctype.h>
 /* Some systems have an imcomplete implementation on wctype (FreeBSD,
@@ -284,6 +279,7 @@ char* parser_get_param_name(char* line, char **end, char **buf)
         *end = *end+1;
 	    next = parser_get_next_char('"',*end,0);
 	    if (next == 0) {
+			free(str);
 		    return 0;
 	    }
 
@@ -906,13 +902,25 @@ icalcomponent* icalparser_add_line(icalparser* parser,
 
 	    if(kind == ICAL_X_PARAMETER){
 		param = icalparameter_new(ICAL_X_PARAMETER);
-		
-		if(param != 0){
-		    icalparameter_set_xname(param,name);
-		    icalparameter_set_xvalue(param,pvalue);
-		}
-		icalmemory_free_buffer(buf_value);
-		buf_value = NULL;
+            if(param != 0){
+                icalparameter_set_xname(param,name);
+                icalparameter_set_xvalue(param,pvalue);
+            }
+            icalmemory_free_buffer(buf_value);
+            buf_value = NULL;
+	    } else if (kind == ICAL_IANA_PARAMETER){
+            ical_unknown_token_handling tokHandlingSetting = 
+                ical_get_unknown_token_handling_setting();
+            if (tokHandlingSetting == ICAL_DISCARD_TOKEN)
+                continue;
+            param = icalparameter_new(ICAL_IANA_PARAMETER);
+            
+            if(param != 0){
+                icalparameter_set_xname(param,name);
+                icalparameter_set_xvalue(param,pvalue);
+            }
+            icalmemory_free_buffer(buf_value);
+            buf_value = NULL;
 
 	    } else if (kind != ICAL_NO_PARAMETER){
 		param = icalparameter_new_from_value_string(kind,pvalue);
@@ -990,7 +998,6 @@ icalcomponent* icalparser_add_line(icalparser* parser,
 			tail, str, 
 			"Got a VALUE parameter with an unknown type",
 			ICAL_XLICERRORTYPE_PARAMETERVALUEPARSEERROR);
-		    icalparameter_free(param);
 			
 		    value_kind = 
 			icalproperty_kind_to_value_kind(
@@ -1081,13 +1088,27 @@ icalcomponent* icalparser_add_line(icalparser* parser,
 		
 	    /* Don't add properties without value */
 	    if (value == 0){
-		char temp[200]; /* HACK */
-
-		icalproperty_kind prop_kind = icalproperty_isa(prop);
 		icalcomponent* tail = pvl_data(pvl_tail(parser->components));
 
-		snprintf(temp,sizeof(temp),"Can't parse as %s value in %s property. Removing entire property",
-			icalvalue_kind_to_string(value_kind),
+		/* Remove the empty property */
+		icalcomponent_remove_property(tail,prop);
+		icalproperty_free(prop);
+		prop = NULL;
+	    } else {
+		vcount++;
+		icalproperty_set_value(prop, value);
+	    }
+ 	    icalmemory_free_buffer(str);
+	    str = NULL;
+
+	} else {
+	    if (vcount == 0){
+		char temp[200]; /* HACK */
+		
+		icalproperty_kind prop_kind = icalproperty_isa(prop);
+		icalcomponent *tail = pvl_data(pvl_tail(parser->components));
+		
+		snprintf(temp,sizeof(temp),"No value for %s property. Removing entire property",
 			icalproperty_kind_to_string(prop_kind));
 
 		insert_error(tail, str, temp,
@@ -1099,34 +1120,11 @@ icalcomponent* icalparser_add_line(icalparser* parser,
 		prop = 0;
 		tail = 0;
 		parser->state = ICALPARSER_ERROR;
-	
-		icalmemory_free_buffer(str);
-		str = NULL;
 		return 0;
-		    
 	    } else {
-		vcount++;
-		icalproperty_set_value(prop, value);
-	    }
- 	    icalmemory_free_buffer(str);
-	    str = NULL;
 
-	} else {
-		if (str != NULL) {
-			icalmemory_free_buffer(str);
-			str = NULL;
-		}
-			
-	    if (vcount == 0){
-		icalcomponent *tail = pvl_data(pvl_tail(parser->components));
-		
-		/* Remove the empty property */
-		icalcomponent_remove_property(tail,prop);
-		icalproperty_free(prop);
-		prop = NULL;
+		break;
 	    }
-
-        break;
 	}
     }
 	

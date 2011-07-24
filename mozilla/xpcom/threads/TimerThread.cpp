@@ -41,37 +41,35 @@
 #include "nsTimerImpl.h"
 #include "TimerThread.h"
 
-#include "nsAutoLock.h"
 #include "nsThreadUtils.h"
 #include "pratom.h"
 
 #include "nsIObserverService.h"
 #include "nsIServiceManager.h"
 #include "nsIProxyObjectManager.h"
+#include "mozilla/Services.h"
+
+#include <math.h>
+
+using namespace mozilla;
 
 NS_IMPL_THREADSAFE_ISUPPORTS2(TimerThread, nsIRunnable, nsIObserver)
 
 TimerThread::TimerThread() :
   mInitInProgress(0),
   mInitialized(PR_FALSE),
-  mLock(nsnull),
-  mCondVar(nsnull),
+  mLock("TimerThread.mLock"),
+  mCondVar(mLock, "TimerThread.mCondVar"),
   mShutdown(PR_FALSE),
   mWaiting(PR_FALSE),
   mSleeping(PR_FALSE),
   mDelayLineCounter(0),
-  mMinTimerPeriod(0),
-  mTimeoutAdjustment(0)
+  mMinTimerPeriod(0)
 {
 }
 
 TimerThread::~TimerThread()
 {
-  if (mCondVar)
-    PR_DestroyCondVar(mCondVar);
-  if (mLock)
-    PR_DestroyLock(mLock);
-
   mThread = nsnull;
 
   NS_ASSERTION(mTimers.IsEmpty(), "Timers remain in TimerThread::~TimerThread");
@@ -80,15 +78,6 @@ TimerThread::~TimerThread()
 nsresult
 TimerThread::InitLocks()
 {
-  NS_ASSERTION(!mLock, "InitLocks called twice?");
-  mLock = PR_NewLock();
-  if (!mLock)
-    return NS_ERROR_OUT_OF_MEMORY;
-
-  mCondVar = PR_NewCondVar(mLock);
-  if (!mCondVar)
-    return NS_ERROR_OUT_OF_MEMORY;
-
   return NS_OK;
 }
 
@@ -103,7 +92,7 @@ nsresult TimerThread::Init()
     return NS_OK;
   }
 
-  if (PR_AtomicSet(&mInitInProgress, 1) == 0) {
+  if (PR_ATOMIC_SET(&mInitInProgress, 1) == 0) {
     // We hold on to mThread to keep the thread alive.
     nsresult rv = NS_NewThread(getter_AddRefs(mThread), this);
     if (NS_FAILED(rv)) {
@@ -111,7 +100,7 @@ nsresult TimerThread::Init()
     }
     else {
       nsCOMPtr<nsIObserverService> observerService =
-          do_GetService("@mozilla.org/observer-service;1");
+          mozilla::services::GetObserverService();
       // We must not use the observer service from a background thread!
       if (observerService && !NS_IsMainThread()) {
         nsCOMPtr<nsIObserverService> result = nsnull;
@@ -128,17 +117,17 @@ nsresult TimerThread::Init()
       }
     }
 
-    PR_Lock(mLock);
-    mInitialized = PR_TRUE;
-    PR_NotifyAllCondVar(mCondVar);
-    PR_Unlock(mLock);
+    {
+      MutexAutoLock lock(mLock);
+      mInitialized = PR_TRUE;
+      mCondVar.NotifyAll();
+    }
   }
   else {
-    PR_Lock(mLock);
+    MutexAutoLock lock(mLock);
     while (!mInitialized) {
-      PR_WaitCondVar(mCondVar, PR_INTERVAL_NO_TIMEOUT);
+      mCondVar.Wait();
     }
-    PR_Unlock(mLock);
   }
 
   if (!mThread)
@@ -156,13 +145,13 @@ nsresult TimerThread::Shutdown()
 
   nsTArray<nsTimerImpl*> timers;
   {   // lock scope
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
     mShutdown = PR_TRUE;
 
     // notify the cond var so that Run() can return
-    if (mCondVar && mWaiting)
-      PR_NotifyCondVar(mCondVar);
+    if (mWaiting)
+      mCondVar.Notify();
 
     // Need to copy content of mTimers array to a local array
     // because call to timers' ReleaseCallback() (and release its self)
@@ -190,26 +179,27 @@ nsresult TimerThread::Shutdown()
 // Keep track of how early (positive slack) or late (negative slack) timers
 // are running, and use the filtered slack number to adaptively estimate how
 // early timers should fire to be "on time".
-void TimerThread::UpdateFilter(PRUint32 aDelay, PRIntervalTime aTimeout,
-                               PRIntervalTime aNow)
+void TimerThread::UpdateFilter(PRUint32 aDelay, TimeStamp aTimeout,
+                               TimeStamp aNow)
 {
-  PRInt32 slack = (PRInt32) (aTimeout - aNow);
+  TimeDuration slack = aTimeout - aNow;
   double smoothSlack = 0;
   PRUint32 i, filterLength;
-  static PRIntervalTime kFilterFeedbackMaxTicks =
-    PR_MillisecondsToInterval(FILTER_FEEDBACK_MAX);
+  static TimeDuration kFilterFeedbackMaxTicks =
+    TimeDuration::FromMilliseconds(FILTER_FEEDBACK_MAX);
+  static TimeDuration kFilterFeedbackMinTicks =
+    TimeDuration::FromMilliseconds(-FILTER_FEEDBACK_MAX);
 
-  if (slack > 0) {
-    if (slack > (PRInt32)kFilterFeedbackMaxTicks)
-      slack = kFilterFeedbackMaxTicks;
-  } else {
-    if (slack < -(PRInt32)kFilterFeedbackMaxTicks)
-      slack = -(PRInt32)kFilterFeedbackMaxTicks;
-  }
-  mDelayLine[mDelayLineCounter & DELAY_LINE_LENGTH_MASK] = slack;
+  if (slack > kFilterFeedbackMaxTicks)
+    slack = kFilterFeedbackMaxTicks;
+  else if (slack < kFilterFeedbackMinTicks)
+    slack = kFilterFeedbackMinTicks;
+
+  mDelayLine[mDelayLineCounter & DELAY_LINE_LENGTH_MASK] =
+    slack.ToMilliseconds();
   if (++mDelayLineCounter < DELAY_LINE_LENGTH) {
     // Startup mode: accumulate a full delay line before filtering.
-    PR_ASSERT(mTimeoutAdjustment == 0);
+    PR_ASSERT(mTimeoutAdjustment.ToSeconds() == 0);
     filterLength = 0;
   } else {
     // Past startup: compute number of filter taps based on mMinTimerPeriod.
@@ -230,7 +220,7 @@ void TimerThread::UpdateFilter(PRUint32 aDelay, PRIntervalTime aTimeout,
     smoothSlack /= filterLength;
 
     // XXXbe do we need amplification?  hacking a fudge factor, need testing...
-    mTimeoutAdjustment = (PRInt32) (smoothSlack * 1.5);
+    mTimeoutAdjustment = TimeDuration::FromMilliseconds(smoothSlack * 1.5);
   }
 
 #ifdef DEBUG_TIMERS
@@ -243,9 +233,32 @@ void TimerThread::UpdateFilter(PRUint32 aDelay, PRIntervalTime aTimeout,
 /* void Run(); */
 NS_IMETHODIMP TimerThread::Run()
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
+
+  // We need to know how many microseconds give a positive PRIntervalTime. This
+  // is platform-dependent, we calculate it at runtime now.
+  // First we find a value such that PR_MicrosecondsToInterval(high) = 1
+  PRInt32 low = 0, high = 1;
+  while (PR_MicrosecondsToInterval(high) == 0)
+    high <<= 1;
+  // We now have
+  //    PR_MicrosecondsToInterval(low)  = 0
+  //    PR_MicrosecondsToInterval(high) = 1
+  // and we can proceed to find the critical value using binary search
+  while (high-low > 1) {
+    PRInt32 mid = (high+low) >> 1;
+    if (PR_MicrosecondsToInterval(mid) == 0)
+      low = mid;
+    else
+      high = mid;
+  }
+
+  // Half of the amount of microseconds needed to get positive PRIntervalTime.
+  // We use this to decide how to round our wait times later
+  PRInt32 halfMicrosecondsIntervalResolution = high >> 1;
 
   while (!mShutdown) {
+    // Have to use PRIntervalTime here, since PR_WaitCondVar takes it
     PRIntervalTime waitFor;
 
     if (mSleeping) {
@@ -253,13 +266,13 @@ NS_IMETHODIMP TimerThread::Run()
       waitFor = PR_MillisecondsToInterval(100);
     } else {
       waitFor = PR_INTERVAL_NO_TIMEOUT;
-      PRIntervalTime now = PR_IntervalNow();
+      TimeStamp now = TimeStamp::Now();
       nsTimerImpl *timer = nsnull;
 
       if (!mTimers.IsEmpty()) {
         timer = mTimers[0];
 
-        if (!TIMER_LESS_THAN(now, timer->mTimeout + mTimeoutAdjustment)) {
+        if (now >= timer->mTimeout + mTimeoutAdjustment) {
     next:
           // NB: AddRef before the Release under RemoveTimerInternal to avoid
           // mRefCnt passing through zero, in case all other refs than the one
@@ -270,62 +283,68 @@ NS_IMETHODIMP TimerThread::Run()
           NS_ADDREF(timer);
           RemoveTimerInternal(timer);
 
-          // We release mLock around the Fire call to avoid deadlock.
-          lock.unlock();
+          {
+            // We release mLock around the Fire call to avoid deadlock.
+            MutexAutoUnlock unlock(mLock);
 
 #ifdef DEBUG_TIMERS
-          if (PR_LOG_TEST(gTimerLog, PR_LOG_DEBUG)) {
-            PR_LOG(gTimerLog, PR_LOG_DEBUG,
-                   ("Timer thread woke up %dms from when it was supposed to\n",
-                    (now >= timer->mTimeout)
-                    ? PR_IntervalToMilliseconds(now - timer->mTimeout)
-                    : -(PRInt32)PR_IntervalToMilliseconds(timer->mTimeout-now))
-                  );
-          }
+            if (PR_LOG_TEST(gTimerLog, PR_LOG_DEBUG)) {
+              PR_LOG(gTimerLog, PR_LOG_DEBUG,
+                     ("Timer thread woke up %fms from when it was supposed to\n",
+                      fabs((now - timer->mTimeout).ToMilliseconds())));
+            }
 #endif
 
-          // We are going to let the call to PostTimerEvent here handle the
-          // release of the timer so that we don't end up releasing the timer
-          // on the TimerThread instead of on the thread it targets.
-          if (NS_FAILED(timer->PostTimerEvent())) {
-            nsrefcnt rc;
-            NS_RELEASE2(timer, rc);
+            // We are going to let the call to PostTimerEvent here handle the
+            // release of the timer so that we don't end up releasing the timer
+            // on the TimerThread instead of on the thread it targets.
+            if (NS_FAILED(timer->PostTimerEvent())) {
+              nsrefcnt rc;
+              NS_RELEASE2(timer, rc);
             
-            // The nsITimer interface requires that its users keep a reference
-            // to the timers they use while those timers are initialized but
-            // have not yet fired.  If this ever happens, it is a bug in the
-            // code that created and used the timer.
-            //
-            // Further, note that this should never happen even with a
-            // misbehaving user, because nsTimerImpl::Release checks for a
-            // refcount of 1 with an armed timer (a timer whose only reference
-            // is from the timer thread) and when it hits this will remove the
-            // timer from the timer thread and thus destroy the last reference,
-            // preventing this situation from occurring.
-            NS_ASSERTION(rc != 0, "destroyed timer off its target thread!");
+              // The nsITimer interface requires that its users keep a reference
+              // to the timers they use while those timers are initialized but
+              // have not yet fired.  If this ever happens, it is a bug in the
+              // code that created and used the timer.
+              //
+              // Further, note that this should never happen even with a
+              // misbehaving user, because nsTimerImpl::Release checks for a
+              // refcount of 1 with an armed timer (a timer whose only reference
+              // is from the timer thread) and when it hits this will remove the
+              // timer from the timer thread and thus destroy the last reference,
+              // preventing this situation from occurring.
+              NS_ASSERTION(rc != 0, "destroyed timer off its target thread!");
+            }
+            timer = nsnull;
           }
-          timer = nsnull;
 
-          lock.lock();
           if (mShutdown)
             break;
 
           // Update now, as PostTimerEvent plus the locking may have taken a
           // tick or two, and we may goto next below.
-          now = PR_IntervalNow();
+          now = TimeStamp::Now();
         }
       }
 
       if (!mTimers.IsEmpty()) {
         timer = mTimers[0];
 
-        PRIntervalTime timeout = timer->mTimeout + mTimeoutAdjustment;
+        TimeStamp timeout = timer->mTimeout + mTimeoutAdjustment;
 
         // Don't wait at all (even for PR_INTERVAL_NO_WAIT) if the next timer
         // is due now or overdue.
-        if (!TIMER_LESS_THAN(now, timeout))
-          goto next;
-        waitFor = timeout - now;
+        //
+        // Note that we can only sleep for integer values of a certain
+        // resolution. We use halfMicrosecondsIntervalResolution, calculated
+        // before, to do the optimal rounding (i.e., of how to decide what
+        // interval is so small we should not wait at all).
+        double microseconds = (timeout - now).ToMilliseconds()*1000;
+        if (microseconds < halfMicrosecondsIntervalResolution)
+          goto next; // round down; execute event now
+        waitFor = PR_MicrosecondsToInterval(microseconds);
+        if (waitFor == 0)
+          waitFor = 1; // round up, wait the minimum time we can wait
       }
 
 #ifdef DEBUG_TIMERS
@@ -341,7 +360,7 @@ NS_IMETHODIMP TimerThread::Run()
     }
 
     mWaiting = PR_TRUE;
-    PR_WaitCondVar(mCondVar, waitFor);
+    mCondVar.Wait(waitFor);
     mWaiting = PR_FALSE;
   }
 
@@ -350,7 +369,7 @@ NS_IMETHODIMP TimerThread::Run()
 
 nsresult TimerThread::AddTimer(nsTimerImpl *aTimer)
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
 
   // Add the timer to our list.
   PRInt32 i = AddTimerInternal(aTimer);
@@ -358,15 +377,15 @@ nsresult TimerThread::AddTimer(nsTimerImpl *aTimer)
     return NS_ERROR_OUT_OF_MEMORY;
 
   // Awaken the timer thread.
-  if (mCondVar && mWaiting && i == 0)
-    PR_NotifyCondVar(mCondVar);
+  if (mWaiting && i == 0)
+    mCondVar.Notify();
 
   return NS_OK;
 }
 
 nsresult TimerThread::TimerDelayChanged(nsTimerImpl *aTimer)
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
 
   // Our caller has a strong ref to aTimer, so it can't go away here under
   // ReleaseTimerInternal.
@@ -377,15 +396,15 @@ nsresult TimerThread::TimerDelayChanged(nsTimerImpl *aTimer)
     return NS_ERROR_OUT_OF_MEMORY;
 
   // Awaken the timer thread.
-  if (mCondVar && mWaiting && i == 0)
-    PR_NotifyCondVar(mCondVar);
+  if (mWaiting && i == 0)
+    mCondVar.Notify();
 
   return NS_OK;
 }
 
 nsresult TimerThread::RemoveTimer(nsTimerImpl *aTimer)
 {
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
 
   // Remove the timer from our array.  Tell callers that aTimer was not found
   // by returning NS_ERROR_NOT_AVAILABLE.  Unlike the TimerDelayChanged case
@@ -398,8 +417,8 @@ nsresult TimerThread::RemoveTimer(nsTimerImpl *aTimer)
     return NS_ERROR_NOT_AVAILABLE;
 
   // Awaken the timer thread.
-  if (mCondVar && mWaiting)
-    PR_NotifyCondVar(mCondVar);
+  if (mWaiting)
+    mCondVar.Notify();
 
   return NS_OK;
 }
@@ -410,23 +429,22 @@ PRInt32 TimerThread::AddTimerInternal(nsTimerImpl *aTimer)
   if (mShutdown)
     return -1;
 
-  PRIntervalTime now = PR_IntervalNow();
+  TimeStamp now = TimeStamp::Now();
   PRUint32 count = mTimers.Length();
   PRUint32 i = 0;
   for (; i < count; i++) {
     nsTimerImpl *timer = mTimers[i];
 
-    // Don't break till we have skipped any overdue timers.  Do not include
-    // mTimeoutAdjustment here, because we are really trying to avoid calling
-    // TIMER_LESS_THAN(t, u), where the t is now + DELAY_INTERVAL_MAX, u is
-    // now - overdue, and DELAY_INTERVAL_MAX + overdue > DELAY_INTERVAL_LIMIT.
-    // In other words, we want to use now-based time, now adjusted time, even
-    // though "overdue" ultimately depends on adjusted time.
+    // Don't break till we have skipped any overdue timers.
+
+    // XXXbz why?  Given our definition of overdue in terms of
+    // mTimeoutAdjustment, aTimer might be overdue already!  Why not
+    // just fire timers in order?
 
     // XXX does this hold for TYPE_REPEATING_PRECISE?  /be
 
-    if (TIMER_LESS_THAN(now, timer->mTimeout) &&
-        TIMER_LESS_THAN(aTimer->mTimeout, timer->mTimeout)) {
+    if (now < timer->mTimeout + mTimeoutAdjustment &&
+        aTimer->mTimeout < timer->mTimeout) {
       break;
     }
   }
@@ -472,7 +490,7 @@ void TimerThread::DoAfterSleep()
   }
 
   // nuke the stored adjustments, so they get recalibrated
-  mTimeoutAdjustment = 0;
+  mTimeoutAdjustment = TimeDuration(0);
   mDelayLineCounter = 0;
   mSleeping = PR_FALSE;
 }

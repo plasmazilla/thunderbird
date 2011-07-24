@@ -44,6 +44,7 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= xpcom
 LIBRARY_NAME	= xptcmd
+EXPORT_LIBRARY	= ../..
 MOZILLA_INTERNAL_API = 1
 
 #
@@ -55,17 +56,20 @@ CPPSRCS		= \
 		xptcstubs.cpp \
 		$(NULL)
 LOCAL_INCLUDES	= -I$(srcdir)/../unix
+ifneq ($(TARGET_CPU),x86_64)
 DEFINES		+= -DMOZ_USE_STDCALL -DMOZ_NEED_LEADING_UNDERSCORE
+endif
 else
 
+ifneq ($(OS_TEST),x86_64)
 # FIXME: bug 413019
 OS_COMPILE_CXXFLAGS += -GL-
+endif
 
 CPPSRCS		= xptcinvoke.cpp xptcstubs.cpp
 
 endif
 
-REQUIRES = string
 
 LOCAL_INCLUDES += -I$(srcdir)/../../../../xptinfo/src
 
@@ -73,13 +77,6 @@ LOCAL_INCLUDES += -I$(srcdir)/../../../../xptinfo/src
 FORCE_USE_PIC	= 1
 
 include $(topsrcdir)/config/config.mk
-
-ifeq ($(CPU),ALPHA)
-CPPSRCS 	:= xptcinvoke_alpha.cpp xptcstubs_alpha.cpp
-ASFILES		:= xptcinvoke_asm_alpha.s xptcstubs_asm_alpha.s
-AS		:= asaxp
-ASFLAGS		+= /I../../..public
-endif
 
 ifeq ($(TARGET_CPU),x86_64)
 ifndef GNU_CXX
@@ -108,6 +105,3 @@ include $(topsrcdir)/config/rules.mk
 DEFINES		+= -DEXPORT_XPTC_API -D_IMPL_NS_COM
 
 LOCAL_INCLUDES	+= -I$(srcdir)/../..
-
-libs:: $(LIBRARY)
-	$(INSTALL) $(LIBRARY) ../..

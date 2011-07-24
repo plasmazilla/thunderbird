@@ -45,6 +45,11 @@ function test() {
     return false;
   }
 
+  var file = Components.classes["@mozilla.org/file/directory_service;1"]
+             .getService(Components.interfaces.nsIProperties)
+             .get("TmpD", Components.interfaces.nsIFile);
+  filePath = file.path;
+
   let fieldList = {
     "//input[@name='input']":     Date.now().toString(),
     "//input[@name='spaced 1']":  Math.random().toString(),
@@ -59,7 +64,7 @@ function test() {
     "//textarea[1]":              "",
     "//textarea[2]":              "Some text... " + Math.random(),
     "//textarea[3]":              "Some more text\n" + new Date(),
-    "//input[@type='file']":      "/dev/null"
+    "//input[@type='file']":      filePath
   };
 
   function getElementByXPath(aTab, aQuery) {
@@ -112,9 +117,9 @@ function test() {
   // Test (B) : Session data restoration between modes            //
   //////////////////////////////////////////////////////////////////
 
-  const testURL = "chrome://mochikit/content/browser/" +
-  "browser/components/sessionstore/test/browser/browser_248970_b_sample.html";
-  const testURL2 = "http://localhost:8888/browser/" +
+  let rootDir = getRootDirectory(gTestPath);
+  const testURL = rootDir + "browser_248970_b_sample.html";
+  const testURL2 = "http://mochi.test:8888/browser/" +
   "browser/components/sessionstore/test/browser/browser_248970_b_sample.html";
 
   // get closed tab count
@@ -129,8 +134,8 @@ function test() {
   let state = { entries: [{ url: testURL }], extData: { key: value } };
 
   // public session, add new tab: (A)
-  tab_A = gBrowser.addTab(testURL);
-  ss.setTabState(tab_A, state.toSource());
+  let tab_A = gBrowser.addTab(testURL);
+  ss.setTabState(tab_A, JSON.stringify(state));
   tab_A.linkedBrowser.addEventListener("load", function(aEvent) {
     this.removeEventListener("load", arguments.callee, true);
 
@@ -166,8 +171,8 @@ function test() {
       let state1 = { entries: [{ url: testURL2 }], extData: { key1: value1 } };
 
       // private browsing session, new tab: (B)
-      tab_B = gBrowser.addTab(testURL2);
-      ss.setTabState(tab_B, state1.toSource());
+      let tab_B = gBrowser.addTab(testURL2);
+      ss.setTabState(tab_B, JSON.stringify(state1));
       tab_B.linkedBrowser.addEventListener("load", function(aEvent) {
         this.removeEventListener("load", arguments.callee, true);
 

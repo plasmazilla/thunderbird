@@ -40,8 +40,6 @@
   ======================================================================= */
 
 @import url("chrome://messenger/skin/");
-/* This should not be needed on trunk once Mac styles are moved to button.css */
-@import url("chrome://global/skin/dialog.css");
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
@@ -63,11 +61,6 @@
 #searchAddressBookWindow,
 #searchMailWindow {
   padding: 0px;
-}
-
-/* This should not be needed on trunk once Mac styles are moved to button.css */
-.dialog-button {
-  margin-top: 1px !important;
 }
 
 .search-menulist[unavailable="true"] {

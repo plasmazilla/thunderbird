@@ -230,11 +230,13 @@ _cairo_sub_fonts_equal (const void *key_a, const void *key_b)
 {
     const cairo_sub_font_t *sub_font_a = key_a;
     const cairo_sub_font_t *sub_font_b = key_b;
+    cairo_scaled_font_t *a = sub_font_a->scaled_font;
+    cairo_scaled_font_t *b = sub_font_b->scaled_font;
 
     if (sub_font_a->is_scaled)
-        return sub_font_a->scaled_font == sub_font_b->scaled_font;
+        return a == b;
     else
-        return sub_font_a->scaled_font->font_face == sub_font_b->scaled_font->font_face;
+	return a->font_face == b->font_face || a->original_font_face == b->original_font_face;
 }
 
 static void
@@ -292,7 +294,7 @@ _cairo_sub_font_create (cairo_scaled_font_subsets_t	*parent,
 
     /* Reserve first glyph in subset for the .notdef glyph except for
      * Type 3 fonts */
-    if (! _cairo_font_face_is_user (scaled_font->font_face)) {
+    if (! is_scaled) {
 	status = _cairo_sub_font_map_glyph (sub_font, 0, NULL, -1, &subset_glyph);
 	if (unlikely (status)) {
 	    _cairo_hash_table_destroy (sub_font->sub_font_glyphs);
@@ -568,6 +570,7 @@ _cairo_sub_font_collect (void *entry, void *closure)
 
 	subset.scaled_font = sub_font->scaled_font;
 	subset.is_composite = sub_font->is_composite;
+	subset.is_scaled = sub_font->is_scaled;
 	subset.font_id = sub_font->font_id;
 	subset.subset_id = i;
 	subset.glyphs = collection->glyphs;
@@ -1006,7 +1009,7 @@ _cairo_scaled_font_subset_create_glyph_names (cairo_scaled_font_subset_t *subset
     }
 
     i = 0;
-    if (! _cairo_font_face_is_user (subset->scaled_font->font_face)) {
+    if (! subset->is_scaled) {
 	subset->glyph_names[0] = strdup (".notdef");
 	if (unlikely (subset->glyph_names[0] == NULL)) {
 	    status = _cairo_error (CAIRO_STATUS_NO_MEMORY);

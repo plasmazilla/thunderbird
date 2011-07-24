@@ -59,6 +59,7 @@
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         width="500" height="400" screenX="10" screenY="10"
         persist="width height screenX screenY sizemode"
+        toggletoolbar="true"
         windowtype="Download:Manager">
 
   <script type="application/javascript"
@@ -67,6 +68,8 @@
           src="chrome://communicator/content/downloads/DownloadProgressListener.js"/>
   <script type="application/javascript"
           src="chrome://communicator/content/downloads/treeView.js"/>
+  <script type="application/javascript"
+          src="chrome://global/content/contentAreaUtils.js"/>
 
   <stringbundleset id="stringbundleset">
     <stringbundle id="dmBundle"
@@ -145,7 +148,7 @@
   </keyset>
 
   <popupset id="downloadPopupset">
-    <popup id="downloadContext">
+    <menupopup id="downloadContext">
       <menuitem id="dlContext-pause"
                 label="&cmd.pause.label;"
                 accesskey="&cmd.pause.accesskey;"
@@ -190,7 +193,7 @@
                 command="cmd_properties"/>
       <menuseparator/>
       <menuitem id="cMenu_selectAll"/>
-    </popup>
+    </menupopup>
   </popupset>
 
   <toolbox id="download-toolbox">
@@ -390,19 +393,18 @@
         class="plain"
         context="downloadContext"
         enableColumnDrag="true"
-        ondblclick="goDoCommand('cmd_open');"
         onselect="onTreeSelect(event);">
     <treecols context="" onclick="sortDownloads(event.target)">
       <treecol id="Name"
                label="&col.name.label;"
                tooltiptext="&col.name.tooltip;"
-               class="sortDirectionIndicator" flex="3"
+               flex="3"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="Status" hidden="true"
                label="&col.status.label;"
                tooltiptext="&col.status.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="ActionPlay" cycler="true"
@@ -420,58 +422,61 @@
       <treecol id="Progress" type="progressmeter"
                label="&col.progress.label;"
                tooltiptext="&col.progress.tooltip;"
-               class="sortDirectionIndicator" flex="3"
+               flex="3"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="ProgressPercent" hidden="true"
                label="&col.progresstext.label;"
                tooltiptext="&col.progresstext.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="TimeRemaining"
                label="&col.timeremaining.label;"
                tooltiptext="&col.timeremaining.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="Transferred"
                label="&col.transferred.label;"
                tooltiptext="&col.transferred.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="TransferRate"
                label="&col.transferrate.label;"
                tooltiptext="&col.transferrate.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="TimeElapsed" hidden="true"
                label="&col.timeelapsed.label;"
                tooltiptext="&col.timeelapsed.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="StartTime" hidden="true"
                label="&col.starttime.label;"
                tooltiptext="&col.starttime.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="EndTime" hidden="true"
                label="&col.endtime.label;"
                tooltiptext="&col.endtime.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
       <splitter class="tree-splitter"/>
       <treecol id="Source" hidden="true"
                label="&col.source.label;"
                tooltiptext="&col.source.tooltip;"
-               class="sortDirectionIndicator" flex="1"
+               flex="1"
                persist="width hidden ordinal sortActive sortDirection"/>
     </treecols>
-    <treechildren/>
+    <treechildren ondblclick="goDoCommand('cmd_open');"
+                  ondragstart="gDownloadDNDObserver.onDragStart(event);"
+                  ondragover="gDownloadDNDObserver.onDragOver(event);"
+                  ondrop="gDownloadDNDObserver.onDrop(event);"/>
   </tree>
   <statusbar id="status-bar" class="chromeclass-status">
     <statusbarpanel id="statusbar-display" flex="1"/>

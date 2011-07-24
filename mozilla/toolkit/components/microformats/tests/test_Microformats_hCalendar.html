@@ -65,7 +65,7 @@
     <li class="vevent" id="09-component-vevent-summary-in-img-alt">
      <a class="url" href="http://conferences.oreillynet.com/et2006/">
       <img style="display:block" class="summary" 
-       src="http://localhost:8888/tests/browser/microformats/test/picture.png"
+       src="http://mochi.test:8888/tests/browser/microformats/test/picture.png"
        alt="O'Reilly Emerging Technology Conference" />
       <abbr class="dtstart" title="20060306">
         3/6</abbr>-<abbr class="dtend" title="20060310">9</abbr>
@@ -230,7 +230,7 @@ function test_hCard() {
   is(hcalendar.location, "Argent Hotel, San Francisco, CA", "05-calendar-simple - location");
 
   hcalendar = new hCalendar(document.getElementById("06-component-vevent-uri-relative"));
-  is(hcalendar.url, "http://localhost:8888/squidlist/calendar/12279/2006/1/15", "06-component-vevent-uri-relative - url");
+  is(hcalendar.url, "http://mochi.test:8888/squidlist/calendar/12279/2006/1/15", "06-component-vevent-uri-relative - url");
   is(hcalendar.summary, "Bad Movie Night - Gigli (blame mike spiegelman)", "06-component-vevent-uri-relative - summary");
   is(hcalendar.dtstart, "2006-01-15T00:00:00", "06-component-vevent-uri-relative - dtstart");
 

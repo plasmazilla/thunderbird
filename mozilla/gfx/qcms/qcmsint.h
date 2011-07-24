@@ -1,13 +1,20 @@
 #include "qcms.h"
 #include "qcmstypes.h"
 
-/* used as a 16bit lookup table for the output transformation.
+/* used as a lookup table for the output transformation.
  * we refcount them so we only need to have one around per output
  * profile, instead of duplicating them per transform */
 struct precache_output
 {
 	int ref_count;
-	uint8_t data[65535];
+	/* We previously used a count of 65536 here but that seems like more
+	 * precision than we actually need.  By reducing the size we can
+	 * improve startup performance and reduce memory usage. ColorSync on
+	 * 10.5 uses 4097 which is perhaps because they use a fixed point
+	 * representation where 1. is represented by 0x1000. */
+#define PRECACHE_OUTPUT_SIZE 8192
+#define PRECACHE_OUTPUT_MAX (PRECACHE_OUTPUT_SIZE-1)
+	uint8_t data[PRECACHE_OUTPUT_SIZE];
 };
 
 #ifdef _MSC_VER
@@ -60,7 +67,12 @@ struct XYZNumber {
 
 struct curveType {
 	uint32_t count;
+/* Using the C99 flexible array member syntax with IBM compiler */
+#if defined (__IBMC__) || defined (__IBMCPP__)
+	uInt16Number data[];
+#else
 	uInt16Number data[0];
+#endif
 };
 
 struct lutType {
@@ -101,7 +113,7 @@ struct tag_value {
 			} XYZNumber;
 		} XYZType;
 	};
-}; // I guess we need to pack this?
+}; /* I guess we need to pack this? */
 #endif
 
 #define RGB_SIGNATURE  0x52474220
@@ -131,7 +143,7 @@ struct _qcms_profile {
 
 static inline float s15Fixed16Number_to_float(s15Fixed16Number a)
 {
-	return ((int32_t)a)/65536.;
+	return ((int32_t)a)/65536.f;
 }
 
 static inline s15Fixed16Number double_to_s15Fixed16Number(double v)
@@ -141,3 +153,20 @@ static inline s15Fixed16Number double_to_s15Fixed16Number(double v)
 
 void precache_release(struct precache_output *p);
 qcms_bool set_rgb_colorants(qcms_profile *profile, qcms_CIE_xyY white_point, qcms_CIE_xyYTRIPLE primaries);
+
+void qcms_transform_data_rgb_out_lut_sse2(qcms_transform *transform,
+                                          unsigned char *src,
+                                          unsigned char *dest,
+                                          size_t length);
+void qcms_transform_data_rgba_out_lut_sse2(qcms_transform *transform,
+                                          unsigned char *src,
+                                          unsigned char *dest,
+                                          size_t length);
+void qcms_transform_data_rgb_out_lut_sse1(qcms_transform *transform,
+                                          unsigned char *src,
+                                          unsigned char *dest,
+                                          size_t length);
+void qcms_transform_data_rgba_out_lut_sse1(qcms_transform *transform,
+                                          unsigned char *src,
+                                          unsigned char *dest,
+                                          size_t length);

@@ -44,7 +44,13 @@
  *                     XPCOM cruft 
  *******************************************************************/
 
-NS_IMPL_ISUPPORTS1(TypeInState, nsISelectionListener)
+NS_IMPL_CYCLE_COLLECTION_1(TypeInState, mLastSelectionContainer)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(TypeInState)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(TypeInState)
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(TypeInState)
+  NS_INTERFACE_MAP_ENTRY(nsISelectionListener)
+  NS_INTERFACE_MAP_ENTRY(nsISupports)
+NS_INTERFACE_MAP_END
 
 /********************************************************************
  *                   public methods
@@ -69,16 +75,16 @@ TypeInState::~TypeInState()
 
 nsresult TypeInState::UpdateSelState(nsISelection *aSelection)
 {
-  if (!aSelection) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(aSelection, NS_ERROR_NULL_POINTER);
   
   PRBool isCollapsed = PR_FALSE;
   nsresult result = aSelection->GetIsCollapsed(&isCollapsed);
 
-  if (NS_FAILED(result)) return result;
+  NS_ENSURE_SUCCESS(result, result);
 
   if (isCollapsed)
   {
-    result = nsEditor::GetStartNodeAndOffset(aSelection, address_of(mLastSelectionContainer), &mLastSelectionOffset);
+    result = nsEditor::GetStartNodeAndOffset(aSelection, getter_AddRefs(mLastSelectionContainer), &mLastSelectionOffset);
   }
   return result;
 }
@@ -100,17 +106,20 @@ NS_IMETHODIMP TypeInState::NotifySelectionChanged(nsIDOMDocument *, nsISelection
   {
     PRBool isCollapsed = PR_FALSE;
     nsresult result = aSelection->GetIsCollapsed(&isCollapsed);
+    NS_ENSURE_SUCCESS(result, result);
 
-    if (NS_FAILED(result)) return result;
+    PRInt32 rangeCount = 0;
+    result = aSelection->GetRangeCount(&rangeCount);
+    NS_ENSURE_SUCCESS(result, result);
 
-    if (isCollapsed)
+    if (isCollapsed && rangeCount)
     {
       nsCOMPtr<nsIDOMNode> selNode;
       PRInt32 selOffset = 0;
 
-      result = nsEditor::GetStartNodeAndOffset(aSelection, address_of(selNode), &selOffset);
+      result = nsEditor::GetStartNodeAndOffset(aSelection, getter_AddRefs(selNode), &selOffset);
 
-      if (NS_FAILED(result)) return result;
+      NS_ENSURE_SUCCESS(result, result);
 
       if (selNode && selNode == mLastSelectionContainer && selOffset == mLastSelectionOffset)
       {
@@ -182,7 +191,7 @@ nsresult TypeInState::SetProp(nsIAtom *aProp, const nsString &aAttr, const nsStr
   {
     // make a new propitem
     item = new PropItem(aProp,aAttr,aValue);
-    if (!item) return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(item, NS_ERROR_OUT_OF_MEMORY);
     
     // add it to the list of set properties
     mSetArray.AppendElement(item);
@@ -213,7 +222,7 @@ nsresult TypeInState::ClearProp(nsIAtom *aProp, const nsString &aAttr)
   
   // make a new propitem
   PropItem *item = new PropItem(aProp,aAttr,EmptyString());
-  if (!item) return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(item, NS_ERROR_OUT_OF_MEMORY);
   
   // remove it from the list of set properties, if we have a match
   RemovePropFromSetList(aProp,aAttr);
@@ -231,7 +240,7 @@ nsresult TypeInState::ClearProp(nsIAtom *aProp, const nsString &aAttr)
  */  
 nsresult TypeInState::TakeClearProperty(PropItem **outPropItem)
 {
-  if (!outPropItem) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(outPropItem, NS_ERROR_NULL_POINTER);
   *outPropItem = nsnull;
   PRUint32 count = mClearedArray.Length();
   if (count)
@@ -249,7 +258,7 @@ nsresult TypeInState::TakeClearProperty(PropItem **outPropItem)
  */  
 nsresult TypeInState::TakeSetProperty(PropItem **outPropItem)
 {
-  if (!outPropItem) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(outPropItem, NS_ERROR_NULL_POINTER);
   *outPropItem = nsnull;
   PRUint32 count = mSetArray.Length();
   if (count)
@@ -266,7 +275,7 @@ nsresult TypeInState::TakeSetProperty(PropItem **outPropItem)
 //                          cleared out.
 nsresult TypeInState::TakeRelativeFontSize(PRInt32 *outRelSize)
 {
-  if (!outRelSize) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(outRelSize, NS_ERROR_NULL_POINTER);
   *outRelSize = mRelativeFontSize;
   mRelativeFontSize = 0;
   return NS_OK;
@@ -319,7 +328,6 @@ nsresult TypeInState::RemovePropFromSetList(nsIAtom *aProp,
                                             const nsString &aAttr)
 {
   PRInt32 index;
-  PropItem *item;
   if (!aProp)
   {
     // clear _all_ props

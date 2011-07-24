@@ -118,7 +118,9 @@ nsMenuBarFrame::Init(nsIContent*      aContent,
   target->AddEventListener(NS_LITERAL_STRING("keydown"), (nsIDOMKeyListener*)mMenuBarListener, PR_FALSE);  
   target->AddEventListener(NS_LITERAL_STRING("keyup"), (nsIDOMKeyListener*)mMenuBarListener, PR_FALSE);   
 
-  target->AddEventListener(NS_LITERAL_STRING("mousedown"), (nsIDOMMouseListener*)mMenuBarListener, PR_FALSE);   
+  // mousedown event should be handled in all phase
+  target->AddEventListener(NS_LITERAL_STRING("mousedown"), (nsIDOMMouseListener*)mMenuBarListener, PR_TRUE);
+  target->AddEventListener(NS_LITERAL_STRING("mousedown"), (nsIDOMMouseListener*)mMenuBarListener, PR_FALSE);
   target->AddEventListener(NS_LITERAL_STRING("blur"), (nsIDOMFocusListener*)mMenuBarListener, PR_TRUE);   
 
   return rv;
@@ -149,6 +151,7 @@ nsMenuBarFrame::SetActive(PRBool aActiveFlag)
     InstallKeyboardNavigator();
   }
   else {
+    mActiveByKeyboard = PR_FALSE;
     RemoveKeyboardNavigator();
   }
 
@@ -453,7 +456,7 @@ nsMenuBarFrame::RemoveKeyboardNavigator()
 }
 
 void
-nsMenuBarFrame::Destroy()
+nsMenuBarFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
   if (pm)
@@ -463,10 +466,11 @@ nsMenuBarFrame::Destroy()
   mTarget->RemoveEventListener(NS_LITERAL_STRING("keydown"), (nsIDOMKeyListener*)mMenuBarListener, PR_FALSE);  
   mTarget->RemoveEventListener(NS_LITERAL_STRING("keyup"), (nsIDOMKeyListener*)mMenuBarListener, PR_FALSE);
 
+  mTarget->RemoveEventListener(NS_LITERAL_STRING("mousedown"), (nsIDOMMouseListener*)mMenuBarListener, PR_TRUE);
   mTarget->RemoveEventListener(NS_LITERAL_STRING("mousedown"), (nsIDOMMouseListener*)mMenuBarListener, PR_FALSE);
   mTarget->RemoveEventListener(NS_LITERAL_STRING("blur"), (nsIDOMFocusListener*)mMenuBarListener, PR_TRUE);
 
   NS_IF_RELEASE(mMenuBarListener);
 
-  nsBoxFrame::Destroy();
+  nsBoxFrame::DestroyFrom(aDestructRoot);
 }

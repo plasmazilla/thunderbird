@@ -1,7 +1,9 @@
 // Load in the test harness
 var scriptLoader = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
                              .getService(Components.interfaces.mozIJSSubScriptLoader);
-scriptLoader.loadSubScript("chrome://mochikit/content/browser/xpinstall/tests/harness.js", this);
+
+var rootDir = getRootDirectory(window.location.href);
+scriptLoader.loadSubScript(rootDir + "harness.js", this);
 
 // ----------------------------------------------------------------------------
 // Tests that navigating away from the initiating page during the install
@@ -13,8 +15,7 @@ function test() {
   Harness.installsCompletedCallback = finish_test;
   Harness.setup();
 
-  var pm = Components.classes["@mozilla.org/permissionmanager;1"]
-                     .getService(Components.interfaces.nsIPermissionManager);
+  var pm = Services.perms;
   pm.add(makeURI("http://example.com/"), "install", pm.ALLOW_ACTION);
 
   var triggers = encodeURIComponent(JSON.stringify({
@@ -37,11 +38,8 @@ function finish_test() {
                      .getService(Components.interfaces.nsIExtensionManager);
   em.cancelInstallItem("unsigned-xpi@tests.mozilla.org");
 
-  var pm = Components.classes["@mozilla.org/permissionmanager;1"]
-                     .getService(Components.interfaces.nsIPermissionManager);
-  pm.remove("example.com", "install");
+  Services.perms.remove("example.com", "install");
 
   gBrowser.removeCurrentTab();
   Harness.finish();
 }
-// ----------------------------------------------------------------------------

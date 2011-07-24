@@ -48,7 +48,7 @@
 #include "nsIAsyncOutputStream.h"
 #include "nsIAsyncInputStream.h"
 #include "nsImapCore.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsIProgressEventSink.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
@@ -88,7 +88,12 @@
 #include "nsAutoPtr.h"
 #include "nsIMsgFolder.h"
 #include "nsIMsgAsyncPrompter.h"
-
+#ifndef MOZILLA_5_0_BRANCH
+#include "mozilla/ReentrantMonitor.h"
+#else
+#include "mozilla/Monitor.h"
+#define ReentrantMonitorAutoEnter MonitorAutoEnter
+#endif
 class nsIMAPMessagePartIDArray;
 class nsIMsgIncomingServer;
 class nsIPrefBranch;
@@ -343,6 +348,8 @@ public:
   // Quota support
   void UpdateFolderQuotaData(nsCString& aQuotaRoot, PRUint32 aUsed, PRUint32 aMax);
 
+  PRBool GetPreferPlainText() { return m_preferPlainText; }
+
 private:
   // the following flag is used to determine when a url is currently being run. It is cleared when we
   // finish processng a url and it is set whenever we call Load on a url
@@ -374,16 +381,23 @@ private:
   nsCOMPtr<nsIEventTarget> m_sinkEventTarget;
   nsCOMPtr<nsIThread>      m_iThread;
   PRThread     *m_thread;
-  PRMonitor    *m_dataAvailableMonitor;   // used to notify the arrival of data from the server
-  PRMonitor    *m_urlReadyToRunMonitor;   // used to notify the arrival of a new url to be processed
-  PRMonitor    *m_pseudoInterruptMonitor;
-  PRMonitor    *m_dataMemberMonitor;
-  PRMonitor    *m_threadDeathMonitor;
-  PRMonitor    *m_waitForBodyIdsMonitor;
-  PRMonitor    *m_fetchMsgListMonitor;
-  PRMonitor   *m_fetchBodyListMonitor;
-  PRMonitor   *m_passwordReadyMonitor;
-
+#ifndef MOZILLA_5_0_BRANCH
+  // When we don't need 5.0 branch, should remove typedef and explicitly
+  // use mozilla::ReentrantMonitor or set the namespace.
+  typedef mozilla::ReentrantMonitor ReentrantMonitor;
+#else
+  typedef mozilla::Monitor ReentrantMonitor;
+#endif
+  ReentrantMonitor m_dataAvailableMonitor;   // used to notify the arrival of data from the server
+  ReentrantMonitor m_urlReadyToRunMonitor;   // used to notify the arrival of a new url to be processed
+  ReentrantMonitor m_pseudoInterruptMonitor;
+  ReentrantMonitor m_dataMemberMonitor;
+  ReentrantMonitor m_threadDeathMonitor;
+  ReentrantMonitor m_waitForBodyIdsMonitor;
+  ReentrantMonitor m_fetchMsgListMonitor;
+  ReentrantMonitor m_fetchBodyListMonitor;
+  ReentrantMonitor m_passwordReadyMonitor;
+  mozilla::Mutex mLock;
   // If we get an async password prompt, this is where the UI thread
   // stores the password, before notifying the imap thread of the password
   // via the m_passwordReadyMonitor.
@@ -410,7 +424,6 @@ private:
 
   PRBool GetDeleteIsMoveToTrash();
   PRBool GetShowDeletedMessages();
-  PRMonitor *GetDataMemberMonitor();
   nsCString m_currentCommand;
   nsImapServerResponseParser m_parser;
   nsImapServerResponseParser& GetServerStateParser() { return m_parser; }
@@ -453,6 +466,15 @@ private:
   // initialization function given a new url and transport layer
   nsresult  SetupWithUrl(nsIURI * aURL, nsISupports* aConsumer);
   void ReleaseUrlState(PRBool rerunningUrl); // release any state that is stored on a per action basis.
+  /**
+   * Last ditch effort to run the url without using an imap connection.
+   * If it turns out that we don't need to run the url at all (e.g., we're
+   * trying to download a single message for offline use and it has already
+   * been downloaded, this function will send the appropriate notifications.
+   *
+   * @returns true if the url has been run locally, or doesn't need to be run.
+   */
+  PRBool TryToRunUrlLocally(nsIURI *aURL, nsISupports *aConsumer);
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Communication methods --> Reading and writing protocol
@@ -485,7 +507,7 @@ private:
   char m_currentServerCommandTag[10];   // enough for a billion
   int  m_currentServerCommandTagNumber;
   void IncrementCommandTagNumber();
-  char *GetServerCommandTag();
+  const char *GetServerCommandTag();
 
   void StartTLS();
 
@@ -498,6 +520,7 @@ private:
 
   // All of these methods actually issue protocol
   void Capability(); // query host for capabilities.
+  void ID(); // send RFC 2971 app info to server
   void EnableCondStore(); 
   void StartCompressDeflate();
   nsresult BeginCompressing();
@@ -556,8 +579,7 @@ private:
   PRBool FolderIsSelected(const char *mailboxName);
 
   PRBool  MailboxIsNoSelectMailbox(const char *mailboxName);
-  char * CreatePossibleTrashName(const char *prefix);
-  const char * GetTrashFolderName();
+  nsCString CreatePossibleTrashName(const char *prefix);
   PRBool FolderNeedsACLInitialized(const char *folderName);
   void DiscoverMailboxList();
   void DiscoverAllAndSubscribedBoxes();
@@ -584,6 +606,8 @@ private:
     PRBool FetchByChunks);
   nsresult GetMsgWindow(nsIMsgWindow ** aMsgWindow);
   // End Process AuthenticatedState Url helper methods
+
+  virtual char const *GetType() {return "imap";}
 
   // Quota support
   void GetQuotaDataIfSupported(const char *aBoxName);
@@ -613,6 +637,7 @@ private:
   PRInt32 m_chunkAddSize;
   PRInt32 m_chunkStartSize;
   PRBool  m_fetchByChunks;
+  PRBool  m_sendID;
   PRInt32 m_curFetchSize;
   PRBool  m_ignoreExpunges;
   PRInt32 m_prefAuthMethods; // set of capability flags (in nsImapCore.h) for auth methods
@@ -660,6 +685,7 @@ private:
   PRBool  m_autoSubscribe, m_autoUnsubscribe, m_autoSubscribeOnOpen;
   PRBool m_closeNeededBeforeSelect;
   PRBool m_retryUrlOnError;
+  PRBool m_preferPlainText;
 
   enum EMailboxHierarchyNameState {
     kNoOperationInProgress,
@@ -697,6 +723,7 @@ class nsImapMockChannel : public nsIImapMockChannel
                         , public nsSupportsWeakReference
 {
 public:
+  friend class nsImapProtocol;
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIIMAPMOCKCHANNEL
@@ -729,7 +756,7 @@ protected:
   PRBool mChannelClosed;
   PRBool mReadingFromCache;
   PRBool mTryingToReadPart;
-  PRInt32 mContentLength;
+  PRInt64 mContentLength;
 
   // cache related helper methods
   nsresult OpenCacheEntry(); // makes a request to the cache service for a cache entry for a url

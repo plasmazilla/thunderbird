@@ -54,7 +54,7 @@
 }
 
 .menulist-icon {
-	margin: 0 !important;
+  margin: 0 !important;
 }
 
 /**** expanders ****/
@@ -69,19 +69,19 @@
 }
 
 .expander-up {
-	list-style-image: url("chrome://browser/skin/places/expander-open.png") !important;
+  list-style-image: url("chrome://browser/skin/places/expander-open.png");
 }
 
 .expander-down {
-	list-style-image: url("chrome://browser/skin/places/expander-closed.png") !important;
+  list-style-image: url("chrome://browser/skin/places/expander-closed.png");
 }
 
 .expander-down:hover:active {
-	list-style-image: url("chrome://browser/skin/places/expander-closed-active.png") !important;
+  list-style-image: url("chrome://browser/skin/places/expander-closed-active.png");
 }
 
 .expander-up:hover:active {
-	list-style-image: url("chrome://browser/skin/places/expander-open-active.png") !important;
+  list-style-image: url("chrome://browser/skin/places/expander-open-active.png");
 }
 
 #editBookmarkPanelContent {
@@ -121,8 +121,8 @@
   -moz-border-right-colors: transparent #FFFFFF #000000;
   -moz-border-bottom-colors: transparent #FFFFFF #000000;
   -moz-border-left-colors: transparent #888888 #000000;
-  -moz-border-radius-topright: 2px;
-  -moz-border-radius-bottomleft: 2px;
+  border-top-right-radius: 2px;
+  border-bottom-left-radius: 2px;
   padding: 0;
   background-color: -moz-Field;
   color: -moz-FieldText;
@@ -166,7 +166,7 @@
 }
 
 
-/* ----- BOOKMARK PANEL DROPDOWN MENU ITEMS ----- */	
+/* ----- BOOKMARK PANEL DROPDOWN MENU ITEMS ----- */
 
 #editBMPanel_folderMenuList[selectedIndex="0"],
 #editBMPanel_toolbarFolderItem {

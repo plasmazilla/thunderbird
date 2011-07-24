@@ -35,6 +35,9 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
 const kDebug               = false;
 const kBundleURI         = "chrome://messenger/locale/offlineStartup.properties";
 const kOfflineStartupPref = "offline.startup_state";
@@ -171,86 +174,30 @@ var nsOfflineStartup =
   }
 }
 
-
-var nsOfflineStartupModule =
+function nsOfflineStartupModule()
 {
-  mClassName:     "Offline Startup",
-  mContractID:    "@mozilla.org/offline-startup;1",
-  mClassID:       Components.ID("3028a3c8-2165-42a4-b878-398da5d32736"),
+}
 
-  getClassObject: function(aCompMgr, aCID, aIID)
-  {
-    if (!aCID.equals(this.mClassID))
-      throw Components.results.NS_ERROR_NO_INTERFACE;
-    if (!aIID.equals(Components.interfaces.nsIFactory))
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-
-    return this.mFactory;
-  },
-
-  registerSelf: function(aCompMgr, aFileSpec, aLocation, aType)
-  {
-    debug("*** Registering nsOfflineStartupModule (a JavaScript Module)\n");
-
-    aCompMgr = aCompMgr.QueryInterface(
-                 Components.interfaces.nsIComponentRegistrar);
-    aCompMgr.registerFactoryLocation(this.mClassID, this.mClassName,
-      this.mContractID, aFileSpec, aLocation, aType);
-
-    // Receive startup notification.
-    // We are |getService()|d at app-startup (before profile selection)
-    this.getCategoryManager().addCategoryEntry("app-startup",
-      "Offline-startup", "service," + this.mContractID, true, true);
-  },
-
-  unregisterSelf: function(aCompMgr, aFileSpec, aLocation)
-  {
-    aCompMgr = aCompMgr.QueryInterface(
-                 Components.interfaces.nsIComponentRegistrar);
-    aCompMgr.unregisterFactoryLocation(this.mClassID, aFileSpec);
-
-    this.getCategoryManager().deleteCategoryEntry("app-startup",
-      "Offline-startup", true);
-  },
-
-  canUnload: function(aCompMgr)
-  {
-    return true;
-  },
-
-  getCategoryManager: function()
-  {
-    return Components.classes["@mozilla.org/categorymanager;1"].
-      getService(Components.interfaces.nsICategoryManager);
-  },
-
-  //////////////////////////////////////////////////////////////////////
-  //
-  //   mFactory : nsIFactory
-  //
-  //////////////////////////////////////////////////////////////////////
-  mFactory:
+nsOfflineStartupModule.prototype =
+{
+  classID: Components.ID("3028a3c8-2165-42a4-b878-398da5d32736"),
+  _xpcom_factory:
   {
     createInstance: function(aOuter, aIID)
     {
       if (aOuter != null)
         throw Components.results.NS_ERROR_NO_AGGREGATION;
 
-      // return the singleton 
+      // return the singleton
       return nsOfflineStartup.QueryInterface(aIID);
     },
 
     lockFactory: function(aLock)
     {
-      // quiten warnings
+      // quieten warnings
     }
   }
 };
-
-function NSGetModule(aCompMgr, aFileSpec)
-{
-  return nsOfflineStartupModule;
-}
 
 function getBundle(aURI)
 {
@@ -285,3 +232,7 @@ if (!kDebug)
   debug = function(m) {};
 else
   debug = function(m) {dump("\t *** nsOfflineStartup: " + m + "\n");};
+  
+var components = [nsOfflineStartupModule];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+

@@ -105,7 +105,9 @@ var calendarController = {
         "calendar_in_foreground": true,
         "calendar_in_background": true,
         "calendar_mode_calendar": true,
-        "calendar_mode_task": true
+        "calendar_mode_task": true,
+
+        "cmd_selectAll": true
     },
 
     updateCommands: function cC_updateCommands() {
@@ -186,13 +188,22 @@ var calendarController = {
 
             case "calendar_reload_remote_calendar":
                 return !this.no_network_calendars && !this.offline;
+            case "calendar_attendance_command": {
+                let attendSel = false;
+                if (this.todo_tasktree_focused) {
+                    attendSel = this.writable &&
+                                this.todo_items_invitation &&
+                                this.todo_items_selected &&
+                                this.todo_items_writable;
+                } else {
+                    attendSel = this.item_selected && this.selected_events_invitation;
+                }
 
-            case "calendar_attendance_command":
                 // Small hack, we want to hide instead of disable.
-                let attendSel = this.item_selected && this.selected_events_invitation;
                 setBooleanAttribute("calendar_attendance_command", "hidden", !attendSel);
                 return attendSel;
                 break;
+            }
 
             // The following commands all just need the calendar in foreground,
             // make sure you take care when changing things here.
@@ -215,6 +226,14 @@ var calendarController = {
 
             case "calendar_mode_task":
                 return this.isInMode("task");
+
+            case "cmd_selectAll":
+                if (this.todo_tasktree_focused || this.isInMode("calendar")) {
+                    return true;
+                } else if (this.defaultController.supportsCommand(aCommand)) {
+                    return this.defaultController.isCommandEnabled(aCommand);
+                }
+                break;
 
             default:
                 if (this.defaultController && !this.isCalendarInForeground()) {
@@ -398,6 +417,17 @@ var calendarController = {
                 break;
             case "calendar_attendance_command":
                 // This command is actually handled inline, since it takes a value
+                break;
+
+            case "cmd_selectAll":
+                if (!this.todo_tasktree_focused &&
+                    this.defaultController && !this.isCalendarInForeground()) {
+                    // Unless a task tree is focused, make the default controller
+                    // take care.
+                    this.defaultController.doCommand(aCommand);
+                } else {
+                    selectAllItems();
+                }
                 break;
 
             default:
@@ -608,6 +638,27 @@ var calendarController = {
         return (selectedTasks.length > 0);
     },
 
+
+    get todo_items_invitation() {
+        let selectedTasks = getSelectedTasks();
+        let selected_tasks_invitation = 0;
+
+        for each (let item in selectedTasks) {
+            if (cal.isInvitation(item)) {
+                selected_tasks_invitation++;
+            } else if (item.organizer) {
+                // If we are the organizer and there are attendees, then
+                // this is likely also an invitation.
+                let calOrgId = item.calendar.getProperty("organizerId");
+                if (item.organizer.id == calOrgId && item.getAttendees({}).length) {
+                    selected_tasks_invitation++;
+                }
+            }
+        }
+
+        return (selectedTasks.length == selected_tasks_invitation);
+    },
+
     /**
      * Returns a boolean indicating that at least one task in the selection is
      * on a calendar that is writable.
@@ -637,7 +688,6 @@ var calendarController2 = {
         "cmd_undo": true,
         "cmd_redo": true,
         "cmd_print": true,
-        "cmd_selectAll": true,
         "cmd_pageSetup": true,
 
         "cmd_printpreview": true,
@@ -705,9 +755,6 @@ var calendarController2 = {
                 break;
             case "cmd_redo":
                 redo();
-                break;
-            case "cmd_selectAll":
-                selectAllEvents();
                 break;
             case "cmd_pageSetup":
                 PrintUtils.showPageSetup();
@@ -813,37 +860,7 @@ function setupContextItemType(event, items) {
     }
 
     let menu = document.getElementById("calendar-item-context-menu-attendance-menu");
-    let allSingle = items.every(function(x) !x.recurrenceId);
-    setElementValue(menu, allSingle ? "single" : "recurring", "itemType");
-
-    // Set up the attendance menu
-    function getInvStat(item) {
-        let attendee = null;
-        if (cal.isInvitation(item)) {
-            attendee = cal.getInvitedAttendee(item);
-        } else if (item.organizer) {
-            let calOrgId = item.calendar.getProperty("organizerId");
-            if (calOrgId == item.organizer.id && item.getAttendees({}).length) {
-                attendee = item.organizer;
-            }
-        }
-        return attendee && attendee.participationStatus;
-    }
-
-    let firstStatusOccurrences = items.length && getInvStat(items[0]);
-    let firstStatusParents = items.length && getInvStat(items[0].parentItem);
-    let sameStatusOccurrences = items.every(function (x) getInvStat(x) == firstStatusOccurrences);
-    let sameStatusParents = items.every(function (x) getInvStat(x.parentItem) == firstStatusParents)
-
-    let occurrenceChildren = menu.getElementsByAttribute("value", firstStatusOccurrences);
-    let parentsChildren = menu.getElementsByAttribute("value", firstStatusParents);
-    if (sameStatusOccurrences && occurrenceChildren[0]) {
-        occurrenceChildren[0].setAttribute("checked", "true");
-    }
-
-    if (sameStatusParents && parentsChildren[1]) {
-        parentsChildren[1].setAttribute("checked", "true");
-    }
+    setupAttendanceMenu(menu, items);
 
     return true;
 }
@@ -865,5 +882,16 @@ function minimonthPick(aNewDate) {
       // update date filter for task tree
       let tree = document.getElementById(cal.isSunbird() ? "unifinder-todo-tree" : "calendar-task-tree");
       tree.updateFilter();
+  }
+}
+
+/**
+ * Selects all items, based on which mode we are currently in and what task tree is focused
+ */
+function selectAllItems() {
+  if (calendarController.todo_tasktree_focused) {
+    getTaskTree().selectAll();
+  } else if (calendarController.isInMode("calendar")) {
+    selectAllEvents();
   }
 }

@@ -39,38 +39,70 @@
 
 #include "nsISupports.h"
 class nsIDOMHTMLFormElement;
-class nsPresContext;
 class nsPresState;
 class nsIContent;
 class nsString;
 class nsIFormProcessor;
-class nsIFormSubmission;
+class nsFormSubmission;
 
-#define NS_FORM_BUTTON_BUTTON   1
-#define NS_FORM_BUTTON_RESET    2
-#define NS_FORM_BUTTON_SUBMIT   3
-#define NS_FORM_FIELDSET        4
-#define NS_FORM_INPUT_BUTTON    5
-#define NS_FORM_INPUT_CHECKBOX  6
-#define NS_FORM_INPUT_FILE      7
-#define NS_FORM_INPUT_HIDDEN    8
-#define NS_FORM_INPUT_RESET     9
-#define NS_FORM_INPUT_IMAGE    10
-#define NS_FORM_INPUT_PASSWORD 11
-#define NS_FORM_INPUT_RADIO    12
-#define NS_FORM_INPUT_SUBMIT   13
-#define NS_FORM_INPUT_TEXT     14
-#define NS_FORM_LABEL          15
-#define NS_FORM_OPTION         16
-#define NS_FORM_OPTGROUP       17
-#define NS_FORM_LEGEND         18
-#define NS_FORM_SELECT         19
-#define NS_FORM_TEXTAREA       20
-#define NS_FORM_OBJECT         21
+namespace mozilla {
+namespace dom {
+class Element;
+} // namespace dom
+} // namespace mozilla
+
+enum FormControlsTypes {
+  NS_FORM_FIELDSET = 1,
+  NS_FORM_LABEL,
+  NS_FORM_OUTPUT,
+  NS_FORM_SELECT,
+  NS_FORM_TEXTAREA,
+  NS_FORM_OBJECT,
+  eFormControlsWithoutSubTypesMax,
+  // After this, all types will have sub-types which introduce new enum lists.
+  // eFormControlsWithoutSubTypesMax let us know if the previous types values
+  // are not overlapping with sub-types/masks.
+
+  // Elements with different types, the value is used as a mask.
+  // Adding '_ELEMENT' because NS_FORM_INPUT is used for 'oninput' event.
+  // When changing the order, adding or removing elements, be sure to update
+  // the PR_STATIC_ASSERT checks accordingly.
+  NS_FORM_BUTTON_ELEMENT = 0x40, // 0b01000000
+  NS_FORM_INPUT_ELEMENT  = 0x80  // 0b10000000
+};
+
+enum ButtonElementTypes {
+  NS_FORM_BUTTON_BUTTON = NS_FORM_BUTTON_ELEMENT + 1,
+  NS_FORM_BUTTON_RESET,
+  NS_FORM_BUTTON_SUBMIT,
+  eButtonElementTypesMax
+};
+
+enum InputElementTypes {
+  NS_FORM_INPUT_BUTTON = NS_FORM_INPUT_ELEMENT + 1,
+  NS_FORM_INPUT_CHECKBOX,
+  NS_FORM_INPUT_EMAIL,
+  NS_FORM_INPUT_FILE,
+  NS_FORM_INPUT_HIDDEN,
+  NS_FORM_INPUT_RESET,
+  NS_FORM_INPUT_IMAGE,
+  NS_FORM_INPUT_PASSWORD,
+  NS_FORM_INPUT_RADIO,
+  NS_FORM_INPUT_SEARCH,
+  NS_FORM_INPUT_SUBMIT,
+  NS_FORM_INPUT_TEL,
+  NS_FORM_INPUT_TEXT,
+  NS_FORM_INPUT_URL,
+  eInputElementTypesMax
+};
+
+PR_STATIC_ASSERT((PRUint32)eFormControlsWithoutSubTypesMax < (PRUint32)NS_FORM_BUTTON_ELEMENT);
+PR_STATIC_ASSERT((PRUint32)eButtonElementTypesMax < (PRUint32)NS_FORM_INPUT_ELEMENT);
+PR_STATIC_ASSERT((PRUint32)eInputElementTypesMax  < 1<<8);
 
 #define NS_IFORMCONTROL_IID   \
-{ 0x52dc1f0d, 0x1683, 0x4dd7, \
- { 0xae, 0x0a, 0xc4, 0x76, 0x10, 0x64, 0x2f, 0xa8 } }
+{ 0x671ef379, 0x7ac0, 0x414c, \
+ { 0xa2, 0x2b, 0xc1, 0x9e, 0x0b, 0x61, 0x4e, 0x83 } }
 
 /**
  * Interface which all form controls (e.g. buttons, checkboxes, text,
@@ -85,9 +117,9 @@ public:
 
   /**
    * Get the form for this form control.
-   * @param aForm the form [OUT]
+   * @return the form
    */
-  NS_IMETHOD GetForm(nsIDOMHTMLFormElement** aForm) = 0;
+  virtual mozilla::dom::Element *GetFormElement() = 0;
 
   /**
    * Set the form for this form control.
@@ -105,15 +137,14 @@ public:
    *
    * @param aRemoveFromForm set false if you do not want this element removed
    *        from the form.  (Used by nsFormControlList::Clear())
-   * @param aNotify If true, send nsIDocumentObserver notifications as needed.
    */
-  virtual void ClearForm(PRBool aRemoveFromForm, PRBool aNotify) = 0;
+  virtual void ClearForm(PRBool aRemoveFromForm) = 0;
 
   /**
    * Get the type of this control as an int (see NS_FORM_* above)
    * @return the type of this control
    */
-  NS_IMETHOD_(PRInt32) GetType() const = 0 ;
+  NS_IMETHOD_(PRUint32) GetType() const = 0 ;
 
   /**
    * Reset this form control (as it should be when the user clicks the Reset
@@ -126,11 +157,8 @@ public:
    * submission object
    * @param aFormSubmission the form submission to notify of names/values/files
    *                       to submit
-   * @param aSubmitElement the element that was pressed to submit (possibly
-   *                       null)
    */
-  NS_IMETHOD SubmitNamesValues(nsIFormSubmission* aFormSubmission,
-                               nsIContent* aSubmitElement) = 0;
+  NS_IMETHOD SubmitNamesValues(nsFormSubmission* aFormSubmission) = 0;
 
   /**
    * Save to presentation state.  The form control will determine whether it
@@ -153,12 +181,145 @@ public:
   virtual PRBool AllowDrop() = 0;
 
   /**
-   * Returns true if this is a control which submits the form when
-   * activated by the user.
-   * @return Whether this is a submit control.
+   * Returns whether this is a control which submits the form when activated by
+   * the user.
+   * @return whether this is a submit control.
    */
-  virtual PRBool IsSubmitControl() const = 0;
+  inline PRBool IsSubmitControl() const;
+
+  /**
+   * Returns whether this is a text control.
+   * @param  aExcludePassword  to have NS_FORM_INPUT_PASSWORD returning false.
+   * @return whether this is a text control.
+   */
+  inline PRBool IsTextControl(PRBool aExcludePassword) const ;
+
+  /**
+   * Returns whether this is a single line text control.
+   * @param  aExcludePassword  to have NS_FORM_INPUT_PASSWORD returning false.
+   * @return whether this is a single line text control.
+   */
+  inline PRBool IsSingleLineTextControl(PRBool aExcludePassword) const;
+
+  /**
+   * Returns whether this is a labelable form control.
+   * @return whether this is a labelable form control.
+   */
+  inline PRBool IsLabelableControl() const;
+
+  /**
+   * Returns whether this is a submittable form control.
+   * @return whether this is a submittable form control.
+   */
+  inline PRBool IsSubmittableControl() const;
+
+  /**
+   * Returns whether this form control can have draggable children.
+   * @return whether this form control can have draggable children.
+   */
+  inline PRBool AllowDraggableChildren() const;
+
+protected:
+
+  /**
+   * Returns whether mType corresponds to a single line text control type.
+   * @param aExcludePassword to have NS_FORM_INPUT_PASSWORD ignored.
+   * @param aType the type to be tested.
+   * @return whether mType corresponds to a single line text control type.
+   */
+  inline static bool IsSingleLineTextControl(bool aExcludePassword, PRUint32 aType);
+
+  /**
+   * Returns whether this is a auto-focusable form control.
+   * @return whether this is a auto-focusable form control.
+   */
+  inline bool IsAutofocusable() const;
 };
+
+PRBool
+nsIFormControl::IsSubmitControl() const
+{
+  PRUint32 type = GetType();
+  return type == NS_FORM_INPUT_SUBMIT ||
+         type == NS_FORM_INPUT_IMAGE ||
+         type == NS_FORM_BUTTON_SUBMIT;
+}
+
+PRBool
+nsIFormControl::IsTextControl(PRBool aExcludePassword) const
+{
+  PRUint32 type = GetType();
+  return type == NS_FORM_TEXTAREA ||
+         IsSingleLineTextControl(aExcludePassword, type);
+}
+
+PRBool
+nsIFormControl::IsSingleLineTextControl(PRBool aExcludePassword) const
+{
+  return IsSingleLineTextControl(aExcludePassword, GetType());
+}
+
+/*static*/
+bool
+nsIFormControl::IsSingleLineTextControl(bool aExcludePassword, PRUint32 aType)
+{
+  return aType == NS_FORM_INPUT_TEXT ||
+         aType == NS_FORM_INPUT_EMAIL ||
+         aType == NS_FORM_INPUT_SEARCH ||
+         aType == NS_FORM_INPUT_TEL ||
+         aType == NS_FORM_INPUT_URL ||
+         (!aExcludePassword && aType == NS_FORM_INPUT_PASSWORD);
+}
+
+PRBool
+nsIFormControl::IsLabelableControl() const
+{
+  // TODO: keygen should be in that list, see bug 101019.
+  // TODO: meter should be added, see bug 555985.
+  // TODO: NS_FORM_INPUT_HIDDEN should be removed, see bug 597650.
+  PRUint32 type = GetType();
+  return type & NS_FORM_INPUT_ELEMENT ||
+         type & NS_FORM_BUTTON_ELEMENT ||
+         // type == NS_FORM_KEYGEN ||
+         // type == NS_FORM_METER ||
+         type == NS_FORM_OUTPUT ||
+         // type == NS_FORM_PROGRESS ||
+         type == NS_FORM_SELECT ||
+         type == NS_FORM_TEXTAREA;
+}
+
+PRBool
+nsIFormControl::IsSubmittableControl() const
+{
+  // TODO: keygen should be in that list, see bug 101019.
+  PRUint32 type = GetType();
+  return type == NS_FORM_OBJECT ||
+         type == NS_FORM_TEXTAREA ||
+         type == NS_FORM_SELECT ||
+         // type == NS_FORM_KEYGEN ||
+         type & NS_FORM_BUTTON_ELEMENT ||
+         type & NS_FORM_INPUT_ELEMENT;
+}
+
+PRBool
+nsIFormControl::AllowDraggableChildren() const
+{
+  PRUint32 type = GetType();
+  return type == NS_FORM_OBJECT ||
+         type == NS_FORM_LABEL ||
+         type == NS_FORM_FIELDSET ||
+         type == NS_FORM_OUTPUT;
+}
+
+bool
+nsIFormControl::IsAutofocusable() const
+{
+  PRUint32 type = GetType();
+  return type & NS_FORM_INPUT_ELEMENT ||
+         type & NS_FORM_BUTTON_ELEMENT ||
+         type == NS_FORM_TEXTAREA ||
+         type == NS_FORM_SELECT;
+}
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIFormControl, NS_IFORMCONTROL_IID)
 

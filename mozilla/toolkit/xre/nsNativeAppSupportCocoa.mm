@@ -38,7 +38,7 @@
 
 #include "nsString.h"
 
-#import <Carbon/Carbon.h>
+#import <CoreServices/CoreServices.h>
 #import <Cocoa/Cocoa.h>
 
 #include "nsCOMPtr.h"
@@ -59,26 +59,32 @@
 #include "nsIWidget.h"
 #include "nsIWindowMediator.h"
 
-#include "nsXPFEComponentsCID.h"
-
-const OSType kNSCreator = 'MOSS';
-const OSType kMozCreator = 'MOZZ';
-const SInt16 kNSCanRunStrArrayID = 1000;
-const SInt16 kAnotherVersionStrIndex = 1;
-
 nsresult
-GetNativeWindowPointerFromDOMWindow(nsIDOMWindowInternal *window, NSWindow **nativeWindow);
+GetNativeWindowPointerFromDOMWindow(nsIDOMWindowInternal *a_window, NSWindow **a_nativeWindow)
+{
+  *a_nativeWindow = nil;
+  if (!a_window)
+    return NS_ERROR_INVALID_ARG;
 
-const SInt16 kNSOSVersErrsStrArrayID = 1001;
+  nsCOMPtr<nsIWebNavigation> mruWebNav(do_GetInterface(a_window));
+  if (mruWebNav) {
+    nsCOMPtr<nsIDocShellTreeItem> mruTreeItem(do_QueryInterface(mruWebNav));
+    nsCOMPtr<nsIDocShellTreeOwner> mruTreeOwner = nsnull;
+    mruTreeItem->GetTreeOwner(getter_AddRefs(mruTreeOwner));
+    if(mruTreeOwner) {
+      nsCOMPtr<nsIBaseWindow> mruBaseWindow(do_QueryInterface(mruTreeOwner));
+      if (mruBaseWindow) {
+        nsCOMPtr<nsIWidget> mruWidget = nsnull;
+        mruBaseWindow->GetMainWidget(getter_AddRefs(mruWidget));
+        if (mruWidget) {
+          *a_nativeWindow = (NSWindow*)mruWidget->GetNativeData(NS_NATIVE_WINDOW);
+        }
+      }
+    }
+  }
 
-enum {
-        eOSXVersTooOldErrIndex = 1,
-        eOSXVersTooOldExplanationIndex,
-        eContinueButtonTextIndex,
-        eQuitButtonTextIndex,
-        eCarbonLibVersTooOldIndex,
-        eCarbonLibVersTooOldExplanationIndex
-     };
+  return NS_OK;
+}
 
 class nsNativeAppSupportCocoa : public nsNativeAppSupportBase
 {
@@ -106,17 +112,22 @@ NS_IMETHODIMP nsNativeAppSupportCocoa::Start(PRBool *_retval)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  long response = 0;
+  SInt32 response = 0;
   OSErr err = ::Gestalt (gestaltSystemVersion, &response);
   response &= 0xFFFF; // The system version is in the low order word
 
-  // Check for at least Mac OS X 10.4, and if that fails return PR_FALSE,
+  // Check that the OS version is supported, if not return PR_FALSE,
   // which will make the browser quit.  In principle we could display an
   // alert here.  But the alert's message and buttons would require custom
   // localization.  So (for now at least) we just log an English message
   // to the console before quitting.
-  if ((err != noErr) || response < 0x00001040) {
-    NSLog(@"Requires Mac OS X version 10.4 or newer");
+#ifdef __LP64__
+  SInt32 minimumOS = 0x00001060;
+#else
+  SInt32 minimumOS = 0x00001050;
+#endif
+  if ((err != noErr) || response < minimumOS) {
+    NSLog(@"Minimum OS version requirement not met!");
     return PR_FALSE;
   }
 
@@ -210,31 +221,6 @@ nsNativeAppSupportCocoa::ReOpen()
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
-}
-
-nsresult
-GetNativeWindowPointerFromDOMWindow(nsIDOMWindowInternal *a_window, NSWindow **a_nativeWindow)
-{
-    *a_nativeWindow = nil;
-    if (!a_window) return NS_ERROR_INVALID_ARG;
-    
-    nsCOMPtr<nsIWebNavigation> mruWebNav(do_GetInterface(a_window));
-    if (mruWebNav) {
-      nsCOMPtr<nsIDocShellTreeItem> mruTreeItem(do_QueryInterface(mruWebNav));
-      nsCOMPtr<nsIDocShellTreeOwner> mruTreeOwner = nsnull;
-      mruTreeItem->GetTreeOwner(getter_AddRefs(mruTreeOwner));
-      if(mruTreeOwner) {
-        nsCOMPtr<nsIBaseWindow> mruBaseWindow(do_QueryInterface(mruTreeOwner));
-        if (mruBaseWindow) {
-          nsCOMPtr<nsIWidget> mruWidget = nsnull;
-          mruBaseWindow->GetMainWidget(getter_AddRefs(mruWidget));
-          if (mruWidget) {
-            *a_nativeWindow = (NSWindow*)mruWidget->GetNativeData(NS_NATIVE_WINDOW);
-          }
-        }
-      }
-    }
-    return NS_OK;
 }
 
 #pragma mark -

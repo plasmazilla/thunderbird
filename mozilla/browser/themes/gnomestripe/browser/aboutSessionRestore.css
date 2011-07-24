@@ -55,7 +55,7 @@ treechildren::-moz-tree-image(noicon) {
 }
 
 treechildren::-moz-tree-image(noicon) {
-  list-style-image: url("chrome://mozapps/skin/places/defaultFavicon.png");
+  list-style-image: url("moz-icon://stock/gtk-file?size=menu");
 }
 treechildren::-moz-tree-image(container, noicon) {
   list-style-image: url("chrome://browser/skin/aboutSessionRestore-window-icon.png");
@@ -67,6 +67,15 @@ treechildren::-moz-tree-image(partial) {
   list-style-image: url("chrome://global/skin/checkbox/cbox-check-dis.gif");
 }
 
+/* undo odd row highlighting from tree.css */
+treechildren::-moz-tree-row(odd) {
+  background-color: transparent;
+}
+treechildren::-moz-tree-row(odd, selected, focus) {
+  background-color: Highlight;
+}
+
+/* highlight "windows" instead */
 treechildren::-moz-tree-row(alternate) {
   background-color: -moz-oddtreerow;
 }

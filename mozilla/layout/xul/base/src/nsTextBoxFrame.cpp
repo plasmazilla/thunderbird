@@ -71,6 +71,8 @@
 #include "nsDisplayList.h"
 #include "nsCSSRendering.h"
 #include "nsIReflowCallback.h"
+#include "nsBoxFrame.h"
+#include "nsIThebesFontMetrics.h"
 
 #ifdef IBMBIDI
 #include "nsBidiUtils.h"
@@ -82,8 +84,6 @@
 #define CROP_CENTER "center"
 #define CROP_START  "start"
 #define CROP_END    "end"
-
-#define NS_STATE_NEED_LAYOUT 0x01000000
 
 class nsAccessKeyInfo
 {
@@ -117,7 +117,6 @@ nsTextBoxFrame::AttributeChanged(PRInt32         aNameSpaceID,
                                  nsIAtom*        aAttribute,
                                  PRInt32         aModType)
 {
-    mState |= NS_STATE_NEED_LAYOUT;
     PRBool aResize;
     PRBool aRedraw;
 
@@ -144,7 +143,6 @@ nsTextBoxFrame::nsTextBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext):
   nsLeafBoxFrame(aShell, aContext), mAccessKeyInfo(nsnull), mCropType(CropRight),
   mNeedsReflowCallback(PR_FALSE)
 {
-    mState |= NS_STATE_NEED_LAYOUT;
     MarkIntrinsicWidthsDirty();
 }
 
@@ -161,7 +159,6 @@ nsTextBoxFrame::Init(nsIContent*      aContent,
 {
     nsTextBoxFrameSuper::Init(aContent, aParent, aPrevInFlow);
 
-    mState |= NS_STATE_NEED_LAYOUT;
     PRBool aResize;
     PRBool aRedraw;
     UpdateAttributes(nsnull, aResize, aRedraw); /* update all */
@@ -173,11 +170,11 @@ nsTextBoxFrame::Init(nsIContent*      aContent,
 }
 
 void
-nsTextBoxFrame::Destroy()
+nsTextBoxFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
     // unregister access key
     RegUnregAccessKey(PR_FALSE);
-    nsTextBoxFrameSuper::Destroy();
+    nsTextBoxFrameSuper::DestroyFrom(aDestructRoot);
 }
 
 PRBool
@@ -328,32 +325,51 @@ nsTextBoxFrame::UpdateAttributes(nsIAtom*         aAttribute,
 
 class nsDisplayXULTextBox : public nsDisplayItem {
 public:
-  nsDisplayXULTextBox(nsTextBoxFrame* aFrame) : nsDisplayItem(aFrame) {
-      MOZ_COUNT_CTOR(nsDisplayXULTextBox);
+  nsDisplayXULTextBox(nsDisplayListBuilder* aBuilder,
+                      nsTextBoxFrame* aFrame) :
+    nsDisplayItem(aBuilder, aFrame),
+    mDisableSubpixelAA(PR_FALSE)
+  {
+    MOZ_COUNT_CTOR(nsDisplayXULTextBox);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
   virtual ~nsDisplayXULTextBox() {
-      MOZ_COUNT_DTOR(nsDisplayXULTextBox);
+    MOZ_COUNT_DTOR(nsDisplayXULTextBox);
   }
 #endif
 
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder);
-  NS_DISPLAY_DECL_NAME("XULTextBox")
+  NS_DISPLAY_DECL_NAME("XULTextBox", TYPE_XUL_TEXT_BOX)
+
+  virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder);
+
+  virtual void DisableComponentAlpha() { mDisableSubpixelAA = PR_TRUE; }
+
+  PRPackedBool mDisableSubpixelAA;
 };
 
 void
 nsDisplayXULTextBox::Paint(nsDisplayListBuilder* aBuilder,
                            nsIRenderingContext* aCtx)
 {
+  gfxContextAutoDisableSubpixelAntialiasing disable(aCtx->ThebesContext(),
+                                                    mDisableSubpixelAA);
   static_cast<nsTextBoxFrame*>(mFrame)->
-    PaintTitle(*aCtx, mVisibleRect, aBuilder->ToReferenceFrame(mFrame));
+    PaintTitle(*aCtx, mVisibleRect, ToReferenceFrame());
 }
 
 nsRect
 nsDisplayXULTextBox::GetBounds(nsDisplayListBuilder* aBuilder) {
-  return mFrame->GetOverflowRect() + aBuilder->ToReferenceFrame(mFrame);
+  return mFrame->GetVisualOverflowRect() + ToReferenceFrame();
+}
+
+nsRect
+nsDisplayXULTextBox::GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder)
+{
+  return static_cast<nsTextBoxFrame*>(mFrame)->GetComponentAlphaBounds() +
+      ToReferenceFrame();
 }
 
 NS_IMETHODIMP
@@ -368,7 +384,7 @@ nsTextBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     NS_ENSURE_SUCCESS(rv, rv);
     
     return aLists.Content()->AppendNewToTop(new (aBuilder)
-        nsDisplayXULTextBox(this));
+        nsDisplayXULTextBox(aBuilder, this));
 }
 
 void
@@ -379,7 +395,7 @@ nsTextBoxFrame::PaintTitle(nsIRenderingContext& aRenderingContext,
     if (mTitle.IsEmpty())
         return;
 
-    nsRect textRect(CalcTextRect(aRenderingContext, aPt));
+    nsRect textRect = mTextDrawRect + aPt;
 
     // Paint the text shadow before doing any foreground stuff
     const nsStyleText* textStyle = GetStyleText();
@@ -488,9 +504,13 @@ nsTextBoxFrame::DrawText(nsIRenderingContext& aRenderingContext,
       }
     }
 
-    aRenderingContext.SetFont(fontMet);
+    nsCOMPtr<nsIRenderingContext> refContext =
+        PresContext()->PresShell()->GetReferenceRenderingContext();
 
-    CalculateUnderline(aRenderingContext);
+    aRenderingContext.SetFont(fontMet);
+    refContext->SetFont(fontMet);
+
+    CalculateUnderline(*refContext);
 
     aRenderingContext.SetColor(aOverrideColor ? *aOverrideColor : GetStyleColor()->mColor);
 
@@ -511,6 +531,7 @@ nsTextBoxFrame::DrawText(nsIRenderingContext& aRenderingContext,
            posResolve.logicalIndex = mAccessKeyInfo->mAccesskeyIndex;
            rv = bidiUtils->RenderText(mCroppedTitle.get(), mCroppedTitle.Length(), direction,
                                       presContext, aRenderingContext,
+                                      *refContext,
                                       aTextRect.x, baseline,
                                       &posResolve,
                                       1);
@@ -521,6 +542,7 @@ nsTextBoxFrame::DrawText(nsIRenderingContext& aRenderingContext,
         {
            rv = bidiUtils->RenderText(mCroppedTitle.get(), mCroppedTitle.Length(), direction,
                                       presContext, aRenderingContext,
+                                      *refContext,
                                       aTextRect.x, baseline);
         }
       }
@@ -535,13 +557,15 @@ nsTextBoxFrame::DrawText(nsIRenderingContext& aRenderingContext,
            // underline position by getting the text metric.
            // XXX are attribute values always two byte?
            if (mAccessKeyInfo->mAccesskeyIndex > 0)
-               aRenderingContext.GetWidth(mCroppedTitle.get(), mAccessKeyInfo->mAccesskeyIndex,
-                                          mAccessKeyInfo->mBeforeWidth);
+               refContext->GetWidth(mCroppedTitle.get(), mAccessKeyInfo->mAccesskeyIndex,
+                                    mAccessKeyInfo->mBeforeWidth);
            else
                mAccessKeyInfo->mBeforeWidth = 0;
        }
 
-       aRenderingContext.DrawString(mCroppedTitle, aTextRect.x, baseline);
+       nsIThebesFontMetrics* fm = static_cast<nsIThebesFontMetrics*>(fontMet.get());
+       fm->DrawString(mCroppedTitle.get(), mCroppedTitle.Length(),
+                      aTextRect.x, baseline, &aRenderingContext, refContext.get());
     }
 
     if (mAccessKeyInfo && mAccessKeyInfo->mAccesskeyIndex != kNotFound) {
@@ -577,9 +601,9 @@ void nsTextBoxFrame::PaintOneShadow(gfxContext*      aCtx,
   shadowRect.MoveBy(shadowOffset);
 
   nsContextBoxBlur contextBoxBlur;
-  gfxContext* shadowContext = contextBoxBlur.Init(shadowRect, blurRadius,
+  gfxContext* shadowContext = contextBoxBlur.Init(shadowRect, 0, blurRadius,
                                                   PresContext()->AppUnitsPerDevPixel(),
-                                                  aCtx, aDirtyRect);
+                                                  aCtx, aDirtyRect, nsnull);
 
   if (!shadowContext)
     return;
@@ -611,25 +635,6 @@ void nsTextBoxFrame::PaintOneShadow(gfxContext*      aCtx,
 }
 
 void
-nsTextBoxFrame::LayoutTitle(nsPresContext*      aPresContext,
-                            nsIRenderingContext& aRenderingContext,
-                            const nsRect&        aRect)
-{
-    // and do caculations if our size changed
-    if ((mState & NS_STATE_NEED_LAYOUT)) {
-
-        // determine (cropped) title which fits in aRect.width and its width
-        CalculateTitleForWidth(aPresContext, aRenderingContext, aRect.width);
-
-        // determine if and at which position to put the underline
-        UpdateAccessIndex();
-
-        // ok layout complete
-        mState &= ~NS_STATE_NEED_LAYOUT;
-    }
-}
-
-void
 nsTextBoxFrame::CalculateUnderline(nsIRenderingContext& aRenderingContext)
 {
     if (mAccessKeyInfo && mAccessKeyInfo->mAccesskeyIndex != kNotFound) {
@@ -650,28 +655,28 @@ nsTextBoxFrame::CalculateUnderline(nsIRenderingContext& aRenderingContext)
     }
 }
 
-void
+nscoord
 nsTextBoxFrame::CalculateTitleForWidth(nsPresContext*      aPresContext,
                                        nsIRenderingContext& aRenderingContext,
                                        nscoord              aWidth)
 {
     if (mTitle.IsEmpty())
-        return;
+        return 0;
 
     nsLayoutUtils::SetFontFromStyle(&aRenderingContext, GetStyleContext());
 
     // see if the text will completely fit in the width given
-    mTitleWidth = nsLayoutUtils::GetStringWidth(this, &aRenderingContext,
-                                                mTitle.get(), mTitle.Length());
+    nscoord titleWidth = nsLayoutUtils::GetStringWidth(this, &aRenderingContext,
+                                                       mTitle.get(), mTitle.Length());
 
-    if (mTitleWidth <= aWidth) {
+    if (titleWidth <= aWidth) {
         mCroppedTitle = mTitle;
 #ifdef IBMBIDI
         if (HasRTLChars(mTitle)) {
             mState |= NS_FRAME_IS_BIDI;
         }
 #endif // IBMBIDI
-        return;  // fits, done.
+        return titleWidth;  // fits, done.
     }
 
     const nsDependentString& kEllipsis = nsContentUtils::GetLocalizedEllipsis();
@@ -681,19 +686,18 @@ nsTextBoxFrame::CalculateTitleForWidth(nsPresContext*      aPresContext,
     // see if the width is even smaller than the ellipsis
     // if so, clear the text (XXX set as many '.' as we can?).
     aRenderingContext.SetTextRunRTL(PR_FALSE);
-    aRenderingContext.GetWidth(kEllipsis, mTitleWidth);
+    aRenderingContext.GetWidth(kEllipsis, titleWidth);
 
-    if (mTitleWidth > aWidth) {
+    if (titleWidth > aWidth) {
         mCroppedTitle.SetLength(0);
-        mTitleWidth = 0;
-        return;
+        return 0;
     }
 
     // if the ellipsis fits perfectly, no use in trying to insert
-    if (mTitleWidth == aWidth)
-        return;
+    if (titleWidth == aWidth)
+        return titleWidth;
 
-    aWidth -= mTitleWidth;
+    aWidth -= titleWidth;
 
     // XXX: This whole block should probably take surrogates into account
     // XXX and clusters!
@@ -723,7 +727,7 @@ nsTextBoxFrame::CalculateTitleForWidth(nsPresContext*      aPresContext,
             }
 
             if (i == 0)
-                return;
+                return titleWidth;
 
             // insert what character we can in.
             nsAutoString title( mTitle );
@@ -753,7 +757,7 @@ nsTextBoxFrame::CalculateTitleForWidth(nsPresContext*      aPresContext,
             }
 
             if (i == length-1)
-                return;
+                return titleWidth;
 
             nsAutoString copy;
             mTitle.Right(copy, length-1-i);
@@ -823,8 +827,8 @@ nsTextBoxFrame::CalculateTitleForWidth(nsPresContext*      aPresContext,
         break;
     }
 
-    mTitleWidth = nsLayoutUtils::GetStringWidth(this, &aRenderingContext,
-                                                mCroppedTitle.get(), mCroppedTitle.Length());
+    return nsLayoutUtils::GetStringWidth(this, &aRenderingContext,
+                                         mCroppedTitle.get(), mCroppedTitle.Length());
 }
 
 #define OLD_ELLIPSIS NS_LITERAL_STRING("...")
@@ -945,19 +949,30 @@ nsTextBoxFrame::DoLayout(nsBoxLayoutState& aBoxLayoutState)
         mNeedsReflowCallback = PR_FALSE;
     }
 
-    mState |= NS_STATE_NEED_LAYOUT;
-
     nsresult rv = nsLeafBoxFrame::DoLayout(aBoxLayoutState);
+
+    CalcDrawRect(*aBoxLayoutState.GetRenderingContext());
 
     const nsStyleText* textStyle = GetStyleText();
     if (textStyle->mTextShadow) {
+      nsRect bounds(nsPoint(0, 0), GetSize());
+      nsOverflowAreas overflow(bounds, bounds);
+      // Our scrollable overflow is our bounds; our visual overflow may
+      // extend beyond that.
       nsPoint origin(0,0);
-      nsRect textRect = CalcTextRect(*aBoxLayoutState.GetRenderingContext(), origin);
-      nsRect overflowRect(nsLayoutUtils::GetTextShadowRectsUnion(textRect, this));
-      overflowRect.UnionRect(overflowRect, nsRect(nsPoint(0, 0), GetSize()));
-      FinishAndStoreOverflow(&overflowRect, GetSize());
+      nsRect &vis = overflow.VisualOverflow();
+      vis.UnionRect(vis, nsLayoutUtils::GetTextShadowRectsUnion(mTextDrawRect, this));
+      FinishAndStoreOverflow(overflow, GetSize());
     }
+
     return rv;
+}
+
+nsRect
+nsTextBoxFrame::GetComponentAlphaBounds()
+{
+  return nsLayoutUtils::GetTextShadowRectsUnion(mTextDrawRect, this,
+                                                nsLayoutUtils::EXCLUDE_BLUR_SHADOWS);
 }
 
 PRBool
@@ -1003,20 +1018,25 @@ nsTextBoxFrame::CalcTextSize(nsBoxLayoutState& aBoxLayoutState)
     }
 }
 
-nsRect
-nsTextBoxFrame::CalcTextRect(nsIRenderingContext &aRenderingContext, const nsPoint &aTextOrigin)
+void
+nsTextBoxFrame::CalcDrawRect(nsIRenderingContext &aRenderingContext)
 {
-    nsRect textRect(aTextOrigin, GetSize());
+    nsRect textRect(nsPoint(0, 0), GetSize());
     nsMargin borderPadding;
     GetBorderAndPadding(borderPadding);
     textRect.Deflate(borderPadding);
+
     // determine (cropped) title and underline position
     nsPresContext* presContext = PresContext();
-    LayoutTitle(presContext, aRenderingContext, textRect);
+    // determine (cropped) title which fits in aRect.width and its width
+    nscoord titleWidth =
+        CalculateTitleForWidth(presContext, aRenderingContext, textRect.width);
+    // determine if and at which position to put the underline
+    UpdateAccessIndex();
 
     // make the rect as small as our (cropped) text.
     nscoord outerWidth = textRect.width;
-    textRect.width = mTitleWidth;
+    textRect.width = titleWidth;
 
     // Align our text within the overall rect by checking our text-align property.
     const nsStyleVisibility* vis = GetStyleVisibility();
@@ -1031,7 +1051,8 @@ nsTextBoxFrame::CalcTextRect(nsIRenderingContext &aRenderingContext, const nsPoi
               vis->mDirection == NS_STYLE_DIRECTION_LTR)) {
       textRect.x += (outerWidth - textRect.width);
     }
-    return textRect;
+
+    mTextDrawRect = textRect;
 }
 
 /**
@@ -1046,7 +1067,8 @@ nsTextBoxFrame::GetPrefSize(nsBoxLayoutState& aBoxLayoutState)
     DISPLAY_PREF_SIZE(this, size);
 
     AddBorderAndPadding(size);
-    nsIBox::AddCSSPrefSize(aBoxLayoutState, this, size);
+    PRBool widthSet, heightSet;
+    nsIBox::AddCSSPrefSize(this, size, widthSet, heightSet);
 
     return size;
 }
@@ -1067,7 +1089,8 @@ nsTextBoxFrame::GetMinSize(nsBoxLayoutState& aBoxLayoutState)
         size.width = 0;
 
     AddBorderAndPadding(size);
-    nsIBox::AddCSSMinSize(aBoxLayoutState, this, size);
+    PRBool widthSet, heightSet;
+    nsIBox::AddCSSMinSize(aBoxLayoutState, this, size, widthSet, heightSet);
 
     return size;
 }

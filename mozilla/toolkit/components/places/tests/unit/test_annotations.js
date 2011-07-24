@@ -140,8 +140,9 @@ function run_test() {
 
   // test getPagesWithAnnotation
   var uri2 = uri("http://www.tests.tld");
+  histsvc.addVisit(uri2, Date.now() * 1000, null, histsvc.TRANSITION_TYPED, false, 0);
   annosvc.setPageAnnotation(uri2, testAnnoName, testAnnoVal, 0, 0);
-  var pages = annosvc.getPagesWithAnnotation(testAnnoName, { });
+  var pages = annosvc.getPagesWithAnnotation(testAnnoName);
   do_check_eq(pages.length, 2);
   // Don't rely on the order
   do_check_false(pages[0].equals(pages[1]));
@@ -151,7 +152,7 @@ function run_test() {
   // test getItemsWithAnnotation
   var testItemId2 = bmsvc.insertBookmark(bmsvc.bookmarksMenuFolder, uri2, -1, "");
   annosvc.setItemAnnotation(testItemId2, testAnnoName, testAnnoVal, 0, 0);
-  var items = annosvc.getItemsWithAnnotation(testAnnoName, { });
+  var items = annosvc.getItemsWithAnnotation(testAnnoName);
   do_check_eq(items.length, 2);
   // Don't rely on the order
   do_check_true(items[0] != items[1]);
@@ -182,22 +183,67 @@ function run_test() {
   do_check_eq(storageType.value, Ci.nsIAnnotationService.TYPE_STRING);
 
   // get annotation names for a uri
-  var annoNames = annosvc.getPageAnnotationNames(testURI, {});
+  var annoNames = annosvc.getPageAnnotationNames(testURI);
   do_check_eq(annoNames.length, 1);
   do_check_eq(annoNames[0], "moz-test-places/annotations");
 
   // get annotation names for an item
-  var annoNames = annosvc.getItemAnnotationNames(testItemId, {});
+  var annoNames = annosvc.getItemAnnotationNames(testItemId);
   do_check_eq(annoNames.length, 1);
   do_check_eq(annoNames[0], "moz-test-places/annotations");
 
-  /* copy annotations to another uri
+  // copy annotations to another uri
   var newURI = uri("http://mozilla.org");
-  var oldAnnoNames = annosvc.getPageAnnotationNames(testURI, {});
-  annosvc.copyAnnotations(testURI, newURI, false);
-  var newAnnoNames = annosvc.getPageAnnotationNames(newURI, {});
-  do_check_eq(oldAnnoNames.length, newAnnoNames.length);
-  */
+  histsvc.addVisit(newURI, Date.now() * 1000, null, histsvc.TRANSITION_TYPED, false, 0);
+  annosvc.setPageAnnotation(testURI, "oldAnno", "new", 0, 0);
+  annosvc.setPageAnnotation(newURI, "oldAnno", "old", 0, 0);
+  var annoNames = annosvc.getPageAnnotationNames(newURI);
+  do_check_eq(annoNames.length, 1);
+  do_check_eq(annoNames[0], "oldAnno");
+  var oldAnnoNames = annosvc.getPageAnnotationNames(testURI);
+  do_check_eq(oldAnnoNames.length, 2);
+  var copiedAnno = oldAnnoNames[0];
+  annosvc.copyPageAnnotations(testURI, newURI, false);
+  var newAnnoNames = annosvc.getPageAnnotationNames(newURI);
+  do_check_eq(newAnnoNames.length, 2);
+  do_check_true(annosvc.pageHasAnnotation(newURI, "oldAnno"));
+  do_check_true(annosvc.pageHasAnnotation(newURI, copiedAnno));
+  do_check_eq(annosvc.getPageAnnotation(newURI, "oldAnno"), "old");
+  annosvc.setPageAnnotation(newURI, "oldAnno", "new", 0, 0);
+  annosvc.copyPageAnnotations(testURI, newURI, true);
+  newAnnoNames = annosvc.getPageAnnotationNames(newURI);
+  do_check_eq(newAnnoNames.length, 2);
+  do_check_true(annosvc.pageHasAnnotation(newURI, "oldAnno"));
+  do_check_true(annosvc.pageHasAnnotation(newURI, copiedAnno));
+  do_check_eq(annosvc.getPageAnnotation(newURI, "oldAnno"), "new");
+
+
+  // copy annotations to another item
+  var newURI = uri("http://mozilla.org");
+  var newItemId = bmsvc.insertBookmark(bmsvc.bookmarksMenuFolder, newURI, -1, "");
+  var itemId = bmsvc.insertBookmark(bmsvc.bookmarksMenuFolder, testURI, -1, "");
+  annosvc.setItemAnnotation(itemId, "oldAnno", "new", 0, 0);
+  annosvc.setItemAnnotation(itemId, "testAnno", "test", 0, 0);
+  annosvc.setItemAnnotation(newItemId, "oldAnno", "old", 0, 0);
+  var annoNames = annosvc.getItemAnnotationNames(newItemId);
+  do_check_eq(annoNames.length, 1);
+  do_check_eq(annoNames[0], "oldAnno");
+  var oldAnnoNames = annosvc.getItemAnnotationNames(itemId);
+  do_check_eq(oldAnnoNames.length, 2);
+  var copiedAnno = oldAnnoNames[0];
+  annosvc.copyItemAnnotations(itemId, newItemId, false);
+  var newAnnoNames = annosvc.getItemAnnotationNames(newItemId);
+  do_check_eq(newAnnoNames.length, 2);
+  do_check_true(annosvc.itemHasAnnotation(newItemId, "oldAnno"));
+  do_check_true(annosvc.itemHasAnnotation(newItemId, copiedAnno));
+  do_check_eq(annosvc.getItemAnnotation(newItemId, "oldAnno"), "old");
+  annosvc.setItemAnnotation(newItemId, "oldAnno", "new", 0, 0);
+  annosvc.copyItemAnnotations(itemId, newItemId, true);
+  newAnnoNames = annosvc.getItemAnnotationNames(newItemId);
+  do_check_eq(newAnnoNames.length, 2);
+  do_check_true(annosvc.itemHasAnnotation(newItemId, "oldAnno"));
+  do_check_true(annosvc.itemHasAnnotation(newItemId, copiedAnno));
+  do_check_eq(annosvc.getItemAnnotation(newItemId, "oldAnno"), "new");
 
   // test int32 anno type
   var int32Key = testAnnoName + "/types/Int32";
@@ -322,8 +368,8 @@ function run_test() {
 
   // test that getItems/PagesWithAnnotation returns an empty array after
   // removing all items/pages which had the annotation set, see bug 380317.
-  do_check_eq(annosvc.getItemsWithAnnotation(int32Key, { }).length, 0);
-  do_check_eq(annosvc.getPagesWithAnnotation(int32Key, { }).length, 0);
+  do_check_eq(annosvc.getItemsWithAnnotation(int32Key).length, 0);
+  do_check_eq(annosvc.getPagesWithAnnotation(int32Key).length, 0);
 
   // Setting item annotations on invalid item ids should throw
   var invalidIds = [-1, 0, 37643];

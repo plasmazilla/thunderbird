@@ -38,8 +38,12 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsARIAMap.h"
+
 #include "nsIAccessibleRole.h"
 #include "nsIAccessibleStates.h"
+
+#include "nsAccessibilityAtoms.h"
+#include "nsIContent.h"
 
 /**
  *  This list of WAI-defined roles are currently hardcoded.
@@ -140,6 +144,15 @@ nsRoleMapEntry nsARIAMap::gWAIRoleMap[] =
   {
     "dialog",
     nsIAccessibleRole::ROLE_DIALOG,
+    kUseMapRole,
+    eNoValue,
+    eNoAction,
+    eNoLiveAttr,
+    kNoReqStates
+  },
+  {
+    "directory",
+    nsIAccessibleRole::ROLE_LIST,
     kUseMapRole,
     eNoValue,
     eNoAction,
@@ -265,8 +278,8 @@ nsRoleMapEntry nsARIAMap::gWAIRoleMap[] =
   },
   {
     "marquee",
-    nsIAccessibleRole::ROLE_NOTHING,
-    kUseNativeRole,
+    nsIAccessibleRole::ROLE_ANIMATION,
+    kUseMapRole,
     eNoValue,
     eNoAction,
     eOffLiveAttr,
@@ -409,13 +422,15 @@ nsRoleMapEntry nsARIAMap::gWAIRoleMap[] =
     eARIAReadonly
   },
   {
-    "section",
-    nsIAccessibleRole::ROLE_SECTION,
+    "scrollbar",
+    nsIAccessibleRole::ROLE_SCROLLBAR,
     kUseMapRole,
-    eNoValue,
+    eHasValueMinMax,
     eNoAction,
     eNoLiveAttr,
-    kNoReqStates
+    kNoReqStates,
+    eARIAOrientation,
+    eARIAReadonly
   },
   {
     "separator",
@@ -637,6 +652,11 @@ nsStateMapEntry nsARIAMap::gWAIStateMap[] = {
   nsStateMapEntry(&nsAccessibilityAtoms::aria_multiselectable, kBoolType, 0,
                   nsIAccessibleStates::STATE_MULTISELECTABLE | nsIAccessibleStates::STATE_EXTSELECTABLE, 0),
 
+  // eARIAOrientation
+  nsStateMapEntry(&nsAccessibilityAtoms::aria_orientation, eUseFirstState,
+                  "vertical", 0, nsIAccessibleStates::EXT_STATE_VERTICAL,
+                  "horizontal", 0, nsIAccessibleStates::EXT_STATE_HORIZONTAL),
+
   // eARIAPressed
   nsStateMapEntry(&nsAccessibilityAtoms::aria_pressed, kMixedType,
                   nsIAccessibleStates::STATE_CHECKABLE,
@@ -663,17 +683,17 @@ nsStateMapEntry nsARIAMap::gWAIStateMap[] = {
 };
 
 /**
- * Universal states:
+ * Universal (Global) states:
  * The following state rules are applied to any accessible element,
  * whether there is an ARIA role or not:
  */
 eStateMapEntryID nsARIAMap::gWAIUnivStateMap[] = {
-  eARIARequired,
-  eARIAInvalid,
-  eARIAHasPopup,
   eARIABusy,
   eARIADisabled,
-  eARIAExpanded,
+  eARIAExpanded,  // Currently under spec review but precedent exists
+  eARIAHasPopup,  // Note this is technically a "property"
+  eARIAInvalid,
+  eARIARequired,  // XXX not global, Bug 553117
   eARIANone
 };
 
@@ -687,7 +707,7 @@ nsAttributeCharacteristics nsARIAMap::gWAIUnivAttrMap[] = {
   {&nsAccessibilityAtoms::aria_activedescendant,  ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_atomic,                             ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_busy,                               ATTR_VALTOKEN },
-  {&nsAccessibilityAtoms::aria_checked,           ATTR_BYPASSOBJ | ATTR_VALTOKEN }, /* exposes checkable  obj attr */
+  {&nsAccessibilityAtoms::aria_checked,           ATTR_BYPASSOBJ | ATTR_VALTOKEN }, /* exposes checkable obj attr */
   {&nsAccessibilityAtoms::aria_controls,          ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_describedby,       ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_disabled,          ATTR_BYPASSOBJ | ATTR_VALTOKEN },
@@ -696,17 +716,23 @@ nsAttributeCharacteristics nsARIAMap::gWAIUnivAttrMap[] = {
   {&nsAccessibilityAtoms::aria_flowto,            ATTR_BYPASSOBJ                 },  
   {&nsAccessibilityAtoms::aria_grabbed,                            ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_haspopup,          ATTR_BYPASSOBJ | ATTR_VALTOKEN },
+  {&nsAccessibilityAtoms::aria_hidden,                             ATTR_VALTOKEN },/* always expose obj attr */
   {&nsAccessibilityAtoms::aria_invalid,           ATTR_BYPASSOBJ | ATTR_VALTOKEN },
+  {&nsAccessibilityAtoms::aria_label,             ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_labelledby,        ATTR_BYPASSOBJ                 },
+  {&nsAccessibilityAtoms::aria_level,             ATTR_BYPASSOBJ                 }, /* handled via groupPosition */
   {&nsAccessibilityAtoms::aria_live,                               ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_multiline,         ATTR_BYPASSOBJ | ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_multiselectable,   ATTR_BYPASSOBJ | ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_owns,              ATTR_BYPASSOBJ                 },
+  {&nsAccessibilityAtoms::aria_orientation,                        ATTR_VALTOKEN },
+  {&nsAccessibilityAtoms::aria_posinset,          ATTR_BYPASSOBJ                 }, /* handled via groupPosition */
   {&nsAccessibilityAtoms::aria_pressed,           ATTR_BYPASSOBJ | ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_readonly,          ATTR_BYPASSOBJ | ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_relevant,          ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_required,          ATTR_BYPASSOBJ | ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_selected,          ATTR_BYPASSOBJ | ATTR_VALTOKEN },
+  {&nsAccessibilityAtoms::aria_setsize,           ATTR_BYPASSOBJ                 }, /* handled via groupPosition */
   {&nsAccessibilityAtoms::aria_sort,                               ATTR_VALTOKEN },
   {&nsAccessibilityAtoms::aria_valuenow,          ATTR_BYPASSOBJ                 },
   {&nsAccessibilityAtoms::aria_valuemin,          ATTR_BYPASSOBJ                 },
@@ -720,27 +746,49 @@ PRUint32 nsARIAMap::gWAIUnivAttrMapLength = NS_ARRAY_LENGTH(nsARIAMap::gWAIUnivA
 ////////////////////////////////////////////////////////////////////////////////
 // nsStateMapEntry
 
-nsStateMapEntry:: nsStateMapEntry(nsIAtom **aAttrName, eStateValueType aType,
-                                  PRUint32 aPermanentState,
-                                  PRUint32 aTrueState, PRUint32 aTrueExtraState,
-                                  PRUint32 aFalseState, PRUint32 aFalseExtraState,
-                                  PRBool aDefinedIfAbsent) :
-  attributeName(aAttrName), isToken(PR_TRUE), permanentState(aPermanentState)
+nsStateMapEntry::nsStateMapEntry() :
+  mAttributeName(nsnull),
+  mIsToken(PR_FALSE),
+  mPermanentState(0),
+  mValue1(nsnull),
+  mState1(0),
+  mExtraState1(0),
+  mValue2(nsnull),
+  mState2(0),
+  mExtraState2(0),
+  mValue3(nsnull),
+  mState3(0),
+  mExtraState3(0),
+  mDefaultState(0),
+  mDefaultExtraState(0),
+  mDefinedIfAbsent(PR_FALSE)
+{}
+
+nsStateMapEntry::nsStateMapEntry(nsIAtom **aAttrName, eStateValueType aType,
+                                 PRUint32 aPermanentState,
+                                 PRUint32 aTrueState, PRUint32 aTrueExtraState,
+                                 PRUint32 aFalseState, PRUint32 aFalseExtraState,
+                                 PRBool aDefinedIfAbsent) :
+  mAttributeName(aAttrName),
+  mIsToken(PR_TRUE),
+  mPermanentState(aPermanentState),
+  mValue1("false"),
+  mState1(aFalseState),
+  mExtraState1(aFalseExtraState),
+  mValue2(nsnull),
+  mState2(0),
+  mExtraState2(0),
+  mValue3(nsnull),
+  mState3(0),
+  mExtraState3(0),
+  mDefaultState(aTrueState),
+  mDefaultExtraState(aTrueExtraState),
+  mDefinedIfAbsent(aDefinedIfAbsent)
 {
-  value1 = "false";
-  state1 = aFalseState;
-  extraState1 = aFalseExtraState;
-
   if (aType == kMixedType) {
-    value2 = "mixed";
-    state2 = nsIAccessibleStates::STATE_MIXED;
-    extraState2 = 0;
+    mValue2 = "mixed";
+    mState2 = nsIAccessibleStates::STATE_MIXED;
   }
-
-  defaultState = aTrueState;
-  defaultExtraState = aTrueExtraState;
-
-  definedIfAbsent = aDefinedIfAbsent;
 }
 
 nsStateMapEntry::nsStateMapEntry(nsIAtom **aAttrName,
@@ -750,12 +798,32 @@ nsStateMapEntry::nsStateMapEntry(nsIAtom **aAttrName,
                                  PRUint32 aState2, PRUint32 aExtraState2,
                                  const char *aValue3,
                                  PRUint32 aState3, PRUint32 aExtraState3) :
-  attributeName(aAttrName), isToken(PR_FALSE), permanentState(0),
-  value1(aValue1), state1(aState1), extraState1(aExtraState1),
-  value2(aValue2), state2(aState2), extraState2(aExtraState2),
-  value3(aValue3), state3(aState3), extraState3(aExtraState3),
-  defaultState(0), defaultExtraState(0), definedIfAbsent(PR_FALSE)
+  mAttributeName(aAttrName), mIsToken(PR_FALSE), mPermanentState(0),
+  mValue1(aValue1), mState1(aState1), mExtraState1(aExtraState1),
+  mValue2(aValue2), mState2(aState2), mExtraState2(aExtraState2),
+  mValue3(aValue3), mState3(aState3), mExtraState3(aExtraState3),
+  mDefaultState(0), mDefaultExtraState(0), mDefinedIfAbsent(PR_FALSE)
 {
+}
+
+nsStateMapEntry::nsStateMapEntry(nsIAtom **aAttrName,
+                                 EDefaultStateRule aDefaultStateRule,
+                                 const char *aValue1,
+                                 PRUint32 aState1, PRUint32 aExtraState1,
+                                 const char *aValue2,
+                                 PRUint32 aState2, PRUint32 aExtraState2,
+                                 const char *aValue3,
+                                 PRUint32 aState3, PRUint32 aExtraState3) :
+  mAttributeName(aAttrName), mIsToken(PR_TRUE), mPermanentState(0),
+  mValue1(aValue1), mState1(aState1), mExtraState1(aExtraState1),
+  mValue2(aValue2), mState2(aState2), mExtraState2(aExtraState2),
+  mValue3(aValue3), mState3(aState3), mExtraState3(aExtraState3),
+  mDefaultState(0), mDefaultExtraState(0), mDefinedIfAbsent(PR_TRUE)
+{
+  if (aDefaultStateRule == eUseFirstState) {
+    mDefaultState = aState1;
+    mDefaultExtraState = aExtraState1;
+  }
 }
 
 PRBool
@@ -769,17 +837,17 @@ nsStateMapEntry::MapToStates(nsIContent *aContent,
 
   const nsStateMapEntry& entry = nsARIAMap::gWAIStateMap[aStateMapEntryID];
 
-  if (entry.isToken) {
+  if (entry.mIsToken) {
     // If attribute is considered as defined when it's absent then let's act
     // attribute value is "false" supposedly.
-    PRBool hasAttr = aContent->HasAttr(kNameSpaceID_None, *entry.attributeName);
-    if (entry.definedIfAbsent && !hasAttr) {
-      if (entry.permanentState)
-        *aState |= entry.permanentState;
-      if (entry.state1)
-        *aState |= entry.state1;
-      if (aExtraState && entry.extraState1)
-        *aExtraState |= entry.extraState1;
+    PRBool hasAttr = aContent->HasAttr(kNameSpaceID_None, *entry.mAttributeName);
+    if (entry.mDefinedIfAbsent && !hasAttr) {
+      if (entry.mPermanentState)
+        *aState |= entry.mPermanentState;
+      if (entry.mState1)
+        *aState |= entry.mState1;
+      if (aExtraState && entry.mExtraState1)
+        *aExtraState |= entry.mExtraState1;
 
       return PR_TRUE;
     }
@@ -792,66 +860,66 @@ nsStateMapEntry::MapToStates(nsIContent *aContent,
     // attribute, for example: aria-label="" or aria-label="undefined", we will
     // bail out and not explore a state mapping, which is safe.
     if (!hasAttr ||
-        aContent->AttrValueIs(kNameSpaceID_None, *entry.attributeName,
+        aContent->AttrValueIs(kNameSpaceID_None, *entry.mAttributeName,
                               nsAccessibilityAtoms::_empty, eCaseMatters) ||
-        aContent->AttrValueIs(kNameSpaceID_None, *entry.attributeName,
+        aContent->AttrValueIs(kNameSpaceID_None, *entry.mAttributeName,
                               nsAccessibilityAtoms::_undefined, eCaseMatters)) {
 
-      if (entry.permanentState)
-        *aState &= ~entry.permanentState;
+      if (entry.mPermanentState)
+        *aState &= ~entry.mPermanentState;
       return PR_TRUE;
     }
 
-    if (entry.permanentState)
-      *aState |= entry.permanentState;
+    if (entry.mPermanentState)
+      *aState |= entry.mPermanentState;
   }
 
   nsAutoString attrValue;
-  if (!aContent->GetAttr(kNameSpaceID_None, *entry.attributeName, attrValue))
+  if (!aContent->GetAttr(kNameSpaceID_None, *entry.mAttributeName, attrValue))
     return PR_TRUE;
 
   // Apply states for matched value. If no values was matched then apply default
   // states.
   PRBool applyDefaultStates = PR_TRUE;
-  if (entry.value1) {
-    if (attrValue.EqualsASCII(entry.value1)) {
+  if (entry.mValue1) {
+    if (attrValue.EqualsASCII(entry.mValue1)) {
       applyDefaultStates = PR_FALSE;
 
-      if (entry.state1)
-        *aState |= entry.state1;
+      if (entry.mState1)
+        *aState |= entry.mState1;
 
-      if (aExtraState && entry.extraState1)
-        *aExtraState |= entry.extraState1;
+      if (aExtraState && entry.mExtraState1)
+        *aExtraState |= entry.mExtraState1;
 
-    } else if (entry.value2) {
-      if (attrValue.EqualsASCII(entry.value2)) {
+    } else if (entry.mValue2) {
+      if (attrValue.EqualsASCII(entry.mValue2)) {
         applyDefaultStates = PR_FALSE;
 
-        if (entry.state2)
-          *aState |= entry.state2;
+        if (entry.mState2)
+          *aState |= entry.mState2;
 
-        if (aExtraState && entry.extraState2)
-          *aExtraState |= entry.extraState2;
+        if (aExtraState && entry.mExtraState2)
+          *aExtraState |= entry.mExtraState2;
 
-      } else if (entry.value3) {
-        if (attrValue.EqualsASCII(entry.value3)) {
+      } else if (entry.mValue3) {
+        if (attrValue.EqualsASCII(entry.mValue3)) {
           applyDefaultStates = PR_FALSE;
 
-          if (entry.state3)
-            *aState |= entry.state3;
+          if (entry.mState3)
+            *aState |= entry.mState3;
 
-          if (aExtraState && entry.extraState3)
-            *aExtraState |= entry.extraState3;
+          if (aExtraState && entry.mExtraState3)
+            *aExtraState |= entry.mExtraState3;
         }
       }
     }
   }
 
   if (applyDefaultStates) {
-    if (entry.defaultState)
-      *aState |= entry.defaultState;
-    if (entry.defaultExtraState && aExtraState)
-      *aExtraState |= entry.defaultExtraState;
+    if (entry.mDefaultState)
+      *aState |= entry.mDefaultState;
+    if (entry.mDefaultExtraState && aExtraState)
+      *aExtraState |= entry.mDefaultExtraState;
   }
 
   return PR_TRUE;

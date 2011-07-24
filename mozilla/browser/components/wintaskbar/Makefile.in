@@ -50,6 +50,7 @@ MODULE = wintaskbar
 
 EXTRA_JS_MODULES = \
 	WindowsPreviewPerTab.jsm \
+	WindowsJumpLists.jsm \
 	$(NULL)
 
 include $(topsrcdir)/config/rules.mk

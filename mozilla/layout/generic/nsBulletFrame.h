@@ -58,7 +58,7 @@ public:
   virtual ~nsBulletFrame();
 
   // nsIFrame
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
@@ -88,7 +88,7 @@ public:
                           nsresult aStatus,
                           const PRUnichar *aStatusArg);
   NS_IMETHOD FrameChanged(imgIContainer *aContainer,
-                          nsIntRect *aDirtyRect);
+                          const nsIntRect *aDirtyRect);
 
   /* get list item text, without '.' */
   static PRBool AppendCounterText(PRInt32 aListStyleType,
@@ -104,6 +104,7 @@ public:
   
   virtual PRBool IsEmpty();
   virtual PRBool IsSelfEmpty();
+  virtual nscoord GetBaseline() const;
 
 protected:
   void GetDesiredSize(nsPresContext* aPresContext,

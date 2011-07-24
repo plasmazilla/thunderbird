@@ -254,10 +254,10 @@ MimeHeaders_build_heads_list(MimeHeaders *hdrs)
   /* First go through and count up the number of headers in the block.
    */
   end = hdrs->all_headers + hdrs->all_headers_fp;
-  for (s = hdrs->all_headers; s <= end-1; s++)
+  for (s = hdrs->all_headers; s < end; s++)
   {
-    if (s <= (end-1) && s[0] == '\r' && s[1] == '\n') /* CRLF -> LF */
-    s++;
+    if (s < (end-1) && s[0] == '\r' && s[1] == '\n') /* CRLF -> LF */
+      s++;
 
     if ((s[0] == '\r' || s[0] == '\n') &&      /* we're at a newline, and */
       (s >= (end-1) ||            /* we're at EOF, or */
@@ -269,7 +269,7 @@ MimeHeaders_build_heads_list(MimeHeaders *hdrs)
    */
   hdrs->heads = (char **) PR_MALLOC((hdrs->heads_size + 1) * sizeof(char *));
   if (!hdrs->heads)
-  return MIME_OUT_OF_MEMORY;
+    return MIME_OUT_OF_MEMORY;
   memset(hdrs->heads, 0, (hdrs->heads_size + 1) * sizeof(char *));
 
   /* Now make another pass through the headers, and this time, record the
@@ -280,14 +280,14 @@ MimeHeaders_build_heads_list(MimeHeaders *hdrs)
   hdrs->heads[i++] = hdrs->all_headers;
   s = hdrs->all_headers;
 
-  while (s <= end)
+  while (s < end)
   {
   SEARCH_NEWLINE:
-    while (s <= end-1 && *s != '\r' && *s != '\n')
-    s++;
+    while (s < end && *s != '\r' && *s != '\n')
+      s++;
 
-    if (s+1 >= end)
-    break;
+    if (s >= end)
+      break;
 
     /* If "\r\n " or "\r\n\t" is next, that doesn't terminate the header. */
     else if (s+2 < end &&
@@ -299,7 +299,8 @@ MimeHeaders_build_heads_list(MimeHeaders *hdrs)
     }
     /* If "\r " or "\r\t" or "\n " or "\n\t" is next, that doesn't terminate
      the header either. */
-    else if ((s[0] == '\r'  || s[0] == '\n') &&
+    else if (s+1 < end &&
+         (s[0] == '\r'  || s[0] == '\n') &&
          (s[1] == ' ' || s[1] == '\t'))
     {
       s += 2;
@@ -309,13 +310,16 @@ MimeHeaders_build_heads_list(MimeHeaders *hdrs)
     /* At this point, `s' points before a header-terminating newline.
      Move past that newline, and store that new position in `heads'.
      */
-    if (*s == '\r') s++;
-    if (*s == '\n') s++;
+    if (*s == '\r') 
+      s++;
+    if (*s == '\n') 
+      s++;
 
     if (s < end)
     {
       NS_ASSERTION(! (i > hdrs->heads_size), "1.1 <rhp@netscape.com> 19 Mar 1999 12:00");
-      if (i > hdrs->heads_size) return -1;
+      if (i > hdrs->heads_size)
+        return -1;
       hdrs->heads[i++] = s;
     }
   }
@@ -401,14 +405,14 @@ MimeHeaders_get (MimeHeaders *hdrs, const char *header_name,
     char *s;
 
     /* Skip over whitespace after colon. */
-    while (contents <= end && IS_SPACE(contents[0])) {
+    while (contents < end && IS_SPACE(contents[0])) {
       /* Mac or Unix style line break, followed by space or tab. */
-      if (contents <= (end - 1) &&
+      if (contents < (end - 1) &&
          (contents[0] == '\r' || contents[0] == '\n') &&
          (contents[1] == ' ' || contents[1] == '\t'))
         contents += 2;
       /* Windows style line break, followed by space or tab. */
-      else if (contents <= (end - 2) &&
+      else if (contents < (end - 2) &&
                contents[0] == '\r' && contents[1] == '\n' &&
               (contents[2] == ' ' || contents[2] == '\t'))
         contents += 3;
@@ -419,8 +423,10 @@ MimeHeaders_get (MimeHeaders *hdrs, const char *header_name,
          followed by non-whitespace, or a line break followed by
          another line break
        */
-      else
+      else {
+        end = contents;
         break;
+      }
     }
 
     /* If we're supposed to strip at the first token, pull `end' back to
@@ -429,7 +435,7 @@ MimeHeaders_get (MimeHeaders *hdrs, const char *header_name,
     if (strip_p)
       {
       for (s = contents;
-         s <= end && *s != ';' && *s != ',' && !IS_SPACE(*s);
+         s < end && *s != ';' && *s != ',' && !IS_SPACE(*s);
          s++)
         ;
       end = s;
@@ -665,15 +671,16 @@ MIME_StripContinuations(char *original)
   /* Start source and dest pointers at the beginning */
   p1 = p2 = original;
 
-  while(*p2)
-  {
+  while (*p2) {
     /* p2 runs ahead at (CR and/or LF) */
     if ((p2[0] == '\r') || (p2[0] == '\n'))
-    {
-            p2++;
-    } else {
-            *p1++ = *p2++;
-        }
+      p2++;
+    else if (p2 > p1)
+      *p1++ = *p2++;
+    else {
+      p1++;
+      p2++;
+    }
   }
   *p1 = '\0';
 

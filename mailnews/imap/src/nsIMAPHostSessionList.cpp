@@ -45,6 +45,8 @@
 #include "nsCOMPtr.h"
 #include "nsIMsgIncomingServer.h"
 #include "nsIObserverService.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMsgUtils.h"
 
 nsIMAPHostInfo::nsIMAPHostInfo(const char *serverKey,
                                nsIImapIncomingServer *server)
@@ -209,7 +211,7 @@ NS_IMETHODIMP nsIMAPHostSessionList::GetPasswordForHost(const char *serverKey, n
   PR_EnterMonitor(gCachedHostInfoMonitor);
   nsIMAPHostInfo *host = FindHost(serverKey);
   if (host)
-    CopyASCIItoUTF16(host->fCachedPassword, result);
+    CopyASCIItoUTF16(nsDependentCString(host->fCachedPassword), result);
   PR_ExitMonitor(gCachedHostInfoMonitor);
   return (host == NULL) ? NS_ERROR_ILLEGAL_VALUE : NS_OK;
 }
@@ -657,12 +659,12 @@ NS_IMETHODIMP nsIMAPHostSessionList::GetOnlineInboxPathForHost(const char *serve
     ns = host->fNamespaceList->GetDefaultNamespaceOfType(kPersonalNamespace);
     if (ns)
     {
-      CopyASCIItoUTF16(ns->GetPrefix(), result);
+      CopyASCIItoUTF16(nsDependentCString(ns->GetPrefix()), result);
       result.AppendLiteral("INBOX");
     }
   }
   else
-    result.SetLength(0);
+    result.Truncate();
   PR_ExitMonitor(gCachedHostInfoMonitor);
   return (host == NULL) ? NS_ERROR_ILLEGAL_VALUE : NS_OK;
 }
@@ -740,3 +742,15 @@ NS_IMETHODIMP nsIMAPHostSessionList::FindShellInCacheForHost(const char *serverK
 	PR_ExitMonitor(gCachedHostInfoMonitor);
 	return (host == NULL) ? NS_ERROR_ILLEGAL_VALUE : NS_OK;
 }
+
+NS_IMETHODIMP 
+nsIMAPHostSessionList::ClearShellCacheForHost(const char *serverKey)
+{
+  PR_EnterMonitor(gCachedHostInfoMonitor);
+  nsIMAPHostInfo *host = FindHost(serverKey);
+  if (host && host->fShellCache)
+    host->fShellCache->Clear();
+  PR_ExitMonitor(gCachedHostInfoMonitor);
+  return (host == NULL) ? NS_ERROR_ILLEGAL_VALUE : NS_OK;
+}
+

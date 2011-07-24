@@ -1,31 +1,26 @@
-classic.jar:
+browser.jar:
 % skin browser classic/1.0 %skin/classic/browser/
   skin/classic/browser/sanitizeDialog.css                   (sanitizeDialog.css)
 * skin/classic/browser/aboutPrivateBrowsing.css             (aboutPrivateBrowsing.css)
 * skin/classic/browser/aboutSessionRestore.css              (aboutSessionRestore.css)
   skin/classic/browser/aboutSessionRestore-window-icon.png
   skin/classic/browser/aboutCertError.css                   (aboutCertError.css)
-  skin/classic/browser/bookmark_toolbar_background.png
-  skin/classic/browser/bookmark-open-left.png
-  skin/classic/browser/bookmark-open-mid.png
-  skin/classic/browser/bookmark-open-right.png
+#ifdef MOZ_SERVICES_SYNC
+  skin/classic/browser/aboutSyncTabs.css
+#endif
+  skin/classic/browser/actionicon-tab.png
 * skin/classic/browser/browser.css                          (browser.css)
 * skin/classic/browser/engineManager.css                    (engineManager.css)
-  skin/classic/browser/feed-icons.png
   skin/classic/browser/fullscreen-video.css
-  skin/classic/browser/Geo.png
+  skin/classic/browser/Geolocation-16.png
+  skin/classic/browser/Geolocation-64.png
   skin/classic/browser/Go-arrow.png
   skin/classic/browser/home.png
-  skin/classic/browser/hud-panel.png
-  skin/classic/browser/hud-style-button-middle-background.png
   skin/classic/browser/hud-style-check-box-checked.png
   skin/classic/browser/hud-style-check-box-empty.png
   skin/classic/browser/hud-style-dropmarker-double-arrows.png
   skin/classic/browser/hud-style-expander-closed.png
   skin/classic/browser/hud-style-expander-open.png
-  skin/classic/browser/hud-style-new-folder-bar-background-active.png
-  skin/classic/browser/hud-style-new-folder-bar-background.gif
-  skin/classic/browser/hud-style-new-folder-bar-background.png
   skin/classic/browser/hud-style-new-folder-plus-sign.png
   skin/classic/browser/hud-style-twisties.png
   skin/classic/browser/identity.png
@@ -37,21 +32,23 @@ classic.jar:
   skin/classic/browser/page-livemarks.png
   skin/classic/browser/livemark-item.png
   skin/classic/browser/pageInfo.css
-  skin/classic/browser/Popup-blocked.png
   skin/classic/browser/Privacy-16.png
   skin/classic/browser/Privacy-48.png
+  skin/classic/browser/reload-stop-go.png
+  skin/classic/browser/searchbar-dropmarker.png
   skin/classic/browser/searchbar.css
   skin/classic/browser/Search.png
-  skin/classic/browser/Search-addengines.png
-  skin/classic/browser/Search-bar.png
   skin/classic/browser/section_collapsed.png
+  skin/classic/browser/section_collapsed-rtl.png
   skin/classic/browser/section_expanded.png
   skin/classic/browser/Secure-Glyph-White.png
-  skin/classic/browser/Secure-statusbar.png
-  skin/classic/browser/Secure-statusbar-broken.png
   skin/classic/browser/Secure-background.gif
   skin/classic/browser/Toolbar.png
+  skin/classic/browser/toolbarbutton-dropmarker.png
+  skin/classic/browser/urlbar-favicon-glow.png
+  skin/classic/browser/urlbar-popup-blocked.png
   skin/classic/browser/feeds/subscribe.css                  (feeds/subscribe.css)
+  skin/classic/browser/feeds/subscribe-ui.css               (feeds/subscribe-ui.css)
   skin/classic/browser/feeds/feedIcon.png                   (feeds/feedIcon.png)
   skin/classic/browser/feeds/feedIcon16.png                 (feeds/feedIcon16.png)
   skin/classic/browser/feeds/videoFeedIcon.png              (feeds/videoFeedIcon.png)
@@ -59,34 +56,22 @@ classic.jar:
   skin/classic/browser/feeds/audioFeedIcon.png              (feeds/audioFeedIcon.png)
   skin/classic/browser/feeds/audioFeedIcon16.png            (feeds/audioFeedIcon16.png)
   skin/classic/browser/setDesktopBackground.css
+  skin/classic/browser/inspector.css
   skin/classic/browser/monitor.png
   skin/classic/browser/monitor_16-10.png
   skin/classic/browser/places/allBookmarks.png              (places/allBookmarks.png)
-  skin/classic/browser/places/places.css                    (places/places.css)
+* skin/classic/browser/places/places.css                    (places/places.css)
 * skin/classic/browser/places/organizer.css                 (places/organizer.css)
   skin/classic/browser/places/query.png                     (places/query.png)
   skin/classic/browser/places/livemarkItem.png              (places/livemarkItem.png)
   skin/classic/browser/places/bookmarksMenu.png             (places/bookmarksMenu.png)
   skin/classic/browser/places/bookmarksToolbar.png          (places/bookmarksToolbar.png)
   skin/classic/browser/places/history.png                   (places/history.png)
-  skin/classic/browser/places/menubutton-end-pressed.png    (places/menubutton-end-pressed.png)
-  skin/classic/browser/places/menubutton-end-pressed-rtl.png (places/menubutton-end-pressed-rtl.png)
-  skin/classic/browser/places/menubutton-mid-pressed.png    (places/menubutton-mid-pressed.png)
-  skin/classic/browser/places/menubutton-start-pressed.png  (places/menubutton-start-pressed.png)
-  skin/classic/browser/places/menubutton-start-pressed-rtl.png (places/menubutton-start-pressed-rtl.png)
   skin/classic/browser/places/star-icons.png                (places/star-icons.png)
-  skin/classic/browser/places/toolbar-button-backup.png     (places/toolbar-button-backup.png)
-  skin/classic/browser/places/toolbar-button-organize.png   (places/toolbar-button-organize.png)
-  skin/classic/browser/places/toolbar-button-view.png       (places/toolbar-button-view.png)
+  skin/classic/browser/places/toolbar.png                   (places/toolbar.png)
   skin/classic/browser/places/toolbarDropMarker.png         (places/toolbarDropMarker.png)
   skin/classic/browser/places/folderDropArrow.png           (places/folderDropArrow.png)
-  skin/classic/browser/places/livemarkFolder.png            (places/livemarkFolder.png)
-  skin/classic/browser/places/back-forward.png              (places/back-forward.png)
   skin/classic/browser/places/editBookmarkOverlay.css       (places/editBookmarkOverlay.css)
-  skin/classic/browser/places/menubutton-start.png          (places/menubutton-start.png)
-  skin/classic/browser/places/menubutton-start-rtl.png      (places/menubutton-start-rtl.png)
-  skin/classic/browser/places/menubutton-end.png            (places/menubutton-end.png)
-  skin/classic/browser/places/menubutton-end-rtl.png        (places/menubutton-end-rtl.png)
   skin/classic/browser/places/minus.png                     (places/minus.png)
   skin/classic/browser/places/minus-active.png              (places/minus-active.png)
   skin/classic/browser/places/plus.png                      (places/plus.png)
@@ -107,62 +92,45 @@ classic.jar:
   skin/classic/browser/preferences/alwaysAsk.png            (preferences/alwaysAsk.png)
   skin/classic/browser/preferences/application.png          (preferences/application.png)
   skin/classic/browser/preferences/Options.png              (preferences/Options.png)
+#ifdef MOZ_SERVICES_SYNC
+  skin/classic/browser/preferences/Options-sync.png         (preferences/Options-sync.png)
+#endif
   skin/classic/browser/preferences/saveFile.png             (preferences/saveFile.png)
-  skin/classic/browser/preferences/preferences.css          (preferences/preferences.css)
+* skin/classic/browser/preferences/preferences.css          (preferences/preferences.css)
   skin/classic/browser/preferences/applications.css         (preferences/applications.css)
   skin/classic/browser/tabbrowser/alltabs-box-bkgnd-icon.png             (tabbrowser/alltabs-box-bkgnd-icon.png)
-  skin/classic/browser/tabbrowser/alltabs-box-overflow-bkgnd-animate.png (tabbrowser/alltabs-box-overflow-bkgnd-animate.png)
   skin/classic/browser/tabbrowser/newtab.png                             (tabbrowser/newtab.png)
+  skin/classic/browser/tabbrowser/connecting.png                         (tabbrowser/connecting.png)
+  skin/classic/browser/tabbrowser/loading.png                            (tabbrowser/loading.png)
   skin/classic/browser/tabbrowser/tab-arrow-left.png                     (tabbrowser/tab-arrow-left.png)
   skin/classic/browser/tabbrowser/tab-arrow-right.png                    (tabbrowser/tab-arrow-right.png)
-  skin/classic/browser/tabbrowser/tabbrowser-tabs-bkgnd.png              (tabbrowser/tabbrowser-tabs-bkgnd.png)
+  skin/classic/browser/tabbrowser/tabbar-bottom-bg-active.png            (tabbrowser/tabbar-bottom-bg-active.png)
+  skin/classic/browser/tabbrowser/tabbar-bottom-bg-inactive.png          (tabbrowser/tabbar-bottom-bg-inactive.png)
+  skin/classic/browser/tabbrowser/tab-bottom-normal-active.png           (tabbrowser/tab-bottom-normal-active.png)
+  skin/classic/browser/tabbrowser/tab-bottom-hover-active.png            (tabbrowser/tab-bottom-hover-active.png)
+  skin/classic/browser/tabbrowser/tab-bottom-selected-active.png         (tabbrowser/tab-bottom-selected-active.png)
+  skin/classic/browser/tabbrowser/tabbar-top-bg-active.png               (tabbrowser/tabbar-top-bg-active.png)
+  skin/classic/browser/tabbrowser/tabbar-top-bg-inactive.png             (tabbrowser/tabbar-top-bg-inactive.png)
+  skin/classic/browser/tabbrowser/tab-top-normal-active.png              (tabbrowser/tab-top-normal-active.png)
+  skin/classic/browser/tabbrowser/tab-top-hover-active.png               (tabbrowser/tab-top-hover-active.png)
+  skin/classic/browser/tabbrowser/tab-top-selected-active.png            (tabbrowser/tab-top-selected-active.png)
+  skin/classic/browser/tabbrowser/tab-overflow-border.png                (tabbrowser/tab-overflow-border.png)
   skin/classic/browser/tabbrowser/tabDragIndicator.png                   (tabbrowser/tabDragIndicator.png)
-  skin/classic/browser/tabbrowser/tab-bkgnd.png                          (tabbrowser/tab-bkgnd.png)
-  skin/classic/browser/urlbar/endcap.png                                 (urlbar/endcap.png)
-  skin/classic/browser/urlbar/endcap-rtl.png                             (urlbar/endcap-rtl.png)
-  skin/classic/browser/urlbar/endcap-focused.png                         (urlbar/endcap-focused.png)
-  skin/classic/browser/urlbar/endcap-focused-graphite.png                (urlbar/endcap-focused-graphite.png)
-  skin/classic/browser/urlbar/endcap-focused-graphite-rtl.png            (urlbar/endcap-focused-graphite-rtl.png)
-  skin/classic/browser/urlbar/endcap-focused-rtl.png                     (urlbar/endcap-focused-rtl.png)
-  skin/classic/browser/urlbar/startcap.png                               (urlbar/startcap.png)
-  skin/classic/browser/urlbar/startcap-rtl.png                           (urlbar/startcap-rtl.png)
-  skin/classic/browser/urlbar/startcap-focused.png                       (urlbar/startcap-focused.png)
-  skin/classic/browser/urlbar/startcap-focused-graphite.png              (urlbar/startcap-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-focused-graphite-rtl.png          (urlbar/startcap-focused-graphite-rtl.png)
-  skin/classic/browser/urlbar/startcap-focused-rtl.png                   (urlbar/startcap-focused-rtl.png)
-  skin/classic/browser/urlbar/startcap-secure-start.png                  (urlbar/startcap-secure-start.png)
-  skin/classic/browser/urlbar/startcap-secure-mid.png                    (urlbar/startcap-secure-mid.png)
-  skin/classic/browser/urlbar/startcap-secure-end.png                    (urlbar/startcap-secure-end.png)
-  skin/classic/browser/urlbar/startcap-secure-start-active.png           (urlbar/startcap-secure-start-active.png)
-  skin/classic/browser/urlbar/startcap-secure-mid-active.png             (urlbar/startcap-secure-mid-active.png)
-  skin/classic/browser/urlbar/startcap-secure-end-active.png             (urlbar/startcap-secure-end-active.png)
-  skin/classic/browser/urlbar/startcap-secure-start-focused.png          (urlbar/startcap-secure-start-focused.png)
-  skin/classic/browser/urlbar/startcap-secure-start-focused-graphite.png (urlbar/startcap-secure-start-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-secure-mid-focused.png            (urlbar/startcap-secure-mid-focused.png)
-  skin/classic/browser/urlbar/startcap-secure-mid-focused-graphite.png   (urlbar/startcap-secure-mid-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-secure-end-focused.png            (urlbar/startcap-secure-end-focused.png)
-  skin/classic/browser/urlbar/startcap-secure-end-focused-graphite.png   (urlbar/startcap-secure-end-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-verified-start.png                (urlbar/startcap-verified-start.png)
-  skin/classic/browser/urlbar/startcap-verified-mid.png                  (urlbar/startcap-verified-mid.png)
-  skin/classic/browser/urlbar/startcap-verified-end.png                  (urlbar/startcap-verified-end.png)
-  skin/classic/browser/urlbar/startcap-verified-start-active.png         (urlbar/startcap-verified-start-active.png)
-  skin/classic/browser/urlbar/startcap-verified-mid-active.png           (urlbar/startcap-verified-mid-active.png)
-  skin/classic/browser/urlbar/startcap-verified-end-active.png           (urlbar/startcap-verified-end-active.png)
-  skin/classic/browser/urlbar/startcap-verified-start-focused.png        (urlbar/startcap-verified-start-focused.png)
-  skin/classic/browser/urlbar/startcap-verified-start-focused-graphite.png (urlbar/startcap-verified-start-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-verified-mid-focused.png          (urlbar/startcap-verified-mid-focused.png)
-  skin/classic/browser/urlbar/startcap-verified-mid-focused-graphite.png (urlbar/startcap-verified-mid-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-verified-end-focused.png          (urlbar/startcap-verified-end-focused.png)
-  skin/classic/browser/urlbar/startcap-verified-end-focused-graphite.png (urlbar/startcap-verified-end-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-secure.png                        (urlbar/startcap-secure.png)
-  skin/classic/browser/urlbar/startcap-active.png                        (urlbar/startcap-active.png)
-  skin/classic/browser/urlbar/startcap-active-rtl.png                    (urlbar/startcap-active-rtl.png)
-  skin/classic/browser/urlbar/startcap-active-focused.png                (urlbar/startcap-active-focused.png)
-  skin/classic/browser/urlbar/startcap-active-focused-graphite.png       (urlbar/startcap-active-focused-graphite.png)
-  skin/classic/browser/urlbar/startcap-active-focused-graphite-rtl.png   (urlbar/startcap-active-focused-graphite-rtl.png)
-  skin/classic/browser/urlbar/startcap-active-focused-rtl.png            (urlbar/startcap-active-focused-rtl.png)
-  skin/classic/browser/urlbar/startcap-secure-active.png                 (urlbar/startcap-secure-active.png)
-  skin/classic/browser/urlbar/urlbar-favicon-glow.png                    (urlbar/urlbar-favicon-glow.png)
-  skin/classic/browser/urlbar/textfield-mid.png                          (urlbar/textfield-mid.png)
-  skin/classic/browser/urlbar/textfield-mid-focused.png                  (urlbar/textfield-mid-focused.png)
-  skin/classic/browser/urlbar/textfield-mid-focused-graphite.png         (urlbar/textfield-mid-focused-graphite.png)
+  skin/classic/browser/tabview/close.png                    (tabview/close.png)
+  skin/classic/browser/tabview/edit-light.png               (tabview/edit-light.png)
+  skin/classic/browser/tabview/new-tab.png                  (tabview/new-tab.png)
+  skin/classic/browser/tabview/search.png                   (tabview/search.png)
+  skin/classic/browser/tabview/stack-expander.png           (tabview/stack-expander.png)
+  skin/classic/browser/tabview/tabview.png                  (tabview/tabview.png)
+  skin/classic/browser/tabview/tabview.css                  (tabview/tabview.css)
+#ifdef MOZ_SERVICES_SYNC
+  skin/classic/browser/sync-throbber.png
+  skin/classic/browser/sync-16.png
+  skin/classic/browser/sync-32.png
+  skin/classic/browser/sync-bg.png
+  skin/classic/browser/sync-desktopIcon.png
+  skin/classic/browser/sync-mobileIcon.png
+  skin/classic/browser/syncSetup.css
+  skin/classic/browser/syncCommon.css
+  skin/classic/browser/syncQuota.css
+#endif

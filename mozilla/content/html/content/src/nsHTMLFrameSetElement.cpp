@@ -39,7 +39,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsIFrameSetElement.h"
 #include "nsIHTMLDocument.h"
 #include "nsIDocument.h"
@@ -49,7 +48,7 @@ class nsHTMLFrameSetElement : public nsGenericHTMLElement,
                               public nsIFrameSetElement
 {
 public:
-  nsHTMLFrameSetElement(nsINodeInfo *aNodeInfo);
+  nsHTMLFrameSetElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLFrameSetElement();
 
   // nsISupports
@@ -90,7 +89,7 @@ public:
                                               PRInt32 aModType) const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
-
+  virtual nsXPCClassInfo* GetClassInfo();
 private:
   nsresult ParseRowCol(const nsAString& aValue,
                        PRInt32&         aNumSpecs,
@@ -122,7 +121,7 @@ private:
 NS_IMPL_NS_NEW_HTML_ELEMENT(FrameSet)
 
 
-nsHTMLFrameSetElement::nsHTMLFrameSetElement(nsINodeInfo *aNodeInfo)
+nsHTMLFrameSetElement::nsHTMLFrameSetElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo), mNumRows(0), mNumCols(0),
     mCurrentRowColHint(NS_STYLE_HINT_REFLOW)
 {
@@ -136,6 +135,8 @@ nsHTMLFrameSetElement::~nsHTMLFrameSetElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLFrameSetElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLFrameSetElement, nsGenericElement) 
 
+
+DOMCI_NODE_DATA(HTMLFrameSetElement, nsHTMLFrameSetElement)
 
 // QueryInterface implementation for nsHTMLFrameSetElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLFrameSetElement)
@@ -270,7 +271,7 @@ nsHTMLFrameSetElement::ParseAttribute(PRInt32 aNamespaceID,
 {
   if (aNamespaceID == kNameSpaceID_None) {
     if (aAttribute == nsGkAtoms::bordercolor) {
-      return aResult.ParseColor(aValue, GetOwnerDoc());
+      return aResult.ParseColor(aValue);
     }
     if (aAttribute == nsGkAtoms::frameborder) {
       return nsGenericHTMLElement::ParseFrameborderValue(aValue, aResult);

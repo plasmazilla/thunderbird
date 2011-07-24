@@ -42,11 +42,20 @@
 #include "nsISMILType.h"
 #include "nsSMILNullType.h"
 
+/**
+ * Although objects of this type are generally only created on the stack and
+ * only exist during the taking of a new time sample, that's not always the
+ * case. The nsSMILValue objects obtained from attributes' base values are
+ * cached so that the SMIL engine can make certain optimizations during a
+ * sample if the base value has not changed since the last sample (potentially
+ * avoiding recomposing). These nsSMILValue objects typically live much longer
+ * than a single sample.
+ */
 class nsSMILValue
 {
 public:
   nsSMILValue() : mU(), mType(&nsSMILNullType::sSingleton) { }
-  nsSMILValue(const nsISMILType* aType);
+  explicit nsSMILValue(const nsISMILType* aType);
   nsSMILValue(const nsSMILValue& aVal);
 
   ~nsSMILValue()
@@ -56,10 +65,20 @@ public:
 
   const nsSMILValue& operator=(const nsSMILValue& aVal);
 
+  // Equality operators. These are allowed to be conservative (return PR_FALSE
+  // more than you'd expect) - see comment above nsISMILType::IsEqual.
+  PRBool operator==(const nsSMILValue& aVal) const;
+  PRBool operator!=(const nsSMILValue& aVal) const {
+    return !(*this == aVal);
+  }
+
   PRBool IsNull() const
   {
     return (mType == &nsSMILNullType::sSingleton);
   }
+
+  // Swaps the member data (mU & mPtr) of |this| with |aOther|
+  void     Swap(nsSMILValue& aOther);
 
   nsresult Add(const nsSMILValue& aValueToAdd, PRUint32 aCount = 1);
   nsresult SandwichAdd(const nsSMILValue& aValueToAdd);
@@ -69,11 +88,23 @@ public:
                        nsSMILValue& aResult) const;
 
   union {
+    PRBool mBool;
+    PRUint64 mUint;
     PRInt64 mInt;
     double mDouble;
+    struct {
+      float mAngle;
+      PRUint16 mUnit;
+      PRUint16 mOrientType;
+    } mOrient;
     void* mPtr;
   } mU;
   const nsISMILType* mType;
+
+protected:
+  void InitAndCheckPostcondition(const nsISMILType* aNewType);
+  void DestroyAndCheckPostcondition();
+  void DestroyAndReinit(const nsISMILType* aNewType);
 };
 
 #endif  // NS_SMILVALUE_H_

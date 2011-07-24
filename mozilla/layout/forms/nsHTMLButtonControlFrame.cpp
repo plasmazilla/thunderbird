@@ -64,7 +64,7 @@
 #include "nsIDOMHTMLInputElement.h"
 #include "nsStyleSet.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 #include "nsDisplayList.h"
 
@@ -86,10 +86,10 @@ nsHTMLButtonControlFrame::~nsHTMLButtonControlFrame()
 }
 
 void
-nsHTMLButtonControlFrame::Destroy()
+nsHTMLButtonControlFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   nsFormControlFrame::RegUnRegAccessKey(static_cast<nsIFrame*>(this), PR_FALSE);
-  nsHTMLContainerFrame::Destroy();
+  nsHTMLContainerFrame::DestroyFrom(aDestructRoot);
 }
 
 NS_IMETHODIMP
@@ -110,21 +110,17 @@ NS_QUERYFRAME_HEAD(nsHTMLButtonControlFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsHTMLContainerFrame)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsHTMLButtonControlFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsHTMLButtonControlFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    nsIContent* content = GetContent();
-    nsCOMPtr<nsIDOMHTMLButtonElement> buttonElement(do_QueryInterface(content));
-    if (buttonElement) //If turned XBL-base form control off, the frame contains HTML 4 button
-      return accService->CreateHTML4ButtonAccessible(static_cast<nsIFrame*>(this), aAccessible);
-    nsCOMPtr<nsIDOMHTMLInputElement> inputElement(do_QueryInterface(content));
-    if (inputElement) //If turned XBL-base form control on, the frame contains normal HTML button
-      return accService->CreateHTMLButtonAccessible(static_cast<nsIFrame*>(this), aAccessible);
+    return IsInput() ?
+      accService->CreateHTMLButtonAccessible(mContent, PresContext()->PresShell()) :
+      accService->CreateHTML4ButtonAccessible(mContent, PresContext()->PresShell());
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
 
@@ -185,8 +181,10 @@ nsHTMLButtonControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     nsMargin border = GetStyleBorder()->GetActualBorder();
     nsRect rect(aBuilder->ToReferenceFrame(this), GetSize());
     rect.Deflate(border);
-  
-    nsresult rv = OverflowClip(aBuilder, set, aLists, rect);
+    nscoord radii[8];
+    GetPaddingBoxBorderRadii(radii);
+
+    nsresult rv = OverflowClip(aBuilder, set, aLists, rect, radii);
     NS_ENSURE_SUCCESS(rv, rv);
   } else {
     set.MoveTo(aLists);
@@ -196,7 +194,7 @@ nsHTMLButtonControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // to draw border when selected in editor
-  return DisplaySelectionOverlay(aBuilder, aLists);
+  return DisplaySelectionOverlay(aBuilder, aLists.Content());
 }
 
 nscoord
@@ -282,9 +280,8 @@ nsHTMLButtonControlFrame::Reflow(nsPresContext* aPresContext,
   aDesiredSize.ascent +=
     aReflowState.mComputedBorderPadding.top + focusPadding.top;
 
-  aDesiredSize.mOverflowArea =
-    nsRect(0, 0, aDesiredSize.width, aDesiredSize.height);
-  ConsiderChildOverflow(aDesiredSize.mOverflowArea, firstKid);
+  aDesiredSize.SetOverflowAreasToDesiredBounds();
+  ConsiderChildOverflow(aDesiredSize.mOverflowAreas, firstKid);
   FinishAndStoreOverflow(&aDesiredSize);
 
   aStatus = NS_FRAME_COMPLETE;
@@ -320,12 +317,12 @@ nsHTMLButtonControlFrame::ReflowButtonContents(nsPresContext* aPresContext,
     NS_ASSERTION(extraright >=0, "How'd that happen?");
     
     // Do not allow the extras to be bigger than the relevant padding
-    extraleft = PR_MIN(extraleft, aReflowState.mComputedPadding.left);
-    extraright = PR_MIN(extraright, aReflowState.mComputedPadding.right);
+    extraleft = NS_MIN(extraleft, aReflowState.mComputedPadding.left);
+    extraright = NS_MIN(extraright, aReflowState.mComputedPadding.right);
     xoffset -= extraleft;
     availSize.width += extraleft + extraright;
   }
-  availSize.width = PR_MAX(availSize.width,0);
+  availSize.width = NS_MAX(availSize.width,0);
   
   nsHTMLReflowState reflowState(aPresContext, aReflowState, aFirstKid,
                                 availSize);
@@ -339,7 +336,7 @@ nsHTMLButtonControlFrame::ReflowButtonContents(nsPresContext* aPresContext,
   // XXXbz this assumes border-box sizing.
   nscoord minInternalHeight = aReflowState.mComputedMinHeight -
     aReflowState.mComputedBorderPadding.TopBottom();
-  minInternalHeight = PR_MAX(minInternalHeight, 0);
+  minInternalHeight = NS_MAX(minInternalHeight, 0);
 
   // center child vertically
   nscoord yoff = 0;

@@ -70,6 +70,9 @@
 // This bit is set to indicate that the text may be part of a selection.
 #define NS_TEXT_IN_SELECTION (1 << (NODE_TYPE_SPECIFIC_BITS_OFFSET + 2))
 
+// Make sure we have enough space for those bits
+PR_STATIC_ASSERT(NODE_TYPE_SPECIFIC_BITS_OFFSET + 2 < 32);
+
 class nsIDOMAttr;
 class nsIDOMEventListener;
 class nsIDOMNodeList;
@@ -83,7 +86,7 @@ class nsGenericDOMDataNode : public nsIContent
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
-  nsGenericDOMDataNode(nsINodeInfo *aNodeInfo);
+  nsGenericDOMDataNode(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsGenericDOMDataNode();
 
   // Implementation for nsIDOMNode
@@ -110,52 +113,28 @@ public:
   nsresult InsertBefore(nsIDOMNode* aNewChild, nsIDOMNode* aRefChild,
                         nsIDOMNode** aReturn)
   {
-    NS_ENSURE_ARG_POINTER(aReturn);
-    *aReturn = nsnull;
-    return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
+    return ReplaceOrInsertBefore(PR_FALSE, aNewChild, aRefChild, aReturn);
   }
   nsresult ReplaceChild(nsIDOMNode* aNewChild, nsIDOMNode* aOldChild,
                         nsIDOMNode** aReturn)
   {
-    NS_ENSURE_ARG_POINTER(aReturn);
-    *aReturn = nsnull;
-
-    /*
-     * Data nodes can't have children.
-     */
-    return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
+    return ReplaceOrInsertBefore(PR_TRUE, aNewChild, aOldChild, aReturn);
   }
   nsresult RemoveChild(nsIDOMNode* aOldChild, nsIDOMNode** aReturn)
   {
-    NS_ENSURE_ARG_POINTER(aReturn);
-    *aReturn = nsnull;
-
-    /*
-     * Data nodes can't have children, i.e. aOldChild can't be a child of
-     * this node.
-     */
-    return NS_ERROR_DOM_NOT_FOUND_ERR;
+    return nsINode::RemoveChild(aOldChild, aReturn);
   }
   nsresult AppendChild(nsIDOMNode* aNewChild, nsIDOMNode** aReturn)
   {
-    NS_ENSURE_ARG_POINTER(aReturn);
-    *aReturn = nsnull;
-    return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
+    return InsertBefore(aNewChild, nsnull, aReturn);
   }
   nsresult GetNamespaceURI(nsAString& aNamespaceURI);
   nsresult GetLocalName(nsAString& aLocalName);
   nsresult GetPrefix(nsAString& aPrefix);
-  nsresult SetPrefix(const nsAString& aPrefix);
   nsresult Normalize();
   nsresult IsSupported(const nsAString& aFeature,
                        const nsAString& aVersion,
                        PRBool* aReturn);
-  nsresult GetBaseURI(nsAString& aURI);
-
-  nsresult LookupPrefix(const nsAString& aNamespaceURI,
-                        nsAString& aPrefix);
-  nsresult LookupNamespaceURI(const nsAString& aNamespacePrefix,
-                              nsAString& aNamespaceURI);
 
   // Implementation for nsIDOMCharacterData
   nsresult GetData(nsAString& aData) const;
@@ -192,6 +171,20 @@ public:
   {
     return nsContentUtils::GetContextForEventHandlers(this, aRv);
   }
+  virtual void GetTextContent(nsAString &aTextContent)
+  {
+#ifdef DEBUG
+    nsresult rv =
+#endif
+    GetNodeValue(aTextContent);
+    NS_ASSERTION(NS_SUCCEEDED(rv), "GetNodeValue() failed?");
+  }
+  virtual nsresult SetTextContent(const nsAString& aTextContent)
+  {
+    // Batch possible DOMSubtreeModified events.
+    mozAutoSubtreeModified subtree(GetOwnerDoc(), nsnull);
+    return SetNodeValue(aTextContent);
+  }
 
   // Implementation for nsIContent
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
@@ -199,6 +192,8 @@ public:
                               PRBool aCompileEventHandlers);
   virtual void UnbindFromTree(PRBool aDeep = PR_TRUE,
                               PRBool aNullParent = PR_TRUE);
+
+  virtual already_AddRefed<nsINodeList> GetChildren(PRUint32 aFilter);
 
   virtual nsIAtom *GetIDAttributeName() const;
   virtual already_AddRefed<nsINodeInfo> GetExistingAttrNameFromQName(const nsAString& aStr) const;
@@ -234,10 +229,14 @@ public:
   virtual void SaveSubtreeState();
 
 #ifdef MOZ_SMIL
-  virtual nsISMILAttr* GetAnimatedAttr(const nsIAtom* /*aName*/)
+  virtual nsISMILAttr* GetAnimatedAttr(PRInt32 /*aNamespaceID*/, nsIAtom* /*aName*/)
   {
     return nsnull;
   }
+  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle();
+  virtual mozilla::css::StyleRule* GetSMILOverrideStyleRule();
+  virtual nsresult SetSMILOverrideStyleRule(mozilla::css::StyleRule* aStyleRule,
+                                            PRBool aNotify);
 #endif // MOZ_SMIL
 
 #ifdef DEBUG
@@ -247,17 +246,13 @@ public:
 
   virtual nsIContent *GetBindingParent() const;
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
-
-  virtual already_AddRefed<nsIURI> GetBaseURI() const;
   virtual PRBool IsLink(nsIURI** aURI) const;
 
-  virtual PRBool MayHaveFrame() const;
-
-  virtual nsIAtom* GetID() const;
+  virtual nsIAtom* DoGetID() const;
   virtual const nsAttrValue* DoGetClasses() const;
   NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker);
-  virtual nsICSSStyleRule* GetInlineStyleRule();
-  NS_IMETHOD SetInlineStyleRule(nsICSSStyleRule* aStyleRule, PRBool aNotify);
+  virtual mozilla::css::StyleRule* GetInlineStyleRule();
+  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, PRBool aNotify);
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
   virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
                                               PRInt32 aModType) const;
@@ -287,6 +282,13 @@ public:
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsGenericDOMDataNode)
 
 protected:
+  virtual mozilla::dom::Element* GetNameSpaceElement()
+  {
+    nsINode *parent = GetNodeParent();
+
+    return parent && parent->IsElement() ? parent->AsElement() : nsnull;
+  }
+
   /**
    * There are a set of DOM- and scripting-specific instance variables
    * that may only be instantiated when a content object is accessed
@@ -298,8 +300,8 @@ protected:
   class nsDataSlots : public nsINode::nsSlots
   {
   public:
-    nsDataSlots(PtrBits aFlags)
-      : nsINode::nsSlots(aFlags),
+    nsDataSlots()
+      : nsINode::nsSlots(),
         mBindingParent(nsnull)
     {
     }
@@ -335,10 +337,6 @@ protected:
                                                PRInt32 aIndex,
                                                PRUint32 aCount);
 
-  nsresult GetWholeText(nsAString& aWholeText);
-
-  nsresult ReplaceWholeText(const nsAFlatString& aContent, nsIDOMText **aReturn);
-
   nsresult SetTextInternal(PRUint32 aOffset, PRUint32 aCount,
                            const PRUnichar* aBuffer, PRUint32 aLength,
                            PRBool aNotify);
@@ -357,9 +355,27 @@ protected:
   nsTextFragment mText;
 
 private:
-  void SetBidiStatus();
+  void UpdateBidiStatus(const PRUnichar* aBuffer, PRUint32 aLength);
 
   already_AddRefed<nsIAtom> GetCurrentValueAtom();
+};
+
+class nsGenericTextNode : public nsGenericDOMDataNode
+{
+public:
+  nsGenericTextNode(already_AddRefed<nsINodeInfo> aNodeInfo)
+  : nsGenericDOMDataNode(aNodeInfo)
+  {
+  }
+
+  PRBool IsElementContentWhitespace()
+  {
+    return TextIsOnlyWhitespace();
+  }
+  nsresult GetWholeText(nsAString& aWholeText);
+
+  nsIContent* ReplaceWholeText(const nsAFlatString& aContent,
+                               nsresult *aResult);
 };
 
 /** Tearoff class for the nsIDOM3Text portion of nsGenericDOMDataNode. */
@@ -372,7 +388,7 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS(nsText3Tearoff)
 
-  nsText3Tearoff(nsGenericDOMDataNode *aNode) : mNode(aNode)
+  nsText3Tearoff(nsGenericTextNode *aNode) : mNode(aNode)
   {
   }
 
@@ -380,7 +396,7 @@ protected:
   virtual ~nsText3Tearoff() {}
 
 private:
-  nsRefPtr<nsGenericDOMDataNode> mNode;
+  nsRefPtr<nsGenericTextNode> mNode;
 };
 
 //----------------------------------------------------------------------
@@ -454,9 +470,6 @@ private:
   NS_IMETHOD GetPrefix(nsAString& aPrefix) {                                \
     return nsGenericDOMDataNode::GetPrefix(aPrefix);                        \
   }                                                                         \
-  NS_IMETHOD SetPrefix(const nsAString& aPrefix) {                          \
-    return nsGenericDOMDataNode::SetPrefix(aPrefix);                        \
-  }                                                                         \
   NS_IMETHOD Normalize() {                                                  \
     return NS_OK;                                                           \
   }                                                                         \
@@ -466,7 +479,7 @@ private:
     return nsGenericDOMDataNode::IsSupported(aFeature, aVersion, aReturn);  \
   }                                                                         \
   NS_IMETHOD CloneNode(PRBool aDeep, nsIDOMNode** aReturn) {                \
-    return nsNodeUtils::CloneNodeImpl(this, aDeep, aReturn);                \
+    return nsNodeUtils::CloneNodeImpl(this, aDeep, PR_TRUE, aReturn);       \
   }                                                                         \
   virtual nsGenericDOMDataNode *CloneDataNode(nsINodeInfo *aNodeInfo,       \
                                               PRBool aCloneText) const;

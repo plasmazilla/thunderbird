@@ -38,8 +38,14 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsHTMLTableAccessible.h"
-#include "nsAccessibilityAtoms.h"
-#include "nsAccessibleTreeWalker.h"
+
+#include "nsAccessibilityService.h"
+#include "nsAccTreeWalker.h"
+#include "nsAccUtils.h"
+#include "nsDocAccessible.h"
+#include "nsRelUtils.h"
+#include "nsTextEquivUtils.h"
+
 #include "nsIDOMElement.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentRange.h"
@@ -47,8 +53,6 @@
 #include "nsISelection2.h"
 #include "nsISelectionPrivate.h"
 #include "nsINameSpaceManager.h"
-#include "nsIAccessibilityService.h"
-#include "nsIDOMCSSStyleDeclaration.h"
 #include "nsIDOMHTMLCollection.h"
 #include "nsIDOMHTMLTableCellElement.h"
 #include "nsIDOMHTMLTableElement.h"
@@ -56,7 +60,6 @@
 #include "nsIDOMHTMLTableSectionElem.h"
 #include "nsIDocument.h"
 #include "nsIPresShell.h"
-#include "nsIServiceManager.h"
 #include "nsITableLayout.h"
 #include "nsITableCellLayout.h"
 #include "nsFrameSelection.h"
@@ -68,8 +71,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 nsHTMLTableCellAccessible::
-  nsHTMLTableCellAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell) :
-  nsHyperTextAccessibleWrap(aDomNode, aShell)
+  nsHTMLTableCellAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsHyperTextAccessibleWrap(aContent, aShell)
 {
 }
 
@@ -83,11 +86,10 @@ NS_IMPL_ISUPPORTS_INHERITED1(nsHTMLTableCellAccessible,
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLTableCellAccessible: nsAccessible implementation
 
-nsresult
-nsHTMLTableCellAccessible::GetRoleInternal(PRUint32 *aResult)
+PRUint32
+nsHTMLTableCellAccessible::NativeRole()
 {
-  *aResult = nsIAccessibleRole::ROLE_CELL;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_CELL;
 }
 
 nsresult
@@ -97,9 +99,7 @@ nsHTMLTableCellAccessible::GetStateInternal(PRUint32 *aState,
   nsresult rv= nsHyperTextAccessibleWrap::GetStateInternal(aState, aExtraState);
   NS_ENSURE_A11Y_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIContent> content = do_QueryInterface(mDOMNode);
-  nsCOMPtr<nsIPresShell> presShell = do_QueryReferent(mWeakShell);
-  nsIFrame *frame = presShell->GetPrimaryFrameFor(content);
+  nsIFrame *frame = mContent->GetPrimaryFrame();
   NS_ASSERTION(frame, "No frame for valid cell accessible!");
 
   if (frame) {
@@ -267,20 +267,15 @@ nsHTMLTableCellAccessible::IsSelected(PRBool *aIsSelected)
 already_AddRefed<nsIAccessibleTable>
 nsHTMLTableCellAccessible::GetTableAccessible()
 {
-  nsCOMPtr<nsIAccessible> childAcc(this), parentAcc;
-  childAcc->GetParent(getter_AddRefs(parentAcc));
-
-  while (parentAcc) {
-    PRUint32 role = nsAccUtils::Role(parentAcc);
+  nsAccessible* parent = this;
+  while ((parent = parent->GetParent())) {
+    PRUint32 role = parent->Role();
     if (role == nsIAccessibleRole::ROLE_TABLE ||
         role == nsIAccessibleRole::ROLE_TREE_TABLE) {
       nsIAccessibleTable* tableAcc = nsnull;
-      CallQueryInterface(parentAcc, &tableAcc);
+      CallQueryInterface(parent, &tableAcc);
       return tableAcc;
     }
-
-    parentAcc.swap(childAcc);
-    childAcc->GetParent(getter_AddRefs(parentAcc));
   }
 
   return nsnull;
@@ -289,17 +284,11 @@ nsHTMLTableCellAccessible::GetTableAccessible()
 nsITableCellLayout*
 nsHTMLTableCellAccessible::GetCellLayout()
 {
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-  
-  nsCOMPtr<nsIPresShell> shell = GetPresShell();
-  if (!shell)
-    return nsnull;
-  
-  nsIFrame *frame = shell->GetPrimaryFrameFor(content);
+  nsIFrame *frame = mContent->GetPrimaryFrame();
   NS_ASSERTION(frame, "The frame cannot be obtaied for HTML table cell.");
   if (!frame)
     return nsnull;
-  
+
   nsITableCellLayout *cellLayout = do_QueryFrame(frame);
   return cellLayout;
 }
@@ -318,37 +307,28 @@ nsresult
 nsHTMLTableCellAccessible::GetHeaderCells(PRInt32 aRowOrColumnHeaderCell,
                                           nsIArray **aHeaderCells)
 {
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-
   // Get header cells from @header attribute.
-  nsCOMPtr<nsIArray> headerCellElms;
-  nsCoreUtils::GetElementsByIDRefsAttr(content, nsAccessibilityAtoms::headers,
-                                       getter_AddRefs(headerCellElms));
-
-  if (headerCellElms) {
+  IDRefsIterator iter(mContent, nsAccessibilityAtoms::headers);
+  nsIContent* headerCellElm = iter.NextElem();
+  if (headerCellElm) {
     nsresult rv = NS_OK;
     nsCOMPtr<nsIMutableArray> headerCells =
       do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    PRUint32 count = 0;
-    rv = headerCellElms->GetLength(&count);
-    if (NS_SUCCEEDED(rv) && count > 0) {
-      nsCOMPtr<nsIDOMNode> headerCellNode;
-      for (PRUint32 idx = 0; idx < count; idx++) {
-        headerCellNode = do_QueryElementAt(headerCellElms, idx, &rv);
-        nsCOMPtr<nsIAccessible> headerCell;
-        GetAccService()->GetAccessibleInWeakShell(headerCellNode, mWeakShell,
-                                                  getter_AddRefs(headerCell));
+    do {
+      nsAccessible* headerCell =
+        GetAccService()->GetAccessibleInWeakShell(headerCellElm, mWeakShell);
 
-        if (headerCell &&
-            (aRowOrColumnHeaderCell == nsAccUtils::eRowHeaderCells &&
-             nsAccUtils::Role(headerCell) == nsIAccessibleRole::ROLE_ROWHEADER ||
-             aRowOrColumnHeaderCell == nsAccUtils::eColumnHeaderCells &&
-             nsAccUtils::Role(headerCell) == nsIAccessibleRole::ROLE_COLUMNHEADER))
-          headerCells->AppendElement(headerCell, PR_FALSE);
+      if (headerCell &&
+          (aRowOrColumnHeaderCell == nsAccUtils::eRowHeaderCells &&
+              headerCell->Role() == nsIAccessibleRole::ROLE_ROWHEADER ||
+              aRowOrColumnHeaderCell == nsAccUtils::eColumnHeaderCells &&
+              headerCell->Role() == nsIAccessibleRole::ROLE_COLUMNHEADER)) {
+        headerCells->AppendElement(static_cast<nsIAccessible*>(headerCell),
+                                   PR_FALSE);
       }
-    }
+    } while ((headerCellElm = iter.NextElem()));
 
     NS_ADDREF(*aHeaderCells = headerCells);
     return NS_OK;
@@ -370,74 +350,64 @@ nsHTMLTableCellAccessible::GetHeaderCells(PRInt32 aRowOrColumnHeaderCell,
 ////////////////////////////////////////////////////////////////////////////////
 
 nsHTMLTableHeaderCellAccessible::
-  nsHTMLTableHeaderCellAccessible(nsIDOMNode* aDomNode,
-                                  nsIWeakReference* aShell) :
-  nsHTMLTableCellAccessible(aDomNode, aShell)
+  nsHTMLTableHeaderCellAccessible(nsIContent *aContent,
+                                  nsIWeakReference *aShell) :
+  nsHTMLTableCellAccessible(aContent, aShell)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLTableHeaderAccessible: nsAccessible implementation
 
-nsresult
-nsHTMLTableHeaderCellAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsHTMLTableHeaderCellAccessible::NativeRole()
 {
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-
   // Check value of @scope attribute.
   static nsIContent::AttrValuesArray scopeValues[] =
     {&nsAccessibilityAtoms::col, &nsAccessibilityAtoms::row, nsnull};
   PRInt32 valueIdx = 
-    content->FindAttrValueIn(kNameSpaceID_None, nsAccessibilityAtoms::scope,
-                             scopeValues, eCaseMatters);
+    mContent->FindAttrValueIn(kNameSpaceID_None, nsAccessibilityAtoms::scope,
+                              scopeValues, eCaseMatters);
 
   switch (valueIdx) {
     case 0:
-      *aRole = nsIAccessibleRole::ROLE_COLUMNHEADER;
-      return NS_OK;
+      return nsIAccessibleRole::ROLE_COLUMNHEADER;
     case 1:
-      *aRole = nsIAccessibleRole::ROLE_ROWHEADER;
-      return NS_OK;
+      return nsIAccessibleRole::ROLE_ROWHEADER;
   }
 
   // Assume it's columnheader if there are headers in siblings, oterwise
   // rowheader.
-  nsIContent* parent = content->GetParent();
-  NS_ASSERTION(parent, "No parent of HTML table header!");
-  NS_ENSURE_STATE(parent);
+  nsIContent *parent = mContent->GetParent();
+  if (!parent) {
+    NS_ERROR("Deattached content on alive accessible?");
+    return nsIAccessibleRole::ROLE_NOTHING;
+  }
 
-  PRInt32 indexInParent = parent->IndexOf(content);
+  PRInt32 indexInParent = parent->IndexOf(mContent);
 
   for (PRInt32 idx = indexInParent - 1; idx >= 0; idx--) {
     nsIContent* sibling = parent->GetChildAt(idx);
-    if (sibling && sibling->IsNodeOfType(nsINode::eELEMENT)) {
+    if (sibling && sibling->IsElement()) {
       if (nsCoreUtils::IsHTMLTableHeader(sibling))
-        *aRole = nsIAccessibleRole::ROLE_COLUMNHEADER;
-      else
-        *aRole = nsIAccessibleRole::ROLE_ROWHEADER;
-
-      return NS_OK;
+        return nsIAccessibleRole::ROLE_COLUMNHEADER;
+      return nsIAccessibleRole::ROLE_ROWHEADER;
     }
   }
 
   PRInt32 childCount = parent->GetChildCount();
   for (PRInt32 idx = indexInParent + 1; idx < childCount; idx++) {
     nsIContent* sibling = parent->GetChildAt(idx);
-    if (sibling && sibling->IsNodeOfType(nsINode::eELEMENT)) {
+    if (sibling && sibling->IsElement()) {
       if (nsCoreUtils::IsHTMLTableHeader(sibling))
-        *aRole = nsIAccessibleRole::ROLE_COLUMNHEADER;
-      else
-        *aRole = nsIAccessibleRole::ROLE_ROWHEADER;
-      
-      return NS_OK;
+        return nsIAccessibleRole::ROLE_COLUMNHEADER;
+      return nsIAccessibleRole::ROLE_ROWHEADER;
     }
   }
 
   // No elements in siblings what means the table has one column only. Therefore
   // it should be column header.
-  *aRole = nsIAccessibleRole::ROLE_COLUMNHEADER;
-
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_COLUMNHEADER;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -445,9 +415,9 @@ nsHTMLTableHeaderCellAccessible::GetRoleInternal(PRUint32 *aRole)
 ////////////////////////////////////////////////////////////////////////////////
 
 nsHTMLTableAccessible::
-  nsHTMLTableAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell) :
-  nsAccessibleWrap(aDomNode, aShell)
-{ 
+  nsHTMLTableAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
+  nsAccessibleWrap(aContent, aShell)
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -460,56 +430,30 @@ NS_IMPL_ISUPPORTS_INHERITED2(nsHTMLTableAccessible, nsAccessible,
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLTableAccessible: nsAccessible implementation
 
-void nsHTMLTableAccessible::CacheChildren()
+void
+nsHTMLTableAccessible::CacheChildren()
 {
-  if (!mWeakShell) {
-    // This node has been shut down
-    mAccChildCount = eChildCountUninitialized;
-    return;
-  }
-  
-  if (mAccChildCount == eChildCountUninitialized) {
-    nsAccessible::CacheChildren();
-    nsCOMPtr<nsIAccessible> captionAccessible;
-    while (NextChild(captionAccessible)) {
-      if (nsAccUtils::Role(captionAccessible) == nsIAccessibleRole::ROLE_CAPTION) {
-        nsCOMPtr<nsIAccessible> captionParentAccessible;
-        captionAccessible->GetParent(getter_AddRefs(captionParentAccessible));
-        if (captionParentAccessible != this) {
-          NS_WARNING("Should not happen: parser ensures caption is the table's child, not the tbody's");
-          return;
-        }
-        nsCOMPtr<nsIAccessible> beforeCaptionAccessible;
-        captionAccessible->GetPreviousSibling(getter_AddRefs(beforeCaptionAccessible));
-        if (beforeCaptionAccessible) {
-          // Move caption accessible so that it's the first child
-          nsRefPtr<nsAccessible> acc =
-            nsAccUtils::QueryAccessible(beforeCaptionAccessible);
+  // Move caption accessible so that it's the first child. Check for the first
+  // caption only, because nsAccessibilityService ensures we don't create
+  // accessibles for the other captions, since only the first is actually
+  // visible.
+  nsAccTreeWalker walker(mWeakShell, mContent, GetAllowsAnonChildAccessibles());
 
-          nsCOMPtr<nsIAccessible> afterCaptionAccessible;
-          captionAccessible->GetNextSibling(getter_AddRefs(afterCaptionAccessible));
-          acc->SetNextSibling(afterCaptionAccessible);
-
-          GetFirstChild(getter_AddRefs(afterCaptionAccessible));
-          SetFirstChild(captionAccessible);
-
-          acc = nsAccUtils::QueryAccessible(captionAccessible);
-          acc->SetNextSibling(afterCaptionAccessible);        
-        }
-        // Don't check for more captions, because nsAccessibilityService ensures
-        // we don't create accessibles for the other captions, since only the
-        // first is actually visible
-        break;
-      }
+  nsAccessible* child = nsnull;
+  while ((child = walker.NextChild())) {
+    if (child->Role() == nsIAccessibleRole::ROLE_CAPTION) {
+      InsertChildAt(0, child);
+      while ((child = walker.NextChild()) && AppendChild(child));
+      break;
     }
+    AppendChild(child);
   }
 }
 
-nsresult
-nsHTMLTableAccessible::GetRoleInternal(PRUint32 *aResult)
+PRUint32
+nsHTMLTableAccessible::NativeRole()
 {
-  *aResult = nsIAccessibleRole::ROLE_TABLE;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_TABLE;
 }
 
 nsresult
@@ -527,12 +471,8 @@ nsHTMLTableAccessible::GetNameInternal(nsAString& aName)
 {
   nsAccessible::GetNameInternal(aName);
 
-  if (aName.IsEmpty()) {
-    nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-    if (content) { 
-      content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::summary, aName);
-    }
-  }
+  if (aName.IsEmpty())
+    mContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::summary, aName);
 
   return NS_OK;
 }
@@ -540,13 +480,9 @@ nsHTMLTableAccessible::GetNameInternal(nsAString& aName)
 nsresult
 nsHTMLTableAccessible::GetAttributesInternal(nsIPersistentProperties *aAttributes)
 {
-  if (!mDOMNode) {
-    return NS_ERROR_FAILURE;  // Node already shut down
-  }
-
   nsresult rv = nsAccessibleWrap::GetAttributesInternal(aAttributes);
   NS_ENSURE_SUCCESS(rv, rv);
-  
+
   PRBool isProbablyForLayout;
   IsProbablyForLayout(&isProbablyForLayout);
   if (isProbablyForLayout) {
@@ -584,9 +520,8 @@ nsHTMLTableAccessible::GetRelationByType(PRUint32 aRelationType,
 NS_IMETHODIMP
 nsHTMLTableAccessible::GetCaption(nsIAccessible **aCaption)
 {
-  nsCOMPtr<nsIAccessible> firstChild;
-  GetFirstChild(getter_AddRefs(firstChild));
-  if (nsAccUtils::Role(firstChild) == nsIAccessibleRole::ROLE_CAPTION)
+  nsAccessible* firstChild = GetChildAt(0);
+  if (firstChild && firstChild->Role() == nsIAccessibleRole::ROLE_CAPTION)
     NS_ADDREF(*aCaption = firstChild);
 
   return NS_OK;
@@ -595,7 +530,7 @@ nsHTMLTableAccessible::GetCaption(nsIAccessible **aCaption)
 NS_IMETHODIMP
 nsHTMLTableAccessible::GetSummary(nsAString &aSummary)
 {
-  nsCOMPtr<nsIDOMHTMLTableElement> table(do_QueryInterface(mDOMNode));
+  nsCOMPtr<nsIDOMHTMLTableElement> table(do_QueryInterface(mContent));
   NS_ENSURE_TRUE(table, NS_ERROR_FAILURE);
 
   return table->GetSummary(aSummary);
@@ -761,10 +696,10 @@ nsHTMLTableAccessible::GetSelectedCells(nsIArray **aCells)
 
       if (NS_SUCCEEDED(rv) && startRowIndex == rowIndex &&
           startColIndex == columnIndex && isSelected) {
-        nsCOMPtr<nsIAccessible> cell;
-        GetAccService()->GetAccessibleInWeakShell(cellElement, mWeakShell,
-                                                  getter_AddRefs(cell));
-        selCells->AppendElement(cell, PR_FALSE);
+        nsCOMPtr<nsIContent> cellContent(do_QueryInterface(cellElement));
+        nsAccessible *cell =
+          GetAccService()->GetAccessibleInWeakShell(cellContent, mWeakShell);
+        selCells->AppendElement(static_cast<nsIAccessible*>(cell), PR_FALSE);
       }
     }
   }
@@ -935,8 +870,21 @@ nsHTMLTableAccessible::GetCellAt(PRInt32 aRow, PRInt32 aColumn,
   nsresult rv = GetCellAt(aRow, aColumn, *getter_AddRefs(cellElement));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return GetAccService()->GetAccessibleInWeakShell(cellElement, mWeakShell,
-                                                   aTableCellAccessible);
+  nsCOMPtr<nsIContent> cellContent(do_QueryInterface(cellElement));
+  nsAccessible *cell =
+    GetAccService()->GetAccessibleInWeakShell(cellContent, mWeakShell);
+
+  if (!cell) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  if (cell != this) {
+    // XXX bug 576838: crazy tables (like table6 in tables/test_table2.html) may
+    // return itself as a cell what makes Orca hang.
+    NS_ADDREF(*aTableCellAccessible = cell);
+  }
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -989,6 +937,26 @@ nsHTMLTableAccessible::GetRowIndexAt(PRInt32 aIndex, PRInt32 *aRow)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return (*aRow == -1 || column == -1) ? NS_ERROR_INVALID_ARG : NS_OK;
+}
+
+NS_IMETHODIMP
+nsHTMLTableAccessible::GetRowAndColumnIndicesAt(PRInt32 aIndex,
+                                                PRInt32* aRowIdx,
+                                                PRInt32* aColumnIdx)
+{
+  NS_ENSURE_ARG_POINTER(aRowIdx);
+  *aRowIdx = -1;
+  NS_ENSURE_ARG_POINTER(aColumnIdx);
+  *aColumnIdx = -1;
+
+  if (IsDefunct())
+    return NS_ERROR_FAILURE;
+
+  nsITableLayout* tableLayout = GetTableLayout();
+  if (tableLayout)
+    tableLayout->GetRowAndColumnByIndex(aIndex, aRowIdx, aColumnIdx);
+
+  return (*aRowIdx == -1 || *aColumnIdx == -1) ? NS_ERROR_INVALID_ARG : NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1234,8 +1202,6 @@ nsHTMLTableAccessible::RemoveRowsOrColumnsFromSelection(PRInt32 aIndex,
                                                         PRUint32 aTarget,
                                                         PRBool aIsOuter)
 {
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-
   nsITableLayout *tableLayout = GetTableLayout();
   NS_ENSURE_STATE(tableLayout);
 
@@ -1258,11 +1224,11 @@ nsHTMLTableAccessible::RemoveRowsOrColumnsFromSelection(PRInt32 aIndex,
   PRInt32 endColIdx = doUnselectRow ? count - 1 : aIndex;
 
   if (aIsOuter)
-    return tableSelection->RestrictCellsToSelection(content,
+    return tableSelection->RestrictCellsToSelection(mContent,
                                                     startRowIdx, startColIdx, 
                                                     endRowIdx, endColIdx);
 
-  return tableSelection->RemoveCellsFromSelection(content,
+  return tableSelection->RemoveCellsFromSelection(mContent,
                                                   startRowIdx, startColIdx, 
                                                   endRowIdx, endColIdx);
 }
@@ -1270,10 +1236,7 @@ nsHTMLTableAccessible::RemoveRowsOrColumnsFromSelection(PRInt32 aIndex,
 nsITableLayout*
 nsHTMLTableAccessible::GetTableLayout()
 {
-  nsCOMPtr<nsIContent> tableContent(do_QueryInterface(mDOMNode));
-  nsCOMPtr<nsIPresShell> shell = GetPresShell();
-
-  nsIFrame *frame = shell->GetPrimaryFrameFor(tableContent);
+  nsIFrame *frame = mContent->GetPrimaryFrame();
   if (!frame)
     return nsnull;
 
@@ -1341,7 +1304,7 @@ PRBool
 nsHTMLTableAccessible::HasDescendant(const nsAString& aTagName,
                                      PRBool aAllowEmpty)
 {
-  nsCOMPtr<nsIDOMElement> tableElt(do_QueryInterface(mDOMNode));
+  nsCOMPtr<nsIDOMElement> tableElt(do_QueryInterface(mContent));
   NS_ENSURE_TRUE(tableElt, PR_FALSE);
 
   nsCOMPtr<nsIDOMNodeList> nodeList;
@@ -1402,7 +1365,7 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
   if (IsDefunct())
     return NS_ERROR_FAILURE;
 
-  nsCOMPtr<nsIAccessible> docAccessible = do_QueryInterface(nsCOMPtr<nsIAccessibleDocument>(GetDocAccessible()));
+  nsDocAccessible *docAccessible = GetDocAccessible();
   if (docAccessible) {
     PRUint32 state, extState;
     docAccessible->GetState(&state, &extState);
@@ -1413,14 +1376,12 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
 
   // Check to see if an ARIA role overrides the role from native markup,
   // but for which we still expose table semantics (treegrid, for example).
-  PRBool hasNonTableRole =
-    (nsAccUtils::Role(this) != nsIAccessibleRole::ROLE_TABLE);
+  PRBool hasNonTableRole = (Role() != nsIAccessibleRole::ROLE_TABLE);
   if (hasNonTableRole) {
     RETURN_LAYOUT_ANSWER(PR_FALSE, "Has role attribute");
   }
 
-  nsCOMPtr<nsIContent> content(do_QueryInterface(mDOMNode));
-  if (content->HasAttr(kNameSpaceID_None, nsAccessibilityAtoms::role)) {
+  if (mContent->HasAttr(kNameSpaceID_None, nsAccessibilityAtoms::role)) {
     // Role attribute is present, but overridden roles have already been dealt with.
     // Only landmarks and other roles that don't override the role from native
     // markup are left to deal with here.
@@ -1429,7 +1390,8 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
   
   // Check for legitimate data table elements or attributes
   nsAutoString summary;
-  if ((content->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::summary, summary) && !summary.IsEmpty()) || 
+  if ((mContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::summary, summary) &&
+       !summary.IsEmpty()) || 
       HasDescendant(NS_LITERAL_STRING("caption"), PR_FALSE) ||
       HasDescendant(NS_LITERAL_STRING("th")) ||
       HasDescendant(NS_LITERAL_STRING("thead")) ||
@@ -1466,8 +1428,7 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
 
   nsCOMPtr<nsIContent> cellContent(do_QueryInterface(cellElement));
   NS_ENSURE_TRUE(cellContent, NS_ERROR_FAILURE);
-  nsCOMPtr<nsIPresShell> shell(GetPresShell());
-  nsIFrame *cellFrame = shell->GetPrimaryFrameFor(cellContent);
+  nsIFrame *cellFrame = cellContent->GetPrimaryFrame();
   if (!cellFrame) {
     return NS_OK;
   }
@@ -1484,7 +1445,7 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
   // Check for styled background color across the row
   // Alternating background color is a common way 
   nsCOMPtr<nsIDOMNodeList> nodeList;
-  nsCOMPtr<nsIDOMElement> tableElt(do_QueryInterface(mDOMNode));    
+  nsCOMPtr<nsIDOMElement> tableElt(do_QueryInterface(mContent));    
   tableElt->GetElementsByTagName(NS_LITERAL_STRING("tr"), getter_AddRefs(nodeList));
   NS_ENSURE_TRUE(nodeList, NS_ERROR_FAILURE);
   PRUint32 length;
@@ -1493,10 +1454,10 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
   for (PRUint32 rowCount = 0; rowCount < length; rowCount ++) {
     nsCOMPtr<nsIDOMNode> rowNode;
     nodeList->Item(rowCount, getter_AddRefs(rowNode));
+    nsCOMPtr<nsIContent> rowContent(do_QueryInterface(rowNode));
 
-    nsCOMPtr<nsIDOMCSSStyleDeclaration> styleDecl;
-    nsCoreUtils::GetComputedStyleDeclaration(EmptyString(), rowNode,
-                                             getter_AddRefs(styleDecl));
+    nsCOMPtr<nsIDOMCSSStyleDeclaration> styleDecl =
+      nsCoreUtils::GetComputedStyleDeclaration(EmptyString(), rowContent);
     NS_ENSURE_TRUE(styleDecl, NS_ERROR_FAILURE);
 
     lastRowColor = color;
@@ -1523,12 +1484,9 @@ nsHTMLTableAccessible::IsProbablyForLayout(PRBool *aIsProbablyForLayout)
     NS_ENSURE_TRUE(tableFrame , NS_ERROR_FAILURE);
     nsSize tableSize  = tableFrame->GetSize();
 
-    nsCOMPtr<nsIAccessibleDocument> docAccessible = GetDocAccessible();
+    nsDocAccessible *docAccessible = GetDocAccessible();
     NS_ENSURE_TRUE(docAccessible, NS_ERROR_FAILURE);
-
-    nsRefPtr<nsAccessNode> docAccessNode = nsAccUtils::QueryAccessNode(docAccessible);
-
-    nsIFrame *docFrame = docAccessNode->GetFrame();
+    nsIFrame *docFrame = docAccessible->GetFrame();
     NS_ENSURE_TRUE(docFrame , NS_ERROR_FAILURE);
 
     nsSize docSize = docFrame->GetSize();
@@ -1579,9 +1537,8 @@ nsHTMLCaptionAccessible::GetRelationByType(PRUint32 aRelationType,
   return NS_OK;
 }
 
-nsresult
-nsHTMLCaptionAccessible::GetRoleInternal(PRUint32 *aRole)
+PRUint32
+nsHTMLCaptionAccessible::NativeRole()
 {
-  *aRole = nsIAccessibleRole::ROLE_CAPTION;
-  return NS_OK;
+  return nsIAccessibleRole::ROLE_CAPTION;
 }

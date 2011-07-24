@@ -16,8 +16,7 @@ var embedding_element;
 function handle_load(e)
 {
   embedding_element = e.originalTarget.ownerDocument.defaultView.frameElement;
-
-  setTimeout(load_new_page, 50); // allow some time for layout and rendering
+  top.document.addEventListener("MozReftestInvalidate", load_new_page, false);
 }
 
 function load_new_page()

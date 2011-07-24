@@ -51,8 +51,6 @@ var gSSL;
 var gSSLPort;
 var gFTP;
 var gFTPPort;
-var gGopher;
-var gGopherPort;
 var gAutoURL;
 var gProxyType;
 var gShareSettings;
@@ -97,8 +95,6 @@ function InitCommonGlobals()
   gSSLPort = document.getElementById("network.proxy.ssl_port");
   gFTP = document.getElementById("network.proxy.ftp");
   gFTPPort = document.getElementById("network.proxy.ftp_port");
-  gGopher = document.getElementById("network.proxy.gopher");
-  gGopherPort = document.getElementById("network.proxy.gopher_port");
   gShareSettings = document.getElementById("network.proxy.share_proxy_settings");
 }
 
@@ -108,10 +104,8 @@ function DefaultForShareSettingsPref()
 {
   return gHTTP.value == gSSL.value &&
          gHTTP.value == gFTP.value &&
-         gHTTP.value == gGopher.value &&
          gHTTPPort.value == gSSLPort.value &&
-         gHTTPPort.value == gFTPPort.value &&
-         gHTTPPort.value == gGopherPort.value;
+         gHTTPPort.value == gFTPPort.value;
 }
 
 function DoEnabling()
@@ -200,8 +194,7 @@ function DoProxyCopy(aChecked)
   DoProxyHostCopy(gHTTP.value);
   DoProxyPortCopy(gHTTPPort.value);
   var nonshare = ["networkProxySSL", "networkProxySSL_Port",
-                  "networkProxyFTP", "networkProxyFTP_Port",
-                  "networkProxyGopher", "networkProxyGopher_Port"];
+                  "networkProxyFTP", "networkProxyFTP_Port"];
   EnableUnlockedElements(nonshare, !aChecked);
 }
 
@@ -212,7 +205,6 @@ function DoProxyHostCopy(aValue)
 
   gSSL.value = aValue;
   gFTP.value = aValue;
-  gGopher.value = aValue;
 }
 
 function DoProxyPortCopy(aValue)
@@ -222,5 +214,4 @@ function DoProxyPortCopy(aValue)
 
   gSSLPort.value = aValue;
   gFTPPort.value = aValue;
-  gGopherPort.value = aValue;
 }

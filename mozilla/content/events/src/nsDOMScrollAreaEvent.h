@@ -14,7 +14,7 @@
  *
  * The Original Code is Mozilla code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -57,6 +57,9 @@ public:
   NS_DECL_NSIDOMSCROLLAREAEVENT
 
   NS_FORWARD_TO_NSDOMUIEVENT
+
+    virtual void Serialize(IPC::Message* aMsg, PRBool aSerializeInterfaceType);
+    virtual PRBool Deserialize(const IPC::Message* aMsg, void** aIter);
 
 protected:
   nsClientRect mClientArea;

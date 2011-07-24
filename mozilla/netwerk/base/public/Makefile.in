@@ -72,8 +72,10 @@ XPIDLSRCS	= \
 		nsIAuthPromptAdapterFactory.idl \
 		nsIAuthPromptCallback.idl \
 		nsIAsyncStreamCopier.idl \
+		nsIAsyncVerifyRedirectCallback.idl \
 		nsIBufferedStreams.idl \
 		nsICancelable.idl \
+		nsIChannelPolicy.idl \
 		nsICryptoHash.idl \
 		nsICryptoHMAC.idl \
 		nsIDownloader.idl \
@@ -83,10 +85,9 @@ XPIDLSRCS	= \
 		nsIInputStreamPump.idl \
 		nsIInputStreamChannel.idl \
                 nsIIOService2.idl \
+                nsIIPCSerializable.idl \
 		nsIMIMEInputStream.idl \
                 nsINetworkLinkService.idl \
-		nsIPasswordManager.idl \
-		nsIPasswordManagerInternal.idl \
 		nsIPermission.idl \
 		nsIPermissionManager.idl \
 		nsIPrivateBrowsingService.idl \
@@ -107,7 +108,6 @@ XPIDLSRCS	= \
 		nsIRequestObserverProxy.idl \
 		nsISecurityInfoProvider.idl \
 		nsIStreamListenerTee.idl \
-		nsIStreamListenerTee_1_9_2.idl \
 		nsISimpleStreamListener.idl \
 		nsIStreamTransportService.idl \
 		nsIStreamLoader.idl \
@@ -124,6 +124,7 @@ XPIDLSRCS	= \
 		nsISecureBrowserUI.idl \
 		nsICryptoFIPSInfo.idl \
 		nsINSSErrorsService.idl \
+		nsICacheInfoChannel.idl \
 		nsICachingChannel.idl \
 		nsIByteRangeRequest.idl \
 		nsIMultiPartChannel.idl \
@@ -136,7 +137,21 @@ XPIDLSRCS	= \
 		nsINetUtil.idl \
 		nsIProxiedChannel.idl \
 		nsIRandomGenerator.idl \
+		nsIStrictTransportSecurityService.idl \
+		nsIURIWithPrincipal.idl \
+		nsIURIClassifier.idl \
+		nsIRedirectResultListener.idl \
+		mozIThirdPartyUtil.idl \
+		nsISerializationHelper.idl \
+		nsIChildChannel.idl \
+		nsIParentChannel.idl \
+		nsIParentRedirectingChannel.idl \
+		nsIRedirectChannelRegistrar.idl \
 		$(NULL)
+
+ifdef MOZ_TOOLKIT_SEARCH
+XPIDLSRCS	+= nsIBrowserSearchService.idl
+endif
 
 EXPORTS		= \
 		netCore.h \
@@ -146,12 +161,9 @@ EXPORTS		= \
 		nsChannelProperties.h \
 		nsURIHashKey.h \
 		nsReadLine.h \
-		nsCPasswordManager.h \
-		nsCPasswordManagerInternal.h \
 		nsASocketHandler.h \
+		nsAsyncRedirectVerifyHelper.h \
 		$(NULL)
-
-PREF_JS_EXPORTS = $(srcdir)/security-prefs.js
 
 include $(topsrcdir)/config/rules.mk
 

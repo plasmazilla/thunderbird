@@ -111,7 +111,7 @@ nsIOThreadPool::Init()
     mNumIdleThreads = 0;
     mShutdown = PR_FALSE;
 
-    mLock = PR_NewLock();
+    mLock = nsAutoLock::NewLock("nsIOThreadPool::mLock");
     if (!mLock)
         return NS_ERROR_OUT_OF_MEMORY;
 
@@ -126,7 +126,7 @@ nsIOThreadPool::Init()
     PR_INIT_CLIST(&mEventQ);
 
     // We want to shutdown the i/o thread pool at xpcom-shutdown-threads time.
-    nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+    nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
     if (os)
         os->AddObserver(this, "xpcom-shutdown-threads", PR_FALSE);
     return NS_OK;
@@ -146,7 +146,7 @@ nsIOThreadPool::~nsIOThreadPool()
     if (mExitThreadCV)
         PR_DestroyCondVar(mExitThreadCV);
     if (mLock)
-        PR_DestroyLock(mLock);
+        nsAutoLock::DestroyLock(mLock);
 }
 
 void

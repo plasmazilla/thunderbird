@@ -102,6 +102,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro RegCleanUninstall
 !insertmacro SetBrandNameVars
 !insertmacro UnloadUAC
+!insertmacro UpdateShortcutAppModelIDs
 !insertmacro WordReplace
 !insertmacro WriteRegDWORD2
 !insertmacro WriteRegStr2
@@ -215,6 +216,9 @@ Section "Uninstall"
   ${un.RegCleanUninstall}
   ${un.DeleteShortcuts}
 
+  ; Unregister resources associated with Win7 taskbar jump lists.
+  ApplicationID::UninstallJumpLists "${AppUserModelID}"
+
   ClearErrors
   WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
@@ -310,6 +314,9 @@ Section "Uninstall"
     DeleteRegKey HKLM "$0"
     DeleteRegKey HKCU "$0"
     StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\${FileMainEXE}"
+    DeleteRegKey HKLM "$0"
+    DeleteRegKey HKCU "$0"
+    StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\plugin-container.exe"
     DeleteRegKey HKLM "$0"
     DeleteRegKey HKCU "$0"
   ${Else}

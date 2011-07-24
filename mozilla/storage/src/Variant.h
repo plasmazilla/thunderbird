@@ -149,7 +149,7 @@ struct variant_integer_traits<PRInt64>
     if (aValue > PR_INT32_MAX || aValue < PR_INT32_MIN)
       return NS_ERROR_CANNOT_CONVERT_DATA;
 
-    *_result = aValue;
+    *_result = static_cast<PRInt32>(aValue);
     return NS_OK;
   }
   static inline nsresult asInt64(PRInt64 aValue,
@@ -272,10 +272,10 @@ template < >
 struct variant_storage_traits<PRUint8[]>
 {
   typedef std::pair<const void *, int> ConstructorType;
-  typedef nsTArray<PRUint8> StorageType;
+  typedef FallibleTArray<PRUint8> StorageType;
   static inline StorageType storage_conversion(ConstructorType aBlob)
   {
-    nsTArray<PRUint8> data(aBlob.second);
+    StorageType data(aBlob.second);
     (void)data.AppendElements(static_cast<const PRUint8 *>(aBlob.first),
                               aBlob.second);
     return data;
@@ -284,7 +284,7 @@ struct variant_storage_traits<PRUint8[]>
 template < >
 struct variant_blob_traits<PRUint8[]>
 {
-  static inline nsresult asArray(nsTArray<PRUint8> &aData,
+  static inline nsresult asArray(FallibleTArray<PRUint8> &aData,
                                  PRUint16 *_type,
                                  PRUint32 *_size,
                                  void **_result)

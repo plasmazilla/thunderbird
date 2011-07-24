@@ -48,24 +48,16 @@ class nsAnonymousBlockFrame;
 
 #define nsInlineFrameSuper nsHTMLContainerFrame
 
-// NS_INLINE_FRAME_HARD_TEXT_OFFSETS is used for access keys, where what
-// would normally be 1 text frame is split into 3 sets of an inline parent 
-// and text child (the pre access key text, the underlined key text, and
-// the post access key text). The offsets of the 3 text frame children
-// are set in nsCSSFrameConstructor
-
-#define NS_INLINE_FRAME_HARD_TEXT_OFFSETS            0x00100000
-
 /**  In Bidi left (or right) margin/padding/border should be applied to left
  *  (or right) most frame (or a continuation frame).
  *  This state value shows if this frame is left (or right) most continuation
  *  or not.
  */
-#define NS_INLINE_FRAME_BIDI_VISUAL_STATE_IS_SET     0x00200000
+#define NS_INLINE_FRAME_BIDI_VISUAL_STATE_IS_SET     NS_FRAME_STATE_BIT(21)
 
-#define NS_INLINE_FRAME_BIDI_VISUAL_IS_LEFT_MOST     0x00400000
+#define NS_INLINE_FRAME_BIDI_VISUAL_IS_LEFT_MOST     NS_FRAME_STATE_BIT(22)
 
-#define NS_INLINE_FRAME_BIDI_VISUAL_IS_RIGHT_MOST    0x00800000
+#define NS_INLINE_FRAME_BIDI_VISUAL_IS_RIGHT_MOST    NS_FRAME_STATE_BIT(23)
 
 /**
  * Inline frame class.
@@ -88,7 +80,7 @@ public:
                               const nsDisplayListSet& aLists);
 
 #ifdef ACCESSIBILITY
-  NS_IMETHODIMP GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
 #ifdef DEBUG
@@ -105,7 +97,8 @@ public:
   virtual PRBool IsEmpty();
   virtual PRBool IsSelfEmpty();
 
-  virtual PRBool PeekOffsetCharacter(PRBool aForward, PRInt32* aOffset);
+  virtual PRBool PeekOffsetCharacter(PRBool aForward, PRInt32* aOffset,
+                                     PRBool aRespectClusters = PR_TRUE);
   
   // nsIHTMLReflow overrides
   virtual void AddInlineMinWidth(nsIRenderingContext *aRenderingContext,
@@ -125,12 +118,7 @@ public:
   virtual PRBool CanContinueTextRun() const;
 
   virtual void PullOverflowsFromPrevInFlow();
-
-  // Take all of the frames away from this frame. The caller is
-  // presumed to keep them alive.
-  void StealAllFrames() {
-    mFrames.SetFrames(nsnull);
-  }
+  virtual nscoord GetBaseline() const;
 
   /**
    * Return true if the frame is leftmost frame or continuation.
@@ -160,6 +148,7 @@ protected:
     nsIFrame* mPrevFrame;
     nsInlineFrame* mNextInFlow;
     nsIFrame*      mLineContainer;
+    nsLineLayout*  mLineLayout;
     PRPackedBool mSetParentPointer;  // when reflowing child frame first set its
                                      // parent frame pointer
 
@@ -167,6 +156,7 @@ protected:
       mPrevFrame = nsnull;
       mNextInFlow = nsnull;
       mLineContainer = nsnull;
+      mLineLayout = nsnull;
       mSetParentPointer = PR_FALSE;
     }
   };
@@ -202,8 +192,8 @@ protected:
 
   virtual void PushFrames(nsPresContext* aPresContext,
                           nsIFrame* aFromChild,
-                          nsIFrame* aPrevSibling);
-
+                          nsIFrame* aPrevSibling,
+                          InlineReflowState& aState);
 };
 
 //----------------------------------------------------------------------
@@ -228,10 +218,6 @@ public:
                     nsReflowStatus& aStatus);
 
   virtual void PullOverflowsFromPrevInFlow();
-
-  // Take frames starting at aFrame until the end of the frame-list
-  // away from this frame. The caller is presumed to keep them alive.
-  void StealFramesFrom(nsIFrame* aFrame);
 
 protected:
   nsFirstLineFrame(nsStyleContext* aContext) : nsInlineFrame(aContext) {}
@@ -259,7 +245,7 @@ public:
 
   virtual ~nsPositionedInlineFrame() { } // useful for debugging
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   NS_IMETHOD SetInitialChildList(nsIAtom*        aListName,
                                  nsFrameList&    aChildList);

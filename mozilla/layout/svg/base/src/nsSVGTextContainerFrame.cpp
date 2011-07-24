@@ -40,8 +40,14 @@
 #include "nsSVGOuterSVGFrame.h"
 #include "nsIDOMSVGTextElement.h"
 #include "nsIDOMSVGAnimatedLengthList.h"
+#include "SVGAnimatedNumberList.h"
+#include "SVGNumberList.h"
 #include "nsISVGGlyphFragmentLeaf.h"
 #include "nsDOMError.h"
+#include "SVGLengthList.h"
+#include "nsSVGTextPositioningElement.h"
+
+using namespace mozilla;
 
 //----------------------------------------------------------------------
 // nsQueryFrame methods
@@ -60,74 +66,30 @@ nsSVGTextContainerFrame::NotifyGlyphMetricsChange()
     textFrame->NotifyGlyphMetricsChange();
 }
 
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextContainerFrame::GetX()
+void
+nsSVGTextContainerFrame::GetXY(SVGUserUnitList *aX, SVGUserUnitList *aY)
 {
-  nsCOMPtr<nsIDOMSVGTextPositioningElement> tpElement =
-    do_QueryInterface(mContent);
-
-  if (!tpElement)
-    return nsnull;
-
-  if (!mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::x))
-    return nsnull;
-
-  nsCOMPtr<nsIDOMSVGAnimatedLengthList> animLengthList;
-  tpElement->GetX(getter_AddRefs(animLengthList));
-  nsIDOMSVGLengthList *retval;
-  animLengthList->GetAnimVal(&retval);
-  return retval;
+  static_cast<nsSVGElement*>(mContent)->
+    GetAnimatedLengthListValues(aX, aY, nsnull);
 }
 
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextContainerFrame::GetY()
+void
+nsSVGTextContainerFrame::GetDxDy(SVGUserUnitList *aDx, SVGUserUnitList *aDy)
 {
-  nsCOMPtr<nsIDOMSVGTextPositioningElement> tpElement =
-    do_QueryInterface(mContent);
-
-  if (!tpElement)
-    return nsnull;
-
-  if (!mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::y))
-    return nsnull;
-
-  nsCOMPtr<nsIDOMSVGAnimatedLengthList> animLengthList;
-  tpElement->GetY(getter_AddRefs(animLengthList));
-  nsIDOMSVGLengthList *retval;
-  animLengthList->GetAnimVal(&retval);
-  return retval;
+  // SVGUserUnitList is lazy, so there's little overhead it getting the x
+  // and y lists even though we ignore them.
+  SVGUserUnitList xLengthList, yLengthList;
+  static_cast<nsSVGElement*>(mContent)->
+    GetAnimatedLengthListValues(&xLengthList, &yLengthList, aDx, aDy, nsnull);
 }
 
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextContainerFrame::GetDx()
+const SVGNumberList*
+nsSVGTextContainerFrame::GetRotate()
 {
-  nsCOMPtr<nsIDOMSVGTextPositioningElement> tpElement =
-    do_QueryInterface(mContent);
-
-  if (!tpElement)
-    return nsnull;
-
-  nsCOMPtr<nsIDOMSVGAnimatedLengthList> animLengthList;
-  tpElement->GetDx(getter_AddRefs(animLengthList));
-  nsIDOMSVGLengthList *retval;
-  animLengthList->GetAnimVal(&retval);
-  return retval;
-}
-
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextContainerFrame::GetDy()
-{
-  nsCOMPtr<nsIDOMSVGTextPositioningElement> tpElement =
-    do_QueryInterface(mContent);
-
-  if (!tpElement)
-    return nsnull;
-
-  nsCOMPtr<nsIDOMSVGAnimatedLengthList> animLengthList;
-  tpElement->GetDy(getter_AddRefs(animLengthList));
-  nsIDOMSVGLengthList *retval;
-  animLengthList->GetAnimVal(&retval);
-  return retval;
+  SVGAnimatedNumberList *animList =
+    static_cast<nsSVGElement*>(mContent)->
+      GetAnimatedNumberList(nsGkAtoms::rotate);
+  return animList ? &animList->GetAnimValue() : nsnull;
 }
 
 //----------------------------------------------------------------------
@@ -255,8 +217,7 @@ PRUint32
 nsSVGTextContainerFrame::GetNumberOfChars()
 {
   PRUint32 nchars = 0;
-  nsISVGGlyphFragmentNode* node;
-  node = GetFirstGlyphFragmentChildNode();
+  nsISVGGlyphFragmentNode* node = GetFirstGlyphFragmentChildNode();
 
   while (node) {
     nchars += node->GetNumberOfChars();
@@ -289,13 +250,13 @@ nsSVGTextContainerFrame::GetSubStringLength(PRUint32 charnum, PRUint32 nchars)
   while (node) {
     PRUint32 count = node->GetNumberOfChars();
     if (count > charnum) {
-      PRUint32 fragmentChars = PR_MIN(nchars, count);
+      PRUint32 fragmentChars = NS_MIN(nchars, count);
       float fragmentLength = node->GetSubStringLength(charnum, fragmentChars);
       length += fragmentLength;
       nchars -= fragmentChars;
       if (nchars == 0) break;
     }
-    charnum -= PR_MIN(charnum, count);
+    charnum -= NS_MIN(charnum, count);
     node = GetNextGlyphFragmentChildNode(node);
   }
 
@@ -361,10 +322,6 @@ nsSVGTextContainerFrame::GetNextGlyphFragmentChildNode(nsISVGGlyphFragmentNode *
 void
 nsSVGTextContainerFrame::SetWhitespaceHandling()
 {
-  // init children:
-  nsISVGGlyphFragmentNode* node = GetFirstGlyphFragmentChildNode();
-  nsISVGGlyphFragmentNode* next;
-
   PRUint8 whitespaceHandling = COMPRESS_WHITESPACE | TRIM_LEADING_WHITESPACE;
 
   for (nsIFrame *frame = this; frame != nsnull; frame = frame->GetParent()) {
@@ -384,15 +341,46 @@ nsSVGTextContainerFrame::SetWhitespaceHandling()
       break;
   }
 
+  nsISVGGlyphFragmentNode* firstNode = GetFirstGlyphFragmentChildNode();
+  nsISVGGlyphFragmentNode* lastNonWhitespaceNode = nsnull;
+  nsISVGGlyphFragmentNode* node;
+
+  if (whitespaceHandling != PRESERVE_WHITESPACE) {
+    lastNonWhitespaceNode = node = firstNode;
+    while (node) {
+      if (!node->IsAllWhitespace()) {
+        lastNonWhitespaceNode = node;
+      }
+      node = GetNextGlyphFragmentChildNode(node);
+    }
+  }
+
+  node = firstNode;
   while (node) {
-    next = GetNextGlyphFragmentChildNode(node);
-    if (!next && (whitespaceHandling & COMPRESS_WHITESPACE)) {
+    if (node == lastNonWhitespaceNode) {
       whitespaceHandling |= TRIM_TRAILING_WHITESPACE;
     }
     node->SetWhitespaceHandling(whitespaceHandling);
-    node = next;
-    whitespaceHandling &= ~TRIM_LEADING_WHITESPACE;
+    if ((whitespaceHandling & TRIM_LEADING_WHITESPACE) &&
+        !node->IsAllWhitespace()) {
+      whitespaceHandling &= ~TRIM_LEADING_WHITESPACE;
+    }
+    node = GetNextGlyphFragmentChildNode(node);
   }
+}
+
+PRBool
+nsSVGTextContainerFrame::IsAllWhitespace()
+{
+  nsISVGGlyphFragmentNode* node = GetFirstGlyphFragmentChildNode();
+
+  while (node) {
+    if (!node->IsAllWhitespace()) {
+      return PR_FALSE;
+    }
+    node = GetNextGlyphFragmentChildNode(node);
+  }
+  return PR_TRUE;
 }
 
 // -------------------------------------------------------------------------
@@ -429,4 +417,133 @@ nsSVGTextContainerFrame::GetTextFrame()
     }
   }
   return nsnull;
+}
+
+void
+nsSVGTextContainerFrame::CopyPositionList(nsTArray<float> *parentList,
+                                        SVGUserUnitList *selfList,
+                                        nsTArray<float> &dstList,
+                                        PRUint32 aOffset)
+{
+  dstList.Clear();
+
+  PRUint32 strLength = GetNumberOfChars();
+  PRUint32 parentCount = 0;
+  if (parentList && parentList->Length() > aOffset) {
+    parentCount = NS_MIN(parentList->Length() - aOffset, strLength);
+  }
+
+  PRUint32 selfCount = NS_MIN(selfList->Length(), strLength);
+
+  PRUint32 count = NS_MAX(parentCount, selfCount);
+
+  if (!dstList.SetLength(count))
+    return;
+
+  for (PRUint32 i = 0; i < selfCount; i++) {
+    dstList[i] = (*selfList)[i];
+  }
+  for (PRUint32 i = selfCount; i < parentCount; i++) {
+    dstList[i] = (*parentList)[aOffset + i];
+  }
+
+}
+
+void
+nsSVGTextContainerFrame::CopyRotateList(nsTArray<float> *parentList,
+                                        const SVGNumberList *selfList,
+                                        nsTArray<float> &dstList,
+                                        PRUint32 aOffset)
+{
+  dstList.Clear();
+
+  PRUint32 strLength = GetNumberOfChars();
+  PRUint32 parentCount = 0;
+  if (parentList && parentList->Length() > aOffset) {
+    parentCount = NS_MIN(parentList->Length() - aOffset, strLength);
+  }
+
+  PRUint32 selfCount = NS_MIN(selfList ? selfList->Length() : 0, strLength);
+  PRUint32 count = NS_MAX(parentCount, selfCount);
+
+  if (count > 0) {
+    if (!dstList.SetLength(count))
+      return;
+    for (PRUint32 i = 0; i < selfCount; i++) {
+      dstList[i] = (*selfList)[i];
+    }
+    for (PRUint32 i = selfCount; i < parentCount; i++) {
+      dstList[i] = (*parentList)[aOffset + i];
+    }
+  } else if (parentList && !parentList->IsEmpty()) {
+    // rotate is applied to extra characters too
+    dstList.AppendElement((*parentList)[parentList->Length() - 1]);
+  }
+}
+
+PRUint32
+nsSVGTextContainerFrame::BuildPositionList(PRUint32 aOffset,
+                                           PRUint32 aDepth)
+{
+  nsSVGTextContainerFrame *parent = do_QueryFrame(mParent);
+  nsTArray<float> *parentX = nsnull, *parentY = nsnull;
+  nsTArray<float> *parentDx = nsnull, *parentDy = nsnull;
+  nsTArray<float> *parentRotate = nsnull;
+  if (parent) {
+    parentX = &(parent->mX);
+    parentY = &(parent->mY);
+    parentDx = &(parent->mDx);
+    parentDy = &(parent->mDy);
+    parentRotate = &(parent->mRotate);
+  }
+
+  SVGUserUnitList x, y;
+  GetXY(&x, &y);
+  CopyPositionList(parentX, &x, mX, aOffset);
+  CopyPositionList(parentY, &y, mY, aOffset);
+
+  SVGUserUnitList dx, dy;
+  GetDxDy(&dx, &dy);
+  CopyPositionList(parentDx, &dx, mDx, aOffset);
+  CopyPositionList(parentDy, &dy, mDy, aOffset);
+
+  const SVGNumberList *rotate = GetRotate();
+  CopyRotateList(parentRotate, rotate, mRotate, aOffset);
+
+  PRUint32 startIndex = 0;
+  nsIFrame* kid = mFrames.FirstChild();
+  while (kid) {
+    nsSVGTextContainerFrame *text = do_QueryFrame(kid);
+    nsISVGGlyphFragmentLeaf *leaf = do_QueryFrame(kid);
+    if (text) {
+      startIndex += text->BuildPositionList(startIndex, aDepth + 1);
+    } else if (leaf) {
+      leaf->SetStartIndex(startIndex);
+      startIndex += leaf->GetNumberOfChars();
+    }
+    kid = kid->GetNextSibling();
+  }
+  return startIndex;
+}
+
+void
+nsSVGTextContainerFrame::GetEffectiveXY(nsTArray<float> &aX,
+                                        nsTArray<float> &aY)
+{
+  aX.AppendElements(mX);
+  aY.AppendElements(mY);
+}
+
+void
+nsSVGTextContainerFrame::GetEffectiveDxDy(nsTArray<float> &aDx,
+                                          nsTArray<float> &aDy)
+{
+  aDx.AppendElements(mDx);
+  aDy.AppendElements(mDy);
+}
+
+void
+nsSVGTextContainerFrame::GetEffectiveRotate(nsTArray<float> &aRotate)
+{
+  aRotate.AppendElements(mRotate);
 }

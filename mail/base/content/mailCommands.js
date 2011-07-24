@@ -80,8 +80,8 @@ function getBestIdentity(identities, optionalHint)
       // as one of your multiple identities.
 
       if (!identity) {
-        for (id = 0; id < identitiesCount; ++id) {
-          tempID = identities.GetElementAt(id).QueryInterface(Components.interfaces.nsIMsgIdentity);
+        let nsIMsgIdentity = Components.interfaces.nsIMsgIdentity;
+        for each (var tempID in fixIterator(identities, nsIMsgIdentity)) {
           // extract out the partial domain
           var start = tempID.email.lastIndexOf("@"); // be sure to include the @ sign in our search to reduce the risk of false positives
           if (optionalHint.search(tempID.email.slice(start).toLowerCase()) >= 0) {
@@ -119,42 +119,79 @@ function getIdentityForServer(server, optionalHint)
 
 function getIdentityForHeader(hdr, type)
 {
-  // If we treat reply from sent specially, do we check for that folder flag here ?
-  var isTemplate = (type == Components.interfaces.nsIMsgCompType.Template);
-  var hintForIdentity = isTemplate ? hdr.author : hdr.recipients + hdr.ccList;
-  var identity = null;
-  var server;
+  // If we treat reply from sent specially, do we check for that folder flag here?
 
+  var hintForIdentity = "";
+
+  // if the current mode is "reply-to-list"
+  if (type == Components.interfaces.nsIMsgCompType.ReplyToList) {
+    var key = "delivered-to";
+    var allIdentities = accountManager.allIdentities;
+
+    var tempIdentity = "";
+
+    // Get the delivered-to headers.
+    var deliveredTos = new Array();
+    var index = 0;
+    while (tempIdentity = currentHeaderData[key]) {
+      deliveredTos.push(tempIdentity.headerValue.toLowerCase());
+      key = "delivered-to" + index++;
+    }
+
+    // Reverse the array so that the last delivered-to header will show at front.
+    deliveredTos.reverse();
+
+    // Get the last "delivered-to" that is in the defined identities.
+    for (var i = 0; i < deliveredTos.length; i++) {
+      for each (var tempID in fixIterator(allIdentities,
+                Components.interfaces.nsIMsgIdentity)) {
+        // If the deliver-to header contains the defined identity
+        if (deliveredTos[i].indexOf(tempID.email.toLowerCase()) != -1) {
+          hintForIdentity = tempID.email;
+          break;
+        }
+      }
+      // Identity has been found
+      if (hintForIdentity)
+        break;
+    }
+  }
+  else if (type == Components.interfaces.nsIMsgCompType.Template)
+    hintForIdentity = hdr.author;
+  else
+    hintForIdentity = hdr.recipients + hdr.ccList;
+
+  var server = null;
+  var identity = null;
   var folder = hdr.folder;
-  if (folder)
-  {
+  if (folder) {
     server = folder.server;
     identity = folder.customIdentity;
   }
 
   var accountKey = hdr.accountKey;
-  if (accountKey.length > 0)
-  {
+  if (accountKey.length > 0) {
     var account = accountManager.getAccount(accountKey);
     if (account)
       server = account.incomingServer;
   }
 
-  if (server && !identity) 
+  if (server && !identity)
     identity = getIdentityForServer(server, hintForIdentity);
 
-  if (!identity)
-  {
+  if (!identity) {
     var allIdentities = accountManager.allIdentities;
     identity = getBestIdentity(allIdentities, hintForIdentity);
   }
+
   return identity;
 }
 
 function GetNextNMessages(folder)
 {
   if (folder) {
-    var newsFolder = folder.QueryInterface(Components.interfaces.nsIMsgNewsFolder);
+    var newsFolder = folder.QueryInterface(
+                     Components.interfaces.nsIMsgNewsFolder);
     if (newsFolder) {
       newsFolder.getNextNMessages(msgWindow);
     }
@@ -167,7 +204,7 @@ function ComposeMessage(type, format, folder, messageArray)
   var msgComposeType = Components.interfaces.nsIMsgCompType;
   var identity = null;
   var newsgroup = null;
-  var server;
+  var hdr;
 
   // dump("ComposeMessage folder=" + folder + "\n");
   try
@@ -175,7 +212,7 @@ function ComposeMessage(type, format, folder, messageArray)
     if (folder)
     {
       // Get the incoming server associated with this uri.
-      server = folder.server;
+      var server = folder.server;
 
       // If they hit new or reply and they are reading a newsgroup,
       // turn this into a new post or a reply to group.
@@ -197,7 +234,6 @@ function ComposeMessage(type, format, folder, messageArray)
   }
 
   // dump("\nComposeMessage from XUL: " + identity + "\n");
-  var uri = null;
 
   if (!msgComposeService)
   {
@@ -205,78 +241,58 @@ function ComposeMessage(type, format, folder, messageArray)
     return;
   }
 
-  if (type == msgComposeType.New)
+  switch (type)
   {
-    // New message.
+    case msgComposeType.New: //new message
+      // dump("OpenComposeWindow with " + identity + "\n");
 
-    // dump("OpenComposeWindow with " + identity + "\n");
-
-    // If the addressbook sidebar panel is open and has focus, get
-    // the selected addresses from it.
-    if (document.commandDispatcher.focusedWindow &&
-        document.commandDispatcher.focusedWindow
-                .document.documentElement.hasAttribute("selectedaddresses"))
-      NewMessageToSelectedAddresses(type, format, identity);
-    else
-      msgComposeService.OpenComposeWindow(null, null, null, type, format, identity, msgWindow);
-    return;
-  }
-  else if (type == msgComposeType.NewsPost)
-  {
-    // dump("OpenComposeWindow with " + identity + " and " + newsgroup + "\n");
-    msgComposeService.OpenComposeWindow(null, null, newsgroup, type, format, identity, msgWindow);
-    return;
-  }
-
-  messenger.setWindow(window, msgWindow);
-
-  var object = null;
-
-  if (messageArray && messageArray.length > 0)
-  {
-    uri = "";
-    for (var i = 0; i < messageArray.length; ++i)
-    {
-      var messageUri = messageArray[i];
-
-      var hdr = messenger.msgHdrFromURI(messageUri);
-      identity = getIdentityForHeader(hdr, type);
-      if (/^https?:/.test(hdr.messageId))
-        openComposeWindowForRSSArticle(hdr, type);
-      else if (type == msgComposeType.Reply ||
-               type == msgComposeType.ReplyAll ||
-               type == msgComposeType.ReplyToList ||
-               type == msgComposeType.ForwardInline ||
-               type == msgComposeType.ReplyToGroup ||
-               type == msgComposeType.ReplyToSender ||
-               type == msgComposeType.ReplyToSenderAndGroup ||
-               type == msgComposeType.Template ||
-               type == msgComposeType.Redirect ||
-               type == msgComposeType.Draft)
-      {
-        msgComposeService.OpenComposeWindow(null, hdr, messageUri, type, format, identity, msgWindow);
-        // Limit the number of new compose windows to 8. Why 8 ? I like that number :-)
-        if (i == 7)
-          break;
-      }
+      // If the addressbook sidebar panel is open and has focus, get
+      // the selected addresses from it.
+      if (document.commandDispatcher.focusedWindow &&
+          document.commandDispatcher.focusedWindow
+                  .document.documentElement.hasAttribute("selectedaddresses"))
+        NewMessageToSelectedAddresses(type, format, identity);
       else
+        msgComposeService.OpenComposeWindow(null, null, null, type,
+                                            format, identity, msgWindow);
+      return;
+    case msgComposeType.NewsPost:
+      // dump("OpenComposeWindow with " + identity + " and " + newsgroup + "\n");
+      msgComposeService.OpenComposeWindow(null, null, newsgroup, type,
+                                          format, identity, msgWindow);
+      return;
+    case msgComposeType.ForwardAsAttachment:
+      if (messageArray && messageArray.length)
       {
-        if (i)
-          uri += ","
-        uri += messageUri;
+        // If we have more than one ForwardAsAttachment then pass null instead
+        // of the header to tell the compose service to work out the attachment
+        // subjects from the URIs.
+        hdr = messageArray.length > 1 ? null : messenger.msgHdrFromURI(messageArray[0]);
+        msgComposeService.OpenComposeWindow(null, hdr, messageArray.join(','),
+                                            type, format, identity, msgWindow);
+        return;
       }
-    }
-    // If we have more than one ForwardAsAttachment then pass null instead
-    // of the header to tell the compose service to work out the attachment
-    // subjects from the URIs.
-    if (type == msgComposeType.ForwardAsAttachment && uri)
-      msgComposeService.OpenComposeWindow(null,
-                                          messageArray.length > 1 ? null : hdr,
-                                          uri, type, format,
-                                          identity, msgWindow);
+    default:
+      if (!messageArray)
+        return;
+
+      // Limit the number of new compose windows to 8. Why 8 ?
+      // I like that number :-)
+      if (messageArray.length > 8)
+        messageArray.length = 8;
+
+      for (var i = 0; i < messageArray.length; ++i)
+      {
+        var messageUri = messageArray[i];
+        hdr = messenger.msgHdrFromURI(messageUri);
+        identity = getIdentityForHeader(hdr, type);
+        if (/^https?:/.test(hdr.messageId))
+          openComposeWindowForRSSArticle(hdr, type);
+        else
+          msgComposeService.OpenComposeWindow(null, hdr, messageUri, type,
+                                              format, identity, msgWindow);
+      }
   }
-  else
-    dump("### nodeList is invalid\n");
 }
 
 function NewMessageToSelectedAddresses(type, format, identity) {
@@ -302,14 +318,6 @@ function NewMessageToSelectedAddresses(type, format, identity) {
       msgComposeService.OpenComposeWindowWithParams(null, params);
     }
   }
-}
-
-function NewFolder(name, folder)
-{
-  if (!folder || !name)
-    return;
-
-  folder.createSubfolder(name, msgWindow);
 }
 
 function Subscribe(preselectedMsgFolder)
@@ -416,12 +424,32 @@ function GenerateFilenameFromMsgHdr(msgHdr) {
 
 }
 
-function SaveAsTemplate(uri, folder)
-{
-  if (uri) 
-  {
-    var hdr = messenger.msgHdrFromURI(uri);
-    var identity = getIdentityForHeader(hdr, Components.interfaces.nsIMsgCompType.Template);
+function saveAsUrlListener(aUri, aIdentity) {
+  this.uri = aUri;
+  this.identity = aIdentity;
+}
+
+saveAsUrlListener.prototype = {
+  OnStartRunningUrl: function(aUrl) {
+  },
+  OnStopRunningUrl: function(aUrl, aExitCode) {
+    messenger.saveAs(this.uri, false, this.identity, null);
+  }
+};
+
+function SaveAsTemplate(uri) {
+  if (uri) {
+    const Ci = Components.interfaces;
+    let hdr = messenger.msgHdrFromURI(uri);
+    let identity = getIdentityForHeader(hdr, Ci.nsIMsgCompType.Template);
+    let templates = MailUtils.getFolderForURI(identity.stationeryFolder, false);
+    if (!templates.parent) {
+      templates.setFlag(Ci.nsMsgFolderFlags.Templates);
+      let isImap = templates.server.type == "imap";
+      templates.createStorageIfMissing(new saveAsUrlListener(uri, identity));
+      if (isImap)
+        return;
+    }
     messenger.saveAs(uri, false, identity, null);
   }
 }

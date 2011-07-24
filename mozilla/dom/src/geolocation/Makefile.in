@@ -13,7 +13,7 @@
 #
 # The Original Code is mozilla.org build system.
 #
-# The Initial Developer of the Original Code is Mozilla Corporation
+# The Initial Developer of the Original Code is Mozilla Foundation
 # Portions created by the Initial Developer are Copyright (C) 2008
 # the Initial Developer. All Rights Reserved.
 #
@@ -48,24 +48,10 @@ LIBXUL_LIBRARY = 1
 # we don't want the shared lib, but we want to force the creation of a static lib.
 FORCE_STATIC_LIB = 1
 
-REQUIRES = \
-        xpcom \
-		content \
-        layout \
-		pref \
-		widget \
-		string \
-		dom \
-		js \
-		caps \
-		xpconnect\
-		intl \
-		necko \
-		windowwatcher \
-		$(NULL)
 
 CPPSRCS		= \
 		nsGeolocation.cpp \
+		nsGeoPosition.cpp \
 		$(NULL)
 
 EXTRA_DSO_LDOPTS = \
@@ -74,23 +60,33 @@ EXTRA_DSO_LDOPTS = \
 
 LOCAL_INCLUDES = \
 		-I$(topsrcdir)/dom/base \
+		-I$(topsrcdir)/dom/ipc \
+		-I$(topsrcdir)/content/base/src \
+		-I$(topsrcdir)/content/events/src \
 		$(NULL)
 
+EXPORTS        = nsGeoPosition.h
+
 ifdef WINCE_WINDOWS_MOBILE
-CPPSRCS         += WinMobileLocationProvider.cpp
+LOCAL_INCLUDES  += -I$(topsrcdir)/dom/system/windows \
+                   $(NULL)
 endif
 
-ifdef  MOZ_PLATFORM_MAEMO
-CPPSRCS         += MaemoLocationProvider.cpp
-LOCAL_INCLUDES	+= $(MOZ_PLATFORM_MAEMO_CFLAGS)
+ifdef MOZ_MAEMO_LIBLOCATION
+LOCAL_INCLUDES  += $(MOZ_PLATFORM_MAEMO_CFLAGS) \
+                   -I$(topsrcdir)/dom/system/unix \
+                   $(NULL)
 endif
 
-EXTRA_COMPONENTS = \
-                 NetworkGeolocationProvider.js \
-                 GPSDGeolocationProvider.js \
-                 $(NULL)
+ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+LOCAL_INCLUDES  += -I$(topsrcdir)/dom/system/android \
+                   $(NULL)
+endif
 
+EXPORTS         += nsGeoPositionIPCSerialiser.h
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
 DEFINES += -D_IMPL_NS_LAYOUT

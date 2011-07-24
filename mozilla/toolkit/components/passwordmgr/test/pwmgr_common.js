@@ -138,12 +138,12 @@ function commonInit() {
 
 
     // Check that initial state has no logins
-    var logins = pwmgr.getAllLogins({});
+    var logins = pwmgr.getAllLogins();
     if (logins.length) {
         //todo(false, "Warning: wasn't expecting logins to be present.");
         pwmgr.removeAllLogins();
     }
-    var disabledHosts = pwmgr.getAllDisabledHosts({});
+    var disabledHosts = pwmgr.getAllDisabledHosts();
     if (disabledHosts.length) {
         //todo(false, "Warning: wasn't expecting disabled hosts to be present.");
         for each (var host in disabledHosts)
@@ -153,13 +153,74 @@ function commonInit() {
     // Add a login that's used in multiple tests
     var login = Components.classes["@mozilla.org/login-manager/loginInfo;1"].
                 createInstance(Components.interfaces.nsILoginInfo);
-    login.init("http://localhost:8888", "http://localhost:8888", null,
+    login.init("http://mochi.test:8888", "http://mochi.test:8888", null,
                "testuser", "testpass", "uname", "pword");
     pwmgr.addLogin(login);
 
     // Last sanity check
-    logins = pwmgr.getAllLogins({});
+    logins = pwmgr.getAllLogins();
     is(logins.length, 1, "Checking for successful init login");
-    disabledHosts = pwmgr.getAllDisabledHosts({});
+    disabledHosts = pwmgr.getAllDisabledHosts();
     is(disabledHosts.length, 0, "Checking for no disabled hosts");
+}
+
+const masterPassword = "omgsecret!";
+
+function enableMasterPassword() {
+    setMasterPassword(true);
+}
+
+function disableMasterPassword() {
+    setMasterPassword(false);
+}
+
+function setMasterPassword(enable) {
+    var oldPW, newPW;
+    if (enable) {
+        oldPW = "";
+        newPW = masterPassword;
+    } else {
+        oldPW = masterPassword;
+        newPW = "";
+    }
+    // Set master password. Note that this does not log you in, so the next
+    // invocation of pwmgr can trigger a MP prompt.
+
+    var pk11db = Cc["@mozilla.org/security/pk11tokendb;1"].
+                 getService(Ci.nsIPK11TokenDB)
+    var token = pk11db.findTokenByName("");
+    ok(true, "change from " + oldPW + " to " + newPW);
+    token.changePassword(oldPW, newPW);
+}
+
+function logoutMasterPassword() {
+    var sdr = Cc["@mozilla.org/security/sdr;1"].
+            getService(Ci.nsISecretDecoderRing);
+    sdr.logoutAndTeardown();
+}
+
+function dumpLogins(pwmgr) {
+    var logins = pwmgr.getAllLogins();
+    ok(true, "----- dumpLogins: have " + logins.length + " logins. -----");
+    for (var i = 0; i < logins.length; i++)
+        dumpLogin("login #" + i + " --- ", logins[i]);
+}
+
+function dumpLogin(label, login) {
+    loginText = "";
+    loginText += "host: ";
+    loginText += login.hostname;
+    loginText += " / formURL: ";
+    loginText += login.formSubmitURL;
+    loginText += " / realm: ";
+    loginText += login.httpRealm;
+    loginText += " / user: ";
+    loginText += login.username;
+    loginText += " / pass: ";
+    loginText += login.password;
+    loginText += " / ufield: ";
+    loginText += login.usernameField;
+    loginText += " / pfield: ";
+    loginText += login.passwordField;
+    ok(true, label + loginText);
 }

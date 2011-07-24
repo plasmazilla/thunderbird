@@ -19,6 +19,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s): Tim Rowley <tor@cs.brown.edu>
+ *                 Glenn Randers-Pehrson <glennrp@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -37,11 +38,15 @@
 #ifndef MOZPNGCONF_H
 #define MOZPNGCONF_H
 
+#define PNG_USER_CHUNK_MALLOC_MAX 4000000L
+
 #define PNG_NO_GLOBAL_ARRAYS
 
 #ifndef MOZ_PNG_READ
 #define PNG_NO_READ_SUPPORTED
 #endif
+#define PNG_NO_SET_USER_LIMITS
+#define PNG_NO_USER_LIMITS
 #define PNG_NO_ASSEMBLER_CODE
 #define PNG_NO_WARN_UNINITIALIZED_ROW
 #define PNG_NO_READ_BACKGROUND
@@ -51,6 +56,7 @@
 #define PNG_NO_READ_PACK
 #define PNG_NO_READ_PACKSWAP
 #define PNG_NO_READ_FILLER
+#define PNG_NO_READ_SWAP
 #define PNG_NO_READ_SWAP_ALPHA
 #define PNG_NO_READ_INVERT_ALPHA
 #define PNG_NO_READ_RGB_TO_GRAY
@@ -82,6 +88,7 @@
 #define PNG_NO_WRITE_PACK
 #define PNG_NO_WRITE_PACKSWAP
 #define PNG_NO_WRITE_FILLER
+#define PNG_NO_WRITE_SWAP
 #define PNG_NO_WRITE_SWAP_ALPHA
 #define PNG_NO_WRITE_INVERT_ALPHA
 #define PNG_NO_WRITE_RGB_TO_GRAY
@@ -109,12 +116,12 @@
 #define PNG_NO_WRITE_INTERLACING_SUPPORTED  /* effective libpng-1.3.0 */
 #endif
 
+#define PNG_NO_HANDLE_AS_UNKNOWN
 #define PNG_NO_INFO_IMAGE
 #define PNG_NO_USER_MEM
 #define PNG_NO_FIXED_POINT_SUPPORTED
 #define PNG_NO_MNG_FEATURES
 #define PNG_NO_USER_TRANSFORM_PTR
-#define PNG_NO_HANDLE_AS_UNKNOWN
 #define PNG_NO_CONSOLE_IO
 #define PNG_NO_ZALLOC_ZERO
 #define PNG_NO_ERROR_NUMBERS
@@ -157,7 +164,6 @@
 #define png_build_grayscale_palette     MOZ_PNG_build_g_p
 #define png_calculate_crc               MOZ_PNG_calc_crc
 #define png_check_chunk_name            MOZ_PNG_ck_chunk_name
-#define png_check_sig                   MOZ_PNG_ck_sig
 #define png_chunk_error                 MOZ_PNG_chunk_err
 #define png_chunk_warning               MOZ_PNG_chunk_warn
 #define png_combine_row                 MOZ_PNG_combine_row
@@ -238,13 +244,9 @@
 #define png_get_iCCP                    MOZ_PNG_get_iCCP
 #define png_get_image_height            MOZ_PNG_get_image_h
 #define png_get_image_width             MOZ_PNG_get_image_w
-#define png_get_int_32                  MOZ_PNG_get_int_32
 #define png_get_interlace_type          MOZ_PNG_get_interlace_type
 #define png_get_libpng_ver              MOZ_PNG_get_libpng_ver
 #define png_get_mem_ptr                 MOZ_PNG_get_mem_ptr
-#define png_get_mmx_bitdepth_threshold  MOZ_PNG_get_mmx_bitdepth_thr
-#define png_get_mmx_flagmask            MOZ_PNG_get_mmx_flagmask
-#define png_get_mmx_rowbytes_threshold  MOZ_PNG_get_mmx_rowbytes_thr
 #define png_get_oFFs                    MOZ_PNG_get_oFFs
 #define png_get_pCAL                    MOZ_PNG_get_pCAL
 #define png_get_pHYs                    MOZ_PNG_get_pHYs
@@ -263,8 +265,6 @@
 #define png_get_tIME                    MOZ_PNG_get_tIME
 #define png_get_tRNS                    MOZ_PNG_get_tRNS
 #define png_get_text                    MOZ_PNG_get_text
-#define png_get_uint_16                 MOZ_PNG_get_uint_16
-#define png_get_uint_32                 MOZ_PNG_get_uint_32
 #define png_get_unknown_chunks          MOZ_PNG_get_unk_chunks
 #define png_get_user_chunk_ptr          MOZ_PNG_get_user_chunk_ptr
 #define png_get_user_transform_ptr      MOZ_PNG_get_user_transform_ptr
@@ -360,7 +360,7 @@
 #define png_set_compression_strategy    MOZ_PNG_set_comp_strategy
 #define png_set_compression_window_bits MOZ_PNG_set_comp_win_bits
 #define png_set_crc_action              MOZ_PNG_set_crc_action
-#define png_set_dither                  MOZ_PNG_set_dither
+#define png_set_quantize                MOZ_PNG_set_quantize
 #define png_set_error_fn                MOZ_PNG_set_error_fn
 #define png_set_expand                  MOZ_PNG_set_expand
 #define png_set_filler                  MOZ_PNG_set_filler
@@ -411,7 +411,7 @@
 #define png_set_tRNS                    MOZ_PNG_set_tRNS
 #define png_set_tRNS_to_alpha           MOZ_PNG_set_tRNS_to_alpha
 #define png_set_text                    MOZ_PNG_set_text
-#define png_set_text_2                  MOZ_PNG_set_text-2
+#define png_set_text_2                  MOZ_PNG_set_text_2
 #define png_set_unknown_chunk_location  MOZ_PNG_set_unknown_chunk_loc
 #define png_set_unknown_chunks          MOZ_PNG_set_unknown_chunks
 #define png_set_user_transform_info     MOZ_PNG_set_user_transform_info
@@ -512,8 +512,8 @@
 #define png_read_frame_head             MOZ_APNG_read_frame_head
 
 #ifndef PR_LOGGING
-  #define MOZ_PNG_warning(s1,s2) ""
-  #define MOZ_PNG_chunk_warn(s1,s2) ""
+  #define MOZ_PNG_warning(s1,s2) (void)0
+  #define MOZ_PNG_chunk_warn(s1,s2) (void)0
   #if PNG_LIBPNG_VER > 10221
     #define PNG_NO_WARNINGS
     #define PNG_NO_ERROR_TEXT

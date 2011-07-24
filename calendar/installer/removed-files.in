@@ -21,14 +21,10 @@ defaults/profile/US/
 # {641d8d09-7dda-4850-8228-ac0ab65e2ac9} = DOM Inspector
 extensions/{641d8d09-7dda-4850-8228-ac0ab65e2ac9}/install.rdf
 extensions/{641d8d09-7dda-4850-8228-ac0ab65e2ac9}/
-#ifdef MOZILLA_1_9_2_BRANCH
-greprefs.js
-#else
 greprefs/all.js
 greprefs/security-prefs.js
 greprefs/xpinstall.js
 greprefs/
-#endif
 components/component.reg
 components/compreg.dat
 components/xpti.dat
@@ -237,6 +233,16 @@ res/fonts/mathfontMath4.properties
 res/fonts/mathfontMTExtra.properties
 res/fonts/mathfontPUA.properties
 res/fonts/mathfontSymbol.properties
+res/html/gopher-audio.gif
+res/html/gopher-binary.gif
+res/html/gopher-find.gif
+res/html/gopher-image.gif
+res/html/gopher-menu.gif
+res/html/gopher-movie.gif
+res/html/gopher-sound.gif
+res/html/gopher-telnet.gif
+res/html/gopher-text.gif
+res/html/gopher-unknown.gif
 res/bloatcycle.html
 res/EditorOverride.css
 res/grabber.gif
@@ -359,13 +365,7 @@ extensions/talkback@mozilla.org/components/talkback.so
 components/nsUpdateService.js
 components/nsUpdateServiceStub.js
 #endif
-#
-# bug 404085 (Consolidate provider methods into a default calendar
-# implementation)
-components/calDavCalendar.js
-components/calICSCalendar.js
-components/calMemoryCalendar.js
-components/calStorageCalendar.js
+
 # bug 381049 (Moved crashreporter interface)
 components/crashreporter.xpt
 # bug 415330 (Remove XPInstall leftovers)
@@ -453,12 +453,8 @@ res/broken-image.gif
 res/loading-image.gif
 
 #ifdef XP_WIN
-#ifdef MOZILLA_1_9_2_BRANCH
-mozjs.dll
-#else
 # Bug 504029
 js3250.dll
-#endif
 #endif
 
 # bug 520394 - We now use Cocoa Printing instead of PrintPDE
@@ -471,11 +467,17 @@ js3250.dll
 ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
 #endif
 
-#ifndef MOZILLA_1_9_2_BRANCH
-components/contentprefs.xpt
+# Bug 534408 - Core bug 514665 dropped/replaced USE_SHORT_LIBNAME uses: port that to c-c (apps)
+#ifdef XP_WIN
+components/calbscmp.dll
 #endif
 
+components/contentprefs.xpt
+
 # Bug 522712 - Port |Bug 511761 - Only use compatibility.ini (not .autoreg, or stat()s) to invalidate fastloads and other caches| to comm-central (apps)
-#ifndef MOZILLA_1_9_2_BRANCH
 .autoreg
-#endif
+
+# Bug 576746 - new xpcom registration, we're cleaning up some extra files here
+components/calStorageCalendarModule.js
+components/calMemoryCalendarModule.js
+components/calICSCalendarModule.js

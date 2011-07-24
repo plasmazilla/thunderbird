@@ -52,15 +52,14 @@
 #include "prtypes.h"
 #include "prinrval.h"
 
+#include "mozilla/Mutex.h"
 #include "nsIComponentManager.h"
 #include "nsCOMPtr.h"
 #include "nsString.h"
 #include "nsIFile.h"
 #include "nsStringEnumerator.h"
 #include "nsHashtable.h"
-#include "nsAutoLock.h"
 #include "nsIZipReader.h"
-#include "nsIJAR.h"
 #include "nsZipArchive.h"
 #include "nsIPrincipal.h"
 #include "nsISignatureVerifier.h"
@@ -85,17 +84,17 @@ typedef enum
   JAR_NOT_SIGNED          = 7
 } JARManifestStatusType;
 
-PRTime GetModTime(PRUint16 aDate, PRUint16 aTime);
-
 /*-------------------------------------------------------------------------
  * Class nsJAR declaration. 
  * nsJAR serves as an XPCOM wrapper for nsZipArchive with the addition of 
  * JAR manifest file parsing. 
  *------------------------------------------------------------------------*/
-class nsJAR : public nsIZipReader, public nsIJAR
+class nsJAR : public nsIZipReader
 {
   // Allows nsJARInputStream to call the verification functions
   friend class nsJARInputStream;
+  // Allows nsZipReaderCache to access mOuterZipEntry
+  friend class nsZipReaderCache;
 
   public:
 
@@ -107,8 +106,6 @@ class nsJAR : public nsIZipReader, public nsIJAR
     NS_DECL_ISUPPORTS
 
     NS_DECL_NSIZIPREADER
-
-    NS_DECL_NSIJAR
 
     nsresult GetJarPath(nsACString& aResult);
 
@@ -135,19 +132,18 @@ class nsJAR : public nsIZipReader, public nsIJAR
   protected:
     //-- Private data members
     nsCOMPtr<nsIFile>        mZipFile;        // The zip/jar file on disk
-    nsZipArchive             mZip;            // The underlying zip archive
+    nsCString                mOuterZipEntry;  // The entry in the zip this zip is reading from
+    nsAutoPtr<nsZipArchive>  mZip;            // The underlying zip archive
     nsObjectHashtable        mManifestData;   // Stores metadata for each entry
     PRBool                   mParsedManifest; // True if manifest has been parsed
     nsCOMPtr<nsIPrincipal>   mPrincipal;      // The entity which signed this file
     PRInt16                  mGlobalStatus;   // Global signature verification status
     PRIntervalTime           mReleaseTime;    // used by nsZipReaderCache for flushing entries
     nsZipReaderCache*        mCache;          // if cached, this points to the cache it's contained in
-    PRLock*                  mLock;	
+    mozilla::Mutex           mLock;	
     PRInt64                  mMtime;
     PRInt32                  mTotalItemsInManifest;
-    
-    //-- Private functions
-    PRFileDesc* OpenFile();
+    PRBool                   mOpened;
 
     nsresult ParseManifest();
     void     ReportError(const char* aFilename, PRInt16 errorCode);
@@ -184,8 +180,7 @@ private:
     PRUint32     mSize;             /* size in original file */
     PRUint32     mRealsize;         /* inflated size */
     PRUint32     mCrc32;
-    PRUint16     mDate;
-    PRUint16     mTime;
+    PRTime       mLastModTime;
     PRUint16     mCompression;
     PRPackedBool mIsDirectory; 
     PRPackedBool mIsSynthetic;
@@ -235,7 +230,7 @@ public:
   nsresult ReleaseZip(nsJAR* reader);
 
 protected:
-  PRLock*               mLock;
+  mozilla::Mutex        mLock;
   PRInt32               mCacheSize;
   nsSupportsHashtable   mZips;
 

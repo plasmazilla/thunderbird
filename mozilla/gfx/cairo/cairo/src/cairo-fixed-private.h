@@ -28,7 +28,7 @@
  *
  * The Original Code is the cairo graphics library.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  *
  * Contributor(s):
  *	Vladimir Vukicevic <vladimir@pobox.com>
@@ -50,6 +50,7 @@
 
 #define CAIRO_FIXED_ONE        ((cairo_fixed_t)(1 << CAIRO_FIXED_FRAC_BITS))
 #define CAIRO_FIXED_ONE_DOUBLE ((double)(1 << CAIRO_FIXED_FRAC_BITS))
+#define CAIRO_FIXED_ONE_FLOAT  ((float)(1 << CAIRO_FIXED_FRAC_BITS))
 #define CAIRO_FIXED_EPSILON    ((cairo_fixed_t)(1))
 
 #define CAIRO_FIXED_FRAC_MASK  (((cairo_fixed_unsigned_t)(-1)) >> (CAIRO_FIXED_BITS - CAIRO_FIXED_FRAC_BITS))
@@ -141,6 +142,12 @@ _cairo_fixed_to_double (cairo_fixed_t f)
     return ((double) f) / CAIRO_FIXED_ONE_DOUBLE;
 }
 
+static inline float
+_cairo_fixed_to_float (cairo_fixed_t f)
+{
+    return ((float) f) / CAIRO_FIXED_ONE_FLOAT;
+}
+
 static inline int
 _cairo_fixed_is_integer (cairo_fixed_t f)
 {
@@ -217,6 +224,15 @@ _cairo_fixed_16_16_from_double (double d)
 #endif
 }
 
+static inline int
+_cairo_fixed_16_16_floor (cairo_fixed_t f)
+{
+    if (f >= 0)
+        return f >> 16;
+    else
+        return -((-f - 1) >> 16) - 1;
+}
+
 #if CAIRO_FIXED_BITS == 32
 
 static inline cairo_fixed_t
@@ -226,15 +242,61 @@ _cairo_fixed_mul (cairo_fixed_t a, cairo_fixed_t b)
     return _cairo_int64_to_int32(_cairo_int64_rsl (temp, CAIRO_FIXED_FRAC_BITS));
 }
 
-/* computes a * b / c */
+/* computes round (a * b / c) */
 static inline cairo_fixed_t
 _cairo_fixed_mul_div (cairo_fixed_t a, cairo_fixed_t b, cairo_fixed_t c)
 {
     cairo_int64_t ab  = _cairo_int32x32_64_mul (a, b);
     cairo_int64_t c64 = _cairo_int32_to_int64 (c);
-    cairo_int64_t quo = _cairo_int64_divrem (ab, c64).quo;
+    return _cairo_int64_to_int32 (_cairo_int64_divrem (ab, c64).quo);
+}
 
-    return _cairo_int64_to_int32(quo);
+/* computes floor (a * b / c) */
+static inline cairo_fixed_t
+_cairo_fixed_mul_div_floor (cairo_fixed_t a, cairo_fixed_t b, cairo_fixed_t c)
+{
+    return _cairo_int64_32_div (_cairo_int32x32_64_mul (a, b), c);
+}
+
+
+static inline cairo_fixed_t
+_cairo_edge_compute_intersection_y_for_x (const cairo_point_t *p1,
+					  const cairo_point_t *p2,
+					  cairo_fixed_t x)
+{
+    cairo_fixed_t y, dx;
+
+    if (x == p1->x)
+	return p1->y;
+    if (x == p2->x)
+	return p2->y;
+
+    y = p1->y;
+    dx = p2->x - p1->x;
+    if (dx != 0)
+	y += _cairo_fixed_mul_div_floor (x - p1->x, p2->y - p1->y, dx);
+
+    return y;
+}
+
+static inline cairo_fixed_t
+_cairo_edge_compute_intersection_x_for_y (const cairo_point_t *p1,
+					  const cairo_point_t *p2,
+					  cairo_fixed_t y)
+{
+    cairo_fixed_t x, dy;
+
+    if (y == p1->y)
+	return p1->x;
+    if (y == p2->y)
+	return p2->x;
+
+    x = p1->x;
+    dy = p2->y - p1->y;
+    if (dy != 0)
+	x += _cairo_fixed_mul_div_floor (y - p1->y, p2->x - p1->x, dy);
+
+    return x;
 }
 
 #else

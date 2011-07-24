@@ -182,7 +182,7 @@ nsDirIndexParser::ParseFormat(const char* aFormatStr) {
   // Lets find out how many elements we have.
   // easier to do this then realloc
   const char* pos = aFormatStr;
-  int num = 0;
+  unsigned int num = 0;
   do {
     while (*pos && nsCRT::IsAsciiSpace(PRUnichar(*pos)))
       ++pos;
@@ -314,7 +314,7 @@ nsDirIndexParser::ParseData(nsIDirIndex *aIdx, char* aDataStr) {
         }
       }
       
-      if (success == PR_FALSE) {
+      if (!success) {
         // if unsuccessfully at charset conversion, then
         // just fallback to unescape'ing in-place
         // XXX - this shouldn't be using UTF8, should it?

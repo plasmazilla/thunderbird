@@ -72,6 +72,9 @@
 #include "nsIURL.h"
 #include "nsCrossSiteListenerProxy.h"
 #include "nsDOMError.h"
+#include "mozilla/dom/Element.h"
+
+using namespace mozilla;
 
 static NS_DEFINE_CID(kCParserCID, NS_PARSER_CID);
 
@@ -404,13 +407,11 @@ public:
     txCompileObserver(txMozillaXSLTProcessor* aProcessor,
                       nsILoadGroup* aLoadGroup);
 
-    TX_DECL_ACOMPILEOBSERVER;
+    TX_DECL_ACOMPILEOBSERVER
+    NS_INLINE_DECL_REFCOUNTING(txCompileObserver)
 
     nsresult startLoad(nsIURI* aUri, txStylesheetCompiler* aCompiler,
                        nsIPrincipal* aSourcePrincipal);
-
-protected:
-    nsAutoRefCnt mRefCnt;
 
 private:
     nsRefPtr<txMozillaXSLTProcessor> mProcessor;
@@ -427,23 +428,6 @@ txCompileObserver::txCompileObserver(txMozillaXSLTProcessor* aProcessor,
     : mProcessor(aProcessor),
       mLoadGroup(aLoadGroup)
 {
-}
-
-nsrefcnt
-txCompileObserver::AddRef()
-{
-    return ++mRefCnt;
-}
-
-nsrefcnt
-txCompileObserver::Release()
-{
-    if (--mRefCnt == 0) {
-        mRefCnt = 1; //stabilize
-        delete this;
-        return 0;
-    }
-    return mRefCnt;
 }
 
 nsresult
@@ -538,8 +522,8 @@ txCompileObserver::startLoad(nsIURI* aUri, txStylesheetCompiler* aCompiler,
 
     // Always install in case of redirects
     nsCOMPtr<nsIStreamListener> listener =
-        new nsCrossSiteListenerProxy(sink, aReferrerPrincipal, channel,
-                                     PR_FALSE, &rv);
+        new nsCORSListenerProxy(sink, aReferrerPrincipal, channel,
+                                PR_FALSE, &rv);
     NS_ENSURE_TRUE(listener, NS_ERROR_OUT_OF_MEMORY);
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -589,8 +573,8 @@ handleNode(nsINode* aNode, txStylesheetCompiler* aCompiler)
 {
     nsresult rv = NS_OK;
     
-    if (aNode->IsNodeOfType(nsINode::eELEMENT)) {
-        nsIContent* element = static_cast<nsIContent*>(aNode);
+    if (aNode->IsElement()) {
+        dom::Element* element = aNode->AsElement();
 
         PRUint32 attsCount = element->GetAttrCount();
         nsAutoArrayPtr<txStylesheetAttr> atts;
@@ -658,33 +642,16 @@ class txSyncCompileObserver : public txACompileObserver
 public:
     txSyncCompileObserver(txMozillaXSLTProcessor* aProcessor);
 
-    TX_DECL_ACOMPILEOBSERVER;
+    TX_DECL_ACOMPILEOBSERVER
+    NS_INLINE_DECL_REFCOUNTING(txSyncCompileObserver)
 
 protected:
     nsRefPtr<txMozillaXSLTProcessor> mProcessor;
-    nsAutoRefCnt mRefCnt;
 };
 
 txSyncCompileObserver::txSyncCompileObserver(txMozillaXSLTProcessor* aProcessor)
   : mProcessor(aProcessor)
 {
-}
-
-nsrefcnt
-txSyncCompileObserver::AddRef()
-{
-    return ++mRefCnt;
-}
-
-nsrefcnt
-txSyncCompileObserver::Release()
-{
-    if (--mRefCnt == 0) {
-        mRefCnt = 1; //stabilize
-        delete this;
-        return 0;
-    }
-    return mRefCnt;
 }
 
 nsresult

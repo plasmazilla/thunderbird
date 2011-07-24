@@ -1,5 +1,5 @@
 import logging, re, os
-import data, functions, util, parser
+import data, parser, functions, util
 from cStringIO import StringIO
 from pymake.globrelative import hasglob, glob
 
@@ -21,36 +21,35 @@ class Location(object):
         self.line = line
         self.column = column
 
-    def __add__(self, data):
+    def offset(self, s, start, end):
         """
         Returns a new location offset by
         the specified string.
         """
 
-        if data == '':
+        if start == end:
             return self
         
-        skiplines = data.count('\n')
+        skiplines = s.count('\n', start, end)
         line = self.line + skiplines
         if skiplines:
-            lastnl = data.rfind('\n')
+            lastnl = s.rfind('\n', start, end)
             assert lastnl != -1
-            data = data[lastnl + 1:]
+            start = lastnl + 1
             column = 0
         else:
             column = self.column
 
-        i = 0
         while True:
-            j = data.find('\t', i)
+            j = s.find('\t', start, end)
             if j == -1:
-                column += len(data) - i
+                column += end - start
                 break
 
-            column += j - i
+            column += j - start
             column += _tabwidth
             column -= column % _tabwidth
-            i = j + 1
+            start = j + 1
 
         return Location(self.path, line, column)
 
@@ -135,14 +134,18 @@ class Rule(Statement):
             raise data.DataError("Mixed implicit and normal rule", self.targetexp.loc)
         ispattern, = ispatterns
 
+        if ispattern and context.weak:
+            raise data.DataError("Pattern rules not allowed in includedeps", self.targetexp.loc)
+
         deps = [p for p in _expandwildcards(makefile, data.stripdotslashes(self.depexp.resolvesplit(makefile, makefile.variables)))]
         if ispattern:
             rule = data.PatternRule(targets, map(data.Pattern, deps), self.doublecolon, loc=self.targetexp.loc)
             makefile.appendimplicitrule(rule)
         else:
-            rule = data.Rule(deps, self.doublecolon, loc=self.targetexp.loc)
+            rule = data.Rule(deps, self.doublecolon, loc=self.targetexp.loc, weakdeps=context.weak)
             for t in targets:
                 makefile.gettarget(t.gettarget()).addrule(rule)
+
             makefile.foundtarget(targets[0].gettarget())
 
         context.currule = rule
@@ -164,6 +167,9 @@ class StaticPatternRule(Statement):
         self.doublecolon = doublecolon
 
     def execute(self, makefile, context):
+        if context.weak:
+            raise data.DataError("Static pattern rules not allowed in includedeps", self.targetexp.loc)
+
         targets = list(_expandwildcards(makefile, data.stripdotslashes(self.targetexp.resolvesplit(makefile, makefile.variables))))
 
         if not len(targets):
@@ -202,6 +208,9 @@ class Command(Statement):
 
     def execute(self, makefile, context):
         assert context.currule is not None
+        if context.weak:
+            raise data.DataError("rules not allowed in includedeps", self.exp.loc)
+
         context.currule.addcommand(self.exp)
 
     def dump(self, fd, indent):
@@ -336,10 +345,11 @@ class ConditionBlock(Statement):
         self.addcondition(loc, condition)
 
     def getloc(self):
-        return self._groups[0][0].loc
+        return self.loc
 
     def addcondition(self, loc, condition):
         assert isinstance(condition, Condition)
+        condition.loc = loc
 
         if len(self._groups) and isinstance(self._groups[-1][0], ElseCondition):
             raise parser.SyntaxError("Multiple else conditions for block starting at %s" % self.loc, loc)
@@ -369,18 +379,28 @@ class ConditionBlock(Statement):
             print >>fd, "%s ~Condition" % (indent,)
         print >>fd, "%s~ConditionBlock" % (indent,)
 
-class Include(Statement):
-    __slots__ = ('exp', 'required')
+    def __iter__(self):
+        return iter(self._groups)
 
-    def __init__(self, exp, required):
+    def __len__(self):
+        return len(self._groups)
+
+    def __getitem__(self, i):
+        return self._groups[i]
+
+class Include(Statement):
+    __slots__ = ('exp', 'required', 'deps')
+
+    def __init__(self, exp, required, weak):
         assert isinstance(exp, (data.Expansion, data.StringExpansion))
         self.exp = exp
         self.required = required
+        self.weak = weak
 
     def execute(self, makefile, context):
         files = self.exp.resolvesplit(makefile, makefile.variables)
         for f in files:
-            makefile.include(f, self.required, loc=self.exp.loc)
+            makefile.include(f, self.required, loc=self.exp.loc, weak=self.weak)
 
     def dump(self, fd, indent):
         print >>fd, "%sInclude %s" % (indent, self.exp)
@@ -462,7 +482,10 @@ class EmptyDirective(Statement):
         print >>fd, "%sEmptyDirective: %s" % (indent, self.exp)
 
 class _EvalContext(object):
-    __slots__ = ('currule',)
+    __slots__ = ('currule', 'weak')
+
+    def __init__(self, weak):
+        self.weak = weak
 
 class StatementList(list):
     __slots__ = ('mtime',)
@@ -471,9 +494,9 @@ class StatementList(list):
         assert isinstance(statement, Statement)
         list.append(self, statement)
 
-    def execute(self, makefile, context=None):
+    def execute(self, makefile, context=None, weak=False):
         if context is None:
-            context = _EvalContext()
+            context = _EvalContext(weak=weak)
 
         for s in self:
             s.execute(makefile, context)
@@ -486,3 +509,10 @@ class StatementList(list):
         fd = StringIO()
         self.dump(fd, '')
         return fd.getvalue()
+
+def iterstatements(stmts):
+    for s in stmts:
+        yield s
+        if isinstance(s, ConditionBlock):
+            for c, sl in s:
+                for s2 in iterstatments(sl): yield s2

@@ -70,6 +70,7 @@ Var TmpVal
 !include WinVer.nsh
 !include WordFunc.nsh
 
+!insertmacro GetSize
 !insertmacro StrFilter
 !insertmacro WordReplace
 
@@ -80,30 +81,33 @@ Var TmpVal
 !include defines.nsi
 !include common.nsh
 !include locales.nsi
-!include version.nsh
 
 ; This is named BrandShortName helper because we use this for software update
 ; post update cleanup.
 VIAddVersionKey "FileDescription" "${BrandShortName} Helper"
 VIAddVersionKey "OriginalFilename" "helper.exe"
 
-; Most commonly used macros for managing shortcuts
-!insertmacro _LoggingShortcutsCommon
-
 !insertmacro AddDDEHandlerValues
 !insertmacro CleanVirtualStore
 !insertmacro ElevateUAC
-!insertmacro FindSMProgramsDir
 !insertmacro GetLongPath
 !insertmacro GetPathFromString
 !insertmacro IsHandlerForInstallDir
+!insertmacro IsPinnedToTaskBar
+!insertmacro LogDesktopShortcut
+!insertmacro LogQuickLaunchShortcut
+!insertmacro LogStartMenuShortcut
+!insertmacro PinnedToStartMenuLnkCount
 !insertmacro RegCleanAppHandler
 !insertmacro RegCleanMain
 !insertmacro RegCleanUninstall
+!insertmacro SetAppLSPCategories
 !insertmacro SetBrandNameVars
+!insertmacro UpdateShortcutAppModelIDs
 !insertmacro UnloadUAC
 !insertmacro WriteRegDWORD2
 !insertmacro WriteRegStr2
+!insertmacro CheckIfRegistryKeyExists
 
 !insertmacro un.ChangeMUIHeaderImage
 !insertmacro un.CheckForFilesInUse
@@ -121,6 +125,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro un.RegCleanUninstall
 !insertmacro un.RegCleanProtocolHandler
 !insertmacro un.RemoveQuotesFromPath
+!insertmacro un.SetAppLSPCategories
 !insertmacro un.SetBrandNameVars
 
 !include shared.nsh
@@ -130,11 +135,15 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro UninstallOnInitCommon
 
 !insertmacro un.OnEndCommon
+!insertmacro un.UninstallUnOnInitCommon
 
 Name "${BrandFullName}"
 OutFile "helper.exe"
-InstallDirRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} (${AppVersion})" "InstallLocation"
-InstallDir "$PROGRAMFILES\${BrandFullName}"
+!ifdef HAVE_64BIT_OS
+  InstallDir "$PROGRAMFILES64\${BrandFullName}\"
+!else
+  InstallDir "$PROGRAMFILES32\${BrandFullName}\"
+!endif
 ShowUnInstDetails nevershow
 
 ################################################################################
@@ -206,7 +215,7 @@ Section "Uninstall"
   ${If} ${Errors}
     ; If the user closed the application it can take several seconds for it to
     ; shut down completely. If the application is being used by another user we
-    ; can still delete the files when the system is restarted. 
+    ; can still delete the files when the system is restarted.
     Sleep 5000
     ${DeleteFile} "$INSTDIR\${FileMainEXE}"
     ClearErrors
@@ -225,6 +234,9 @@ Section "Uninstall"
   ${un.RegCleanUninstall}
   ${un.DeleteShortcuts}
 
+  ; Unregister resources associated with Win7 taskbar jump lists.
+  ApplicationID::UninstallJumpLists "${AppUserModelID}"
+
   ClearErrors
   WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
@@ -236,6 +248,7 @@ Section "Uninstall"
     ${un.RegCleanMain} "Software\Mozilla"
     ${un.RegCleanUninstall}
     ${un.DeleteShortcuts}
+    ${un.SetAppLSPCategories}
   ${EndIf}
 
   ${un.RegCleanAppHandler} "FirefoxURL"
@@ -254,6 +267,7 @@ Section "Uninstall"
     ${un.RegCleanFileHandler}  ".shtml" "FirefoxHTML"
     ${un.RegCleanFileHandler}  ".xht"   "FirefoxHTML"
     ${un.RegCleanFileHandler}  ".xhtml" "FirefoxHTML"
+    ${un.RegCleanFileHandler}  ".webm"  "FirefoxHTML"
   ${EndIf}
 
   SetShellVarContext all  ; Set SHCTX to HKLM
@@ -285,6 +299,9 @@ Section "Uninstall"
     DeleteRegKey HKLM "$0"
     DeleteRegKey HKCU "$0"
     StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\${FileMainEXE}"
+    DeleteRegKey HKLM "$0"
+    DeleteRegKey HKCU "$0"
+    StrCpy $0 "Software\Microsoft\MediaPlayer\ShimInclusionList\plugin-container.exe"
     DeleteRegKey HKLM "$0"
     DeleteRegKey HKCU "$0"
     StrCpy $0 "Software\Classes\MIME\Database\Content Type\application/x-xpinstall;app=firefox"
@@ -564,18 +581,9 @@ Function .onInit
 FunctionEnd
 
 Function un.onInit
-  ${un.GetParent} "$INSTDIR" $INSTDIR
-  ${un.GetLongPath} "$INSTDIR" $INSTDIR
-  ${Unless} ${FileExists} "$INSTDIR\${FileMainEXE}"
-    Abort
-  ${EndUnless}
-
   StrCpy $LANGUAGE 0
-  ${un.SetBrandNameVars} "$INSTDIR\distribution\setup.ini"
 
-  ; Initialize $hHeaderBitmap to prevent redundant changing of the bitmap if
-  ; the user clicks the back button
-  StrCpy $hHeaderBitmap ""
+  ${un.UninstallUnOnInitCommon}
 
   !insertmacro InitInstallOptionsFile "unconfirm.ini"
 FunctionEnd

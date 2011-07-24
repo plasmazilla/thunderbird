@@ -43,6 +43,7 @@
 %{ C++
 class nsPresContext;
 class nsIPresShell;
+struct JSContext;
 %}
 
 /**
@@ -68,8 +69,10 @@ interface nsILayoutHistoryState;
 interface nsISecureBrowserUI;
 interface nsIDOMStorage;
 interface nsIPrincipal;
+interface nsIWebBrowserPrint;
+interface nsIVariant;
 
-[scriptable, uuid(8ADFB831-1053-4A19-884D-BCDAD7277B4B)]
+[scriptable, uuid(f77271a1-0b22-4581-af6d-529125f1901d)]
 interface nsIDocShell : nsISupports
 {
   /**
@@ -167,6 +170,14 @@ interface nsIDocShell : nsISupports
                               in boolean firstParty,
                               out nsIDocShell aDocShell,
                               out nsIRequest aRequest);
+
+  /**
+   * Do either a history.pushState() or history.replaceState() operation,
+   * depending on the value of aReplace.
+   */
+  [implicit_jscontext]
+  void addState(in nsIVariant aData, in DOMString aTitle,
+                in DOMString aURL, in boolean aReplace);
 
   /**
    * Creates a DocShellLoadInfo object that you can manipulate and then pass
@@ -338,9 +349,10 @@ interface nsIDocShell : nsISupports
   /**
    * Load commands for the document 
    */
-  const unsigned long LOAD_CMD_NORMAL  = 0x1; // Normal load
-  const unsigned long LOAD_CMD_RELOAD  = 0x2; // Reload
-  const unsigned long LOAD_CMD_HISTORY = 0x4; // Load from history
+  const unsigned long LOAD_CMD_NORMAL  = 0x1;   // Normal load
+  const unsigned long LOAD_CMD_RELOAD  = 0x2;   // Reload
+  const unsigned long LOAD_CMD_HISTORY = 0x4;   // Load from history
+  const unsigned long LOAD_CMD_PUSHSTATE = 0x8; // History.pushState()
 
   readonly attribute unsigned long busyFlags;
 
@@ -429,17 +441,23 @@ interface nsIDocShell : nsISupports
    * If it doesn't already exist, a new one will be created.
    *
    * @param uri the uri of the storage object to retrieve
+   * @param documentURI new storage will be created with reference to this
+   *                    document.documentURI that will appear in storage event
    */
-  nsIDOMStorage getSessionStorageForURI(in nsIURI uri);
+  nsIDOMStorage getSessionStorageForURI(in nsIURI uri,
+                                        in DOMString documentURI);
 
   /*
    * Retrieves the WebApps session storage object for the supplied principal.
    *
    * @param principal returns a storage for this principal
+   * @param documentURI new storage will be created with reference to this
+   *                    document.documentURI that will appear in storage event
    * @param create If true and a session storage object doesn't
    *               already exist, a new one will be created.
    */
   nsIDOMStorage getSessionStorageForPrincipal(in nsIPrincipal principal,
+                                              in DOMString documentURI,
                                               in boolean create);
 
   /*
@@ -488,4 +506,46 @@ interface nsIDocShell : nsISupports
    * and should be treated accordingly.
    **/
   attribute boolean isOffScreenBrowser;    
+
+  /**
+   * If the current content viewer isn't initialized for print preview,
+   * it is replaced with one which is and to which an about:blank document
+   * is loaded.
+   */
+  readonly attribute nsIWebBrowserPrint printPreview;
+
+  /**
+   * Whether this docshell can execute scripts based on its hierarchy.
+   * The rule of thumb here is that we disable js if this docshell or any
+   * of its parents disallow scripting, unless the only reason for js being
+   * disabled in this docshell is a parent docshell having a document that
+   * is in design mode.  In that case, we explicitly allow scripting on the
+   * current docshell.
+   */
+  readonly attribute boolean canExecuteScripts;
+
+  /**
+   * Sets whether a docshell is active. An active docshell is one that is
+   * visible, and thus is not a good candidate for certain optimizations
+   * like image frame discarding. Docshells are active unless told otherwise.
+   */
+  attribute boolean isActive;
+
+  /**
+   * The ID of the docshell in the session history.
+   */
+  readonly attribute unsigned long long historyID;
+
+  /**
+   * Sets whether a docshell is an app tab. An app tab docshell may behave
+   * differently than a non-app tab docshell in some cases, such as when
+   * handling link clicks. Docshells are not app tabs unless told otherwise.
+   */
+  attribute boolean isAppTab;
+
+  /**
+   * Create a new about:blank document and content viewer.
+   * @param aPrincipal the principal to use for the new document.
+   */
+  void createAboutBlankContentViewer(in nsIPrincipal aPrincipal);
 };

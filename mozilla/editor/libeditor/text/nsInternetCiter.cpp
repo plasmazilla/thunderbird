@@ -58,18 +58,7 @@ const PRUnichar cr('\r');
 /** Mail citations using the Internet style: > This is a citation
   */
 
-
-nsInternetCiter::nsInternetCiter()
-{
-}
-
-nsInternetCiter::~nsInternetCiter()
-{
-}
-
-NS_IMPL_ISUPPORTS1(nsInternetCiter, nsICiter)
-
-NS_IMETHODIMP
+nsresult
 nsInternetCiter::GetCiteString(const nsAString& aInString, nsAString& aOutString)
 {
   aOutString.Truncate();
@@ -155,7 +144,7 @@ nsInternetCiter::StripCitesAndLinebreaks(const nsAString& aInString,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsInternetCiter::StripCites(const nsAString& aInString, nsAString& aOutString)
 {
   return StripCitesAndLinebreaks(aInString, aOutString, PR_FALSE, 0);
@@ -188,7 +177,7 @@ static inline PRBool IsSpace(PRUnichar c)
   return (nsCRT::IsAsciiSpace(c) || (c == nl) || (c == cr) || (c == nbsp));
 }
 
-NS_IMETHODIMP
+nsresult
 nsInternetCiter::Rewrap(const nsAString& aInString,
                         PRUint32 aWrapCol, PRUint32 aFirstLineOffset,
                         PRBool aRespectNewlines,
@@ -354,7 +343,7 @@ nsInternetCiter::Rewrap(const nsAString& aInString,
         continue;    // continue inner loop, with outStringCol now at bol
       }
 
-      PRInt32 breakPt;
+      PRInt32 breakPt = 0;
       rv = NS_ERROR_BASE;
       if (lineBreaker)
       {

@@ -53,7 +53,7 @@
 
 function generateRequestId() {
     if (!generateRequestId.mRequestPrefix) {
-        generateRequestId.mRequestPrefix = (getUUID() + "-");
+        generateRequestId.mRequestPrefix = (cal.getUUID() + "-");
         generateRequestId.mRequestId = 0;
     }
     ++generateRequestId.mRequestId;
@@ -230,8 +230,27 @@ calWcapNetworkRequest.prototype = {
     m_respFunc: null,
     m_bLogging: false,
 
+    getInterfaces: function ci_wcapNetworkRequest_getInterfaces(count) {
+        const ifaces = [Components.interfaces.nsIUnicharStreamLoaderObserver,
+                        Components.interfaces.nsIInterfaceRequestor,
+                        Components.interfaces.nsIChannelEventSink,
+                        Components.interfaces.calIOperation,
+                        Components.interfaces.nsIClassInfo,
+                        nsISupports];
+        count.value = ifaces.length;
+        return ifaces;
+    },
+    classDescription: "Sun Java System Calendar Server WCAP Network Request",
+    contractID: "@mozilla.org/calendar/wcap/network-request;1",
+    classID: Components.ID("{e3c62b37-83cf-41ec-9872-0af9f952430a}"),
+    getHelperForLanguage: function ci_wcapNetworkRequest_getHelperForLanguage(language) {
+        return null;
+    },
+    implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
+    flags: 0,
+
     QueryInterface: function calWcapNetworkRequest_QueryInterface(iid) {
-        return doQueryInterface(this, calWcapNetworkRequest.prototype, iid, null, g_classInfo.wcapNetworkRequest);
+        return cal.doQueryInterface(this, calWcapNetworkRequest.prototype, iid, null, this);
     },
 
     /**
@@ -256,11 +275,13 @@ calWcapNetworkRequest.prototype = {
     /**
      * @see nsIChannelEventSink
      */
-    onChannelRedirect: function calWcapNetworkRequest_onChannelRedirect(aOldChannel,
-                                                                        aNewChannel,
-                                                                        aFlags) {
+    asyncOnChannelRedirect: function calWcapNetworkRequest_asyncOnChannelRedirect(aOldChannel,
+                                                                                  aNewChannel,
+                                                                                  aFlags,
+                                                                                  aCallback) {
         // all we need to do to the new channel is the basic preparation
         this.prepareChannel(aNewChannel);
+        aCallback.onRedirectVerifyCallback(Components.results.NS_OK);
     },
 
     /**

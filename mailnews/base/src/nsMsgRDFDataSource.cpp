@@ -42,6 +42,8 @@
 #include "nsMsgRDFUtils.h"
 #include "nsEnumeratorUtils.h"
 #include "nsIObserverService.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMsgUtils.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 
@@ -79,21 +81,11 @@ nsMsgRDFDataSource::Init()
   return rv;
 }
 
-// clean yourself up - undo anything you did in Init()
 void nsMsgRDFDataSource::Cleanup()
 {
-    nsresult rv;
-    mRDFService = nsnull;
+  mRDFService = nsnull;
 
-    // release ourselves from the observer service
-    nsCOMPtr<nsIObserverService> obs = do_GetService("@mozilla.org/observer-service;1",
-                                                     &rv);
-    if (NS_SUCCEEDED(rv)) {
-        rv = obs->RemoveObserver(static_cast<nsIObserver*>(this),
-                                 NS_XPCOM_SHUTDOWN_OBSERVER_ID);
-    }
-
-    // release the window
+  // release the window
   mWindow = nsnull;
 
   mInitialized = PR_FALSE;
@@ -112,8 +104,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsMsgRDFDataSource)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRDFService)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsMsgRDFDataSource, nsIRDFDataSource)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsMsgRDFDataSource, nsIRDFDataSource)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsMsgRDFDataSource)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsMsgRDFDataSource)
 
 NS_INTERFACE_MAP_BEGIN(nsMsgRDFDataSource)
   NS_INTERFACE_MAP_ENTRY(nsIRDFDataSource)

@@ -309,7 +309,7 @@ JSBool XPCDispConvert::JSToCOM(XPCCallContext& ccx,
         case VT_R8:
         {
             varDest->vt = VT_R8;
-            varDest->dblVal = *JSVAL_TO_DOUBLE(src);
+            varDest->dblVal = JSVAL_TO_DOUBLE(src);
         }
         break;
         case VT_EMPTY:
@@ -411,12 +411,8 @@ JSBool XPCDispConvert::COMArrayToJSArray(XPCCallContext& ccx,
     }
     else // This was maybe a VT_SAFEARRAY
     {
-#ifndef WINCE
         if(FAILED(SafeArrayGetVartype(src.parray, &vartype)))
             return JS_FALSE;
-#else
-        return JS_FALSE;
-#endif
     }
     jsval val = JSVAL_NULL;
     AUTO_MARK_JSVAL(ccx, &val);

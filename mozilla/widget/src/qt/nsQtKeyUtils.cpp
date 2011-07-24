@@ -39,7 +39,6 @@
  * ***** END LICENSE BLOCK ***** */
 #include "nsWindow.h"
 #include "nsQtKeyUtils.h"
-#include "keysym2ucs.h"
 
 #include "nsGUIEvent.h"
 
@@ -174,20 +173,13 @@ static struct nsKeyConverter nsKeycodes[] =
 };
 
 
-#define IS_XSUN_XSERVER(dpy) \
-    (strstr(XServerVendor(dpy), "Sun Microsystems") != NULL)
-
-// map Sun Keyboard special keysyms on to NS_VK keys
+#ifdef SOLARIS
 struct nsKeyConverter nsSunKeycodes[] = {
-    {NS_VK_ESCAPE, Qt::Key_F11 }, //bug 57262, Sun Stop key generates F11 keysym
     {NS_VK_F1, Qt::Key_Help }, //Mapping Help key to F1
     {NS_VK_F11, 0x1005ff10 }, //Sun F11 key generates SunF36(0x1005ff10) keysym
-    {NS_VK_F12, 0x1005ff11 }, //Sun F12 key generates SunF37(0x1005ff11) keysym
-    {NS_VK_PAGE_UP,    Qt::Key_F29 }, //KP_Prior
-    {NS_VK_PAGE_DOWN,  Qt::Key_F35 }, //KP_Next
-    {NS_VK_HOME,       Qt::Key_F27 }, //KP_Home
-    {NS_VK_END,        Qt::Key_F33 }, //KP_End
+    {NS_VK_F12, 0x1005ff11 }  //Sun F12 key generates SunF37(0x1005ff11) keysym
 };
+#endif
 
 int
 QtKeyCodeToDOMKeyCode(int aKeysym)
@@ -211,14 +203,14 @@ QtKeyCodeToDOMKeyCode(int aKeysym)
 //    if (aKeysym >= Qt::Key_KP_0 && aKeysym <= Qt::Key_KP_9)
 //        return aKeysym - Qt::Key_KP_0 + NS_VK_NUMPAD0;
 
+#ifdef SOLARIS
     // map Sun Keyboard special keysyms
-//    if (IS_XSUN_XSERVER(Qt::Key_DISPLAY())) {
-//        length = sizeof(nsSunKeycodes) / sizeof(struct nsKeyConverter);
-//        for (i = 0; i < length; i++) {
-//            if (nsSunKeycodes[i].keysym == aKeysym)
-//                return(nsSunKeycodes[i].vkCode);
-//        }
-//    }
+    length = sizeof(nsSunKeycodes) / sizeof(struct nsKeyConverter);
+    for (i = 0; i < length; i++) {
+        if (nsSunKeycodes[i].keysym == aKeysym)
+            return(nsSunKeycodes[i].vkCode);
+    }
+#endif
 
     // misc other things
     length = sizeof(nsKeycodes) / sizeof(struct nsKeyConverter);
@@ -254,7 +246,7 @@ DOMKeyCodeToQtKeyCode(int aKeysym)
 
     // keypad numbers
     if (aKeysym >= NS_VK_NUMPAD0 && aKeysym <= NS_VK_NUMPAD9) {
-      qDebug("FIXME:>>>>>>Func:%s::%d\n", __PRETTY_FUNCTION__, __LINE__);
+      NS_ERROR("keypad numbers conversion not implemented");
       //return aKeysym - NS_VK_NUMPAD0 + Qt::Key_KP_0;
       return 0;
     }
@@ -271,70 +263,5 @@ DOMKeyCodeToQtKeyCode(int aKeysym)
     if (aKeysym >= NS_VK_F1 && aKeysym <= NS_VK_F9)
       return aKeysym - NS_VK_F1 + Qt::Key_F1;
 
-    return 0;
-}
-
-// Convert gdk key event keyvals to char codes if printable, 0 otherwise
-PRUint32 nsConvertCharCodeToUnicode(QKeyEvent* aEvent)
-{
-    // Anything above 0xf000 is considered a non-printable
-    // Exception: directly encoded UCS characters
-    if (aEvent->key() > 0xf000 && (aEvent->key() & 0xff000000) != 0x01000000) {
-
-        // Keypad keys are an exception: they return a value different
-        // from their non-keypad equivalents, but mozilla doesn't distinguish.
-/*
-        switch (aEvent->key())
-            {
-            case Qt::Key_KP_Space:
-                return ' ';
-            case Qt::Key_KP_Equal:
-                return '=';
-            case Qt::Key_KP_Multiply:
-                return '*';
-            case Qt::Key_KP_Add:
-                return '+';
-            case Qt::Key_KP_Separator:
-                return ',';
-            case Qt::Key_KP_Subtract:
-                return '-';
-            case Qt::Key_KP_Decimal:
-                return '.';
-            case Qt::Key_KP_Divide:
-                return '/';
-            case Qt::Key_KP_0:
-                return '0';
-            case Qt::Key_KP_1:
-                return '1';
-            case Qt::Key_KP_2:
-                return '2';
-            case Qt::Key_KP_3:
-                return '3';
-            case Qt::Key_KP_4:
-                return '4';
-            case Qt::Key_KP_5:
-                return '5';
-            case Qt::Key_KP_6:
-                return '6';
-            case Qt::Key_KP_7:
-                return '7';
-            case Qt::Key_KP_8:
-                return '8';
-            case Qt::Key_KP_9:
-                return '9';
-            }
-
-        // non-printables
-        return 0;
-*/
-    }
-
-
-    // we're supposedly printable, let's try to convert
-    long ucs = keysym2ucs(aEvent->key());
-    if ((ucs != -1) && (ucs < 0x10000))
-        return ucs;
-
-    // I guess we couldn't convert
     return 0;
 }

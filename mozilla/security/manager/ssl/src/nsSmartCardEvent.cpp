@@ -108,16 +108,12 @@ NS_IMETHODIMP nsSmartCardEvent::SetTarget(nsIDOMEventTarget *aTarget)
 
 NS_IMETHODIMP_(PRBool ) nsSmartCardEvent::IsDispatchStopped()
 {
-  PRBool  isDispatchPrevented = nsnull;
-  PRBool * aIsDispatchPrevented = &isDispatchPrevented;
   NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
   return mPrivate->IsDispatchStopped();
 }
 
 NS_IMETHODIMP_(nsEvent*) nsSmartCardEvent::GetInternalNSEvent()
 {
-  nsEvent* nSEvent = nsnull;
-  nsEvent** aNSEvent = &nSEvent;
   NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
   return mPrivate->GetInternalNSEvent();
 }
@@ -128,6 +124,20 @@ NS_IMETHODIMP nsSmartCardEvent::SetTrusted(PRBool aResult)
   return mPrivate->SetTrusted(aResult);
 }
 
+void
+nsSmartCardEvent::Serialize(IPC::Message* aMsg,
+                            PRBool aSerializeInterfaceType)
+{
+  NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
+  mPrivate->Serialize(aMsg, aSerializeInterfaceType);
+}
+
+PRBool
+nsSmartCardEvent::Deserialize(const IPC::Message* aMsg, void** aIter)
+{
+  NS_ASSERTION(mPrivate, "SmartCardEvent called without Init");
+  return mPrivate->Deserialize(aMsg, aIter);
+}
 
 // IDOMNSEvent maps
 NS_IMETHODIMP nsSmartCardEvent::GetOriginalTarget(nsIDOMEventTarget * *aOriginalTarget)

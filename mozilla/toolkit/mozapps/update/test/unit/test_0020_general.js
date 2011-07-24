@@ -111,8 +111,12 @@ function run_test_pt02() {
   var updates = getRemoteUpdateString(patches, "minor", "Minor Test",
                                       "version 2.1a1pre", "2.1a1pre",
                                       "3.1a1pre", "20080811053724",
-                                      "http://details/", null,
-                                      "http://license/");
+                                      "http://details/",
+                                      "http://billboard/",
+                                      "http://license/", "true",
+                                      "true", "true", "4.1a1pre", "5.1a1pre",
+                                      "custom1_attr=\"custom1 value\"",
+                                      "custom2_attr=\"custom2 value\"");
   gResponseBody = getRemoteUpdatesXMLString(updates);
   gUpdateChecker.checkForUpdates(updateCheckListener, true);
 }
@@ -137,10 +141,16 @@ function check_test_pt02() {
   var bestUpdate = gAUS.selectUpdate(gUpdates, gUpdateCount).QueryInterface(AUS_Ci.nsIPropertyBag);
   do_check_eq(bestUpdate.type, "minor");
   do_check_eq(bestUpdate.name, "Minor Test");
+  do_check_eq(bestUpdate.displayVersion, "version 2.1a1pre");
+  do_check_eq(bestUpdate.appVersion, "2.1a1pre");
   do_check_eq(bestUpdate.platformVersion, "3.1a1pre");
   do_check_eq(bestUpdate.buildID, "20080811053724");
   do_check_eq(bestUpdate.detailsURL, "http://details/");
+  do_check_eq(bestUpdate.billboardURL, "http://billboard/");
   do_check_eq(bestUpdate.licenseURL, "http://license/");
+  do_check_true(bestUpdate.showPrompt);
+  do_check_true(bestUpdate.showNeverForVersion);
+  do_check_true(bestUpdate.showSurvey);
   do_check_eq(bestUpdate.serviceURL, URL_HOST + "update.xml?force=1");
   do_check_eq(bestUpdate.channel, "test_channel");
   do_check_false(bestUpdate.isCompleteUpdate);
@@ -154,6 +164,9 @@ function check_test_pt02() {
   do_check_eq(bestUpdate.errorCode, 0);
   do_check_eq(bestUpdate.patchCount, 2);
   //XXX TODO - test nsIUpdate:serialize
+
+  do_check_eq(bestUpdate.getProperty("custom1_attr"), "custom1 value");
+  do_check_eq(bestUpdate.getProperty("custom2_attr"), "custom2 value");
 
   var patch = bestUpdate.getPatchAt(0);
   do_check_eq(patch.type, "complete");
@@ -196,7 +209,9 @@ function run_test_pt03() {
   var updates = getRemoteUpdateString(patches, "major", "Major Test",
                                       null, null,
                                       "5.1a1pre", "20080811053724",
-                                      "http://details/");
+                                      "http://details/",
+                                      null, null, null, null, null,
+                                      "version 4.1a1pre", "4.1a1pre");
   gResponseBody = getRemoteUpdatesXMLString(updates);
   gUpdateChecker.checkForUpdates(updateCheckListener, true);
 }
@@ -206,10 +221,16 @@ function check_test_pt03() {
   var bestUpdate = gAUS.selectUpdate(gUpdates, gUpdateCount);
   do_check_eq(bestUpdate.type, "major");
   do_check_eq(bestUpdate.name, "Major Test");
+  do_check_eq(bestUpdate.displayVersion, "version 4.1a1pre");
+  do_check_eq(bestUpdate.appVersion, "4.1a1pre");
   do_check_eq(bestUpdate.platformVersion, "5.1a1pre");
   do_check_eq(bestUpdate.buildID, "20080811053724");
   do_check_eq(bestUpdate.detailsURL, "http://details/");
+  do_check_eq(bestUpdate.billboardURL, "http://details/");
   do_check_eq(bestUpdate.licenseURL, null);
+  do_check_true(bestUpdate.showPrompt);
+  do_check_true(bestUpdate.showNeverForVersion);
+  do_check_false(bestUpdate.showSurvey);
   do_check_eq(bestUpdate.serviceURL, URL_HOST + "update.xml?force=1");
   do_check_eq(bestUpdate.channel, "test_channel");
   do_check_false(bestUpdate.isCompleteUpdate);
@@ -337,6 +358,6 @@ function run_test_pt12() {
 function check_test_pt12() {
   var bestUpdate = gAUS.selectUpdate(gUpdates, gUpdateCount);
   do_check_neq(bestUpdate, null);
-  do_check_eq(bestUpdate.version, "version 1.0");
+  do_check_eq(bestUpdate.displayVersion, "version 1.0");
   do_test_finished();
 }

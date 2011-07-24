@@ -8,7 +8,7 @@
   -moz-border-end: none;
   -moz-border-left-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
   -moz-border-right-colors: rgba(0,0,0,0.25) rgba(255,255,255,0.15);
-  margin: 0;
+  margin: 0 0 1px;
   padding: 0 4px;
 }
 
@@ -61,7 +61,7 @@
   text-shadow: none;
   background: none;
   border: 1px solid transparent;
-  -moz-border-radius: 0;
+  border-radius: 0;
   border-width: 0;
 }
 

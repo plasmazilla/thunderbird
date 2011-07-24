@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Global Database.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -186,6 +186,8 @@ var Gloda = {
 
     let enableConsoleLogging = false;
     let enableDumpLogging = false;
+    // should we assume there is someone else consuming our log4moz stream?
+    let enableUpstreamLogging = false;
     let considerNetLogging = false;
 
     let glodaLog = Log4Moz.repository.getLogger("gloda");
@@ -198,6 +200,7 @@ var Gloda = {
       let branch = prefService.getBranch("mailnews.database.global.logging.");
       enableConsoleLogging = branch.getBoolPref("console");
       enableDumpLogging = branch.getBoolPref("dump");
+      enableUpstreamLogging = branch.getBoolPref("upstream");
       considerNetLogging = branch.getBoolPref("net");
     } catch (ex) {}
 
@@ -212,6 +215,10 @@ var Gloda = {
       dapp.level = Log4Moz.Level.All;
       glodaLog.level = Log4Moz.Level.All;
       glodaLog.addAppender(dapp);
+    }
+
+    if (enableUpstreamLogging) {
+      glodaLog.level = Log4Moz.Level.All;
     }
 
     if (considerNetLogging) {
@@ -771,6 +778,10 @@ var Gloda = {
    *  class.
    */
   NOUN_IDENTITY: GlodaIdentity.prototype.NOUN_ID, // 104
+  /**
+   * An attachment to a message. A message may have many different attachments.
+   */
+  NOUN_ATTACHMENT: GlodaAttachment.prototype.NOUN_ID, // 105
 
   /**
    * Parameterized identities, for use in the from-me, to-me, cc-me optimization
@@ -889,6 +900,7 @@ var Gloda = {
         aNounDef.tableName = "ext_" + aNounDef.name;
       // this creates the data table and binder and hooks everything up
       GlodaDatastore.createNounTable(aNounDef);
+
       if (!aNounDef.toParamAndValue)
         aNounDef.toParamAndValue = function (aThing) {
           if (aThing instanceof aNounDef.class)
@@ -1337,6 +1349,23 @@ var Gloda = {
         else // assume they're just passing the id directly
           return [null, aIdentity];
       }}, this.NOUN_IDENTITY);
+    this.defineNoun({
+      name: "attachment-infos",
+      clazz: GlodaAttachment,
+      allowsArbitraryAttrs: false,
+      isPrimitive: false,
+      toJSON: function (x) {
+          return {
+            name: x.name,
+            contentType: x.contentType,
+            size: x.size,
+            url: x.url
+          }
+        },
+      fromJSON: function (x) {
+          return new GlodaAttachment(x.name, x.contentType, x.size, x.url);
+        },
+      }, this.NOUN_ATTACHMENT);
 
     // parameterized identity is just two identities; we store the first one
     //  (whose value set must be very constrainted, like the 'me' identities)

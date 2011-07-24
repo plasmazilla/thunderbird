@@ -43,6 +43,7 @@
 #include "nsDependentString.h"
 #include "nsDependentSubstring.h"
 #include "nsISerializable.h"
+#include "nsIIPCSerializable.h"
 #include "nsIFileURL.h"
 #include "nsIStandardURL.h"
 #include "nsIFile.h"
@@ -72,6 +73,7 @@ class nsIPrefBranch;
 class nsStandardURL : public nsIFileURL
                     , public nsIStandardURL
                     , public nsISerializable
+                    , public nsIIPCSerializable
                     , public nsIClassInfo
 {
 public:
@@ -81,6 +83,7 @@ public:
     NS_DECL_NSIFILEURL
     NS_DECL_NSISTANDARDURL
     NS_DECL_NSISERIALIZABLE
+    NS_DECL_NSIIPCSERIALIZABLE
     NS_DECL_NSICLASSINFO
     NS_DECL_NSIMUTABLE
 
@@ -155,6 +158,7 @@ protected:
     // Helper for subclass implementation of GetFile().  Subclasses that map
     // URIs to files in a special way should implement this method.  It should
     // ensure that our mFile is initialized, if it's possible.
+    // returns NS_ERROR_NO_INTERFACE if the url does not map to a file
     virtual nsresult EnsureFile();
 
 private:
@@ -223,6 +227,10 @@ private:
     // fastload helper functions
     nsresult ReadSegment(nsIBinaryInputStream *, URLSegment &);
     nsresult WriteSegment(nsIBinaryOutputStream *, const URLSegment &);
+
+    // ipc helper functions
+    bool ReadSegment(const IPC::Message *, void **, URLSegment &);
+    void WriteSegment(IPC::Message *, const URLSegment &);
 
     static void PrefsChanged(nsIPrefBranch *prefs, const char *pref);
 

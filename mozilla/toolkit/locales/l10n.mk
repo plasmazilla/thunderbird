@@ -62,9 +62,7 @@
 #   MOZ_APP_VERSION and MOZ_LANGPACK_EID.
 
 
-run_for_effects := $(shell if ! test -d $(DIST); then $(NSINSTALL) -D $(DIST); fi)
-_ABS_DIST := $(shell cd $(DIST) && pwd)
-
+run_for_effects := $(shell if test ! -d $(DIST); then $(NSINSTALL) -D $(DIST); fi)
 
 # This makefile uses variable overrides from the libs-% target to
 # build non-default locales to non-default dist/ locations. Be aware!
@@ -79,6 +77,9 @@ core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURD
 # work in that case.
 ZIP_IN ?= $(_ABS_DIST)/$(PACKAGE)
 WIN32_INSTALLER_IN ?= $(_ABS_DIST)/$(PKG_INST_PATH)$(PKG_INST_BASENAME).exe
+
+# Allows overriding the final destination of the repackaged file
+ZIP_OUT ?= $(_ABS_DIST)/$(PACKAGE)
 
 DEFINES += \
 	-DAB_CD=$(AB_CD) \
@@ -95,20 +96,20 @@ clobber-%:
 
 
 PACKAGER_NO_LIBS = 1
-include $(topsrcdir)/toolkit/mozapps/installer/packager.mk
+include $(MOZILLA_DIR)/toolkit/mozapps/installer/packager.mk
 
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
-STAGEDIST = $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/MacOS
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+STAGEDIST = $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)/$(_APPNAME)/Contents/MacOS
 else
 STAGEDIST = $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)
 endif
 
 $(STAGEDIST): AB_CD:=en-US
-$(STAGEDIST): UNPACKAGE=$(ZIP_IN)
-$(STAGEDIST): $(ZIP_IN)
+$(STAGEDIST): UNPACKAGE=$(call ESCAPE_SPACE,$(ZIP_IN))
+$(STAGEDIST): $(call ESCAPE_SPACE,$(ZIP_IN))
 # only mac needs to remove the parent of STAGEDIST...
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 	$(RM) -r -v $(DIST)/l10n-stage
 else
 # ... and windows doesn't like removing STAGEDIST itself, remove all children
@@ -123,18 +124,32 @@ endif
 unpack: $(STAGEDIST)
 	@echo done unpacking
 
-repackage-zip: ZIP_OUT="$(_ABS_DIST)/$(PACKAGE)"
+# The path to the object dir for the mozilla-central build system,
+# may be overridden if necessary.
+MOZDEPTH ?= $(DEPTH)
+
+ifdef MOZ_MAKE_COMPLETE_MAR
+MAKE_COMPLETE_MAR = 1
+ifeq ($(OS_ARCH), WINNT)
+ifneq ($(MOZ_PKG_FORMAT), SFX7Z)
+MAKE_COMPLETE_MAR =
+endif
+endif
+endif
 repackage-zip: UNPACKAGE="$(ZIP_IN)"
-repackage-zip:
+repackage-zip:  libs-$(AB_CD)
+# Adjust jar logs with the new locale (can't use sed -i because of bug 373784)
+	-$(PERL) -pi -e "s/en-US/$(AB_CD)/g" $(_ABS_DIST)/jarlog/*.jar.log
 # call a hook for apps to put their uninstall helper.exe into the package
 	$(UNINSTALLER_PACKAGE_HOOK)
 # copy xpi-stage over, but not install.rdf and chrome.manifest,
 # those are just for language packs
 	cd $(DIST)/xpi-stage/locale-$(AB_CD) && \
 	  tar --exclude=install.rdf --exclude=chrome.manifest $(TAR_CREATE_FLAGS) - * | ( cd $(STAGEDIST) && tar -xf - )
+	mv $(STAGEDIST)/chrome/$(AB_CD).manifest $(STAGEDIST)/chrome/localized.manifest
 ifneq (en,$(AB))
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
-	mv $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/Resources/en.lproj $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/Resources/$(AB).lproj
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+	mv $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)/$(_APPNAME)/Contents/Resources/en.lproj $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)/$(_APPNAME)/Contents/Resources/$(AB).lproj
 endif
 endif
 	$(NSINSTALL) -D $(DIST)/l10n-stage/$(PKG_PATH)
@@ -144,33 +159,36 @@ ifeq (WINCE,$(OS_ARCH))
 	cd $(DIST)/l10n-stage; \
 	  $(MAKE_CAB)
 endif
-ifdef MOZ_MAKE_COMPLETE_MAR
-	$(MAKE) -C $(DEPTH)/tools/update-packaging full-update AB_CD=$(AB_CD) \
+ifdef MAKE_COMPLETE_MAR
+	$(MAKE) -C $(MOZDEPTH)/tools/update-packaging full-update AB_CD=$(AB_CD) \
 	  MOZ_PKG_PRETTYNAMES=$(MOZ_PKG_PRETTYNAMES) \
 	  PACKAGE_BASE_DIR="$(_ABS_DIST)/l10n-stage" \
 	  DIST="$(_ABS_DIST)"
 endif
 # packaging done, undo l10n stuff
 ifneq (en,$(AB))
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
-	mv $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/Resources/$(AB).lproj $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/Resources/en.lproj
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+	mv $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)/$(_APPNAME)/Contents/Resources/$(AB).lproj $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)/$(_APPNAME)/Contents/Resources/en.lproj
 endif
+endif
+ifdef MOZ_OMNIJAR
+	@(cd $(STAGEDIST) && $(UNPACK_OMNIJAR))
 endif
 	$(MAKE) clobber-zip AB_CD=$(AB_CD)
 	$(NSINSTALL) -D $(DIST)/$(PKG_PATH)
-	mv -f "$(DIST)/l10n-stage/$(PACKAGE)" "$(DIST)/$(PACKAGE)"
+	mv -f "$(DIST)/l10n-stage/$(PACKAGE)" "$(ZIP_OUT)"
 ifeq (WINCE,$(OS_ARCH))
 	mv -f "$(DIST)/l10n-stage/$(PKG_BASENAME).cab" "$(DIST)/$(PKG_PATH)$(PKG_BASENAME).cab"
 endif
 
-repackage-zip-%: $(ZIP_IN) $(STAGEDIST) libs-%
-	@$(MAKE) repackage-zip AB_CD=$* ZIP_IN=$(ZIP_IN)
+repackage-zip-%: $(STAGEDIST)
+	@$(MAKE) repackage-zip AB_CD=$* ZIP_IN="$(ZIP_IN)"
 
 APP_DEFINES = $(firstword $(wildcard $(LOCALE_SRCDIR)/defines.inc) \
                           $(srcdir)/en-US/defines.inc)
 TK_DEFINES = $(firstword \
    $(wildcard $(call EXPAND_LOCALE_SRCDIR,toolkit/locales)/defines.inc) \
-   $(topsrcdir)/toolkit/locales/en-US/defines.inc)
+   $(MOZILLA_DIR)/toolkit/locales/en-US/defines.inc)
 
 langpack-%: LANGPACK_FILE=$(_ABS_DIST)/$(PKG_LANGPACK_PATH)$(PKG_LANGPACK_BASENAME).xpi
 langpack-%: AB_CD=$*
@@ -178,7 +196,7 @@ langpack-%: XPI_NAME=locale-$*
 langpack-%: libs-%
 	@echo "Making langpack $(LANGPACK_FILE)"
 	$(NSINSTALL) -D $(DIST)/$(PKG_LANGPACK_PATH)
-	$(PERL) $(topsrcdir)/config/preprocessor.pl $(DEFINES) $(ACDEFINES) -I$(TK_DEFINES) -I$(APP_DEFINES) $(srcdir)/generic/install.rdf > $(FINAL_TARGET)/install.rdf
+	$(PERL) $(MOZILLA_DIR)/config/preprocessor.pl $(DEFINES) $(ACDEFINES) -I$(TK_DEFINES) -I$(APP_DEFINES) $(srcdir)/generic/install.rdf > $(FINAL_TARGET)/install.rdf
 	cd $(DIST)/xpi-stage/locale-$(AB_CD) && \
 	  $(ZIP) -r9D $(LANGPACK_FILE) install.rdf chrome chrome.manifest -x chrome/$(AB_CD).manifest
 
@@ -195,8 +213,9 @@ wget-en-US:
 ifndef WGET
 	$(error Wget not installed)
 endif
-	(cd $(_ABS_DIST) && $(WGET) -nv -N  $(EN_US_BINARY_URL)/$(PACKAGE))
-	@echo "Downloaded $(EN_US_BINARY_URL)/$(PACKAGE) to $(_ABS_DIST)/$(PACKAGE)"
+	$(NSINSTALL) -D $(_ABS_DIST)/$(PKG_PATH)
+	(cd $(_ABS_DIST)/$(PKG_PATH) && $(WGET) -nv -N  "$(EN_US_BINARY_URL)/$(PACKAGE)")
+	@echo "Downloaded $(EN_US_BINARY_URL)/$(PACKAGE) to $(_ABS_DIST)/$(PKG_PATH)/$(PACKAGE)"
 ifdef RETRIEVE_WINDOWS_INSTALLER
 ifeq ($(OS_ARCH), WINNT)
 	$(NSINSTALL) -D $(_ABS_DIST)/$(PKG_INST_PATH)
@@ -206,7 +225,7 @@ endif
 endif
 
 generate-snippet-%:
-	$(PYTHON) $(topsrcdir)/tools/update-packaging/generatesnippet.py \
+	$(PYTHON) $(MOZILLA_DIR)/tools/update-packaging/generatesnippet.py \
           --mar-path=$(_ABS_DIST)/update \
           --application-ini-file=$(STAGEDIST)/application.ini \
           --locale=$* \

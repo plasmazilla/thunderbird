@@ -57,17 +57,19 @@
 #undef GetObject
 #endif
 
-class nsHTMLSharedObjectElement : public nsGenericHTMLElement,
-                                  public nsObjectLoadingContent,
-                                  public nsIDOMHTMLAppletElement,
-                                  public nsIDOMHTMLEmbedElement
+using namespace mozilla::dom;
+
+class nsHTMLSharedObjectElement : public nsGenericHTMLElement
+                                , public nsObjectLoadingContent
+                                , public nsIDOMHTMLAppletElement
+                                , public nsIDOMHTMLEmbedElement
 #ifdef MOZ_SVG
-                                  , public nsIDOMGetSVGDocument
+                                , public nsIDOMGetSVGDocument
 #endif
 {
 public:
-  nsHTMLSharedObjectElement(nsINodeInfo *aNodeInfo,
-                            PRBool aFromParser = PR_FALSE);
+  nsHTMLSharedObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                            mozilla::dom::FromParser aFromParser = mozilla::dom::NOT_FROM_PARSER);
   virtual ~nsHTMLSharedObjectElement();
 
   // nsISupports
@@ -110,7 +112,7 @@ public:
 
   NS_IMETHOD GetTabIndex(PRInt32 *aTabIndex);
   NS_IMETHOD SetTabIndex(PRInt32 aTabIndex);
-  virtual PRBool IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex);
+  virtual PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
   virtual PRUint32 GetDesiredIMEState();
 
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
@@ -122,7 +124,7 @@ public:
                                 nsAttrValue &aResult);
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom *aAttribute) const;
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
   virtual void DestroyContent();
 
   // nsObjectLoadingContent
@@ -130,11 +132,18 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+
   void StartObjectLoad() { StartObjectLoad(PR_TRUE); }
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_NO_UNLINK(nsHTMLSharedObjectElement,
                                                      nsGenericHTMLElement)
 
+  virtual nsXPCClassInfo* GetClassInfo()
+  {
+    return static_cast<nsXPCClassInfo*>(GetClassInfoInternal());
+  }
+  nsIClassInfo* GetClassInfoInternal();
 private:
   /**
    * Calls LoadObject with the correct arguments to start the plugin load.
@@ -170,12 +179,13 @@ private:
 NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(SharedObject)
 
 
-nsHTMLSharedObjectElement::nsHTMLSharedObjectElement(nsINodeInfo *aNodeInfo,
-                                                     PRBool aFromParser)
+nsHTMLSharedObjectElement::nsHTMLSharedObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                                                     FromParser aFromParser)
   : nsGenericHTMLElement(aNodeInfo),
-    mIsDoneAddingChildren(aNodeInfo->Equals(nsGkAtoms::embed) || !aFromParser)
+    mIsDoneAddingChildren(mNodeInfo->Equals(nsGkAtoms::embed) || !aFromParser)
 {
   RegisterFreezableElement();
+  SetIsNetworkCreated(aFromParser == FROM_PARSER_NETWORK);
 }
 
 nsHTMLSharedObjectElement::~nsHTMLSharedObjectElement()
@@ -215,6 +225,21 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 NS_IMPL_ADDREF_INHERITED(nsHTMLSharedObjectElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLSharedObjectElement, nsGenericElement) 
 
+DOMCI_DATA(HTMLAppletElement, nsHTMLSharedObjectElement)
+DOMCI_DATA(HTMLEmbedElement, nsHTMLSharedObjectElement)
+
+nsIClassInfo*
+nsHTMLSharedObjectElement::GetClassInfoInternal()
+{
+  if (mNodeInfo->Equals(nsGkAtoms::applet)) {
+    return NS_GetDOMClassInfoInstance(eDOMClassInfo_HTMLAppletElement_id);
+  }
+  if (mNodeInfo->Equals(nsGkAtoms::embed)) {
+    return NS_GetDOMClassInfoInstance(eDOMClassInfo_HTMLEmbedElement_id);
+  }
+  return nsnull;
+}
+
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLSharedObjectElement)
   NS_HTML_CONTENT_INTERFACE_TABLE_AMBIGUOUS_BEGIN(nsHTMLSharedObjectElement,
                                                   nsIDOMHTMLAppletElement)
@@ -223,7 +248,6 @@ NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLSharedObjectElement)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, nsIFrameLoaderOwner)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, imgIContainerObserver)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, nsIObjectLoadingContent)
-    NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, imgIDecoderObserver)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, nsIImageLoadingContent)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLSharedObjectElement, nsIInterfaceRequestor)
@@ -237,8 +261,7 @@ NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLSharedObjectElement)
 #ifdef MOZ_SVG
   NS_INTERFACE_MAP_ENTRY_IF_TAG(nsIDOMGetSVGDocument, embed)
 #endif
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO_IF_TAG(HTMLAppletElement, applet)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO_IF_TAG(HTMLEmbedElement, embed)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO_GETTER(GetClassInfoInternal)
 NS_HTML_CONTENT_INTERFACE_MAP_END
 
 NS_IMPL_ELEMENT_CLONE(nsHTMLSharedObjectElement)
@@ -256,9 +279,9 @@ nsHTMLSharedObjectElement::BindToTree(nsIDocument *aDocument,
 
   // If we already have all the children, start the load.
   if (mIsDoneAddingChildren) {
-    nsContentUtils::AddScriptRunner(
-      new nsRunnableMethod<nsHTMLSharedObjectElement>(this,
-                                                      &nsHTMLSharedObjectElement::StartObjectLoad));
+    void (nsHTMLSharedObjectElement::*start)() =
+      &nsHTMLSharedObjectElement::StartObjectLoad;
+    nsContentUtils::AddScriptRunner(NS_NewRunnableMethod(this, start));
   }
 
   return NS_OK;
@@ -300,7 +323,8 @@ nsHTMLSharedObjectElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
 }
 
 PRBool
-nsHTMLSharedObjectElement::IsHTMLFocusable(PRBool *aIsFocusable,
+nsHTMLSharedObjectElement::IsHTMLFocusable(PRBool aWithMouse,
+                                           PRBool *aIsFocusable,
                                            PRInt32 *aTabIndex)
 {
   if (mNodeInfo->Equals(nsGkAtoms::embed) || Type() == eType_Plugin) {
@@ -316,7 +340,7 @@ nsHTMLSharedObjectElement::IsHTMLFocusable(PRBool *aIsFocusable,
     return PR_TRUE;
   }
 
-  return nsGenericHTMLElement::IsHTMLFocusable(aIsFocusable, aTabIndex);
+  return nsGenericHTMLElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex);
 }
 
 PRUint32
@@ -339,7 +363,7 @@ NS_IMPL_INT_ATTR(nsHTMLSharedObjectElement, Hspace, hspace)
 NS_IMPL_STRING_ATTR(nsHTMLSharedObjectElement, Name, name)
 NS_IMPL_URI_ATTR_WITH_BASE(nsHTMLSharedObjectElement, Object, object, codebase)
 NS_IMPL_URI_ATTR(nsHTMLSharedObjectElement, Src, src)
-NS_IMPL_INT_ATTR(nsHTMLSharedObjectElement, TabIndex, tabindex)
+NS_IMPL_INT_ATTR_DEFAULT_VALUE(nsHTMLSharedObjectElement, TabIndex, tabindex, -1)
 NS_IMPL_STRING_ATTR(nsHTMLSharedObjectElement, Type, type)
 NS_IMPL_INT_ATTR(nsHTMLSharedObjectElement, Vspace, vspace)
 NS_IMPL_STRING_ATTR(nsHTMLSharedObjectElement, Width, width)
@@ -396,6 +420,21 @@ MapAttributesIntoRule(const nsMappedAttributes *aAttributes,
   nsGenericHTMLElement::MapCommonAttributesInto(aAttributes, aData);
 }
 
+static void
+EmbedMapAttributesIntoRule(const nsMappedAttributes *aAttributes,
+                           nsRuleData *aData)
+{
+  // NOTE: this should call the exact some methods than MapAttributesIntoRule
+  // except that MapCommonAttributesExceptHiddenInto is called instead of
+  // MapCommonAttributesInto.
+  // TODO: This method should be removed when bug 614825 will be fixed.
+  nsGenericHTMLElement::MapImageBorderAttributeInto(aAttributes, aData);
+  nsGenericHTMLElement::MapImageMarginAttributeInto(aAttributes, aData);
+  nsGenericHTMLElement::MapImageSizeAttributesInto(aAttributes, aData);
+  nsGenericHTMLElement::MapImageAlignAttributeInto(aAttributes, aData);
+  nsGenericHTMLElement::MapCommonAttributesExceptHiddenInto(aAttributes, aData);
+}
+
 NS_IMETHODIMP_(PRBool)
 nsHTMLSharedObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
 {
@@ -413,6 +452,10 @@ nsHTMLSharedObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
 nsMapRuleToAttributesFunc
 nsHTMLSharedObjectElement::GetAttributeMappingFunction() const
 {
+  if (mNodeInfo->Equals(nsGkAtoms::embed)) {
+    return &EmbedMapAttributesIntoRule;
+  }
+
   return &MapAttributesIntoRule;
 }
 
@@ -432,9 +475,10 @@ nsHTMLSharedObjectElement::StartObjectLoad(PRBool aNotify)
   else {
     LoadObject(uri, aNotify, type);
   }
+  SetIsNetworkCreated(PR_FALSE);
 }
 
-PRInt32
+nsEventStates
 nsHTMLSharedObjectElement::IntrinsicState() const
 {
   return nsGenericHTMLElement::IntrinsicState() | ObjectState();
@@ -460,4 +504,17 @@ nsHTMLSharedObjectElement::DestroyContent()
 {
   RemovedFromDocument();
   nsGenericHTMLElement::DestroyContent();
+}
+
+nsresult
+nsHTMLSharedObjectElement::CopyInnerTo(nsGenericElement* aDest) const
+{
+  nsresult rv = nsGenericHTMLElement::CopyInnerTo(aDest);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (aDest->GetOwnerDoc()->IsStaticDocument()) {
+    CreateStaticClone(static_cast<nsHTMLSharedObjectElement*>(aDest));
+  }
+
+  return rv;
 }

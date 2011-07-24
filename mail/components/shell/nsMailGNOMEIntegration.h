@@ -40,7 +40,6 @@
 #define nsMailGNOMEIntegration_h_
 
 #include "nsIShellService.h"
-#include "nsIGenericFactory.h"
 #include "nsStringGlue.h"
 
 #define NS_MAILGNOMEINTEGRATION_CID \
@@ -62,9 +61,11 @@ protected:
   PRBool checkDefault(const char* const *aProtocols, unsigned int aLength);
   nsresult MakeDefault(const char* const *aProtocols, unsigned int aLength);
 private:
+  PRBool GetAppPathFromLauncher();
   PRPackedBool mUseLocaleFilenames;
   PRPackedBool mCheckedThisSession;
   nsCString mAppPath;
+  PRPackedBool mAppIsInPath;
 };
 
 #endif

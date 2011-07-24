@@ -23,6 +23,7 @@
  * Contributor(s):
  *   Bradley Baetz <bbaetz@student.usyd.edu.au>
  *   Malcolm Smith <malsmith@cs.rmit.edu.au>
+ *   Taras Glek <tglek@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -89,8 +90,8 @@
 #include "nsIPersistentProperties2.h"
 #include "nsISyncStreamListener.h"
 #include "nsInterfaceRequestorAgg.h"
-#include "nsInt64.h"
 #include "nsINetUtil.h"
+#include "nsIURIWithPrincipal.h"
 #include "nsIAuthPrompt.h"
 #include "nsIAuthPrompt2.h"
 #include "nsIAuthPromptAdapterFactory.h"
@@ -99,15 +100,54 @@
 #include "nsINestedURI.h"
 #include "nsIMutable.h"
 #include "nsIPropertyBag2.h"
+#include "nsIWritablePropertyBag2.h"
 #include "nsIIDNService.h"
 #include "nsIChannelEventSink.h"
+#include "nsIChannelPolicy.h"
+#include "nsISocketProviderService.h"
+#include "nsISocketProvider.h"
+#include "mozilla/Services.h"
 
+#include "nsIRedirectChannelRegistrar.h"
+
+#ifdef MOZILLA_INTERNAL_API
+
+inline already_AddRefed<nsIIOService>
+do_GetIOService(nsresult* error = 0)
+{
+    already_AddRefed<nsIIOService> ret = mozilla::services::GetIOService();
+    if (error)
+        *error = ret.get() ? NS_OK : NS_ERROR_FAILURE;
+    return ret;
+}
+
+inline already_AddRefed<nsINetUtil>
+do_GetNetUtil(nsresult *error = 0) 
+{
+    nsCOMPtr<nsIIOService> io = mozilla::services::GetIOService();
+    already_AddRefed<nsINetUtil> ret = nsnull;
+    if (io)
+        CallQueryInterface(io, &ret.mRawPtr);
+
+    if (error)
+        *error = ret.get() ? NS_OK : NS_ERROR_FAILURE;
+    return ret;
+}
+#else
 // Helper, to simplify getting the I/O service.
 inline const nsGetServiceByContractIDWithError
 do_GetIOService(nsresult* error = 0)
 {
     return nsGetServiceByContractIDWithError(NS_IOSERVICE_CONTRACTID, error);
 }
+
+// An alias to do_GetIOService
+inline const nsGetServiceByContractIDWithError
+do_GetNetUtil(nsresult* error = 0)
+{
+    return do_GetIOService(error);
+}
+#endif
 
 // private little helper function... don't call this directly!
 inline nsresult
@@ -169,12 +209,13 @@ NS_NewFileURI(nsIURI* *result,
 }
 
 inline nsresult
-NS_NewChannel(nsIChannel           **result, 
+NS_NewChannel(nsIChannel           **result,
               nsIURI                *uri,
               nsIIOService          *ioService = nsnull,    // pass in nsIIOService to optimize callers
               nsILoadGroup          *loadGroup = nsnull,
               nsIInterfaceRequestor *callbacks = nsnull,
-              PRUint32               loadFlags = nsIRequest::LOAD_NORMAL)
+              PRUint32               loadFlags = nsIRequest::LOAD_NORMAL,
+              nsIChannelPolicy      *channelPolicy = nsnull)
 {
     nsresult rv;
     nsCOMPtr<nsIIOService> grip;
@@ -189,6 +230,13 @@ NS_NewChannel(nsIChannel           **result,
                 rv |= chan->SetNotificationCallbacks(callbacks);
             if (loadFlags != nsIRequest::LOAD_NORMAL)
                 rv |= chan->SetLoadFlags(loadFlags);
+            if (channelPolicy) {
+                nsCOMPtr<nsIWritablePropertyBag2> props = do_QueryInterface(chan, &rv);
+                if (props) {
+                    props->SetPropertyAsInterface(NS_CHANNEL_PROP_CHANNEL_POLICY,
+                                                  channelPolicy);
+                }
+            }
             if (NS_SUCCEEDED(rv))
                 chan.forget(result);
         }
@@ -439,8 +487,8 @@ NS_NewInputStreamChannel(nsIChannel      **result,
 inline nsresult
 NS_NewInputStreamPump(nsIInputStreamPump **result,
                       nsIInputStream      *stream,
-                      PRInt64              streamPos = nsInt64(-1),
-                      PRInt64              streamLen = nsInt64(-1),
+                      PRInt64              streamPos = PRInt64(-1),
+                      PRInt64              streamLen = PRInt64(-1),
                       PRUint32             segsize = 0,
                       PRUint32             segcount = 0,
                       PRBool               closeWhenDone = PR_FALSE)
@@ -870,7 +918,7 @@ NS_ParseContentType(const nsACString &rawContentType,
 {
     // contentCharset is left untouched if not present in rawContentType
     nsresult rv;
-    nsCOMPtr<nsINetUtil> util = do_GetIOService(&rv);
+    nsCOMPtr<nsINetUtil> util = do_GetNetUtil(&rv);
     NS_ENSURE_SUCCESS(rv, rv);
     nsCString charset;
     PRBool hadCharset;
@@ -890,7 +938,7 @@ NS_ExtractCharsetFromContentType(const nsACString &rawContentType,
 {
     // contentCharset is left untouched if not present in rawContentType
     nsresult rv;
-    nsCOMPtr<nsINetUtil> util = do_GetIOService(&rv);
+    nsCOMPtr<nsINetUtil> util = do_GetNetUtil(&rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return util->ExtractCharsetFromContentType(rawContentType,
@@ -914,6 +962,26 @@ NS_NewLocalFileInputStream(nsIInputStream **result,
         rv = in->Init(file, ioFlags, perm, behaviorFlags);
         if (NS_SUCCEEDED(rv))
             NS_ADDREF(*result = in);  // cannot use nsCOMPtr::swap
+    }
+    return rv;
+}
+
+inline nsresult
+NS_NewPartialLocalFileInputStream(nsIInputStream **result,
+                                  nsIFile         *file,
+                                  PRUint64         offset,
+                                  PRUint64         length,
+                                  PRInt32          ioFlags       = -1,
+                                  PRInt32          perm          = -1,
+                                  PRInt32          behaviorFlags = 0)
+{
+    nsresult rv;
+    nsCOMPtr<nsIPartialFileInputStream> in =
+        do_CreateInstance(NS_PARTIALLOCALFILEINPUTSTREAM_CONTRACTID, &rv);
+    if (NS_SUCCEEDED(rv)) {
+        rv = in->Init(file, offset, length, ioFlags, perm, behaviorFlags);
+        if (NS_SUCCEEDED(rv))
+            rv = CallQueryInterface(in, result);
     }
     return rv;
 }
@@ -969,7 +1037,7 @@ NS_BackgroundInputStream(nsIInputStream **result,
         do_GetService(NS_STREAMTRANSPORTSERVICE_CONTRACTID, &rv);
     if (NS_SUCCEEDED(rv)) {
         nsCOMPtr<nsITransport> inTransport;
-        rv = sts->CreateInputTransport(stream, nsInt64(-1), nsInt64(-1),
+        rv = sts->CreateInputTransport(stream, PRInt64(-1), PRInt64(-1),
                                        PR_TRUE, getter_AddRefs(inTransport));
         if (NS_SUCCEEDED(rv))
             rv = inTransport->OpenInputStream(nsITransport::OPEN_BLOCKING,
@@ -993,7 +1061,7 @@ NS_BackgroundOutputStream(nsIOutputStream **result,
         do_GetService(NS_STREAMTRANSPORTSERVICE_CONTRACTID, &rv);
     if (NS_SUCCEEDED(rv)) {
         nsCOMPtr<nsITransport> inTransport;
-        rv = sts->CreateOutputTransport(stream, nsInt64(-1), nsInt64(-1),
+        rv = sts->CreateOutputTransport(stream, PRInt64(-1), PRInt64(-1),
                                         PR_TRUE, getter_AddRefs(inTransport));
         if (NS_SUCCEEDED(rv))
             rv = inTransport->OpenOutputStream(nsITransport::OPEN_BLOCKING,
@@ -1101,6 +1169,33 @@ NS_NewPostDataStream(nsIInputStream  **result,
 
     NS_ADDREF(*result = stream);
     return NS_OK;
+}
+
+inline nsresult
+NS_ReadInputStreamToString(nsIInputStream *aInputStream, 
+                           nsACString &aDest,
+                           PRUint32 aCount)
+{
+    nsresult rv;
+
+    aDest.SetLength(aCount);
+    if (aDest.Length() != aCount)
+        return NS_ERROR_OUT_OF_MEMORY;
+    char * p = aDest.BeginWriting();
+    PRUint32 bytesRead;
+    PRUint32 totalRead = 0;
+    while (1) {
+        rv = aInputStream->Read(p + totalRead, aCount - totalRead, &bytesRead);
+        if (!NS_SUCCEEDED(rv)) 
+            return rv;
+        totalRead += bytesRead;
+        if (totalRead == aCount)
+            break;
+        // if Read reads 0 bytes, we've hit EOF 
+        if (bytesRead == 0)
+            return NS_ERROR_UNEXPECTED;
+    }
+    return rv; 
 }
 
 inline nsresult
@@ -1398,7 +1493,13 @@ NS_EnsureSafeToReturn(nsIURI* uri, nsIURI** result)
         return NS_OK;
     }
 
-    return uri->Clone(result);
+    nsresult rv = uri->Clone(result);
+    if (NS_SUCCEEDED(rv) && !*result) {
+        NS_ERROR("nsIURI.clone contract was violated");
+        return NS_ERROR_UNEXPECTED;
+    }
+
+    return rv;
 }
 
 /**
@@ -1423,10 +1524,11 @@ NS_TryToMakeImmutable(nsIURI* uri,
                       nsresult* outRv = nsnull)
 {
     nsresult rv;
-    nsCOMPtr<nsINetUtil> util = do_GetIOService(&rv);
+    nsCOMPtr<nsINetUtil> util = do_GetNetUtil(&rv);
+
     nsIURI* result = nsnull;
     if (NS_SUCCEEDED(rv)) {
-        NS_ASSERTION(util, "do_GetIOService lied");
+        NS_ASSERTION(util, "do_GetNetUtil lied");
         rv = util->ToImmutableURI(uri, &result);
     }
 
@@ -1451,7 +1553,7 @@ NS_URIChainHasFlags(nsIURI   *uri,
                     PRBool   *result)
 {
     nsresult rv;
-    nsCOMPtr<nsINetUtil> util = do_GetIOService(&rv);
+    nsCOMPtr<nsINetUtil> util = do_GetNetUtil(&rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return util->URIChainHasFlags(uri, flags, result);
@@ -1564,6 +1666,17 @@ NS_SecurityCompareURIs(nsIURI* aSourceURI,
     nsCOMPtr<nsIURI> sourceBaseURI = NS_GetInnermostURI(aSourceURI);
     nsCOMPtr<nsIURI> targetBaseURI = NS_GetInnermostURI(aTargetURI);
 
+    // If either uri is an nsIURIWithPrincipal
+    nsCOMPtr<nsIURIWithPrincipal> uriPrinc = do_QueryInterface(sourceBaseURI);
+    if (uriPrinc) {
+        uriPrinc->GetPrincipalUri(getter_AddRefs(sourceBaseURI));
+    }
+
+    uriPrinc = do_QueryInterface(targetBaseURI);
+    if (uriPrinc) {
+        uriPrinc->GetPrincipalUri(getter_AddRefs(targetBaseURI));
+    }
+
     if (!sourceBaseURI || !targetBaseURI)
         return PR_FALSE;
 
@@ -1668,6 +1781,22 @@ NS_IsInternalSameURIRedirect(nsIChannel *aOldChannel,
   return NS_SUCCEEDED(oldURI->Equals(newURI, &res)) && res;
 }
 
+inline nsresult
+NS_LinkRedirectChannels(PRUint32 channelId,
+                        nsIParentChannel *parentChannel,
+                        nsIChannel** _result)
+{
+  nsresult rv;
+
+  nsCOMPtr<nsIRedirectChannelRegistrar> registrar =
+      do_GetService("@mozilla.org/redirectchannelregistrar;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return registrar->LinkChannels(channelId,
+                                 parentChannel,
+                                 _result);
+}
+
 /**
  * Helper function to create a random URL string that's properly formed
  * but guaranteed to be invalid.
@@ -1703,7 +1832,8 @@ NS_MakeRandomInvalidURLString(nsCString& result)
  * Helper function to determine whether urlString is Java-compatible --
  * whether it can be passed to the Java URL(String) constructor without the
  * latter throwing a MalformedURLException, or without Java otherwise
- * mishandling it.
+ * mishandling it.  This function (in effect) implements a scheme whitelist
+ * for Java.
  */  
 inline nsresult
 NS_CheckIsJavaCompatibleURLString(nsCString& urlString, PRBool *result)
@@ -1725,16 +1855,34 @@ NS_CheckIsJavaCompatibleURLString(nsCString& urlString, PRBool *result)
     nsCString scheme;
     scheme.Assign(urlString.get() + schemePos, schemeLen);
     // By default Java only understands a small number of URL schemes, and of
-    // these only some are likely to represent user input (for example from a
-    // link or the location bar) that Java can legitimately be expected to
-    // handle.  (Besides those listed below, Java also understands the "jar",
-    // "mailto" and "netdoc" schemes.  But it probably doesn't expect these
-    // from a browser, and is therefore likely to mishandle them.)
+    // these only some can legitimately represent a browser page's "origin"
+    // (and be something we can legitimately expect Java to handle ... or not
+    // to mishandle).
+    //
+    // Besides those listed below, the OJI plugin understands the "jar",
+    // "mailto", "netdoc", "javascript" and "rmi" schemes, and Java Plugin2
+    // also understands the "about" scheme.  We actually pass "about" URLs
+    // to Java ("about:blank" when processing a javascript: URL (one that
+    // calls Java) from the location bar of a blank page, and (in FF4 and up)
+    // "about:home" when processing a javascript: URL from the home page).
+    // And Java doesn't appear to mishandle them (for example it doesn't allow
+    // connections to "about" URLs).  But it doesn't make any sense to do
+    // same-origin checks on "about" URLs, so we don't include them in our
+    // scheme whitelist.
+    //
+    // The OJI plugin doesn't understand "chrome" URLs (only Java Plugin2
+    // does) -- so we mustn't pass them to the OJI plugin.  But we do need to
+    // pass "chrome" URLs to Java Plugin2:  Java Plugin2 grants additional
+    // privileges to chrome "origins", and some extensions take advantage of
+    // this.  For more information see bug 620773.
+    //
+    // As of FF4, we no longer support the OJI plugin.
     if (PL_strcasecmp(scheme.get(), "http") &&
         PL_strcasecmp(scheme.get(), "https") &&
         PL_strcasecmp(scheme.get(), "file") &&
         PL_strcasecmp(scheme.get(), "ftp") &&
-        PL_strcasecmp(scheme.get(), "gopher"))
+        PL_strcasecmp(scheme.get(), "gopher") &&
+        PL_strcasecmp(scheme.get(), "chrome"))
       compatible = PR_FALSE;
   } else {
     compatible = PR_FALSE;
@@ -1743,6 +1891,20 @@ NS_CheckIsJavaCompatibleURLString(nsCString& urlString, PRBool *result)
   *result = compatible;
 
   return NS_OK;
+}
+
+/**
+ * Make sure Personal Security Manager is initialized
+ */
+inline void
+net_EnsurePSMInit()
+{
+    nsCOMPtr<nsISocketProviderService> spserv =
+            do_GetService(NS_SOCKETPROVIDERSERVICE_CONTRACTID);
+    if (spserv) {
+        nsCOMPtr<nsISocketProvider> provider;
+        spserv->GetSocketProvider("ssl", getter_AddRefs(provider));
+    }
 }
 
 #endif // !nsNetUtil_h__

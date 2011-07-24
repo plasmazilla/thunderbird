@@ -46,6 +46,8 @@
   so app windows that require those must include editorNavigatorOverlay.xul
 */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 var gShowBiDi = false;
 
 function getBrowserURL() {
@@ -196,112 +198,6 @@ function goToggleToolbar( id, elementID )
   }
 }
 
-#ifdef MOZ_UPDATER
-/**
- * Opens the update manager and checks for updates to the application.
- */
-function checkForUpdates()
-{
-  var um =
-      Components.classes["@mozilla.org/updates/update-manager;1"].
-      getService(Components.interfaces.nsIUpdateManager);
-  var prompter =
-      Components.classes["@mozilla.org/updates/update-prompt;1"].
-      createInstance(Components.interfaces.nsIUpdatePrompt);
-
-  // If there's an update ready to be applied, show the "Update Downloaded"
-  // UI instead and let the user know they have to restart the application for
-  // the changes to be applied.
-  if (um.activeUpdate && um.activeUpdate.state == "pending")
-    prompter.showUpdateDownloaded(um.activeUpdate);
-  else
-    prompter.checkForUpdates();
-}
-#endif
-
-/**
- * Set up the help menu software update items to show proper status,
- * also disabling the items if update is disabled.
- */
-function buildHelpMenu()
-{
-#ifdef MOZ_UPDATER
-  var updates =
-      Components.classes["@mozilla.org/updates/update-service;1"].
-#ifdef MOZILLA_1_9_2_BRANCH
-      getService(Components.interfaces.nsIApplicationUpdateService2);
-#else
-      getService(Components.interfaces.nsIApplicationUpdateService);
-#endif
-  var um =
-      Components.classes["@mozilla.org/updates/update-manager;1"].
-      getService(Components.interfaces.nsIUpdateManager);
-
-  // Disable the UI if the update enabled pref has been locked by the
-  // administrator or if we cannot update for some other reason.
-  var checkForUpdates = document.getElementById("checkForUpdates");
-  var canCheckForUpdates = updates.canCheckForUpdates;
-  checkForUpdates.setAttribute("disabled", !canCheckForUpdates);
-  if (!canCheckForUpdates)
-    return;
-
-  var strings = document.getElementById("bundle_messenger");
-  var activeUpdate = um.activeUpdate;
-
-  // If there's an active update, substitute its name into the label
-  // we show for this item, otherwise display a generic label.
-  function getStringWithUpdateName(key) {
-    if (activeUpdate && activeUpdate.name)
-      return strings.getFormattedString(key, [activeUpdate.name]);
-    return strings.getString(key + "Fallback");
-  }
-
-  // By default, show "Check for Updates..." from updatesItem_default or
-  // updatesItem_defaultFallback
-  var key = "default";
-  if (activeUpdate) {
-    switch (activeUpdate.state) {
-    case "downloading":
-      // If we're downloading an update at present, show the text:
-      // "Downloading Thunderbird x.x..." from updatesItem_downloading or
-      // updatesItem_downloadingFallback, otherwise we're paused, and show
-      // "Resume Downloading Thunderbird x.x..." from updatesItem_resume or
-      // updatesItem_resumeFallback
-      key = updates.isDownloading ? "downloading" : "resume";
-      break;
-    case "pending":
-      // If we're waiting for the user to restart, show: "Apply Downloaded
-      // Updates Now..." from updatesItem_pending or
-      // updatesItem_pendingFallback
-      key = "pending";
-      break;
-    }
-  }
-
-  checkForUpdates.label = getStringWithUpdateName("updatesItem_" + key);
-  // updatesItem_default.accesskey, updatesItem_downloading.accesskey,
-  // updatesItem_resume.accesskey or updatesItem_pending.accesskey
-  checkForUpdates.accessKey = strings.getString("updatesItem_" + key +
-                                                ".accesskey");
-  if (um.activeUpdate && updates.isDownloading)
-    checkForUpdates.setAttribute("loading", "true");
-  else
-    checkForUpdates.removeAttribute("loading");
-#else
-#ifndef XP_MACOSX
-  // Some extensions may rely on these being present so only hide the updates
-  // separator when there are no elements besides the check for updates menuitem
-  // in between the about separator and the updates separator.
-  var aboutSeparator = document.getElementById("menu_HelpAboutSeparator");
-  var updatesSeparator = document.getElementById("menu_HelpAfterUpdatesSeparator");
-  var checkForUpdates = document.getElementById("checkForUpdates");
-  if (aboutSeparator.nextSibling === checkForUpdates &&
-      checkForUpdates.nextSibling === updatesSeparator)
-    updatesSeparator.hidden = true;
-#endif
-#endif
-}
-
 // openUILink handles clicks on UI elements that cause URLs to load.
 // Firefox and SeaMonkey have a function with the same name,
 // so extensions can use this everywhere to open links.
@@ -322,27 +218,47 @@ function openWhatsNew()
   openContentTab(startpage);
 }
 
-function openContentTab(url)
+/**
+ * Open the specified URL as a content tab (or window)
+ *
+ * @param url the location to open
+ * @param where 'tab' to open in a new tab (default) or 'window' to open in a
+ *        new window
+ * @param handlerRegExp a regular expression (as a string) to use for the
+ *        siteClickHandler for determining whether a link should be opened in
+ *        Thunderbird or passed to the system
+ */
+function openContentTab(url, where, handlerRegExp)
 {
-  let tabmail = document.getElementById("tabmail");
-  if (!tabmail) {
-    // Try opening new tabs in an existing 3pane window
-    let mail3PaneWindow = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                                    .getService(Components.interfaces.nsIWindowMediator)
-                                    .getMostRecentWindow("mail:3pane");
-    if (mail3PaneWindow) {
-      tabmail = mail3PaneWindow.document.getElementById("tabmail");
-      mail3PaneWindow.focus();
+  let clickHandler = null;
+  if (handlerRegExp)
+    clickHandler = "specialTabs.siteClickHandler(event, new RegExp(\"" + handlerRegExp + "\"));";
+
+  if (where != "window") {
+    let tabmail = document.getElementById("tabmail");
+    if (!tabmail) {
+      // Try opening new tabs in an existing 3pane window
+      let mail3PaneWindow = Components.classes["@mozilla.org/appshell/window-mediator;1"]
+                                      .getService(Components.interfaces.nsIWindowMediator)
+                                      .getMostRecentWindow("mail:3pane");
+      if (mail3PaneWindow) {
+        tabmail = mail3PaneWindow.document.getElementById("tabmail");
+        mail3PaneWindow.focus();
+      }
+    }
+
+    if (tabmail) {
+      tabmail.openTab("contentTab", {contentPage: url, clickHandler: clickHandler});
+      return;
     }
   }
 
-  if (tabmail)
-    tabmail.openTab("contentTab", {contentPage: url});
-  else
-    window.openDialog("chrome://messenger/content/", "_blank",
-                      "chrome,dialog=no,all", null,
-                      { tabType: "contentTab",
-                        tabParams: {contentPage: url} });
+  // Either we explicitly wanted to open in a new window, or we fell through to
+  // here because there's no 3pane.
+  window.openDialog("chrome://messenger/content/", "_blank",
+                    "chrome,dialog=no,all", null,
+                    { tabType: "contentTab",
+                      tabParams: {contentPage: url, clickHandler: clickHandler} });
 }
 
 /**
@@ -359,4 +275,17 @@ function openFeatureConfigurator(aIsUpgrade) {
                     "_blank", options,
                     // Below are window.arguments for featureConfigurator.js
                     window, aIsUpgrade);
+}
+
+/**
+ * Open the dictionary list in a new content tab, if possible in an available
+ * mail:3pane window, otherwise by opening a new mail:3pane.
+ *
+ * @param where the context to open the dictionary list in (e.g. 'tab',
+ *        'window'). See openContentTab for more details.
+ */
+function openDictionaryList(where) {
+  let dictUrl = Services.urlFormatter
+    .formatURLPref("spellchecker.dictionaries.download.url");
+  openContentTab(dictUrl, where, "^https://addons.mozilla.org/");
 }

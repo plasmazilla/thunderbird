@@ -53,6 +53,9 @@
 #include "nsReadableUtils.h"
 #include "nsIHashable.h"
 #include "nsIClassInfoImpl.h"
+#ifdef XP_MACOSX
+#include "nsILocalFileMac.h"
+#endif
 
 /** 
  *  we need these for statfs()
@@ -66,6 +69,10 @@
 
 #ifdef HAVE_SYS_STATFS_H
     #include <sys/statfs.h>
+#endif
+
+#if defined(XP_MACOSX) && (defined(HAVE_STATVFS64) || !defined(HAVE_STATVFS))
+#error "Double-check which members of the 'STATFS' struct we're using!"
 #endif
 
 #ifdef HAVE_STATVFS64
@@ -101,7 +108,12 @@
 #endif
 
 
-class NS_COM nsLocalFile : public nsILocalFile,
+class NS_COM nsLocalFile :
+#ifdef XP_MACOSX
+                           public nsILocalFileMac,
+#else
+                           public nsILocalFile,
+#endif
                            public nsIHashable
 {
 public:
@@ -109,18 +121,14 @@ public:
     
     nsLocalFile();
 
-    static NS_METHOD nsLocalFileConstructor(nsISupports* outer, const nsIID& aIID, void* *aInstancePtr);
+    static nsresult nsLocalFileConstructor(nsISupports* outer, const nsIID& aIID, void* *aInstancePtr);
 
-    // nsISupports
     NS_DECL_ISUPPORTS
-
-    // nsIFile
     NS_DECL_NSIFILE
-
-    // nsILocalFile
     NS_DECL_NSILOCALFILE
-
-    // nsIHashable
+#ifdef XP_MACOSX
+    NS_DECL_NSILOCALFILEMAC
+#endif
     NS_DECL_NSIHASHABLE
 
 public:
@@ -132,8 +140,8 @@ private:
     ~nsLocalFile() {}
 
 protected:
-// This stat cache holds the *last stat* - it does not invalidate.
-// Call "FillStatCache" whenever you want to stat our file.
+    // This stat cache holds the *last stat* - it does not invalidate.
+    // Call "FillStatCache" whenever you want to stat our file.
     struct STAT  mCachedStat;
     nsCString    mPath;
 

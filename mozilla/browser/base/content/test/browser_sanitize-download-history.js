@@ -71,13 +71,11 @@ function test()
     let history = doc.getElementById("history-checkbox");
 
     // Add download to DB
-    let ios = Cc["@mozilla.org/network/io-service;1"].
-              getService(Ci.nsIIOService);
     let file = Cc["@mozilla.org/file/directory_service;1"].
                getService(Ci.nsIProperties).get("TmpD", Ci.nsIFile);
     file.append("satitize-dm-test.file");
     file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0666);
-    let testPath = ios.newFileURI(file).spec;
+    let testPath = Services.io.newFileURI(file).spec;
     let data = {
       name: "381603.patch",
       source: "https://bugzilla.mozilla.org/attachment.cgi?id=266520",
@@ -89,21 +87,18 @@ function test()
     };
     let db = Cc["@mozilla.org/download-manager;1"].
              getService(Ci.nsIDownloadManager).DBConnection;
-    let rawStmt = db.createStatement(
+    let stmt = db.createStatement(
       "INSERT INTO moz_downloads (name, source, target, startTime, endTime, " +
         "state, currBytes, maxBytes, preferredAction, autoResume) " +
       "VALUES (:name, :source, :target, :startTime, :endTime, :state, " +
         ":currBytes, :maxBytes, :preferredAction, :autoResume)");
-    let stmt = Cc["@mozilla.org/storage/statement-wrapper;1"].
-               createInstance(Ci.mozIStorageStatementWrapper);
-    stmt.initialize(rawStmt);
     try {
       for (let prop in data)
         stmt.params[prop] = data[prop];
       stmt.execute();
     }
     finally {
-      stmt.statement.finalize();
+      stmt.finalize();
     }
 
     // Toggle history to get everything to update
@@ -145,23 +140,20 @@ function test()
   db.executeSimpleSQL("DELETE FROM moz_downloads");
 
   // Close the UI if necessary
-  let ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-           getService(Ci.nsIWindowWatcher);
-  let win = ww.getWindowByName("Sanatize", null);
-  if (win && (win instanceof Ci.nsIDOMWindowInternal)) win.close();
+  let win = Services.ww.getWindowByName("Sanatize", null);
+  if (win && (win instanceof Ci.nsIDOMWindowInternal))
+    win.close();
 
   // Start the test when the sanitize window loads
-  ww.registerNotification({
-    observe: function(aSubject, aTopic, aData) {
-      ww.unregisterNotification(this);
-      aSubject.QueryInterface(Ci.nsIDOMEventTarget).
-      addEventListener("DOMContentLoaded", doTest, false);
-    }
+  Services.ww.registerNotification(function (aSubject, aTopic, aData) {
+    Services.ww.unregisterNotification(arguments.callee);
+    aSubject.QueryInterface(Ci.nsIDOMEventTarget)
+            .addEventListener("DOMContentLoaded", doTest, false);
   });
 
   // Let the methods that run onload finish before we test
   let doTest = function() setTimeout(function() {
-    let win = ww.getWindowByName("Sanitize", null)
+    let win = Services.ww.getWindowByName("Sanitize", null)
                 .QueryInterface(Ci.nsIDOMWindowInternal);
 
     for (let i = 0; i < tests.length; i++)
@@ -172,11 +164,11 @@ function test()
   }, 0);
  
   // Show the UI
-  ww.openWindow(window,
-                "chrome://browser/content/sanitize.xul",
-                "Sanitize",
-                "chrome,titlebar,centerscreen",
-                null);
+  Services.ww.openWindow(window,
+                         "chrome://browser/content/sanitize.xul",
+                         "Sanitize",
+                         "chrome,titlebar,centerscreen",
+                         null);
 
   waitForExplicitFinish();
 }

@@ -45,14 +45,14 @@ function testRFC977() {
     transaction = server.playTransaction();
     do_check_transaction(transaction, ["MODE READER", "LIST"]);
 
-    // GROUP_WANTED fails without UI
     // Test - getting group headers
-    /*test = "news:test.empty";
+    test = "news:test.subscribe.empty";
     server.resetTest();
-    setupProtocolTest(NNTP_PORT, prefix+"test.empty");
+    setupProtocolTest(NNTP_PORT, prefix+"test.subscribe.empty");
     server.performTest();
     transaction = server.playTransaction();
-    do_check_transaction(transaction, []);*/
+    do_check_transaction(transaction, ["MODE READER",
+      "GROUP test.subscribe.empty"]);
 
     // Test - getting an article
     test = "news:MESSAGE_ID";
@@ -63,15 +63,14 @@ function testRFC977() {
     do_check_transaction(transaction, ["MODE READER",
         "ARTICLE <TSS1@nntp.test>"]);
 
-    // Broken because of folder brokenness
     // Test - news expiration
-    /*test = "news:GROUP/?list-ids";
+    test = "news:GROUP?list-ids";
     server.resetTest();
-    setupProtocolTest(NNTP_PORT, prefix+"test.subscribe.empty/?list-ids");
+    setupProtocolTest(NNTP_PORT, prefix+"test.filter?list-ids");
     server.performTest();
     transaction = server.playTransaction();
     do_check_transaction(transaction, ["MODE READER",
-        "LISTGROUP test.subscribe.empty"]);*/
+        "listgroup test.filter"]);
 
     // Test - posting
     test = "news with post";
@@ -106,7 +105,8 @@ function testConnectionLimit() {
   var transaction;
 
   // To test make connections limit, we run two URIs simultaneously.
-  setupProtocolTest(NNTP_PORT, prefix+"*");
+  var url = URLCreator.newURI(prefix+"*", null, null);
+  _server.loadNewsUrl(url, null, null);
   setupProtocolTest(NNTP_PORT, prefix+"TSS1@nntp.test");
   server.performTest();
   // We should have length one... which means this must be a transaction object,
@@ -118,7 +118,45 @@ function testConnectionLimit() {
   while (thread.hasPendingEvents())
     thread.processNextEvent(true);
 }
+
+function testReentrantClose() {
+  // What we are testing is that a CloseConnection that spins the event loop
+  // does not cause a crash.
+  var handler = new NNTP_RFC977_handler(daemon);
+  var server = new nsMailServer(handler);
+  server.start(NNTP_PORT);
+
+  var listener = {
+    OnStartRunningUrl: function (url) {},
+    OnStopRunningUrl: function (url, rv) {
+      // Spin the event loop (entering nsNNTPProtocol::ProcessProtocolState)
+      let thread = gThreadManager.currentThread;
+      while (thread.hasPendingEvents())
+        thread.processNextEvent(true);
+    }
+  };
+  // Nice multi-step command--we can close while executing this URL if we are
+  // careful.
+  var url = URLCreator.newURI("news://localhost:" + NNTP_PORT +
+    "/test.filter", null, null);
+  url.QueryInterface(Ci.nsIMsgMailNewsUrl);
+  url.RegisterListener(listener);
+
+  _server.loadNewsUrl(url, null, null);
+  server.performTest("GROUP");
+  dump("Stopping server\n");
+  gThreadManager.currentThread.dispatch(
+    { run: function() { _server.closeCachedConnections(); } },
+    Ci.nsIEventTarget.DISPATCH_NORMAL);
+  server.performTest();
+  server.stop();
+
+  // Break refcnt loops
+  listener = url = null;
+}
+
 function run_test() {
   testRFC977();
   testConnectionLimit();
+  testReentrantClose();
 }

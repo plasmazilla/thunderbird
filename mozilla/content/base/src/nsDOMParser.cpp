@@ -59,6 +59,9 @@
 #include "nsDOMError.h"
 #include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
+#include "mozilla/AutoRestore.h"
+
+using namespace mozilla;
 
 // nsIDOMEventListener
 nsresult
@@ -116,6 +119,7 @@ nsDOMParser::~nsDOMParser()
   mLoopingForSyncLoad = PR_FALSE;
 }
 
+DOMCI_DATA(DOMParser, nsDOMParser)
 
 // QueryInterface implementation for nsDOMParser
 NS_INTERFACE_MAP_BEGIN(nsDOMParser)
@@ -126,7 +130,7 @@ NS_INTERFACE_MAP_BEGIN(nsDOMParser)
   NS_INTERFACE_MAP_ENTRY(nsIDOMEventListener)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   NS_INTERFACE_MAP_ENTRY(nsIJSNativeInitializer)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(DOMParser)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(DOMParser)
 NS_INTERFACE_MAP_END
 
 
@@ -262,6 +266,7 @@ nsDOMParser::ParseFromStream(nsIInputStream *stream,
   // Tell the document to start loading
   nsCOMPtr<nsIStreamListener> listener;
 
+  AutoRestore<PRPackedBool> restoreSyncLoop(mLoopingForSyncLoad);
   mLoopingForSyncLoad = PR_TRUE;
 
   // Have to pass PR_FALSE for reset here, else the reset will remove
@@ -270,6 +275,10 @@ nsDOMParser::ParseFromStream(nsIInputStream *stream,
   // SetPrincipal, etc, probably!
   nsCOMPtr<nsIDocument> document(do_QueryInterface(domDocument));
   if (!document) return NS_ERROR_FAILURE;
+
+  if (nsContentUtils::IsSystemPrincipal(mOriginalPrincipal)) {
+    document->ForceEnableXULXBL();
+  }
 
   rv = document->StartDocumentLoad(kLoadAsData, parserChannel, 
                                    nsnull, nsnull, 
@@ -334,33 +343,40 @@ nsDOMParser::Init(nsIPrincipal* principal, nsIURI* documentURI,
   NS_ENSURE_ARG(principal || documentURI);
 
   mDocumentURI = documentURI;
+  
   if (!mDocumentURI) {
     principal->GetURI(getter_AddRefs(mDocumentURI));
-    if (!mDocumentURI) {
+    // If we have the system principal, then we'll just use the null principals
+    // uri.
+    if (!mDocumentURI && !nsContentUtils::IsSystemPrincipal(principal)) {
       return NS_ERROR_INVALID_ARG;
     }
   }
 
   mScriptHandlingObject = do_GetWeakReference(aScriptObject);
   mPrincipal = principal;
-  nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
-  NS_ENSURE_TRUE(secMan, NS_ERROR_NOT_AVAILABLE);
   nsresult rv;
   if (!mPrincipal) {
+    nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
+    NS_ENSURE_TRUE(secMan, NS_ERROR_NOT_AVAILABLE);
     rv =
       secMan->GetCodebasePrincipal(mDocumentURI, getter_AddRefs(mPrincipal));
+    NS_ENSURE_SUCCESS(rv, rv);
     mOriginalPrincipal = mPrincipal;
   } else {
-    mOriginalPrincipal = principal;
-    PRBool isSystem;
-    rv = secMan->IsSystemPrincipal(mPrincipal, &isSystem);
-    if (NS_FAILED(rv) || isSystem) {
+    mOriginalPrincipal = mPrincipal;
+    if (nsContentUtils::IsSystemPrincipal(mPrincipal)) {
       // Don't give DOMParsers the system principal.  Use a null
       // principal instead.
       mPrincipal = do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      if (!mDocumentURI) {
+        rv = mPrincipal->GetURI(getter_AddRefs(mDocumentURI));
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
     }
   }
-  NS_ENSURE_SUCCESS(rv, rv);
   
   mBaseURI = baseURI;
   // Note: if mBaseURI is null, fine.  Leave it like that; that will use the
@@ -497,7 +513,7 @@ nsDOMParser::Initialize(nsISupports* aOwner, JSContext* cx, JSObject* obj,
       return NS_ERROR_UNEXPECTED;
     }
 
-    baseURI = doc->GetBaseURI();
+    baseURI = doc->GetDocBaseURI();
     documentURI = doc->GetDocumentURI();
   }
 
@@ -506,7 +522,8 @@ nsDOMParser::Initialize(nsISupports* aOwner, JSContext* cx, JSObject* obj,
 }
 
 NS_IMETHODIMP
-nsDOMParser::Init(nsIPrincipal *principal, nsIURI *documentURI, nsIURI *baseURI)
+nsDOMParser::Init(nsIPrincipal *aPrincipal, nsIURI *aDocumentURI,
+                  nsIURI *aBaseURI)
 {
   AttemptedInitMarker marker(&mAttemptedInit);
 
@@ -514,6 +531,19 @@ nsDOMParser::Init(nsIPrincipal *principal, nsIURI *documentURI, nsIURI *baseURI)
   NS_ENSURE_TRUE(cx, NS_ERROR_UNEXPECTED);
 
   nsIScriptContext* scriptContext = GetScriptContextFromJSContext(cx);
-  return Init(principal, documentURI, baseURI,
+
+  nsCOMPtr<nsIPrincipal> principal = aPrincipal;
+
+  if (!principal && !aDocumentURI) {
+    nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
+    NS_ENSURE_TRUE(secMan, NS_ERROR_UNEXPECTED);
+
+    secMan->GetSubjectPrincipal(getter_AddRefs(principal));
+
+    // We're called from JS; there better be a subject principal, really.
+    NS_ENSURE_TRUE(principal, NS_ERROR_UNEXPECTED);
+  }
+
+  return Init(principal, aDocumentURI, aBaseURI,
               scriptContext ? scriptContext->GetGlobalObject() : nsnull);
 }

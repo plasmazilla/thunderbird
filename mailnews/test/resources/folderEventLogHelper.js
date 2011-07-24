@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Global Database.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -62,6 +62,8 @@ function registerFolderEventLogHelper() {
         Ci.nsIMsgFolderNotificationService.msgsClassified |
         Ci.nsIMsgFolderNotificationService.msgsDeleted |
         Ci.nsIMsgFolderNotificationService.msgsMoveCopyCompleted |
+        Ci.nsIMsgFolderNotificationService.msgKeyChanged |
+        Ci.nsIMsgFolderNotificationService.folderAdded |
         Ci.nsIMsgFolderNotificationService.folderDeleted |
         Ci.nsIMsgFolderNotificationService.folderMoveCopyCompleted |
         Ci.nsIMsgFolderNotificationService.folderRenamed |
@@ -117,6 +119,11 @@ let _folderEventLogHelper_msgFolderListener = {
       }
     }
     mark_action("msgEvent", "msgsMoveCopyCompleted", args);
+  },
+
+  msgKeyChanged: function felh_msgKeyChanged(aOldMsgKey, aNewMsgHdr) {
+    let args = ["old key", aOldMsgKey, "new header", aNewMsgHdr];
+    mark_action("msgEvent", "msgKeyChanged", args);
   },
 
   folderAdded: function felh_folderAdded(aFolder) {

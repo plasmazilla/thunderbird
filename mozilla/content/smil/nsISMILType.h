@@ -52,9 +52,12 @@ class nsSMILValue;
 // the data upon which it should operate.
 //
 // We keep the data and type separate rather than just providing different
-// subclasses of nsSMILValue as this allows nsSMILValues to be allocated on the
-// stack and directly assigned to one another provided performance benefits for
-// the animation code.
+// subclasses of nsSMILValue. This is so that sizeof(nsSMILValue) is the same
+// for all value types, allowing us to have a type-agnostic nsTArray of
+// nsSMILValue objects (actual objects, not pointers). It also allows most
+// nsSMILValues (except those that need to allocate extra memory for their
+// data) to be allocated on the stack and directly assigned to one another
+// provided performance benefits for the animation code.
 //
 // Note that different types have different capabilities. Roughly speaking there
 // are probably three main types:
@@ -75,16 +78,20 @@ class nsSMILValue;
 
 class nsISMILType
 {
-public:
+  /**
+   * Only give the nsSMILValue class access to this interface.
+   */
+  friend class nsSMILValue;
+
+protected:
   /**
    * Initialises aValue and sets it to some identity value such that adding
    * aValue to another value of the same type has no effect.
    *
-   * @pre (aValue.mType == this && aValue.mU is valid)
-   *      || aValue.mType == null-type
-   * @post aValue.mType == this || NS_FAILED(rv)
+   * @pre  aValue.IsNull()
+   * @post aValue.mType == this
    */
-  virtual nsresult Init(nsSMILValue& aValue) const = 0;
+  virtual void Init(nsSMILValue& aValue) const = 0;
 
   /**
    * Destroys any data associated with a value of this type.
@@ -107,6 +114,29 @@ public:
    */
   virtual nsresult Assign(nsSMILValue& aDest,
                           const nsSMILValue& aSrc) const = 0;
+
+  /**
+   * Test two nsSMILValue objects (of this nsISMILType) for equality.
+   *
+   * A return value of PR_TRUE represents a guarantee that aLeft and aRight are
+   * equal. (That is, they would behave identically if passed to the methods
+   * Add, SandwichAdd, ComputeDistance, and Interpolate).
+   *
+   * A return value of PR_FALSE simply indicates that we make no guarantee
+   * about equality.
+   *
+   * NOTE: It's perfectly legal for implementations of this method to return
+   * PR_FALSE in all cases.  However, smarter implementations will make this
+   * method more useful for optimization.
+   *
+   * @param   aLeft       The left-hand side of the equality check.
+   * @param   aRight      The right-hand side of the equality check.
+   * @return  PR_TRUE if we're sure the values are equal, PR_FALSE otherwise.
+   *
+   * @pre aDest.mType == aSrc.mType == this
+   */
+  virtual PRBool IsEqual(const nsSMILValue& aLeft,
+                         const nsSMILValue& aRight) const = 0;
 
   /**
    * Adds two values.
@@ -200,7 +230,7 @@ public:
    *                        the distance of the interpolated value in the
    *                        interval.
    * @param   aResult       The interpolated value.
-   * @result  NS_OK on success, NS_ERROR_FAILURE if this data type cannot be
+   * @return  NS_OK on success, NS_ERROR_FAILURE if this data type cannot be
    *          interpolated or NS_ERROR_OUT_OF_MEMORY if insufficient memory was
    *          available for storing the result.
    *
@@ -211,11 +241,12 @@ public:
                                double aUnitDistance,
                                nsSMILValue& aResult) const = 0;
 
-  /*
-   * Virtual destructor: Nothing to do here, but subclasses
-   * may need it.
+  /**
+   * Protected destructor, to ensure that no one accidentally deletes an
+   * instance of this class.
+   * (The only instances in existence should be singletons - one per subclass.)
    */
-  virtual ~nsISMILType() {};
+  ~nsISMILType() {}
 };
 
 #endif // NS_ISMILTYPE_H_

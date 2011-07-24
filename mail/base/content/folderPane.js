@@ -1388,7 +1388,16 @@ let gFolderTreeView = {
         for each (let folder in ftv._enumerateFolders)
           addIfRecent(folder);
 
-        recentFolders.sort(sorter);
+        // Sort the folder names alphabetically.
+        recentFolders.sort(function rf_sort(a, b){
+          var aLabel = a.prettyName;
+          var bLabel = b.prettyName;
+          if (aLabel == bLabel) {
+            aLabel = a.server.prettyName;
+            bLabel = b.server.prettyName;
+          }
+          return aLabel.toLocaleLowerCase() > bLabel.toLocaleLowerCase();
+        });
 
         let items = [new ftvItem(f) for each (f in recentFolders)];
 
@@ -1461,7 +1470,7 @@ let gFolderTreeView = {
                     nsMsgFolderFlags.Templates |
                     nsMsgFolderFlags.Junk |
                     nsMsgFolderFlags.Archive,
-      
+
       /**
        * support for addons to add special folder types, this must be called
        * prior to onload.
@@ -1716,8 +1725,6 @@ let gFolderTreeView = {
    * This updates the rowmap and invalidates the right row(s) in the tree
    */
   _addChildToView: function ftl_addChildToView(aParent, aParentIndex, aNewChild) {
-    // If the parent is open, add the new child into the folder pane.
-    // Otherwise, just invalidate the parent row.
     if (aParent.open) {
       let newChildIndex;
       let newChildNum = aParent._children.indexOf(aNewChild);
@@ -1830,6 +1837,20 @@ let gFolderTreeView = {
       newChild._parent = parent;
       sortFolderItems(parent._children);
     }
+    // If the parent is open, add the new child into the folder pane.
+    // Otherwise, just invalidate the parent row. Note that this code doesn't
+    // get called for the smart folder case.
+    if (!parent.open) {
+      // Special case adding a special folder when the parent is collapsed.
+      // Expand the parent so the user can see the special child.
+      // Expanding the parent is sufficient to add the folder to the view,
+      // because either we knew about it, or we will have added a child item
+      // for it above.
+      if (newChild._folder.flags & nsMsgFolderFlags.SpecialUse) {
+        this._toggleRow(parentIndex, false);
+        return;
+      }
+    }
     this._addChildToView(parent, parentIndex, newChild);
   },
 
@@ -1886,7 +1907,11 @@ let gFolderTreeView = {
     }
   },
 
-  OnItemBoolPropertyChanged: function(aItem, aProperty, aOld, aNew) {},
+  OnItemBoolPropertyChanged: function(aItem, aProperty, aOld, aNew) {
+    let index = this.getIndexOfFolder(aItem);
+    if (index != null)
+      this._tree.invalidateRow(index);
+  },
   OnItemUnicharPropertyChanged: function(aItem, aProperty, aOld, aNew) {},
   OnItemPropertyFlagChanged: function(aItem, aProperty, aOld, aNew) {},
   OnItemEvent: function(aFolder, aEvent) {
@@ -1986,7 +2011,7 @@ ftvItem.prototype = {
         Components.classes["@mozilla.org/consoleservice;1"].getService(Ci.nsIConsoleService)
           .logStringMessage("Discovering children for " + this._folder.URI + " failed with " +
                             "exception: " + ex);
-        iter = new Array;
+        iter = [];
       }
       this._children = [new ftvItem(f) for each (f in iter)];
 

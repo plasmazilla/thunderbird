@@ -124,6 +124,7 @@ private:
   
 	nsCOMPtr<nsIEditor>                       m_editor;
 	nsIDOMWindowInternal                      *m_window;
+  nsCOMPtr<nsIDocShell>                     mDocShell;
   nsCOMPtr<nsIBaseWindow>                   m_baseWindow;
 	nsMsgCompFields                           *m_compFields;
 	nsCOMPtr<nsIMsgIdentity>                  m_identity;
@@ -184,6 +185,7 @@ public:
     NS_IMETHOD  SetComposeObj(nsIMsgCompose *obj);
 	  NS_IMETHOD  ConvertToPlainText(PRBool formatflowed = PR_FALSE);
     NS_IMETHOD InsertToCompose(nsIEditor *aEditor, PRBool aHTMLEditor);
+    NS_IMETHOD AppendToMsgBody(const nsCString &inStr);
 
 private:
     nsWeakPtr                 mWeakComposeObj;

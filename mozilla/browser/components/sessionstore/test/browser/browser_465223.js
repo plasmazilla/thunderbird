@@ -34,8 +34,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+function browserWindowsCount() {
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  return count;
+}
+
 function test() {
   /** Test for Bug 465223 **/
+  is(browserWindowsCount(), 1, "Only one browser window should be open initially");
   
   // test setup
   let ss = Cc["@mozilla.org/browser/sessionstore;1"].getService(Ci.nsISessionStore);
@@ -55,7 +66,7 @@ function test() {
     newState.windows[0].extData[uniqueKey2] = uniqueValue2;
     ss.setWindowState(newWin, JSON.stringify(newState), false);
     
-    is(newWin.gBrowser.tabContainer.childNodes.length, 2,
+    is(newWin.gBrowser.tabs.length, 2,
        "original tab wasn't overwritten");
     is(ss.getWindowValue(newWin, uniqueKey1), uniqueValue1,
        "window value wasn't overwritten when the tabs weren't");
@@ -65,7 +76,7 @@ function test() {
     newState.windows[0].extData[uniqueKey2] = uniqueValue1;
     ss.setWindowState(newWin, JSON.stringify(newState), true);
     
-    is(newWin.gBrowser.tabContainer.childNodes.length, 1,
+    is(newWin.gBrowser.tabs.length, 1,
        "original tabs were overwritten");
     is(ss.getWindowValue(newWin, uniqueKey1), "",
        "window value was cleared");
@@ -74,6 +85,7 @@ function test() {
     
     // clean up
     newWin.close();
+    is(browserWindowsCount(), 1, "Only one browser window should be open eventually");
     finish();
   }, false);
 }

@@ -52,6 +52,7 @@ nsDOMMouseScrollEvent::nsDOMMouseScrollEvent(nsPresContext* aPresContext,
     mEventIsInternal = PR_TRUE;
     mEvent->time = PR_Now();
     mEvent->refPoint.x = mEvent->refPoint.y = 0;
+    static_cast<nsMouseEvent*>(mEvent)->inputSource = nsIDOMNSMouseEvent::MOZ_SOURCE_UNKNOWN;
   }
 
   if(mEvent->eventStructType == NS_MOUSE_SCROLL_EVENT) {
@@ -79,9 +80,11 @@ nsDOMMouseScrollEvent::~nsDOMMouseScrollEvent()
 NS_IMPL_ADDREF_INHERITED(nsDOMMouseScrollEvent, nsDOMMouseEvent)
 NS_IMPL_RELEASE_INHERITED(nsDOMMouseScrollEvent, nsDOMMouseEvent)
 
+DOMCI_DATA(MouseScrollEvent, nsDOMMouseScrollEvent)
+
 NS_INTERFACE_MAP_BEGIN(nsDOMMouseScrollEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMMouseScrollEvent)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(MouseScrollEvent)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MouseScrollEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMMouseEvent)
 
 NS_IMETHODIMP

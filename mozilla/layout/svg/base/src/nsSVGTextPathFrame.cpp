@@ -43,6 +43,8 @@
 #include "nsSVGPathElement.h"
 #include "nsSVGTextPathElement.h"
 
+using namespace mozilla;
+
 //----------------------------------------------------------------------
 // Implementation
 
@@ -83,27 +85,24 @@ nsSVGTextPathFrame::GetType() const
   return nsGkAtoms::svgTextPathFrame;
 }
 
-
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextPathFrame::GetX()
+void
+nsSVGTextPathFrame::GetXY(SVGUserUnitList *aX, SVGUserUnitList *aY)
 {
-  return nsnull;
+  // 'x' and 'y' don't apply to 'textPath'
+  aX->Clear();
+  aY->Clear();
 }
 
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextPathFrame::GetY()
+void
+nsSVGTextPathFrame::GetDxDy(SVGUserUnitList *aDx, SVGUserUnitList *aDy)
 {
-  return nsnull;
+  // 'dx' and 'dy' don't apply to 'textPath'
+  aDx->Clear();
+  aDy->Clear();
 }
 
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextPathFrame::GetDx()
-{
-  return nsnull;
-}
-
-NS_IMETHODIMP_(already_AddRefed<nsIDOMSVGLengthList>)
-nsSVGTextPathFrame::GetDy()
+const SVGNumberList*
+nsSVGTextPathFrame::GetRotate()
 {
   return nsnull;
 }
@@ -114,8 +113,8 @@ nsSVGTextPathFrame::GetDy()
 nsIFrame *
 nsSVGTextPathFrame::GetPathFrame()
 {
-  nsSVGTextPathProperty *property =
-    static_cast<nsSVGTextPathProperty*>(GetProperty(nsGkAtoms::href));
+  nsSVGTextPathProperty *property = static_cast<nsSVGTextPathProperty*>
+    (Properties().Get(nsSVGEffects::HrefProperty()));
 
   if (!property) {
     nsSVGTextPathElement *tp = static_cast<nsSVGTextPathElement*>(mContent);
@@ -130,17 +129,13 @@ nsSVGTextPathFrame::GetPathFrame()
     nsContentUtils::NewURIWithDocumentCharset(getter_AddRefs(targetURI), href,
                                               mContent->GetCurrentDoc(), base);
 
-    property = nsSVGEffects::GetTextPathProperty(
-                               targetURI, this, nsGkAtoms::href);
+    property =
+      nsSVGEffects::GetTextPathProperty(targetURI, this, nsSVGEffects::HrefProperty());
     if (!property)
       return nsnull;
   }
 
-  nsIFrame *result = property->GetReferencedFrame();
-  if (!result || result->GetType() != nsGkAtoms::svgPathGeometryFrame)
-    return nsnull;
-
-  return result;
+  return property->GetReferencedFrame(nsGkAtoms::svgPathGeometryFrame, nsnull);
 }
 
 already_AddRefed<gfxFlattenedPath>
@@ -210,7 +205,7 @@ nsSVGTextPathFrame::AttributeChanged(PRInt32         aNameSpaceID,
   } else if (aNameSpaceID == kNameSpaceID_XLink &&
              aAttribute == nsGkAtoms::href) {
     // Blow away our reference, if any
-    DeleteProperty(nsGkAtoms::href);
+    Properties().Delete(nsSVGEffects::HrefProperty());
     NotifyGlyphMetricsChange();
   }
 

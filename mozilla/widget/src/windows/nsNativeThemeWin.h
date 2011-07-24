@@ -49,7 +49,7 @@ struct nsIntSize;
 class nsNativeThemeWin : private nsNativeTheme,
                          public nsITheme {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_ISUPPORTS_INHERITED
 
   // The nsITheme interface.
   NS_IMETHOD DrawWidgetBackground(nsIRenderingContext* aContext,
@@ -78,7 +78,7 @@ public:
                                   nsIntSize* aResult,
                                   PRBool* aIsOverridable);
 
-  virtual nsTransparencyMode GetWidgetTransparency(PRUint8 aWidgetType);
+  virtual Transparency GetWidgetTransparency(nsIFrame* aFrame, PRUint8 aWidgetType);
 
   NS_IMETHOD WidgetStateChanged(nsIFrame* aFrame, PRUint8 aWidgetType, 
                                 nsIAtom* aAttribute, PRBool* aShouldRepaint);

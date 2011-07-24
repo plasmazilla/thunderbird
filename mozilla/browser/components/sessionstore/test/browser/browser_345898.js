@@ -58,11 +58,11 @@ function test() {
      "Invalid tab for getTabState throws");
   ok(test(function() ss.setTabState({}, "{}")),
      "Invalid tab state for setTabState throws");
-  ok(test(function() ss.setTabState({}, "{ entries: [] }")),
+  ok(test(function() ss.setTabState({}, JSON.stringify({ entries: [] }))),
      "Invalid tab for setTabState throws");
   ok(test(function() ss.duplicateTab({}, {})),
      "Invalid tab for duplicateTab throws");
-  ok(test(function() ss.duplicateTab({}, getBrowser().selectedTab)),
+  ok(test(function() ss.duplicateTab({}, gBrowser.selectedTab)),
      "Invalid window for duplicateTab throws");
   ok(test(function() ss.getClosedTabData({})),
      "Invalid window for getClosedTabData throws");
@@ -80,6 +80,6 @@ function test() {
      "Invalid window for deleteWindowValue throws");
   ok(test(function() ss.deleteWindowValue(window, Date.now().toString())),
      "Nonexistent value for deleteWindowValue throws");
-  ok(test(function() ss.deleteTabValue(getBrowser().selectedTab, Date.now().toString())),
+  ok(test(function() ss.deleteTabValue(gBrowser.selectedTab, Date.now().toString())),
      "Nonexistent value for deleteTabValue throws");
 }

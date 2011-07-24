@@ -14,12 +14,13 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
  *   Andrew Sutherland <asutherland@asutherland.org>
+ *   Mike Conley <mconley@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -36,6 +37,11 @@
  * ***** END LICENSE BLOCK ***** */
 
 var gMessageGenerator, gMessageScenarioFactory;
+
+// We can be executed from multiple depths
+// Provide understandable error message
+if (typeof gDEPTH == "undefined")
+  do_throw("gDEPTH must be defined when using messageInjection.js");
 
 /*
  * IMAP port is 1167
@@ -73,7 +79,7 @@ function configure_message_injection(aInjectionConfig) {
 
   if (mis.injectionConfig.mode == "pop") {
     // -- Pull in the POP3 fake-server / local account helper code
-    load("../../test_mailnewslocal/unit/head_maillocal.js");
+    load(gDEPTH + "mailnews/local/test/unit/head_maillocal.js");
     // set up POP3 fakeserver to feed things in...
     [mis.daemon, mis.server] = setupServerDaemon();
     // (this will call loadLocalMailAccount())
@@ -141,7 +147,7 @@ function configure_message_injection(aInjectionConfig) {
                        mis.injectionConfig.offline);
 
     // Pull in the IMAP fake server code
-    load("../../test_imap/unit/head_server.js");
+    load(gDEPTH + "mailnews/imap/test/unit/head_server.js");
 
     // set up IMAP fakeserver and incoming server
     mis.daemon = new imapDaemon();
@@ -445,6 +451,11 @@ function make_virtual_folder(aFolders, aSearchDef, aBooleanAnd, aName) {
   let mis = _messageInjectionSetup;
   let name = aName ? aName : "virt" + mis._nextUniqueFolderId++;
 
+  mark_action("messageInjection", "make_virtual_folder",
+              ["creating folder named", name,
+               "from folders", aFolders, "anding?", aBooleanAnd,
+               "using search def", aSearchDef]);
+
   let terms = [];
   let termCreator = Components.classes["@mozilla.org/messenger/searchSession;1"]
                               .createInstance(Ci.nsIMsgSearchSession);
@@ -668,10 +679,18 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
   else {
     do_throw("Message injection is not configured!");
   }
-  iterFolders = _looperator(aMsgFolders);
 
   if (mis.injectionConfig.mode == "local") {
-    let iPerSet = 0, folder = iterFolders.next();
+    // Note: in order to cut down on excessive fsync()s, we do a two-pass
+    //  approach.  In the first pass we just allocate messages to the folder
+    //  we are going to insert them into.  In the second pass we insert the
+    //  messages into folders in batches and perform any mutations.
+    let folderBatches = [{folder: folder, messages: []} for each
+                         ([, folder] in Iterator(aMsgFolders))];
+    iterFolders = _looperator(folderBatches);
+    let iPerSet = 0, folderBatch = iterFolders.next();
+
+    // - allocate messages to folders
     // loop, incrementing our subscript until all message sets are out of messages
     let didSomething;
     do {
@@ -679,31 +698,56 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
       // for each message set, if it is not out of messages, add the message
       for each (let [, messageSet] in Iterator(aMessageSets)) {
         if (iPerSet < messageSet.synMessages.length) {
-          let synMsg = messageSet._trackMessageAddition(folder, iPerSet);
-          folder.gettingNewMessages = true;
-          folder.addMessage(synMsg.toMboxString());
-          // if we need to mark the message as junk grab the header and do so
-          // (The message set can mark the whole set as junk, but not just
-          //  specific messages.)
-          if (synMsg.metaState.junk) {
-            let msgHdr = messageSet.getMsgHdr(iPerSet);
-            msgHdr.setStringProperty("junkscore", "100");
-          }
-          if (synMsg.metaState.read) {
-            // XXX this will generate an event; I'm not sure if we should be
-            //  trying to avoid that or not.  This case is really only added
-            //  for IMAP where this makes more sense.
-            let msgHdr = messageSet.getMsgHdr(iPerSet);
-            msgHdr.markRead(true);
-          }
-          folder.gettingNewMessages = false;
-          folder.hasNewMessages = true;
+          let synMsg = messageSet._trackMessageAddition(folderBatch.folder,
+                                                        iPerSet);
+          folderBatch.messages.push(synMsg);
           didSomething = true;
         }
       }
       iPerSet++;
-      folder = iterFolders.next();
+      folderBatch = iterFolders.next();
     } while (didSomething);
+
+    // - inject messages
+    for each ([, folderBatch] in Iterator(folderBatches)) {
+      // it is conceivable some folders might not get any messages, skip them.
+      if (!folderBatch.messages.length)
+        continue;
+
+      let folder = folderBatch.folder;
+      folder.gettingNewMessages = true;
+      let messageStrings = [synMsg.toMboxString() for each
+                            ([, synMsg] in Iterator(folderBatch.messages))];
+      folder.addMessageBatch(messageStrings.length, messageStrings);
+
+      for each (let [, synMsg] in Iterator(folderBatch.messages)) {
+        // if we need to mark the message as junk grab the header and do so
+        // (The message set can mark the whole set as junk, but not just
+        //  specific messages.)
+        if (synMsg.metaState.junk) {
+          let msgHdr = messageSet.getMsgHdr(iPerSet);
+          msgHdr.setStringProperty("junkscore", "100");
+        }
+        if (synMsg.metaState.read) {
+          // XXX this will generate an event; I'm not sure if we should be
+          //  trying to avoid that or not.  This case is really only added
+          //  for IMAP where this makes more sense.
+          let msgHdr = messageSet.getMsgHdr(iPerSet);
+          msgHdr.markRead(true);
+        }
+      }
+      if (folderBatch.messages.length)
+      {
+        let lastMRUTime = Math.floor(Number(folderBatch.messages[0].date)
+                                     / 1000);
+        folder.setStringProperty("MRUTime", lastMRUTime);
+      }
+      folder.gettingNewMessages = false;
+      folder.hasNewMessages = true;
+      folder.setNumNewMessages(folder.getNumNewMessages(false)
+                               + messageStrings.length);
+      folder.biffState = Ci.nsIMsgFolder.nsMsgBiffState_NewMail;
+    }
 
     // make sure that junk filtering gets a turn
     // XXX we probably need to be doing more in terms of filters here,
@@ -714,6 +758,7 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
     }
   }
   else if (mis.injectionConfig.mode == "imap") {
+    iterFolders = _looperator(aMsgFolders);
     // we need to call updateFolder on all the folders, not just the first
     //  one...
     return async_run({func: function() {
@@ -772,6 +817,8 @@ function add_sets_to_folders(aMsgFolders, aMessageSets, aDoNotForceUpdate) {
     }});
   }
   else if (mis.injectionConfig.mode == "pop") {
+    iterFolders = _looperator(aMsgFolders);
+
     let iPerSet = 0, folder = iterFolders.next();
     // loop, incrementing our subscript until all message sets are out of messages
     let didSomething;
@@ -831,13 +878,21 @@ function wait_for_message_injection() {
 /**
  * Asynchronously move messages in the given set to the destination folder.
  *
- * The IMAP case is much more complex, at least in the unit testing world:
- * XXX We have to force an update of the source folder because the fake
- *  server only allows one connection and that one connection currently
- *  is focused on destFolder; we have to force an update of srcFolder to
- *  get the move to actually hit the IMAP server.
+ * For IMAP moves we force an update of the source folder and then the
+ *  destination folder.  This ensures that any (pseudo-)offline operations in
+ *  the source folder have had a chance to run and that we have seen the changes
+ *  in the target folder.
+ * We additionally cause all of the message bodies to be downloaded in the
+ *  target folder if the folder has the Offline flag set.
+ *
+ * @param aSynMessageSet The messages to move.
+ * @param aDestFolder The target folder.
+ * @param [aAllowUndo=false] Should we generate undo operations and, as a
+ *     side-effect, offline operations?  (The code uses undo operations as
+ *     a proxy-indicator for it coming from the UI and therefore performing
+ *     pseudo-offline operations instead of trying to do things online.)
  */
-function async_move_messages(aSynMessageSet, aDestFolder) {
+function async_move_messages(aSynMessageSet, aDestFolder, aAllowUndo) {
   mark_action("messageInjection", "moving messages", aSynMessageSet.msgHdrList);
   return async_run({func: function () {
       // we need to make sure all folder promises are fulfilled
@@ -862,7 +917,7 @@ function async_move_messages(aSynMessageSet, aDestFolder) {
         copyService.CopyMessages(folder, xpcomHdrArray,
                                  realDestFolder, /* move */ true,
                                  asyncCopyListener, null,
-                                 /* do not allow undo, leaks */ false);
+                                 Boolean(aAllowUndo));
         // update the synthetic message set's folder entry...
         aSynMessageSet._folderSwap(folder, realDestFolder);
         yield false;

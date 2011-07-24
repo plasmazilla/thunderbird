@@ -8,7 +8,8 @@
 <body>
 <p id="display"></p>
 <div id="content" style="display: none">
-<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="120px" height="120px">
+<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="120px" height="120px"
+     onload="this.pauseAnimations()">
   <circle cx="-100" cy="20" r="15" fill="blue" id="circle"/>
 </svg>
 </div>
@@ -39,7 +40,9 @@ function removeAnim(anim) {
 }
 
 function main() {
-  svg.pauseAnimations();
+  ok(svg.animationsPaused(), "should be paused by <svg> load handler");
+  is(svg.getCurrentTime(), 0, "should be paused at 0 in <svg> load handler");
+
   var tests =
     [ testZeroDurationIntervalsA,
       testZeroDurationIntervalsB,
@@ -144,7 +147,10 @@ function testZeroDurationIntervalsF(anim) {
   checkSample(0,-100);
   checkSample(1,0);
   checkSample(2,0);
-  is(anim.getStartTime(),1);
+  try {
+    anim.getStartTime();
+    ok(false, "Failed to throw exception when there's no current interval.");
+  } catch (e) { }
 }
 
 function testZeroDurationIntervalsG(anim) {
@@ -230,7 +236,10 @@ function testZeroDurationIntervalsM(anim) {
   anim.setAttribute('begin', '0s');
   anim.setAttribute('end', '0s');
   anim.setAttribute('fill', 'freeze');
-  is(anim.getStartTime(),0);
+  try {
+    anim.getStartTime();
+    ok(false, "Failed to throw exception when there's no current interval.");
+  } catch (e) { }
   checkSample(0,0);
   checkSample(1,0);
 }
@@ -240,7 +249,10 @@ function testZeroDurationIntervalsN(anim) {
   anim.setAttribute('begin', '0s');
   anim.setAttribute('repeatDur', '0s');
   anim.setAttribute('fill', 'freeze');
-  is(anim.getStartTime(),0);
+  try {
+    anim.getStartTime();
+    ok(false, "Failed to throw exception when there's no current interval.");
+  } catch (e) { }
   checkSample(0,0);
   checkSample(1,0);
 }
@@ -260,7 +272,10 @@ function testZeroDurationIntervalsO(anim) {
   checkSample(1,0);
   checkSample(1.5,0);
   checkSample(3,0);
-  is(anim.getStartTime(),2);
+  try {
+    anim.getStartTime();
+    ok(false, "Failed to throw exception when there's no current interval.");
+  } catch (e) { }
 }
 
 window.addEventListener("load", main, false);

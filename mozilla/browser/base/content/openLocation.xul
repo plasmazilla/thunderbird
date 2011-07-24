@@ -54,9 +54,9 @@
         persist="screenX screenY"
         screenX="24" screenY="24">
               
-  <script type="application/x-javascript" src="chrome://global/content/globalOverlay.js"/> 
-  <script type="application/x-javascript" src="chrome://browser/content/openLocation.js"/>
-  <script type="application/x-javascript" src="chrome://browser/content/utilityOverlay.js"/>
+  <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/> 
+  <script type="application/javascript" src="chrome://browser/content/openLocation.js"/>
+  <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
   
   <stringbundle id="openLocationBundle" src="chrome://browser/locale/openLocation.properties"/>
 
@@ -80,8 +80,8 @@
         <menulist id="openWhereList">
           <menupopup>
             <menuitem value="0" id="currentWindow" label="&topTab.label;"/>
-            <menuitem value="1" label="&newWindow.label;"/>
             <menuitem value="3" label="&newTab.label;"/>
+            <menuitem value="1" label="&newWindow.label;"/>
           </menupopup>
         </menulist>
         <spacer flex="1"/>

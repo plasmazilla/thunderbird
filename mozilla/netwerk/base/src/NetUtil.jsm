@@ -16,7 +16,7 @@
  * The Original Code is Mozilla code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation.
+ * Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -52,6 +52,7 @@ let EXPORTED_SYMBOLS = [
 const Ci = Components.interfaces;
 const Cc = Components.classes;
 const Cr = Components.results;
+const Cu = Components.utils;
 
 const PR_UINT32_MAX = 0xffffffff;
 
@@ -128,23 +129,29 @@ const NetUtil = {
     },
 
     /**
-     * Asynchronously opens a channel and fetches the response.  The provided
-     * callback will get an input stream containing the response, and the result
-     * code.
+     * Asynchronously opens a source and fetches the response.  A source can be
+     * an nsIURI, nsIFile, string spec, nsIChannel, or nsIInputStream.  The
+     * provided callback will get an input stream containing the response, the
+     * result code, and a reference to the request.
      *
-     * @param aChannel
-     *        The nsIChannel to open.
+     * @param aSource
+     *        The nsIURI, nsIFile, string spec, nsIChannel, or nsIInputStream
+     *        to open.
+     *        Note: If passing an nsIChannel whose notificationCallbacks is
+     *              already set, callers are responsible for implementations
+     *              of nsIBadCertListener/nsISSLErrorListener.
      * @param aCallback
      *        The callback function that will be notified upon completion.  It
      *        will get two arguments:
-     *        1) An nsIInputStream containing the data from the channel, if any.
-     *        2) The status code from opening the channel.
+     *        1) An nsIInputStream containing the data from aSource, if any.
+     *        2) The status code from opening the source.
+     *        3) Reference to the nsIRequest.
      */
-    asyncFetch: function NetUtil_asyncOpen(aChannel, aCallback)
+    asyncFetch: function NetUtil_asyncOpen(aSource, aCallback)
     {
-        if (!aChannel || !aCallback) {
+        if (!aSource || !aCallback) {
             let exception = new Components.Exception(
-                "Must have a channel and a callback",
+                "Must have a source and a callback",
                 Cr.NS_ERROR_INVALID_ARG,
                 Components.stack.caller
             );
@@ -164,37 +171,162 @@ const NetUtil = {
             onStartRequest: function(aRequest, aContext) {},
             onStopRequest: function(aRequest, aContext, aStatusCode) {
                 pipe.outputStream.close();
-                aCallback(pipe.inputStream, aStatusCode);
+                aCallback(pipe.inputStream, aStatusCode, aRequest);
             }
         });
 
-        aChannel.asyncOpen(listener, null);
+        // Input streams are handled slightly differently from everything else.
+        if (aSource instanceof Ci.nsIInputStream) {
+            let pump = Cc["@mozilla.org/network/input-stream-pump;1"].
+                       createInstance(Ci.nsIInputStreamPump);
+            pump.init(aSource, -1, -1, 0, 0, true);
+            pump.asyncRead(listener, null);
+            return;
+        }
+
+        let channel = aSource;
+        if (!(channel instanceof Ci.nsIChannel)) {
+            channel = this.newChannel(aSource);
+        }
+
+        // Add a BadCertHandler to suppress SSL/cert error dialogs, but only if
+        // the channel doesn't already have a notificationCallbacks.
+        if (!channel.notificationCallbacks) {
+          // Pass true to avoid optional redirect-cert-checking behavior.
+          channel.notificationCallbacks = new BadCertHandler(true);
+        }
+
+        channel.asyncOpen(listener, null);
     },
 
     /**
-     * Constructs a new URI for the given spec, character set, and base URI.
+     * Constructs a new URI for the given spec, character set, and base URI, or
+     * an nsIFile.
      *
-     * @param aSpec
-     *        The spec for the desired URI.
+     * @param aTarget
+     *        The string spec for the desired URI or an nsIFile.
      * @param aOriginCharset [optional]
-     *        The character set for the URI.
+     *        The character set for the URI.  Only used if aTarget is not an
+     *        nsIFile.
      * @param aBaseURI [optional]
-     *        The base URI for the spec.
+     *        The base URI for the spec.  Only used if aTarget is not an
+     *        nsIFile.
      *
      * @return an nsIURI object.
      */
-    newURI: function NetUtil_newURI(aSpec, aOriginCharset, aBaseURI)
+    newURI: function NetUtil_newURI(aTarget, aOriginCharset, aBaseURI)
     {
-        if (!aSpec) {
+        if (!aTarget) {
             let exception = new Components.Exception(
-                "Must have a non-null spec",
+                "Must have a non-null string spec or nsIFile object",
                 Cr.NS_ERROR_INVALID_ARG,
                 Components.stack.caller
             );
             throw exception;
         }
 
-        return ioService.newURI(aSpec, aOriginCharset, aBaseURI);
+        if (aTarget instanceof Ci.nsIFile) {
+            return this.ioService.newFileURI(aTarget);
+        }
+
+        return this.ioService.newURI(aTarget, aOriginCharset, aBaseURI);
+    },
+
+    /**
+     * Constructs a new channel for the given spec, character set, and base URI,
+     * or nsIURI, or nsIFile.
+     *
+     * @param aWhatToLoad
+     *        The string spec for the desired URI, an nsIURI, or an nsIFile.
+     * @param aOriginCharset [optional]
+     *        The character set for the URI.  Only used if aWhatToLoad is a
+     *        string.
+     * @param aBaseURI [optional]
+     *        The base URI for the spec.  Only used if aWhatToLoad is a string.
+     *
+     * @return an nsIChannel object.
+     */
+    newChannel: function NetUtil_newChannel(aWhatToLoad, aOriginCharset,
+                                            aBaseURI)
+    {
+        if (!aWhatToLoad) {
+            let exception = new Components.Exception(
+                "Must have a non-null string spec, nsIURI, or nsIFile object",
+                Cr.NS_ERROR_INVALID_ARG,
+                Components.stack.caller
+            );
+            throw exception;
+        }
+
+        let uri = aWhatToLoad;
+        if (!(aWhatToLoad instanceof Ci.nsIURI)) {
+            // We either have a string or an nsIFile that we'll need a URI for.
+            uri = this.newURI(aWhatToLoad, aOriginCharset, aBaseURI);
+        }
+
+        return this.ioService.newChannelFromURI(uri);
+    },
+
+    /**
+     * Reads aCount bytes from aInputStream into a string.
+     *
+     * @param aInputStream
+     *        The input stream to read from.
+     * @param aCount
+     *        The number of bytes to read from the stream.
+     *
+     * @return the bytes from the input stream in string form.
+     *
+     * @throws NS_ERROR_INVALID_ARG if aInputStream is not an nsIInputStream.
+     * @throws NS_BASE_STREAM_WOULD_BLOCK if reading from aInputStream would
+     *         block the calling thread (non-blocking mode only).
+     * @throws NS_ERROR_FAILURE if there are not enough bytes available to read
+     *         aCount amount of data.
+     */
+    readInputStreamToString: function NetUtil_readInputStreamToString(aInputStream,
+                                                                      aCount)
+    {
+        if (!(aInputStream instanceof Ci.nsIInputStream)) {
+            let exception = new Components.Exception(
+                "First argument should be an nsIInputStream",
+                Cr.NS_ERROR_INVALID_ARG,
+                Components.stack.caller
+            );
+            throw exception;
+        }
+
+        if (!aCount) {
+            let exception = new Components.Exception(
+                "Non-zero amount of bytes must be specified",
+                Cr.NS_ERROR_INVALID_ARG,
+                Components.stack.caller
+            );
+            throw exception;
+        }
+
+        let sis = Cc["@mozilla.org/scriptableinputstream;1"].
+                  createInstance(Ci.nsIScriptableInputStream);
+        sis.init(aInputStream);
+        try {
+            return sis.readBytes(aCount);
+        }
+        catch (e) {
+            // Adjust the stack so it throws at the caller's location.
+            throw new Components.Exception(e.message, e.result,
+                                           Components.stack.caller, e.data);
+        }
+    },
+
+    /**
+     * Returns a reference to nsIIOService.
+     *
+     * @return a reference to nsIIOService.
+     */
+    get ioService()
+    {
+        delete this.ioService;
+        return this.ioService = Cc["@mozilla.org/network/io-service;1"].
+                                getService(Ci.nsIIOService);
     },
 };
 
@@ -206,6 +338,9 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 // Define our lazy getters.
 XPCOMUtils.defineLazyServiceGetter(this, "ioUtil", "@mozilla.org/io-util;1",
                                    "nsIIOUtil");
-XPCOMUtils.defineLazyServiceGetter(this, "ioService",
-                                   "@mozilla.org/network/io-service;1",
-                                   "nsIIOService");
+
+XPCOMUtils.defineLazyGetter(this, "BadCertHandler", function () {
+  var obj = {};
+  Cu.import("resource://gre/modules/CertUtils.jsm", obj);
+  return obj.BadCertHandler;
+});

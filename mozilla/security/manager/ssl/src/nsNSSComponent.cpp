@@ -72,7 +72,6 @@
 #include "nsIPrefBranch2.h"
 #include "nsIDateTimeFormat.h"
 #include "nsDateTimeFormatCID.h"
-#include "nsAutoLock.h"
 #include "nsIDOMEvent.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentEvent.h"
@@ -94,7 +93,6 @@
 #include "nsReadableUtils.h"
 #include "nsIDateTimeFormat.h"
 #include "prtypes.h"
-#include "nsInt64.h"
 #include "nsTime.h"
 #include "nsIEntropyCollector.h"
 #include "nsIBufEntropyCollector.h"
@@ -120,10 +118,18 @@
 #include "secerr.h"
 #include "sslerr.h"
 
+#include "nsXULAppAPI.h"
+
+#ifdef XP_WIN
+#include "nsILocalFileWin.h"
+#endif
+
 extern "C" {
 #include "pkcs12.h"
 #include "p12plcy.h"
 }
+
+using namespace mozilla;
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* gPIPNSSLog = nsnull;
@@ -275,10 +281,30 @@ nsTokenEventRunnable::Run()
   return nssComponent->DispatchEvent(mType, mTokenName);
 }
 
+PRBool nsPSMInitPanic::isPanic = PR_FALSE;
+
 // We must ensure that the nsNSSComponent has been loaded before
 // creating any other components.
 PRBool EnsureNSSInitialized(EnsureNSSOperator op)
 {
+  if (nsPSMInitPanic::GetPanic())
+    return PR_FALSE;
+
+  if (GeckoProcessType_Default != XRE_GetProcessType())
+  {
+    if (op == nssEnsureOnChromeOnly)
+    {
+      // If the component needs PSM/NSS initialized only on the chrome process,
+      // pretend we successfully initiated it but in reality we bypass it.
+      // It's up to the programmer to check for process type in such components
+      // and take care not to call anything that needs NSS/PSM initiated.
+      return PR_TRUE;
+    }
+
+    NS_ERROR("Trying to initialize PSM/NSS in a non-chrome process!");
+    return PR_FALSE;
+  }
+
   static PRBool loading = PR_FALSE;
   static PRInt32 haveLoaded = 0;
 
@@ -287,7 +313,7 @@ PRBool EnsureNSSInitialized(EnsureNSSOperator op)
     // In following 4 cases we are protected by monitor of XPCOM component
     // manager - we are inside of do_GetService call for nss component, so it is
     // safe to move with the flags here.
-  case nssLoading:
+  case nssLoadingComponent:
     if (loading)
       return PR_FALSE; // We are reentered during nss component creation
     loading = PR_TRUE;
@@ -312,6 +338,7 @@ PRBool EnsureNSSInitialized(EnsureNSSOperator op)
     // If the component has not yet been loaded and is not currently loading
     // call do_GetService for nss component to ensure it.
   case nssEnsure:
+  case nssEnsureOnChromeOnly:
     // We are reentered during nss component creation or nss component is already up
     if (PR_AtomicAdd(&haveLoaded, 0) || loading)
       return PR_TRUE;
@@ -337,11 +364,12 @@ PRBool EnsureNSSInitialized(EnsureNSSOperator op)
 }
 
 nsNSSComponent::nsNSSComponent()
-  :mNSSInitialized(PR_FALSE), mThreadList(nsnull),
+  :mutex("nsNSSComponent.mutex"),
+   mNSSInitialized(PR_FALSE),
+   mCrlTimerLock("nsNSSComponent.mCrlTimerLock"),
+   mThreadList(nsnull),
    mSSLThread(NULL), mCertVerificationThread(NULL)
 {
-  mutex = PR_NewLock();
-  
 #ifdef PR_LOGGING
   if (!gPIPNSSLog)
     gPIPNSSLog = PR_NewLogModule("pipnss");
@@ -351,7 +379,6 @@ nsNSSComponent::nsNSSComponent()
   crlDownloadTimerOn = PR_FALSE;
   crlsScheduledForDownload = nsnull;
   mTimer = nsnull;
-  mCrlTimerLock = nsnull;
   mObserversRegistered = PR_FALSE;
 
   // In order to keep startup time lower, we delay loading and 
@@ -384,13 +411,13 @@ nsNSSComponent::~nsNSSComponent()
   PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("nsNSSComponent::dtor\n"));
 
   if (mUpdateTimerInitialized) {
-    PR_Lock(mCrlTimerLock);
-    if (crlDownloadTimerOn) {
-      mTimer->Cancel();
+    {
+      MutexAutoLock lock(mCrlTimerLock);
+      if (crlDownloadTimerOn) {
+        mTimer->Cancel();
+      }
+      crlDownloadTimerOn = PR_FALSE;
     }
-    crlDownloadTimerOn = PR_FALSE;
-    PR_Unlock(mCrlTimerLock);
-    PR_DestroyLock(mCrlTimerLock);
     if(crlsScheduledForDownload != nsnull){
       crlsScheduledForDownload->Reset();
       delete crlsScheduledForDownload;
@@ -405,11 +432,6 @@ nsNSSComponent::~nsNSSComponent()
   nsSSLIOLayerHelpers::Cleanup();
   --mInstanceCount;
   delete mShutdownObjectList;
-
-  if (mutex) {
-    PR_DestroyLock(mutex);
-    mutex = nsnull;
-  }
 
   // We are being freed, drop the haveLoaded flag to re-enable
   // potential nss initialization later.
@@ -672,9 +694,15 @@ nsNSSComponent::LaunchSmartCardThreads()
 {
   nsNSSShutDownPreventionLock locker;
   {
-    SECMODModuleList *list = SECMOD_GetDefaultModuleList();
+    SECMODModuleList *list;
     SECMODListLock *lock = SECMOD_GetDefaultModuleListLock();
+    if (!lock) {
+        PR_LOG(gPIPNSSLog, PR_LOG_ERROR,
+               ("Couldn't get the module list lock, can't launch smart card threads\n"));
+        return;
+    }
     SECMOD_GetReadLock(lock);
+    list = SECMOD_GetDefaultModuleList();
 
     while (list) {
       SECMODModule *module = list->module;
@@ -769,9 +797,15 @@ nsNSSComponent::InstallLoadableRoots()
   {
     // Find module containing root certs
 
-    SECMODModuleList *list = SECMOD_GetDefaultModuleList();
+    SECMODModuleList *list;
     SECMODListLock *lock = SECMOD_GetDefaultModuleListLock();
+    if (!lock) {
+        PR_LOG(gPIPNSSLog, PR_LOG_ERROR,
+               ("Couldn't get the module list lock, can't install loadable roots\n"));
+        return;
+    }
     SECMOD_GetReadLock(lock);
+    list = SECMOD_GetDefaultModuleList();
 
     while (!RootsModule && list) {
       SECMODModule *module = list->module;
@@ -1259,9 +1293,10 @@ nsNSSComponent::Notify(nsITimer *timer)
   nsresult rv;
 
   //Timer has fired. So set the flag accordingly
-  PR_Lock(mCrlTimerLock);
-  crlDownloadTimerOn = PR_FALSE;
-  PR_Unlock(mCrlTimerLock);
+  {
+    MutexAutoLock lock(mCrlTimerLock);
+    crlDownloadTimerOn = PR_FALSE;
+  }
 
   //First, handle this download
   rv = DownloadCrlSilently();
@@ -1303,8 +1338,7 @@ nsNSSComponent::DefineNextTimer()
   //This part should be synchronized because this function might be called from separate
   //threads
 
-  //Lock the lock
-  PR_Lock(mCrlTimerLock);
+  MutexAutoLock lock(mCrlTimerLock);
 
   if (crlDownloadTimerOn) {
     mTimer->Cancel();
@@ -1313,8 +1347,7 @@ nsNSSComponent::DefineNextTimer()
   rv = getParamsForNextCrlToDownload(&mDownloadURL, &nextFiring, &mCrlUpdateKey);
   //If there are no more crls to be updated any time in future
   if(NS_FAILED(rv)){
-    //Free the lock and return - no error - just implies nothing to schedule
-    PR_Unlock(mCrlTimerLock);
+    // Return - no error - just implies nothing to schedule
     return NS_OK;
   }
      
@@ -1332,11 +1365,8 @@ nsNSSComponent::DefineNextTimer()
                            interval,
                            nsITimer::TYPE_ONE_SHOT);
   crlDownloadTimerOn = PR_TRUE;
-  //Release
-  PR_Unlock(mCrlTimerLock);
 
   return NS_OK;
-
 }
 
 //Note that the StopCRLUpdateTimer and InitializeCRLUpdateTimer functions should never be called
@@ -1353,15 +1383,13 @@ nsNSSComponent::StopCRLUpdateTimer()
       delete crlsScheduledForDownload;
       crlsScheduledForDownload = nsnull;
     }
-
-    PR_Lock(mCrlTimerLock);
-    if (crlDownloadTimerOn) {
-      mTimer->Cancel();
+    {
+      MutexAutoLock lock(mCrlTimerLock);
+      if (crlDownloadTimerOn) {
+        mTimer->Cancel();
+      }
+      crlDownloadTimerOn = PR_FALSE;
     }
-    crlDownloadTimerOn = PR_FALSE;
-    PR_Unlock(mCrlTimerLock);
-    PR_DestroyLock(mCrlTimerLock);
-
     mUpdateTimerInitialized = PR_FALSE;
   }
 
@@ -1380,7 +1408,6 @@ nsNSSComponent::InitializeCRLUpdateTimer()
       return rv;
     }
     crlsScheduledForDownload = new nsHashtable(16, PR_TRUE);
-    mCrlTimerLock = PR_NewLock();
     DefineNextTimer();
     mUpdateTimerInitialized = PR_TRUE;  
   } 
@@ -1518,7 +1545,7 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
     which_nss_problem = problem_none;
 
   {
-    nsAutoLock lock(mutex);
+    MutexAutoLock lock(mutex);
 
     // Init phase 1, prepare own variables used for NSS
 
@@ -1539,8 +1566,10 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
       PR_LOG(gPIPNSSLog, PR_LOG_ERROR, ("Unable to get profile directory\n"));
       ConfigureInternalPKCS11Token();
       SECStatus init_rv = NSS_NoDB_Init(NULL);
-      if (init_rv != SECSuccess)
+      if (init_rv != SECSuccess) {
+        nsPSMInitPanic::SetPanic();
         return NS_ERROR_NOT_AVAILABLE;
+      }
     }
     else
     {
@@ -1569,8 +1598,10 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
     // and therefore need separate nsIFile instances.
     // Keep cfmSecurityPath instance, obtain new instance for MachO profilePath.
     rv = cfmSecurityPath->GetParent(getter_AddRefs(profilePath));
-    if (NS_FAILED(rv))
+    if (NS_FAILED(rv)) {
+      nsPSMInitPanic::SetPanic();
       return rv;
+    }
   #endif
 
     const char *dbdir_override = getenv("MOZPSM_NSSDBDIR_OVERRIDE");
@@ -1578,9 +1609,19 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
       profileStr = dbdir_override;
     }
     else {
+  #if defined(XP_WIN)
+      // Native path will drop Unicode characters that cannot be mapped to system's
+      // codepage, using short (canonical) path as workaround.
+      nsCOMPtr<nsILocalFileWin> profilePathWin(do_QueryInterface(profilePath, &rv));
+      if (profilePathWin)
+        rv = profilePathWin->GetNativeCanonicalPath(profileStr);
+  #else
       rv = profilePath->GetNativePath(profileStr);
-      if (NS_FAILED(rv)) 
+  #endif
+      if (NS_FAILED(rv)) {
+        nsPSMInitPanic::SetPanic();
         return rv;
+      }
     }
 
     hashTableCerts = PL_NewHashTable( 0, certHashtable_keyHash, certHashtable_keyCompare,
@@ -1611,7 +1652,14 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
 
     ConfigureInternalPKCS11Token();
 
-    SECStatus init_rv = ::NSS_InitReadWrite(profileStr.get());
+    // The NSS_INIT_NOROOTINIT flag turns off the loading of the root certs
+    // module by NSS_Initialize because we will load it in InstallLoadableRoots
+    // later.  It also allows us to work around a bug in the system NSS in
+    // Ubuntu 8.04, which loads any nonexistent "<configdir>/libnssckbi.so" as
+    // "/usr/lib/nss/libnssckbi.so".
+    PRUint32 init_flags = NSS_INIT_NOROOTINIT | NSS_INIT_OPTIMIZESPACE;
+    SECStatus init_rv = ::NSS_Initialize(profileStr.get(), "", "",
+                                         SECMOD_DB, init_flags);
 
     if (init_rv != SECSuccess) {
       PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("can not init NSS r/w in %s\n", profileStr.get()));
@@ -1624,15 +1672,19 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
       }
 
       // try to init r/o
-      init_rv = NSS_Init(profileStr.get());
+      init_flags |= NSS_INIT_READONLY;
+      init_rv = ::NSS_Initialize(profileStr.get(), "", "",
+                                 SECMOD_DB, init_flags);
 
       if (init_rv != SECSuccess) {
         PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("can not init in r/o either\n"));
         which_nss_problem = problem_no_security_at_all;
 
         init_rv = NSS_NoDB_Init(profileStr.get());
-        if (init_rv != SECSuccess)
+        if (init_rv != SECSuccess) {
+          nsPSMInitPanic::SetPanic();
           return NS_ERROR_NOT_AVAILABLE;
+        }
       }
     } // have profile dir
     } // lock
@@ -1674,6 +1726,11 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
         &enabled);
       SSL_OptionSetDefault(SSL_ENABLE_RENEGOTIATION, 
         enabled ? SSL_RENEGOTIATE_UNRESTRICTED : SSL_RENEGOTIATE_REQUIRES_XTN);
+
+#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
+      mPrefBranch->GetBoolPref("security.ssl.enable_false_start", &enabled);
+      SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, enabled);
+#endif
 
       // Disable any ciphers that NSS might have enabled by default
       for (PRUint16 i = 0; i < SSL_NumImplementedCiphers; ++i)
@@ -1717,7 +1774,7 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
   }
 
   if (problem_none != which_nss_problem) {
-    nsString message;
+    nsPSMInitPanic::SetPanic();
 
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("NSS problem, trying to bring up GUI error message\n"));
 
@@ -1739,7 +1796,7 @@ nsNSSComponent::ShutdownNSS()
   
   PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("nsNSSComponent::ShutdownNSS\n"));
 
-  nsAutoLock lock(mutex);
+  MutexAutoLock lock(mutex);
   nsresult rv = NS_OK;
 
   if (hashTableCerts) {
@@ -1792,7 +1849,7 @@ nsNSSComponent::Init()
 
   PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("Beginning NSS initialization\n"));
 
-  if (!mutex || !mShutdownObjectList)
+  if (!mShutdownObjectList)
   {
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("NSS init, out of memory in constructor\n"));
     return NS_ERROR_OUT_OF_MEMORY;
@@ -1846,6 +1903,10 @@ nsNSSComponent::Init()
   PRBool enabled = PR_FALSE;
   mPrefBranch->GetBoolPref("security.ssl.treat_unsafe_negotiation_as_broken", &enabled);
   nsSSLIOLayerHelpers::setTreatUnsafeNegotiationAsBroken(enabled);
+
+  PRInt32 warnLevel = 1;
+  mPrefBranch->GetIntPref("security.ssl.warn_missing_rfc5746", &warnLevel);
+  nsSSLIOLayerHelpers::setWarnLevelMissingRFC5746(warnLevel);
   
   mClientAuthRememberService = new nsClientAuthRememberService;
   if (mClientAuthRememberService)
@@ -1889,14 +1950,13 @@ nsNSSComponent::Init()
 }
 
 /* nsISupports Implementation for the class */
-NS_IMPL_THREADSAFE_ISUPPORTS7(nsNSSComponent,
+NS_IMPL_THREADSAFE_ISUPPORTS6(nsNSSComponent,
                               nsISignatureVerifier,
                               nsIEntropyCollector,
                               nsINSSComponent,
                               nsIObserver,
                               nsISupportsWeakReference,
-                              nsITimerCallback,
-                              nsINSSErrorsService)
+                              nsITimerCallback)
 
 
 /* Callback functions for decoder. For now, use empty/default functions. */
@@ -1991,14 +2051,14 @@ nsNSSComponent::VerifySignature(const char* aRSABuf, PRUint32 aRSABufLen,
     // this way we don't have to worry about goto across variable
     // declarations.  We have no loops in this code, so it's OK.
     do {
-      nsCOMPtr<nsIX509Cert> pCert = new nsNSSCertificate(cert);
+      nsCOMPtr<nsIX509Cert> pCert = nsNSSCertificate::Create(cert);
       if (!pCert) {
         rv2 = NS_ERROR_OUT_OF_MEMORY;
         break;
       }
 
       if (!mScriptSecurityManager) {
-        nsAutoLock lock(mutex);
+        MutexAutoLock lock(mutex);
         // re-test the condition to prevent double initialization
         if (!mScriptSecurityManager) {
           mScriptSecurityManager = 
@@ -2053,7 +2113,7 @@ nsNSSComponent::RandomUpdate(void *entropy, PRInt32 bufLen)
   // Asynchronous event happening often,
   // must not interfere with initialization or profile switch.
   
-  nsAutoLock lock(mutex);
+  MutexAutoLock lock(mutex);
 
   if (!mNSSInitialized)
       return NS_ERROR_NOT_INITIALIZED;
@@ -2068,7 +2128,7 @@ nsNSSComponent::RandomUpdate(void *entropy, PRInt32 bufLen)
 #define PROFILE_CHANGE_TEARDOWN_TOPIC "profile-change-teardown"
 #define PROFILE_CHANGE_TEARDOWN_VETO_TOPIC "profile-change-teardown-veto"
 #define PROFILE_BEFORE_CHANGE_TOPIC "profile-before-change"
-#define PROFILE_AFTER_CHANGE_TOPIC "profile-after-change"
+#define PROFILE_DO_CHANGE_TOPIC "profile-do-change"
 
 NS_IMETHODIMP
 nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic, 
@@ -2088,7 +2148,7 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("receiving profile change topic\n"));
     DoProfileBeforeChange(aSubject);
   }
-  else if (nsCRT::strcmp(aTopic, PROFILE_AFTER_CHANGE_TOPIC) == 0) {
+  else if (nsCRT::strcmp(aTopic, PROFILE_DO_CHANGE_TOPIC) == 0) {
     if (someData && NS_LITERAL_STRING("startup").Equals(someData)) {
       // The application is initializing against a known profile directory for
       // the first time during process execution.
@@ -2107,7 +2167,7 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
     PRBool needsInit = PR_TRUE;
 
     {
-      nsAutoLock lock(mutex);
+      MutexAutoLock lock(mutex);
 
       if (mNSSInitialized) {
         // We have already initialized NSS before the profile came up,
@@ -2194,6 +2254,15 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
     } else if (prefName.Equals("security.ssl.treat_unsafe_negotiation_as_broken")) {
       mPrefBranch->GetBoolPref("security.ssl.treat_unsafe_negotiation_as_broken", &enabled);
       nsSSLIOLayerHelpers::setTreatUnsafeNegotiationAsBroken(enabled);
+    } else if (prefName.Equals("security.ssl.warn_missing_rfc5746")) {
+      PRInt32 warnLevel = 1;
+      mPrefBranch->GetIntPref("security.ssl.warn_missing_rfc5746", &warnLevel);
+      nsSSLIOLayerHelpers::setWarnLevelMissingRFC5746(warnLevel);
+#ifdef SSL_ENABLE_FALSE_START // Requires NSS 3.12.8
+    } else if (prefName.Equals("security.ssl.enable_false_start")) {
+      mPrefBranch->GetBoolPref("security.ssl.enable_false_start", &enabled);
+      SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, enabled);
+#endif
     } else if (prefName.Equals("security.OCSP.enabled")
                || prefName.Equals("security.OCSP.require")) {
       setOCSPOptions(mPrefBranch);
@@ -2315,7 +2384,7 @@ nsNSSComponent::RegisterObservers()
     observerService->AddObserver(this, PROFILE_CHANGE_TEARDOWN_TOPIC, PR_FALSE);
     observerService->AddObserver(this, PROFILE_CHANGE_TEARDOWN_VETO_TOPIC, PR_FALSE);
     observerService->AddObserver(this, PROFILE_BEFORE_CHANGE_TOPIC, PR_FALSE);
-    observerService->AddObserver(this, PROFILE_AFTER_CHANGE_TOPIC, PR_FALSE);
+    observerService->AddObserver(this, PROFILE_DO_CHANGE_TOPIC, PR_FALSE);
     observerService->AddObserver(this, PROFILE_CHANGE_NET_TEARDOWN_TOPIC, PR_FALSE);
     observerService->AddObserver(this, PROFILE_CHANGE_NET_RESTORE_TOPIC, PR_FALSE);
   }
@@ -2340,7 +2409,7 @@ nsNSSComponent::DeregisterObservers()
     observerService->RemoveObserver(this, PROFILE_CHANGE_TEARDOWN_TOPIC);
     observerService->RemoveObserver(this, PROFILE_CHANGE_TEARDOWN_VETO_TOPIC);
     observerService->RemoveObserver(this, PROFILE_BEFORE_CHANGE_TOPIC);
-    observerService->RemoveObserver(this, PROFILE_AFTER_CHANGE_TOPIC);
+    observerService->RemoveObserver(this, PROFILE_DO_CHANGE_TOPIC);
     observerService->RemoveObserver(this, PROFILE_CHANGE_NET_TEARDOWN_TOPIC);
     observerService->RemoveObserver(this, PROFILE_CHANGE_NET_RESTORE_TOPIC);
   }
@@ -2354,7 +2423,7 @@ nsNSSComponent::RememberCert(CERTCertificate *cert)
 
   // Must not interfere with init / shutdown / profile switch.
 
-  nsAutoLock lock(mutex);
+  MutexAutoLock lock(mutex);
 
   if (!hashTableCerts || !cert)
     return NS_OK;
@@ -2376,112 +2445,6 @@ nsNSSComponent::RememberCert(CERTCertificate *cert)
   }
   
   return NS_OK;
-}
-
-#define EXPECTED_SEC_ERROR_BASE (-0x2000)
-#define EXPECTED_SSL_ERROR_BASE (-0x3000)
-
-#if SEC_ERROR_BASE != EXPECTED_SEC_ERROR_BASE || SSL_ERROR_BASE != EXPECTED_SSL_ERROR_BASE
-#error "Unexpected change of error code numbers in lib NSS, please adjust the mapping code"
-/*
- * Please ensure the NSS error codes are mapped into the positive range 0x1000 to 0xf000
- * Search for NS_ERROR_MODULE_SECURITY to ensure there are no conflicts.
- * The current code also assumes that NSS library error codes are negative.
- */
-#endif
-
-NS_IMETHODIMP
-nsNSSComponent::IsNSSErrorCode(PRInt32 aNSPRCode, PRBool *_retval)
-{
-  if (!_retval)
-    return NS_ERROR_FAILURE;
-
-  *_retval = IS_SEC_ERROR(aNSPRCode) || IS_SSL_ERROR(aNSPRCode);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsNSSComponent::GetXPCOMFromNSSError(PRInt32 aNSPRCode, nsresult *aXPCOMErrorCode)
-{
-  if (!IS_SEC_ERROR(aNSPRCode) && !IS_SSL_ERROR(aNSPRCode))
-    return NS_ERROR_FAILURE;
-
-  if (!aXPCOMErrorCode)
-    return NS_ERROR_INVALID_ARG;
-
-  // The error codes within each module may be a 16 bit value.
-  // For simplicity let's use the positive value of the NSS code.
-
-  *aXPCOMErrorCode =
-    NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_SECURITY,
-                              -1 * aNSPRCode);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsNSSComponent::GetErrorClass(nsresult aXPCOMErrorCode, PRUint32 *aErrorClass)
-{
-  NS_ENSURE_ARG(aErrorClass);
-
-  if (NS_ERROR_GET_MODULE(aXPCOMErrorCode) != NS_ERROR_MODULE_SECURITY
-      || NS_ERROR_GET_SEVERITY(aXPCOMErrorCode) != NS_ERROR_SEVERITY_ERROR)
-    return NS_ERROR_FAILURE;
-  
-  PRInt32 aNSPRCode = -1 * NS_ERROR_GET_CODE(aXPCOMErrorCode);
-
-  if (!IS_SEC_ERROR(aNSPRCode) && !IS_SSL_ERROR(aNSPRCode))
-    return NS_ERROR_FAILURE;
-
-  switch (aNSPRCode)
-  {
-    case SEC_ERROR_UNKNOWN_ISSUER:
-    case SEC_ERROR_CA_CERT_INVALID:
-    case SEC_ERROR_UNTRUSTED_ISSUER:
-    case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
-    case SEC_ERROR_UNTRUSTED_CERT:
-    case SEC_ERROR_INADEQUATE_KEY_USAGE:
-    case SSL_ERROR_BAD_CERT_DOMAIN:
-    case SEC_ERROR_EXPIRED_CERTIFICATE:
-      *aErrorClass = ERROR_CLASS_BAD_CERT;
-      break;
-    default:
-      *aErrorClass = ERROR_CLASS_SSL_PROTOCOL;
-      break;
-  }
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsNSSComponent::GetErrorMessage(nsresult aXPCOMErrorCode, nsAString &aErrorMessage)
-{
-  if (NS_ERROR_GET_MODULE(aXPCOMErrorCode) != NS_ERROR_MODULE_SECURITY
-      || NS_ERROR_GET_SEVERITY(aXPCOMErrorCode) != NS_ERROR_SEVERITY_ERROR)
-    return NS_ERROR_FAILURE;
-  
-  PRInt32 aNSPRCode = -1 * NS_ERROR_GET_CODE(aXPCOMErrorCode);
-
-  if (!IS_SEC_ERROR(aNSPRCode) && !IS_SSL_ERROR(aNSPRCode))
-    return NS_ERROR_FAILURE;
-
-  nsCOMPtr<nsIStringBundle> theBundle = mPIPNSSBundle;
-  const char *id_str = nsNSSErrors::getOverrideErrorStringName(aNSPRCode);
-
-  if (!id_str) {
-    id_str = nsNSSErrors::getDefaultErrorStringName(aNSPRCode);
-    theBundle = mNSSErrorsBundle;
-  }
-
-  if (!id_str || !theBundle)
-    return NS_ERROR_FAILURE;
-
-  nsAutoString msg;
-  nsresult rv =
-    theBundle->GetStringFromName(NS_ConvertASCIItoUTF16(id_str).get(),
-                                 getter_Copies(msg));
-  if (NS_SUCCEEDED(rv)) {
-    aErrorMessage = msg;
-  }
-  return rv;
 }
 
 void
@@ -2536,7 +2499,7 @@ nsNSSComponent::DoProfileBeforeChange(nsISupports* aSubject)
   PRBool needsCleanup = PR_TRUE;
 
   {
-    nsAutoLock lock(mutex);
+    MutexAutoLock lock(mutex);
 
     if (!mNSSInitialized) {
       // Make sure we don't try to cleanup if we have already done so.
@@ -2584,7 +2547,7 @@ nsNSSComponent::GetClientAuthRememberService(nsClientAuthRememberService **cars)
 NS_IMETHODIMP
 nsNSSComponent::IsNSSInitialized(PRBool *initialized)
 {
-  nsAutoLock lock(mutex);
+  MutexAutoLock lock(mutex);
   *initialized = mNSSInitialized;
   return NS_OK;
 }
@@ -2728,7 +2691,7 @@ nsCryptoHash::UpdateFromStream(nsIInputStream *data, PRUint32 len)
   
   while(NS_SUCCEEDED(rv) && len>0)
   {
-    readLimit = PR_MIN(NS_CRYPTO_HASH_BUFFER_SIZE, len);
+    readLimit = NS_MIN(PRUint32(NS_CRYPTO_HASH_BUFFER_SIZE), len);
     
     rv = data->Read(buffer, readLimit, &read);
     
@@ -2920,7 +2883,7 @@ NS_IMETHODIMP nsCryptoHMAC::UpdateFromStream(nsIInputStream *aStream, PRUint32 a
   
   while(NS_SUCCEEDED(rv) && aLen > 0)
   {
-    readLimit = PR_MIN(NS_CRYPTO_HASH_BUFFER_SIZE, aLen);
+    readLimit = NS_MIN(PRUint32(NS_CRYPTO_HASH_BUFFER_SIZE), aLen);
     
     rv = aStream->Read(buffer, readLimit, &read);
     if (read == 0)
@@ -2975,7 +2938,7 @@ NS_IMETHODIMP nsCryptoHMAC::Reset()
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(PipUIContext, nsIInterfaceRequestor)
+NS_IMPL_THREADSAFE_ISUPPORTS1(PipUIContext, nsIInterfaceRequestor)
 
 PipUIContext::PipUIContext()
 {

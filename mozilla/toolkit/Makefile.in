@@ -19,8 +19,10 @@
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
+#  Ben Goodger <ben@bengoodger.com>
 #  Brian Ryner <bryner@brianryner.com>
 #  Pierre Chanial <chanial@noos.fr>
+#  Shawn Wilsher <me@shawnwilsher.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -43,39 +45,50 @@ VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-DIRS	= \
-		content \
-		locales \
-		obsolete \
-		profile \
-		themes \
-		spatial-navigation \
-		$(NULL)
+PARALLEL_DIRS = \
+  components \
+  content \
+  locales \
+  mozapps/downloads \
+  mozapps/extensions \
+  mozapps/handling \
+  mozapps/preferences \
+  mozapps/plugins \
+  mozapps/shared \
+  mozapps/update \
+  mozapps/xpinstall \
+  obsolete \
+  profile \
+  spatial-navigation \
+  themes \
+  $(NULL)
 
-ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-DIRS += system/unixproxy
+ifeq ($(OS_ARCH),WINCE)
+ifdef WINCE_WINDOWS_MOBILE
+DIRS += mozapps/readstrings
+DIRS += mozapps/installer/wince
+endif
+endif
+
+ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
+PARALLEL_DIRS += system/unixproxy
 endif
 
 ifneq (,$(filter cocoa,$(MOZ_WIDGET_TOOLKIT)))
-DIRS += system/osxproxy
-endif
-
-ifneq (,$(filter qt,$(MOZ_WIDGET_TOOLKIT)))
-DIRS += system/unixproxy
+PARALLEL_DIRS += system/osxproxy
 endif
 
 ifneq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
-DIRS += system/windowsproxy
+PARALLEL_DIRS += system/windowsproxy
 endif
 
 ifdef MOZ_CRASHREPORTER
-DIRS += crashreporter
+PARALLEL_DIRS += crashreporter
 endif
 
 DIRS += \
-	xre \
-	mozapps \
-	$(NULL)
+  xre \
+  $(NULL)
 
 include $(topsrcdir)/config/rules.mk
 

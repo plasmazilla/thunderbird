@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+//This file must not have include guards.
+
 // Features (SVG 1.1 style)
 
 // Static festures
@@ -43,7 +45,7 @@ SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#CoreAttribute")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Structure")
 SVG_UNSUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#ContainerAttribute")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#ConditionalProcessing")
-SVG_UNSUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Image")
+SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Image")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Style")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#ViewportAttribute")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Shape")
@@ -73,7 +75,7 @@ SVG_UNSUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Animation")
 // Dynamic features
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#DocumentEventsAttribute")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#GraphicalEventsAttribute")
-SVG_UNSUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#AnimationEventsAttribute")
+SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#AnimationEventsAttribute")
 SVG_UNSUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Cursor")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#Hyperlinking")
 SVG_SUPPORTED_FEATURE("http://www.w3.org/TR/SVG11/feature#XlinkAttribute")

@@ -49,21 +49,13 @@ MODULE_NAME	= nsI18nModule
 GRE_MODULE	= 1
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  unicharutil \
-		  uconv \
-		  lwbrk \
-		  intl \
-		  locale \
-		  $(NULL)
 
 CPPSRCS		= \
 			nsI18nModule.cpp \
 			$(NULL)
 
 # see also intl/locale/src/Makefile.in
-ifneq (,$(filter mac os2 windows, $(MOZ_WIDGET_TOOLKIT)))
+ifneq (,$(filter os2 windows, $(MOZ_WIDGET_TOOLKIT)))
 LOCALE_DIR		= $(MOZ_WIDGET_TOOLKIT)
 else
 ifeq ($(MOZ_WIDGET_TOOLKIT), cocoa)
@@ -94,7 +86,7 @@ EXTRA_DSO_LDOPTS = \
 	$(MOZ_COMPONENT_LIBS) \
 	$(NULL)
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 EXTRA_DSO_LDOPTS += \
         $(TK_LIBS) \
         $(NULL)

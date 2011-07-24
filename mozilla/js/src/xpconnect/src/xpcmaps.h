@@ -79,7 +79,7 @@ public:
     inline nsXPCWrappedJS* Add(nsXPCWrappedJS* wrapper)
     {
         NS_PRECONDITION(wrapper,"bad param");
-        JSObject* obj = wrapper->GetJSObject();
+        JSObject* obj = wrapper->GetJSObjectPreserveColor();
         Entry* entry = (Entry*)
             JS_DHashTableOperate(mTable, obj, JS_DHASH_ADD);
         if(!entry)
@@ -94,7 +94,8 @@ public:
     inline void Remove(nsXPCWrappedJS* wrapper)
     {
         NS_PRECONDITION(wrapper,"bad param");
-        JS_DHashTableOperate(mTable, wrapper->GetJSObject(), JS_DHASH_REMOVE);
+        JS_DHashTableOperate(mTable, wrapper->GetJSObjectPreserveColor(),
+                             JS_DHASH_REMOVE);
     }
 
     inline uint32 Count() {return mTable->entryCount;}
@@ -549,7 +550,7 @@ public:
     static XPCNativeScriptableSharedMap* newMap(int size);
 
     JSBool GetNewOrUsed(JSUint32 flags, char* name, PRBool isGlobal,
-                        XPCNativeScriptableInfo* si);
+                        PRUint32 interfacesBitmap, XPCNativeScriptableInfo* si);
 
     inline uint32 Count() {return mTable->entryCount;}
     inline uint32 Enumerate(JSDHashEnumerator f, void *arg)
@@ -705,6 +706,82 @@ public:
 private:
     WrappedNative2WrapperMap();    // no implementation
     WrappedNative2WrapperMap(int size);
+
+private:
+    JSDHashTable *mTable;
+};
+
+class JSObject2JSObjectMap
+{
+    static struct JSDHashTableOps sOps;
+
+public:
+    struct Entry : public JSDHashEntryHdr
+    {
+        JSObject* key;
+        JSObject* value;
+    };
+
+    static JSObject2JSObjectMap* newMap(int size)
+    {
+        JSObject2JSObjectMap* map = new JSObject2JSObjectMap(size);
+        if(map && map->mTable)
+            return map;
+        delete map;
+        return nsnull;
+    }
+
+    inline JSObject* Find(JSObject* key)
+    {
+        NS_PRECONDITION(key, "bad param");
+        Entry* entry = (Entry*)
+            JS_DHashTableOperate(mTable, key, JS_DHASH_LOOKUP);
+        if(JS_DHASH_ENTRY_IS_FREE(entry))
+            return nsnull;
+        return entry->value;
+    }
+
+    // Note: If the entry already exists, return the old value.
+    inline JSObject* Add(JSObject *key, JSObject *value)
+    {
+        NS_PRECONDITION(key,"bad param");
+        Entry* entry = (Entry*)
+            JS_DHashTableOperate(mTable, key, JS_DHASH_ADD);
+        if(!entry)
+            return nsnull;
+        if(entry->key)
+            return entry->value;
+        entry->key = key;
+        entry->value = value;
+        return value;
+    }
+
+    inline void Remove(JSObject* key)
+    {
+        NS_PRECONDITION(key,"bad param");
+        JS_DHashTableOperate(mTable, key, JS_DHASH_REMOVE);
+    }
+
+    inline uint32 Count() {return mTable->entryCount;}
+
+    inline uint32 Enumerate(JSDHashEnumerator f, void *arg)
+    {
+        return JS_DHashTableEnumerate(mTable, f, arg);
+    }
+
+    ~JSObject2JSObjectMap()
+    {
+        if(mTable)
+            JS_DHashTableDestroy(mTable);
+    }
+
+private:
+    JSObject2JSObjectMap(int size)
+    {
+        mTable = JS_NewDHashTable(&sOps, nsnull, sizeof(Entry), size);
+    }
+
+    JSObject2JSObjectMap(); // no implementation
 
 private:
     JSDHashTable *mTable;

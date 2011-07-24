@@ -94,7 +94,7 @@ NS_INTERFACE_MAP_END
 
 // The binhex 4.0 decoder table....
 
-static char binhex_decode[256] =
+static signed char binhex_decode[256] =
 {
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -200,7 +200,7 @@ nsresult nsBinHexDecoder::ProcessNextState(nsIRequest * aRequest, nsISupports * 
       // c & 63 returns the length of mName. So if we need the length, that's how
       // you can figure it out....
       mName.SetLength(c & 63);
-      if (mName.Length() != c & 63) {
+      if (mName.Length() != (c & 63)) {
         /* XXX ProcessNextState/ProcessNextChunk aren't rv checked */
         mState = BINHEX_STATE_DONE;
       }

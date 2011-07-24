@@ -74,6 +74,17 @@ public:
   NS_HIDDEN_(void*) AllocateByCode(nsQueryFrame::FrameIID aCode, size_t aSize);
   NS_HIDDEN_(void)  FreeByCode(nsQueryFrame::FrameIID aCode, void* aPtr);
 
+  PRUint32 Size();
+
+  /**
+   * Get the poison value that can be used to fill a memory space with
+   * an address that leads to a safe crash when dereferenced.
+   *
+   * The caller is responsible for ensuring that a pres shell has been
+   * initialized before calling this.
+   */
+  static PRUword GetPoisonValue();
+
 private:
   struct State;
   State* mState;

@@ -48,7 +48,6 @@
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
-#include "prlock.h"
 
 // DOMWorker includes
 #include "nsDOMWorker.h"
@@ -62,6 +61,7 @@
 #define LISTENER_TYPE_LOADSTART 3
 #define LISTENER_TYPE_PROGRESS 4
 #define LISTENER_TYPE_READYSTATECHANGE 5
+#define LISTENER_TYPE_LOADEND 6
 
 class nsIXPConnectWrappedNative;
 
@@ -71,6 +71,7 @@ class nsDOMWorkerXHREventTarget : public nsDOMWorkerMessageHandler,
 public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_FORWARD_NSIDOMEVENTTARGET(nsDOMWorkerMessageHandler::)
+  NS_FORWARD_NSIDOMNSEVENTTARGET(nsDOMWorkerMessageHandler::)
   NS_DECL_NSIXMLHTTPREQUESTEVENTTARGET
 
   static const char* const sListenerTypes[];
@@ -90,6 +91,8 @@ class nsDOMWorkerXHR : public nsDOMWorkerFeature,
                        public nsIXMLHttpRequest,
                        public nsIXPCScriptable
 {
+  typedef mozilla::Mutex Mutex;
+
   friend class nsDOMWorkerXHREvent;
   friend class nsDOMWorkerXHRLastProgressOrLoadEvent;
   friend class nsDOMWorkerXHRProxy;
@@ -114,8 +117,8 @@ public:
 private:
   virtual ~nsDOMWorkerXHR();
 
-  PRLock* Lock() {
-    return mWorker->Lock();
+  Mutex& GetLock() {
+    return mWorker->GetLock();
   }
 
   already_AddRefed<nsIXPConnectWrappedNative> GetWrappedNative() {
@@ -139,6 +142,11 @@ class nsDOMWorkerXHRUpload : public nsDOMWorkerXHREventTarget,
 public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIDOMEVENTTARGET
+  NS_IMETHOD AddEventListener(const nsAString& aType,
+                              nsIDOMEventListener* aListener,
+                              PRBool aUseCapture,
+                              PRBool aWantsUntrusted,
+                              PRUint8 optional_argc);
   NS_FORWARD_NSIXMLHTTPREQUESTEVENTTARGET(nsDOMWorkerXHREventTarget::)
   NS_DECL_NSIXMLHTTPREQUESTUPLOAD
   NS_FORWARD_NSICLASSINFO_NOGETINTERFACES(nsDOMWorkerXHREventTarget::)

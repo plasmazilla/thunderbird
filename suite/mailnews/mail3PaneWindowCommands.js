@@ -23,6 +23,7 @@
  * Contributor(s):
  *   Jan Varga <varga@ku.sk>
  *   Håkan Waara (hwaara@chello.se)
+ *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -37,9 +38,6 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-
-var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
-var gMessengerBundle = document.getElementById("bundle_messenger");
 
 // Controller object for folder pane
 var FolderPaneController =
@@ -101,7 +99,7 @@ var FolderPaneController =
 					//dump("specialFolder failure: " + ex + "\n");
 				} 
         if (specialFolder == "Inbox" || specialFolder == "Trash" || specialFolder == "Drafts" ||
-            specialFolder == "Sent" || specialFolder == "Templates" || specialFolder == "Unsent Messages" ||
+            specialFolder == "Sent" || specialFolder == "Templates" || specialFolder == "Outbox" ||
             (specialFolder == "Junk" && !CanRenameDeleteJunkMail(GetSelectedFolderURI())) || isServer)
           canDeleteThisFolder = false;
         else
@@ -210,6 +208,7 @@ var DefaultController =
 			case "cmd_find":
 			case "cmd_findAgain":
 			case "cmd_findPrev":
+      case "button_search":
       case "cmd_search":
       case "button_mark":
 			case "cmd_markAsRead":
@@ -228,7 +227,6 @@ var DefaultController =
       case "cmd_runJunkControls":
       case "cmd_deleteJunk":
       case "button_file":
-			case "cmd_file":
 			case "cmd_emptyTrash":
 			case "cmd_compactFolder":
   	  case "cmd_settingsOffline":
@@ -245,6 +243,7 @@ var DefaultController =
       case "cmd_watchThread":
       case "cmd_killThread":
       case "cmd_killSubthread":
+      case "cmd_cancel":
         return(isNewsURI(GetFirstSelectedMessage()));
 
 			default:
@@ -274,6 +273,9 @@ var DefaultController =
         if (gDBView)
           gDBView.getCommandStatus(nsMsgViewCommandType.deleteNoTrash, enabled, checkStatus);
         return enabled.value;
+      case "cmd_cancel":
+        return GetNumSelectedMessages() == 1 &&
+               gFolderDisplay.selectedMessageIsNews;
       case "button_junk":
         UpdateJunkToolbarButton();
         if (gDBView)
@@ -292,6 +294,7 @@ var DefaultController =
         if (!(loadedFolder && loadedFolder.server.canHaveFilters))
           return false;   // else fall thru
       case "cmd_saveAsFile":
+        return GetNumSelectedMessages() > 0;
       case "cmd_saveAsTemplate":
 	      if ( GetNumSelectedMessages() > 1)
           return false;   // else fall thru
@@ -342,9 +345,9 @@ var DefaultController =
         return true;
       case "cmd_markAsFlagged":
       case "button_file":
-      case "cmd_file":
+        return GetNumSelectedMessages() > 0;
       case "cmd_archive":
-        return (GetNumSelectedMessages() > 0);
+        return gFolderDisplay.canArchiveSelectedMessages;
       case "cmd_markAsJunk":
       case "cmd_markAsNotJunk":
         if (gDBView)
@@ -403,6 +406,7 @@ var DefaultController =
       case "cmd_goStartPage":
         return pref.getBoolPref("mailnews.start_page.enabled") && !IsMessagePaneCollapsed();
       case "cmd_markAllRead":
+        return IsFolderSelected() && gDBView && gDBView.msgFolder.getNumUnread(false) > 0;
       case "cmd_markReadByDate":
         return IsFolderSelected();
       case "cmd_find":
@@ -410,6 +414,7 @@ var DefaultController =
       case "cmd_findPrev":
         return IsMessageDisplayedInMessagePane();
         break;
+      case "button_search":
       case "cmd_search":
         return IsCanSearchMessagesEnabled();
       case "cmd_selectAll":
@@ -420,7 +425,7 @@ var DefaultController =
         if (GetNumSelectedMessages() <= 0) return false;
       case "cmd_expandAllThreads":
       case "cmd_collapseAllThreads":
-        return (gDBView.viewFlags & nsMsgViewFlagsType.kThreadedDisplay);
+        return gDBView && (gDBView.viewFlags & nsMsgViewFlagsType.kThreadedDisplay);
         break;
       case "cmd_nextFlaggedMsg":
       case "cmd_previousFlaggedMsg":
@@ -543,6 +548,11 @@ var DefaultController =
         MsgDeleteMessage(true);
         UpdateDeleteToolbarButton(false);
         break;
+      case "cmd_cancel":
+        let message = gFolderDisplay.selectedMessage;
+        message.folder.QueryInterface(Components.interfaces.nsIMsgNewsFolder)
+                      .cancelMessage(message, msgWindow);
+        break;
       case "cmd_killThread":
         /* kill thread kills the thread and then does a next unread */
       	GoNextMessage(nsMsgNavigationType.toggleThreadKilled, true);
@@ -651,6 +661,7 @@ var DefaultController =
       case "cmd_properties":
         MsgFolderProperties();
         return;
+      case "button_search":
       case "cmd_search":
         MsgSearchMessages();
         return;
@@ -844,8 +855,8 @@ function IsSendUnsentMsgsEnabled(folderResource)
 
   if (folderResource &&
       folderResource instanceof Components.interfaces.nsIMsgFolder) {
-    // If unsentMsgsFolder is non-null, it is the "Unsent Messages" folder.
-    // We're here because we've done a right click on the "Unsent Messages"
+    // If unsentMsgsFolder is non-null, it is the "Outbox" folder.
+    // We're here because we've done a right click on the "Outbox"
     // folder (context menu), so we can use the folder and return true/false
     // straight away.
     return folderResource.getTotalMessages(false) > 0;
@@ -922,8 +933,10 @@ function IsMessageDisplayedInMessagePane()
 
 function MsgDeleteFolder()
 {
+    const NS_MSG_ERROR_COPY_FOLDER_ABORTED = 0x8055001a;
     var folderTree = GetFolderTree();
     var selectedFolders = GetSelectedMsgFolders();
+    var prompt = Services.prompt;
     for (var i = 0; i < selectedFolders.length; i++)
     {
         var selectedFolder = selectedFolders[i];
@@ -933,6 +946,14 @@ function MsgDeleteFolder()
             var folder = selectedFolder.QueryInterface(Components.interfaces.nsIMsgFolder);
             if (folder.flags & Components.interfaces.nsMsgFolderFlags.Virtual)
             {
+                var confirmation = gMessengerBundle.getString("confirmSavedSearchDeleteMessage");
+                var title = gMessengerBundle.getString("confirmSavedSearchDeleteTitle");
+                var buttonTitle = gMessengerBundle.getString("confirmSavedSearchDeleteButton");
+                var buttonFlags = prompt.BUTTON_TITLE_IS_STRING * prompt.BUTTON_POS_0 +
+                                  prompt.BUTTON_TITLE_CANCEL * prompt.BUTTON_POS_1;
+                if (prompt.confirmEx(window, title, confirmation, buttonFlags, buttonTitle,
+                                     "", "", "", {}) != 0) /* the yes button is in position 0 */
+                    continue;
                 if (gCurrentVirtualFolderUri == selectedFolder.URI)
                   gCurrentVirtualFolderUri = null;
                 var array = Components.classes["@mozilla.org/array;1"]
@@ -953,7 +974,7 @@ function MsgDeleteFolder()
                 var errorMessage = gMessengerBundle.getFormattedString("specialFolderDeletionErr",
                                                     [specialFolder]);
                 var specialFolderDeletionErrTitle = gMessengerBundle.getString("specialFolderDeletionErrTitle");
-                promptService.alert(window, specialFolderDeletionErrTitle, errorMessage);
+                prompt.alert(window, specialFolderDeletionErrTitle, errorMessage);
                 continue;
             }   
             else if (isNewsURI(selectedFolder.URI))
@@ -967,7 +988,12 @@ function MsgDeleteFolder()
                 var array = Components.classes["@mozilla.org/array;1"]
                                       .createInstance(Components.interfaces.nsIMutableArray);
                 array.appendElement(selectedFolder, false);
-                selectedFolder.parent.deleteSubFolders(array, msgWindow);
+                try
+                {
+                    selectedFolder.parent.deleteSubFolders(array, msgWindow);
+                }
+                // Ignore known errors from canceled warning dialogs.
+                catch (ex if (ex.result == NS_MSG_ERROR_COPY_FOLDER_ABORTED)) {}
             }
         }
     }
@@ -1025,36 +1051,6 @@ function MsgGoBack()
 function MsgGoForward()
 {
   GoNextMessage(nsMsgNavigationType.forward, true);
-}
-
-/* XXX hiding the search bar while it is focus kills the keyboard so we focus the thread pane */
-function SearchBarToggled()
-{
-  var searchBox = document.getElementById('searchBox');
-  if (searchBox)
-  {
-    var attribValue = searchBox.getAttribute("hidden") ;
-    if (attribValue == "true")
-    {
-      /*come out of quick search view */
-      if (gDBView && gDBView.viewType == nsMsgViewType.eShowQuickSearchResults)
-        onClearSearch();
-    }
-    else
-    {
-      /*we have to initialize searchInput because we cannot do it when searchBox is hidden */
-      var searchInput = GetSearchInput();
-      searchInput.value="";
-    }
-  }
-
-  for (var currentNode = top.document.commandDispatcher.focusedElement; currentNode; currentNode = currentNode.parentNode) {
-    // But skip the last node, which is a XULDocument.
-    if ((currentNode instanceof XULElement) && currentNode.hidden) {
-      SetFocusThreadPane();
-      return;
-    }
-  }
 }
 
 function SwitchPaneFocus(event)

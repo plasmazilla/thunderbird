@@ -376,6 +376,52 @@ nsVoidArray::~nsVoidArray()
     free(reinterpret_cast<char*>(mImpl));
 }
 
+PRBool nsVoidArray::SetCount(PRInt32 aNewCount)
+{
+  NS_ASSERTION(aNewCount >= 0,"SetCount(negative index)");
+  if (aNewCount < 0)
+    return PR_FALSE;
+
+  if (aNewCount == 0)
+  {
+    Clear();
+    return PR_TRUE;
+  }
+
+  if (PRUint32(aNewCount) > PRUint32(GetArraySize()))
+  {
+    PRInt32 oldCount = Count();
+    PRInt32 growDelta = aNewCount - oldCount;
+
+    // frees old mImpl IF this succeeds
+    if (!GrowArrayBy(growDelta))
+      return PR_FALSE;
+  }
+
+  if (aNewCount > mImpl->mCount)
+  {
+    // Make sure that new entries added to the array by this
+    // SetCount are cleared to 0.  Some users of this assume that.
+    // This code means we don't have to memset when we allocate an array.
+    memset(&mImpl->mArray[mImpl->mCount], 0,
+           (aNewCount - mImpl->mCount) * sizeof(mImpl->mArray[0]));
+  }
+
+  mImpl->mCount = aNewCount;
+
+#if DEBUG_VOIDARRAY
+  if (mImpl->mCount > mMaxCount &&
+      mImpl->mCount < (PRInt32)(sizeof(MaxElements)/sizeof(MaxElements[0])))
+  {
+    MaxElements[mImpl->mCount]++;
+    MaxElements[mMaxCount]--;
+    mMaxCount = mImpl->mCount;
+  }
+#endif
+
+  return PR_TRUE;
+}
+
 PRInt32 nsVoidArray::IndexOf(void* aPossibleElement) const
 {
   if (mImpl)
@@ -710,224 +756,6 @@ nsAutoVoidArray::nsAutoVoidArray()
 #endif
   ResetToAutoBuffer();
 }
-
-//----------------------------------------------------------------
-// nsStringArray
-
-nsStringArray::nsStringArray(void)
-  : nsVoidArray()
-{
-}
-
-nsStringArray::nsStringArray(PRInt32 aCount)
-  : nsVoidArray(aCount)
-{
-}
-
-nsStringArray::~nsStringArray(void)
-{
-  Clear();
-}
-
-nsStringArray& 
-nsStringArray::operator=(const nsStringArray& other)
-{
-  if (this == &other)
-  {
-    return *this;
-  }
-
-  // Free our strings
-  Clear();
-  
-  // Copy the pointers
-  nsVoidArray::operator=(other);
-
-  // Now copy the strings
-  PRInt32 count = Count();
-  for (PRInt32 i = 0; i < count; ++i)
-  {
-    nsString* oldString = static_cast<nsString*>(other.ElementAt(i));
-    nsString* newString = new nsString(*oldString);
-    if (!newString)
-    {
-      mImpl->mCount = i;
-      return *this;
-    }
-    mImpl->mArray[i] = newString;
-  }
-
-  return *this;
-}
-
-void 
-nsStringArray::StringAt(PRInt32 aIndex, nsAString& aString) const
-{
-  nsString* string = static_cast<nsString*>(nsVoidArray::ElementAt(aIndex));
-  if (nsnull != string)
-  {
-    aString.Assign(*string);
-  }
-  else
-  {
-    aString.Truncate();
-  }
-}
-
-nsString*
-nsStringArray::StringAt(PRInt32 aIndex) const
-{
-  return static_cast<nsString*>(nsVoidArray::ElementAt(aIndex));
-}
-
-PRInt32 
-nsStringArray::IndexOf(const nsAString& aPossibleString) const
-{
-  if (mImpl)
-  {
-    void** ap = mImpl->mArray;
-    void** end = ap + mImpl->mCount;
-    while (ap < end)
-    {
-      nsString* string = static_cast<nsString*>(*ap);
-      if (string->Equals(aPossibleString))
-      {
-        return ap - mImpl->mArray;
-      }
-      ap++;
-    }
-  }
-  return -1;
-}
-
-PRBool 
-nsStringArray::InsertStringAt(const nsAString& aString, PRInt32 aIndex)
-{
-  nsString* string = new nsString(aString);
-  if (!string)
-    return PR_FALSE;
-  if (nsVoidArray::InsertElementAt(string, aIndex))
-    return PR_TRUE;
-
-  delete string;
-  return PR_FALSE;
-}
-
-PRBool
-nsStringArray::ReplaceStringAt(const nsAString& aString,
-                               PRInt32 aIndex)
-{
-  nsString* string = static_cast<nsString*>(nsVoidArray::ElementAt(aIndex));
-  if (nsnull != string)
-  {
-    *string = aString;
-    return PR_TRUE;
-  }
-  return PR_FALSE;
-}
-
-PRBool 
-nsStringArray::RemoveString(const nsAString& aString)
-{
-  PRInt32 index = IndexOf(aString);
-  if (-1 < index)
-  {
-    return RemoveStringAt(index);
-  }
-  return PR_FALSE;
-}
-
-PRBool nsStringArray::RemoveStringAt(PRInt32 aIndex)
-{
-  nsString* string = StringAt(aIndex);
-  if (nsnull != string)
-  {
-    nsVoidArray::RemoveElementAt(aIndex);
-    delete string;
-    return PR_TRUE;
-  }
-  return PR_FALSE;
-}
-
-void 
-nsStringArray::Clear(void)
-{
-  PRInt32 index = Count();
-  while (0 <= --index)
-  {
-    nsString* string = static_cast<nsString*>(mImpl->mArray[index]);
-    delete string;
-  }
-  nsVoidArray::Clear();
-}
-
-static int
-CompareString(const nsString* aString1, const nsString* aString2, void*)
-{
-#ifdef MOZILLA_INTERNAL_API
-  return Compare(*aString1, *aString2);
-#else
-  const PRUnichar* s1;
-  const PRUnichar* s2;
-  PRUint32 len1 = NS_StringGetData(*aString1, &s1);
-  PRUint32 len2 = NS_StringGetData(*aString2, &s2);
-  int r = memcmp(s1, s2, sizeof(PRUnichar) * PR_MIN(len1, len2));
-  if (r)
-    return r;
-
-  if (len1 < len2)
-    return -1;
-
-  if (len1 > len2)
-    return 1;
-
-  return 0;
-#endif
-}
-
-void nsStringArray::Sort(void)
-{
-  Sort(CompareString, nsnull);
-}
-
-void nsStringArray::Sort(nsStringArrayComparatorFunc aFunc, void* aData)
-{
-  nsVoidArray::Sort(reinterpret_cast<nsVoidArrayComparatorFunc>(aFunc), aData);
-}
-
-PRBool 
-nsStringArray::EnumerateForwards(nsStringArrayEnumFunc aFunc, void* aData)
-{
-  PRInt32 index = -1;
-  PRBool  running = PR_TRUE;
-
-  if (mImpl)
-  {
-    while (running && (++index < mImpl->mCount))
-    {
-      running = (*aFunc)(*static_cast<nsString*>(mImpl->mArray[index]), aData);
-    }
-  }
-  return running;
-}
-
-PRBool 
-nsStringArray::EnumerateBackwards(nsStringArrayEnumFunc aFunc, void* aData)
-{
-  PRInt32 index = Count();
-  PRBool  running = PR_TRUE;
-
-  if (mImpl)
-  {
-    while (running && (0 <= --index))
-    {
-      running = (*aFunc)(*static_cast<nsString*>(mImpl->mArray[index]), aData);
-    }
-  }
-  return running;
-}
-
-
 
 //----------------------------------------------------------------
 // nsCStringArray

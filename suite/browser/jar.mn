@@ -1,8 +1,7 @@
 comm.jar:
-% content navigator %content/navigator/ xpcnativewrappers=yes
-% content navigator-platform %content/navigator-platform/ platform xpcnativewrappers=yes
-% content navigator-region %content/navigator-region/ xpcnativewrappers=yes
-   content/navigator/aboutAbout.html
+% content navigator %content/navigator/
+% content navigator-platform %content/navigator-platform/ platform
+% content navigator-region %content/navigator-region/
    content/navigator/browser.js
    content/navigator/fullScreen.js
    content/navigator/hiddenWindow.xul
@@ -10,6 +9,7 @@ comm.jar:
    content/navigator/linkToolbarItem.js
    content/navigator/linkToolbarOverlay.js
    content/navigator/linkToolbarOverlay.xul
+   content/navigator/mailNavigatorOverlay.js
    content/navigator/mailNavigatorOverlay.xul
    content/navigator/metadata.js
    content/navigator/metadata.xul
@@ -20,15 +20,9 @@ comm.jar:
    content/navigator/navigatorOverlay.xul
    content/navigator/nsBrowserContentListener.js
    content/navigator/nsBrowserStatusHandler.js
-   content/navigator/searchconfig.properties
    content/navigator/sessionHistoryUI.js
    content/navigator/tabbrowser.xml
    content/navigator/urlbarBindings.xml
-   content/navigator/viewsource.js
-   content/navigator/viewSource.xul
-   content/navigator/viewSourceOverlay.xul
-   content/navigator/viewPartialSource.js
-   content/navigator/viewPartialSource.xul
 #ifdef XP_MACOSX
    content/navigator/platformNavigationBindings.xul                 (mac/platformNavigationBindings.xul)
    content/navigator/platformMailOverlay.xul                        (mac/platformMailOverlay.xul)

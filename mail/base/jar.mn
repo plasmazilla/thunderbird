@@ -1,9 +1,10 @@
 messenger.jar:
 % content messagebody %content/messagebody/ contentaccessible=yes
-% content messenger %content/messenger/ xpcnativewrappers=yes
+% content messenger %content/messenger/
 % override chrome://messagebody/skin/messageBody.css chrome://messenger/skin/messageBody.css
 % overlay chrome://global/content/viewSource.xul chrome://messenger/content/viewSourceOverlay.xul
 % overlay chrome://global/content/config.xul chrome://messenger/content/configEditorOverlay.xul
+% overlay chrome://editor/content/EdSpellCheck.xul chrome://messenger/content/EdSpellCheckOverlay.xul
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/content/messenger.css
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/addressbook/addressbook.css
@@ -74,9 +75,7 @@ messenger.jar:
     content/messenger/searchBar.js                  (content/searchBar.js)
     content/messenger/phishingDetector.js           (content/phishingDetector.js)
 *   content/messenger/mail-offline.js               (content/mail-offline.js)
-    content/messenger/about-footer.png              (content/about-footer.png)
     content/messenger/aboutDialog.css               (content/aboutDialog.css)
-*   content/messenger/credits.xhtml                 (content/credits.xhtml)
     content/messenger/messenger.css                 (content/messenger.css)
     content/messenger/search.xml                    (content/search.xml)
     content/messenger/tabmail.xml                   (content/tabmail.xml)
@@ -87,6 +86,8 @@ messenger.jar:
     content/messenger/newTagDialog.js               (content/newTagDialog.js)
 *   content/messenger/viewSourceOverlay.xul         (content/viewSourceOverlay.xul)
 *   content/messenger/configEditorOverlay.xul       (content/configEditorOverlay.xul)
+    content/messenger/EdSpellCheckOverlay.xul       (content/EdSpellCheckOverlay.xul)
+    content/messenger/EdSpellCheckOverlay.js        (content/EdSpellCheckOverlay.js)
     content/messenger/composerOverlay.css           (content/composerOverlay.css)
     content/messenger/threadPane.js                 (content/threadPane.js)
     content/messenger/threadPaneColumnPicker.xml    (content/threadPaneColumnPicker.xml)
@@ -111,15 +112,17 @@ messenger.jar:
     content/messenger/quickFilterBar.js             (content/quickFilterBar.js)
     content/messenger/quickFilterBar.css            (content/quickFilterBar.css)
     content/messenger/downloadsOverlay.xul          (content/downloadsOverlay.xul)
+*   content/messenger/safeMode.xul                  (content/safeMode.xul)
+    content/messenger/safeMode.js                   (content/safeMode.js)
 # the following files are mail-specific overrides
 *+  content/messenger/license.html                  (/mozilla/toolkit/content/license.html)
 % override chrome://global/content/license.html chrome://messenger/content/license.html
 
 comm.jar:
-% content communicator %content/communicator/ xpcnativewrappers=yes
+% content communicator %content/communicator/
 *  content/communicator/contentAreaClick.js         (content/contentAreaClick.js)
 *  content/communicator/utilityOverlay.xul          (content/utilityOverlay.xul)
-*  content/communicator/utilityOverlay.js           (content/utilityOverlay.js)
+   content/communicator/utilityOverlay.js           (content/utilityOverlay.js)
 
 toolkit.jar:
 % overlay chrome://global/content/customizeToolbar.xul chrome://messenger/content/customizeToolbarOverlay.xul

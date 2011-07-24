@@ -63,9 +63,6 @@
 #define NS_FORMHISTORY_CONTRACTID \
   "@mozilla.org/satchel/form-history;1"
 
-#define NS_FORMHISTORYIMPORTER_CONTRACTID \
-  "@mozilla.org/satchel/form-history-importer;1"
-
 #define NS_FORMFILLCONTROLLER_CONTRACTID \
   "@mozilla.org/satchel/form-fill-controller;1"
 
@@ -116,6 +113,15 @@
 #define NS_FAVICONSERVICE_CONTRACTID \
   "@mozilla.org/browser/favicon-service;1"
 
+#define NS_PLACESIMPORTEXPORTSERVICE_CONTRACTID \
+  "@mozilla.org/browser/places/import-export-service;1"
+
+#define NS_APPSTARTUP_CONTRACTID \
+  "@mozilla.org/toolkit/app-startup;1"
+
+#define NS_WEBAPPSSUPPORT_CONTRACTID \
+  "@mozilla.org/webapps/installer;1"
+
 /////////////////////////////////////////////////////////////////////////////
 
 // {A0CCAAF8-09DA-44D8-B250-9AC3E93C8117}
@@ -144,14 +150,6 @@
 // {895DB6C7-DBDF-40ea-9F64-B175033243DC}
 #define NS_FORMFILLCONTROLLER_CID \
 { 0x895db6c7, 0xdbdf, 0x40ea, { 0x9f, 0x64, 0xb1, 0x75, 0x3, 0x32, 0x43, 0xdc } }
-
-// {A2059C0E-5A58-4c55-AB7C-26F0557546EF}
-#define NS_FORMHISTORY_CID \
-{ 0xa2059c0e, 0x5a58, 0x4c55, { 0xab, 0x7c, 0x26, 0xf0, 0x55, 0x75, 0x46, 0xef } }
-
-// {db340cc2-7f50-4ea3-8427-f529daf6dc87}
-#define NS_FORMHISTORYIMPORTER_CID \
-{ 0xdb340cc2, 0x7f50, 0x4ea3, { 0x84, 0x27, 0xf5, 0x29, 0xda, 0xf6, 0xdc, 0x87 } }
 
 // {59648a91-5a60-4122-8ff2-54b839c84aed}
 #define NS_GLOBALHISTORY_CID \
@@ -203,3 +201,11 @@
 
 #define NS_FAVICONSERVICE_CID \
 { 0x984e3259, 0x9266, 0x49cf, { 0xb6, 0x05, 0x60, 0xb0, 0x22, 0xa0, 0x07, 0x56 } }
+
+// {6fb0c970-e1b1-11db-8314-0800200c9a66}
+#define NS_PLACESIMPORTEXPORTSERVICE_CID \
+{ 0x6fb0c970, 0xe1b1, 0x11db, { 0x83, 0x14, 0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 } }
+
+#define NS_WEBAPPSSUPPORT_CID \
+{ 0xd0b62752, 0x88be, 0x4c88, {0x94, 0xe5, 0xc6, 0x9e, 0x15, 0xa1, 0x0c, 0x4e} }
+

@@ -41,11 +41,14 @@
 
 NS_IMPL_ADDREF(nsXPathNamespace)
 NS_IMPL_RELEASE(nsXPathNamespace)
+
+DOMCI_DATA(XPathNamespace, nsXPathNamespace)
+
 NS_INTERFACE_MAP_BEGIN(nsXPathNamespace)
   NS_INTERFACE_MAP_ENTRY(nsIDOMXPathNamespace)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNode)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMXPathNamespace)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(XPathNamespace)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XPathNamespace)
 NS_INTERFACE_MAP_END
 
 /* readonly attribute DOMString nodeName; */

@@ -61,8 +61,6 @@ function nsMsgTraitService() {}
 nsMsgTraitService.prototype =
 {
   // Component setup
-  classDescription: "nsMsgTraitService",
-  contractID: "@mozilla.org/msg-trait-service;1",
   classID: Components.ID("{A2E95F4F-DA72-4a41-9493-661AD353C00A}"),
 
   QueryInterface: XPCOMUtils.generateQI([
@@ -237,7 +235,7 @@ function _init()
   var enabledBranch = prefs.getBranch("mailnews.traits.enabled.");
   var antiIdBranch = prefs.getBranch("mailnews.traits.antiId.");
   _lastIndex = prefs.getBranch("mailnews.traits.").getIntPref("lastIndex");
-  var ids = idBranch.getChildList("", {});
+  var ids = idBranch.getChildList("");
   for (var i = 0; i < ids.length; i++)
   {
     var id = idBranch.getCharPref(ids[i]);
@@ -270,6 +268,5 @@ function _init()
   //dump("\n");
 }
 
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([nsMsgTraitService]);
-}
+var components = [nsMsgTraitService];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

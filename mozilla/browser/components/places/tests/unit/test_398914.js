@@ -15,7 +15,7 @@
  *
  * The Original Code is mozilla.com code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -35,8 +35,6 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-
-Components.utils.import("resource://gre/modules/utils.js");
 
 const bmsvc = PlacesUtils.bookmarks;
 const testFolderId = PlacesUtils.bookmarksMenuFolderId;
@@ -170,7 +168,7 @@ function run_test() {
   do_check_eq(bm1lm, bm2lm);
 
 
-  var ids = bmsvc.getBookmarkIdsForURI(testURI, {});
+  var ids = bmsvc.getBookmarkIdsForURI(testURI);
   do_check_eq(ids[0], bm2);
   do_check_eq(ids[1], bm1);
 

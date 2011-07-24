@@ -14,7 +14,7 @@
  * The Original Code is the Thunderbird Feature Configurator.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -117,18 +117,12 @@ var FeatureConfigurator = {
     try {
       let servers = Cc["@mozilla.org/messenger/account-manager;1"]
                       .getService(Ci.nsIMsgAccountManager).allServers;
+      servers = toArray(fixIterator(servers, Ci.nsIMsgIncomingServer));
 
-      // Look for imap servers.
-      let anyImap = false;
-      for each (let server in fixIterator(servers, Ci.nsIMsgIncomingServer)) {
-        if (server.type != "imap")
-          continue;
-        anyImap = true;
-        break;
-      }
       // If there aren't any imap servers, don't show the autosync page.
-      if (!anyImap)
-        this.subpages = this.subpages.filter(function(item) item != "autosync");
+      if (servers.every(function(server) (server.type != "imap"))) {
+        this.subpages = this.subpages.filter(function(p) (p != "autosync"));
+      }
     } catch (e) {
       logException(e);
     }

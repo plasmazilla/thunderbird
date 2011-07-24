@@ -56,12 +56,12 @@
 #include "nsIEncodedChannel.h"
 #include "nsIUploadChannel.h"
 #include "nsICachingChannel.h"
+#include "nsIFileChannel.h"
 #include "nsEscape.h"
 #include "nsUnicharUtils.h"
 #include "nsIStringEnumerator.h"
 #include "nsCRT.h"
 #include "nsSupportsArray.h"
-#include "nsInt64.h"
 #include "nsContentCID.h"
 #include "nsStreamUtils.h"
 
@@ -113,7 +113,11 @@
 #include "nsIDOMSVGImageElement.h"
 #include "nsIDOMSVGScriptElement.h"
 #endif // MOZ_SVG
-
+#ifdef MOZ_MEDIA
+#include "nsIDOMHTMLSourceElement.h"
+#include "nsIDOMHTMLMediaElement.h"
+#endif // MOZ_MEDIA
+ 
 #include "nsIImageLoadingContent.h"
 
 #include "ftpCore.h"
@@ -163,8 +167,8 @@ struct OutputData
     nsCOMPtr<nsIURI> mFile;
     nsCOMPtr<nsIURI> mOriginalLocation;
     nsCOMPtr<nsIOutputStream> mStream;
-    nsInt64 mSelfProgress;
-    nsInt64 mSelfProgressMax;
+    PRInt64 mSelfProgress;
+    PRInt64 mSelfProgressMax;
     PRPackedBool mCalcFileExt;
 
     OutputData(nsIURI *aFile, nsIURI *aOriginalLocation, PRBool aCalcFileExt) :
@@ -187,8 +191,8 @@ struct OutputData
 struct UploadData
 {
     nsCOMPtr<nsIURI> mFile;
-    nsInt64 mSelfProgress;
-    nsInt64 mSelfProgressMax;
+    PRInt64 mSelfProgress;
+    PRInt64 mSelfProgressMax;
 
     UploadData(nsIURI *aFile) :
         mFile(aFile),
@@ -239,6 +243,8 @@ nsWebBrowserPersist::nsWebBrowserPersist() :
     mPersistFlags(kDefaultPersistFlags),
     mPersistResult(NS_OK),
     mWrapColumn(72),
+    mTotalCurrentProgress(0),
+    mTotalMaxProgress(0),
     mEncodingFlags(0)
 {
 }
@@ -521,15 +527,21 @@ nsWebBrowserPersist::StartUpload(nsIStorageStream *storStream,
     nsresult rv = storStream->NewInputStream(0, getter_AddRefs(inputstream));
     NS_ENSURE_TRUE(inputstream, NS_ERROR_FAILURE);
     NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
+    return StartUpload(inputstream, aDestinationURI, aContentType);
+}
 
+nsresult
+nsWebBrowserPersist::StartUpload(nsIInputStream *aInputStream,
+    nsIURI *aDestinationURI, const nsACString &aContentType)
+{
     nsCOMPtr<nsIChannel> destChannel;
-    rv = CreateChannelFromURI(aDestinationURI, getter_AddRefs(destChannel));
+    CreateChannelFromURI(aDestinationURI, getter_AddRefs(destChannel));
     nsCOMPtr<nsIUploadChannel> uploadChannel(do_QueryInterface(destChannel));
     NS_ENSURE_TRUE(uploadChannel, NS_ERROR_FAILURE);
 
     // Set the upload stream
     // NOTE: ALL data must be available in "inputstream"
-    rv = uploadChannel->SetUploadStream(inputstream, aContentType, -1);
+    nsresult rv = uploadChannel->SetUploadStream(aInputStream, aContentType, -1);
     NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
     rv = destChannel->AsyncOpen(this, nsnull);
     NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
@@ -851,7 +863,9 @@ NS_IMETHODIMP nsWebBrowserPersist::OnDataAvailable(
         while (!cancel && bytesRemaining)
         {
             readError = PR_TRUE;
-            rv = aIStream->Read(buffer, PR_MIN(sizeof(buffer), bytesRemaining), &bytesRead);
+            rv = aIStream->Read(buffer,
+                                NS_MIN(PRUint32(sizeof(buffer)), bytesRemaining),
+                                &bytesRead);
             if (NS_SUCCEEDED(rv))
             {
                 readError = PR_FALSE;
@@ -1347,6 +1361,25 @@ nsresult nsWebBrowserPersist::SaveChannelInternal(
     NS_ENSURE_ARG_POINTER(aChannel);
     NS_ENSURE_ARG_POINTER(aFile);
 
+    // The default behaviour of SaveChannelInternal is to download the source
+    // into a storage stream and upload that to the target. MakeOutputStream
+    // special-cases a file target and creates a file output stream directly.
+    // We want to special-case a file source and create a file input stream,
+    // but we don't need to do this in the case of a file target.
+    nsCOMPtr<nsIFileChannel> fc(do_QueryInterface(aChannel));
+    nsCOMPtr<nsIFileURL> fu(do_QueryInterface(aFile));
+    if (fc && !fu) {
+        nsCOMPtr<nsIInputStream> fileInputStream, bufferedInputStream;
+        nsresult rv = aChannel->Open(getter_AddRefs(fileInputStream));
+        NS_ENSURE_SUCCESS(rv, rv);
+        rv = NS_NewBufferedInputStream(getter_AddRefs(bufferedInputStream),
+                                       fileInputStream, BUFFERED_OUTPUT_SIZE);
+        NS_ENSURE_SUCCESS(rv, rv);
+        nsCAutoString contentType;
+        aChannel->GetContentType(contentType);
+        return StartUpload(bufferedInputStream, aFile, contentType);
+    }
+
     // Read from the input channel
     nsresult rv = aChannel->AsyncOpen(this, nsnull);
     if (rv == NS_ERROR_NO_CONTENT)
@@ -1355,7 +1388,8 @@ nsresult nsWebBrowserPersist::SaveChannelInternal(
         // data and just ignore it.
         return NS_SUCCESS_DONT_FIXUP;
     }
-    else if (NS_FAILED(rv))
+
+    if (NS_FAILED(rv))
     {
         // Opening failed, but do we care?
         if (mPersistFlags & PERSIST_FLAGS_FAIL_ON_BROKEN_LINKS)
@@ -1366,13 +1400,11 @@ nsresult nsWebBrowserPersist::SaveChannelInternal(
         }
         return NS_SUCCESS_DONT_FIXUP;
     }
-    else
-    {
-        // Add the output transport to the output map with the channel as the key
-        nsCOMPtr<nsISupports> keyPtr = do_QueryInterface(aChannel);
-        nsISupportsKey key(keyPtr);
-        mOutputMap.Put(&key, new OutputData(aFile, mURI, aCalcFileExt));
-    }
+
+    // Add the output transport to the output map with the channel as the key
+    nsCOMPtr<nsISupports> keyPtr = do_QueryInterface(aChannel);
+    nsISupportsKey key(keyPtr);
+    mOutputMap.Put(&key, new OutputData(aFile, mURI, aCalcFileExt));
 
     return NS_OK;
 }
@@ -2769,6 +2801,21 @@ nsresult nsWebBrowserPersist::OnWalkDOMNode(nsIDOMNode *aNode)
     }
 #endif // MOZ_SVG
 
+#ifdef MOZ_MEDIA
+    nsCOMPtr<nsIDOMHTMLMediaElement> nodeAsMedia = do_QueryInterface(aNode);
+    if (nodeAsMedia)
+    {
+        StoreURIAttribute(aNode, "src");
+        return NS_OK;
+    }
+    nsCOMPtr<nsIDOMHTMLSourceElement> nodeAsSource = do_QueryInterface(aNode);
+    if (nodeAsSource)
+    {
+        StoreURIAttribute(aNode, "src");
+        return NS_OK;
+    }
+#endif // MOZ_MEDIA
+
     nsCOMPtr<nsIDOMHTMLBodyElement> nodeAsBody = do_QueryInterface(aNode);
     if (nodeAsBody)
     {
@@ -3118,6 +3165,32 @@ nsWebBrowserPersist::CloneNodeWithFixedUpAttributes(
         return rv;
     }
 
+#ifdef MOZ_MEDIA
+    nsCOMPtr<nsIDOMHTMLMediaElement> nodeAsMedia = do_QueryInterface(aNodeIn);
+    if (nodeAsMedia)
+    {
+        rv = GetNodeToFixup(aNodeIn, aNodeOut);
+        if (NS_SUCCEEDED(rv) && *aNodeOut)
+        {
+            FixupNodeAttribute(*aNodeOut, "src");
+        }
+
+        return rv;
+    }
+
+    nsCOMPtr<nsIDOMHTMLSourceElement> nodeAsSource = do_QueryInterface(aNodeIn);
+    if (nodeAsSource)
+    {
+        rv = GetNodeToFixup(aNodeIn, aNodeOut);
+        if (NS_SUCCEEDED(rv) && *aNodeOut)
+        {
+            FixupNodeAttribute(*aNodeOut, "src");
+        }
+
+        return rv;
+    }
+#endif // MOZ_MEDIA
+
 #ifdef MOZ_SVG
     nsCOMPtr<nsIDOMSVGImageElement> nodeAsSVGImage = do_QueryInterface(aNodeIn);
     if (nodeAsSVGImage)
@@ -3277,7 +3350,11 @@ nsWebBrowserPersist::CloneNodeWithFixedUpAttributes(
             nsCOMPtr<nsIDOMHTMLInputElement> outElt = do_QueryInterface(*aNodeOut);
             nsCOMPtr<nsIFormControl> formControl = do_QueryInterface(*aNodeOut);
             switch (formControl->GetType()) {
+                case NS_FORM_INPUT_EMAIL:
+                case NS_FORM_INPUT_SEARCH:
                 case NS_FORM_INPUT_TEXT:
+                case NS_FORM_INPUT_TEL:
+                case NS_FORM_INPUT_URL:
                     nodeAsInput->GetValue(valueStr);
                     // Avoid superfluous value="" serialization
                     if (valueStr.IsEmpty())

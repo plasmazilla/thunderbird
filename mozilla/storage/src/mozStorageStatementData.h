@@ -16,7 +16,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -37,15 +37,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _mozStorageStatementData_h_
-#define _mozStorageStatementData_h_
+#ifndef mozStorageStatementData_h
+#define mozStorageStatementData_h
 
 #include "sqlite3.h"
 
 #include "nsAutoPtr.h"
 #include "nsTArray.h"
+#include "nsIEventTarget.h"
 
 #include "mozStorageBindingParamsArray.h"
+#include "mozIStorageBaseStatement.h"
+#include "mozStorageConnection.h"
+#include "StorageBaseStatementInternal.h"
 
 struct sqlite3_stmt;
 
@@ -57,40 +61,77 @@ class StatementData
 public:
   StatementData(sqlite3_stmt *aStatement,
                 already_AddRefed<BindingParamsArray> aParamsArray,
-                nsISupports *aStatementOwner)
+                StorageBaseStatementInternal *aStatementOwner)
   : mStatement(aStatement)
   , mParamsArray(aParamsArray)
   , mStatementOwner(aStatementOwner)
   {
+    NS_PRECONDITION(mStatementOwner, "Must have a statement owner!");
   }
   StatementData(const StatementData &aSource)
   : mStatement(aSource.mStatement)
   , mParamsArray(aSource.mParamsArray)
   , mStatementOwner(aSource.mStatementOwner)
   {
+    NS_PRECONDITION(mStatementOwner, "Must have a statement owner!");
   }
   StatementData()
   {
   }
 
-  operator sqlite3_stmt *() const
+  /**
+   * Return the sqlite statement, fetching it from the storage statement.  In
+   * the case of AsyncStatements this may actually create the statement 
+   */
+  inline int getSqliteStatement(sqlite3_stmt **_stmt)
   {
-    NS_ASSERTION(mStatement, "NULL sqlite3_stmt being handed off!");
-    return mStatement;
+    if (!mStatement) {
+      int rc = mStatementOwner->getAsyncStatement(&mStatement);
+      NS_ENSURE_TRUE(rc == SQLITE_OK, rc);
+    }
+    *_stmt = mStatement;
+    return SQLITE_OK;
   }
+
   operator BindingParamsArray *() const { return mParamsArray; }
 
   /**
+   * Provide the ability to coerce back to a sqlite3 * connection for purposes 
+   * of getting an error message out of it.
+   */
+  operator sqlite3 *() const
+  {
+    return mStatementOwner->getOwner()->GetNativeConnection();
+  }
+
+  /**
    * NULLs out our sqlite3_stmt (it is held by the owner) after reseting it and
-   * clear all bindings to it.  Then, NULL out the rest of our data.
+   * clear all bindings to it.  This is expected to occur on the async thread.
    */
   inline void finalize()
   {
-    (void)::sqlite3_reset(mStatement);
-    (void)::sqlite3_clear_bindings(mStatement);
-    mStatement = NULL;
-    mParamsArray = nsnull;
-    mStatementOwner = nsnull;
+    NS_PRECONDITION(mStatementOwner, "Must have a statement owner!");
+#ifdef DEBUG
+    {
+      nsCOMPtr<nsIEventTarget> asyncThread =
+        mStatementOwner->getOwner()->getAsyncExecutionTarget();
+      // It's possible that we are shutting down the async thread, and this
+      // method would return NULL as a result.
+      if (asyncThread) {
+        PRBool onAsyncThread;
+        NS_ASSERTION(NS_SUCCEEDED(asyncThread->IsOnCurrentThread(&onAsyncThread)) && onAsyncThread,
+                     "This should only be running on the async thread!");
+      }
+    }
+#endif
+    // In the AsyncStatement case we may never have populated mStatement if the
+    // AsyncExecuteStatements got canceled or a failure occurred in constructing
+    // the statement.
+    if (mStatement) {
+      (void)::sqlite3_reset(mStatement);
+      (void)::sqlite3_clear_bindings(mStatement);
+      mStatement = NULL;
+    }
   }
 
   /**
@@ -100,7 +141,7 @@ public:
    * @return true if the statement has parameters to bind against, false
    *         otherwise.
    */
-  inline bool hasParametersToBeBound() const { return mParamsArray != nsnull; }
+  inline bool hasParametersToBeBound() const { return !!mParamsArray; }
   /**
    * Indicates if this statement needs a transaction for execution.
    *
@@ -119,10 +160,10 @@ private:
    * We hold onto a reference of the statement's owner so it doesn't get
    * destroyed out from under us.
    */
-  nsCOMPtr<nsISupports> mStatementOwner;
+  nsCOMPtr<StorageBaseStatementInternal> mStatementOwner;
 };
 
 } // namespace storage
 } // namespace mozilla
 
-#endif // _mozStorageStatementData_h_
+#endif // mozStorageStatementData_h

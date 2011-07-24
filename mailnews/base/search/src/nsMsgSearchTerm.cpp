@@ -58,7 +58,6 @@
 #include "nsMsgI18N.h"
 #include "nsIMimeConverter.h"
 #include "nsMsgMimeCID.h"
-#include "nsTime.h"
 #include "nsIPrefBranch.h"
 #include "nsIPrefService.h"
 #include "nsIMsgFilterPlugin.h"
@@ -793,25 +792,57 @@ nsresult nsMsgSearchTerm::MatchArbitraryHeader (nsIMsgSearchScopeTerm *scope,
 
   bodyHandler->SetStripHeaders (PR_FALSE);
 
-
+  nsCString headerFullValue; // contains matched header value accumulated over multiple lines.
   nsCAutoString buf;
   nsCAutoString curMsgHeader;
   PRBool searchingHeaders = PR_TRUE;
-  while (searchingHeaders && (bodyHandler->GetNextLine(buf) >=0))
+
+  // We will allow accumulation of received headers;
+  PRBool isReceivedHeader = m_arbitraryHeader.EqualsLiteral("received");
+  
+  while (searchingHeaders)
   {
+    if (bodyHandler->GetNextLine(buf) < 0 || EMPTY_MESSAGE_LINE(buf))
+      searchingHeaders = PR_FALSE;
+    PRBool isContinuationHeader = searchingHeaders ? NS_IsAsciiWhitespace(buf.CharAt(0))
+                                                   : PR_FALSE;
+
+    // We try to match the header from the last time through the loop, which should now
+    //  have accumulated over possible multiple lines. For all headers except received,
+    //  we process a single accumulation, but process accumulated received at the end.
+    if (!searchingHeaders || (!isContinuationHeader &&
+         (!headerFullValue.IsEmpty() && !isReceivedHeader)))
+    {
+      // Make sure buf has info besides just the header.
+      // Otherwise, it's either an empty header, or header not found.
+      if (!headerFullValue.IsEmpty())
+      {
+        PRBool stringMatches;
+        // match value with the other info.
+        err = MatchRfc2047String(headerFullValue.get(), charset, charsetOverride, &stringMatches);
+        if (matchExpected == stringMatches) // if we found a match
+        {
+          searchingHeaders = PR_FALSE;   // then stop examining the headers
+          result = stringMatches;
+        }
+      }
+      break;
+    }
+
     char * buf_end = (char *) (buf.get() + buf.Length());
     int headerLength = m_arbitraryHeader.Length();
-    PRBool isContinuationHeader = NS_IsAsciiWhitespace(buf.CharAt(0));
-    // this handles wrapped header lines, which start with whitespace.
+
     // If the line starts with whitespace, then we use the current header.
     if (!isContinuationHeader)
     {
+      // here we start a new header
       PRUint32 colonPos = buf.FindChar(':');
       curMsgHeader = StringHead(buf, colonPos);
     }
 
     if (curMsgHeader.Equals(m_arbitraryHeader, nsCaseInsensitiveCStringComparator()))
     {
+      // process the value
       // value occurs after the header name or whitespace continuation char.
       const char * headerValue = buf.get() + (isContinuationHeader ? 1 : headerLength);
       if (headerValue < buf_end && headerValue[0] == ':')  // + 1 to account for the colon which is MANDATORY
@@ -829,22 +860,12 @@ nsresult nsMsgSearchTerm::MatchArbitraryHeader (nsIMsgSearchScopeTerm *scope,
         end--;      // move back and examine the previous character....
       }
 
-      // Make sure buf has info besides just the header.
-      // Otherwise, it's just an empty header.
-      if (headerValue < buf_end && *headerValue)
-      {
-        PRBool stringMatches;
-        // match value with the other info.
-        err = MatchRfc2047String(headerValue, charset, charsetOverride, &stringMatches);
-        if (matchExpected == stringMatches) // if we found a match
-        {
-          searchingHeaders = PR_FALSE;   // then stop examining the headers
-          result = stringMatches;
-        }
-      }
+      // any continuation whitespace is converted to a single space. This includes both a continuation line, or a
+      //  second value of the same header (eg the received header)
+      if (!headerFullValue.IsEmpty())
+        headerFullValue.AppendLiteral(" ");
+      headerFullValue.Append(nsDependentCString(headerValue));
     }
-    if (EMPTY_MESSAGE_LINE(buf))
-      searchingHeaders = PR_FALSE;
   }
   delete bodyHandler;
   *pResult = result;
@@ -881,7 +902,6 @@ NS_IMETHODIMP nsMsgSearchTerm::MatchUint32HdrProperty(nsIMsgDBHdr *aHdr, PRBool 
 
   PRUint32 dbHdrValue;
   aHdr->GetUint32Property(m_hdrProperty.get(), &dbHdrValue);
-  nsresult rv = NS_OK;
 
   PRBool result = PR_FALSE;
   switch (m_operator)
@@ -1111,19 +1131,11 @@ nsresult nsMsgSearchTerm::MatchString (const char *stringToMatch,
   switch (m_operator)
   {
   case nsMsgSearchOp::Contains:
-#ifdef MOZILLA_INTERNAL_API
     if (CaseInsensitiveFindInReadable(needle, utf16StrToMatch))
-#else
-    if (utf16StrToMatch.Find(needle, CaseInsensitiveCompare) != -1);
-#endif
       result = PR_TRUE;
     break;
   case nsMsgSearchOp::DoesntContain:
-#ifdef MOZILLA_INTERNAL_API
     if (!CaseInsensitiveFindInReadable(needle, utf16StrToMatch))
-#else
-    if (utf16StrToMatch.Find(needle, CaseInsensitiveCompare) == -1);
-#endif
       result = PR_TRUE;
     break;
   case nsMsgSearchOp::Is:
@@ -1247,19 +1259,18 @@ nsresult nsMsgSearchTerm::MatchDate (PRTime dateToMatch, PRBool *pResult)
 
   nsresult err = NS_OK;
   PRBool result = PR_FALSE;
-  nsTime t_date(dateToMatch);
 
   switch (m_operator)
   {
   case nsMsgSearchOp::IsBefore:
-    if (t_date < nsTime(m_value.u.date))
+    if (dateToMatch < m_value.u.date)
       result = PR_TRUE;
     break;
   case nsMsgSearchOp::IsAfter:
     {
-      nsTime adjustedDate = nsTime(m_value.u.date);
+      PRTime adjustedDate = m_value.u.date;
       adjustedDate += 60*60*24; // we want to be greater than the next day....
-      if (t_date > adjustedDate)
+      if (dateToMatch > adjustedDate)
         result = PR_TRUE;
     }
     break;
@@ -1387,6 +1398,17 @@ nsresult nsMsgSearchTerm::MatchSize (PRUint32 sizeToMatch, PRBool *pResult)
 nsresult nsMsgSearchTerm::MatchJunkStatus(const char *aJunkScore, PRBool *pResult)
 {
   NS_ENSURE_ARG_POINTER(pResult);
+
+  if (m_operator == nsMsgSearchOp::IsEmpty)
+  {
+    *pResult = !(aJunkScore && *aJunkScore);
+    return NS_OK;
+  }
+  else if (m_operator == nsMsgSearchOp::IsntEmpty)
+  {
+    *pResult = (aJunkScore && *aJunkScore);
+    return NS_OK;
+  }
 
   nsMsgJunkStatus junkStatus;
   if (aJunkScore && *aJunkScore) {

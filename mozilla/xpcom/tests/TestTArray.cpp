@@ -68,6 +68,9 @@ static PRBool test_basic_array(ElementType *data,
   if (ary.Length() != dataLen) {
     return PR_FALSE;
   }
+  if (!(ary == ary)) {
+    return PR_FALSE;
+  }
   PRUint32 i;
   for (i = 0; i < ary.Length(); ++i) {
     if (ary[i] != data[i])
@@ -82,25 +85,42 @@ static PRBool test_basic_array(ElementType *data,
     return PR_FALSE;
   // ensure sort results in ascending order
   ary.Sort();
+  PRUint32 j = 0, k;
+  if (ary.GreatestIndexLtEq(extra, k))
+    return PR_FALSE;
+  for (i = 0; i < ary.Length(); ++i) {
+    if (!ary.GreatestIndexLtEq(ary[i], k))
+      return PR_FALSE;
+    if (k < j)
+      return PR_FALSE;
+    j = k;
+  }
   for (i = ary.Length(); --i; ) {
     if (ary[i] < ary[i - 1])
       return PR_FALSE;
     if (ary[i] == ary[i - 1])
       ary.RemoveElementAt(i);
   }
+  if (!(ary == ary)) {
+    return PR_FALSE;
+  }
   for (i = 0; i < ary.Length(); ++i) {
     if (ary.BinaryIndexOf(ary[i]) != i)
       return PR_FALSE;
   }
-  if (ary.BinaryIndexOf(extra) != -1)
+  if (ary.BinaryIndexOf(extra) != ary.NoIndex)
     return PR_FALSE;
   PRUint32 oldLen = ary.Length();
   ary.RemoveElement(data[dataLen / 2]);
   if (ary.Length() != (oldLen - 1))
     return PR_FALSE;
+  if (!(ary == ary))
+    return PR_FALSE;
 
   PRUint32 index = ary.Length() / 2;
   if (!ary.InsertElementAt(index, extra))
+    return PR_FALSE;
+  if (!(ary == ary))
     return PR_FALSE;
   if (ary[index] != extra)
     return PR_FALSE;
@@ -115,6 +135,8 @@ static PRBool test_basic_array(ElementType *data,
     return PR_FALSE;
 
   nsTArray<ElementType> copy(ary);
+  if (!(ary == copy))
+    return PR_FALSE;
   for (i = 0; i < copy.Length(); ++i) {
     if (ary[i] != copy[i])
       return PR_FALSE;
@@ -130,17 +152,25 @@ static PRBool test_basic_array(ElementType *data,
   ary.Clear();
   if (!ary.IsEmpty() || ary.Elements() == nsnull)
     return PR_FALSE;
+  if (!(ary == nsTArray<ElementType>()))
+    return PR_FALSE;
+  if (ary == copy)
+    return PR_FALSE;
   if (ary.SafeElementAt(0, extra) != extra ||
       ary.SafeElementAt(10, extra) != extra)
     return PR_FALSE;
 
   ary = copy;
+  if (!(ary == copy))
+    return PR_FALSE;
   for (i = 0; i < copy.Length(); ++i) {
     if (ary[i] != copy[i])
       return PR_FALSE;
   }
 
   if (!ary.InsertElementsAt(0, copy))
+    return PR_FALSE;
+  if (ary == copy)
     return PR_FALSE;
   ary.RemoveElementsAt(0, copy.Length());
   for (i = 0; i < copy.Length(); ++i) {
@@ -305,7 +335,7 @@ static PRBool test_string_array() {
     if (strArray.BinaryIndexOf(strArray[i]) != i)
       return PR_FALSE;
   }
-  if (strArray.BinaryIndexOf(EmptyCString()) != -1)
+  if (strArray.BinaryIndexOf(EmptyCString()) != strArray.NoIndex)
     return PR_FALSE;
 
   nsCString rawArray[NS_ARRAY_LENGTH(kdata)-1];
@@ -428,7 +458,7 @@ static PRBool test_ptrarray() {
 
 //----
 
-// This test relies too heavily on the existance of DebugGetHeader to be
+// This test relies too heavily on the existence of DebugGetHeader to be
 // useful in non-debug builds.
 #ifdef DEBUG
 static PRBool test_autoarray() {
@@ -508,7 +538,46 @@ static PRBool test_indexof() {
   array.AppendElement(5);
   array.RemoveElementAt(1);
   // we should not find the 5!
-  return array.IndexOf(5, 1) == -1;
+  return array.IndexOf(5, 1) == array.NoIndex;
+}
+
+//----
+
+template <class Array>
+static PRBool is_heap(const Array& ary, PRUint32 len) {
+  PRUint32 index = 1;
+  while (index < len) {
+    if (ary[index] > ary[(index - 1) >> 1])
+      return PR_FALSE;
+    index++;
+  }
+  return PR_TRUE;
+} 
+
+static PRBool test_heap() {
+  const int data[] = {4,6,8,2,4,1,5,7,3};
+  nsTArray<int> ary;
+  ary.AppendElements(data, NS_ARRAY_LENGTH(data));
+  // make a heap and make sure it's a heap
+  ary.MakeHeap();
+  if (!is_heap(ary, NS_ARRAY_LENGTH(data)))
+    return PR_FALSE;
+  // pop the root and make sure it's still a heap
+  int root = ary[0];
+  ary.PopHeap();
+  if (!is_heap(ary, NS_ARRAY_LENGTH(data) - 1))
+    return PR_FALSE;
+  // push the previously poped value back on and make sure it's still a heap
+  ary.PushHeap(root);
+  if (!is_heap(ary, NS_ARRAY_LENGTH(data)))
+    return PR_FALSE;
+  // make sure the heap looks like what we expect
+  const int expected_data[] = {8,7,5,6,4,1,4,2,3};
+  PRUint32 index;
+  for (index = 0; index < NS_ARRAY_LENGTH(data); index++)
+    if (ary[index] != expected_data[index])
+      return PR_FALSE;
+  return PR_TRUE;
 }
 
 //----
@@ -533,6 +602,7 @@ static const struct Test {
   DECL_TEST(test_autoarray),
 #endif
   DECL_TEST(test_indexof),
+  DECL_TEST(test_heap),
   { nsnull, nsnull }
 };
 

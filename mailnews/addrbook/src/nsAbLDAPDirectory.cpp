@@ -49,7 +49,6 @@
 #include "nsIAbManager.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
-#include "nsAutoLock.h"
 #include "nsNetCID.h"
 #include "nsIIOService.h"
 #include "nsCOMArray.h"
@@ -74,24 +73,24 @@
 
 #define kDefaultMaxHits 100
 
+using namespace mozilla;
+
 nsAbLDAPDirectory::nsAbLDAPDirectory() :
   nsAbDirectoryRDFResource(),
   mPerformingQuery(PR_FALSE),
   mContext(0),
-  mLock(0)
+  mLock("nsAbLDAPDirectory.mLock")
 {
   mCache.Init();
 }
 
 nsAbLDAPDirectory::~nsAbLDAPDirectory()
 {
-  if (mLock)
-    PR_DestroyLock (mLock);
 }
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsAbLDAPDirectory, nsAbDirectoryRDFResource,
-                             nsIAbDirectory, nsIAbDirSearchListener,
-                             nsIAbLDAPDirectory)
+NS_IMPL_ISUPPORTS_INHERITED4(nsAbLDAPDirectory, nsAbDirectoryRDFResource,
+                             nsIAbDirectory, nsISupportsWeakReference,
+                             nsIAbDirSearchListener, nsIAbLDAPDirectory)
 
 NS_IMETHODIMP nsAbLDAPDirectory::GetPropertiesChromeURI(nsACString &aResult)
 {
@@ -110,7 +109,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::Init(const char* aURI)
   PRInt32 searchCharLocation = uri.FindChar('?', kLDAPDirectoryRootLen);
 
   if (searchCharLocation == -1)
-    m_DirPrefId = StringTail(uri, uri.Length() - kLDAPDirectoryRootLen);
+    m_DirPrefId = Substring(uri, kLDAPDirectoryRootLen);
   else
     m_DirPrefId = Substring(uri, kLDAPDirectoryRootLen, searchCharLocation - kLDAPDirectoryRootLen);
 
@@ -119,10 +118,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::Init(const char* aURI)
 
 nsresult nsAbLDAPDirectory::Initiate()
 {
-  if (!mLock)
-    mLock = PR_NewLock();
-
-  return mLock ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+  return NS_OK;
 }
 
 /* 
@@ -210,7 +206,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::HasCard(nsIAbCard* card, PRBool* hasCard)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Enter lock
-  nsAutoLock lock (mLock);
+  MutexAutoLock lock (mLock);
 
   *hasCard = mCache.Get(card, nsnull);
   if (!*hasCard && mPerformingQuery)
@@ -293,8 +289,8 @@ NS_IMETHODIMP nsAbLDAPDirectory::SetLDAPURL(nsILDAPURL *aUrl)
     nsCOMPtr<nsIAbManager> abManager = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    // We inherit from nsAbDirProperty, so this static cast should be safe.
-    abManager->NotifyItemPropertyChanged(static_cast<nsAbDirProperty*>(this),
+    // We inherit from nsIAbDirectory, so this static cast should be safe.
+    abManager->NotifyItemPropertyChanged(static_cast<nsIAbDirectory*>(this),
       "IsSecure",
       (newIsNotSecure ? NS_LITERAL_STRING("true") : NS_LITERAL_STRING("false")).get(),
       (newIsNotSecure ? NS_LITERAL_STRING("false") : NS_LITERAL_STRING("true")).get());
@@ -364,7 +360,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::StartSearch ()
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Enter lock
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     mPerformingQuery = PR_TRUE;
     mCache.Clear();
 
@@ -378,7 +374,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::StopSearch ()
 
   // Enter lock
   {
-    nsAutoLock lockGuard(mLock);
+    MutexAutoLock lockGuard(mLock);
     if (!mPerformingQuery)
       return NS_OK;
     mPerformingQuery = PR_FALSE;
@@ -401,7 +397,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::OnSearchFinished(PRInt32 aResult, const nsAStri
   nsresult rv = Initiate();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsAutoLock lock(mLock);
+  MutexAutoLock lock(mLock);
   mPerformingQuery = PR_FALSE;
 
   return NS_OK;
@@ -414,7 +410,7 @@ NS_IMETHODIMP nsAbLDAPDirectory::OnSearchFoundCard(nsIAbCard* card)
 
   // Enter lock
   {
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
     mCache.Put(card, card);
   }
   // Exit lock
@@ -809,6 +805,10 @@ NS_IMETHODIMP nsAbLDAPDirectory::AddCard(nsIAbCard *aUpdatedCard,
   rv = card->SetDn(cardDN);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  nsCAutoString ourUuid;
+  GetUuid(ourUuid);
+  copyToCard->SetDirectoryId(ourUuid);
+
   // Launch query
   rv = DoModify(this, nsILDAPModification::MOD_ADD, cardDN, modArray,
                 EmptyCString(), EmptyCString());
@@ -842,6 +842,9 @@ NS_IMETHODIMP nsAbLDAPDirectory::DeleteCards(nsIArray *aCards)
     
     rv = card->GetDn(cardDN);
     NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIAbCard> realCard(do_QueryInterface(card));
+    realCard->SetDirectoryId(EmptyCString());
    
     // Launch query
     rv = DoModify(this, nsILDAPModification::MOD_DELETE, cardDN, nsnull,

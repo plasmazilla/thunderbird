@@ -104,8 +104,30 @@
  * nsSessionStore restore a window next time it gets a chance and will post
  * notifications. The latter won't.
  */
+
+function browserWindowsCount(expected, msg) {
+  if (typeof expected == "number")
+    expected = [expected, expected];
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  is(count, expected[0], msg + " (nsIWindowMediator)");
+  let state = Cc["@mozilla.org/browser/sessionstore;1"]
+                .getService(Ci.nsISessionStore)
+                .getBrowserState();
+  is(JSON.parse(state).windows.length, expected[1], msg + " (getBrowserState)");
+}
+
 function test() {
+  browserWindowsCount(1, "Only one browser window should be open initially");
+
   waitForExplicitFinish();
+  // This test takes some time to run, and it could timeout randomly.
+  // So we require a longer timeout. See bug 528219.
+  requestLongerTimeout(2);
 
   // Some urls that might be opened in tabs and/or popups
   // Do not use about:blank:
@@ -137,22 +159,17 @@ function test() {
   /**
    * Helper: Will observe and handle the notifications for us
    */
-  let observer = {
-    hitCount: 0,
+  let hitCount = 0;
+  function observer(aCancel, aTopic, aData) {
+    // count so that we later may compare
+    observing[aTopic]++;
 
-    observe: function(aCancel, aTopic, aData) {
-      // count so that we later may compare
-      observing[aTopic]++;
-
-      // handle some tests
-      if (++this.hitCount == 1) {
-        // Test 6
-        aCancel.QueryInterface(Ci.nsISupportsPRBool).data = true;
-      }
+    // handle some tests
+    if (++hitCount == 1) {
+      // Test 6
+      aCancel.QueryInterface(Ci.nsISupportsPRBool).data = true;
     }
-  };
-  let observerService = Cc["@mozilla.org/observer-service;1"].
-                        getService(Ci.nsIObserverService);
+  }
 
   /**
    * Helper: Sets prefs as the testsuite requires
@@ -172,9 +189,8 @@ function test() {
    */
   function setupTestsuite(testFn) {
     // Register our observers
-    for (let o in observing) {
-      observerService.addObserver(observer, o, false);
-    }
+    for (let o in observing)
+      Services.obs.addObserver(observer, o, false);
 
     // Make the main test window not count as a browser window any longer
     oldWinType = document.documentElement.getAttribute("windowtype");
@@ -186,18 +202,17 @@ function test() {
    */
   function cleanupTestsuite(callback) {
     // Finally remove observers again
-    for (let o in observing) {
-      observerService.removeObserver(observer, o, false);
-    }
+    for (let o in observing)
+      Services.obs.removeObserver(observer, o, false);
+
     // Reset the prefs we touched
-    for each (let pref in [
+    [
       "browser.startup.page",
       "browser.privatebrowsing.keep_current_session"
-    ]) {
-      if (gPrefService.prefHasUserValue(pref)) {
+    ].forEach(function (pref) {
+      if (gPrefService.prefHasUserValue(pref))
         gPrefService.clearUserPref(pref);
-      }
-    }
+    });
     gPrefService.setBoolPref("browser.tabs.warnOnClose", oldWarnTabsOnClose);
 
     // Reset the window type
@@ -217,9 +232,9 @@ function test() {
       newWin.removeEventListener("load", arguments.callee, false);
       newWin.gBrowser.addEventListener("load", function(aEvent) {
         newWin.gBrowser.removeEventListener("load", arguments.callee, true);
-        for each (let url in TEST_URLS) {
+        TEST_URLS.forEach(function (url) {
           newWin.gBrowser.addTab(url);
-        }
+        });
 
         executeSoon(function() testFn(newWin));
       }, true);
@@ -248,6 +263,7 @@ function test() {
       // The previously closed window should be restored
       newWin = openDialog(location, "_blank", CHROME_FEATURES);
       newWin.addEventListener("load", function() {
+        this.removeEventListener("load", arguments.callee, true);
         executeSoon(function() {
           is(newWin.gBrowser.browsers.length, TEST_URLS.length + 1,
              "Restored window in-session with otherpopup windows around");
@@ -281,6 +297,7 @@ function test() {
       // The previously closed window should NOT be restored
       newWin = openDialog(location, "_blank", CHROME_FEATURES);
       newWin.addEventListener("load", function() {
+        this.removeEventListener("load", arguments.callee, true);
         executeSoon(function() {
           is(newWin.gBrowser.browsers.length, 1,
              "Did not restore in private browing mode");
@@ -293,6 +310,7 @@ function test() {
 
           newWin = openDialog(location, "_blank", CHROME_FEATURES);
           newWin.addEventListener("load", function() {
+            this.removeEventListener("load", arguments.callee, true);
             executeSoon(function() {
               is(newWin.gBrowser.browsers.length, TEST_URLS.length + 1,
                  "Restored after leaving private browsing again");
@@ -334,6 +352,7 @@ function test() {
           // open a new window the previously closed window should be restored to
           newWin = openDialog(location, "_blank", CHROME_FEATURES);
           newWin.addEventListener("load", function() {
+            this.removeEventListener("load", arguments.callee, true);
             executeSoon(function() {
               is(newWin.gBrowser.browsers.length, TEST_URLS.length + 1,
                  "Restored window and associated tabs in session");
@@ -364,6 +383,7 @@ function test() {
     // gets a chance.
     let popup = openDialog(location, "popup", POPUP_FEATURES, TEST_URLS[1]);
     popup.addEventListener("load", function() {
+      this.removeEventListener("load", arguments.callee, true);
       is(popup.gBrowser.browsers.length, 1,
          "Did not restore the popup window (1)");
       popup.BrowserTryToCloseWindow();
@@ -416,6 +436,8 @@ function test() {
         newWin.BrowserTryToCloseWindow();
         newWin2.BrowserTryToCloseWindow();
 
+        browserWindowsCount([0, 1], "browser windows while running testOpenCloseRestoreFromPopup");
+
         newWin = undoCloseWindow(0);
 
         newWin2 = openDialog(location, "_blank", CHROME_FEATURES);
@@ -427,9 +449,13 @@ function test() {
             is(TEST_URLS.indexOf(newWin2.gBrowser.browsers[0].currentURI.spec), -1,
                "Did not restore, as undoCloseWindow() was last called (2)");
 
+            browserWindowsCount([2, 3], "browser windows while running testOpenCloseRestoreFromPopup");
+
             // Cleanup
             newWin.close();
             newWin2.close();
+
+            browserWindowsCount([0, 1], "browser windows while running testOpenCloseRestoreFromPopup");
 
             // Next please
             executeSoon(nextFn);
@@ -459,7 +485,7 @@ function test() {
 
   /**
    * Test 8: Test if closing can be denied on Mac
-   *         Futhermore prepares the testNotificationCount test (Test 6)
+   *         Futhermore prepares the testNotificationCount test (Test 7)
    * @note: Mac only
    */
   function testMacNotifications(nextFn, iteration) {
@@ -491,26 +517,35 @@ function test() {
   setupTestsuite();
   if (navigator.platform.match(/Mac/)) {
     // Mac tests
-    testMacNotifications(
-      function() testNotificationCount(
-        function() cleanupTestsuite() + finish()
-      )
-    );
+    testMacNotifications(function () {
+      testNotificationCount(function () {
+        cleanupTestsuite();
+        browserWindowsCount(1, "Only one browser window should be open eventually");
+        finish();
+      });
+    });
   }
   else {
     // Non-Mac Tests
-    testOpenCloseNormal(
-      function() testOpenClosePrivateBrowsing(
-        function() testOpenCloseWindowAndPopup(
-          function() testOpenCloseOnlyPopup(
-            function() testOpenCloseRestoreFromPopup (
-              function() testNotificationCount(
-                function() cleanupTestsuite() + finish()
-              )
-            )
-          )
-        )
-      )
-    );
+    testOpenCloseNormal(function () {
+      browserWindowsCount([0, 1], "browser windows after testOpenCloseNormal");
+      testOpenClosePrivateBrowsing(function () {
+        browserWindowsCount([0, 1], "browser windows after testOpenClosePrivateBrowsing");
+        testOpenCloseWindowAndPopup(function () {
+          browserWindowsCount([0, 1], "browser windows after testOpenCloseWindowAndPopup");
+          testOpenCloseOnlyPopup(function () {
+            browserWindowsCount([0, 1], "browser windows after testOpenCloseOnlyPopup");
+            testOpenCloseRestoreFromPopup(function () {
+              browserWindowsCount([0, 1], "browser windows after testOpenCloseRestoreFromPopup");
+              testNotificationCount(function () {
+                cleanupTestsuite();
+                browserWindowsCount(1, "browser windows after testNotificationCount");
+                finish();
+              });
+            });
+          });
+        });
+      });
+    });
   }
 }

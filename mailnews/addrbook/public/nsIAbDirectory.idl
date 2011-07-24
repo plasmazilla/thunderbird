@@ -60,7 +60,13 @@ interface nsIMutableArray;
 #define kABFileName_CurrentSuffix ".mab"  /* v3 address book extension */
 %}
 
-[scriptable, uuid(0ef8d12d-f553-4a28-85b5-c838aff34ab1)]
+/**
+ * A top-level address book directory.
+ *
+ * The UUID of an nsIAbDirectory is its preference ID and its name, concatenated
+ * together.
+ */
+[scriptable, uuid(1f11f37e-7009-4a51-bbb1-041e9f75120a)]
 interface nsIAbDirectory : nsIAbCollection {
 
   /**

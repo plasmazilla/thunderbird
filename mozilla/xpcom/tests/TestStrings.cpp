@@ -661,6 +661,59 @@ PRBool test_substring()
     return PR_TRUE;
   }
 
+#define test_append(str, int, suffix) \
+  str.Truncate(); \
+  str.AppendInt(suffix = int ## suffix); \
+  if (!str.EqualsLiteral(#int)) { \
+    fputs("Error appending " #int "\n", stderr); \
+    return PR_FALSE; \
+  }
+
+#define test_appends(int, suffix) \
+  test_append(str, int, suffix) \
+  test_append(cstr, int, suffix)
+
+#define test_appendbase(str, prefix, int, suffix, base) \
+  str.Truncate(); \
+  str.AppendInt(suffix = prefix ## int ## suffix, base); \
+  if (!str.EqualsLiteral(#int)) { \
+    fputs("Error appending " #prefix #int "\n", stderr); \
+    return PR_FALSE; \
+  }
+
+#define test_appendbases(prefix, int, suffix, base) \
+  test_appendbase(str, prefix, int, suffix, base) \
+  test_appendbase(cstr, prefix, int, suffix, base)
+
+PRBool test_appendint()
+  {
+    nsString str;
+    nsCString cstr;
+    PRInt32 L;
+    PRUint32 UL;
+    PRInt64 LL;
+    PRUint64 ULL;
+    test_appends(2147483647, L)
+    test_appends(-2147483648, L)
+    test_appends(4294967295, UL)
+    test_appends(9223372036854775807, LL)
+    test_appends(-9223372036854775808, LL)
+    test_appends(18446744073709551615, ULL)
+    test_appendbases(0, 17777777777, L, 8)
+    test_appendbases(0, 20000000000, L, 8)
+    test_appendbases(0, 37777777777, UL, 8)
+    test_appendbases(0, 777777777777777777777, LL, 8)
+    test_appendbases(0, 1000000000000000000000, LL, 8)
+    test_appendbases(0, 1777777777777777777777, ULL, 8)
+    test_appendbases(0x, 7fffffff, L, 16)
+    test_appendbases(0x, 80000000, L, 16)
+    test_appendbases(0x, ffffffff, UL, 16)
+    test_appendbases(0x, 7fffffffffffffff, LL, 16)
+    test_appendbases(0x, 8000000000000000, LL, 16)
+    test_appendbases(0x, ffffffffffffffff, ULL, 16)
+    return PR_TRUE;
+  }
+
 PRBool test_appendint64()
   {
     nsCString str;
@@ -929,10 +982,14 @@ static const ToIntegerTest kToIntegerTests[] = {
 
 PRBool test_string_tointeger()
 {
-  PRInt32 rv;
+  PRInt32 i;
+  nsresult rv;
   for (const ToIntegerTest* t = kToIntegerTests; t->str; ++t) {
     PRInt32 result = nsCAutoString(t->str).ToInteger(&rv, t->radix);
     if (rv != t->rv || result != t->result)
+      return PR_FALSE;
+    result = nsCAutoString(t->str).ToInteger(&i, t->radix);
+    if ((nsresult)i != t->rv || result != t->result)
       return PR_FALSE;
   }
   return PR_TRUE;
@@ -980,6 +1037,36 @@ static PRBool test_parse_string()
          test_parse_string_helper0("  ", ' ') &&
          test_parse_string_helper1(" foo", ' ', "foo") &&
          test_parse_string_helper1("  foo", ' ', "foo");
+}
+
+static PRBool test_strip_chars_helper(const PRUnichar* str, const PRUnichar* strip, const nsAString& result, PRUint32 offset=0)
+{
+  nsAutoString tmp(str);
+  nsAString& data = tmp;
+  data.StripChars(strip, offset);
+  return data.Equals(result);
+}
+
+static PRBool test_strip_chars()
+{
+  return test_strip_chars_helper(NS_LITERAL_STRING("foo \r \nbar").get(),
+                                 NS_LITERAL_STRING(" \n\r").get(),
+                                 NS_LITERAL_STRING("foobar")) &&
+         test_strip_chars_helper(NS_LITERAL_STRING("\r\nfoo\r\n").get(),
+                                 NS_LITERAL_STRING(" \n\r").get(),
+                                 NS_LITERAL_STRING("foo")) &&
+         test_strip_chars_helper(NS_LITERAL_STRING("foo").get(),
+                                 NS_LITERAL_STRING(" \n\r").get(),
+                                 NS_LITERAL_STRING("foo")) &&
+         test_strip_chars_helper(NS_LITERAL_STRING("foo").get(),
+                                 NS_LITERAL_STRING("fo").get(),
+                                 NS_LITERAL_STRING("")) &&
+         test_strip_chars_helper(NS_LITERAL_STRING("foo").get(),
+                                 NS_LITERAL_STRING("foo").get(),
+                                 NS_LITERAL_STRING("")) &&
+         test_strip_chars_helper(NS_LITERAL_STRING(" foo").get(),
+                                 NS_LITERAL_STRING(" ").get(),
+                                 NS_LITERAL_STRING(" foo"), 1);
 }
 
 static PRBool test_huge_capacity()
@@ -1068,6 +1155,57 @@ static PRBool test_huge_capacity()
   return PR_TRUE;
 }
 
+static PRBool test_tofloat_helper(const nsString& aStr, float aExpected, PRBool aSuccess)
+{
+  PRInt32 result;
+  return aStr.ToFloat(&result) == aExpected &&
+         aSuccess ? result == NS_OK : result != NS_OK;
+}
+
+static PRBool test_tofloat()
+{
+  return \
+    test_tofloat_helper(NS_LITERAL_STRING("42"), 42.f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("42.0"), 42.f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("-42"), -42.f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("+42"), 42, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("13.37"), 13.37f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("1.23456789"), 1.23456789f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("1.98765432123456"), 1.98765432123456f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("0"), 0.f, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("1.e5"), 100000, PR_TRUE) &&
+    test_tofloat_helper(NS_LITERAL_STRING(""), 0.f, PR_FALSE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("42foo"), 42.f, PR_FALSE) &&
+    test_tofloat_helper(NS_LITERAL_STRING("foo"), 0.f, PR_FALSE) &&
+    PR_TRUE;
+}
+
+static PRBool test_todouble_helper(const nsString& aStr, double aExpected, PRBool aSuccess)
+{
+  PRInt32 result;
+  return aStr.ToDouble(&result) == aExpected &&
+         aSuccess ? result == NS_OK : result != NS_OK;
+}
+
+static PRBool test_todouble()
+{
+  return \
+    test_todouble_helper(NS_LITERAL_STRING("42"), 42, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("42.0"), 42, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("-42"), -42, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("+42"), 42, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("13.37"), 13.37, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("1.23456789"), 1.23456789, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("1.98765432123456"), 1.98765432123456, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("123456789.98765432123456"), 123456789.98765432123456, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("0"), 0, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING("1.e5"), 100000, PR_TRUE) &&
+    test_todouble_helper(NS_LITERAL_STRING(""), 0, PR_FALSE) &&
+    test_todouble_helper(NS_LITERAL_STRING("42foo"), 42, PR_FALSE) &&
+    test_todouble_helper(NS_LITERAL_STRING("foo"), 0, PR_FALSE) &&
+    PR_TRUE;
+}
+
 //----
 
 typedef PRBool (*TestFunc)();
@@ -1105,6 +1243,7 @@ tests[] =
     { "test_empty_assign", test_empty_assign },
     { "test_set_length", test_set_length },
     { "test_substring", test_substring },
+    { "test_appendint", test_appendint },
     { "test_appendint64", test_appendint64 },
     { "test_appendfloat", test_appendfloat },
     { "test_findcharinset", test_findcharinset },
@@ -1116,7 +1255,10 @@ tests[] =
     { "test_empty_assignment", test_empty_assignment },
     { "test_string_tointeger", test_string_tointeger },
     { "test_parse_string", test_parse_string },
+    { "test_strip_chars", test_strip_chars },
     { "test_huge_capacity", test_huge_capacity },
+    { "test_tofloat", test_tofloat },
+    { "test_todouble", test_todouble },
     { nsnull, nsnull }
   };
 

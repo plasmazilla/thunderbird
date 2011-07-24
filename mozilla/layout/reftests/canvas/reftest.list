@@ -2,6 +2,8 @@
 
 == image-rendering-test.html image-rendering-ref.html
 
+asserts-if(cocoaWidget,0-2) == size-change-1.html size-change-1-ref.html
+
 != text-ltr-left.html text-blank.html
 != text-ltr-right.html text-blank.html
 != text-rtl-left.html text-blank.html
@@ -33,7 +35,13 @@
 == text-no-frame-2-test.html text-not-in-doc-ref.html
 == text-not-in-doc-test.html text-not-in-doc-ref.html
 
-# weird pixel-rounding on mac prevents these tests from passing
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == text-bidi-ltr-test.html text-bidi-ltr-ref.html
-fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") == text-bidi-rtl-test.html text-bidi-rtl-ref.html
+== text-bidi-ltr-test.html text-bidi-ltr-ref.html
+== text-bidi-rtl-test.html text-bidi-rtl-ref.html
 
+fails-if(Android) != text-font-lang.html text-font-lang-notref.html
+
+== strokeText-path.html strokeText-path-ref.html
+
+# gradient off-by-one, fails on windows and linux
+== linear-gradient-1a.html linear-gradient-1-ref.html
+fails-if(cocoaWidget) == linear-gradient-1b.html linear-gradient-1-ref.html

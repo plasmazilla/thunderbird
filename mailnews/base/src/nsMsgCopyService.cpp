@@ -36,6 +36,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifdef MOZ_LOGGING
+#define FORCE_PR_LOG /* Allow logging in the release build */
+#endif
 #include "nsMsgCopyService.h"
 #include "nsCOMArray.h"
 #include "nspr.h"
@@ -44,6 +47,11 @@
 #include "nsMsgBaseCID.h"
 #include "nsIMutableArray.h"
 #include "nsArrayUtils.h"
+#include "nsComponentManagerUtils.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMsgUtils.h"
+
+static PRLogModuleInfo *gCopyServiceLog;
 
 // ******************** nsCopySource ******************
 //
@@ -88,15 +96,9 @@ nsCopyRequest::~nsCopyRequest()
 {
   MOZ_COUNT_DTOR(nsCopyRequest);
 
-  PRInt32 j;
-  nsCopySource* ncs;
-
-  j = m_copySourceArray.Count();
+  PRInt32 j = m_copySourceArray.Length();
   while(j-- > 0)
-  {
-      ncs = (nsCopySource*) m_copySourceArray.ElementAt(j);
-      delete ncs;
-  }
+    delete m_copySourceArray.ElementAt(j);
 }
 
 nsresult
@@ -146,7 +148,7 @@ nsCopyRequest::AddNewCopySource(nsIMsgFolder* srcFolder)
   nsCopySource* newSrc = new nsCopySource(srcFolder);
   if (newSrc)
   {
-      m_copySourceArray.AppendElement((void*) newSrc);
+      m_copySourceArray.AppendElement(newSrc);
       if (srcFolder == m_dstFolder)
         newSrc->m_processed = PR_TRUE;
   }
@@ -159,29 +161,56 @@ nsCopyRequest::AddNewCopySource(nsIMsgFolder* srcFolder)
 
 nsMsgCopyService::nsMsgCopyService()
 {
+  gCopyServiceLog = PR_NewLogModule("MsgCopyService");
 }
 
 nsMsgCopyService::~nsMsgCopyService()
 {
+  PRInt32 i = m_copyRequests.Length();
 
-  PRInt32 i;
-  nsCopyRequest* copyRequest;
-
-  i = m_copyRequests.Count();
-
-  while(i-- > 0)
-  {
-      copyRequest = (nsCopyRequest*) m_copyRequests.ElementAt(i);
-      ClearRequest(copyRequest, NS_ERROR_FAILURE);
-  }
+  while (i-- > 0)
+    ClearRequest(m_copyRequests.ElementAt(i), NS_ERROR_FAILURE);
 }
 
+void nsMsgCopyService::LogCopyCompletion(nsISupports *aSrc, nsIMsgFolder *aDest)
+{
+  nsCString srcFolderUri, destFolderUri;
+  nsCOMPtr<nsIMsgFolder> srcFolder(do_QueryInterface(aSrc));
+  if (srcFolder)
+    srcFolder->GetURI(srcFolderUri);
+  aDest->GetURI(destFolderUri);
+  PR_LOG(gCopyServiceLog, PR_LOG_ALWAYS,
+         ("NotifyCompletion - src %s dest %s\n",
+          srcFolderUri.get(), destFolderUri.get()));
+}
+
+void nsMsgCopyService::LogCopyRequest(const char *logMsg, nsCopyRequest* aRequest)
+{
+  nsCString srcFolderUri, destFolderUri;
+  nsCOMPtr<nsIMsgFolder> srcFolder(do_QueryInterface(aRequest->m_srcSupport));
+  if (srcFolder)
+    srcFolder->GetURI(srcFolderUri);
+  aRequest->m_dstFolder->GetURI(destFolderUri);
+  PRUint32 numMsgs = 0;
+  if (aRequest->m_requestType == nsCopyMessagesType &&
+      aRequest->m_copySourceArray.Length() > 0 &&
+      aRequest->m_copySourceArray[0]->m_messageArray)
+    aRequest->m_copySourceArray[0]->m_messageArray->GetLength(&numMsgs);
+  PR_LOG(gCopyServiceLog, PR_LOG_ALWAYS,
+         ("request %lx %s - src %s dest %s numItems %d type=%d",
+         aRequest, logMsg, srcFolderUri.get(),
+         destFolderUri.get(), numMsgs, aRequest->m_requestType));
+}
 
 nsresult
 nsMsgCopyService::ClearRequest(nsCopyRequest* aRequest, nsresult rv)
 {
   if (aRequest)
   {
+    if (PR_LOG_TEST(gCopyServiceLog, PR_LOG_ALWAYS))
+      LogCopyRequest(NS_SUCCEEDED(rv) ? "Clearing OK request" 
+                                      : "Clearing failed request", aRequest);
+
     // Send notifications to nsIMsgFolderListeners
     if (NS_SUCCEEDED(rv) && aRequest->m_requestType == nsCopyFoldersType)
     {
@@ -195,10 +224,10 @@ nsMsgCopyService::ClearRequest(nsCopyRequest* aRequest, nsresult rv)
           // Iterate over the copy sources and append their message arrays to this mutable array
           // or in the case of folders, the source folder.
           PRInt32 cnt, i;
-          cnt = aRequest->m_copySourceArray.Count();
+          cnt = aRequest->m_copySourceArray.Length();
           for (i = 0; i < cnt; i++)
           {
-            nsCopySource *copySource = (nsCopySource*) aRequest->m_copySourceArray.ElementAt(i);
+            nsCopySource *copySource = aRequest->m_copySourceArray.ElementAt(i);
             notifier->NotifyFolderMoveCopyCompleted(aRequest->m_isMoveOrDraftOrTemplate, copySource->m_msgFolder, aRequest->m_dstFolder);
           }
         }
@@ -206,7 +235,8 @@ nsMsgCopyService::ClearRequest(nsCopyRequest* aRequest, nsresult rv)
     }
 
     // undo stuff
-    if (aRequest->m_allowUndo && aRequest->m_copySourceArray.Count() > 1 &&
+    if (aRequest->m_allowUndo &&
+        aRequest->m_copySourceArray.Length() > 1 &&
         aRequest->m_txnMgr)
         aRequest->m_txnMgr->EndBatch();
 
@@ -227,11 +257,10 @@ nsMsgCopyService::QueueRequest(nsCopyRequest* aRequest, PRBool *aCopyImmediately
   *aCopyImmediately = PR_TRUE;
   nsCopyRequest* copyRequest;
 
-  PRInt32 cnt, i;
-  cnt = m_copyRequests.Count();
-  for (i=0; i < cnt; i++)
+  PRUint32 cnt = m_copyRequests.Length();
+  for (PRUint32 i = 0; i < cnt; i++)
   {
-    copyRequest = (nsCopyRequest*) m_copyRequests.ElementAt(i);
+    copyRequest = m_copyRequests.ElementAt(i);
     if (aRequest->m_requestType == nsCopyFoldersType)
     {
       // For copy folder, see if both destination folder (root)
@@ -258,8 +287,12 @@ nsMsgCopyService::DoCopy(nsCopyRequest* aRequest)
   NS_ENSURE_ARG(aRequest);
   PRBool copyImmediately;
   QueueRequest(aRequest, &copyImmediately);
-  m_copyRequests.AppendElement((void*) aRequest);
-  if (copyImmediately) // if there wasn't another request for this dest folder then we can copy immediately
+  m_copyRequests.AppendElement(aRequest);
+  if (PR_LOG_TEST(gCopyServiceLog, PR_LOG_ALWAYS))
+    LogCopyRequest(copyImmediately ? "DoCopy" : "QueueRequest", aRequest);
+
+  // if no active request for this dest folder then we can copy immediately
+  if (copyImmediately)
     return DoNextCopy();
 
   return NS_OK;
@@ -271,19 +304,19 @@ nsMsgCopyService::DoNextCopy()
   nsresult rv = NS_OK;
   nsCopyRequest* copyRequest = nsnull;
   nsCopySource* copySource = nsnull;
-  PRInt32 i, j, cnt, scnt;
+  PRUint32 i, j, scnt;
 
-  cnt = m_copyRequests.Count();
+  PRUint32 cnt = m_copyRequests.Length();
   if (cnt > 0)
   {
     nsCOMArray<nsIMsgFolder> activeTargets;
 
     // ** jt -- always FIFO
-    for (i=0; i < cnt; i++)
+    for (i = 0; i < cnt; i++)
     {
-      copyRequest = (nsCopyRequest*) m_copyRequests.ElementAt(i);
+      copyRequest = m_copyRequests.ElementAt(i);
       copySource = nsnull;
-      scnt = copyRequest->m_copySourceArray.Count();
+      scnt = copyRequest->m_copySourceArray.Length();
       if (!copyRequest->m_processed)
       {
         // if the target folder of this request already has an active
@@ -293,10 +326,11 @@ nsMsgCopyService::DoNextCopy()
           copyRequest = nsnull;
           continue;
         }
-        if (scnt <= 0) goto found; // must be CopyFileMessage
-        for (j=0; j < scnt; j++)
+        if (scnt <= 0)
+            goto found; // must be CopyFileMessage
+        for (j = 0; j < scnt; j++)
         {
-          copySource = (nsCopySource*) copyRequest->m_copySourceArray.ElementAt(j);
+          copySource = copyRequest->m_copySourceArray.ElementAt(j);
           if (!copySource->m_processed)
             goto found;
         }
@@ -377,12 +411,10 @@ nsMsgCopyService::FindRequest(nsISupports* aSupport,
                               nsIMsgFolder* dstFolder)
 {
   nsCopyRequest* copyRequest = nsnull;
-  PRInt32 cnt, i;
-
-  cnt = m_copyRequests.Count();
-  for (i = 0; i < cnt; i++)
+  PRUint32 cnt = m_copyRequests.Length();
+  for (PRUint32 i = 0; i < cnt; i++)
   {
-    copyRequest = (nsCopyRequest*) m_copyRequests.ElementAt(i);
+    copyRequest = m_copyRequests.ElementAt(i);
     if (copyRequest->m_requestType == nsCopyFoldersType)
     {
         // If the src is different then check next request.
@@ -443,6 +475,8 @@ nsMsgCopyService::CopyMessages(nsIMsgFolder* srcFolder, /* UI src folder */
   NS_ENSURE_ARG_POINTER(messages);
   NS_ENSURE_ARG_POINTER(dstFolder);
 
+  PR_LOG(gCopyServiceLog, PR_LOG_DEBUG, ("CopyMessages"));
+
   if (srcFolder == dstFolder)
   {
     NS_ERROR("src and dest folders for msg copy can't be the same");
@@ -475,6 +509,9 @@ nsMsgCopyService::CopyMessages(nsIMsgFolder* srcFolder, /* UI src folder */
     goto done;
 
   messages->GetLength(&cnt);
+
+  if (PR_LOG_TEST(gCopyServiceLog, PR_LOG_ALWAYS))
+    LogCopyRequest("CopyMessages request", copyRequest);
 
   // duplicate the message array so we could sort the messages by it's
   // folder easily
@@ -519,7 +556,7 @@ nsMsgCopyService::CopyMessages(nsIMsgFolder* srcFolder, /* UI src folder */
   }
 
   // undo stuff
-  if (NS_SUCCEEDED(rv) && copyRequest->m_allowUndo && copyRequest->m_copySourceArray.Count() > 1 &&
+  if (NS_SUCCEEDED(rv) && copyRequest->m_allowUndo && copyRequest->m_copySourceArray.Length() > 1 &&
       copyRequest->m_txnMgr)
     copyRequest->m_txnMgr->BeginBatch();
 
@@ -642,8 +679,10 @@ nsMsgCopyService::NotifyCompletion(nsISupports* aSupport,
                                    nsIMsgFolder* dstFolder,
                                    nsresult result)
 {
+  if (PR_LOG_TEST(gCopyServiceLog, PR_LOG_ALWAYS))
+    LogCopyCompletion(aSupport, dstFolder);
   nsCopyRequest* copyRequest = nsnull;
-  PRInt32 numOrigRequests = m_copyRequests.Count();
+  PRUint32 numOrigRequests = m_copyRequests.Length();
   do
   {
     // loop for copy requests, because if we do a cross server folder copy,
@@ -664,11 +703,10 @@ nsMsgCopyService::NotifyCompletion(nsISupports* aSupport,
       // check if this copy request is done by making sure all the
       // sources have been processed.
       PRInt32 sourceIndex, sourceCount;
-      sourceCount = copyRequest->m_copySourceArray.Count();
+      sourceCount = copyRequest->m_copySourceArray.Length();
       for (sourceIndex = 0; sourceIndex < sourceCount;)
       {
-        if (!((nsCopySource*)
-            copyRequest->m_copySourceArray.ElementAt(sourceIndex))->m_processed)
+        if (!(copyRequest->m_copySourceArray.ElementAt(sourceIndex))->m_processed)
             break;
          sourceIndex++;
       }

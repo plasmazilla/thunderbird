@@ -51,6 +51,7 @@
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
 #include "nsITimer.h"
+#include "nsIReflowCallback.h"
 #include "nsThreadUtils.h"
 #include "nsStyleConsts.h"
 
@@ -70,13 +71,13 @@
  * calling Rollup.
  */
 
-class nsIPresShell;
 class nsMenuFrame;
 class nsMenuPopupFrame;
 class nsMenuBarFrame;
 class nsMenuParent;
 class nsIDOMKeyEvent;
 class nsIDocShellTreeItem;
+class nsIView;
 
 // when a menu command is executed, the closemenu attribute may be used
 // to define how the menu should be closed up
@@ -208,26 +209,19 @@ class nsXULPopupShowingEvent : public nsRunnable
 {
 public:
   nsXULPopupShowingEvent(nsIContent *aPopup,
-                         nsIContent *aMenu,
-                         nsPopupType aPopupType,
                          PRBool aIsContextMenu,
                          PRBool aSelectFirstItem)
     : mPopup(aPopup),
-      mMenu(aMenu),
-      mPopupType(aPopupType),
       mIsContextMenu(aIsContextMenu),
       mSelectFirstItem(aSelectFirstItem)
   {
     NS_ASSERTION(aPopup, "null popup supplied to nsXULPopupShowingEvent constructor");
-    NS_ASSERTION(aMenu, "null menu supplied to nsXULPopupShowingEvent constructor");
   }
 
   NS_IMETHOD Run();
 
 private:
   nsCOMPtr<nsIContent> mPopup;
-  nsCOMPtr<nsIContent> mMenu;
-  nsPopupType mPopupType;
   PRBool mIsContextMenu;
   PRBool mSelectFirstItem;
 };
@@ -272,7 +266,7 @@ public:
                         PRBool aAlt,
                         PRBool aMeta,
                         PRBool aUserInput,
-                        CloseMenuMode aCloseMenuMode)
+                        PRBool aFlipChecked)
     : mMenu(aMenu),
       mIsTrusted(aIsTrusted),
       mShift(aShift),
@@ -280,12 +274,15 @@ public:
       mAlt(aAlt),
       mMeta(aMeta),
       mUserInput(aUserInput),
-      mCloseMenuMode(aCloseMenuMode)
+      mFlipChecked(aFlipChecked),
+      mCloseMenuMode(CloseMenuMode_Auto)
   {
     NS_ASSERTION(aMenu, "null menu supplied to nsXULMenuCommandEvent constructor");
   }
 
   NS_IMETHOD Run();
+
+  void SetCloseMenuMode(CloseMenuMode aCloseMenuMode) { mCloseMenuMode = aCloseMenuMode; }
 
 private:
   nsCOMPtr<nsIContent> mMenu;
@@ -295,6 +292,7 @@ private:
   PRBool mAlt;
   PRBool mMeta;
   PRBool mUserInput;
+  PRBool mFlipChecked;
   CloseMenuMode mCloseMenuMode;
 };
 
@@ -310,11 +308,15 @@ public:
   friend class nsXULMenuCommandEvent;
 
   NS_DECL_ISUPPORTS
-  NS_DECL_NSIROLLUPLISTENER
   NS_DECL_NSITIMERCALLBACK
 
+  // nsIRollupListener
+  NS_IMETHOD Rollup(PRUint32 aCount, nsIContent **aContent);
+  NS_IMETHOD ShouldRollupOnMouseWheelEvent(PRBool *aShould);
+  NS_IMETHOD ShouldRollupOnMouseActivate(PRBool *aShould);
+
   virtual PRUint32 GetSubmenuWidgetChain(nsTArray<nsIWidget*> *aWidgetChain);
-  virtual void AdjustPopupsOnWindowChange(void);
+  virtual void AdjustPopupsOnWindowChange(nsPIDOMWindow* aWindow);
 
   static nsXULPopupManager* sInstance;
 
@@ -396,9 +398,8 @@ public:
    * similar to those for nsIPopupBoxObject::OpenPopup.
    *
    * aTriggerEvent should be the event that triggered the event. This is used
-   * to determine the coordinates for the popupshowing event. This may be null
-   * if the popup was not triggered by an event, or the coordinates are not
-   * important. Note that this may be reworked in bug 383930.
+   * to determine the coordinates and trigger node for the popup. This may be
+   * null if the popup was not triggered by an event.
    *
    * This fires the popupshowing event synchronously.
    */
@@ -425,6 +426,16 @@ public:
                          PRInt32 aXPos, PRInt32 aYPos,
                          PRBool aIsContextMenu,
                          nsIDOMEvent* aTriggerEvent);
+
+  /**
+   * Open a tooltip at a specific screen position specified by aXPos and aYPos,
+   * measured in CSS pixels.
+   *
+   * This fires the popupshowing event synchronously.
+   */
+  void ShowTooltipAtScreen(nsIContent* aPopup,
+                           nsIContent* aTriggerContent,
+                           PRInt32 aXPos, PRInt32 aYPos);
 
   /**
    * This method is provided only for compatibility with an older popup API.
@@ -461,6 +472,11 @@ public:
                  nsIContent* aLastPopup = nsnull);
 
   /**
+   * Hide the popup associated the view aView
+   */
+  void HidePopup(nsIView* aView);
+
+  /**
    * Hide a popup after a short delay. This is used when rolling over menu items.
    * This timer is stored in mCloseTimer. The timer may be cancelled and the popup
    * closed by calling KillMenuTimer.
@@ -477,10 +493,10 @@ public:
    * Execute a menu command from the triggering event aEvent.
    *
    * aMenu - a menuitem to execute
-   * aEvent - the mouse event which triggered the menu to be executed,
-   *          may be null
+   * aEvent - an nsXULMenuCommandEvent that contains all the info from the mouse
+   *          event which triggered the menu to be executed, may not be null
    */
-  void ExecuteMenu(nsIContent* aMenu, nsEvent* aEvent);
+  void ExecuteMenu(nsIContent* aMenu, nsXULMenuCommandEvent* aEvent);
 
   /**
    * Return true if the popup for the supplied content node is open.
@@ -506,11 +522,38 @@ public:
   nsTArray<nsIFrame *> GetVisiblePopups();
 
   /**
+   * Get the node that last triggered a popup or tooltip in the document
+   * aDocument. aDocument must be non-null and be a document contained within
+   * the same window hierarchy as the popup to retrieve.
+   */
+  already_AddRefed<nsIDOMNode> GetLastTriggerPopupNode(nsIDocument* aDocument)
+  {
+    return GetLastTriggerNode(aDocument, PR_FALSE);
+  }
+
+  already_AddRefed<nsIDOMNode> GetLastTriggerTooltipNode(nsIDocument* aDocument)
+  {
+    return GetLastTriggerNode(aDocument, PR_TRUE);
+  }
+
+  /**
    * Return false if a popup may not be opened. This will return false if the
    * popup is already open, if the popup is in a content shell that is not
    * focused, or if it is a submenu of another menu that isn't open.
    */
   PRBool MayShowPopup(nsMenuPopupFrame* aFrame);
+
+  /**
+   * Indicate that the popup associated with aView has been moved to the
+   * specified screen coordiates.
+   */
+  void PopupMoved(nsIView* aView, nsIntPoint aPoint);
+
+  /**
+   * Indicate that the popup associated with aView has been resized to the
+   * specified screen width and height.
+   */
+  void PopupResized(nsIView* aView, nsIntSize ASize);
 
   /**
    * Called when a popup frame is destroyed. In this case, just remove the
@@ -591,7 +634,7 @@ protected:
   nsMenuFrame* GetMenuFrameForContent(nsIContent* aContent);
 
   // get the nsMenuPopupFrame, if any, for the given content node
-  nsMenuPopupFrame* GetPopupFrameForContent(nsIContent* aContent);
+  nsMenuPopupFrame* GetPopupFrameForContent(nsIContent* aContent, PRBool aShouldFlush);
 
   // return the topmost menu, skipping over invisible popups
   nsMenuChainItem* GetTopVisibleMenu();
@@ -603,9 +646,9 @@ protected:
   void HidePopupsInList(const nsTArray<nsMenuPopupFrame *> &aFrames,
                         PRBool aDeselectMenu);
 
-  // set the event that was used to trigger the popup, or null to
-  // clear the event details.
-  void SetTriggerEvent(nsIDOMEvent* aEvent, nsIContent* aPopup);
+  // set the event that was used to trigger the popup, or null to clear the
+  // event details. aTriggerContent will be set to the target of the event.
+  void InitTriggerEvent(nsIDOMEvent* aEvent, nsIContent* aPopup, nsIContent** aTriggerContent);
 
   // callbacks for ShowPopup and HidePopup as events may be done asynchronously
   void ShowPopupCallback(nsIContent* aPopup,
@@ -620,22 +663,13 @@ protected:
                          PRBool aDeselectMenu);
 
   /**
-   * Fire a popupshowing event on the popup aPopup and then open the popup.
+   * Fire a popupshowing event on the popup and then open the popup.
    *
-   * The caller must keep a strong reference to aPopup.
-   *
-   * aPopup - the popup node to open
-   * aMenu - should be set to the parent menu if this is a popup associated
-   *         with a menu. Otherwise, should be null.
-   * aPresContext - the prescontext 
-   * aPopupType - the popup frame's PopupType
+   * aPopup - the popup to open
    * aIsContextMenu - true for context menus
    * aSelectFirstItem - true to select the first item in the menu
    */
   void FirePopupShowingEvent(nsIContent* aPopup,
-                             nsIContent* aMenu,
-                             nsPresContext* aPresContext,
-                             nsPopupType aPopupType,
                              PRBool aIsContextMenu,
                              PRBool aSelectFirstItem);
 
@@ -687,6 +721,8 @@ private:
 
 protected:
 
+  already_AddRefed<nsIDOMNode> GetLastTriggerNode(nsIDocument* aDocument, PRBool aIsTooltip);
+
   /**
    * Set mouse capturing for the current popup. This traps mouse clicks that
    * occur outside the popup so that it can be closed up. aOldPopup should be
@@ -722,7 +758,7 @@ protected:
   nsCOMPtr<nsIDOMNode> mRangeParent;
   PRInt32 mRangeOffset;
   // Device pixels relative to the showing popup's presshell's
-  // GetViewManager()->GetRootWidget().
+  // root prescontext's root frame.
   nsIntPoint mCachedMousePoint;
 
   // set to the currently active menu bar, if any
@@ -739,6 +775,10 @@ protected:
 
   // a popup that is waiting on the timer
   nsMenuPopupFrame* mTimerMenu;
+
+  // the popup that is currently being opened, stored only during the
+  // popupshowing event
+  nsCOMPtr<nsIContent> mOpeningPopup;
 };
 
 nsresult

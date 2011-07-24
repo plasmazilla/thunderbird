@@ -60,7 +60,6 @@ const kLastNameFirst = 1;
 const kFirstNameFirst = 2;
 const kLDAPDirectory = 0; // defined in nsDirPrefs.h
 const kPABDirectory  = 2; // defined in nsDirPrefs.h
-const kPrefOnlineCheckAllowed = "mail.addr_book.im.onlineCheckAllowed";
 
 // Note: We need to keep this listener as it does not just handle dir
 // pane deletes but also deletes of address books and lists from places like
@@ -156,8 +155,14 @@ function OnLoadAddressBook()
   // FIX ME - later we will be able to use onload from the overlay
   OnLoadCardView();
 
+  // Before and after callbacks for the customizeToolbar code
+  var abToolbox = getAbToolbox();
+  abToolbox.customizeInit = AbToolboxCustomizeInit;
+  abToolbox.customizeDone = AbToolboxCustomizeDone;
+  abToolbox.customizeChange = AbToolboxCustomizeChange;
+
   //workaround - add setTimeout to make sure dynamic overlays get loaded first
-  setTimeout('OnLoadDirTree()', 0);
+  setTimeout(OnLoadDirTree, 0);
 
   // if the pref is locked disable the menuitem New->LDAP directory
   if (gPrefs.prefIsLocked("ldap_2.disable_button_add"))
@@ -228,9 +233,6 @@ function GetCurrentPrefs()
   if (showPhoneticFields == "true")
     document.getElementById("cmd_SortBy_PhoneticName")
             .setAttribute("hidden", "false");
-
-  document.getElementById("menu_allow_online_check")
-          .setAttribute("checked", gPrefs.getBoolPref(kPrefOnlineCheckAllowed));
 }
 
 
@@ -659,13 +661,22 @@ function AbIMSelected()
   LaunchUrl(url);
 }
 
-function onAllowOnlineCheck(target)
+function getAbToolbox()
 {
-  // Update the pref
-  gPrefs.setBoolPref(kPrefOnlineCheckAllowed,
-                     document.getElementById("menu_allow_online_check")
-                             .getAttribute("checked") == "true");
+  return document.getElementById("ab-toolbox");
+}
 
-  // Now redisplay the card view pane.
-  UpdateCardView();
+function AbToolboxCustomizeInit()
+{
+  toolboxCustomizeInit("ab-menubar");
+}
+
+function AbToolboxCustomizeDone(aToolboxChanged)
+{
+  toolboxCustomizeDone("ab-menubar", getAbToolbox(), aToolboxChanged);
+}
+
+function AbToolboxCustomizeChange(event)
+{
+  toolboxCustomizeChange(getAbToolbox(), event);
 }

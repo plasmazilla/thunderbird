@@ -45,6 +45,7 @@ function imapDaemon(flags, syncFunc) {
   this._flags = flags;
 
   this.namespaces = [];
+  this.idResponse = "NIL";
   this.root = new imapMailbox("", null, {type : IMAP_NAMESPACE_PERSONAL});
   this.uidvalidity = Math.round(Date.now()/1000);
   this.inbox = new imapMailbox("INBOX", null, this.uidvalidity++);
@@ -267,6 +268,7 @@ imapMailbox.prototype = {
   get displayName() {
     var converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
                       .createInstance(Ci.nsIScriptableUnicodeConverter);
+    converter.isInternal = true;
     converter.charset = "x-imap4-modified-utf7";
     return converter.ConvertFromUnicode(this.fullName.replace(
       /([\\"])/g, '\\$1')) + converter.Finish();
@@ -575,6 +577,7 @@ function formatArg(argument, spec) {
   } else if (spec == "mailbox") {
     var converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
                       .createInstance(Ci.nsIScriptableUnicodeConverter);
+    converter.isInternal = true;
     converter.charset = "x-imap4-modified-utf7";
     argument = converter.ConvertToUnicode(argument);
   } else if (spec == "string") {
@@ -654,6 +657,7 @@ IMAP_RFC3501_handler.prototype = {
   kPassword : "password",
   kAuthSchemes : [], // Added by RFC2195 extension. Test may modify as needed.
   kCapabilities : [/*"LOGINDISABLED", "STARTTLS",*/], // Test may modify as needed.
+  kUidCommands : ["FETCH", "STORE", "SEARCH", "COPY"],
 
   resetTest : function() {
     this._state = IMAP_STATE_NOT_AUTHED;
@@ -759,6 +763,10 @@ IMAP_RFC3501_handler.prototype = {
       try {
         // Format the arguments nicely
         args = this._treatArgs(args, command);
+
+      // UID command by itself is not useful for PerformTest
+      if (command == "UID")
+        this._lastCommand += " " + args[0];
 
         // Finally, run the thing
         var response = this[command](args);
@@ -1289,8 +1297,9 @@ IMAP_RFC3501_handler.prototype = {
   },
   UID : function (args) {
     var name = args.shift();
-    if (["FETCH", "STORE", "SEARCH", "COPY"].indexOf(name) == -1)
+    if (this.kUidCommands.indexOf(name) == -1)
       return "BAD illegal command " + name;
+
     args = this._treatArgs(args, name);
     return this[name](args, true);
   },
@@ -1471,7 +1480,12 @@ IMAP_RFC3501_handler.prototype = {
       data +=  bodyPart.bodyText;
       break;
     case "HEADER": // I believe this specifies mime for an RFC822 message only
-      data += bodyPart.mime + "\r\n\r\n";
+      for each (let line in lines) {
+        // End of headers
+        if (line == '')
+          break;
+        data += line + "\r\n";
+      }
       break;
     case "MIME":
       data += bodyPart.mime + "\r\n\r\n";
@@ -1579,6 +1593,8 @@ IMAP_RFC3501_handler.prototype = {
 // original state of the handler. Semantics apply as for the base itself.     //
 ////////////////////////////////////////////////////////////////////////////////
 
+// Note that UIDPLUS (RFC4315) should be mixed in last (or at least after the
+// MOVE extension) because it changes behavior of that extension.
 var configurations = {
   Cyrus: ["RFC2342", "RFC2195"],
   UW: ["RFC2342", "RFC2195"],
@@ -1586,6 +1602,8 @@ var configurations = {
   Zimbra: ["RFC2342", "RFC2195"],
   Exchange: ["RFC2342", "RFC2195"],
   LEMONADE: ["RFC2342", "RFC2195"],
+  CUSTOM1: ["RFCMOVE", "RFC4315"],
+  GMail: ["RFC2197", "RFC4315"]
 };
 
 function mixinExtension(handler, extension) {
@@ -1645,12 +1663,71 @@ var IMAP_RFC2342_extension = {
   _enabledCommands : { 1 : ["NAMESPACE"], 2 : ["NAMESPACE"] }
 };
 
+// Proposed MOVE extension (imapPump requires the string "RFC").
+var IMAP_RFCMOVE_extension = {
+  MOVE: function (args, uid) {
+    let messages = this._parseSequenceSet(args[0], uid);
+
+    let dest = this._daemon.getMailbox(args[1]);
+    if (!dest)
+      return "NO [TRYCREATE] what mailbox?";
+
+    for each (var message in messages) {
+      let newMessage = new imapMessage(message._URI, dest.uidnext++,
+                                       message.flags);
+      newMessage.recent = false;
+      dest.addMessage(newMessage);
+    }
+    let mailbox = this._selectedMailbox;
+    let response = "";
+    for (let i = messages.length - 1; i >= 0; i--) {
+      let msgIndex = mailbox._messages.indexOf(messages[i]);
+      if (msgIndex != -1) {
+        response += "* " + (msgIndex + 1) + " EXPUNGE\0";
+        mailbox._messages.splice(msgIndex, 1);
+      }
+    }
+    if (response.length > 0)
+      delete mailbox.__highestuid;
+
+    return response + "OK MOVE completed";
+  },
+  kCapabilities: ["MOVE"],
+  kUidCommands: ["MOVE"],
+  _argFormat: { MOVE: ["number", "mailbox"] },
+  // Enabled in SELECTED state
+  _enabledCommands: { 2: ["MOVE"] }
+};
+
+// RFC 2197: ID
+var IMAP_RFC2197_extension = {
+  ID: function (args) {
+    let clientID = "(";
+    for each (let i in args)
+      clientID += "\"" + i + "\"";
+
+    clientID += ")";
+    let clientStrings = clientID.split(",");
+    clientID = "";
+    for each (let i in clientStrings)
+      clientID += "\"" + i + "\" "
+    clientID = clientID.slice(1, clientID.length - 3);
+    clientID += ")";
+    this._daemon.clientID = clientID;
+    return "* ID " + this._daemon.idResponse + "\0OK Success";
+  },
+  kCapabilities: ["ID"],
+  _argFormat: { ID: ["(string)"] },
+  _enabledCommands : { 1 : ["ID"], 2 : ["ID"] }
+};
+
 // RFC 4315: UIDPLUS
 var IMAP_RFC4315_extension = {
   preload: function (toBeThis) {
     toBeThis._preRFC4315UID = toBeThis.UID;
     toBeThis._preRFC4315APPEND = toBeThis.APPEND;
     toBeThis._preRFC4315COPY = toBeThis.COPY;
+    toBeThis._preRFC4315MOVE = toBeThis.MOVE;
   },
   UID: function (args) {
     // XXX: UID EXPUNGE is not supported.
@@ -1661,7 +1738,8 @@ var IMAP_RFC4315_extension = {
     if (response.indexOf("OK") == 0) {
       let mailbox = this._daemon.getMailbox(args[0]);
       let uid = mailbox.uidnext - 1;
-      response = "OK [APPENDUID " + uid + "]" + response.substring(2);
+      response = "OK [APPENDUID " + mailbox.uidvalidity + " " + uid + "]" +
+                   response.substring(2);
     }
     return response;
   },
@@ -1672,8 +1750,24 @@ var IMAP_RFC4315_extension = {
     let response = this._preRFC4315COPY(args);
     if (response.indexOf("OK") == 0) {
       let last = mailbox.uidnext - 1;
-      response = "OK [COPYUID " + first + ":" + last + "]" +
-                  response.substring(2);
+      response = "OK [COPYUID " + this._selectedMailbox.uidvalidity +
+                   " " + args[0] + " " + first + ":" + last + "]" +
+                   response.substring(2);
+    }
+    return response;
+  },
+  MOVE: function (args) {
+    let mailbox = this._daemon.getMailbox(args[1]);
+    if (mailbox)
+      var first = mailbox.uidnext;
+    let response = this._preRFC4315MOVE(args);
+    if (response.indexOf("OK MOVE") != -1) {
+      let last = mailbox.uidnext - 1;
+      response =
+        response.replace("OK MOVE",
+                         "OK [COPYUID " + this._selectedMailbox.uidvalidity +
+                            " " + args[0] + " " + first + ":" + last + "]",
+                         "");
     }
     return response;
   },
@@ -1813,7 +1907,7 @@ createBodyPart.prototype = {
   init : function() {
     this.BndryAttrRE.lastIndex = 0;
     for each (let x in this._pn) {
-      var bndryAttrArray = this.BndryAttrRE(this._msg);
+      var bndryAttrArray = this.BndryAttrRE.exec(this._msg);
 
       if (!bndryAttrArray)  // FIXME--must have done a BODY[0] of a non-multipart
         return;             // message. This may not be possible but let it be
@@ -1826,20 +1920,20 @@ createBodyPart.prototype = {
       var bndryTag = Array.map("--" + bndryAttrArray[1],
                                function(a) {
                                  return '\\x' + parseInt(a.charCodeAt(0),10)
-                                                          .toString(16)})
+                                                          .toString(16);})
                           .join('');// now have a pattern like '\xnn\xnn\xnn\xnn'
                                     // to allow boundaries with '+' and other
                                     // regex metacharacters
       var bndryRE = new RegExp(bndryTag + "([\\s\\S]*?)\\r\\n", "gm");
       while (x > 0) {
-        bndryRE(this._msg); //need a check for null maybe. nah.
+        bndryRE.exec(this._msg); //need a check for null maybe. nah.
         --x;
       }
     }
     this.index = bndryRE.lastIndex; // start of mime
-    var mimeArrayRE = /[\s\S]*?\r\n\r\n/g
+    var mimeArrayRE = /[\s\S]*?\r\n\r\n/g;
     mimeArrayRE.lastIndex = this.index;
-    var mimeArray = mimeArrayRE(this._msg);
+    var mimeArray = mimeArrayRE.exec(this._msg);
     this.mime = mimeArray[0];
     this.mime = this.mime.replace(/\r\n\s+/g," ");
     var textRE;
@@ -1852,7 +1946,7 @@ createBodyPart.prototype = {
       textRE = new RegExp("([\\s\\S]*?)\\r\\n" + bndryTag , "mg");
 
     textRE.lastIndex = mimeArrayRE.lastIndex;
-    this.bodyText= textRE(this._msg)[1];
+    this.bodyText = textRE.exec(this._msg)[1];
   }
 }
 
@@ -1873,18 +1967,18 @@ function bodystructure(msg) {
     if (!aStr || aStr == "")
       return;
 
-    var mime = MimeRE(aStr); // mime[1] is mime string
+    var mime = MimeRE.exec(aStr); // mime[1] is mime string
     var contentType = [];
     var contentTransferEncoding;
     if (mime[1]){
-      mime[1] = mime[1].replace(/\r\n\s*/g," ") // folding
+      mime[1] = mime[1].replace(/\r\n\s*/g," "); // folding
 
       // save mime info
       // contentType[1] is type and contentType[2] is subtype
-      contentType = /content-type:[^\S]*([^\/]*)\/([^\/;\s]*)/im(mime[1]);
+      contentType = /content-type:[^\S]*([^\/]*)\/([^\/;\s]*)/im.exec(mime[1]);
       contentType[1] = contentType[1].toUpperCase();
       contentType[2] = contentType[2].toUpperCase();
-      contentTransferEncoding = /Content-Transfer-Encoding:[^\S]*([^;\s]*)/im(mime[1]);
+      contentTransferEncoding = /Content-Transfer-Encoding:[^\S]*([^;\s]*)/im.exec(mime[1]);
       contentTransferEncoding = contentTransferEncoding ?
                                 contentTransferEncoding[1].toUpperCase() :
                                 "7BIT";
@@ -1898,23 +1992,23 @@ function bodystructure(msg) {
 
       // get boundary. Local scope lastIndex
       BndryAttrRE.lastIndex = 0;
-      var bndryAttrArray = BndryAttrRE(mime[1]);
+      var bndryAttrArray = BndryAttrRE.exec(mime[1]);
       var bndryTag = Array.map("--" + bndryAttrArray[1],
                            function(a) {
-                             return '\\x' + parseInt(a.charCodeAt(0),10).toString(16)})
+                             return '\\x' + parseInt(a.charCodeAt(0),10).toString(16);})
                           .join('');
       var bndryRE = new RegExp(bndryTag + "(..)?", "gm");
 
       // goto boundary
       bndryRE.lastIndex = MimeRE.lastIndex;
       // find boundary tag and check if terminated)
-      isTerm = bndryRE(aStr)[1] == "--";
+      isTerm = bndryRE.exec(aStr)[1] == "--";
 
       // loop to get all parts
       while(MimeRE.lastIndex > 0 && !isTerm) {
         MimeRE.lastIndex = bndryRE.lastIndex;
-        filterBodyStructure(aStr, bndryTag)
-        isTerm = bndryRE(aStr)[1] == "--";
+        filterBodyStructure(aStr, bndryTag);
+        isTerm = bndryRE.exec(aStr)[1] == "--";
       }
 
       // write mime info
@@ -1922,7 +2016,7 @@ function bodystructure(msg) {
     } else {
       var tmpRE = new RegExp("([\\s\\S]*?)\\r\\n" + aBndryTag, "gm");
       tmpRE.lastIndex = MimeRE.lastIndex;
-      var tmpArr = tmpRE(aStr);
+      var tmpArr = tmpRE.exec(aStr);
       var lines = 0;
       var len;
       if (tmpArr) {

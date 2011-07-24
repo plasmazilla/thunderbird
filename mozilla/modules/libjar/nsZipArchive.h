@@ -46,14 +46,18 @@
 #define ZIP_TABSIZE   256
 #define ZIP_BUFLEN    (4*1024)      /* Used as output buffer when deflating items to a file */
 
+#ifndef PL_ARENA_CONST_ALIGN_MASK
 #define PL_ARENA_CONST_ALIGN_MASK  (sizeof(void*)-1)
+#endif
 #include "plarena.h"
 
 #include "zlib.h"
 #include "zipstruct.h"
 #include "nsAutoPtr.h"
+#include "nsILocalFile.h"
+#include "mozilla/FileUtils.h"
 
-#if defined(XP_WIN)
+#if defined(XP_WIN) && defined(_MSC_VER)
 #define MOZ_WIN_MEM_TRY_BEGIN __try {
 #define MOZ_WIN_MEM_TRY_CATCH(cmd) }                                \
   __except(GetExceptionCode()==EXCEPTION_IN_PAGE_ERROR ?            \
@@ -96,18 +100,20 @@ class nsZipItem
 public:
   const char* Name() { return ((const char*)central) + ZIPCENTRAL_SIZE; }
 
-  PRUint32 const LocalOffset();
-  PRUint32 const Size();
-  PRUint32 const RealSize();
-  PRUint32 const CRC32();
-  PRUint16 const Date();
-  PRUint16 const Time();
-  PRUint16 const Compression();
-  bool     const IsDirectory();
-  PRUint16 const Mode();
+  PRUint32 LocalOffset();
+  PRUint32 Size();
+  PRUint32 RealSize();
+  PRUint32 CRC32();
+  PRUint16 Date();
+  PRUint16 Time();
+  PRUint16 Compression();
+  bool     IsDirectory();
+  PRUint16 Mode();
+  const PRUint8* GetExtraField(PRUint16 aTag, PRUint16 *aBlockSize);
+  PRTime   LastModTime();
 
-#if defined(XP_UNIX) || defined(XP_BEOS)
-  bool     const IsSymlink();
+#ifdef XP_UNIX
+  bool     IsSymlink();
 #endif
 
   nsZipItem*         next;
@@ -140,10 +146,20 @@ public:
    * object. If we were allowed to use exceptions this would have been 
    * part of the constructor 
    *
-   * @param   fd            File descriptor of file to open
+   * @param   aZipHandle  The nsZipHandle used to access the zip
    * @return  status code
    */
-  nsresult OpenArchive(PRFileDesc* fd);
+  nsresult OpenArchive(nsZipHandle *aZipHandle);
+
+  /** 
+   * OpenArchive 
+   * 
+   * Convenience function that generates nsZipHandle
+   *
+   * @param   aFile  The file used to access the zip
+   * @return  status code
+   */
+  nsresult OpenArchive(nsIFile *aFile);
 
   /**
    * Test the integrity of items in this archive by running
@@ -203,7 +219,7 @@ public:
    * @param   aItem       Pointer to nsZipItem
    * reutrns null when zip file is corrupt.
    */
-  PRUint8* GetData(nsZipItem* aItem);
+  const PRUint8* GetData(nsZipItem* aItem);
 
 private:
   //--- private members ---
@@ -216,6 +232,10 @@ private:
 
   // file handle
   nsRefPtr<nsZipHandle> mFd;
+
+  // logging handle
+  mozilla::AutoFDClose mLog;
+
   //--- private methods ---
   
   nsZipArchive& operator=(const nsZipArchive& rhs); // prevent assignments
@@ -224,32 +244,7 @@ private:
   nsZipItem*        CreateZipItem();
   nsresult          BuildFileList();
   nsresult          BuildSynthetics();
-
-  nsresult  CopyItemToDisk(nsZipItem* item, PRFileDesc* outFD);
-  nsresult  InflateItem(nsZipItem* item, PRFileDesc* outFD);
 };
-
-class nsZipHandle {
-friend class nsZipArchive;
-public:
-  static nsresult Init(PRFileDesc *fd, nsZipHandle **ret NS_OUTPARAM);
-
-  NS_METHOD_(nsrefcnt) AddRef(void);
-  NS_METHOD_(nsrefcnt) Release(void);
-
-protected:
-  PRFileDesc * mFd;       /* OS file-descriptor */
-  PRUint8 *    mFileData; /* pointer to mmaped file */
-  PRUint32     mLen;      /* length of file and memory mapped area */
-
-private:
-  nsZipHandle();
-  ~nsZipHandle();
-
-  PRFileMap *  mMap;      /* nspr datastructure for mmap */
-  nsrefcnt     mRefCnt;   /* ref count */
-};
-
 
 /** 
  * nsZipFind 
@@ -274,6 +269,131 @@ private:
   //-- prevent copies and assignments
   nsZipFind& operator=(const nsZipFind& rhs);
   nsZipFind(const nsZipFind& rhs);
+};
+
+/** 
+ * nsZipCursor -- a low-level class for reading the individual items in a zip.
+ */
+class nsZipCursor {
+public:
+  /**
+   * Initializes the cursor
+   *
+   * @param   aItem       Item of interest
+   * @param   aZip        Archive
+   * @param   aBuf        Buffer used for decompression.
+   *                      This determines the maximum Read() size in the compressed case.
+   * @param   aBufSize    Buffer size
+   * @param   doCRC       When set to true Read() will check crc
+   */
+  nsZipCursor(nsZipItem *aItem, nsZipArchive *aZip, PRUint8* aBuf = NULL, PRUint32 aBufSize = 0, bool doCRC = false);
+
+  ~nsZipCursor();
+
+  /**
+   * Performs reads. In the compressed case it uses aBuf(passed in constructor), for stored files
+   * it returns a zero-copy buffer.
+   *
+   * @param   aBytesRead  Outparam for number of bytes read.
+   * @return  data read or NULL if item is corrupted.
+   */
+  PRUint8* Read(PRUint32 *aBytesRead);
+
+private:
+  nsZipItem *mItem; 
+  PRUint8  *mBuf; 
+  PRUint32  mBufSize; 
+  z_stream  mZs;
+  PRUint32 mCRC;
+  bool mDoCRC;
+};
+
+/**
+ * nsZipItemPtr - a RAII convenience class for reading the individual items in a zip.
+ * It reads whole files and does zero-copy IO for stored files. A buffer is allocated
+ * for decompression.
+ * Do not use when the file may be very large.
+ */
+class nsZipItemPtr_base {
+public:
+  /**
+   * Initializes the reader
+   *
+   * @param   aZip        Archive
+   * @param   aEntryName  Archive membername
+   * @param   doCRC       When set to true Read() will check crc
+   */
+  nsZipItemPtr_base(nsZipArchive *aZip, const char *aEntryName, bool doCRC);
+
+  PRUint32 Length() const {
+    return mReadlen;
+  }
+
+protected:
+  nsRefPtr<nsZipHandle> mZipHandle;
+  nsAutoArrayPtr<PRUint8> mAutoBuf;
+  PRUint8 *mReturnBuf;
+  PRUint32 mReadlen;
+};
+
+template <class T>
+class nsZipItemPtr : public nsZipItemPtr_base {
+public:
+  nsZipItemPtr(nsZipArchive *aZip, const char *aEntryName, bool doCRC = false) : nsZipItemPtr_base(aZip, aEntryName, doCRC) { }
+  /**
+   * @return buffer containing the whole zip member or NULL on error.
+   * The returned buffer is owned by nsZipItemReader.
+   */
+  const T* Buffer() const {
+    return (const T*)mReturnBuf;
+  }
+
+  operator const T*() const {
+    return Buffer();
+  }
+
+  /**
+   * Relinquish ownership of zip member if compressed.
+   * Copy member into a new buffer if uncompressed.
+   * @return a buffer with whole zip member. It is caller's responsibility to free() it.
+   */
+  T* Forget() {
+    if (!mReturnBuf)
+      return NULL;
+    // In uncompressed mmap case, give up buffer
+    if (mAutoBuf.get() == mReturnBuf) {
+      mReturnBuf = NULL;
+      return (T*) mAutoBuf.forget();
+    }
+    T *ret = (T*) malloc(Length());
+    memcpy(ret, mReturnBuf, Length());
+    mReturnBuf = NULL;
+    return ret;
+  }
+};
+
+class nsZipHandle {
+friend class nsZipArchive;
+public:
+  static nsresult Init(nsILocalFile *file, nsZipHandle **ret NS_OUTPARAM);
+  static nsresult Init(nsZipArchive *zip, const char *entry,
+                       nsZipHandle **ret NS_OUTPARAM);
+
+  NS_METHOD_(nsrefcnt) AddRef(void);
+  NS_METHOD_(nsrefcnt) Release(void);
+
+protected:
+  const PRUint8 * mFileData; /* pointer to mmaped file */
+  PRUint32        mLen;      /* length of file and memory mapped area */
+  nsCOMPtr<nsILocalFile> mFile; /* source file if any, for logging */
+
+private:
+  nsZipHandle();
+  ~nsZipHandle();
+
+  PRFileMap *                       mMap;    /* nspr datastructure for mmap */
+  nsAutoPtr<nsZipItemPtr<PRUint8> > mBuf;
+  nsrefcnt                          mRefCnt; /* ref count */
 };
 
 nsresult gZlibInit(z_stream *zs);

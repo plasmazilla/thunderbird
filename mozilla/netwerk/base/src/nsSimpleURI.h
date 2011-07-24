@@ -41,6 +41,7 @@
 #include "nsIURL.h"
 #include "nsAgg.h"
 #include "nsISerializable.h"
+#include "nsIIPCSerializable.h"
 #include "nsString.h"
 #include "nsIClassInfo.h"
 #include "nsIMutable.h"
@@ -55,19 +56,21 @@
 
 class nsSimpleURI : public nsIURI,
                     public nsISerializable,
+                    public nsIIPCSerializable,
                     public nsIClassInfo,
                     public nsIMutable
 {
 public:
-    NS_DECL_AGGREGATED
+    NS_DECL_ISUPPORTS
     NS_DECL_NSIURI
     NS_DECL_NSISERIALIZABLE
+    NS_DECL_NSIIPCSERIALIZABLE
     NS_DECL_NSICLASSINFO
     NS_DECL_NSIMUTABLE
 
     // nsSimpleURI methods:
 
-    nsSimpleURI(nsISupports* outer);
+    nsSimpleURI();
     virtual ~nsSimpleURI();
 
 protected:

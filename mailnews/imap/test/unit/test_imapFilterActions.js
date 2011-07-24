@@ -70,19 +70,19 @@ const kDeleteOrMoveMsgCompleted = Cc["@mozilla.org/atom-service;1"]
 // application of filters due to a body search
 const gTestArray =
 [  // The initial tests do not result in new messages added.
-  function MoveToFolder() {
-    gAction.type = Ci.nsMsgFilterAction.MoveToFolder;
-    gAction.targetFolderUri = gSubfolder.URI;
-    gChecks = function checkMoveToFolder() {
-      testCounts(false, 0, 0, 0);
-      do_check_eq(gSubfolderCount + 1, folderCount(gSubfolder));
+//  function MoveToFolder() {
+//    gAction.type = Ci.nsMsgFilterAction.MoveToFolder;
+//    gAction.targetFolderUri = gSubfolder.URI;
+//    gChecks = function checkMoveToFolder() {
+//      testCounts(false, 0, 0, 0);
+//      do_check_eq(gSubfolderCount + 1, folderCount(gSubfolder));
       // no net messages were added to the inbox
-      do_check_eq(gInboxCount, folderCount(gIMAPInbox));
-    }
-    gInboxCount = folderCount(gIMAPInbox);
-    gSubfolderCount = folderCount(gSubfolder);
-    setupTest(gFilter, gAction);
-  },
+//      do_check_eq(gInboxCount, folderCount(gIMAPInbox));
+//    }
+//    gInboxCount = folderCount(gIMAPInbox);
+//    gSubfolderCount = folderCount(gSubfolder);
+//    setupTest(gFilter, gAction);
+//  },
   function MoveToFolderBody() {
     gAction.type = Ci.nsMsgFilterAction.MoveToFolder;
     gAction.targetFolderUri = gSubfolder.URI;
@@ -487,8 +487,7 @@ function doTest()
     do_timeout(10000, function()
         {
           if (gCurTestNum == test)
-            do_throw("Notifications not received in 10000 ms for operation " + testFn.name +
-              ", current status is " + gCurrStatus);
+            do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {
@@ -628,7 +627,7 @@ DBListener.prototype =
     {
       this.counts.onParentChanged++;
     },
-    
+
   onAnnouncerGoingAway:
     function onAnnouncerGoingAway(instigator)
     {
@@ -639,25 +638,25 @@ DBListener.prototype =
         catch (e) {dump(" listener not found\n");}
       this.counts.onAnnouncerGoingAway++;
     },
-    
+
   onReadChanged:
     function onReadChanged(aInstigator)
     {
       this.counts.onReadChanged++;
     },
-    
+
   onJunkScoreChanged:
     function onJunkScoreChanged(aInstigator)
     {
       this.counts.onJunkScoreChanged++;
     },
-    
+
   onHdrPropertyChanged:
     function onHdrPropertyChanged(aHdrToChange, aPreChange, aStatus, aInstigator)
     {
       this.counts.onHdrPropertyChanged++;
     },
-    
+
   onEvent:
     function onEvent(aDB, aEvent)
     {
@@ -707,7 +706,7 @@ function listMessages(folder) {
 // given a test file, return the file uri spec
 function specForFileName(aFileName)
 {
-  let file = do_get_file("../../mailnews/data/" + aFileName);
+  let file = do_get_file("../../../data/" + aFileName);
   let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
                      .getService(Ci.nsIIOService)
                      .newFileURI(file)

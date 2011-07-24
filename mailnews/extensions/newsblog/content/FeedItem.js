@@ -328,10 +328,9 @@ FeedItem.prototype =
 
     // the subject may contain HTML entities.
     // Convert these to their unencoded state. i.e. &amp; becomes '&'
-    title = title.replace(/&lt;/g, '<');
-    title = title.replace(/&gt;/g, '>');
-    title = title.replace(/&quot;/g, '"');
-    title = title.replace(/&amp;/g, '&');
+    title = Components.classes["@mozilla.org/feed-unescapehtml;1"]
+                      .getService(Components.interfaces.nsIScriptableUnescapeHTML)
+                      .unescape(title);
 
     // Compress white space in the subject to make it look better.
     title = title.replace(/[\t\r\n]+/g, " ");
@@ -435,7 +434,9 @@ FeedEnclosure.prototype =
   {
     return '\n' +
                   ENCLOSURE_BOUNDARY_PREFIX + aBoundaryID + '\n' +
-                  'Content-Type: ' + this.mContentType + '; name="' + this.mFileName + '"\n' +
+                  'Content-Type: ' + this.mContentType +
+                                 '; name="' + this.mFileName +
+                                 (this.mLength ? '"; size=' + this.mLength : '"') + '\n' +
                   'X-Mozilla-External-Attachment-URL: ' + this.mURL + '\n' +
                   'Content-Disposition: attachment; filename="' + this.mFileName + '"\n\n' +
                   'This MIME attachment is stored separately from the message.\n' +

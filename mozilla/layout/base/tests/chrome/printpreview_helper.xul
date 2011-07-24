@@ -4,7 +4,8 @@
                  type="text/css"?>
 <window onload="runTests()"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-<iframe height="200" width="600"></iframe>
+<iframe height="200" width="600" type="content"></iframe>
+<iframe height="200" width="600" type="content"></iframe>
 <script type="application/javascript">
 <![CDATA[
 var is = window.opener.wrappedJSObject.is;
@@ -17,8 +18,13 @@ var ctx1;
 var ctx2;
 var counter = 0;
 
+var file = Components.classes["@mozilla.org/file/directory_service;1"]
+             .getService(Components.interfaces.nsIProperties)
+             .get("TmpD", Components.interfaces.nsILocalFile);
+filePath = file.path;
+
 function printpreview() {
-  gWbp = window.frames[0].QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+  gWbp = window.frames[1].QueryInterface(Components.interfaces.nsIInterfaceRequestor)
              .getInterface(Components.interfaces.nsIWebBrowserPrint);
   var listener = {
     onLocationChange: function(webProgress, request, location) { },
@@ -39,13 +45,13 @@ function printpreview() {
                             .getService(Components.interfaces.nsIPrefBranch);
   prefs.setBoolPref('print.show_print_progress', false);
   //XXX I would have thought this would work, instead I'm forced to use prefs service
-  gWbp.globalPrintSettings.showPrintProgress = false; 
-  gWbp.printPreview(gWbp.globalPrintSettings, null, listener);
+  gWbp.globalPrintSettings.showPrintProgress = false;
+  gWbp.printPreview(gWbp.globalPrintSettings, window.frames[0], listener);
   prefs.clearUserPref('print.show_print_progress');
 }
 
 function exitprintpreview() {
-  window.frames[0].QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+  window.frames[1].QueryInterface(Components.interfaces.nsIInterfaceRequestor)
    .getInterface(Components.interfaces.nsIWebBrowserPrint).exitPrintPreview(); 
 }
 
@@ -98,18 +104,15 @@ function startTest1() {
 
   // Note this timeout is needed so that we can check that timers run
   // after print preview, but not during it.
-  window.frames[0].counter = counter;
+  window.frames[0].wrappedJSObject.counter = counter;
   window.frames[0].counterTimeout = "document.body.firstChild.nextSibling.innerHTML = ++counter + ' timers';" +
                                     "window.setTimeout(counterTimeout, 0);";
   window.frames[0].setTimeout(window.frames[0].counterTimeout, 0);
   window.frames[0].document.body.firstChild.innerHTML = "Print preview";
 
   printpreview();
-  ctx1.drawWindow(window.frames[0], 0, 0, 300, 300, "rgb(256,256,256)");
+  ctx1.drawWindow(window.frames[1], 0, 0, 300, 300, "rgb(256,256,256)");
   window.frames[0].document.body.firstChild.innerHTML = "Galley presentation";
-  window.frames[0].document.body.firstChild.innerHTML +=
-    "<div style='color: red;'>This is not for print preview!</div>";
-  window.frames[0].document.body.firstChild.lastChild.firstChild.data += " Really!";
 
   // Add some elements.
   addHTMLContent(window.frames[0].document.body.lastChild);
@@ -122,11 +125,9 @@ function startTest1() {
 }
 
 function finalizeTest1() {
-  ctx2.drawWindow(window.frames[0], 0, 0, 300, 300, "rgb(256,256,256)");
+  ctx2.drawWindow(window.frames[1], 0, 0, 300, 300, "rgb(256,256,256)");
   exitprintpreview();
   ok(compareCanvases(), "Canvas should be the same!");
-  is(window.frames[0].document.body.firstChild.nextSibling.textContent, "0 timers", "Timers shouldn't have run yet!");
-  is(window.frames[0].counter, 0, "Timers shouldn't have run yet!");
   counter = window.frames[0].counter;
   // This timeout is needed so that we can check that timers do run after
   // print preview.
@@ -159,7 +160,7 @@ var emptyFormElements =
 var formElements =
   ["<input type='text' value='text'>",
    "<input type='password' value='password'>",
-   "<input type='file' value='file'>",
+   "<input type='file' value='" + filePath + "'>",
    "<input type='button' value='button'>",
    "<input type='submit' value='submit button'>",
    "<input type='reset' value='reset button'>",
@@ -186,8 +187,7 @@ function runTest3() {
     return;
   }
 
-  SimpleTest.finish();
-  window.close();
+  setTimeout(runTest4, 0)
 }
 
 function compareFormElementPrint(el1, el2, equals) {
@@ -195,18 +195,44 @@ function compareFormElementPrint(el1, el2, equals) {
   window.frames[0].document.body.firstChild.value =
     window.frames[0].document.body.firstChild.getAttribute('value');
   printpreview();
-  ctx1.drawWindow(window.frames[0], 0, 0, 300, 300, "rgb(256,256,256)");
+  ctx1.drawWindow(window.frames[1], 0, 0, 300, 300, "rgb(256,256,256)");
   exitprintpreview();
   window.frames[0].document.body.innerHTML = el2;
   window.frames[0].document.body.firstChild.value =
     window.frames[0].document.body.firstChild.getAttribute('value');
   printpreview();
-  ctx2.drawWindow(window.frames[0], 0, 0, 300, 300, "rgb(256,256,256)");
+  ctx2.drawWindow(window.frames[1], 0, 0, 300, 300, "rgb(256,256,256)");
   exitprintpreview();
   is(compareCanvases(), equals,
      "Comparing print preview didn't succeed [" + el1 + " : " + el2 + "]");
   setTimeout(runTest3, 100);
 }
+
+// This is a crash test for bug 539060.
+function runTest4() {
+  window.frames[0].document.body.innerHTML =
+    "<iframe style='display: none;' src='data:text/html,<iframe>'></iframe>";
+  setTimeout(runTest4end, 500);
+}
+
+function runTest4end() {
+  printpreview();
+  exitprintpreview();
+
+  runTest5();
+}
+
+// This is a crash test for bug 595337
+function runTest5() {
+  window.frames[0].document.body.innerHTML =
+    '<iframe style="position: fixed; visibility: hidden; bottom: 10em;"></iframe>' +
+    '<input contenteditable="true" style="display: table; page-break-before: left; width: 10000px;">';
+  printpreview();
+  exitprintpreview();
+  SimpleTest.finish();
+  window.close();
+}
+
 ]]></script>
 <table style="border: 1px solid black;" xmlns="http://www.w3.org/1999/xhtml">
 <tr><th>Print preview canvas 1</th><th>Print preview canvas 2</th></tr>

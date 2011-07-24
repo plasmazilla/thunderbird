@@ -65,7 +65,7 @@
 #include "mozAutoDocUpdate.h"
 #include "nsFocusManager.h"
 
-nsXTFElementWrapper::nsXTFElementWrapper(nsINodeInfo* aNodeInfo,
+nsXTFElementWrapper::nsXTFElementWrapper(already_AddRefed<nsINodeInfo> aNodeInfo,
                                          nsIXTFElement* aXTFElement)
     : nsXTFElementWrapperBase(aNodeInfo),
       mXTFElement(aXTFElement),
@@ -124,8 +124,14 @@ nsXTFElementWrapper::QueryInterface(REFNSIID aIID, void** aInstancePtr)
   NS_PRECONDITION(aInstancePtr, "null out param");
 
   NS_IMPL_QUERY_CYCLE_COLLECTION(nsXTFElementWrapper)
-  if (aIID.Equals(NS_GET_IID(nsIClassInfo))) {
+  if (aIID.Equals(NS_GET_IID(nsIClassInfo)) ||
+      aIID.Equals(NS_GET_IID(nsXPCClassInfo))) {
     *aInstancePtr = static_cast<nsIClassInfo*>(this);
+    NS_ADDREF_THIS();
+    return NS_OK;
+  }
+  if (aIID.Equals(NS_GET_IID(nsIXPCScriptable))) {
+    *aInstancePtr = static_cast<nsIXPCScriptable*>(this);
     NS_ADDREF_THIS();
     return NS_OK;
   }
@@ -537,13 +543,13 @@ nsXTFElementWrapper::GetExistingAttrNameFromQName(const nsAString& aStr) const
   return nodeInfo;
 }
 
-PRInt32
+nsEventStates
 nsXTFElementWrapper::IntrinsicState() const
 {
-  PRInt32 retState = nsXTFElementWrapperBase::IntrinsicState();
-  if (mIntrinsicState & NS_EVENT_STATE_MOZ_READONLY) {
+  nsEventStates retState = nsXTFElementWrapperBase::IntrinsicState();
+  if (mIntrinsicState.HasState(NS_EVENT_STATE_MOZ_READONLY)) {
     retState &= ~NS_EVENT_STATE_MOZ_READWRITE;
-  } else if (mIntrinsicState & NS_EVENT_STATE_MOZ_READWRITE) {
+  } else if (mIntrinsicState.HasState(NS_EVENT_STATE_MOZ_READWRITE)) {
     retState &= ~NS_EVENT_STATE_MOZ_READONLY;
   }
 
@@ -681,8 +687,7 @@ nsXTFElementWrapper::GetInterfaces(PRUint32* aCount, nsIID*** aArray)
   PRUint32 xtfCount = 0;
   nsIID** xtfArray = nsnull;
 
-  nsCOMPtr<nsIClassInfo> baseCi =
-    NS_GetDOMClassInfoInstance(eDOMClassInfo_Element_id);
+  nsCOMPtr<nsIClassInfo> baseCi = GetBaseXPCClassInfo();
   if (baseCi) {
     baseCi->GetInterfaces(&baseCount, &baseArray);
   }
@@ -740,8 +745,7 @@ nsXTFElementWrapper::GetHelperForLanguage(PRUint32 language,
                                           nsISupports** aHelper)
 {
   *aHelper = nsnull;
-  nsCOMPtr<nsIClassInfo> ci = 
-    NS_GetDOMClassInfoInstance(eDOMClassInfo_Element_id);
+  nsCOMPtr<nsIClassInfo> ci = GetBaseXPCClassInfo();
   return
     ci ? ci->GetHelperForLanguage(language, aHelper) : NS_ERROR_NOT_AVAILABLE;
 }
@@ -897,21 +901,22 @@ nsXTFElementWrapper::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
 }
 
 NS_IMETHODIMP
-nsXTFElementWrapper::SetIntrinsicState(PRInt32 aNewState)
+nsXTFElementWrapper::SetIntrinsicState(nsEventStates::InternalType aNewState)
 {
   nsIDocument *doc = GetCurrentDoc();
-  PRInt32 bits = mIntrinsicState ^ aNewState;
-  
-  if (!doc || !bits)
+  nsEventStates newStates(aNewState);
+  nsEventStates bits = mIntrinsicState ^ newStates;
+
+  if (!doc || bits.IsEmpty())
     return NS_OK;
 
-  NS_WARN_IF_FALSE(!((aNewState & NS_EVENT_STATE_MOZ_READONLY) &&
-                   (aNewState & NS_EVENT_STATE_MOZ_READWRITE)),
+  NS_WARN_IF_FALSE(!newStates.HasAllStates(NS_EVENT_STATE_MOZ_READONLY |
+                                           NS_EVENT_STATE_MOZ_READWRITE),
                    "Both READONLY and READWRITE are being set.  Yikes!!!");
 
-  mIntrinsicState = aNewState;
+  mIntrinsicState = newStates;
   mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-  doc->ContentStatesChanged(this, nsnull, bits);
+  doc->ContentStateChanged(this, bits);
 
   return NS_OK;
 }
@@ -961,7 +966,7 @@ nsXTFElementWrapper::RegUnregAccessKey(PRBool aDoReg)
     return;
 
   // Get presentation shell 0
-  nsIPresShell *presShell = doc->GetPrimaryShell();
+  nsIPresShell *presShell = doc->GetShell();
   if (!presShell)
     return;
 
@@ -990,7 +995,7 @@ nsXTFElementWrapper::RegUnregAccessKey(PRBool aDoReg)
 
 nsresult
 NS_NewXTFElementWrapper(nsIXTFElement* aXTFElement,
-                        nsINodeInfo* aNodeInfo,
+                        already_AddRefed<nsINodeInfo> aNodeInfo,
                         nsIContent** aResult)
 {
   *aResult = nsnull;

@@ -63,4 +63,3 @@ protected:
   PRPackedBool mSucceeded;
   PRPackedBool mReversed;
 };
-

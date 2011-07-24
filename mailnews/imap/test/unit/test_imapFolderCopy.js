@@ -4,7 +4,7 @@
 
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
 
-load("../../mailnews/resources/messageGenerator.js");
+load("../../../resources/messageGenerator.js");
 
 const gIMAPService = Cc["@mozilla.org/messenger/messageservice;1?type=imap"]
                        .getService(Ci.nsIMsgMessageService);
@@ -181,8 +181,7 @@ function doTest(test)
     do_timeout(10000, function()
         {
         if (gCurTestNum == test)
-          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
-            ", current status is " + gCurrStatus);
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {
@@ -200,7 +199,7 @@ function doTest(test)
 
 // nsIMsgCopyServiceListener implementation - runs next test when copy
 // is completed.
-var CopyListener = 
+var CopyListener =
 {
   _expectedStatus : 0,
   OnStartCopy: function() {},
@@ -224,6 +223,7 @@ var CopyListener =
 
 function endTest()
 {
+  dump("in end test\n");
   // Cleanup, null out everything, close all cached connections and stop the
   // server
   gRootFolder = null;

@@ -94,7 +94,7 @@ typedef enum {
 	QCMS_INTENT_ABSOLUTE_COLORIMETRIC = 3
 } qcms_intent;
 
-//XXX: I don't really like the _DATA_ prefix
+/* XXX: I don't really like the _DATA_ prefix */
 typedef enum {
 	QCMS_DATA_RGB_8,
 	QCMS_DATA_RGBA_8,
@@ -126,6 +126,9 @@ qcms_profile* qcms_profile_from_memory(const void *mem, size_t size);
 
 qcms_profile* qcms_profile_from_file(FILE *file);
 qcms_profile* qcms_profile_from_path(const char *path);
+#ifdef _WIN32
+qcms_profile* qcms_profile_from_unicode_path(const wchar_t *path);
+#endif
 qcms_profile* qcms_profile_sRGB(void);
 void qcms_profile_release(qcms_profile *profile);
 

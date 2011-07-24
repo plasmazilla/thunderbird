@@ -72,6 +72,22 @@ enum nsPopupType {
 };
 
 /**
+ * Popup levels specify the window ordering behaviour.
+ */
+enum nsPopupLevel {
+  // the popup appears just above its parent and maintains its position
+  // relative to the parent
+  ePopupLevelParent,
+  // the popup is a floating popup used for tool palettes. A parent window
+  // must be specified, but a platform implementation need not use this.
+  // On Windows, floating is generally equivalent to parent. On Mac, floating
+  // puts the popup at toplevel, but it will hide when the application is deactivated
+  ePopupLevelFloating,
+  // the popup appears on top of other windows, including those of other applications
+  ePopupLevelTop
+};
+
+/**
  * Border styles
  */
 enum nsBorderStyle {
@@ -100,18 +116,6 @@ enum nsBorderStyle {
 };
 
 /**
- * Content types
- *
- * Exposed so screen readers know what's UI
- */
-enum nsContentType {
-  eContentTypeInherit      = -1,
-  eContentTypeUI           = 0,
-  eContentTypeContent      = 1,
-  eContentTypeContentFrame = 2
-};
-
-/**
  * Basic struct for widget initialization data.
  * @see Create member function of nsIWidget
  */
@@ -120,24 +124,28 @@ struct nsWidgetInitData {
   nsWidgetInitData() :
       mWindowType(eWindowType_child),
       mBorderStyle(eBorderStyle_default),
-      mContentType(eContentTypeInherit),
       mPopupHint(ePopupTypePanel),
+      mPopupLevel(ePopupLevelTop),
       clipChildren(PR_FALSE), 
       clipSiblings(PR_FALSE), 
       mDropShadow(PR_FALSE),
       mListenForResizes(PR_FALSE),
-      mUnicode(PR_TRUE)
+      mUnicode(PR_TRUE),
+      mRTL(PR_FALSE),
+      mNoAutoHide(PR_FALSE)
   {
   }
 
   nsWindowType  mWindowType;
   nsBorderStyle mBorderStyle;
-  nsContentType mContentType;  // Exposed so screen readers know what's UI
   nsPopupType   mPopupHint;
+  nsPopupLevel  mPopupLevel;
   // when painting exclude area occupied by child windows and sibling windows
   PRPackedBool  clipChildren, clipSiblings, mDropShadow;
   PRPackedBool  mListenForResizes;
   PRPackedBool  mUnicode;
+  PRPackedBool  mRTL;
+  PRPackedBool  mNoAutoHide; // true for noautohide panels
 };
 
 #endif // nsWidgetInitData_h__

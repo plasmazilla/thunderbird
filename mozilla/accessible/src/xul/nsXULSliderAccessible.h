@@ -43,10 +43,13 @@
 
 #include "nsIDOMElement.h"
 
+/**
+ * Used for XUL slider and scale elements.
+ */
 class nsXULSliderAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULSliderAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXULSliderAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
@@ -61,7 +64,7 @@ public:
   NS_DECL_NSIACCESSIBLEVALUE
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
   virtual PRBool GetAllowsAnonChildAccessibles();
 
@@ -79,13 +82,16 @@ private:
 };
 
 
+/**
+ * Used for slider's thumb element.
+ */
 class nsXULThumbAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULThumbAccessible(nsIDOMNode* aNode, nsIWeakReference* aShell);
+  nsXULThumbAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 };
 
 #endif

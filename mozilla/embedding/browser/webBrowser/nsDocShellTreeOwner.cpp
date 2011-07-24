@@ -1,6 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- *
- * ***** BEGIN LICENSE BLOCK *****
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -45,7 +44,6 @@
 #include "nsWebBrowser.h"
 
 // Helper Classes
-#include "nsIGenericFactory.h"
 #include "nsStyleCoord.h"
 #include "nsSize.h"
 #include "nsHTMLReflowState.h"
@@ -56,6 +54,7 @@
 #include "nsReadableUtils.h"
 #include "nsUnicharUtils.h"
 #include "nsISimpleEnumerator.h"
+#include "nsGUIEvent.h"
 
 // Interfaces needed to be included
 #include "nsPresContext.h"
@@ -68,11 +67,18 @@
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentType.h"
 #include "nsIDOMElement.h"
+#include "Link.h"
+#ifdef MOZ_SVG
+#include "nsIDOMSVGElement.h"
+#include "nsIDOMSVGTitleElement.h"
+#include "nsIDOMSVGForeignObjectElem.h"
+#endif
 #include "nsIDOMEvent.h"
 #include "nsIDOMMouseEvent.h"
 #include "nsIDOMNSUIEvent.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMNamedNodeMap.h"
+#include "nsIFormControl.h"
 #include "nsIDOMHTMLInputElement.h"
 #include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIDOMHTMLHtmlElement.h"
@@ -85,8 +91,8 @@
 #include "nsIDOMHTMLElement.h"
 #include "nsIPresShell.h"
 #include "nsPIDOMWindow.h"
+#include "nsPIWindowRoot.h"
 #include "nsIDOMWindowCollection.h"
-#include "nsIFocusController.h"
 #include "nsIWindowWatcher.h"
 #include "nsPIWindowWatcher.h"
 #include "nsIPrompt.h"
@@ -99,6 +105,10 @@
 #include "nsIViewManager.h"
 #include "nsIView.h"
 #include "nsPIDOMEventTarget.h"
+#include "nsIEventListenerManager.h"
+#include "nsIDOMEventGroup.h"
+#include "nsIDOMDragEvent.h"
+#include "nsIConstraintValidation.h"
 
 //
 // GetEventReceiver
@@ -109,6 +119,8 @@
 static nsresult
 GetPIDOMEventTarget( nsWebBrowser* inBrowser, nsPIDOMEventTarget** aTarget)
 {
+  NS_ENSURE_ARG_POINTER(inBrowser);
+  
   nsCOMPtr<nsIDOMWindow> domWindow;
   inBrowser->GetContentDOMWindow(getter_AddRefs(domWindow));
   NS_ENSURE_TRUE(domWindow, NS_ERROR_FAILURE);
@@ -161,6 +173,7 @@ NS_INTERFACE_MAP_BEGIN(nsDocShellTreeOwner)
     NS_INTERFACE_MAP_ENTRY(nsIBaseWindow)
     NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
     NS_INTERFACE_MAP_ENTRY(nsIWebProgressListener)
+    NS_INTERFACE_MAP_ENTRY(nsIDOMEventListener)
     NS_INTERFACE_MAP_ENTRY(nsICDocShellTreeOwner)
     NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
 NS_INTERFACE_MAP_END
@@ -241,37 +254,27 @@ nsDocShellTreeOwner::FindItemWithName(const PRUnichar* aName,
     return NS_OK;
   // _main is an IE target which should be case-insensitive but isn't
   // see bug 217886 for details
+  // XXXbz what if our browser isn't targetable?  We need to handle that somehow.
   if(name.LowerCaseEqualsLiteral("_content") || name.EqualsLiteral("_main")) {
     *aFoundItem = mWebBrowser->mDocShellAsItem;
     NS_IF_ADDREF(*aFoundItem);
     return NS_OK;
   }
 
-  // first, is it us?
-  {
-    nsCOMPtr<nsIDOMWindow> domWindow;
-    mWebBrowser->GetContentDOMWindow(getter_AddRefs(domWindow));
-    if (domWindow) {
-      nsAutoString ourName;
-      domWindow->GetName(ourName);
-      if (name.Equals(ourName, nsCaseInsensitiveStringComparator())) {
-        *aFoundItem = mWebBrowser->mDocShellAsItem;
-        NS_IF_ADDREF(*aFoundItem);
-        return NS_OK;
-      }
+  if (!SameCOMIdentity(aRequestor, mWebBrowser->mDocShellAsItem)) {
+    // This isn't a request coming up from our kid, so check with said kid
+    nsISupports* thisSupports = static_cast<nsIDocShellTreeOwner*>(this);
+    rv =
+      mWebBrowser->mDocShellAsItem->FindItemWithName(aName, thisSupports,
+                                                     aOriginalRequestor, aFoundItem);
+    if (NS_FAILED(rv) || *aFoundItem) {
+      return rv;
     }
   }
 
-  // next, check our children
-  rv = FindChildWithName(aName, PR_TRUE, aRequestor, aOriginalRequestor,
-                         aFoundItem);
-  if(NS_FAILED(rv) || *aFoundItem)
-    return rv;
-
   // next, if we have a parent and it isn't the requestor, ask it
-  nsCOMPtr<nsIDocShellTreeOwner> reqAsTreeOwner(do_QueryInterface(aRequestor));
-
   if(mTreeOwner) {
+    nsCOMPtr<nsIDocShellTreeOwner> reqAsTreeOwner(do_QueryInterface(aRequestor));
     if (mTreeOwner != reqAsTreeOwner)
       return mTreeOwner->FindItemWithName(aName, mWebBrowser->mDocShellAsItem,
                                           aOriginalRequestor, aFoundItem);
@@ -281,47 +284,6 @@ nsDocShellTreeOwner::FindItemWithName(const PRUnichar* aName,
   // finally, failing everything else, search all windows
   return FindItemWithNameAcrossWindows(aName, aRequestor, aOriginalRequestor,
                                        aFoundItem);
-}
-
-nsresult
-nsDocShellTreeOwner::FindChildWithName(const PRUnichar *aName, PRBool aRecurse,
-                                       nsIDocShellTreeItem* aRequestor,
-                                       nsIDocShellTreeItem* aOriginalRequestor,
-                                       nsIDocShellTreeItem **aFoundItem)
-{
-  if (!mWebBrowser)
-    return NS_OK;
-
-  nsresult rv = NS_OK;
-
-  nsCOMPtr<nsIDOMWindow> domWindow;
-  mWebBrowser->GetContentDOMWindow(getter_AddRefs(domWindow));
-  if (!domWindow)
-    return NS_OK;
-
-  nsCOMPtr<nsIDOMWindowCollection> frames;
-  domWindow->GetFrames(getter_AddRefs(frames));
-  if (!frames)
-    return NS_OK;
-
-  PRUint32 ctr, count;
-  frames->GetLength(&count);
-  for (ctr = 0; ctr < count; ctr++) {
-    nsCOMPtr<nsIDOMWindow> frame;
-    frames->Item(ctr, getter_AddRefs(frame));
-    nsCOMPtr<nsPIDOMWindow> w(do_QueryInterface(frame));
-    if (w) {
-      nsCOMPtr<nsIDocShellTreeItem> item = do_QueryInterface(w->GetDocShell());
-      if (item && item != aRequestor) {
-        rv = item->FindItemWithName(aName, mWebBrowser->mDocShellAsItem,
-                                    aOriginalRequestor, aFoundItem);
-        if (NS_FAILED(rv) || *aFoundItem)
-          break;
-      }
-    }
-  }
-
-  return rv;
 }
 
 nsresult
@@ -473,7 +435,7 @@ nsDocShellTreeOwner::SizeShellTo(nsIDocShellTreeItem* aShellItem,
    Set the preferred size on the aShellItem.
    */
 
-   nsCOMPtr<nsPresContext> presContext;
+   nsRefPtr<nsPresContext> presContext;
    mWebBrowser->mDocShell->GetPresContext(getter_AddRefs(presContext));
    NS_ENSURE_TRUE(presContext, NS_ERROR_FAILURE);
 
@@ -914,17 +876,23 @@ nsDocShellTreeOwner::AddChromeListeners()
         rv = NS_ERROR_OUT_OF_MEMORY;
     }
   }
-   
-  // install the external dragDrop handler
-  if ( !mChromeDragHandler ) {
-    mChromeDragHandler = do_CreateInstance("@mozilla.org:/content/content-area-dragdrop;1", &rv);
-    NS_ASSERTION(mChromeDragHandler, "Couldn't create the chrome drag handler");
-    if ( mChromeDragHandler ) {
-      nsCOMPtr<nsPIDOMEventTarget> piTarget;
-      GetPIDOMEventTarget(mWebBrowser, getter_AddRefs(piTarget));
-      nsCOMPtr<nsIDOMEventTarget> target(do_QueryInterface(piTarget));
-      mChromeDragHandler->HookupTo(target, static_cast<nsIWebNavigation*>(mWebBrowser));
-    }
+
+  // register dragover and drop event listeners with the listener manager
+  nsCOMPtr<nsPIDOMEventTarget> piTarget;
+  GetPIDOMEventTarget(mWebBrowser, getter_AddRefs(piTarget));
+
+  nsCOMPtr<nsIDOMEventGroup> sysGroup;
+  piTarget->GetSystemEventGroup(getter_AddRefs(sysGroup));
+  nsIEventListenerManager* elmP = piTarget->GetListenerManager(PR_TRUE);
+  if (sysGroup && elmP)
+  {
+    rv = elmP->AddEventListenerByType(this, NS_LITERAL_STRING("dragover"),
+                                      NS_EVENT_FLAG_BUBBLE,
+                                      sysGroup);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = elmP->AddEventListenerByType(this, NS_LITERAL_STRING("drop"),
+                                      NS_EVENT_FLAG_BUBBLE,
+                                      sysGroup);
   }
 
   return rv;
@@ -943,8 +911,69 @@ nsDocShellTreeOwner::RemoveChromeListeners()
     mChromeContextMenuListener->RemoveChromeListeners();
     NS_RELEASE(mChromeContextMenuListener);
   }
-  if ( mChromeDragHandler )
-    mChromeDragHandler->Detach();
+
+  nsCOMPtr<nsPIDOMEventTarget> piTarget;
+  GetPIDOMEventTarget(mWebBrowser, getter_AddRefs(piTarget));
+  if (!piTarget)
+    return NS_OK;
+
+  nsCOMPtr<nsIDOMEventGroup> sysGroup;
+  piTarget->GetSystemEventGroup(getter_AddRefs(sysGroup));
+  nsIEventListenerManager* elmP = piTarget->GetListenerManager(PR_TRUE);
+  if (sysGroup && elmP)
+  {
+    nsresult rv =
+      elmP->RemoveEventListenerByType(this, NS_LITERAL_STRING("dragover"),
+                                      NS_EVENT_FLAG_BUBBLE,
+                                      sysGroup);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = elmP->RemoveEventListenerByType(this, NS_LITERAL_STRING("drop"),
+                                         NS_EVENT_FLAG_BUBBLE,
+                                         sysGroup);
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShellTreeOwner::HandleEvent(nsIDOMEvent* aEvent)
+{
+  nsCOMPtr<nsIDOMDragEvent> dragEvent = do_QueryInterface(aEvent);
+  NS_ENSURE_TRUE(dragEvent, NS_ERROR_INVALID_ARG);
+
+  nsCOMPtr<nsIDOMNSUIEvent> nsuiEvent = do_QueryInterface(aEvent);
+  if (nsuiEvent) {
+    PRBool defaultPrevented;
+    nsuiEvent->GetPreventDefault(&defaultPrevented);
+    if (defaultPrevented)
+      return NS_OK;
+  }
+
+  nsCOMPtr<nsIDroppedLinkHandler> handler = do_GetService("@mozilla.org/content/dropped-link-handler;1");
+  if (handler) {
+    nsAutoString eventType;
+    aEvent->GetType(eventType);
+    if (eventType.EqualsLiteral("dragover")) {
+      PRBool canDropLink;
+      handler->CanDropLink(dragEvent, PR_FALSE, &canDropLink);
+      if (canDropLink)
+        aEvent->PreventDefault();
+    }
+    else if (eventType.EqualsLiteral("drop")) {
+      nsIWebNavigation* webnav = static_cast<nsIWebNavigation *>(mWebBrowser);
+
+      nsAutoString link, name;
+      if (webnav && NS_SUCCEEDED(handler->DropLink(dragEvent, link, name))) {
+        if (!link.IsEmpty()) {
+          webnav->LoadURI(link.get(), 0, nsnull, nsnull, nsnull);
+        }
+      }
+      else {
+        aEvent->StopPropagation();
+        aEvent->PreventDefault();
+      }
+    }
+  }
 
   return NS_OK;
 }
@@ -1031,6 +1060,36 @@ DefaultTooltipTextProvider::DefaultTooltipTextProvider()
     mTag_window       = do_GetAtom("window");   
 }
 
+#ifdef MOZ_SVG
+//
+// UseSVGTitle
+//
+// A helper routine that determines whether we're still interested
+// in SVG titles. We need to stop at the SVG root element; that
+// either has no parent, has a non-SVG parent or has an SVG ForeignObject 
+// parent.
+//
+static PRBool
+UseSVGTitle(nsIDOMElement *currElement)
+{
+  nsCOMPtr<nsIDOMSVGElement> svgContent(do_QueryInterface(currElement));
+  if (!svgContent)
+    return PR_FALSE;
+
+  nsCOMPtr<nsIDOMNode> parent;
+  currElement->GetParentNode(getter_AddRefs(parent));
+  if (!parent)
+    return PR_FALSE;
+
+  nsCOMPtr<nsIDOMSVGForeignObjectElement> parentFOContent(do_QueryInterface(parent));
+  if (parentFOContent)
+    return PR_FALSE;
+
+  nsCOMPtr<nsIDOMSVGElement> parentSVGContent(do_QueryInterface(parent));
+  return (parentSVGContent != nsnull);
+}
+
+#endif
 /* void getNodeText (in nsIDOMNode aNode, out wstring aText); */
 NS_IMETHODIMP
 DefaultTooltipTextProvider::GetNodeText(nsIDOMNode *aNode, PRUnichar **aText,
@@ -1041,8 +1100,32 @@ DefaultTooltipTextProvider::GetNodeText(nsIDOMNode *aNode, PRUnichar **aText,
     
   nsString outText;
 
+  PRBool lookingForSVGTitle = PR_TRUE;
   PRBool found = PR_FALSE;
   nsCOMPtr<nsIDOMNode> current ( aNode );
+
+  // If the element implement the constraint validation API and has no title,
+  // show the validation message, if any.
+  nsCOMPtr<nsIConstraintValidation> cvElement = do_QueryInterface(current);
+  if (cvElement) {
+    nsCOMPtr<nsIContent> content = do_QueryInterface(cvElement);
+    nsCOMPtr<nsIAtom> titleAtom = do_GetAtom("title");
+
+    nsCOMPtr<nsIFormControl> formControl = do_QueryInterface(content);
+    PRBool formHasNoValidate = PR_FALSE;
+    mozilla::dom::Element* form = formControl->GetFormElement();
+    if (form) {
+      nsCOMPtr<nsIAtom> noValidateAtom = do_GetAtom("novalidate");
+      formHasNoValidate = form->HasAttr(kNameSpaceID_None, noValidateAtom);
+    }
+
+    if (!content->HasAttr(kNameSpaceID_None, titleAtom) &&
+        !formHasNoValidate) {
+      cvElement->GetValidationMessage(outText);
+      found = !outText.IsEmpty();
+    }
+  }
+
   while ( !found && current ) {
     nsCOMPtr<nsIDOMElement> currElement ( do_QueryInterface(current) );
     if ( currElement ) {
@@ -1058,9 +1141,41 @@ DefaultTooltipTextProvider::GetNodeText(nsIDOMNode *aNode, PRUnichar **aText,
             found = PR_TRUE;
           else {
             // ...ok, that didn't work, try it in the XLink namespace
-            currElement->GetAttributeNS(NS_LITERAL_STRING("http://www.w3.org/1999/xlink"), NS_LITERAL_STRING("title"), outText);
-            if ( outText.Length() )
-              found = PR_TRUE;
+            NS_NAMED_LITERAL_STRING(xlinkNS, "http://www.w3.org/1999/xlink");
+            nsCOMPtr<mozilla::dom::Link> linkContent(do_QueryInterface(currElement));
+            if (linkContent) {
+              nsCOMPtr<nsIURI> uri(linkContent->GetURIExternal());
+              if (uri) {
+                currElement->GetAttributeNS(NS_LITERAL_STRING("http://www.w3.org/1999/xlink"), NS_LITERAL_STRING("title"), outText);
+                if ( outText.Length() )
+                  found = PR_TRUE;
+              }
+            }
+#ifdef MOZ_SVG
+            else {
+              if (lookingForSVGTitle) {
+                lookingForSVGTitle = UseSVGTitle(currElement);
+              }
+              if (lookingForSVGTitle) {
+                nsCOMPtr<nsIDOMNodeList>childNodes;
+                aNode->GetChildNodes(getter_AddRefs(childNodes));
+                PRUint32 childNodeCount;
+                childNodes->GetLength(&childNodeCount);
+                for (PRUint32 i = 0; i < childNodeCount; i++) {
+                  nsCOMPtr<nsIDOMNode>childNode;
+                  childNodes->Item(i, getter_AddRefs(childNode));
+                  nsCOMPtr<nsIDOMSVGTitleElement> titleElement(do_QueryInterface(childNode));
+                  if (titleElement) {
+                    nsCOMPtr<nsIDOM3Node> titleContent(do_QueryInterface(titleElement));
+                    titleContent->GetTextContent(outText);
+                    if ( outText.Length() )
+                      found = PR_TRUE;
+                    break;
+                  }
+                }
+              }
+            }
+#endif
           }
         }
       }
@@ -1454,8 +1569,7 @@ ChromeTooltipListener::sTooltipCallback(nsITimer *aTimer,
     if (shell) {
       nsIViewManager* vm = shell->GetViewManager();
       if (vm) {
-        nsIView* view;
-        vm->GetRootView(view);
+        nsIView* view = vm->GetRootView();
         if (view) {
           nsPoint offset;
           widget = view->GetNearestWidget(&offset);
@@ -1726,27 +1840,27 @@ ChromeContextMenuListener::ContextMenu(nsIDOMEvent* aMouseEvent)
       }
     }
 
-    nsCOMPtr<nsIDOMHTMLInputElement> inputElement(do_QueryInterface(node));
-    if (inputElement) {
-      flags |= nsIContextMenuListener::CONTEXT_INPUT;
-      flags2 |= nsIContextMenuListener2::CONTEXT_INPUT;
+    nsCOMPtr<nsIFormControl> formControl(do_QueryInterface(node));
+    if (formControl) {
+      if (formControl->GetType() == NS_FORM_TEXTAREA) {
+        flags |= nsIContextMenuListener::CONTEXT_TEXT;
+        flags2 |= nsIContextMenuListener2::CONTEXT_TEXT;
+        targetDOMnode = node;
+      } else {
+        nsCOMPtr<nsIDOMHTMLInputElement> inputElement(do_QueryInterface(formControl));
+        if (inputElement) {
+          flags |= nsIContextMenuListener::CONTEXT_INPUT;
+          flags2 |= nsIContextMenuListener2::CONTEXT_INPUT;
 
-      if (menuListener2) {
-        nsAutoString inputElemType;
-        inputElement->GetType(inputElemType);
-        if (inputElemType.LowerCaseEqualsLiteral("text") ||
-            inputElemType.LowerCaseEqualsLiteral("password"))
-          flags2 |= nsIContextMenuListener2::CONTEXT_TEXT;
+          if (menuListener2) {
+            if (formControl->IsSingleLineTextControl(PR_FALSE)) {
+              flags2 |= nsIContextMenuListener2::CONTEXT_TEXT;
+            }
+          }
+
+          targetDOMnode = node;
+        }
       }
-
-      targetDOMnode = node;
-    }
-
-    nsCOMPtr<nsIDOMHTMLTextAreaElement> textElement(do_QueryInterface(node));
-    if (textElement) {
-      flags |= nsIContextMenuListener::CONTEXT_TEXT;
-      flags2 |= nsIContextMenuListener2::CONTEXT_TEXT;
-      targetDOMnode = node;
     }
 
     // always consume events for plugins and Java who may throw their
@@ -1826,16 +1940,15 @@ ChromeContextMenuListener::ContextMenu(nsIDOMEvent* aMouseEvent)
   res = mWebBrowser->GetContentDOMWindow(getter_AddRefs(win));
   NS_ENSURE_SUCCESS(res, res);
   NS_ENSURE_TRUE(win, NS_ERROR_FAILURE);
-  // get the private dom window
-  nsCOMPtr<nsPIDOMWindow> privateWin(do_QueryInterface(win, &res));
-  NS_ENSURE_SUCCESS(res, res);
-  NS_ENSURE_TRUE(privateWin, NS_ERROR_FAILURE);
-  // get the focus controller
-  nsIFocusController *focusController = privateWin->GetRootFocusController();
-  NS_ENSURE_TRUE(focusController, NS_ERROR_FAILURE);
-  // set the focus controller's popup node to the event target
-  res = focusController->SetPopupNode(targetDOMnode);
-  NS_ENSURE_SUCCESS(res, res);
+
+  nsCOMPtr<nsPIDOMWindow> window(do_QueryInterface(win));
+  NS_ENSURE_TRUE(window, NS_ERROR_FAILURE);
+  nsCOMPtr<nsPIWindowRoot> root = window->GetTopWindowRoot();
+  NS_ENSURE_TRUE(root, NS_ERROR_FAILURE);
+  if (root) {
+    // set the window root's popup node to the event target
+    root->SetPopupNode(targetDOMnode);
+  }
 
   // Tell the listener all about the event
   if ( menuListener2 ) {

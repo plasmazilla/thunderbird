@@ -28,7 +28,16 @@
 	<true/>
 	<key>CGDisableCoalescedUpdates</key>
 	<true/>
-	<key>CFBundleDocumentTypes</key>
+        <key>LSMinimumSystemVersion</key>
+        <string>10.5.0</string>
+	<key>LSMinimumSystemVersionByArchitecture</key>
+	<dict>
+		<key>i386</key>
+		<string>10.5.0</string>
+		<key>x86_64</key>
+		<string>10.6.0</string>
+        </dict>
+        <key>CFBundleDocumentTypes</key>
 	<array>
 	
 	<!--Updated Metadata begins here-->
@@ -242,14 +251,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>ftp</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>gopher URL</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>gopher</string>
 			</array>
 		</dict>
 		<dict>

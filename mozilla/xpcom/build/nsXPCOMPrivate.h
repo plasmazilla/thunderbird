@@ -62,7 +62,6 @@ class nsIComponentLoader;
 
 // PUBLIC
 typedef nsresult   (* InitFunc)(nsIServiceManager* *result, nsIFile* binDirectory, nsIDirectoryServiceProvider* appFileLocationProvider);
-typedef nsresult   (* Init3Func)(nsIServiceManager* *result, nsIFile* binDirectory, nsIDirectoryServiceProvider* appFileLocationProvider, nsStaticModuleInfo const *staticComponents, PRUint32 componentCount);
 typedef nsresult   (* ShutdownFunc)(nsIServiceManager* servMgr);
 typedef nsresult   (* GetServiceManagerFunc)(nsIServiceManager* *result);
 typedef nsresult   (* GetComponentManagerFunc)(nsIComponentManager* *result);
@@ -175,7 +174,7 @@ typedef struct XPCOMFunctions{
     CStringContainerInit2Func cstringContainerInit2;
     StringGetMutableDataFunc stringGetMutableData;
     CStringGetMutableDataFunc cstringGetMutableData;
-    Init3Func init3;
+    void* init3; // obsolete
 
     // Added for Mozilla 1.9
     DebugBreakFunc debugBreakFunc;
@@ -255,15 +254,6 @@ void LogTerm();
 #define XUL_DLL           "xul.dll"
 #define LXUL_DLL          L"xul.dll"
 
-#elif defined(XP_BEOS)
-
-#define XPCOM_SEARCH_KEY  "ADDON_PATH"
-#define GRE_CONF_NAME "gre.config"
-#define GRE_CONF_PATH "gre.conf"
-#define GRE_CONF_DIR  "gre.d"
-#define XPCOM_DLL "libxpcom"MOZ_DLL_SUFFIX
-#define XUL_DLL   "libxul"MOZ_DLL_SUFFIX
-
 #else // Unix
 #include <limits.h> // for PATH_MAX
 
@@ -288,7 +278,7 @@ void LogTerm();
 #if defined(XP_WIN) || defined(XP_OS2)
   #define XPCOM_FILE_PATH_SEPARATOR       "\\"
   #define XPCOM_ENV_PATH_SEPARATOR        ";"
-#elif defined(XP_UNIX) || defined(XP_BEOS)
+#elif defined(XP_UNIX)
   #define XPCOM_FILE_PATH_SEPARATOR       "/"
   #define XPCOM_ENV_PATH_SEPARATOR        ":"
 #else
@@ -310,5 +300,18 @@ void LogTerm();
 #define MAXPATHLEN 1024
 #endif
 #endif
+
+extern PRBool gXPCOMShuttingDown;
+
+namespace mozilla {
+namespace services {
+
+/** 
+ * Clears service cache, sets gXPCOMShuttingDown
+ */
+void Shutdown();
+
+} // namespace services
+} // namespace mozilla
 
 #endif

@@ -50,6 +50,7 @@ _TEST_FILES	= \
 		iframe_bug49312.html \
 		test_bug132255.html \
 		test_bug159849.html \
+		test_bug265203.html \
 		test_bug291377.html \
 		test_bug308856.html \
 		test_bug317448.html \
@@ -66,7 +67,6 @@ _TEST_FILES	= \
 		bug346659-opener-echoer.html \
 		test_bug351601.html \
 		test_bug370098.html \
-		test_bug375457.html \
 		test_bug377539.html \
 		test_bug384122.html \
 		test_bug389366.html \
@@ -99,6 +99,7 @@ _TEST_FILES	= \
 		test_bug479143.html \
 		test_bug484775.html \
 		test_bug427744.html \
+		test_bug492925.html \
 		test_bug495219.html \
 		test_bug504862.html \
 		file_bug504862.html \
@@ -108,9 +109,34 @@ _TEST_FILES	= \
 		grandchild_bug260264.html \
 		utils_bug260264.js \
 		test_bug531176.html \
+		test_bug531542.html \
+		test_bug456151.html \
+		test_bug534149.html \
+		test_bug541530.html \
+		test_bug558973.html \
+		test_bug563487.html \
+		test_bug545314.html \
+		test_bug548828.html \
+		test_bug562433.html \
+		test_DOMWindowCreated_chromeonly.html \
+		test_bug581072.html \
 		test_bug583225.html \
+		test_bug585240.html \
+		test_bug585819.html \
+		test_bug369306.html \
+		test_bug61098.html \
+		test_bug597809.html \
 		test_bug406375.html \
 		file_bug406375.html \
+		test_bug593174.html \
+		file_bug593174_1.html \
+		file_bug593174_2.html \
+		test_bug612267.html \
+		test_bug617296.html \
+		test_bug620947.html \
+		test_bug622361.html \
+		test_bug633133.html \
+		test_bug642026.html \
 		test_window_bar.html \
 		file_window_bar.html \
 		$(NULL)

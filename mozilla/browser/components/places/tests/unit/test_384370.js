@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 384370 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -45,7 +45,6 @@ const LOAD_IN_SIDEBAR_ANNO = "bookmarkProperties/loadInSidebar";
 const DESCRIPTION_ANNO = "bookmarkProperties/description";
 const POST_DATA_ANNO = "bookmarkProperties/POSTData";
 
-Components.utils.import("resource://gre/modules/utils.js");
 do_check_eq(typeof PlacesUtils, "object");
 
 // main
@@ -73,7 +72,7 @@ function run_test() {
   //var bookmarksFileOld = do_get_file("bookmarks.large.html");
   var bookmarksFileOld = do_get_file("bookmarks.preplaces.html");
   // file pointer to a new places-exported json file
-  var jsonFile = dirSvc.get("ProfD", Ci.nsILocalFile);
+  var jsonFile = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
   jsonFile.append("bookmarks.exported.json");
 
   // create bookmarks.exported.json
@@ -99,7 +98,7 @@ function run_test() {
   // 3. import bookmarks.exported.json
   // 4. run the test-suite
   try {
-    PlacesUtils.backupBookmarksToFile(jsonFile);
+    PlacesUtils.backups.saveBookmarksToJSONFile(jsonFile);
   } catch(ex) { do_throw("couldn't export to file: " + ex); }
   LOG("exported json"); 
   try {
@@ -161,10 +160,10 @@ function testCanonicalBookmarks() {
 
   // 6-2: the toolbar contents are imported to the places-toolbar folder,
   // the separator above it is removed.
-  do_check_eq(rootNode.childCount, 4);
+  do_check_eq(rootNode.childCount, DEFAULT_BOOKMARKS_ON_MENU + 1);
 
   // get test folder
-  var testFolder = rootNode.getChild(3);
+  var testFolder = rootNode.getChild(DEFAULT_BOOKMARKS_ON_MENU);
   do_check_eq(testFolder.type, testFolder.RESULT_TYPE_FOLDER);
   do_check_eq(testFolder.title, "test");
 
@@ -307,7 +306,7 @@ function testTags() {
   for each(let {uri: u, tags: t} in tagData) {
     var i = 0;
     dump("test tags for " + u.spec + ": " + t + "\n");
-    var tt = PlacesUtils.tagging.getTagsForURI(u, {});
+    var tt = PlacesUtils.tagging.getTagsForURI(u);
     dump("true tags for " + u.spec + ": " + tt + "\n");
     do_check_true(t.every(function(el) {
       i++;

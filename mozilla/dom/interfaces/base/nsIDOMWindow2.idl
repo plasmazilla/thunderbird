@@ -38,8 +38,9 @@
 #include "nsIDOMWindow.idl"
 
 interface nsIDOMOfflineResourceList;
+interface nsIDOMBlob;
 
-[scriptable, uuid(73c5fa35-3add-4c87-a303-a850ccf4d65a)]
+[scriptable, uuid(efff0d88-3b94-4375-bdeb-676a847ecd7d)]
 interface nsIDOMWindow2 : nsIDOMWindow
 {
   /**
@@ -53,4 +54,10 @@ interface nsIDOMWindow2 : nsIDOMWindow
    * Get the application cache object for this window.
    */
   readonly attribute nsIDOMOfflineResourceList applicationCache;
+
+  /**
+   * Deprecated, but can't remove yet since we don't want to change interfaces.
+   */
+  [noscript] DOMString createBlobURL(in nsIDOMBlob blob);
+  [noscript] void revokeBlobURL(in DOMString URL);
 };

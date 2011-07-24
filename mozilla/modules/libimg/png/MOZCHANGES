@@ -1,21 +1,27 @@
 
 Changes made to pristine png source by mozilla.org developers.
 
-2010/02/28  -- Ported performance improvements to pngrutil.c and pngpread.c
-               from libpng-1.4.1 (bug #497056).
+2010/06/30  -- Synced with libpng-1.4.3 (bug #564792).
+
+2010/02/26  -- Synced with libpng-1.4.1 (bug #544747).
+
+2010/01/04  -- Synced with libpng-1.4.0 (bug #532645).
+
+2009/09/10  -- Synced with libpng-1.2.40 (bug #492200 and #504805).
+               Moved location of acTL chunk to just after IHDR
+               in output PNG file.
 
 2009/06/01  -- Eliminated incorrect test and rejection of APNG
                blend_op in opaque images (bug #441971 and #455140).
 
-2009/06/10  -- Ported memset that prevents an uninitialized memory
-               reference in pngrutil.c from libpng-1.2.37 (bug #492200).
+2009/05/17  -- Always clear prev_row for each APNG frame (bug #463465).
 
 2009/02/19  -- Synced with libpng-1.2.35 (bug #478901).
 
 2008/08/21  -- Synced with libpng-1.2.31 (bug #418900).
 
 2008/03/29  -- Initialize prev_row for each APNG frame, only when
-               the frame size increases (bug #420416)
+               the frame size increases (bug #420416).
 
 2008/01/18  -- Synced with libpng-1.2.24 (bug #408429).
 

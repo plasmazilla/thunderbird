@@ -42,10 +42,11 @@
 #include "nsHtml5Portability.h"
 
 nsIAtom*
-nsHtml5Portability::newLocalNameFromBuffer(PRUnichar* buf, PRInt32 offset, PRInt32 length)
+nsHtml5Portability::newLocalNameFromBuffer(PRUnichar* buf, PRInt32 offset, PRInt32 length, nsHtml5AtomTable* interner)
 {
   NS_ASSERTION(!offset, "The offset should always be zero here.");
-  return NS_NewAtom(nsDependentSubstring(buf, buf + length));
+  NS_ASSERTION(interner, "Didn't get an atom service.");
+  return interner->GetAtom(nsDependentSubstring(buf, buf + length));
 }
 
 nsString*
@@ -68,13 +69,20 @@ nsHtml5Portability::newStringFromLiteral(const char* literal)
   return str;
 }
 
+nsString*
+nsHtml5Portability::newStringFromString(nsString* string) {
+  nsString* newStr = new nsString();
+  newStr->Assign(*string);
+  return newStr;
+}
+
 jArray<PRUnichar,PRInt32>
 nsHtml5Portability::newCharArrayFromLocal(nsIAtom* local)
 {
   nsAutoString temp;
   local->ToString(temp);
   PRInt32 len = temp.Length();
-  jArray<PRUnichar,PRInt32> arr = jArray<PRUnichar,PRInt32>(len);
+  jArray<PRUnichar,PRInt32> arr = jArray<PRUnichar,PRInt32>::newJArray(len);
   memcpy(arr, temp.BeginReading(), len * sizeof(PRUnichar));
   return arr;
 }
@@ -83,39 +91,28 @@ jArray<PRUnichar,PRInt32>
 nsHtml5Portability::newCharArrayFromString(nsString* string)
 {
   PRInt32 len = string->Length();
-  jArray<PRUnichar,PRInt32> arr = jArray<PRUnichar,PRInt32>(len);
+  jArray<PRUnichar,PRInt32> arr = jArray<PRUnichar,PRInt32>::newJArray(len);
   memcpy(arr, string->BeginReading(), len * sizeof(PRUnichar));
   return arr;
+}
+
+nsIAtom*
+nsHtml5Portability::newLocalFromLocal(nsIAtom* local, nsHtml5AtomTable* interner)
+{
+  NS_PRECONDITION(local, "Atom was null.");
+  NS_PRECONDITION(interner, "Atom table was null");
+  if (!local->IsStaticAtom()) {
+    nsAutoString str;
+    local->ToString(str);
+    local = interner->GetAtom(str);
+  }
+  return local;
 }
 
 void
 nsHtml5Portability::releaseString(nsString* str)
 {
   delete str;
-}
-
-void
-nsHtml5Portability::retainLocal(nsIAtom* local)
-{
-  NS_IF_ADDREF(local);
-}
-
-void
-nsHtml5Portability::releaseLocal(nsIAtom* local)
-{
-  NS_IF_RELEASE(local);
-}
-
-void
-nsHtml5Portability::retainElement(nsIContent* element)
-{
-  NS_IF_ADDREF(element);
-}
-
-void
-nsHtml5Portability::releaseElement(nsIContent* element)
-{
-  NS_IF_RELEASE(element);
 }
 
 PRBool
@@ -170,16 +167,10 @@ nsHtml5Portability::literalEqualsString(const char* literal, nsString* string)
   return string->EqualsASCII(literal);
 }
 
-jArray<PRUnichar,PRInt32>
-nsHtml5Portability::isIndexPrompt()
+PRBool
+nsHtml5Portability::stringEqualsString(nsString* one, nsString* other)
 {
-  // XXX making this localizable is bug 500631
-  const char* literal = "This is a searchable index. Insert your search keywords here: ";
-  jArray<PRUnichar,PRInt32> arr = jArray<PRUnichar,PRInt32>(62);
-  for (PRInt32 i = 0; i < 62; ++i) {
-    arr[i] = literal[i];
-  }
-  return arr;
+  return one->Equals(*other);
 }
 
 void

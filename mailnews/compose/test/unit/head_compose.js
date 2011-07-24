@@ -1,14 +1,14 @@
 // Import the main scripts that mailnews tests need to set up and tear down
-load("../../mailnews/resources/mailDirService.js");
-load("../../mailnews/resources/mailTestUtils.js");
+load("../../../resources/mailDirService.js");
+load("../../../resources/mailTestUtils.js");
 
 // Import the required setup scripts.
-load("../../mailnews/resources/abSetup.js");
+load("../../../resources/abSetup.js");
 
 // Import the smtp server scripts
-load("../../mailnews/fakeserver/maild.js")
-load("../../mailnews/fakeserver/auth.js")
-load("../../mailnews/fakeserver/smtpd.js")
+load("../../../fakeserver/maild.js")
+load("../../../fakeserver/auth.js")
+load("../../../fakeserver/smtpd.js")
 
 const SMTP_PORT = 1024+120;
 
@@ -21,25 +21,13 @@ function setupServerDaemon(handler) {
 }
 
 function getBasicSmtpServer() {
-  var smtpService = Cc["@mozilla.org/messengercompose/smtp;1"]
-                      .getService(Ci.nsISmtpService);
-
-  // Create an smtp server and fill in the details.
-  var smtpServer = smtpService.createSmtpServer();
-
-  smtpServer.hostname = "localhost";
-  smtpServer.port = SMTP_PORT;
-  // Set the authentication method to "none"
-  smtpServer.authMethod = 1;
+  let server = create_outgoing_server(SMTP_PORT, "user", "password");
 
   // Override the default greeting so we get something predicitable
   // in the ELHO message
-  var prefSvc = Components.classes["@mozilla.org/preferences-service;1"]
-    .getService(Components.interfaces.nsIPrefBranch);
+  Services.prefs.setCharPref("mail.smtpserver.default.hello_argument", "test");
 
-  prefSvc.setCharPref("mail.smtpserver.default.hello_argument", "test");
-
-  return smtpServer;
+  return server;
 }
 
 function getSmtpIdentity(senderName, smtpServer) {

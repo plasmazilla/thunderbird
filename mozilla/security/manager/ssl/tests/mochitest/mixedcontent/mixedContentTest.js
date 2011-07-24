@@ -107,7 +107,7 @@ function onMessageReceived(event)
 
 function postMsg(message)
 {
-  opener.postMessage(message, "http://localhost:8888");
+  opener.postMessage(message, "http://mochi.test:8888");
 }
 
 function finish()
@@ -207,4 +207,17 @@ function isSecurityState(expectedState, message, test)
     default:
       throw "Invalid isSecurityState state";
   }
+}
+
+function waitForSecurityState(expectedState, callback)
+{
+  var roundsLeft = 200; // Wait for 20 seconds (=200*100ms)
+  var interval =
+  window.setInterval(function() {
+    isSecurityState(expectedState, "", function(isok) {if (isok) {roundsLeft = 0;}});
+    if (!roundsLeft--) {
+      window.clearInterval(interval);
+      callback();
+    }
+  }, 100);
 }

@@ -14,7 +14,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -39,12 +39,7 @@
  * Tests middle-clicking items in the Library.
  */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-
-var gPrefs = Cc["@mozilla.org/preferences-service;1"].
-             getService(Ci.nsIPrefBranch);
-const DISABLE_HISTORY_PREF = "browser.history_expire_days";
+const ENABLE_HISTORY_PREF = "places.history.enabled";
 
 var gLibrary = null;
 var gTests = [];
@@ -60,12 +55,12 @@ var gTabsListener = {
       return;
 
     if (++this._openTabsCount == gCurrentTest.URIs.length) {
-      is(gBrowser.mTabs.length, gCurrentTest.URIs.length + 1,
+      is(gBrowser.tabs.length, gCurrentTest.URIs.length + 1,
          "We have opened " + gCurrentTest.URIs.length + " new tab(s)");
     }
 
     var tab = aEvent.target;
-    is(tab.ownerDocument.defaultView.getBrowser(), gBrowser,
+    is(tab.ownerDocument.defaultView, window,
        "Tab has been opened in current browser window");
   },
 
@@ -84,38 +79,19 @@ var gTabsListener = {
     if (gCurrentTest.URIs.indexOf(spec) != -1 )
       this._loadedURIs.push(spec);
 
-    var fm = Components.classes["@mozilla.org/focus-manager;1"].
-               getService(Components.interfaces.nsIFocusManager);
-    is(fm.activeWindow, gBrowser.ownerDocument.defaultView, "window made active");
-
     if (this._loadedURIs.length == gCurrentTest.URIs.length) {
       // We have correctly opened all URIs.
 
       // Reset arrays.
       this._loadedURIs.length = 0;
       // Close all tabs.
-      while (gBrowser.mTabs.length > 1)
+      while (gBrowser.tabs.length > 1)
         gBrowser.removeCurrentTab();
       this._openTabsCount = 0;
 
       // Test finished.  This will move to the next one.
-      gCurrentTest.finish();
+      waitForFocus(gCurrentTest.finish, gBrowser.ownerDocument.defaultView);
     }
-  },
-
-  onProgressChange: function(aBrowser, aWebProgress, aRequest,
-                             aCurSelfProgress, aMaxSelfProgress,
-                             aCurTotalProgress, aMaxTotalProgress) {
-  },
-  onStateChange: function(aBrowser, aWebProgress, aRequest,
-                          aStateFlags, aStatus) {
-  },  
-  onStatusChange: function(aBrowser, aWebProgress, aRequest,
-                           aStatus, aMessage) {
-  },
-  onSecurityChange: function(aBrowser, aWebProgress, aRequest, aState) {
-  },
-  noLinkIconAvailable: function(aBrowser) {
   }
 }
 
@@ -224,7 +200,9 @@ gTests.push({
     var options = hs.getNewQueryOptions();
     options.queryType = Ci.nsINavHistoryQueryOptions.QUERY_TYPE_BOOKMARKS;
     var query = hs.getNewQuery();
-    query.searchTerms = "about";
+    // The colon included in the terms selects only about: URIs. If not included
+    // we also may get pages like about.html included in the query result.
+    query.searchTerms = "about:";
     var queryString = hs.queriesToQueryString([query], 1, options);
     this._queryId = bs.insertBookmark(bs.unfiledBookmarksFolder,
                                      PlacesUtils._uri(queryString),
@@ -254,6 +232,8 @@ gTests.push({
 
 function test() {
   waitForExplicitFinish();
+  // Increase timeout, this test can be quite slow due to waitForFocus calls.
+  requestLongerTimeout(2);
 
   // Sanity checks.
   ok(PlacesUtils, "PlacesUtils in context");
@@ -264,24 +244,22 @@ function test() {
   gBrowser.addTabsProgressListener(gTabsListener);
 
   // Temporary disable history, so we won't record pages navigation.
-  gPrefs.setIntPref(DISABLE_HISTORY_PREF, 0);
+  gPrefService.setBoolPref(ENABLE_HISTORY_PREF, false);
 
   // Window watcher for Library window.
   var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
            getService(Ci.nsIWindowWatcher);
-  var windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-      if (aTopic === "domwindowopened") {
-        ww.unregisterNotification(this);
-        gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
-        gLibrary.addEventListener("load", function onLoad(event) {
-          gLibrary.removeEventListener("load", onLoad, false);
-          // Kick off tests.
-          setTimeout(runNextTest, 0);
-        }, false);
-      }
-    }
-  };
+  function windowObserver(aSubject, aTopic, aData) {
+    if (aTopic != "domwindowopened")
+      return;
+    ww.unregisterNotification(windowObserver);
+    gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
+    gLibrary.addEventListener("load", function onLoad(event) {
+      gLibrary.removeEventListener("load", onLoad, false);
+      // Kick off tests.
+      setTimeout(runNextTest, 0);
+    }, false);
+  }
 
   // Open Library window.
   ww.registerNotification(windowObserver);
@@ -306,8 +284,10 @@ function runNextTest() {
     gCurrentTest.setup();
 
     // Middle click on first node in the content tree of the Library.
-    gLibrary.PlacesOrganizer._content.focus();
-    mouseEventOnCell(gLibrary.PlacesOrganizer._content, 0, 0, { button: 1 });
+    gLibrary.focus();
+    waitForFocus(function() {
+      mouseEventOnCell(gLibrary.PlacesOrganizer._content, 0, 0, { button: 1 });
+    }, gLibrary);
   }
   else {
     // No more tests.
@@ -320,7 +300,9 @@ function runNextTest() {
     gBrowser.removeTabsProgressListener(gTabsListener);
 
     // Restore history.
-    gPrefs.setIntPref(DISABLE_HISTORY_PREF, 180);
+    try {
+      gPrefService.clearUserPref(ENABLE_HISTORY_PREF);
+    } catch(ex) {}
 
     finish();
   }

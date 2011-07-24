@@ -41,14 +41,14 @@ const gTestArray =
   },
   function getLocalMessage1() {
     dump("getLocalMessage\n");
-    var file = do_get_file("../../mailnews/data/bugmail1");
+    var file = do_get_file("../../../data/bugmail1");
     gCopyService.CopyFileMessage(file, gLocalInboxFolder, null, false, 0,
                                 "", CopyListener, null);
   },
   function getLocalMessage2() {
     gMessages.appendElement(gLocalInboxFolder.GetMessageHeader(gLastKey), false);
     dump("getLocalMessage\n");
-    var file = do_get_file("../../mailnews/data/draft1");
+    var file = do_get_file("../../../data/draft1");
     gCopyService.CopyFileMessage(file, gLocalInboxFolder, null, false, 0,
                                 "", CopyListener, null);
   },
@@ -169,8 +169,7 @@ function doTest(test)
     // Set a limit of ten seconds; if the notifications haven't arrived by then there's a problem.
     do_timeout(10000, function(){
         if (gCurTestNum == test)
-          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
-            ", current status is " + gCurrStatus);
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {
@@ -188,7 +187,7 @@ function doTest(test)
 
 // nsIMsgCopyServiceListener implementation - runs next test when copy
 // is completed.
-var CopyListener = 
+var CopyListener =
 {
   OnStartCopy: function() {},
   OnProgress: function(aProgress, aProgressMax) {},
